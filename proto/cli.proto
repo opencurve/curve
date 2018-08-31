@@ -1,0 +1,94 @@
+syntax="proto2";
+package curve.chunkserver;
+
+option cc_generic_services = true;
+
+// 这里都用 logicPoolId, copysetId,进入 rpc service 之后，会转换成 string
+// 类型的 groupId，在传给 raft
+// |        groupId          |
+// | logicPoolId | copysetId |
+message AddPeerRequest {
+    required uint32 logicPoolId = 1;    // logicPoolId 实际上 uint16，但是 proto 没有 uint16
+    required uint32 copysetId = 2;
+    required string leader_id = 3;
+    required string peer_id = 4;
+}
+
+message AddPeerResponse {
+    repeated string old_peers = 1;
+    repeated string new_peers = 2;
+}
+
+message RemovePeerRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    required string leader_id = 3;
+    required string peer_id = 4;
+}
+
+message RemovePeerResponse {
+    repeated string old_peers = 1;
+    repeated string new_peers = 2;
+}
+
+message ChangePeersRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    required string leader_id = 3;
+    repeated string new_peers = 4;
+}
+
+message ChangePeersResponse {
+    repeated string old_peers = 1;
+    repeated string new_peers = 2;
+}
+
+message SnapshotRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    optional string peer_id = 3;
+};
+
+message ResetPeerRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    required string peer_id = 3;
+    repeated string old_peers = 4;
+    repeated string new_peers = 5;
+}
+
+message TransferLeaderRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    required string leader_id = 3;
+    optional string peer_id = 4;
+}
+
+message TransferLeaderResponse {}
+
+message ResetPeerResponse {
+}
+
+message SnapshotResponse {
+}
+
+message GetLeaderRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    optional string peer_id = 3;
+}
+
+message GetLeaderResponse {
+    required string leader_id = 1;
+}
+
+// service
+service CliService {
+    rpc add_peer(AddPeerRequest) returns (AddPeerResponse);
+    rpc remove_peer(RemovePeerRequest) returns (RemovePeerResponse);
+    rpc change_peers(ChangePeersRequest) returns (ChangePeersResponse);
+    rpc reset_peer(ResetPeerRequest) returns (ResetPeerResponse);
+    rpc snapshot(SnapshotRequest) returns (SnapshotResponse);
+    rpc get_leader(GetLeaderRequest) returns (GetLeaderResponse);
+    rpc transfer_leader(TransferLeaderRequest) returns (TransferLeaderResponse);
+};
