@@ -1,10 +1,4 @@
 workspace(name = "curve")
-#
-#git_repository(
-#    name = "com_github_brpc_braft",
-#    remote = "https://github.com/brpc/braft.git",
-#    tag = "master",
-#)
 
 local_repository(
     name = "com_github_brpc_braft",
@@ -16,17 +10,43 @@ bind(
     actual = "@com_github_brpc_braft//:braft",
 )
 
+# gtest deps
 http_archive(
     name = "com_google_googletest",
     strip_prefix = "googletest-0fe96607d85cf3a25ac40da369db62bbee2939a5",
     url = "https://github.com/google/googletest/archive/0fe96607d85cf3a25ac40da369db62bbee2939a5.tar.gz",
 )
 
-#bind(
-#    name = "gtest",
-#    actual = "@com_google_googletest//:gtest",
-#)
+bind(
+    name = "gtest",
+    actual = "@com_google_googletest//:gtest",
+)
 
+# glog deps
+new_git_repository(
+    name = "com_github_glog_glog",
+    build_file = "bazel/glog.BUILD",
+    remote = "https://github.com/google/glog.git",
+    tag = "v0.3.5",
+)
+
+bind(
+    name = "glog",
+    actual = "@com_github_glog_glog//:glog",
+)
+
+git_repository(
+    name = "com_github_gflags_gflags",
+    remote = "https://github.com/gflags/gflags.git",
+    tag = "v2.2.1",
+)
+
+bind(
+    name = "gflags",
+    actual = "@com_github_gflags_gflags//:gflags",
+)
+
+# protobuf
 http_archive(
     name = "com_google_protobuf",
     strip_prefix = "protobuf-ab8edf1dbe2237b4717869eaab11a2998541ad8d",
@@ -38,29 +58,7 @@ bind(
     actual = "@com_google_protobuf//:protobuf",
 )
 
-http_archive(
-    name = "com_github_gflags_gflags",
-    strip_prefix = "gflags-46f73f88b18aee341538c0dfc22b1710a6abedef",
-    url = "https://github.com/gflags/gflags/archive/46f73f88b18aee341538c0dfc22b1710a6abedef.tar.gz",
-)
-
-bind(
-    name = "gflags",
-    actual = "@com_github_gflags_gflags//:gflags",
-)
-
-new_http_archive(
-    name = "com_github_google_glog",
-    build_file = "bazel/glog.BUILD",
-    strip_prefix = "glog-a6a166db069520dbbd653c97c2e5b12e08a8bb26",
-    url = "https://github.com/google/glog/archive/a6a166db069520dbbd653c97c2e5b12e08a8bb26.tar.gz",
-)
-
-bind(
-    name = "glog",
-    actual = "@com_github_google_glog//:glog",
-)
-
+# leveldb
 new_http_archive(
     name = "com_github_google_leveldb",
     build_file = "bazel/leveldb.BUILD",
@@ -73,11 +71,7 @@ bind(
     actual = "@com_github_google_leveldb//:leveldb",
 )
 
-#git_repository(
-#    name = "com_github_brpc_brpc",
-#    remote = "https://github.com/brpc/brpc.git",
-#    tag = "v0.9.0",
-#)
+# brpc
 local_repository(
     name = "com_github_brpc_brpc",
     path = "thirdparties/brpc",
@@ -102,3 +96,4 @@ bind(
     name = "bvar",
     actual = "@com_github_brpc_brpc//:bvar",
 )
+
