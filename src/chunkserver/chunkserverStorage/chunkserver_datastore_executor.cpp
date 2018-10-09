@@ -34,6 +34,7 @@ bool CSDataStoreExecutor::ReadChunk(char * buf, off_t offset, size_t* length) {
         readlength = lfs_->Read(fd_, reinterpret_cast<void*>(buf), offset, *length);
     } else {
         bool exist = lfs_->FileExists(filePath_.c_str());
+        // fd_ = lfs_->Open(filePath_.c_str(), O_RDWR | O_CREAT | O_DIRECT | O_DSYNC, 0644);
         fd_ = lfs_->Open(filePath_.c_str(), O_RDWR | O_CREAT, 0644);
         if (!exist) {
             fchmod(fd_.fd_, S_IRWXU);
@@ -55,6 +56,7 @@ bool CSDataStoreExecutor::WriteChunk(const char * buf, off_t offset, size_t leng
             ret = lfs_->Write(fd_, reinterpret_cast<const void*>(buf), offset, length);
         } else {
             bool exist = lfs_->FileExists(filePath_.c_str());
+            // fd_ = lfs_->Open(filePath_.c_str(), O_RDWR | O_CREAT | O_DIRECT | O_DSYNC, 0644);
             fd_ = lfs_->Open(filePath_.c_str(), O_RDWR | O_CREAT, 0644);
             if (!exist) {
                 // FIXME(guangxun): encapsulate chmod()
@@ -63,7 +65,7 @@ bool CSDataStoreExecutor::WriteChunk(const char * buf, off_t offset, size_t leng
             }
             if (fd_.Valid()) {
                 ret = lfs_->Write(fd_, reinterpret_cast<const void*>(buf), offset, length);
-                // lfs_->Fsync(fd_);
+                lfs_->Fsync(fd_);
             }
         }
     } while (0);

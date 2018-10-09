@@ -12,7 +12,6 @@
 #include <vector>
 #include <climits>
 
-#include "src/chunkserver/type.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_datastore.h"
 #include "proto/chunk.pb.h"
 

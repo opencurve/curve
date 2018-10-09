@@ -1,0 +1,25 @@
+syntax="proto2";
+package curve.chunkserver;
+option cc_generic_services = true;
+
+// Config service
+message ConfigRequest {
+    required string key = 1;
+    optional string value = 2;
+};
+
+enum CONFIG_OP_STATUS {
+    CONFIG_OP_STATUS_SUCCESS = 0;
+    CONFIG_OP_STATUS_FAILURE_UNKNOWN = 1;
+};
+
+message ConfigResponse {
+    required CONFIG_OP_STATUS status = 1;
+    optional string value = 2;
+};
+
+service ConfigService {
+    rpc Get(ConfigRequest) returns(ConfigResponse);
+    rpc Set(ConfigRequest) returns(ConfigResponse);
+    rpc Dump(ConfigRequest) returns(ConfigResponse);
+};

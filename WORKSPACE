@@ -1,5 +1,4 @@
 workspace(name = "curve")
-
 #
 #git_repository(
 #    name = "com_github_brpc_braft",
@@ -9,7 +8,7 @@ workspace(name = "curve")
 
 local_repository(
     name = "com_github_brpc_braft",
-    path = "/root/braft-master",
+    path = "thirdparties/braft",
 )
 
 bind(
@@ -74,10 +73,14 @@ bind(
     actual = "@com_github_google_leveldb//:leveldb",
 )
 
-git_repository(
+#git_repository(
+#    name = "com_github_brpc_brpc",
+#    remote = "https://github.com/brpc/brpc.git",
+#    tag = "v0.9.0",
+#)
+local_repository(
     name = "com_github_brpc_brpc",
-    remote = "https://github.com/brpc/brpc.git",
-    tag = "v0.9.0",
+    path = "thirdparties/brpc",
 )
 
 bind(
