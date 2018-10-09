@@ -12,7 +12,6 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/chunk_service.h"
-#include "src/chunkserver/type.h"
 #include "src/sfs/sfsMock.h"
 
 using curve::chunkserver::CopysetNodeOptions;

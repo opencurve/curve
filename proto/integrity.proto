@@ -1,0 +1,44 @@
+syntax="proto2";
+package curve.chunkserver;
+option cc_generic_services = true;
+
+// Integrity service
+enum INTEGRITY_JOB_STATE {
+    INTEGRITY_OP_STATE_WAITING = 0;
+    INTEGRITY_OP_STATE_RUNNING = 1;
+    INTEGRITY_OP_STATE_CANCELED = 2;
+    INTEGRITY_OP_STATE_FINISHED = 3;
+    INTEGRITY_OP_STATE_PAUSED = 4;
+    INTEGRITY_OP_STATE_FAILED = 5;
+};
+
+message IntegrityJob {
+    required int32 id = 1;
+    required int32 copyset = 2;
+    required INTEGRITY_JOB_STATE state = 3;
+    required int32 progress = 4;
+    required int32 sched_time = 5;
+    required int32 start_time = 6;
+};
+
+message IntegrityRequest {
+    required IntegrityJob job = 1;
+};
+
+enum INTEGRITY_OP_STATUS {
+    INTEGRITY_OP_STATUS_SUCCESS = 0;
+    INTEGRITY_OP_STATUS_FAILURE_UNKNOWN= 1;
+};
+
+message IntegrityResponse {
+    required INTEGRITY_OP_STATUS status = 1;
+    repeated IntegrityJob job = 2;
+};
+
+service IntegrityService {
+    rpc ScheduleJob(IntegrityRequest) returns(IntegrityResponse);
+    rpc CancelJob(IntegrityRequest) returns(IntegrityResponse);
+    rpc PauseJob(IntegrityRequest) returns(IntegrityResponse);
+    rpc ResumeJob(IntegrityRequest) returns(IntegrityResponse);
+    rpc ListJobs(IntegrityRequest) returns(IntegrityResponse);
+};

@@ -223,6 +223,7 @@ cc_library(
     ]),
     deps = [
         "//external:gflags",
+        "//external:braft",
     ],
 )
 
@@ -262,6 +263,7 @@ cc_test(
     ]),
     deps = [
         "//external:gflags",
+        "//external:braft",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],
@@ -274,7 +276,7 @@ cc_test(
 #    hdrs = ["src/libcurve/interface/libcurve_fake.h"],
 #    deps = ["//proto:nameserver2_cc_proto"],
 #)
-
+#
 COPTS = [
     "-DGFLAGS=gflags",
     "-DOS_LINUX",
@@ -333,12 +335,14 @@ proto_library(
 )
 
 cc_library(
-    name = "chunkserver",
-    srcs = glob([
-        "src/chunkserver/*.cpp",
-    ]),
+    name = "chunkserver-lib",
+    srcs = glob(
+        ["src/chunkserver/*.cpp"],
+        exclude = ["src/chunkserver/chunkserver_main.cpp"],
+    ),
     hdrs = glob([
         "src/chunkserver/*.h",
+        "src/sfs/sfsMock.h",
     ]),
     copts = COPTS,
     includes = [
@@ -359,6 +363,36 @@ cc_library(
         "//:common",
         "//external:braft",
         "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:leveldb",
+        "//external:protobuf",
+    ],
+)
+
+cc_binary(
+    name = "chunkserver",
+    srcs = glob([
+        "src/chunkserver/chunkserver_main.cpp",
+    ]),
+    copts = COPTS,
+    linkopts = [
+        "-lrt",
+        "-lssl",
+        "-lcrypto",
+        "-ldl",
+        "-lz",
+        "-lpthread",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:chunkserver-cc-protos",
+        "//:chunkserver-sfsadaptor",
+        "//:chunkserver-lib",
+        "//:common",
+        "//external:braft",
+        "//external:brpc",
         "//external:butil",
         "//external:gflags",
         "//external:leveldb",
@@ -372,7 +406,7 @@ cc_binary(
         "test/chunkserver/server.cpp",
     ],
     deps = [
-        "//:chunkserver",
+        "//:chunkserver-lib",
         "//:chunkserver-cc-protos",
         "//:common",
         "//external:braft",
@@ -391,7 +425,111 @@ cc_binary(
         "test/chunkserver/client.cpp",
     ],
     deps = [
-        "//:chunkserver",
+        "//:chunkserver-lib",
+        "//:chunkserver-cc-protos",
+        "//:common",
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:bvar",
+        "//external:gflags",
+        "//external:protobuf",
+    ],
+)
+
+cc_binary(
+    name = "multi-copyset-io-test",
+    srcs = [
+        "test/chunkserver/multiple_copysets_io_test.cpp",
+    ],
+    deps = [
+        "//:chunkserver-lib",
+        "//:chunkserver-cc-protos",
+        "//:common",
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:bvar",
+        "//external:gflags",
+        "//external:protobuf",
+    ],
+)
+
+cc_library(
+    name = "curvewrapper",
+    srcs = glob([
+        "src/client/libcurve_wrapper.cpp",
+    ]),
+    hdrs = glob([
+        "src/client/libcurve_wrapper.h",
+    ]),
+    copts = [
+        "-DGFLAGS=gflags",
+        "-DOS_LINUX",
+        "-DSNAPPY",
+        "-DHAVE_ZLIB",
+        "-DHAVE_SSE42",
+        "-DNDEBUG",
+        "-fno-omit-frame-pointer",
+        "-momit-leaf-frame-pointer",
+        "-msse4.2",
+        "-pthread",
+        "-Wsign-compare",
+        "-Wno-unused-parameter",
+        "-Wno-unused-variable",
+        "-Wno-missing-field-initializers",
+    ],
+    includes = [
+        "src/client/libcurve.h",
+    ],
+    linkopts = [
+        "-lrt",
+        "-lssl",
+        "-lcrypto",
+        "-ldl",
+        "-lz",
+        "-lpthread",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:chunkserver-lib",
+        "//:chunkserver-cc-protos",
+        "//:common",
+        "//:curve",
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:bvar",
+        "//external:gflags",
+        "//external:protobuf",
+    ],
+)
+
+cc_library(
+    name = "curve",
+    srcs = glob([
+        "src/client/libcurve.cpp",
+    ]),
+    hdrs = glob([
+        "src/client/libcurve.h",
+    ]),
+    copts = COPTS,
+    includes = [
+    ],
+    linkopts = [
+        "-lrt",
+        "-lssl",
+        "-lcrypto",
+        "-ldl",
+        "-lz",
+        "-lpthread",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//:chunkserver-lib",
         "//:chunkserver-cc-protos",
         "//:common",
         "//external:braft",
@@ -406,7 +544,7 @@ cc_binary(
 
 CHUNKSERVER_DEPS = [
     "//:chunkserver-sfsadaptor",
-    "//:chunkserver",
+    "//:chunkserver-lib",
     "//:chunkserver-cc-protos",
     "//:common",
     "//external:braft",
@@ -454,7 +592,7 @@ cc_binary(
         "src/tools/curve_cli.cpp",
     ],
     deps = [
-        "//:chunkserver",
+        "//:chunkserver-lib",
         "//:chunkserver-cc-protos",
         "//:common",
         "//external:braft",

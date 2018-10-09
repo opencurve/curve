@@ -17,7 +17,6 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
-#include "src/chunkserver/type.h"
 #include "src/sfs/sfsMock.h"
 
 namespace curve {

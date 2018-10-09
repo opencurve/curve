@@ -1,0 +1,39 @@
+#
+# Global settings
+#
+global.logfile=./chunkserver.log
+global.ip=127.0.0.1
+global.port=8201
+global.chunk_size=4194304
+
+#
+# Testing purpose settings
+#
+test.create_testcopyset=true
+test.testcopyset_poolid=666
+test.testcopyset_copysetid=888888
+test.testcopyset_conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0
+
+#
+# Copyset settings
+#
+copyset.check_term=true
+copyset.disable_cli=false
+copyset.log_applied_task=false
+copyset.election_timeout_ms=5000
+copyset.snapshot_interval=30
+copyset.catchup_margin=50
+copyset.chunk_data_uri=local://data/1/cs/data
+copyset.raft_log_uri=local://data/1/cs/log
+copyset.raft_meta_uri=local://data/1/cs/meta
+copyset.raft_snapshot_uri=local://data/1/cs/snapshot
+
+#
+# Storage engine settings
+#
+storeng.sync_write=false
+
+#
+# QoS settings
+#
+

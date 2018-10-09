@@ -13,7 +13,6 @@
 #include "src/chunkserver/copyset_node.h"
 #include "proto/chunk.pb.h"
 #include "src/chunkserver/cli.h"
-#include "src/chunkserver/type.h"
 
 DEFINE_bool(use_bthread, false, "Use bthread to send requests");
 DEFINE_int32(request_size, 10, "Size of each requst");

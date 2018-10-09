@@ -1,0 +1,6 @@
+[submodule "thirdparties/braft"]
+	path = thirdparties/braft
+	url = ssh://grp.nos@gerrit.storage.netease.com:29418/curve/curve-braft
+[submodule "thirdparties/brpc"]
+	path = thirdparties/brpc
+	url = ssh://grp.nos@gerrit.storage.netease.com:29418/curve/curve-brpc
