@@ -7,7 +7,7 @@ cc_test(
             "@com_google_googletest//:gtest_main",
             "@com_google_googletest//:gtest",
             "//external:brpc",
-            "//src/common:common-lib",
+            "//src/common:curve_common",
             "//src/mds/topology:topology"
     ],
 )

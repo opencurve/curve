@@ -14,6 +14,6 @@ cc_binary(
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-lib",
-        "//src/common:common-lib",
+        "//src/common:curve_common",
     ],
 )

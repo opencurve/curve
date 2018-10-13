@@ -27,4 +27,10 @@
 #  define CURVE_UNLIKELY(expr) (expr)
 #endif
 
+#ifdef UNIT_TEST
+#define CURVE_MOCK virtual
+#else
+#define CURVE_MOCK
+#endif
+
 #endif

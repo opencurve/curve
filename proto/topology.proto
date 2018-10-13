@@ -1,0 +1,352 @@
+/*
+ * Project: curve
+ * Created Date: Fri Aug 17 2018
+ * Author: xuchaojie
+ * Copyright (c) 2018 netease
+ */
+
+syntax="proto2";
+package curve.mds.topology;
+
+
+// HTTP web can use https://github.com/dcodeIO/protobuf.js to use proto buffer
+
+option cc_generic_services = true;
+
+enum ChunkServerStatus {
+    READWRITE = 0;
+    PENDDING = 1;
+    RETIRED = 2;
+}
+
+enum DiskState {
+    DISKNORMAL = 0;
+    DISKERROR = 1;
+}
+
+enum OnlineState {
+    ONLINE = 0;
+    OFFLINE = 1;
+}
+
+message ChunkServerInfo {
+    required uint32 chunkServerID = 1;
+    required string diskType = 2;
+    required string hostIp = 3;
+    required uint32 port = 4;
+
+    required  ChunkServerStatus status = 5;
+    required  DiskState         diskStatus = 6;
+    required  OnlineState       onlineState = 7;
+
+    required string mountPoint = 8;
+    required int64 diskCapacity = 9;
+    required int64 diskUsed = 10;
+}
+
+//chunkserver message
+message ChunkServerRegistRequest {
+    required string diskType = 1;    //"nvme_ssd"
+    required string diskPath = 2;
+    required string hostIp = 3;
+    required uint32 port = 4;
+};
+
+message ChunkServerRegistResponse {
+    required sint32 statusCode = 1;
+    optional uint32 chunkServerID = 2;
+    optional string token = 3;
+};
+
+message ListChunkServerRequest {
+    //user either ip or serverID to list Chunkserver under server
+    optional string ip = 1;
+    optional uint32 serverID = 2;
+}
+
+message ListChunkServerResponse {
+    required sint32 statusCode = 1;
+    repeated ChunkServerInfo chunkServerInfos = 2;
+}
+
+message GetChunkServerInfoRequest {
+    //use either chunkServerID  or  hostIp&port to query chunkserver
+    optional uint32 chunkServerID = 1;
+    optional string hostIp = 2;
+    optional uint32 port = 3;
+}
+
+message GetChunkServerInfoResponse {
+    required sint32 statusCode = 1;
+    optional ChunkServerInfo chunkServerInfo = 2;
+}
+
+message DeleteChunkServerRequest {
+    required uint32 chunkServerID = 1;
+}
+
+message DeleteChunkServerResponse {
+    required sint32 statusCode = 1;
+}
+
+message SetChunkServerStatusRequest {
+    required uint32 chunkServerID = 1;
+    required ChunkServerStatus chunkServerStatus = 2;
+}
+
+message SetChunkServerStatusResponse {
+    required sint32 statusCode = 1;
+}
+
+
+//server message
+
+message ServerInfo {
+    required uint32 serverID = 1;
+    required string hostName = 2;
+    required string internalIp = 3;
+    required string externalIp = 4;
+    required uint32 zoneID = 5;
+    required uint32 physicalPoolID = 6;
+    required string desc = 7;
+}
+
+message ServerRegistRequest {
+    required string hostName = 1;
+    required string internalIp = 2; // for internal uses(between mds & chunkserver)
+    required string externalIp = 3; // for client use (read & write & snapshot and so on)
+
+    //user either zoneID&physicalPoolID  or zoneName&physicalPoolName
+    optional uint32 zoneID = 7;
+    optional string zoneName = 4;
+    optional uint32 physicalPoolID = 8;
+    optional string physicalPoolName = 5; //physicalPoolName is unique
+    required string desc = 6;
+}
+
+message ServerRegistResponse {
+    required sint32 statusCode = 1;
+    optional uint32 serverID = 2;
+}
+
+message GetServerRequest {
+    //use either  serverID  or  hostName  or hostIp(internalIP or externalIp) to getServer
+    optional uint32 serverID = 1;
+    optional string hostName = 2;
+    optional string hostIp = 3;
+}
+
+message GetServerResponse {
+    required sint32 statusCode = 1;
+    optional ServerInfo serverInfo = 2;
+}
+
+message DeleteServerRequest {
+    //must use the serverID to delete the server
+    required uint32 serverID = 1;
+}
+
+message DeleteServerResponse {
+    required sint32 statusCode = 1;
+}
+
+//zone message
+message ListZoneServerRequest {
+    //user either zoneID  or zoneName&physicalPoolName to
+    //List Servers under the zone
+    optional uint32 zoneID = 1;
+    optional string zoneName = 2;
+    optional string physicalPoolName = 3;
+}
+
+message ListZoneServerResponse {
+    required sint32 statusCode = 1;
+    repeated ServerInfo serverInfo = 2;
+}
+
+message ZoneInfo {
+    required uint32 zoneID  = 1;
+    required string zoneName = 2;
+    required uint32 physicalPoolID = 3;
+    optional string desc = 4;
+}
+
+message ZoneRequest {
+    //use either zoneID or zoneName&physicalPoolName to locate zone
+    optional uint32 zoneID = 1;
+    optional string zoneName  = 2;
+    optional string physicalPoolName = 3;
+    optional string desc = 4;
+}
+
+message ZoneResponse {
+    required sint32 statusCode = 1;
+    optional ZoneInfo zoneInfo = 2;
+}
+
+
+//physicalpool message
+message ListPoolZoneRequest {
+    //use either  physicalPoolID or physicalPoolName
+    optional uint32 physicalPoolID = 1;
+    optional string physicalPoolName = 2;
+}
+
+message ListPoolZoneResponse {
+    required sint32 statusCode = 1;
+    repeated ZoneInfo zones = 2;
+}
+
+message PhysicalPoolInfo {
+    required uint32 physicalPoolID = 1;
+    required string physicalPoolName = 2;
+    optional string desc = 3;
+}
+
+message PhysicalPoolRequest {
+    //use either  physicalPoolID or physicalPoolName
+    optional uint32 physicalPoolID = 1;
+    optional string physicalPoolName = 2;
+    optional string desc = 3;
+}
+
+message PhysicalPoolResponse {
+    required sint32 statusCode = 1;
+    optional PhysicalPoolInfo physicalPoolInfo = 2;
+}
+
+message ListPhysicalPoolRequest {
+}
+
+message ListPhysicalPoolResponse {
+    required sint32 statusCode = 1;
+    repeated PhysicalPoolInfo physicalPoolInfos = 2;
+}
+
+//logicalpool message
+enum LogicalPoolType {
+    PAGEFILE = 0;
+    APPENDFILE = 1;
+    APPENDECFILE = 2;
+};
+
+enum AllocateStatus {
+    ALLOW = 0;
+    DENY = 1;
+}
+
+message LogicalPoolInfo {
+    required uint32 logicalPoolID = 1;
+    required string logicalPoolName = 2;
+    required uint32 physicalPoolID = 3;
+    required LogicalPoolType type = 4;
+    required uint64 createTime = 5;
+    required bytes redundanceAndPlaceMentPolicy = 6;  //json body
+    required bytes userPolicy = 7;                    //json body
+    required AllocateStatus allocateStatus = 8;
+}
+
+message CreateLogicalPoolRequest {
+    required string logicalPoolName = 1;
+    required uint32 physicalPoolID = 2;
+    required LogicalPoolType type = 3;
+    optional bytes redundanceAndPlaceMentPolicy = 4;  //json body
+    optional bytes userPolicy = 5;                    //json body
+}
+
+message CreateLogicalPoolResponse {
+    required sint32 statusCode = 1;
+    optional LogicalPoolInfo logicalPoolInfo = 2;
+}
+
+message  DeleteLogicalPoolRequest {
+    //use either logicalPoolID  or  physicalPoolName & logicalPoolName
+    optional uint32 logicalPoolID = 1;
+    optional string logicalPoolName = 2;
+    optional string physicalPoolName = 3;
+}
+
+message DeleteLogicalPoolResponse {
+    required sint32 statusCode = 1;
+}
+
+message GetLogicalPoolRequest {
+    //use either  logicalPoolID or logicalPoolName
+    optional uint32 logicalPoolID = 1;
+    optional string logicalPoolName = 2;
+    optional string physicalPoolName = 3;
+}
+
+message GetLogicalPoolResponse {
+    required sint32 statusCode = 1;
+    optional LogicalPoolInfo logicalPoolInfo = 2;
+}
+
+
+message ListLogicalPoolRequest {
+    //use either physicalPoolID or  physicalPoolName
+    optional uint32 physicalPoolID = 1;
+    optional string physicalPoolName = 2;
+}
+
+message ListLogicalPoolResponse {
+    required sint32 statusCode = 1;
+    repeated LogicalPoolInfo logicalPoolInfos = 2;
+}
+
+
+//for client interface
+
+message GetChunkServerListInCopySetsRequest {
+    required uint32 logicalPoolId = 1;
+    repeated uint32 copysetId = 2;
+}
+
+message ChunkServerLocation {
+    required uint32 chunkServerID = 1;
+    required string hostIp = 2;
+    required uint32 port = 3;
+}
+
+message CopySetServerInfo {
+    required uint32 copysetId = 1;
+    repeated ChunkServerLocation csLocs = 2;
+}
+
+message GetChunkServerListInCopySetsResponse {
+    required sint32 statusCode = 1;
+    repeated CopySetServerInfo csInfo = 2;
+}
+
+//TODO(hzsunjianliang): update userPolicy and so on
+service TopologyService {
+    rpc RegistChunkServer(ChunkServerRegistRequest) returns (ChunkServerRegistResponse);
+    rpc ListChunkServer(ListChunkServerRequest) returns (ListChunkServerResponse);
+    rpc GetChunkServer(GetChunkServerInfoRequest) returns (GetChunkServerInfoResponse);
+    rpc DeleteChunkServer(DeleteChunkServerRequest) returns (DeleteChunkServerResponse);
+    rpc SetChunkServer(SetChunkServerStatusRequest) returns (SetChunkServerStatusResponse);
+
+    rpc RegistServer(ServerRegistRequest)            returns (ServerRegistResponse);
+    rpc GetServer(GetServerRequest)           returns (GetServerResponse);
+    rpc DeleteServer(DeleteServerRequest)     returns (DeleteServerResponse);
+    rpc ListZoneServer(ListZoneServerRequest) returns (ListZoneServerResponse);
+
+    rpc CreateZone(ZoneRequest)               returns (ZoneResponse);
+    rpc DeleteZone(ZoneRequest)               returns (ZoneResponse);
+    rpc GetZone(ZoneRequest)                  returns (ZoneResponse);
+    rpc ListPoolZone(ListPoolZoneRequest)     returns (ListPoolZoneResponse);
+
+
+    rpc CreatePhysicalPool(PhysicalPoolRequest)     returns (PhysicalPoolResponse);
+    rpc DeletePhysicalPool(PhysicalPoolRequest)     returns (PhysicalPoolResponse);
+    rpc GetPhysicalPool(PhysicalPoolRequest)        returns (PhysicalPoolResponse);
+    rpc ListPhysicalPool(ListPhysicalPoolRequest)   returns (ListPhysicalPoolResponse);
+
+    rpc CreateLogicalPool(CreateLogicalPoolRequest)       returns (CreateLogicalPoolResponse);
+    rpc DeleteLogicalPool(DeleteLogicalPoolRequest)    returns (DeleteLogicalPoolResponse);
+    rpc GetLogicalPool(GetLogicalPoolRequest)           returns (GetLogicalPoolResponse);
+    rpc ListLogicalPool(ListLogicalPoolRequest)         returns (ListLogicalPoolResponse);
+
+    rpc GetChunkServerListInCopySets(GetChunkServerListInCopySetsRequest) returns (GetChunkServerListInCopySetsResponse);
+}
+

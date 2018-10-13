@@ -18,7 +18,7 @@ COPTS = [
 ]
 
 cc_library(
-    name = "common-lib",
+    name = "curve_common",
     srcs = glob([
         "*.h",
         "*.cpp",

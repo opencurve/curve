@@ -16,7 +16,7 @@ cc_binary(
         "//external:leveldb",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-lib",
-        "//src/common:common-lib",
+        "//src/common:curve_common",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -36,7 +36,7 @@ cc_binary(
         "//external:leveldb",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-lib",
-        "//src/common:common-lib",
+        "//src/common:curve_common",
     ],
 )
 
@@ -56,7 +56,7 @@ cc_binary(
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-lib",
-        "//src/common:common-lib",
+        "//src/common:curve_common",
     ],
 )
 
@@ -76,6 +76,6 @@ cc_binary(
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-lib",
-        "//src/common:common-lib",
+        "//src/common:curve_common",
     ],
 )

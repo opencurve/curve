@@ -74,8 +74,6 @@ bind(
     actual = "@com_github_google_leveldb//:leveldb",
 )
 
-
-# brpc
 local_repository(
     name = "com_github_brpc_brpc",
     path = "thirdparties/brpc",
