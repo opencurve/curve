@@ -9,7 +9,7 @@ cc_library(
             "//external:leveldb",
             "//external:brpc",
             "//proto:nameserver2_cc_proto",
-            "//src/common:common-lib",
+            "//src/common:curve_common",
             "//src/mds/topology:topology"
 
     ]

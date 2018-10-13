@@ -46,7 +46,7 @@ cc_library(
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver/chunkserverStorage:chunkserver-sfsadaptor-lib",
-        "//src/common:common-lib",
+        "//src/common:curve_common",
     ],
 )
 
@@ -77,6 +77,6 @@ cc_binary(
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-lib",
         "//src/chunkserver/chunkserverStorage:chunkserver-sfsadaptor-lib",
-        "//src/common:common-lib",
+        "//src/common:curve_common",
     ],
 )

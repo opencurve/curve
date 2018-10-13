@@ -4,7 +4,7 @@ cc_test(
         "*.cpp",
     ]),
     deps = [
-        "//src/common:common-lib",
+        "//src/common:curve_common",
         "@com_google_googletest//:gtest_main",
     ],
 )

@@ -1,0 +1,97 @@
+# https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
+
+COPTS = [
+    "-DGFLAGS=gflags",
+    "-DOS_LINUX",
+    "-DSNAPPY",
+    "-DHAVE_SSE42",
+    "-DNDEBUG",
+    "-fno-omit-frame-pointer",
+    "-momit-leaf-frame-pointer",
+    "-msse4.2",
+    "-pthread",
+    "-Wsign-compare",
+    "-Wno-unused-parameter",
+    "-Wno-unused-variable",
+    "-Woverloaded-virtual",
+    "-Wnon-virtual-dtor",
+    "-Wno-missing-field-initializers",
+    "-std=c++14",
+]
+
+cc_library(
+    name = "curve_client",
+    srcs = glob(["*.cpp"]),
+    hdrs = glob(["*h", "*.hpp"]),
+    defines = ["UNIT_TEST"],
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:brpc",
+        "//external:braft",
+        "//external:protobuf",
+        "//src/common:curve_common",
+        "//include/client:include_client",
+        "//include:include-common",
+        "//proto:nameserver2_cc_proto",
+        "//proto:chunkserver-cc-protos",
+        # "//src/chunkserver:chunkserver-lib"
+    ],
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
+    name = "cbd",
+    srcs = glob([
+        "src/client/libcbd_ext4.cpp",
+        "src/client/libcbd_libcurve.cpp",
+    ]),
+    hdrs = glob([
+        "src/client/libcbd.h",
+    ]),
+    copts = [
+        "-DGFLAGS=gflags",
+        "-DOS_LINUX",
+        "-DSNAPPY",
+        "-DHAVE_ZLIB",
+        "-DHAVE_SSE42",
+        "-DNDEBUG",
+        "-fno-omit-frame-pointer",
+        "-momit-leaf-frame-pointer",
+        "-msse4.2",
+        "-pthread",
+        "-Wsign-compare",
+        "-Wno-unused-parameter",
+        "-Wno-unused-variable",
+        "-Wno-missing-field-initializers",
+    ],
+    includes = [
+        "include/client/libcurve.h",
+    ],
+    linkopts = [
+        "-lrt",
+        "-lssl",
+        "-lcrypto",
+        "-ldl",
+        "-lz",
+        "-lpthread",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//src/chunkserver:chunkserver-lib",
+        "//proto:chunkserver-cc-protos",
+        "//src/common:curve_common",
+        "//src/client:curve_client",
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:bvar",
+        "//external:gflags",
+        "//external:protobuf",
+    ],
+)
