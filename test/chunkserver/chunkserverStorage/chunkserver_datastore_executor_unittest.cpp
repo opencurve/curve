@@ -24,7 +24,7 @@ using curve::chunkserver::CSDataStoreExecutor;
 class CSDataStoreExecutor_test : public testing::Test{
  public:
         void SetUp() {
-            std::string uri = "local:///home/";
+            std::string uri = "local://./";
             curve::chunkserver::ChunkserverStorage::Init();
             csSfsAdaptorPtr_ = curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
         }
@@ -37,7 +37,7 @@ class CSDataStoreExecutor_test : public testing::Test{
 };
 
 TEST_F(CSDataStoreExecutor_test, ReadWriteChunk) {
-    std::string filepath("/home/test.txt");
+    std::string filepath("./test.txt");
     CSDataStoreExecutorptr = std::shared_ptr<CSDataStoreExecutor>(new CSDataStoreExecutor(csSfsAdaptorPtr_, filepath));
     ASSERT_TRUE(CSDataStoreExecutorptr != nullptr);
 
@@ -56,7 +56,7 @@ TEST_F(CSDataStoreExecutor_test, ReadWriteChunk) {
 }
 
 TEST_F(CSDataStoreExecutor_test, DeleteChunk) {
-    std::string filepath = "/home/test.txt";
+    std::string filepath = "./test.txt";
     CSDataStoreExecutorptr = std::shared_ptr<CSDataStoreExecutor>(new CSDataStoreExecutor(csSfsAdaptorPtr_, filepath));
     ASSERT_TRUE(CSDataStoreExecutorptr != nullptr);
 

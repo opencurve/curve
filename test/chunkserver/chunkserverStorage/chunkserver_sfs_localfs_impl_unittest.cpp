@@ -20,7 +20,7 @@ using curve::chunkserver::CSSfsAdaptor;
 class CSSfsLocalFsImpl_test : public testing::Test {
  public:
         void SetUp() {
-            std::string uri = "local:///home/";
+            std::string uri = "local://./";
             curve::chunkserver::ChunkserverStorage::Init();
             csSfsAdaptorPtr_ = curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
         }
@@ -33,13 +33,13 @@ class CSSfsLocalFsImpl_test : public testing::Test {
 };
 
 TEST_F(CSSfsLocalFsImpl_test, FsOpenClose) {
-    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open("/home/test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
     ASSERT_NE(-1 , fd.fd_);
     ASSERT_NE(-1, csSfsAdaptorPtr_->Close(fd));
 }
 
 TEST_F(CSSfsLocalFsImpl_test, FsReadWrite) {
-    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open("/home/test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
     ASSERT_NE(-1 , fd.fd_);
     for (uint64_t id = 0; id < 1000; id++) {
         char writebuf[1024];
@@ -53,11 +53,11 @@ TEST_F(CSSfsLocalFsImpl_test, FsReadWrite) {
         readbuf[1023] = '\0';
         ASSERT_EQ(0, strcmp(readbuf, writebuf));
     }
-    ASSERT_EQ(0, csSfsAdaptorPtr_->Delete("/home/test.txt"));
+    ASSERT_EQ(0, csSfsAdaptorPtr_->Delete("./test.txt"));
 }
 
 TEST_F(CSSfsLocalFsImpl_test, FsMkDirAndDirExist) {
-    std::string dirpath = "/home/testdir";
+    std::string dirpath = "./testdir";
     ASSERT_FALSE(csSfsAdaptorPtr_->DirExists(dirpath.c_str()));
     ASSERT_EQ(0, csSfsAdaptorPtr_->Mkdir(dirpath.c_str(), 0777));
     ASSERT_TRUE(csSfsAdaptorPtr_->DirExists(dirpath.c_str()));
@@ -66,7 +66,7 @@ TEST_F(CSSfsLocalFsImpl_test, FsMkDirAndDirExist) {
 }
 
 TEST_F(CSSfsLocalFsImpl_test, FsFileExistAndDelete) {
-    std::string filepath = "/home/test.txt";
+    std::string filepath = "./test.txt";
     CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open(filepath.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
     ASSERT_NE(-1 , fd.fd_);
     ASSERT_EQ(0, csSfsAdaptorPtr_->Delete(filepath.c_str()));

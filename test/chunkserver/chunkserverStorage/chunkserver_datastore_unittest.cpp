@@ -22,7 +22,7 @@ using curve::chunkserver::CSDataStore;
 class CSDataStore_test : public testing::Test {
  public:
         void SetUp() {
-            std::string uri = "local:///home/";
+            std::string uri = "local://./";
             curve::chunkserver::ChunkserverStorage::Init();
             testsfsada_ = curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
         }
@@ -36,7 +36,7 @@ class CSDataStore_test : public testing::Test {
 };
 
 TEST_F(CSDataStore_test, ReadWriteChunk) {
-    std::string datastorepath = "/home/1/2/3/test1//";
+    std::string datastorepath = "./1/2/3/test1//";
     cpmana = std::shared_ptr<CSDataStore>(new CSDataStore(testsfsada_, datastorepath));
     ASSERT_TRUE(cpmana->Initialize());
 
@@ -54,15 +54,15 @@ TEST_F(CSDataStore_test, ReadWriteChunk) {
         ASSERT_EQ(0, strcmp(readbuf, writebuf));
         ASSERT_TRUE(cpmana->DeleteChunk(chunkid));
     }
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1/2/3/test1/data"));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1/2/3/test1/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1/2/3/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1/2/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/test1/data"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/test1/"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1"));
 }
 
 TEST_F(CSDataStore_test, DeleteChunk) {
-    std::string datastorepath = "/home/1/2/3/test1//";
+    std::string datastorepath = "./1/2/3/test1//";
     cpmana = std::shared_ptr<CSDataStore>(new CSDataStore(testsfsada_, datastorepath));
     ASSERT_TRUE(cpmana->Initialize());
 
@@ -72,9 +72,9 @@ TEST_F(CSDataStore_test, DeleteChunk) {
     ASSERT_EQ(1, cpmana->WriteChunk(chunkid, writebuf, 0, 1024));
 
     ASSERT_TRUE(cpmana->DeleteChunk(chunkid));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1/2/3/test1/data"));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1/2/3/test1/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1/2/3/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1/2/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("/home/1"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/test1/data"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/test1/"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/"));
+    ASSERT_TRUE(testsfsada_->Rmdir("./1"));
 }

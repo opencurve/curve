@@ -558,7 +558,7 @@ CHUNKSERVER_DEPS = [
     "@com_google_googletest//:gtest_main",
 ]
 
-cc_test(
+cc_binary(
     name = "chunkserver-test",
     srcs = glob([
         "test/chunkserver/cli_test.cpp",
