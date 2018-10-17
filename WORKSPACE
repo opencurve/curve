@@ -24,7 +24,7 @@ bind(
 
 # glog deps
 new_git_repository(
-    name = "com_github_glog_glog",
+    name = "com_github_google_glog",
     build_file = "bazel/glog.BUILD",
     remote = "https://github.com/google/glog.git",
     tag = "v0.3.5",
@@ -32,7 +32,7 @@ new_git_repository(
 
 bind(
     name = "glog",
-    actual = "@com_github_glog_glog//:glog",
+    actual = "@com_github_google_glog//:glog",
 )
 
 git_repository(

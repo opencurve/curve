@@ -25,7 +25,9 @@ DEFINE_int32(chunk_size, 4 * 1024 * 1024, "Chunk size");
 DEFINE_int32(copyset_num, 32, "Copyset number");
 DEFINE_int32(request_size, 4096, "Size of each requst");
 DEFINE_int32(iodepth, 32, "I/O count(*request_size) performed before stop");
-DEFINE_int32(io_count, 1024 * 1024, "I/O count(*request_size) performed before stop");
+DEFINE_int32(io_count,
+             1024 * 1024,
+             "I/O count(*request_size) performed before stop");
 DEFINE_int32(io_time, 10, "Time(seconds) of I/O performed before stop");
 DEFINE_int32(thread_num, 1, "Number of threads sending requests");
 DEFINE_int32(timeout_ms, 500, "Timeout for each request");
@@ -34,7 +36,9 @@ DEFINE_string(io_mode, "sync", "I/O Mode(sync/async)");
 DEFINE_string(io_pattern, "randwrite", "I/O pattern against storage");
 DEFINE_string(wait_mode, "efficiency", "I/O Mode(sync/async)");
 DEFINE_string(conf, "", "Configuration file path");
-DEFINE_string(raftconf, "172.17.0.2:8200:0,172.17.0.2:8201:0,172.17.0.2:8202:0", "Configuration file path");
+DEFINE_string(raftconf,
+              "172.17.0.2:8200:0,172.17.0.2:8201:0,172.17.0.2:8202:0",
+              "Configuration file path");
 
 using curve::chunkserver::ChunkRequest;
 using curve::chunkserver::ChunkResponse;
@@ -82,7 +86,7 @@ struct CURVE_CACHELINE_ALIGNMENT ThreadInfo {
     int64_t io_time;  // nano seconds
     int64_t latency_all;
     int64_t iodepth;
-    std::atomic<int64_t>  ioinflight;  // I/O being served
+    std::atomic<int64_t> ioinflight;  // I/O being served
 
     struct timespec start_time;
     bool async;
@@ -98,21 +102,26 @@ struct CURVE_CACHELINE_ALIGNMENT ThreadInfo {
 };
 
 struct CURVE_CACHELINE_ALIGNMENT IoContext {
-    ThreadInfo* tinfo;
-    CopysetInfo* copyset;
-    ChunkRequest* req;
-    ChunkResponse* resp;
-    brpc::Controller* cntl;
-    google::protobuf::Closure* done;
+    ThreadInfo *tinfo;
+    CopysetInfo *copyset;
+    ChunkRequest *req;
+    ChunkResponse *resp;
+    brpc::Controller *cntl;
+    google::protobuf::Closure *done;
 };
 
-void thread_sleep_wait(ThreadInfo* tinfo);
-void thread_busy_wait(ThreadInfo* tinfo);
-void thread_sleep_notify(ThreadInfo* tinfo);
-void thread_no_notify(ThreadInfo* tinfo);
-void prepare_write_request(ThreadInfo* tinfo, CHUNK_OP_TYPE* op, size_t* offset, size_t* len);
-void prepare_randwrite_request(ThreadInfo* tinfo, CHUNK_OP_TYPE* op, size_t* offset, size_t* len);
-
+void thread_sleep_wait(ThreadInfo *tinfo);
+void thread_busy_wait(ThreadInfo *tinfo);
+void thread_sleep_notify(ThreadInfo *tinfo);
+void thread_no_notify(ThreadInfo *tinfo);
+void prepare_write_request(ThreadInfo *tinfo,
+                           CHUNK_OP_TYPE *op,
+                           size_t *offset,
+                           size_t *len);
+void prepare_randwrite_request(ThreadInfo *tinfo,
+                               CHUNK_OP_TYPE *op,
+                               size_t *offset,
+                               size_t *len);
 
 bool toStop = false;
 
@@ -137,7 +146,10 @@ std::vector<CopysetInfo *> copysets;
 
 bvar::LatencyRecorder g_latency_recorder("chunk_client");
 
-void (*request_generator[IO_PATTERN_MAX])(ThreadInfo*, CHUNK_OP_TYPE*, size_t*, size_t*) = {
+void (*request_generator[IO_PATTERN_MAX])(ThreadInfo *,
+                                          CHUNK_OP_TYPE *,
+                                          size_t *,
+                                          size_t *) = {
     NULL,
     prepare_write_request,
     NULL,
@@ -155,10 +167,11 @@ void (*thread_notify[WAIT_MODE_MAX])(ThreadInfo *) = {
 };
 
 inline int64_t time_diff(const struct timespec &t0, const struct timespec &t1) {
-    return (int64_t)((t1).tv_sec - (t0).tv_sec) * 1000000000 + (t1).tv_nsec - (t0).tv_nsec;
+    return (int64_t) ((t1).tv_sec - (t0).tv_sec) * 1000000000 + (t1).tv_nsec
+        - (t0).tv_nsec;
 }
 
-void update_stats(ThreadInfo* tinfo, IoContext* ioCxt) {
+void update_stats(ThreadInfo *tinfo, IoContext *ioCxt) {
     struct timespec now;
 
     clock_gettime(CLOCK_REALTIME, &now);
@@ -167,7 +180,7 @@ void update_stats(ThreadInfo* tinfo, IoContext* ioCxt) {
     tinfo->latency_all += ioCxt->cntl->latency_us();
 }
 
-void destroy_io_context(IoContext* ioCxt) {
+void destroy_io_context(IoContext *ioCxt) {
     delete ioCxt->req;
     delete ioCxt->resp;
     delete ioCxt->cntl;
@@ -210,37 +223,41 @@ enum IO_PATTERN parse_io_pattern(std::string pattern) {
     }
 }
 
-void thread_sleep_wait(ThreadInfo* tinfo) {
-    while (tinfo->ioinflight.load(std::memory_order_acquire) >= tinfo->iodepth) {
+void thread_sleep_wait(ThreadInfo *tinfo) {
+    while (tinfo->ioinflight.load(std::memory_order_acquire)
+        >= tinfo->iodepth) {
         // FIXME(wenyu): elimate hardcode
         // bthread_usleep(1);
         // pthread_yield();
     }
     ++tinfo->ioinflight;
-    LOG_IF(INFO, FLAGS_verbose) << "Inflight I/O increased to: " << tinfo->ioinflight.load(std::memory_order_acquire);
+    LOG_IF(INFO, FLAGS_verbose) << "Inflight I/O increased to: "
+                                << tinfo->ioinflight.load(std::memory_order_acquire);   //NOLINT
 }
 
-void thread_busy_wait(ThreadInfo* tinfo) {
-    while (tinfo->ioinflight.load(std::memory_order_acquire) >= tinfo->iodepth) {
+void thread_busy_wait(ThreadInfo *tinfo) {
+    while (tinfo->ioinflight.load(std::memory_order_acquire)
+        >= tinfo->iodepth) {
         // FIXME(wenyu): elimate hardcode
         {}
     }
 }
 
-void thread_sleep_notify(ThreadInfo* tinfo) {
+void thread_sleep_notify(ThreadInfo *tinfo) {
     --tinfo->ioinflight;
-    LOG_IF(INFO, FLAGS_verbose) << "Inflight I/O decreased to: " << tinfo->ioinflight.load(std::memory_order_acquire);
+    LOG_IF(INFO, FLAGS_verbose) << "Inflight I/O decreased to: "
+                                << tinfo->ioinflight.load(std::memory_order_acquire);   //NOLINT
 }
 
-void thread_no_notify(ThreadInfo* tinfo) {
+void thread_no_notify(ThreadInfo *tinfo) {
     // Do nothing
 }
 
-void notify_for_queue(ThreadInfo* tinfo) {
+void notify_for_queue(ThreadInfo *tinfo) {
     thread_notify[tinfo->wait_mode](tinfo);
 }
 
-void wait_for_queue(ThreadInfo* tinfo) {
+void wait_for_queue(ThreadInfo *tinfo) {
     thread_wait[tinfo->wait_mode](tinfo);
 }
 
@@ -248,7 +265,10 @@ bool status_retryable(CHUNK_OP_STATUS status) {
     return status == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED;
 }
 
-void prepare_write_request(ThreadInfo* tinfo, CHUNK_OP_TYPE* op, size_t* offset, size_t* len) {
+void prepare_write_request(ThreadInfo *tinfo,
+                           CHUNK_OP_TYPE *op,
+                           size_t *offset,
+                           size_t *len) {
     *op = CHUNK_OP_TYPE::CHUNK_OP_WRITE;
     *offset = tinfo->offset_base;
     *len = tinfo->req_size;
@@ -256,21 +276,28 @@ void prepare_write_request(ThreadInfo* tinfo, CHUNK_OP_TYPE* op, size_t* offset,
     tinfo->offset_base += tinfo->req_size % file_size;
 }
 
-void prepare_randwrite_request(ThreadInfo* tinfo, CHUNK_OP_TYPE* op, size_t* offset, size_t* len) {
+void prepare_randwrite_request(ThreadInfo *tinfo,
+                               CHUNK_OP_TYPE *op,
+                               size_t *offset,
+                               size_t *len) {
     *op = CHUNK_OP_TYPE::CHUNK_OP_WRITE;
-    *offset = rand_r(&tinfo->offset_base) % tinfo->offset_range * tinfo->req_size;
+    *offset =
+        rand_r(&tinfo->offset_base) % tinfo->offset_range * tinfo->req_size;
     *len = tinfo->req_size;
 }
 
-int update_leader(CopysetInfo* copyset) {
+int update_leader(CopysetInfo *copyset) {
     braft::PeerId peerId;
-    butil::Status status = curve::chunkserver::GetLeader(copyset->poolId, copyset->copysetId, copyset->conf, &peerId);
+    butil::Status status = curve::chunkserver::GetLeader(copyset->poolId,
+                                                         copyset->copysetId,
+                                                         copyset->conf,
+                                                         &peerId);
     if (status.ok()) {
         if (*copyset->ep[copyset->leader] == peerId.addr) {
             return copyset->leader;
         }
         copyset->leader = -1;
-        for (unsigned int j = 0; j < copyset->conf.size(); j ++) {
+        for (unsigned int j = 0; j < copyset->conf.size(); j++) {
             if (*copyset->ep[j] == peerId.addr) {
                 copyset->leader = j;
                 break;
@@ -286,46 +313,53 @@ int update_leader(CopysetInfo* copyset) {
     return copyset->leader;
 }
 
-void chunk_io_complete(IoContext* ioCxt) {
-    ThreadInfo* tinfo = ioCxt->tinfo;
-    ChunkResponse* resp = ioCxt->resp;
-    brpc::Controller* cntl = ioCxt->cntl;
-    CopysetInfo* copyset = ioCxt->copyset;
+void chunk_io_complete(IoContext *ioCxt) {
+    ThreadInfo *tinfo = ioCxt->tinfo;
+    ChunkResponse *resp = ioCxt->resp;
+    brpc::Controller *cntl = ioCxt->cntl;
+    CopysetInfo *copyset = ioCxt->copyset;
 
     // std::unique_ptr<brpc::Controller> cntl_guard(cntl);
     // std::unique_ptr<ChunkResponse> response_guard(response);
 
     LOG_IF(INFO, FLAGS_verbose) << "Response from <"
-              << copyset->poolId << ", " << copyset->copysetId << ">:"
-              << copyset->leader << ":"
-              << ioCxt->req->chunkid() << ":"
-              << ioCxt->req->offset() << ":"
-              << ioCxt->req->size()
-              << ", infligth I/Os: " << tinfo->ioinflight.load(std::memory_order_acquire)
-              << ", resp data size: " << cntl->response_attachment().to_string().size()
-              << " cntl failed: " << cntl->Failed() << " resp status: " << resp->status();
+                                << copyset->poolId << ", " << copyset->copysetId
+                                << ">:"
+                                << copyset->leader << ":"
+                                << ioCxt->req->chunkid() << ":"
+                                << ioCxt->req->offset() << ":"
+                                << ioCxt->req->size()
+                                << ", infligth I/Os: "
+                                << tinfo->ioinflight.load(std::memory_order_acquire)    //NOLINT
+                                << ", resp data size: "
+                                << cntl->response_attachment().to_string().size()   //NOLINT
+                                << " cntl failed: " << cntl->Failed()
+                                << " resp status: " << resp->status();
 
     if (cntl->Failed()) {
-        LOG_IF(WARNING, FLAGS_verbose) << "Thread " << tinfo->id << " failed to complete "
-            << tinfo->io_count << "th I/O request: " << cntl->ErrorText();
+        LOG_IF(WARNING, FLAGS_verbose)
+        << "Thread " << tinfo->id << " failed to complete "
+        << tinfo->io_count << "th I/O request: " << cntl->ErrorText();
         tinfo->errors++;
         // TODO(wenyu): add backoff/retry logic
         bthread_usleep(FLAGS_timeout_ms * 1000L);
     } else if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS != resp->status()) {
         tinfo->errors++;
         LOG_IF(ERROR, FLAGS_verbose || !status_retryable(resp->status()))
-                  << "Failed I/O response from <"
-                  << copyset->poolId << ", " << copyset->copysetId << ">:"
-                  << copyset->leader << ":"
-                  << ioCxt->req->chunkid() << ":"
-                  << ioCxt->req->offset() << ":"
-                  << ioCxt->req->size()
-                  << ", status: " << resp->status()
-                  << ", infligth I/Os: " << tinfo->ioinflight.load(std::memory_order_acquire)
-                  << ", data size: " << cntl->response_attachment().to_string().size();
+        << "Failed I/O response from <"
+        << copyset->poolId << ", " << copyset->copysetId << ">:"
+        << copyset->leader << ":"
+        << ioCxt->req->chunkid() << ":"
+        << ioCxt->req->offset() << ":"
+        << ioCxt->req->size()
+        << ", status: " << resp->status()
+        << ", infligth I/Os: "
+        << tinfo->ioinflight.load(std::memory_order_acquire)
+        << ", data size: " << cntl->response_attachment().to_string().size();
         if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED == resp->status()) {
             // TODO(wenyu): add backoff/retry logic
-            LOG_IF(ERROR, FLAGS_verbose) << "Leader redirected to: " << resp->redirect();
+            LOG_IF(ERROR, FLAGS_verbose)
+            << "Leader redirected to: " << resp->redirect();
             if (update_leader(copyset) >= 0) {
             } else {
                 bthread_usleep(FLAGS_timeout_ms * 1000L);
@@ -341,7 +375,7 @@ void chunk_io_complete(IoContext* ioCxt) {
     notify_for_queue(tinfo);
 }
 
-int init_thread_info(ThreadInfo* tinfo) {
+int init_thread_info(ThreadInfo *tinfo) {
     tinfo->errors = 0;
     tinfo->io_count = 0;
     tinfo->iodepth = FLAGS_iodepth;
@@ -362,7 +396,8 @@ int init_thread_info(ThreadInfo* tinfo) {
     if (FLAGS_io_pattern == "write") {
         tinfo->offset_base = 0;
     } else if (FLAGS_io_pattern == "randwrite") {
-        tinfo->offset_base = time(NULL) ^ getpid() ^ pthread_self() ^ (tinfo->id < 8);
+        tinfo->offset_base =
+            time(NULL) ^ getpid() ^ pthread_self() ^ (tinfo->id < 8);
     }
     clock_gettime(CLOCK_REALTIME, &tinfo->start_time);
     tinfo->req_size = FLAGS_request_size;
@@ -372,20 +407,20 @@ int init_thread_info(ThreadInfo* tinfo) {
 
     if (FLAGS_verbose) {
         LOG(INFO) << "Thread " << tinfo->id << " informations:"
-            << "wait mode: " << tinfo->wait_mode << ", "
-            << "I/O mode: " << tinfo->async << ", "
-            << "I/O pattern: " << tinfo->io_pattern << ", "
-            << "I/O iodepth: " << tinfo->iodepth << ", "
-            << "Request size: " << tinfo->req_size;
+                  << "wait mode: " << tinfo->wait_mode << ", "
+                  << "I/O mode: " << tinfo->async << ", "
+                  << "I/O pattern: " << tinfo->io_pattern << ", "
+                  << "I/O iodepth: " << tinfo->iodepth << ", "
+                  << "Request size: " << tinfo->req_size;
     }
 
     return 0;
 }
 
-int prepare_io_context(IoContext* ioCxt) {
-    CopysetInfo* copyset;
-    ThreadInfo* tinfo = ioCxt->tinfo;
-    ChunkRequest* req = new ChunkRequest();
+int prepare_io_context(IoContext *ioCxt) {
+    CopysetInfo *copyset;
+    ThreadInfo *tinfo = ioCxt->tinfo;
+    ChunkRequest *req = new ChunkRequest();
     CHUNK_OP_TYPE op;
     size_t offset, len;
 
@@ -419,10 +454,11 @@ int prepare_io_context(IoContext* ioCxt) {
 }
 
 static void *async_io_client(void *arg) {
-    ThreadInfo* tinfo = reinterpret_cast<ThreadInfo *>(arg);
+    ThreadInfo *tinfo = reinterpret_cast<ThreadInfo *>(arg);
 
     if (init_thread_info(tinfo) != 0) {
-        LOG(ERROR) << "Failed to initialize thread infomation for thread " << tinfo->id;
+        LOG(ERROR)
+        << "Failed to initialize thread infomation for thread " << tinfo->id;
         toStop = true;
     }
 
@@ -432,7 +468,7 @@ static void *async_io_client(void *arg) {
     }
 
     while (!toStop) {
-        IoContext* ioCxt = new IoContext();
+        IoContext *ioCxt = new IoContext();
         ioCxt->tinfo = tinfo;
         if (prepare_io_context(ioCxt) != 0) {
             LOG(ERROR) << "Failed to prepare I/O context";
@@ -442,7 +478,8 @@ static void *async_io_client(void *arg) {
 
         wait_for_queue(tinfo);
 
-        curve::chunkserver::ChunkService_Stub* stub = ioCxt->copyset->chunk_stubs[ioCxt->copyset->leader];
+        curve::chunkserver::ChunkService_Stub
+            *stub = ioCxt->copyset->chunk_stubs[ioCxt->copyset->leader];
         // TODO(wenyu): to support more data pattern;
         stub->WriteChunk(ioCxt->cntl, ioCxt->req, ioCxt->resp, ioCxt->done);
 
@@ -450,7 +487,9 @@ static void *async_io_client(void *arg) {
             chunk_io_complete(ioCxt);
         }
         if (tinfo->io_time >= tinfo->run_duration) {
-            LOG_IF(INFO, FLAGS_verbose)<< "Thread " << tinfo->id << "consumed time(us): " << tinfo->io_time / 1000;
+            LOG_IF(INFO, FLAGS_verbose)
+            << "Thread " << tinfo->id << "consumed time(us): "
+            << tinfo->io_time / 1000;
             toStop = true;
         } else if (tinfo->io_count >= FLAGS_io_count) {
             toStop = true;
@@ -471,14 +510,20 @@ int create_io_threads(int nr_threads) {
         for (int i = 0; i < FLAGS_thread_num; ++i) {
             thread_infos[i].id = i;
 
-            if (pthread_create(&io_threads[i], NULL, ioroutine, &thread_infos[i]) != 0) {
+            if (pthread_create(&io_threads[i],
+                               NULL,
+                               ioroutine,
+                               &thread_infos[i]) != 0) {
                 LOG(ERROR) << "Fail to create pthread";
                 return -1;
             }
         }
     } else {
         for (int i = 0; i < FLAGS_thread_num; ++i) {
-            if (bthread_start_background(&io_threads[i], NULL, ioroutine, &thread_infos[i]) != 0) {
+            if (bthread_start_background(&io_threads[i],
+                                         NULL,
+                                         ioroutine,
+                                         &thread_infos[i]) != 0) {
                 LOG(ERROR) << "Fail to create bthread";
                 return -1;
             }
@@ -498,20 +543,24 @@ void destroy_io_threads(int thread_num) {
     }
 }
 
-void threads_stats(int thread_num, ThreadInfo * total_info) {
+void threads_stats(int thread_num, ThreadInfo *total_info) {
     for (int i = 0; i < thread_num; ++i) {
         total_info->errors += thread_infos[i].errors;
         total_info->io_count += thread_infos[i].io_count;
         total_info->latency_all += thread_infos[i].latency_all;
 
         LOG(INFO) << "Thread " << thread_infos[i].id << " I/O stats: "
-            << "time(us): " << thread_infos[i].io_time / 1000 << ", "
-            << "count: " << thread_infos[i].io_count << ", "
-            << "depth: " << thread_infos[i].iodepth << ", "
-            << "iops: " << thread_infos[i].io_count * 1000000000 / thread_infos[i].io_time << ", "
-            << "bandwidth(KB/s): "
-            << thread_infos[i].io_count * FLAGS_request_size / 1024 * 1000000000 / thread_infos[i].io_time << ", "
-            << "avarage latency(us): " << thread_infos[i].latency_all / thread_infos[i].io_count << ", ";
+                  << "time(us): " << thread_infos[i].io_time / 1000 << ", "
+                  << "count: " << thread_infos[i].io_count << ", "
+                  << "depth: " << thread_infos[i].iodepth << ", "
+                  << "iops: " << thread_infos[i].io_count * 1000000000
+                      / thread_infos[i].io_time << ", "
+                  << "bandwidth(KB/s): "
+                  << thread_infos[i].io_count * FLAGS_request_size / 1024
+                      * 1000000000 / thread_infos[i].io_time << ", "
+                  << "avarage latency(us): "
+                  << thread_infos[i].latency_all / thread_infos[i].io_count
+                  << ", ";
     }
 }
 
@@ -523,25 +572,29 @@ int init_channels() {
 
     conf.list_peers(&peers);
     LOG_IF(INFO, FLAGS_verbose) << "Server list: ";
-    for (unsigned int i = 0; i < peers.size(); i ++) {
+    for (unsigned int i = 0; i < peers.size(); i++) {
         server_addrs.push_back(&peers[i].addr);
         LOG_IF(INFO, FLAGS_verbose) << peers[i].addr;
 
-        brpc::Channel* channel = new brpc::Channel();
+        brpc::Channel *channel = new brpc::Channel();
         if (channel->Init(peers[i].addr, NULL) != 0) {
             LOG(ERROR) << "Fail to init channel to " << peers[i].addr;
         }
         server_channels.push_back(channel);
 
-        curve::chunkserver::CopysetService_Stub* copyset_stub = new curve::chunkserver::CopysetService_Stub(channel);
+        curve::chunkserver::CopysetService_Stub *copyset_stub =
+            new curve::chunkserver::CopysetService_Stub(channel);
         if (!copyset_stub) {
-            LOG(ERROR) << "Fail to init copyset service stub to " << peers[i].addr;
+            LOG(ERROR)
+            << "Fail to init copyset service stub to " << peers[i].addr;
         }
         copyset_stubs.push_back(copyset_stub);
 
-        curve::chunkserver::ChunkService_Stub* chunk_stub = new curve::chunkserver::ChunkService_Stub(channel);
+        curve::chunkserver::ChunkService_Stub
+            *chunk_stub = new curve::chunkserver::ChunkService_Stub(channel);
         if (!chunk_stub) {
-            LOG(ERROR) << "Fail to init chunk service stub to " << peers[i].addr;
+            LOG(ERROR)
+            << "Fail to init chunk service stub to " << peers[i].addr;
         }
         chunk_stubs.push_back(chunk_stub);
     }
@@ -549,8 +602,8 @@ int init_channels() {
     return 0;
 }
 
-int create_copyset(CopysetInfo* info) {
-    for (unsigned int i = 0; i < info->conf.size(); i ++) {
+int create_copyset(CopysetInfo *info) {
+    for (unsigned int i = 0; i < info->conf.size(); i++) {
         brpc::Controller cntl;
         CopysetRequest request;
         CopysetResponse response;
@@ -559,23 +612,30 @@ int create_copyset(CopysetInfo* info) {
         request.set_logicpoolid(info->poolId);
         request.set_copysetid(info->copysetId);
 
-        // The 'conf' paramter of CreateCopysetNode() actually means 'peer', so parse conf to peer before invoke service
-        // request.set_conf(FLAGS_raftconf);
+        /**
+         * The 'conf' paramter of CreateCopysetNode() actually means 'peer',
+         * so parse conf to peer before invoke
+         * servicerequest.set_conf(FLAGS_raftconf);
+         */
         braft::Configuration conf;
         if (conf.parse_from(FLAGS_raftconf) != 0) {
-            LOG(ERROR) << "Failed to parse raft configuration from " << FLAGS_raftconf;
+            LOG(ERROR)
+            << "Failed to parse raft configuration from " << FLAGS_raftconf;
         }
 
         std::vector<braft::PeerId> peers;
         conf.list_peers(&peers);
         std::vector<braft::PeerId>::iterator it;
-        for (it = peers.begin(); it != peers.end(); it ++) {
-            request.add_conf(it->to_string());
+        for (it = peers.begin(); it != peers.end(); it++) {
+            request.add_peerid(it->to_string());
         }
 
-        info->copyset_stubs[i]->CreateCopysetNode(&cntl, &request, &response, nullptr);
+        info->copyset_stubs[i]->CreateCopysetNode(&cntl,
+                                                  &request,
+                                                  &response,
+                                                  nullptr);
         if (COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS != response.status() &&
-                COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST != response.status()) {
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST != response.status()) {
             LOG(ERROR) << "Failed to create copyset <"
                        << info->poolId << ", " << info->copysetId
                        << "> on peer " << i
@@ -588,7 +648,7 @@ int create_copyset(CopysetInfo* info) {
 }
 
 int init_copysets() {
-    file_size = (int64_t)FLAGS_file_size * 4096;
+    file_size = (int64_t) FLAGS_file_size * 4096;
     chunk_size = FLAGS_chunk_size;
     nr_copysets = FLAGS_copyset_num;
 
@@ -600,19 +660,19 @@ int init_copysets() {
         return -1;
     }
 
-    for (int i = 0; i < nr_copysets; i ++) {
-        CopysetInfo* info = new CopysetInfo();
+    for (int i = 0; i < nr_copysets; i++) {
+        CopysetInfo *info = new CopysetInfo();
         info->poolId = poolId;
         info->copysetId = i + copysetIdBase;
         info->conf = conf;
-        for (unsigned int j = 0; j < conf.size(); j ++) {
+        for (unsigned int j = 0; j < conf.size(); j++) {
             info->ep.push_back(server_addrs[j]);
             info->channel.push_back(server_channels[j]);
             info->copyset_stubs.push_back(copyset_stubs[j]);
             info->chunk_stubs.push_back(chunk_stubs[j]);
         }
         if (create_copyset(info) == 0) {
-            // LOG(INFO) << "Created copyset<" << info->poolId << ", " << info->copysetId << ">";
+            // TODO(zhouwenyu)
         } else {
             LOG(ERROR) << "Failed to create copyset " << i;
             return -1;
@@ -622,10 +682,10 @@ int init_copysets() {
     }
 
     int retry;
-    for (int i = 0; i < nr_copysets; i ++) {
+    for (int i = 0; i < nr_copysets; i++) {
         retry = 20;
 
-get_leader_retry:
+        get_leader_retry:
         if (update_leader(copysets[i]) >= 0) {
             continue;
         } else if (retry > 0) {
@@ -634,7 +694,8 @@ get_leader_retry:
             goto get_leader_retry;
         } else {
             LOG(ERROR) << "Failed to get leader of copyset<"
-                       << copysets[i]->poolId << ", " << copysets[i]->copysetId << ">";
+                       << copysets[i]->poolId << ", " << copysets[i]->copysetId
+                       << ">";
             return -1;
         }
     }
@@ -643,7 +704,7 @@ get_leader_retry:
 }
 
 int fini_channels() {
-    for (unsigned int i = 0; i < conf.size(); i ++) {
+    for (unsigned int i = 0; i < conf.size(); i++) {
         delete chunk_stubs[i];
         delete copyset_stubs[i];
         delete server_channels[i];
@@ -653,7 +714,7 @@ int fini_channels() {
 }
 
 int fini_copysets() {
-    for (int i = 0; i < nr_copysets; i ++) {
+    for (int i = 0; i < nr_copysets; i++) {
         delete copysets[i];
     }
 
@@ -721,20 +782,24 @@ int main(int argc, char *argv[]) {
     threads_stats(FLAGS_thread_num, &total_info);
 
     LOG(INFO) << "Summary " << " I/O stats: "
-        << "time(us): " << total_info.io_time / 1000 << ", "
-        << "count: " << total_info.io_count << ", "
-        << "io mode: " << FLAGS_io_mode << ", "
-        << "io pattern: " << FLAGS_io_pattern << ", "
-        << "block size: " << FLAGS_request_size << ", "
-        << "jobs: " << FLAGS_thread_num << ", "
-        << "iodepth: " << total_info.iodepth << ", "
-        << "iops: " << total_info.io_count * 1000000000 / total_info.io_time << ", "
-        << "bandwidth(KB/s): "
-        << total_info.io_count * FLAGS_request_size / 1024 * 1000000000 / total_info.io_time << ", "
-        << "avarage latency(us): " << total_info.latency_all / total_info.io_count << ", "
-        << "error count: " << total_info.errors;
+              << "time(us): " << total_info.io_time / 1000 << ", "
+              << "count: " << total_info.io_count << ", "
+              << "io mode: " << FLAGS_io_mode << ", "
+              << "io pattern: " << FLAGS_io_pattern << ", "
+              << "block size: " << FLAGS_request_size << ", "
+              << "jobs: " << FLAGS_thread_num << ", "
+              << "iodepth: " << total_info.iodepth << ", "
+              << "iops: "
+              << total_info.io_count * 1000000000 / total_info.io_time << ", "
+              << "bandwidth(KB/s): "
+              << total_info.io_count * FLAGS_request_size / 1024 * 1000000000
+                  / total_info.io_time << ", "
+              << "avarage latency(us): "
+              << total_info.latency_all / total_info.io_count << ", "
+              << "error count: " << total_info.errors;
 
-    LOG_IF(INFO, FLAGS_verbose) << "Multiple copyset I/O test client is going to quit";
+    LOG_IF(INFO, FLAGS_verbose)
+    << "Multiple copyset I/O test client is going to quit";
 
     fini_copysets();
 

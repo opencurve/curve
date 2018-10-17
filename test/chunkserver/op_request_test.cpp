@@ -36,8 +36,9 @@ TEST(ChunkOpRequestTest, encode) {
     std::string str(size, 'a');
     brpc::Controller *cntl = new brpc::Controller();
     {
-        // TODO(wudemiao)
-        ChunkOpRequest chunkOpRequest(copysetNodeManager, cntl, &request, nullptr, nullptr);
+        /* TODO(wudemiao) */
+        ChunkOpRequest chunkOpRequest
+            (copysetNodeManager, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
         ASSERT_EQ(0, chunkOpRequest.Encode(&log));
@@ -65,7 +66,7 @@ TEST(ChunkOpRequestTest, encode) {
         ASSERT_EQ(size, request.size());
     }
 
-    // for read
+    /* for read */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
@@ -73,7 +74,8 @@ TEST(ChunkOpRequestTest, encode) {
     request.set_offset(offset);
     request.set_size(size);
     {
-        ChunkOpRequest chunkOpRequest(copysetNodeManager, cntl, &request, nullptr, nullptr);
+        ChunkOpRequest chunkOpRequest
+            (copysetNodeManager, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
         ASSERT_EQ(0, chunkOpRequest.Encode(&log));
@@ -101,13 +103,14 @@ TEST(ChunkOpRequestTest, encode) {
         ASSERT_EQ(size, request.size());
     }
 
-    // for detele
+    /* for detele */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     {
-        ChunkOpRequest chunkOpRequest(copysetNodeManager, cntl, &request, nullptr, nullptr);
+        ChunkOpRequest chunkOpRequest
+            (copysetNodeManager, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
         ASSERT_EQ(0, chunkOpRequest.Encode(&log));
@@ -142,7 +145,7 @@ TEST(ChunkSnapshotOpRequestTest, encode) {
     uint32_t size = 16;
     CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
 
-    // for create
+    /*  for create */
     ChunkSnapshotRequest request;
     request.set_optype(CHUNK_SNAPSHOT_OP_TYPE::CHUNK_SNAPSHOT_OP_CREATE);
     request.set_logicpoolid(logicPoolId);
@@ -151,7 +154,8 @@ TEST(ChunkSnapshotOpRequestTest, encode) {
     request.set_snapshotid(snapshotId);
     brpc::Controller *cntl = new brpc::Controller();
     {
-        ChunkSnapshotOpRequest chunkSnapshotOpRequest(copysetNodeManager, cntl, &request, nullptr, nullptr);
+        ChunkSnapshotOpRequest chunkSnapshotOpRequest
+            (copysetNodeManager, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
         ASSERT_EQ(0, chunkSnapshotOpRequest.Encode(&log));
@@ -178,7 +182,7 @@ TEST(ChunkSnapshotOpRequestTest, encode) {
         ASSERT_EQ(snapshotId, request.snapshotid());
     }
 
-    // for read
+    /* for read */
     request.set_optype(CHUNK_SNAPSHOT_OP_TYPE::CHUNK_SNAPSHOT_OP_READ);
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
@@ -186,7 +190,8 @@ TEST(ChunkSnapshotOpRequestTest, encode) {
     request.set_snapshotid(snapshotId);
     request.set_size(size);
     {
-        ChunkSnapshotOpRequest chunkSnapshotOpRequest(copysetNodeManager, cntl, &request, nullptr, nullptr);
+        ChunkSnapshotOpRequest chunkSnapshotOpRequest
+            (copysetNodeManager, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
         ASSERT_EQ(0, chunkSnapshotOpRequest.Encode(&log));
@@ -214,14 +219,15 @@ TEST(ChunkSnapshotOpRequestTest, encode) {
         ASSERT_EQ(size, request.size());
     }
 
-    // for detele
+    /* for detele */
     request.set_optype(CHUNK_SNAPSHOT_OP_TYPE::CHUNK_SNAPSHOT_OP_DELETE);
     request.set_logicpoolid(logicPoolId);
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     request.set_snapshotid(snapshotId);
     {
-        ChunkSnapshotOpRequest chunkSnapshotOpRequest(copysetNodeManager, cntl, &request, nullptr, nullptr);
+        ChunkSnapshotOpRequest chunkSnapshotOpRequest
+            (copysetNodeManager, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
         ASSERT_EQ(0, chunkSnapshotOpRequest.Encode(&log));

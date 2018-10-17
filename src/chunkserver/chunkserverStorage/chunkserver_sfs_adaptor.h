@@ -74,7 +74,10 @@ class CSSfsAdaptor {
     bool DirExists(const char* dirName);
     bool FileExists(const char* filePath);
     int Rename(const char* oldPath, const char* newPath);
-    int List(const char* dirName, std::vector<char*>* names, int start, int max);
+    int List(const char* dirName,
+            std::vector<char*>* names,
+            int start,
+            int max);
     int Read(fd_t fd, void* buf, uint64_t offset, int length);
     bool Write(fd_t fd, const void* buf, uint64_t offset, int length);
     int Append(fd_t fd, void* buf, int length);

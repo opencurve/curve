@@ -7,6 +7,7 @@
 
 #include "src/chunkserver/braft_cli_service.h"
 
+#include <glog/logging.h>
 #include <brpc/controller.h>             // brpc::Controller
 #include <braft/node_manager.h>          // NodeManager
 #include <braft/closure_helper.h>        // NewCallback
@@ -19,11 +20,11 @@ namespace curve {
 namespace chunkserver {
 
 static void add_peer_returned(brpc::Controller *cntl,
-                              const ::curve::chunkserver::AddPeerRequest *request,
-                              ::curve::chunkserver::AddPeerResponse *response,
+                              const AddPeerRequest *request,
+                              AddPeerResponse *response,
                               std::vector<braft::PeerId> old_peers,
                               scoped_refptr<braft::NodeImpl> /*node*/,
-                              ::google::protobuf::Closure *done,
+                              Closure *done,
                               const butil::Status &st) {
     brpc::ClosureGuard done_guard(done);
     if (!st.ok()) {
@@ -43,16 +44,17 @@ static void add_peer_returned(brpc::Controller *cntl,
     }
 }
 
-void BRaftCliServiceImpl::add_peer(::google::protobuf::RpcController *controller,
-                                   const ::curve::chunkserver::AddPeerRequest *request,
-                                   ::curve::chunkserver::AddPeerResponse *response,
-                                   ::google::protobuf::Closure *done) {
+void BRaftCliServiceImpl::add_peer(RpcController *controller,
+                                   const AddPeerRequest *request,
+                                   AddPeerResponse *response,
+                                   Closure *done) {
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
     LogicPoolID logicPoolId = request->logicpoolid();
     CopysetID copysetId = request->copysetid();
-    butil::Status st = get_node(&node, logicPoolId, copysetId, request->leader_id());
+    butil::Status
+        st = get_node(&node, logicPoolId, copysetId, request->leader_id());
     if (!st.ok()) {
         cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
         return;
@@ -79,11 +81,11 @@ void BRaftCliServiceImpl::add_peer(::google::protobuf::RpcController *controller
 }
 
 static void remove_peer_returned(brpc::Controller *cntl,
-                                 const ::curve::chunkserver::RemovePeerRequest *request,
-                                 ::curve::chunkserver::RemovePeerResponse *response,
+                                 const RemovePeerRequest *request,
+                                 RemovePeerResponse *response,
                                  std::vector<braft::PeerId> old_peers,
                                  scoped_refptr<braft::NodeImpl> /*node*/,
-                                 ::google::protobuf::Closure *done,
+                                 Closure *done,
                                  const butil::Status &st) {
     brpc::ClosureGuard done_guard(done);
     if (!st.ok()) {
@@ -98,16 +100,17 @@ static void remove_peer_returned(brpc::Controller *cntl,
     }
 }
 
-void BRaftCliServiceImpl::remove_peer(::google::protobuf::RpcController *controller,
-                                      const ::curve::chunkserver::RemovePeerRequest *request,
-                                      ::curve::chunkserver::RemovePeerResponse *response,
-                                      ::google::protobuf::Closure *done) {
+void BRaftCliServiceImpl::remove_peer(RpcController *controller,
+                                      const RemovePeerRequest *request,
+                                      RemovePeerResponse *response,
+                                      Closure *done) {
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
     LogicPoolID logicPoolId = request->logicpoolid();
     CopysetID copysetId = request->copysetid();
-    butil::Status st = get_node(&node, logicPoolId, copysetId, request->leader_id());
+    butil::Status
+        st = get_node(&node, logicPoolId, copysetId, request->leader_id());
     if (!st.ok()) {
         cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
         return;
@@ -133,16 +136,17 @@ void BRaftCliServiceImpl::remove_peer(::google::protobuf::RpcController *control
     return node->remove_peer(removing_peer, remove_peer_done);
 }
 
-void BRaftCliServiceImpl::reset_peer(::google::protobuf::RpcController *controller,
-                                     const ::curve::chunkserver::ResetPeerRequest *request,
-                                     ::curve::chunkserver::ResetPeerResponse *response,
-                                     ::google::protobuf::Closure *done) {
+void BRaftCliServiceImpl::reset_peer(RpcController *controller,
+                                     const ResetPeerRequest *request,
+                                     ResetPeerResponse *response,
+                                     Closure *done) {
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
     LogicPoolID logicPoolId = request->logicpoolid();
     CopysetID copysetId = request->copysetid();
-    butil::Status st = get_node(&node, logicPoolId, copysetId, request->peer_id());
+    butil::Status
+        st = get_node(&node, logicPoolId, copysetId, request->peer_id());
     if (!st.ok()) {
         cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
         return;
@@ -167,7 +171,7 @@ void BRaftCliServiceImpl::reset_peer(::google::protobuf::RpcController *controll
 
 static void snapshot_returned(brpc::Controller *cntl,
                               scoped_refptr<braft::NodeImpl> node,
-                              ::google::protobuf::Closure *done,
+                              Closure *done,
                               const butil::Status &st) {
     brpc::ClosureGuard done_guard(done);
     if (!st.ok()) {
@@ -175,16 +179,17 @@ static void snapshot_returned(brpc::Controller *cntl,
     }
 }
 
-void BRaftCliServiceImpl::snapshot(::google::protobuf::RpcController *controller,
-                                   const ::curve::chunkserver::SnapshotRequest *request,
-                                   ::curve::chunkserver::SnapshotResponse *response,
-                                   ::google::protobuf::Closure *done) {
+void BRaftCliServiceImpl::snapshot(RpcController *controller,
+                                   const SnapshotRequest *request,
+                                   SnapshotResponse *response,
+                                   Closure *done) {
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
     LogicPoolID logicPoolId = request->logicpoolid();
     CopysetID copysetId = request->copysetid();
-    butil::Status st = get_node(&node, logicPoolId, copysetId, request->peer_id());
+    butil::Status
+        st = get_node(&node, logicPoolId, copysetId, request->peer_id());
     if (!st.ok()) {
         cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
         return;
@@ -194,10 +199,10 @@ void BRaftCliServiceImpl::snapshot(::google::protobuf::RpcController *controller
     return node->snapshot(snapshot_done);
 }
 
-void BRaftCliServiceImpl::get_leader(::google::protobuf::RpcController *controller,
-                                     const ::curve::chunkserver::GetLeaderRequest *request,
-                                     ::curve::chunkserver::GetLeaderResponse *response,
-                                     ::google::protobuf::Closure *done) {
+void BRaftCliServiceImpl::get_leader(RpcController *controller,
+                                     const GetLeaderRequest *request,
+                                     GetLeaderResponse *response,
+                                     Closure *done) {
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     std::vector<scoped_refptr<braft::NodeImpl> > nodes;
@@ -235,7 +240,7 @@ void BRaftCliServiceImpl::get_leader(::google::protobuf::RpcController *controll
     cntl->SetFailed(EAGAIN, "Unknown leader");
 }
 
-butil::Status BRaftCliServiceImpl::get_node(scoped_refptr<braft::NodeImpl> *node,
+butil::Status BRaftCliServiceImpl::get_node(scoped_refptr<braft::NodeImpl> *node,   //NOLINT
                                             const LogicPoolID &logicPoolId,
                                             const CopysetID &copysetId,
                                             const std::string &peer_id) {
@@ -264,20 +269,22 @@ butil::Status BRaftCliServiceImpl::get_node(scoped_refptr<braft::NodeImpl> *node
     }
 
     if ((*node)->disable_cli()) {
-        return butil::Status(EACCES, "CliService is not allowed to access node "
-                                     "%s", (*node)->node_id().to_string().c_str());
+        return butil::Status(EACCES,
+                             "CliService is not allowed to access node "
+                             "%s",
+                             (*node)->node_id().to_string().c_str());
     }
 
     return butil::Status::OK();
 }
 
 static void change_peers_returned(brpc::Controller *cntl,
-                                  const ::curve::chunkserver::ChangePeersRequest *request,
-                                  ::curve::chunkserver::ChangePeersResponse *response,
+                                  const ChangePeersRequest *request,
+                                  ChangePeersResponse *response,
                                   std::vector<braft::PeerId> old_peers,
                                   braft::Configuration new_peers,
                                   scoped_refptr<braft::NodeImpl> /*node*/,
-                                  ::google::protobuf::Closure *done,
+                                  Closure *done,
                                   const butil::Status &st) {
     brpc::ClosureGuard done_guard(done);
     if (!st.ok()) {
@@ -293,16 +300,17 @@ static void change_peers_returned(brpc::Controller *cntl,
     }
 }
 
-void BRaftCliServiceImpl::change_peers(::google::protobuf::RpcController *controller,
-                                       const ::curve::chunkserver::ChangePeersRequest *request,
-                                       ::curve::chunkserver::ChangePeersResponse *response,
-                                       ::google::protobuf::Closure *done) {
+void BRaftCliServiceImpl::change_peers(RpcController *controller,
+                                       const ChangePeersRequest *request,
+                                       ChangePeersResponse *response,
+                                       Closure *done) {
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
     LogicPoolID logicPoolId = request->logicpoolid();
     CopysetID copysetId = request->copysetid();
-    butil::Status st = get_node(&node, logicPoolId, copysetId, request->leader_id());
+    butil::Status
+        st = get_node(&node, logicPoolId, copysetId, request->leader_id());
     if (!st.ok()) {
         cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
         return;
@@ -331,16 +339,17 @@ void BRaftCliServiceImpl::change_peers(::google::protobuf::RpcController *contro
 }
 
 void BRaftCliServiceImpl::transfer_leader(
-    ::google::protobuf::RpcController *controller,
-    const ::curve::chunkserver::TransferLeaderRequest *request,
-    ::curve::chunkserver::TransferLeaderResponse *response,
+    RpcController *controller,
+    const TransferLeaderRequest *request,
+    TransferLeaderResponse *response,
     ::google::protobuf::Closure *done) {
     brpc::Controller *cntl = (brpc::Controller *) controller;
     brpc::ClosureGuard done_guard(done);
     scoped_refptr<braft::NodeImpl> node;
     LogicPoolID logicPoolId = request->logicpoolid();
     CopysetID copysetId = request->copysetid();
-    butil::Status st = get_node(&node, logicPoolId, copysetId, request->leader_id());
+    butil::Status
+        st = get_node(&node, logicPoolId, copysetId, request->leader_id());
     if (!st.ok()) {
         cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
         return;

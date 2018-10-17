@@ -30,7 +30,8 @@ CSSfsAdaptor::~CSSfsAdaptor() {
     }
 }
 
-bool CSSfsAdaptor::Initialize(const std::string& deviceID, const std::string & uri) {
+bool CSSfsAdaptor::Initialize(const std::string& deviceID,
+                            const std::string & uri) {
     bool ret = false;
     if (lfs_ == nullptr) {
         std::string protocol = FsAdaptorUtil::ParserUri(uri, &storagePath_);
@@ -38,9 +39,13 @@ bool CSSfsAdaptor::Initialize(const std::string& deviceID, const std::string & u
             if (strcmp(protocol.c_str(), "local") == 0) {
                 lfs_ = new CSSfsLocalFsImpl();
             } else if (strcmp(protocol.c_str(), "bluestore") == 0) {
-                lfs_ = curve::sfs::LocalFsFactory::CreateFs(curve::sfs::FsType::BLUESTORE);
+                lfs_ =
+                curve::sfs::LocalFsFactory::CreateFs(
+                    curve::sfs::FsType::BLUESTORE);
             } else if (strcmp(protocol.c_str(), "sfs") == 0) {
-                lfs_ = curve::sfs::LocalFsFactory::CreateFs(curve::sfs::FsType::SFS);
+                lfs_ =
+                curve::sfs::LocalFsFactory::CreateFs(
+                    curve::sfs::FsType::SFS);
             }
             lfs_ == nullptr ? ret = false : ret = true;
         } while (0);
@@ -50,7 +55,8 @@ bool CSSfsAdaptor::Initialize(const std::string& deviceID, const std::string & u
     if (!ret) {
         return ret;
     }
-    std::list<std::string> dirpaths = FsAdaptorUtil::ParserDirPath(storagePath_);
+    std::list<std::string> dirpaths =
+            FsAdaptorUtil::ParserDirPath(storagePath_);
     for (auto iter : dirpaths) {
         if (!lfs_->DirExists(iter.c_str())) {
             int err = lfs_->Mkdir(iter.c_str(), 0755);
@@ -67,7 +73,9 @@ void CSSfsAdaptor::UnInitialize() {
     lfs_ = nullptr;
 }
 
-CSSfsAdaptor::fd_t CSSfsAdaptor::Open(const char* path, int flags, mode_t mode) {
+CSSfsAdaptor::fd_t CSSfsAdaptor::Open(const char* path,
+                                    int flags,
+                                    mode_t mode) {
     fd_t ret;
     ret.fd_ = lfs_->Open(path, flags, mode);
     return ret;
@@ -97,11 +105,17 @@ int CSSfsAdaptor::Rename(const char* oldPath, const char* newPath) {
     return lfs_->Rename(oldPath, newPath);
 }
 
-int CSSfsAdaptor::List(const char* dirName, std::vector<char*>* names, int start, int max) {
+int CSSfsAdaptor::List(const char* dirName,
+                        std::vector<char*>* names,
+                        int start,
+                        int max) {
     return lfs_->List(dirName, names, start, max);
 }
 
-int CSSfsAdaptor::Read(fd_t fd, void* buf, uint64_t offset, int length) {
+int CSSfsAdaptor::Read(fd_t fd,
+                        void* buf,
+                        uint64_t offset,
+                        int length) {
     int leftcount = length;
     char* ptr = reinterpret_cast<char*>(buf);
 
@@ -130,7 +144,10 @@ int CSSfsAdaptor::Read(fd_t fd, void* buf, uint64_t offset, int length) {
     return length - leftcount;
 }
 
-bool CSSfsAdaptor::Write(fd_t fd, const void* buf, uint64_t offset, int length) {
+bool CSSfsAdaptor::Write(fd_t fd,
+                        const void* buf,
+                        uint64_t offset,
+                        int length) {
     int leftcount = length;
     const char* ptr = reinterpret_cast<const char*>(buf);
 

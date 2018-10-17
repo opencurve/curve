@@ -57,27 +57,42 @@ bool CSSfsLocalFsImpl::FileExists(const char* filePath) {
     return access(filePath, F_OK) == 0;
 }
 
-int CSSfsLocalFsImpl::Rename(const char* oldPath, const char* newPath) {
+int CSSfsLocalFsImpl::Rename(const char* oldPath,
+                            const char* newPath) {
     return rename(oldPath, newPath);
 }
 
-int CSSfsLocalFsImpl::List(const char* dirName, std::vector<char*>* names, int start, int max) {
+int CSSfsLocalFsImpl::List(const char* dirName,
+                            std::vector<char*>* names,
+                            int start,
+                            int max) {
     return 0;
 }
 
-int CSSfsLocalFsImpl::Read(int fd, void* buf, uint64_t offset, int length) {
+int CSSfsLocalFsImpl::Read(int fd,
+                            void* buf,
+                            uint64_t offset,
+                            int length) {
     return pread(fd, buf, length, offset);
 }
 
-int CSSfsLocalFsImpl::Write(int fd, const void* buf, uint64_t offset, int length) {
+int CSSfsLocalFsImpl::Write(int fd,
+                            const void* buf,
+                            uint64_t offset,
+                            int length) {
     return pwrite(fd, buf, length, offset);
 }
 
-int CSSfsLocalFsImpl::Append(int fd, void* buf, int length) {
+int CSSfsLocalFsImpl::Append(int fd,
+                            void* buf,
+                            int length) {
     return 0;
 }
 
-int CSSfsLocalFsImpl::Fallocate(int fd, int op, uint64_t offset, int length) {
+int CSSfsLocalFsImpl::Fallocate(int fd,
+                                int op,
+                                uint64_t offset,
+                                int length) {
     return fallocate(fd, op, offset, length);
 }
 

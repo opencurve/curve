@@ -276,7 +276,7 @@ cc_test(
 #    hdrs = ["src/libcurve/interface/libcurve_fake.h"],
 #    deps = ["//proto:nameserver2_cc_proto"],
 #)
-#
+
 COPTS = [
     "-DGFLAGS=gflags",
     "-DOS_LINUX",
@@ -561,31 +561,16 @@ CHUNKSERVER_DEPS = [
 cc_binary(
     name = "chunkserver-test",
     srcs = glob([
-        "test/chunkserver/cli_test.cpp",
-        "test/chunkserver/chunk_service_test.cpp",
+        #        "test/chunkserver/cli_test.cpp",
+        #        "test/chunkserver/chunk_service_test.cpp",
         "test/chunkserver/copyset_node_manager_test.cpp",
         "test/chunkserver/op_request_test.cpp",
-    ]),
-    copts = [
-        "-Iexternal/gtest/include",
-        "-g",
-    ],
-    deps = CHUNKSERVER_DEPS,
-)
-
-cc_test(
-    name = "chunkserver-copyset-test",
-    srcs = glob([
         "test/chunkserver/copyset_service_test.cpp",
     ]),
-    copts = [
-        "-Iexternal/gtest/include",
-    ],
     deps = CHUNKSERVER_DEPS,
 )
 
 # tools
-
 cc_binary(
     name = "curve-cli",
     srcs = [

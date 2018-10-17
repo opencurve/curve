@@ -4,20 +4,21 @@ package curve.chunkserver;
 option cc_generic_services = true;
 
 message CopysetRequest {
-    required uint32 logicPoolId = 1;    // logicPoolId 实际上 uint16，但是 proto 没有 uint16
+    // logicPoolId 实际上 uint16，但是 proto 没有 uint16
+    required uint32 logicPoolId = 1;
     required uint32 copysetId = 2;
-    repeated string conf = 3;           // 当前复制组配置，可以为空
+    repeated string peerid = 3; // 当前复制组配置，可以为空
 };
 
 enum COPYSET_OP_STATUS {
     COPYSET_OP_STATUS_SUCCESS = 0;
-    COPYSET_OP_STATUS_EXIST = 1;        // copyset node 已经存在
+    COPYSET_OP_STATUS_EXIST = 1;  // copyset node 已经存在
     COPYSET_OP_STATUS_FAILURE_UNKNOWN = 2;
 };
 
 message CopysetResponse {
     optional COPYSET_OP_STATUS status = 1;
-    optional string redirect = 2;           // 自己不是 leader，重定向给 leader
+    optional string redirect = 2;  // 自己不是 leader，重定向给 leader
 };
 
 service CopysetService {

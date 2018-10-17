@@ -22,7 +22,8 @@ class CSSfsLocalFsImpl_test : public testing::Test {
         void SetUp() {
             std::string uri = "local://./";
             curve::chunkserver::ChunkserverStorage::Init();
-            csSfsAdaptorPtr_ = curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
+            csSfsAdaptorPtr_ =
+            curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
         }
 
         void TearDown() {
@@ -33,13 +34,15 @@ class CSSfsLocalFsImpl_test : public testing::Test {
 };
 
 TEST_F(CSSfsLocalFsImpl_test, FsOpenClose) {
-    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->
+        Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
     ASSERT_NE(-1 , fd.fd_);
     ASSERT_NE(-1, csSfsAdaptorPtr_->Close(fd));
 }
 
 TEST_F(CSSfsLocalFsImpl_test, FsReadWrite) {
-    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->
+        Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
     ASSERT_NE(-1 , fd.fd_);
     for (uint64_t id = 0; id < 1000; id++) {
         char writebuf[1024];
@@ -67,7 +70,8 @@ TEST_F(CSSfsLocalFsImpl_test, FsMkDirAndDirExist) {
 
 TEST_F(CSSfsLocalFsImpl_test, FsFileExistAndDelete) {
     std::string filepath = "./test.txt";
-    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open(filepath.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->
+        Open(filepath.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
     ASSERT_NE(-1 , fd.fd_);
     ASSERT_EQ(0, csSfsAdaptorPtr_->Delete(filepath.c_str()));
 }

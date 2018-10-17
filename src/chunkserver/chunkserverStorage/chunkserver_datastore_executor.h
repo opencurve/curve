@@ -26,16 +26,29 @@ class CURVE_CACHELINE_ALIGNMENT CSDataStoreExecutor {
      * chunk operation
      */
     bool DeleteChunk();
-    bool ReadChunk(char * buf, off_t offset, size_t* length);
-    bool WriteChunk(const char * buf, off_t offset, size_t length);
-    int AioReadChunk(char * buf, off_t offset, size_t length, std::function<void(void*)> callback);
-    int AioWriteChunk(char * buf, off_t offset, size_t length, std::function<void(void*)> callback);
+    bool ReadChunk(char * buf,
+                    off_t offset,
+                    size_t* length);
+    bool WriteChunk(const char * buf,
+                    off_t offset,
+                    size_t length);
+    int AioReadChunk(char * buf,
+                    off_t offset,
+                    size_t length,
+                    std::function<void(void*)> callback);
+    int AioWriteChunk(char * buf,
+                    off_t offset,
+                    size_t length,
+                    std::function<void(void*)> callback);
 
     int ValidateChunk();
 
     bool CreateSnapshot(SnapshotID sid);
     bool DeleteSnapshot(SnapshotID sid);
-    int ReadSnapshot(SnapshotID sid, char* buff, off_t offset, size_t length);
+    int ReadSnapshot(SnapshotID sid,
+                    char* buff,
+                    off_t offset,
+                    size_t length);
     bool RevertSnapshot2ID(SnapshotID targetID);
 
  private:

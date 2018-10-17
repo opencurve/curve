@@ -5,6 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
+#include <glog/logging.h>
 #include <gflags/gflags.h>
 #include <butil/string_splitter.h>
 #include <braft/cli.h>
@@ -15,10 +16,13 @@
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/cli.h"
 
-
-// 用于配置变更测试的命令行工具，提供了 add peer、remove peer、transfer leader、get leader 的命令行
 namespace curve {
 namespace chunkserver {
+
+/**
+ * 用于配置变更测试的命令行工具，提供了 add peer、remove peer、transfer leader、
+ * get leader 的命令行
+ */
 
 DEFINE_int32(timeout_ms,
              -1, "Timeout (in milliseconds) of the operation");
@@ -62,7 +66,8 @@ int AddPeer() {
     braft::cli::CliOptions opt;
     opt.timeout_ms = FLAGS_timeout_ms;
     opt.max_retry = FLAGS_max_retry;
-    butil::Status st = AddPeer(FLAGS_logic_pool_id, FLAGS_copyset_id, conf, newPeer, opt);
+    butil::Status
+        st = AddPeer(FLAGS_logic_pool_id, FLAGS_copyset_id, conf, newPeer, opt);
     if (!st.ok()) {
         LOG(ERROR) << "Fail to add_peer : " << st;
         return -1;
@@ -87,7 +92,11 @@ int RemovePeer() {
     braft::cli::CliOptions opt;
     opt.timeout_ms = FLAGS_timeout_ms;
     opt.max_retry = FLAGS_max_retry;
-    butil::Status st = RemovePeer(FLAGS_logic_pool_id, FLAGS_copyset_id, conf, removingPeer, opt);
+    butil::Status st = RemovePeer(FLAGS_logic_pool_id,
+                                  FLAGS_copyset_id,
+                                  conf,
+                                  removingPeer,
+                                  opt);
     if (!st.ok()) {
         LOG(ERROR) << "Fail to remove_peer : " << st;
         return -1;
@@ -112,7 +121,11 @@ int TransferLeader() {
     braft::cli::CliOptions opt;
     opt.timeout_ms = FLAGS_timeout_ms;
     opt.max_retry = FLAGS_max_retry;
-    butil::Status st = TransferLeader(FLAGS_logic_pool_id, FLAGS_copyset_id, conf, targetPeer, opt);
+    butil::Status st = TransferLeader(FLAGS_logic_pool_id,
+                                      FLAGS_copyset_id,
+                                      conf,
+                                      targetPeer,
+                                      opt);
     if (!st.ok()) {
         LOG(ERROR) << "Fail to transfer_leader: " << st;
         return -1;
@@ -145,16 +158,17 @@ int main(int argc, char *argv[]) {
         ++proc_name;
     }
     std::string help_str;
-    butil::string_printf(&help_str,
-                         "Usage: %s [Command] [OPTIONS...]\n"
-                         "Command:\n"
-                         "  add_peer --logic_pool_id=$logic_pool_id  --copyset_id=$copyset_id"
-                         "--peer=$adding_peer --conf=$current_conf\n"
-                         "  remove_peer --logic_pool_id=$logic_pool_id  --copyset_id=$copyset_id"
-                         "--peer=$removing_peer --conf=$current_conf\n"
-                         "  transfer_leader --logic_pool_id=$logic_pool_id  --copyset_id=$copyset_id"
-                         "--peer=$target_leader --conf=$current_conf\n",
-                         proc_name);
+    butil::string_printf(
+        &help_str,
+        "Usage: %s [Command] [OPTIONS...]\n"
+        "Command:\n"
+        "  add_peer --logic_pool_id=$logic_pool_id --copyset_id=$copyset_id"
+        "--peer=$adding_peer --conf=$current_conf\n"
+        "  remove_peer --logic_pool_id=$logic_pool_id --copyset_id=$copyset_id"
+        "--peer=$removing_peer --conf=$current_conf\n"
+        "  transfer_leader --logic_pool_id=$logic_pool_id --copyset_id=$copyset_id"  //NOLINT
+        "--peer=$target_leader --conf=$current_conf\n",
+        proc_name);
     gflags::SetUsageMessage(help_str);
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     if (argc != 2) {

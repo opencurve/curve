@@ -42,7 +42,10 @@ class CSSfsLocalFsImpl : public curve::sfs::LocalFileSystem {
     bool DirExists(const char* dirName) override;
     bool FileExists(const char* filePath) override;
     int Rename(const char* oldPath, const char* newPath) override;
-    int List(const char* dirName, std::vector<char*>* names, int start, int max) override;
+    int List(const char* dirName,
+            std::vector<char*>* names,
+            int start,
+            int max) override;
     int Read(int fd, void* buf, uint64_t offset, int length) override;
     int Write(int fd, const void* buf, uint64_t offset, int length) override;
     int Append(int fd, void* buf, int length) override;

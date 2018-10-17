@@ -12,13 +12,13 @@
 #include <brpc/controller.h>
 #include <brpc/server.h>
 
+#include <cstdint>
+
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
 #include "src/sfs/sfsMock.h"
-
-curve::sfs::LocalFileSystem * curve::sfs::LocalFsFactory::localFs_ = nullptr;
 
 namespace curve {
 namespace chunkserver {
@@ -46,23 +46,21 @@ class CopysetServiceTest : public testing::Test {
     }
 };
 
+// butil::AtExitManager atExitManager;
+
 TEST_F(CopysetServiceTest, basic) {
     CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100002;
     std::string ip = "127.0.0.1";
-    uint32_t port = 8200;
+    uint32_t port = 9200;
     std::string copysetDir = "local://./data";
-    std::string initConf = "127.0.0.1:8200:0,127.0.0.1:8201:0";
 
     brpc::Server server;
     butil::EndPoint addr(butil::IP_ANY, port);
-    ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
 
-    if (server.Start(port, NULL) != 0) {
-        LOG(ERROR) << "Fail to start Server";
-        return;
-    }
+    ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
+    ASSERT_EQ(0, server.Start(port, NULL));
 
     butil::string_printf(&copysetDir, "local://./data/%d", port);
     CopysetNodeOptions copysetNodeOptions;
@@ -75,21 +73,15 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeOptions.logUri = copysetDir;
     copysetNodeOptions.raftMetaUri = copysetDir;
     copysetNodeOptions.raftSnapshotUri = copysetDir;
-
-    Configuration conf;
-    if (conf.parse_from(initConf) != 0) {
-        LOG(ERROR) << "Fail to parse configuration `" << initConf << '\'';
-        return;
-    }
     copysetNodeManager->Init(copysetNodeOptions);
 
     brpc::Channel channel;
-    PeerId peerId("127.0.0.1:8200:0");
+    PeerId peerId("127.0.0.1:9200:0");
     if (channel.Init(peerId.addr, NULL) != 0) {
         LOG(FATAL) << "Fail to init channel to " << peerId.addr;
     }
 
-    // 测试创建一个新的 copyset
+    /* 测试创建一个新的 copyset */
     CopysetService_Stub stub(&channel);
     {
         brpc::Controller cntl;
@@ -99,16 +91,18 @@ TEST_F(CopysetServiceTest, basic) {
         CopysetResponse response;
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
-        request.add_conf("127.0.0.1:8200:0");
-        request.add_conf("127.0.0.1:8201:0");
+        request.add_peerid("127.0.0.1:9200:0");
+        request.add_peerid("127.0.0.1:9201:0");
+        request.add_peerid("127.0.0.1:9202:0");
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
             std::cout << cntl.ErrorText() << std::endl;
         }
-        ASSERT_TRUE(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS == response.status());
+        ASSERT_EQ(response.status(),
+                    COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     }
 
-    // 测试创建一个已经存在的 copyset
+    /* 测试创建一个新的 copyset */
     {
         brpc::Controller cntl;
         cntl.set_timeout_ms(2);
@@ -117,14 +111,19 @@ TEST_F(CopysetServiceTest, basic) {
         CopysetResponse response;
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
-        request.add_conf("127.0.0.1:8200:0");
-        request.add_conf("127.0.0.1:8201:0");
+        request.add_peerid("127.0.0.1:9200:0");
+        request.add_peerid("127.0.0.1:9201:0");
+        request.add_peerid("127.0.0.1:9202:0");
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
             std::cout << cntl.ErrorText() << std::endl;
         }
-        ASSERT_EQ(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST, response.status());
+        ASSERT_EQ(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST,
+                  response.status());
     }
+
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
 }
 
 }  // namespace chunkserver

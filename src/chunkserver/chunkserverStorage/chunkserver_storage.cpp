@@ -10,7 +10,8 @@
 namespace curve {
 namespace chunkserver {
 
-std::vector<std::shared_ptr<CSSfsAdaptor>> ChunkserverStorage::csSfsAdaptorPtrVect_;
+std::vector<std::shared_ptr<CSSfsAdaptor>>
+    ChunkserverStorage::csSfsAdaptorPtrVect_;
 
 }  // namespace chunkserver
 }  // namespace curve

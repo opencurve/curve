@@ -36,6 +36,7 @@ bin
 lib
 build
 *.temp
+.clwb
 
 # cscope
 cscope.out
@@ -53,8 +54,8 @@ build.log
 
 
 # protobuf
-#*.pb.h
-#*.pb.cc
+*.pb.h
+*.pb.cc
 
 # bazel
 bazel-bin

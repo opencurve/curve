@@ -16,7 +16,7 @@
 namespace curve {
 namespace chunkserver {
 
-// Implements Closure which encloses RPC stuff
+/* Implements Closure which encloses RPC stuff */
 class ChunkClosure : public braft::Closure {
  public:
     ChunkClosure(CopysetNode *node, ChunkOpRequest *request)
@@ -24,27 +24,16 @@ class ChunkClosure : public braft::Closure {
 
     ~ChunkClosure() {
         delete request_;
+        request_ = nullptr;
     }
-
     ChunkOpRequest *GetOpRequest() {
         return request_;
     }
-
-    void Run() {
-        // Auto delete this after Run()
-        std::unique_ptr<ChunkClosure> selfGuard(this);
-        // Repsond this RPC.
-        brpc::ClosureGuard doneGuard(request_->GetClosure());
-        if (status().ok()) {
-            return;
-        }
-        copysetNode_->RedirectChunkRequest(request_->GetResponse());
-    }
+    void Run();
 
  private:
-    // copysetNode 和 request 的生命周期不归 ChunkOpRequest 管
     CopysetNode *copysetNode_;
-    // request 的生命周期归属 ChunkOpRequest 管
+    /* request 的生命周期归属 ChunkOpRequest 管 */
     ChunkOpRequest *request_;
 };
 
@@ -55,25 +44,14 @@ class ChunkSnapshotClosure : public braft::Closure {
 
     ~ChunkSnapshotClosure() {
         delete request_;
+        request_ = nullptr;
     }
-
     ChunkSnapshotOpRequest *GetOpRequest() {
         return request_;
     }
-
-    void Run() {
-        // Auto delete this after Run()
-        std::unique_ptr<ChunkSnapshotClosure> selfGuard(this);
-        // Repsond this RPC.
-        brpc::ClosureGuard doneGuard(request_->GetClosure());
-        if (status().ok()) {
-            return;
-        }
-        copysetNode_->RedirectChunkSnapshotRequest(request_->GetResponse());
-    }
+    void Run();
 
  private:
-    // copysetNode 的生命周期不归 ChunkSnapsthoClosure 管
     CopysetNode *copysetNode_;
     // request 的生命周期归属 ChunkSnapshotClosure 管
     ChunkSnapshotOpRequest *request_;

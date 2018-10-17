@@ -13,6 +13,9 @@
 namespace curve {
 namespace chunkserver {
 
+using ::google::protobuf::RpcController;
+using ::google::protobuf::Closure;
+
 class CopysetNodeManager;
 
 class CopysetServiceImpl : public CopysetService {
@@ -20,10 +23,11 @@ class CopysetServiceImpl : public CopysetService {
     explicit CopysetServiceImpl(CopysetNodeManager* copysetNodeManager) :
         copysetNodeManager_(copysetNodeManager) {}
     ~CopysetServiceImpl() {}
-    void CreateCopysetNode(::google::protobuf::RpcController *controller,
-                           const ::curve::chunkserver::CopysetRequest *request,
-                           ::curve::chunkserver::CopysetResponse *response,
-                           google::protobuf::Closure *done);
+
+    void CreateCopysetNode(RpcController *controller,
+                           const CopysetRequest *request,
+                           CopysetResponse *response,
+                           Closure *done);
 
  private:
     CopysetNodeManager* copysetNodeManager_;

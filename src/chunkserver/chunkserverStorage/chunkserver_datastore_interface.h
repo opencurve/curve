@@ -27,8 +27,14 @@ class CSDataStoreInterface {
      * chunk operation
      */
     virtual bool DeleteChunk(ChunkID id) = 0;
-    virtual bool ReadChunk(ChunkID id, char * buf, off_t offset, size_t* length) = 0;
-    virtual bool WriteChunk(ChunkID id, const char * buf, off_t offset, size_t length) = 0;
+    virtual bool ReadChunk(ChunkID id,
+                            char * buf,
+                            off_t offset,
+                            size_t* length) = 0;
+    virtual bool WriteChunk(ChunkID id,
+                            const char * buf,
+                            off_t offset,
+                            size_t length) = 0;
     virtual int AioReadChunk(ChunkID id,
                             char * buf,
                             off_t offset,
@@ -46,7 +52,11 @@ class CSDataStoreInterface {
      */
     virtual bool CreateSnapshot(ChunkID cid, SnapshotID sid) = 0;
     virtual bool DeleteSnapshot(ChunkID cid, SnapshotID sid) = 0;
-    virtual int ReadSnapshot(ChunkID cid, SnapshotID sid, char* buff, off_t offset, size_t length) = 0;
+    virtual int ReadSnapshot(ChunkID cid,
+                            SnapshotID sid,
+                            char* buff,
+                            off_t offset,
+                            size_t length) = 0;
     virtual bool RevertSnapshot2ID(ChunkID cid, SnapshotID targetID) = 0;
 };
 }  // namespace chunkserver

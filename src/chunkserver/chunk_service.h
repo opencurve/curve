@@ -13,6 +13,9 @@
 namespace curve {
 namespace chunkserver {
 
+using ::google::protobuf::RpcController;
+using ::google::protobuf::Closure;
+
 class CopysetNodeManager;
 
 struct ChunkServiceOptions {
@@ -25,35 +28,35 @@ class ChunkServiceImpl : public ChunkService {
         chunkServiceOptions_(chunkServiceOptions),
         copysetNodeManager_(chunkServiceOptions.copysetNodeManager) {}
     ~ChunkServiceImpl() {}
-    void DeleteChunk(::google::protobuf::RpcController *controller,
-                     const ::curve::chunkserver::ChunkRequest *request,
-                     ::curve::chunkserver::ChunkResponse *response,
-                     google::protobuf::Closure *done);
+    void DeleteChunk(RpcController *controller,
+                     const ChunkRequest *request,
+                     ChunkResponse *response,
+                     Closure *done);
 
-    void ReadChunk(::google::protobuf::RpcController *controller,
-                   const ::curve::chunkserver::ChunkRequest *request,
-                   ::curve::chunkserver::ChunkResponse *response,
-                   google::protobuf::Closure *done);
+    void ReadChunk(RpcController *controller,
+                   const ChunkRequest *request,
+                   ChunkResponse *response,
+                   Closure *done);
 
-    void WriteChunk(::google::protobuf::RpcController *controller,
-                    const ::curve::chunkserver::ChunkRequest *request,
-                    ::curve::chunkserver::ChunkResponse *response,
-                    google::protobuf::Closure *done);
+    void WriteChunk(RpcController *controller,
+                    const ChunkRequest *request,
+                    ChunkResponse *response,
+                    Closure *done);
 
-    void CreateChunkSnapshot(::google::protobuf::RpcController *controller,
-                             const ::curve::chunkserver::ChunkSnapshotRequest *request,
-                             ::curve::chunkserver::ChunkSnapshotResponse *response,
-                             google::protobuf::Closure *done);
+    void CreateChunkSnapshot(RpcController *controller,
+                             const ChunkSnapshotRequest *request,
+                             ChunkSnapshotResponse *response,
+                             Closure *done);
 
-    void DeleteChunkSnapshot(::google::protobuf::RpcController *controller,
-                             const ::curve::chunkserver::ChunkSnapshotRequest *request,
-                             ::curve::chunkserver::ChunkSnapshotResponse *response,
-                             google::protobuf::Closure *done);
+    void DeleteChunkSnapshot(RpcController *controller,
+                             const ChunkSnapshotRequest *request,
+                             ChunkSnapshotResponse *response,
+                             Closure *done);
 
-    void ReadChunkSnapshot(::google::protobuf::RpcController *controller,
-                           const ::curve::chunkserver::ChunkSnapshotRequest *request,
-                           ::curve::chunkserver::ChunkSnapshotResponse *response,
-                           google::protobuf::Closure *done);
+    void ReadChunkSnapshot(RpcController *controller,
+                           const ChunkSnapshotRequest *request,
+                           ChunkSnapshotResponse *response,
+                           Closure *done);
 
  private:
     ChunkServiceOptions chunkServiceOptions_;

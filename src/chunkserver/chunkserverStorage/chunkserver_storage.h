@@ -22,8 +22,10 @@ class CURVE_CACHELINE_ALIGNMENT ChunkserverStorage {
         csSfsAdaptorPtrVect_.clear();
     }
 
-    static std::shared_ptr<CSSfsAdaptor> CreateFsAdaptor(std::string deviceID, std::string storageuri) {
-        std::shared_ptr<CSSfsAdaptor> csSfsAdaptorPtr_ = std::shared_ptr<CSSfsAdaptor>(new CSSfsAdaptor());
+    static std::shared_ptr<CSSfsAdaptor> CreateFsAdaptor(std::string deviceID,
+                                                    std::string storageuri) {
+        std::shared_ptr<CSSfsAdaptor> csSfsAdaptorPtr_ =
+         std::shared_ptr<CSSfsAdaptor>(new CSSfsAdaptor());
         if (csSfsAdaptorPtr_ != nullptr) {
             if (!csSfsAdaptorPtr_->Initialize(deviceID, storageuri)) {
                 csSfsAdaptorPtr_.reset();
