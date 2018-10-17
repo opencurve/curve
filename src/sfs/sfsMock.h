@@ -30,24 +30,27 @@ class LocalFileSystem {
     virtual int Mkfs() = 0;
     virtual int Mount() = 0;
     virtual int Umount() = 0;
-    virtual int Statfs(struct FsInfo* info) = 0;
+    virtual int Statfs(struct FsInfo *info) = 0;
 
-    virtual int Open(const char* path, int flags, mode_t mode) = 0;
+    virtual int Open(const char *path, int flags, mode_t mode) = 0;
     virtual int Close(int fd) = 0;
-    virtual int Delete(const char* path) = 0;
-    virtual int Mkdir(const char* dirName, int flags) = 0;
-    virtual bool Rmdir(const char* dirName) = 0;
-    virtual bool DirExists(const char* dirName) = 0;
-    virtual bool FileExists(const char* filePath) = 0;
-    virtual int Rename(const char* oldPath, const char* newPath) = 0;
-    virtual int List(const char* dirName, std::vector<char*>* names, int start, int max) = 0;
-    virtual int Read(int fd, void* buf, uint64_t offset, int length) = 0;
-    virtual int Write(int fd, const void* buf, uint64_t offset, int length) = 0;
-    virtual int Append(int fd, void* buf, int length) = 0;
+    virtual int Delete(const char *path) = 0;
+    virtual int Mkdir(const char *dirName, int flags) = 0;
+    virtual bool Rmdir(const char *dirName) = 0;
+    virtual bool DirExists(const char *dirName) = 0;
+    virtual bool FileExists(const char *filePath) = 0;
+    virtual int Rename(const char *oldPath, const char *newPath) = 0;
+    virtual int List(const char *dirName,
+                     std::vector<char *> *names,
+                     int start,
+                     int max) = 0;
+    virtual int Read(int fd, void *buf, uint64_t offset, int length) = 0;
+    virtual int Write(int fd, const void *buf, uint64_t offset, int length) = 0;
+    virtual int Append(int fd, void *buf, int length) = 0;
     virtual int Fallocate(int fd, int op, uint64_t offset, int length) = 0;
-    virtual int Fstat(int fd, struct stat* info) = 0;
+    virtual int Fstat(int fd, struct stat *info) = 0;
     virtual int Fsync(int fd) = 0;
-    virtual int Snapshot(const char* path, const char* snapPath) = 0;
+    virtual int Snapshot(const char *path, const char *snapPath) = 0;
 };
 
 enum FsType {
@@ -67,12 +70,12 @@ struct FsInfo {
 class LocalFsFactory {
  public:
     virtual ~LocalFsFactory();
-    static LocalFileSystem* CreateFs(const FsType& type) {
-      return localFs_;
+    static LocalFileSystem *CreateFs(const FsType &type) {
+        return localFs_;
     }
  private:
     LocalFsFactory() {}
-    static LocalFileSystem* localFs_;
+    static LocalFileSystem *localFs_;
 };
 }  // namespace sfs
 }  // namespace curve

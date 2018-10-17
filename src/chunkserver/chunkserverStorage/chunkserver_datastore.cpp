@@ -16,7 +16,8 @@
 namespace curve {
 namespace chunkserver {
 
-CSDataStore::CSDataStore(std::shared_ptr<CSSfsAdaptor> fsadaptor, std::string copysetdir) {
+CSDataStore::CSDataStore(std::shared_ptr<CSSfsAdaptor> fsadaptor,
+                         std::string copysetdir) {
     isInited_ = false;
     copysetDir_ = copysetdir;
     copysetStoragePool_.clear();
@@ -45,7 +46,8 @@ bool CSDataStore::InitInternal() {
 
     int err = 0;
     do {
-        std::list<std::string> dirpaths = FsAdaptorUtil::ParserDirPath(copysetDir_);
+        std::list<std::string> dirpaths =
+            FsAdaptorUtil::ParserDirPath(copysetDir_);
         for (auto iter : dirpaths) {
             if (!sfsptr_->DirExists(iter.c_str())) {
                 err = sfsptr_->Mkdir(iter.c_str(), 0755);
@@ -80,27 +82,35 @@ bool CSDataStore::DeleteChunk(ChunkID id) {
     return ret;
 }
 
-bool CSDataStore::ReadChunk(ChunkID id, char * buf, off_t offset, size_t* length) {
+bool CSDataStore::ReadChunk(ChunkID id,
+                            char * buf,
+                            off_t offset,
+                            size_t* length) {
     auto iter = copysetStoragePool_.find(id);
     if (CURVE_LIKELY(iter != copysetStoragePool_.end())) {
         return iter->second->ReadChunk(buf, offset, length);
     }
     std::string filepath = ChunkID2FileName(id);
     if (sfsptr_->FileExists(filepath.c_str())) {
-        CSDataStoreExecutorPtr newstorage = CSDataStoreExecutorPtr(new CSDataStoreExecutor(sfsptr_, filepath));
+        CSDataStoreExecutorPtr newstorage =
+            CSDataStoreExecutorPtr(new CSDataStoreExecutor(sfsptr_, filepath));
         copysetStoragePool_.insert(std::make_pair(id, newstorage));
         return newstorage->ReadChunk(buf, offset, length);
     }
     return false;
 }
 
-bool CSDataStore::WriteChunk(ChunkID id, const char * buf, off_t offset, size_t length) {
+bool CSDataStore::WriteChunk(ChunkID id,
+                            const char * buf,
+                            off_t offset,
+                            size_t length) {
     auto iter = copysetStoragePool_.find(id);
     if (CURVE_LIKELY(iter != copysetStoragePool_.end())) {
         return iter->second->WriteChunk(buf, offset, length);
     } else {
         std::string filepath = ChunkID2FileName(id);
-        CSDataStoreExecutorPtr newstorage = CSDataStoreExecutorPtr(new CSDataStoreExecutor(sfsptr_, filepath));
+        CSDataStoreExecutorPtr newstorage =
+            CSDataStoreExecutorPtr(new CSDataStoreExecutor(sfsptr_, filepath));
         copysetStoragePool_.insert(std::make_pair(id, newstorage));
         return newstorage->WriteChunk(buf, offset, length);
     }
@@ -134,7 +144,11 @@ bool CSDataStore::DeleteSnapshot(ChunkID cid, SnapshotID sid) {
     return 0;
 }
 
-int CSDataStore::ReadSnapshot(ChunkID cid, SnapshotID sid, char* buff, off_t offset, size_t length) {
+int CSDataStore::ReadSnapshot(ChunkID cid,
+                            SnapshotID sid,
+                            char* buff,
+                            off_t offset,
+                            size_t length) {
     return 0;
 }
 

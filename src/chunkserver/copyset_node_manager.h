@@ -14,66 +14,67 @@
 #include <unordered_map>
 
 #include "src/chunkserver/copyset_node.h"
+#include "src/common/rw_lock.h"
 #include "src/common/uncopyable.h"
 
 namespace curve {
 namespace chunkserver {
 
+using curve::common::RWLock;
+using curve::common::ReadLockGuard;
+using curve::common::WriteLockGuard;
+
 class OpRequest;
 
-// copyset 管理接口
+/* copyset 管理接口 */
 class CopysetNodeManager : public curve::common::Uncopyable {
  public:
+    using CopysetNodePtr = std::shared_ptr<CopysetNode>;
+
     CopysetNodeManager() {}
     ~CopysetNodeManager() {}
 
-    // 单例，仅仅在 c++11 下正确
+    /* 单例，仅仅在 c++11 下正确 */
     static CopysetNodeManager &GetInstance() {
         static CopysetNodeManager instance;
         return instance;
     }
 
     int Init(const CopysetNodeOptions &copysetNodeOptions);
-
     int Run();
-
     int Fini();
 
-    // 创建 copyset node，两种情况需要创建 copyset node
-    //  1. 集群初始化，创建 copyset
-    //  2. add peer
+    /**
+     * 创建 copyset node，两种情况需要创建 copyset node
+     *  1. 集群初始化，创建 copyset
+     *  2. add peer
+     */
     bool CreateCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId,
                            const Configuration &conf);  // 有 RPC service
-    // 仅有接口，没有 RPC service
-    bool DeleteCopysetNode(const LogicPoolID &logicPoolId, const CopysetID &copysetId);
-
-    std::shared_ptr<CopysetNode> GetCopysetNode(const LogicPoolID &logicPoolId,
-                                                const CopysetID &copysetId) const;
-
-    void GetAllCopysetNodes(std::vector<std::shared_ptr<CopysetNode>> *nodes) const;
-
+    /* 仅有接口，没有 RPC service */
+    bool DeleteCopysetNode(const LogicPoolID &logicPoolId,
+                           const CopysetID &copysetId);
+    bool IsExist(const LogicPoolID &logicPoolId, const CopysetID &copysetId);
+    CopysetNodePtr GetCopysetNode(const LogicPoolID &logicPoolId,
+                                  const CopysetID &copysetId) const;
+    void GetAllCopysetNodes(std::vector<CopysetNodePtr> *nodes) const;
     void ScheduleRequest(std::shared_ptr<OpRequest> request);
-
-    bool IsExist(const LogicPoolID &logicPoolId,
-                 const CopysetID &copysetId);
-
-    // 添加 RPC service
+    /* 添加 RPC service */
     int AddService(brpc::Server *server,
-                          const butil::EndPoint &listenAddress);
+                   const butil::EndPoint &listenAddress);
 
     const CopysetNodeOptions &GetCopysetNodeOptions() const {
         return copysetNodeOptions_;
     }
 
  private:
-    using CopysetNodeMap = std::unordered_map<GroupId, std::shared_ptr<CopysetNode>>;
+    using CopysetNodeMap = std::unordered_map<GroupId,
+                                              std::shared_ptr<CopysetNode>>;
 
-    // FixMe: 互斥锁仅用于快速实现，后期替换成 read/write lock，
-    // 当前运行在 bthread 空间，应该改用 btread 提供的 lock，避免阻塞整个线程
-    mutable std::mutex rwLock_;  // 读写锁
+    /* FixMe: 互斥锁仅用于快速实现，后期替换成 read/write lock */
+    mutable RWLock rwLock_;
     CopysetNodeMap copysetNodeMap_;
-
     CopysetNodeOptions copysetNodeOptions_;
 };
 

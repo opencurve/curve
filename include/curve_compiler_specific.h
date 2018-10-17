@@ -16,8 +16,8 @@
 // branch predict
 #if defined(COMPILER_GCC)
 #  if defined(__cplusplus)
-#    define CURVE_LIKELY(expr) (__builtin_expect(static_cast<bool>(expr), true))
-#    define CURVE_UNLIKELY(expr) (__builtin_expect(static_cast<bool>(expr), false))
+#    define CURVE_LIKELY(expr) (__builtin_expect(static_cast<bool>(expr), true))    //NOLINT
+#    define CURVE_UNLIKELY(expr) (__builtin_expect(static_cast<bool>(expr), false)) //NOLINT
 #  else
 #    define CURVE_LIKELY(expr) (__builtin_expect(!!(expr), 1))
 #    define CURVE_UNLIKELY(expr) (__builtin_expect(!!(expr), 0))

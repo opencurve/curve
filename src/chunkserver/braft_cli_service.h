@@ -19,36 +19,39 @@
 namespace curve {
 namespace chunkserver {
 
+using ::google::protobuf::RpcController;
+using ::google::protobuf::Closure;
+
 class BRaftCliServiceImpl : public CliService {
  public:
-    void add_peer(::google::protobuf::RpcController *controller,
-                  const ::curve::chunkserver::AddPeerRequest *request,
-                  ::curve::chunkserver::AddPeerResponse *response,
-                  ::google::protobuf::Closure *done);
-    void remove_peer(::google::protobuf::RpcController *controller,
-                     const ::curve::chunkserver::RemovePeerRequest *request,
-                     ::curve::chunkserver::RemovePeerResponse *response,
-                     ::google::protobuf::Closure *done);
-    void reset_peer(::google::protobuf::RpcController *controller,
-                    const ::curve::chunkserver::ResetPeerRequest *request,
-                    ::curve::chunkserver::ResetPeerResponse *response,
-                    ::google::protobuf::Closure *done);
-    void snapshot(::google::protobuf::RpcController *controller,
-                  const ::curve::chunkserver::SnapshotRequest *request,
-                  ::curve::chunkserver::SnapshotResponse *response,
-                  ::google::protobuf::Closure *done);
-    void get_leader(::google::protobuf::RpcController *controller,
-                    const ::curve::chunkserver::GetLeaderRequest *request,
-                    ::curve::chunkserver::GetLeaderResponse *response,
-                    ::google::protobuf::Closure *done);
-    void change_peers(::google::protobuf::RpcController *controller,
-                      const ::curve::chunkserver::ChangePeersRequest *request,
-                      ::curve::chunkserver::ChangePeersResponse *response,
-                      ::google::protobuf::Closure *done);
-    void transfer_leader(::google::protobuf::RpcController *controller,
-                         const ::curve::chunkserver::TransferLeaderRequest *request,
-                         ::curve::chunkserver::TransferLeaderResponse *response,
-                         ::google::protobuf::Closure *done);
+    void add_peer(RpcController *controller,
+                  const AddPeerRequest *request,
+                  AddPeerResponse *response,
+                  Closure *done);
+    void remove_peer(RpcController *controller,
+                     const RemovePeerRequest *request,
+                     RemovePeerResponse *response,
+                     Closure *done);
+    void reset_peer(RpcController *controller,
+                    const ResetPeerRequest *request,
+                    ResetPeerResponse *response,
+                    Closure *done);
+    void snapshot(RpcController *controller,
+                  const SnapshotRequest *request,
+                  SnapshotResponse *response,
+                  Closure *done);
+    void get_leader(RpcController *controller,
+                    const GetLeaderRequest *request,
+                    GetLeaderResponse *response,
+                    Closure *done);
+    void change_peers(RpcController *controller,
+                      const ChangePeersRequest *request,
+                      ChangePeersResponse *response,
+                      Closure *done);
+    void transfer_leader(RpcController *controller,
+                         const TransferLeaderRequest *request,
+                         TransferLeaderResponse *response,
+                         Closure *done);
 
  private:
     butil::Status get_node(scoped_refptr<braft::NodeImpl> *node,

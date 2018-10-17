@@ -18,9 +18,11 @@
 namespace curve {
 namespace chunkserver {
 
+butil::AtExitManager atExitManager;
+
 TEST(CopysetNodeManager, basic) {
-    // for is exist
-    LogicPoolID  logicPoolId = 1;
+    /* for is exist */
+    LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     Configuration conf;
     GroupId groupId = ToGroupId(logicPoolId, copysetId).c_str();
@@ -42,16 +44,21 @@ TEST(CopysetNodeManager, basic) {
     ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
 
     brpc::Server server;
-    butil::EndPoint addr(butil::IP_ANY,  port);
+    butil::EndPoint addr(butil::IP_ANY, port);
     ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
     if (server.Start(port, NULL) != 0) {
         LOG(FATAL) << "Fail to start Server";
     }
-    ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolId, copysetId, conf));
+    ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                      copysetId,
+                                                      conf));
     ASSERT_TRUE(copysetNodeManager->IsExist(logicPoolId, copysetId));
-    ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId, copysetId, conf));
+    ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                       copysetId,
+                                                       conf));
 
-    auto copysetNode = copysetNodeManager->GetCopysetNode(logicPoolId, copysetId);
+    auto copysetNode =
+        copysetNodeManager->GetCopysetNode(logicPoolId, copysetId);
     ASSERT_TRUE(nullptr != copysetNode);
     std::vector<std::shared_ptr<CopysetNode>> copysetNodes;
     copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
@@ -59,6 +66,9 @@ TEST(CopysetNodeManager, basic) {
 
     ASSERT_TRUE(copysetNodeManager->DeleteCopysetNode(logicPoolId, copysetId));
     ASSERT_FALSE(copysetNodeManager->IsExist(logicPoolId, copysetId));
+
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
 }
 
 }  // namespace chunkserver

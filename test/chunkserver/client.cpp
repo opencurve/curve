@@ -5,6 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
+#include <glog/logging.h>
 #include <gflags/gflags.h>
 #include <bthread/bthread.h>
 #include <brpc/channel.h>
@@ -19,7 +20,9 @@ DEFINE_int32(request_size, 10, "Size of each requst");
 DEFINE_int32(thread_num, 1, "Number of threads sending requests");
 DEFINE_int32(timeout_ms, 500, "Timeout for each request");
 DEFINE_int32(write_percentage, 100, "Percentage of fetch_add");
-DEFINE_string(conf, "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0", "Configuration of the raft group");
+DEFINE_string(conf,
+              "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
+              "Configuration of the raft group");
 DEFINE_string(group, "Block", "Id of the replication group");
 
 bvar::LatencyRecorder g_latency_recorder("block_client");
@@ -41,15 +44,15 @@ static void *sender(void *arg) {
     Configuration conf;
     conf.parse_from(FLAGS_conf);
 
-    butil::Status status = curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
+    butil::Status status =
+        curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
     if (status.ok()) {
         std::cout << "leader id " << leader.to_string() << std::endl;
     } else {
         LOG(FATAL) << "get leader failed" << std::endl;
     }
 
-    // Now we known who is the leader, construct Stub and then sending
-    // rpc
+    /* Now we known who is the leader, so construct Stub and then sending rpc */
     brpc::Channel channel;
     if (channel.Init(leader.addr, NULL) != 0) {
         LOG(ERROR) << "Fail to init channel to " << leader;
@@ -57,10 +60,8 @@ static void *sender(void *arg) {
 
     while (!brpc::IsAskedToQuit()) {
         curve::chunkserver::ChunkService_Stub stub(&channel);
-
         brpc::Controller cntl;
         cntl.set_timeout_ms(FLAGS_timeout_ms);
-
         ChunkRequest request;
         ChunkResponse response;
         uint64_t chunkId = 1;
@@ -92,15 +93,18 @@ static void *sender(void *arg) {
             continue;
         }
         if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS != response.status()) {
-            if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED == response.status()) {
+            if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED
+                == response.status()) {
                 LOG(WARNING) << "Fail to send request to " << leader
                              << ", redirecting to "
-                             << (response.has_redirect() ? response.redirect().c_str() : "nowhere");
+                             << (response.has_redirect()
+                                 ? response.redirect().c_str() : "nowhere");
                 break;
             }
         } else {
             LOG(WARNING)
-            << "response " << response.status() << ", response data: " << cntl.response_attachment().to_string();
+            << "response " << response.status() << ", response data: "
+            << cntl.response_attachment().to_string();
         }
         bthread_usleep(FLAGS_timeout_ms * 1000L);
         ++loop;

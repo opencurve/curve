@@ -23,7 +23,8 @@ bool Configuration::LoadConfig() {
         std::string line;
         while (getline(cFile, line)) {
             // FIXME: may not remove middle spaces
-            line.erase(std::remove_if(line.begin(), line.end(), isspace), line.end());
+            line.erase(std::remove_if(line.begin(), line.end(), isspace),
+                       line.end());
             if (line[0] == '#' || line.empty())
                 continue;
 
@@ -61,7 +62,8 @@ std::string Configuration::GetStringValue(const std::string &key) {
     return GetValue(key);
 }
 
-void Configuration::SetStringValue(const std::string &key, const std::string &value) {
+void Configuration::SetStringValue(const std::string &key,
+                                   const std::string &value) {
     SetValue(key, value);
 }
 

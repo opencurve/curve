@@ -20,7 +20,8 @@ namespace curve {
 namespace chunkserver {
 class CURVE_CACHELINE_ALIGNMENT CSDataStore : public CSDataStoreInterface {
  public:
-    CSDataStore(std::shared_ptr<CSSfsAdaptor> fsadaptor, std::string copysetdir);
+    CSDataStore(std::shared_ptr<CSSfsAdaptor> fsadaptor,
+                std::string copysetdir);
     ~CSDataStore();
 
     using CSDataStoreExecutorPtr  = std::shared_ptr<CSDataStoreExecutor>;
@@ -29,8 +30,14 @@ class CURVE_CACHELINE_ALIGNMENT CSDataStore : public CSDataStoreInterface {
      */
     bool DeleteChunk(ChunkID id) override;
     // return int tell caller, the buf length
-    bool ReadChunk(ChunkID id, char * buf, off_t offset, size_t* length) override;
-    bool WriteChunk(ChunkID id, const char * buf, off_t offset, size_t length) override;
+    bool ReadChunk(ChunkID id,
+                    char * buf,
+                    off_t offset,
+                    size_t* length) override;
+    bool WriteChunk(ChunkID id,
+                    const char * buf,
+                    off_t offset,
+                    size_t length) override;
     int AioReadChunk(ChunkID id,
                     char * buf,
                     off_t offset,
@@ -49,7 +56,11 @@ class CURVE_CACHELINE_ALIGNMENT CSDataStore : public CSDataStoreInterface {
      */
     bool CreateSnapshot(ChunkID cid, SnapshotID sid) override;
     bool DeleteSnapshot(ChunkID cid, SnapshotID sid) override;
-    int ReadSnapshot(ChunkID cid, SnapshotID sid, char* buff, off_t offset, size_t length) override;
+    int ReadSnapshot(ChunkID cid,
+                    SnapshotID sid,
+                    char* buff,
+                    off_t offset,
+                    size_t length) override;
     bool RevertSnapshot2ID(ChunkID cid, SnapshotID targetID) override;
 
     bool Initialize();

@@ -7,6 +7,7 @@
 
 #include "src/chunkserver/cli.h"
 
+#include <glog/logging.h>
 #include <butil/status.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
@@ -18,13 +19,17 @@
 namespace curve {
 namespace chunkserver {
 
-butil::Status GetLeader(const LogicPoolID &logicPoolId, const CopysetID &copysetId, const Configuration &conf,
+butil::Status GetLeader(const LogicPoolID &logicPoolId,
+                        const CopysetID &copysetId,
+                        const Configuration &conf,
                         PeerId *leaderId) {
     if (conf.empty()) {
         return butil::Status(EINVAL, "Empty group configuration");
     }
-    // Construct a brpc naming service to access all the nodes in this group
-    butil::Status st(-1, "Fail to get leader of copyset node %s", ToGroupIdString(logicPoolId, copysetId).c_str());
+    /* Construct a brpc naming service to access all the nodes in this group */
+    butil::Status st(-1,
+                     "Fail to get leader of copyset node %s",
+                     ToGroupIdString(logicPoolId, copysetId).c_str());
     leaderId->reset();
     for (Configuration::const_iterator
              iter = conf.begin(); iter != conf.end(); ++iter) {
@@ -62,8 +67,11 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId, const CopysetID &copyset
     return butil::Status::OK();
 }
 
-butil::Status AddPeer(const LogicPoolID &logicPoolId, const CopysetID &copysetId, const Configuration &conf,
-                      const PeerId &peer_id, const braft::cli::CliOptions &options) {
+butil::Status AddPeer(const LogicPoolID &logicPoolId,
+                      const CopysetID &copysetId,
+                      const Configuration &conf,
+                      const PeerId &peer_id,
+                      const braft::cli::CliOptions &options) {
     PeerId leaderId;
     butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leaderId);
     BRAFT_RETURN_IF(!st.ok(), st);
@@ -95,14 +103,18 @@ butil::Status AddPeer(const LogicPoolID &logicPoolId, const CopysetID &copysetId
     for (int i = 0; i < response.new_peers_size(); ++i) {
         new_conf.add_peer(response.new_peers(i));
     }
-    LOG(INFO) << "Configuration of replication group ` " << ToGroupIdString(logicPoolId, copysetId)
+    LOG(INFO) << "Configuration of replication group ` "
+              << ToGroupIdString(logicPoolId, copysetId)
               << " ' changed from " << old_conf
               << " to " << new_conf;
     return butil::Status::OK();
 }
 
-butil::Status RemovePeer(const LogicPoolID &logicPoolId, const CopysetID &copysetId, const Configuration &conf,
-                         const PeerId &peer_id, const braft::cli::CliOptions &options) {
+butil::Status RemovePeer(const LogicPoolID &logicPoolId,
+                         const CopysetID &copysetId,
+                         const Configuration &conf,
+                         const PeerId &peer_id,
+                         const braft::cli::CliOptions &options) {
     PeerId leaderId;
     butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leaderId);
     BRAFT_RETURN_IF(!st.ok(), st);
@@ -134,14 +146,18 @@ butil::Status RemovePeer(const LogicPoolID &logicPoolId, const CopysetID &copyse
     for (int i = 0; i < response.new_peers_size(); ++i) {
         new_conf.add_peer(response.new_peers(i));
     }
-    LOG(INFO) << "Configuration of replication group ` " << ToGroupIdString(logicPoolId, copysetId)
+    LOG(INFO) << "Configuration of replication group ` "
+              << ToGroupIdString(logicPoolId, copysetId)
               << " ' changed from " << old_conf
               << " to " << new_conf;
     return butil::Status::OK();
 }
 
-butil::Status TransferLeader(const LogicPoolID &logicPoolId, const CopysetID &copysetId, const Configuration &conf,
-                             const PeerId &peer, const braft::cli::CliOptions &options) {
+butil::Status TransferLeader(const LogicPoolID &logicPoolId,
+                             const CopysetID &copysetId,
+                             const Configuration &conf,
+                             const PeerId &peer,
+                             const braft::cli::CliOptions &options) {
     PeerId leaderId;
     butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leaderId);
     BRAFT_RETURN_IF(!st.ok(), st);

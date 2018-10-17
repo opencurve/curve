@@ -7,11 +7,13 @@
 
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
-
+#include <glog/logging.h>
 #include <bthread/bthread.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+
+#include <iostream>
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
@@ -37,21 +39,22 @@ static std::string Exec(const char *cmd) {
 class CliTest : public testing::Test {
  protected:
     virtual void SetUp() {
-        // before test: start servers
-        result = Exec(run.c_str());
+        /* before test: start servers */
+        std::string result = Exec(run.c_str());
         std::cout << result << std::endl;
     }
 
     virtual void TearDown() {
-        // after test: stop servers
-        result = Exec(stop.c_str());
+        /* after test: stop servers, debug 的时候可以注释掉以便查看日志 */
+        std::string result = Exec(stop.c_str());
         std::cout << result << std::endl;
     }
 
  private:
-    // 初始化脚本
+    /* 初始化脚本 */
     std::string run = R"(
         killall -9 server-test
+
 
         rm -fr 0
         mkdir 0
@@ -62,18 +65,18 @@ class CliTest : public testing::Test {
 
         cp -f server-test ./0
         cd 0
-        ./server-test -bthread_concurrency=18 -crash_on_fatal_log=true -raft_sync=true -ip=127.0.0.1 -port=8200 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
+        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8200 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
         cd ..
         sleep 1s
 
         cp -f server-test ./1
         cd 1
-        ./server-test -bthread_concurrency=18 -crash_on_fatal_log=true -raft_sync=true -ip=127.0.0.1 -port=8201 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
+        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8201 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
         cd ..
 
         cp -f server-test ./2
         cd 2
-        ./server-test -bthread_concurrency=18 -crash_on_fatal_log=true -raft_sync=true -ip=127.0.0.1 -port=8202 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
+        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8202 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
         cd ..
         sleep 1s
 
@@ -95,45 +98,68 @@ TEST_F(CliTest, basic) {
     Configuration conf;
     conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
 
-    Exec("sleep 3s");
-    // get leader
-    butil::Status status = curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
-    std::cout << "Leader is: " << leader.to_string() << std::endl;
-    ASSERT_TRUE(status.ok());
+    sleep(2);
+    int i = 0;
+    while (true) {
+        butil::Status status = GetLeader(logicPoolId, copysetId, conf, &leader);
+        std::cout << "Leader is: " << leader.to_string() << std::endl;
+        if (status.ok()) {
+            break;
+        }
+        usleep(500 * 1000);
+        LOG(ERROR) << "Get leader failed, retry times : " << i;
+        ++i;
+        if (i > 50) {
+            ASSERT_TRUE(false);
+        }
+    }
 
     braft::cli::CliOptions opt;
     opt.timeout_ms = 1000;
     opt.max_retry = 3;
 
-    // remove peer
+    /* remove peer */
     {
         PeerId peerId("127.0.0.1:8202:0");
-        butil::Status st = curve::chunkserver::RemovePeer(logicPoolId, copysetId, conf, peerId, opt);
+        butil::Status st = curve::chunkserver::RemovePeer(logicPoolId,
+                                                          copysetId,
+                                                          conf,
+                                                          peerId,
+                                                          opt);
         ASSERT_TRUE(st.ok());
-        Exec("sleep 2s");   // 等待，
+        sleep(2);
     }
-
-    // add peer
+    /*  add peer */
     {
         Configuration conf;
         conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0");
         PeerId peerId("127.0.0.1:8202:0");
-        butil::Status st = curve::chunkserver::AddPeer(logicPoolId, copysetId, conf, peerId, opt);
+        butil::Status st = curve::chunkserver::AddPeer(logicPoolId,
+                                                       copysetId,
+                                                       conf,
+                                                       peerId,
+                                                       opt);
         ASSERT_TRUE(st.ok());
     }
-
-    // remove leader
+    /* remove leader */
     {
-        butil::Status status = curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
+        butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
+                                                             copysetId,
+                                                             conf,
+                                                             &leader);
         LOG(INFO) << "get leader:" << status.error_str();
         std::cout << "Leader is: " << leader.to_string() << std::endl;
         ASSERT_TRUE(status.ok());
-        butil::Status st = curve::chunkserver::RemovePeer(logicPoolId, copysetId, conf, leader, opt);
+        butil::Status st = curve::chunkserver::RemovePeer(logicPoolId,
+                                                          copysetId,
+                                                          conf,
+                                                          leader,
+                                                          opt);
         ASSERT_TRUE(st.ok());
-        Exec("sleep 3s");
+        sleep(3);
     }
 
-    // add peer
+    /* add peer */
     {
         Configuration conf;
         conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
@@ -141,66 +167,99 @@ TEST_F(CliTest, basic) {
         ASSERT_TRUE(conf.remove_peer(leader));
         ASSERT_FALSE(conf.contains(leader));
         ASSERT_EQ(2, conf.size());
-        butil::Status st = curve::chunkserver::AddPeer(logicPoolId, copysetId, conf, leader, opt);
+        butil::Status st = curve::chunkserver::AddPeer(logicPoolId,
+                                                       copysetId,
+                                                       conf,
+                                                       leader,
+                                                       opt);
         LOG(INFO) << "add peer " << st.error_str();
         ASSERT_TRUE(st.ok());
     }
-
-    // transfer leader
+    /*  transfer leader */
     {
         Configuration conf;
         conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
         PeerId peer1("127.0.0.1:8200:0");
         PeerId peer2("127.0.0.1:8201:0");
         PeerId peer3("127.0.0.1:8202:0");
-
         {
-            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId, copysetId, conf, peer1, opt);
+            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
+                                                                  copysetId,
+                                                                  conf,
+                                                                  peer1,
+                                                                  opt);
             LOG(INFO) << "transfer leader:" << st.error_str();
             ASSERT_TRUE(st.ok());
             Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
+            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
+                                                                 copysetId,
+                                                                 conf,
+                                                                 &leader);
             LOG(INFO) << "get leader:" << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer1.to_string().c_str(), leader.to_string().c_str());
         }
-
         {
-            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId, copysetId, conf, peer2, opt);
+            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
+                                                                  copysetId,
+                                                                  conf,
+                                                                  peer2,
+                                                                  opt);
             LOG(INFO) << "transfer leader:" << st.error_str();
             ASSERT_TRUE(st.ok());
             Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
+            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
+                                                                 copysetId,
+                                                                 conf,
+                                                                 &leader);
             LOG(INFO) << "get leader:" << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer2.to_string().c_str(), leader.to_string().c_str());
         }
-
         {
-            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId, copysetId, conf, peer3, opt);
+            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
+                                                                  copysetId,
+                                                                  conf,
+                                                                  peer3,
+                                                                  opt);
             ASSERT_TRUE(st.ok());
             Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
+            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
+                                                                 copysetId,
+                                                                 conf,
+                                                                 &leader);
             LOG(INFO) << "get leader:" << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
         }
-
         {
-            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId, copysetId, conf, peer2, opt);
+            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
+                                                                  copysetId,
+                                                                  conf,
+                                                                  peer2,
+                                                                  opt);
             ASSERT_TRUE(st.ok());
             Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
+            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
+                                                                 copysetId,
+                                                                 conf,
+                                                                 &leader);
             LOG(INFO) << "get leader:" << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer2.to_string().c_str(), leader.to_string().c_str());
         }
-
         {
-            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId, copysetId, conf, peer1, opt);
+            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
+                                                                  copysetId,
+                                                                  conf,
+                                                                  peer1,
+                                                                  opt);
             ASSERT_TRUE(st.ok());
             Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId, copysetId, conf, &leader);
+            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
+                                                                 copysetId,
+                                                                 conf,
+                                                                 &leader);
             LOG(INFO) << "get leader:" << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer1.to_string().c_str(), leader.to_string().c_str());

@@ -41,37 +41,37 @@ int ServiceManager::Init(const ServiceOptions &options) {
     raftStatService_ = new braft::RaftStatImpl();
 
     if (server_->AddService(chunkserverService_,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "Fail to add ChunkServerService";
         return -1;
     }
     if (server_->AddService(copysetService_,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "Fail to add CopysetService";
         return -1;
     }
     if (server_->AddService(chunkService_,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "Fail to add ChunkService";
         return -1;
     }
     if (server_->AddService(braftCliService_,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "Fail to add BRaftCliService";
         return -1;
     }
     if (server_->AddService(raftService_,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "Fail to add RaftService";
         return -1;
     }
     if (server_->AddService(raftStatService_,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "Fail to add RaftStatService";
         return -1;
     }
     if (server_->AddService(braft::file_service(),
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "Fail to add FileService";
         return -1;
     }
@@ -84,7 +84,8 @@ int ServiceManager::Init(const ServiceOptions &options) {
 }
 
 int ServiceManager::Run() {
-    LOG(INFO) << "RPC server is going to serve on: " << options_.ip << ":" << options_.port;
+    LOG(INFO) << "RPC server is going to serve on: " << options_.ip << ":"
+              << options_.port;
     if (server_->Start(endPoint_, NULL) != 0) {
         LOG(ERROR) << "Fail to start RPC Server";
         return -1;

@@ -15,7 +15,8 @@ DEFINE_int32(ChunkFileLength, 4*1024*1024, "chunk file size(Bytes)");
 namespace curve {
 namespace chunkserver {
 
-CSDataStoreExecutor::CSDataStoreExecutor(std::shared_ptr<CSSfsAdaptor> sfsada, std::string path): fd_(-1) {
+CSDataStoreExecutor::CSDataStoreExecutor(std::shared_ptr<CSSfsAdaptor> sfsada,
+                                        std::string path): fd_(-1) {
     filePath_ = path;
     lfs_ = sfsada;
 }
@@ -28,13 +29,17 @@ bool CSDataStoreExecutor::DeleteChunk() {
     return lfs_->Delete(filePath_.c_str()) == 0;
 }
 
-bool CSDataStoreExecutor::ReadChunk(char * buf, off_t offset, size_t* length) {
+bool CSDataStoreExecutor::ReadChunk(char * buf,
+                                    off_t offset,
+                                    size_t* length) {
     int readlength = 0;
     if (CURVE_LIKELY(fd_.Valid())) {
-        readlength = lfs_->Read(fd_, reinterpret_cast<void*>(buf), offset, *length);
+        readlength = lfs_->Read(fd_,
+                                reinterpret_cast<void*>(buf),
+                                offset,
+                                *length);
     } else {
         bool exist = lfs_->FileExists(filePath_.c_str());
-        // fd_ = lfs_->Open(filePath_.c_str(), O_RDWR | O_CREAT | O_DIRECT | O_DSYNC, 0644);
         fd_ = lfs_->Open(filePath_.c_str(), O_RDWR | O_CREAT, 0644);
         if (!exist) {
             fchmod(fd_.fd_, S_IRWXU);
@@ -42,21 +47,31 @@ bool CSDataStoreExecutor::ReadChunk(char * buf, off_t offset, size_t* length) {
             lfs_->Fallocate(fd_, 0, 0, FLAGS_ChunkFileLength);
         }
         if (fd_.Valid()) {
-            readlength = lfs_->Read(fd_, reinterpret_cast<void*>(buf), offset, *length);
+            readlength = lfs_->Read(fd_,
+                                    reinterpret_cast<void*>(buf),
+                                    offset,
+                                    *length);
         }
     }
     return (*length = readlength);
 }
 
-bool CSDataStoreExecutor::WriteChunk(const char * buf, off_t offset, size_t length) {
+bool CSDataStoreExecutor::WriteChunk(const char * buf,
+                                    off_t offset,
+                                    size_t length) {
     bool ret = false;
     do {
-        /* valid check : if offset + length > chunkfile length, we do not allow write*/
+        /**
+         * valid check : if offset + length > chunkfile length, 
+         * we do not allow write
+         */
         if (CURVE_LIKELY(fd_.Valid())) {
-            ret = lfs_->Write(fd_, reinterpret_cast<const void*>(buf), offset, length);
+            ret = lfs_->Write(fd_,
+                            reinterpret_cast<const void*>(buf),
+                            offset,
+                            length);
         } else {
             bool exist = lfs_->FileExists(filePath_.c_str());
-            // fd_ = lfs_->Open(filePath_.c_str(), O_RDWR | O_CREAT | O_DIRECT | O_DSYNC, 0644);
             fd_ = lfs_->Open(filePath_.c_str(), O_RDWR | O_CREAT, 0644);
             if (!exist) {
                 // FIXME(guangxun): encapsulate chmod()
@@ -64,7 +79,10 @@ bool CSDataStoreExecutor::WriteChunk(const char * buf, off_t offset, size_t leng
                 lfs_->Fallocate(fd_, 0, 0, FLAGS_ChunkFileLength);
             }
             if (fd_.Valid()) {
-                ret = lfs_->Write(fd_, reinterpret_cast<const void*>(buf), offset, length);
+                ret = lfs_->Write(fd_,
+                                reinterpret_cast<const void*>(buf),
+                                offset,
+                                length);
                 lfs_->Fsync(fd_);
             }
         }
@@ -72,12 +90,18 @@ bool CSDataStoreExecutor::WriteChunk(const char * buf, off_t offset, size_t leng
     return ret;
 }
 
-int CSDataStoreExecutor::AioReadChunk(char * buf, off_t offset, size_t length, std::function<void(void*)> callback) {
+int CSDataStoreExecutor::AioReadChunk(char * buf,
+                    off_t offset,
+                    size_t length,
+                    std::function<void(void*)> callback) {
     // TODO(tongguangxun):
     return 0;
 }
 
-int CSDataStoreExecutor::AioWriteChunk(char * buf, off_t offset, size_t length, std::function<void(void*)> callback) {
+int CSDataStoreExecutor::AioWriteChunk(char * buf,
+                    off_t offset,
+                    size_t length,
+                    std::function<void(void*)> callback) {
     // TODO(tongguangxun):
     return 0;
 }
@@ -95,7 +119,10 @@ bool CSDataStoreExecutor::DeleteSnapshot(SnapshotID sid) {
     return false;
 }
 
-int CSDataStoreExecutor::ReadSnapshot(SnapshotID sid, char* buff, off_t offset, size_t length) {
+int CSDataStoreExecutor::ReadSnapshot(SnapshotID sid,
+                                    char* buff,
+                                    off_t offset,
+                                    size_t length) {
     return 0;
 }
 

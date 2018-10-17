@@ -24,7 +24,8 @@ class CSDataStore_test : public testing::Test {
         void SetUp() {
             std::string uri = "local://./";
             curve::chunkserver::ChunkserverStorage::Init();
-            testsfsada_ = curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
+            testsfsada_ =
+            curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
         }
 
         void TearDown() {
@@ -37,7 +38,8 @@ class CSDataStore_test : public testing::Test {
 
 TEST_F(CSDataStore_test, ReadWriteChunk) {
     std::string datastorepath = "./1/2/3/test1//";
-    cpmana = std::shared_ptr<CSDataStore>(new CSDataStore(testsfsada_, datastorepath));
+    cpmana = std::shared_ptr<CSDataStore>(
+        new CSDataStore(testsfsada_, datastorepath));
     ASSERT_TRUE(cpmana->Initialize());
 
     for (uint64_t chunkid = 0; chunkid < 1000; chunkid++) {
@@ -63,7 +65,8 @@ TEST_F(CSDataStore_test, ReadWriteChunk) {
 
 TEST_F(CSDataStore_test, DeleteChunk) {
     std::string datastorepath = "./1/2/3/test1//";
-    cpmana = std::shared_ptr<CSDataStore>(new CSDataStore(testsfsada_, datastorepath));
+    cpmana = std::shared_ptr<CSDataStore>(
+        new CSDataStore(testsfsada_, datastorepath));
     ASSERT_TRUE(cpmana->Initialize());
 
     curve::chunkserver::ChunkID chunkid = 1;

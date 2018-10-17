@@ -22,7 +22,8 @@ class CSSfAdaptor_test : public testing::Test {
         void SetUp() {
             std::string uri = "local://./";
             curve::chunkserver::ChunkserverStorage::Init();
-            csSfsAdaptorPtr_ = curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
+            csSfsAdaptorPtr_ =
+            curve::chunkserver::ChunkserverStorage::CreateFsAdaptor("" , uri);
         }
 
         void TearDown() {
@@ -33,13 +34,15 @@ class CSSfAdaptor_test : public testing::Test {
 };
 
 TEST_F(CSSfAdaptor_test, FsOpenClose) {
-    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->
+        Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
     ASSERT_TRUE(fd.Valid());
     ASSERT_NE(-1, csSfsAdaptorPtr_->Close(fd));
 }
 
 TEST_F(CSSfAdaptor_test, FsReadWrite) {
-    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+    CSSfsAdaptor::fd_t fd = csSfsAdaptorPtr_->
+        Open("./test.txt", O_RDWR | O_CREAT | O_CLOEXEC, 0644);
     ASSERT_TRUE(fd.Valid());
     for (uint64_t id = 0; id < 1000; id++) {
         char writebuf[1024];

@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
-
+#include <glog/logging.h>
 #include <bthread/bthread.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
@@ -21,8 +21,6 @@
 
 namespace curve {
 namespace chunkserver {
-
-
 
 DEFINE_int32(timeout_ms, 500, "Timeout for each request");
 
@@ -42,26 +40,26 @@ static std::string Exec(const char *cmd) {
 class ChunkServiceTest : public testing::Test {
  protected:
     virtual void SetUp() {
-        // before test: start servers
+        /* before test: start servers */
         std::string result = Exec(run.c_str());
         std::cout << result << std::endl;
     }
 
     virtual void TearDown() {
-        // after test: stop servers, debug 的时候可以注释掉以便查看日志
-//        std::string result = Exec(stop.c_str());
-//        std::cout << result << std::endl;
+        /* after test: stop servers, debug 的时候可以注释掉以便查看日志 */
+        std::string result = Exec(stop.c_str());
+        std::cout << result << std::endl;
     }
 
  private:
-    // 结束脚本
+    /* 结束脚本 */
     std::string stop = R"(
         killall -9 server-test
         sleep 2s
         ps -ef | grep server-test
         rm -fr 0 1 2
     )";
-    // 初始化脚本
+    /* 初始化脚本 */
     std::string run = R"(
         killall -9 server-test
 
@@ -72,26 +70,33 @@ class ChunkServiceTest : public testing::Test {
         rm -fr 2
         mkdir 2
 
+        echo "PWD is: "
+        echo $PWD
+        cd $PWD
+        ls -al
+
         cp -f server-test ./0
         cd 0
-        ./server-test -bthread_concurrency=18 -crash_on_fatal_log=true -raft_sync=true -ip=127.0.0.1 -port=8200 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
+        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8200 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
         cd ..
         sleep 1s
 
         cp -f server-test ./1
         cd 1
-        ./server-test -bthread_concurrency=18 -crash_on_fatal_log=true -raft_sync=true -ip=127.0.0.1 -port=8201 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
+        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8201 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
         cd ..
 
         cp -f server-test ./2
         cd 2
-        ./server-test -bthread_concurrency=18 -crash_on_fatal_log=true -raft_sync=true -ip=127.0.0.1 -port=8202 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
+        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8202 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
         cd ..
         sleep 2s
 
         ps -ef | grep server-test
     )";
 };
+
+// butil::AtExitManager atExitManager;
 
 TEST_F(ChunkServiceTest, normal_read_write) {
     const uint32_t kMaxChunkSize = 4 * 1024 * 1024;
@@ -102,23 +107,31 @@ TEST_F(ChunkServiceTest, normal_read_write) {
     Configuration conf;
     conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
 
-    sleep(2);
-    // get leader
-    butil::Status status = GetLeader(logicPoolId, copysetId, conf, &leader);
-    std::cout << "Leader is: " << leader.to_string() << std::endl;
-    ASSERT_TRUE(status.ok());
+    /* wait for leader election*/
+    int i = 0;
+    while (true) {
+        butil::Status status = GetLeader(logicPoolId, copysetId, conf, &leader);
+        std::cout << "Leader is: " << leader.to_string() << std::endl;
+        if (status.ok()) {
+            break;
+        }
+        usleep(500 * 1000);
+        LOG(ERROR) << "Get leader failed, retry times : " << i;
+        ++i;
+        if (i > 50) {
+            ASSERT_TRUE(false);
+        }
+    }
+//    ASSERT_TRUE(status.ok());
 
-
-    /// basic read/write/delete
+    /* basic read/write/delete */
     {
         brpc::Channel channel;
-        if (channel.Init(leader.addr, NULL) != 0) {
-            LOG(ERROR) << "Fail to init channel to " << leader;
-        }
+        ASSERT_EQ(0, channel.Init(leader.addr, NULL));
         ChunkService_Stub stub(&channel);
         char ch = 'a';
         for (int i = 0; i < 25; ++i) {
-            // Write
+            /* Write */
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -134,10 +147,10 @@ TEST_F(ChunkServiceTest, normal_read_write) {
                 cntl.request_attachment().resize(8, ch);
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
-                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                          response.status());
             }
-
-            // Read
+            /* Read */
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -152,10 +165,12 @@ TEST_F(ChunkServiceTest, normal_read_write) {
                 request.set_size(8);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
-                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
-                ASSERT_STREQ("aaaaaaaa", cntl.response_attachment().to_string().c_str());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                          response.status());
+                ASSERT_STREQ("aaaaaaaa",
+                             cntl.response_attachment().to_string().c_str());
             }
-            // Repeat read
+            /* Repeat read */
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -170,11 +185,13 @@ TEST_F(ChunkServiceTest, normal_read_write) {
                 request.set_size(8);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
-                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
-                ASSERT_STREQ("aaaaaaaa", cntl.response_attachment().to_string().c_str());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                          response.status());
+                ASSERT_STREQ("aaaaaaaa",
+                             cntl.response_attachment().to_string().c_str());
             }
         }
-        // delete
+        /*  delete */
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -187,9 +204,10 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             request.set_chunkid(chunkId);
             stub.DeleteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
-            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
         }
-        // delete 一个不存在的 chunk（重复删除）
+        /* delete 一个不存在的 chunk（重复删除） */
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -202,18 +220,18 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             request.set_chunkid(chunkId);
             stub.DeleteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
-            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN, response.status());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                      response.status());
         }
     }
-
     {
-        /// 非法参数 request 测试
+        /* 非法参数 request 测试 */
         brpc::Channel channel;
         if (channel.Init(leader.addr, NULL) != 0) {
             LOG(ERROR) << "Fail to init channel to " << leader;
         }
         ChunkService_Stub stub(&channel);
-        /// read 溢出
+        /* read 溢出 */
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -228,9 +246,10 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             cntl.request_attachment().resize(8, 'a');
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
-            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST, response.status());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                      response.status());
         }
-        /// write 溢出
+        /* write 溢出 */
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -245,12 +264,11 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             cntl.request_attachment().resize(8, 'a');
             stub.WriteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
-            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST, response.status());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                      response.status());
         }
-        // read 不存在的 chunk
     }
-
-    /// 多 chunk read/write/delete
+    /* 多 chunk read/write/delete */
     {
         brpc::Channel channel;
         if (channel.Init(leader.addr, NULL) != 0) {
@@ -267,11 +285,12 @@ TEST_F(ChunkServiceTest, normal_read_write) {
         ::memset(readBuffer, ch, requstSize);
         writeBuffer[requstSize] = '\0';
         readBuffer[requstSize] = '\0';
-        std::cerr << "readBuffer: " << readBuffer << " , len: " << sizeof(readBuffer) << std::endl;
+        std::cerr << "readBuffer: " << readBuffer << " , len: "
+                  << sizeof(readBuffer) << std::endl;
 
         const uint32_t kMaxChunk = 1000;
         for (uint32_t i = 1; i < kMaxChunk + 1; ++i) {
-            // Write
+            /* Write */
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -286,9 +305,10 @@ TEST_F(ChunkServiceTest, normal_read_write) {
                 cntl.request_attachment().append(writeBuffer);
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
-                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                          response.status());
             }
-            // Read
+            /* Read */
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -303,12 +323,14 @@ TEST_F(ChunkServiceTest, normal_read_write) {
                 request.set_size(requstSize);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
-                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
-                ASSERT_STREQ(readBuffer, cntl.response_attachment().to_string().c_str());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                          response.status());
+                ASSERT_STREQ(readBuffer,
+                             cntl.response_attachment().to_string().c_str());
             }
         }
         for (uint32_t i = 1; i < kMaxChunk + 1; ++i) {
-            // delete
+            /* delete */
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -320,9 +342,10 @@ TEST_F(ChunkServiceTest, normal_read_write) {
                 request.set_chunkid(i);
                 stub.DeleteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
-                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                          response.status());
             }
-            // delete 一个不存在的 chunk（重复删除）
+            /* delete 一个不存在的 chunk（重复删除） */
             {
                 brpc::Controller cntl;
                 cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -334,13 +357,13 @@ TEST_F(ChunkServiceTest, normal_read_write) {
                 request.set_chunkid(i);
                 stub.DeleteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
-                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN, response.status());
+                ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                          response.status());
             }
         }
     }
 
-
-    /// read 一个不存在的 chunk
+    /* read 一个不存在的 chunk */
     {
         brpc::Channel channel;
         uint32_t requestSize = 8;
@@ -349,7 +372,7 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             LOG(ERROR) << "Fail to init channel to " << leader;
         }
         ChunkService_Stub stub(&channel);
-        // Write
+        /* Write */
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -364,10 +387,10 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             cntl.request_attachment().resize(requestSize, 'a');
             stub.WriteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
-            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
         }
-
-        // Read
+        /* Read */
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -381,12 +404,15 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             request.set_size(requestSize);
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
-            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
-            std::cerr << "read size: " << cntl.response_attachment().size() << std::endl;
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
+            std::cerr << "read size: " << cntl.response_attachment().size()
+                      << std::endl;
             ASSERT_EQ(requestSize, cntl.response_attachment().size());
-            ASSERT_STREQ("aaaaaaaa", cntl.response_attachment().to_string().c_str());
+            ASSERT_STREQ("aaaaaaaa",
+                         cntl.response_attachment().to_string().c_str());
         }
-        // delete chunk
+        /* delete chunk */
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -398,9 +424,10 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             request.set_chunkid(chunkId);
             stub.DeleteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
-            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS, response.status());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
         }
-        // read 一个不存在的 chunk
+        /* read 一个不存在的 chunk */
         {
             brpc::Controller cntl;
             cntl.set_timeout_ms(FLAGS_timeout_ms);
@@ -415,11 +442,12 @@ TEST_F(ChunkServiceTest, normal_read_write) {
             request.set_size(requestSize);
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
-            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN, response.status());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                      response.status());
         }
     }
 
-    // TODO(wudemiao): read/write 文件系统层失败的情况下
+    /* TODO(wudemiao): read/write 文件系统层失败的情况下 */
 }
 
 }  // namespace chunkserver
