@@ -43,7 +43,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (server.Start(FLAGS_port, NULL) != 0) {
-        LOG(ERROR) << "Fail to start Server";
+        LOG(ERROR) << "Fail to start Server: "
+                   << errno << ", " << strerror(errno);
         return -1;
     }
 

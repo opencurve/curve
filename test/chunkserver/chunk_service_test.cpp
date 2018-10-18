@@ -72,9 +72,9 @@ class ChunkServiceTest : public testing::Test {
 
         echo "PWD is: "
         echo $PWD
-        cd $PWD
         ls -al
 
+        cp -f bazel-bin/test/chunkserver/server-test .
         cp -f server-test ./0
         cd 0
         ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8200 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
@@ -288,7 +288,7 @@ TEST_F(ChunkServiceTest, normal_read_write) {
         std::cerr << "readBuffer: " << readBuffer << " , len: "
                   << sizeof(readBuffer) << std::endl;
 
-        const uint32_t kMaxChunk = 1000;
+        const uint32_t kMaxChunk = 100;
         for (uint32_t i = 1; i < kMaxChunk + 1; ++i) {
             /* Write */
             {
