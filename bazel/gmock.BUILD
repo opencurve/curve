@@ -1,5 +1,5 @@
 cc_library(
-    name = "getst",
+    name = "gtest",
     srcs = [
         "googlemock/src/gmock-all.cc",
         "googletest/src/gtest-all.cc",

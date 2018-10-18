@@ -148,8 +148,7 @@ int CopysetNodeManager::AddService(brpc::Server *server,
             break;
         }
         if (!braft::NodeManager::GetInstance()->server_exists(listenAddress)) {
-            braft::NodeManager::GetInstance()->add_address(
-                listenAddress);
+            braft::NodeManager::GetInstance()->add_address(listenAddress);
         }
     } while (false);
 

@@ -11,10 +11,11 @@ bind(
 )
 
 # gtest deps
-http_archive(
+new_git_repository(
     name = "com_google_googletest",
-    strip_prefix = "googletest-0fe96607d85cf3a25ac40da369db62bbee2939a5",
-    url = "https://github.com/google/googletest/archive/0fe96607d85cf3a25ac40da369db62bbee2939a5.tar.gz",
+    build_file = "bazel/gmock.BUILD",
+    remote = "https://github.com/google/googletest",
+    tag = "release-1.8.0",
 )
 
 bind(
@@ -49,8 +50,9 @@ bind(
 # protobuf
 http_archive(
     name = "com_google_protobuf",
-    strip_prefix = "protobuf-ab8edf1dbe2237b4717869eaab11a2998541ad8d",
-    url = "https://github.com/google/protobuf/archive/ab8edf1dbe2237b4717869eaab11a2998541ad8d.tar.gz",
+    sha256 = "cef7f1b5a7c5fba672bec2a319246e8feba471f04dcebfe362d55930ee7c1c30",
+    strip_prefix = "protobuf-3.5.0",
+    urls = ["https://github.com/google/protobuf/archive/v3.5.0.zip"],
 )
 
 bind(
@@ -96,4 +98,3 @@ bind(
     name = "bvar",
     actual = "@com_github_brpc_brpc//:bvar",
 )
-
