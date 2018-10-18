@@ -1,3 +1,14 @@
+cc_proto_library (
+    name = "nameserver2_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":nameserver2_proto"],
+)
+
+proto_library(
+    name = "nameserver2_proto",
+    srcs = ["nameserver2.proto"],
+)
+
 cc_proto_library(
     name = "chunkserver-cc-protos",
     visibility = ["//visibility:public"],

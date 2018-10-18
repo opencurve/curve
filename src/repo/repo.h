@@ -9,7 +9,6 @@
 #ifndef REPO_REPO_H_
 #define REPO_REPO_H_
 
-#include <gtest/gtest.h>
 #include <vector>
 #include <string>
 

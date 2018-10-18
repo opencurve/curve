@@ -1,0 +1,103 @@
+syntax="proto2";
+package curve.mds;
+
+option cc_generic_services = true;
+
+
+// fileinfo
+enum FileType {
+    INODE_DIRECTORY = 0;
+    INODE_PAGEFILE = 1;
+    INODE_APPENDFILE = 2;
+    INODE_APPENDECFILE = 3;
+};
+
+
+message FileInfo {
+    optional    uint64      id = 1;
+    optional    string      fileName = 2;
+    optional    uint64      parentId = 3;
+    optional    FileType    fileType = 4;
+//  optional    uint32      owner = 5;
+    optional    uint32      chunkSize = 6;
+    optional    uint32      segmentSize = 7;
+    optional    uint64      length = 8;
+    optional    uint64      ctime  = 9;
+    optional    uint64      snapShotId = 10;
+}
+
+
+// status code
+enum  StatusCode {
+    kOK = 0;
+
+    kFileExists = 101;
+    kFileNotExists = 102;
+    kNotDirectory = 103;
+    kParaError = 104;
+    kShrinkBiggerFile = 105; 
+    kExtentUnitError = 106;
+    kSegmentNotAllocated = 107;
+    kSegmentAllocateError = 108;
+    kDirNotExist = 109;
+    kNotSupported = 110;
+    
+    kStorageError = 501;
+    KInternalError = 502;
+};
+
+
+//chunkinfo
+message PageFileChunkInfo {
+    optional uint32 copysetID = 3;
+    optional uint64 chunkID = 2;
+}
+
+message PageFileSegment {
+    optional uint32 logicalPoolID = 1;
+    optional uint32 segmentSize = 3;     
+    optional uint32 chunkSize = 4;
+    optional uint64 startOffset = 2;
+    repeated  PageFileChunkInfo chunks = 5; 
+}
+
+
+
+
+message CreateFileRequest {
+    required string     fileName = 1;   
+    required FileType   fileType = 2;
+    required uint64     fileLength = 3;
+};
+
+message CreateFileResponse {
+    required StatusCode statusCode = 1;
+}
+
+message GetFileInfoRequest {
+    required string     fileName = 1;   
+}
+
+message GetFileInfoResponse {
+    required StatusCode statusCode = 1;
+    optional FileInfo fileInfo = 2;
+}
+
+message GetOrAllocateSegmentRequest {
+    required string     fileName = 1;   
+    required uint64     offset = 2;
+    required bool       allocateIfNotExist = 3;
+}
+
+message GetOrAllocateSegmentResponse {
+    required StatusCode statusCode = 1;
+    optional PageFileSegment pageFileSegment = 2;   
+}
+
+service CurveFSService {
+    rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
+    rpc     GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
+    rpc     GetOrAllocateSegment(GetOrAllocateSegmentRequest) 
+                returns (GetOrAllocateSegmentResponse);
+}
+

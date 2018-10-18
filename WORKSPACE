@@ -10,7 +10,22 @@ bind(
     actual = "@com_github_brpc_braft//:braft",
 )
 
-# gtest deps
+# proto_library, cc_proto_library, and java_proto_library rules implicitly
+# depend on @com_google_protobuf for protoc and proto runtimes.
+# This statement defines the @com_google_protobuf repo.
+http_archive(
+    name = "com_google_protobuf",
+    sha256 = "cef7f1b5a7c5fba672bec2a319246e8feba471f04dcebfe362d55930ee7c1c30",
+    strip_prefix = "protobuf-3.5.0",
+    urls = ["https://github.com/google/protobuf/archive/v3.5.0.zip"],
+)
+
+bind(
+    name = "protobuf",
+    actual = "@com_google_protobuf//:protobuf",
+)
+
+#import the  gtest files.
 new_git_repository(
     name = "com_google_googletest",
     build_file = "bazel/gmock.BUILD",
@@ -23,9 +38,9 @@ bind(
     actual = "@com_google_googletest//:gtest",
 )
 
-# glog deps
+#Import the glog files.
 new_git_repository(
-    name = "com_github_google_glog",
+    name   = "com_github_google_glog",
     build_file = "bazel/glog.BUILD",
     remote = "https://github.com/google/glog.git",
     tag = "v0.3.5",
@@ -33,7 +48,7 @@ new_git_repository(
 
 bind(
     name = "glog",
-    actual = "@com_github_google_glog//:glog",
+    actual = "@com_github_google_glog//:glog"
 )
 
 git_repository(
@@ -47,20 +62,6 @@ bind(
     actual = "@com_github_gflags_gflags//:gflags",
 )
 
-# protobuf
-http_archive(
-    name = "com_google_protobuf",
-    sha256 = "cef7f1b5a7c5fba672bec2a319246e8feba471f04dcebfe362d55930ee7c1c30",
-    strip_prefix = "protobuf-3.5.0",
-    urls = ["https://github.com/google/protobuf/archive/v3.5.0.zip"],
-)
-
-bind(
-    name = "protobuf",
-    actual = "@com_google_protobuf//:protobuf",
-)
-
-# leveldb
 new_http_archive(
     name = "com_github_google_leveldb",
     build_file = "bazel/leveldb.BUILD",
@@ -72,6 +73,7 @@ bind(
     name = "leveldb",
     actual = "@com_github_google_leveldb//:leveldb",
 )
+
 
 # brpc
 local_repository(
@@ -97,4 +99,17 @@ bind(
 bind(
     name = "bvar",
     actual = "@com_github_brpc_brpc//:bvar",
+)
+
+# jsoncpp
+new_git_repository(
+    name = "jsoncpp",
+    build_file = "bazel/jsoncpp.BUILD",
+    remote = "https://github.com/open-source-parsers/jsoncpp.git",
+    tag = "1.8.4",
+)
+
+bind(
+    name = "json",
+    actual = "@jsoncpp//:json",
 )
