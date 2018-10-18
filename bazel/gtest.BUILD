@@ -4,7 +4,6 @@ cc_library(
         ["src/*.cc"],
         exclude = ["src/gtest-all.cc"]
     ),
-
     hdrs = glob([
         "include/**/*.h",
         "src/*.h"
