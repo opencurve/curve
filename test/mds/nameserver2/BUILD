@@ -11,3 +11,15 @@ cc_test(
             "//src/mds/topology:topology"
     ],
 )
+
+# https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
+cc_library(
+    name = "fakes",
+    srcs = [],
+    hdrs = ["fakes.h"],
+    deps = [
+        "//src/mds/topology:topology",
+         "//src/mds/nameserver2:nameserver2",
+    ],
+    visibility = ["//visibility:public"],
+)
