@@ -49,12 +49,32 @@ namespace client {
         IOContext* temp = nullptr;
         if (CURVE_LIKELY(!contextslab_.empty())) {
             temp = contextslab_.front();
-            contextslab_.pop_front();
-        } else {
-            temp = new (std::nothrow) IOContext(this);
-            if (temp == nullptr) {
-                abort();
+            /**
+             * only the io context is not busy
+             * we can reuse again, in some case
+             * the IO has return but the context
+             * dose not idle, such as the request
+             * list not all success. in this case
+             * we will return the IO immediately,
+             * but the context will reuse when all
+             * request_context come back.
+             * in sync mode, IO context return and
+             * recyle self may happen concurrently.
+             * is this case, we should hold the IsBusy
+             * flag until sync mode return.
+             */ 
+            if (!temp->IsBusy()) {
+                contextslab_.pop_front();
+                UNLOCK_HERE
+                infilghtIOContextNum_.fetch_add(1,
+                        std::memory_order_acq_rel);
+                return temp;
             }
+        }
+
+        temp = new (std::nothrow) IOContext(this);
+        if (temp == nullptr) {
+            abort();
         }
         UNLOCK_HERE
         infilghtIOContextNum_.fetch_add(1, std::memory_order_acq_rel);

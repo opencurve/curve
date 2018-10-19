@@ -17,6 +17,7 @@ namespace client {
 
 IOContext::IOContext(IOContextSlab* ioctxslab) {
     iocontextslab_ = ioctxslab;
+    isBusy_.store(false, std::memory_order_release);
     Reset();
 }
 
@@ -36,6 +37,7 @@ void IOContext::StartRead(CurveAioContext* aioctx,
     type_ = OpType::READ;
     reqlist_.clear();
     isReturned_.store(false, std::memory_order_release);
+    isBusy_.store(true, std::memory_order_release);
 
     int ret = -1;
     do {
@@ -58,7 +60,7 @@ void IOContext::StartRead(CurveAioContext* aioctx,
 
     if (ret == -1) {
         LOG(ERROR) << "StartRead failed, return and recyle resource!";
-        success_ = false;
+        success_.store(false, std::memory_order_release);
         errorcode_ = -1;
         Done();
         RecycleSelf();
@@ -78,6 +80,7 @@ void IOContext::StartWrite(CurveAioContext* aioctx,
     type_ = OpType::WRITE;
     reqlist_.clear();
     isReturned_.store(false, std::memory_order_release);
+    isBusy_.store(true, std::memory_order_release);
 
     int ret = -1;
     do {
@@ -100,7 +103,7 @@ void IOContext::StartWrite(CurveAioContext* aioctx,
 
     if (ret == -1) {
         LOG(ERROR) << "StartWrite failed, return and recyle resource!";
-        success_ = false;
+        success_.store(false, std::memory_order_release);
         errorcode_ = -1;
         Done();
         RecycleSelf();
@@ -110,11 +113,12 @@ void IOContext::StartWrite(CurveAioContext* aioctx,
 void IOContext::HandleResponse(RequestContext* reqctx) {
     if (!isReturned_.load(std::memory_order_acquire)) {
         errorcode_ = reqctx->done_->GetErrorCode();
-        success_ = (errorcode_ == 0);
-        if (!success_) {
-            LOG(WARNING) << "one of the request list got failed, "
-                        << "return the result immediately!";
+        bool failed = !(errorcode_ == 0);
+        if (!success_.compare_exchange_strong(failed, false,
+                                std::memory_order_acquire)) {
             Done();
+            LOG(WARNING) << "one of the request list got failed,"
+                        << "return the result immediately!";
         }
     }
 
@@ -130,12 +134,11 @@ void IOContext::HandleResponse(RequestContext* reqctx) {
 void IOContext::Reset() {
     isReturned_.store(false, std::memory_order_release);
     donecount_.store(0, std::memory_order_release);
+    success_.store(true, std::memory_order_release);
     data_ = nullptr;
     offset_ = 0;
     length_ = 0;
-    iocond_.Reset();
     aioctx_ = nullptr;
-    success_ = true;
     errorcode_ = -1;
     reqcount_ = 0;
     type_ = OpType::UNKNOWN;
@@ -143,8 +146,8 @@ void IOContext::Reset() {
 }
 
 int IOContext::Wait() {
-    int ret = iocond_.Wait();;
-    iocontextslab_->Recyle(this);
+    int ret = iocond_.Wait();
+    isBusy_.store(false, std::memory_order_release);
     return ret;
 }
 
@@ -152,37 +155,43 @@ void IOContext::Done() {
     /**
      *  if aioctx_ is nullptr, the IO is sync mode 
      */
-    if (aioctx_ == nullptr) {
-        if (success_) {
-            iocond_.Complete(length_);
+    if (!isReturned_.exchange(true, std::memory_order_acq_rel)) {
+        if (aioctx_ == nullptr) {
+            if (success_.load(std::memory_order_acquire)) {
+                iocond_.Complete(length_);
+            } else {
+                /**
+                 * FIXME (tongguangxun): errorcode should be specify not confilct with 
+                 * length we just return -1 to user. latter we will and global error.
+                 */
+                iocond_.Complete(-1);
+            }
         } else {
-            /**
-             * FIXME (tongguangxun): errorcode should be specify not confilct with 
-             * length we just return -1 to user. latter we will and global error.
-             */
-            iocond_.Complete(-1);
+            // TODO(tongguangxun): need set success and errorcode status
+            aioctx_->err = errorcode_ == 0 ? LIBCURVE_ERROR_NOERROR
+                        : LIBCURVE_ERROR_UNKNOWN;
+            aioctx_->ret = length_;
+            aioctx_->cb(aioctx_);
+            isBusy_.store(false, std::memory_order_release);
         }
-    } else {
-        // TODO(tongguangxun): need set success and errorcode status
-        aioctx_->err = errorcode_ == 0 ? LIBCURVE_ERROR_NOERROR
-                     : LIBCURVE_ERROR_UNKNOWN;
-        aioctx_->ret = length_;
-        aioctx_->cb(aioctx_);
     }
-    isReturned_.store(true, std::memory_order_release);
 }
 
 void IOContext::RecycleSelf() {
     for (auto iter : reqlist_) {
         iter->RecyleSelf();
     }
-    if (aioctx_ != nullptr) {
-        iocontextslab_->Recyle(this);
-    }
+
+    iocontextslab_->Recyle(this);
 }
 
 void IOContext::SetScheduler(RequestScheduler* scheduler) {
     scheduler_ = scheduler;
 }
+
+bool IOContext::IsBusy() {
+    return isBusy_.load(std::memory_order_acquire);
+}
+
 }   // namespace client
 }   // namespace curve

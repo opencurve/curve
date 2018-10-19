@@ -44,6 +44,7 @@ class CURVE_CACHELINE_ALIGNMENT IOContext {
     int Wait();
     void Reset();
     void Done();
+    bool IsBusy();
     void RecycleSelf();
     /* if a piece of request failed, we just retry that piece*/
     void HandleResponse(RequestContext* reqctx);
@@ -55,6 +56,9 @@ class CURVE_CACHELINE_ALIGNMENT IOContext {
     /*io context status*/
     std::atomic<bool>  isReturned_;
 
+    /*io context busy or not*/
+    std::atomic<bool>  isBusy_;
+
     /*io content*/
     mutable const char*   data_;
     off_t   offset_;
@@ -64,7 +68,7 @@ class CURVE_CACHELINE_ALIGNMENT IOContext {
     IOCond  iocond_;
 
     /*io result*/
-    bool success_;
+    std::atomic<bool> success_;
     int errorcode_;
 
     /*io context*/

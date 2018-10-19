@@ -22,7 +22,7 @@ namespace curve {
 namespace client {
     using ChunkID = uint64_t;
     using CopysetID = uint32_t;
-    using LogicPoolID   = uint16_t;
+    using LogicPoolID   = uint32_t;
     using ChunkServerID = uint32_t;
     using ChunkIndex = uint32_t;
 
