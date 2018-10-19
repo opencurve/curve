@@ -6,8 +6,18 @@ cc_proto_library (
 
 proto_library(
     name = "nameserver2_proto",
-    srcs = ["nameserver2.proto",
-            "topology.proto",],
+    srcs = ["nameserver2.proto"],
+)
+
+cc_proto_library(
+    name = "topology_cc_proto",
+    deps = [":topology_proto"],
+    visibility = ["//visibility:public"],
+)
+
+proto_library(
+    name = "topology_proto",
+    srcs = ["topology.proto"],
 )
 
 cc_proto_library(
@@ -26,5 +36,6 @@ proto_library(
         "configuration.proto",
         "chunkserver.proto",
     ]),
+    visibility = ["//visibility:public"],
 )
 

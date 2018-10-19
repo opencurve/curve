@@ -37,6 +37,7 @@ cc_library(
         "//include/client:include_client",
         "//include:include-common",
         "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
         "//proto:chunkserver-cc-protos",
         # "//src/chunkserver:chunkserver-lib"
     ],

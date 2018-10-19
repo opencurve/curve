@@ -12,6 +12,7 @@
 #include "test/mds/nameserver2/mock_namespace_storage.h"
 #include "test/mds/nameserver2/mock_inode_id_generator.h"
 #include "test/mds/nameserver2/mock_chunk_allocate.h"
+#include "src/mds/common/topology_define.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;

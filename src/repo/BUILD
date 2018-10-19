@@ -4,10 +4,10 @@ cc_library(
     hdrs = glob(["*.h"]),
     copts = [
         "-std=c++11",
-        "-ljsoncpp",
     ],
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
+        "//external:json",
     ],
 )

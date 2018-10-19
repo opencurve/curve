@@ -34,6 +34,7 @@ cc_test(
         "//src/common:curve_common",
         "//include/client:include_client",
         "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client",
         "//test/client/fake:fake_lib"
