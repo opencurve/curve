@@ -9,14 +9,17 @@
 #define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
 
 #include <vector>
+#include <memory>
+#include <functional>
+
+#include "src/mds/topology/topology.h"
 #include "proto/nameserver2.pb.h"
+
 
 namespace curve {
 namespace mds {
 namespace topology {
 
-#define PoolIdType  uint16_t
-#define CopySetIdType uint32_t
 
 struct CopysetIdInfo {
     PoolIdType logicalPoolId;
@@ -28,9 +31,34 @@ public:
     TopologyAdmin() {}
     virtual ~TopologyAdmin() {}
     virtual bool AllocateChunkRandomInSingleLogicalPool (
-        ::curve::mds::FileType fileType, 
+        ::curve::mds::FileType fileType,
         uint32_t chunkNumer,
         std::vector<CopysetIdInfo> *infos) = 0;
+};
+
+
+class TopologyAdminImpl : public TopologyAdmin {
+ public:
+    TopologyAdminImpl(std::shared_ptr<Topology> topology)
+    : topology_(topology) {}
+    ~TopologyAdminImpl() {}
+
+
+    bool AllocateChunkRandomInSingleLogicalPool(
+        curve::mds::FileType fileType,
+        uint32_t chunkNumber,
+        std::vector<CopysetIdInfo> *infos) override;
+
+
+ private:
+    using LogicalPoolFilter = std::function<bool (const LogicalPool &)>;
+    void FilterLogicalPool(LogicalPoolFilter filter,
+        std::vector<PoolIdType> *logicalPoolIdsOut);
+
+
+ private:
+    std::shared_ptr<Topology> topology_;
+
 };
 
 }  // namespace topology

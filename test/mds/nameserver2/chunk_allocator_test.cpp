@@ -11,6 +11,7 @@
 #include "test/mds/nameserver2/mock_chunk_id_generator.h"
 #include "test/mds/nameserver2/mock_topology_admin.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
+#include "src/mds/common/topology_define.h"
 
 using ::testing::Return;
 using ::testing::_;
@@ -18,6 +19,7 @@ using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using ::testing::AtLeast;
 using ::curve::mds::topology::CopysetIdInfo;
+using ::curve::mds::topology::PoolIdType;
 
 namespace curve {
 namespace mds {
