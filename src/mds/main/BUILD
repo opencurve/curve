@@ -6,8 +6,6 @@ cc_binary(
     copts = [],
     deps = [
             "//src/mds/nameserver2:nameserver2",
-            "@com_google_googletest//:gtest_main",
-            "@com_google_googletest//:gtest",
             "//external:brpc",
             "//src/common:curve_common",
             "//src/mds/topology:topology",

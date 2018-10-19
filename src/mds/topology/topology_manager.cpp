@@ -5,13 +5,22 @@
  * Copyright (c) 2018 netease
  */
 
+#include <gflags/gflags.h>
+
 #include "src/mds/topology/topology_manager.h"
 #include "glog/logging.h"
 #include "src/repo/repo.h"
 
+
+DEFINE_string(dbName, "curve_mds", "dbName");
+DEFINE_string(user, "root", "user");
+DEFINE_string(url, "localhost", "url");
+DEFINE_string(password, "qwer", "password");
+
 namespace curve {
 namespace mds {
 namespace topology {
+
 
 TopologyManager::TopologyManager() {
     std::shared_ptr<TopologyIdGenerator> idGenerator_  =
@@ -25,7 +34,10 @@ TopologyManager::TopologyManager() {
     std::shared_ptr<TopologyStorage> storage_ =
         std::make_shared<DefaultTopologyStorage>(repo_);
     // TODO(xuchaojie): use data from config file to init storage
-    if (!storage_->init("dbName", "user", "url", "password")) {
+    if (!storage_->init(FLAGS_dbName,
+            FLAGS_user,
+            FLAGS_url,
+            FLAGS_password)) {
         LOG(FATAL) << "init storage fail.";
         return;
     }

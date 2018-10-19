@@ -28,7 +28,7 @@ using ::curve::mds::topology::TopologyManager;
 
 namespace curve {
 namespace mds {
-int main(int argc, char **argv) {
+int curve_main(int argc, char **argv) {
     google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
@@ -81,3 +81,9 @@ int main(int argc, char **argv) {
 
 }  // namespace mds
 }  // namespace curve
+
+int main(int argc, char **argv) {
+    curve::mds::curve_main(argc, argv);
+}
+
+
