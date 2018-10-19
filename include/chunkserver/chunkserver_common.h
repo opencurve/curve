@@ -17,10 +17,10 @@ namespace curve {
 namespace chunkserver {
 
 /* for IDs */
-using LogicPoolID   = uint16_t;
+using LogicPoolID   = uint32_t;
 using CopysetID     = uint32_t;
 using ChunkID       = uint64_t;
-using SnapshotID    = uint16_t;
+using SnapshotID    = uint64_t;
 
 // braft
 using Configuration = braft::Configuration;
