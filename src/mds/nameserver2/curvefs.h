@@ -5,16 +5,16 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef SRC_NAMESERVER2_CURVEFS_H_
-#define SRC_NAMESERVER2_CURVEFS_H_
+#ifndef SRC_MDS_NAMESERVER2_CURVEFS_H_
+#define SRC_MDS_NAMESERVER2_CURVEFS_H_
 
 #include <vector>
 #include <string>
 #include "proto/nameserver2.pb.h"
-#include "src/nameserver2/namespace_storage.h"
-#include "src/nameserver2/inode_id_generator.h"
-#include "src/nameserver2/define.h"
-#include "src/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/inode_id_generator.h"
+#include "src/mds/nameserver2/define.h"
+#include "src/mds/nameserver2/chunk_allocator.h"
 
 namespace curve {
 namespace mds {
@@ -91,5 +91,5 @@ extern CurveFS &kCurveFS;
 
 }   // namespace mds
 }   // namespace curve
-#endif   // SRC_NAMESERVER2_CURVEFS_H_
+#endif   // SRC_MDS_NAMESERVER2_CURVEFS_H_
 

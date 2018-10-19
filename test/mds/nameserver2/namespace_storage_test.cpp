@@ -5,7 +5,7 @@
  * Copyright (c) 2018 netease
  */
 #include <gtest/gtest.h>
-#include "src/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/namespace_storage.h"
 
 
 namespace curve {

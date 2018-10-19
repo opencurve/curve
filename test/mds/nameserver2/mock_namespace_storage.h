@@ -5,14 +5,14 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef  TEST_NAMESERVER2_MOCK_NAMESPACE_STORAGE_H_
-#define TEST_NAMESERVER2_MOCK_NAMESPACE_STORAGE_H_
+#ifndef  TEST_MDS_NAMESERVER2_MOCK_NAMESPACE_STORAGE_H_
+#define TEST_MDS_NAMESERVER2_MOCK_NAMESPACE_STORAGE_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <vector>
 #include <string>
-#include "src/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/namespace_storage.h"
 
 namespace curve {
 namespace mds {
@@ -48,4 +48,4 @@ class MockNameServerStorage : public NameServerStorage {
 }  // namespace mds
 }  // namespace curve
 
-#endif   // TEST_NAMESERVER2_MOCK_NAMESPACE_STORAGE_H_
+#endif   // TEST_MDS_NAMESERVER2_MOCK_NAMESPACE_STORAGE_H_

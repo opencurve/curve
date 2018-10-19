@@ -9,10 +9,10 @@
 #include <gtest/gtest.h>
 #include <brpc/channel.h>
 #include <brpc/server.h>
-#include "src/nameserver2/namespace_service.h"
-#include "src/nameserver2/curvefs.h"
-#include "src/nameserver2/chunk_allocator.h"
-#include "test/nameserver2/fakes.h"
+#include "src/mds/nameserver2/namespace_service.h"
+#include "src/mds/nameserver2/curvefs.h"
+#include "src/mds/nameserver2/chunk_allocator.h"
+#include "test/mds/nameserver2/fakes.h"
 
 
 namespace curve {

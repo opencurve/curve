@@ -6,7 +6,7 @@
  */
 
 #include <glog/logging.h>
-#include "src/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/chunk_allocator.h"
 #include "proto/nameserver2.pb.h"
 
 

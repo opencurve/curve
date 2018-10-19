@@ -4,8 +4,8 @@
  * Author: hzsunjianliang
  * Copyright (c) 2018 netease
  */
-#include "src/nameserver2/namespace_service.h"
-#include "src/nameserver2/curvefs.h"
+#include "src/mds/nameserver2/namespace_service.h"
+#include "src/mds/nameserver2/curvefs.h"
 
 namespace curve {
 namespace mds {

@@ -5,10 +5,10 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef SRC_NAMESERVER2_INODE_ID_GENERATOR_H_
-#define SRC_NAMESERVER2_INODE_ID_GENERATOR_H_
+#ifndef SRC_MDS_NAMESERVER2_INODE_ID_GENERATOR_H_
+#define SRC_MDS_NAMESERVER2_INODE_ID_GENERATOR_H_
 
-#include "src/nameserver2/define.h"
+#include "src/mds/nameserver2/define.h"
 
 namespace curve {
 namespace mds {
@@ -20,4 +20,4 @@ class InodeIDGenerator {
 };
 }  // namespace mds
 }  // namespace curve
-#endif   // SRC_NAMESERVER2_INODE_ID_GENERATOR_H_
+#endif   // SRC_MDS_NAMESERVER2_INODE_ID_GENERATOR_H_
