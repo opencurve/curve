@@ -23,7 +23,7 @@ DEFINE_int32(logicalPoolType,
     "logical pool type.");
 DEFINE_int32(copysetNum, 100, "copyset num.");
 
-DEFINE_string(mds_ip, "172.0.0.1", "mds ip");
+DEFINE_string(mds_ip, "127.0.0.1", "mds ip");
 DEFINE_int32(mds_port, 8000, "mds port");
 
 
