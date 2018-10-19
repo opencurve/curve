@@ -15,14 +15,23 @@
 #include "src/mds/nameserver2/namespace_service.h"
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/topology/topology_admin.h"
+#include "src/mds/topology/topology_manager.h"
+#include "src/mds/topology/topology_service.h"
 
 
 DEFINE_string(listenAddr, ":6666", "Initial  mds listen addr");
 
+using ::curve::mds::topology::TopologyAdminImpl;
+using ::curve::mds::topology::TopologyAdmin;
+using ::curve::mds::topology::TopologyServiceImpl;
+using ::curve::mds::topology::TopologyManager;
+
 namespace curve {
 namespace mds {
-int main() {
-    // TODO(xuchaojie): init topolgy
+int main(int argc, char **argv) {
+    google::InitGoogleLogging(argv[0]);
+    google::ParseCommandLineFlags(&argc, &argv, false);
+
 
     // init nameserver
     NameServerStorage *storage_;
@@ -32,9 +41,9 @@ int main() {
     storage_ =  new FakeNameServerStorage();
     inodeGenerator_ = new FakeInodeIDGenerator(0);
 
-    // TODO(xuchaojie): use read topology Admin
-    std::shared_ptr<FackTopologyAdmin> topologyAdmin =
-                                std::make_shared<FackTopologyAdmin>();
+    std::shared_ptr<TopologyAdmin> topologyAdmin =
+       TopologyManager::GetInstance()->GetTopologyAdmin();
+
     std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
                             std::make_shared<FackChunkIDGenerator>();
     chunkSegmentAllocate_ =
@@ -49,7 +58,15 @@ int main() {
         LOG(ERROR) << "add namespaceService error";
         return -1;
     }
-    // TODO(xuchaojie): add topology service
+
+    // add topology service
+
+    TopologyServiceImpl topologyService;
+    if (server.AddService(&topologyService,
+        brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(ERROR) << "add topologyService error";
+        return -1;
+    }
 
     // start rpc server
     brpc::ServerOptions option;
