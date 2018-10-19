@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef  SRC_NAMESERVER2_NAMESPACE_SERVICE_H_
-#define  SRC_NAMESERVER2_NAMESPACE_SERVICE_H_
+#ifndef  SRC_MDS_NAMESERVER2_NAMESPACE_SERVICE_H_
+#define  SRC_MDS_NAMESERVER2_NAMESPACE_SERVICE_H_
 
 #include <brpc/closure_guard.h>
 #include <brpc/controller.h>
@@ -39,4 +39,4 @@ class NameSpaceService: public CurveFSService {
 };
 }  // namespace mds
 }  // namespace curve
-#endif   // SRC_NAMESERVER2_NAMESPACE_SERVICE_H_
+#endif   // SRC_MDS_NAMESERVER2_NAMESPACE_SERVICE_H_

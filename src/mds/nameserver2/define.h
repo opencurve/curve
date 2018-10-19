@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef SRC_NAMESERVER2_DEFINE_H_
-#define SRC_NAMESERVER2_DEFINE_H_
+#ifndef SRC_MDS_NAMESERVER2_DEFINE_H_
+#define SRC_MDS_NAMESERVER2_DEFINE_H_
 
 #include <stdint.h>
 
@@ -34,4 +34,4 @@ typedef uint32_t ChunkSizeType;
 }  // namespace mds
 }  // namespace curve
 
-#endif   // SRC_NAMESERVER2_DEFINE_H_
+#endif   // SRC_MDS_NAMESERVER2_DEFINE_H_

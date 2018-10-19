@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_NAMESERVER2_FAKES_H_
-#define TEST_NAMESERVER2_FAKES_H_
+#ifndef TEST_MDS_NAMESERVER2_FAKES_H_
+#define TEST_MDS_NAMESERVER2_FAKES_H_
 
 #include <glog/logging.h>
 #include <vector>
@@ -14,11 +14,11 @@
 #include <utility>
 #include <map>
 #include <string>
-#include "src/nameserver2/define.h"
-#include "src/nameserver2/inode_id_generator.h"
-#include "src/nameserver2/chunk_allocator.h"
-#include "src/nameserver2/namespace_storage.h"
-#include "src/nameserver2/chunk_id_generator.h"
+#include "src/mds/nameserver2/define.h"
+#include "src/mds/nameserver2/inode_id_generator.h"
+#include "src/mds/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/chunk_id_generator.h"
 #include "src/mds/topology/topology_admin.h"
 
 using ::curve::mds::topology::TopologyAdmin;
@@ -143,4 +143,4 @@ class FakeNameServerStorage : public NameServerStorage {
 };
 }  // namespace mds
 }  // namespace curve
-#endif  // TEST_NAMESERVER2_FAKES_H_
+#endif  // TEST_MDS_NAMESERVER2_FAKES_H_

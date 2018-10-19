@@ -5,11 +5,11 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef  TEST_NAMESERVER2_MOCK_CHUNK_ALLOCATE_H_
-#define  TEST_NAMESERVER2_MOCK_CHUNK_ALLOCATE_H_
+#ifndef  TEST_MDS_NAMESERVER2_MOCK_CHUNK_ALLOCATE_H_
+#define  TEST_MDS_NAMESERVER2_MOCK_CHUNK_ALLOCATE_H_
 
 #include <gmock/gmock.h>
-#include "src/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/chunk_allocator.h"
 
 namespace curve {
 namespace mds {
@@ -24,4 +24,4 @@ class MockChunkAllocator: public ChunkSegmentAllocator {
 };
 }  // namespace mds
 }  // namespace curve
-#endif  // TEST_NAMESERVER2_MOCK_CHUNK_ALLOCATE_H_
+#endif  // TEST_MDS_NAMESERVER2_MOCK_CHUNK_ALLOCATE_H_

@@ -5,14 +5,14 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef SRC_NAMESERVER2_CHUNK_ALLOCATOR_H_
-#define SRC_NAMESERVER2_CHUNK_ALLOCATOR_H_
+#ifndef SRC_MDS_NAMESERVER2_CHUNK_ALLOCATOR_H_
+#define SRC_MDS_NAMESERVER2_CHUNK_ALLOCATOR_H_
 
 #include <stdint.h>
 #include <vector>
-#include "src/nameserver2/define.h"
-#include "src/nameserver2/inode_id_generator.h"
-#include "src/nameserver2/chunk_id_generator.h"
+#include "src/mds/nameserver2/define.h"
+#include "src/mds/nameserver2/inode_id_generator.h"
+#include "src/mds/nameserver2/chunk_id_generator.h"
 #include "src/mds/topology/topology_admin.h"
 
 using ::curve::mds::topology::TopologyAdmin;
@@ -57,4 +57,4 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
 
 }  // namespace mds
 }  // namespace curve
-#endif   // SRC_NAMESERVER2_CHUNK_ALLOCATOR_H_
+#endif   // SRC_MDS_NAMESERVER2_CHUNK_ALLOCATOR_H_

@@ -7,11 +7,11 @@
 
 
 #include <glog/logging.h>
-#include "src/nameserver2/curvefs.h"
+#include "src/mds/nameserver2/curvefs.h"
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
-#include "src/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/namespace_storage.h"
 
 namespace curve {
 namespace mds {

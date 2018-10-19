@@ -4,8 +4,8 @@
  * Author: hzsunjianliang
  * Copyright (c) 2018 netease
  */
-#ifndef SRC_NAMESERVER2_NAMESPACE_STORAGE_H_
-#define SRC_NAMESERVER2_NAMESPACE_STORAGE_H_
+#ifndef SRC_MDS_NAMESERVER2_NAMESPACE_STORAGE_H_
+#define SRC_MDS_NAMESERVER2_NAMESPACE_STORAGE_H_
 
 #include <string>
 #include <tuple>
@@ -16,7 +16,7 @@
 #include "proto/nameserver2.pb.h"
 
 #include "src/common/encode.h"
-#include "src/nameserver2/define.h"
+#include "src/mds/nameserver2/define.h"
 
 namespace curve {
 namespace mds {
@@ -70,4 +70,4 @@ class NameServerStorage {
 }  // namespace mds
 }  // namespace curve
 
-#endif   // SRC_NAMESERVER2_NAMESPACE_STORAGE_H_
+#endif   // SRC_MDS_NAMESERVER2_NAMESPACE_STORAGE_H_

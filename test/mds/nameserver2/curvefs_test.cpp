@@ -6,12 +6,12 @@
  */
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "src/nameserver2/curvefs.h"
-#include "src/nameserver2/inode_id_generator.h"
-#include "src/nameserver2/namespace_storage.h"
-#include "test/nameserver2/mock_namespace_storage.h"
-#include "test/nameserver2/mock_inode_id_generator.h"
-#include "test/nameserver2/mock_chunk_allocate.h"
+#include "src/mds/nameserver2/curvefs.h"
+#include "src/mds/nameserver2/inode_id_generator.h"
+#include "src/mds/nameserver2/namespace_storage.h"
+#include "test/mds/nameserver2/mock_namespace_storage.h"
+#include "test/mds/nameserver2/mock_inode_id_generator.h"
+#include "test/mds/nameserver2/mock_chunk_allocate.h"
 
 using ::testing::AtLeast;
 using ::testing::StrEq;

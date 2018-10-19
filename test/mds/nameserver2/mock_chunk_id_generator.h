@@ -5,12 +5,12 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_NAMESERVER2_MOCK_CHUNK_ID_GENERATOR_H_
-#define TEST_NAMESERVER2_MOCK_CHUNK_ID_GENERATOR_H_
+#ifndef TEST_MDS_NAMESERVER2_MOCK_CHUNK_ID_GENERATOR_H_
+#define TEST_MDS_NAMESERVER2_MOCK_CHUNK_ID_GENERATOR_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include "src/nameserver2/chunk_id_generator.h"
+#include "src/mds/nameserver2/chunk_id_generator.h"
 
 namespace curve {
 namespace mds {
@@ -23,4 +23,4 @@ class MockChunkIDGenerator: public ChunkIDGenerator {
 
 }  // namespace mds
 }  // namespace curve
-#endif  // TEST_NAMESERVER2_MOCK_CHUNK_ID_GENERATOR_H_
+#endif  // TEST_MDS_NAMESERVER2_MOCK_CHUNK_ID_GENERATOR_H_
