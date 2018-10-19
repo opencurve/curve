@@ -14,7 +14,7 @@
 
 namespace curve {
 namespace repo {
-const int SqlBufferLen = 1024 * 1024;
+const int SqlBufferLen = 1024;
 
 const char ChunkServerTable[] = "curve_chunkserver";
 const char ServerTable[] = "curve_server";

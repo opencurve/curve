@@ -31,8 +31,13 @@ int DataBase::connectDB() {
     statement_ = conn_->createStatement();
     return ConnectOK;
   } catch (sql::SQLException &e) {
+    LOG(ERROR) << "connect fail, "
+               << "error code: " << e.getErrorCode() << ", "
+               << "error message: " << e.what();
     return SqlException;
   } catch (std::runtime_error &e) {
+    LOG(ERROR) << "[dataBase.cpp] connect db get runtime_error, "
+               << "error message: " << e.what();
     return RuntimeExecption;
   }
 }
