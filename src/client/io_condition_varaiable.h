@@ -16,7 +16,8 @@ namespace client {
 class IOCond {
  public:
     IOCond() {
-        Reset();
+        ret = -1;
+        done_ = false;
     }
     ~IOCond() {
     }
@@ -31,12 +32,8 @@ class IOCond {
     int Wait() {
         std::unique_lock<std::mutex> lk(mtx_);
         cv_.wait(lk, [&]()->bool {return done_;});
-        return ret;
-    }
-
-    void Reset() {
-        ret = -1;
         done_ = false;
+        return ret;
     }
 
  private:
