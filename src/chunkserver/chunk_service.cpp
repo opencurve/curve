@@ -55,20 +55,29 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
                                   ChunkResponse *response,
                                   Closure *done) {
     brpc::ClosureGuard doneGuard(done);
+    brpc::Controller * cntl = dynamic_cast<brpc::Controller *>(controller);
+    DVLOG(9) << "Get write I/O request, op: " << request->optype()
+             << " offset: " << request->offset()
+             << " size: " << request->size() << " buf header: "
+             << *(unsigned int *)cntl->request_attachment().to_string().c_str()
+             << " attachement size " << cntl->request_attachment().size();
 
     /* 判断 request 参数是否合法 */
     auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
     if (request->offset() + request->size() > maxSize) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
+        DVLOG(9) << "I/O request, op: " << request->optype()
+                 << " offset: " << request->offset()
+                 << " size: " << request->size()
+                 << " max size: " << maxSize;
         return;
     }
     /* 判断 copyset 是否存在 */
     if (false == copysetNodeManager_->IsExist(request->logicpoolid(),
                                               request->copysetid())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR)
-        << "failed found copyset node (" << request->logicpoolid() << ","
-        << request->copysetid() << ")";
+        LOG(ERROR) << "failed found copyset node (" << request->logicpoolid()
+                   << "," << request->copysetid() << ")";
         return;
     }
 
@@ -95,6 +104,10 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
     auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
     if (request->offset() + request->size() > maxSize) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
+        DVLOG(9) << "I/O request, op: " << request->optype()
+                 << " offset: " << request->offset()
+                 << " size: " << request->size()
+                 << " max size: " << maxSize;
         return;
     }
     if (false == copysetNodeManager_->IsExist(request->logicpoolid(),

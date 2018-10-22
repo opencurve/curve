@@ -48,11 +48,11 @@ cc_library(
 cc_library(
     name = "cbd",
     srcs = glob([
-        "src/client/libcbd_ext4.cpp",
-        "src/client/libcbd_libcurve.cpp",
+        "libcbd_ext4.cpp",
+        "libcbd_libcurve.cpp",
     ]),
     hdrs = glob([
-        "src/client/libcbd.h",
+        "libcbd.h",
     ]),
     copts = [
         "-DGFLAGS=gflags",
@@ -69,9 +69,6 @@ cc_library(
         "-Wno-unused-parameter",
         "-Wno-unused-variable",
         "-Wno-missing-field-initializers",
-    ],
-    includes = [
-        "include/client/libcurve.h",
     ],
     linkopts = [
         "-lrt",

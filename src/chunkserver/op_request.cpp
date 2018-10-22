@@ -105,6 +105,12 @@ int ChunkOpRequest::OnApply(std::shared_ptr<CopysetNode> copysetNode) {
                                                            &size)) {
                 cntl->response_attachment().append(readBuffer, size);
                 response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+                DVLOG(9) << "read: (" << request_->logicpoolid() << ", "
+                         << request_->copysetid()
+                         << ") chunkid: " << request_->chunkid()
+                         << " data size: " << request_->size()
+                         << " error, read len :" << size << ", error: "
+                         << strerror(errno);
             } else {
                 LOG(ERROR) << "read: (" << request_->logicpoolid() << ", "
                            << request_->copysetid()
@@ -122,11 +128,20 @@ int ChunkOpRequest::OnApply(std::shared_ptr<CopysetNode> copysetNode) {
             break;
         }
         case CHUNK_OP_TYPE::CHUNK_OP_WRITE:
+            DVLOG(9) << "Apply write request with header: "
+                     << reinterpret_cast<const unsigned int *>(cntl->request_attachment().to_string().c_str());  //NOLINT
+
             if (true == copysetNode->dataStore_->WriteChunk(request_->chunkid(),
                                                             cntl->request_attachment().to_string().c_str(),  //NOLINT
                                                             request_->offset(),
                                                             request_->size())) {
                 response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+                DVLOG(9) << "write: (" << request_->logicpoolid() << ", "
+                         << request_->copysetid()
+                         << ") chunkid: " << request_->chunkid()
+                         << " data size: " << request_->size()
+                         << " error, read len :" << size << ", error: "
+                         << strerror(errno);
             } else {
                 LOG(FATAL) << "write: (" << request_->logicpoolid() << ", "
                            << request_->copysetid()

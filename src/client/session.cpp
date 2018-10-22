@@ -23,12 +23,12 @@ DEFINE_uint32(scheduler_threadnum,
                 8,
                 "scheduler thread pool thread nums!");
 DEFINE_string(metaserver_addr,
-                "127.0.0.1:9000",
+                "127.0.0.1:6666",
                 "meta server address ip:port");
 DEFINE_uint32(chunk_size,
-                4 * 1024 * 1024,
+                16 * 1024 * 1024,
                 "each chunk size.");
-DEFINE_uint32(segment_size,
+DEFINE_uint64(segment_size,
                 1 * 1024 * 1024 * 1024,
                 "each segment size will MDS allocate once.");
 
@@ -53,7 +53,7 @@ namespace client {
         do {
             /**
              * metacache should be Initialize before ioctxManager
-             */ 
+             */
             mc_ = new (std::nothrow) MetaCache(this);
             if (mc_ == nullptr) {
                 break;
@@ -175,7 +175,7 @@ namespace client {
 
     OpenFileErrorType Session::Open(std::string filename) {
         FInfo_t fi;
-        if (curve::mds::StatusCode::kFileExists
+        if (curve::mds::StatusCode::kOK
                 == GetFileInfo(filename, &fi)) {
             filename_ = filename;
             return OpenFileErrorType::FILE_OPEN_OK;
@@ -259,12 +259,15 @@ namespace client {
         /**
          * convert the user offset to seg  offset
          */
-        uint64_t seg_offset = offset / FLAGS_segment_size;
+        uint64_t seg_offset = (offset / FLAGS_segment_size)
+                              * FLAGS_segment_size;
         request.set_filename(filename_);
         request.set_offset(seg_offset);
         request.set_allocateifnotexist(true);
 
         stub.GetOrAllocateSegment(&cntl, &request, &response, NULL);
+        DVLOG(9) << "Get segment at offset: " << seg_offset
+            << "Response status: " << response.statuscode();
 
         std::vector<CopysetID> csids;
         csids.clear();
@@ -299,6 +302,8 @@ namespace client {
                     LOG(ERROR) << "mds allocate segment, but no chunk info!";
                     return -1;
                 }
+                DVLOG(9) << "update meta cache of " << chunksNum << " chunks"
+                         << " at offset: " << startoffset;
                 for (int i = 0; i < chunksNum; i++) {
                     ChunkID chunkid = 0;
                     CopysetID copysetid = 0;
@@ -318,6 +323,11 @@ namespace client {
                     chunkinfo.chunkid_ = chunkid;
                     mc_->UpdateChunkInfo(cindex, chunkinfo);
                     mc_->UpdateCopysetIDInfo(chunkid, logicpoolid, copysetid);
+                    DVLOG(9) << "chunk id: " << i
+                             << " pool id: " << logicpoolid
+                             << " copyset id: " << copysetid
+                             << " cindex: " << cindex
+                             << " chunk id: " << chunkid;
                 }
             }
             // now get the segment copyset server addr

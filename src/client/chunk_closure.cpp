@@ -92,19 +92,26 @@ void WriteChunkClosure::Run() {
     /* 2.3. 非法参数 */
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST == status) {
         reqDone->SetFailed(status);
+        LOG(ERROR) << "write failed for invalid format, write info: "
+                   << "<" << reqCtx->logicpoolid_ << ", "  << reqCtx->copysetid_
+                   << ", " << reqCtx->chunkid_ << "> offset=" << reqCtx->offset_
+                   << ", length=" << reqCtx->rawlength_
+                   << ", status=" << status;
         return;
     }
     /* 2.4. 其他错误，过一段时间再重试 */
     LOG(ERROR) << "write failed for UNKNOWN reason, write info: "
                << "<" << reqCtx->logicpoolid_ << ", "  << reqCtx->copysetid_
                << ", " << reqCtx->chunkid_ << "> offset=" << reqCtx->offset_
-               << ", length=" << reqCtx->rawlength_;
+               << ", length=" << reqCtx->rawlength_
+               << ", status=" << status;
     bthread_usleep(FLAGS_client_chunk_op_retry_interval_us);
     goto write_retry;
 
 write_retry:
     if (retriedTimes_ + 1 >= FLAGS_client_chunk_op_max_retry) {
         reqDone->SetFailed(status);
+        LOG(ERROR) << "retried times exceeds";
         return;
     }
     client_->WriteChunk(logicPoolId,
@@ -188,19 +195,26 @@ void ReadChunkClosure::Run() {
     /* 2.3. 非法参数 */
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST == status) {
         reqDone->SetFailed(status);
+        LOG(ERROR) << "read failed for invalid format, write info: "
+                   << "<" << reqCtx->logicpoolid_ << ", "  << reqCtx->copysetid_
+                   << ", " << reqCtx->chunkid_ << "> offset=" << reqCtx->offset_
+                   << ", length=" << reqCtx->rawlength_
+                   << ", status=" << status;
         return;
     }
     /* 2.4. 其他错误，过一段时间再重试 */
     LOG(ERROR) << "read failed for UNKNOWN reason, read info: "
                << "<" << reqCtx->logicpoolid_ << ", "  << reqCtx->copysetid_
                << ", " << reqCtx->chunkid_ << "> offset=" << reqCtx->offset_
-               << ", length=" << reqCtx->rawlength_;
+               << ", length=" << reqCtx->rawlength_
+               << ", status=" << status;
     bthread_usleep(FLAGS_client_chunk_op_retry_interval_us);
     goto read_retry;
 
 read_retry:
     if (retriedTimes_ + 1 >= FLAGS_client_chunk_op_max_retry) {
         reqDone->SetFailed(status);
+        LOG(ERROR) << "retried times exceeds";
         return;
     }
     client_->ReadChunk(logicPoolId,

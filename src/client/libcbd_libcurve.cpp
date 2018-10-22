@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2018 NetEase Inc. All rights reserved.
  * Project: Curve
- * 
- * History: 
+ *
+ * History:
  *          2018/10/10  Wenyu Zhou   Initial version
  */
 
@@ -19,6 +19,7 @@ int cbd_libcurve_init(const CurveOptions* options) {
         return 0;
     }
 
+    g_cbd_libcurve_options.conf = options->conf;
     ret = Init(g_cbd_libcurve_options.conf);
     if (!ret) {
         return ret;

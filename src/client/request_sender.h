@@ -21,7 +21,7 @@ using curve::chunkserver::ChunkRequest;
 using curve::chunkserver::ChunkResponse;
 
 struct SenderOptions {
-    SenderOptions() : maxRetry(3), timeoutMs(500) {}
+    SenderOptions() : maxRetry(3), timeoutMs(5000) {}
     int maxRetry;
     int timeoutMs;
 };

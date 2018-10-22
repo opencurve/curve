@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2018 NetEase Inc. All rights reserved.
  * Project: Curve
- * 
- * History: 
+ *
+ * History:
  *          2018/10/10  Wenyu Zhou   Initial version
  */
 
@@ -17,9 +17,10 @@ int cbd_ext4_init(const CurveOptions* options) {
     if (g_cbd_ext4_options.inited) {
         return 0;
     }
+    g_cbd_ext4_options.conf = options->conf;
 
 #ifdef CBD_BACKEND_EXT4
-    g_cbd_ext4_options.datahome = strdup(options->datahome);
+    g_cbd_ext4_options.datahome = options->datahome;
     if (!g_cbd_ext4_options.datahome) {
         return -1;
     }
@@ -38,8 +39,8 @@ int cbd_ext4_open(const char* filename) {
     char path[CBD_MAX_FILE_PATH_LEN] = {0};
 #ifdef CBD_BACKEND_EXT4
     strcat(path, g_cbd_ext4_options.datahome);  //NOLINT
-#endif
     strcat(path, "/");  //NOLINT
+#endif
     strcat(path, filename);    //NOLINT
 
     fd = open(path, O_RDWR | O_CREAT, 0660);
@@ -112,7 +113,14 @@ int64_t cbd_ext4_filesize(const char* filename) {
     struct stat st;
     int ret;
 
-    ret = stat(filename, &st);
+    char path[CBD_MAX_FILE_PATH_LEN] = {0};
+#ifdef CBD_BACKEND_EXT4
+    strcat(path, g_cbd_ext4_options.datahome);  //NOLINT
+    strcat(path, "/");  //NOLINT
+#endif
+    strcat(path, filename);    //NOLINT
+
+    ret = stat(path, &st);
     if (ret) {
         return ret;
     } else {

@@ -91,13 +91,11 @@ bool CSDataStore::ReadChunk(ChunkID id,
         return iter->second->ReadChunk(buf, offset, length);
     }
     std::string filepath = ChunkID2FileName(id);
-    if (sfsptr_->FileExists(filepath.c_str())) {
-        CSDataStoreExecutorPtr newstorage =
-            CSDataStoreExecutorPtr(new CSDataStoreExecutor(sfsptr_, filepath));
-        copysetStoragePool_.insert(std::make_pair(id, newstorage));
-        return newstorage->ReadChunk(buf, offset, length);
-    }
-    return false;
+
+    CSDataStoreExecutorPtr newstorage =
+        CSDataStoreExecutorPtr(new CSDataStoreExecutor(sfsptr_, filepath));
+    copysetStoragePool_.insert(std::make_pair(id, newstorage));
+    return newstorage->ReadChunk(buf, offset, length);
 }
 
 bool CSDataStore::WriteChunk(ChunkID id,

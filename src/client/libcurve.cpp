@@ -33,6 +33,9 @@ namespace client {
 
     int LibCurve::Init(std::string configpath) {
         // TODO(tongguangxun): read config and init
+        // set log level to ERROR to avoid verbose info output in qemu
+        // change to setting appropriate level according to config file
+        google::SetCommandLineOption("minloglevel", std::to_string(2).c_str());
         return 0;
     }
 
@@ -52,6 +55,8 @@ namespace client {
     FInfo LibCurve::GetInfo(std::string name) {
         FInfo finfo;
         Session::GetFileInfo(name, &finfo);
+        DVLOG(9) << "Filename: " << name
+                 << "File size: " << finfo.length;
         return finfo;
     }
 
@@ -130,7 +135,11 @@ namespace client {
 extern "C"
 #endif
 int Init(const char* configpath) {
-    return curve::client::LibCurve::Init(configpath);
+    if (!configpath) {
+        return -1;
+    } else {
+        return curve::client::LibCurve::Init(configpath);
+    }
 }
 
 #ifdef __cplusplus
@@ -165,6 +174,9 @@ int Write(int fd, const char* buf, off_t offset, size_t length) {
 extern "C"
 #endif
 int AioRead(int fd, CurveAioContext* aioctx) {
+    DVLOG(9) << "offset: " << aioctx->offset
+        << " length: " << aioctx->length
+        << " op: " << aioctx->op;
     curve::client::LibCurve::AioRead(fd, aioctx);
     // TODO(tongguangxun) :aio return 0 for now, we need specify return code.
     return 0;
@@ -174,6 +186,10 @@ int AioRead(int fd, CurveAioContext* aioctx) {
 extern "C"
 #endif
 int AioWrite(int fd, CurveAioContext* aioctx) {
+    DVLOG(9) << "offset: " << aioctx->offset
+        << " length: " << aioctx->length
+        << " op: " << aioctx->op
+        << " buf: " << *(unsigned int*)aioctx->buf;
     curve::client::LibCurve::AioWrite(fd, aioctx);
     return 0;
 }

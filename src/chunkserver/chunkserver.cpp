@@ -34,6 +34,8 @@ void ChunkServer::InitCopysetNodeOptions() {
         conf_.GetStringValue("copyset.raft_meta_uri");
     copysetNodeOptions_.raftSnapshotUri =
         conf_.GetStringValue("copyset.raft_snapshot_uri");
+    copysetNodeOptions_.maxChunkSize =
+        conf_.GetIntValue("global.chunk_size");
     copysetNodeOptions_.copysetNodeManager = &copysetNodeManager_;
 }
 

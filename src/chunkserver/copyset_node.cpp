@@ -418,7 +418,7 @@ CopysetNodeOptions::CopysetNodeOptions()
       chunkDataUri("/data"),
       chunkSnapshotUri("/snapshot"),
       port(8200),
-      maxChunkSize(4 * 1024 * 1024),
+      maxChunkSize(16 * 1024 * 1024),
       copysetNodeManager(nullptr) {
 }
 CopysetNodeOptions::CopysetNodeOptions(const CopysetNodeOptions

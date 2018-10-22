@@ -40,7 +40,7 @@ namespace client {
         /**
          * offset + length > segment size, so IO has some chunkindex cross other segment
          */ 
-        session_->GetOrAllocateSegment(chunkidx * FLAGS_chunk_size);
+        session_->GetOrAllocateSegment((off_t)chunkidx * FLAGS_chunk_size);
 
         spinlock4ChunkInfo_.Lock();
         auto it = chunkindex2idMap_.find(chunkidx);

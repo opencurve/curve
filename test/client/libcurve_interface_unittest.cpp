@@ -32,7 +32,6 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     FakeMDS mds(filename, size);
     mds.Initialize();
     mds.StartService();
-    mds.FakeCreateCopysetReturn();
     mds.CreateCopysetNode();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
