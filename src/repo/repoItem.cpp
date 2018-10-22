@@ -58,10 +58,10 @@ std::string MakeSql::makeInsert(const RepoItem &t) {
     iter++;
   }
 
-  char res[SqlBufferLen];
-  snprintf(res,
-           SqlBufferLen,
-           "insert into %s %s values %s",
+  const size_t kLen =
+      InsertLen + t.getTable().size() + rows.size() + values.size() + 1;
+  char res[kLen];
+  snprintf(res, kLen, Insert,
            t.getTable().c_str(),
            rows.c_str(),
            values.c_str());
@@ -69,8 +69,9 @@ std::string MakeSql::makeInsert(const RepoItem &t) {
 }
 
 std::string MakeSql::makeQueryRows(const RepoItem &t) {
-  char res[SqlBufferLen];
-  snprintf(res, SqlBufferLen, "select * from %s", t.getTable().c_str());
+  const size_t kLen = QueryAllLen + t.getTable().size() + 1;
+  char res[kLen];
+  snprintf(res, kLen, QueryAll, t.getTable().c_str());
   return std::string(res);
 }
 
@@ -80,12 +81,9 @@ std::string MakeSql::makeQueryRow(const RepoItem &t) {
     return "";
   }
 
-  char res[SqlBufferLen];
-  snprintf(res,
-           SqlBufferLen,
-           "select * from %s where %s",
-           t.getTable().c_str(),
-           condition.c_str());
+  const size_t kLen = QueryLen + t.getTable().size() + condition.size() + 1;
+  char res[kLen];
+  snprintf(res, kLen, Query, t.getTable().c_str(), condition.c_str());
   return std::string(res);
 }
 
@@ -95,12 +93,9 @@ std::string MakeSql::makeDelete(const RepoItem &t) {
     return "";
   }
 
-  char res[SqlBufferLen];
-  snprintf(res,
-           SqlBufferLen,
-           "delete from %s where %s",
-           t.getTable().c_str(),
-           condition.c_str());
+  const size_t kLen = DeleteLen + t.getTable().size() + condition.size() + 1;
+  char res[kLen];
+  snprintf(res, kLen, Delete, t.getTable().c_str(), condition.c_str());
   return std::string(res);
 }
 
@@ -128,10 +123,10 @@ std::string MakeSql::makeUpdate(const RepoItem &t) {
     return "";
   }
 
-  char res[SqlBufferLen];
-  snprintf(res,
-           SqlBufferLen,
-           " update %s set %s where %s",
+  const size_t kLen =
+      UpdateLen + t.getTable().size() + newValues.size() + condition.size() + 1;
+  char res[kLen];
+  snprintf(res, kLen, Update,
            t.getTable().c_str(),
            newValues.c_str(),
            condition.c_str());

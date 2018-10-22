@@ -8,10 +8,10 @@
 #ifndef CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_MANAGER_H_
 #define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_MANAGER_H_
 
+#include <string>
+
 #include "src/mds/topology/topology.h"
 #include "src/mds/copyset/copyset_manager.h"
-
-#include <string>
 
 namespace curve {
 namespace mds {

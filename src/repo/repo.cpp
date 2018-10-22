@@ -18,20 +18,26 @@ int Repo::connectDB(const std::string &dbName, const std::string &user,
 }
 
 int Repo::createDatabase() {
-  char createSql[SqlBufferLen];
-  snprintf(createSql, SqlBufferLen, CreateDataBase, dbName_.c_str());
+  const size_t kLen = CreateDataBaseLen + dbName_.size() + 1;
+  char createSql[kLen];
+  snprintf(createSql,
+           kLen,
+           CreateDataBase,
+           dbName_.c_str());
   return db_->ExecUpdate(createSql);
 }
 
 int Repo::useDataBase() {
-  char useSql[SqlBufferLen];
-  snprintf(useSql, SqlBufferLen, UseDataBase, dbName_.c_str());
+  const size_t kLen = UseDataBaseLen + dbName_.size() + 1;
+  char useSql[kLen];
+  snprintf(useSql, kLen, UseDataBase, dbName_.c_str());
   return db_->ExecUpdate(useSql);
 }
 
 int Repo::dropDataBase() {
-  char dropSql[SqlBufferLen];
-  snprintf(dropSql, SqlBufferLen, DropDataBase, dbName_.c_str());
+  const size_t kLen = DropDataBaseLen + dbName_.size() + 1;
+  char dropSql[kLen];
+  snprintf(dropSql, kLen, DropDataBase, dbName_.c_str());
   return db_->ExecUpdate(dropSql);
 }
 

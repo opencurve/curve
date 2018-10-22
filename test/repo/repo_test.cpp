@@ -8,7 +8,6 @@
 
 #include <gtest/gtest.h>
 #include <json/json.h>
-
 #include "src/repo/repo.h"
 
 namespace curve {

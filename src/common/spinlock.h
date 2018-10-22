@@ -29,6 +29,6 @@ class SpinLock {
  private:
     std::atomic_flag CURVE_CACHELINE_ALIGNMENT flag_;
 };
-}   // namespace client
-}   // namespace curve
+}  // namespace common
+}  // namespace curve
 #endif  // CURVE_LIBCURVE_SPINLOCK_H

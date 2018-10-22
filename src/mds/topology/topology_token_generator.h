@@ -19,7 +19,7 @@ namespace topology {
 class TopologyTokenGenerator {
  public:
     TopologyTokenGenerator() {}
-    virtual ~TopologyTokenGenerator() {};
+    virtual ~TopologyTokenGenerator() {}
 
     virtual std::string GenToken() = 0;
 };

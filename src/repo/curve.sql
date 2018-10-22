@@ -8,7 +8,7 @@ create table if not exists `curve_chunkserver` (
     `internalHostIP`    varchar(16)    NOT NULL COMMENT 'internal ip',
     `port`              int            NOT NULL COMMENT 'port',
     `rwstatus`          tinyint        NOT NULL COMMENT 'chunk server status: readwrite/readonly/writeonly/pending/retired',
-    `serverID`          int            NOT NULL COMMENT 'server where chunkserver in'
+    `serverID`          int            NOT NULL COMMENT 'server where chunkserver in',
     `onlineState`       tinyint        NOT NULL COMMENT 'chunk server state: online/offline',
     `diskState`         tinyint        NOT NULL COMMENT 'disk state: DiskError, DiskNormal',
     `mountPoint`        varchar(32)    NOT NULL COMMENT 'disk mount point, e.g /mnt/ssd1',
@@ -58,7 +58,7 @@ create table if not exists `curve_physicalpool` (
 create table if not exists `curve_copyset` (
     `copySetID`          int            NOT NULL COMMENT 'copyset id',
     `logicalPoolID`      smallint       NOT NULL COMMENT 'logical pool it belongs to',
-    `chunkServerIDList`  varchar(32)   NOT NULL COMMENT 'list chunk server id the copyset has',
+    `chunkServerIDList`  varchar(32)    NOT NULL COMMENT 'list chunk server id the copyset has',
 
     primary key (`logicalPoolID`,`copySetID`)
 )COMMENT='copyset';
