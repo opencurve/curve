@@ -87,6 +87,8 @@ void RequestScheduler::Process() {
 
             switch (req->optype_) {
                 case OpType::READ:
+                    DVLOG(9) << "Processing read request, buf header: "
+                             << " buf: " << *(unsigned int*)req->data_;
                     client_.ReadChunk(req->logicpoolid_,
                                       req->copysetid_,
                                       req->chunkid_,
@@ -95,6 +97,8 @@ void RequestScheduler::Process() {
                                       guard.release());
                     break;
                 case OpType::WRITE:
+                    DVLOG(9) << "Processing write request, buf header: "
+                             << " buf: " << *(unsigned int*)req->data_;
                     client_.WriteChunk(req->logicpoolid_,
                                        req->copysetid_,
                                        req->chunkid_,

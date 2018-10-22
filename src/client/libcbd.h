@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2018 NetEase Inc. All rights reserved.
  * Project: Curve
- * 
- * History: 
+ *
+ * History:
  *          2018/10/10  Wenyu Zhou   Initial version
  */
 

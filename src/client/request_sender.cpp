@@ -38,6 +38,7 @@ int RequestSender::ReadChunk(LogicPoolID logicPoolId,
     request.set_size(length);
     curve::chunkserver::ChunkService_Stub stub(&channel_);
     stub.ReadChunk(cntl, &request, response, doneGuard.release());
+
     return 0;
 }
 
@@ -50,6 +51,8 @@ int RequestSender::WriteChunk(LogicPoolID logicPoolId,
                                    WriteChunkClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
+    DVLOG(9) << "Sending request, buf header: "
+             << " buf: " << *(unsigned int *)buf;
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(senderOptions_.timeoutMs);
     cntl->set_max_retry(senderOptions_.maxRetry);
@@ -64,7 +67,7 @@ int RequestSender::WriteChunk(LogicPoolID logicPoolId,
     request.set_chunkid(chunkId);
     request.set_offset(offset);
     request.set_size(length);
-    cntl->request_attachment().append(buf);
+    cntl->request_attachment().append(buf, length);
     curve::chunkserver::ChunkService_Stub stub(&channel_);
     stub.WriteChunk(cntl, &request, response, doneGuard.release());
 

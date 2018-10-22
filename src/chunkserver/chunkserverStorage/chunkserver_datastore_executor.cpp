@@ -10,7 +10,7 @@
 #include "src/chunkserver/chunkserverStorage/chunkserver_datastore_executor.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_storage.h"
 
-DEFINE_int32(ChunkFileLength, 4*1024*1024, "chunk file size(Bytes)");
+DEFINE_int32(ChunkFileLength, 16*1024*1024, "chunk file size(Bytes)");
 
 namespace curve {
 namespace chunkserver {
@@ -29,6 +29,11 @@ bool CSDataStoreExecutor::DeleteChunk() {
     return lfs_->Delete(filePath_.c_str()) == 0;
 }
 
+/*
+ * We need refine this function for return value.
+ * Considering circumstance like this:
+ * fs function fails and returns -1, it returns true
+ */
 bool CSDataStoreExecutor::ReadChunk(char * buf,
                                     off_t offset,
                                     size_t* length) {
@@ -56,6 +61,11 @@ bool CSDataStoreExecutor::ReadChunk(char * buf,
     return (*length = readlength);
 }
 
+/*
+ * We need refine this function for return value.
+ * Considering circumstance like this:
+ * fs function fails and returns -1, it returns true
+ */
 bool CSDataStoreExecutor::WriteChunk(const char * buf,
                                     off_t offset,
                                     size_t length) {

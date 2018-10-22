@@ -51,8 +51,8 @@ class CURVE_CACHELINE_ALIGNMENT Session {
  private:
     std::string filename_;
     std::mutex  mtx_;
-    uint32_t segmentsize_;
-    uint32_t chunksize_;
+    uint64_t segmentsize_;
+    uint64_t chunksize_;
 
     MetaCache* mc_;
     IOContextManager*    ioctxManager_;

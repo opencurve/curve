@@ -82,6 +82,11 @@ void IOContext::StartWrite(CurveAioContext* aioctx,
     isReturned_.store(false, std::memory_order_release);
     isBusy_.store(true, std::memory_order_release);
 
+    DVLOG(9) << "offset: " << aioctx->offset
+        << " length: " << aioctx->length
+        << " op: " << aioctx->op
+        << " buf: " << *(unsigned int*)buf;
+
     int ret = -1;
     do {
         if (-1 == (ret = Splitor::IO2ChunkRequests(this,
@@ -113,9 +118,8 @@ void IOContext::StartWrite(CurveAioContext* aioctx,
 void IOContext::HandleResponse(RequestContext* reqctx) {
     if (!isReturned_.load(std::memory_order_acquire)) {
         errorcode_ = reqctx->done_->GetErrorCode();
-        bool failed = !(errorcode_ == 0);
-        if (!success_.compare_exchange_strong(failed, false,
-                                std::memory_order_acquire)) {
+        if (errorcode_ != 0) {
+            success_.exchange(false, std::memory_order_acq_rel);
             Done();
             LOG(WARNING) << "one of the request list got failed,"
                         << "return the result immediately!";
@@ -153,7 +157,7 @@ int IOContext::Wait() {
 
 void IOContext::Done() {
     /**
-     *  if aioctx_ is nullptr, the IO is sync mode 
+     *  if aioctx_ is nullptr, the IO is sync mode
      */
     if (!isReturned_.exchange(true, std::memory_order_acq_rel)) {
         if (aioctx_ == nullptr) {
@@ -161,7 +165,7 @@ void IOContext::Done() {
                 iocond_.Complete(length_);
             } else {
                 /**
-                 * FIXME (tongguangxun): errorcode should be specify not confilct with 
+                 * FIXME (tongguangxun): errorcode should be specify not confilct with
                  * length we just return -1 to user. latter we will and global error.
                  */
                 iocond_.Complete(-1);

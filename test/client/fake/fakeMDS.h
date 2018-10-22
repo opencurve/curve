@@ -17,9 +17,11 @@
 #include "proto/topology.pb.h"
 #include "proto/copyset.pb.h"
 
+#ifndef TEST_CLIENT_FAKE_FAKEMDS_H_
+#define TEST_CLIENT_FAKE_FAKEMDS_H_
+
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
-
 
 class FakeMDSCurveFSService : public curve::mds::CurveFSService {
  public:
@@ -143,7 +145,7 @@ class FakeMDS {
     bool StartService();
     bool CreateCopysetNode();
 
-    void FakeCreateCopysetReturn();
+    void CreateFakeChunkservers();
 
     struct CopysetCreatStruct {
         curve::client::LogicPoolID logicpoolid;
@@ -155,11 +157,16 @@ class FakeMDS {
  private:
     std::vector<CopysetCreatStruct> copysetnodeVec_;
     brpc::Server* server_;
-    brpc::Server* chunkserverrpcserver_;
+    std::vector<brpc::Server *> chunkservers_;
+    std::vector<butil::EndPoint> server_addrs_;
+    std::vector<braft::PeerId> peers_;
+    std::vector<FakeChunkService *> chunkServices_;
+    std::vector<FakeCreateCopysetService *> copysetServices_;
     std::string filename_;
+
     uint64_t size_;
-    FakeChunkService    fakechunkserverservice_;
     FakeMDSCurveFSService fakecurvefsservice_;
-    FakeCreateCopysetService fakecreatecopysetservice_;
     FakeMDSTopologyService faketopologyservice_;
 };
+
+#endif   // TEST_CLIENT_FAKE_FAKEMDS_H_
