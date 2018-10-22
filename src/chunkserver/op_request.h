@@ -89,42 +89,6 @@ class ChunkOpRequest : public OpRequest,
     Closure             *done_;
 };
 
-/* TODO(wudemiao) snapshot 暂时未实现 */
-class ChunkSnapshotOpRequest : public OpRequest,
-                               public std::enable_shared_from_this<
-                                   ChunkSnapshotOpRequest> {
- public:
-    ChunkSnapshotOpRequest(CopysetNodeManager *copysetNodeManager,
-                           RpcController *cntl,
-                           const ChunkSnapshotRequest *request,
-                           ChunkSnapshotResponse *response,
-                           Closure *done) :
-        copysetNodeManager_(copysetNodeManager),
-        cntl_(cntl),
-        request_(request),
-        response_(response),
-        done_(done) {}
-    virtual ~ChunkSnapshotOpRequest() {}
-
-    Closure *GetClosure() { return done_; }
-    const ChunkSnapshotRequest *GetRequest() { return request_; }
-    ChunkSnapshotResponse *GetResponse() { return response_; }
-
-    void Schedule() override;
-    void Process() override;
-    int OnApply(std::shared_ptr<CopysetNode> copysetNode) override;
-    int Encode(butil::IOBuf *data) override;
-    static void OnApply(std::shared_ptr<CopysetNode> copysetNode,
-                        butil::IOBuf *log);
-
- private:
-    CopysetNodeManager  *copysetNodeManager_;
-    RpcController       *cntl_;
-    const ChunkSnapshotRequest *request_;
-    ChunkSnapshotResponse       *response_;
-    Closure *done_;
-};
-
 }  // namespace chunkserver
 }  // namespace curve
 

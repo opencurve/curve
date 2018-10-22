@@ -16,33 +16,39 @@
 namespace curve {
 namespace chunkserver {
 
-CSDataStore::CSDataStore(std::shared_ptr<CSSfsAdaptor> fsadaptor,
-                         std::string copysetdir) {
-    isInited_ = false;
-    copysetDir_ = copysetdir;
-    copysetStoragePool_.clear();
-    sfsptr_ = fsadaptor;
-    if (sfsptr_ == nullptr) {
-        // LOG(FATAL) << "DataStore path invalid!";
-        abort();
-    }
+CSDataStore::CSDataStore() :
+    isInited_(false),
+    copysetDir_(),
+    copysetStoragePool_(),
+    sfsptr_(nullptr) {
 }
 
 CSDataStore::~CSDataStore() {
     UnInitInternal();
 }
 
-bool CSDataStore::Initialize() {
-    return InitInternal();
+bool CSDataStore::Initialize(std::shared_ptr<CSSfsAdaptor> fsadaptor,
+                             std::string copysetdir) {
+    return InitInternal(fsadaptor, copysetdir);
 }
 
 void CSDataStore::UnInitialize() {
 }
 
-bool CSDataStore::InitInternal() {
+bool CSDataStore::InitInternal(std::shared_ptr<CSSfsAdaptor> fsadaptor,
+                               std::string copysetdir) {
     if (isInited_) {
         return true;
     }
+
+    if (fsadaptor == nullptr) {
+        // LOG(FATAL) << "DataStore path invalid!";
+        abort();
+    }
+
+    copysetDir_ = copysetdir;
+    copysetStoragePool_.clear();
+    sfsptr_ = fsadaptor;
 
     int err = 0;
     do {

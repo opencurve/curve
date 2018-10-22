@@ -204,7 +204,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Return(0)));
         EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(WriteChunkFunc)));
+                            Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, reqDone, 0);
         usleep(50 * 1000);
@@ -234,7 +234,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Return(0)));
         EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
-                            Invoke(WriteChunkFunc)));
+                            Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, reqDone, 0);
         usleep(50 * 1000);

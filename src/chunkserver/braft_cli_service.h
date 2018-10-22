@@ -32,22 +32,10 @@ class BRaftCliServiceImpl : public CliService {
                      const RemovePeerRequest *request,
                      RemovePeerResponse *response,
                      Closure *done);
-    void reset_peer(RpcController *controller,
-                    const ResetPeerRequest *request,
-                    ResetPeerResponse *response,
-                    Closure *done);
-    void snapshot(RpcController *controller,
-                  const SnapshotRequest *request,
-                  SnapshotResponse *response,
-                  Closure *done);
     void get_leader(RpcController *controller,
                     const GetLeaderRequest *request,
                     GetLeaderResponse *response,
                     Closure *done);
-    void change_peers(RpcController *controller,
-                      const ChangePeersRequest *request,
-                      ChangePeersResponse *response,
-                      Closure *done);
     void transfer_leader(RpcController *controller,
                          const TransferLeaderRequest *request,
                          TransferLeaderResponse *response,

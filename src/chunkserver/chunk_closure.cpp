@@ -21,16 +21,5 @@ void ChunkClosure::Run() {
     copysetNode_->RedirectChunkRequest(request_->GetResponse());
 }
 
-void ChunkSnapshotClosure::Run() {
-        /* Auto delete this after Run() */
-        std::unique_ptr<ChunkSnapshotClosure> selfGuard(this);
-        /* Repsond this RPC. */
-        brpc::ClosureGuard doneGuard(request_->GetClosure());
-        if (status().ok()) {
-            return;
-        }
-        copysetNode_->RedirectChunkSnapshotRequest(request_->GetResponse());
-}
-
 }  // namespace chunkserver
 }  // namespace curve

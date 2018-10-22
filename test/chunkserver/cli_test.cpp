@@ -19,104 +19,119 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
+#include "test/chunkserver/chunkserver_test_util.h"
 
 namespace curve {
 namespace chunkserver {
 
-static std::string Exec(const char *cmd) {
-    FILE *pipe = popen(cmd, "r");
-    if (!pipe) return "ERROR";
-    char buffer[4096];
-    std::string result = "";
-    while (!feof(pipe)) {
-        if (fgets(buffer, 1024, pipe) != NULL)
-            result += buffer;
-    }
-    pclose(pipe);
-    return result;
-}
-
 class CliTest : public testing::Test {
  protected:
+    static void SetUpTestCase() {
+        LOG(INFO) << "CliTest " << "SetUpTestCase";
+    }
+    static void TearDownTestCase() {
+        LOG(INFO) << "CliTest " << "TearDownTestCase";
+    }
     virtual void SetUp() {
-        /* before test: start servers */
-        std::string result = Exec(run.c_str());
-        std::cout << result << std::endl;
+        Exec("mkdir 3");
+        Exec("mkdir 4");
+        Exec("mkdir 5");
     }
-
     virtual void TearDown() {
-        /* after test: stop servers, debug 的时候可以注释掉以便查看日志 */
-        std::string result = Exec(stop.c_str());
-        std::cout << result << std::endl;
+        Exec("rm -fr 3");
+        Exec("rm -fr 4");
+        Exec("rm -fr 5");
     }
 
- private:
-    /* 初始化脚本 */
-    std::string run = R"(
-        killall -9 server-test
-
-
-        rm -fr 0
-        mkdir 0
-        rm -fr 1
-        mkdir 1
-        rm -fr 2
-        mkdir 2
-
-        cp -f bazel-bin/test/chunkserver/server-test .
-        cp -f server-test ./0
-        cd 0
-        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8200 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
-        cd ..
-        sleep 1s
-
-        cp -f server-test ./1
-        cd 1
-        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8201 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
-        cd ..
-
-        cp -f server-test ./2
-        cd 2
-        ./server-test -bthread_concurrency=18 -raft_sync=true -ip=127.0.0.1 -port=8202 -conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0 > std.log 2>&1 &
-        cd ..
-        sleep 1s
-
-        ps -ef | grep server-test
-    )";
-    std::string stop = R"(
-        killall -9 server-test
-        sleep 1s
-        ps -ef | grep server-test
-        rm -fr 0 1 2
-    )";
-    std::string result;
+ public:
+    pid_t pid1;
+    pid_t pid2;
+    pid_t pid3;
 };
 
+butil::AtExitManager atExitManager;
+
 TEST_F(CliTest, basic) {
+    const char *ip = "127.0.0.1";
+    int port = 8200;
+    const char *confs = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
+    int snapshotInterval = 30;
+
+    /**
+     * Start three chunk server by fork
+     */
+    pid1 = fork();
+    if (0 > pid1) {
+        std::cerr << "fork chunkserver 1 failed" << std::endl;
+        ASSERT_TRUE(false);
+    } else if (0 == pid1) {
+        const char *copysetdir = "local://./3";
+        StartChunkserver(ip, port + 0, copysetdir, confs, snapshotInterval);
+        return;
+    }
+
+    pid2 = fork();
+    if (0 > pid2) {
+        std::cerr << "fork chunkserver 2 failed" << std::endl;
+        ASSERT_TRUE(false);
+    } else if (0 == pid2) {
+        const char *copysetdir = "local://./4";
+        StartChunkserver(ip, port + 1, copysetdir, confs, snapshotInterval);
+        return;
+    }
+
+    pid3 = fork();
+    if (0 > pid3) {
+        std::cerr << "fork chunkserver 3 failed" << std::endl;
+        ASSERT_TRUE(false);
+    } else if (0 == pid3) {
+        const char *copysetdir = "local://./5";
+        StartChunkserver(ip, port + 2, copysetdir, confs, snapshotInterval);
+        return;
+    }
+
+    /* 保证进程一定会退出 */
+    class WaitpidGuard {
+     public:
+        WaitpidGuard(pid_t pid1, pid_t pid2, pid_t pid3) {
+            pid1_ = pid1;
+            pid2_ = pid2;
+            pid3_ = pid3;
+        }
+        virtual ~WaitpidGuard() {
+            int waitState;
+            kill(pid1_, SIGINT);
+            waitpid(pid1_, &waitState, 0);
+            kill(pid2_, SIGINT);
+            waitpid(pid2_, &waitState, 0);
+            kill(pid3_, SIGINT);
+            waitpid(pid3_, &waitState, 0);
+        }
+     private:
+        pid_t pid1_;
+        pid_t pid2_;
+        pid_t pid3_;
+    };
+    WaitpidGuard waitpidGuard(pid1, pid2, pid3);
+
     PeerId leader;
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
     Configuration conf;
-    conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
+    conf.parse_from(confs);
 
-    sleep(2);
-    int i = 0;
-    while (true) {
-        butil::Status status = GetLeader(logicPoolId, copysetId, conf, &leader);
-        std::cout << "Leader is: " << leader.to_string() << std::endl;
-        if (status.ok()) {
-            break;
-        }
-        usleep(500 * 1000);
-        LOG(ERROR) << "Get leader failed, retry times : " << i;
-        ++i;
-        if (i > 50) {
-            ASSERT_TRUE(false);
-        }
-    }
+    /* default election timeout */
+    int electionTimeoutMs = 1000;
+    /* wait for leader & become leader flush config */
+    ::usleep(1.5 * 1000 * electionTimeoutMs);
+    butil::Status status =
+        WaitLeader(logicPoolId, copysetId, conf, &leader, electionTimeoutMs);
+    ASSERT_TRUE(status.ok());
 
+    /* 等待 transfer leader 成功 */
+    int waitTransferLeader = 1000 * 1000;
     braft::cli::CliOptions opt;
-    opt.timeout_ms = 1000;
+    opt.timeout_ms = 1500;
     opt.max_retry = 3;
 
     /* remove peer */
@@ -127,8 +142,20 @@ TEST_F(CliTest, basic) {
                                                           conf,
                                                           peerId,
                                                           opt);
+        LOG(INFO) << "remove peer: "
+                  << st.error_code() << ", " << st.error_str();
         ASSERT_TRUE(st.ok());
-        sleep(2);
+        /* 可能移除的是 leader，如果移除的是 leader，那么需要等到新的 leader 产生，
+         * 否则下面的 add peer 测试就会失败， wait 较长时间，是为了保证 remove
+         * leader 之后新 leader 选举成功，切 become leader 的 flush config
+         * 完成 */
+        ::usleep(1.5 * 1000 * electionTimeoutMs);
+        butil::Status status = WaitLeader(logicPoolId,
+                                          copysetId,
+                                          conf,
+                                          &leader,
+                                          electionTimeoutMs);
+        ASSERT_TRUE(status.ok());
     }
     /*  add peer */
     {
@@ -140,40 +167,22 @@ TEST_F(CliTest, basic) {
                                                        conf,
                                                        peerId,
                                                        opt);
+        LOG(INFO) << "add peer: "
+                  << st.error_code() << ", " << st.error_str();
         ASSERT_TRUE(st.ok());
     }
-    /* remove leader */
-    {
-        butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
-                                                             copysetId,
-                                                             conf,
-                                                             &leader);
-        LOG(INFO) << "get leader:" << status.error_str();
-        std::cout << "Leader is: " << leader.to_string() << std::endl;
-        ASSERT_TRUE(status.ok());
-        butil::Status st = curve::chunkserver::RemovePeer(logicPoolId,
-                                                          copysetId,
-                                                          conf,
-                                                          leader,
-                                                          opt);
-        ASSERT_TRUE(st.ok());
-        sleep(3);
-    }
-
-    /* add peer */
+    /* 重复 add 同一个 peer */
     {
         Configuration conf;
-        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
-        std::cout << "Leader is: " << leader.to_string() << std::endl;
-        ASSERT_TRUE(conf.remove_peer(leader));
-        ASSERT_FALSE(conf.contains(leader));
-        ASSERT_EQ(2, conf.size());
+        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0");
+        PeerId peerId("127.0.0.1:8202:0");
         butil::Status st = curve::chunkserver::AddPeer(logicPoolId,
                                                        copysetId,
                                                        conf,
-                                                       leader,
+                                                       peerId,
                                                        opt);
-        LOG(INFO) << "add peer " << st.error_str();
+        LOG(INFO) << "add one peer repeat: "
+                  << st.error_code() << ", " << st.error_str();
         ASSERT_TRUE(st.ok());
     }
     /*  transfer leader */
@@ -184,86 +193,142 @@ TEST_F(CliTest, basic) {
         PeerId peer2("127.0.0.1:8201:0");
         PeerId peer3("127.0.0.1:8202:0");
         {
+            LOG(INFO) << "start transfer leader";
             butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
                                                                   copysetId,
                                                                   conf,
                                                                   peer1,
                                                                   opt);
-            LOG(INFO) << "transfer leader:" << st.error_str();
+            LOG(INFO) << "transfer leader: "
+                      << st.error_code() << ", " << st.error_str();
             ASSERT_TRUE(st.ok());
-            Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
-                                                                 copysetId,
-                                                                 conf,
-                                                                 &leader);
-            LOG(INFO) << "get leader:" << status.error_str();
+            /* transfer leader 只是讲 rpc 发送给leader，并不会等 leader transfer
+             * 成功才返回，所以这里需要等，除此之外，并不能立马去查 leader，因为
+             * leader transfer 之后，可能返回之前的 leader，除此之外 transfer
+             * leader 成功了之后，become leader 进行时，leader 已经可查，但是
+             * become leader 会执行 flush 当前 conf 来充当 noop，如果这个时候
+             * 立马进行下一个 transfer leader，会被组织，因为同时只能有一个配置
+             * 变更在进行 */
+            ::usleep(waitTransferLeader);
+            butil::Status status = WaitLeader(logicPoolId,
+                                              copysetId,
+                                              conf,
+                                              &leader,
+                                              electionTimeoutMs);
+            LOG(INFO) << "get leader: "
+                      << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer1.to_string().c_str(), leader.to_string().c_str());
         }
         {
+            LOG(INFO) << "start transfer leader";
             butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
                                                                   copysetId,
                                                                   conf,
                                                                   peer2,
                                                                   opt);
-            LOG(INFO) << "transfer leader:" << st.error_str();
+            LOG(INFO) << "transfer leader: "
+                      << st.error_code() << ", " << st.error_str();
             ASSERT_TRUE(st.ok());
-            Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
-                                                                 copysetId,
-                                                                 conf,
-                                                                 &leader);
-            LOG(INFO) << "get leader:" << status.error_str();
+            ::usleep(waitTransferLeader);
+            butil::Status status = WaitLeader(logicPoolId,
+                                              copysetId,
+                                              conf,
+                                              &leader,
+                                              electionTimeoutMs);
+            LOG(INFO) << "get leader: "
+                      << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer2.to_string().c_str(), leader.to_string().c_str());
         }
         {
+            LOG(INFO) << "start transfer leader";
+            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
+                                                                  copysetId,
+                                                                  conf,
+                                                                  peer3,
+                                                                  opt);
+            LOG(INFO) << "transfer leader: " << st.error_str();
+            ASSERT_TRUE(st.ok());
+            ::usleep(waitTransferLeader);
+            butil::Status status = WaitLeader(logicPoolId,
+                                              copysetId,
+                                              conf,
+                                              &leader,
+                                              electionTimeoutMs);
+            LOG(INFO) << "get leader: "
+                      << status.error_code() << ", " << status.error_str();
+            ASSERT_TRUE(status.ok());
+            ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
+        }
+        /* transfer 给 leader 给 leader，仍然返回成功 */
+        {
+            LOG(INFO) << "start transfer leader";
             butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
                                                                   copysetId,
                                                                   conf,
                                                                   peer3,
                                                                   opt);
             ASSERT_TRUE(st.ok());
-            Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
-                                                                 copysetId,
-                                                                 conf,
-                                                                 &leader);
-            LOG(INFO) << "get leader:" << status.error_str();
+            ::usleep(waitTransferLeader);
+            butil::Status status = WaitLeader(logicPoolId,
+                                              copysetId,
+                                              conf,
+                                              &leader,
+                                              electionTimeoutMs);
+            LOG(INFO) << "get leader: "
+                      << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
         }
+    }
+
+    /* 异常分支测试 */
+    /* get leader - conf empty */
+    {
+        Configuration conf;
+        butil::Status status = GetLeader(logicPoolId, copysetId, conf, &leader);
+        ASSERT_FALSE(status.ok());
+        ASSERT_EQ(EINVAL, status.error_code());
+    }
+    /* get leader - 非法的地址 */
+    {
+        Configuration conf;
+        conf.parse_from("127.0.0.1:65540:0,127.0.0.1:65541:0,127.0.0.1:65542:0");   //NOLINT
+        butil::Status status = GetLeader(logicPoolId, copysetId, conf, &leader);
+        ASSERT_FALSE(status.ok());
+        ASSERT_EQ(-1, status.error_code());
+    }
+    /* add peer - 不存在的 peer */
+    {
+        Configuration conf;
+        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8200:2");
+        /* 添加一个根本不存在的节点 */
+        PeerId peerId("127.0.0.1:8209:2");
+        butil::Status status = curve::chunkserver::AddPeer(logicPoolId,
+                                                           copysetId,
+                                                           conf,
+                                                           peerId,
+                                                           opt);
+        ASSERT_FALSE(status.ok());
+        LOG(INFO) << "add peer: " << status.error_code() << ", "
+                  << status.error_str();
+    }
+    /* transfer leader - 不存在的 peer */
+    {
+        Configuration conf;
+        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
+        PeerId peer1("127.0.0.1:8209:0");
         {
-            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
-                                                                  copysetId,
-                                                                  conf,
-                                                                  peer2,
-                                                                  opt);
-            ASSERT_TRUE(st.ok());
-            Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
-                                                                 copysetId,
-                                                                 conf,
-                                                                 &leader);
-            LOG(INFO) << "get leader:" << status.error_str();
-            ASSERT_TRUE(status.ok());
-            ASSERT_STREQ(peer2.to_string().c_str(), leader.to_string().c_str());
-        }
-        {
-            butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
-                                                                  copysetId,
-                                                                  conf,
-                                                                  peer1,
-                                                                  opt);
-            ASSERT_TRUE(st.ok());
-            Exec("sleep 1s");
-            butil::Status status = curve::chunkserver::GetLeader(logicPoolId,
-                                                                 copysetId,
-                                                                 conf,
-                                                                 &leader);
-            LOG(INFO) << "get leader:" << status.error_str();
-            ASSERT_TRUE(status.ok());
-            ASSERT_STREQ(peer1.to_string().c_str(), leader.to_string().c_str());
+            butil::Status
+                status = curve::chunkserver::TransferLeader(logicPoolId,
+                                                            copysetId,
+                                                            conf,
+                                                            peer1,
+                                                            opt);
+            ASSERT_FALSE(status.ok());
+            LOG(INFO) << "add peer: " << status.error_code() << ", "
+                      << status.error_str();
         }
     }
 }

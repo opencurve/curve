@@ -136,69 +136,6 @@ void BRaftCliServiceImpl::remove_peer(RpcController *controller,
     return node->remove_peer(removing_peer, remove_peer_done);
 }
 
-void BRaftCliServiceImpl::reset_peer(RpcController *controller,
-                                     const ResetPeerRequest *request,
-                                     ResetPeerResponse *response,
-                                     Closure *done) {
-    brpc::Controller *cntl = (brpc::Controller *) controller;
-    brpc::ClosureGuard done_guard(done);
-    scoped_refptr<braft::NodeImpl> node;
-    LogicPoolID logicPoolId = request->logicpoolid();
-    CopysetID copysetId = request->copysetid();
-    butil::Status
-        st = get_node(&node, logicPoolId, copysetId, request->peer_id());
-    if (!st.ok()) {
-        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
-        return;
-    }
-    braft::Configuration new_peers;
-    for (int i = 0; i < request->new_peers_size(); ++i) {
-        braft::PeerId peer;
-        if (peer.parse(request->new_peers(i)) != 0) {
-            cntl->SetFailed(EINVAL, "Fail to parse %s",
-                            request->new_peers(i).c_str());
-            return;
-        }
-        new_peers.add_peer(peer);
-    }
-    LOG(WARNING) << "Receive set_peer to " << node->node_id()
-                 << " from " << cntl->remote_side();
-    st = node->reset_peers(new_peers);
-    if (!st.ok()) {
-        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
-    }
-}
-
-static void snapshot_returned(brpc::Controller *cntl,
-                              scoped_refptr<braft::NodeImpl> node,
-                              Closure *done,
-                              const butil::Status &st) {
-    brpc::ClosureGuard done_guard(done);
-    if (!st.ok()) {
-        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
-    }
-}
-
-void BRaftCliServiceImpl::snapshot(RpcController *controller,
-                                   const SnapshotRequest *request,
-                                   SnapshotResponse *response,
-                                   Closure *done) {
-    brpc::Controller *cntl = (brpc::Controller *) controller;
-    brpc::ClosureGuard done_guard(done);
-    scoped_refptr<braft::NodeImpl> node;
-    LogicPoolID logicPoolId = request->logicpoolid();
-    CopysetID copysetId = request->copysetid();
-    butil::Status
-        st = get_node(&node, logicPoolId, copysetId, request->peer_id());
-    if (!st.ok()) {
-        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
-        return;
-    }
-    braft::Closure *snapshot_done = NewCallback(snapshot_returned, cntl, node,
-                                                done_guard.release());
-    return node->snapshot(snapshot_done);
-}
-
 void BRaftCliServiceImpl::get_leader(RpcController *controller,
                                      const GetLeaderRequest *request,
                                      GetLeaderResponse *response,
@@ -210,26 +147,12 @@ void BRaftCliServiceImpl::get_leader(RpcController *controller,
     LogicPoolID logicPoolId = request->logicpoolid();
     CopysetID copysetId = request->copysetid();
     braft::GroupId group_id = ToGroupId(logicPoolId, copysetId);
-    if (request->has_peer_id()) {
-        braft::PeerId peer;
-        if (peer.parse(request->peer_id()) != 0) {
-            cntl->SetFailed(EINVAL, "Fail to parse %s",
-                            request->peer_id().c_str());
-            return;
-        }
-        scoped_refptr<braft::NodeImpl> node = nm->get(group_id, peer);
-        if (node) {
-            nodes.push_back(node);
-        }
-    } else {
-        nm->get_nodes_by_group_id(group_id, &nodes);
-    }
+    nm->get_nodes_by_group_id(group_id, &nodes);
     if (nodes.empty()) {
         cntl->SetFailed(ENOENT, "No nodes in group %s",
                         group_id.c_str());
         return;
     }
-
     for (size_t i = 0; i < nodes.size(); ++i) {
         braft::PeerId leader_id = nodes[i]->leader_id();
         if (!leader_id.is_empty()) {
@@ -246,26 +169,12 @@ butil::Status BRaftCliServiceImpl::get_node(scoped_refptr<braft::NodeImpl> *node
                                             const std::string &peer_id) {
     braft::GroupId group_id = ToGroupId(logicPoolId, copysetId);
     braft::NodeManager *const nm = braft::NodeManager::GetInstance();
-    if (!peer_id.empty()) {
-        *node = nm->get(group_id, peer_id);
-        if (!(*node)) {
-            return butil::Status(ENOENT, "Fail to find node %s in group %s",
-                                 peer_id.c_str(),
-                                 group_id.c_str());
-        }
-    } else {
-        std::vector<scoped_refptr<braft::NodeImpl> > nodes;
-        nm->get_nodes_by_group_id(group_id, &nodes);
-        if (nodes.empty()) {
-            return butil::Status(ENOENT, "Fail to find node in group %s",
-                                 group_id.c_str());
-        }
-        if (nodes.size() > 1) {
-            return butil::Status(EINVAL, "peer must be specified "
-                                         "since there're %lu nodes in group %s",
-                                 nodes.size(), group_id.c_str());
-        }
-        *node = nodes.front();
+    /* peer id is required have been guaranteed in proto */
+    *node = nm->get(group_id, peer_id);
+    if (!(*node)) {
+        return butil::Status(ENOENT, "Fail to find node %s in group %s",
+                             peer_id.c_str(),
+                             group_id.c_str());
     }
 
     if ((*node)->disable_cli()) {
@@ -276,66 +185,6 @@ butil::Status BRaftCliServiceImpl::get_node(scoped_refptr<braft::NodeImpl> *node
     }
 
     return butil::Status::OK();
-}
-
-static void change_peers_returned(brpc::Controller *cntl,
-                                  const ChangePeersRequest *request,
-                                  ChangePeersResponse *response,
-                                  std::vector<braft::PeerId> old_peers,
-                                  braft::Configuration new_peers,
-                                  scoped_refptr<braft::NodeImpl> /*node*/,
-                                  Closure *done,
-                                  const butil::Status &st) {
-    brpc::ClosureGuard done_guard(done);
-    if (!st.ok()) {
-        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
-        return;
-    }
-    for (size_t i = 0; i < old_peers.size(); ++i) {
-        response->add_old_peers(old_peers[i].to_string());
-    }
-    for (braft::Configuration::const_iterator
-             iter = new_peers.begin(); iter != new_peers.end(); ++iter) {
-        response->add_new_peers(iter->to_string());
-    }
-}
-
-void BRaftCliServiceImpl::change_peers(RpcController *controller,
-                                       const ChangePeersRequest *request,
-                                       ChangePeersResponse *response,
-                                       Closure *done) {
-    brpc::Controller *cntl = (brpc::Controller *) controller;
-    brpc::ClosureGuard done_guard(done);
-    scoped_refptr<braft::NodeImpl> node;
-    LogicPoolID logicPoolId = request->logicpoolid();
-    CopysetID copysetId = request->copysetid();
-    butil::Status
-        st = get_node(&node, logicPoolId, copysetId, request->leader_id());
-    if (!st.ok()) {
-        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
-        return;
-    }
-    std::vector<braft::PeerId> old_peers;
-    st = node->list_peers(&old_peers);
-    if (!st.ok()) {
-        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
-        return;
-    }
-    braft::Configuration conf;
-    for (int i = 0; i < request->new_peers_size(); ++i) {
-        braft::PeerId peer;
-        if (peer.parse(request->new_peers(i)) != 0) {
-            cntl->SetFailed(EINVAL, "Fail to parse %s",
-                            request->new_peers(i).c_str());
-            return;
-        }
-        conf.add_peer(peer);
-    }
-    braft::Closure *change_peers_done = NewCallback(
-        change_peers_returned,
-        cntl, request, response, old_peers, conf, node,
-        done_guard.release());
-    return node->change_peers(conf, change_peers_done);
 }
 
 void BRaftCliServiceImpl::transfer_leader(

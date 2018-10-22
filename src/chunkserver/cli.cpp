@@ -26,7 +26,7 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId,
     if (conf.empty()) {
         return butil::Status(EINVAL, "Empty group configuration");
     }
-    /* Construct a brpc naming service to access all the nodes in this group */
+
     butil::Status st(-1,
                      "Fail to get leader of copyset node %s",
                      ToGroupIdString(logicPoolId, copysetId).c_str());
@@ -47,19 +47,15 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId,
         request.set_peer_id(iter->to_string());
         stub.get_leader(&cntl, &request, &response, NULL);
         if (cntl.Failed()) {
-            if (st.ok()) {
-                st.set_error(cntl.ErrorCode(), "[%s] %s",
-                             butil::endpoint2str(cntl.remote_side()).c_str(),
-                             cntl.ErrorText().c_str());
-            } else {
-                std::string saved_et = st.error_str();
-                st.set_error(cntl.ErrorCode(), "%s, [%s] %s", saved_et.c_str(),
-                             butil::endpoint2str(cntl.remote_side()).c_str(),
-                             cntl.ErrorText().c_str());
-            }
+            std::string saved_et = st.error_str();
+            st.set_error(cntl.ErrorCode(), "%s, [%s] %s", saved_et.c_str(),
+                         butil::endpoint2str(cntl.remote_side()).c_str(),
+                         cntl.ErrorText().c_str());
             continue;
+        } else {
+            leaderId->parse(response.leader_id());
+            break;
         }
-        leaderId->parse(response.leader_id());
     }
     if (leaderId->is_empty()) {
         return st;

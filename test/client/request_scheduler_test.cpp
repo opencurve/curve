@@ -96,9 +96,117 @@ TEST(RequestSchedulerTest, fake_server_test) {
     }
 
     ASSERT_EQ(0, requestScheduler.Run());
-
     EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(AnyNumber());
+
     usleep(100 * 1000);
+
+    char writebuff1[16 + 1];
+    char readbuff1[16 + 1];
+    char cmpbuff1[16 + 1];
+    memset(writebuff1, 'a', 16);
+    memset(readbuff1, '0', 16);
+    memset(cmpbuff1, 'a', 16);
+    writebuff1[16] = '\0';
+    readbuff1[16] = '\0';
+    cmpbuff1[16] = '\0';
+    const uint64_t len1 = 16;
+    /* write should with attachment size */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        reqCtx->data_ = writebuff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len1;
+
+        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        reqCtx->done_ = reqDone;
+
+        std::list<RequestContext *> reqCtxs;
+        reqCtxs.push_back(reqCtx);
+        ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
+        ::usleep(50*1000);
+    }
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::READ;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        memset(readbuff1, '0', 16);
+        reqCtx->data_ = readbuff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len1;
+
+        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        reqCtx->done_ = reqDone;
+
+        std::list<RequestContext *> reqCtxs;
+        reqCtxs.push_back(reqCtx);
+        ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
+        usleep(50 * 1000);
+        ASSERT_STREQ(reqCtx->data_, cmpbuff1);
+        ASSERT_EQ(0, reqDone->GetErrorCode());
+    }
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        ::memset(writebuff1, 'a', 8);
+        ::memset(writebuff1+8, '\0', 8);
+        reqCtx->data_ = writebuff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len1;
+
+        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        reqCtx->done_ = reqDone;
+
+        std::list<RequestContext *> reqCtxs;
+        reqCtxs.push_back(reqCtx);
+        ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
+        ::usleep(50*1000);
+    }
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::READ;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        memset(readbuff1, '0', 16);
+        reqCtx->data_ = readbuff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len1;
+
+        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        reqCtx->done_ = reqDone;
+
+        std::list<RequestContext *> reqCtxs;
+        reqCtxs.push_back(reqCtx);
+        ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
+        usleep(50 * 1000);
+        ASSERT_EQ(reqCtx->data_[0], 'a');
+        ASSERT_EQ(reqCtx->data_[1], 'a');
+        ASSERT_EQ(reqCtx->data_[2], 'a');
+        ASSERT_EQ(reqCtx->data_[3], 'a');
+        ASSERT_EQ(reqCtx->data_[4], 'a');
+        ASSERT_EQ(reqCtx->data_[5], 'a');
+        ASSERT_EQ(reqCtx->data_[6], 'a');
+        ASSERT_EQ(reqCtx->data_[7], 'a');
+        ASSERT_EQ(reqCtx->data_[8], '\0');
+        ASSERT_EQ(reqCtx->data_[9], '\0');
+        ASSERT_EQ(reqCtx->data_[10], '\0');
+        ASSERT_EQ(reqCtx->data_[11], '\0');
+        ASSERT_EQ(reqCtx->data_[12], '\0');
+        ASSERT_EQ(reqCtx->data_[13], '\0');
+        ASSERT_EQ(reqCtx->data_[14], '\0');
+        ASSERT_EQ(reqCtx->data_[15], '\0');
+        ASSERT_EQ(0, reqDone->GetErrorCode());
+    }
+
     /* basic test */
     const int kMaxLoop = 100;
     for (int i = 0; i < kMaxLoop; ++i) {
