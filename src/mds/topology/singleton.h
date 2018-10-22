@@ -8,7 +8,7 @@
 #ifndef CURVE_SRC_MDS_TOPOLOGY_SINGLETON_H_
 #define CURVE_SRC_MDS_TOPOLOGY_SINGLETON_H_
 
-#include <mutex> // NOLINT
+#include <mutex>  // NOLINT
 #include <memory>
 
 template <class T>

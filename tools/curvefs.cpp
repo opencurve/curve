@@ -68,7 +68,7 @@ bool CurvefsTools::HandleCreateLogicalPool() {
         + copysetNumStr + ", \"zoneNum\":3}";
 
     request.set_redundanceandplacementpolicy(rapString);
-    request.set_userpolicy("{}");
+    request.set_userpolicy("{\"aaa\":1}");
 
     CreateLogicalPoolResponse response;
     stub.CreateLogicalPool(&cntl, &request, &response, nullptr);

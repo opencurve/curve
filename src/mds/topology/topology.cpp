@@ -6,11 +6,13 @@
  */
 #include "src/mds/topology/topology.h"
 
+#include <glog/logging.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <mutex>  // NOLINT
 #include <map>
 #include <vector>
+
 
 namespace curve {
 namespace mds {
@@ -608,39 +610,60 @@ int Topology::init() {
 
     PoolIdType maxLogicalPoolId;
     if (!storage_->LoadLogicalPool(&logicalPoolMap_, &maxLogicalPoolId)) {
+        LOG(ERROR) << "[Topology::init], LoadLogicalPool fail.";
         return kTopoErrCodeInitFail;
     }
     idGenerator_->initLogicalPoolIdGenerator(maxLogicalPoolId);
 
     PoolIdType maxPhysicalPoolId;
     if (!storage_->LoadPhysicalPool(&physicalPoolMap_, &maxPhysicalPoolId)) {
+        LOG(ERROR) << "[Topology::init], LoadPhysicalPool fail.";
         return kTopoErrCodeInitFail;
     }
     idGenerator_->initPhysicalPoolIdGenerator(maxPhysicalPoolId);
 
     ZoneIdType maxZoneId;
     if (!storage_->LoadZone(&zoneMap_, &maxZoneId)) {
+        LOG(ERROR) << "[Topology::init], LoadZone fail.";
         return kTopoErrCodeInitFail;
     }
     idGenerator_->initZoneIdGenerator(maxZoneId);
 
     ServerIdType maxServerId;
     if (!storage_->LoadServer(&serverMap_, &maxServerId)) {
+        LOG(ERROR) << "[Topology::init], LoadServer fail.";
         return kTopoErrCodeInitFail;
     }
     idGenerator_->initServerIdGenerator(maxServerId);
 
     ChunkServerIdType maxChunkServerId;
     if (!storage_->LoadChunkServer(&chunkServerMap_, &maxChunkServerId)) {
+        LOG(ERROR) << "[Topology::init], LoadChunkServer fail.";
         return kTopoErrCodeInitFail;
     }
     idGenerator_->initChunkServerIdGenerator(maxChunkServerId);
 
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
     if (!storage_->LoadCopySet(&copySetMap_, &copySetIdMaxMap)) {
+        LOG(ERROR) << "[Topology::init], LoadCopySet fail.";
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initCopySetIdGenerator(copySetIdMaxMap);
+
+    for (auto it : zoneMap_) {
+        PoolIdType poolid = it.second.GetPhysicalPoolId();
+        physicalPoolMap_[poolid].AddZone(it.first);
+    }
+
+    for (auto it : serverMap_) {
+        ZoneIdType zid = it.second.GetZoneId();
+        zoneMap_[zid].AddServer(it.first);
+    }
+
+    for (auto it : chunkServerMap_) {
+         ServerIdType sId = it.second.GetServerId();
+         serverMap_[sId].AddChunkServer(it.first);
+    }
 
     return kTopoErrCodeSuccess;
 }
