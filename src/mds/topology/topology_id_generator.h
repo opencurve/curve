@@ -42,7 +42,6 @@ class TopologyIdGenerator {
     virtual ServerIdType GenServerId() = 0;
     virtual ChunkServerIdType GenChunkServerId() = 0;
     virtual CopySetIdType GenCopySetId(PoolIdType logicalPoolId) = 0;
-
 };
 
 

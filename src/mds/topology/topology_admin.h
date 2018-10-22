@@ -15,50 +15,43 @@
 #include "src/mds/topology/topology.h"
 #include "proto/nameserver2.pb.h"
 
-
 namespace curve {
 namespace mds {
 namespace topology {
 
-
 struct CopysetIdInfo {
-    PoolIdType logicalPoolId;
-    CopySetIdType copySetId;
+  PoolIdType logicalPoolId;
+  CopySetIdType copySetId;
 };
 
 class TopologyAdmin {
-public:
-    TopologyAdmin() {}
-    virtual ~TopologyAdmin() {}
-    virtual bool AllocateChunkRandomInSingleLogicalPool (
-        ::curve::mds::FileType fileType,
-        uint32_t chunkNumer,
-        std::vector<CopysetIdInfo> *infos) = 0;
+ public:
+  TopologyAdmin() {}
+  virtual ~TopologyAdmin() {}
+  virtual bool AllocateChunkRandomInSingleLogicalPool(
+      ::curve::mds::FileType fileType,
+      uint32_t chunkNumer,
+      std::vector<CopysetIdInfo> *infos) = 0;
 };
-
 
 class TopologyAdminImpl : public TopologyAdmin {
  public:
-    TopologyAdminImpl(std::shared_ptr<Topology> topology)
-    : topology_(topology) {}
-    ~TopologyAdminImpl() {}
+  explicit TopologyAdminImpl(std::shared_ptr<Topology> topology)
+      : topology_(topology) {}
+  ~TopologyAdminImpl() {}
 
-
-    bool AllocateChunkRandomInSingleLogicalPool(
-        curve::mds::FileType fileType,
-        uint32_t chunkNumber,
-        std::vector<CopysetIdInfo> *infos) override;
-
+  bool AllocateChunkRandomInSingleLogicalPool(
+      curve::mds::FileType fileType,
+      uint32_t chunkNumber,
+      std::vector<CopysetIdInfo> *infos) override;
 
  private:
-    using LogicalPoolFilter = std::function<bool (const LogicalPool &)>;
-    void FilterLogicalPool(LogicalPoolFilter filter,
-        std::vector<PoolIdType> *logicalPoolIdsOut);
-
+  using LogicalPoolFilter = std::function<bool(const LogicalPool &)>;
+  void FilterLogicalPool(LogicalPoolFilter filter,
+                         std::vector<PoolIdType> *logicalPoolIdsOut);
 
  private:
-    std::shared_ptr<Topology> topology_;
-
+  std::shared_ptr<Topology> topology_;
 };
 
 }  // namespace topology

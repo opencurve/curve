@@ -22,8 +22,10 @@ class RepoInterface {
  public:
   // constructor: open db
   // destructtor: close db
-  virtual int connectDB(const std::string &dbName, const std::string &user,
-                const std::string &url, const std::string &password) = 0;
+  virtual int connectDB(const std::string &dbName,
+                        const std::string &user,
+                        const std::string &url,
+                        const std::string &password) = 0;
 
   virtual int createAllTables() = 0;
 
@@ -36,13 +38,15 @@ class RepoInterface {
   // chunkServerRepo operation
   virtual int InsertChunkServerRepo(const ChunkServerRepo &cr) = 0;
 
-  virtual int LoadChunkServerRepos(std::vector<ChunkServerRepo> *chunkServerRepoList) = 0;
+  virtual int LoadChunkServerRepos(
+      std::vector<ChunkServerRepo> *chunkServerRepoList) = 0;
 
   virtual int DeleteChunkServerRepo(ChunkServerIDType id) = 0;
 
   virtual int UpdateChunkServerRepo(const ChunkServerRepo &cr) = 0;
 
-  virtual int QueryChunkServerRepo(ChunkServerIDType id, ChunkServerRepo *repo) = 0;
+  virtual int QueryChunkServerRepo(ChunkServerIDType id,
+                                   ChunkServerRepo *repo) = 0;
 
   // server operation
   virtual int InsertServerRepo(const ServerRepo &sr) = 0;
@@ -69,24 +73,28 @@ class RepoInterface {
   // physical pool operation
   virtual int InsertPhysicalPoolRepo(const PhysicalPoolRepo &pr) = 0;
 
-  virtual int LoadPhysicalPoolRepos(std::vector<PhysicalPoolRepo> *physicalPoolvector) = 0;
+  virtual int LoadPhysicalPoolRepos(
+      std::vector<PhysicalPoolRepo> *physicalPoolvector) = 0;
 
   virtual int DeletePhysicalPoolRepo(PhysicalPoolIDType id) = 0;
 
   virtual int UpdatePhysicalPoolRepo(const PhysicalPoolRepo &pr) = 0;
 
-  virtual int QueryPhysicalPoolRepo(PhysicalPoolIDType id, PhysicalPoolRepo *repo) = 0;
+  virtual int QueryPhysicalPoolRepo(PhysicalPoolIDType id,
+                                    PhysicalPoolRepo *repo) = 0;
 
   // logical pool operation
   virtual int InsertLogicalPoolRepo(const LogicalPoolRepo &lr) = 0;
 
-  virtual int LoadLogicalPoolRepos(std::vector<LogicalPoolRepo> *logicalPoolList) = 0;
+  virtual int LoadLogicalPoolRepos(
+      std::vector<LogicalPoolRepo> *logicalPoolList) = 0;
 
   virtual int DeleteLogicalPoolRepo(LogicalPoolIDType id) = 0;
 
   virtual int UpdateLogicalPoolRepo(const LogicalPoolRepo &lr) = 0;
 
-  virtual int QueryLogicalPoolRepo(LogicalPoolIDType id, LogicalPoolRepo *repo) = 0;
+  virtual int QueryLogicalPoolRepo(LogicalPoolIDType id,
+                                   LogicalPoolRepo *repo) = 0;
 
   // copyset operation
   virtual int InsertCopySetRepo(const CopySetRepo &cr) = 0;
@@ -98,8 +106,8 @@ class RepoInterface {
   virtual int UpdateCopySetRepo(const CopySetRepo &cr) = 0;
 
   virtual int QueryCopySetRepo(CopySetIDType id,
-                       LogicalPoolIDType lid,
-                       CopySetRepo *repo) = 0;
+                               LogicalPoolIDType lid,
+                               CopySetRepo *repo) = 0;
 };
 
 class Repo : public RepoInterface {
@@ -120,13 +128,15 @@ class Repo : public RepoInterface {
   // chunkServerRepo operation
   int InsertChunkServerRepo(const ChunkServerRepo &cr) override;
 
-  int LoadChunkServerRepos(std::vector<ChunkServerRepo> *chunkServerRepoList) override;
+  int LoadChunkServerRepos(
+      std::vector<ChunkServerRepo> *chunkServerRepoList) override;
 
   int DeleteChunkServerRepo(ChunkServerIDType id) override;
 
   int UpdateChunkServerRepo(const ChunkServerRepo &cr) override;
 
-  int QueryChunkServerRepo(ChunkServerIDType id, ChunkServerRepo *repo) override;
+  int QueryChunkServerRepo(ChunkServerIDType id,
+                           ChunkServerRepo *repo) override;
 
   // server operation
   int InsertServerRepo(const ServerRepo &sr) override;
@@ -153,24 +163,28 @@ class Repo : public RepoInterface {
   // physical pool operation
   int InsertPhysicalPoolRepo(const PhysicalPoolRepo &pr) override;
 
-  int LoadPhysicalPoolRepos(std::vector<PhysicalPoolRepo> *physicalPoolvector) override;
+  int LoadPhysicalPoolRepos(
+      std::vector<PhysicalPoolRepo> *physicalPoolvector) override;
 
   int DeletePhysicalPoolRepo(PhysicalPoolIDType id) override;
 
   int UpdatePhysicalPoolRepo(const PhysicalPoolRepo &pr) override;
 
-  int QueryPhysicalPoolRepo(PhysicalPoolIDType id, PhysicalPoolRepo *repo) override;
+  int QueryPhysicalPoolRepo(PhysicalPoolIDType id,
+                            PhysicalPoolRepo *repo) override;
 
   // logical pool operation
   int InsertLogicalPoolRepo(const LogicalPoolRepo &lr) override;
 
-  int LoadLogicalPoolRepos(std::vector<LogicalPoolRepo> *logicalPoolList) override;
+  int LoadLogicalPoolRepos(
+      std::vector<LogicalPoolRepo> *logicalPoolList) override;
 
   int DeleteLogicalPoolRepo(LogicalPoolIDType id) override;
 
   int UpdateLogicalPoolRepo(const LogicalPoolRepo &lr) override;
 
-  int QueryLogicalPoolRepo(LogicalPoolIDType id, LogicalPoolRepo *repo) override;
+  int QueryLogicalPoolRepo(LogicalPoolIDType id,
+                           LogicalPoolRepo *repo) override;
 
   // copyset operation
   int InsertCopySetRepo(const CopySetRepo &cr) override;

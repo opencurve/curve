@@ -11,10 +11,10 @@
 
 #include <string>
 #include <map>
+#include <cstring>
 
 namespace curve {
 namespace repo {
-const int SqlBufferLen = 1024;
 
 const char ChunkServerTable[] = "curve_chunkserver";
 const char ServerTable[] = "curve_server";
@@ -91,10 +91,28 @@ const char CreateCopySetTable[] =
     ")COMMENT='copyset';";
 
 const char CreateDataBase[] = "create database if not exists %s;";
+const size_t CreateDataBaseLen = strlen(CreateDataBase) - 2;
 
 const char UseDataBase[] = "use %s";
+const size_t UseDataBaseLen = strlen(UseDataBase) - 2;
 
 const char DropDataBase[] = "drop database if exists %s";
+const size_t DropDataBaseLen = strlen(DropDataBase) - 2;
+
+const char Insert[] = "insert into %s %s values %s";
+const size_t InsertLen = strlen(Insert) - 6;
+
+const char QueryAll[] = "select * from %s";
+const size_t QueryAllLen = strlen(QueryAll) - 2;
+
+const char Query[] = "select * from %s where %s";
+const size_t QueryLen = strlen(Query) - 4;
+
+const char Delete[] = "delete from %s where %s";
+const size_t DeleteLen = strlen(Delete) - 4;
+
+const char Update[] = "update %s set %s where %s";
+const size_t UpdateLen = strlen(Update) - 6;
 
 const std::map<std::string, std::string> CurveTables = {
     {ChunkServerTable, CreateChunkServerTable},
