@@ -85,7 +85,7 @@ TEST_F(CopysetServiceTest, basic) {
     CopysetService_Stub stub(&channel);
     {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(10);
+        cntl.set_timeout_ms(100);
 
         CopysetRequest request;
         CopysetResponse response;
@@ -99,13 +99,13 @@ TEST_F(CopysetServiceTest, basic) {
             std::cout << cntl.ErrorText() << std::endl;
         }
         ASSERT_EQ(response.status(),
-                    COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+                  COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     }
 
-    /* 测试创建一个新的 copyset */
+    /* 测试创建一个重复 copyset */
     {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(2);
+        cntl.set_timeout_ms(100);
 
         CopysetRequest request;
         CopysetResponse response;
@@ -120,6 +120,25 @@ TEST_F(CopysetServiceTest, basic) {
         }
         ASSERT_EQ(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST,
                   response.status());
+    }
+
+    /* 非法参数测试 */
+    {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(100);
+
+        CopysetRequest request;
+        CopysetResponse response;
+        request.set_logicpoolid(logicPoolId + 1);
+        request.set_copysetid(copysetId + 1);
+        request.add_peerid("127.0.0.1");
+        request.add_peerid("127.0.0.1:9201:0");
+        request.add_peerid("127.0.0.1:9202:0");
+        stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
+        if (cntl.Failed()) {
+            std::cout << cntl.ErrorText() << std::endl;
+        }
+        ASSERT_EQ(cntl.ErrorCode(), EINVAL);
     }
 
     ASSERT_EQ(0, server.Stop(0));

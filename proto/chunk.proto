@@ -19,9 +19,10 @@ message QosResponseParas {
 // For chunk
 
 enum CHUNK_OP_TYPE {
-    CHUNK_OP_DELETE = 0; // 删除
-    CHUNK_OP_READ = 1; // 读
-    CHUNK_OP_WRITE = 2; // 写
+    CHUNK_OP_DELETE = 0;    // 删除
+    CHUNK_OP_READ = 1;      // 读
+    CHUNK_OP_WRITE = 2;     // 写
+    CHUNK_OP_UNKNOWN = 3;   // 未知 Op
 };
 // read/write 的实际数据在 rpc 的 attachment 中
 message ChunkRequest {

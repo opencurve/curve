@@ -20,7 +20,8 @@ namespace chunkserver {
 
 CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
                          const CopysetID &copysetId,
-                         const Configuration &initConf) :
+                         const Configuration &initConf,
+                         std::unique_ptr<CSDataStore> dataStorePtr) :
     copysetNodeManager_(&CopysetNodeManager::GetInstance()),
     logicPoolId_(logicPoolId),
     copysetId_(copysetId),
@@ -32,6 +33,7 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     chunkDataApath_(),
     chunkDataRpath_(),
     chunkSnapshotUri_(),
+    dataStore_(std::move(dataStorePtr)),
     leaderTerm_(-1) {}
 
 CopysetNode::~CopysetNode() {
@@ -57,13 +59,12 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     chunkDataApath_.append(chunkDataDir).append("/").append(groupId);
     std::shared_ptr<CSSfsAdaptor> sfsAdaptor =
         ChunkserverStorage::CreateFsAdaptor("", options.chunkDataUri);
-    dataStore_ = std::make_unique<CSDataStore>(sfsAdaptor, chunkDataApath_);
-    chunkDataApath_.append("/data");
-    if (true != dataStore_->Initialize()) {
+    bool ret = dataStore_->Initialize(sfsAdaptor, chunkDataApath_);
+    if (true != ret) {
         LOG(ERROR) << "dataStore " << chunkDataApath_ << " init" << "failed";
         return -1;
     }
-    /* chunk file 所存放的相对目录 */
+    chunkDataApath_.append("/data");
     chunkDataRpath_ = "data";
     /* TODO(wudemiao) 后期修改以适应不同的文件系统 */
     fs_ = new PosixFileSystemAdaptor();
@@ -143,27 +144,6 @@ void CopysetNode::WriteChunk(RpcController *controller,
     ApplyChunkRequest(controller, request, response, done);
 }
 
-void CopysetNode::CreateChunkSnapshot(RpcController *controller,
-                                      const ChunkSnapshotRequest *request,
-                                      ChunkSnapshotResponse *response,
-                                      Closure *done) {
-    ApplyChunkSnapshotRequest(controller, request, response, done);
-}
-
-void CopysetNode::DeleteChunkSnapshot(RpcController *controller,
-                                      const ChunkSnapshotRequest *request,
-                                      ChunkSnapshotResponse *response,
-                                      Closure *done) {
-    ApplyChunkSnapshotRequest(controller, request, response, done);
-}
-
-void CopysetNode::ReadChunkSnapshot(RpcController *controller,
-                                    const ChunkSnapshotRequest *request,
-                                    ChunkSnapshotResponse *response,
-                                    Closure *done) {
-    ApplyChunkSnapshotRequest(controller, request, response, done);
-}
-
 void CopysetNode::on_apply(::braft::Iterator &iter) {
     for (; iter.valid(); iter.next()) {
         /* 放在 bthread 中异步执行，避免阻塞当前状态机的执行 */
@@ -175,38 +155,28 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
         data.cutn(&type, sizeof(uint8_t));
 
         ChunkClosure *chunkClosure = nullptr;
-        ChunkSnapshotClosure *snapshotClosure = nullptr;
+        braft::Closure *closure = nullptr;
 
         switch (type) {
             case RequestType::CHUNK_OP:
-                if (nullptr != iter.done()) {
+                closure = iter.done();
+                if (nullptr != closure) {
                     chunkClosure = dynamic_cast<ChunkClosure *>(iter.done());
                     assert(nullptr != chunkClosure);
-                    ChunkOpRequest
-                        *chunkOpRequest = chunkClosure->GetOpRequest();
-                    if (0 == chunkOpRequest->OnApply(shared_from_this())) {
+                    ChunkOpRequest *chunkOpRequest =
+                        chunkClosure->GetOpRequest();  //NOLINT
+                    int ret = chunkOpRequest->OnApply(shared_from_this());
+                    if (0 == ret) {
                         ChunkResponse *response = chunkOpRequest->GetResponse();
                         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS); //NOLINT
                     } else {
-                        LOG(ERROR) << "chunk op apply failed";
+                        LOG(ERROR) << "chunk op apply failed, "
+                                   << "errno: " << errno
+                                   << " error str: " << strerror(errno);
                     }
                 } else {
                     /* 不用返回 rpc */
                     ChunkOpRequest::OnApply(shared_from_this(), &data);
-                }
-                break;
-            case RequestType::CHUNK_SNAPSHOT_OP:
-                if (nullptr != iter.done()) {
-                    snapshotClosure =
-                        dynamic_cast<ChunkSnapshotClosure *>(iter.done());
-                    assert(nullptr != snapshotClosure);
-                    ChunkSnapshotOpRequest
-                        *opRequest = snapshotClosure->GetOpRequest();
-                    opRequest->OnApply(shared_from_this());
-                    opRequest->GetResponse()->set_status(
-                        CHUNK_SNAPSHOT_OP_STATUS::CHUNK_SNAPSHOT_OP_STATUS_SUCCESS);    //NOLINT
-                } else {
-                    ChunkSnapshotOpRequest::OnApply(shared_from_this(), &data);
                 }
                 break;
             default:
@@ -225,11 +195,6 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
                                    ::braft::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
 
-    /* /mnt/sda/1-10001/data */
-    if (!fs_->path_exists(chunkDataApath_)) {
-        LOG(WARNING) << "path not exist, path " << chunkDataApath_;
-        return;
-    }
     std::unique_ptr<DirReader>
         dirReader(fs_->directory_reader(chunkDataApath_));
     if (dirReader->is_valid()) {
@@ -247,14 +212,13 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
             writer->add_file(filename);
         }
     } else {
-        LOG(FATAL) << "dir reader failed, maybe no exist or permission. path "
+        done->status().set_error(errno, "invalid: %s", strerror(errno));
+        LOG(ERROR) << "dir reader failed, maybe no exist or permission. path "
                    << chunkDataApath_;
     }
 }
 
 int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
-    int ret = 0;
-
     /* 打开的 snapshot path: /mnt/sda/1-10001/raft_snapshot/snapshot_0043 */
     std::string snapshotPath = reader->get_path();
 
@@ -262,10 +226,6 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     std::string snapshotChunkDataDir;
     snapshotChunkDataDir.append(snapshotPath);
     snapshotChunkDataDir.append("/").append(chunkDataRpath_);
-    if (!fs_->path_exists(snapshotChunkDataDir)) {
-        LOG(INFO) << "path not exist, path " << snapshotChunkDataDir;
-        return 0;
-    }
 
     std::unique_ptr<DirReader>
         dirReader(fs_->directory_reader(snapshotChunkDataDir));
@@ -295,30 +255,36 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
 void CopysetNode::on_leader_start(int64_t term) {
     leaderTerm_.store(term, std::memory_order_release);
     LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
+              << ", peer id: " << peerId_.to_string()
               << " become leader, term is: " << leaderTerm_;
 }
 
 void CopysetNode::on_leader_stop(const butil::Status &status) {
     leaderTerm_.store(-1, std::memory_order_release);
-    LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_) << " stepped down";
+    LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
+              << ", peer id: " << peerId_.to_string() << " stepped down";
 }
 
 void CopysetNode::on_error(const ::braft::Error &e) {
     LOG(ERROR) << ToGroupIdString(logicPoolId_, copysetId_)
+               << ", peer id: " << peerId_.to_string()
                << " meet raft error: " << e;
 }
 
 void CopysetNode::on_configuration_committed(const Configuration &conf) {
-    LOG(INFO) << "Configuration of this group is" << conf;
+    LOG(INFO) << "peer id: " << peerId_.to_string()
+              << ", Configuration of this group is" << conf;
 }
 
 void CopysetNode::on_stop_following(const ::braft::LeaderChangeContext &ctx) {
     LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
+              << ", peer id: " << peerId_.to_string()
               << " stops following" << ctx;
 }
 
 void CopysetNode::on_start_following(const ::braft::LeaderChangeContext &ctx) {
     LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
+              << ", peer id: " << peerId_.to_string()
               << "start following" << ctx;
 }
 
@@ -330,17 +296,6 @@ void CopysetNode::RedirectChunkRequest(ChunkResponse *response) {
     response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
 }
 
-void CopysetNode::RedirectChunkSnapshotRequest(ChunkSnapshotResponse *response) {   //NOLINT
-    response->set_status(
-        CHUNK_SNAPSHOT_OP_STATUS::CHUNK_SNAPSHOT_OP_STATUS_REDIRECTED);
-    if (nullptr != raftNode_) {
-        PeerId leader = raftNode_->leader_id();
-        if (!leader.is_empty()) {
-            response->set_redirect(leader.to_string());
-        }
-    }
-}
-
 void CopysetNode::ApplyChunkRequest(RpcController *controller,
                                     const ChunkRequest *request,
                                     ChunkResponse *response,
@@ -349,9 +304,9 @@ void CopysetNode::ApplyChunkRequest(RpcController *controller,
 
     /* 检查任期和自己是不是 Leader */
     const int64_t term = leaderTerm_.load(std::memory_order_acquire);
-    if (0 > term ||
-        0 != strcmp(peerId_.to_string().c_str(),
-                    raftNode_->leader_id().to_string().c_str())) {
+    int ret = strcmp(peerId_.to_string().c_str(),
+                     raftNode_->leader_id().to_string().c_str());
+    if (0 > term || 0 != ret) {
         RedirectChunkRequest(response);
         return;
     }
@@ -363,6 +318,7 @@ void CopysetNode::ApplyChunkRequest(RpcController *controller,
                                              doneGuard.release());
     braft::Task task;
     butil::IOBuf log;
+
     if (0 != req->Encode(&log)) {
         /* rpc response 已经在 Encode 内部设置 */
         LOG(ERROR) << "chunk op request encode failure";
@@ -370,38 +326,6 @@ void CopysetNode::ApplyChunkRequest(RpcController *controller,
     }
     task.data = &log;
     task.done = new ChunkClosure(this, req);
-    /* apply task to raft node process */
-    return raftNode_->apply(task);
-}
-
-void CopysetNode::ApplyChunkSnapshotRequest(RpcController *controller,
-                                            const ChunkSnapshotRequest *request,
-                                            ChunkSnapshotResponse *response,
-                                            Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
-
-    /* 检查任期和自己是不是 Leader */
-    const int64_t term = leaderTerm_.load(std::memory_order_acquire);
-    if (0 > term ||
-        0 != strcmp(peerId_.to_string().c_str(),
-                    raftNode_->leader_id().to_string().c_str())) {
-        RedirectChunkSnapshotRequest(response);
-        return;
-    }
-    /* 打包 op 为 task */
-    ChunkSnapshotOpRequest
-        *req = new ChunkSnapshotOpRequest(copysetNodeManager_,
-                                          controller,
-                                          request,
-                                          response,
-                                          doneGuard.release());
-    braft::Task task;
-    if (0 != req->Encode(task.data)) {
-        /* rpc response 已经在 Encode 内部设置 */
-        LOG(ERROR) << "chunk snapshot op request encode failure";
-        return;
-    }
-    task.done = new ChunkSnapshotClosure(this, req);
     /* apply task to raft node process */
     return raftNode_->apply(task);
 }
@@ -420,23 +344,6 @@ CopysetNodeOptions::CopysetNodeOptions()
       port(8200),
       maxChunkSize(16 * 1024 * 1024),
       copysetNodeManager(nullptr) {
-}
-CopysetNodeOptions::CopysetNodeOptions(const CopysetNodeOptions
-                                       &copysetNodeOptions)
-    : electionTimeoutMs(copysetNodeOptions.electionTimeoutMs),
-      snapshotIntervalS(copysetNodeOptions.electionTimeoutMs),
-      catchupMargin(copysetNodeOptions.catchupMargin),
-      usercodeInPthread(copysetNodeOptions.usercodeInPthread),
-      disableCli(copysetNodeOptions.disableCli),
-      logUri(copysetNodeOptions.logUri),
-      raftMetaUri(copysetNodeOptions.raftMetaUri),
-      raftSnapshotUri(copysetNodeOptions.raftSnapshotUri),
-      chunkDataUri(copysetNodeOptions.chunkDataUri),
-      chunkSnapshotUri(copysetNodeOptions.chunkSnapshotUri),
-      ip(copysetNodeOptions.ip),
-      port(copysetNodeOptions.port),
-      maxChunkSize(copysetNodeOptions.maxChunkSize),
-      copysetNodeManager(copysetNodeOptions.copysetNodeManager) {
 }
 
 CopysetNodeOptions &CopysetNodeOptions::operator=(

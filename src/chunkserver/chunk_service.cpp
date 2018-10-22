@@ -27,12 +27,13 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
                                    Closure *done) {
     brpc::ClosureGuard doneGuard(done);
     /* 判断 copyset 是否存在 */
-    if (false == copysetNodeManager_->IsExist(request->logicpoolid(),
-                                              request->copysetid())) {
+    bool isExist = copysetNodeManager_->IsExist(request->logicpoolid(),
+                                                request->copysetid());
+    if (false == isExist) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         LOG(ERROR)
-        << "failed found copyset node " << request->logicpoolid() << ","
-        << request->copysetid() << ")";
+            << "failed found copyset node " << request->logicpoolid() << ","
+            << request->copysetid() << ")";
         return;
     }
 
@@ -55,11 +56,11 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
                                   ChunkResponse *response,
                                   Closure *done) {
     brpc::ClosureGuard doneGuard(done);
-    brpc::Controller * cntl = dynamic_cast<brpc::Controller *>(controller);
+    brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
     DVLOG(9) << "Get write I/O request, op: " << request->optype()
              << " offset: " << request->offset()
              << " size: " << request->size() << " buf header: "
-             << *(unsigned int *)cntl->request_attachment().to_string().c_str()
+             << *(unsigned int *) cntl->request_attachment().to_string().c_str()
              << " attachement size " << cntl->request_attachment().size();
 
     /* 判断 request 参数是否合法 */
@@ -73,8 +74,9 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
         return;
     }
     /* 判断 copyset 是否存在 */
-    if (false == copysetNodeManager_->IsExist(request->logicpoolid(),
-                                              request->copysetid())) {
+    bool isExist = copysetNodeManager_->IsExist(request->logicpoolid(),
+                                                request->copysetid());
+    if (false == isExist) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         LOG(ERROR) << "failed found copyset node (" << request->logicpoolid()
                    << "," << request->copysetid() << ")";
@@ -110,12 +112,13 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                  << " max size: " << maxSize;
         return;
     }
-    if (false == copysetNodeManager_->IsExist(request->logicpoolid(),
-                                              request->copysetid())) {
+    bool isExist = copysetNodeManager_->IsExist(request->logicpoolid(),
+                                                request->copysetid());
+    if (false == isExist) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
         LOG(ERROR)
-        << "failed found copyset node (" << request->logicpoolid() << ","
-        << request->copysetid() << ")";
+            << "failed found copyset node (" << request->logicpoolid() << ","
+            << request->copysetid() << ")";
         return;
     }
 
@@ -125,90 +128,6 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                                request,
                                                response,
                                                doneGuard.release());
-    if (false) {
-        /* 通过 Qos server 将 request push 到 QoS 队列 */
-    } else {
-        copysetNodeManager_->ScheduleRequest(req);
-    }
-}
-
-void ChunkServiceImpl::CreateChunkSnapshot(RpcController *controller,
-                                           const ChunkSnapshotRequest *request,
-                                           ChunkSnapshotResponse *response,
-                                           Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
-
-    if (false == copysetNodeManager_->IsExist(request->logicpoolid(),
-                                              request->copysetid())) {
-        response->set_status(CHUNK_SNAPSHOT_OP_STATUS::CHUNK_SNAPSHOT_OP_STATUS_COPYSET_NOTEXIST);  //NOLINT
-        LOG(ERROR)
-        << "failed found copyset node (" << request->logicpoolid() << ","
-        << request->copysetid() << ")";
-        return;
-    }
-
-    std::shared_ptr<OpRequest>
-        req = std::make_shared<ChunkSnapshotOpRequest>(copysetNodeManager_,
-                                                       controller,
-                                                       request,
-                                                       response,
-                                                       doneGuard.release());
-    if (false) {
-        /* 通过 Qos server 将 request push 到 QoS 队列 */
-    } else {
-        copysetNodeManager_->ScheduleRequest(req);
-    }
-}
-
-void ChunkServiceImpl::DeleteChunkSnapshot(RpcController *controller,
-                                           const ChunkSnapshotRequest *request,
-                                           ChunkSnapshotResponse *response,
-                                           Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
-
-    if (false == copysetNodeManager_->IsExist(request->logicpoolid(),
-                                              request->copysetid())) {
-        response->set_status(CHUNK_SNAPSHOT_OP_STATUS::CHUNK_SNAPSHOT_OP_STATUS_COPYSET_NOTEXIST); //NOLINT
-        LOG(ERROR)
-        << "failed found copyset node (" << request->logicpoolid() << ","
-        << request->copysetid() << ")";
-        return;
-    }
-
-    std::shared_ptr<OpRequest>
-        req = std::make_shared<ChunkSnapshotOpRequest>(copysetNodeManager_,
-                                                       controller,
-                                                       request,
-                                                       response,
-                                                       doneGuard.release());
-    if (false) {
-        /* 通过 Qos server 将 request push 到 QoS 队列 */
-    } else {
-        copysetNodeManager_->ScheduleRequest(req);
-    }
-}
-
-void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
-                                         const ChunkSnapshotRequest *request,
-                                         ChunkSnapshotResponse *response,
-                                         Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
-
-    if (false == copysetNodeManager_->IsExist(request->logicpoolid(),
-                                              request->copysetid())) {
-        response->set_status(CHUNK_SNAPSHOT_OP_STATUS::CHUNK_SNAPSHOT_OP_STATUS_COPYSET_NOTEXIST);  //NOLINT
-        LOG(ERROR)
-        << "failed found copyset node (" << request->logicpoolid() << ","
-        << request->copysetid() << ")";
-        return;
-    }
-
-    std::shared_ptr<OpRequest>
-        req = std::make_shared<ChunkSnapshotOpRequest>(copysetNodeManager_,
-                                                       controller,
-                                                       request,
-                                                       response,
-                                                       doneGuard.release());
     if (false) {
         /* 通过 Qos server 将 request push 到 QoS 队列 */
     } else {
