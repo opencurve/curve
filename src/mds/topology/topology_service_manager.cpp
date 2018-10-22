@@ -781,33 +781,53 @@ void TopologyServiceManager::CreateLogicalPool(
                 chunkServerRequest.set_copysetid(copysetId);
 
                 for (ChunkServerIdType id : cs.replicas) {
-                    if (id != csId) {
                         ChunkServer chunkserverInfo;
                         topology_->GetChunkServer(id, &chunkserverInfo);
                         std::string ipStr = chunkserverInfo.GetHostIp();
                         std::string portStr =
                             std::to_string(chunkserverInfo.GetPort());
                         chunkServerRequest.add_peerid(ipStr + ":" + portStr);
-                    }
                 }
 
                 CopysetResponse chunkSeverResponse;
+
+                LOG(INFO) << "Send CopysetRequest[log_id=" << cntl.log_id()
+                          << "] from " << cntl.local_side()
+                          << " to " << cntl.remote_side()
+                          << ". [CopysetRequest] "
+                          << chunkServerRequest.DebugString();
 
                 stub.CreateCopysetNode(&cntl,
                     &chunkServerRequest,
                     &chunkSeverResponse,
                     nullptr);
 
-                if (cntl.Failed()) {
-                    LOG(ERROR) << cntl.ErrorText() << std::endl;
-                    response->set_statuscode(kTopoErrCodeGenCopysetErr);
-                    return;
-                }
 
-                if (chunkSeverResponse.status() !=
-                        COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
+                if (cntl.Failed()) {
+                    LOG(ERROR) << "Received CopysetResponse error, "
+                               << "cntl.errorText = "
+                               << cntl.ErrorText() << std::endl;
                     response->set_statuscode(kTopoErrCodeGenCopysetErr);
                     return;
+                } else {
+                    if (chunkSeverResponse.status() !=
+                            COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
+                        LOG(ERROR) << "Received CopysetResponse[log_id="
+                                  << cntl.log_id()
+                                  << "] from " << cntl.remote_side()
+                                  << " to " << cntl.local_side()
+                                  << ". [CopysetResponse] "
+                                  << chunkSeverResponse.DebugString();
+                        response->set_statuscode(kTopoErrCodeGenCopysetErr);
+                        return;
+                    } else {
+                        LOG(INFO) << "Received CopysetResponse[log_id="
+                                  << cntl.log_id()
+                                  << "] from " << cntl.remote_side()
+                                  << " to " << cntl.local_side()
+                                  << ". [CopysetResponse] "
+                                  << chunkSeverResponse.DebugString();
+                    }
                 }
             }
         }

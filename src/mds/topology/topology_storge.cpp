@@ -7,6 +7,8 @@
 
 #include "src/mds/topology/topology_storge.h"
 
+#include <glog/logging.h>
+
 #include <unordered_map>
 #include <vector>
 #include <map>
@@ -40,12 +42,16 @@ bool DefaultTopologyStorage::init(const std::string &dbName,
     const std::string &url,
     const std::string &password) {
     if (repo_->connectDB(dbName, user, url, password) != ConnectOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::init]: connectDB fail.";
         return false;
     } else if (repo_->createDatabase() != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::init]: createDatabase fail.";
         return false;
     } else if (repo_->useDataBase() != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::init]: useDataBase fail.";
         return false;
     } else if (repo_->createAllTables() != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::init]: createAllTables fail.";
         return false;
     }
     return true;
@@ -57,6 +63,8 @@ bool DefaultTopologyStorage::LoadLogicalPool(
     PoolIdType *maxLogicalPoolId) {
     std::vector<LogicalPoolRepo> logicalPoolRepos;
     if (repo_->LoadLogicalPoolRepos(&logicalPoolRepos) != QueryOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
+                   << "LoadLogicalPoolRepos fail.";
         return false;
     }
     logicalPoolMap->clear();
@@ -68,6 +76,8 @@ bool DefaultTopologyStorage::LoadLogicalPool(
         Json::Reader reader;
         Json::Value rapJson;
         if (!reader.parse(rp.redundanceAndPlacementPolicy, rapJson)) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
+                       << "parse redundanceAndPlacementPolicy json fail.";
             return false;
         }
 
@@ -94,20 +104,28 @@ bool DefaultTopologyStorage::LoadLogicalPool(
             }
             case LogicalPoolType::APPENDFILE: {
                 // TODO(xuchaojie): it is not done.
+                LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
+                           << "logicalpool type error, type = "
+                           << rp.type;
                 return false;
                 break;
             }
             case LogicalPoolType::APPENDECFILE: {
                 // TODO(xuchaojie): it is not done.
+                LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
+                           << "logicalpool type error, type = "
+                           << rp.type;
                 return false;
                 break;
             }
             default: {
+                LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
+                           << "logicalpool type error, type = "
+                           << rp.type;
                 return false;
                 break;
             }
         }
-
 
         // TODO(xuchaojie): parse JSON String to fill policy objects
         LogicalPool pool(rp.logicalPoolID,
@@ -131,6 +149,8 @@ bool DefaultTopologyStorage::LoadPhysicalPool(
     PoolIdType *maxPhysicalPoolId) {
     std::vector<PhysicalPoolRepo> physicalPoolRepos;
     if (repo_->LoadPhysicalPoolRepos(&physicalPoolRepos) != QueryOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::LoadPhysicalPool]: "
+                   << "LoadPhysicalPoolRepos fail.";
         return false;
     }
     physicalPoolMap->clear();
@@ -152,6 +172,8 @@ bool DefaultTopologyStorage::LoadZone(
     ZoneIdType *maxZoneId) {
     std::vector<ZoneRepo> zoneRepos;
     if (repo_->LoadZoneRepos(&zoneRepos) != QueryOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::LoadZone]: "
+                   << "LoadZoneRepos fail.";
         return false;
     }
     zoneMap->clear();
@@ -174,6 +196,8 @@ bool DefaultTopologyStorage::LoadServer(
     ServerIdType *maxServerId) {
     std::vector<ServerRepo> ServerRepos;
     if (repo_->LoadServerRepos(&ServerRepos) != QueryOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::LoadServer]: "
+                   << "LoadServerRepos fail.";
         return false;
     }
     serverMap->clear();
@@ -199,6 +223,8 @@ bool DefaultTopologyStorage::LoadChunkServer(
     ChunkServerIdType *maxChunkServerId) {
     std::vector<ChunkServerRepo> chunkServerRepos;
     if (repo_->LoadChunkServerRepos(&chunkServerRepos) != QueryOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::LoadChunkServer]: "
+                   << "LoadChunkServerRepos fail.";
         return false;
     }
     chunkServerMap->clear();
@@ -231,6 +257,8 @@ bool DefaultTopologyStorage::LoadCopySet(
     std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) {
     std::vector<CopySetRepo> copySetRepos;
     if (repo_->LoadCopySetRepos(&copySetRepos) != QueryOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::LoadCopySet]: "
+                   << "LoadCopySetRepos fail.";
         return false;
     }
     copySetMap->clear();
@@ -241,6 +269,8 @@ bool DefaultTopologyStorage::LoadCopySet(
         Json::Reader reader;
         Json::Value copysetMemJson;
         if (!reader.parse(rp.chunkServerIDList, copysetMemJson)) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadCopySet]: "
+                       << "parse json string fail.";
             return false;
         }
         for (int i = 0; i < copysetMemJson.size(); i++) {
@@ -268,21 +298,27 @@ bool DefaultTopologyStorage::StorageLogicalPool(const LogicalPool &data) {
         }
         case LogicalPoolType::APPENDFILE : {
             // TODO(xuchaojie): fix it
+            LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
+                       << "logicalpool type error.";
             return false;
             break;
         }
         case LogicalPoolType::APPENDECFILE : {
             // TODO(xuchaojie): fix it
+            LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
+                       << "logicalpool type error.";
             return false;
             break;
         }
         default:
+            LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
+                       << "logicalpool type error.";
             return false;
             break;
     }
     std::string rapStr = rapJson.toStyledString();
-
     // TODO(xuchaojie) Parse policy to JSON string
+    std::string policyStr = rapStr;
     LogicalPoolRepo rp(data.GetId(),
         data.GetName(),
         data.GetPhysicalPoolId(),
@@ -290,8 +326,10 @@ bool DefaultTopologyStorage::StorageLogicalPool(const LogicalPool &data) {
         data.GetCreateTime(),
         data.GetStatus(),
         rapStr,
-        "");
+        policyStr);
     if (repo_->InsertLogicalPoolRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
+                   << "InsertLogicalPoolRepo fail.";
         return false;
     }
     return true;
@@ -302,6 +340,8 @@ bool DefaultTopologyStorage::StoragePhysicalPool(const PhysicalPool &data) {
          data.GetName(),
          data.GetDesc());
     if (repo_->InsertPhysicalPoolRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::StoragePhysicalPool]: "
+                   << "InsertPhysicalPoolRepo fail.";
         return false;
     }
     return true;
@@ -313,6 +353,8 @@ bool DefaultTopologyStorage::StorageZone(const Zone &data) {
         data.GetPhysicalPoolId(),
         data.GetDesc());
     if (repo_->InsertZoneRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::StorageZone]: "
+                   << "InsertZoneRepo fail.";
         return false;
     }
     return true;
@@ -327,6 +369,8 @@ bool DefaultTopologyStorage::StorageServer(const Server &data) {
         data.GetPhysicalPoolId(),
         data.GetDesc());
     if (repo_->InsertServerRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::StorageServer]: "
+                   << "InsertServerRepo fail.";
         return false;
     }
     return true;
@@ -348,6 +392,8 @@ bool DefaultTopologyStorage::StorageChunkServer(const ChunkServer &data) {
             csState.GetDiskUsed());
 
     if (repo_->InsertChunkServerRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::StorageChunkServer]: "
+                   << "StorageChunkServerRepo fail.";
         return false;
     }
     return true;
@@ -364,6 +410,8 @@ bool DefaultTopologyStorage::StorageCopySet(const CopySetInfo &data) {
         data.GetLogicalPoolId(),
         chunkServerListStr);
     if (repo_->InsertCopySetRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::StorageCopySet]: "
+                   << "InsertCopySetRepo fail.";
         return false;
     }
     return true;
@@ -371,6 +419,8 @@ bool DefaultTopologyStorage::StorageCopySet(const CopySetInfo &data) {
 
 bool DefaultTopologyStorage::DeleteLogicalPool(PoolIdType id) {
     if (repo_->DeleteLogicalPoolRepo(id) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::DeleteLogicalPool]: "
+                   << "DeleteLogicalPoolRepo fail.";
         return false;
     }
     return true;
@@ -378,6 +428,8 @@ bool DefaultTopologyStorage::DeleteLogicalPool(PoolIdType id) {
 
 bool DefaultTopologyStorage::DeletePhysicalPool(PoolIdType id) {
     if (repo_->DeletePhysicalPoolRepo(id) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::DeletePhysicalPool]: "
+                   << "DeletePhysicalPoolRepo fail.";
         return false;
     }
     return true;
@@ -385,6 +437,8 @@ bool DefaultTopologyStorage::DeletePhysicalPool(PoolIdType id) {
 
 bool DefaultTopologyStorage::DeleteZone(ZoneIdType id) {
     if (repo_->DeleteZoneRepo(id) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::DeleteZone]: "
+                   << "DeleteZoneRepo fail.";
         return false;
     }
     return true;
@@ -392,6 +446,8 @@ bool DefaultTopologyStorage::DeleteZone(ZoneIdType id) {
 
 bool DefaultTopologyStorage::DeleteServer(ServerIdType id) {
     if (repo_->DeleteServerRepo(id) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::DeleteServer]: "
+                   << "DeleteServerRepo fail.";
         return false;
     }
     return true;
@@ -399,6 +455,8 @@ bool DefaultTopologyStorage::DeleteServer(ServerIdType id) {
 
 bool DefaultTopologyStorage::DeleteChunkServer(ChunkServerIdType id) {
     if (repo_->DeleteChunkServerRepo(id) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::DeleteChunkServer]: "
+                   << "DeleteChunkServerRepo fail.";
         return false;
     }
     return true;
@@ -406,6 +464,8 @@ bool DefaultTopologyStorage::DeleteChunkServer(ChunkServerIdType id) {
 
 bool DefaultTopologyStorage::DeleteCopySet(CopySetKey key) {
     if (repo_->DeleteCopySetRepo(key.second, key.first) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::DeleteCopySet]: "
+                   << "DeleteCopySetRepo fail.";
         return false;
     }
     return true;
@@ -424,16 +484,22 @@ bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
             break;
         }
         case LogicalPoolType::APPENDFILE : {
+            LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
+                       << "logicalpool type error.";
             // TODO(xuchaojie): fix it
             return false;
             break;
         }
         case LogicalPoolType::APPENDECFILE : {
+            LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
+                       << "logicalpool type error.";
             // TODO(xuchaojie): fix it
             return false;
             break;
         }
         default:
+            LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
+                       << "logicalpool type error.";
             return false;
             break;
     }
@@ -449,6 +515,8 @@ bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
         rapStr,
         "");
     if (repo_->UpdateLogicalPoolRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
+                   << "UpdateLogicalPoolRepo fail.";
         return false;
     }
     return true;
@@ -459,6 +527,8 @@ bool DefaultTopologyStorage::UpdatePhysicalPool(const PhysicalPool &data) {
          data.GetName(),
          data.GetDesc());
     if (repo_->UpdatePhysicalPoolRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::UpdatePhysicalPool]: "
+                   << "UpdatePhysicalPoolRepo fail.";
         return false;
     }
     return true;
@@ -470,6 +540,8 @@ bool DefaultTopologyStorage::UpdateZone(const Zone &data) {
         data.GetPhysicalPoolId(),
         data.GetDesc());
     if (repo_->UpdateZoneRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::UpdateZone]: "
+                   << "UpdateZoneRepo fail.";
         return false;
     }
     return true;
@@ -484,6 +556,8 @@ bool DefaultTopologyStorage::UpdateServer(const Server &data) {
         data.GetPhysicalPoolId(),
         data.GetDesc());
     if (repo_->UpdateServerRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::UpdateServer]: "
+                   << "UpdateServerRepo fail.";
         return false;
     }
     return true;
@@ -505,6 +579,8 @@ bool DefaultTopologyStorage::UpdateChunkServer(const ChunkServer &data) {
             csState.GetDiskUsed());
 
     if (repo_->UpdateChunkServerRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::UpdateChunkServer]: "
+                   << "UpdateChunkServerRepo fail.";
         return false;
     }
     return true;
@@ -521,6 +597,8 @@ bool DefaultTopologyStorage::UpdateCopySet(const CopySetInfo &data) {
         data.GetLogicalPoolId(),
         chunkServerListStr);
     if (repo_->UpdateCopySetRepo(rp) != ExecUpdateOK) {
+        LOG(ERROR) << "[DefaultTopologyStorage::UpdateCopySet]: "
+                   << "UpdateCopySetRepo fail.";
         return false;
     }
     return true;

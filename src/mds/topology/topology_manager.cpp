@@ -7,6 +7,8 @@
 
 #include <gflags/gflags.h>
 
+#include <string>
+
 #include "src/mds/topology/topology_manager.h"
 #include "glog/logging.h"
 #include "src/repo/repo.h"
@@ -34,11 +36,22 @@ TopologyManager::TopologyManager() {
     std::shared_ptr<TopologyStorage> storage_ =
         std::make_shared<DefaultTopologyStorage>(repo_);
     // TODO(xuchaojie): use data from config file to init storage
-    if (!storage_->init(FLAGS_dbName,
-            FLAGS_user,
-            FLAGS_url,
-            FLAGS_password)) {
-        LOG(FATAL) << "init storage fail.";
+    std::string dbName = FLAGS_dbName;
+    std::string user = FLAGS_user;
+    std::string url = FLAGS_url;
+    std::string password = FLAGS_password;
+    if (!storage_->init(dbName,
+            user,
+            url,
+            password)) {
+        LOG(FATAL) << "init storage fail. dbName = "
+                   << dbName
+                   << " , user = "
+                   << user
+                   << " , url = "
+                   << url
+                   << " , password = "
+                   << password;
         return;
     }
 
@@ -47,7 +60,8 @@ TopologyManager::TopologyManager() {
                                            storage_);
     int errorCode = topology_->init();
     if (errorCode != kTopoErrCodeSuccess) {
-        LOG(FATAL) << "init topology fail.";
+        LOG(FATAL) << "init topology fail. errorCode = "
+                   << errorCode;
         return;
     }
 
@@ -57,8 +71,6 @@ TopologyManager::TopologyManager() {
          copysetManager_);
     topologyAdmin_ = std::make_shared<TopologyAdminImpl>(topology_);
 }
-
-
 
 }  // namespace topology
 }  // namespace mds

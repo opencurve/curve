@@ -65,6 +65,7 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
         idInfo.copySetId = copySetIds[randomCopySetIndex];
         infos->push_back(idInfo);
     }
+    return true;
 }
 
 
