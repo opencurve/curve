@@ -6,7 +6,7 @@
  */
 #include <list>
 
-#include "src/repo/repo.h"
+#include "src/mds/repo/repo.h"
 
 namespace curve {
 namespace repo {
@@ -21,7 +21,7 @@ int Repo::LoadChunkServerRepos(
 
   sql::ResultSet *res;
   int resCode = db_->QueryRows(makeSql.makeQueryRows(ChunkServerRepo{}), &res);
-  if (resCode != QueryOK) {
+  if (resCode != OperationOK) {
     return resCode;
   }
 
@@ -58,7 +58,7 @@ int Repo::QueryChunkServerRepo(curve::repo::ChunkServerIDType id,
 
   sql::ResultSet *res;
   int resCode = db_->QueryRows(makeSql.makeQueryRow(ChunkServerRepo{id}), &res);
-  if (resCode != QueryOK) {
+  if (resCode != OperationOK) {
     return resCode;
   }
 

@@ -19,10 +19,7 @@
 
 namespace curve {
 namespace repo {
-const int ConnectOK = 0;
-const int ExecUpdateOK = 0;
-const int ExecOK = 0;
-const int QueryOK = 0;
+const int OperationOK = 0;
 const int SqlException = -1;
 const int RuntimeExecption = -2;
 
@@ -38,13 +35,20 @@ class DataBase {
 
   int connectDB();
 
+  // CRUD
   int Exec(const std::string &sql);
 
   int ExecUpdate(const std::string &sql);
 
   int QueryRows(const std::string &sql, sql::ResultSet **res);
 
-  // private:
+  // Transaction
+  int SetAutoCommit(const bool &autoCommit);
+
+  int Commit();
+
+  int RollBack();
+
  public:
   std::string url_;
   std::string user_;

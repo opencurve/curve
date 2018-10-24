@@ -11,7 +11,7 @@
 
 #include "src/mds/topology/topology_manager.h"
 #include "glog/logging.h"
-#include "src/repo/repo.h"
+#include "src/mds/repo/repo.h"
 
 
 DEFINE_string(dbName, "curve_mds", "dbName");

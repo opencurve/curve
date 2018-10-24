@@ -6,7 +6,7 @@
  */
 
 #include <iostream>
-#include "src/repo/repoItem.h"
+#include "src/mds/repo/repoItem.h"
 
 namespace curve {
 namespace repo {

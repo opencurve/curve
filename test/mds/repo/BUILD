@@ -5,8 +5,8 @@ cc_test(
         "-lmysqlcppconn",
     ],
     deps = [
-        "@com_google_googletest//:gtest",
-        "//src/repo",
         "//external:json",
+        "//src/mds/repo",
+        "@com_google_googletest//:gtest",
     ],
 )
