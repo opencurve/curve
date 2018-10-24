@@ -75,7 +75,7 @@ int curve_main(int argc, char **argv) {
         LOG(ERROR) << "start brpc server error";
     }
 
-    server.Join();
+    server.RunUntilAskedToQuit();
     return 0;
 }
 
