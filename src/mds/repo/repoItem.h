@@ -14,7 +14,7 @@
 #include <list>
 #include <vector>
 
-#include "src/repo/sqlStatement.h"
+#include "src/mds/repo/sqlStatement.h"
 
 namespace curve {
 namespace repo {

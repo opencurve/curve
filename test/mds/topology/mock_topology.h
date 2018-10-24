@@ -143,98 +143,98 @@ class MockTopologyServiceManager : public TopologyServiceManager {
 
   MOCK_METHOD2(RegistChunkServer, void(
       const ChunkServerRegistRequest *request,
-      ChunkServerRegistResponse * response));
+      ChunkServerRegistResponse *response));
 
   MOCK_METHOD2(ListChunkServer, void(
       const ListChunkServerRequest *request,
-      ListChunkServerResponse * response));
+      ListChunkServerResponse *response));
 
   MOCK_METHOD2(GetChunkServer, void(
       const GetChunkServerInfoRequest *request,
-      GetChunkServerInfoResponse * response));
+      GetChunkServerInfoResponse *response));
 
   MOCK_METHOD2(DeleteChunkServer, void(
       const DeleteChunkServerRequest *request,
-      DeleteChunkServerResponse * response));
+      DeleteChunkServerResponse *response));
 
   MOCK_METHOD2(SetChunkServer, void(
       const SetChunkServerStatusRequest *request,
-      SetChunkServerStatusResponse * response));
+      SetChunkServerStatusResponse *response));
 
   MOCK_METHOD2(RegistServer, void(
       const ServerRegistRequest *request,
-      ServerRegistResponse * response));
+      ServerRegistResponse *response));
 
   MOCK_METHOD2(GetServer, void(
       const GetServerRequest *request,
-      GetServerResponse * response));
+      GetServerResponse *response));
 
   MOCK_METHOD2(DeleteServer, void(
       const DeleteServerRequest *request,
-      DeleteServerResponse * response));
+      DeleteServerResponse *response));
 
   MOCK_METHOD2(ListZoneServer, void(
       const ListZoneServerRequest *request,
-      ListZoneServerResponse * response));
+      ListZoneServerResponse *response));
 
   MOCK_METHOD2(CreateZone, void(
       const ZoneRequest *request,
-      ZoneResponse * response));
+      ZoneResponse *response));
 
   MOCK_METHOD2(DeleteZone, void(
       const ZoneRequest *request,
-      ZoneResponse * response));
+      ZoneResponse *response));
 
   MOCK_METHOD2(GetZone, void(
       const ZoneRequest *request,
-      ZoneResponse * response));
+      ZoneResponse *response));
 
   MOCK_METHOD2(ListPoolZone, void(
       const ListPoolZoneRequest *request,
-      ListPoolZoneResponse * response));
+      ListPoolZoneResponse *response));
 
   MOCK_METHOD2(CreatePhysicalPool, void(
       const PhysicalPoolRequest *request,
-      PhysicalPoolResponse * response));
+      PhysicalPoolResponse *response));
 
   MOCK_METHOD2(DeletePhysicalPool, void(
       const PhysicalPoolRequest *request,
-      PhysicalPoolResponse * response));
+      PhysicalPoolResponse *response));
 
   MOCK_METHOD2(GetPhysicalPool, void(
       const PhysicalPoolRequest *request,
-      PhysicalPoolResponse * response));
+      PhysicalPoolResponse *response));
 
   MOCK_METHOD2(ListPhysicalPool, void(
       const ListPhysicalPoolRequest *request,
-      ListPhysicalPoolResponse * response));
+      ListPhysicalPoolResponse *response));
 
   MOCK_METHOD2(CreateLogicalPool, void(
       const CreateLogicalPoolRequest *request,
-      CreateLogicalPoolResponse * response));
+      CreateLogicalPoolResponse *response));
 
   MOCK_METHOD2(DeleteLogicalPool, void(
       const DeleteLogicalPoolRequest *request,
-      DeleteLogicalPoolResponse * response));
+      DeleteLogicalPoolResponse *response));
 
   MOCK_METHOD2(GetLogicalPool, void(
       const GetLogicalPoolRequest *request,
-      GetLogicalPoolResponse * response));
+      GetLogicalPoolResponse *response));
 
   MOCK_METHOD2(ListLogicalPool, void(
       const ListLogicalPoolRequest *request,
-      ListLogicalPoolResponse * response));
+      ListLogicalPoolResponse *response));
 
   MOCK_METHOD2(GetChunkServerListInCopySets, void(
       const GetChunkServerListInCopySetsRequest *request,
-      GetChunkServerListInCopySetsResponse * response));
+      GetChunkServerListInCopySetsResponse *response));
 };
 
 }  // namespace topology
 }  // namespace mds
 
 namespace repo {
-class MockRepo : public Repo {
+class MockRepo : public RepoInterface {
  public:
   MockRepo() {}
   ~MockRepo() {}
@@ -373,6 +373,11 @@ class MockRepo : public Repo {
                        LogicalPoolIDType
                    lid,
                        CopySetRepo * repo));
+
+  MOCK_METHOD1(SetAutoCommit, int(
+      const bool &autoCommit));
+  MOCK_METHOD0(Commit, int());
+  MOCK_METHOD0(RollBack, int());
 };
 }  // namespace repo
 

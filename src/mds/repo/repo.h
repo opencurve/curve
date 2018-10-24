@@ -12,9 +12,9 @@
 #include <vector>
 #include <string>
 
-#include "src/repo/repoItem.h"
-#include "src/repo/dataBase.h"
-#include "src/repo/sqlStatement.h"
+#include "src/mds/repo/repoItem.h"
+#include "src/mds/repo/dataBase.h"
+#include "src/mds/repo/sqlStatement.h"
 namespace curve {
 namespace repo {
 
@@ -108,12 +108,22 @@ class RepoInterface {
   virtual int QueryCopySetRepo(CopySetIDType id,
                                LogicalPoolIDType lid,
                                CopySetRepo *repo) = 0;
+
+  virtual int SetAutoCommit(const bool &autoCommit) = 0;
+
+  virtual int Commit() = 0;
+
+  virtual int RollBack() = 0;
 };
 
 class Repo : public RepoInterface {
  public:
   // constructor: open db
   // destructtor: close db
+  Repo() = default;
+
+  virtual ~Repo();
+
   int connectDB(const std::string &dbName, const std::string &user,
                 const std::string &url, const std::string &password) override;
 
@@ -124,6 +134,8 @@ class Repo : public RepoInterface {
   int useDataBase() override;
 
   int dropDataBase() override;
+
+  DataBase *getDataBase();
 
   // chunkServerRepo operation
   int InsertChunkServerRepo(const ChunkServerRepo &cr) override;
@@ -198,6 +210,12 @@ class Repo : public RepoInterface {
   int QueryCopySetRepo(CopySetIDType id,
                        LogicalPoolIDType lid,
                        CopySetRepo *repo) override;
+
+  int SetAutoCommit(const bool &autoCommit) override;
+
+  int Commit() override;
+
+  int RollBack() override;
 
  private:
   DataBase *db_;

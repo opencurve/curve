@@ -14,7 +14,7 @@
 #include <map>
 
 #include "src/mds/topology/topology_item.h"
-#include "src/repo/repo.h"
+#include "src/mds/repo/repo.h"
 
 
 namespace curve {

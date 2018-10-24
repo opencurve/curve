@@ -42,6 +42,7 @@ cc_library(
         "//external:bthread",
         "//external:butil",
         "//external:gflags",
+        "//external:glog",
         "//external:leveldb",
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",

@@ -6,7 +6,7 @@
  */
 
 #include <list>
-#include "src/repo/repo.h"
+#include "src/mds/repo/repo.h"
 
 namespace curve {
 namespace repo {
@@ -20,7 +20,7 @@ int Repo::LoadServerRepos(std::vector<ServerRepo> *serverList) {
 
   sql::ResultSet *res;
   int resCode = db_->QueryRows(makeSql.makeQueryRows(ServerRepo{}), &res);
-  if (QueryOK != resCode) {
+  if (OperationOK != resCode) {
     return resCode;
   }
 
@@ -52,7 +52,7 @@ int Repo::QueryServerRepo(curve::repo::ServerIDType id,
 
   sql::ResultSet *res;
   int resCode = db_->QueryRows(makeSql.makeQueryRow(ServerRepo(id)), &res);
-  if (QueryOK != resCode) {
+  if (OperationOK != resCode) {
     return resCode;
   }
 

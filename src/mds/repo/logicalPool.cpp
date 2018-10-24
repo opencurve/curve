@@ -7,7 +7,7 @@
 
 #include <string>
 
-#include "src/repo/repo.h"
+#include "src/mds/repo/repo.h"
 
 namespace curve {
 namespace repo {
@@ -21,7 +21,7 @@ int Repo::LoadLogicalPoolRepos(std::vector<LogicalPoolRepo> *logicalPoolList) {
 
   sql::ResultSet *res;
   int resCode = db_->QueryRows(makeSql.makeQueryRows(LogicalPoolRepo{}), &res);
-  if (resCode != QueryOK) {
+  if (resCode != OperationOK) {
     return resCode;
   }
   while (res->next()) {
@@ -54,7 +54,7 @@ int Repo::QueryLogicalPoolRepo(curve::repo::LogicalPoolIDType id,
 
   sql::ResultSet *res;
   int resCode = db_->QueryRows(makeSql.makeQueryRow(LogicalPoolRepo(id)), &res);
-  if (resCode != QueryOK) {
+  if (resCode != OperationOK) {
     return resCode;
   }
   while (res->next()) {

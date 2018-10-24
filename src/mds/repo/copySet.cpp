@@ -4,7 +4,7 @@
  * Author: lixiaocui
  * Copyright (c) 2018 netease
  */
-#include "src/repo/repo.h"
+#include "src/mds/repo/repo.h"
 
 namespace curve {
 namespace repo {
@@ -18,7 +18,7 @@ int Repo::LoadCopySetRepos(std::vector<CopySetRepo> *copySetList) {
 
   sql::ResultSet *res;
   int resCode = db_->QueryRows(makeSql.makeQueryRows(CopySetRepo{}), &res);
-  if (resCode != QueryOK) {
+  if (resCode != OperationOK) {
     return resCode;
   }
 
@@ -47,7 +47,7 @@ int Repo::QueryCopySetRepo(curve::repo::CopySetIDType id,
 
   sql::ResultSet *res;
   int status = db_->QueryRows(makeSql.makeQueryRow(CopySetRepo(id, lid)), &res);
-  if (status != QueryOK) {
+  if (status != OperationOK) {
     return status;
   }
   while (res->next()) {

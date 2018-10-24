@@ -5,7 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
-#include "src/repo/repo.h"
+#include "src/mds/repo/repo.h"
 
 namespace curve {
 namespace repo {
@@ -20,7 +20,7 @@ int Repo::LoadPhysicalPoolRepos(
 
   sql::ResultSet *res;
   int resCode = db_->QueryRows(makeSql.makeQueryRows(PhysicalPoolRepo{}), &res);
-  if (resCode != QueryOK) {
+  if (resCode != OperationOK) {
     return resCode;
   }
   while (res->next()) {
@@ -48,7 +48,7 @@ int Repo::QueryPhysicalPoolRepo(curve::repo::PhysicalPoolIDType id,
   sql::ResultSet *res;
   int resCode =
       db_->QueryRows(makeSql.makeQueryRow(PhysicalPoolRepo(id)), &res);
-  if (resCode != QueryOK) {
+  if (resCode != OperationOK) {
     return resCode;
   }
   while (res->next()) {
