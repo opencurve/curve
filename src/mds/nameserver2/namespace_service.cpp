@@ -77,7 +77,7 @@ void NameSpaceService::GetOrAllocateSegment(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(ERROR) << "logid = " << cntl->log_id()
+    LOG(INFO) << "logid = " << cntl->log_id()
         << ", GetOrAllocateSegment request, filename = " << request->filename()
         << ", offset = " << request->offset() << ", allocateTag = "
         << request->allocateifnotexist();
