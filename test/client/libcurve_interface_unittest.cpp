@@ -19,24 +19,23 @@
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
 
+DECLARE_uint64(test_disk_size);
 void callbacktest(CurveAioContext* context) {
     LOG(INFO) << "aio call back here, errorcode = " << context->err;
 }
 
 TEST(TestLibcurveInterface, InterfaceTest) {
     std::string filename = "./test.txt";
-    uint64_t size = 1 * 1024 * 1024 * 1024;
-
 
     /*** init mds service ***/
-    FakeMDS mds(filename, size);
+    FakeMDS mds(filename);
     mds.Initialize();
     mds.StartService();
     mds.CreateCopysetNode();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     /**** libcurve file operation ****/
-    CreateFile(filename.c_str(), size);
+    CreateFile(filename.c_str(), FLAGS_test_disk_size);
 
     int fd = Open(filename.c_str());
 
@@ -109,6 +108,23 @@ TEST(TestLibcurveInterface, InterfaceTest) {
         ASSERT_EQ(readbuffer[i +  7 * 1024], 'p');
     }
 
+    /**
+     * the disk is faked, the size is just = 10 * 1024 * 1024 * 1024.
+     * when the offset pass the boundary, it will return failed.
+     */ 
+    off_t off = 10 * 1024 * 1024 * 1024ul;
+    uint64_t len = 8 * 1024;
+
+    ASSERT_EQ(-1, Write(fd, buffer, off, len));
+    ASSERT_EQ(-1, Read(fd, readbuffer, off, len));
+
+    off_t off1 = 10 * 1024 * 1024 * 1024ul - 8 * 1024;
+    uint64_t len1 = 8 * 1024;
+
+    ASSERT_EQ(8 * 1024, Write(fd, buffer, off1, len1));
+    ASSERT_EQ(8 * 1024, Read(fd, readbuffer, off1, len1));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     mds.UnInitialize();
     delete buffer;
     delete readbuffer;

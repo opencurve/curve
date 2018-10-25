@@ -247,6 +247,14 @@ TEST_F(SessionTest, GetOrAllocateSegment) {
         }
     }
 
+    // Boundary test metacache.
+    // we fake the disk size = 1G.
+    // and the chunksize = 4M.
+    // so if visit the chunk index > 255
+    // will return failed.
+    curve::client::Chunkinfo_t chunkinfo;
+    ASSERT_EQ(-1, mc->GetChunkInfo(256, &chunkinfo));
+
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());
     delete fakeret;

@@ -25,6 +25,9 @@ namespace client {
     }
 
     MetaCache::~MetaCache() {
+        chunkindex2idMap_.clear();
+        chunkid2cslpMap_.clear();
+        lpcsid2serverlistMap_.clear();
     }
 
     int MetaCache::GetChunkInfo(ChunkIndex chunkidx, Chunkinfo_t* chunxinfo ) {

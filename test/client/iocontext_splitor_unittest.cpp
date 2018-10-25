@@ -503,3 +503,38 @@ TEST_F(IOContextSplitorTest, ExceptionTest_TEST) {
     delete requestslab;
     delete session;
 }
+
+TEST_F(IOContextSplitorTest, BoundaryTEST) {
+    MockRequestScheduler mockschuler;
+    mockschuler.DelegateToFake();
+
+    MetaCache* mc = session_->GetMetaCache();
+    auto ioctxmana = new IOContextManager(mc, &mockschuler);
+    ASSERT_TRUE(ioctxmana->Initialize());
+
+    /**
+     * this offset and length will make splitor split fail.
+     * we set disk size = 1G.
+     */ 
+    uint64_t offset = 1 * 1024 * 1024 * 1024 -
+                     4 * 1024 * 1024 - 4 *1024;
+    uint64_t length = 4 * 1024 * 1024 + 8 * 1024;
+    char* buf = new char[length];
+
+    memset(buf, 'a', 4 * 1024);
+    memset(buf + 4 * 1024, 'b', FLAGS_chunk_size);
+    memset(buf + 4 * 1024 + FLAGS_chunk_size, 'c', 4 * 1024);
+
+    auto threadfunc = [&]() {
+        ASSERT_EQ(-1, ioctxmana->Write(buf,
+                                    offset,
+                                    length));
+    };
+    std::thread process(threadfunc);
+
+    if (process.joinable()) {
+        process.join();
+    }
+
+    delete[] buf;
+}
