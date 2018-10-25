@@ -34,10 +34,10 @@ int main(int argc, char ** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
 
     std::string filename = "data/test.txt";
-    uint64_t size = FLAGS_test_disk_size;
+    // uint64_t size = FLAGS_test_disk_size;
 
     /*** init mds service ***/
-    FakeMDS mds(filename, size);
+    FakeMDS mds(filename);
     if (FLAGS_fake_mds) {
         mds.Initialize();
         mds.StartService();
@@ -45,7 +45,7 @@ int main(int argc, char ** argv) {
     }
 
     /**** libcurve file operation ****/
-    CreateFile(filename.c_str(), size);
+    CreateFile(filename.c_str(), FLAGS_test_disk_size);
 
     sleep(1);
 

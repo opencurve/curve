@@ -138,7 +138,7 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
 
 class FakeMDS {
  public:
-    FakeMDS(std::string filename, uint64_t size);
+    explicit FakeMDS(std::string filename);
     bool Initialize();
     void UnInitialize();
 

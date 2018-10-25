@@ -20,7 +20,7 @@ DECLARE_uint64(segment_size);
 DEFINE_bool(fake_chunkserver, true, "create fake chunkserver");
 
 DEFINE_uint64(test_disk_size,
-                1 * 1024 * 1024 * 1024ul,
+                10 * 1024 * 1024 * 1024ul,
                 "test size");
 DEFINE_uint32(copyset_num,
                 32,
@@ -33,9 +33,9 @@ DEFINE_string(chunkserver_list,
 using curve::chunkserver::COPYSET_OP_STATUS;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 
-FakeMDS::FakeMDS(std::string filename, uint64_t size) {
+FakeMDS::FakeMDS(std::string filename) {
     filename_ = filename;
-    size_ = size;
+    // size_ = size;
 }
 
 bool FakeMDS::Initialize() {
