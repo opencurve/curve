@@ -9,9 +9,11 @@
 #define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_MANAGER_H_
 
 #include <string>
+#include <vector>
 
 #include "src/mds/topology/topology.h"
 #include "src/mds/copyset/copyset_manager.h"
+#include "src/mds/copyset/copyset_policy.h"
 
 namespace curve {
 namespace mds {
@@ -92,6 +94,18 @@ class TopologyServiceManager {
     virtual void GetChunkServerListInCopySets(
                       const GetChunkServerListInCopySetsRequest* request,
                       GetChunkServerListInCopySetsResponse* response);
+
+
+ private:
+    int CreateCopysetForLogicalPool(
+        const LogicalPool &lPool);
+
+    int GenCopysetForPageFilePool(
+        const LogicalPool &lPool,
+        std::vector<CopySetInfo> *copysetInfos);
+
+    int CreateCopysetOnChunkServer(
+        const std::vector<CopySetInfo> &copysetInfos);
 
  private:
     std::shared_ptr<Topology> topology_;

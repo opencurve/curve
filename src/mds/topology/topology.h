@@ -66,6 +66,7 @@ class Topology {
     int AddServer(const Server &data);
     int AddChunkServer(const ChunkServer &data);
     int AddCopySet(const CopySetInfo &data);
+    int AddCopySetList(const std::vector<CopySetInfo> &copysets);
 
 // remove
     int RemoveLogicalPool(PoolIdType id);

@@ -611,35 +611,35 @@ int Topology::init() {
     PoolIdType maxLogicalPoolId;
     if (!storage_->LoadLogicalPool(&logicalPoolMap_, &maxLogicalPoolId)) {
         LOG(ERROR) << "[Topology::init], LoadLogicalPool fail.";
-        return kTopoErrCodeInitFail;
+        return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initLogicalPoolIdGenerator(maxLogicalPoolId);
 
     PoolIdType maxPhysicalPoolId;
     if (!storage_->LoadPhysicalPool(&physicalPoolMap_, &maxPhysicalPoolId)) {
         LOG(ERROR) << "[Topology::init], LoadPhysicalPool fail.";
-        return kTopoErrCodeInitFail;
+        return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initPhysicalPoolIdGenerator(maxPhysicalPoolId);
 
     ZoneIdType maxZoneId;
     if (!storage_->LoadZone(&zoneMap_, &maxZoneId)) {
         LOG(ERROR) << "[Topology::init], LoadZone fail.";
-        return kTopoErrCodeInitFail;
+        return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initZoneIdGenerator(maxZoneId);
 
     ServerIdType maxServerId;
     if (!storage_->LoadServer(&serverMap_, &maxServerId)) {
         LOG(ERROR) << "[Topology::init], LoadServer fail.";
-        return kTopoErrCodeInitFail;
+        return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initServerIdGenerator(maxServerId);
 
     ChunkServerIdType maxChunkServerId;
     if (!storage_->LoadChunkServer(&chunkServerMap_, &maxChunkServerId)) {
         LOG(ERROR) << "[Topology::init], LoadChunkServer fail.";
-        return kTopoErrCodeInitFail;
+        return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initChunkServerIdGenerator(maxChunkServerId);
 
@@ -690,6 +690,52 @@ int Topology::AddCopySet(const CopySetInfo &data) {
         }
     } else {
         return kTopoErrCodeLogicalPoolNotFound;
+    }
+}
+
+
+// TODO(xuchaojie): 优化该逻辑，移除下述事物操作
+int Topology::AddCopySetList(const std::vector<CopySetInfo> &copysets) {
+    // 获取所有的锁，数据库事务操作时不允许其他数据库操作
+    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
+    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
+    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
+    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
+    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
+    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    for (const CopySetInfo &data : copysets) {
+        auto it = logicalPoolMap_.find(data.GetLogicalPoolId());
+        if (it != logicalPoolMap_.end()) {
+            CopySetKey key(data.GetLogicalPoolId(), data.GetId());
+            if (copySetMap_.find(key) != copySetMap_.end()) {
+                return kTopoErrCodeIdDuplicated;
+            }
+        } else {
+            return kTopoErrCodeLogicalPoolNotFound;
+        }
+    }
+
+    bool success = true;
+    storage_->SetAutoCommit(false);
+    for (const CopySetInfo &data : copysets) {
+        if (!storage_->StorageCopySet(data)) {
+            success = false;
+            break;
+        }
+    }
+
+    if (success) {
+        storage_->Commit();
+        storage_->SetAutoCommit(true);
+        for (const CopySetInfo &data : copysets) {
+            CopySetKey key(data.GetLogicalPoolId(), data.GetId());
+            copySetMap_[key] = data;
+        }
+        return kTopoErrCodeSuccess;
+    } else {
+        storage_->RollBack();
+        storage_->SetAutoCommit(true);
+        return kTopoErrCodeStorgeFail;
     }
 }
 

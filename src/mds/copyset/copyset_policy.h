@@ -69,6 +69,10 @@ class ClusterInfo {
         return csInfo_;
     }
 
+    uint32_t GetClusterSize() const {
+        return csInfo_.size();
+    }
+
  protected:
     std::vector<ChunkServerInfo> csInfo_;
 };
@@ -108,6 +112,9 @@ class CopysetPolicy {
 
 
 class CopysetPermutationPolicy {
+ public:
+    static const uint32_t NUM_ANY = 0;
+
  public:
     CopysetPermutationPolicy()
     : zoneNum_(0),
@@ -186,7 +193,18 @@ class CopysetPermutationPolicy333 : public CopysetPermutationPolicy {
 
     ~CopysetPermutationPolicy333() {}
 
-    virtual bool permutation(std::vector<ChunkServerInfo> *servers);
+    bool permutation(std::vector<ChunkServerInfo> *chunkServers) override;
+};
+
+
+class CopysetPermutationPolicyN33 : public CopysetPermutationPolicy {
+ public:
+    CopysetPermutationPolicyN33()
+        : CopysetPermutationPolicy(CopysetPermutationPolicy::NUM_ANY, 3, 3) {}
+
+    ~CopysetPermutationPolicyN33() {}
+
+    bool permutation(std::vector<ChunkServerInfo> *chunkServers) override;
 };
 
 }  // namespace copyset

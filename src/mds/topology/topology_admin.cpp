@@ -7,10 +7,13 @@
 
 #include "src/mds/topology/topology_admin.h"
 
+#include <glog/logging.h>
+
 #include <cstdlib>
 #include <ctime>
 #include <vector>
 #include <list>
+
 
 namespace curve {
 namespace mds {
@@ -48,6 +51,11 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
         };
 
     FilterLogicalPool(logicalPoolFilter, &logicalPools);
+    if (0 == logicalPools.size()) {
+        LOG(ERROR) << "[AllocateChunkRandomInSingleLogicalPool]:"
+                   << " Does not have any logicalPool needed.";
+        return false;
+    }
 
     std::srand(std::time(nullptr));
     int randomIndex = std::rand() % logicalPools.size();
@@ -68,10 +76,10 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
     return true;
 }
 
+// TODO(xuchaojie): 后续增加多种chunk分配策略
 
 void TopologyAdminImpl::FilterLogicalPool(LogicalPoolFilter filter,
     std::vector<PoolIdType> *logicalPoolIdsOut) {
-
     logicalPoolIdsOut->clear();
 
     std::list<PoolIdType> logicalPoolList =
