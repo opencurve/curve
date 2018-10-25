@@ -14,6 +14,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 
 #include "src/mds/repo/repo.h"
 #include "src/mds/repo/repoItem.h"
@@ -69,61 +70,24 @@ bool DefaultTopologyStorage::LoadLogicalPool(
         LogicalPool::RedundanceAndPlaceMentPolicy rap;
         LogicalPool::UserPolicy policy;
 
-        Json::Reader reader;
-        Json::Value rapJson;
-        if (!reader.parse(rp.redundanceAndPlacementPolicy, rapJson)) {
+        if (!LogicalPool::TransRedundanceAndPlaceMentPolicyFromJsonStr(
+                rp.redundanceAndPlacementPolicy,
+                static_cast<LogicalPoolType>(rp.type),
+                &rap)) {
             LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
-                       << "parse redundanceAndPlacementPolicy json fail.";
+                       << "parse redundanceAndPlacementPolicy string fail.";
             return false;
         }
 
-        switch (rp.type) {
-            case LogicalPoolType::PAGEFILE: {
-                if (!rapJson["replicaNum"].isNull()) {
-                    rap.pageFileRAP.replicaNum =
-                        rapJson["replicaNum"].asInt();
-                } else {
-                    return false;
-                }
-                if (!rapJson["copysetNum"].isNull()) {
-                    rap.pageFileRAP.copysetNum =
-                        rapJson["copysetNum"].asInt();
-                } else {
-                    return false;
-                }
-                if (!rapJson["zoneNum"].isNull()) {
-                    rap.pageFileRAP.zoneNum = rapJson["zoneNum"].asInt();
-                } else {
-                    return false;
-                }
-                break;
-            }
-            case LogicalPoolType::APPENDFILE: {
-                // TODO(xuchaojie): it is not done.
-                LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
-                           << "logicalpool type error, type = "
-                           << rp.type;
-                return false;
-                break;
-            }
-            case LogicalPoolType::APPENDECFILE: {
-                // TODO(xuchaojie): it is not done.
-                LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
-                           << "logicalpool type error, type = "
-                           << rp.type;
-                return false;
-                break;
-            }
-            default: {
-                LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
-                           << "logicalpool type error, type = "
-                           << rp.type;
-                return false;
-                break;
-            }
+        if (!LogicalPool::TransUserPolicyFromJsonStr(
+                rp.userPolicy,
+                static_cast<LogicalPoolType>(rp.type),
+                &policy)) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
+                       << "parse userPolicy string fail.";
+            return false;
         }
 
-        // TODO(xuchaojie): parse JSON String to fill policy objects
         LogicalPool pool(rp.logicalPoolID,
                          rp.logicalPoolName,
                          rp.physicalPoolID,
@@ -131,8 +95,16 @@ bool DefaultTopologyStorage::LoadLogicalPool(
                          rap,
                          policy,
                          rp.createTime);
-        logicalPoolMap->emplace(std::make_pair(rp.logicalPoolID, pool));
-
+        pool.SetStatus(static_cast<LogicalPool::LogicalPoolStatus>(rp.status));
+        auto ret = logicalPoolMap->emplace(
+            std::move(rp.logicalPoolID),
+            std::move(pool));
+        if (!ret.second) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
+                       << "id duplicated, id ="
+                       << rp.logicalPoolID;
+            return false;
+        }
         if (rp.logicalPoolID > *maxLogicalPoolId) {
             *maxLogicalPoolId = rp.logicalPoolID;
         }
@@ -155,7 +127,15 @@ bool DefaultTopologyStorage::LoadPhysicalPool(
         PhysicalPool pool(rp.physicalPoolID,
                           rp.physicalPoolName,
                           rp.desc);
-        physicalPoolMap->emplace(std::make_pair(rp.physicalPoolID, pool));
+        auto ret = physicalPoolMap->emplace(
+            std::move(rp.physicalPoolID),
+            std::move(pool));
+        if (!ret.second) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadPhysicalPool]: "
+                       << "id duplicated, id ="
+                       << rp.physicalPoolID;
+            return false;
+        }
         if (rp.physicalPoolID > *maxPhysicalPoolId) {
             *maxPhysicalPoolId = rp.physicalPoolID;
         }
@@ -179,7 +159,15 @@ bool DefaultTopologyStorage::LoadZone(
                   rp.zoneName,
                   rp.poolID,
                   rp.desc);
-        zoneMap->emplace(std::make_pair(rp.zoneID, zone));
+        auto ret = zoneMap->emplace(
+            std::move(rp.zoneID),
+            std::move(zone));
+        if (!ret.second) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadZone]: "
+                       << "zoneId duplicated, zoneId = "
+                       << rp.zoneID;
+            return false;
+        }
         if (rp.zoneID > *maxZoneId) {
             *maxZoneId = rp.zoneID;
         }
@@ -190,15 +178,15 @@ bool DefaultTopologyStorage::LoadZone(
 bool DefaultTopologyStorage::LoadServer(
     std::unordered_map<ServerIdType, Server> *serverMap,
     ServerIdType *maxServerId) {
-    std::vector<ServerRepo> ServerRepos;
-    if (repo_->LoadServerRepos(&ServerRepos) != OperationOK) {
+    std::vector<ServerRepo> serverRepos;
+    if (repo_->LoadServerRepos(&serverRepos) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::LoadServer]: "
                    << "LoadServerRepos fail.";
         return false;
     }
     serverMap->clear();
     *maxServerId = 0;
-    for (ServerRepo &rp : ServerRepos) {
+    for (ServerRepo &rp : serverRepos) {
         Server server(rp.serverID,
                       rp.hostName,
                       rp.internalHostIP,
@@ -206,7 +194,15 @@ bool DefaultTopologyStorage::LoadServer(
                       rp.zoneID,
                       rp.poolID,
                       rp.desc);
-        serverMap->emplace(std::make_pair(rp.serverID, server));
+        auto ret = serverMap->emplace(
+            std::move(rp.serverID),
+            std::move(server));
+        if (!ret.second) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadServer]: "
+                       << "serverId duplicated, serverId = "
+                       << rp.serverID;
+            return false;
+        }
         if (rp.serverID > *maxServerId) {
             *maxServerId = rp.serverID;
         }
@@ -240,7 +236,15 @@ bool DefaultTopologyStorage::LoadChunkServer(
         csState.SetDiskCapacity(rp.capacity);
         csState.SetDiskUsed(rp.used);
         cs.SetChunkServerState(csState);
-        chunkServerMap->emplace(std::make_pair(rp.chunkServerID, cs));
+        auto ret = chunkServerMap->emplace(
+            std::move(rp.chunkServerID),
+            std::move(cs));
+        if (!ret.second) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadChunkServer]: "
+                       << "chunkServerID duplicated, id = "
+                       << rp.chunkServerID;
+            return false;
+        }
         if (rp.chunkServerID > *maxChunkServerId) {
             *maxChunkServerId = rp.chunkServerID;
         }
@@ -261,18 +265,23 @@ bool DefaultTopologyStorage::LoadCopySet(
     copySetIdMaxMap->clear();
     for (CopySetRepo &rp : copySetRepos) {
         CopySetInfo copyset(rp.logicalPoolID, rp.copySetID);
-        std::set<ChunkServerIdType> idList;
-        Json::Reader reader;
-        Json::Value copysetMemJson;
-        if (!reader.parse(rp.chunkServerIDList, copysetMemJson)) {
+        if (!copyset.SetCopySetMembersByJson(rp.chunkServerIDList)) {
             LOG(ERROR) << "[DefaultTopologyStorage::LoadCopySet]: "
                        << "parse json string fail.";
             return false;
         }
-        for (int i = 0; i < copysetMemJson.size(); i++) {
-            idList.insert(copysetMemJson[i].asInt());
+        std::pair<PoolIdType, CopySetIdType> key(rp.logicalPoolID,
+            rp.copySetID);
+        auto ret = copySetMap->emplace(std::move(key),
+                std::move(copyset));
+        if (!ret.second) {
+            LOG(ERROR) << "[DefaultTopologyStorage::LoadCopySet]: "
+                       << "copySet Id duplicated, logicalPoolId = "
+                       << rp.logicalPoolID
+                       << " , copySetId = "
+                       << rp.copySetID;
+            return false;
         }
-        copyset.SetCopySetMembers(idList);
         if ((*copySetIdMaxMap)[rp.logicalPoolID] < rp.copySetID) {
             (*copySetIdMaxMap)[rp.logicalPoolID] = rp.copySetID;
         }
@@ -281,40 +290,10 @@ bool DefaultTopologyStorage::LoadCopySet(
 }
 
 bool DefaultTopologyStorage::StorageLogicalPool(const LogicalPool &data) {
-    LogicalPool::RedundanceAndPlaceMentPolicy rap =
-        data.GetRedundanceAndPlaceMentPolicy();
-    LogicalPool::UserPolicy policy = data.GetUserPolicy();
-    Json::Value rapJson;
-    switch (data.GetLogicalPoolType()) {
-        case LogicalPoolType::PAGEFILE : {
-            rapJson["replicaNum"] = rap.pageFileRAP.replicaNum;
-            rapJson["copysetNum"] = rap.pageFileRAP.copysetNum;
-            rapJson["zoneNum"] = rap.pageFileRAP.zoneNum;
-            break;
-        }
-        case LogicalPoolType::APPENDFILE : {
-            // TODO(xuchaojie): fix it
-            LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
-                       << "logicalpool type error.";
-            return false;
-            break;
-        }
-        case LogicalPoolType::APPENDECFILE : {
-            // TODO(xuchaojie): fix it
-            LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
-                       << "logicalpool type error.";
-            return false;
-            break;
-        }
-        default:
-            LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
-                       << "logicalpool type error.";
-            return false;
-            break;
-    }
-    std::string rapStr = rapJson.toStyledString();
-    // TODO(xuchaojie) Parse policy to JSON string
-    std::string policyStr = rapStr;
+    std::string rapStr =
+        data.GetRedundanceAndPlaceMentPolicyJsonStr();
+    std::string policyStr =
+        data.GetUserPolicyJsonStr();
     LogicalPoolRepo rp(data.GetId(),
                        data.GetName(),
                        data.GetPhysicalPoolId(),
@@ -396,12 +375,7 @@ bool DefaultTopologyStorage::StorageChunkServer(const ChunkServer &data) {
 }
 
 bool DefaultTopologyStorage::StorageCopySet(const CopySetInfo &data) {
-    Json::Value copysetMemJson;
-    for (ChunkServerIdType id : data.GetCopySetMembers()) {
-        copysetMemJson.append(id);
-    }
-    std::string chunkServerListStr = copysetMemJson.toStyledString();
-
+    std::string chunkServerListStr = data.GetCopySetMembersStr();
     CopySetRepo rp(data.GetId(),
                    data.GetLogicalPoolId(),
                    chunkServerListStr);
@@ -468,40 +442,10 @@ bool DefaultTopologyStorage::DeleteCopySet(CopySetKey key) {
 }
 
 bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
-    LogicalPool::RedundanceAndPlaceMentPolicy rap =
-        data.GetRedundanceAndPlaceMentPolicy();
-    LogicalPool::UserPolicy policy = data.GetUserPolicy();
-    Json::Value rapJson;
-    switch (data.GetLogicalPoolType()) {
-        case LogicalPoolType::PAGEFILE : {
-            rapJson["replicaNum"] = rap.pageFileRAP.replicaNum;
-            rapJson["copysetNum"] = rap.pageFileRAP.copysetNum;
-            rapJson["zoneNum"] = rap.pageFileRAP.zoneNum;
-            break;
-        }
-        case LogicalPoolType::APPENDFILE : {
-            LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
-                       << "logicalpool type error.";
-            // TODO(xuchaojie): fix it
-            return false;
-            break;
-        }
-        case LogicalPoolType::APPENDECFILE : {
-            LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
-                       << "logicalpool type error.";
-            // TODO(xuchaojie): fix it
-            return false;
-            break;
-        }
-        default:
-            LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
-                       << "logicalpool type error.";
-            return false;
-            break;
-    }
-    std::string rapStr = rapJson.toStyledString();
-
-    // TODO(xuchaojie) Parse policy to JSON string
+    std::string rapStr =
+        data.GetRedundanceAndPlaceMentPolicyJsonStr();
+    std::string policyStr =
+        data.GetUserPolicyJsonStr();
     LogicalPoolRepo rp(data.GetId(),
                        data.GetName(),
                        data.GetPhysicalPoolId(),
@@ -509,7 +453,7 @@ bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
                        data.GetCreateTime(),
                        data.GetStatus(),
                        rapStr,
-                       "");
+                       policyStr);
     if (repo_->UpdateLogicalPoolRepo(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
                    << "UpdateLogicalPoolRepo fail.";
@@ -583,12 +527,7 @@ bool DefaultTopologyStorage::UpdateChunkServer(const ChunkServer &data) {
 }
 
 bool DefaultTopologyStorage::UpdateCopySet(const CopySetInfo &data) {
-    Json::Value copysetMemJson;
-    for (ChunkServerIdType id : data.GetCopySetMembers()) {
-        copysetMemJson.append(id);
-    }
-    std::string chunkServerListStr = copysetMemJson.toStyledString();
-
+    std::string chunkServerListStr = data.GetCopySetMembersStr();
     CopySetRepo rp(data.GetId(),
                    data.GetLogicalPoolId(),
                    chunkServerListStr);
@@ -598,6 +537,18 @@ bool DefaultTopologyStorage::UpdateCopySet(const CopySetInfo &data) {
         return false;
     }
     return true;
+}
+
+bool DefaultTopologyStorage::SetAutoCommit(const bool &autoCommit) {
+    return OperationOK == repo_->SetAutoCommit(autoCommit);
+}
+
+bool DefaultTopologyStorage::Commit() {
+    return OperationOK == repo_->Commit();
+}
+
+bool DefaultTopologyStorage::RollBack() {
+    return OperationOK == repo_->RollBack();
 }
 
 }  // namespace topology

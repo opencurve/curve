@@ -137,10 +137,10 @@ class TestTopologyServiceManager : public ::testing::Test {
     }
 
     void PrepareAddChunkServer(ChunkServerIdType id = 0x41,
-                const std::string token = "testToken",
+                const std::string &token = "testToken",
                 const std::string &diskType = "nvme",
                 ServerIdType serverId = 0x31,
-                const std::string hostIp = "testInternalIp",
+                const std::string &hostIp = "testInternalIp",
                 uint32_t port = 0,
                 const std::string &diskPath = "/") {
             ChunkServer cs(id,
@@ -215,15 +215,6 @@ TEST_F(TestTopologyServiceManager, test_RegistChunkServer_Success) {
     ASSERT_EQ(token, response.token());
 }
 
-TEST_F(TestTopologyServiceManager, test_RegistChunkServer_InvalidParam) {
-    ChunkServerRegistRequest request;
-    ChunkServerRegistResponse response;
-
-    serviceManager_->RegistChunkServer(&request, &response);
-
-    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
-}
-
 TEST_F(TestTopologyServiceManager, test_RegistChunkServer_ServerNotFound) {
     ServerIdType serverId = 0x31;
     std::string token = "token";
@@ -267,6 +258,37 @@ TEST_F(TestTopologyServiceManager, test_RegistChunkServer_AllocateIdFail) {
     serviceManager_->RegistChunkServer(&request, &response);
 
     ASSERT_EQ(kTopoErrCodeAllocateIdFail, response.statuscode());
+}
+
+TEST_F(TestTopologyServiceManager, test_RegistChunkServer_AddChunkServerFail) {
+    ChunkServerIdType csId = 0x41;
+    ServerIdType serverId = 0x31;
+    std::string token = "token";
+
+    PrepareAddPhysicalPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId, "testServer", "testInternalIp");
+
+    ChunkServerRegistRequest request;
+    request.set_disktype("ssd");
+    request.set_diskpath("/");
+    request.set_hostip("testInternalIp");
+    request.set_port(100);
+
+    ChunkServerRegistResponse response;
+
+    EXPECT_CALL(*tokenGenerator_, GenToken())
+        .WillOnce(Return(token));
+    EXPECT_CALL(*idGenerator_, GenChunkServerId())
+        .WillOnce(Return(csId));
+
+    EXPECT_CALL(*storage_, StorageChunkServer(_))
+        .WillOnce(Return(false));
+    serviceManager_->RegistChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeStorgeFail, response.statuscode());
+    ASSERT_FALSE(response.has_chunkserverid());
+    ASSERT_FALSE(response.has_token());
 }
 
 TEST_F(TestTopologyServiceManager, test_ListChunkServer_ByIdSuccess) {
@@ -362,6 +384,29 @@ TEST_F(TestTopologyServiceManager, test_ListChunkServer_ServerNotFound) {
     ASSERT_EQ(0, response.chunkserverinfos_size());
 }
 
+TEST_F(TestTopologyServiceManager, test_ListChunkServer_IpServerNotFound) {
+    ChunkServerIdType csId1 = 0x41;
+    ChunkServerIdType csId2 = 0x42;
+    ServerIdType serverId = 0x31;
+
+    PrepareAddPhysicalPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId, "server", "ip1", "ip2");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "/", 100);
+    PrepareAddChunkServer(csId2, "token2", "nvme", serverId, "/", 200);
+
+    ListChunkServerRequest request;
+    request.set_ip("ip3");
+
+    ListChunkServerResponse response;
+
+    serviceManager_->ListChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeServerNotFound, response.statuscode());
+
+    ASSERT_EQ(0, response.chunkserverinfos_size());
+}
+
 TEST_F(TestTopologyServiceManager, test_ListChunkServer_InvalidParam) {
     ListChunkServerRequest request;
     ListChunkServerResponse response;
@@ -433,6 +478,27 @@ TEST_F(TestTopologyServiceManager, test_GetChunkServer_ChunkServerNotFound) {
 
     GetChunkServerInfoRequest request;
     request.set_chunkserverid(++csId1);
+
+    GetChunkServerInfoResponse response;
+    serviceManager_->GetChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeChunkServerNotFound, response.statuscode());
+    ASSERT_FALSE(response.has_chunkserverinfo());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_GetChunkServer_ByIpChunkServerNotFound) {
+    ChunkServerIdType csId1 = 0x41;
+    ServerIdType serverId = 0x31;
+
+    PrepareAddPhysicalPool();
+    PrepareAddZone();
+    PrepareAddServer(serverId, "server", "ip1", "ip2");
+    PrepareAddChunkServer(csId1, "token1", "nvme", serverId, "ip1", 100, "/");
+
+    GetChunkServerInfoRequest request;
+    request.set_hostip("ip3");
+    request.set_port(1024);
 
     GetChunkServerInfoResponse response;
     serviceManager_->GetChunkServer(&request, &response);
@@ -611,6 +677,30 @@ TEST_F(TestTopologyServiceManager, test_RegistServer_PhysicalPoolNotFound) {
     ASSERT_FALSE(response.has_serverid());
 }
 
+TEST_F(TestTopologyServiceManager,
+    test_RegistServer_ByNamePhysicalPoolNotFound) {
+    ServerIdType id = 0x31;
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPhysicalPool(physicalPoolId, "PhysicalPool1");
+    PrepareAddZone(zoneId, "zone1", physicalPoolId);
+
+    ServerRegistRequest request;
+    request.set_hostname("server1");
+    request.set_internalip("ip1");
+    request.set_externalip("ip2");
+    request.set_zonename("zone1");
+    request.set_physicalpoolname("PhysicalPool2");
+    request.set_desc("desc1");
+
+    ServerRegistResponse response;
+
+    serviceManager_->RegistServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodePhysicalPoolNotFound, response.statuscode());
+    ASSERT_FALSE(response.has_serverid());
+}
+
 TEST_F(TestTopologyServiceManager, test_RegistServer_ZoneNotFound) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
@@ -623,6 +713,29 @@ TEST_F(TestTopologyServiceManager, test_RegistServer_ZoneNotFound) {
     request.set_externalip("ip2");
     request.set_zoneid(++zoneId);
     request.set_physicalpoolid(physicalPoolId);
+    request.set_desc("desc1");
+
+    ServerRegistResponse response;
+
+    serviceManager_->RegistServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeZoneNotFound, response.statuscode());
+    ASSERT_FALSE(response.has_serverid());
+}
+
+TEST_F(TestTopologyServiceManager, test_RegistServer_ByNameZoneNotFound) {
+    ServerIdType id = 0x31;
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPhysicalPool(physicalPoolId, "PhysicalPool1");
+    PrepareAddZone(zoneId, "zone1", physicalPoolId);
+
+    ServerRegistRequest request;
+    request.set_hostname("server1");
+    request.set_internalip("ip1");
+    request.set_externalip("ip2");
+    request.set_zonename("zone2");
+    request.set_physicalpoolname("PhysicalPool1");
     request.set_desc("desc1");
 
     ServerRegistResponse response;
@@ -646,6 +759,103 @@ TEST_F(TestTopologyServiceManager, test_RegistServer_InvalidParam) {
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
     ASSERT_FALSE(response.has_serverid());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_RegistServer_InvalidParamMissingZoneIdAndName) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId, "test", physicalPoolId);
+
+    ServerRegistRequest request;
+    request.set_hostname("server1");
+    request.set_internalip("ip1");
+    request.set_externalip("ip2");
+    request.set_physicalpoolid(physicalPoolId);
+    request.set_desc("desc1");
+
+    ServerRegistResponse response;
+
+    serviceManager_->RegistServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+    ASSERT_FALSE(response.has_serverid());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_RegistServer_InvalidParamMissingPhysicalPoolIdAndName) {
+    ServerIdType id = 0x31;
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPhysicalPool(physicalPoolId, "PhysicalPool1");
+    PrepareAddZone(zoneId, "zone1", physicalPoolId);
+
+    ServerRegistRequest request;
+    request.set_hostname("server1");
+    request.set_internalip("ip1");
+    request.set_externalip("ip2");
+    request.set_zonename("zone1");
+    request.set_desc("desc1");
+
+    ServerRegistResponse response;
+
+    serviceManager_->RegistServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+    ASSERT_FALSE(response.has_serverid());
+}
+
+TEST_F(TestTopologyServiceManager, test_RegistServer_AllocateIdFail) {
+    ServerIdType id = 0x31;
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId, "test", physicalPoolId);
+
+    ServerRegistRequest request;
+    request.set_hostname("server1");
+    request.set_internalip("ip1");
+    request.set_externalip("ip2");
+    request.set_zoneid(zoneId);
+    request.set_physicalpoolid(physicalPoolId);
+    request.set_desc("desc1");
+
+    ServerRegistResponse response;
+
+    EXPECT_CALL(*idGenerator_, GenServerId())
+        .WillOnce(Return(TopologyIdGenerator::UNINTIALIZE_ID));
+
+    serviceManager_->RegistServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeAllocateIdFail, response.statuscode());
+}
+
+TEST_F(TestTopologyServiceManager, test_RegistServer_AddServerFail) {
+    ServerIdType id = 0x31;
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId, "test", physicalPoolId);
+
+    ServerRegistRequest request;
+    request.set_hostname("server1");
+    request.set_internalip("ip1");
+    request.set_externalip("ip2");
+    request.set_zoneid(zoneId);
+    request.set_physicalpoolid(physicalPoolId);
+    request.set_desc("desc1");
+
+    ServerRegistResponse response;
+
+    EXPECT_CALL(*idGenerator_, GenServerId())
+        .WillOnce(Return(id));
+    EXPECT_CALL(*storage_, StorageServer(_))
+        .WillOnce(Return(false));
+
+    serviceManager_->RegistServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeStorgeFail, response.statuscode());
 }
 
 TEST_F(TestTopologyServiceManager, test_GetServer_ByIdSuccess) {
@@ -801,6 +1011,83 @@ TEST_F(TestTopologyServiceManager, test_GetServer_ServerNotFound) {
     ASSERT_FALSE(response.has_serverinfo());
 }
 
+TEST_F(TestTopologyServiceManager, test_GetServer_ByNameServerNotFound) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId,
+        "hostname1",
+        "ip1",
+        "ip2",
+        zoneId,
+        physicalPoolId,
+        "desc1");
+
+    GetServerRequest request;
+    request.set_hostname("hostname2");
+
+    GetServerResponse response;
+
+    serviceManager_->GetServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeServerNotFound, response.statuscode());
+    ASSERT_FALSE(response.has_serverinfo());
+}
+
+TEST_F(TestTopologyServiceManager, test_GetServer_ByIpServerNotFound) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId,
+        "hostname1",
+        "ip1",
+        "ip2",
+        zoneId,
+        physicalPoolId,
+        "desc1");
+
+    GetServerRequest request;
+    request.set_hostip("ip3");
+
+    GetServerResponse response;
+
+    serviceManager_->GetServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeServerNotFound, response.statuscode());
+    ASSERT_FALSE(response.has_serverinfo());
+}
+
+TEST_F(TestTopologyServiceManager, test_DeleteServer_success) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId,
+        "hostname1",
+        "ip1",
+        "ip2",
+        zoneId,
+        physicalPoolId,
+        "desc1");
+
+    DeleteServerRequest request;
+    request.set_serverid(serverId);
+
+    DeleteServerResponse response;
+
+    EXPECT_CALL(*storage_, DeleteServer(_))
+        .WillOnce(Return(true));
+
+    serviceManager_->DeleteServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
 TEST_F(TestTopologyServiceManager, test_ListZoneServer_ByIdSuccess) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
@@ -934,6 +1221,39 @@ TEST_F(TestTopologyServiceManager, test_ListZoneServer_ZoneNotFound) {
     ASSERT_EQ(0, response.serverinfo_size());
 }
 
+TEST_F(TestTopologyServiceManager, test_ListZoneServer_ByNameZoneNotFound) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    ServerIdType serverId2 = 0x32;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId,
+        "hostname1",
+        "ip1",
+        "ip2",
+        zoneId,
+        physicalPoolId,
+        "desc1");
+    PrepareAddServer(serverId2,
+        "hostname2",
+        "ip3",
+        "ip4",
+        zoneId,
+        physicalPoolId,
+        "desc2");
+
+    ListZoneServerRequest request;
+    request.set_zonename("zone2");
+    request.set_physicalpoolname("poolName1");
+
+    ListZoneServerResponse response;
+    serviceManager_->ListZoneServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeZoneNotFound, response.statuscode());
+    ASSERT_EQ(0, response.serverinfo_size());
+}
+
 TEST_F(TestTopologyServiceManager, test_ListZoneServer_InvalidParam) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
@@ -993,6 +1313,25 @@ TEST_F(TestTopologyServiceManager, test_CreateZone_success) {
     ASSERT_EQ("desc1", response.zoneinfo().desc());
 }
 
+TEST_F(TestTopologyServiceManager, test_CreateZone_AllocateIdFail) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPhysicalPool(physicalPoolId, "poolname1");
+
+    ZoneRequest request;
+    request.set_zonename("zone1");
+    request.set_physicalpoolname("poolname1");
+    request.set_desc("desc1");
+
+    EXPECT_CALL(*idGenerator_, GenZoneId())
+        .WillOnce(Return(TopologyIdGenerator::UNINTIALIZE_ID));
+
+    ZoneResponse response;
+
+    serviceManager_->CreateZone(&request, &response);
+    ASSERT_EQ(kTopoErrCodeAllocateIdFail, response.statuscode());
+}
+
 TEST_F(TestTopologyServiceManager, test_CreateZone_PhysicalPoolNotFound) {
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId, "poolname1");
@@ -1021,6 +1360,28 @@ TEST_F(TestTopologyServiceManager, test_CreateZone_InvalidParam) {
     ASSERT_FALSE(response.has_zoneinfo());
 }
 
+TEST_F(TestTopologyServiceManager, test_CreateZone_AddZoneFail) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    PrepareAddPhysicalPool(physicalPoolId, "poolname1");
+
+    ZoneRequest request;
+    request.set_zonename("zone1");
+    request.set_physicalpoolname("poolname1");
+    request.set_desc("desc1");
+
+    EXPECT_CALL(*idGenerator_, GenZoneId())
+        .WillOnce(Return(zoneId));
+
+    EXPECT_CALL(*storage_, StorageZone(_))
+        .WillOnce(Return(false));
+
+    ZoneResponse response;
+
+    serviceManager_->CreateZone(&request, &response);
+    ASSERT_EQ(kTopoErrCodeStorgeFail, response.statuscode());
+}
+
 TEST_F(TestTopologyServiceManager, test_DeleteZone_Success) {
     ZoneIdType zoneId = 0x21;
     PoolIdType poolId = 0x11;
@@ -1041,6 +1402,27 @@ TEST_F(TestTopologyServiceManager, test_DeleteZone_Success) {
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
 }
 
+TEST_F(TestTopologyServiceManager, test_DeleteZone_ByNameSuccess) {
+    ZoneIdType zoneId = 0x21;
+    PoolIdType poolId = 0x11;
+    PrepareAddPhysicalPool(poolId, "pool1");
+    PrepareAddZone(zoneId,
+            "testZone",
+            poolId);
+
+    ZoneRequest request;
+    request.set_zonename("testZone");
+    request.set_physicalpoolname("pool1");
+
+    EXPECT_CALL(*storage_, DeleteZone(_))
+        .WillOnce(Return(true));
+
+    ZoneResponse response;
+    serviceManager_->DeleteZone(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
 TEST_F(TestTopologyServiceManager, test_DeleteZone_ZoneNotFound) {
     ZoneIdType zoneId = 0x21;
     PoolIdType poolId = 0x11;
@@ -1051,6 +1433,24 @@ TEST_F(TestTopologyServiceManager, test_DeleteZone_ZoneNotFound) {
 
     ZoneRequest request;
     request.set_zoneid(++zoneId);
+
+    ZoneResponse response;
+    serviceManager_->DeleteZone(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeZoneNotFound, response.statuscode());
+}
+
+TEST_F(TestTopologyServiceManager, test_DeleteZone_ByNameFail) {
+    ZoneIdType zoneId = 0x21;
+    PoolIdType poolId = 0x11;
+    PrepareAddPhysicalPool(poolId, "pool1");
+    PrepareAddZone(zoneId,
+            "testZone",
+            poolId);
+
+    ZoneRequest request;
+    request.set_zonename("testZone2");
+    request.set_physicalpoolname("pool1");
 
     ZoneResponse response;
     serviceManager_->DeleteZone(&request, &response);
@@ -1097,6 +1497,30 @@ TEST_F(TestTopologyServiceManager, test_GetZone_Success) {
     ASSERT_EQ("desc1", response.zoneinfo().desc());
 }
 
+TEST_F(TestTopologyServiceManager, test_GetZone_ByNameSuccess) {
+    ZoneIdType zoneId = 0x21;
+    PoolIdType poolId = 0x11;
+    PrepareAddPhysicalPool(poolId, "pool1");
+    PrepareAddZone(zoneId,
+            "testZone",
+            poolId,
+            "desc1");
+
+    ZoneRequest request;
+    request.set_zonename("testZone");
+    request.set_physicalpoolname("pool1");
+
+    ZoneResponse response;
+    serviceManager_->GetZone(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_TRUE(response.has_zoneinfo());
+    ASSERT_EQ(zoneId, response.zoneinfo().zoneid());
+    ASSERT_EQ("testZone", response.zoneinfo().zonename());
+    ASSERT_EQ(poolId, response.zoneinfo().physicalpoolid());
+    ASSERT_EQ("desc1", response.zoneinfo().desc());
+}
+
 TEST_F(TestTopologyServiceManager, test_GetZone_ZoneNotFound) {
     ZoneIdType zoneId = 0x21;
     PoolIdType poolId = 0x11;
@@ -1108,6 +1532,25 @@ TEST_F(TestTopologyServiceManager, test_GetZone_ZoneNotFound) {
 
     ZoneRequest request;
     request.set_zoneid(++zoneId);
+
+    ZoneResponse response;
+    serviceManager_->GetZone(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeZoneNotFound, response.statuscode());
+    ASSERT_FALSE(response.has_zoneinfo());
+}
+
+TEST_F(TestTopologyServiceManager, test_GetZone_ByNameZoneNotFound) {
+    ZoneIdType zoneId = 0x21;
+    PoolIdType poolId = 0x11;
+    PrepareAddPhysicalPool(poolId, "pool1");
+    PrepareAddZone(zoneId,
+            "testZone",
+            poolId);
+
+    ZoneRequest request;
+    request.set_zonename("testZone2");
+    request.set_physicalpoolname("pool1");
 
     ZoneResponse response;
     serviceManager_->GetZone(&request, &response);
@@ -1202,6 +1645,30 @@ TEST_F(TestTopologyServiceManager, test_ListPoolZone_ByNameSuccess) {
     ASSERT_THAT(response.zones(1).zonename(), AnyOf("testZone", "testZone2"));
     ASSERT_EQ(poolId, response.zones(1).physicalpoolid());
     ASSERT_THAT(response.zones(1).desc(), AnyOf("desc1", "desc2"));
+}
+
+TEST_F(TestTopologyServiceManager, test_ListPoolZone_ByNameFail) {
+    ZoneIdType zoneId = 0x21;
+    ZoneIdType zoneId2 = 0x22;
+    PoolIdType poolId = 0x11;
+    PrepareAddPhysicalPool(poolId, "poolname1");
+    PrepareAddZone(zoneId,
+            "testZone",
+            poolId,
+            "desc1");
+
+    PrepareAddZone(zoneId2,
+            "testZone2",
+            poolId,
+            "desc2");
+
+    ListPoolZoneRequest request;
+    request.set_physicalpoolname("poolname2");
+
+    ListPoolZoneResponse response;
+    serviceManager_->ListPoolZone(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodePhysicalPoolNotFound, response.statuscode());
 }
 
 TEST_F(TestTopologyServiceManager, test_ListPoolZone_PhysicalPoolNotFound) {
@@ -1319,7 +1786,6 @@ TEST_F(TestTopologyServiceManager, test_createPhysicalPool_StorageFail) {
     ASSERT_TRUE(false == response.has_physicalpoolinfo());
 }
 
-
 TEST_F(TestTopologyServiceManager, test_DeletePhysicalPool_ByIdSuccess) {
     PoolIdType pid = 0x12;
     PhysicalPoolRequest request;
@@ -1380,6 +1846,31 @@ TEST_F(TestTopologyServiceManager, test_DeletePhysicalPool_ByNameSuccess) {
     serviceManager_->DeletePhysicalPool(&request, &response);
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+TEST_F(TestTopologyServiceManager, test_DeletePhysicalPool_ByNameFail) {
+    std::string physicalPoolName = "testpool1";
+    PhysicalPoolRequest request;
+    request.set_physicalpoolname("testpool2");
+
+    PrepareAddPhysicalPool(0x12, physicalPoolName);
+
+    PhysicalPoolResponse response;
+    serviceManager_->DeletePhysicalPool(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodePhysicalPoolNotFound, response.statuscode());
+}
+
+TEST_F(TestTopologyServiceManager, test_DeletePhysicalPool_InvalidParam) {
+    std::string physicalPoolName = "testpool1";
+    PhysicalPoolRequest request;
+
+    PrepareAddPhysicalPool(0x12, physicalPoolName);
+
+    PhysicalPoolResponse response;
+    serviceManager_->DeletePhysicalPool(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
 }
 
 TEST_F(TestTopologyServiceManager, test_GetPhysicalPool_ByIdSuccess) {
@@ -1446,6 +1937,20 @@ TEST_F(TestTopologyServiceManager, test_GetPhysicalPool_ByNameSuccess) {
     ASSERT_EQ(pName, response.physicalpoolinfo().physicalpoolname());
 }
 
+TEST_F(TestTopologyServiceManager, test_GetPhysicalPool_ByNameFail) {
+    PoolIdType pid = 0x12;
+    std::string pName = "test1";
+
+    PhysicalPoolRequest request;
+    request.set_physicalpoolname("test2");
+
+    PrepareAddPhysicalPool(pid, pName);
+
+    PhysicalPoolResponse response;
+    serviceManager_->GetPhysicalPool(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodePhysicalPoolNotFound, response.statuscode());
+}
 
 TEST_F(TestTopologyServiceManager, test_listPhysicalPool_success) {
     ListPhysicalPoolRequest request;
@@ -1534,6 +2039,62 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
     ASSERT_EQ(PAGEFILE, response.logicalpoolinfo().type());
 }
 
+TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_ByNameSuccess) {
+    MockCopysetServiceImpl mockCopySetService;
+    ASSERT_EQ(server_->AddService(&mockCopySetService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId, "pPool1");
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddZone(0x22, "zone2", physicalPoolId);
+    PrepareAddZone(0x23, "zone3", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+
+    CreateLogicalPoolRequest request;
+    request.set_logicalpoolname("logicalpoolName1");
+    request.set_physicalpoolname("pPool1");
+    request.set_type(PAGEFILE);
+    request.set_redundanceandplacementpolicy(
+        "{\"replicaNum\":3, \"copysetNum\":1, \"zoneNum\":3}");
+    request.set_userpolicy("{}");
+
+    EXPECT_CALL(*idGenerator_, GenLogicalPoolId())
+        .WillOnce(Return(logicalPoolId));
+    EXPECT_CALL(*storage_, StorageLogicalPool(_))
+        .WillOnce(Return(true));
+
+    CopySetIdType copysetId = 0x51;
+    EXPECT_CALL(*idGenerator_, GenCopySetId(_))
+        .WillRepeatedly(Return(copysetId));
+
+    EXPECT_CALL(*storage_, StorageCopySet(_))
+        .WillRepeatedly(Return(true));
+
+    CopysetResponse chunkserverResponse;
+    chunkserverResponse.set_status(
+        COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+    EXPECT_CALL(mockCopySetService, CreateCopysetNode(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(chunkserverResponse),
+            Invoke(CreateCopysetNodeFunc)));
+
+    CreateLogicalPoolResponse response;
+    serviceManager_->CreateLogicalPool(&request, &response);
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_TRUE(response.has_logicalpoolinfo());
+    ASSERT_EQ(logicalPoolId, response.logicalpoolinfo().logicalpoolid());
+    ASSERT_EQ("logicalpoolName1", response.logicalpoolinfo().logicalpoolname());
+    ASSERT_EQ(physicalPoolId, response.logicalpoolinfo().physicalpoolid());
+    ASSERT_EQ(PAGEFILE, response.logicalpoolinfo().type());
+}
+
 TEST_F(TestTopologyServiceManager,
     test_CreateLogicalPool_PhysicalPoolNotFound) {
     PoolIdType physicalPoolId = 0x11;
@@ -1549,6 +2110,41 @@ TEST_F(TestTopologyServiceManager,
     CreateLogicalPoolResponse response;
     serviceManager_->CreateLogicalPool(&request, &response);
     ASSERT_EQ(kTopoErrCodePhysicalPoolNotFound, response.statuscode());
+    ASSERT_FALSE(response.has_logicalpoolinfo());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_CreateLogicalPool_ByNamePhysicalPoolNotFound) {
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId, "pPool1");
+
+    CreateLogicalPoolRequest request;
+    request.set_logicalpoolname("logicalpoolName1");
+    request.set_physicalpoolname("pPool2");
+    request.set_type(PAGEFILE);
+    request.set_redundanceandplacementpolicy("{}");
+    request.set_userpolicy("{}");
+
+    CreateLogicalPoolResponse response;
+    serviceManager_->CreateLogicalPool(&request, &response);
+    ASSERT_EQ(kTopoErrCodePhysicalPoolNotFound, response.statuscode());
+    ASSERT_FALSE(response.has_logicalpoolinfo());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_CreateLogicalPool_InvalidParam) {
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId);
+
+    CreateLogicalPoolRequest request;
+    request.set_logicalpoolname("logicalpoolName1");
+    request.set_type(PAGEFILE);
+    request.set_redundanceandplacementpolicy("{}");
+    request.set_userpolicy("{}");
+
+    CreateLogicalPoolResponse response;
+    serviceManager_->CreateLogicalPool(&request, &response);
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
     ASSERT_FALSE(response.has_logicalpoolinfo());
 }
 
@@ -1595,6 +2191,21 @@ TEST_F(TestTopologyServiceManager, test_DeleteLogicalPool_LogicalPoolNotFound) {
 
     DeleteLogicalPoolRequest request;
     request.set_logicalpoolid(++id);
+
+    DeleteLogicalPoolResponse response;
+    serviceManager_->DeleteLogicalPool(&request, &response);
+    ASSERT_EQ(kTopoErrCodeLogicalPoolNotFound, response.statuscode());
+}
+
+TEST_F(TestTopologyServiceManager, test_DeleteLogicalPool_ByNameFail) {
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId, "physicalpoolname");
+    PoolIdType id = 0x01;
+    PrepareAddLogicalPool(id, "name", physicalPoolId);
+
+    DeleteLogicalPoolRequest request;
+    request.set_logicalpoolname("name2");
+    request.set_physicalpoolname("physicalpoolname");
 
     DeleteLogicalPoolResponse response;
     serviceManager_->DeleteLogicalPool(&request, &response);
@@ -1665,6 +2276,21 @@ TEST_F(TestTopologyServiceManager, test_GetLogicalPool_LogicalPoolNotFound) {
     serviceManager_->GetLogicalPool(&request, &response);
     ASSERT_EQ(kTopoErrCodeLogicalPoolNotFound, response.statuscode());
     ASSERT_FALSE(response.has_logicalpoolinfo());
+}
+
+TEST_F(TestTopologyServiceManager, test_GetLogicalPool_ByNameFail) {
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId, "physicalpoolname");
+    PoolIdType id = 0x01;
+    PrepareAddLogicalPool(id, "name", physicalPoolId, PAGEFILE);
+
+    GetLogicalPoolRequest request;
+    request.set_logicalpoolname("name2");
+    request.set_physicalpoolname("physicalpoolname");
+
+    GetLogicalPoolResponse response;
+    serviceManager_->GetLogicalPool(&request, &response);
+    ASSERT_EQ(kTopoErrCodeLogicalPoolNotFound, response.statuscode());
 }
 
 TEST_F(TestTopologyServiceManager, test_GetLogicalPool_InvalidParam) {
@@ -1761,6 +2387,23 @@ TEST_F(TestTopologyServiceManager, test_ListLogicalPool_PhysicalPoolNotFound) {
     ASSERT_EQ(0, response.logicalpoolinfos_size());
 }
 
+TEST_F(TestTopologyServiceManager, test_ListLogicalPool_ByNameFail) {
+    PoolIdType physicalPoolId = 0x11;
+    PrepareAddPhysicalPool(physicalPoolId, "physicalPoolName");
+    PoolIdType id = 0x01;
+    PoolIdType id2 = 0x02;
+    PrepareAddLogicalPool(id, "name", physicalPoolId, PAGEFILE);
+    PrepareAddLogicalPool(id2, "name2", physicalPoolId, APPENDFILE);
+
+    ListLogicalPoolRequest request;
+    request.set_physicalpoolname("physicalPoolName2");
+
+    ListLogicalPoolResponse response;
+    serviceManager_->ListLogicalPool(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodePhysicalPoolNotFound, response.statuscode());
+}
+
 TEST_F(TestTopologyServiceManager, test_ListLogicalPool_InvalidParam) {
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
@@ -1779,7 +2422,6 @@ TEST_F(TestTopologyServiceManager, test_ListLogicalPool_InvalidParam) {
 
 TEST_F(TestTopologyServiceManager,
     test_GetChunkServerListInCopySets_success) {
-
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     CopySetIdType copysetId = 0x51;

@@ -238,6 +238,66 @@ TEST_F(TestCopyset,
     for (auto& copyset : out) {
         ASSERT_TRUE(constraint.Valid(cluster, copyset)) << copyset;
     }
+
+    std::map<ChunkServerIdType, int> copysetmap;
+    std::map<ChunkServerIdType, std::set<ChunkServerIdType>> servermap;
+    for (auto& coset : out) {
+        for (auto &id : coset.replicas) {
+            if (copysetmap.end() != copysetmap.find(id)) {
+                copysetmap[id]++;
+            } else {
+                copysetmap[id] = 1;
+            }
+
+            if (servermap.end() != servermap.find(id)) {
+                for (auto &ix : coset.replicas) {
+                    servermap[id].insert(ix);
+                }
+            } else {
+                std::set<ChunkServerIdType> newset;
+                for (auto &ix : coset.replicas) {
+                    newset.insert(ix);
+                }
+                servermap[id] = newset;
+            }
+        }
+    }
+
+    int minCopyset = 0x7FFFFFFF;
+    int maxCopyset = 0;
+    int avgCopyset = 0;
+    for (auto& pa : copysetmap) {
+        if (pa.second > maxCopyset) {
+            maxCopyset = pa.second;
+        }
+        if (pa.second < minCopyset) {
+            minCopyset = pa.second;
+        }
+        avgCopyset += pa.second;
+    }
+    avgCopyset = avgCopyset / copysetmap.size();
+
+    int minS = 0x7FFFFFFF;
+    int maxS = 0;
+    int avgS = 0;
+    for (auto& pb : servermap) {
+        if ((pb.second.size() - 1) > maxS) {
+            maxS = pb.second.size() - 1;
+        }
+        if ((pb.second.size() - 1) < minS) {
+            minS = pb.second.size() - 1;
+        }
+        avgS += pb.second.size() - 1;
+    }
+    avgS = avgS / servermap.size();
+    std::cout << "max copyset num is : " << maxCopyset
+              << " min copyset num is : " << minCopyset
+              << " avg copyset num is : " << avgCopyset
+              << std::endl;
+    std::cout << "max scatter width is : " << maxS
+              << " min scatter width is : " << minS
+              << " avg scatter width is : " << avgS
+              << std::endl;
 }
 
 TEST_F(TestCopyset,
@@ -304,6 +364,188 @@ TEST_F(TestCopyset,
 
     ASSERT_FALSE(ret);
 }
+
+TEST_F(TestCopyset,
+    test_CopysetZoneShufflePolicyN33_GenCopyset_uniformClusterSuccess) {
+
+    std::shared_ptr<CopysetPermutationPolicy> permutation =
+        std::make_shared<CopysetPermutationPolicyN33>();
+    std::shared_ptr<CopysetPolicy> policy =
+        std::make_shared<CopysetZoneShufflePolicy>(permutation);
+
+
+    TestCluster cluster;
+    cluster.SetUniformCluster();
+
+    int numCopysets = 2;
+
+    std::vector<Copyset> out;
+    bool ret = policy->GenCopyset(cluster, numCopysets, &out);
+
+    ASSERT_TRUE(ret);
+
+    CopysetConstraints constraint(3, 3);
+
+    for (auto& copyset : out) {
+        ASSERT_TRUE(constraint.Valid(cluster, copyset)) << copyset;
+    }
+}
+
+TEST_F(TestCopyset,
+    test_CopysetZoneShufflePolicyN33_GenCopyset_MassiveClusterSuccess) {
+
+    std::shared_ptr<CopysetPermutationPolicy> permutation =
+        std::make_shared<CopysetPermutationPolicyN33>();
+    std::shared_ptr<CopysetPolicy> policy =
+        std::make_shared<CopysetZoneShufflePolicy>(permutation);
+
+
+    TestCluster cluster;
+    cluster.SetMassiveCluster();
+
+    int numCopysets = 6000;
+
+    std::vector<Copyset> out;
+    bool ret = policy->GenCopyset(cluster, numCopysets, &out);
+
+    ASSERT_TRUE(ret);
+
+    CopysetConstraints constraint(3, 3);
+
+    for (auto& copyset : out) {
+        ASSERT_TRUE(constraint.Valid(cluster, copyset)) << copyset;
+    }
+
+    std::map<ChunkServerIdType, int> copysetmap;
+    std::map<ChunkServerIdType, std::set<ChunkServerIdType>> servermap;
+    for (auto& coset : out) {
+        for (auto &id : coset.replicas) {
+            if (copysetmap.end() != copysetmap.find(id)) {
+                copysetmap[id]++;
+            } else {
+                copysetmap[id] = 1;
+            }
+
+            if (servermap.end() != servermap.find(id)) {
+                for (auto &ix : coset.replicas) {
+                    servermap[id].insert(ix);
+                }
+            } else {
+                std::set<ChunkServerIdType> newset;
+                for (auto &ix : coset.replicas) {
+                    newset.insert(ix);
+                }
+                servermap[id] = newset;
+            }
+        }
+    }
+
+    int minCopyset = 0x7FFFFFFF;
+    int maxCopyset = 0;
+    int avgCopyset = 0;
+    for (auto& pa : copysetmap) {
+        if (pa.second > maxCopyset) {
+            maxCopyset = pa.second;
+        }
+        if (pa.second < minCopyset) {
+            minCopyset = pa.second;
+        }
+        avgCopyset += pa.second;
+    }
+    avgCopyset = avgCopyset / copysetmap.size();
+
+    int minS = 0x7FFFFFFF;
+    int maxS = 0;
+    int avgS = 0;
+    for (auto& pb : servermap) {
+        if ((pb.second.size() - 1) > maxS) {
+            maxS = pb.second.size() - 1;
+        }
+        if ((pb.second.size() - 1) < minS) {
+            minS = pb.second.size() - 1;
+        }
+        avgS += pb.second.size() - 1;
+    }
+    avgS = avgS / servermap.size();
+    std::cout << "max copyset num is : " << maxCopyset
+              << " min copyset num is : " << minCopyset
+              << " avg copyset num is : " << avgCopyset
+              << std::endl;
+    std::cout << "max scatter width is : " << maxS
+              << " min scatter width is : " << minS
+              << " avg scatter width is : " << avgS
+              << std::endl;
+}
+
+TEST_F(TestCopyset,
+    test_CopysetZoneShufflePolicyN33_GenCopyset_IncompleteClusterFail) {
+
+    std::shared_ptr<CopysetPermutationPolicy> permutation =
+        std::make_shared<CopysetPermutationPolicyN33>();
+    std::shared_ptr<CopysetPolicy> policy =
+        std::make_shared<CopysetZoneShufflePolicy>(permutation);
+
+    TestCluster cluster;
+    cluster.SetIncompleteCluster();
+
+    int numCopysets = 2;
+
+    std::vector<Copyset> out;
+    bool ret = policy->GenCopyset(cluster, numCopysets, &out);
+
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestCopyset,
+    test_CopysetZoneShufflePolicyN33_GenCopyset_SlantClustserSuccess) {
+
+    std::shared_ptr<CopysetPermutationPolicy> permutation =
+        std::make_shared<CopysetPermutationPolicyN33>();
+    std::shared_ptr<CopysetPolicy> policy =
+        std::make_shared<CopysetZoneShufflePolicy>(permutation);
+
+    TestCluster cluster;
+    cluster.SetSlantClustser();
+
+    int numCopysets = 2;
+
+    std::vector<Copyset> out;
+    bool ret = policy->GenCopyset(cluster, numCopysets, &out);
+
+    ASSERT_TRUE(ret);
+
+    CopysetConstraints constraint(3, 3);
+
+    for (auto& copyset : out) {
+        ASSERT_TRUE(constraint.Valid(cluster, copyset)) << copyset;
+    }
+}
+
+TEST_F(TestCopyset,
+    test_CopysetZoneShufflePolicyN33_GenCopyset_MultiZoneClusterSuccess) {
+
+    std::shared_ptr<CopysetPermutationPolicy> permutation =
+        std::make_shared<CopysetPermutationPolicyN33>();
+    std::shared_ptr<CopysetPolicy> policy =
+        std::make_shared<CopysetZoneShufflePolicy>(permutation);
+
+    TestCluster cluster;
+    cluster.SetMultiZoneCluster();
+
+    int numCopysets = 2;
+
+    std::vector<Copyset> out;
+    bool ret = policy->GenCopyset(cluster, numCopysets, &out);
+
+    ASSERT_TRUE(ret);
+
+    CopysetConstraints constraint(3, 3);
+
+    for (auto& copyset : out) {
+        ASSERT_TRUE(constraint.Valid(cluster, copyset)) << copyset;
+    }
+}
+
 
 }  // namespace copyset
 }  // namespace mds

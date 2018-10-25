@@ -17,10 +17,6 @@ void TopologyServiceImpl::RegistChunkServer(
     const ChunkServerRegistRequest* request,
     ChunkServerRegistResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -54,10 +50,6 @@ void TopologyServiceImpl::ListChunkServer(
     const ListChunkServerRequest* request,
     ListChunkServerResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -91,10 +83,6 @@ void TopologyServiceImpl::GetChunkServer(
     const GetChunkServerInfoRequest* request,
     GetChunkServerInfoResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -128,10 +116,6 @@ void TopologyServiceImpl::DeleteChunkServer(
     const DeleteChunkServerRequest* request,
     DeleteChunkServerResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -166,10 +150,6 @@ void TopologyServiceImpl::SetChunkServer(
     SetChunkServerStatusResponse* response,
     google::protobuf::Closure* done) {
 
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -203,10 +183,6 @@ void TopologyServiceImpl::RegistServer(
     const ServerRegistRequest* request,
     ServerRegistResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -240,10 +216,6 @@ void TopologyServiceImpl::GetServer(
     const GetServerRequest* request,
     GetServerResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -277,10 +249,6 @@ void TopologyServiceImpl::DeleteServer(
     const DeleteServerRequest* request,
     DeleteServerResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -314,10 +282,6 @@ void TopologyServiceImpl::ListZoneServer(
     const ListZoneServerRequest* request,
     ListZoneServerResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -351,10 +315,6 @@ void TopologyServiceImpl::CreateZone(
     const ZoneRequest* request,
     ZoneResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -388,10 +348,6 @@ void TopologyServiceImpl::DeleteZone(
     const ZoneRequest* request,
     ZoneResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -424,10 +380,6 @@ void TopologyServiceImpl::GetZone(google::protobuf::RpcController* cntl_base,
     const ZoneRequest* request,
     ZoneResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -461,10 +413,6 @@ void TopologyServiceImpl::ListPoolZone(
     const ListPoolZoneRequest* request,
     ListPoolZoneResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -498,10 +446,6 @@ void TopologyServiceImpl::CreatePhysicalPool(
     const PhysicalPoolRequest* request,
     PhysicalPoolResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -535,10 +479,6 @@ void TopologyServiceImpl::DeletePhysicalPool(
     const PhysicalPoolRequest* request,
     PhysicalPoolResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -572,10 +512,6 @@ void TopologyServiceImpl::GetPhysicalPool(
     const PhysicalPoolRequest* request,
     PhysicalPoolResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -609,10 +545,6 @@ void TopologyServiceImpl::ListPhysicalPool(
     const ListPhysicalPoolRequest* request,
     ListPhysicalPoolResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -646,10 +578,6 @@ void TopologyServiceImpl::CreateLogicalPool(
     const CreateLogicalPoolRequest* request,
     CreateLogicalPoolResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -683,10 +611,6 @@ void TopologyServiceImpl::DeleteLogicalPool(
     const DeleteLogicalPoolRequest* request,
     DeleteLogicalPoolResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -720,10 +644,6 @@ void TopologyServiceImpl::GetLogicalPool(
     const GetLogicalPoolRequest* request,
     GetLogicalPoolResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -757,10 +677,6 @@ void TopologyServiceImpl::ListLogicalPool(
     const ListLogicalPoolRequest* request,
     ListLogicalPoolResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =
@@ -794,10 +710,6 @@ void TopologyServiceImpl::GetChunkServerListInCopySets(
     const GetChunkServerListInCopySetsRequest* request,
     GetChunkServerListInCopySetsResponse* response,
     google::protobuf::Closure* done) {
-    CHECK(cntl_base);
-    CHECK(request);
-    CHECK(response);
-    CHECK(done);
     brpc::ClosureGuard done_guard(done);
 
     brpc::Controller* cntl =

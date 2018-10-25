@@ -20,10 +20,19 @@ namespace curve {
 namespace mds {
 namespace topology {
 
-
 using ::curve::repo::MockRepo;
+
 using ::curve::repo::OperationOK;
+using ::curve::repo::LogicalPoolRepo;
+using ::curve::repo::PhysicalPoolRepo;
+using ::curve::repo::LogicalPoolRepo;
+using ::curve::repo::ZoneRepo;
+using ::curve::repo::ServerRepo;
+using ::curve::repo::ChunkServerRepo;
+using ::curve::repo::CopySetRepo;
+
 using ::curve::repo::SqlException;
+using ::testing::SetArgPointee;
 
 class TestTopologyStorage : public ::testing::Test {
  protected:
@@ -71,16 +80,150 @@ TEST_F(TestTopologyStorage, test_init_success) {
     ASSERT_TRUE(ret);
 }
 
+TEST_F(TestTopologyStorage, test_init_connectDbFail) {
+    std::string dbName = "dbName";
+    std::string user = "user";
+    std::string url = "url";
+    std::string password = "password";
+
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+        .WillOnce(Return(SqlException));
+
+    int ret = storage_->init(dbName,
+        user,
+        url,
+        password);
+
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestTopologyStorage, test_init_createDatabaseFail) {
+    std::string dbName = "dbName";
+    std::string user = "user";
+    std::string url = "url";
+    std::string password = "password";
+
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+        .WillOnce(Return(OperationOK));
+
+    EXPECT_CALL(*repo_, createDatabase())
+        .WillOnce(Return(SqlException));
+
+    int ret = storage_->init(dbName,
+        user,
+        url,
+        password);
+
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestTopologyStorage, test_init_useDataBaseFail) {
+    std::string dbName = "dbName";
+    std::string user = "user";
+    std::string url = "url";
+    std::string password = "password";
+
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+        .WillOnce(Return(OperationOK));
+
+    EXPECT_CALL(*repo_, createDatabase())
+        .WillOnce(Return(OperationOK));
+
+    EXPECT_CALL(*repo_, useDataBase())
+        .WillOnce(Return(SqlException));
+
+    int ret = storage_->init(dbName,
+        user,
+        url,
+        password);
+
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestTopologyStorage, test_init_createAllTablesFail) {
+    std::string dbName = "dbName";
+    std::string user = "user";
+    std::string url = "url";
+    std::string password = "password";
+
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+        .WillOnce(Return(OperationOK));
+
+    EXPECT_CALL(*repo_, createDatabase())
+        .WillOnce(Return(OperationOK));
+
+    EXPECT_CALL(*repo_, useDataBase())
+        .WillOnce(Return(OperationOK));
+
+    EXPECT_CALL(*repo_, createAllTables())
+        .WillOnce(Return(SqlException));
+
+    int ret = storage_->init(dbName,
+        user,
+        url,
+        password);
+
+    ASSERT_FALSE(ret);
+}
+
 TEST_F(TestTopologyStorage, test_LoadLogicalPool_success) {
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap;
     PoolIdType maxLogicalPoolId = 0;
 
+    std::vector<LogicalPoolRepo> logicalPoolRepos;
+    LogicalPoolRepo data1(0x01,
+        "lPool1",
+        0x11,
+        PAGEFILE,
+        100,
+        LogicalPool::ALLOCATABLE,
+        "{\"replicaNum\":3, \"copysetNum\":3, \"zoneNum\":3}",
+        "");
+    logicalPoolRepos.push_back(data1);
+
     EXPECT_CALL(*repo_, LoadLogicalPoolRepos(_))
-        .WillOnce(Return(OperationOK));
+        .WillOnce(DoAll(SetArgPointee<0>(logicalPoolRepos),
+                    Return(OperationOK)));
 
     int ret = storage_->LoadLogicalPool(&logicalPoolMap, &maxLogicalPoolId);
 
     ASSERT_TRUE(ret);
+    ASSERT_EQ(1, logicalPoolMap.size());
+    ASSERT_EQ(0x01, logicalPoolMap[0x01].GetId());
+    ASSERT_STREQ("lPool1", logicalPoolMap[0x01].GetName().c_str());
+    ASSERT_EQ(0x11, logicalPoolMap[0x01].GetPhysicalPoolId());
+    ASSERT_EQ(PAGEFILE, logicalPoolMap[0x01].GetLogicalPoolType());
+    ASSERT_EQ(100, logicalPoolMap[0x01].GetCreateTime());
+    ASSERT_EQ(LogicalPool::ALLOCATABLE, logicalPoolMap[0x01].GetStatus());
+    ASSERT_STREQ(
+    "{\n\t\"copysetNum\" : 3,\n\t\"replicaNum\" : 3,\n\t\"zoneNum\" : 3\n}\n",
+        logicalPoolMap[0x01].GetRedundanceAndPlaceMentPolicyJsonStr().c_str());
+    ASSERT_EQ(0x01, maxLogicalPoolId);
+}
+
+TEST_F(TestTopologyStorage, test_LoadLogicalPool_IdDuplicated) {
+    std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap;
+    PoolIdType maxLogicalPoolId = 0;
+
+    std::vector<LogicalPoolRepo> logicalPoolRepos;
+    LogicalPoolRepo data1(0x01,
+        "lPool1",
+        0x11,
+        PAGEFILE,
+        100,
+        LogicalPool::ALLOCATABLE,
+        "{\"replicaNum\":3, \"copysetNum\":3, \"zoneNum\":3}",
+        "");
+    logicalPoolRepos.push_back(data1);
+    logicalPoolRepos.push_back(data1);
+
+    EXPECT_CALL(*repo_, LoadLogicalPoolRepos(_))
+        .WillOnce(DoAll(SetArgPointee<0>(logicalPoolRepos),
+                    Return(OperationOK)));
+
+    int ret = storage_->LoadLogicalPool(&logicalPoolMap, &maxLogicalPoolId);
+
+    ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyStorage, test_LoadLogicalPool_fail) {
@@ -95,16 +238,69 @@ TEST_F(TestTopologyStorage, test_LoadLogicalPool_fail) {
     ASSERT_FALSE(ret);
 }
 
+TEST_F(TestTopologyStorage, test_LoadLogicalPool_ParseRapJsonFail) {
+    std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap;
+    PoolIdType maxLogicalPoolId = 0;
+
+    std::vector<LogicalPoolRepo> logicalPoolRepos;
+    LogicalPoolRepo data1(0x01,
+        "lPool1",
+        0x11,
+        0,
+        0,
+        0,
+        "{\"replicaNum\":3, \"copysetNum\":3}",
+        "");
+    logicalPoolRepos.push_back(data1);
+
+    EXPECT_CALL(*repo_, LoadLogicalPoolRepos(_))
+        .WillOnce(DoAll(SetArgPointee<0>(logicalPoolRepos),
+                    Return(OperationOK)));
+
+    int ret = storage_->LoadLogicalPool(&logicalPoolMap, &maxLogicalPoolId);
+
+    ASSERT_FALSE(ret);
+}
+
+
 TEST_F(TestTopologyStorage, test_LoadPhysicalPool_success) {
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap;
     PoolIdType maxPhysicalPoolId = 0;
-
+    std::vector<PhysicalPoolRepo> physicalPoolRepos;
+    PhysicalPoolRepo data(0x11,
+        "pPool1",
+        "desc");
+    physicalPoolRepos.push_back(data);
     EXPECT_CALL(*repo_, LoadPhysicalPoolRepos(_))
-        .WillOnce(Return(OperationOK));
+        .WillOnce(DoAll(SetArgPointee<0>(physicalPoolRepos),
+                    Return(OperationOK)));
 
     int ret = storage_->LoadPhysicalPool(&physicalPoolMap, &maxPhysicalPoolId);
 
     ASSERT_TRUE(ret);
+    ASSERT_EQ(1, physicalPoolMap.size());
+    ASSERT_EQ(0x11, physicalPoolMap[0x11].GetId());
+    ASSERT_STREQ("pPool1", physicalPoolMap[0x11].GetName().c_str());
+    ASSERT_STREQ("desc", physicalPoolMap[0x11].GetDesc().c_str());
+    ASSERT_EQ(0x11, maxPhysicalPoolId);
+}
+
+TEST_F(TestTopologyStorage, test_LoadPhysicalPool_IdDuplicated) {
+    std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap;
+    PoolIdType maxPhysicalPoolId = 0;
+    std::vector<PhysicalPoolRepo> physicalPoolRepos;
+    PhysicalPoolRepo data(0x11,
+        "pPool1",
+        "desc");
+    physicalPoolRepos.push_back(data);
+    physicalPoolRepos.push_back(data);
+    EXPECT_CALL(*repo_, LoadPhysicalPoolRepos(_))
+        .WillOnce(DoAll(SetArgPointee<0>(physicalPoolRepos),
+                    Return(OperationOK)));
+
+    int ret = storage_->LoadPhysicalPool(&physicalPoolMap, &maxPhysicalPoolId);
+
+    ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyStorage, test_LoadPhysicalPool_fail) {
@@ -122,13 +318,44 @@ TEST_F(TestTopologyStorage, test_LoadPhysicalPool_fail) {
 TEST_F(TestTopologyStorage, test_LoadZone_success) {
     std::unordered_map<ZoneIdType, Zone> zoneMap;
     ZoneIdType maxZoneId = 0;
-
+    std::vector<ZoneRepo> zoneRepos;
+    ZoneRepo data(0x21,
+        "zone1",
+        0x11,
+        "desc");
+    zoneRepos.push_back(data);
     EXPECT_CALL(*repo_, LoadZoneRepos(_))
-        .WillOnce(Return(OperationOK));
+        .WillOnce(DoAll(SetArgPointee<0>(zoneRepos),
+                Return(OperationOK)));
 
     int ret = storage_->LoadZone(&zoneMap, &maxZoneId);
 
     ASSERT_TRUE(ret);
+    ASSERT_EQ(1, zoneMap.size());
+    ASSERT_EQ(0x21, zoneMap[0x21].GetId());
+    ASSERT_STREQ("zone1", zoneMap[0x21].GetName().c_str());
+    ASSERT_EQ(0x11, zoneMap[0x21].GetPhysicalPoolId());
+    ASSERT_STREQ("desc", zoneMap[0x21].GetDesc().c_str());
+    ASSERT_EQ(0x21, maxZoneId);
+}
+
+TEST_F(TestTopologyStorage, test_LoadZone_IdDuplicated) {
+    std::unordered_map<ZoneIdType, Zone> zoneMap;
+    ZoneIdType maxZoneId = 0;
+    std::vector<ZoneRepo> zoneRepos;
+    ZoneRepo data(0x21,
+        "zone1",
+        0x11,
+        "desc");
+    zoneRepos.push_back(data);
+    zoneRepos.push_back(data);
+    EXPECT_CALL(*repo_, LoadZoneRepos(_))
+        .WillOnce(DoAll(SetArgPointee<0>(zoneRepos),
+                Return(OperationOK)));
+
+    int ret = storage_->LoadZone(&zoneMap, &maxZoneId);
+
+    ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyStorage, test_LoadZone_fail) {
@@ -146,13 +373,53 @@ TEST_F(TestTopologyStorage, test_LoadZone_fail) {
 TEST_F(TestTopologyStorage, test_LoadServer_success) {
     std::unordered_map<ServerIdType, Server> serverMap;
     ServerIdType maxServerId;
-
+    std::vector<ServerRepo> serverRepos;
+    ServerRepo data(0x31,
+        "server1",
+        "ip1",
+        "ip2",
+        0x21,
+        0x11,
+        "desc");
+    serverRepos.push_back(data);
     EXPECT_CALL(*repo_, LoadServerRepos(_))
-        .WillOnce(Return(OperationOK));
+        .WillOnce(DoAll(SetArgPointee<0>(serverRepos),
+                    Return(OperationOK)));
 
     int ret = storage_->LoadServer(&serverMap, &maxServerId);
 
     ASSERT_TRUE(ret);
+    ASSERT_EQ(1, serverMap.size());
+    ASSERT_EQ(0x31, serverMap[0x31].GetId());
+    ASSERT_STREQ("server1", serverMap[0x31].GetHostName().c_str());
+    ASSERT_STREQ("ip1", serverMap[0x31].GetInternalHostIp().c_str());
+    ASSERT_STREQ("ip2", serverMap[0x31].GetExternalHostIp().c_str());
+    ASSERT_EQ(0x21, serverMap[0x31].GetZoneId());
+    ASSERT_EQ(0x11, serverMap[0x31].GetPhysicalPoolId());
+    ASSERT_STREQ("desc", serverMap[0x31].GetDesc().c_str());
+    ASSERT_EQ(0x31, maxServerId);
+}
+
+TEST_F(TestTopologyStorage, test_LoadServer_IdDuplicated) {
+    std::unordered_map<ServerIdType, Server> serverMap;
+    ServerIdType maxServerId;
+    std::vector<ServerRepo> serverRepos;
+    ServerRepo data(0x31,
+        "server1",
+        "ip1",
+        "ip2",
+        0x21,
+        0x11,
+        "desc");
+    serverRepos.push_back(data);
+    serverRepos.push_back(data);
+    EXPECT_CALL(*repo_, LoadServerRepos(_))
+        .WillOnce(DoAll(SetArgPointee<0>(serverRepos),
+                    Return(OperationOK)));
+
+    int ret = storage_->LoadServer(&serverMap, &maxServerId);
+
+    ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyStorage, test_LoadServer_fail) {
@@ -170,12 +437,70 @@ TEST_F(TestTopologyStorage, test_LoadServer_fail) {
 TEST_F(TestTopologyStorage, test_LoadChunkServer_success) {
     std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap;
     ChunkServerIdType maxChunkServerId;
-
+    std::vector<ChunkServerRepo> chunkServerRepos;
+    ChunkServerRepo data(0x41,
+        "token",
+        "ssd",
+        "ip1",
+        1024,
+        0x31,
+        READWRITE,
+        DISKNORMAL,
+        ONLINE,
+        "/",
+        100,
+        99);
+    chunkServerRepos.push_back(data);
     EXPECT_CALL(*repo_, LoadChunkServerRepos(_))
-        .WillOnce(Return(OperationOK));
+        .WillOnce(DoAll(SetArgPointee<0>(chunkServerRepos),
+                      Return(OperationOK)));
 
     int ret = storage_->LoadChunkServer(&chunkServerMap, &maxChunkServerId);
     ASSERT_TRUE(ret);
+    ASSERT_EQ(1, chunkServerMap.size());
+    ASSERT_EQ(0x41, chunkServerMap[0x41].GetId());
+    ASSERT_STREQ("token", chunkServerMap[0x41].GetToken().c_str());
+    ASSERT_STREQ("ssd", chunkServerMap[0x41].GetDiskType().c_str());
+    ASSERT_EQ(0x31, chunkServerMap[0x41].GetServerId());
+    ASSERT_STREQ("ip1", chunkServerMap[0x41].GetHostIp().c_str());
+    ASSERT_EQ(1024, chunkServerMap[0x41].GetPort());
+    ASSERT_STREQ("/", chunkServerMap[0x41].GetMountPoint().c_str());
+    ASSERT_EQ(READWRITE, chunkServerMap[0x41].GetStatus());
+    ASSERT_EQ(DISKNORMAL,
+        chunkServerMap[0x41].GetChunkServerState().GetDiskState());
+    ASSERT_EQ(ONLINE,
+        chunkServerMap[0x41].GetChunkServerState().GetOnlineState());
+    ASSERT_EQ(100,
+        chunkServerMap[0x41].GetChunkServerState().GetDiskCapacity());
+    ASSERT_EQ(99,
+        chunkServerMap[0x41].GetChunkServerState().GetDiskUsed());
+    ASSERT_EQ(0x41, maxChunkServerId);
+}
+
+TEST_F(TestTopologyStorage, test_LoadChunkServer_IdDuplicated) {
+    std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap;
+    ChunkServerIdType maxChunkServerId;
+    std::vector<ChunkServerRepo> chunkServerRepos;
+    ChunkServerRepo data(0x41,
+        "token",
+        "ssd",
+        "ip1",
+        1024,
+        0x31,
+        READWRITE,
+        DISKNORMAL,
+        ONLINE,
+        "/",
+        100,
+        99);
+    chunkServerRepos.push_back(data);
+    chunkServerRepos.push_back(data);
+    EXPECT_CALL(*repo_, LoadChunkServerRepos(_))
+        .WillOnce(DoAll(SetArgPointee<0>(chunkServerRepos),
+                      Return(OperationOK)));
+
+    int ret = storage_->LoadChunkServer(&chunkServerMap, &maxChunkServerId);
+    ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyStorage, test_LoadChunkServer_Fail) {
@@ -192,12 +517,46 @@ TEST_F(TestTopologyStorage, test_LoadChunkServer_Fail) {
 TEST_F(TestTopologyStorage, test_LoadCopySet_success) {
     std::map<CopySetKey, CopySetInfo> copySetMap;
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
-
+    std::vector<CopySetRepo> copySetRepos;
+    CopySetRepo data(0x51,
+        0x01,
+        "[41, 42, 43]");
+    copySetRepos.push_back(data);
     EXPECT_CALL(*repo_, LoadCopySetRepos(_))
-        .WillOnce(Return(OperationOK));
+        .WillOnce(DoAll(SetArgPointee<0>(copySetRepos),
+                      Return(OperationOK)));
 
     int ret = storage_->LoadCopySet(&copySetMap, &copySetIdMaxMap);
     ASSERT_TRUE(ret);
+    ASSERT_EQ(1, copySetMap.size());
+
+    std::pair<PoolIdType, CopySetIdType> key(0x01, 0x51);
+    ASSERT_EQ(0x51,
+        copySetMap[key].GetId());
+    ASSERT_EQ(0x01,
+        copySetMap[key]
+            .GetLogicalPoolId());
+    ASSERT_STREQ("[\n\t41,\n\t42,\n\t43\n]\n",
+        copySetMap[key].GetCopySetMembersStr().c_str());
+    ASSERT_EQ(1, copySetIdMaxMap.size());
+    ASSERT_EQ(0x51, copySetIdMaxMap[0x01]);
+}
+
+TEST_F(TestTopologyStorage, test_LoadCopySet_IdDuplicated) {
+    std::map<CopySetKey, CopySetInfo> copySetMap;
+    std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
+    std::vector<CopySetRepo> copySetRepos;
+    CopySetRepo data(0x51,
+        0x01,
+        "[41, 42, 43]");
+    copySetRepos.push_back(data);
+    copySetRepos.push_back(data);
+    EXPECT_CALL(*repo_, LoadCopySetRepos(_))
+        .WillOnce(DoAll(SetArgPointee<0>(copySetRepos),
+                      Return(OperationOK)));
+
+    int ret = storage_->LoadCopySet(&copySetMap, &copySetIdMaxMap);
+    ASSERT_FALSE(ret);
 }
 
 TEST_F(TestTopologyStorage, test_LoadCopySet_fail) {
@@ -206,6 +565,22 @@ TEST_F(TestTopologyStorage, test_LoadCopySet_fail) {
 
     EXPECT_CALL(*repo_, LoadCopySetRepos(_))
         .WillOnce(Return(SqlException));
+
+    int ret = storage_->LoadCopySet(&copySetMap, &copySetIdMaxMap);
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestTopologyStorage, test_LoadCopySet_parseJsonFail) {
+    std::map<CopySetKey, CopySetInfo> copySetMap;
+    std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
+    std::vector<CopySetRepo> copySetRepos;
+    CopySetRepo data(0x51,
+        0x01,
+        "[41, 42, ab]");
+    copySetRepos.push_back(data);
+    EXPECT_CALL(*repo_, LoadCopySetRepos(_))
+        .WillOnce(DoAll(SetArgPointee<0>(copySetRepos),
+                      Return(OperationOK)));
 
     int ret = storage_->LoadCopySet(&copySetMap, &copySetIdMaxMap);
     ASSERT_FALSE(ret);

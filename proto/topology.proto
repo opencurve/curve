@@ -40,8 +40,8 @@ message ChunkServerInfo {
     required  OnlineState       onlineState = 7;
 
     required string mountPoint = 8;
-    required int64 diskCapacity = 9;
-    required int64 diskUsed = 10;
+    required uint64 diskCapacity = 9;
+    required uint64 diskUsed = 10;
 }
 
 //chunkserver message
@@ -248,10 +248,11 @@ message LogicalPoolInfo {
 
 message CreateLogicalPoolRequest {
     required string logicalPoolName = 1;
-    required uint32 physicalPoolID = 2;
-    required LogicalPoolType type = 3;
-    optional bytes redundanceAndPlaceMentPolicy = 4;  //json body
-    optional bytes userPolicy = 5;                    //json body
+    optional uint32 physicalPoolID = 2;
+    optional string physicalPoolName = 3;
+    required LogicalPoolType type = 4;
+    optional bytes redundanceAndPlaceMentPolicy = 5;  //json body
+    optional bytes userPolicy = 6;                    //json body
 }
 
 message CreateLogicalPoolResponse {
