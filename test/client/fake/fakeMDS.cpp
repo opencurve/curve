@@ -116,8 +116,8 @@ bool FakeMDS::StartService() {
         set_length(FLAGS_test_disk_size);
     getfileinforesponse->mutable_fileinfo()->
         set_ctime(12345678);
-    getfileinforesponse->mutable_fileinfo()->
-        set_snapshotid(0);
+    // getfileinforesponse->mutable_fileinfo()->
+    //     set_snapshotid(0);
     getfileinforesponse->mutable_fileinfo()->
         set_segmentsize(FLAGS_segment_size);
     getfileinforesponse->set_statuscode(::curve::mds::StatusCode::kOK);
