@@ -234,9 +234,9 @@ namespace client {
                 if (finfo.has_chunksize()) {
                     fi->chunksize = finfo.chunksize();
                 }
-                if (finfo.has_snapshotid()) {
-                    fi->snapshotid = finfo.snapshotid();
-                }
+                // if (finfo.has_snapshotid()) {
+                //     fi->snapshotid = finfo.snapshotid();
+                // }
                 if (finfo.has_segmentsize()) {
                     fi->segmentsize = finfo.segmentsize();
                 }

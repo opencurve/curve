@@ -40,7 +40,7 @@ typedef struct FInfo {
     uint32_t        segmentsize;
     uint64_t        length;
     uint64_t        ctime;
-    uint64_t        snapshotid;
+    // uint64_t        snapshotid;
 } FInfo_t;
 
 typedef enum LIBCURVE_ERROR {

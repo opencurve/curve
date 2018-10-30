@@ -119,8 +119,8 @@ TEST_F(SessionTest, GetFileInfo) {
         set_length(4 * 1024 * 1024 * 1024);
     response.mutable_fileinfo()->
         set_ctime(12345678);
-    response.mutable_fileinfo()->
-        set_snapshotid(0);
+    // response.mutable_fileinfo()->
+    //     set_snapshotid(0);
     response.mutable_fileinfo()->
         set_segmentsize(1 * 1024 * 1024 * 1024);
     response.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -141,7 +141,7 @@ TEST_F(SessionTest, GetFileInfo) {
     ASSERT_EQ(finfo->length, 4 * 1024 * 1024 * 1024);
     ASSERT_EQ(finfo->ctime, 12345678);
     ASSERT_EQ(finfo->segmentsize, 1 * 1024 * 1024 * 1024);
-    ASSERT_EQ(finfo->snapshotid, 0);
+    // ASSERT_EQ(finfo->snapshotid, 0);
 
     FInfo f = GetInfo(filename.c_str());
     ASSERT_EQ(f.filename, filename);
@@ -153,7 +153,7 @@ TEST_F(SessionTest, GetFileInfo) {
     ASSERT_EQ(f.length, 4 * 1024 * 1024 * 1024);
     ASSERT_EQ(f.ctime, 12345678);
     ASSERT_EQ(f.segmentsize, 1 * 1024 * 1024 * 1024);
-    ASSERT_EQ(f.snapshotid, 0);
+    // ASSERT_EQ(f.snapshotid, 0);
 
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());

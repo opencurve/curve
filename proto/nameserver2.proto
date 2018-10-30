@@ -10,8 +10,14 @@ enum FileType {
     INODE_PAGEFILE = 1;
     INODE_APPENDFILE = 2;
     INODE_APPENDECFILE = 3;
+    INODE_SNAPSHOT_PAGEFILE = 4;
 };
 
+enum FileStatus {
+    kFileCreated = 0;
+    kFileDeleting = 1;
+    kFileDeleted = 2;
+}
 
 message FileInfo {
     optional    uint64      id = 1;
@@ -23,9 +29,12 @@ message FileInfo {
     optional    uint32      segmentSize = 7;
     optional    uint64      length = 8;
     optional    uint64      ctime  = 9;
-    optional    uint64      snapShotId = 10;
+    optional    uint64      seqNum =  10;
+    optional    string      fullPathName = 11;
+    optional    FileStatus  fileStatus = 12;
 }
 
+// TODO(hzsunjianliang): add a errorcode msg table
 
 // status code
 enum  StatusCode {
@@ -42,10 +51,14 @@ enum  StatusCode {
     kDirNotExist = 109;
     kNotSupported = 110;
 
+    kFileUnderSnapShot = 120;
+    kFileNotUnderSnapShot = 121;
+    kSnapshotDeleting = 122;
+    kSnapshotFileNotExists = 123;
+
     kStorageError = 501;
     KInternalError = 502;
 };
-
 
 //chunkinfo
 message PageFileChunkInfo {
@@ -60,9 +73,6 @@ message PageFileSegment {
     optional uint64 startOffset = 2;
     repeated  PageFileChunkInfo chunks = 5;
 }
-
-
-
 
 message CreateFileRequest {
     required string     fileName = 1;
@@ -121,13 +131,126 @@ message ExtendFileResponse {
     required StatusCode statusCode = 1;
 }
 
+// create snapshot
+message CreateSnapShotRequest {
+    required string fileName = 1;
+}
+
+message CreateSnapShotResponse {
+    required StatusCode statusCode = 1;
+    optional uint64     seq = 2;
+}
+
+// list snapshots
+message ListSnapShotFileInfoRequest {
+    required string fileName = 1;
+    repeated uint64 seq = 2; 
+}
+
+message ListSnapShotFileInfoResponse {
+    required StatusCode statusCode = 1;
+    repeated FileInfo fileInfo = 2;
+}
+
+// delete snapshot
+message DeleteSnapShotRequest {
+    required string fileName = 1;
+    required uint64 seq = 2;
+}
+
+message DeleteSnapShotResponse {
+    required StatusCode statusCode = 1;
+}
+
+// check snapshot status
+
+message CheckSnapShotStatusRequest {
+    required string fileName = 1;
+    required uint64 seq = 2;
+}
+
+message CheckSnapShotStatusResponse {
+    required StatusCode statusCode = 1;
+    optional FileStatus     fileStatus = 2;
+    optional uint32 progress  = 3;
+}
+
+// session rpcs
+enum SessionStatus {
+    kSessionOK = 0;
+    kSessionStaled = 1;
+    kSessionDeleted = 2;
+};
+
+message Session {
+    required string sessionID  = 1;
+    required string token = 2;
+    required uint32 leaseTime = 3;
+    required uint64 createTime = 4;
+    optional SessionStatus sessionStatus = 5;
+    optional uint32 clientIP = 6;
+    optional uint32 clientPort = 7;
+    // other useful infos
+};
+
+message OpenFileRequest {
+    required string fileName = 1;
+};
+
+message OpenFileResponse {
+    required StatusCode statusCode = 1;
+    optional bool	    snapshotFlag = 2; // if the file exist snapshot(under snapshot)
+    optional Session    session = 3;
+    optional FileInfo   fileInfo = 4;
+};
+
+message CloseFileRequest {
+    required string fileName = 1;
+    required string sessionID = 2;
+};
+
+message CloseFileResponse {
+    required StatusCode statusCode = 1;
+}
+
+message ReFreshSessionRequest {
+    required string fileName = 1;
+    required string sessionID = 2;
+    required uint64 date = 3; //current time
+    required string signature = 4; //caculete based on token
+    optional uint32 clientIP = 5;
+    optional uint32 clientPort = 6;
+}
+
+message ReFreshSessionResponse {
+    required StatusCode statusCode = 1;
+    required string sessionID = 2;
+};
+
 service CurveFSService {
+    // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
     rpc     GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
     rpc     GetOrAllocateSegment(GetOrAllocateSegmentRequest)
                 returns (GetOrAllocateSegmentResponse);
+
     rpc     DeleteSegment(DeleteSegmentRequest) returns (DeleteSegmentResponse);
     rpc     RenameFile(RenameFileRequest) returns (RenameFileResponse);
     rpc     ExtendFile(ExtendFileRequest) returns (ExtendFileResponse);
-}
 
+    // snapshot rpcs
+    rpc     CreateSnapShot(CreateFileRequest)
+                returns (CreateFileResponse);
+    rpc     ListSnapShot(ListSnapShotFileInfoRequest)
+            returns (ListSnapShotFileInfoResponse);
+    rpc     DeleteSnapShot(DeleteSnapShotRequest)
+            returns (DeleteSnapShotResponse);
+    rpc     CheckSnapShotStatus(CheckSnapShotStatusRequest)
+            returns (CheckSnapShotStatusResponse);
+
+    // session rpcs
+    rpc     OpenFile(OpenFileRequest) returns (OpenFileResponse);
+    rpc     CloseFile(CloseFileRequest) returns (CloseFileResponse);
+    rpc     RefreshSession(ReFreshSessionRequest)
+        returns (ReFreshSessionResponse);
+}
