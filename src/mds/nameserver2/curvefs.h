@@ -50,7 +50,7 @@ class CurveFS {
                           const std::string & newFileName);
 
     // extent size minimum unit 1GB ( segement as a unit)
-    StatusCode ExtentFile(const std::string &filename,
+    StatusCode ExtendFile(const std::string &filename,
                           uint64_t newSize);
 
 

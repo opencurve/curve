@@ -222,6 +222,13 @@ StatusCode CurveFS::ReadDir(const std::string & dirname,
 
 StatusCode CurveFS::RenameFile(const std::string & oldFileName,
                                const std::string & newFileName) {
+    if (!oldFileName.compare(newFileName))
+    {
+        LOG(INFO) << "rename same name, oldFileName = " << oldFileName
+                  << ", newFileName = " << newFileName;
+        return StatusCode::kFileExists;
+    }
+
     FileInfo  oldFileInfo;
     auto ret1 = GetFileInfo(oldFileName, &oldFileInfo);
     if (ret1 != StatusCode::kOK) {
@@ -240,8 +247,13 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     FileInfo newFileInfo;
     auto ret3 = LookUpFile(parentFileInfo, lastEntry, &newFileInfo);
     if (ret3 != StatusCode::kFileNotExists) {
-        LOG(INFO) << "dest file LookUpFile return: " << ret3;
-        return ret3;
+        if (StatusCode::kOK == ret3) {
+            LOG(INFO) << "dest file LookUpFile file exist";
+            return StatusCode::kFileExists;
+        } else {
+            LOG(INFO) << "dest file LookUpFile return: " << ret3;
+            return ret3;
+        }
     } else {
         newFileInfo.CopyFrom(oldFileInfo);
         newFileInfo.set_parentid(parentFileInfo.id());
@@ -262,7 +274,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     }
 }
 
-StatusCode CurveFS::ExtentFile(const std::string &filename,
+StatusCode CurveFS::ExtendFile(const std::string &filename,
                                uint64_t newLength) {
     FileInfo  fileInfo;
     auto ret = GetFileInfo(filename, &fileInfo);
@@ -306,15 +318,14 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
 
     FileInfo  fileInfo;
     auto ret = GetFileInfo(filename, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "get source file error, errCode = " << ret;
+        return  ret;
+    }
 
     if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
         LOG(INFO) << "not pageFile, can't do this";
         return StatusCode::kParaError;
-    }
-
-    if (ret != StatusCode::kOK) {
-        LOG(INFO) << "get source file error, errCode = " << ret;
-        return  ret;
     }
 
     if (offset % fileInfo.segmentsize() != 0) {
@@ -322,7 +333,7 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
         return StatusCode::kParaError;
     }
 
-    if (offset >= fileInfo.length()) {
+    if (offset + fileInfo.segmentsize() > fileInfo.length()) {
         LOG(INFO) << "bigger than file length, first extentFile";
         return StatusCode::kParaError;
     }
@@ -371,17 +382,12 @@ StatusCode CurveFS::DeleteSegment(const std::string &filename,
         return StatusCode::kParaError;
     }
 
-    if (ret != StatusCode::kOK) {
-        LOG(INFO) << "get source file error, errCode = " << ret;
-        return  ret;
-    }
-
     if (offset % fileInfo.segmentsize() != 0) {
         LOG(INFO) << "offset not align with segment";
         return StatusCode::kParaError;
     }
 
-    if (offset >= fileInfo.length()) {
+    if (offset + fileInfo.segmentsize() > fileInfo.length()) {
         LOG(INFO) << "bigger than file length, first extentFile";
         return StatusCode::kParaError;
     }

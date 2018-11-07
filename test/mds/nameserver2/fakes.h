@@ -77,6 +77,12 @@ class FakeNameServerStorage : public NameServerStorage {
     StoreStatus PutFile(const std::string & storeKey,
           const FileInfo & fileInfo) override {
         std::lock_guard<std::mutex> guard(lock_);
+
+        auto iter = memKvMap_.find(storeKey);
+        if (iter != memKvMap_.end()) {
+            memKvMap_.erase(iter);
+        }
+
         std::string value = fileInfo.SerializeAsString();
         memKvMap_.insert(
             std::move(std::pair<std::string, std::string>
@@ -96,6 +102,12 @@ class FakeNameServerStorage : public NameServerStorage {
     }
 
     StoreStatus DeleteFile(const std::string & storekey) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        auto iter = memKvMap_.find(storekey);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        memKvMap_.erase(iter);
         return StoreStatus::OK;
     }
 
@@ -103,6 +115,19 @@ class FakeNameServerStorage : public NameServerStorage {
                            const FileInfo &oldfileInfo,
                            const std::string & newStoreKey,
                            const FileInfo &newfileInfo) override {
+        std::lock_guard<std::mutex> guard(lock_);
+
+        std::string value = newfileInfo.SerializeAsString();
+        memKvMap_.insert(
+            std::move(std::pair<std::string, std::string>
+            (newStoreKey, std::move(value))));
+
+        auto iter = memKvMap_.find(oldStoreKey);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        memKvMap_.erase(iter);
+
         return StoreStatus::OK;
     }
 
@@ -134,6 +159,12 @@ class FakeNameServerStorage : public NameServerStorage {
     }
 
     StoreStatus DeleteSegment(const std::string &storeKey) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        auto iter = memKvMap_.find(storeKey);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        memKvMap_.erase(iter);
         return StoreStatus::OK;
     }
 

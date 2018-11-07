@@ -66,6 +66,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
 
     // test CreateFile
+    // create /file1 , /file2
     CreateFileRequest request;
     CreateFileResponse response;
     brpc::Controller cntl;
@@ -96,6 +97,19 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
+    cntl.Reset();
+    request.set_filename("/file2");
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+
+    cntl.set_log_id(2);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kFileExists);
+    } else {
+        FAIL();
+    }
+
     // test GetFileInfo
     cntl.Reset();
     GetFileInfoRequest request1;
@@ -116,6 +130,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test GetOrAllocateSegment
+    // 为file1分配空间
     cntl.Reset();
     GetOrAllocateSegmentRequest request2;
     GetOrAllocateSegmentResponse response2;
@@ -164,6 +179,84 @@ TEST_F(NameSpaceServiceTest, test1) {
     } else {
         ASSERT_TRUE(false);
     }
+
+    // test RenameFile
+    // file1 重命名为file3，第一次重命名成功，第二次file1不存在，重命名失败
+    cntl.Reset();
+    RenameFileRequest request4;
+    RenameFileResponse response4;
+    request4.set_oldfilename("/file1");
+    request4.set_newfilename("/file3");
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request4.set_oldfilename("/file1");
+    request4.set_newfilename("/file3");
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // test ExtendFile
+    // 扩容file2,第一次扩大，成功；第二次缩小，失败
+    uint64_t newsize = kMiniFileLength * 2;
+    cntl.Reset();
+    ExtendFileRequest request5;
+    ExtendFileResponse response5;
+    request5.set_filename("/file2");
+    request5.set_newsize(newsize);
+    stub.ExtendFile(&cntl, &request5, &response5, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response5.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request5.set_filename("/file2");
+    request5.set_newsize(kMiniFileLength);
+    stub.ExtendFile(&cntl, &request5, &response5, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response5.statuscode(), StatusCode::kShrinkBiggerFile);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // test DeleteSegment
+    // 回收空间，第一次回收成功，第二次回收失败
+    cntl.Reset();
+    DeleteSegmentRequest request6;
+    DeleteSegmentResponse response6;
+    request6.set_filename("/file3");
+    request6.set_offset(DefaultSegmentSize);
+
+    stub.DeleteSegment(&cntl, &request6, &response6, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response6.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    DeleteSegmentRequest request7;
+    DeleteSegmentResponse response7;
+    request7.set_filename("/file3");
+    request7.set_offset(DefaultSegmentSize);
+
+    stub.DeleteSegment(&cntl, &request6, &response6, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response6.statuscode(), StatusCode::kSegmentNotAllocated);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
     server.Stop(10);
     server.Join();
     return;
