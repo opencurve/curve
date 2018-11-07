@@ -314,10 +314,69 @@ TEST_F(CurveFSTest, testRenameFile) {
                   StatusCode::kOK);
     }
 
-    // TODO(hzsunjianliang): add abnormal cases here
+    // old file not exist
+    {
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
+                  StatusCode::kFileNotExists);
+    }
+
+    // new file parent directory not exist
+    {
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(Return(StoreStatus::OK))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
+                  StatusCode::kFileNotExists);
+    }
+
+    // new file exist
+    {
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(AtLeast(3))
+        .WillOnce(Return(StoreStatus::OK))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+                        Return(StoreStatus::OK)))
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
+                  StatusCode::kFileExists);
+    }
+
+    // storage renamefile fail
+    {
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(AtLeast(3))
+        .WillOnce(Return(StoreStatus::OK))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+                        Return(StoreStatus::OK)))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, RenameFile(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
+                  StatusCode::kStorageError);
+    }
+
+    // rename same file
+    {
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/file1"),
+                  StatusCode::kFileExists);
+    }
 }
 
-TEST_F(CurveFSTest, testExtentFile) {
+TEST_F(CurveFSTest, testExtendFile) {
     // test try small filesize && same
     {
         FileInfo fileInfo1;
@@ -335,7 +394,7 @@ TEST_F(CurveFSTest, testExtentFile) {
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtentFile("/user1/file1", 0),
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 0),
                   StatusCode::kShrinkBiggerFile);
 
         EXPECT_CALL(*storage_, GetFile(_, _))
@@ -345,7 +404,7 @@ TEST_F(CurveFSTest, testExtentFile) {
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtentFile("/user1/file1",
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
                                        kMiniFileLength), StatusCode::kOK);
     }
 
@@ -366,7 +425,7 @@ TEST_F(CurveFSTest, testExtentFile) {
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->ExtentFile("/user1/file1",
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
             1 + kMiniFileLength), StatusCode::kExtentUnitError);
     }
 
@@ -391,8 +450,49 @@ TEST_F(CurveFSTest, testExtentFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->ExtentFile("/user1/file1",
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
                                        2 * kMiniFileLength), StatusCode::kOK);
+    }
+
+    // file not exist
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
+                                       2 * kMiniFileLength),
+                                       StatusCode::kFileNotExists);
+    }
+
+    // extend directory
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
+                                       2 * kMiniFileLength),
+                                       StatusCode::kNotSupported);
     }
 }
 
@@ -461,7 +561,142 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
                   0, true,  &segment), StatusCode::kOK);
     }
-    // TODO(hzsunjianliang): add abnormal case
+
+    // file is a directory
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, false,  &segment), StatusCode::kParaError);
+    }
+
+    // segment offset not align file segment size
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  1, false,  &segment), StatusCode::kParaError);
+    }
+
+    // file length < segment offset + segmentsize
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  kMiniFileLength, false,  &segment), StatusCode::kParaError);
+    }
+
+    // alloc chunk segment fail
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, GetSegment(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+
+        EXPECT_CALL(*mockChunkAllocator_, AllocateChunkSegment(_, _, _, _, _))
+        .Times(1)
+        .WillOnce(Return(false));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true,  &segment), StatusCode::kSegmentAllocateError);
+    }
+
+    // put segment fail
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, GetSegment(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+
+        EXPECT_CALL(*mockChunkAllocator_, AllocateChunkSegment(_, _, _, _, _))
+        .Times(1)
+        .WillOnce(Return(true));
+
+
+        EXPECT_CALL(*storage_, PutSegment(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
+                  0, true,  &segment), StatusCode::kStorageError);
+    }
 }
 
 
@@ -496,7 +731,131 @@ TEST_F(CurveFSTest, testDeleteSegment) {
         ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
                                           0), StatusCode::kOK);
     }
-    // TODO(hzsunjianliang): add abnormal case
+
+    // file type 不是pagefile
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
+                                          0), StatusCode::kParaError);
+    }
+
+    // offset not align segment size
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
+                                          1), StatusCode::kParaError);
+    }
+
+    // offset + segmentsize > file length
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
+                            kMiniFileLength), StatusCode::kParaError);
+    }
+
+    // get segment not exist
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, GetSegment(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
+                                          0), StatusCode::kSegmentNotAllocated);
+    }
+
+    // delete segment fail
+    {
+        PageFileSegment segment;
+
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, GetSegment(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*storage_, DeleteSegment(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
+                                          0), StatusCode::kStorageError);
+    }
 }
 
 int main(int argc, char **argv) {

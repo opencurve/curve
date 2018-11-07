@@ -28,13 +28,13 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", createFile fail, filename = " <<  request->filename()
+            << ", CreateFile fail, filename = " <<  request->filename()
             << ", statusCode = " << retCode;
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
-        // LOG(INFO) << "logid = " << cntl->log_id()
-        //     << "createFile ok, filename = " << request->filename();
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", CreateFile ok, filename = " << request->filename();
     }
     return;
 }
@@ -58,13 +58,13 @@ void NameSpaceService::GetFileInfo(
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
-            << "GetFileInfo fail, filename = " <<  request->filename()
+            << ", GetFileInfo fail, filename = " <<  request->filename()
             << ", statusCode = " << retCode;
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-            << ", createFile ok, filename = " << request->filename();
+            << ", GetFileInfo ok, filename = " << request->filename();
     }
     return;
 }
@@ -95,15 +95,110 @@ void NameSpaceService::GetOrAllocateSegment(
         LOG(ERROR) << "logid = " << cntl->log_id()
             << ", GetOrAllocateSegment fail, filename = "
             <<  request->filename()
+            << ", offset = " << request->offset()
+            << ", allocateTag = " << request->allocateifnotexist()
             << ", statusCode = " << retCode;
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
-            << ", GetOrAllocateSegment ok, filename = " << request->filename();
+            << ", GetOrAllocateSegment ok, filename = " << request->filename()
+            << ", offset = " << request->offset()
+            << ", allocateTag = " << request->allocateifnotexist();
     }
     return;
 }
+
+void NameSpaceService::DeleteSegment(::google::protobuf::RpcController* controller,
+                         const ::curve::mds::DeleteSegmentRequest* request,
+                         ::curve::mds::DeleteSegmentResponse* response,
+                         ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", DeleteSegment request, filename = " << request->filename()
+        << ", offset = " << request->offset();
+
+    // TODO(hzsunjialiang): lock the filepath&name and do check permission
+    StatusCode retCode = kCurveFS.DeleteSegment(request->filename(),
+            request->offset());
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", DeleteSegment fail, filename = " << request->filename()
+            << ", offset = " << request->offset()
+            << ", statusCode = " << retCode;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", DeleteSegment ok, filename = " << request->filename()
+            << ", offset = " << request->offset();
+    }
+
+    return;
+}
+void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
+                         const ::curve::mds::RenameFileRequest* request,
+                         ::curve::mds::RenameFileResponse* response,
+                         ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", RenameFile request, oldfilename = " << request->oldfilename()
+        << ", newfilename = " << request->newfilename();
+
+    // TODO(hzsunjialiang): lock the filepath&name and do check permission
+    StatusCode retCode = kCurveFS.RenameFile(request->oldfilename(),
+            request->newfilename());
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", RenameFile fail, oldfilename = " << request->oldfilename()
+            << ", newfilename = " << request->newfilename()
+            << ", statusCode = " << retCode;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", RenameFile ok, oldFileName = " << request->oldfilename()
+            << ", newFileName = " << request->newfilename();
+    }
+
+    return;
+}
+
+void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ExtendFileRequest* request,
+                    ::curve::mds::ExtendFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", ExtendFile request, filename = " << request->filename()
+              << ", newsize = " << request->newsize();
+
+    // TODO(hzsunjialiang): lock the filepath&name and do check permission
+    StatusCode retCode = kCurveFS.ExtendFile(request->filename(),
+           request->newsize());
+    if (retCode != StatusCode::kOK)  {
+       response->set_statuscode(retCode);
+       LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", ExtendFile fail, filename = " << request->filename()
+                  << ", newsize = " << request->newsize()
+                  << ", statusCode = " << retCode;
+    } else {
+       response->set_statuscode(StatusCode::kOK);
+       LOG(INFO) << "logid = " << cntl->log_id()
+           << ", ExtendFile ok, filename = " << request->filename()
+           << ", newsize = " << request->newsize();
+    }
+
+    return;
+}
+
+
 }  // namespace mds
 }  // namespace curve
 

@@ -35,13 +35,13 @@ enum  StatusCode {
     kFileNotExists = 102;
     kNotDirectory = 103;
     kParaError = 104;
-    kShrinkBiggerFile = 105; 
+    kShrinkBiggerFile = 105;
     kExtentUnitError = 106;
     kSegmentNotAllocated = 107;
     kSegmentAllocateError = 108;
     kDirNotExist = 109;
     kNotSupported = 110;
-    
+
     kStorageError = 501;
     KInternalError = 502;
 };
@@ -55,17 +55,17 @@ message PageFileChunkInfo {
 
 message PageFileSegment {
     optional uint32 logicalPoolID = 1;
-    optional uint32 segmentSize = 3;     
+    optional uint32 segmentSize = 3;
     optional uint32 chunkSize = 4;
     optional uint64 startOffset = 2;
-    repeated  PageFileChunkInfo chunks = 5; 
+    repeated  PageFileChunkInfo chunks = 5;
 }
 
 
 
 
 message CreateFileRequest {
-    required string     fileName = 1;   
+    required string     fileName = 1;
     required FileType   fileType = 2;
     required uint64     fileLength = 3;
 };
@@ -75,7 +75,7 @@ message CreateFileResponse {
 }
 
 message GetFileInfoRequest {
-    required string     fileName = 1;   
+    required string     fileName = 1;
 }
 
 message GetFileInfoResponse {
@@ -84,20 +84,50 @@ message GetFileInfoResponse {
 }
 
 message GetOrAllocateSegmentRequest {
-    required string     fileName = 1;   
+    required string     fileName = 1;
     required uint64     offset = 2;
     required bool       allocateIfNotExist = 3;
 }
 
 message GetOrAllocateSegmentResponse {
     required StatusCode statusCode = 1;
-    optional PageFileSegment pageFileSegment = 2;   
+    optional PageFileSegment pageFileSegment = 2;
+}
+
+message DeleteSegmentRequest {
+    required string    fileName = 1;
+    required uint64    offset = 2;
+}
+
+message DeleteSegmentResponse {
+    required StatusCode statusCode = 1;
+}
+
+message RenameFileRequest {
+    required string     oldFileName = 1;
+    required string   newFileName = 2;
+}
+
+message RenameFileResponse {
+    required StatusCode statusCode = 1;
+}
+
+message ExtendFileRequest {
+    required string     fileName = 1;
+    required uint64     newSize = 2;
+}
+
+message ExtendFileResponse {
+    required StatusCode statusCode = 1;
 }
 
 service CurveFSService {
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
     rpc     GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
-    rpc     GetOrAllocateSegment(GetOrAllocateSegmentRequest) 
+    rpc     GetOrAllocateSegment(GetOrAllocateSegmentRequest)
                 returns (GetOrAllocateSegmentResponse);
+    rpc     DeleteSegment(DeleteSegmentRequest) returns (DeleteSegmentResponse);
+    rpc     RenameFile(RenameFileRequest) returns (RenameFileResponse);
+    rpc     ExtendFile(ExtendFileRequest) returns (ExtendFileResponse);
 }
 
