@@ -206,7 +206,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(50 * 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -236,7 +236,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(WriteChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(50 * 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -531,7 +531,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(100 * 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -556,7 +556,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
         EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(ReadChunkFunc));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(1000 * 1000);
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
@@ -584,7 +584,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(1000 * 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
@@ -622,7 +622,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(1000 * 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -669,7 +669,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(1000 * 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -723,7 +723,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(1000 * 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -763,7 +763,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
-                                offset, len, reqDone, 0);
+                                offset, len, 0, reqDone, 0);
         usleep(1000 * 1000);
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());

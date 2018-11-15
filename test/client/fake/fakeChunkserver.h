@@ -30,7 +30,8 @@ class FakeChunkService : public ChunkService {
         brpc::ClosureGuard doneGuard(done);
 
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
-        ::memcpy(chunk_, cntl->request_attachment().to_string().c_str(),
+        ::memcpy(chunk_,
+                 cntl->request_attachment().to_string().c_str(),
                  request->size());
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     }

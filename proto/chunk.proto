@@ -29,7 +29,7 @@ message ChunkRequest {
     required uint32 logicPoolId = 2; // for all  // logicPoolId 实际上 uint16，但是 proto 没有 uint16
     required uint32 copysetId = 3; // for all
     required uint64 chunkId = 4; // for all
-    optional uint64 committedIndex = 5; // for read
+    optional uint64 appliedIndex = 5; // for read
     optional uint32 offset = 6; // for read/write
     optional uint32 size = 7; // for read/write
     optional QosRequestParas deltaRho = 8; // for read/write
@@ -49,7 +49,7 @@ enum CHUNK_OP_STATUS {
 message ChunkResponse {
     required CHUNK_OP_STATUS status = 1;
     optional string redirect = 2; // 自己不是 leader，重定向给 leader
-    optional uint64 committedIndex = 3; // 返回当前最新的 committedIndex, 注意 read 和 write 都要返回
+    optional uint64 appliedIndex = 3; // 返回当前最新的 committedIndex, 注意 read 和 write 都要返回
     optional QosResponseParas phaseCost = 4; // for read/write
 };
 

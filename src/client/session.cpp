@@ -55,13 +55,14 @@ namespace client {
              * metacache should be Initialize before ioctxManager
              */
             mc_ = new (std::nothrow) MetaCache(this);
-            if (mc_ == nullptr) {
+            if (CURVE_UNLIKELY(mc_ == nullptr)) {
+                LOG(ERROR) << "allocate metacache failed!";
                 break;
             }
 
             mdschannel_ = new (std::nothrow) brpc::Channel();
-            if (mdschannel_ == nullptr) {
-                LOG(ERROR) << "Create mdschannel failed!";
+            if (CURVE_UNLIKELY(mdschannel_ == nullptr)) {
+                LOG(ERROR) << "allocate mdschannel_ failed!";
                 break;
             }
 
@@ -72,20 +73,20 @@ namespace client {
             }
 
             reqsenderManager_ = new (std::nothrow) RequestSenderManager();
-            if (reqsenderManager_ == nullptr) {
+            if (CURVE_UNLIKELY(reqsenderManager_ == nullptr)) {
                 LOG(ERROR) << "allocate RequestSenderManager failed!";
                 break;
             }
 
             scheduler_ = new (std::nothrow) RequestScheduler();
-            if (scheduler_ == nullptr) {
-                LOG(ERROR) << "allocate RequestSenderManager failed!";
+            if (CURVE_UNLIKELY(scheduler_ == nullptr)) {
+                LOG(ERROR) << "allocate RequestScheduler failed!";
                 break;
             }
 
             ioctxManager_ = new (std::nothrow) IOContextManager(mc_, scheduler_);  //NOLINT
-            if (ioctxManager_ == nullptr) {
-                LOG(ERROR) << "Create IOContextManager failed!";
+            if (CURVE_UNLIKELY(ioctxManager_ == nullptr)) {
+                LOG(ERROR) << "allocate IOContextManager failed!";
                 break;
             }
 
@@ -119,9 +120,7 @@ namespace client {
 
     void Session::UnInitialize() {
         scheduler_->Fini();
-        if (ioctxManager_ != nullptr) {
-            ioctxManager_->UnInitialize();
-        }
+        ioctxManager_->UnInitialize();
         delete mc_;
         delete mdschannel_;
         delete ioctxManager_;

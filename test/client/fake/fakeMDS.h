@@ -94,8 +94,13 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
                        GetChunkServerListInCopySetsResponse* response,
                        ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
-        if (fakeret_->controller_ != nullptr
-             && fakeret_->controller_->Failed()) {
+        int statcode = 0;
+        if (response->has_statuscode()) {
+            statcode = response->statuscode();
+        }
+        if (statcode == -1 ||
+            (fakeret_->controller_ != nullptr
+             && fakeret_->controller_->Failed())) {
             controller->SetFailed("failed");
         }
 

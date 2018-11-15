@@ -44,6 +44,7 @@ class RequestSender {
                   ChunkID chunkId,
                   off_t offset,
                   size_t length,
+                  uint64_t appliedindex,
                   ReadChunkClosure *done);
     CURVE_MOCK int WriteChunk(LogicPoolID logicPoolId,
                    CopysetID copysetId,
