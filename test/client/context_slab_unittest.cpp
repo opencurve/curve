@@ -24,7 +24,7 @@ class ContextSlabTest : public ::testing::Test {
  public:
     void SetUp() {
         iocontextslab_ = new IOContextSlab();
-        requestcontextslab_ = new RequestContextSlab();
+        requestcontextslab_ = new RequestContextSlab;
 
         iocontextslab_->Initialize();
         requestcontextslab_->Initialize();

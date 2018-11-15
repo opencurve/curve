@@ -61,27 +61,32 @@ typedef struct Chunkinfo : public CopysetIDInfo {
 typedef struct CopysetPeerInfo {
     ChunkServerID chunkserverid_;
     PeerId      peerid_;
-    uint32_t    commitindex_;
 
-    CopysetPeerInfo():chunkserverid_(0),
-                    commitindex_(0) {
+    CopysetPeerInfo():chunkserverid_(0) {
+    }
+
+    CopysetPeerInfo(ChunkServerID cid, PeerId pid) {
+        this->chunkserverid_ = cid;
+        this->peerid_ = pid;
     }
 
     CopysetPeerInfo& operator=(const CopysetPeerInfo& other) {
         this->chunkserverid_ = other.chunkserverid_;
         this->peerid_ = other.peerid_;
-        this->commitindex_ = other.commitindex_;
         return *this;
     }
 } CopysetPeerInfo_t;
 
 typedef struct CopysetInfo {
     std::vector<CopysetPeerInfo_t> csinfos_;
+    uint32_t    lastappliedindex_;
     uint16_t    leaderindex_;
     SpinLock    spinlock_;
 
-    CopysetInfo():leaderindex_(0) {
+    CopysetInfo() {
         csinfos_.clear();
+        leaderindex_ = 0;
+        lastappliedindex_ = 0;
     }
 
     ~CopysetInfo() {
@@ -92,12 +97,22 @@ typedef struct CopysetInfo {
     CopysetInfo& operator=(const CopysetInfo& other) {
         this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
         this->leaderindex_ = other.leaderindex_;
+        this->lastappliedindex_ = other.lastappliedindex_;
         return *this;
     }
 
     CopysetInfo(const CopysetInfo& other) {
         this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
         this->leaderindex_ = other.leaderindex_;
+        this->lastappliedindex_ = other.lastappliedindex_;
+    }
+
+    uint64_t GetAppliedIndex() {
+        return lastappliedindex_;
+    }
+
+    void UpdateAppliedIndex(uint64_t appliedindex) {
+        lastappliedindex_ = appliedindex;
     }
 
     void ChangeLeaderID(const PeerId& leaderid) {
@@ -112,8 +127,8 @@ typedef struct CopysetInfo {
         spinlock_.UnLock();
     }
 
-    void UpdateLeaderAndGetChunkserverID(ChunkServerID* chunkserverid,
-                                        const EndPoint& ep) {
+    int UpdateLeaderAndGetChunkserverID(ChunkServerID* chunkserverid,
+                                    const EndPoint& ep, bool newleader = true) {
         spinlock_.Lock();
         leaderindex_ = 0;
         for (auto iter : csinfos_) {
@@ -123,7 +138,26 @@ typedef struct CopysetInfo {
             }
             leaderindex_++;
         }
+        if (leaderindex_ >= csinfos_.size() && newleader) {
+            /**
+             * the new leader addr not in the copyset
+             * current, we just push the new leader into copyset info
+             * later, if chunkserver can not get leader, we will get 
+             * latest copyset info
+             */
+            PeerId pd(ep);
+            csinfos_.push_back(CopysetPeerInfo(*chunkserverid, pd));
+            spinlock_.UnLock();
+            // TODO(tongguangxun): pull latest copyset info
+            return 0;
+        }
+
+        if (leaderindex_ < csinfos_.size()) {
+            spinlock_.UnLock();
+            return 0;
+        }
         spinlock_.UnLock();
+        return -1;
     }
 
     int GetLeaderInfo(ChunkServerID* chunkserverid, EndPoint* ep) {

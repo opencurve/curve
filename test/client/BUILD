@@ -16,12 +16,20 @@ COPTS = [
     "-Wnon-virtual-dtor",
     "-Wno-missing-field-initializers",
     "-std=c++14",
+    #"-faligned-new"
 ]
 
 cc_test(
     name = "client_test_unittest",
     srcs = glob(["*.cpp",
-                "*.h",]),
+                "*.h",],
+                #exclude = ["client_session_metacache_unittest.cpp",
+                #"context_slab_unittest.cpp",
+                #"copyset_client_test.cpp",
+                #"iocontext_splitor_unittest.cpp",
+                #"request_scheduler_test.cpp",
+                #"request_sender_manager_test.cpp"],
+                ),
     defines = ["UNIT_TEST"],
     deps = ["@com_google_googletest//:gtest",
             "@com_google_googletest//:gtest_main",

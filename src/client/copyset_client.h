@@ -42,6 +42,7 @@ class CopysetClient : public Uncopyable {
                   ChunkID chunkId,
                   off_t offset,
                   size_t length,
+                   uint64_t appliedindex,
                   google::protobuf::Closure *done,
                   int retriedTimes = 0);
     int WriteChunk(LogicPoolID logicPoolId,

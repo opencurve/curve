@@ -19,7 +19,6 @@ DEFINE_uint32(get_leader_retry,
 
 namespace curve {
 namespace client {
-
     MetaCache::MetaCache(Session* session) {
         session_ = session;
     }
@@ -84,7 +83,9 @@ namespace client {
             std::vector<CopysetID> temp;
             temp.push_back(copysetId);
 
+            spinlock4CopysetInfo_.UnLock();
             session_->GetServerList(logicPoolId, temp);
+            spinlock4CopysetInfo_.Lock();
 
             iter = lpcsid2serverlistMap_.find(mapkey);
             if (iter == lpcsid2serverlistMap_.end() ||
@@ -159,6 +160,7 @@ namespace client {
                     const EndPoint &leaderAddr) {
         std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
 
+        int ret = 0;
         spinlock4CopysetInfo_.Lock();
         auto iter = lpcsid2serverlistMap_.find(mapkey);
         if (iter == lpcsid2serverlistMap_.end()) {
@@ -168,9 +170,9 @@ namespace client {
             spinlock4CopysetInfo_.UnLock();
             return -1;
         }
-        iter->second.UpdateLeaderAndGetChunkserverID(leaderId, leaderAddr);
+        ret = iter->second.UpdateLeaderAndGetChunkserverID(leaderId, leaderAddr); // NOLINT
         spinlock4CopysetInfo_.UnLock();
-        return 0;
+        return ret;
     }
 
     void MetaCache::UpdateChunkInfo(ChunkIndex cindex, Chunkinfo_t cinfo) {
@@ -201,41 +203,70 @@ namespace client {
                         const CopysetID &copysetId,
                         const Configuration &conf,
                         PeerId *leaderId) {
-    if (conf.empty()) {
-        LOG(ERROR) << "Empty group configuration";
-        return -1;
-    }
-    /* Construct a brpc naming service to access all the nodes in this group */
-    leaderId->reset();
-    for (Configuration::const_iterator
-             iter = conf.begin(); iter != conf.end(); ++iter) {
-        brpc::Channel channel;
-        if (channel.Init(iter->addr, NULL) != 0) {
-            LOG(ERROR) << "Fail to init channel to"
-                        << iter->to_string().c_str();
+        if (conf.empty()) {
+            LOG(ERROR) << "Empty group configuration";
             return -1;
         }
-        curve::chunkserver::CliService_Stub stub(&channel);
-        curve::chunkserver::GetLeaderRequest request;
-        curve::chunkserver::GetLeaderResponse response;
-        brpc::Controller cntl;
-        request.set_logicpoolid(logicPoolId);
-        request.set_copysetid(copysetId);
-        request.set_peer_id(iter->to_string());
-        stub.get_leader(&cntl, &request, &response, NULL);
-        if (cntl.Failed()) {
-            LOG(ERROR) << "GetLeader failed, "
-                        << cntl.ErrorText();
-            continue;
+        /** Construct a brpc naming service to 
+         * access all the nodes in this group 
+         */
+        leaderId->reset();
+        for (Configuration::const_iterator
+                iter = conf.begin(); iter != conf.end(); ++iter) {
+            brpc::Channel channel;
+            if (channel.Init(iter->addr, NULL) != 0) {
+                LOG(ERROR) << "Fail to init channel to"
+                            << iter->to_string().c_str();
+                return -1;
+            }
+            curve::chunkserver::CliService_Stub stub(&channel);
+            curve::chunkserver::GetLeaderRequest request;
+            curve::chunkserver::GetLeaderResponse response;
+            brpc::Controller cntl;
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId);
+            request.set_peer_id(iter->to_string());
+            stub.get_leader(&cntl, &request, &response, NULL);
+            if (cntl.Failed()) {
+                LOG(ERROR) << "GetLeader failed, "
+                            << cntl.ErrorText();
+                continue;
+            }
+            leaderId->parse(response.leader_id());
         }
-        leaderId->parse(response.leader_id());
+        if (leaderId->is_empty()) {
+            return -1;
+        }
+
+        return 0;
     }
-    if (leaderId->is_empty()) {
-        return -1;
+    void MetaCache::UpdateAppliedIndex(LogicPoolID logicPoolId,
+                                    CopysetID copysetId,
+                                    uint64_t appliedindex) {
+        std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
+        spinlock4CopysetInfo_.Lock();
+        auto iter = lpcsid2serverlistMap_.find(mapkey);
+        if (iter == lpcsid2serverlistMap_.end()) {
+            spinlock4CopysetInfo_.UnLock();
+            return;
+        }
+        iter->second.UpdateAppliedIndex(appliedindex);
+        spinlock4CopysetInfo_.UnLock();
     }
 
-    return 0;
-}
+    uint64_t MetaCache::GetAppliedIndex(LogicPoolID logicPoolId,
+                                        CopysetID copysetId) {
+        std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
+        spinlock4CopysetInfo_.Lock();
+        auto iter = lpcsid2serverlistMap_.find(mapkey);
+        if (iter == lpcsid2serverlistMap_.end()) {
+            spinlock4CopysetInfo_.UnLock();
+            return 0;
+        }
+        int appliedindex = iter->second.GetAppliedIndex();
+        spinlock4CopysetInfo_.UnLock();
+        return appliedindex;
+    }
 
 
 }   // namespace client

@@ -38,6 +38,7 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
                              ChunkID chunkId,
                              off_t offset,
                              size_t length,
+                             uint64_t appliedindex,
                              google::protobuf::Closure *done,
                              int retriedTimes) {
     brpc::ClosureGuard doneGuard(done);
@@ -71,7 +72,7 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
                 new ReadChunkClosure(this, doneGuard.release());
             readDone->SetRetriedTimes(i);
             senderPtr->ReadChunk(logicPoolId, copysetId, chunkId,
-                                 offset, length, readDone);
+                                 offset, length, appliedindex, readDone);
             /* 成功发起 read，break出去，重试逻辑进入 ReadChunkClosure 回调 */
             break;
         } else {

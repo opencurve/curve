@@ -45,6 +45,9 @@ void WriteChunkClosure::Run() {
         LOG(ERROR) << "write failed, error code: " << cntl_->ErrorCode()
                    << ", error: " << cntl_->ErrorText();
         /*It will be invoked in brpc's bthread, so*/
+        metaCache->UpdateAppliedIndex(reqCtx->logicpoolid_,
+                                        reqCtx->copysetid_,
+                                        0);
         bthread_usleep(FLAGS_client_chunk_op_retry_interval_us);
         goto write_retry;
     }
@@ -53,6 +56,9 @@ void WriteChunkClosure::Run() {
     status = response_->status();
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS == status) {
         reqDone->SetFailed(0);
+        metaCache->UpdateAppliedIndex(reqCtx->logicpoolid_,
+                                        reqCtx->copysetid_,
+                                        response_->appliedindex());
         return;
     }
     /* 2. 处理 chunkserver 返回的错误 */
@@ -62,6 +68,11 @@ void WriteChunkClosure::Run() {
             std::string redirect = response_->redirect();
             braft::PeerId leader;
             if (0 == leader.parse(redirect)) {
+                /**
+                 * TODO(tongguangxun): if raw copyset info is A,B,C,
+                 * chunkserver side copyset info is A,B,D, and D is leader
+                 * copyset client need tell cache, just insert new leader.
+                 */ 
                 metaCache->UpdateLeader(logicPoolId,
                                          copysetId,
                                          &leaderId,
@@ -111,6 +122,9 @@ void WriteChunkClosure::Run() {
 write_retry:
     if (retriedTimes_ + 1 >= FLAGS_client_chunk_op_max_retry) {
         reqDone->SetFailed(status);
+        metaCache->UpdateAppliedIndex(reqCtx->logicpoolid_,
+                                        reqCtx->copysetid_,
+                                        0);
         LOG(ERROR) << "retried times exceeds";
         return;
     }
@@ -222,6 +236,7 @@ read_retry:
                        reqCtx->chunkid_,
                        reqCtx->offset_,
                        reqCtx->rawlength_,
+                       reqCtx->appliedindex_,
                        doneGuard.release(),
                        retriedTimes_ + 1);
 }

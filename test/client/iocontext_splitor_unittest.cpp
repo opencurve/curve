@@ -324,6 +324,7 @@ TEST_F(IOContextSplitorTest, ManagerAsyncStartRead) {
 
     MetaCache* mc = session_->GetMetaCache();
     auto ioctxmana = new IOContextManager(mc, &mockschuler);
+    ioctxmana->UnInitialize();
     ASSERT_TRUE(ioctxmana->Initialize());
 
     CurveAioContext aioctx;
