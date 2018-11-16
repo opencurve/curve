@@ -8,7 +8,7 @@
 #include <string.h>
 #include <list>
 
-#include "src/chunkserver/chunkserverStorage/adaptor_util.h"
+#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_storage.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_sfs_adaptor.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_sfs_localfs_impl.h"
@@ -24,10 +24,8 @@ CSSfsAdaptor::CSSfsAdaptor() {
 }
 
 CSSfsAdaptor::~CSSfsAdaptor() {
-    if (lfs_ != nullptr) {
-        delete lfs_;
-        lfs_ = nullptr;
-    }
+    delete lfs_;
+    lfs_ = nullptr;
 }
 
 bool CSSfsAdaptor::Initialize(const std::string& deviceID,

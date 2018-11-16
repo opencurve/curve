@@ -13,7 +13,7 @@
 
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_storage.h"
-#include "src/chunkserver/chunkserverStorage/adaptor_util.h"
+#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
 namespace curve {
 namespace chunkserver {

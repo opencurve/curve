@@ -56,11 +56,6 @@ TEST_F(CSDataStore_test, ReadWriteChunk) {
         ASSERT_EQ(0, strcmp(readbuf, writebuf));
         ASSERT_TRUE(cpmana->DeleteChunk(chunkid));
     }
-    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/test1/data"));
-    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/test1/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("./1/2/"));
-    ASSERT_TRUE(testsfsada_->Rmdir("./1"));
 }
 
 TEST_F(CSDataStore_test, DeleteChunk) {
@@ -75,6 +70,36 @@ TEST_F(CSDataStore_test, DeleteChunk) {
     ASSERT_EQ(1, cpmana->WriteChunk(chunkid, writebuf, 0, 1024));
 
     ASSERT_TRUE(cpmana->DeleteChunk(chunkid));
+}
+
+TEST_F(CSDataStore_test, ExceptionTest) {
+    std::string datastorepath = "./1/2/3/test1//";
+    cpmana = std::shared_ptr<CSDataStore>(
+        new CSDataStore());
+    ASSERT_TRUE(cpmana->Initialize(testsfsada_, datastorepath));
+
+
+    curve::chunkserver::ChunkID chunkid = 2000;
+    size_t length = 1024;
+    char readbuf[1024];
+    memset(readbuf, 'b', 1024);
+    ASSERT_EQ(1, cpmana->ReadChunk(chunkid, readbuf, 0, &length));
+    readbuf[1023] = '\0';
+    ASSERT_TRUE(cpmana->DeleteChunk(chunkid));
+    ASSERT_FALSE(cpmana->DeleteChunk(chunkid));
+
+    length = 1024;
+    char writebuf[1024];
+    memset(writebuf, 'a', 1024);
+    writebuf[1023] = '\0';
+    ASSERT_EQ(1, cpmana->WriteChunk(chunkid, writebuf, 0, 1024));
+    ASSERT_EQ(1, cpmana->ReadChunk(chunkid, readbuf, 0, &length));
+    ASSERT_EQ(0, strcmp(readbuf, writebuf));
+
+    ASSERT_TRUE(cpmana->DeleteChunk(chunkid));
+}
+
+TEST_F(CSDataStore_test, RmDirTest) {
     ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/test1/data"));
     ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/test1/"));
     ASSERT_TRUE(testsfsada_->Rmdir("./1/2/3/"));

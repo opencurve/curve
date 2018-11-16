@@ -8,5 +8,5 @@ cc_library(
         "-pthread",
         "-std=c++11",
     ]),
-    visibility = ["//visibility:public"],
+    visibility = ["//visibility:public"]
 )

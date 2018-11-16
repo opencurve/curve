@@ -1,5 +1,6 @@
 BUILD_SRCS_SFS_ADAPTOR = [
-    "adaptor_util.h",
+    "chunkserver_adaptor_util.cpp",
+    "chunkserver_adaptor_util.h",
     "chunkserver_datastore_executor.cpp",
     "chunkserver_datastore_executor.h",
     "chunkserver_datastore_interface.h",
@@ -25,6 +26,7 @@ cc_library(
         "//external:braft",
         "//external:gflags",
         "//include:include-common",
+        "//src/common:curve_common",
         "//include/chunkserver:include-chunkserver",
         "//src/sfs:chunkserver-sfsmock-lib",
     ],

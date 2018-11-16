@@ -22,38 +22,39 @@
 #include <cstdint>
 
 #include "src/sfs/sfsMock.h"
+#include "include/curve_compiler_specific.h"
 
 namespace curve {
 namespace chunkserver {
 class CSSfsLocalFsImpl : public curve::sfs::LocalFileSystem {
  public:
     CSSfsLocalFsImpl();
-    ~CSSfsLocalFsImpl();
+    CURVE_MOCK ~CSSfsLocalFsImpl();
 
     int Mkfs() override;
     int Mount() override;
     int Umount() override;
     int Statfs(struct curve::sfs::FsInfo* info) override;
 
-    int Open(const char* path, int flags, mode_t mode) override;
-    int Close(int fd) override;
-    int Delete(const char* path) override;
-    int Mkdir(const char* dirName, int flags) override;
-    bool DirExists(const char* dirName) override;
-    bool FileExists(const char* filePath) override;
+    CURVE_MOCK int Open(const char* path, int flags, mode_t mode);
+    CURVE_MOCK int Close(int fd);
+    CURVE_MOCK int Delete(const char* path);
+    CURVE_MOCK int Mkdir(const char* dirName, int flags);
+    CURVE_MOCK bool DirExists(const char* dirName);
+    CURVE_MOCK bool FileExists(const char* filePath);
     int Rename(const char* oldPath, const char* newPath) override;
     int List(const char* dirName,
             std::vector<char*>* names,
             int start,
             int max) override;
-    int Read(int fd, void* buf, uint64_t offset, int length) override;
-    int Write(int fd, const void* buf, uint64_t offset, int length) override;
-    int Append(int fd, void* buf, int length) override;
-    int Fallocate(int fd, int op, uint64_t offset, int length) override;
-    int Fstat(int fd, struct stat* info) override;
-    int Fsync(int fd) override;
-    int Snapshot(const char* path, const char* snapPath) override;
-    bool Rmdir(const char* path) override;
+    CURVE_MOCK int Read(int fd, void* buf, uint64_t offset, int length);
+    CURVE_MOCK int Write(int fd, const void* buf, uint64_t offset, int length);
+    CURVE_MOCK int Append(int fd, void* buf, int length);
+    CURVE_MOCK int Fallocate(int fd, int op, uint64_t offset, int length);
+    CURVE_MOCK int Fstat(int fd, struct stat* info);
+    CURVE_MOCK int Fsync(int fd);
+    int Snapshot(const char* path, const char* snapPath);
+    bool Rmdir(const char* path);
 };
 
 }  // namespace chunkserver
