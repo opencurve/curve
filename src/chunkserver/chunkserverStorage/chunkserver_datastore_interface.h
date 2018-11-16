@@ -11,7 +11,7 @@
 #include <string>
 #include <functional>
 
-#include "src/chunkserver/chunkserverStorage/adaptor_util.h"
+#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "include/chunkserver/chunkserver_common.h"
 
 namespace curve {

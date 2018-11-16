@@ -37,6 +37,7 @@ bool CSDataStoreExecutor::DeleteChunk() {
 bool CSDataStoreExecutor::ReadChunk(char * buf,
                                     off_t offset,
                                     size_t* length) {
+    bool ret = false;
     int readlength = 0;
     if (CURVE_LIKELY(fd_.Valid())) {
         readlength = lfs_->Read(fd_,
@@ -58,7 +59,9 @@ bool CSDataStoreExecutor::ReadChunk(char * buf,
                                     *length);
         }
     }
-    return (*length = readlength);
+    (*length = readlength);
+    ret = (readlength > 0) ? true : false;
+    return ret;
 }
 
 /*

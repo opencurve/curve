@@ -1,23 +1,16 @@
 /*
  * Project: curve
- * Created Date: Friday August 24th 2018
+ * File Created: Thursday, 22nd November 2018 2:03:49 pm
  * Author: tongguangxun
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_ADAPTOR_UTIL_H
-#define CURVE_CHUNKSERVER_ADAPTOR_UTIL_H
-
-#include <limits.h>
-#include <string>
-#include <list>
+#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
 namespace curve {
 namespace chunkserver {
-class FsAdaptorUtil {
- public:
-    // TODO(tongguangxun): we need a string piece util
-    static std::string ParserUri(const std::string& uri, std::string * param) {
+    std::string FsAdaptorUtil::ParserUri(const std::string& uri,
+                                        std::string * param) {
         // ${protocol}://${parameters}
         std::string protocol;
         do {
@@ -31,7 +24,7 @@ class FsAdaptorUtil {
         return protocol;
     }
 
-    static std::list<std::string> ParserDirPath(std::string path) {
+    std::list<std::string> FsAdaptorUtil::ParserDirPath(std::string path) {
         std::list<std::string> dirpath;
         dirpath.clear();
         int startpos = NAME_MAX;
@@ -45,8 +38,5 @@ class FsAdaptorUtil {
         }
         return dirpath;
     }
-};
 }  // namespace chunkserver
 }  // namespace curve
-
-#endif  // !CURVE_CHUNKSERVER_ADAPTOR_UTIL_H

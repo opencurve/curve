@@ -37,7 +37,7 @@ class CSDataStoreExecutor_test : public testing::Test{
     std::shared_ptr<CSSfsAdaptor>  csSfsAdaptorPtr_;
 };
 
-TEST_F(CSDataStoreExecutor_test, ReadWriteChunk) {
+TEST_F(CSDataStoreExecutor_test, WriteReadChunk) {
     std::string filepath("./test.txt");
     CSDataStoreExecutorptr = std::shared_ptr<CSDataStoreExecutor>(
         new CSDataStoreExecutor(csSfsAdaptorPtr_, filepath));
@@ -47,11 +47,40 @@ TEST_F(CSDataStoreExecutor_test, ReadWriteChunk) {
     memset(writebuf, 'a', 1024);
     writebuf[1023] = '\0';
     ASSERT_EQ(1, CSDataStoreExecutorptr->WriteChunk(writebuf, 0, 1024));
+    ASSERT_EQ(1, CSDataStoreExecutorptr->WriteChunk(writebuf, 0, 1024));
 
     size_t length = 1024;
     char readbuf[1024];
     memset(readbuf, 'b', 1024);
     ASSERT_EQ(1, CSDataStoreExecutorptr->ReadChunk(readbuf, 0, &length));
+    ASSERT_EQ(1, CSDataStoreExecutorptr->ReadChunk(readbuf, 0, &length));
+    readbuf[1023] = '\0';
+    ASSERT_EQ(0, strcmp(readbuf, writebuf));
+    ASSERT_TRUE(CSDataStoreExecutorptr->DeleteChunk());
+}
+
+TEST_F(CSDataStoreExecutor_test, ReadWriteChunk) {
+    std::string filepath("./readwrite.txt");
+    CSDataStoreExecutorptr = std::shared_ptr<CSDataStoreExecutor>(
+        new CSDataStoreExecutor(csSfsAdaptorPtr_, filepath));
+    ASSERT_TRUE(CSDataStoreExecutorptr != nullptr);
+
+    size_t length = 1024;
+    char readbuf[1024];
+    memset(readbuf, 'b', 1024);
+    ASSERT_EQ(1, CSDataStoreExecutorptr->ReadChunk(readbuf, 0, &length));
+    length = 1024;
+    ASSERT_EQ(1, CSDataStoreExecutorptr->ReadChunk(readbuf, 0, &length));
+
+    char writebuf[1024];
+    memset(writebuf, 'a', 1024);
+    writebuf[1023] = '\0';
+    ASSERT_EQ(1, CSDataStoreExecutorptr->WriteChunk(writebuf, 0, 1024));
+    ASSERT_EQ(1, CSDataStoreExecutorptr->WriteChunk(writebuf, 0, 1024));
+
+    length = 1024;
+    ASSERT_EQ(1, CSDataStoreExecutorptr->ReadChunk(readbuf, 0, &length));
+    ASSERT_EQ(1024, length);
     readbuf[1023] = '\0';
     ASSERT_EQ(0, strcmp(readbuf, writebuf));
     ASSERT_TRUE(CSDataStoreExecutorptr->DeleteChunk());

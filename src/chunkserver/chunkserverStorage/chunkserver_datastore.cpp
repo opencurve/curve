@@ -9,7 +9,7 @@
 #include <iostream>
 #include <list>
 
-#include "src/chunkserver/chunkserverStorage/adaptor_util.h"
+#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_sfs_adaptor.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_datastore.h"
 
@@ -42,8 +42,7 @@ bool CSDataStore::InitInternal(std::shared_ptr<CSSfsAdaptor> fsadaptor,
     }
 
     if (fsadaptor == nullptr) {
-        // LOG(FATAL) << "DataStore path invalid!";
-        abort();
+        LOG(FATAL) << "DataStore path invalid!";
     }
 
     copysetDir_ = copysetdir;
@@ -62,11 +61,9 @@ bool CSDataStore::InitInternal(std::shared_ptr<CSSfsAdaptor> fsadaptor,
                 }
             }
         }
-        if (err != -1 && !sfsptr_->DirExists((copysetDir_ + "/data").c_str())) {
+        bool exist = sfsptr_->DirExists((copysetDir_ + "/data").c_str());
+        if (err != -1 && !exist) {
             err = sfsptr_->Mkdir((copysetDir_ + "/data").c_str(), 0755);
-            if (err == -1) {
-                break;
-            }
         }
     } while (0);
     err == -1 ? isInited_ = false : isInited_ = true;
