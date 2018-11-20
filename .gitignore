@@ -57,6 +57,7 @@ build.log
 *.pb.cc
 
 # bazel
+bazel-*
 bazel-bin
 bazel-curve
 bazel-genfiles

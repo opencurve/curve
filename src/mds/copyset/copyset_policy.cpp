@@ -69,17 +69,18 @@ bool CopysetZoneShufflePolicy::GenCopyset(const ClusterInfo& cluster,
         chunkServers.size(),
         numReplicas);
 
-    for (int i = 0; i < maxNum; i++) {
-        if (!permutationPolicy_->permutation(&chunkServers)) {
+    for (int count = 0; count < maxNum; count++) {
+        std::vector<ChunkServerInfo> csList;
+        if (!permutationPolicy_->permutation(chunkServers, &csList)) {
             return false;
         }
 
-        for (uint32_t i = 0; i < chunkServers.size(); i += numReplicas) {
-            if (i + numReplicas > chunkServers.size()) {
+        for (uint32_t i = 0; i < csList.size(); i += numReplicas) {
+            if (i + numReplicas > csList.size()) {
                 break;
             }
-            std::copy(chunkServers.begin() + i,
-                chunkServers.begin() + i + numReplicas,
+            std::copy(csList.begin() + i,
+                csList.begin() + i + numReplicas,
                 replicas.begin());
             Copyset copyset;
             for (auto& replica : replicas) {
@@ -123,12 +124,13 @@ int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
 }
 
 bool CopysetPermutationPolicy333::permutation(
-    std::vector<ChunkServerInfo> *chunkServers) {
+    const std::vector<ChunkServerInfo> &serversIn,
+    std::vector<ChunkServerInfo> *serversOut) {
     std::vector<ChunkServerInfo> chunkServerInZone1,
                                  chunkServerInZone2,
                                  chunkServerInZone3;
     curve::mds::topology::ZoneIdType zid1, zid2, zid3;
-    for (ChunkServerInfo& sv : *chunkServers) {
+    for (const ChunkServerInfo& sv : serversIn) {
         if (0 == chunkServerInZone1.size() ||
             zid1 == sv.location.zoneId) {
             chunkServerInZone1.push_back(sv);
@@ -156,20 +158,20 @@ bool CopysetPermutationPolicy333::permutation(
     std::shuffle(chunkServerInZone2.begin(), chunkServerInZone2.end(), g);
     std::shuffle(chunkServerInZone3.begin(), chunkServerInZone3.end(), g);
 
-    chunkServers->clear();
+    serversOut->clear();
 
     for (uint32_t i = 0; i < chunkServerInZone1.size() &&
                 i < chunkServerInZone2.size() &&
                 i < chunkServerInZone3.size();
                 i++) {
         if (i < chunkServerInZone1.size()) {
-           chunkServers->push_back(chunkServerInZone1[i]);
+           serversOut->push_back(chunkServerInZone1[i]);
         }
         if (i < chunkServerInZone2.size()) {
-           chunkServers->push_back(chunkServerInZone2[i]);
+           serversOut->push_back(chunkServerInZone2[i]);
         }
         if (i < chunkServerInZone3.size()) {
-           chunkServers->push_back(chunkServerInZone3[i]);
+           serversOut->push_back(chunkServerInZone3[i]);
         }
     }
 
@@ -193,10 +195,11 @@ bool CopysetPermutationPolicy333::permutation(
  * @reval false  exec fail.
  */
 bool CopysetPermutationPolicyN33::permutation(
-    std::vector<ChunkServerInfo> *chunkServers) {
+    const std::vector<ChunkServerInfo> &serversIn,
+    std::vector<ChunkServerInfo> *serversOut) {
     std::map<curve::mds::topology::ZoneIdType,
         std::vector<ChunkServerInfo> > csMap;
-    for (ChunkServerInfo& sv : *chunkServers) {
+    for (const ChunkServerInfo& sv : serversIn) {
         curve::mds::topology::ZoneIdType zid = sv.location.zoneId;
         if (csMap.find(zid) != csMap.end()) {
             csMap[zid].push_back(sv);
@@ -216,22 +219,19 @@ bool CopysetPermutationPolicyN33::permutation(
     std::random_device rd;
     std::mt19937 g(rd());
 
-    int minSize = 0;
+    serversOut->clear();
     if (!csMap.empty()) {
-        minSize = csMap.begin()->second.size();
-    }
-    for (auto& it : csMap) {
-        std::shuffle(it.second.begin(), it.second.end(), g);
-        if (it.second.size() <  minSize) {
-            minSize = it.second.size();
-        }
-    }
-
-    chunkServers->clear();
-
-    for (int i = 0; i < minSize; i++) {
+        auto minSize = csMap.begin()->second.size();
         for (auto& it : csMap) {
-            chunkServers->push_back(it.second[i]);
+            std::shuffle(it.second.begin(), it.second.end(), g);
+            if (it.second.size() <  minSize) {
+                minSize = it.second.size();
+            }
+        }
+        for (decltype(minSize) i = 0; i < minSize; i++) {
+            for (auto& it : csMap) {
+                serversOut->push_back(it.second[i]);
+            }
         }
     }
     return true;

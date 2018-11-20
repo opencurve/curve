@@ -407,6 +407,7 @@ class ChunkServer {
   void SetToken(std::string token) {
       token_ = token;
   }
+
   std::string GetDiskType() const {
       return diskType_;
   }
@@ -531,7 +532,7 @@ class CopySetInfo {
       hasCandidate_ = true;
       candidate_ = csId;
   }
-  // TODO(超杰): +const
+
   ChunkServerIdType GetCandidate() const {
       if (hasCandidate_) {
           return candidate_;
@@ -542,14 +543,11 @@ class CopySetInfo {
 
   void ClearCandidate() {
       hasCandidate_ = false;
-      candidate_ = UNINTIALIZE_ID;
   }
 
  private:
   PoolIdType logicalPoolId_;
   CopySetIdType copySetId_;
-
-  // TODO(chaojie-schedule): add
   ChunkServerIdType leader_;
   EpochType epoch_;
   std::set<ChunkServerIdType> peers_;

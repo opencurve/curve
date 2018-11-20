@@ -127,7 +127,9 @@ class CopysetPermutationPolicy {
     zoneChoseNum_(zoneChoseNum),
     replicaNum_(replicaNum) {}
     virtual ~CopysetPermutationPolicy() {}
-    virtual bool permutation(std::vector<ChunkServerInfo> *servers) = 0;
+    virtual bool permutation(
+            const std::vector<ChunkServerInfo> &serversIn,
+            std::vector<ChunkServerInfo> *serversOut) = 0;
 
     uint32_t GetZoneNum() const {
         return zoneNum_;
@@ -193,7 +195,8 @@ class CopysetPermutationPolicy333 : public CopysetPermutationPolicy {
 
     ~CopysetPermutationPolicy333() {}
 
-    bool permutation(std::vector<ChunkServerInfo> *chunkServers) override;
+    bool permutation(const std::vector<ChunkServerInfo> &serversIn,
+            std::vector<ChunkServerInfo> *serversOut) override;
 };
 
 
@@ -204,7 +207,8 @@ class CopysetPermutationPolicyN33 : public CopysetPermutationPolicy {
 
     ~CopysetPermutationPolicyN33() {}
 
-    bool permutation(std::vector<ChunkServerInfo> *chunkServers) override;
+    bool permutation(const std::vector<ChunkServerInfo> &serversIn,
+            std::vector<ChunkServerInfo> *serversOut) override;
 };
 
 }  // namespace copyset

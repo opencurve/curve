@@ -265,6 +265,7 @@ bool DefaultTopologyStorage::LoadCopySet(
     copySetIdMaxMap->clear();
     for (CopySetRepo &rp : copySetRepos) {
         CopySetInfo copyset(rp.logicalPoolID, rp.copySetID);
+        copyset.SetEpoch(rp.epoch);
         if (!copyset.SetCopySetMembersByJson(rp.chunkServerIDList)) {
             LOG(ERROR) << "[DefaultTopologyStorage::LoadCopySet]: "
                        << "parse json string fail.";
@@ -378,6 +379,7 @@ bool DefaultTopologyStorage::StorageCopySet(const CopySetInfo &data) {
     std::string chunkServerListStr = data.GetCopySetMembersStr();
     CopySetRepo rp(data.GetId(),
                    data.GetLogicalPoolId(),
+                   data.GetEpoch(),
                    chunkServerListStr);
     if (repo_->InsertCopySetRepo(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::StorageCopySet]: "

@@ -31,7 +31,6 @@ using mutex = std::mutex;
 namespace curve {
 namespace mds {
 namespace topology {
-
 class Topology {
  public:
   Topology() {}
@@ -64,8 +63,7 @@ class Topology {
   virtual int RemoveServer(ServerIdType id) = 0;
   virtual int RemoveChunkServer(ChunkServerIdType id) = 0;
   virtual int RemoveCopySet(CopySetKey key) = 0;
-
-// update
+  // update
   virtual int UpdateLogicalPool(const LogicalPool &data) = 0;
   virtual int UpdatePhysicalPool(const PhysicalPool &data) = 0;
   virtual int UpdateZone(const Zone &data) = 0;
@@ -78,9 +76,9 @@ class Topology {
   virtual int UpdateCopySet(const CopySetInfo &data) = 0;
 
 // find
-  virtual PoolIdType FindLogicalPool(
-      const std::string &logicalPoolName,
-      const std::string &physicalPoolName) const = 0;
+  virtual PoolIdType
+      FindLogicalPool(const std::string &logicalPoolName,
+                      const std::string &physicalPoolName) const = 0;
   virtual PoolIdType FindPhysicalPool(
       const std::string &physicalPoolName) const = 0;
   virtual ZoneIdType FindZone(const std::string &zoneName,
@@ -93,8 +91,7 @@ class Topology {
       const std::string &hostIp) const = 0;
   virtual ChunkServerIdType FindChunkServer(const std::string &hostIp,
                                             uint32_t port) const = 0;
-
-// get
+  // get
   virtual bool GetLogicalPool(PoolIdType poolId,
                               LogicalPool *out) const = 0;
   virtual bool GetPhysicalPool(PoolIdType poolId,
@@ -133,7 +130,7 @@ class Topology {
                               uint32_t port,
                               ChunkServer *out) const = 0;
 
-// getlist
+  // getlist
   virtual std::list<ChunkServerIdType> GetChunkServerInCluster() const = 0;
   virtual std::list<ServerIdType> GetServerInCluster() const = 0;
   virtual std::list<ZoneIdType> GetZoneInCluster() const = 0;
@@ -169,10 +166,7 @@ class Topology {
 
   virtual std::vector<CopySetKey>
   GetCopySetsInChunkServer(ChunkServerIdType id) const = 0;
-
-  // TODO(chaojie-schedule): add Topology需要增加创建copyset的接口
 };
-
 class TopologyImpl : public Topology {
  public:
   TopologyImpl(std::shared_ptr<TopologyIdGenerator> idGenerator,
@@ -189,6 +183,7 @@ class TopologyImpl : public Topology {
   int init();
 
 // allocate id & token
+
   PoolIdType AllocateLogicalPoolId();
   PoolIdType AllocatePhysicalPoolId();
   ZoneIdType AllocateZoneId();
@@ -198,7 +193,7 @@ class TopologyImpl : public Topology {
 
   std::string AllocateToken();
 
-  // add
+// add
   int AddLogicalPool(const LogicalPool &data);
   int AddPhysicalPool(const PhysicalPool &data);
   int AddZone(const Zone &data);
@@ -248,7 +243,6 @@ class TopologyImpl : public Topology {
   bool GetChunkServer(ChunkServerIdType chunkserverId,
                       ChunkServer *out) const;
 
-  // TODO(chaojie-schedule): +const
   bool GetCopySet(CopySetKey key, CopySetInfo *out) const;
 
   bool GetLogicalPool(const std::string &logicalPoolName,
@@ -296,7 +290,6 @@ class TopologyImpl : public Topology {
   std::list<ChunkServerIdType> GetChunkServerInZone(ZoneIdType id) const;
   std::list<ChunkServerIdType> GetChunkServerInPhysicalPool(
       PoolIdType id) const;
-
   std::list<ServerIdType> GetServerInZone(ZoneIdType id) const;
   std::list<ServerIdType> GetServerInPhysicalPool(PoolIdType id) const;
 
@@ -311,7 +304,8 @@ class TopologyImpl : public Topology {
   std::vector<CopySetIdType> GetCopySetsInLogicalPool(
       PoolIdType logicalPoolId) const;
   std::vector<CopySetKey> GetCopySetsInCluster() const;
-  std::vector<CopySetKey> GetCopySetsInChunkServer(ChunkServerIdType id) const;
+  std::vector<CopySetKey> GetCopySetsInChunkServer(
+      ChunkServerIdType id) const;
 
  private:
   std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap_;
@@ -321,7 +315,6 @@ class TopologyImpl : public Topology {
   std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap_;
 
   std::map<CopySetKey, CopySetInfo> copySetMap_;
-
   std::shared_ptr<TopologyIdGenerator> idGenerator_;
   std::shared_ptr<TopologyTokenGenerator> tokenGenerator_;
   std::shared_ptr<TopologyStorage> storage_;
@@ -334,6 +327,7 @@ class TopologyImpl : public Topology {
   mutable curve::common::mutex chunkServerMutex_;
   mutable curve::common::mutex copySetMutex_;
 };
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
