@@ -2294,19 +2294,64 @@ TEST_F(TestTopology, GetCopySetsInLogicalPool_success) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
-    CopySetInfo copysetInfo;
-
     std::vector<CopySetIdType> csList =
     topology_->GetCopySetsInLogicalPool(logicalPoolId);
     ASSERT_EQ(1, csList.size());
 }
 
+TEST_F(TestTopology, GetCopySetsInCluster_success) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+    CopySetIdType copysetId = 0x51;
 
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddZone(0x22, "zone2", physicalPoolId);
+    PrepareAddZone(0x23, "zone3", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
+    std::vector<CopySetKey> csList =
+    topology_->GetCopySetsInCluster();
+    ASSERT_EQ(1, csList.size());
+}
 
+TEST_F(TestTopology, GetCopySetsInChunkServer_success) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+    CopySetIdType copysetId = 0x51;
 
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddZone(0x22, "zone2", physicalPoolId);
+    PrepareAddZone(0x23, "zone3", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
-
+    std::vector<CopySetKey> csList =
+    topology_->GetCopySetsInChunkServer(0x41);
+    ASSERT_EQ(1, csList.size());
+}
 
 }  // namespace topology
 }  // namespace mds

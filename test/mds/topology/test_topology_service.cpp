@@ -53,11 +53,11 @@ class TestTopologyService : public ::testing::Test {
       std::shared_ptr<TopologyStorage> storage_ =
           std::make_shared<DefaultTopologyStorage>(repo_);
 
-      manager_ = std::make_shared<MockTopologyServiceManager>(
-          std::make_shared<TopologyImpl>(idGenerator_,
-                                         tokenGenerator_,
-                                         storage_),
-          std::make_shared<CopysetManager>());
+        manager_ = std::make_shared<MockTopologyServiceManager>(
+                std::make_shared<TopologyImpl>(idGenerator_,
+                                           tokenGenerator_,
+                                           storage_),
+                std::make_shared<CopysetManager>());
 
       TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);
       ASSERT_EQ(0, server_->AddService(topoService,

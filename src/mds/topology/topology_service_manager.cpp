@@ -13,6 +13,8 @@
 #include <string>
 #include <list>
 #include <vector>
+#include <chrono>  //NOLINT
+#include <thread>  //NOLINT
 
 #include "brpc/channel.h"
 #include "brpc/controller.h"
@@ -590,20 +592,17 @@ int TopologyServiceManager::CreateCopysetForLogicalPool(
             LOG(ERROR) << "CreateCopysetForLogicalPool invalid logicalPoolType:"
                        << lPool.GetLogicalPoolType();
             return kTopoErrCodeInvalidParam;
-            break;
         }
         case LogicalPoolType::APPENDECFILE: {
             // TODO(xuchaojie): it is not done.
             LOG(ERROR) << "CreateCopysetForLogicalPool invalid logicalPoolType:"
                        << lPool.GetLogicalPoolType();
             return kTopoErrCodeInvalidParam;
-            break;
         }
         default: {
             LOG(ERROR) << "CreateCopysetForLogicalPool invalid logicalPoolType:"
                        << lPool.GetLogicalPoolType();
             return kTopoErrCodeInvalidParam;
-            break;
         }
     }
     return kTopoErrCodeSuccess;
@@ -691,107 +690,115 @@ int TopologyServiceManager::GenCopysetForPageFilePool(
     return kTopoErrCodeSuccess;
 }
 
-bool TopologyServiceManager::CreateCopysetAtChunkServer(
-    const CopySetInfo &info, ChunkServerIdType id) {
-}
-
 int TopologyServiceManager::CreateCopysetOnChunkServer(
     const std::vector<CopySetInfo> &copysetInfos) {
     for (const CopySetInfo &cs : copysetInfos) {
         for (ChunkServerIdType csId : cs.GetCopySetMembers()) {
-            ChunkServer chunkServer;
-            topology_->GetChunkServer(csId, &chunkServer);
-
-            std::string ip = chunkServer.GetHostIp();
-            int port = chunkServer.GetPort();
-
-            brpc::Channel channel;
-            if (channel.Init(ip.c_str(), port, NULL) != 0) {
-                LOG(ERROR) << "Fail to init channel to ip: "
-                           << ip
-                           << " port "
-                           << port
-                           << std::endl;
+            if (!CreateCopysetAtChunkServer(cs, csId)) {
                 return kTopoErrCodeGenCopysetErr;
-            }
-            CopysetService_Stub stub(&channel);
-
-            // 调用chunkserver接口创建copyset
-            brpc::Controller cntl;
-            // TODO(xuchaojie): 添加配置模块，使用配置参数
-            cntl.set_timeout_ms(1000);
-
-            CopysetRequest chunkServerRequest;
-            chunkServerRequest.set_logicpoolid(cs.GetLogicalPoolId());
-            chunkServerRequest.set_copysetid(cs.GetId());
-
-            for (ChunkServerIdType id : cs.GetCopySetMembers()) {
-                ChunkServer chunkserverInfo;
-                topology_->GetChunkServer(id, &chunkserverInfo);
-                std::string ipStr = chunkserverInfo.GetHostIp();
-                std::string portStr =
-                    std::to_string(chunkserverInfo.GetPort());
-                chunkServerRequest.add_peerid(ipStr + ":" + portStr);
-            }
-
-            CopysetResponse chunkSeverResponse;
-
-            LOG(INFO) << "Send CopysetRequest[log_id=" << cntl.log_id()
-                      << "] from " << cntl.local_side()
-                      << " to " << cntl.remote_side()
-                      << ". [CopysetRequest] "
-                      << chunkServerRequest.DebugString();
-
-            stub.CreateCopysetNode(&cntl,
-                                   &chunkServerRequest,
-                                   &chunkSeverResponse,
-                                   nullptr);
-
-            // TODO(xuchaojie): 添加配置模块，使用配置参数
-            const int retryTime = 3;
-            int retry = 0;
-            while (cntl.Failed() && retry < retryTime) {
-                LOG(ERROR) << "Received CopysetResponse error, "
-                           << "cntl.errorText = "
-                           << cntl.ErrorText()
-                           << ", retry, time = "
-                           << retry;
-                stub.CreateCopysetNode(&cntl,
-                                       &chunkServerRequest,
-                                       &chunkSeverResponse,
-                                       nullptr);
-                retry++;
-            }
-
-            if (cntl.Failed()) {
-                LOG(ERROR) << "Received CopysetResponse error, retry fail,"
-                           << "cntl.errorText = "
-                           << cntl.ErrorText() << std::endl;
-                return kTopoErrCodeGenCopysetErr;
-            } else {
-                if ((chunkSeverResponse.status() !=
-                    COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) &&
-                    (chunkSeverResponse.status() !=
-                        COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST)) {
-                    LOG(ERROR) << "Received CopysetResponse[log_id="
-                               << cntl.log_id()
-                               << "] from " << cntl.remote_side()
-                               << " to " << cntl.local_side()
-                               << ". [CopysetResponse] "
-                               << chunkSeverResponse.DebugString();
-                    return kTopoErrCodeGenCopysetErr;
-                } else {
-                    LOG(INFO) << "Received CopysetResponse[log_id="
-                              << cntl.log_id()
-                              << "] from " << cntl.remote_side()
-                              << " to " << cntl.local_side()
-                              << ". [CopysetResponse] "
-                              << chunkSeverResponse.DebugString();
-                }
             }
         }
     }
     return kTopoErrCodeSuccess;
+}
+
+bool TopologyServiceManager::CreateCopysetAtChunkServer(
+    const CopySetInfo &cs, ChunkServerIdType csId) {
+    ChunkServer chunkServer;
+    if (true != topology_->GetChunkServer(csId, &chunkServer)) {
+        return false;
+    }
+
+    std::string ip = chunkServer.GetHostIp();
+    int port = chunkServer.GetPort();
+
+    brpc::Channel channel;
+    if (channel.Init(ip.c_str(), port, NULL) != 0) {
+        LOG(ERROR) << "Fail to init channel to ip: "
+                   << ip
+                   << " port "
+                   << port;
+        return false;
+    }
+    CopysetService_Stub stub(&channel);
+
+    // 调用chunkserver接口创建copyset
+    brpc::Controller cntl;
+    // TODO(xuchaojie): 添加配置模块，使用配置参数
+    cntl.set_timeout_ms(1000);
+
+    CopysetRequest chunkServerRequest;
+    chunkServerRequest.set_logicpoolid(cs.GetLogicalPoolId());
+    chunkServerRequest.set_copysetid(cs.GetId());
+
+    for (ChunkServerIdType id : cs.GetCopySetMembers()) {
+            ChunkServer chunkserverInfo;
+            if (true != topology_->GetChunkServer(id, &chunkserverInfo)) {
+                return false;
+            }
+            std::string ipStr = chunkserverInfo.GetHostIp();
+            std::string portStr =
+                std::to_string(chunkserverInfo.GetPort());
+            chunkServerRequest.add_peerid(ipStr + ":" + portStr);
+    }
+
+    CopysetResponse chunkSeverResponse;
+
+    // TODO(xuchaojie): 添加配置模块，使用配置参数
+    const int retryTime = 3;
+    const int retrySleepTimeMs = 500;
+    int retry = 0;
+
+    do {
+        LOG(INFO) << "Send CopysetRequest[log_id=" << cntl.log_id()
+                  << "] from " << cntl.local_side()
+                  << " to " << cntl.remote_side()
+                  << ". [CopysetRequest] "
+                  << chunkServerRequest.DebugString();
+        cntl.Reset();
+        stub.CreateCopysetNode(&cntl,
+            &chunkServerRequest,
+            &chunkSeverResponse,
+            nullptr);
+        if (cntl.Failed()) {
+            LOG(ERROR) << "Received CopysetResponse error, "
+                       << "cntl.errorText = "
+                       << cntl.ErrorText()
+                       << ", retry, time = "
+                       << retry;
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(retrySleepTimeMs));
+        }
+        retry++;
+    }while(cntl.Failed() && retry < retryTime);
+
+    if (cntl.Failed()) {
+        LOG(ERROR) << "Received CopysetResponse error, retry fail,"
+                   << "cntl.errorText = "
+                   << cntl.ErrorText() << std::endl;
+        return false;
+    } else {
+        if ((chunkSeverResponse.status() !=
+                COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) &&
+           (chunkSeverResponse.status() !=
+                COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST)) {
+            LOG(ERROR) << "Received CopysetResponse[log_id="
+                      << cntl.log_id()
+                      << "] from " << cntl.remote_side()
+                      << " to " << cntl.local_side()
+                      << ". [CopysetResponse] "
+                      << chunkSeverResponse.DebugString();
+            return false;
+        } else {
+            LOG(INFO) << "Received CopysetResponse[log_id="
+                      << cntl.log_id()
+                      << "] from " << cntl.remote_side()
+                      << " to " << cntl.local_side()
+                      << ". [CopysetResponse] "
+                      << chunkSeverResponse.DebugString();
+        }
+    }
+    return true;
 }
 
 void TopologyServiceManager::CreateLogicalPool(
@@ -886,8 +893,8 @@ void TopologyServiceManager::CreateLogicalPool(
 }
 
 void TopologyServiceManager::DeleteLogicalPool(
-    const DeleteLogicalPoolRequest *request,
-    DeleteLogicalPoolResponse *response) {
+    const DeleteLogicalPoolRequest* request,
+    DeleteLogicalPoolResponse* response) {
     PoolIdType pid = UNINTIALIZE_ID;
     if (request->has_logicalpoolid()) {
         pid = request->logicalpoolid();

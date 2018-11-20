@@ -781,9 +781,27 @@ std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
     }
     return ret;
 }
-std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster() const {}
-std::vector<CopySetKey> TopologyImpl::
-GetCopySetsInChunkServer(ChunkServerIdType id) const {}
+
+std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster() const {
+    std::vector<CopySetKey> ret;
+    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    for (auto it : copySetMap_) {
+        ret.push_back(it.first);
+    }
+    return ret;
+}
+
+std::vector<CopySetKey> TopologyImpl::GetCopySetsInChunkServer(
+    ChunkServerIdType id) const {
+    std::vector<CopySetKey> ret;
+    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    for (auto it : copySetMap_) {
+        if (it.second.GetCopySetMembers().count(id) > 0) {
+            ret.push_back(it.first);
+        }
+    }
+    return ret;
+}
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
