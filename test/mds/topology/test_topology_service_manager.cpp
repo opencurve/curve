@@ -41,7 +41,7 @@ class TestTopologyServiceManager : public ::testing::Test {
         idGenerator_ = std::make_shared<MockIdGenerator>();
         tokenGenerator_ = std::make_shared<MockTokenGenerator>();
         storage_ = std::make_shared<MockStorage>();
-        topology_ = std::make_shared<Topology>(idGenerator_,
+        topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                tokenGenerator_,
                                                storage_);
         copysetManager_ =
@@ -253,7 +253,7 @@ TEST_F(TestTopologyServiceManager, test_RegistChunkServer_AllocateIdFail) {
     ChunkServerRegistResponse response;
 
     EXPECT_CALL(*idGenerator_, GenChunkServerId())
-        .WillOnce(Return(TopologyIdGenerator::UNINTIALIZE_ID));
+        .WillOnce(Return(UNINTIALIZE_ID));
 
     serviceManager_->RegistChunkServer(&request, &response);
 
@@ -824,7 +824,7 @@ TEST_F(TestTopologyServiceManager, test_RegistServer_AllocateIdFail) {
     ServerRegistResponse response;
 
     EXPECT_CALL(*idGenerator_, GenServerId())
-        .WillOnce(Return(TopologyIdGenerator::UNINTIALIZE_ID));
+        .WillOnce(Return(UNINTIALIZE_ID));
 
     serviceManager_->RegistServer(&request, &response);
 
@@ -1324,7 +1324,7 @@ TEST_F(TestTopologyServiceManager, test_CreateZone_AllocateIdFail) {
     request.set_desc("desc1");
 
     EXPECT_CALL(*idGenerator_, GenZoneId())
-        .WillOnce(Return(TopologyIdGenerator::UNINTIALIZE_ID));
+        .WillOnce(Return(UNINTIALIZE_ID));
 
     ZoneResponse response;
 
@@ -1759,7 +1759,7 @@ TEST_F(TestTopologyServiceManager, test_createPhysicalPool_Fail) {
     request.set_desc("just for test");
 
     EXPECT_CALL(*idGenerator_, GenPhysicalPoolId())
-        .WillOnce(Return(TopologyIdGenerator::UNINTIALIZE_ID));
+        .WillOnce(Return(UNINTIALIZE_ID));
 
     serviceManager_->CreatePhysicalPool(&request, &response);
 

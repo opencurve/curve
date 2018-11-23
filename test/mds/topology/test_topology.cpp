@@ -29,7 +29,7 @@ class TestTopology : public ::testing::Test {
         idGenerator_ = std::make_shared<MockIdGenerator>();
         tokenGenerator_ = std::make_shared<MockTokenGenerator>();
         storage_ = std::make_shared<MockStorage>();
-        topology_ = std::make_shared<Topology>(idGenerator_,
+        topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                tokenGenerator_,
                                                storage_);
     }
@@ -151,7 +151,7 @@ class TestTopology : public ::testing::Test {
     std::shared_ptr<MockIdGenerator> idGenerator_;
     std::shared_ptr<MockTokenGenerator> tokenGenerator_;
     std::shared_ptr<MockStorage> storage_;
-    std::shared_ptr<Topology> topology_;
+    std::shared_ptr<TopologyImpl> topology_;
 };
 
 TEST_F(TestTopology, test_init_success) {
@@ -1333,7 +1333,7 @@ TEST_F(TestTopology, FindLogicalPool_LogicalPoolNotFound) {
     PoolIdType ret = topology_->FindLogicalPool(logicalPoolName,
                                                 physicalPoolName);
 
-    ASSERT_EQ(static_cast<PoolIdType>(TopologyIdGenerator::UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<PoolIdType>(UNINTIALIZE_ID),
                                       ret);
 }
 
@@ -1348,7 +1348,7 @@ TEST_F(TestTopology, FindPhysicalPool_success) {
 TEST_F(TestTopology, FindPhysicalPool_PhysicalPoolNotFound) {
     std::string physicalPoolName = "physicalPoolName";
     PoolIdType ret = topology_->FindPhysicalPool(physicalPoolName);
-    ASSERT_EQ(static_cast<PoolIdType>(TopologyIdGenerator::UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<PoolIdType>(UNINTIALIZE_ID),
                                       ret);
 }
 
@@ -1368,7 +1368,7 @@ TEST_F(TestTopology, FindZone_ZoneNotFound) {
     std::string physicalPoolName = "physicalPoolName";
     std::string zoneName = "zoneName";
     ZoneIdType ret = topology_->FindZone(zoneName, physicalPoolName);
-    ASSERT_EQ(static_cast<ZoneIdType>(TopologyIdGenerator::UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<ZoneIdType>(UNINTIALIZE_ID),
                                       ret);
 }
 
@@ -1388,7 +1388,7 @@ TEST_F(TestTopology, FindZone_ZoneNotFound2) {
     std::string physicalPoolName = "physicalPoolName";
     std::string zoneName = "zoneName";
     ZoneIdType ret = topology_->FindZone(zoneName, physicalPoolId);
-    ASSERT_EQ(static_cast<ZoneIdType>(TopologyIdGenerator::UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<ZoneIdType>(UNINTIALIZE_ID),
                                       ret);
 }
 
@@ -1407,7 +1407,7 @@ TEST_F(TestTopology, FindServerByHostName_success) {
 TEST_F(TestTopology, FindServerByHostName_ServerNotFound) {
     std::string hostName = "host1";
     ServerIdType ret = topology_->FindServerByHostName(hostName);
-    ASSERT_EQ(static_cast<ServerIdType>(TopologyIdGenerator::UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID),
                                         ret);
 }
 
@@ -1443,7 +1443,7 @@ TEST_F(TestTopology, FindSeverByHostIp_ServerNotFound) {
             externalHostIp);
 
     ServerIdType ret = topology_->FindServerByHostIp("ip3");
-    ASSERT_EQ(static_cast<ServerIdType>(TopologyIdGenerator::UNINTIALIZE_ID),
+    ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID),
                                         ret);
 }
 
@@ -1495,7 +1495,7 @@ TEST_F(TestTopology, FindChunkServer_ChunkServerNotFound) {
 
     ChunkServerIdType ret = topology_->FindChunkServer("ip3", port);
     ASSERT_EQ(static_cast<ChunkServerIdType>(
-              TopologyIdGenerator::UNINTIALIZE_ID), ret);
+              UNINTIALIZE_ID), ret);
 }
 
 TEST_F(TestTopology, GetLogicalPool_success) {

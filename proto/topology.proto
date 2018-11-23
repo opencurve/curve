@@ -7,8 +7,6 @@
 
 syntax="proto2";
 package curve.mds.topology;
-
-
 // HTTP web can use https://github.com/dcodeIO/protobuf.js to use proto buffer
 
 option cc_generic_services = true;
@@ -100,7 +98,6 @@ message SetChunkServerStatusResponse {
 
 
 //server message
-
 message ServerInfo {
     required uint32 serverID = 1;
     required string hostName = 2;

@@ -35,7 +35,7 @@ class TestTopoloyAdmin : public ::testing::Test {
         idGenerator_ = std::make_shared<MockIdGenerator>();
         tokenGenerator_ = std::make_shared<MockTokenGenerator>();
         storage_ = std::make_shared<MockStorage>();
-        topology_ = std::make_shared<Topology>(idGenerator_,
+        topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                tokenGenerator_,
                                                storage_);
         testObj_ = std::make_shared<TopologyAdminImpl>(topology_);

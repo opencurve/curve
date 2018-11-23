@@ -9,7 +9,6 @@
 namespace curve {
 namespace mds {
 namespace topology {
-
 void DefaultIdGenerator::initLogicalPoolIdGenerator(PoolIdType idMax) {
   logicPoolIdGentor_.init(idMax);
 }

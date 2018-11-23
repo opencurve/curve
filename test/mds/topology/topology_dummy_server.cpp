@@ -35,6 +35,7 @@ using ::curve::mds::topology::DefaultTokenGenerator;
 using ::curve::mds::topology::TopologyStorage;
 using ::curve::mds::topology::DefaultTopologyStorage;
 using ::curve::mds::topology::Topology;
+using ::curve::mds::topology::TopologyImpl;
 using ::curve::mds::copyset::CopysetManager;
 using ::curve::mds::topology::MockTopologyServiceManager;
 using ::curve::mds::topology::TopologyServiceImpl;
@@ -58,7 +59,7 @@ int main(int argc, char* argv[]) {
 
     std::shared_ptr<MockTopologyServiceManager> manager_ =
         std::make_shared<MockTopologyServiceManager>(
-            std::make_shared<Topology>(idGenerator_,
+            std::make_shared<TopologyImpl>(idGenerator_,
                                        tokenGenerator_,
                                        storage_),
             std::make_shared<CopysetManager>());

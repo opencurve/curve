@@ -55,7 +55,7 @@ TopologyManager::TopologyManager() {
         return;
     }
 
-    topology_ = std::make_shared<Topology>(idGenerator_,
+    topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                            tokenGenerator_,
                                            storage_);
     int errorCode = topology_->init();

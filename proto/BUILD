@@ -1,7 +1,7 @@
-cc_proto_library (
+cc_proto_library(
     name = "nameserver2_cc_proto",
     visibility = ["//visibility:public"],
-    deps = [":nameserver2_proto",],
+    deps = [":nameserver2_proto"],
 )
 
 proto_library(
@@ -11,13 +11,24 @@ proto_library(
 
 cc_proto_library(
     name = "topology_cc_proto",
-    deps = [":topology_proto"],
     visibility = ["//visibility:public"],
+    deps = [":topology_proto"],
 )
 
 proto_library(
     name = "topology_proto",
     srcs = ["topology.proto"],
+)
+
+cc_proto_library(
+    name = "heartbeat_cc_proto",
+    visibility = ["//visibility:public"],
+    deps = [":heartbeat_proto"],
+)
+
+proto_library(
+    name = "heartbeat_proto",
+    srcs = ["heartbeat.proto"],
 )
 
 cc_proto_library(
@@ -38,4 +49,3 @@ proto_library(
     ]),
     visibility = ["//visibility:public"],
 )
-
