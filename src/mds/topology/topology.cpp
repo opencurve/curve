@@ -8,42 +8,36 @@
 
 #include <glog/logging.h>
 #include <sys/time.h>
-#include <sys/types.h>
-#include <mutex>  // NOLINT
-#include <map>
-#include <vector>
-
 
 namespace curve {
 namespace mds {
 namespace topology {
 
-PoolIdType Topology::AllocateLogicalPoolId() {
+PoolIdType TopologyImpl::AllocateLogicalPoolId() {
     return idGenerator_->GenLogicalPoolId();
 }
 
-PoolIdType Topology::AllocatePhysicalPoolId() {
+PoolIdType TopologyImpl::AllocatePhysicalPoolId() {
     return idGenerator_->GenPhysicalPoolId();
 }
 
-ZoneIdType Topology::AllocateZoneId() {
+ZoneIdType TopologyImpl::AllocateZoneId() {
     return idGenerator_->GenZoneId();
 }
 
-ServerIdType Topology::AllocateServerId() {
+ServerIdType TopologyImpl::AllocateServerId() {
     return idGenerator_->GenServerId();
 }
 
-ChunkServerIdType Topology::AllocateChunkServerId() {
+ChunkServerIdType TopologyImpl::AllocateChunkServerId() {
     return idGenerator_->GenChunkServerId();
 }
 
-std::string Topology::AllocateToken() {
+std::string TopologyImpl::AllocateToken() {
     return tokenGenerator_->GenToken();
 }
 
-
-int Topology::AddLogicalPool(const LogicalPool &data) {
+int TopologyImpl::AddLogicalPool(const LogicalPool &data) {
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     auto it = physicalPoolMap_.find(data.GetPhysicalPoolId());
@@ -62,7 +56,7 @@ int Topology::AddLogicalPool(const LogicalPool &data) {
     }
 }
 
-int Topology::AddPhysicalPool(const PhysicalPool &data) {
+int TopologyImpl::AddPhysicalPool(const PhysicalPool &data) {
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     if (physicalPoolMap_.find(data.GetId()) == physicalPoolMap_.end()) {
         if (!storage_->StoragePhysicalPool(data)) {
@@ -75,7 +69,7 @@ int Topology::AddPhysicalPool(const PhysicalPool &data) {
     }
 }
 
-int Topology::AddZone(const Zone &data) {
+int TopologyImpl::AddZone(const Zone &data) {
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
     auto it = physicalPoolMap_.find(data.GetPhysicalPoolId());
@@ -95,7 +89,7 @@ int Topology::AddZone(const Zone &data) {
     }
 }
 
-int Topology::AddServer(const Server &data) {
+int TopologyImpl::AddServer(const Server &data) {
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     auto it = zoneMap_.find(data.GetZoneId());
@@ -115,7 +109,7 @@ int Topology::AddServer(const Server &data) {
     }
 }
 
-int Topology::AddChunkServer(const ChunkServer &data) {
+int TopologyImpl::AddChunkServer(const ChunkServer &data) {
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
     auto it = serverMap_.find(data.GetServerId());
@@ -135,7 +129,7 @@ int Topology::AddChunkServer(const ChunkServer &data) {
     }
 }
 
-int Topology::RemoveLogicalPool(PoolIdType id) {
+int TopologyImpl::RemoveLogicalPool(PoolIdType id) {
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     auto it = logicalPoolMap_.find(id);
     if (it != logicalPoolMap_.end()) {
@@ -149,7 +143,7 @@ int Topology::RemoveLogicalPool(PoolIdType id) {
     }
 }
 
-int Topology::RemovePhysicalPool(PoolIdType id) {
+int TopologyImpl::RemovePhysicalPool(PoolIdType id) {
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(id);
     if (it != physicalPoolMap_.end()) {
@@ -163,7 +157,7 @@ int Topology::RemovePhysicalPool(PoolIdType id) {
     }
 }
 
-int Topology::RemoveZone(ZoneIdType id) {
+int TopologyImpl::RemoveZone(ZoneIdType id) {
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
     auto it = zoneMap_.find(id);
@@ -182,7 +176,7 @@ int Topology::RemoveZone(ZoneIdType id) {
     }
 }
 
-int Topology::RemoveServer(ServerIdType id) {
+int TopologyImpl::RemoveServer(ServerIdType id) {
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     auto it = serverMap_.find(id);
@@ -201,7 +195,7 @@ int Topology::RemoveServer(ServerIdType id) {
     }
 }
 
-int Topology::RemoveChunkServer(ChunkServerIdType id) {
+int TopologyImpl::RemoveChunkServer(ChunkServerIdType id) {
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
@@ -220,7 +214,7 @@ int Topology::RemoveChunkServer(ChunkServerIdType id) {
     }
 }
 
-int Topology::UpdateLogicalPool(const LogicalPool &data) {
+int TopologyImpl::UpdateLogicalPool(const LogicalPool &data) {
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     auto it = logicalPoolMap_.find(data.GetId());
     if (it != logicalPoolMap_.end()) {
@@ -234,12 +228,12 @@ int Topology::UpdateLogicalPool(const LogicalPool &data) {
     }
 }
 
-int Topology::UpdatePhysicalPool(const PhysicalPool &data) {
+int TopologyImpl::UpdatePhysicalPool(const PhysicalPool &data) {
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(data.GetId());
     if (it != physicalPoolMap_.end()) {
         if (!storage_->UpdatePhysicalPool(data)) {
-            return  kTopoErrCodeStorgeFail;
+            return kTopoErrCodeStorgeFail;
         }
         it->second = data;
         return kTopoErrCodeSuccess;
@@ -248,7 +242,7 @@ int Topology::UpdatePhysicalPool(const PhysicalPool &data) {
     }
 }
 
-int Topology::UpdateZone(const Zone &data) {
+int TopologyImpl::UpdateZone(const Zone &data) {
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
     auto it = zoneMap_.find(data.GetId());
     if (it != zoneMap_.end()) {
@@ -262,7 +256,7 @@ int Topology::UpdateZone(const Zone &data) {
     }
 }
 
-int Topology::UpdateServer(const Server &data) {
+int TopologyImpl::UpdateServer(const Server &data) {
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     auto it = serverMap_.find(data.GetId());
     if (it != serverMap_.end()) {
@@ -277,7 +271,7 @@ int Topology::UpdateServer(const Server &data) {
 }
 
 // 更新内存并持久化全部数据
-int Topology::UpdateChunkServer(const ChunkServer &data) {
+int TopologyImpl::UpdateChunkServer(const ChunkServer &data) {
     std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(data.GetId());
     if (it != chunkServerMap_.end()) {
@@ -292,8 +286,8 @@ int Topology::UpdateChunkServer(const ChunkServer &data) {
 }
 
 // 更新内存，定期持久化数据
-int Topology::UpdateChunkServerState(const ChunkServerState &state,
-    ChunkServerIdType id) {
+int TopologyImpl::UpdateChunkServerState(const ChunkServerState &state,
+                                         ChunkServerIdType id) {
     std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
@@ -316,42 +310,43 @@ int Topology::UpdateChunkServerState(const ChunkServerState &state,
     }
 }
 
-PoolIdType Topology::FindLogicalPool(const std::string &logicalPoolName,
+PoolIdType TopologyImpl::FindLogicalPool(
+    const std::string &logicalPoolName,
     const std::string &physicalPoolName) const {
     PoolIdType physicalPoolId = FindPhysicalPool(physicalPoolName);
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     for (auto it = logicalPoolMap_.begin();
-        it != logicalPoolMap_.end();
-        it++) {
+         it != logicalPoolMap_.end();
+         it++) {
         if ((it->second.GetPhysicalPoolId() == physicalPoolId) &&
             (it->second.GetName() == logicalPoolName)) {
             return it->first;
         }
     }
-    return static_cast<PoolIdType>(TopologyIdGenerator::UNINTIALIZE_ID);
+    return static_cast<PoolIdType>(UNINTIALIZE_ID);
 }
 
-PoolIdType Topology::FindPhysicalPool(
+PoolIdType TopologyImpl::FindPhysicalPool(
     const std::string &physicalPoolName) const {
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     for (auto it = physicalPoolMap_.begin();
-        it != physicalPoolMap_.end();
-        it++) {
+         it != physicalPoolMap_.end();
+         it++) {
         if (it->second.GetName() == physicalPoolName) {
             return it->first;
         }
     }
-    return static_cast<PoolIdType>(TopologyIdGenerator::UNINTIALIZE_ID);
+    return static_cast<PoolIdType>(UNINTIALIZE_ID);
 }
 
-ZoneIdType Topology::FindZone(const std::string &zoneName,
-                    const std::string &physicalPoolName) const {
+ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
+                                  const std::string &physicalPoolName) const {
     PoolIdType physicalPoolId = FindPhysicalPool(physicalPoolName);
     return FindZone(zoneName, physicalPoolId);
 }
 
-ZoneIdType Topology::FindZone(const std::string &zoneName,
-                    PoolIdType physicalPoolId) const {
+ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
+                                  PoolIdType physicalPoolId) const {
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
     for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
         if ((it->second.GetPhysicalPoolId() == physicalPoolId) &&
@@ -359,10 +354,10 @@ ZoneIdType Topology::FindZone(const std::string &zoneName,
             return it->first;
         }
     }
-    return static_cast<ZoneIdType>(TopologyIdGenerator::UNINTIALIZE_ID);
+    return static_cast<ZoneIdType>(UNINTIALIZE_ID);
 }
 
-ServerIdType Topology::FindServerByHostName(
+ServerIdType TopologyImpl::FindServerByHostName(
     const std::string &hostName) const {
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
@@ -370,10 +365,10 @@ ServerIdType Topology::FindServerByHostName(
             return it->first;
         }
     }
-    return static_cast<ServerIdType>(TopologyIdGenerator::UNINTIALIZE_ID);
+    return static_cast<ServerIdType>(UNINTIALIZE_ID);
 }
 
-ServerIdType Topology::FindServerByHostIp(const std::string &hostIp) const {
+ServerIdType TopologyImpl::FindServerByHostIp(const std::string &hostIp) const {
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
         if ((it->second.GetInternalHostIp() == hostIp) ||
@@ -381,25 +376,25 @@ ServerIdType Topology::FindServerByHostIp(const std::string &hostIp) const {
             return it->first;
         }
     }
-    return static_cast<ServerIdType>(TopologyIdGenerator::UNINTIALIZE_ID);
+    return static_cast<ServerIdType>(UNINTIALIZE_ID);
 }
 
-ChunkServerIdType Topology::FindChunkServer(const std::string &hostIp,
-                                  uint32_t port) const {
+ChunkServerIdType TopologyImpl::FindChunkServer(const std::string &hostIp,
+                                                uint32_t port) const {
     ServerIdType serverId = FindServerByHostIp(hostIp);
     std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
-        it != chunkServerMap_.end();
-        it++) {
+         it != chunkServerMap_.end();
+         it++) {
         if ((it->second.GetServerId() == serverId) &&
             (it->second.GetPort() == port)) {
             return it->first;
         }
     }
-    return static_cast<ChunkServerIdType>(TopologyIdGenerator::UNINTIALIZE_ID);
+    return static_cast<ChunkServerIdType>(UNINTIALIZE_ID);
 }
 
-bool Topology::GetLogicalPool(PoolIdType poolId, LogicalPool *out) const {
+bool TopologyImpl::GetLogicalPool(PoolIdType poolId, LogicalPool *out) const {
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     auto it = logicalPoolMap_.find(poolId);
     if (it != logicalPoolMap_.end()) {
@@ -409,7 +404,7 @@ bool Topology::GetLogicalPool(PoolIdType poolId, LogicalPool *out) const {
     return false;
 }
 
-bool Topology::GetPhysicalPool(PoolIdType poolId, PhysicalPool *out) const {
+bool TopologyImpl::GetPhysicalPool(PoolIdType poolId, PhysicalPool *out) const {
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(poolId);
     if (it != physicalPoolMap_.end()) {
@@ -419,7 +414,7 @@ bool Topology::GetPhysicalPool(PoolIdType poolId, PhysicalPool *out) const {
     return false;
 }
 
-bool Topology::GetZone(ZoneIdType zoneId, Zone *out) const {
+bool TopologyImpl::GetZone(ZoneIdType zoneId, Zone *out) const {
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
     auto it = zoneMap_.find(zoneId);
     if (it != zoneMap_.end()) {
@@ -429,7 +424,7 @@ bool Topology::GetZone(ZoneIdType zoneId, Zone *out) const {
     return false;
 }
 
-bool Topology::GetServer(ServerIdType serverId, Server *out) const {
+bool TopologyImpl::GetServer(ServerIdType serverId, Server *out) const {
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     auto it = serverMap_.find(serverId);
     if (it != serverMap_.end()) {
@@ -439,8 +434,8 @@ bool Topology::GetServer(ServerIdType serverId, Server *out) const {
     return false;
 }
 
-bool Topology::GetChunkServer(ChunkServerIdType chunkserverId,
-    ChunkServer *out) const {
+bool TopologyImpl::GetChunkServer(ChunkServerIdType chunkserverId,
+                                  ChunkServer *out) const {
     std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(chunkserverId);
     if (it != chunkServerMap_.end()) {
@@ -454,18 +449,18 @@ bool Topology::GetChunkServer(ChunkServerIdType chunkserverId,
 ////////////////////////////////////////////////////////////////////////////////
 // getList
 
-std::list<ChunkServerIdType> Topology::GetChunkServerInCluster() const {
+std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInCluster() const {
     std::list<ChunkServerIdType> ret;
     std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
-        it != chunkServerMap_.end();
-        it++) {
+         it != chunkServerMap_.end();
+         it++) {
         ret.push_back(it->first);
     }
     return ret;
 }
 
-std::list<ServerIdType> Topology::GetServerInCluster() const {
+std::list<ServerIdType> TopologyImpl::GetServerInCluster() const {
     std::list<ServerIdType> ret;
     std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
@@ -474,7 +469,7 @@ std::list<ServerIdType> Topology::GetServerInCluster() const {
     return ret;
 }
 
-std::list<ZoneIdType> Topology::GetZoneInCluster() const {
+std::list<ZoneIdType> TopologyImpl::GetZoneInCluster() const {
     std::list<ZoneIdType> ret;
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
     for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
@@ -483,29 +478,29 @@ std::list<ZoneIdType> Topology::GetZoneInCluster() const {
     return ret;
 }
 
-std::list<PoolIdType> Topology::GetPhysicalPoolInCluster() const {
+std::list<PoolIdType> TopologyImpl::GetPhysicalPoolInCluster() const {
     std::list<PoolIdType> ret;
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     for (auto it = physicalPoolMap_.begin();
-        it != physicalPoolMap_.end();
-        it++) {
+         it != physicalPoolMap_.end();
+         it++) {
         ret.push_back(it->first);
     }
     return ret;
 }
 
-std::list<PoolIdType> Topology::GetLogicalPoolInCluster() const {
+std::list<PoolIdType> TopologyImpl::GetLogicalPoolInCluster() const {
     std::list<PoolIdType> ret;
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     for (auto it = logicalPoolMap_.begin();
-        it != logicalPoolMap_.end();
-        it++) {
+         it != logicalPoolMap_.end();
+         it++) {
         ret.push_back(it->first);
     }
     return ret;
 }
 
-std::list<ChunkServerIdType> Topology::GetChunkServerInServer(
+std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInServer(
     ServerIdType id) const {
     Server server;
     if (GetServer(id, &server)) {
@@ -514,7 +509,7 @@ std::list<ChunkServerIdType> Topology::GetChunkServerInServer(
     return std::list<ChunkServerIdType>();
 }
 
-std::list<ChunkServerIdType> Topology::GetChunkServerInZone(
+std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInZone(
     ZoneIdType id) const {
     std::list<ChunkServerIdType> ret;
     std::list<ServerIdType> serverList = GetServerInZone(id);
@@ -525,7 +520,7 @@ std::list<ChunkServerIdType> Topology::GetChunkServerInZone(
     return ret;
 }
 
-std::list<ChunkServerIdType> Topology::GetChunkServerInPhysicalPool(
+std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInPhysicalPool(
     PoolIdType id) const {
     std::list<ChunkServerIdType> ret;
     std::list<ServerIdType> serverList = GetServerInPhysicalPool(id);
@@ -536,8 +531,7 @@ std::list<ChunkServerIdType> Topology::GetChunkServerInPhysicalPool(
     return ret;
 }
 
-
-std::list<ServerIdType> Topology::GetServerInZone(ZoneIdType id) const {
+std::list<ServerIdType> TopologyImpl::GetServerInZone(ZoneIdType id) const {
     Zone zone;
     if (GetZone(id, &zone)) {
         return zone.GetServerList();
@@ -545,7 +539,8 @@ std::list<ServerIdType> Topology::GetServerInZone(ZoneIdType id) const {
     return std::list<ServerIdType>();
 }
 
-std::list<ServerIdType> Topology::GetServerInPhysicalPool(PoolIdType id) const {
+std::list<ServerIdType> TopologyImpl::GetServerInPhysicalPool(
+    PoolIdType id) const {
     std::list<ServerIdType> ret;
     std::list<ZoneIdType> zoneList = GetZoneInPhysicalPool(id);
     for (ZoneIdType z : zoneList) {
@@ -555,7 +550,7 @@ std::list<ServerIdType> Topology::GetServerInPhysicalPool(PoolIdType id) const {
     return ret;
 }
 
-std::list<ZoneIdType> Topology::GetZoneInPhysicalPool(PoolIdType id) const {
+std::list<ZoneIdType> TopologyImpl::GetZoneInPhysicalPool(PoolIdType id) const {
     PhysicalPool pool;
     if (GetPhysicalPool(id, &pool)) {
         return pool.GetZoneList();
@@ -563,19 +558,19 @@ std::list<ZoneIdType> Topology::GetZoneInPhysicalPool(PoolIdType id) const {
     return std::list<ZoneIdType>();
 }
 
-std::list<PoolIdType> Topology::GetLogicalPoolInPhysicalPool(
+std::list<PoolIdType> TopologyImpl::GetLogicalPoolInPhysicalPool(
     PoolIdType id) const {
     std::list<PoolIdType> ret;
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     for (auto it = logicalPoolMap_.begin(); it != logicalPoolMap_.end(); it++) {
         if (it->second.GetPhysicalPoolId() == id) {
-        ret.push_back(it->first);
+            ret.push_back(it->first);
         }
     }
     return ret;
 }
 
-std::list<ChunkServerIdType> Topology::GetChunkServerInLogicalPool(
+std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInLogicalPool(
     PoolIdType id) const {
     LogicalPool lPool;
     if (GetLogicalPool(id, &lPool)) {
@@ -584,7 +579,8 @@ std::list<ChunkServerIdType> Topology::GetChunkServerInLogicalPool(
     return std::list<ChunkServerIdType>();
 }
 
-std::list<ServerIdType> Topology::GetServerInLogicalPool(PoolIdType id) const {
+std::list<ServerIdType> TopologyImpl::GetServerInLogicalPool(
+    PoolIdType id) const {
     LogicalPool lPool;
     if (GetLogicalPool(id, &lPool)) {
         return GetServerInPhysicalPool(lPool.GetPhysicalPoolId());
@@ -592,7 +588,7 @@ std::list<ServerIdType> Topology::GetServerInLogicalPool(PoolIdType id) const {
     return std::list<ServerIdType>();
 }
 
-std::list<ZoneIdType> Topology::GetZoneInLogicalPool(PoolIdType id) const {
+std::list<ZoneIdType> TopologyImpl::GetZoneInLogicalPool(PoolIdType id) const {
     LogicalPool lPool;
     if (GetLogicalPool(id, &lPool)) {
         return GetZoneInPhysicalPool(lPool.GetPhysicalPoolId());
@@ -600,7 +596,7 @@ std::list<ZoneIdType> Topology::GetZoneInLogicalPool(PoolIdType id) const {
     return std::list<ZoneIdType>();
 }
 
-int Topology::init() {
+int TopologyImpl::init() {
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
     std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
@@ -610,42 +606,42 @@ int Topology::init() {
 
     PoolIdType maxLogicalPoolId;
     if (!storage_->LoadLogicalPool(&logicalPoolMap_, &maxLogicalPoolId)) {
-        LOG(ERROR) << "[Topology::init], LoadLogicalPool fail.";
+        LOG(ERROR) << "[TopologyImpl::init], LoadLogicalPool fail.";
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initLogicalPoolIdGenerator(maxLogicalPoolId);
 
     PoolIdType maxPhysicalPoolId;
     if (!storage_->LoadPhysicalPool(&physicalPoolMap_, &maxPhysicalPoolId)) {
-        LOG(ERROR) << "[Topology::init], LoadPhysicalPool fail.";
+        LOG(ERROR) << "[TopologyImpl::init], LoadPhysicalPool fail.";
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initPhysicalPoolIdGenerator(maxPhysicalPoolId);
 
     ZoneIdType maxZoneId;
     if (!storage_->LoadZone(&zoneMap_, &maxZoneId)) {
-        LOG(ERROR) << "[Topology::init], LoadZone fail.";
+        LOG(ERROR) << "[TopologyImpl::init], LoadZone fail.";
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initZoneIdGenerator(maxZoneId);
 
     ServerIdType maxServerId;
     if (!storage_->LoadServer(&serverMap_, &maxServerId)) {
-        LOG(ERROR) << "[Topology::init], LoadServer fail.";
+        LOG(ERROR) << "[TopologyImpl::init], LoadServer fail.";
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initServerIdGenerator(maxServerId);
 
     ChunkServerIdType maxChunkServerId;
     if (!storage_->LoadChunkServer(&chunkServerMap_, &maxChunkServerId)) {
-        LOG(ERROR) << "[Topology::init], LoadChunkServer fail.";
+        LOG(ERROR) << "[TopologyImpl::init], LoadChunkServer fail.";
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initChunkServerIdGenerator(maxChunkServerId);
 
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
     if (!storage_->LoadCopySet(&copySetMap_, &copySetIdMaxMap)) {
-        LOG(ERROR) << "[Topology::init], LoadCopySet fail.";
+        LOG(ERROR) << "[TopologyImpl::init], LoadCopySet fail.";
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initCopySetIdGenerator(copySetIdMaxMap);
@@ -661,19 +657,18 @@ int Topology::init() {
     }
 
     for (auto it : chunkServerMap_) {
-         ServerIdType sId = it.second.GetServerId();
-         serverMap_[sId].AddChunkServer(it.first);
+        ServerIdType sId = it.second.GetServerId();
+        serverMap_[sId].AddChunkServer(it.first);
     }
 
     return kTopoErrCodeSuccess;
 }
 
-
-CopySetIdType Topology::AllocateCopySetId(PoolIdType logicalPoolId) {
+CopySetIdType TopologyImpl::AllocateCopySetId(PoolIdType logicalPoolId) {
     return idGenerator_->GenCopySetId(logicalPoolId);
 }
 
-int Topology::AddCopySet(const CopySetInfo &data) {
+int TopologyImpl::AddCopySet(const CopySetInfo &data) {
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
     auto it = logicalPoolMap_.find(data.GetLogicalPoolId());
@@ -693,9 +688,8 @@ int Topology::AddCopySet(const CopySetInfo &data) {
     }
 }
 
-
 // TODO(xuchaojie): 优化该逻辑，移除下述事物操作
-int Topology::AddCopySetList(const std::vector<CopySetInfo> &copysets) {
+int TopologyImpl::AddCopySetList(const std::vector<CopySetInfo> &copysets) {
     // 获取所有的锁，数据库事务操作时不允许其他数据库操作
     std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
     std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
@@ -739,7 +733,7 @@ int Topology::AddCopySetList(const std::vector<CopySetInfo> &copysets) {
     }
 }
 
-int Topology::RemoveCopySet(CopySetKey key) {
+int TopologyImpl::RemoveCopySet(CopySetKey key) {
     std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
@@ -753,7 +747,7 @@ int Topology::RemoveCopySet(CopySetKey key) {
     }
 }
 
-int Topology::UpdateCopySet(const CopySetInfo &data) {
+int TopologyImpl::UpdateCopySet(const CopySetInfo &data) {
     std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
     CopySetKey key(data.GetLogicalPoolId(), data.GetId());
     auto it = copySetMap_.find(key);
@@ -763,23 +757,23 @@ int Topology::UpdateCopySet(const CopySetInfo &data) {
         }
         it->second = data;
         return kTopoErrCodeSuccess;
-    } else  {
+    } else {
         return kTopoErrCodeCopySetNotFound;
     }
 }
 
-bool Topology::GetCopySet(CopySetKey key, CopySetInfo *out) {
+bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
     std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
         *out = it->second;
         return true;
-    } else  {
+    } else {
         return false;
     }
 }
 
-std::vector<CopySetIdType> Topology::GetCopySetsInLogicalPool(
+std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
     PoolIdType logicalPoolId) const {
     std::vector<CopySetIdType> ret;
     std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
@@ -790,8 +784,9 @@ std::vector<CopySetIdType> Topology::GetCopySetsInLogicalPool(
     }
     return ret;
 }
-
-
+std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster() const {}
+std::vector<CopySetKey> TopologyImpl::
+GetCopySetsInChunkServer(ChunkServerIdType id) const {}
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

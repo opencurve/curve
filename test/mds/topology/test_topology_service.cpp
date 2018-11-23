@@ -18,7 +18,6 @@
 #include "test/mds/topology/mock_topology.h"
 #include "proto/topology.pb.h"
 
-
 namespace curve {
 namespace mds {
 namespace topology {
@@ -37,49 +36,49 @@ using ::curve::mds::copyset::CopysetManager;
 
 class TestTopologyService : public ::testing::Test {
  protected:
-    TestTopologyService() {}
-    ~TestTopologyService() {}
-    virtual void SetUp() {
-        listenAddr_ = "127.0.0.1:8200";
-        server_ = new brpc::Server();
+  TestTopologyService() {}
+  ~TestTopologyService() {}
+  virtual void SetUp() {
+      listenAddr_ = "127.0.0.1:8200";
+      server_ = new brpc::Server();
 
-        std::shared_ptr<TopologyIdGenerator> idGenerator_  =
-            std::make_shared<DefaultIdGenerator>();
-        std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
-            std::make_shared<DefaultTokenGenerator>();
+      std::shared_ptr<TopologyIdGenerator> idGenerator_ =
+          std::make_shared<DefaultIdGenerator>();
+      std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
+          std::make_shared<DefaultTokenGenerator>();
 
-        std::shared_ptr<::curve::repo::RepoInterface> repo_ =
-            std::make_shared<::curve::repo::Repo>();
+      std::shared_ptr<::curve::repo::RepoInterface> repo_ =
+          std::make_shared<::curve::repo::Repo>();
 
-        std::shared_ptr<TopologyStorage> storage_ =
-            std::make_shared<DefaultTopologyStorage>(repo_);
+      std::shared_ptr<TopologyStorage> storage_ =
+          std::make_shared<DefaultTopologyStorage>(repo_);
 
-        manager_ = std::make_shared<MockTopologyServiceManager>(
-                std::make_shared<Topology>(idGenerator_,
-                                           tokenGenerator_,
-                                           storage_),
-                std::make_shared<CopysetManager>());
+      manager_ = std::make_shared<MockTopologyServiceManager>(
+          std::make_shared<TopologyImpl>(idGenerator_,
+                                         tokenGenerator_,
+                                         storage_),
+          std::make_shared<CopysetManager>());
 
-        TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);
-        ASSERT_EQ(0, server_->AddService(topoService,
-            brpc::SERVER_OWNS_SERVICE));
+      TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);
+      ASSERT_EQ(0, server_->AddService(topoService,
+                                       brpc::SERVER_OWNS_SERVICE));
 
-        ASSERT_EQ(0, server_->Start(listenAddr_.c_str(), nullptr));
-    }
+      ASSERT_EQ(0, server_->Start(listenAddr_.c_str(), nullptr));
+  }
 
-    virtual void TearDown() {
-        manager_ = nullptr;
+  virtual void TearDown() {
+      manager_ = nullptr;
 
-        server_->Stop(0);
-        server_->Join();
-        delete server_;
-        server_ = nullptr;
-    }
+      server_->Stop(0);
+      server_->Join();
+      delete server_;
+      server_ = nullptr;
+  }
 
  protected:
-    std::shared_ptr<MockTopologyServiceManager> manager_;
-    std::string listenAddr_;
-    brpc::Server *server_;
+  std::shared_ptr<MockTopologyServiceManager> manager_;
+  std::string listenAddr_;
+  brpc::Server *server_;
 };
 
 TEST_F(TestTopologyService, test_RegistChunkServer_success) {
@@ -1377,20 +1376,6 @@ TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_fail) {
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 }  // namespace topology
 }  // namespace mds

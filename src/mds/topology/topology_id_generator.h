@@ -22,9 +22,6 @@ namespace topology {
 
 class TopologyIdGenerator {
  public:
-    static const uint32_t UNINTIALIZE_ID = 0u;
-
- public:
     TopologyIdGenerator() {}
     virtual ~TopologyIdGenerator() {}
 

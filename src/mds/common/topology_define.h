@@ -8,6 +8,7 @@
 #ifndef CURVE_SRC_MDS_COMMON_TOPOLOGY_DEFINE_H_
 #define CURVE_SRC_MDS_COMMON_TOPOLOGY_DEFINE_H_
 
+#include <cstdint>
 
 namespace curve {
 namespace mds {
@@ -19,6 +20,9 @@ typedef uint32_t ServerIdType;
 typedef uint32_t ChunkServerIdType;
 typedef uint32_t UserIdType;
 typedef uint32_t CopySetIdType;
+typedef uint64_t EpochType;
+
+const uint32_t UNINTIALIZE_ID = 0u;
 
 // TODO(xuchaojie): 修改为从配置文件读取的数据
 const uint64_t kChunkServerStateUpdateFreq = 600;

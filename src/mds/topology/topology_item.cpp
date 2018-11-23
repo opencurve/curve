@@ -114,7 +114,7 @@ std::string LogicalPool::GetUserPolicyJsonStr() const {
 
 std::string CopySetInfo::GetCopySetMembersStr() const {
     Json::Value copysetMemJson;
-    for (ChunkServerIdType id : csIdList_) {
+    for (ChunkServerIdType id : peers_) {
         copysetMemJson.append(id);
     }
     std::string chunkServerListStr = copysetMemJson.toStyledString();
@@ -127,10 +127,10 @@ bool CopySetInfo::SetCopySetMembersByJson(const std::string &jsonStr) {
     if (!reader.parse(jsonStr, copysetMemJson)) {
         return false;
     }
-    csIdList_.clear();
+    peers_.clear();
     for (int i = 0; i < copysetMemJson.size(); i++) {
         if (copysetMemJson[i].isInt()) {
-            csIdList_.insert(copysetMemJson[i].asInt());
+            peers_.insert(copysetMemJson[i].asInt());
         } else {
             return false;
         }

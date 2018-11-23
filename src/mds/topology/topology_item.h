@@ -60,18 +60,18 @@ class LogicalPool {
   };
 
  public:
-    static bool TransRedundanceAndPlaceMentPolicyFromJsonStr(
-        const std::string &jsonStr,
-        LogicalPoolType type,
-        RedundanceAndPlaceMentPolicy *rap);
-    static bool TransUserPolicyFromJsonStr(
-        const std::string &jsonStr, LogicalPoolType type, UserPolicy *policy);
+  static bool TransRedundanceAndPlaceMentPolicyFromJsonStr(
+      const std::string &jsonStr,
+      LogicalPoolType type,
+      RedundanceAndPlaceMentPolicy *rap);
+  static bool TransUserPolicyFromJsonStr(
+      const std::string &jsonStr, LogicalPoolType type, UserPolicy *policy);
 
  public:
   LogicalPool()
-      : id_(TopologyIdGenerator::UNINTIALIZE_ID),
+      : id_(UNINTIALIZE_ID),
         name_(""),
-        physicalPoolId_(TopologyIdGenerator::UNINTIALIZE_ID),
+        physicalPoolId_(UNINTIALIZE_ID),
         type_(PAGEFILE),
         createTime_(0),
         status_(UNALLOCATABLE) {}
@@ -92,51 +92,51 @@ class LogicalPool {
         status_(UNALLOCATABLE) {}
 
   PoolIdType GetId() const {
-    return id_;
+      return id_;
   }
 
   std::string GetName() const {
-    return name_;
+      return name_;
   }
 
   PoolIdType GetPhysicalPoolId() const {
-    return physicalPoolId_;
+      return physicalPoolId_;
   }
 
   LogicalPoolType GetLogicalPoolType() const {
-    return type_;
+      return type_;
   }
 
   bool SetRedundanceAndPlaceMentPolicyByJson(const std::string &jsonStr);
 
   RedundanceAndPlaceMentPolicy GetRedundanceAndPlaceMentPolicy() const {
-    return rap_;
+      return rap_;
   }
 
   std::string GetRedundanceAndPlaceMentPolicyJsonStr() const;
 
   uint64_t GetCreateTime() const {
-    return createTime_;
+      return createTime_;
   }
 
   void SetUserPolicy(const UserPolicy &policy) {
-    policy_ = policy;
+      policy_ = policy;
   }
 
   bool SetUserPolicyByJson(const std::string &jsonStr);
 
   UserPolicy GetUserPolicy() const {
-    return policy_;
+      return policy_;
   }
 
   std::string GetUserPolicyJsonStr() const;
 
   void SetStatus(LogicalPoolStatus status) {
-    status_ = status;
+      status_ = status;
   }
 
   LogicalPoolStatus GetStatus() const {
-    return status_;
+      return status_;
   }
 
  private:
@@ -155,7 +155,7 @@ class LogicalPool {
 class PhysicalPool {
  public:
   PhysicalPool()
-      : id_(TopologyIdGenerator::UNINTIALIZE_ID),
+      : id_(UNINTIALIZE_ID),
         name_(""),
         desc_("") {}
   PhysicalPool(PoolIdType id,
@@ -166,27 +166,27 @@ class PhysicalPool {
         desc_(desc) {}
 
   PoolIdType GetId() const {
-    return id_;
+      return id_;
   }
   std::string GetName() const {
-    return name_;
+      return name_;
   }
 
   void SetDesc(const std::string &desc) {
-    desc_ = desc;
+      desc_ = desc;
   }
   std::string GetDesc() const {
-    return desc_;
+      return desc_;
   }
 
   void AddZone(ZoneIdType id) {
-    zoneList_.push_back(id);
+      zoneList_.push_back(id);
   }
   void RemoveZone(ZoneIdType id) {
-    zoneList_.remove(id);
+      zoneList_.remove(id);
   }
   std::list<ZoneIdType> GetZoneList() const {
-    return zoneList_;
+      return zoneList_;
   }
 
  private:
@@ -200,9 +200,9 @@ class PhysicalPool {
 class Zone {
  public:
   Zone()
-      : id_(TopologyIdGenerator::UNINTIALIZE_ID),
+      : id_(UNINTIALIZE_ID),
         name_(""),
-        physicalPoolId_(TopologyIdGenerator::UNINTIALIZE_ID),
+        physicalPoolId_(UNINTIALIZE_ID),
         desc_("") {}
   Zone(PoolIdType id,
        const std::string &name,
@@ -214,30 +214,30 @@ class Zone {
         desc_(desc) {}
 
   ZoneIdType GetId() const {
-    return id_;
+      return id_;
   }
   std::string GetName() const {
-    return name_;
+      return name_;
   }
   PoolIdType GetPhysicalPoolId() const {
-    return physicalPoolId_;
+      return physicalPoolId_;
   }
 
   void SetDesc(const std::string &desc) {
-    desc_ = desc;
+      desc_ = desc;
   }
   std::string GetDesc() const {
-    return desc_;
+      return desc_;
   }
 
   void AddServer(ServerIdType id) {
-    serverList_.push_back(id);
+      serverList_.push_back(id);
   }
   void RemoveServer(ServerIdType id) {
-    serverList_.remove(id);
+      serverList_.remove(id);
   }
   std::list<ServerIdType> GetServerList() const {
-    return serverList_;
+      return serverList_;
   }
 
  private:
@@ -252,12 +252,12 @@ class Zone {
 class Server {
  public:
   Server()
-      : id_(TopologyIdGenerator::UNINTIALIZE_ID),
+      : id_(UNINTIALIZE_ID),
         hostName_(""),
         internalHostIp_(""),
         externalHostIp_(""),
-        zoneId_(TopologyIdGenerator::UNINTIALIZE_ID),
-        physicalPoolId_(TopologyIdGenerator::UNINTIALIZE_ID),
+        zoneId_(UNINTIALIZE_ID),
+        physicalPoolId_(UNINTIALIZE_ID),
         desc_("") {}
   Server(ServerIdType id,
          const std::string &hostName,
@@ -275,40 +275,40 @@ class Server {
         desc_(desc) {}
 
   ServerIdType GetId() const {
-    return id_;
+      return id_;
   }
   std::string GetHostName() const {
-    return hostName_;
+      return hostName_;
   }
   std::string GetInternalHostIp() const {
-    return internalHostIp_;
+      return internalHostIp_;
   }
   std::string GetExternalHostIp() const {
-    return externalHostIp_;
+      return externalHostIp_;
   }
   ZoneIdType GetZoneId() const {
-    return zoneId_;
+      return zoneId_;
   }
   PoolIdType GetPhysicalPoolId() const {
-    return physicalPoolId_;
+      return physicalPoolId_;
   }
 
   void SetDesc(const std::string &desc) {
-    desc_ = desc;
+      desc_ = desc;
   }
 
   std::string GetDesc() const {
-    return desc_;
+      return desc_;
   }
 
   void AddChunkServer(ChunkServerIdType id) {
-    chunkserverList_.push_back(id);
+      chunkserverList_.push_back(id);
   }
   void RemoveChunkServer(ChunkServerIdType id) {
-    chunkserverList_.remove(id);
+      chunkserverList_.remove(id);
   }
   std::list<ChunkServerIdType> GetChunkServerList() const {
-    return chunkserverList_;
+      return chunkserverList_;
   }
 
  private:
@@ -333,29 +333,29 @@ class ChunkServerState {
   ~ChunkServerState() {}
 
   void SetDiskState(DiskState state) {
-    diskState_ = state;
+      diskState_ = state;
   }
   DiskState GetDiskState() const {
-    return diskState_;
+      return diskState_;
   }
   void SetOnlineState(OnlineState state) {
-    onlineState_ = state;
+      onlineState_ = state;
   }
   OnlineState GetOnlineState() const {
-    return onlineState_;
+      return onlineState_;
   }
 
   void SetDiskCapacity(uint64_t capacity) {
-    diskCapacity_ = capacity;
+      diskCapacity_ = capacity;
   }
   uint64_t GetDiskCapacity() const {
-    return diskCapacity_;
+      return diskCapacity_;
   }
   void SetDiskUsed(uint64_t diskUsed) {
-    diskUsed_ = diskUsed;
+      diskUsed_ = diskUsed;
   }
   uint64_t GetDiskUsed() const {
-    return diskUsed_;
+      return diskUsed_;
   }
 
  private:
@@ -369,10 +369,10 @@ class ChunkServerState {
 class ChunkServer {
  public:
   ChunkServer()
-      : id_(TopologyIdGenerator::UNINTIALIZE_ID),
+      : id_(UNINTIALIZE_ID),
         token_(""),
         diskType_(""),
-        serverId_(TopologyIdGenerator::UNINTIALIZE_ID),
+        serverId_(UNINTIALIZE_ID),
         internalHostIp_(""),
         port_(0),
         mountPoint_(""),
@@ -398,58 +398,58 @@ class ChunkServer {
         lastStateUpdateTime_(0) {}
 
   ChunkServerIdType GetId() const {
-    return id_;
+      return id_;
   }
   std::string GetToken() const {
-    return token_;
+      return token_;
   }
   std::string GetDiskType() const {
-    return diskType_;
+      return diskType_;
   }
   void SetServerId(ServerIdType id) {
-    serverId_ = id;
+      serverId_ = id;
   }
   ServerIdType GetServerId() const {
-    return serverId_;
+      return serverId_;
   }
   void SetHostIp(const std::string &ip) {
-    internalHostIp_ = ip;
+      internalHostIp_ = ip;
   }
   std::string GetHostIp() const {
-    return internalHostIp_;
+      return internalHostIp_;
   }
   void SetPort(uint32_t port) {
-    port_ = port;
+      port_ = port;
   }
   uint32_t GetPort() const {
-    return port_;
+      return port_;
   }
   void SetMountPoint(const std::string &mountPoint) {
-    mountPoint_ = mountPoint;
+      mountPoint_ = mountPoint;
   }
   std::string GetMountPoint() const {
-    return mountPoint_;
+      return mountPoint_;
   }
 
   void SetStatus(ChunkServerStatus status) {
-    status_ = status;
+      status_ = status;
   }
   ChunkServerStatus GetStatus() const {
-    return status_;
+      return status_;
   }
 
   void SetChunkServerState(const ChunkServerState &state) {
-    state_ = state;
+      state_ = state;
   }
   ChunkServerState GetChunkServerState() const {
-    return state_;
+      return state_;
   }
 
   void SetLastStateUpdateTime(uint64_t time) {
-    lastStateUpdateTime_ = time;
+      lastStateUpdateTime_ = time;
   }
   uint64_t GetLastStateUpdateTime() const {
-    return lastStateUpdateTime_;
+      return lastStateUpdateTime_;
   }
 
  private:
@@ -472,38 +472,87 @@ typedef std::pair<PoolIdType, CopySetIdType> CopySetKey;
 class CopySetInfo {
  public:
   CopySetInfo() :
-      logicalPoolId_(TopologyIdGenerator::UNINTIALIZE_ID),
-      copySetId_(TopologyIdGenerator::UNINTIALIZE_ID) {}
+      logicalPoolId_(UNINTIALIZE_ID),
+      copySetId_(UNINTIALIZE_ID) {}
   CopySetInfo(PoolIdType logicalPoolId,
               CopySetIdType id)
       : logicalPoolId_(logicalPoolId),
-        copySetId_(id) {}
+        copySetId_(id),
+        epoch_(0),
+        hasCandidate_(false),
+        candidate_(UNINTIALIZE_ID) {}
   ~CopySetInfo() {}
 
   PoolIdType GetLogicalPoolId() const {
-    return logicalPoolId_;
+      return logicalPoolId_;
   }
 
   CopySetIdType GetId() const {
-    return copySetId_;
+      return copySetId_;
+  }
+
+  void SetEpoch(uint64_t epoch) {
+      epoch_ = epoch;
+  }
+
+  void IncreaseEpoch() {
+      epoch_++;
+  }
+
+  // TODO(chaojie): EpochType
+  EpochType GetEpoch() const {
+      return epoch_;
+  }
+
+  // TODO(chaojie): add this function
+  ChunkServerIdType GetLeader() const {
+      return leader_;
   }
 
   std::set<ChunkServerIdType> GetCopySetMembers() const {
-    return csIdList_;
+      return peers_;
   }
 
   std::string GetCopySetMembersStr() const;
 
-  void SetCopySetMembers(const std::set<ChunkServerIdType> &idList) {
-    csIdList_ = idList;
+  void SetCopySetMembers(const std::set<ChunkServerIdType> &peers) {
+      peers_ = peers;
   }
 
   bool SetCopySetMembersByJson(const std::string &jsonStr);
 
+  bool HasCandidate() const {
+      return hasCandidate_;
+  }
+
+  void SetCandidate(ChunkServerIdType csId) {
+      hasCandidate_ = true;
+      candidate_ = csId;
+  }
+  // TODO(超杰): +const
+  ChunkServerIdType GetCandidate() const {
+      if (hasCandidate_) {
+          return candidate_;
+      } else {
+          return UNINTIALIZE_ID;
+      }
+  }
+
+  void ClearCandidate() {
+      hasCandidate_ = false;
+      candidate_ = UNINTIALIZE_ID;
+  }
+
  private:
   PoolIdType logicalPoolId_;
   CopySetIdType copySetId_;
-  std::set<ChunkServerIdType> csIdList_;
+
+  // TODO(chaojie-schedule): add
+  ChunkServerIdType leader_;
+  EpochType epoch_;
+  std::set<ChunkServerIdType> peers_;
+  bool hasCandidate_;
+  ChunkServerIdType candidate_;
 };
 
 }  // namespace topology
