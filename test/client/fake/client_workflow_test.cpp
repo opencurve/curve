@@ -22,6 +22,7 @@ DECLARE_uint32(chunk_size);
 DECLARE_uint64(test_disk_size);
 DEFINE_uint32(io_time, 5, "Duration for I/O test");
 DEFINE_bool(fake_mds, true, "create fake mds");
+DEFINE_bool(create_copysets, false, "create copysets on chunkserver");
 DEFINE_bool(verify_io, true, "verify read/write I/O getting done correctly");
 
 void callback(CurveAioContext* context) {
@@ -41,7 +42,9 @@ int main(int argc, char ** argv) {
     if (FLAGS_fake_mds) {
         mds.Initialize();
         mds.StartService();
-        mds.CreateCopysetNode();
+        if (FLAGS_create_copysets) {
+            mds.CreateCopysetNode();
+        }
     }
 
     /**** libcurve file operation ****/
