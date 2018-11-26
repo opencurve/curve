@@ -19,6 +19,8 @@
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/chunk_id_generator.h"
+#include "src/mds/nameserver2/session.h"
+#include "src/mds/repo/repo.h"
 #include "src/mds/topology/topology_admin.h"
 
 using ::curve::mds::topology::TopologyAdmin;
@@ -136,8 +138,7 @@ class FakeNameServerStorage : public NameServerStorage {
                          std::vector<FileInfo> * files) override {
         std::lock_guard<std::mutex> guard(lock_);
 
-        auto iter = memKvMap_.begin();
-        for ( iter; iter != memKvMap_.end(); iter++ ) {
+        for (auto iter = memKvMap_.begin(); iter != memKvMap_.end(); iter++) {
             if (iter->first.compare(startStoreKey) >= 0) {
                 if (iter->first.compare(endStoreKey) < 0) {
                     FileInfo  validFile;
@@ -201,8 +202,7 @@ class FakeNameServerStorage : public NameServerStorage {
         std::lock_guard<std::mutex> guard(lock_);
         std::string snapshotStartKey = SNAPSHOTFILEINFOKEYPREFIX;
 
-        auto iter = memKvMap_.begin();
-        for ( iter; iter != memKvMap_.end(); iter++ ) {
+        for (auto iter = memKvMap_.begin(); iter != memKvMap_.end(); iter++) {
             if ( iter->first.length() > snapshotStartKey.length() ) {
                 if (iter->first.substr(0, snapshotStartKey.length()).
                     compare(snapshotStartKey) == 0) {
@@ -218,6 +218,205 @@ class FakeNameServerStorage : public NameServerStorage {
  private:
     std::mutex lock_;
     std::map<std::string, std::string> memKvMap_;
+};
+
+class FakeRepoInterface : public repo::RepoInterface {
+ public:
+    int connectDB(const std::string &dbName,
+                        const std::string &user,
+                        const std::string &url,
+                        const std::string &password) override {
+        return repo::OperationOK;
+    }
+
+    int createAllTables() override {
+        return repo::OperationOK;
+    }
+
+    int createDatabase() override {
+        return repo::OperationOK;
+    }
+
+    int useDataBase() override {
+        return repo::OperationOK;
+    }
+
+    int dropDataBase() override {
+        return repo::OperationOK;
+    }
+
+    // chunkServerRepo operation
+    int InsertChunkServerRepo(const repo::ChunkServerRepo &cr) override {
+        return repo::OperationOK;
+    }
+
+    int LoadChunkServerRepos(
+        std::vector<repo::ChunkServerRepo> *chunkServerRepoList) override {
+        return repo::OperationOK;
+    }
+
+    int DeleteChunkServerRepo(repo::ChunkServerIDType id) override {
+        return repo::OperationOK;
+    }
+
+    int UpdateChunkServerRepo(const repo::ChunkServerRepo &cr) override {
+        return repo::OperationOK;
+    }
+
+    int QueryChunkServerRepo(repo::ChunkServerIDType id,
+                                    repo::ChunkServerRepo *repo) override {
+        return repo::OperationOK;
+    }
+    // server operation
+    int InsertServerRepo(const repo::ServerRepo &sr) override {
+        return repo::OperationOK;
+    }
+
+    int LoadServerRepos(std::vector<repo::ServerRepo> *serverList) override {
+        return repo::OperationOK;
+    }
+
+    int DeleteServerRepo(repo::ServerIDType id) override {
+        return repo::OperationOK;
+    }
+
+    int UpdateServerRepo(const repo::ServerRepo &sr) override {
+        return repo::OperationOK;
+    }
+
+    int QueryServerRepo(repo::ServerIDType id, repo::ServerRepo *repo)
+                                                                override {
+        return repo::OperationOK;
+    }
+
+    // zone operation
+    int InsertZoneRepo(const repo::ZoneRepo &zr) override {
+        return repo::OperationOK;
+    }
+
+    int LoadZoneRepos(std::vector<repo::ZoneRepo> *zonevector) override {
+        return repo::OperationOK;
+    }
+
+    int DeleteZoneRepo(repo::ZoneIDType id) {
+        return repo::OperationOK;
+    }
+
+    int UpdateZoneRepo(const repo::ZoneRepo &zr) override {
+        return repo::OperationOK;
+    }
+
+    int QueryZoneRepo(repo::ZoneIDType id, repo::ZoneRepo *repo) override {
+        return repo::OperationOK;
+    }
+
+    // physical pool operation
+    int InsertPhysicalPoolRepo(const repo::PhysicalPoolRepo &pr) override {
+        return repo::OperationOK;
+    }
+
+    int LoadPhysicalPoolRepos(
+        std::vector<repo::PhysicalPoolRepo> *physicalPoolvector) override {
+        return repo::OperationOK;
+    }
+
+    int DeletePhysicalPoolRepo(repo::PhysicalPoolIDType id) override {
+        return repo::OperationOK;
+    }
+
+    int UpdatePhysicalPoolRepo(const repo::PhysicalPoolRepo &pr) override {
+        return repo::OperationOK;
+    }
+
+    int QueryPhysicalPoolRepo(repo::PhysicalPoolIDType id,
+                                    repo::PhysicalPoolRepo *repo) override {
+        return repo::OperationOK;
+    }
+
+    // logical pool operation
+    int InsertLogicalPoolRepo(const repo::LogicalPoolRepo &lr) override {
+        return repo::OperationOK;
+    }
+
+    int LoadLogicalPoolRepos(
+        std::vector<repo::LogicalPoolRepo> *logicalPoolList) override {
+        return repo::OperationOK;
+    }
+
+    int DeleteLogicalPoolRepo(repo::LogicalPoolIDType id) override {
+        return repo::OperationOK;
+    }
+
+    int UpdateLogicalPoolRepo(const repo::LogicalPoolRepo &lr) override {
+        return repo::OperationOK;
+    }
+
+    int QueryLogicalPoolRepo(repo::LogicalPoolIDType id,
+                                    repo::LogicalPoolRepo *repo) override {
+        return repo::OperationOK;
+    }
+
+    // copyset operation
+    int InsertCopySetRepo(const repo::CopySetRepo &cr) override {
+        return repo::OperationOK;
+    }
+
+    int LoadCopySetRepos(std::vector<repo::CopySetRepo> *copySetList) override {
+        return repo::OperationOK;
+    }
+
+    int DeleteCopySetRepo(repo::CopySetIDType id, repo::LogicalPoolIDType lid)
+                                                                    override {
+        return repo::OperationOK;
+    }
+
+    int UpdateCopySetRepo(const repo::CopySetRepo &cr) override {
+        return repo::OperationOK;
+    }
+
+    int QueryCopySetRepo(repo::CopySetIDType id,
+                                repo::LogicalPoolIDType lid,
+                                repo::CopySetRepo *repo) override {
+        return repo::OperationOK;
+    }
+
+    // session operation
+    int InsertSessionRepo(const repo::SessionRepo &r) override {
+        LOG(INFO) << "InsertSessionRepo";
+        return repo::OperationOK;
+    }
+
+    int LoadSessionRepo(std::vector<repo::SessionRepo> *sessionList) override {
+        LOG(INFO) << "LoadSessionRepo";
+        return repo::OperationOK;
+    }
+
+    int DeleteSessionRepo(const std::string &sessionID) override {
+        LOG(INFO) << "DeleteSessionRepo";
+        return repo::OperationOK;
+    }
+
+    int UpdateSessionRepo(const repo::SessionRepo &r) override {
+        LOG(INFO) << "UpdateSessionRepo";
+        return repo::OperationOK;
+    }
+
+    int QuerySessionRepo(const std::string &sessionID, repo::SessionRepo *r) {
+        LOG(INFO) << "QuerySessionRepo";
+        return repo::OperationOK;
+    }
+
+    int SetAutoCommit(const bool &autoCommit) override {
+        return repo::OperationOK;
+    }
+
+    int Commit() override {
+        return repo::OperationOK;
+    }
+
+    int RollBack() override {
+        return repo::OperationOK;
+    }
 };
 }  // namespace mds
 }  // namespace curve

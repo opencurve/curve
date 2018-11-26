@@ -26,12 +26,12 @@ const uint64_t DefaultChunkSize = 16 * kMB;
 const uint64_t DefaultSegmentSize = kGB * 1;
 const uint64_t kMiniFileLength = DefaultSegmentSize * 10;
 
-typedef  uint64_t offset_t;
+typedef uint64_t offset_t;
 typedef uint16_t LogicalPoolID;
 typedef uint32_t SegmentSizeType;
 typedef uint32_t ChunkSizeType;
-typedef uint64_t FileSeqType;
 
+typedef uint64_t FileSeqType;
 }  // namespace mds
 }  // namespace curve
 

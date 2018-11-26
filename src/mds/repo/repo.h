@@ -109,6 +109,18 @@ class RepoInterface {
                                LogicalPoolIDType lid,
                                CopySetRepo *repo) = 0;
 
+  // session operation
+  virtual int InsertSessionRepo(const SessionRepo &r) = 0;
+
+  virtual int LoadSessionRepo(std::vector<SessionRepo> *sessionList) = 0;
+
+  virtual int DeleteSessionRepo(const std::string &sessionID) = 0;
+
+  virtual int UpdateSessionRepo(const SessionRepo &r) = 0;
+
+  virtual int QuerySessionRepo(const std::string &sessionID, SessionRepo *r)
+                               = 0;
+
   virtual int SetAutoCommit(const bool &autoCommit) = 0;
 
   virtual int Commit() = 0;
@@ -210,6 +222,17 @@ class Repo : public RepoInterface {
   int QueryCopySetRepo(CopySetIDType id,
                        LogicalPoolIDType lid,
                        CopySetRepo *repo) override;
+
+  // session operation
+  int InsertSessionRepo(const SessionRepo &r) override;
+
+  int LoadSessionRepo(std::vector<SessionRepo> *sessionList) override;
+
+  int DeleteSessionRepo(const std::string &sessionID) override;
+
+  int UpdateSessionRepo(const SessionRepo &r) override;
+
+  int QuerySessionRepo(const std::string &sessionID, SessionRepo *r) override;
 
   int SetAutoCommit(const bool &autoCommit) override;
 

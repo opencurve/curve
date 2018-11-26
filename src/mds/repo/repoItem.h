@@ -216,6 +216,40 @@ struct CopySetRepo : public RepoItem {
   std::string getTable() const override;
 };
 
+struct SessionRepo : public RepoItem {
+ public:
+  uint32_t entryID;
+  std::string sessionID;
+  std::string token;
+  std::string fileName;
+  uint32_t leaseTime;
+  uint16_t sessionStatus;
+  uint64_t createTime;
+  uint64_t updateTime;
+  std::string clientIP;
+
+ public:
+  SessionRepo() = default;
+
+  SessionRepo(std::string fileName, std::string sessionID, std::string token,
+              uint32_t leaseTime, uint16_t sessionStatus, uint64_t createTime,
+              std::string clientIP);
+
+  explicit SessionRepo(std::string sessionID);
+
+  bool operator==(const SessionRepo &r);
+
+  void getKV(std::map<std::string, std::string> *kv) const override;
+
+  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+
+  std::string getTable() const override;
+
+  uint16_t GetSessionStatus();
+
+  void SetSessionStatus(uint16_t sessionStatus);
+};
+
 static class MakeSql {
  public:
   std::string makeInsert(const RepoItem &t);

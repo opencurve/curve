@@ -15,15 +15,35 @@
 namespace curve {
 namespace mds {
 
-void CurveFS::Init(NameServerStorage* storage,
+bool CurveFS::Init(NameServerStorage* storage,
                 InodeIDGenerator* InodeIDGenerator,
                 ChunkSegmentAllocator* chunkSegAllocator,
-                std::shared_ptr<CleanManagerInterface> snapshotCleanManager) {
+                std::shared_ptr<CleanManagerInterface> snapshotCleanManager,
+                SessionManager *sessionManager,
+                const struct SessionOptions &sessionOptions) {
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
     snapshotCleanManager_ = snapshotCleanManager;
+    sessionManager_ = sessionManager;
+
     InitRootFile();
+
+    if (!sessionManager_->Init(sessionOptions)) {
+        return false;
+    }
+
+    sessionManager_->Start();
+
+    return true;
+}
+
+void CurveFS::Uninit() {
+    sessionManager_->Stop();
+    sessionManager_ = nullptr;
+    chunkSegAllocator_ =  nullptr;
+    InodeIDGenerator_ = nullptr;
+    storage_ = nullptr;
 }
 
 void CurveFS::InitRootFile(void) {
@@ -72,7 +92,6 @@ StatusCode CurveFS::WalkPath(const std::string &fileName,
 StatusCode CurveFS::LookUpFile(const FileInfo & parentFileInfo,
                     const std::string &fileName, FileInfo *fileInfo) const {
     assert(fileInfo != nullptr);
-
 
     std::string storeKey = EncodeFileStoreKey(parentFileInfo.id(), fileName);
 
@@ -173,7 +192,8 @@ StatusCode CurveFS::CreateFile(const std::string & fileName, FileType filetype,
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
         fileInfo.set_fullpathname(fileName);
-        fileInfo.set_seqnum(0);
+        // 约定seqnum从1开始
+        fileInfo.set_seqnum(1);
         ret = PutFile(fileInfo);
         return ret;
     }
@@ -392,8 +412,14 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
                 return StatusCode::kSegmentAllocateError;
             }
             if (storage_->PutSegment(storeKey, segment) != StoreStatus::OK) {
+                LOG(ERROR) << "PutSegment fail, fileInfo.id() = " << storeKey
+                           << ", offset = " << offset;
                 return StatusCode::kStorageError;
             }
+
+            LOG(INFO) << "alloc segment success, fileInfo.id() = "
+                      << fileInfo.id()
+                      << ", offset = " << offset;
             return StatusCode::kOK;
         }
     }  else {
@@ -401,29 +427,32 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
     }
 }
 
-
-
-StatusCode CurveFS::DeleteSegment(const std::string &filename,
+StatusCode CurveFS::DeleteSegment(const std::string &fileName,
                                   offset_t offset) {
     FileInfo  fileInfo;
-    auto ret = GetFileInfo(filename, &fileInfo);
+    auto ret = GetFileInfo(fileName, &fileInfo);
     if (ret != StatusCode::kOK) {
-        LOG(INFO) << "get source file error, errCode = " << ret;
+        LOG(INFO) << "get source file error, fileName = "
+                  << fileName << ", offset = " << offset
+                  << ", errCode = " << ret;
         return  ret;
     }
 
     if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
-        LOG(INFO) << "not pageFile, can't do this";
+        LOG(INFO) << "not pageFile, can't do this, fileName = "
+                  << fileName << ", offset = " << offset;
         return StatusCode::kParaError;
     }
 
     if (offset % fileInfo.segmentsize() != 0) {
-        LOG(INFO) << "offset not align with segment";
+        LOG(INFO) << "offset not align with segment, fileName = "
+                  << fileName << ", offset = " << offset;
         return StatusCode::kParaError;
     }
 
     if (offset + fileInfo.segmentsize() > fileInfo.length()) {
-        LOG(INFO) << "bigger than file length, first extentFile";
+        LOG(INFO) << "bigger than file length, first extentFile, fileName = "
+                  << fileName << ", offset = " << offset;
         return StatusCode::kParaError;
     }
 
@@ -435,14 +464,23 @@ StatusCode CurveFS::DeleteSegment(const std::string &filename,
     } else if (storeRet == StoreStatus::OK) {
         if (segment.startoffset() != offset) {
             LOG(ERROR) << "get segment offset is not same, startoffset = "
-                       << segment.startoffset();
+                       << segment.startoffset() << ", fileName = "
+                       << fileName << ", offset = " << offset;
             return StatusCode::KInternalError;
         }
         if (storage_->DeleteSegment(storeKey) != StoreStatus::OK) {
+            LOG(ERROR) << "delete segment fail, fileInfo.id() = "
+                       << fileInfo.id() << ", offset = " << offset
+                       << ", fileName = " << fileName
+                       << ", offset = " << offset;
             return StatusCode::kStorageError;
         }
         return StatusCode::kOK;
     } else {
+        LOG(ERROR) << "get segment fail, kStorageError, fileInfo.id() = "
+                   << fileInfo.id() << ", offset = " << offset
+                   << ", fileName = " << fileName
+                   << ", offset = " << offset;
         return StatusCode::kStorageError;
     }
 }
@@ -577,7 +615,7 @@ StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
         return StatusCode::kSnapshotFileNotExists;
     }
 
-    int index;
+    unsigned int index;
     for ( index = 0; index != snapShotFileInfos.size(); index++ ) {
         if (snapShotFileInfos[index].seqnum() == static_cast<uint64_t>(seq)) {
           break;
@@ -646,7 +684,8 @@ StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
     FileInfo snapShotFileInfo;
     StatusCode ret =  GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
     if (ret != StatusCode::kOK) {
-        LOG(INFO) << "GetSnapShotFileInfo file ,ret = " << ret;
+        LOG(ERROR) << "GetSnapShotFileInfo file fail, fileName = "
+                   << fileName << ", seq = " << seq << ", ret = " << ret;
         return ret;
     }
 
@@ -659,41 +698,140 @@ StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
 }
 
 StatusCode CurveFS::GetSnapShotFileSegment(
-        const std::string & filename,
+        const std::string & fileName,
         FileSeqType seq,
         offset_t offset,
         PageFileSegment *segment) {
     assert(segment != nullptr);
 
     FileInfo snapShotFileInfo;
-    StatusCode ret = GetSnapShotFileInfo(filename, seq, &snapShotFileInfo);
+    StatusCode ret = GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
     if (ret != StatusCode::kOK) {
-        LOG(INFO) << "GetSnapShotFileInfo file ,ret = " << ret;
+        LOG(ERROR) << "GetSnapShotFileInfo file fail, fileName = "
+                   << fileName << ", seq = " << seq << ", ret = " << ret;
         return ret;
     }
 
     if (offset % snapShotFileInfo.segmentsize() != 0) {
-        LOG(INFO) << "offset not align with segment";
+        LOG(ERROR) << "offset not align with segment, fileName = "
+                   << fileName << ", seq = " << seq;
         return StatusCode::kParaError;
     }
 
     if (offset + snapShotFileInfo.segmentsize() > snapShotFileInfo.length()) {
-        LOG(INFO) << "bigger than file length";
+        LOG(ERROR) << "bigger than file length, fileName = "
+                   << fileName << ", seq = " << seq;
+        return StatusCode::kParaError;
+    }
+
+    FileInfo fileInfo;
+    auto ret1 = GetFileInfo(fileName, &fileInfo);
+    if (ret1 != StatusCode::kOK) {
+        LOG(ERROR) << "get origin file error, fileName = "
+                   << fileName << ", errCode = " << ret1;
+        return  ret1;
+    }
+
+    if (offset % fileInfo.segmentsize() != 0) {
+        LOG(ERROR) << "origin file offset not align with segment, fileName = "
+                   << fileName << ", offset = " << offset
+                   << ", file segmentsize = " << fileInfo.segmentsize();
+        return StatusCode::kParaError;
+    }
+
+    if (offset + fileInfo.segmentsize() > fileInfo.length()) {
+        LOG(ERROR) << "bigger than origin file length, fileName = "
+                   << fileName << ", offset = " << offset
+                   << ", file segmentsize = " << fileInfo.segmentsize()
+                   << ", file length = " << fileInfo.length();
         return StatusCode::kParaError;
     }
 
     std::string storeKey =
-        EncodeSegmentStoreKey(snapShotFileInfo.id(), offset);
+        EncodeSegmentStoreKey(fileInfo.id(), offset);
     StoreStatus storeRet = storage_->GetSegment(storeKey, segment);
     if (storeRet == StoreStatus::OK) {
         return StatusCode::kOK;
     } else if (storeRet == StoreStatus::KeyNotExist) {
+        LOG(INFO) << "get segment fail, kSegmentNotAllocated, fileName = "
+                  << fileName
+                  << ", fileInfo.id() = "
+                  << fileInfo.id()
+                  << ", offset = " << offset;
         return StatusCode::kSegmentNotAllocated;
     } else {
+        LOG(ERROR) << "get segment fail, KInternalError, ret = " << storeRet
+                  << ", fileInfo.id() = "
+                  << fileInfo.id()
+                  << ", offset = " << offset;
         return StatusCode::KInternalError;
     }
 }
 
+StatusCode CurveFS::OpenFile(const std::string &fileName,
+                             const std::string &clientIP,
+                             ProtoSession *protoSession,
+                             FileInfo  *fileInfo) {
+    // 检查文件是否存在
+    auto ret1 = GetFileInfo(fileName, fileInfo);
+    if (ret1 != StatusCode::kOK) {
+        LOG(ERROR) << "get file info error, errCode = " << ret1;
+        return  ret1;
+    }
+
+    auto ret2 = sessionManager_->InsertSession(fileName, clientIP,
+                                            protoSession);
+    if (ret2 != StatusCode::kOK) {
+        LOG(ERROR) << "insert session fail, errCode = " << ret2;
+        return ret2;
+    }
+
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::CloseFile(const std::string &fileName,
+                              const std::string &sessionID) {
+    // 检查文件是否存在
+    FileInfo  fileInfo;
+    auto ret1 = GetFileInfo(fileName, &fileInfo);
+    if (ret1 != StatusCode::kOK) {
+        LOG(ERROR) << "get file info error, errCode = " << ret1;
+        return  ret1;
+    }
+
+    auto ret2 = sessionManager_->DeleteSession(fileName, sessionID);
+    if (ret2 != StatusCode::kOK) {
+        LOG(ERROR) << "delete session fail, errCode = " << ret2;
+        return ret2;
+    }
+
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::RefreshSession(const std::string &fileName,
+                            const std::string &sessionid,
+                            const uint64_t date,
+                            const std::string &signature,
+                            const std::string &clientIP,
+                            FileInfo  *fileInfo) {
+    // 检查文件是否存在
+    auto ret1 = GetFileInfo(fileName, fileInfo);
+    if (ret1 != StatusCode::kOK) {
+        LOG(ERROR) << "get file info error, errCode = " << ret1;
+        return  ret1;
+    }
+
+    // TODO(hzchenwei7): 待实现，校验date有效性
+
+    auto ret2 = sessionManager_->UpdateSession(fileName, sessionid,
+                                            signature, clientIP);
+    if (ret2 != StatusCode::kOK) {
+        LOG(ERROR) << "update session fail, errCode = " << ret2;
+        return ret2;
+    }
+
+    return StatusCode::kOK;
+}
 
 CurveFS &kCurveFS = CurveFS::GetInstance();
 

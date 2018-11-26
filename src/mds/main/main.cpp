@@ -17,13 +17,16 @@
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
+#include "src/mds/nameserver2/session.h"
 #include "src/mds/topology/topology_admin.h"
 #include "src/mds/topology/topology_manager.h"
 #include "src/mds/topology/topology_service.h"
+#include "src/common/configuration.h"
 
 
 
 DEFINE_string(listenAddr, ":6666", "Initial  mds listen addr");
+DEFINE_string(confPath, "deploy/local/mds/mds.conf", "mds confPath");
 
 using ::curve::mds::topology::TopologyAdminImpl;
 using ::curve::mds::topology::TopologyAdmin;
@@ -32,15 +35,42 @@ using ::curve::mds::topology::TopologyManager;
 
 namespace curve {
 namespace mds {
+void InitSessionOptions(common::Configuration *conf,
+                        struct SessionOptions *sessionOptions) {
+    sessionOptions->sessionDbName = conf->GetStringValue("session.DbName");
+    sessionOptions->sessionUser = conf->GetStringValue("session.DbUser");
+    sessionOptions->sessionUrl = conf->GetStringValue("session.DbUrl");
+    sessionOptions->sessionPassword =
+                                    conf->GetStringValue("session.DbPassword");
+    sessionOptions->leaseTime = conf->GetIntValue("session.leaseTime");
+    sessionOptions->toleranceTime = conf->GetIntValue("session.toleranceTime");
+    sessionOptions->intevalTime = conf->GetIntValue("session.intevalTime");
+}
+
 int curve_main(int argc, char **argv) {
     google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
+    // 加载配置
+    LOG(INFO) << "load mds configuration.";
+
+    std::string confPath = FLAGS_confPath.c_str();
+    common::Configuration conf;
+    conf.SetConfigPath(confPath);
+    if (!conf.LoadConfig()) {
+        LOG(ERROR) << "load mds configuration fail, conf path = "
+                   << confPath;
+        return -1;
+    }
+
+    struct SessionOptions sessionOptions;
+    InitSessionOptions(&conf, &sessionOptions);
 
     // init nameserver
     NameServerStorage *storage_;
     InodeIDGenerator *inodeGenerator_;
     ChunkSegmentAllocator *chunkSegmentAllocate_;
+    SessionManager *sessionManager_;
 
     storage_ =  new FakeNameServerStorage();
     inodeGenerator_ = new FakeInodeIDGenerator(0);
@@ -60,8 +90,18 @@ int curve_main(int argc, char **argv) {
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
         taskManager, storage_);
 
-    kCurveFS.Init(storage_, inodeGenerator_,
-        chunkSegmentAllocate_, cleanManger);
+    sessionManager_ = new SessionManager(std::make_shared<repo::Repo>());
+
+    if (!kCurveFS.Init(storage_, inodeGenerator_,
+                  chunkSegmentAllocate_, cleanManger,
+                  sessionManager_, sessionOptions)) {
+        return -1;
+    }
+
+    if (!cleanManger->Start()) {
+        LOG(ERROR) << "start cleanManager fail.";
+        return -1;
+    }
 
     // add rpc service
     brpc::Server server;
@@ -86,9 +126,16 @@ int curve_main(int argc, char **argv) {
     option.idle_timeout_sec = -1;
     if (server.Start(FLAGS_listenAddr.c_str(), &option) != 0) {
         LOG(ERROR) << "start brpc server error";
+        return -1;
     }
 
     server.RunUntilAskedToQuit();
+
+    kCurveFS.Uninit();
+    if (!cleanManger->Stop()) {
+        LOG(ERROR) << "stop cleanManager fail.";
+        return -1;
+    }
     return 0;
 }
 

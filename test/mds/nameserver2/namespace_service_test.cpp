@@ -12,6 +12,8 @@
 #include "src/mds/nameserver2/namespace_service.h"
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
+#include "src/common/timeutility.h"
+#include "src/common/configuration.h"
 #include "test/mds/nameserver2/fakes.h"
 #include "test/mds/nameserver2/mock_clean_manager.h"
 #include "src/mds/nameserver2/clean_manager.h"
@@ -44,26 +46,68 @@ class NameSpaceServiceTest : public ::testing::Test {
                             std::make_shared<FackChunkIDGenerator>();
         chunkSegmentAllocate_ =
                 new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
-        kCurveFS.Init(storage_, inodeGenerator_,
-            chunkSegmentAllocate_, snapShotCleanManager_);
+
+        sessionManager_ =
+               new SessionManager(std::make_shared<FakeRepoInterface>());
+        conf_ = new common::Configuration();
+        conf_->SetConfigPath("deploy/local/mds/mds.conf");
+        ASSERT_EQ(conf_->LoadConfig(), true);
+        sessionOptions.sessionDbName = conf_->GetStringValue("session.DbName");
+        sessionOptions.sessionUser = conf_->GetStringValue("session.DbUser");
+        sessionOptions.sessionUrl = conf_->GetStringValue("session.DbUrl");
+        sessionOptions.sessionPassword =
+                                    conf_->GetStringValue("session.DbPassword");
+        sessionOptions.leaseTime = conf_->GetIntValue("session.leaseTime");
+        sessionOptions.toleranceTime =
+                                    conf_->GetIntValue("session.toleranceTime");
+        sessionOptions.intevalTime = conf_->GetIntValue("session.intevalTime");
+
+        kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
+                        snapShotCleanManager_,
+                        sessionManager_, sessionOptions);
     }
 
     void TearDown() override {
+        kCurveFS.Uninit();
+
         if (snapShotCleanManager_ != nullptr) {
             ASSERT_EQ(snapShotCleanManager_->Stop(), true);
         }
-        if (storage_ != nullptr) delete storage_;
-        if (inodeGenerator_ != nullptr) delete inodeGenerator_;
-        if (chunkSegmentAllocate_ != nullptr) delete chunkSegmentAllocate_;
+
+        if (storage_ != nullptr) {
+            delete storage_;
+            storage_ = nullptr;
+        }
+        if (inodeGenerator_ != nullptr) {
+            delete inodeGenerator_;
+            inodeGenerator_ = nullptr;
+        }
+        if (chunkSegmentAllocate_ != nullptr) {
+            delete chunkSegmentAllocate_;
+            chunkSegmentAllocate_ = nullptr;
+        }
+        if (sessionManager_ != nullptr) {
+            delete sessionManager_;
+            sessionManager_ = nullptr;
+        }
+        if (conf_ != nullptr) {
+            delete conf_;
+            conf_ = nullptr;
+        }
     }
 
  public:
     NameServerStorage *storage_;
     InodeIDGenerator *inodeGenerator_;
     ChunkSegmentAllocator *chunkSegmentAllocate_;
+
     std::shared_ptr<CleanCore> cleanCore_;
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
     std::shared_ptr<CleanManager> snapShotCleanManager_;
+
+    SessionManager *sessionManager_;
+    common::Configuration *conf_;
+    struct SessionOptions sessionOptions;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -271,12 +315,193 @@ TEST_F(NameSpaceServiceTest, test1) {
     request7.set_filename("/file3");
     request7.set_offset(DefaultSegmentSize);
 
-    stub.DeleteSegment(&cntl, &request6, &response6, NULL);
+    stub.DeleteSegment(&cntl, &request7, &response7, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(response6.statuscode(), StatusCode::kSegmentNotAllocated);
+        ASSERT_EQ(response7.statuscode(), StatusCode::kSegmentNotAllocated);
     } else {
         ASSERT_TRUE(false);
     }
+
+    // begin session test，开始测试时，有/file2和/file3
+    // OpenFile case1. 文件不存在，返回kFileNotExists
+    cntl.Reset();
+    OpenFileRequest request8;
+    OpenFileResponse response8;
+    request8.set_filename("/file1");
+
+    stub.OpenFile(&cntl, &request8, &response8, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response8.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // OpenFile case2. 文件存在，没有open过，返回成功、session、fileInfo
+    cntl.Reset();
+    OpenFileRequest request9;
+    OpenFileResponse response9;
+    request9.set_filename("/file2");
+
+    stub.OpenFile(&cntl, &request9, &response9, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response9.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(response9.protosession().sessionstatus(),
+                                    SessionStatus::kSessionOK);
+        ASSERT_EQ(response9.fileinfo().filename(), "file2");
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    OpenFileRequest request10;
+    OpenFileResponse response10;
+    request10.set_filename("/file3");
+
+    stub.OpenFile(&cntl, &request10, &response10, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response10.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(response10.protosession().sessionstatus(),
+                                                SessionStatus::kSessionOK);
+        ASSERT_EQ(response10.fileinfo().filename(), "file3");
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // OpenFile case3. 文件存在，open过，返回session被占用
+    cntl.Reset();
+    OpenFileRequest request11;
+    OpenFileResponse response11;
+    request11.set_filename("/file2");
+
+    stub.OpenFile(&cntl, &request11, &response11, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response11.statuscode(), StatusCode::kFileOccupied);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // CloseFile case1. 文件不存在，返回kFileNotExists
+    cntl.Reset();
+    CloseFileRequest request12;
+    CloseFileResponse response12;
+    request12.set_filename("/file1");
+    request12.set_sessionid("test_session");
+
+    stub.CloseFile(&cntl, &request12, &response12, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response12.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+
+    // CloseFile case2. 文件存在，session不存在，返回kSessionNotExist
+    cntl.Reset();
+    CloseFileRequest request13;
+    CloseFileResponse response13;
+    request13.set_filename("/file2");
+    request13.set_sessionid("test_session");
+
+    stub.CloseFile(&cntl, &request13, &response13, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response13.statuscode(), StatusCode::kSessionNotExist);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // CloseFile case3. 文件存在，session存在，返回成功
+    cntl.Reset();
+    CloseFileRequest request14;
+    CloseFileResponse response14;
+    request14.set_filename("/file2");
+    request14.set_sessionid(response9.protosession().sessionid());
+
+    stub.CloseFile(&cntl, &request14, &response14, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response14.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // CloseFile case4. 文件存在，session不存在，返回成功
+    cntl.Reset();
+    request14.set_filename("/file2");
+    request14.set_sessionid(response9.protosession().sessionid());
+
+    stub.CloseFile(&cntl, &request14, &response14, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response14.statuscode(), StatusCode::kSessionNotExist);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // RefreshSession case1. 文件不存在，返回kFileNotExists
+    cntl.Reset();
+    ReFreshSessionRequest request15;
+    ReFreshSessionResponse response15;
+    request15.set_filename("/file1");
+    request15.set_sessionid(response10.protosession().sessionid());
+    request15.set_date(common::TimeUtility::GetTimeofDayUs());
+    request15.set_signature("todo,signature");
+
+    stub.RefreshSession(&cntl, &request15, &response15, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response15.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // RefreshSession case2. 文件存在，session没有open过，返回kSessionNotExist
+    cntl.Reset();
+    ReFreshSessionRequest request16;
+    ReFreshSessionResponse response16;
+    request16.set_filename("/file3");
+    request16.set_sessionid("test_session");
+    request16.set_date(common::TimeUtility::GetTimeofDayUs());
+    request16.set_signature("todo,signature");
+
+    stub.RefreshSession(&cntl, &request16, &response16, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response16.statuscode(), StatusCode::kSessionNotExist);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // // RefreshSession case3.
+    // // 文件存在，session存在，ip/port不匹配，返回kParaError
+    // cntl.Reset();
+    // ReFreshSessionRequest request17;
+    // ReFreshSessionResponse response17;
+    // request17.set_filename("/file3");
+    // request17.set_sessionid(response10.protosession().sessionid());
+    // request17.set_date(common::TimeUtility::GetTimeofDayUs());
+    // request17.set_signature("todo,signature");
+
+    // stub.RefreshSession(&cntl, &request17, &response17, NULL);
+    // if (!cntl.Failed()) {
+    //     ASSERT_EQ(response17.statuscode(), StatusCode::kParaError);
+    // } else {
+    //     std::cout << cntl.ErrorText();
+    //     ASSERT_TRUE(false);
+    // }
+
+    // RefreshSession case4. 文件存在，session存在，session没有过期，返回成功
+    cntl.Reset();
+    ReFreshSessionRequest request18;
+    ReFreshSessionResponse response18;
+    request18.set_filename("/file3");
+    request18.set_sessionid(response10.protosession().sessionid());
+    request18.set_date(common::TimeUtility::GetTimeofDayUs());
+    request18.set_signature("todo,signature");
+
+    stub.RefreshSession(&cntl, &request18, &response18, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response18.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+    // end session test
 
     server.Stop(10);
     server.Join();
@@ -340,7 +565,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.fullpathname(), "/file1");
-        ASSERT_EQ(file.seqnum(), 0);
+        ASSERT_EQ(file.seqnum(), 1);
     } else {
         ASSERT_TRUE(false);
     }
@@ -357,11 +582,11 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kOK);
         ASSERT_EQ(snapshotFileInfo.id(), 2);
         ASSERT_EQ(snapshotFileInfo.parentid(), 1);
-        ASSERT_EQ(snapshotFileInfo.filename(), "file1-0");
+        ASSERT_EQ(snapshotFileInfo.filename(), "file1-1");
         ASSERT_EQ(snapshotFileInfo.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(snapshotFileInfo.fullpathname(), "/file1/file1-0");
+        ASSERT_EQ(snapshotFileInfo.fullpathname(), "/file1/file1-1");
         ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
-        ASSERT_EQ(snapshotFileInfo.seqnum(), 0);
+        ASSERT_EQ(snapshotFileInfo.seqnum(), 1);
     } else {
         ASSERT_TRUE(false);
     }
@@ -380,7 +605,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.fullpathname(), "/file1");
-        ASSERT_EQ(file.seqnum(), 1);
+        ASSERT_EQ(file.seqnum(), 2);
     } else {
         ASSERT_TRUE(false);
     }
@@ -390,7 +615,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     DeleteSnapShotRequest deleteRequest;
     DeleteSnapShotResponse deleteResponse;
     deleteRequest.set_filename("/file1");
-    deleteRequest.set_seq(0);
+    deleteRequest.set_seq(1);
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
@@ -406,7 +631,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     ListSnapShotFileInfoResponse listResponse;
 
     listRequest.set_filename("/file1");
-    listRequest.add_seq(0);
+    listRequest.add_seq(2);
     stub.ListSnapShot(&cntl, &listRequest, &listResponse, NULL);
 
     if (!cntl.Failed()) {

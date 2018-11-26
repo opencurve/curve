@@ -56,6 +56,9 @@ enum  StatusCode {
     kSnapshotFileNotExists = 123;
     kSnapshotFileDeleteError = 124;
 
+    kSessionNotExist = 125;
+    kFileOccupied = 126;
+
     kStorageError = 501;
     KInternalError = 502;
 };
@@ -97,7 +100,7 @@ message GetOrAllocateSegmentRequest {
     required string     fileName = 1;
     required uint64     offset = 2;
     required bool       allocateIfNotExist = 3;
-    optional uint64     seqNum = 4; 
+    optional uint64     seqNum = 4;
 }
 
 message GetOrAllocateSegmentResponse {
@@ -145,7 +148,7 @@ message CreateSnapShotResponse {
 // list snapshots
 message ListSnapShotFileInfoRequest {
     required string fileName = 1;
-    repeated uint64 seq = 2; 
+    repeated uint64 seq = 2;
 }
 
 message ListSnapShotFileInfoResponse {
@@ -183,14 +186,12 @@ enum SessionStatus {
     kSessionDeleted = 2;
 };
 
-message Session {
+message ProtoSession {
     required string sessionID  = 1;
     required string token = 2;
     required uint32 leaseTime = 3;
     required uint64 createTime = 4;
-    optional SessionStatus sessionStatus = 5;
-    optional uint32 clientIP = 6;
-    optional uint32 clientPort = 7;
+    required SessionStatus sessionStatus = 5;
     // other useful infos
 };
 
@@ -200,9 +201,8 @@ message OpenFileRequest {
 
 message OpenFileResponse {
     required StatusCode statusCode = 1;
-    optional bool	    snapshotFlag = 2; // if the file exist snapshot(under snapshot)
-    optional Session    session = 3;
-    optional FileInfo   fileInfo = 4;
+    optional ProtoSession protoSession = 2;
+    optional FileInfo   fileInfo = 3;
 };
 
 message CloseFileRequest {
@@ -219,13 +219,12 @@ message ReFreshSessionRequest {
     required string sessionID = 2;
     required uint64 date = 3; //current time
     required string signature = 4; //caculete based on token
-    optional uint32 clientIP = 5;
-    optional uint32 clientPort = 6;
 }
 
 message ReFreshSessionResponse {
     required StatusCode statusCode = 1;
-    required string sessionID = 2;
+    required string     sessionID = 2;
+    optional FileInfo   fileInfo = 3;
 };
 
 service CurveFSService {

@@ -401,6 +401,23 @@ class MockRepo : public RepoInterface {
                    lid,
                        CopySetRepo * repo));
 
+  MOCK_METHOD1(InsertSessionRepo,
+               int(const SessionRepo &r));
+
+  MOCK_METHOD1(LoadSessionRepo,
+               int(std::vector<SessionRepo> *sessionList));
+
+  MOCK_METHOD1(DeleteSessionRepo,
+               int(const std::string &sessionID));
+
+  MOCK_METHOD1(UpdateSessionRepo,
+               int(const SessionRepo &r));
+
+  MOCK_METHOD2(QuerySessionRepo,
+                int(const std::string &sessionID, SessionRepo *r));
+
+
+
   MOCK_METHOD1(SetAutoCommit, int(
       const bool &autoCommit));
   MOCK_METHOD0(Commit, int());

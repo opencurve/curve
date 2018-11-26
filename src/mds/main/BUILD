@@ -4,6 +4,7 @@ cc_binary(
     srcs=glob(["*.cpp"]),
     visibility = ["//visibility:public"],
     copts = [],
+    linkopts = ["-luuid"],
     deps = [
             "//src/mds/nameserver2:nameserver2",
             "//external:brpc",

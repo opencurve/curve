@@ -85,13 +85,13 @@ class SnapShotCleanTask: public Task {
                 LOG(ERROR) << "logid = " << cntl->log_id()
                     << ", CleanSnapShotFile fail, filename = "
                     << request->filename()
-                    << "sequencenum = " << request->seq()
+                    << ", sequencenum = " << request->seq()
                     << ", statusCode = " << ret;
             } else {
                 LOG(INFO) << "logid = " << cntl->log_id()
                     << ", CleanSnapShotFile ok, filename = "
                     <<  request->filename()
-                    << "sequencenum = " << request->seq();
+                    << ", sequencenum = " << request->seq();
             }
         }
         return;
