@@ -22,6 +22,8 @@
 
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
+using ::curve::mds::topology::ChunkServerRegistRequest;
+using ::curve::mds::topology::ChunkServerRegistResponse;
 
 class FakeMDSCurveFSService : public curve::mds::CurveFSService {
  public:
@@ -102,6 +104,18 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
         auto resp = static_cast<GetChunkServerListInCopySetsResponse*>(
             fakeret_->response_);
         response->CopyFrom(*resp);
+    }
+
+    void RegistChunkServer(
+                       ::google::protobuf::RpcController* controller,
+                       const ChunkServerRegistRequest* request,
+                       ChunkServerRegistResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+
+        response->set_statuscode(0);
+        response->set_chunkserverid(request->port());
+        response->set_token(request->hostip());
     }
 
     void SetFakeReturn(FakeReturn* fakeret) {
