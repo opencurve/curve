@@ -150,6 +150,12 @@ int ChunkServer::Run() {
     return 0;
 }
 
+int ChunkServer::Stop() {
+    toStop = true;
+
+    return 0;
+}
+
 int ChunkServer::ParseCommandLineFlags(int argc, char **argv) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
 
