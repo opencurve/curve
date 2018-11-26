@@ -22,6 +22,7 @@ const char ZoneTable[] = "curve_zone";
 const char LogicalPoolTable[] = "curve_logicalpool";
 const char PhysicalPoolTable[] = "curve_physicalpool";
 const char CopySetTable[] = "curve_copyset";
+const char SessionTable[] = "curve_session";
 
 const char CreateChunkServerTable[] =
     "create table if not exists `curve_chunkserver` (\n"
@@ -90,6 +91,22 @@ const char CreateCopySetTable[] =
     "    primary key (`logicalPoolID`,`copySetID`)\n"
     ")COMMENT='copyset';";
 
+const char CreateSessionTable[] =
+    " create table if not exists `curve_session` (\n"
+    "   `entryID`       INT       unsigned     NOT NULL AUTO_INCREMENT  COMMENT '递增ID',\n"                                //NOLINT
+    "   `sessionID`     VARCHAR(64)            NOT NULL   COMMENT  '唯一sessionID',\n"                                      //NOLINT
+    "   `token`         VARCHAR(128)           NOT NULL   COMMENT  'session对应的token',\n"                                 //NOLINT
+    "   `fileName`      VARCHAR(256)           NOT NULL   COMMENT  'session对应的fileName',\n"                                //NOLINT
+    "   `leaseTime`     INT       unsigned     NOT NULL   COMMENT   'session对应的时间',\n"                                 //NOLINT
+    "   `sessionStatus` TINYINT   unsigned     NOT NULL   COMMENT  'session状态，0: kSessionOK, 1: kSessionStaled, 2:ksessionDeleted',\n"   //NOLINT
+    "   `createTime`    BIGINT                 NOT NULL   COMMENT '创建时间',\n"
+    "   `updateTime`    timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE  CURRENT_TIMESTAMP COMMENT '记录修改时间',\n" //NOLINT
+    "   `clientIP`      VARCHAR(16)            NOT NULL   COMMENT '挂载客户端IP',\n"                                         //NOLINT
+    "   PRIMARY KEY (`entryID`),\n"
+    "   UNIQUE KEY (`sessionID`)\n"
+    ")COMMENT='session';";
+
+
 const char CreateDataBase[] = "create database if not exists %s;";
 const size_t CreateDataBaseLen = strlen(CreateDataBase) - 2;
 
@@ -121,6 +138,7 @@ const std::map<std::string, std::string> CurveTables = {
     {PhysicalPoolTable, CreatePhysicalPoolTable},
     {LogicalPoolTable, CreateLogicalPoolTable},
     {CopySetTable, CreateCopySetTable},
+    {SessionTable, CreateSessionTable},
 };
 }  // namespace repo
 }  // namespace curve

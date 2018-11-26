@@ -72,6 +72,19 @@ class NameSpaceService: public CurveFSService {
                        const ::curve::mds::GetOrAllocateSegmentRequest* request,
                        ::curve::mds::GetOrAllocateSegmentResponse* response,
                        ::google::protobuf::Closure* done);
+
+    void OpenFile(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::OpenFileRequest* request,
+                       ::curve::mds::OpenFileResponse* response,
+                       ::google::protobuf::Closure* done) override;
+    void CloseFile(::google::protobuf::RpcController* controller,
+                        const ::curve::mds::CloseFileRequest* request,
+                        ::curve::mds::CloseFileResponse* response,
+                        ::google::protobuf::Closure* done) override;
+    void RefreshSession(::google::protobuf::RpcController* controller,
+                        const ::curve::mds::ReFreshSessionRequest* request,
+                        ::curve::mds::ReFreshSessionResponse* response,
+                        ::google::protobuf::Closure* done) override;
 };
 }  // namespace mds
 }  // namespace curve

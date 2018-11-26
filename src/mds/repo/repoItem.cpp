@@ -399,5 +399,61 @@ void CopySetRepo::getPrimaryKV(std::map<std::string,
 std::string CopySetRepo::getTable() const {
   return CopySetTable;
 }
+
+// session
+SessionRepo::SessionRepo(std::string fileName, std::string sessionID,
+                         std::string token, uint32_t leaseTime,
+                         uint16_t sessionStatus, uint64_t createTime,
+                         std::string clientIP) {
+  this->fileName = fileName;
+  this->sessionID = sessionID;
+  this->token = token;
+  this->leaseTime = leaseTime;
+  this->sessionStatus = sessionStatus;
+  this->createTime = createTime;
+  this->clientIP = clientIP;
+
+  return;
+}
+
+SessionRepo::SessionRepo(std::string sessionID) {
+  this->sessionID = sessionID;
+}
+
+bool SessionRepo::operator==(const SessionRepo &r) {
+  return sessionID == r.sessionID &&
+         token == r.token &&
+         fileName == r.fileName;
+}
+
+
+void SessionRepo::getKV(std::map<std::string, std::string> *kv) const {
+  (*kv)["fileName"] = convertToSqlValue(fileName);
+  (*kv)["sessionID"] = convertToSqlValue(sessionID);
+  (*kv)["token"] = convertToSqlValue(token);
+  (*kv)["leaseTime"] = std::to_string(leaseTime);
+  (*kv)["sessionStatus"] = std::to_string(sessionStatus);
+  (*kv)["createTime"] = std::to_string(createTime);
+  (*kv)["clientIP"] = convertToSqlValue(clientIP);
+  return;
+}
+
+void SessionRepo::getPrimaryKV(std::map<std::string,
+                               std::string> *primary) const {
+  (*primary)["sessionID"] = convertToSqlValue(sessionID);
+  return;
+}
+
+std::string SessionRepo::getTable() const {
+  return SessionTable;
+}
+
+uint16_t SessionRepo::GetSessionStatus() {
+  return sessionStatus;
+}
+
+void SessionRepo::SetSessionStatus(uint16_t status) {
+  sessionStatus = status;
+}
 }  // namespace repo
 }  // namespace curve

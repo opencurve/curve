@@ -4,9 +4,10 @@
  * Author: hzsunjianliang
  * Copyright (c) 2018 netease
  */
+#include "src/mds/nameserver2/namespace_service.h"
 #include <algorithm>
 #include <vector>
-#include "src/mds/nameserver2/namespace_service.h"
+#include <string>
 #include "src/mds/nameserver2/curvefs.h"
 
 namespace curve {
@@ -176,7 +177,6 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", ExtendFile request, filename = " << request->filename()
               << ", newsize = " << request->newsize();
@@ -233,6 +233,7 @@ void NameSpaceService::ListSnapShot(
                     ::google::protobuf::RpcController* controller,
                     const ::curve::mds::ListSnapShotFileInfoRequest* request,
                     ::curve::mds::ListSnapShotFileInfoResponse* response,
+
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
@@ -280,6 +281,7 @@ void NameSpaceService::DeleteSnapShot(
                     ::google::protobuf::RpcController* controller,
                     const ::curve::mds::DeleteSnapShotRequest* request,
                     ::curve::mds::DeleteSnapShotResponse* resp,
+
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
@@ -332,6 +334,7 @@ void NameSpaceService::GetSnapShotFileSegment(
                     ::google::protobuf::RpcController* controller,
                     const ::curve::mds::GetOrAllocateSegmentRequest* request,
                     ::curve::mds::GetOrAllocateSegmentResponse* response,
+
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
@@ -370,9 +373,153 @@ void NameSpaceService::GetSnapShotFileSegment(
             << ", seqnum = " << request->seqnum()
             << ", statusCode = " << retCode;
     }
+
     return;
 }
 
+void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::OpenFileRequest* request,
+                    ::curve::mds::OpenFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
+    uint32_t clientPort = cntl->remote_side().port;;
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", OpenFile request, filename = " << request->filename()
+        << ", clientip = " << clientIP
+        << ", clientport = " << clientPort;
+
+    // TODO(hzchenwei7): lock the filepath&name and do check permission
+    ProtoSession *protoSession = new ProtoSession();
+    FileInfo *fileInfo = new FileInfo();
+    StatusCode retCode;
+    retCode = kCurveFS.OpenFile(request->filename(),
+                                clientIP,
+                                protoSession,
+                                fileInfo);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", OpenFile fail, filename = "
+            <<  request->filename()
+            << ", clientip = " << clientIP
+            << ", clientport = " << clientPort
+            << ", statusCode = " << retCode;
+        delete protoSession;
+        delete fileInfo;
+        return;
+    } else {
+        response->set_allocated_protosession(protoSession);
+        response->set_allocated_fileinfo(fileInfo);
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", OpenFile ok, filename = " << request->filename()
+            << ", clientip = " << clientIP
+            << ", clientport = " << clientPort;
+    }
+    return;
+}
+
+void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::CloseFileRequest* request,
+                    ::curve::mds::CloseFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
+    uint32_t clientPort = cntl->remote_side().port;;
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", CloseFile request, filename = " << request->filename()
+        << ", sessionid = " << request->sessionid()
+        << ", clientip = " << clientIP
+        << ", clientport = " << clientPort;
+
+    // TODO(hzchenwei7): lock the filepath&name and do check permission
+
+    StatusCode retCode;
+    retCode = kCurveFS.CloseFile(request->filename(), request->sessionid());
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CloseFile fail, filename = " <<  request->filename()
+            << ", sessionid = " << request->sessionid()
+            << ", clientip = " << clientIP
+            << ", clientport = " << clientPort
+            << ", statusCode = " << retCode;
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", CloseFile ok, filename = " << request->filename()
+            << ", sessionid = " << request->sessionid()
+            << ", clientip = " << clientIP
+            << ", clientport = " << clientPort;
+    }
+
+    return;
+}
+
+void NameSpaceService::RefreshSession(
+                    ::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ReFreshSessionRequest* request,
+                    ::curve::mds::ReFreshSessionResponse* response,
+                    ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
+    uint32_t clientPort = cntl->remote_side().port;;
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", RefreshSession request, filename = " << request->filename()
+        << ", sessionid = " << request->sessionid()
+        << ", date = " << request->date()
+        << ", signature = " << request->signature()
+        << ", clientip = " << clientIP
+        << ", clientport = " << clientPort;
+
+    // TODO(hzchenwei7): lock the filepath&name and do check permission
+    FileInfo *fileInfo = new FileInfo();
+    StatusCode retCode;
+    retCode = kCurveFS.RefreshSession(request->filename(),
+                                      request->sessionid(),
+                                      request->date(),
+                                      request->signature(),
+                                      clientIP,
+                                      fileInfo);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        response->set_sessionid(request->sessionid());
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", RefreshSession fail, filename = " <<  request->filename()
+            << ", sessionid = " << request->sessionid()
+            << ", date = " << request->date()
+            << ", signature = " << request->signature()
+            << ", clientip = " << clientIP
+            << ", clientport = " << clientPort
+            << ", statusCode = " << retCode;
+        delete fileInfo;
+        return;
+    } else {
+        response->set_sessionid(request->sessionid());
+        response->set_allocated_fileinfo(fileInfo);
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", RefreshSession ok, filename = " << request->filename()
+            << ", sessionid = " << request->sessionid()
+            << ", date = " << request->date()
+            << ", signature = " << request->signature()
+            << ", clientip = " << clientIP
+            << ", clientport = " << clientPort;
+    }
+
+    return;
+}
 
 }  // namespace mds
 }  // namespace curve
