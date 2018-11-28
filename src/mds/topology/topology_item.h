@@ -60,6 +60,14 @@ class LogicalPool {
   };
 
  public:
+    static bool TransRedundanceAndPlaceMentPolicyFromJsonStr(
+        const std::string &jsonStr,
+        LogicalPoolType type,
+        RedundanceAndPlaceMentPolicy *rap);
+    static bool TransUserPolicyFromJsonStr(
+        const std::string &jsonStr, LogicalPoolType type, UserPolicy *policy);
+
+ public:
   LogicalPool()
       : id_(TopologyIdGenerator::UNINTIALIZE_ID),
         name_(""),
@@ -99,9 +107,13 @@ class LogicalPool {
     return type_;
   }
 
+  bool SetRedundanceAndPlaceMentPolicyByJson(const std::string &jsonStr);
+
   RedundanceAndPlaceMentPolicy GetRedundanceAndPlaceMentPolicy() const {
     return rap_;
   }
+
+  std::string GetRedundanceAndPlaceMentPolicyJsonStr() const;
 
   uint64_t GetCreateTime() const {
     return createTime_;
@@ -111,9 +123,13 @@ class LogicalPool {
     policy_ = policy;
   }
 
+  bool SetUserPolicyByJson(const std::string &jsonStr);
+
   UserPolicy GetUserPolicy() const {
     return policy_;
   }
+
+  std::string GetUserPolicyJsonStr() const;
 
   void SetStatus(LogicalPoolStatus status) {
     status_ = status;
@@ -311,7 +327,7 @@ class ChunkServerState {
  public:
   ChunkServerState()
       : diskState_(DISKNORMAL),
-        onlineState_(ONLINE),
+        onlineState_(OFFLINE),
         diskCapacity_(0),
         diskUsed_(0) {}
   ~ChunkServerState() {}
@@ -364,7 +380,7 @@ class ChunkServer {
         lastStateUpdateTime_(0) {}
 
   ChunkServer(ChunkServerIdType id,
-              const std::string token,
+              const std::string &token,
               const std::string &diskType,
               ServerIdType serverId,
               const std::string &hostIp,
@@ -476,9 +492,13 @@ class CopySetInfo {
     return csIdList_;
   }
 
+  std::string GetCopySetMembersStr() const;
+
   void SetCopySetMembers(const std::set<ChunkServerIdType> &idList) {
     csIdList_ = idList;
   }
+
+  bool SetCopySetMembersByJson(const std::string &jsonStr);
 
  private:
   PoolIdType logicalPoolId_;

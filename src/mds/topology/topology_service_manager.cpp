@@ -18,7 +18,6 @@
 #include "brpc/controller.h"
 #include "brpc/server.h"
 #include "proto/copyset.pb.h"
-#include "json/json.h"
 
 namespace curve {
 namespace mds {
@@ -29,17 +28,15 @@ using ::curve::chunkserver::CopysetRequest;
 using ::curve::chunkserver::CopysetResponse;
 using ::curve::chunkserver::COPYSET_OP_STATUS;
 
+using ::curve::mds::copyset::ClusterInfo;
+using ::curve::mds::copyset::CopysetPermutationPolicy;
+using curve::mds::copyset::Copyset;
+
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest* request,
     ChunkServerRegistResponse* response) {
-
-    if (request->hostip().empty() ||
-        request->disktype().empty() ||
-        request->port() == 0) {
-        response->set_statuscode(kTopoErrCodeInvalidParam);
-        return;
-    }
-    ServerIdType serverId  = topology_->FindServerByHostIp(request->hostip());
+    ServerIdType serverId  =
+        topology_->FindServerByHostIp(request->hostip());
     if (serverId ==
         static_cast<ServerIdType>(TopologyIdGenerator::UNINTIALIZE_ID)) {
         response->set_statuscode(kTopoErrCodeServerNotFound);
@@ -48,7 +45,8 @@ void TopologyServiceManager::RegistChunkServer(
 
     ChunkServerIdType chunkServerId = topology_->AllocateChunkServerId();
     if (chunkServerId ==
-        static_cast<ChunkServerIdType>(TopologyIdGenerator::UNINTIALIZE_ID)) {
+        static_cast<ChunkServerIdType>(
+            TopologyIdGenerator::UNINTIALIZE_ID)) {
         response->set_statuscode(kTopoErrCodeAllocateIdFail);
         return;
     }
@@ -63,6 +61,9 @@ void TopologyServiceManager::RegistChunkServer(
         request->hostip(),
         request->port(),
         request->diskpath());
+    ChunkServerState state;
+    state.SetOnlineState(OFFLINE);
+    chunkserver.SetChunkServerState(state);
 
     int errcode = topology_->AddChunkServer(chunkserver);
     if (errcode == kTopoErrCodeSuccess) {
@@ -78,12 +79,12 @@ void TopologyServiceManager::ListChunkServer(
     const ListChunkServerRequest* request,
     ListChunkServerResponse* response) {
     Server server;
-    if ((request->has_ip()) && (!request->ip().empty())) {
+    if (request->has_ip()) {
         if (!topology_->GetServerByHostIp(request->ip(), &server)) {
             response->set_statuscode(kTopoErrCodeServerNotFound);
             return;
         }
-    } else if ((request->has_serverid()) && (request->serverid() != 0)) {
+    } else if (request->has_serverid()) {
         if (!topology_->GetServer(request->serverid(), &server)) {
             response->set_statuscode(kTopoErrCodeServerNotFound);
             return;
@@ -166,23 +167,12 @@ void TopologyServiceManager::DeleteChunkServer(
     const DeleteChunkServerRequest* request,
     DeleteChunkServerResponse* response) {
     int errcode = topology_->RemoveChunkServer(request->chunkserverid());
-    if (kTopoErrCodeSuccess == errcode) {
-        response->set_statuscode(kTopoErrCodeSuccess);
-    } else if (kTopoErrCodeChunkServerNotFound == errcode) {
-        response->set_statuscode(kTopoErrCodeChunkServerNotFound);
-    } else {
-        response->set_statuscode(errcode);
-    }
+    response->set_statuscode(errcode);
 }
 
 void TopologyServiceManager::SetChunkServer(
     const SetChunkServerStatusRequest* request,
     SetChunkServerStatusResponse* response) {
-    if (request->chunkserverid() == 0) {
-        response->set_statuscode(kTopoErrCodeInvalidParam);
-        return;
-    }
-
     ChunkServer chunkserver;
     bool find = topology_->GetChunkServer(request->chunkserverid(),
                                           &chunkserver);
@@ -193,11 +183,7 @@ void TopologyServiceManager::SetChunkServer(
     } else {
         chunkserver.SetStatus(request->chunkserverstatus());
         int errcode = topology_->UpdateChunkServer(chunkserver);
-        if (errcode != kTopoErrCodeSuccess) {
-            response->set_statuscode(kTopoErrCodeSuccess);
-        } else {
-            response->set_statuscode(errcode);
-        }
+        response->set_statuscode(errcode);
     }
 }
 
@@ -406,17 +392,7 @@ void TopologyServiceManager::DeleteZone(const ZoneRequest* request,
         return;
     }
     int errcode = topology_->RemoveZone(zone.GetId());
-    if (kTopoErrCodeSuccess == errcode) {
-        response->set_statuscode(kTopoErrCodeSuccess);
-        ZoneInfo *info = new ZoneInfo();
-        info->set_zoneid(zone.GetId());
-        info->set_zonename(zone.GetName());
-        info->set_physicalpoolid((zone.GetPhysicalPoolId()));
-        info->set_desc(zone.GetDesc());
-        response->set_allocated_zoneinfo(info);
-    } else {
-        response->set_statuscode(errcode);
-    }
+    response->set_statuscode(errcode);
 }
 
 void TopologyServiceManager::GetZone(const ZoneRequest* request,
@@ -536,16 +512,7 @@ void TopologyServiceManager::DeletePhysicalPool(
     }
 
     int errcode = topology_->RemovePhysicalPool(pool.GetId());
-    if (kTopoErrCodeSuccess == errcode) {
-        response->set_statuscode(errcode);
-        PhysicalPoolInfo *info = new PhysicalPoolInfo();
-        info->set_physicalpoolid(pool.GetId());
-        info->set_physicalpoolname(pool.GetName());
-        info->set_desc(pool.GetDesc());
-        response->set_allocated_physicalpoolinfo(info);
-    } else {
-        response->set_statuscode(errcode);
-    }
+    response->set_statuscode(errcode);
 }
 
 void TopologyServiceManager::GetPhysicalPool(const PhysicalPoolRequest* request,
@@ -598,12 +565,249 @@ void TopologyServiceManager::ListPhysicalPool(
     }
 }
 
+int TopologyServiceManager::CreateCopysetForLogicalPool(
+    const LogicalPool &lPool) {
+    switch (lPool.GetLogicalPoolType()) {
+        case LogicalPoolType::PAGEFILE: {
+            std::vector<CopySetInfo> copysetInfos;
+            int errcode = GenCopysetForPageFilePool(lPool,
+                &copysetInfos);
+            if (kTopoErrCodeSuccess != errcode) {
+                LOG(ERROR) << "CreateCopysetForLogicalPool fail in : "
+                           << "GenCopysetForPageFilePool.";
+                return errcode;
+            }
+            errcode = CreateCopysetOnChunkServer(copysetInfos);
+            if (kTopoErrCodeSuccess != errcode) {
+                LOG(ERROR) << "CreateCopysetForLogicalPool fail in : "
+                           << "CreateCopysetOnChunkServer.";
+                return errcode;
+            }
+            break;
+        }
+        case LogicalPoolType::APPENDFILE: {
+            // TODO(xuchaojie): it is not done.
+            LOG(ERROR) << "CreateCopysetForLogicalPool invalid logicalPoolType:"
+                       << lPool.GetLogicalPoolType();
+            return kTopoErrCodeInvalidParam;
+            break;
+        }
+        case LogicalPoolType::APPENDECFILE: {
+            // TODO(xuchaojie): it is not done.
+            LOG(ERROR) << "CreateCopysetForLogicalPool invalid logicalPoolType:"
+                       << lPool.GetLogicalPoolType();
+            return kTopoErrCodeInvalidParam;
+            break;
+        }
+        default: {
+            LOG(ERROR) << "CreateCopysetForLogicalPool invalid logicalPoolType:"
+                       << lPool.GetLogicalPoolType();
+            return kTopoErrCodeInvalidParam;
+            break;
+        }
+    }
+    return kTopoErrCodeSuccess;
+}
+
+
+int TopologyServiceManager::GenCopysetForPageFilePool(
+    const LogicalPool &lPool,
+    std::vector<CopySetInfo> *copysetInfos) {
+    ClusterInfo cluster;
+    std::list<ChunkServerIdType> csList =
+        topology_->GetChunkServerInLogicalPool(lPool.GetId());
+
+    for (ChunkServerIdType id : csList) {
+        ChunkServer cs;
+        if (topology_->GetChunkServer(id, &cs)) {
+            Server belongServer;
+            if (topology_->GetServer(cs.GetServerId(), &belongServer)) {
+                curve::mds::copyset::ChunkServerInfo csInfo;
+                csInfo.id = id;
+                csInfo.location.zoneId = belongServer.GetZoneId();
+                csInfo.location.logicalPoolId = lPool.GetId();
+                cluster.AddChunkServerInfo(csInfo);
+            } else {
+                LOG(ERROR) << "TopologyServiceManager has encounter"
+                           << "a internalError."
+                           << "[func:] CreateLogicalPool, "
+                           << "[msg:] ChunkServer not found, id = "
+                           << id
+                           << ", logicalPoolid = "
+                           << lPool.GetId();
+                return kTopoErrCodeInternalError;
+            }
+        }
+    }
+
+    std::vector<Copyset> copysets;
+    LogicalPool::RedundanceAndPlaceMentPolicy rap =
+    lPool.GetRedundanceAndPlaceMentPolicy();
+    PoolIdType logicalPoolId = lPool.GetId();
+    std::shared_ptr<curve::mds::copyset::CopysetPolicy> policy =
+        copysetManager_->GetCopysetPolicy(
+            CopysetPermutationPolicy::NUM_ANY,
+            rap.pageFileRAP.zoneNum,
+            rap.pageFileRAP.replicaNum);
+    if (policy != nullptr) {
+        if (policy->GenCopyset(cluster,
+            rap.pageFileRAP.copysetNum,
+            &copysets) != true) {
+            LOG(ERROR) << "GenCopysetForPageFilePool error :"
+                       << " Cluster size = "
+                       << cluster.GetClusterSize()
+                       << " copysetNum = "
+                       << rap.pageFileRAP.copysetNum
+                       << ", logicalPoolid = "
+                       << lPool.GetId();
+            return kTopoErrCodeGenCopysetErr;
+        }
+    } else {
+        LOG(ERROR) << "GenCopysetForPageFilePool invalid param :"
+                   << " zoneNum = "
+                   << rap.pageFileRAP.zoneNum
+                   << " replicaNum = "
+                   << rap.pageFileRAP.replicaNum
+                   << ", logicalPoolid = "
+                   << lPool.GetId();
+        return kTopoErrCodeInvalidParam;
+    }
+
+    for (const Copyset &cs : copysets) {
+        CopySetIdType copysetId =
+            topology_->AllocateCopySetId(logicalPoolId);
+        if (copysetId ==
+            static_cast<PoolIdType>(TopologyIdGenerator::UNINTIALIZE_ID)) {
+            return kTopoErrCodeAllocateIdFail;
+        }
+        CopySetInfo copysetInfo(logicalPoolId, copysetId);
+        copysetInfo.SetCopySetMembers(cs.replicas);
+        copysetInfos->push_back(copysetInfo);
+    }
+    // TODO(xuchaojie): 优化以删除事物
+    int errcode = topology_->AddCopySetList(*copysetInfos);
+    if (kTopoErrCodeSuccess != errcode) {
+        return errcode;
+    }
+    return kTopoErrCodeSuccess;
+}
+
+
+int TopologyServiceManager::CreateCopysetOnChunkServer(
+    const std::vector<CopySetInfo> &copysetInfos) {
+    for (const CopySetInfo &cs : copysetInfos) {
+        for (ChunkServerIdType csId : cs.GetCopySetMembers()) {
+            ChunkServer chunkServer;
+            topology_->GetChunkServer(csId, &chunkServer);
+
+            std::string ip = chunkServer.GetHostIp();
+            int port = chunkServer.GetPort();
+
+            brpc::Channel channel;
+            if (channel.Init(ip.c_str(), port, NULL) != 0) {
+                LOG(ERROR) << "Fail to init channel to ip: "
+                           << ip
+                           << " port "
+                           << port
+                           << std::endl;
+                return kTopoErrCodeGenCopysetErr;
+            }
+            CopysetService_Stub stub(&channel);
+
+            // 调用chunkserver接口创建copyset
+            brpc::Controller cntl;
+            // TODO(xuchaojie): 添加配置模块，使用配置参数
+            cntl.set_timeout_ms(1000);
+
+            CopysetRequest chunkServerRequest;
+            chunkServerRequest.set_logicpoolid(cs.GetLogicalPoolId());
+            chunkServerRequest.set_copysetid(cs.GetId());
+
+            for (ChunkServerIdType id : cs.GetCopySetMembers()) {
+                    ChunkServer chunkserverInfo;
+                    topology_->GetChunkServer(id, &chunkserverInfo);
+                    std::string ipStr = chunkserverInfo.GetHostIp();
+                    std::string portStr =
+                        std::to_string(chunkserverInfo.GetPort());
+                    chunkServerRequest.add_peerid(ipStr + ":" + portStr);
+            }
+
+            CopysetResponse chunkSeverResponse;
+
+            LOG(INFO) << "Send CopysetRequest[log_id=" << cntl.log_id()
+                      << "] from " << cntl.local_side()
+                      << " to " << cntl.remote_side()
+                      << ". [CopysetRequest] "
+                      << chunkServerRequest.DebugString();
+
+            stub.CreateCopysetNode(&cntl,
+                &chunkServerRequest,
+                &chunkSeverResponse,
+                nullptr);
+
+            // TODO(xuchaojie): 添加配置模块，使用配置参数
+            const int retryTime = 3;
+            int retry = 0;
+            while (cntl.Failed() && retry < retryTime) {
+                LOG(ERROR) << "Received CopysetResponse error, "
+                           << "cntl.errorText = "
+                           << cntl.ErrorText()
+                           << ", retry, time = "
+                           << retry;
+                stub.CreateCopysetNode(&cntl,
+                    &chunkServerRequest,
+                    &chunkSeverResponse,
+                    nullptr);
+                retry++;
+            }
+
+            if (cntl.Failed()) {
+                LOG(ERROR) << "Received CopysetResponse error, retry fail,"
+                           << "cntl.errorText = "
+                           << cntl.ErrorText() << std::endl;
+                return kTopoErrCodeGenCopysetErr;
+            } else {
+                if ((chunkSeverResponse.status() !=
+                        COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) &&
+                   (chunkSeverResponse.status() !=
+                        COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST)) {
+                    LOG(ERROR) << "Received CopysetResponse[log_id="
+                              << cntl.log_id()
+                              << "] from " << cntl.remote_side()
+                              << " to " << cntl.local_side()
+                              << ". [CopysetResponse] "
+                              << chunkSeverResponse.DebugString();
+                    return kTopoErrCodeGenCopysetErr;
+                } else {
+                    LOG(INFO) << "Received CopysetResponse[log_id="
+                              << cntl.log_id()
+                              << "] from " << cntl.remote_side()
+                              << " to " << cntl.local_side()
+                              << ". [CopysetResponse] "
+                              << chunkSeverResponse.DebugString();
+                }
+            }
+        }
+    }
+    return kTopoErrCodeSuccess;
+}
+
 void TopologyServiceManager::CreateLogicalPool(
     const CreateLogicalPoolRequest* request,
     CreateLogicalPoolResponse* response) {
     PhysicalPool pPool;
-    if (!topology_->GetPhysicalPool(request->physicalpoolid(), &pPool)) {
-        response->set_statuscode(kTopoErrCodePhysicalPoolNotFound);
+    if (request->has_physicalpoolid()) {
+        if (!topology_->GetPhysicalPool(request->physicalpoolid(), &pPool)) {
+            response->set_statuscode(kTopoErrCodePhysicalPoolNotFound);
+            return;
+        }
+    } else if (request->has_physicalpoolname()) {
+        if (!topology_->GetPhysicalPool(request->physicalpoolname(), &pPool)) {
+            response->set_statuscode(kTopoErrCodePhysicalPoolNotFound);
+            return;
+        }
+    } else {
+        response->set_statuscode(kTopoErrCodeInvalidParam);
         return;
     }
 
@@ -615,54 +819,25 @@ void TopologyServiceManager::CreateLogicalPool(
     }
 
     LogicalPool::RedundanceAndPlaceMentPolicy rap;
-    LogicalPool::UserPolicy policy;
-
-    Json::Reader reader;
-    Json::Value rapJson;
-    if (!reader.parse(request->redundanceandplacementpolicy(), rapJson)) {
+    if (!LogicalPool::TransRedundanceAndPlaceMentPolicyFromJsonStr(
+        request->redundanceandplacementpolicy(),
+        request->type(),
+        &rap)) {
+        LOG(ERROR) << "[TopologyServiceManager::CreateLogicalPool]:"
+                   << "parse redundanceandplacementpolicy fail.";
         response->set_statuscode(kTopoErrCodeInvalidParam);
         return;
     }
 
-    switch (request->type()) {
-        case LogicalPoolType::PAGEFILE: {
-            if (!rapJson["replicaNum"].isNull()) {
-                rap.pageFileRAP.replicaNum = rapJson["replicaNum"].asInt();
-            } else {
-                response->set_statuscode(kTopoErrCodeInvalidParam);
-                return;
-            }
-            if (!rapJson["copysetNum"].isNull()) {
-                rap.pageFileRAP.copysetNum = rapJson["copysetNum"].asInt();
-            } else {
-                response->set_statuscode(kTopoErrCodeInvalidParam);
-                return;
-            }
-            if (!rapJson["zoneNum"].isNull()) {
-                rap.pageFileRAP.zoneNum = rapJson["zoneNum"].asInt();
-            } else {
-                response->set_statuscode(kTopoErrCodeInvalidParam);
-                return;
-            }
-            break;
-        }
-        case LogicalPoolType::APPENDFILE: {
-            // TODO(xuchaojie): it is not done.
-            response->set_statuscode(kTopoErrCodeGenCopysetErr);
-            return;
-            break;
-        }
-        case LogicalPoolType::APPENDECFILE: {
-            // TODO(xuchaojie): it is not done.
-            response->set_statuscode(kTopoErrCodeGenCopysetErr);
-            return;
-            break;
-        }
-        default: {
-            response->set_statuscode(kTopoErrCodeInvalidParam);
-            return;
-            break;
-        }
+    LogicalPool::UserPolicy userPolicy;
+    if (!LogicalPool::TransUserPolicyFromJsonStr(
+        request->userpolicy(),
+        request->type(),
+        &userPolicy)) {
+        LOG(ERROR) << "[TopologyServiceManager::CreateLogicalPool]:"
+                   << "parse userpolicy fail.";
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+        return;
     }
 
     timeval now;
@@ -673,177 +848,36 @@ void TopologyServiceManager::CreateLogicalPool(
         pPool.GetId(),
         request->type(),
         rap,
-        policy,
+        userPolicy,
         cTime);
 
     int errcode = topology_->AddLogicalPool(lPool);
     if (kTopoErrCodeSuccess == errcode) {
-        curve::mds::copyset::ClusterInfo cluster;
-        std::list<ChunkServerIdType> csList =
-            topology_->GetChunkServerInLogicalPool(lPoolId);
-
-        for (ChunkServerIdType id : csList) {
-            ChunkServer cs;
-            if (topology_->GetChunkServer(id, &cs)) {
-                Server belongServer;
-                if (topology_->GetServer(cs.GetServerId(), &belongServer)) {
-                    curve::mds::copyset::ChunkServerInfo csInfo;
-                    csInfo.id = id;
-                    csInfo.location.zoneId = belongServer.GetZoneId();
-                    csInfo.location.logicalPoolId = lPoolId;
-                    cluster.AddChunkServerInfo(csInfo);
-                } else {
-                    LOG(ERROR) << "TopologyServiceManager has encounter"
-                               << "a internalError."
-                               << "[func:] CreateLogicalPool, "
-                               << "[msg:] ChunkServer not found, id = "
-                               << id;
-                    response->set_statuscode(kTopoErrCodeInternalError);
-                    return;
-                }
-            }
-        }
-        std::shared_ptr<curve::mds::copyset::CopysetPolicy> policy =
-            copysetManager_->GetCopysetPolicy(3, 3, 3);
-        std::vector<curve::mds::copyset::Copyset> copysets;
-
-        if (policy != nullptr) {
-            switch (request->type()) {
-                case LogicalPoolType::PAGEFILE: {
-                    if (policy->GenCopyset(cluster,
-                        rap.pageFileRAP.copysetNum,
-                        &copysets) != true) {
-                        response->set_statuscode(kTopoErrCodeGenCopysetErr);
-                        return;
-                    }
-                    break;
-                }
-                case LogicalPoolType::APPENDFILE: {
-                    // TODO(xuchaojie): it is not done.
-                    response->set_statuscode(kTopoErrCodeGenCopysetErr);
-                    return;
-                    break;
-                }
-                case LogicalPoolType::APPENDECFILE: {
-                    // TODO(xuchaojie): it is not done.
-                    response->set_statuscode(kTopoErrCodeGenCopysetErr);
-                    return;
-                    break;
-                }
-                default: {
-                    response->set_statuscode(kTopoErrCodeInvalidParam);
-                    return;
-                    break;
-                }
-            }
-        }
-
-        for (curve::mds::copyset::Copyset &cs : copysets) {
-            CopySetIdType copysetId =
-                topology_->AllocateCopySetId(lPool.GetId());
-            if (copysetId ==
-                static_cast<PoolIdType>(TopologyIdGenerator::UNINTIALIZE_ID)) {
-                response->set_statuscode(kTopoErrCodeAllocateIdFail);
-                return;
-            }
-
-            CopySetInfo copysetInfo(lPoolId, copysetId);
-            copysetInfo.SetCopySetMembers(cs.replicas);
-            int errcode2 = topology_->AddCopySet(copysetInfo);
-            if (kTopoErrCodeSuccess != errcode2) {
+        int errcode2 = CreateCopysetForLogicalPool(lPool);
+        if (kTopoErrCodeSuccess != errcode2) {
+            if (topology_->RemoveLogicalPool(lPool.GetId())) {
                 response->set_statuscode(errcode2);
-                return;
+            } else {
+                LOG(ERROR) << "[CreateLogicalPool] has counter a internalError:"
+                           << "recover from AddLogicalPool, "
+                           << "remove logicalpool Fail. logicalpoolid = "
+                           << lPool.GetId();
+                response->set_statuscode(kTopoErrCodeInternalError);
             }
-
-            for (ChunkServerIdType csId : cs.replicas) {
-                ChunkServer chunkServer;
-                topology_->GetChunkServer(csId, &chunkServer);
-
-                std::string ip = chunkServer.GetHostIp();
-                int port = chunkServer.GetPort();
-
-                brpc::Channel channel;
-                if (channel.Init(ip.c_str(), port, NULL) != 0) {
-                LOG(FATAL) << "Fail to init channel to ip: "
-                           << ip
-                           << " port "
-                           << port
-                           << std::endl;
-                }
-                CopysetService_Stub stub(&channel);
-
-                // 调用chunkserver接口创建copyset
-                brpc::Controller cntl;
-                cntl.set_timeout_ms(10);
-
-                CopysetRequest chunkServerRequest;
-                chunkServerRequest.set_logicpoolid(lPoolId);
-                chunkServerRequest.set_copysetid(copysetId);
-
-                for (ChunkServerIdType id : cs.replicas) {
-                        ChunkServer chunkserverInfo;
-                        topology_->GetChunkServer(id, &chunkserverInfo);
-                        std::string ipStr = chunkserverInfo.GetHostIp();
-                        std::string portStr =
-                            std::to_string(chunkserverInfo.GetPort());
-                        chunkServerRequest.add_peerid(ipStr + ":" + portStr);
-                }
-
-                CopysetResponse chunkSeverResponse;
-
-                LOG(INFO) << "Send CopysetRequest[log_id=" << cntl.log_id()
-                          << "] from " << cntl.local_side()
-                          << " to " << cntl.remote_side()
-                          << ". [CopysetRequest] "
-                          << chunkServerRequest.DebugString();
-
-                stub.CreateCopysetNode(&cntl,
-                    &chunkServerRequest,
-                    &chunkSeverResponse,
-                    nullptr);
-
-
-                if (cntl.Failed()) {
-                    LOG(ERROR) << "Received CopysetResponse error, "
-                               << "cntl.errorText = "
-                               << cntl.ErrorText() << std::endl;
-                    response->set_statuscode(kTopoErrCodeGenCopysetErr);
-                    return;
-                } else {
-                    if (chunkSeverResponse.status() !=
-                            COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
-                        LOG(ERROR) << "Received CopysetResponse[log_id="
-                                  << cntl.log_id()
-                                  << "] from " << cntl.remote_side()
-                                  << " to " << cntl.local_side()
-                                  << ". [CopysetResponse] "
-                                  << chunkSeverResponse.DebugString();
-                        response->set_statuscode(kTopoErrCodeGenCopysetErr);
-                        return;
-                    } else {
-                        LOG(INFO) << "Received CopysetResponse[log_id="
-                                  << cntl.log_id()
-                                  << "] from " << cntl.remote_side()
-                                  << " to " << cntl.local_side()
-                                  << ". [CopysetResponse] "
-                                  << chunkSeverResponse.DebugString();
-                    }
-                }
-            }
+        } else {
+            response->set_statuscode(errcode);
+            LogicalPoolInfo *info = new LogicalPoolInfo();
+            info->set_logicalpoolid(lPoolId);
+            info->set_logicalpoolname(request->logicalpoolname());
+            info->set_physicalpoolid(pPool.GetId());
+            info->set_type(request->type());
+            info->set_createtime(cTime);
+            info->set_redundanceandplacementpolicy(
+                request->redundanceandplacementpolicy());
+            info->set_userpolicy(request->userpolicy());
+            info->set_allocatestatus(AllocateStatus::ALLOW);
+            response->set_allocated_logicalpoolinfo(info);
         }
-
-        response->set_statuscode(errcode);
-        LogicalPoolInfo *info = new LogicalPoolInfo();
-        info->set_logicalpoolid(lPoolId);
-        info->set_logicalpoolname(request->logicalpoolname());
-        info->set_physicalpoolid(pPool.GetId());
-        info->set_type(request->type());
-        info->set_createtime(cTime);
-        info->set_redundanceandplacementpolicy(
-            request->redundanceandplacementpolicy());
-        info->set_userpolicy(request->userpolicy());
-        info->set_allocatestatus(AllocateStatus::ALLOW);
-        response->set_allocated_logicalpoolinfo(info);
     } else {
         response->set_statuscode(errcode);
     }
@@ -905,33 +939,10 @@ void TopologyServiceManager::GetLogicalPool(
     info->set_physicalpoolid(lPool.GetPhysicalPoolId());
     info->set_type(lPool.GetLogicalPoolType());
     info->set_createtime(lPool.GetCreateTime());
-    LogicalPool::RedundanceAndPlaceMentPolicy rap =
-        lPool.GetRedundanceAndPlaceMentPolicy();
-    LogicalPool::UserPolicy policy = lPool.GetUserPolicy();
 
-    Json::Value rapJson;
-    switch (lPool.GetLogicalPoolType()) {
-        case LogicalPoolType::PAGEFILE : {
-            rapJson["replicaNum"] = rap.pageFileRAP.replicaNum;
-            rapJson["copysetNum"] = rap.pageFileRAP.copysetNum;
-            rapJson["zoneNum"] = rap.pageFileRAP.zoneNum;
-            break;
-        }
-        case LogicalPoolType::APPENDFILE : {
-            // TODO(xuchaojie): fix it
-            break;
-        }
-        case LogicalPoolType::APPENDECFILE : {
-            // TODO(xuchaojie): fix it
-            break;
-        }
-        default:
-            break;
-    }
-    std::string rapStr = rapJson.toStyledString();
+    std::string rapStr = lPool.GetRedundanceAndPlaceMentPolicyJsonStr();
+    std::string policyStr = lPool.GetUserPolicyJsonStr();
 
-    // TODO(xuchaojie): fix it
-    std::string policyStr;
     info->set_redundanceandplacementpolicy(rapStr);
     info->set_userpolicy(policyStr);
     info->set_allocatestatus(AllocateStatus::ALLOW);
@@ -969,33 +980,10 @@ void TopologyServiceManager::ListLogicalPool(
             info->set_physicalpoolid(lPool.GetPhysicalPoolId());
             info->set_type(lPool.GetLogicalPoolType());
             info->set_createtime(lPool.GetCreateTime());
-            LogicalPool::RedundanceAndPlaceMentPolicy rap =
-                lPool.GetRedundanceAndPlaceMentPolicy();
-            LogicalPool::UserPolicy policy = lPool.GetUserPolicy();
 
-            Json::Value rapJson;
-            switch (lPool.GetLogicalPoolType()) {
-                case LogicalPoolType::PAGEFILE : {
-                    rapJson["replicaNum"] = rap.pageFileRAP.replicaNum;
-                    rapJson["copysetNum"] = rap.pageFileRAP.copysetNum;
-                    rapJson["zoneNum"] = rap.pageFileRAP.zoneNum;
-                    break;
-                }
-                case LogicalPoolType::APPENDFILE : {
-                    // TODO(xuchaojie): fix it
-                    break;
-                }
-                case LogicalPoolType::APPENDECFILE : {
-                    // TODO(xuchaojie): fix it
-                    break;
-                }
-                default:
-                    break;
-            }
-            std::string rapStr = rapJson.toStyledString();
+            std::string rapStr = lPool.GetRedundanceAndPlaceMentPolicyJsonStr();
+            std::string policyStr = lPool.GetUserPolicyJsonStr();
 
-            // TODO(xuchaojie): fix policy
-            std::string policyStr;
             info->set_redundanceandplacementpolicy(rapStr);
             info->set_userpolicy(policyStr);
             info->set_allocatestatus(AllocateStatus::ALLOW);

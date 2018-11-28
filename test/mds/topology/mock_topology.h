@@ -22,6 +22,7 @@
 #include "src/mds/topology/topology_service_manager.h"
 #include "src/mds/common/topology_define.h"
 #include "src/mds/topology/topology_id_generator.h"
+#include "src/mds/topology/topology_service.h"
 
 #include "proto/copyset.pb.h"
 
@@ -131,6 +132,10 @@ class MockStorage : public TopologyStorage {
       const ChunkServer &data));
   MOCK_METHOD1(UpdateCopySet, bool(
       const CopySetInfo &data));
+
+  MOCK_METHOD1(SetAutoCommit, bool(const bool &autoCommit));
+  MOCK_METHOD0(Commit, bool());
+  MOCK_METHOD0(RollBack, bool());
 };
 
 class MockTopologyServiceManager : public TopologyServiceManager {
@@ -228,6 +233,28 @@ class MockTopologyServiceManager : public TopologyServiceManager {
   MOCK_METHOD2(GetChunkServerListInCopySets, void(
       const GetChunkServerListInCopySetsRequest *request,
       GetChunkServerListInCopySetsResponse *response));
+};
+
+class MockTopologyServiceImpl : public TopologyService {
+ public:
+    MockTopologyServiceImpl() {}
+    MOCK_METHOD4(RegistServer,
+        void(google::protobuf::RpcController* cntl_base,
+            const ServerRegistRequest* request,
+            ServerRegistResponse* response,
+            google::protobuf::Closure* done));
+
+    MOCK_METHOD4(CreateZone,
+        void(google::protobuf::RpcController* cntl_base,
+            const ZoneRequest* request,
+            ZoneResponse* response,
+            google::protobuf::Closure* done));
+
+    MOCK_METHOD4(CreatePhysicalPool,
+        void(google::protobuf::RpcController* cntl_base,
+            const PhysicalPoolRequest* request,
+            PhysicalPoolResponse* response,
+            google::protobuf::Closure* done));
 };
 
 }  // namespace topology
