@@ -21,6 +21,11 @@ std::shared_ptr<CopysetPolicy> CopysetManager::GetCopysetPolicy(
         (3 == replicaNum)) {
         return std::make_shared<CopysetZoneShufflePolicy>(
                std::make_shared<CopysetPermutationPolicy333>());
+    } else if ((CopysetPermutationPolicy::NUM_ANY == zoneNum) &&
+               (3 == zoneChoseNum) &&
+               (3 == replicaNum)) {
+        return std::make_shared<CopysetZoneShufflePolicy>(
+               std::make_shared<CopysetPermutationPolicyN33>());
     } else {
         return nullptr;
     }

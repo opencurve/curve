@@ -6,8 +6,9 @@ load(
 
 cc_binary(
         name = "topology_dummy_server",
-        srcs = ["topology_dummy_server.cpp"],
-        deps = ["//src/mds/topology:topology"],
+        srcs = ["topology_dummy_server.cpp",
+                "mock_topology.h"],
+        deps = ["//external:gtest", "//src/mds/topology:topology"],
         copts = GCC_TEST_FLAGS
         )
 
@@ -27,7 +28,9 @@ cc_test(
                 "mock_topology.h",
                 "test_topology.cpp",
                 "test_topology_storage.cpp",
-                "test_topology_service.cpp"],
+                "test_topology_service.cpp",
+                "test_topology_admin.cpp",
+                "test_topology_item.cpp"],
         deps = ["//external:gtest", "//src/mds/topology:topology"],
         copts = GCC_TEST_FLAGS
         )
