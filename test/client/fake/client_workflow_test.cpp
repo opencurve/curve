@@ -33,7 +33,7 @@ int main(int argc, char ** argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
-    std::string filename = "data/test.txt";
+    std::string filename = "test.txt";
     // uint64_t size = FLAGS_test_disk_size;
 
     /*** init mds service ***/

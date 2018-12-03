@@ -108,7 +108,7 @@ bool LogicalPool::SetUserPolicyByJson(const std::string &jsonStr) {
 
 std::string LogicalPool::GetUserPolicyJsonStr() const {
     // TODO(xuchaojie): to fix it
-    return "{policy : 1}";
+    return "{\"policy\" : 1}";
 }
 
 
