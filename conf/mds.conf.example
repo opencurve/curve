@@ -1,0 +1,13 @@
+# Global settings
+
+
+# topology settings
+topology.repo.dbName=curve_mds
+topology.repo.user=root
+topology.repo.url=localhost
+topology.repo.password=qwer
+topology.topology.ChunkServerStateUpdateSec=60
+topology.serviceManager.CreateCopysetRpcTimeoutMs=1000
+topology.serviceManager.CreateCopysetRpcRetryTime=3
+
+

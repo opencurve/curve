@@ -59,7 +59,8 @@ TEST_F(TestTopologyItem,
         PAGEFILE,
         rap,
         LogicalPool::UserPolicy(),
-        0);
+        0,
+        true);
 
     std::string retStr = lpool.GetRedundanceAndPlaceMentPolicyJsonStr();
     std::string jsonStr =

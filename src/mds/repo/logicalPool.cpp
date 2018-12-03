@@ -33,7 +33,8 @@ int Repo::LoadLogicalPoolRepos(std::vector<LogicalPoolRepo> *logicalPoolList) {
         res->getInt64("createTime"),
         static_cast<uint8_t>(res->getInt("status")),
         res->getString("redundanceAndPlacementPolicy"),
-        res->getString("userPolicy")));
+        res->getString("userPolicy"),
+        res->getBoolean("availFlag")));
   }
 
   delete (res);
@@ -68,6 +69,7 @@ int Repo::QueryLogicalPoolRepo(curve::repo::LogicalPoolIDType id,
     repo->redundanceAndPlacementPolicy =
         res->getString("redundanceAndPlacementPolicy");
     repo->userPolicy = res->getString("userPolicy");
+    repo->availFlag = res->getBoolean("availFlag");
   }
 
   delete (res);

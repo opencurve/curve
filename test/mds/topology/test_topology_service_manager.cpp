@@ -80,7 +80,8 @@ class TestTopologyServiceManager : public ::testing::Test {
                 type,
                 rap,
                 policy,
-                createTime);
+                createTime,
+                true);
 
         EXPECT_CALL(*storage_, StorageLogicalPool(_))
             .WillOnce(Return(true));
@@ -126,7 +127,9 @@ class TestTopologyServiceManager : public ::testing::Test {
         Server server(id,
                 hostName,
                 internalHostIp,
+                0,
                 externalHostIp,
+                0,
                 zoneId,
                 physicalPoolId,
                 desc);
@@ -2029,6 +2032,9 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
         .WillRepeatedly(DoAll(SetArgPointee<2>(chunkserverResponse),
             Invoke(CreateCopysetNodeFunc)));
 
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(true));
+
     CreateLogicalPoolResponse response;
     serviceManager_->CreateLogicalPool(&request, &response);
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -2084,6 +2090,9 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_ByNameSuccess) {
     EXPECT_CALL(mockCopySetService, CreateCopysetNode(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(chunkserverResponse),
             Invoke(CreateCopysetNodeFunc)));
+
+    EXPECT_CALL(*storage_, UpdateLogicalPool(_))
+        .WillOnce(Return(true));
 
     CreateLogicalPoolResponse response;
     serviceManager_->CreateLogicalPool(&request, &response);

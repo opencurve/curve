@@ -114,7 +114,9 @@ TEST_F(RepoTest, testServerCUDA) {
     ServerRepo s1(1,
                   "curve-nos1.dg.163.org",
                   "10.172.168.1",
+                  0,
                   "192.168.2.1",
+                  0,
                   1,
                   1,
                   "first server");
@@ -127,7 +129,9 @@ TEST_F(RepoTest, testServerCUDA) {
     ServerRepo s2(2,
                   "curve-nos2.dg.163.org",
                   "10.172.168.2",
+                  0,
                   "192.168.2.2",
+                  0,
                   1,
                   2,
                   "second server");
@@ -232,7 +236,8 @@ TEST_F(RepoTest, testLogicalPoolCUDA) {
                        result,
                        Healthy,
                        rpPolicy.toStyledString(),
-                       userPolicy.toStyledString());
+                       userPolicy.toStyledString(),
+                       true);
 
     ASSERT_EQ(OperationOK, repo->InsertLogicalPoolRepo(r1));
 

@@ -23,7 +23,8 @@ cc_library(
         "//proto:nameserver2_cc_proto",
         "//proto:topology_cc_proto",
         "//src/mds/common:mds_common",
-        "//src/mds/copyset",
-        "//src/mds/repo",
+        "//src/mds/copyset:copyset",
+        "//src/mds/repo:repo",
+        "//src/common:curve_common",
     ],
 )
