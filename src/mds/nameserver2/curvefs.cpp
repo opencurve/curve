@@ -222,8 +222,7 @@ StatusCode CurveFS::ReadDir(const std::string & dirname,
 
 StatusCode CurveFS::RenameFile(const std::string & oldFileName,
                                const std::string & newFileName) {
-    if (!oldFileName.compare(newFileName))
-    {
+    if (!oldFileName.compare(newFileName)) {
         LOG(INFO) << "rename same name, oldFileName = " << oldFileName
                   << ", newFileName = " << newFileName;
         return StatusCode::kFileExists;

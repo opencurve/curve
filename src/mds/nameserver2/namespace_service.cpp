@@ -109,7 +109,8 @@ void NameSpaceService::GetOrAllocateSegment(
     return;
 }
 
-void NameSpaceService::DeleteSegment(::google::protobuf::RpcController* controller,
+void NameSpaceService::DeleteSegment(
+                         ::google::protobuf::RpcController* controller,
                          const ::curve::mds::DeleteSegmentRequest* request,
                          ::curve::mds::DeleteSegmentResponse* response,
                          ::google::protobuf::Closure* done) {
