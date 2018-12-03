@@ -38,7 +38,7 @@ void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
     ServerIdType serverId =
-        topology_->FindServerByHostIp(request->hostip());
+        topology_->FindServerByHostIpPort(request->hostip(), request->port());
     if (serverId ==
         static_cast<ServerIdType>(UNINTIALIZE_ID)) {
         response->set_statuscode(kTopoErrCodeServerNotFound);
@@ -82,7 +82,11 @@ void TopologyServiceManager::ListChunkServer(
     ListChunkServerResponse *response) {
     Server server;
     if (request->has_ip()) {
-        if (!topology_->GetServerByHostIp(request->ip(), &server)) {
+        uint32_t port = 0;
+        if (request->has_port()) {
+            port = request->port();
+        }
+        if (!topology_->GetServerByHostIpPort(request->ip(), port, &server)) {
             response->set_statuscode(kTopoErrCodeServerNotFound);
             return;
         }
@@ -237,10 +241,21 @@ void TopologyServiceManager::RegistServer(const ServerRegistRequest *request,
         return;
     }
 
+    uint32_t internalPort = 0;
+    if (request->has_internalport()) {
+        internalPort = request->internalport();
+    }
+    uint32_t externalPort = 0;
+    if (request->has_externalport()) {
+        externalPort = request->externalport();
+    }
+
     Server server(serverId,
                   request->hostname(),
                   request->internalip(),
+                  internalPort,
                   request->externalip(),
+                  externalPort,
                   zone.GetId(),
                   pPool.GetId(),
                   request->desc());
@@ -268,18 +283,46 @@ void TopologyServiceManager::GetServer(const GetServerRequest *request,
             return;
         }
     } else if (request->has_hostip()) {
-        if (!topology_->GetServerByHostIp(request->hostip(), &sv)) {
+        uint32_t port = 0;
+        if (request->has_port()) {
+            port = request->port();
+        }
+        if (!topology_->GetServerByHostIpPort(request->hostip(), port, &sv)) {
             response->set_statuscode(kTopoErrCodeServerNotFound);
             return;
         }
+    }
+    Zone zone;
+    if (!topology_->GetZone(sv.GetZoneId(), &zone)) {
+        LOG(ERROR) << "topology has encounter an internalError,"
+                   << " Server belong Zone not found, ServerId = "
+                   << sv.GetId()
+                   << " ZoneId = "
+                   << sv.GetZoneId();
+        response->set_statuscode(kTopoErrCodeInternalError);
+        return;
+    }
+    PhysicalPool pPool;
+    if (!topology_->GetPhysicalPool(zone.GetPhysicalPoolId(), &pPool)) {
+        LOG(ERROR) << "topology has encounter an internalError,"
+                   << " Zone belong PhysicalPool not found, zoneId = "
+                   << zone.GetId()
+                   << " physicalPoolId = "
+                   << zone.GetPhysicalPoolId();
+        response->set_statuscode(kTopoErrCodeInternalError);
+        return;
     }
     ServerInfo *info = new ServerInfo();
     info->set_serverid(sv.GetId());
     info->set_hostname(sv.GetHostName());
     info->set_internalip(sv.GetInternalHostIp());
+    info->set_internalport(sv.GetInternalPort());
     info->set_externalip(sv.GetExternalHostIp());
+    info->set_externalport(sv.GetExternalPort());
     info->set_zoneid(sv.GetZoneId());
+    info->set_zonename(zone.GetName());
     info->set_physicalpoolid(sv.GetPhysicalPoolId());
+    info->set_physicalpoolname(pPool.GetName());
     info->set_desc(sv.GetDesc());
     response->set_allocated_serverinfo(info);
 }
@@ -316,13 +359,37 @@ void TopologyServiceManager::ListZoneServer(
     for (ServerIdType id : serverIdList) {
         Server sv;
         if (topology_->GetServer(id, &sv)) {
+            Zone zone;
+            if (!topology_->GetZone(sv.GetZoneId(), &zone)) {
+                LOG(ERROR) << "topology has encounter an internalError,"
+                           << " Server belong Zone not found, ServerId = "
+                           << sv.GetId()
+                           << " ZoneId = "
+                           << sv.GetZoneId();
+                response->set_statuscode(kTopoErrCodeInternalError);
+                return;
+            }
+            PhysicalPool pPool;
+            if (!topology_->GetPhysicalPool(zone.GetPhysicalPoolId(), &pPool)) {
+                LOG(ERROR) << "topology has encounter an internalError,"
+                           << " Zone belong PhysicalPool not found, zoneId = "
+                           << zone.GetId()
+                           << " physicalPoolId = "
+                           << zone.GetPhysicalPoolId();
+                response->set_statuscode(kTopoErrCodeInternalError);
+                return;
+            }
             ServerInfo *info = response->add_serverinfo();
             info->set_serverid(sv.GetId());
             info->set_hostname(sv.GetHostName());
             info->set_internalip(sv.GetInternalHostIp());
+            info->set_internalport(sv.GetInternalPort());
             info->set_externalip(sv.GetExternalHostIp());
+            info->set_externalport(sv.GetExternalPort());
             info->set_zoneid(sv.GetZoneId());
+            info->set_zonename(zone.GetName());
             info->set_physicalpoolid(sv.GetPhysicalPoolId());
+            info->set_physicalpoolname(pPool.GetName());
             info->set_desc(sv.GetDesc());
         } else {
             LOG(ERROR) << "TopologyServiceManager has encounter"
@@ -341,10 +408,8 @@ void TopologyServiceManager::CreateZone(const ZoneRequest *request,
     if ((request->has_zonename()) &&
         (request->has_physicalpoolname()) &&
         (request->has_desc())) {
-        PoolIdType pid = topology_->FindPhysicalPool(
-            request->physicalpoolname());
-        if (pid ==
-            static_cast<PoolIdType>(UNINTIALIZE_ID)) {
+        PhysicalPool pPool;
+        if (!topology_->GetPhysicalPool(request->physicalpoolname(), &pPool)) {
             response->set_statuscode(kTopoErrCodePhysicalPoolNotFound);
             return;
         }
@@ -355,16 +420,17 @@ void TopologyServiceManager::CreateZone(const ZoneRequest *request,
             return;
         }
         Zone zone(zid,
-                  request->zonename(),
-                  pid,
-                  request->desc());
+            request->zonename(),
+            pPool.GetId(),
+            request->desc());
         int errcode = topology_->AddZone(zone);
         if (kTopoErrCodeSuccess == errcode) {
             response->set_statuscode(errcode);
             ZoneInfo *info = new ZoneInfo();
             info->set_zoneid(zid);
             info->set_zonename(request->zonename());
-            info->set_physicalpoolid(pid);
+            info->set_physicalpoolid(pPool.GetId());
+            info->set_physicalpoolname(pPool.GetName());
             info->set_desc(request->desc());
             response->set_allocated_zoneinfo(info);
         } else {
@@ -415,25 +481,31 @@ void TopologyServiceManager::GetZone(const ZoneRequest *request,
         response->set_statuscode(kTopoErrCodeInvalidParam);
         return;
     }
+    PhysicalPool pPool;
+    if (!topology_->GetPhysicalPool(zone.GetPhysicalPoolId(), &pPool)) {
+        response->set_statuscode(kTopoErrCodeInternalError);
+        return;
+    }
     response->set_statuscode(kTopoErrCodeSuccess);
     ZoneInfo *info = new ZoneInfo();
     info->set_zoneid(zone.GetId());
     info->set_zonename(zone.GetName());
     info->set_physicalpoolid((zone.GetPhysicalPoolId()));
+    info->set_physicalpoolname(pPool.GetName());
     info->set_desc(zone.GetDesc());
     response->set_allocated_zoneinfo(info);
 }
 
-void TopologyServiceManager::ListPoolZone(const ListPoolZoneRequest *request,
-                                          ListPoolZoneResponse *response) {
-    PhysicalPool pool;
+void TopologyServiceManager::ListPoolZone(const ListPoolZoneRequest* request,
+    ListPoolZoneResponse* response) {
+    PhysicalPool pPool;
     if (request->has_physicalpoolid()) {
-        if (!topology_->GetPhysicalPool(request->physicalpoolid(), &pool)) {
+        if (!topology_->GetPhysicalPool(request->physicalpoolid(), &pPool)) {
             response->set_statuscode(kTopoErrCodePhysicalPoolNotFound);
             return;
         }
     } else if (request->has_physicalpoolname()) {
-        if (!topology_->GetPhysicalPool(request->physicalpoolname(), &pool)) {
+        if (!topology_->GetPhysicalPool(request->physicalpoolname(), &pPool)) {
             response->set_statuscode(kTopoErrCodePhysicalPoolNotFound);
             return;
         }
@@ -441,7 +513,7 @@ void TopologyServiceManager::ListPoolZone(const ListPoolZoneRequest *request,
         response->set_statuscode(kTopoErrCodeInvalidParam);
         return;
     }
-    std::list<ZoneIdType> zidList = pool.GetZoneList();
+    std::list<ZoneIdType> zidList = pPool.GetZoneList();
     response->set_statuscode(kTopoErrCodeSuccess);
     for (ZoneIdType id : zidList) {
         Zone zone;
@@ -449,7 +521,8 @@ void TopologyServiceManager::ListPoolZone(const ListPoolZoneRequest *request,
             ZoneInfo *info = response->add_zones();
             info->set_zoneid(zone.GetId());
             info->set_zonename(zone.GetName());
-            info->set_physicalpoolid((zone.GetPhysicalPoolId()));
+            info->set_physicalpoolid(pPool.GetId());
+            info->set_physicalpoolname(pPool.GetName());
             info->set_desc(zone.GetDesc());
         } else {
             LOG(ERROR) << "TopologyServiceManager has encounter"
@@ -568,12 +641,12 @@ void TopologyServiceManager::ListPhysicalPool(
 }
 
 int TopologyServiceManager::CreateCopysetForLogicalPool(
-    const LogicalPool &lPool) {
+    const LogicalPool &lPool,
+    std::vector<CopySetInfo> *copysetInfos) {
     switch (lPool.GetLogicalPoolType()) {
         case LogicalPoolType::PAGEFILE: {
-            std::vector<CopySetInfo> copysetInfos;
             int errcode = GenCopysetForPageFilePool(lPool,
-                                                    &copysetInfos);
+                copysetInfos);
             if (kTopoErrCodeSuccess != errcode) {
                 LOG(ERROR) << "CreateCopysetForLogicalPool fail in : "
                            << "GenCopysetForPageFilePool.";
@@ -680,19 +753,18 @@ int TopologyServiceManager::GenCopysetForPageFilePool(
         }
         CopySetInfo copysetInfo(logicalPoolId, copysetId);
         copysetInfo.SetCopySetMembers(cs.replicas);
+        int errcode = topology_->AddCopySet(copysetInfo);
+        if (kTopoErrCodeSuccess != errcode) {
+            return errcode;
+        }
         copysetInfos->push_back(copysetInfo);
-    }
-    // TODO(xuchaojie): 优化以删除事物
-    int errcode = topology_->AddCopySetList(*copysetInfos);
-    if (kTopoErrCodeSuccess != errcode) {
-        return errcode;
     }
     return kTopoErrCodeSuccess;
 }
 
 int TopologyServiceManager::CreateCopysetOnChunkServer(
-    const std::vector<CopySetInfo> &copysetInfos) {
-    for (const CopySetInfo &cs : copysetInfos) {
+    const std::vector<CopySetInfo> *copysetInfos) {
+    for (const CopySetInfo &cs : *copysetInfos) {
         for (ChunkServerIdType csId : cs.GetCopySetMembers()) {
             if (!CreateCopysetAtChunkServer(cs, csId)) {
                 return kTopoErrCodeGenCopysetErr;
@@ -801,6 +873,28 @@ bool TopologyServiceManager::CreateCopysetAtChunkServer(
     return true;
 }
 
+int TopologyServiceManager::RemoveErrLogicalPoolAndCopyset(
+    const LogicalPool &pool,
+    const std::vector<CopySetInfo> *copysetInfos) {
+    int errcode = kTopoErrCodeSuccess;
+    for (const CopySetInfo& cs : *copysetInfos) {
+        errcode = topology_->RemoveCopySet(cs.GetCopySetKey());
+        if (kTopoErrCodeSuccess !=
+            errcode) {
+            LOG(ERROR) << "RemoveCopySet Fail."
+                       << " logicalpoolid = " << pool.GetId()
+                       << ", copysetId = " << cs.GetId();
+            return errcode;
+        }
+    }
+    errcode = topology_->RemoveLogicalPool(pool.GetId());
+    if (kTopoErrCodeSuccess !=  errcode) {
+        LOG(ERROR) << "RemoveLogicalPool Fail."
+                   << " logicalpoolid = " << pool.GetId();
+    }
+    return errcode;
+}
+
 void TopologyServiceManager::CreateLogicalPool(
     const CreateLogicalPoolRequest *request,
     CreateLogicalPoolResponse *response) {
@@ -853,39 +947,63 @@ void TopologyServiceManager::CreateLogicalPool(
     gettimeofday(&now, NULL);
     uint64_t cTime = now.tv_sec;
     LogicalPool lPool(lPoolId,
-                      request->logicalpoolname(),
-                      pPool.GetId(),
-                      request->type(),
-                      rap,
-                      userPolicy,
-                      cTime);
+    request->logicalpoolname(),
+    pPool.GetId(),
+    request->type(),
+    rap,
+    userPolicy,
+    cTime,
+    false);
 
     int errcode = topology_->AddLogicalPool(lPool);
     if (kTopoErrCodeSuccess == errcode) {
-        int errcode2 = CreateCopysetForLogicalPool(lPool);
-        if (kTopoErrCodeSuccess != errcode2) {
-            if (topology_->RemoveLogicalPool(lPool.GetId())) {
-                response->set_statuscode(errcode2);
+        std::vector<CopySetInfo> copysetInfos;
+        errcode = CreateCopysetForLogicalPool(lPool, &copysetInfos);
+        if (kTopoErrCodeSuccess != errcode) {
+            if (kTopoErrCodeSuccess ==
+                    RemoveErrLogicalPoolAndCopyset(lPool,
+                        &copysetInfos)) {
+                response->set_statuscode(errcode);
             } else {
                 LOG(ERROR) << "[CreateLogicalPool] has counter a internalError:"
-                           << "recover from AddLogicalPool, "
-                           << "remove logicalpool Fail. logicalpoolid = "
-                           << lPool.GetId();
+                           << "recover from CreateCopysetForLogicalPool fail, "
+                           << "remove logicalpool and copyset Fail."
+                           << " logicalpoolid = " << lPool.GetId();
                 response->set_statuscode(kTopoErrCodeInternalError);
             }
         } else {
-            response->set_statuscode(errcode);
-            LogicalPoolInfo *info = new LogicalPoolInfo();
-            info->set_logicalpoolid(lPoolId);
-            info->set_logicalpoolname(request->logicalpoolname());
-            info->set_physicalpoolid(pPool.GetId());
-            info->set_type(request->type());
-            info->set_createtime(cTime);
-            info->set_redundanceandplacementpolicy(
-                request->redundanceandplacementpolicy());
-            info->set_userpolicy(request->userpolicy());
-            info->set_allocatestatus(AllocateStatus::ALLOW);
-            response->set_allocated_logicalpoolinfo(info);
+            LogicalPool poolOut;
+            topology_->GetLogicalPool(lPool.GetId(), &poolOut);
+            poolOut.SetLogicalPoolAvaliableFlag(true);
+            errcode = topology_->UpdateLogicalPool(poolOut);
+            if (kTopoErrCodeSuccess == errcode) {
+                response->set_statuscode(kTopoErrCodeSuccess);
+                LogicalPoolInfo *info = new LogicalPoolInfo();
+                info->set_logicalpoolid(lPoolId);
+                info->set_logicalpoolname(request->logicalpoolname());
+                info->set_physicalpoolid(pPool.GetId());
+                info->set_type(request->type());
+                info->set_createtime(cTime);
+                info->set_redundanceandplacementpolicy(
+                    request->redundanceandplacementpolicy());
+                info->set_userpolicy(request->userpolicy());
+                info->set_allocatestatus(AllocateStatus::ALLOW);
+                response->set_allocated_logicalpoolinfo(info);
+            } else {
+                if (kTopoErrCodeSuccess ==
+                        RemoveErrLogicalPoolAndCopyset(lPool,
+                            &copysetInfos)) {
+                    response->set_statuscode(errcode);
+                } else {
+                    LOG(ERROR) << "[CreateLogicalPool] has counter "
+                               << "a internalError:"
+                               << "recover from UpdateLogicalPool fail, "
+                               << "remove logicalpool and copyset Fail."
+                               << " logicalpoolid = "
+                               << lPool.GetId();
+                    response->set_statuscode(kTopoErrCodeInternalError);
+                }
+            }
         }
     } else {
         response->set_statuscode(errcode);

@@ -100,8 +100,8 @@ class MockTopology : public Topology {
                          PoolIdType physicalpoolid));
   MOCK_CONST_METHOD1(FindServerByHostName,
                       ServerIdType(const std::string &hostName));
-  MOCK_CONST_METHOD1(FindServerByHostIp,
-                     ServerIdType(const std::string &hostIp));
+  MOCK_CONST_METHOD2(FindServerByHostIpPort,
+                     ServerIdType(const std::string &hostIp, uint32_t port));
   MOCK_CONST_METHOD2(FindChunkServer,
                       ChunkServerIdType(const std::string &hostIp,
                           uint32_t port));
@@ -138,8 +138,8 @@ class MockTopology : public Topology {
   MOCK_CONST_METHOD2(GetServerByHostName,
                      bool(const std::string &hostName, Server *out));
 
-  MOCK_CONST_METHOD2(GetServerByHostIp,
-                     bool(const std::string &hostIp, Server *out));
+  MOCK_CONST_METHOD3(GetServerByHostIpPort,
+      bool(const std::string &hostIp, uint32_t port, Server *out));
 
   MOCK_CONST_METHOD3(GetChunkServer,
                      bool(const std::string &hostIp,

@@ -20,7 +20,9 @@ create table if not exists `curve_server` (
     `serverID`          int           NOT NULL PRIMARY KEY COMMENT 'server id',
     `hostName`          varchar(32)   NOT NULL COMMENT 'host name',
     `internalHostIP`    varchar(16)   NOT NULL COMMENT 'internal host ip',
+    `internalPort`      int           NOT NULL COMMENT 'internal port',
     `externalHostIP`    varchar(16)   NOT NULL COMMENT 'external host ip',
+    `externalPort`      int           NOT NULL COMMENT 'external port',
     `zoneID`            int           NOT NULL COMMENT 'zone id it belongs to',
     `poolID`            int           NOT NULL COMMENT 'pool id it belongs to',
     `desc`              varchar(128)  NOT NULL COMMENT 'server description',
@@ -51,7 +53,8 @@ create table if not exists `curve_physicalpool` (
     `createTime`         bigint       NOT NULL COMMENT 'create time',
     `status`             tinyint      NOT NULL COMMENT 'status',
     `redundanceAndPlacementPolicy`    json     NOT NULL COMMENT 'policy of redundance and placement',
-    `userPolicy`         json         NOT NULL COMMENT 'user policy'
+    `userPolicy`         json         NOT NULL COMMENT 'user policy',
+    `availFlag`          BOOLEAN      NOT NULL COMMENT 'available flag'
 )COMMENT='logical pool';
 
 

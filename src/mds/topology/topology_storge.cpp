@@ -94,7 +94,8 @@ bool DefaultTopologyStorage::LoadLogicalPool(
                          static_cast<LogicalPoolType>(rp.type),
                          rap,
                          policy,
-                         rp.createTime);
+                         rp.createTime,
+                         rp.availFlag);
         pool.SetStatus(static_cast<LogicalPool::LogicalPoolStatus>(rp.status));
         auto ret = logicalPoolMap->emplace(
             std::move(rp.logicalPoolID),
@@ -190,7 +191,9 @@ bool DefaultTopologyStorage::LoadServer(
         Server server(rp.serverID,
                       rp.hostName,
                       rp.internalHostIP,
+                      rp.internalPort,
                       rp.externalHostIP,
+                      rp.externalPort,
                       rp.zoneID,
                       rp.poolID,
                       rp.desc);
@@ -302,7 +305,8 @@ bool DefaultTopologyStorage::StorageLogicalPool(const LogicalPool &data) {
                        data.GetCreateTime(),
                        data.GetStatus(),
                        rapStr,
-                       policyStr);
+                       policyStr,
+                       data.GetLogicalPoolAvaliableFlag());
     if (repo_->InsertLogicalPoolRepo(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
                    << "InsertLogicalPoolRepo fail.";
@@ -340,7 +344,9 @@ bool DefaultTopologyStorage::StorageServer(const Server &data) {
     ServerRepo rp(data.GetId(),
                   data.GetHostName(),
                   data.GetInternalHostIp(),
+                  data.GetInternalPort(),
                   data.GetExternalHostIp(),
+                  data.GetExternalPort(),
                   data.GetZoneId(),
                   data.GetPhysicalPoolId(),
                   data.GetDesc());
@@ -455,7 +461,8 @@ bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
                        data.GetCreateTime(),
                        data.GetStatus(),
                        rapStr,
-                       policyStr);
+                       policyStr,
+                       data.GetLogicalPoolAvaliableFlag());
     if (repo_->UpdateLogicalPoolRepo(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
                    << "UpdateLogicalPoolRepo fail.";
@@ -493,7 +500,9 @@ bool DefaultTopologyStorage::UpdateServer(const Server &data) {
     ServerRepo rp(data.GetId(),
                   data.GetHostName(),
                   data.GetInternalHostIp(),
+                  data.GetInternalPort(),
                   data.GetExternalHostIp(),
+                  data.GetExternalPort(),
                   data.GetZoneId(),
                   data.GetPhysicalPoolId(),
                   data.GetDesc());
