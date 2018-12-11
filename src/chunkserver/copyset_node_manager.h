@@ -24,7 +24,7 @@ using curve::common::RWLock;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
-class OpRequest;
+class ChunkOpRequest;
 
 /* copyset 管理接口 */
 class CopysetNodeManager : public curve::common::Uncopyable {
@@ -44,7 +44,7 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     /**
      * 创建 copyset node，两种情况需要创建 copyset node
      *  1. 集群初始化，创建 copyset
-     *  2. add peer
+     *  2. 恢复的时候 add peer
      */
     bool CreateCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId,
@@ -56,7 +56,7 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     CopysetNodePtr GetCopysetNode(const LogicPoolID &logicPoolId,
                                   const CopysetID &copysetId) const;
     void GetAllCopysetNodes(std::vector<CopysetNodePtr> *nodes) const;
-    void ScheduleRequest(std::shared_ptr<OpRequest> request);
+    void ScheduleRequest(std::shared_ptr<ChunkOpRequest> request);
     /* 添加 RPC service */
     int AddService(brpc::Server *server,
                    const butil::EndPoint &listenAddress);
@@ -69,7 +69,6 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     using CopysetNodeMap = std::unordered_map<GroupId,
                                               std::shared_ptr<CopysetNode>>;
 
-    /* FixMe: 互斥锁仅用于快速实现，后期替换成 read/write lock */
     mutable RWLock rwLock_;
     CopysetNodeMap copysetNodeMap_;
     CopysetNodeOptions copysetNodeOptions_;

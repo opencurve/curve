@@ -37,7 +37,7 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<OpRequest>
+    std::shared_ptr<ChunkOpRequest>
         req = std::make_shared<ChunkOpRequest>(copysetNodeManager_,
                                                controller,
                                                request,
@@ -83,7 +83,7 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<OpRequest>
+    std::shared_ptr<ChunkOpRequest>
         req = std::make_shared<ChunkOpRequest>(copysetNodeManager_,
                                                controller,
                                                request,
@@ -122,7 +122,7 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<OpRequest>
+    std::shared_ptr<ChunkOpRequest>
         req = std::make_shared<ChunkOpRequest>(copysetNodeManager_,
                                                controller,
                                                request,

@@ -3,7 +3,7 @@ cc_test(
     srcs = glob([
         "chunk_service_test.cpp",
         "copyset_node_manager_test.cpp",
-        "op_request_test.cpp",
+        "op_context_test.cpp",
         "copyset_service_test.cpp",
         "mock_cs_data_store.h",
         "copyset_node_test.cpp",

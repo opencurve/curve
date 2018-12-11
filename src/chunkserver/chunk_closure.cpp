@@ -14,11 +14,14 @@ void ChunkClosure::Run() {
     /* Auto delete this after Run() */
     std::unique_ptr<ChunkClosure> selfGuard(this);
     /* Repsond this RPC. */
-    brpc::ClosureGuard doneGuard(request_->GetClosure());
+    brpc::ClosureGuard doneGuard(opCtx_->GetClosure());
     if (status().ok()) {
         return;
     }
-    copysetNode_->RedirectChunkRequest(request_->GetResponse());
+    /* leader step down */
+    if (EPERM == status().error_code()) {
+        copysetNode_->RedirectChunkRequest(opCtx_->GetResponse());
+    }
 }
 
 }  // namespace chunkserver

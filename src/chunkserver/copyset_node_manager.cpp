@@ -67,7 +67,7 @@ void CopysetNodeManager::GetAllCopysetNodes(
  * rpc 的 bthread 和 Op 的 bthread 都是在同一个线程池，所以这里直接处理后续会隔离
  * 两边的线程
  */
-void CopysetNodeManager::ScheduleRequest(std::shared_ptr<OpRequest> request) {
+void CopysetNodeManager::ScheduleRequest(std::shared_ptr<ChunkOpRequest> request) { //NOLINT
     request->Process();
 }
 

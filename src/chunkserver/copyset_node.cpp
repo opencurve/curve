@@ -12,8 +12,10 @@
 #include <cassert>
 
 #include "src/chunkserver/chunk_closure.h"
+#include "src/chunkserver/op_request.h"
+#include "src/chunkserver/op_context.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_storage.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/copyset_node_manager.h"
 
 namespace curve {
 namespace chunkserver {
@@ -32,7 +34,6 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     filesystemProtocol_("local"),
     chunkDataApath_(),
     chunkDataRpath_(),
-    chunkSnapshotUri_(),
     dataStore_(std::move(dataStorePtr)),
     leaderTerm_(-1) {}
 
@@ -69,7 +70,9 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     /* TODO(wudemiao) 后期修改以适应不同的文件系统 */
     fs_ = new PosixFileSystemAdaptor();
 
-    /* Init copyset 对应的 raft node options */
+    /**
+     * Init copyset 对应的 raft node options
+     */
     nodeOptions_.initial_conf = initConf_;
     nodeOptions_.election_timeout_ms = options.electionTimeoutMs;
     nodeOptions_.fsm = this;
@@ -160,14 +163,17 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
         switch (type) {
             case RequestType::CHUNK_OP:
                 closure = iter.done();
+                /**
+                 * closure 是 null，那么说明当前节点正常，直接从内存中拿到 Op
+                 * context 进行 apply
+                 */
                 if (nullptr != closure) {
                     chunkClosure = dynamic_cast<ChunkClosure *>(iter.done());
                     assert(nullptr != chunkClosure);
-                    ChunkOpRequest *chunkOpRequest =
-                        chunkClosure->GetOpRequest();  //NOLINT
-                    int ret = chunkOpRequest->OnApply(shared_from_this());
+                    ChunkOpContext *opCtx = chunkClosure->GetOpContext();
+                    int ret = opCtx->OnApply(shared_from_this());
                     if (0 == ret) {
-                        ChunkResponse *response = chunkOpRequest->GetResponse();
+                        ChunkResponse *response = opCtx->GetResponse();
                         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS); //NOLINT
                     } else {
                         LOG(ERROR) << "chunk op apply failed, "
@@ -175,8 +181,11 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
                                    << " error str: " << strerror(errno);
                     }
                 } else {
-                    /* 不用返回 rpc */
-                    ChunkOpRequest::OnApply(shared_from_this(), &data);
+                    /**
+                     * closure 不为 null，说明是节点重启，回放日志 apply，这里会对
+                     * Op log entry 进行反序列化，然后获取 Op 信息进行 apply
+                     */
+                    ChunkOpContext::OnApply(shared_from_this(), &data);
                 }
                 break;
             default:
@@ -311,21 +320,20 @@ void CopysetNode::ApplyChunkRequest(RpcController *controller,
         return;
     }
     /* 打包 op 为 task */
-    ChunkOpRequest *req = new ChunkOpRequest(copysetNodeManager_,
-                                             controller,
+    ChunkOpContext *opCtx = new ChunkOpContext(controller,
                                              request,
                                              response,
                                              doneGuard.release());
     braft::Task task;
     butil::IOBuf log;
 
-    if (0 != req->Encode(&log)) {
+    if (0 != opCtx->Encode(&log)) {
         /* rpc response 已经在 Encode 内部设置 */
         LOG(ERROR) << "chunk op request encode failure";
         return;
     }
     task.data = &log;
-    task.done = new ChunkClosure(this, req);
+    task.done = new ChunkClosure(this, opCtx);
     /* apply task to raft node process */
     return raftNode_->apply(task);
 }
