@@ -45,7 +45,7 @@ class ChunkServiceImpl : public ChunkService {
 
  private:
     ChunkServiceOptions chunkServiceOptions_;
-    CopysetNodeManager *copysetNodeManager_;
+    CopysetNodeManager  *copysetNodeManager_;
 };
 
 }  // namespace chunkserver

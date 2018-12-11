@@ -15,7 +15,8 @@
 
 #include "proto/chunk.pb.h"
 #include "src/chunkserver/copyset_node.h"
-#include "src/chunkserver/op_request.h"
+#include "src/chunkserver/copyset_node_manager.h"
+#include "src/chunkserver/op_context.h"
 #include "test/chunkserver/mock_cs_data_store.h"
 
 namespace curve {
@@ -23,13 +24,12 @@ namespace chunkserver {
 
 using ::google::protobuf::io::ZeroCopyOutputStream;
 
-TEST(ChunkOpRequestTest, encode) {
+TEST(ChunkOpContextTest, encode) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
     size_t offset = 0;
     uint32_t size = 16;
-    CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
     // for write
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
@@ -41,12 +41,10 @@ TEST(ChunkOpRequestTest, encode) {
     std::string str(size, 'a');
     brpc::Controller *cntl = new brpc::Controller();
     {
-        /* TODO(wudemiao) */
-        ChunkOpRequest chunkOpRequest
-            (copysetNodeManager, cntl, &request, nullptr, nullptr);
+        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, chunkOpRequest.Encode(&log));
+        ASSERT_EQ(0, opCtx.Encode(&log));
 
         RequestType type = RequestType::UNKNOWN_OP;
         log.cutn(&type, sizeof(uint8_t));
@@ -79,11 +77,10 @@ TEST(ChunkOpRequestTest, encode) {
     request.set_offset(offset);
     request.set_size(size);
     {
-        ChunkOpRequest chunkOpRequest
-            (copysetNodeManager, cntl, &request, nullptr, nullptr);
+        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, chunkOpRequest.Encode(&log));
+        ASSERT_EQ(0, opCtx.Encode(&log));
 
         RequestType type = RequestType::UNKNOWN_OP;
         log.cutn(&type, sizeof(uint8_t));
@@ -114,11 +111,10 @@ TEST(ChunkOpRequestTest, encode) {
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
     {
-        ChunkOpRequest chunkOpRequest
-            (copysetNodeManager, cntl, &request, nullptr, nullptr);
+        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, chunkOpRequest.Encode(&log));
+        ASSERT_EQ(0, opCtx.Encode(&log));
 
         RequestType type = RequestType::UNKNOWN_OP;
         log.cutn(&type, sizeof(uint8_t));
@@ -143,9 +139,8 @@ TEST(ChunkOpRequestTest, encode) {
     /* encode 异常测试，null data */
     {
         ChunkRequest request;
-        ChunkOpRequest chunkOpRequest
-            (copysetNodeManager, cntl, &request, nullptr, nullptr);
-        ASSERT_EQ(-1, chunkOpRequest.Encode(nullptr));
+        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
+        ASSERT_EQ(-1, opCtx.Encode(nullptr));
     }
     /* OnApply 异常 */
     /* int ChunkOpRequest::OnApply(std::shared_ptr<CopysetNode> copysetNode) */
@@ -154,8 +149,8 @@ TEST(ChunkOpRequestTest, encode) {
         ChunkRequest request;
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN);
         ChunkResponse response;
-        ChunkOpRequest opRequest(nullptr, &cntl, &request, &response, nullptr);
-        ASSERT_EQ(-1, opRequest.OnApply(nullptr));
+        ChunkOpContext opCtx(&cntl, &request, &response, nullptr);
+        ASSERT_EQ(-1, opCtx.OnApply(nullptr));
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   response.status());
     }
@@ -171,12 +166,12 @@ TEST(ChunkOpRequestTest, encode) {
         request.set_size(1);
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN);
         ChunkResponse response;
-        ChunkOpRequest opRequest(nullptr, &cntl, &request, &response, nullptr);
+        ChunkOpContext opCtx(&cntl, &request, &response, nullptr);
         butil::IOBuf log;
-        ASSERT_EQ(0, opRequest.Encode(&log));
+        ASSERT_EQ(0, opCtx.Encode(&log));
         RequestType type = RequestType::UNKNOWN_OP;
         log.cutn(&type, sizeof(uint8_t));
-        opRequest.OnApply(nullptr, &log);
+        opCtx.OnApply(nullptr, &log);
     }
     /* data store 异常测试 */
     /* int ChunkOpRequest::OnApply(std::shared_ptr<CopysetNode> copysetNode)
@@ -193,7 +188,7 @@ TEST(ChunkOpRequestTest, encode) {
         request.set_size(1);
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
         ChunkResponse response;
-        ChunkOpRequest opRequest(nullptr, &cntl, &request, &response, nullptr);
+        ChunkOpContext opCtx(&cntl, &request, &response, nullptr);
         Configuration conf;
         std::unique_ptr<FakeCSDataStore> fakePtr(new FakeCSDataStore());
         std::shared_ptr<CopysetNode>
@@ -201,7 +196,7 @@ TEST(ChunkOpRequestTest, encode) {
                                                        copysetID,
                                                        conf,
                                                        std::move(fakePtr));
-        ASSERT_EQ(-1, opRequest.OnApply(copysetPtr));
+        ASSERT_EQ(-1, opCtx.OnApply(copysetPtr));
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response.status());
     }
@@ -220,9 +215,9 @@ TEST(ChunkOpRequestTest, encode) {
         request.set_size(1);
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
         ChunkResponse response;
-        ChunkOpRequest opRequest(nullptr, &cntl, &request, &response, nullptr);
+        ChunkOpContext opCtx(&cntl, &request, &response, nullptr);
         butil::IOBuf log;
-        ASSERT_EQ(0, opRequest.Encode(&log));
+        ASSERT_EQ(0, opCtx.Encode(&log));
         RequestType type = RequestType::UNKNOWN_OP;
         log.cutn(&type, sizeof(uint8_t));
         ASSERT_EQ(RequestType::CHUNK_OP, type);
@@ -233,12 +228,12 @@ TEST(ChunkOpRequestTest, encode) {
                                           copysetID,
                                           conf,
                                           std::move(fakePtr));
-        opRequest.OnApply(copysetPtr, &log);
+        opCtx.OnApply(copysetPtr, &log);
     }
 }
 
 /* 死亡测试：测试 LOG(FATAL) 分支1 */
-TEST(ChunkOpRequestDeathTest, fatal_test1) {
+TEST(ChunkOpContextDeathTest, fatal_test1) {
     /* int ChunkOpRequest::OnApply(std::shared_ptr<CopysetNode> copysetNode)
      * write */
     brpc::Controller cntl;
@@ -253,7 +248,7 @@ TEST(ChunkOpRequestDeathTest, fatal_test1) {
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
     cntl.request_attachment().append("a", 1);
     ChunkResponse response;
-    ChunkOpRequest opRequest(nullptr, &cntl, &request, &response, nullptr);
+    ChunkOpContext opCtx(&cntl, &request, &response, nullptr);
     Configuration conf;
     std::unique_ptr<FakeCSDataStore> fakePtr(new FakeCSDataStore());
     std::shared_ptr<CopysetNode> copysetPtr =
@@ -261,13 +256,13 @@ TEST(ChunkOpRequestDeathTest, fatal_test1) {
                                       copysetID,
                                       conf,
                                       std::move(fakePtr));
-    EXPECT_EXIT(opRequest.OnApply(copysetPtr),
+    EXPECT_EXIT(opCtx.OnApply(copysetPtr),
                 ::testing::KilledBySignal(SIGABRT),
                 "");
 }
 
 /* 死亡测试：测试 LOG(FATAL) 分支2 */
-TEST(ChunkOpRequestDeathTest, fatal_test2) {
+TEST(ChunkOpContextDeathTest, fatal_test2) {
     /* void ChunkOpRequest::OnApply(std::shared_ptr<CopysetNode> copysetNode,
                                     butil::IOBuf *log) {
        write */
@@ -283,9 +278,9 @@ TEST(ChunkOpRequestDeathTest, fatal_test2) {
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
     cntl.request_attachment().append("a", 1);
     ChunkResponse response;
-    ChunkOpRequest opRequest(nullptr, &cntl, &request, &response, nullptr);
+    ChunkOpContext opCtx(&cntl, &request, &response, nullptr);
     butil::IOBuf log;
-    ASSERT_EQ(0, opRequest.Encode(&log));
+    ASSERT_EQ(0, opCtx.Encode(&log));
     RequestType type = RequestType::UNKNOWN_OP;
     log.cutn(&type, sizeof(uint8_t));
     Configuration conf;
@@ -295,7 +290,7 @@ TEST(ChunkOpRequestDeathTest, fatal_test2) {
                                       copysetID,
                                       conf,
                                       std::move(fakePtr));
-    EXPECT_EXIT(opRequest.OnApply(copysetPtr, &log),
+    EXPECT_EXIT(opCtx.OnApply(copysetPtr, &log),
                 ::testing::KilledBySignal(SIGABRT),
                 "");
 }

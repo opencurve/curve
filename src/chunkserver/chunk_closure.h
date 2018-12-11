@@ -11,7 +11,7 @@
 #include <brpc/closure_guard.h>
 
 #include "src/chunkserver/copyset_node.h"
-#include "src/chunkserver/op_request.h"
+#include "src/chunkserver/op_context.h"
 
 namespace curve {
 namespace chunkserver {
@@ -19,22 +19,21 @@ namespace chunkserver {
 /* Implements Closure which encloses RPC stuff */
 class ChunkClosure : public braft::Closure {
  public:
-    ChunkClosure(CopysetNode *node, ChunkOpRequest *request)
-        : copysetNode_(node), request_(request) {}
+    ChunkClosure(CopysetNode *node, ChunkOpContext *opCtx)
+        : copysetNode_(node), opCtx_(opCtx) {}
 
     ~ChunkClosure() {
-        delete request_;
-        request_ = nullptr;
+        delete opCtx_;
+        opCtx_ = nullptr;
     }
-    ChunkOpRequest *GetOpRequest() {
-        return request_;
+    ChunkOpContext *GetOpContext() {
+        return opCtx_;
     }
     void Run();
 
  private:
-    CopysetNode *copysetNode_;
-    /* request 的生命周期归属 ChunkOpRequest 管 */
-    ChunkOpRequest *request_;
+    CopysetNode     *copysetNode_;
+    ChunkOpContext  *opCtx_;
 };
 
 }  // namespace chunkserver

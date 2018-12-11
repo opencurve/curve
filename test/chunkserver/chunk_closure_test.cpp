@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "src/chunkserver/chunk_closure.h"
+#include "src/chunkserver/op_context.h"
 
 namespace curve {
 namespace chunkserver {
@@ -51,16 +52,16 @@ TEST(ChunkClosureTest, error_test) {
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
     ChunkResponse response;
     FakeClosure *done = new FakeClosure();
-    ChunkOpRequest *opRequest = new ChunkOpRequest(nullptr,
-                                                   &cntl,
+    ChunkOpContext *opCtx = new ChunkOpContext(&cntl,
                                                    &request,
-                                                   &response, done);
+                                                   &response,
+                                                   done);
     Configuration conf;
     std::unique_ptr<CSDataStore> dsPtr = std::make_unique<CSDataStore>();
     FakeCopysetNode copysetNode(logicPoolID, copysetID, conf, std::move(dsPtr));
     ChunkClosure *chunkClosure = new ChunkClosure(&copysetNode,
-                                                  opRequest);
-    chunkClosure->status().set_error(-1, "error");
+                                                  opCtx);
+    chunkClosure->status().set_error(EPERM, "error");
     chunkClosure->Run();
     ASSERT_EQ(response.status(), CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
 }
