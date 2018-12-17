@@ -49,3 +49,14 @@ proto_library(
     ]),
     visibility = ["//visibility:public"],
 )
+
+cc_proto_library(
+    name = "snapshotserver_cc_proto",
+    deps = [":snapshotserver_proto"],
+    visibility = ["//visibility:public"],
+)
+
+proto_library(
+    name = "snapshotserver_proto",
+    srcs = ["snapshotserver.proto"],
+)
