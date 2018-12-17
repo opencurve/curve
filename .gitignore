@@ -69,3 +69,6 @@ bazel-testlogs
 
 # vimprj
 .vimprj/
+
+#log
+*.log
