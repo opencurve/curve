@@ -68,6 +68,7 @@ TEST(CopysetNodeManager, basic) {
                                                            copysetId,
                                                            conf));
     }
+
     /* null server */
     {
         brpc::Server *server = nullptr;

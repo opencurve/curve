@@ -22,14 +22,12 @@ using curve::common::Uncopyable;
 
 class RequestSender;
 
-class RequestSenderManager : public Uncopyable{
+class RequestSenderManager : public Uncopyable {
  public:
     using SenderPtr = std::shared_ptr<RequestSender>;
 
-    SenderPtr CreateOrResetSender(const ChunkServerID &leaderId,
-                                  const butil::EndPoint &leaderAddr);
     SenderPtr GetOrCreateSender(const ChunkServerID &leaderId,
-                        const butil::EndPoint &leaderAddr);
+                                const butil::EndPoint &leaderAddr);
 
  private:
     mutable std::mutex lock_;

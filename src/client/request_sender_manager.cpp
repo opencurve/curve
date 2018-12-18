@@ -14,33 +14,6 @@
 namespace curve {
 namespace client {
 
-RequestSenderManager::SenderPtr RequestSenderManager::CreateOrResetSender(
-    const ChunkServerID &leaderId,
-    const butil::EndPoint &leaderAddr) {
-    std::lock_guard<std::mutex> guard(lock_);
-    std::shared_ptr<RequestSender> senderPtr = nullptr;
-
-    auto senderIter = senderPool_.find(leaderId);
-    if (senderPool_.end() != senderIter) {
-        /* 已经存在 reset */
-        senderPtr = senderIter->second;
-        if (0 != senderPtr->ResetSender(leaderId, leaderAddr)) {
-            return nullptr;
-        }
-    } else {
-        /* 不存在则创建 */
-        senderPtr = std::make_shared<RequestSender>(leaderId, leaderAddr);
-        CHECK(nullptr != senderPtr) << "new RequestSender failed";
-    }
-
-    if (0 != senderPtr->Init()) {
-        return nullptr;
-    }
-    senderPool_.insert(std::pair<ChunkServerID, SenderPtr>(leaderId,
-                                                           senderPtr));
-    return senderPtr;
-}
-
 RequestSenderManager::SenderPtr RequestSenderManager::GetOrCreateSender(
     const ChunkServerID &leaderId, const butil::EndPoint &leaderAddr) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;

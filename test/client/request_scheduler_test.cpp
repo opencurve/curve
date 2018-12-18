@@ -36,6 +36,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
 
+    LOG(INFO) << "start testing";
     /* error init test */
     {
         ASSERT_EQ(-1, requestScheduler.Init(-1, 8, nullptr, nullptr));
@@ -73,7 +74,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(0);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -90,11 +92,13 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(0);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ASSERT_EQ(-1, requestScheduler.ScheduleRequest(reqCtx));
     }
 
+    /* Scheduler run */
     ASSERT_EQ(0, requestScheduler.Run());
     EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(AnyNumber());
 
@@ -121,13 +125,14 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
-        ::usleep(50*1000);
+        cond.Wait();
     }
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -140,13 +145,14 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
-        usleep(50 * 1000);
+        cond.Wait();
         ASSERT_STREQ(reqCtx->data_, cmpbuff1);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
@@ -157,18 +163,19 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->copysetid_ = copysetId;
         reqCtx->chunkid_ = chunkId;
         ::memset(writebuff1, 'a', 8);
-        ::memset(writebuff1+8, '\0', 8);
+        ::memset(writebuff1 + 8, '\0', 8);
         reqCtx->data_ = writebuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
-        ::usleep(50*1000);
+        cond.Wait();
     }
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -181,13 +188,14 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
-        usleep(50 * 1000);
+        cond.Wait();
         ASSERT_EQ(reqCtx->data_[0], 'a');
         ASSERT_EQ(reqCtx->data_[1], 'a');
         ASSERT_EQ(reqCtx->data_[2], 'a');
@@ -219,14 +227,16 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
+        cond.Wait();
     }
-    sleep(1);
+
     for (int i = 0; i < kMaxLoop; ++i) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
@@ -238,13 +248,14 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
-        usleep(50 * 1000);
+        cond.Wait();
         ASSERT_STREQ(reqCtx->data_, cmpbuff);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
@@ -259,17 +270,19 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
-        usleep(50 * 1000);
+        cond.Wait();
         ASSERT_EQ(-1, reqDone->GetErrorCode());
     }
 
     /* 2. 并发测试 */
+    CountDownEvent cond(4 * kMaxLoop);
     auto func = [&]() {
         for (int i = 0; i < kMaxLoop; ++i) {
             RequestContext *reqCtx = new FakeRequestContext();
@@ -281,7 +294,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
             reqCtx->offset_ = offset + i;
             reqCtx->rawlength_ = len;
 
-            RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+            RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
             reqCtx->done_ = reqDone;
             ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtx));
         }
@@ -296,8 +309,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
     t3.join();
     t4.join();
 
-    sleep(2);
-
+    cond.Wait();
 
     for (int i = 0; i < kMaxLoop; i += 1) {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -309,15 +321,15 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->data_ = readbuff;
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtx));
-        usleep(50 * 1000);
+        cond.Wait();
         ASSERT_STREQ(reqCtx->data_, cmpbuff);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
 
-    usleep(500 * 1000);
     requestScheduler.Fini();
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());

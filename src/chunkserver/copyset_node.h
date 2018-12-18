@@ -162,7 +162,6 @@ class CopysetNode : public braft::StateMachine,
  private:
     friend class ChunkOpRequest;
 
-
  private:
     CopysetNodeManager *copysetNodeManager_;
     LogicPoolID logicPoolId_;

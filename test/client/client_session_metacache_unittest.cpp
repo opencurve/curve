@@ -520,7 +520,7 @@ TEST_F(SessionTest, GetFileInfoException) {
         info->clear_chunksize();
         info->clear_length();
         info->clear_ctime();
-        info->clear_snapshotid();
+//        info->clear_snapshotid();
         info->clear_segmentsize();
         response.set_allocated_fileinfo(info);
 
