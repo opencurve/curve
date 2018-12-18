@@ -43,6 +43,8 @@ class RequestContext {
     LogicPoolID     logicpoolid_;
     RequestClosure* done_;
 
+    uint64_t    appliedindex_;
+
  private:
     RequestContextSlab* reqctxslab_;
 };

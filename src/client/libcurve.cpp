@@ -25,12 +25,6 @@ namespace client {
     std::atomic<uint64_t> LibCurve::fdcount_(1);
     RWLock  LibCurve::rwlock_;
 
-    LibCurve::LibCurve() {
-    }
-
-    LibCurve::~LibCurve() {
-    }
-
     int LibCurve::Init(std::string configpath) {
         // TODO(tongguangxun): read config and init
         // set log level to ERROR to avoid verbose info output in qemu
@@ -177,9 +171,8 @@ int AioRead(int fd, CurveAioContext* aioctx) {
     DVLOG(9) << "offset: " << aioctx->offset
         << " length: " << aioctx->length
         << " op: " << aioctx->op;
-    curve::client::LibCurve::AioRead(fd, aioctx);
-    // TODO(tongguangxun) :aio return 0 for now, we need specify return code.
-    return 0;
+    return curve::client::LibCurve::AioRead(fd, aioctx);
+    // TODO(tongguangxun) :we need specify return code.
 }
 
 #ifdef __cplusplus
@@ -190,8 +183,7 @@ int AioWrite(int fd, CurveAioContext* aioctx) {
         << " length: " << aioctx->length
         << " op: " << aioctx->op
         << " buf: " << *(unsigned int*)aioctx->buf;
-    curve::client::LibCurve::AioWrite(fd, aioctx);
-    return 0;
+    return curve::client::LibCurve::AioWrite(fd, aioctx);
 }
 
 #ifdef __cplusplus

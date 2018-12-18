@@ -31,7 +31,7 @@ namespace client {
     using Status    = butil::Status;
     using Configuration = braft::Configuration;
 
-    using RequestContextSlab = ContextSlab<RequestContext>;
+    // using RequestContextSlab = ContextSlab<RequestContext>;
 }   // namespace client
 }   // namespace curve
 

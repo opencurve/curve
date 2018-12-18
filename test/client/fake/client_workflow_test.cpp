@@ -219,8 +219,8 @@ skip_read_io:
     if (!FLAGS_verify_io) {
         goto workflow_finish;
     }
-    delete buffer;
-    delete readbuffer;
+    delete[] buffer;
+    delete[] readbuffer;
     Close(fd);
 
 workflow_finish:

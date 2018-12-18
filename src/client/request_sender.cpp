@@ -19,6 +19,7 @@ int RequestSender::ReadChunk(LogicPoolID logicPoolId,
                                   ChunkID chunkId,
                                   off_t offset,
                                   size_t length,
+                                  uint64_t appliedindex,
                                   ReadChunkClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
@@ -36,6 +37,9 @@ int RequestSender::ReadChunk(LogicPoolID logicPoolId,
     request.set_chunkid(chunkId);
     request.set_offset(offset);
     request.set_size(length);
+    if (appliedindex > 0) {
+        request.set_appliedindex(appliedindex);
+    }
     curve::chunkserver::ChunkService_Stub stub(&channel_);
     stub.ReadChunk(cntl, &request, response, doneGuard.release());
 

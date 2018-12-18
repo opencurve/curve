@@ -94,6 +94,7 @@ void RequestScheduler::Process() {
                                       req->chunkid_,
                                       req->offset_,
                                       req->rawlength_,
+                                      req->appliedindex_,
                                       guard.release());
                     break;
                 case OpType::WRITE:
