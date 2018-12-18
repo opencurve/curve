@@ -66,16 +66,22 @@ class MetaCache {
 
     void UpdateChunkInfo(ChunkIndex cindex, Chunkinfo_t chunkinfo);
     void UpdateCopysetIDInfo(ChunkID cid,
-                                        LogicPoolID logicPoolId,
-                                        CopysetID copysetId);
+                                LogicPoolID logicPoolId,
+                                CopysetID copysetId);
     void UpdateCopysetInfo(LogicPoolID logicPoolId,
-                                            CopysetID copysetId,
-                                            CopysetInfo_t cslist);
+                                CopysetID copysetId,
+                                CopysetInfo_t cslist);
 
     CopysetInfo_t GetServerList(LogicPoolID logicPoolId, CopysetID copysetId);
 
- private:
-        int GetLeader(const LogicPoolID &logicPoolId,
+    void UpdateAppliedIndex(LogicPoolID logicPoolId,
+                        CopysetID copysetId,
+                        uint64_t appliedindex);
+    uint64_t GetAppliedIndex(LogicPoolID logicPoolId,
+                                CopysetID copysetId);
+
+ protected:
+    int GetLeader(const LogicPoolID &logicPoolId,
                                 const CopysetID &copysetId,
                                 const Configuration &conf,
                                 PeerId *leaderId);

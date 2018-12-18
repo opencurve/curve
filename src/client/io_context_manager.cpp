@@ -30,35 +30,42 @@ namespace client {
 
     bool IOContextManager::Initialize() {
         iocontextslab_ = new (std::nothrow) IOContextSlab();
-        if (iocontextslab_ != nullptr) {
-            if (!iocontextslab_->Initialize()) {
-                delete iocontextslab_;
-                iocontextslab_ = nullptr;
-                LOG(ERROR) << "Create IOContextSlab failed!";
-                return false;
-            }
+        if (CURVE_UNLIKELY(iocontextslab_ == nullptr)) {
+            LOG(ERROR) << "allocate IOContextSlab failed!";
+            return false;
         }
+
+        if (CURVE_UNLIKELY(!iocontextslab_->Initialize())) {
+            delete iocontextslab_;
+            iocontextslab_ = nullptr;
+            LOG(ERROR) << "Create IOContextSlab failed!";
+            return false;
+        }
+
         requestContextslab_ = new (std::nothrow) RequestContextSlab();
-        if (requestContextslab_ != nullptr) {
-            if (!requestContextslab_->Initialize()) {
-                delete requestContextslab_;
-                delete iocontextslab_;
-                requestContextslab_ = nullptr;
-                LOG(ERROR) << "Create RequestContextSlab failed!";
-                return false;
-            }
+        if (CURVE_UNLIKELY(requestContextslab_ == nullptr)) {
+            LOG(ERROR) << "RequestContextSlab allocate failed!";
+            return false;
+        }
+
+        if (CURVE_UNLIKELY(!requestContextslab_->Initialize())) {
+            delete requestContextslab_;
+            delete iocontextslab_;
+            requestContextslab_ = nullptr;
+            LOG(ERROR) << "Create RequestContextSlab failed!";
+            return false;
         }
         return true;
     }
 
     void IOContextManager::UnInitialize() {
-        if (iocontextslab_ != nullptr) {
+        if (CURVE_LIKELY(iocontextslab_ != nullptr)) {
             iocontextslab_->UnInitialize();
             delete iocontextslab_;
         }
         iocontextslab_ = nullptr;
 
-        if (requestContextslab_ != nullptr) {
+        if (CURVE_LIKELY(requestContextslab_ != nullptr)) {
             requestContextslab_->UnInitialize();
             delete requestContextslab_;
         }

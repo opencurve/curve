@@ -9,6 +9,7 @@
 #include <memory>
 #include <algorithm>
 
+#include "src/client/client_common.h"
 #include "src/client/context_slab.h"
 #include "src/client/io_context.h"
 #include "src/client/request_context.h"
@@ -20,6 +21,65 @@ DEFINE_int32(pre_allocate_context_num,
 
 namespace curve {
 namespace client {
+    RequestContextSlab::RequestContextSlab() {
+    }
+
+    RequestContextSlab::~RequestContextSlab() {
+        UnInitialize();
+    }
+
+    bool RequestContextSlab::Initialize() {
+        return PreAllocateInternal();
+    }
+
+    void RequestContextSlab::UnInitialize() {
+        std::for_each(contextslab_.begin(), contextslab_.end(),
+                        [](RequestContext* ctx){
+            delete ctx;
+        });
+        contextslab_.clear();
+    }
+
+    size_t RequestContextSlab::Size() {
+        return contextslab_.size();
+    }
+
+    RequestContext* RequestContextSlab::Get() {
+        LOCK_HERE
+        RequestContext* temp = nullptr;
+        if (CURVE_LIKELY(!contextslab_.empty())) {
+            temp = contextslab_.front();
+            contextslab_.pop_front();
+        } else {
+            temp = new (std::nothrow) RequestContext(this);
+            CHECK(temp != nullptr) << "Allocate RequestContext failed!";
+        }
+        UNLOCK_HERE
+        return temp;
+    }
+
+    void RequestContextSlab::Recyle(RequestContext* torecyle) {
+        LOCK_HERE
+        torecyle->Reset();
+        contextslab_.push_front(torecyle);
+        while (contextslab_.size() >
+                2 * FLAGS_pre_allocate_context_num) {
+            auto temp = contextslab_.front();
+            contextslab_.pop_front();
+            delete temp;
+        }
+        UNLOCK_HERE
+    }
+
+    bool RequestContextSlab::PreAllocateInternal() {
+        for (int i = 0; i < FLAGS_pre_allocate_context_num; i++) {
+            RequestContext* temp = new (std::nothrow) RequestContext(this);
+            CHECK(temp != nullptr) << "PreAllocateInternal Failed!";
+            contextslab_.push_front(temp);
+        }
+        return true;
+    }
+
     IOContextSlab::IOContextSlab() {
         infilghtIOContextNum_.store(0, std::memory_order_release);
     }
@@ -34,12 +94,8 @@ namespace client {
     bool IOContextSlab::PreAllocateInternal() {
         for (int i = 0; i < FLAGS_pre_allocate_context_num; i++) {
             IOContext* temp = new (std::nothrow) IOContext(this);
-            if (CURVE_UNLIKELY(temp == nullptr)) {
-                UnInitialize();
-                return false;
-            } else {
-                contextslab_.push_front(temp);
-            }
+            CHECK(temp != nullptr) << "PreAllocateInternal Failed!";
+            contextslab_.push_front(temp);
         }
         return true;
     }
@@ -63,7 +119,7 @@ namespace client {
              * is this case, we should hold the IsBusy
              * flag until sync mode return.
              */ 
-            if (!temp->IsBusy()) {
+            if (CURVE_UNLIKELY(!temp->IsBusy())) {
                 contextslab_.pop_front();
                 UNLOCK_HERE
                 infilghtIOContextNum_.fetch_add(1,
@@ -73,9 +129,7 @@ namespace client {
         }
 
         temp = new (std::nothrow) IOContext(this);
-        if (temp == nullptr) {
-            abort();
-        }
+        CHECK(temp != nullptr) << "Allocate IOContext failed!";
         UNLOCK_HERE
         infilghtIOContextNum_.fetch_add(1, std::memory_order_acq_rel);
         return temp;

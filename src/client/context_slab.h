@@ -34,88 +34,34 @@ namespace client {
 class IOContext;
 class RequestContext;
 
-template <class T>
-class ContextSlab {
+class RequestContextSlab {
  public:
-    ContextSlab() {
-    }
-    virtual ~ContextSlab() {
-        UnInitialize();
-    }
+    RequestContextSlab();
+    virtual ~RequestContextSlab();
 
-    virtual bool Initialize() {
-        return PreAllocateInternal();
-    }
-
-    virtual void UnInitialize() {
-        std::for_each(contextslab_.begin(), contextslab_.end(), [](T* ctx){
-            delete ctx;
-        });
-        contextslab_.clear();
-    }
-
-    virtual size_t Size() {
-        return contextslab_.size();
-    }
-
-    virtual T* Get() {
-        LOCK_HERE
-        T* temp = nullptr;
-        if (CURVE_LIKELY(!contextslab_.empty())) {
-            temp = contextslab_.front();
-            contextslab_.pop_front();
-        } else {
-            temp = new (std::nothrow) T(this);
-            if (temp == nullptr) {
-                abort();
-            }
-        }
-        UNLOCK_HERE
-        return temp;
-    }
-
-    virtual void Recyle(T* torecyle) {
-        LOCK_HERE
-        torecyle->Reset();
-        contextslab_.push_front(torecyle);
-        while (contextslab_.size() >
-                2 * FLAGS_pre_allocate_context_num) {
-            auto temp = contextslab_.front();
-            contextslab_.pop_front();
-            delete temp;
-        }
-        UNLOCK_HERE
-    }
-
-    virtual bool PreAllocateInternal() {
-        for (int i = 0; i < FLAGS_pre_allocate_context_num; i++) {
-            T* temp = new (std::nothrow) T(this);
-            if (CURVE_UNLIKELY(temp == nullptr)) {
-                UnInitialize();
-                return false;
-            } else {
-                contextslab_.push_front(temp);
-            }
-        }
-        return true;
-    }
+    virtual bool Initialize();
+    virtual void UnInitialize();
+    virtual RequestContext* Get();
+    virtual void Recyle(RequestContext* torecyle);
+    virtual bool PreAllocateInternal();
+    virtual size_t Size();
 
  protected:
     SpinLock CURVE_CACHELINE_ALIGNMENT       spinlock_;
-    std::list<T*>  CURVE_CACHELINE_ALIGNMENT contextslab_;
+    std::list<RequestContext*>  CURVE_CACHELINE_ALIGNMENT contextslab_;
 };
 
 
 class IOContextSlab {
  public:
     IOContextSlab();
-    ~IOContextSlab();
+    CURVE_MOCK ~IOContextSlab();
 
-    bool Initialize();
-    void UnInitialize();
-    IOContext* Get();
-    void Recyle(IOContext* torecyle);
-    bool PreAllocateInternal();
+    CURVE_MOCK bool Initialize();
+    CURVE_MOCK void UnInitialize();
+    CURVE_MOCK IOContext* Get();
+    CURVE_MOCK void Recyle(IOContext* torecyle);
+    CURVE_MOCK bool PreAllocateInternal();
 
     size_t Size() {
         return contextslab_.size();

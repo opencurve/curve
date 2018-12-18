@@ -123,11 +123,41 @@ TEST(TestLibcurveInterface, InterfaceTest) {
 
     ASSERT_EQ(8 * 1024, Write(fd, buffer, off1, len1));
     ASSERT_EQ(8 * 1024, Read(fd, readbuffer, off1, len1));
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     mds.UnInitialize();
-    delete buffer;
-    delete readbuffer;
+    delete[] buffer;
+    delete[] readbuffer;
     Close(fd);
     UnInit();
+}
+
+TEST(TestLibcurveInterface, InterfaceExceptionTest) {
+    std::string filename = "./notexist.txt";
+    ASSERT_EQ(-1, Open(filename.c_str()));
+
+    char* buffer = new char[8 * 1024];
+    memset(buffer, 'a', 8*1024);
+    CurveAioContext writeaioctx;
+    writeaioctx.buf = buffer;
+    writeaioctx.offset = 0;
+    writeaioctx.length = 8 * 1024;
+    writeaioctx.cb = callbacktest;
+
+    ASSERT_EQ(-1, AioWrite(1234, &writeaioctx));
+
+    char* readbuffer = new char[8 * 1024];
+    CurveAioContext readaioctx;
+    readaioctx.buf = readbuffer;
+    readaioctx.offset = 0;
+    readaioctx.length = 8 * 1024;
+    readaioctx.cb = callbacktest;
+    ASSERT_EQ(-1, AioRead(1234, &readaioctx));
+
+    uint64_t offset = 0;
+    uint64_t length = 8 * 1024;
+
+    ASSERT_EQ(-1, Write(1234, buffer, offset, length));
+    ASSERT_EQ(-1, Read(1234, readbuffer, offset, length));
+
+    delete[] buffer;
+    delete[] readbuffer;
 }

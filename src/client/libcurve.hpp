@@ -24,9 +24,6 @@ namespace client {
 
 class LibCurve {
  public:
-    LibCurve();
-    ~LibCurve();
-
     static int Init(std::string configpath);
     static void UnInit(); 
     static CreateFileErrorType CreateFile(std::string name, size_t size); 

@@ -16,12 +16,6 @@ DECLARE_uint32(chunk_size);
 namespace curve {
 namespace client {
 
-Splitor::Splitor() {
-}
-
-Splitor::~Splitor() {
-}
-
 int Splitor::IO2ChunkRequests(IOContext* ioctx,
                             MetaCache* mc,
                             RequestContextSlab* reqslab,
@@ -61,6 +55,8 @@ int Splitor::IO2ChunkRequests(IOContext* ioctx,
             newreqNode->copysetid_ = chinfo.copysetid_;
             newreqNode->logicpoolid_ = chinfo.logicpoolid_;
             newreqNode->done_->SetIOContext(ioctx);
+            newreqNode->appliedindex_ = mc->GetAppliedIndex(chinfo.logicpoolid_,
+                                                            chinfo.copysetid_);
             targetlist->push_back(newreqNode);
             return true;
         } else {

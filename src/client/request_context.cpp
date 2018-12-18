@@ -16,17 +16,13 @@ namespace client {
 
 RequestContext::RequestContext(RequestContextSlab* reqctxslab) {
     done_ = new (std::nothrow) RequestClosure(this);
-    if (done_ == nullptr) {
-        LOG(ERROR) << "allocate request_closure failed!";
-    }
+    CHECK(done_ != nullptr) << "allocate request_closure failed!";
     Reset();
     reqctxslab_ = reqctxslab;
 }
 
 RequestContext::~RequestContext() {
-    if (done_ != nullptr) {
-        delete done_;
-    }
+    delete done_;
     done_ = nullptr;
 }
 
@@ -41,6 +37,7 @@ void RequestContext::Reset() {
     chunkid_ = 0;
     copysetid_ = 0;
     logicpoolid_ = 0;
+    appliedindex_ = 0;
     done_->Reset();
 }
 }  // namespace client

@@ -20,9 +20,6 @@ namespace client {
 
 class Splitor {
  public:
-    Splitor();
-    ~Splitor();
-
     static int IO2ChunkRequests(IOContext* ioctx,
                             MetaCache* mc,
                             RequestContextSlab* reqslab,
