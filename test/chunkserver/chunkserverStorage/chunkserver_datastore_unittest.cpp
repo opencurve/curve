@@ -39,8 +39,8 @@ class CSDataStore_test : public testing::Test {
 TEST_F(CSDataStore_test, ReadWriteChunk) {
     std::string datastorepath = "./1/2/3/test1//";
     cpmana = std::shared_ptr<CSDataStore>(
-        new CSDataStore(testsfsada_, datastorepath));
-    ASSERT_TRUE(cpmana->Initialize());
+        new CSDataStore());
+    ASSERT_TRUE(cpmana->Initialize(testsfsada_, datastorepath));
 
     for (uint64_t chunkid = 0; chunkid < 1000; chunkid++) {
         char writebuf[1024];
@@ -66,8 +66,8 @@ TEST_F(CSDataStore_test, ReadWriteChunk) {
 TEST_F(CSDataStore_test, DeleteChunk) {
     std::string datastorepath = "./1/2/3/test1//";
     cpmana = std::shared_ptr<CSDataStore>(
-        new CSDataStore(testsfsada_, datastorepath));
-    ASSERT_TRUE(cpmana->Initialize());
+        new CSDataStore());
+    ASSERT_TRUE(cpmana->Initialize(testsfsada_, datastorepath));
 
     curve::chunkserver::ChunkID chunkid = 1;
     char writebuf[1024];

@@ -95,7 +95,6 @@ struct CopysetNodeOptions {
     CopysetNodeManager *copysetNodeManager;
 
     CopysetNodeOptions();
-    CopysetNodeOptions(const CopysetNodeOptions &copysetNodeOptions);
     CopysetNodeOptions &operator=(const CopysetNodeOptions &copysetNodeOptions);
 };
 
@@ -104,7 +103,8 @@ class CopysetNode : public braft::StateMachine,
  public:
     CopysetNode(const LogicPoolID &logicPoolId,
                 const CopysetID &copysetId,
-                const Configuration &initConf);
+                const Configuration &initConf,
+                std::unique_ptr<CSDataStore> dataStorePtr);
 
     virtual ~CopysetNode();
 
@@ -128,23 +128,8 @@ class CopysetNode : public braft::StateMachine,
                     ChunkResponse *response,
                     Closure *done);
 
-    /* chunk snapshot 创建和删除，也是通过 raft 一致性协议来完成创建 */
-    void CreateChunkSnapshot(RpcController *controller,
-                             const ChunkSnapshotRequest *request,
-                             ChunkSnapshotResponse *response,
-                             Closure *done);
-    void DeleteChunkSnapshot(RpcController *controller,
-                             const ChunkSnapshotRequest *request,
-                             ChunkSnapshotResponse *response,
-                             Closure *done);
-    void ReadChunkSnapshot(RpcController *controller,
-                           const ChunkSnapshotRequest *request,
-                           ChunkSnapshotResponse *response,
-                           Closure *done);
-
     /* 不是 leader，转发请求 */
-    void RedirectChunkRequest(ChunkResponse *response);
-    void RedirectChunkSnapshotRequest(ChunkSnapshotResponse *response);
+    CURVE_MOCK void RedirectChunkRequest(ChunkResponse *response);
 
  public:
     /* 下面的接口都是继承 StateMachine 实现的接口 */
@@ -173,10 +158,10 @@ class CopysetNode : public braft::StateMachine,
                            const ChunkRequest *request,
                            ChunkResponse *response,
                            Closure *done);
-    void ApplyChunkSnapshotRequest(RpcController *controller,
-                                   const ChunkSnapshotRequest *request,
-                                   ChunkSnapshotResponse *response,
-                                   Closure *done);
+
+ private:
+    friend class ChunkOpRequest;
+
 
  private:
     CopysetNodeManager *copysetNodeManager_;
@@ -195,7 +180,6 @@ class CopysetNode : public braft::StateMachine,
     /* 预留，暂时没有使用 */
     std::string chunkSnapshotUri_;
     scoped_refptr<FileSystemAdaptor> fs_;
-    friend class ChunkOpRequest;
     std::unique_ptr<CSDataStore> dataStore_;
     std::atomic<int64_t> leaderTerm_;
 };

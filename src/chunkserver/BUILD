@@ -51,6 +51,41 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "chunkserver-test-lib",
+    srcs = glob(
+        ["*.cpp"],
+        exclude = ["chunkserver_main.cpp"],
+    ),
+    hdrs = glob([
+        "*.h",
+    ]),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    linkopts = [
+        "-lrt",
+        "-lssl",
+        "-lcrypto",
+        "-ldl",
+        "-lz",
+        "-lpthread",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//proto:chunkserver-cc-protos",
+        "//src/chunkserver/chunkserverStorage:chunkserver-sfsadaptor-lib",
+        "//src/common:curve_common",
+    ],
+)
+
 # chunkserver exec
 cc_binary(
     name = "chunkserver",
@@ -73,6 +108,7 @@ cc_binary(
         "//external:bthread",
         "//external:butil",
         "//external:gflags",
+        "//external:glog",
         "//external:leveldb",
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",

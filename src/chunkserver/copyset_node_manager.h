@@ -31,9 +31,6 @@ class CopysetNodeManager : public curve::common::Uncopyable {
  public:
     using CopysetNodePtr = std::shared_ptr<CopysetNode>;
 
-    CopysetNodeManager() {}
-    ~CopysetNodeManager() {}
-
     /* 单例，仅仅在 c++11 下正确 */
     static CopysetNodeManager &GetInstance() {
         static CopysetNodeManager instance;

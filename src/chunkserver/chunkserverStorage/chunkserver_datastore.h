@@ -20,8 +20,7 @@ namespace curve {
 namespace chunkserver {
 class CURVE_CACHELINE_ALIGNMENT CSDataStore : public CSDataStoreInterface {
  public:
-    CSDataStore(std::shared_ptr<CSSfsAdaptor> fsadaptor,
-                std::string copysetdir);
+    CSDataStore();
     ~CSDataStore();
 
     using CSDataStoreExecutorPtr  = std::shared_ptr<CSDataStoreExecutor>;
@@ -63,11 +62,13 @@ class CURVE_CACHELINE_ALIGNMENT CSDataStore : public CSDataStoreInterface {
                     size_t length) override;
     bool RevertSnapshot2ID(ChunkID cid, SnapshotID targetID) override;
 
-    bool Initialize();
+    bool Initialize(std::shared_ptr<CSSfsAdaptor> fsadaptor,
+                    std::string copysetdir);
     void UnInitialize();
 
  private:
-    bool InitInternal();
+    bool InitInternal(std::shared_ptr<CSSfsAdaptor> fsadaptor,
+                      std::string copysetdir);
     void UnInitInternal();
     inline std::string ChunkID2FileName(ChunkID cid);
 
