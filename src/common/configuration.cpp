@@ -47,7 +47,7 @@ bool Configuration::SaveConfig() {
 
 std::string Configuration::DumpConfig() {
     // TODO(wenyu): to implement
-    return NULL;
+    return "";
 }
 
 void Configuration::SetConfigPath(const std::string &path) {
@@ -68,7 +68,8 @@ void Configuration::SetStringValue(const std::string &key,
 }
 
 int Configuration::GetIntValue(const std::string &key) {
-    return std::stoi(config_[key]);
+    std::string value = GetValue(key);
+    return (value == "") ? 0 : std::stoi(value);
 }
 
 void Configuration::SetIntValue(const std::string &key, const int value) {
