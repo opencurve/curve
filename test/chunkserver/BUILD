@@ -79,3 +79,23 @@ cc_binary(
         "//src/common:curve_common",
     ],
 )
+
+cc_test(
+    name = "chunkserver_test",
+    srcs = [
+        "chunkserver_test.cpp",
+    ],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//proto:chunkserver-cc-protos",
+        "//src/chunkserver:chunkserver-lib",
+        "//src/common:curve_common",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
