@@ -28,6 +28,7 @@ class ChunkServer {
     int Init(int argc, char** argv);
     int Fini();
     int Run();
+    int Stop();
 
     CHUNKSERVER_STATE GetState();
     ChunkServerInfo GetInfo();
