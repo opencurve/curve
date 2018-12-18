@@ -21,19 +21,12 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
 
-    /* 检查 copyset 成员个数，必须 >= 2 */
-    if (0 >= request->peerid_size()) {
-        cntl->SetFailed(EINVAL,
-                        "copyset members must be >= 2，cannot be %d",
-                        request->peerid_size());
-        return;
-    }
-
     /* 解析 request 中的 peers */
     Configuration conf;
     for (int i = 0; i < request->peerid_size(); ++i) {
         PeerId peer;
-        if (peer.parse(request->peerid(i)) != 0) {
+        int ret = peer.parse(request->peerid(i));
+        if (ret != 0) {
             cntl->SetFailed(EINVAL,
                             "Fail to parse peer id %s",
                             request->peerid(i).c_str());
@@ -42,12 +35,14 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
         conf.add_peer(peer);
     }
 
-    GroupId groupId = ToGroupId(request->logicpoolid(), request->copysetid());
-    if (false == copysetNodeManager_->IsExist(request->logicpoolid(),
-                                              request->copysetid())) {
+    LogicPoolID logicPoolID = request->logicpoolid();
+    CopysetID copysetID = request->copysetid();
+    GroupId groupId = ToGroupId(logicPoolID, copysetID);
+    if (false == copysetNodeManager_->IsExist(logicPoolID,
+                                              copysetID)) {
         if (true ==
-            copysetNodeManager_->CreateCopysetNode(request->logicpoolid(),
-                                                   request->copysetid(),
+            copysetNodeManager_->CreateCopysetNode(logicPoolID,
+                                                   copysetID,
                                                    conf)) {
             response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
         } else {

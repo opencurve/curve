@@ -43,21 +43,6 @@ class ChunkServiceImpl : public ChunkService {
                     ChunkResponse *response,
                     Closure *done);
 
-    void CreateChunkSnapshot(RpcController *controller,
-                             const ChunkSnapshotRequest *request,
-                             ChunkSnapshotResponse *response,
-                             Closure *done);
-
-    void DeleteChunkSnapshot(RpcController *controller,
-                             const ChunkSnapshotRequest *request,
-                             ChunkSnapshotResponse *response,
-                             Closure *done);
-
-    void ReadChunkSnapshot(RpcController *controller,
-                           const ChunkSnapshotRequest *request,
-                           ChunkSnapshotResponse *response,
-                           Closure *done);
-
  private:
     ChunkServiceOptions chunkServiceOptions_;
     CopysetNodeManager *copysetNodeManager_;

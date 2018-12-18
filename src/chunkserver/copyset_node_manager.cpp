@@ -78,12 +78,15 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
     /* 加写锁 */
     WriteLockGuard writeLockGuard(rwLock_);
     if (copysetNodeMap_.end() == copysetNodeMap_.find(groupId)) {
+        std::unique_ptr<CSDataStore> dsPtr = std::make_unique<CSDataStore>();
         std::shared_ptr<CopysetNode> copysetNode =
-            std::make_shared<CopysetNode>(logicPoolId, copysetId, conf);
-        if (nullptr == copysetNode) {
-            LOG(FATAL) << "new copyset node failed ";
-            return false;
-        }
+            std::make_shared<CopysetNode>(logicPoolId,
+                                          copysetId,
+                                          conf,
+                                          std::move(dsPtr));
+        CHECK(nullptr != copysetNode) << "new copyset node <"
+                                      << logicPoolId << ","
+                                      << copysetId << "> failed ";
         if (0 != copysetNode->Init(copysetNodeOptions_)) {
             LOG(ERROR) << "Copyset (" << logicPoolId << "," << copysetId << ")"
                        << " init failed";
@@ -116,37 +119,23 @@ int CopysetNodeManager::AddService(brpc::Server *server,
             ret = -1;
             break;
         }
-        if (0 != server->AddService(braft::file_service(),
-                                    brpc::SERVER_DOESNT_OWN_SERVICE)) {
-            LOG(ERROR) << "Fail to add FileService";
-            ret = -1;
-            break;
-        }
-        if (0 != server->AddService(new braft::RaftServiceImpl(listenAddress),
-                                    brpc::SERVER_OWNS_SERVICE)) {
-            LOG(ERROR) << "Fail to add RaftService";
-            ret = -1;
-            break;
-        }
-        if (0 != server->AddService(new BRaftCliServiceImpl,
-                                    brpc::SERVER_OWNS_SERVICE)) {
-            LOG(ERROR) << "Fail to add BRaftCliService";
-            ret = -1;
-            break;
-        }
-        if (0
-            != server->AddService(new CopysetServiceImpl(copysetNodeManager),
-                                  brpc::SERVER_OWNS_SERVICE)) {
-            LOG(ERROR) << "Fail to add CopysetService";
-            ret = -1;
-            break;
-        }
-        if (0 != server->AddService(new ChunkServiceImpl(chunkServiceOptions),
-                                    brpc::SERVER_OWNS_SERVICE)) {
-            LOG(ERROR) << "Fail to add ChunkService";
-            ret = -1;
-            break;
-        }
+        ret = server->AddService(braft::file_service(),
+                                 brpc::SERVER_DOESNT_OWN_SERVICE);
+        CHECK(0 == ret) << "Fail to add FileService";
+        ret = server->AddService(new braft::RaftServiceImpl(listenAddress),
+                                 brpc::SERVER_OWNS_SERVICE);
+        CHECK(0 == ret) << "Fail to add RaftService";
+
+        ret = server->AddService(new BRaftCliServiceImpl,
+                                 brpc::SERVER_OWNS_SERVICE);
+        CHECK(0 == ret) << "Fail to add BRaftCliService";
+        ret = server->AddService(new CopysetServiceImpl(copysetNodeManager),
+                                 brpc::SERVER_OWNS_SERVICE);
+        CHECK(0 == ret) << "Fail to add CopysetService";
+        ret = server->AddService(new ChunkServiceImpl(chunkServiceOptions),
+                                 brpc::SERVER_OWNS_SERVICE);
+        CHECK(0 == ret) << "Fail to add ChunkService";
+
         if (!braft::NodeManager::GetInstance()->server_exists(listenAddress)) {
             braft::NodeManager::GetInstance()->add_address(listenAddress);
         }

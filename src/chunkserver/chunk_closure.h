@@ -37,26 +37,6 @@ class ChunkClosure : public braft::Closure {
     ChunkOpRequest *request_;
 };
 
-class ChunkSnapshotClosure : public braft::Closure {
- public:
-    ChunkSnapshotClosure(CopysetNode *node, ChunkSnapshotOpRequest *request)
-        : copysetNode_(node), request_(request) {}
-
-    ~ChunkSnapshotClosure() {
-        delete request_;
-        request_ = nullptr;
-    }
-    ChunkSnapshotOpRequest *GetOpRequest() {
-        return request_;
-    }
-    void Run();
-
- private:
-    CopysetNode *copysetNode_;
-    // request 的生命周期归属 ChunkSnapshotClosure 管
-    ChunkSnapshotOpRequest *request_;
-};
-
 }  // namespace chunkserver
 }  // namespace curve
 
