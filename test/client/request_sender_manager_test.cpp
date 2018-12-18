@@ -22,12 +22,9 @@ TEST(RequestSenderManagerTest, basic_test) {
     butil::str2endpoint(leaderStr.c_str(), &leaderAddr);
 
     for (int i = leaderId; i <= leaderId + 10000; ++i) {
-        auto senderPtr = senderManager->CreateOrResetSender(leaderId,
-                                                            leaderAddr);
-        ASSERT_TRUE(nullptr != senderPtr);
         auto senderPtr1 = senderManager->GetOrCreateSender(leaderId,
                                                            leaderAddr);
-        ASSERT_TRUE(senderPtr.get() == senderPtr1.get());
+        ASSERT_TRUE(nullptr != senderPtr1);
     }
 }
 

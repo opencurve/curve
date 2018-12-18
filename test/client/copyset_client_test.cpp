@@ -82,7 +82,7 @@ static void ReadChunkFunc(::google::protobuf::RpcController *controller,
     }
 }
 
-TEST_F(CopysetClientTest, mock_server_test) {
+TEST_F(CopysetClientTest, normal_test) {
     MockChunkServiceImpl mockChunkService;
     ASSERT_EQ(server_->AddService(&mockChunkService,
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
@@ -123,8 +123,6 @@ TEST_F(CopysetClientTest, mock_server_test) {
     std::string leaderStr4 = "127.0.0.1:8200";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
-    usleep(100 * 1000);
-
     /* write success */
     for (int i = 0; i < 10; ++i) {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -136,7 +134,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = i * 8;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -149,7 +148,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(50 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
@@ -163,7 +162,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -179,7 +179,41 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(50 * 1000);
+        cond.Wait();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        reqCtx->data_ = buff1;
+        reqCtx->offset_ = offset;
+        reqCtx->rawlength_ = len;
+
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqCtx->done_ = reqDone;
+        ChunkResponse response;
+        response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(-1)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(-1)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(response),
+                            Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
+                                 buff1, offset, len, reqDone, 0);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
@@ -194,7 +228,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = i * 8;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -207,7 +242,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(50 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
@@ -221,7 +256,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -237,13 +273,90 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(50 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /**
-     * write error testing
-     */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::READ;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        reqCtx->data_ = buff1;
+        reqCtx->offset_ = offset;
+        reqCtx->rawlength_ = len;
+
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqCtx->done_ = reqDone;
+        ChunkResponse response;
+        response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(AtLeast(1))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(-1)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(-1)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(response),
+                            Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
+                                offset, len, 0, reqDone, 0);
+        cond.Wait();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+}
+
+/**
+ * write error testing
+ */
+TEST_F(CopysetClientTest, write_error_test) {
+    MockChunkServiceImpl mockChunkService;
+    ASSERT_EQ(server_->AddService(&mockChunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    CopysetClient copysetClient;
+    RequestSenderManager senderManager;
+    MockMetaCache mockMetaCache;
+    mockMetaCache.DelegateToFake();
+    copysetClient.Init(&senderManager, &mockMetaCache);
+
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 100001;
+    ChunkID chunkId = 1;
+    size_t len = 8;
+    char buff1[8 + 1];
+    char buff2[8 + 1];
+    memset(buff1, 'a', 8);
+    memset(buff2, 'a', 8);
+    buff1[8] = '\0';
+    buff2[8] = '\0';
+    off_t offset = 0;
+
+    ChunkServerID leaderId1 = 10000;
+    butil::EndPoint leaderAdder1;
+    std::string leaderStr1 = "127.0.0.1:8200";
+    butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
+    ChunkServerID leaderId2 = 10001;
+    butil::EndPoint leaderAdder2;
+    std::string leaderStr2 = "127.0.0.1:8200";
+    butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
+    ChunkServerID leaderId3 = 10002;
+    butil::EndPoint leaderAdder3;
+    std::string leaderStr3 = "127.0.0.1:8200";
+    butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
+    ChunkServerID leaderId4 = 10003;
+    butil::EndPoint leaderAdder4;
+    std::string leaderStr4 = "127.0.0.1:8200";
+    butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -255,7 +368,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -268,7 +382,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(100 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
     }
@@ -283,7 +397,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _))
@@ -294,7 +409,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillRepeatedly(Invoke(WriteChunkFunc));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gWriteCntlFailedCode = 0;
     }
@@ -309,7 +424,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -322,7 +438,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                                   Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
     }
@@ -337,7 +453,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -360,7 +477,87 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+    /* 不是 leader，没有返回 leader，刷新 meta cache 成功 */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        reqCtx->data_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqCtx->done_ = reqDone;
+        ChunkResponse response1;
+        response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+//        response1.set_redirect(leaderStr2);
+        ChunkResponse response2;
+        response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(3)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2),
+                            Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2),
+                            Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(response1),
+                            Invoke(WriteChunkFunc)))
+            .WillOnce(DoAll(SetArgPointee<2>(response2),
+                            Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
+                                 buff1, offset, len, reqDone, 0);
+        cond.Wait();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+    /* 不是 leader，没有返回 leader，刷新 meta cache 失败 */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        reqCtx->data_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqCtx->done_ = reqDone;
+        ChunkResponse response1;
+        response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+//        response1.set_redirect(leaderStr2);
+        ChunkResponse response2;
+        response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(3)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2),
+                            Return(-1)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2),
+                            Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(response1),
+                            Invoke(WriteChunkFunc)))
+            .WillOnce(DoAll(SetArgPointee<2>(response2),
+                            Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
+                                 buff1, offset, len, reqDone, 0);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
@@ -375,7 +572,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -407,7 +605,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }
@@ -422,7 +620,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -461,7 +660,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
@@ -476,7 +675,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -501,13 +701,56 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(WriteChunkFunc)));
         copysetClient.WriteChunk(logicPoolId, copysetId, chunkId,
                                  buff1, offset, len, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
-    /**
-     * read error testing
-     */
+}
+
+/**
+ * read error testing
+ */
+TEST_F(CopysetClientTest, read_error_test) {
+    MockChunkServiceImpl mockChunkService;
+    ASSERT_EQ(server_->AddService(&mockChunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    CopysetClient copysetClient;
+    RequestSenderManager senderManager;
+    MockMetaCache mockMetaCache;
+    mockMetaCache.DelegateToFake();
+    copysetClient.Init(&senderManager, &mockMetaCache);
+
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 100001;
+    ChunkID chunkId = 1;
+    size_t len = 8;
+    char buff1[8 + 1];
+    char buff2[8 + 1];
+    memset(buff1, 'a', 8);
+    memset(buff2, 'a', 8);
+    buff1[8] = '\0';
+    buff2[8] = '\0';
+    off_t offset = 0;
+
+    ChunkServerID leaderId1 = 10000;
+    butil::EndPoint leaderAdder1;
+    std::string leaderStr1 = "127.0.0.1:8200";
+    butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
+    ChunkServerID leaderId2 = 10001;
+    butil::EndPoint leaderAdder2;
+    std::string leaderStr2 = "127.0.0.1:8200";
+    butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
+    ChunkServerID leaderId3 = 10002;
+    butil::EndPoint leaderAdder3;
+    std::string leaderStr3 = "127.0.0.1:8200";
+    butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
+    ChunkServerID leaderId4 = 10003;
+    butil::EndPoint leaderAdder4;
+    std::string leaderStr4 = "127.0.0.1:8200";
+    butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -519,7 +762,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -532,7 +776,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(100 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
     }
@@ -546,7 +790,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(3)
@@ -557,7 +802,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
             .WillRepeatedly(Invoke(ReadChunkFunc));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
     }
@@ -572,7 +817,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -585,7 +831,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                                   Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
     }
@@ -600,7 +846,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -623,7 +870,87 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+    /* 不是 leader，但是没有返回 leader，刷新 meta cache 成功 */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::READ;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        reqCtx->data_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqCtx->done_ = reqDone;
+        ChunkResponse response1;
+        response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+//        response1.set_redirect(leaderStr2);
+        ChunkResponse response2;
+        response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(3)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2),
+                            Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2),
+                            Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(response1),
+                            Invoke(ReadChunkFunc)))
+            .WillOnce(DoAll(SetArgPointee<2>(response2),
+                            Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
+                                offset, len, 0, reqDone, 0);
+        cond.Wait();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  reqDone->GetErrorCode());
+    }
+    /* 不是 leader，但是没有返回 leader，刷新 meta cache 失败 */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::READ;
+        reqCtx->logicpoolid_ = logicPoolId;
+        reqCtx->copysetid_ = copysetId;
+        reqCtx->chunkid_ = chunkId;
+        reqCtx->data_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqCtx->done_ = reqDone;
+        ChunkResponse response1;
+        response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+//        response1.set_redirect(leaderStr2);
+        ChunkResponse response2;
+        response2.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(3)
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
+                            SetArgPointee<3>(leaderAdder1),
+                            Return(0)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2),
+                            Return(-1)))
+            .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
+                            SetArgPointee<3>(leaderAdder2),
+                            Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(2)
+            .WillOnce(DoAll(SetArgPointee<2>(response1),
+                            Invoke(ReadChunkFunc)))
+            .WillOnce(DoAll(SetArgPointee<2>(response2),
+                            Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
+                                offset, len, 0, reqDone, 0);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
@@ -638,7 +965,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -670,7 +998,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
     }
@@ -685,7 +1013,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -724,7 +1053,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
     }
@@ -739,7 +1068,8 @@ TEST_F(CopysetClientTest, mock_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-        RequestClosure *reqDone = new FakeRequestClosure(reqCtx);
+        CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -764,7 +1094,7 @@ TEST_F(CopysetClientTest, mock_server_test) {
                             Invoke(ReadChunkFunc)));
         copysetClient.ReadChunk(logicPoolId, copysetId, chunkId,
                                 offset, len, 0, reqDone, 0);
-        usleep(1000 * 1000);
+        cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }

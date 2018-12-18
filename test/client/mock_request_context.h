@@ -15,6 +15,35 @@
 namespace curve {
 namespace client {
 
+class CountDownEvent {
+ public:
+    explicit CountDownEvent(int initCnt) :
+        mutex_(),
+        cond_(),
+        count_(initCnt) {
+    }
+
+    void Signal() {
+        std::unique_lock<std::mutex> guard(mutex_);
+        --count_;
+        if (count_ <= 0) {
+            cond_.notify_all();
+        }
+    }
+
+    void Wait() {
+        std::unique_lock<std::mutex> guard(mutex_);
+        while (count_ > 0) {
+            cond_.wait(guard);
+        }
+    }
+
+ private:
+    mutable std::mutex mutex_;
+    std::condition_variable cond_;
+    int count_;
+};
+
 class FakeRequestContext : public RequestContext {
  public:
     FakeRequestContext() : RequestContext(nullptr) {}
@@ -23,15 +52,21 @@ class FakeRequestContext : public RequestContext {
 
 class FakeRequestClosure : public RequestClosure {
  public:
-    explicit FakeRequestClosure(RequestContext *reqctx)
-        : RequestClosure(reqctx) {
+    explicit FakeRequestClosure(CountDownEvent *cond, RequestContext *reqctx)
+        : cond_(cond),
+          RequestClosure(reqctx) {
         reqCtx_ = reqctx;
     }
     virtual ~FakeRequestClosure() {}
 
     void Run() override {
         if (0 == errcode_) {
+            LOG(INFO) << "success";
         } else {
+            LOG(INFO) << "errno: " << errcode_;
+        }
+        if (nullptr != cond_) {
+            cond_->Signal();
         }
     }
     void SetFailed(int err) override {
@@ -45,8 +80,11 @@ class FakeRequestClosure : public RequestClosure {
     }
 
  private:
-    int         errcode_ = -1;
-    IOContext   *ctx_;
+    CountDownEvent *cond_;
+
+ private:
+    int errcode_ = -1;
+    IOContext *ctx_;
     RequestContext *reqCtx_;
 };
 
