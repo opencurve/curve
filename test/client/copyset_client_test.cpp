@@ -15,6 +15,7 @@
 
 #include "src/client/copyset_client.h"
 #include "test/client/mock_meta_cache.h"
+#include "test/utils/count_down_event.h"
 #include "test/client/mock_chunkservice.h"
 #include "test/client/mock_request_context.h"
 #include "src/client/chunk_closure.h"
@@ -23,6 +24,7 @@ namespace curve {
 namespace client {
 
 using curve::chunkserver::CHUNK_OP_STATUS;
+using curve::test::CountDownEvent;
 
 using ::testing::_;
 using ::testing::Invoke;

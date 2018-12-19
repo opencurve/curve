@@ -15,11 +15,13 @@
 #include "test/client/mock_meta_cache.h"
 #include "test/client/mock_chunkservice.h"
 #include "test/client/mock_request_context.h"
+#include "test/utils/count_down_event.h"
 
 namespace curve {
 namespace client {
 
 using ::testing::AnyNumber;
+using curve::test::CountDownEvent;
 
 TEST(RequestSchedulerTest, fake_server_test) {
     brpc::Server server;
