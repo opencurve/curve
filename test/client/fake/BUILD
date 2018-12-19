@@ -43,7 +43,10 @@ cc_binary(
 # https://docs.bazel.build/versions/master/be/c-cpp.html#cc_library
 cc_library(
     name = "fake_lib",
-    srcs = glob(["*.cpp"]),
+    srcs = glob(
+        ["*.cpp"],
+        exclude = ["client_workflow_test.cpp"],
+    ),
     hdrs = glob(["*.h"]),
     deps = [
         "@com_google_googletest//:gtest",
