@@ -53,6 +53,10 @@ TEST_F(ChunkserverTest, normal_read_write) {
     const char *confs = "127.0.0.1:8300:0,127.0.0.1:8301:0,127.0.0.1:8302:0";
     int snapshotInterval = 1;
 
+    /* wait for leader election*/
+    /* default election timeout */
+    int electionTimeoutMs = 1000;
+
     /**
      * Start three chunk server by fork
      */
@@ -62,7 +66,12 @@ TEST_F(ChunkserverTest, normal_read_write) {
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
         const char *copysetdir = "local://./0";
-        StartChunkserver(ip, port + 0, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 0,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -72,7 +81,12 @@ TEST_F(ChunkserverTest, normal_read_write) {
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
         const char *copysetdir = "local://./1";
-        StartChunkserver(ip, port + 1, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 1,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -82,7 +96,12 @@ TEST_F(ChunkserverTest, normal_read_write) {
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
         const char *copysetdir = "local://./2";
-        StartChunkserver(ip, port + 2, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 2,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -118,9 +137,6 @@ TEST_F(ChunkserverTest, normal_read_write) {
     Configuration conf;
     conf.parse_from(confs);
 
-    /* wait for leader election*/
-    /* default election timeout */
-    int electionTimeoutMs = 1000;
     ::usleep(1.2 * 1000 * electionTimeoutMs);
     butil::Status status =
         WaitLeader(logicPoolId, copysetId, conf, &leader, electionTimeoutMs);
@@ -193,7 +209,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
                              cntl.response_attachment().to_string().c_str());
             }
         }
-        ::usleep(2000*1000);
+        ::usleep(2000 * 1000);
         /*  delete */
         {
             brpc::Controller cntl;
@@ -402,7 +418,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         std::cerr << "readBuffer: " << readBuffer << " , len: "
                   << sizeof(readBuffer) << std::endl;
 
-        const uint32_t kMaxChunk = 100;
+        const uint32_t kMaxChunk = 10;
         for (uint32_t i = 1; i < kMaxChunk + 1; ++i) {
             /* Write */
             {
