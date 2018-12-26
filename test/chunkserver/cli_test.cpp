@@ -58,6 +58,11 @@ TEST_F(CliTest, basic) {
     int snapshotInterval = 30;
 
     /**
+     * 设置更大的默认选举超时时间，因为当前 ci 环境很容易出现超时
+     */
+    int electionTimeoutMs = 3000;
+
+    /**
      * Start three chunk server by fork
      */
     pid1 = fork();
@@ -66,7 +71,12 @@ TEST_F(CliTest, basic) {
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
         const char *copysetdir = "local://./3";
-        StartChunkserver(ip, port + 0, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 0,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -76,7 +86,12 @@ TEST_F(CliTest, basic) {
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
         const char *copysetdir = "local://./4";
-        StartChunkserver(ip, port + 1, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 1,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -86,7 +101,12 @@ TEST_F(CliTest, basic) {
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
         const char *copysetdir = "local://./5";
-        StartChunkserver(ip, port + 2, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 2,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -120,8 +140,6 @@ TEST_F(CliTest, basic) {
     Configuration conf;
     conf.parse_from(confs);
 
-    /* default election timeout */
-    int electionTimeoutMs = 1000;
     /* wait for leader & become leader flush config */
     ::usleep(1.5 * 1000 * electionTimeoutMs);
     butil::Status status =
@@ -129,9 +147,10 @@ TEST_F(CliTest, basic) {
     ASSERT_TRUE(status.ok());
 
     /* 等待 transfer leader 成功 */
-    int waitTransferLeader = 1000 * 1000;
+    int waitFlushNoopEntry = 2000 * 1000;
+    int waitTransferLeader = 3000 * 1000;
     braft::cli::CliOptions opt;
-    opt.timeout_ms = 1500;
+    opt.timeout_ms = 3000;
     opt.max_retry = 3;
 
     /* remove peer */
@@ -156,6 +175,7 @@ TEST_F(CliTest, basic) {
                                           &leader,
                                           electionTimeoutMs);
         ASSERT_TRUE(status.ok());
+        ::usleep(waitFlushNoopEntry);
     }
     /*  add peer */
     {
@@ -219,6 +239,7 @@ TEST_F(CliTest, basic) {
                       << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer1.to_string().c_str(), leader.to_string().c_str());
+            ::usleep(waitFlushNoopEntry);
         }
         {
             LOG(INFO) << "start transfer leader";
@@ -240,6 +261,7 @@ TEST_F(CliTest, basic) {
                       << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer2.to_string().c_str(), leader.to_string().c_str());
+            ::usleep(waitFlushNoopEntry);
         }
         {
             LOG(INFO) << "start transfer leader";
@@ -260,6 +282,7 @@ TEST_F(CliTest, basic) {
                       << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
+            ::usleep(waitFlushNoopEntry);
         }
         /* transfer 给 leader 给 leader，仍然返回成功 */
         {
@@ -280,6 +303,7 @@ TEST_F(CliTest, basic) {
                       << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
+            ::usleep(waitFlushNoopEntry);
         }
     }
 
