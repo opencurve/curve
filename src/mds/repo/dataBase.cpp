@@ -25,6 +25,16 @@ DataBase::~DataBase() {
 
 int DataBase::connectDB() {
     try {
+        /*
+         * get_driver_instance() is not thread-safe.
+         * Either avoid invoking these methods from within multiple threads
+         * at once, or surround the calls with a mutex to prevent simultaneous
+         * execution in multiple threads.
+         * Make sure that you free con, the sql::Connection object,
+         * as soon as you do not need it any more. But do not explicitly
+         * free driver, the connector object.
+         * Connector/C++ takes care of freeing that.
+         */
         sql::Driver *driver;
         driver = get_driver_instance();
         conn_ = driver->connect(url_, user_, password_);
@@ -90,54 +100,6 @@ int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
         return SqlException;
     } catch (std::runtime_error &e) {
         LOG(ERROR) << "queryRows sql: " << sql << "get runtime_error, "
-                   << "error message: " << e.what();
-        return RuntimeExecption;
-    }
-}
-
-int DataBase::SetAutoCommit(const bool &autoAommit) {
-    try {
-        conn_->setAutoCommit(autoAommit);
-        return OperationOK;
-    } catch (sql::SQLException &e) {
-        LOG(ERROR) << "set AutoCommit " << autoAommit << " get sqlException, "
-                   << "error code: " << e.getErrorCode() << ", "
-                   << "error message: " << e.what();
-        return SqlException;
-    } catch (std::runtime_error &e) {
-        LOG(ERROR) << "set AutoCommit " << autoAommit << " get runtime_error, "
-                   << "error message: " << e.what();
-        return RuntimeExecption;
-    }
-}
-
-int DataBase::Commit() {
-    try {
-        conn_->commit();
-        return OperationOK;
-    } catch (sql::SQLException &e) {
-        LOG(ERROR) << "commit operations get sqlException, "
-                   << "error code: " << e.getErrorCode() << ", "
-                   << "error message: " << e.what();
-        return SqlException;
-    } catch (std::runtime_error &e) {
-        LOG(ERROR) << "commit operations get runtime_error, "
-                   << "error message: " << e.what();
-        return RuntimeExecption;
-    }
-}
-
-int DataBase::RollBack() {
-    try {
-        conn_->rollback();
-        return OperationOK;
-    } catch (sql::SQLException &e) {
-        LOG(ERROR) << "rollback get sqlException, "
-                   << "error code: " << e.getErrorCode() << ", "
-                   << "error message: " << e.what();
-        return SqlException;
-    } catch (std::runtime_error &e) {
-        LOG(ERROR) << "rollback get runtime_error, "
                    << "error message: " << e.what();
         return RuntimeExecption;
     }

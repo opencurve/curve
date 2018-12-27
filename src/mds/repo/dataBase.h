@@ -42,13 +42,6 @@ class DataBase {
 
   int QueryRows(const std::string &sql, sql::ResultSet **res);
 
-  // Transaction
-  int SetAutoCommit(const bool &autoCommit);
-
-  int Commit();
-
-  int RollBack();
-
  public:
   std::string url_;
   std::string user_;

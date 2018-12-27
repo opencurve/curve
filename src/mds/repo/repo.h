@@ -120,12 +120,6 @@ class RepoInterface {
 
   virtual int QuerySessionRepo(const std::string &sessionID, SessionRepo *r)
                                = 0;
-
-  virtual int SetAutoCommit(const bool &autoCommit) = 0;
-
-  virtual int Commit() = 0;
-
-  virtual int RollBack() = 0;
 };
 
 class Repo : public RepoInterface {
@@ -233,12 +227,6 @@ class Repo : public RepoInterface {
   int UpdateSessionRepo(const SessionRepo &r) override;
 
   int QuerySessionRepo(const std::string &sessionID, SessionRepo *r) override;
-
-  int SetAutoCommit(const bool &autoCommit) override;
-
-  int Commit() override;
-
-  int RollBack() override;
 
  private:
   DataBase *db_;

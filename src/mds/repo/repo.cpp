@@ -61,18 +61,6 @@ int Repo::createAllTables() {
 DataBase *Repo::getDataBase() {
     return db_;
 }
-
-int Repo::SetAutoCommit(const bool &autoCommit) {
-    return db_->SetAutoCommit(autoCommit);
-}
-
-int Repo::Commit() {
-    return db_->Commit();
-}
-
-int Repo::RollBack() {
-    return db_->RollBack();
-}
 }  // namespace repo
 }  // namespace curve
 

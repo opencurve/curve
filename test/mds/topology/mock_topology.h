@@ -415,13 +415,6 @@ class MockRepo : public RepoInterface {
 
   MOCK_METHOD2(QuerySessionRepo,
                 int(const std::string &sessionID, SessionRepo *r));
-
-
-
-  MOCK_METHOD1(SetAutoCommit, int(
-      const bool &autoCommit));
-  MOCK_METHOD0(Commit, int());
-  MOCK_METHOD0(RollBack, int());
 };
 }  // namespace repo
 

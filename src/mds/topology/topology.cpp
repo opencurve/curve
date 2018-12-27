@@ -710,7 +710,6 @@ int TopologyImpl::AddCopySetList(const std::vector<CopySetInfo> &copysets) {
     }
 
     bool success = true;
-    storage_->SetAutoCommit(false);
     for (const CopySetInfo &data : copysets) {
         if (!storage_->StorageCopySet(data)) {
             success = false;
@@ -719,16 +718,12 @@ int TopologyImpl::AddCopySetList(const std::vector<CopySetInfo> &copysets) {
     }
 
     if (success) {
-        storage_->Commit();
-        storage_->SetAutoCommit(true);
         for (const CopySetInfo &data : copysets) {
             CopySetKey key(data.GetLogicalPoolId(), data.GetId());
             copySetMap_[key] = data;
         }
         return kTopoErrCodeSuccess;
     } else {
-        storage_->RollBack();
-        storage_->SetAutoCommit(true);
         return kTopoErrCodeStorgeFail;
     }
 }
