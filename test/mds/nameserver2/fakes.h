@@ -405,18 +405,6 @@ class FakeRepoInterface : public repo::RepoInterface {
         LOG(INFO) << "QuerySessionRepo";
         return repo::OperationOK;
     }
-
-    int SetAutoCommit(const bool &autoCommit) override {
-        return repo::OperationOK;
-    }
-
-    int Commit() override {
-        return repo::OperationOK;
-    }
-
-    int RollBack() override {
-        return repo::OperationOK;
-    }
 };
 }  // namespace mds
 }  // namespace curve

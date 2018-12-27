@@ -538,19 +538,6 @@ bool DefaultTopologyStorage::UpdateCopySet(const CopySetInfo &data) {
     }
     return true;
 }
-
-bool DefaultTopologyStorage::SetAutoCommit(const bool &autoCommit) {
-    return OperationOK == repo_->SetAutoCommit(autoCommit);
-}
-
-bool DefaultTopologyStorage::Commit() {
-    return OperationOK == repo_->Commit();
-}
-
-bool DefaultTopologyStorage::RollBack() {
-    return OperationOK == repo_->RollBack();
-}
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

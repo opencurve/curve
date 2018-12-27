@@ -70,10 +70,6 @@ class TopologyStorage {
     virtual bool UpdateServer(const Server &data) = 0;
     virtual bool UpdateChunkServer(const ChunkServer &data) = 0;
     virtual bool UpdateCopySet(const CopySetInfo &data) = 0;
-
-    virtual bool SetAutoCommit(const bool &autoCommit) = 0;
-    virtual bool Commit() = 0;
-    virtual bool RollBack() = 0;
 };
 
 class DefaultTopologyStorage : public TopologyStorage {
@@ -127,10 +123,6 @@ class DefaultTopologyStorage : public TopologyStorage {
     virtual bool UpdateServer(const Server &data);
     virtual bool UpdateChunkServer(const ChunkServer &data);
     virtual bool UpdateCopySet(const CopySetInfo &data);
-
-    bool SetAutoCommit(const bool &autoCommit) override;
-    bool Commit() override;
-    bool RollBack() override;
 
  private:
     std::shared_ptr<::curve::repo::RepoInterface> repo_;
