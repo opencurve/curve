@@ -99,10 +99,8 @@ void ConcurrentApplyModule::Flush() {
     }
 
     auto flushtask = [&mtx, &signal, &cv](int i) {
-        {
-            std::unique_lock<std::mutex> lk(mtx[i]);
-            signal[i].store(true);
-        }
+        std::unique_lock<std::mutex> lk(mtx[i]);
+        signal[i].store(true);
         cv[i].notify_one();
     };
 

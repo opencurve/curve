@@ -93,7 +93,7 @@ TEST_F(CopysetServiceTest, basic) {
     CopysetService_Stub stub(&channel);
     {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(100);
+        cntl.set_timeout_ms(3000);
 
         CopysetRequest request;
         CopysetResponse response;
@@ -113,7 +113,7 @@ TEST_F(CopysetServiceTest, basic) {
     /* 测试创建一个重复 copyset */
     {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(100);
+        cntl.set_timeout_ms(3000);
 
         CopysetRequest request;
         CopysetResponse response;
@@ -133,7 +133,7 @@ TEST_F(CopysetServiceTest, basic) {
     /* 非法参数测试 */
     {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(100);
+        cntl.set_timeout_ms(3000);
 
         CopysetRequest request;
         CopysetResponse response;
