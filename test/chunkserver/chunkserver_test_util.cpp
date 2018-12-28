@@ -39,7 +39,8 @@ int StartChunkserver(const char *ip,
                      int port,
                      const char *copysetdir,
                      const char *confs,
-                     const int snapshotInterval) {
+                     const int snapshotInterval,
+                     const int electionTimeoutMs) {
     LOG(INFO) << "Going to start chunk server";
 
     /* Generally you only need one Server. */
@@ -59,6 +60,7 @@ int StartChunkserver(const char *ip,
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = ip;
     copysetNodeOptions.port = port;
+    copysetNodeOptions.electionTimeoutMs = electionTimeoutMs;
     copysetNodeOptions.snapshotIntervalS = snapshotInterval;
     copysetNodeOptions.catchupMargin = 50;
     copysetNodeOptions.chunkDataUri = copysetdir;

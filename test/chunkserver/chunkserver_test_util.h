@@ -23,7 +23,8 @@ int StartChunkserver(const char *ip,
                      int port,
                      const char *copysetdir,
                      const char *confs,
-                     const int snapshotInterval);
+                     const int snapshotInterval,
+                     const int electionTimeoutMs);
 
 butil::Status WaitLeader(const LogicPoolID &logicPoolId,
                          const CopysetID &copysetId,
