@@ -9,12 +9,17 @@
 #define CURVE_CHUNKSERVER_TEST_UTIL_H
 
 #include <butil/status.h>
+#include <unistd.h>
 
 #include <string>
+#include <vector>
+#include <set>
+#include <memory>
 
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/fs/local_filesystem.h"
+#include "src/chunkserver/copyset_node.h"
 
 namespace curve {
 namespace chunkserver {
@@ -51,6 +56,136 @@ butil::Status WaitLeader(const LogicPoolID &logicPoolId,
                          const Configuration &conf,
                          PeerId *leaderId,
                          int electionTimeoutMs);
+
+/**
+ * PeerNode 状态
+ * 1. exit：未启动，或者被关闭
+ * 2. running：正在运行
+ * 3. stop：hang 住了
+ */
+enum class PeerNodeState {
+    EXIT = 0,       // 退出
+    RUNNING = 1,    // 正在运行
+    STOP = 2,       // hang住
+};
+
+/**
+ * 一个 ChunkServer 进程，包含某个 Copyset 的某个副本
+ */
+struct PeerNode {
+    PeerNode() : pid(0), options(), state(PeerNodeState::EXIT) {}
+    // Peer对应的进程id
+    pid_t pid;
+    // Peer的地址
+    PeerId peerId;
+    // copyset的集群配置
+    Configuration conf;
+    // copyset的基本配置
+    CopysetNodeOptions options;
+    // PeerNode的状态
+    PeerNodeState state;
+};
+
+/**
+ * 封装模拟 cluster 测试相关的接口
+ */
+class TestCluster {
+ public:
+    TestCluster(const std::string &clusterName,
+                const LogicPoolID logicPoolID,
+                const CopysetID copysetID,
+                const std::vector<PeerId> &peers);
+    virtual ~TestCluster() { StopAllPeers(); }
+
+ public:
+    /**
+     * 启动一个 Peer
+     * @param peerId
+     * @param empty 初始化配置是否为空
+     * @return 0：成功，-1 失败
+     */
+    int StartPeer(const PeerId &peerId, const bool empty = false);
+    /**
+     * 关闭一个 peer，使用 SIGINT
+     * @param peerId
+     * @return 0：成功，-1 失败
+     */
+    int ShutdownPeer(const PeerId &peerId);
+
+
+    /**
+     * hang 住一个 peer，使用 SIGSTOP
+     * @param peerId
+     * @return 0：成功，-1 失败
+     */
+    int StopPeer(const PeerId &peerId);
+    /**
+    * 恢复 hang 住的 peer，使用 SIGCONT
+    * @param peerId
+    * @return 0：成功，-1 失败
+    */
+    int ContPeer(const PeerId &peerId);
+    /**
+     * 反复重试直到等到新的 leader 产生
+     * @param leaderId 出参，返回 leader id
+     * @return 0：成功，-1 失败
+     */
+    int WaitLeader(PeerId *leaderId);
+
+    /**
+     * Stop 所有的 peer
+     * @return 0：成功，-1 失败
+     */
+    int StopAllPeers();
+
+ public:
+    /* 返回集群当前的配置 */
+    const Configuration CopysetConf() const;
+
+    /* 修改 PeerNode 配置相关的接口，单位: s */
+    int SetsnapshotIntervalS(int snapshotIntervalS);
+    int SetElectionTimeoutMs(int electionTimeoutMs);
+    int SetCatchupMargin(int catchupMargin);
+
+    static int StartPeerNode(CopysetNodeOptions options,
+                              const Configuration conf);
+
+ public:
+    /**
+    * 返回执行 peer 的 copyset 路径 with protocol, ex: local://./127.0.0.1:9101:0
+    */
+    static const std::string CopysetDirWithProtocol(const PeerId &peerId);
+    /**
+     * 返回执行 peer 的 copyset 路径 without protocol, ex: ./127.0.0.1:9101:0
+     */
+    static const std::string CopysetDirWithoutProtocol(const PeerId &peerId);
+    /**
+     * remove peer's copyset dir's cmd
+     */
+    static const std::string RemoveCopysetDirCmd(const PeerId &peerid);
+
+ private:
+    // 集群名字
+    std::string         clusterName_;
+    // 集群的peer集合
+    std::set<PeerId>    peers_;
+    // peer集合的映射map
+    std::unordered_map<std::string, std::unique_ptr<PeerNode>> peersMap_;
+
+    // 快照间隔
+    int snapshotIntervalS_;
+    // 选举超时时间
+    int electionTimeoutMs_;
+    // catchup margin配置
+    int catchupMargin_;
+    // 集群成员配置
+    Configuration conf_;
+
+    // 逻辑池id
+    static LogicPoolID  logicPoolID_;
+    // 复制组id
+    static CopysetID    copysetID_;
+};
 
 }  // namespace chunkserver
 }  // namespace curve

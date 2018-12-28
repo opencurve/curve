@@ -29,7 +29,6 @@ cc_test(
         "mock_cs_data_store.h",
     ]),
     copts = ["-std=c++14"],
-    defines = ["UNIT_TEST"],
     deps = DEPS,
 )
 
@@ -43,8 +42,31 @@ cc_test(
         "mock_cs_data_store.h",
     ]),
     copts = ["-std=c++14"],
-    defines = ["UNIT_TEST"],
     deps = DEPS,
+)
+
+cc_test(
+    name = "chunk-snapshot-test",
+    srcs = glob([
+        "chunkserver_test_util.h",
+        "chunkserver_test_util.cpp",
+        "chunkserver_snapshot_test.cpp",
+        "mock_cs_data_store.h",
+    ]),
+    copts = ["-std=c++14"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//proto:chunkserver-cc-protos",
+        "//src/chunkserver:chunkserver-test-lib",
+        "//src/common:curve_common",
+        "@com_google_googletest//:gtest_main",
+    ],
 )
 
 cc_test(
@@ -89,18 +111,8 @@ cc_binary(
     srcs = [
         "server.cpp",
     ],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:bthread",
-        "//external:butil",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//proto:chunkserver-cc-protos",
-        "//src/chunkserver:chunkserver-test-lib",
-        "//src/common:curve_common",
-    ],
+    copts = ["-std=c++14"],
+    deps = DEPS,
 )
 
 # client exec
@@ -112,6 +124,7 @@ cc_binary(
         "client.cpp",
         "mock_cs_data_store.h",
     ],
+    copts = ["-std=c++14"],
     deps = [
         "//external:braft",
         "//external:brpc",
@@ -156,6 +169,7 @@ cc_test(
         "chunkserver_test_util.h",
         "mock_cs_data_store.h",
     ],
+    copts = ["-std=c++14"],
     deps = [
         "//external:braft",
         "//external:brpc",
