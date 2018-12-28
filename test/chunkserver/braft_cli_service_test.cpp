@@ -61,6 +61,9 @@ TEST_F(BraftCliServiceTest, basic) {
     PeerId peer2("127.0.0.1:8201:0");
     PeerId peer3("127.0.0.1:8202:0");
 
+    /* default election timeout */
+    int electionTimeoutMs = 1000;
+
     /**
      * Start three chunk server by fork
      */
@@ -70,7 +73,12 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
         const char *copysetdir = "local://./6";
-        StartChunkserver(ip, port + 0, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 0,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -80,7 +88,12 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
         const char *copysetdir = "local://./7";
-        StartChunkserver(ip, port + 1, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 1,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -90,7 +103,12 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
         const char *copysetdir = "local://./8";
-        StartChunkserver(ip, port + 2, copysetdir, confs, snapshotInterval);
+        StartChunkserver(ip,
+                         port + 2,
+                         copysetdir,
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
         return;
     }
 
@@ -124,8 +142,6 @@ TEST_F(BraftCliServiceTest, basic) {
     Configuration conf;
     conf.parse_from(confs);
 
-    /* default election timeout */
-    int electionTimeoutMs = 1000;
     ::usleep(1.2 * 1000 * electionTimeoutMs);
     butil::Status status =
         WaitLeader(logicPoolId, copysetId, conf, &leader, electionTimeoutMs);
