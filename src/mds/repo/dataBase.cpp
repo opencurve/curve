@@ -53,7 +53,11 @@ int DataBase::connectDB() {
 }
 
 int DataBase::Exec(const std::string &sql) {
+    std::lock_guard<std::mutex> guard(mutex_);
     try {
+        if (!CheckConn()) {
+            return ConnLost;
+        }
         statement_->execute(sql::SQLString(sql));
         return OperationOK;
     } catch (sql::SQLException &e) {
@@ -71,7 +75,12 @@ int DataBase::Exec(const std::string &sql) {
 
 // retrun value: rows affected
 int DataBase::ExecUpdate(const std::string &sql) {
+    std::lock_guard<std::mutex> guard(mutex_);
     try {
+        if (!CheckConn()) {
+            return ConnLost;
+        }
+
         statement_->executeUpdate(sql);
         return OperationOK;
     } catch (sql::SQLException &e) {
@@ -86,11 +95,15 @@ int DataBase::ExecUpdate(const std::string &sql) {
     }
 }
 
-// retrun queryResult
+// return queryResult
 int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
     assert(res != nullptr);
-
+    std::lock_guard<std::mutex> guard(mutex_);
     try {
+        if (!CheckConn()) {
+            return ConnLost;
+        }
+
         *res = statement_->executeQuery(sql);
         return OperationOK;
     } catch (sql::SQLException &e) {
@@ -103,6 +116,14 @@ int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
                    << "error message: " << e.what();
         return RuntimeExecption;
     }
+}
+
+bool DataBase::CheckConn() {
+    auto res = conn_->isValid() && !conn_->isClosed();
+    if (!res) {
+        LOG(ERROR) << "database connect situation false";
+    }
+    return res;
 }
 }  // namespace repo
 }  // namespace curve
