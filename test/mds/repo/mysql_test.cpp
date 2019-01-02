@@ -7,10 +7,10 @@
 
 
 #include <gtest/gtest.h>
+#include <glog/logging.h>
 #include <json/json.h>
 #include <mysqlcurve/jdbc/mysql_connection.h>
 #include <mysqlcurve/jdbc/cppconn/driver.h>
-#include <mysqlcurve/jdbc/cppconn/exception.h>
 #include <mysqlcurve/jdbc/cppconn/resultset.h>
 #include <mysqlcurve/jdbc/cppconn/statement.h>
 #include <mysqlcurve/jdbc/cppconn/prepared_statement.h>
@@ -192,6 +192,21 @@ TEST(MySqlTest, MySqlConn) {
             ASSERT_EQ(1065, e.getErrorCode());
             SUCCEED();
         } catch (std::runtime_error &e) {
+            FAIL();
+        }
+    }
+
+    // TEST12: close connection
+    {
+        try {
+            conn->close();
+            ASSERT_FALSE(conn->isValid());
+            conn->reconnect();
+            statement->executeQuery("select * from curve_zone");
+            SUCCEED();
+        } catch (sql::SQLException &e) {
+            LOG(ERROR) << "sql: " << e.what() << ", " << e.getErrorCode()
+                       << std::endl;
             FAIL();
         }
     }

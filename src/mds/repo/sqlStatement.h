@@ -86,7 +86,8 @@ const char CreateCopySetTable[] =
     "create table if not exists `curve_copyset` (\n"
     "    `copySetID`          int            NOT NULL COMMENT 'copyset id',\n"
     "    `logicalPoolID`      smallint       NOT NULL COMMENT 'logical pool it belongs to',\n"          //NOLINT
-    "    `chunkServerIDList`  varchar(32)   NOT NULL COMMENT 'list chunk server id the copyset has',\n" //NOLINT
+    "    `epoch`              bigint         NOT NULL COMMENT 'copyset epoch',\n"  //NOLINT
+    "    `chunkServerIDList`  varchar(32)    NOT NULL COMMENT 'list chunk server id the copyset has',\n" //NOLINT
     "\n"
     "    primary key (`logicalPoolID`,`copySetID`)\n"
     ")COMMENT='copyset';";

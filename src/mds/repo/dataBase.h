@@ -16,12 +16,14 @@
 #include <mysqlcurve/jdbc/cppconn/statement.h>
 #include <mysqlcurve/jdbc/cppconn/prepared_statement.h>
 #include <string>
+#include <mutex> //NOLINT
 
 namespace curve {
 namespace repo {
 const int OperationOK = 0;
 const int SqlException = -1;
 const int RuntimeExecption = -2;
+const int ConnLost = -3;
 
 class DataBase {
  public:
@@ -42,6 +44,9 @@ class DataBase {
 
   int QueryRows(const std::string &sql, sql::ResultSet **res);
 
+ private:
+  bool CheckConn();
+
  public:
   std::string url_;
   std::string user_;
@@ -49,6 +54,8 @@ class DataBase {
 
   sql::Connection *conn_;
   sql::Statement *statement_;
+
+  std::mutex mutex_;
 };
 }  // namespace repo
 }  // namespace curve

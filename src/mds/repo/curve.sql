@@ -58,6 +58,7 @@ create table if not exists `curve_physicalpool` (
 create table if not exists `curve_copyset` (
     `copySetID`          int            NOT NULL COMMENT 'copyset id',
     `logicalPoolID`      smallint       NOT NULL COMMENT 'logical pool it belongs to',
+    `epoch`              bigint         NOT NULL COMMENT 'copyset epoch',
     `chunkServerIDList`  varchar(32)    NOT NULL COMMENT 'list chunk server id the copyset has',
 
     primary key (`logicalPoolID`,`copySetID`)

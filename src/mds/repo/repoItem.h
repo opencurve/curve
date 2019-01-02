@@ -198,6 +198,7 @@ struct CopySetRepo : public RepoItem {
  public:
   uint32_t copySetID;
   uint16_t logicalPoolID;
+  uint64_t epoch;
   std::string chunkServerIDList;
 
  public:
@@ -206,6 +207,11 @@ struct CopySetRepo : public RepoItem {
   CopySetRepo(uint32_t id, uint16_t logicalPoolID);
 
   CopySetRepo(uint32_t id, uint16_t poolID, const std::string &chunkServerList);
+
+  CopySetRepo(uint32_t id,
+              uint16_t poolID,
+              uint64_t epoch,
+              const std::string &chunkServerList);
 
   bool operator==(const CopySetRepo &r);
 

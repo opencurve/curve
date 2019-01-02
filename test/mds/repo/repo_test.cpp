@@ -330,14 +330,14 @@ TEST_F(RepoTest, testPhysicalPoolCUDA) {
 
 TEST_F(RepoTest, testCopySetCUDA) {
     // insert copySet, id=1,logicalPoolID=1
-    CopySetRepo r1(1, 1, "1-2-3");
+    CopySetRepo r1(1, 1, 1, "1-2-3");
     ASSERT_EQ(OperationOK, repo->InsertCopySetRepo(r1));
 
     // insert duplicate copySet id=1 in same logical pool
     ASSERT_EQ(SqlException, repo->InsertCopySetRepo(r1));
 
     // insert copySet id=1 in logical pool 2
-    CopySetRepo r2(1, 2, "1-2-3");
+    CopySetRepo r2(1, 2, 2, "1-2-3");
     ASSERT_EQ(OperationOK, repo->InsertCopySetRepo(r2));
 
     // query copySet id=1, lid=1
@@ -347,13 +347,19 @@ TEST_F(RepoTest, testCopySetCUDA) {
                                      r1.logicalPoolID,
                                      &queryRes));
     ASSERT_TRUE(queryRes == r1);
+    ASSERT_EQ(r1.epoch, queryRes.epoch);
+    ASSERT_EQ(r1.chunkServerIDList, queryRes.chunkServerIDList);
 
     // query all copySets
     std::vector<CopySetRepo> copySets;
     ASSERT_EQ(OperationOK, repo->LoadCopySetRepos(&copySets));
     ASSERT_EQ(2, copySets.size());
     ASSERT_TRUE(r1 == copySets[0]);
+    ASSERT_EQ(r1.epoch, copySets[0].epoch);
+    ASSERT_EQ(r1.chunkServerIDList, copySets[0].chunkServerIDList);
     ASSERT_TRUE(r2 == copySets[1]);
+    ASSERT_EQ(r2.epoch, copySets[1].epoch);
+    ASSERT_EQ(r2.chunkServerIDList, copySets[1].chunkServerIDList);
 
     // update chunkserver list
     r1.chunkServerIDList = "2-3-4";
@@ -365,6 +371,8 @@ TEST_F(RepoTest, testCopySetCUDA) {
                                      r1.logicalPoolID,
                                      &queryRes));
     ASSERT_TRUE(r1 == queryRes);
+    ASSERT_EQ(r1.chunkServerIDList, queryRes.chunkServerIDList);
+    ASSERT_EQ(r1.epoch, queryRes.epoch);
 
     // delete copyset id=1,lid=1
     ASSERT_EQ(OperationOK,
@@ -382,6 +390,12 @@ TEST_F(RepoTest, testCopySetCUDA) {
     repo->getDataBase()->statement_->close();
     ASSERT_EQ(SqlException, repo->QueryCopySetRepo(1, 2, &queryRes));
     ASSERT_EQ(SqlException, repo->LoadCopySetRepos(&copySets));
+}
+
+TEST_F(RepoTest, testCheckConn) {
+    repo->getDataBase()->conn_->close();
+    CopySetRepo r1(1, 1, 1, "1-2-3");
+    ASSERT_EQ(ConnLost, repo->InsertCopySetRepo(r1));
 }
 }  // namespace repo
 }  // namespace curve
