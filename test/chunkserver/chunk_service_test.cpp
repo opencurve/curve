@@ -52,10 +52,11 @@ TEST_F(ChunkserverTest, normal_read_write) {
     int port = 8300;
     const char *confs = "127.0.0.1:8300:0,127.0.0.1:8301:0,127.0.0.1:8302:0";
     int snapshotInterval = 1;
+    int rpcTimeoutMs = 3000;
 
     /* wait for leader election*/
     /* default election timeout */
-    int electionTimeoutMs = 1000;
+    int electionTimeoutMs = 3000;
 
     /**
      * Start three chunk server by fork
@@ -152,7 +153,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
             /* Write */
             {
                 brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
+                cntl.set_timeout_ms(rpcTimeoutMs);
                 ChunkRequest request;
                 ChunkResponse response;
                 uint64_t chunkId = 1;
@@ -171,7 +172,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
             /* Read */
             {
                 brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
+                cntl.set_timeout_ms(rpcTimeoutMs);
                 ChunkRequest request;
                 ChunkResponse response;
                 uint64_t chunkId = 1;
@@ -191,7 +192,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
             /* Repeat read */
             {
                 brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
+                cntl.set_timeout_ms(rpcTimeoutMs);
                 ChunkRequest request;
                 ChunkResponse response;
                 uint64_t chunkId = 1;
@@ -209,11 +210,10 @@ TEST_F(ChunkserverTest, normal_read_write) {
                              cntl.response_attachment().to_string().c_str());
             }
         }
-        ::usleep(2000 * 1000);
         /*  delete */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             uint64_t chunkId = 1;
@@ -229,7 +229,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* delete 一个不存在的 chunk（重复删除） */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             uint64_t chunkId = 1;
@@ -254,7 +254,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* read 溢出 */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
@@ -272,7 +272,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* read copyset 不存在 */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             uint64_t chunkId = 1;
@@ -290,7 +290,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* write 溢出 */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
@@ -308,7 +308,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* 未知 Op */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN);
@@ -326,7 +326,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* write copyset 不存在 */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
@@ -344,7 +344,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* delete copyset 不存在*/
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
@@ -381,7 +381,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
             }
             ChunkService_Stub stub(&channel);
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             uint64_t chunkId = 1;
@@ -423,7 +423,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
             /* Write */
             {
                 brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
+                cntl.set_timeout_ms(rpcTimeoutMs);
                 ChunkRequest request;
                 ChunkResponse response;
                 request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
@@ -441,7 +441,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
             /* Read */
             {
                 brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
+                cntl.set_timeout_ms(rpcTimeoutMs);
                 ChunkRequest request;
                 ChunkResponse response;
                 request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
@@ -462,7 +462,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
             /* delete */
             {
                 brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
+                cntl.set_timeout_ms(rpcTimeoutMs);
                 ChunkRequest request;
                 ChunkResponse response;
                 request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
@@ -477,7 +477,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
             /* delete 一个不存在的 chunk（重复删除） */
             {
                 brpc::Controller cntl;
-                cntl.set_timeout_ms(500);
+                cntl.set_timeout_ms(rpcTimeoutMs);
                 ChunkRequest request;
                 ChunkResponse response;
                 request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
@@ -504,7 +504,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* Write */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
@@ -522,7 +522,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* Read */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
@@ -544,7 +544,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* delete chunk */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
@@ -559,7 +559,7 @@ TEST_F(ChunkserverTest, normal_read_write) {
         /* read 一个不存在的 chunk */
         {
             brpc::Controller cntl;
-            cntl.set_timeout_ms(500);
+            cntl.set_timeout_ms(rpcTimeoutMs);
             ChunkRequest request;
             ChunkResponse response;
             uint64_t chunkId = 1;
