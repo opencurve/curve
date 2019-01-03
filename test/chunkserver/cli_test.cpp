@@ -175,7 +175,6 @@ TEST_F(CliTest, basic) {
                                           &leader,
                                           electionTimeoutMs);
         ASSERT_TRUE(status.ok());
-        ::usleep(waitFlushNoopEntry);
     }
     /*  add peer */
     {
@@ -239,7 +238,6 @@ TEST_F(CliTest, basic) {
                       << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer1.to_string().c_str(), leader.to_string().c_str());
-            ::usleep(waitFlushNoopEntry);
         }
         {
             LOG(INFO) << "start transfer leader";
@@ -261,7 +259,6 @@ TEST_F(CliTest, basic) {
                       << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer2.to_string().c_str(), leader.to_string().c_str());
-            ::usleep(waitFlushNoopEntry);
         }
         {
             LOG(INFO) << "start transfer leader";
@@ -282,7 +279,6 @@ TEST_F(CliTest, basic) {
                       << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
-            ::usleep(waitFlushNoopEntry);
         }
         /* transfer 给 leader 给 leader，仍然返回成功 */
         {
@@ -303,7 +299,6 @@ TEST_F(CliTest, basic) {
                       << status.error_code() << ", " << status.error_str();
             ASSERT_TRUE(status.ok());
             ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
-            ::usleep(waitFlushNoopEntry);
         }
     }
 

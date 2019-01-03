@@ -105,6 +105,10 @@ butil::Status WaitLeader(const LogicPoolID &logicPoolId,
     for (int i = 0; i < kMaxLoop; ++i) {
         status = GetLeader(logicPoolId, copysetId, conf, leaderId);
         if (status.ok()) {
+            /**
+             * 等待 flush noop entry
+             */
+            ::usleep(electionTimeoutMs * 1000);
             return status;
         } else {
             LOG(WARNING) << "Get leader failed, " << status.error_str();
