@@ -20,20 +20,11 @@ class ChunkServerServiceImpl : public ChunkServerService {
  public:
     explicit ChunkServerServiceImpl(ChunkServer *chunkserver) :
         chunkserver_(chunkserver) {}
-    void GetState(::google::protobuf::RpcController *controller,
-                  const ChunkServerRequest *request,
-                  ChunkServerResponse *response,
-                  ::google::protobuf::Closure *done) {
-        // TODO(wenyu): to be implement
-        return;
-    }
-    void GetInfo(::google::protobuf::RpcController *controller,
-                 const ChunkServerRequest *request,
-                 ChunkServerResponse *response,
-                 ::google::protobuf::Closure *done) {
-        // TODO(wenyu): to be implement
-        return;
-    }
+    void Stop(::google::protobuf::RpcController *controller,
+                 const ChunkServerStopRequest *request,
+                 ChunkServerStopResponse *response,
+                 ::google::protobuf::Closure *done);
+
  private:
     ChunkServer *chunkserver_;
 };

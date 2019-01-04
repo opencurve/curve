@@ -17,8 +17,28 @@ namespace chunkserver {
 class FsAdaptorUtil {
  public:
     // TODO(tongguangxun): we need a string piece util
-    // ${protocol}://${parameters}
+    /**
+     * @brief 从URI中解析出URI协议和URI路径,
+     * 格式如下：${protocol}://${parameters}
+     * @param[in] uri 待解析的URI
+     * @param[out] param URI路径
+     * @return URI协议
+     */
     static std::string ParserUri(const std::string& uri, std::string * param);
+    /**
+     * @brief 从URI中解析出URI协议
+     * 格式如下：${protocol}://${parameters}
+     * @param[in] uri 待解析的URI
+     * @return URI协议
+     */
+    static std::string GetProtocolFromUri(const std::string& uri);
+    /**
+     * @brief 从URI中解析出URI路径,
+     * 格式如下：${protocol}://${parameters}
+     * @param[in] uri 待解析的URI
+     * @return URI路径
+     */
+    static std::string GetPathFromUri(const std::string& uri);
     static std::list<std::string> ParserDirPath(std::string path);
 };
 }  // namespace chunkserver

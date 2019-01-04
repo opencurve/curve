@@ -31,6 +31,11 @@ class CopysetNodeManager;
 
 extern const char *kCurveConfEpochFilename;
 
+const char RAFT_DATA_DIR[] = "data";
+const char RAFT_META_DIR[] = "raft_meta";
+const char RAFT_SNAP_DIR[] = "raft_snapshot";
+const char RAFT_LOG_DIR[]  = "log";
+
 /**
  * 一个Copyset Node就是一个复制组的副本
  * TODO(wudemiao):后期最好能让单个进程支持多个copyset，方便集成测试
@@ -61,6 +66,18 @@ class CopysetNode : public braft::StateMachine,
      * 关闭copyset node
      */
     void Fini();
+
+    /**
+     * 返回复制组的逻辑池ID
+     * @return
+     */
+    LogicPoolID GetLogicPoolId() const;
+
+    /**
+     * 返回复制组的复制组ID
+     * @return
+     */
+    CopysetID GetCopysetId() const;
 
     /**
      * 返回当前副本是否在leader任期
@@ -108,6 +125,19 @@ class CopysetNode : public braft::StateMachine,
      * @param task
      */
     void Propose(const braft::Task &task);
+
+    /**
+     * 删除复制组持久化数据
+     * @return
+     */
+    int RemoveCopysetData();
+
+    /**
+     * 获取复制组成员
+     * @param peers:返回的成员列表(输出参数)
+     * @return
+     */
+    void ListPeers(std::vector<PeerId>* peers);
 
     /**
      * 下面的接口都是继承StateMachine实现的接口
@@ -219,7 +249,9 @@ class CopysetNode : public braft::StateMachine,
     // 复制组 id
     CopysetID copysetId_;
     // 复制组的配置
-    Configuration initConf_;
+    Configuration       conf_;
+    // 复制组的配置操作锁
+    mutable std::mutex  confLock_;
     // 复制组的配置版本
     std::atomic<uint64_t> epoch_;
     // 复制组副本的peer id
@@ -244,31 +276,9 @@ class CopysetNode : public braft::StateMachine,
     std::atomic<uint64_t> appliedIndex_;
     // 复制组当前任期，如果<=0表明不是leader
     std::atomic<int64_t> leaderTerm_;
+    // 复制组数据回收站目录
+    std::string         recyclerUri_;
 };
-
-/**
- *  group id 格式如下：
- *  |            group id           |
- *  |     32         |      32      |
- *  | logic pool id  |  copyset id  |
- */
-inline GroupId ToGroupId(const LogicPoolID &logicPoolId,
-                         const CopysetID &copysetId) {
-    uint64_t groupId = (static_cast<uint64_t>(logicPoolId) << 32) | copysetId;
-    return std::to_string(groupId);
-}
-
-// 格式输出group id的字符串(logicPoolId, copysetId)
-inline std::string ToGroupIdString(const LogicPoolID &logicPoolId,
-                                   const CopysetID &copysetId) {
-    std::string groupIdString;
-    groupIdString.append("(");
-    groupIdString.append(std::to_string(logicPoolId));
-    groupIdString.append(", ");
-    groupIdString.append(std::to_string(copysetId));
-    groupIdString.append(")");
-    return groupIdString;
-}
 
 }  // namespace chunkserver
 }  // namespace curve

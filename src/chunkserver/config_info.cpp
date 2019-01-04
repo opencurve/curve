@@ -24,6 +24,7 @@ CopysetNodeOptions::CopysetNodeOptions()
       raftSnapshotUri("/raft_snapshot"),
       chunkDataUri("/data"),
       chunkSnapshotUri("/snapshot"),
+      recyclerUri("/recycler"),
       port(8200),
       maxChunkSize(16 * 1024 * 1024),
       pageSize(4096),

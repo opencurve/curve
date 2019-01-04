@@ -53,13 +53,25 @@ class CopysetNodeManager : public curve::common::Uncopyable {
                            const Configuration &conf);
 
     /**
-     * 删除copyset node
+     * 删除copyset node内存实例(停止copyset, 销毁copyset内存实例并从copyset
+     * manager的copyset表中清除copyset表项,并不影响盘上的copyset持久化数据)
      * @param logicPoolId:逻辑池id
      * @param copysetId:复制组id
      * @return true 成功，false失败
      */
     bool DeleteCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId);
+
+    /**
+     * 彻底删除copyset node内存数据(停止copyset, 销毁copyset内存实例并从
+     * copyset manager的copyset表中清除copyset表项,并将copyset持久化数据从盘
+     * 上彻底删除)
+     * @param logicPoolId:逻辑池id
+     * @param copysetId:复制组id
+     * @return true 成功，false失败
+     */
+    bool PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
+                              const CopysetID &copysetId);
 
     /**
      * 判断指定的copyset是否存在
