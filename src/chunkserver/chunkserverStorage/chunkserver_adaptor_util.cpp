@@ -24,6 +24,17 @@ namespace chunkserver {
         return protocol;
     }
 
+    std::string FsAdaptorUtil::GetProtocolFromUri(const std::string& uri) {
+        std::string path;
+        return ParserUri(uri, &path);
+    }
+
+    std::string FsAdaptorUtil::GetPathFromUri(const std::string& uri) {
+        std::string path;
+        FsAdaptorUtil::ParserUri(uri, &path);
+        return path;
+    }
+
     std::list<std::string> FsAdaptorUtil::ParserDirPath(std::string path) {
         std::list<std::string> dirpath;
         dirpath.clear();

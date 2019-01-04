@@ -132,6 +132,7 @@ int CopysetNodeManager::AddService(brpc::Server *server,
 
 bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
                                            const CopysetID &copysetId) {
+    bool ret = false;
     /* 加写锁 */
     WriteLockGuard writeLockGuard(rwLock_);
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
@@ -139,10 +140,33 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
     if (copysetNodeMap_.end() != it) {
         it->second->Fini();
         copysetNodeMap_.erase(it);
-        return true;
+        ret = true;
     }
-    return false;
+
+    return ret;
 }
+
+bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
+                                              const CopysetID &copysetId) {
+    bool ret = false;
+    /* 加写锁 */
+    WriteLockGuard writeLockGuard(rwLock_);
+    GroupId groupId = ToGroupId(logicPoolId, copysetId);
+    auto it = copysetNodeMap_.find(groupId);
+    if (copysetNodeMap_.end() != it) {
+        it->second->Fini();
+        if (0 != it->second->RemoveCopysetData()) {
+            LOG(ERROR) << "Failed to remove copyset <" << logicPoolId
+                       << ", " << copysetId << "> persistently";
+            ret = false;
+        }
+        copysetNodeMap_.erase(it);
+        ret = true;
+    }
+
+    return ret;
+}
+
 bool CopysetNodeManager::IsExist(const LogicPoolID &logicPoolId,
                                  const CopysetID &copysetId) {
     /* 加读锁 */

@@ -30,7 +30,7 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
                          const Configuration &initConf) :
     logicPoolId_(logicPoolId),
     copysetId_(copysetId),
-    initConf_(initConf),
+    conf_(initConf),
     epoch_(0),
     peerId_(),
     nodeOptions_(),
@@ -66,8 +66,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     CHECK(nullptr != fs_) << "local file sytem is null";
     epochFile_ = std::make_unique<ConfEpochFile>(fs_);
 
-    chunkDataRpath_ = "data";
-    chunkDataApath_.append("/data");
+    chunkDataRpath_ = RAFT_DATA_DIR;
+    chunkDataApath_.append("/").append(RAFT_DATA_DIR);
     DataStoreOptions dsOptions;
     dsOptions.baseDir = chunkDataApath_;
     dsOptions.chunkSize = options.maxChunkSize;
@@ -83,21 +83,25 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
         return -1;
     }
 
+    recyclerUri_ = options.recyclerUri;
+
     /**
      * Init copyset对应的raft node options
      */
-    nodeOptions_.initial_conf = initConf_;
+    nodeOptions_.initial_conf = conf_;
     nodeOptions_.election_timeout_ms = options.electionTimeoutMs;
     nodeOptions_.fsm = this;
     nodeOptions_.node_owns_fsm = false;
     nodeOptions_.snapshot_interval_s = options.snapshotIntervalS;
     nodeOptions_.log_uri = options.logUri;
-    nodeOptions_.log_uri.append("/").append(groupId).append("/log");
+    nodeOptions_.log_uri.append("/").append(groupId)
+        .append("/").append(RAFT_LOG_DIR);
     nodeOptions_.raft_meta_uri = options.raftMetaUri;
-    nodeOptions_.raft_meta_uri.append("/").append(groupId).append("/raft_meta");
+    nodeOptions_.raft_meta_uri.append("/").append(groupId)
+        .append("/").append(RAFT_META_DIR);
     nodeOptions_.snapshot_uri = options.raftSnapshotUri;
-    nodeOptions_.snapshot_uri.append("/")
-        .append(groupId).append("/raft_snapshot");
+    nodeOptions_.snapshot_uri.append("/").append(groupId)
+        .append("/").append(RAFT_SNAP_DIR);
     nodeOptions_.usercode_in_pthread = options.usercodeInPthread;
 
     /* 初始化 peer id */
@@ -134,6 +138,93 @@ void CopysetNode::Fini() {
         // 等待所有的正在处理的task结束
         raftNode_->join();
     }
+}
+
+int CopysetNode::RemoveCopysetData() {
+    int ret;
+    std::string srcDir;
+    std::string destDir;
+    std::string recyclerDir;
+    std::string groupId = ToGroupId(logicPoolId_, copysetId_);
+
+    /*
+     * TODO(wenyu) 目前仅把copyset移动到回收站目录，后续添加异步工作线程把
+     * chunk回收到chunk文件池并把其他copyset数据删掉
+     */
+    recyclerDir = FsAdaptorUtil::GetPathFromUri(recyclerUri_);
+    if (!fs_->DirExists(recyclerDir.c_str())) {
+        LOG(INFO) << "Copyset recyler directory " << recyclerDir
+                  << " does not exist, creating it";
+        if (0 != (ret = fs_->Mkdir(recyclerDir.c_str()))) {
+            LOG(ERROR) << "Failed to create copyset recyler directory: "
+                       << recyclerDir << "error: " << strerror(errno);
+            return errno;
+        }
+    }
+    recyclerDir.append("/").append(groupId);
+    if (!fs_->DirExists(recyclerDir.c_str())) {
+        if (0 != (ret = fs_->Mkdir(recyclerDir.c_str()))) {
+            LOG(ERROR) << "Failed to create copyset recyler directory: "
+                       << recyclerDir << "error: " << strerror(errno);
+            return errno;
+        }
+    }
+
+    srcDir = chunkDataApath_;
+    destDir = recyclerDir;
+    destDir.append("/").append(RAFT_DATA_DIR);
+    if (0 != (ret = rename(srcDir.c_str(), destDir.c_str()))) {
+        LOG(ERROR) << "Failed to move data directory " << srcDir
+                   << " to recycler, error: " << strerror(errno);
+        return errno;
+    } else if (rmdir(srcDir.substr(0, srcDir.size() - sizeof(RAFT_DATA_DIR))
+                           .c_str())) {
+        LOG(WARNING) << "Removing copyset data directory failed, "
+                     << "probably it is shared, ignoring.";
+    }
+
+    destDir = recyclerDir;
+    destDir.append("/").append(RAFT_LOG_DIR);
+    srcDir = FsAdaptorUtil::GetPathFromUri(nodeOptions_.log_uri);
+    if (0 != (ret = rename(srcDir.c_str(), destDir.c_str()))) {
+        LOG(ERROR) << "Failed to move log directory " << srcDir
+                   << " to recycler, error: " << strerror(errno);
+        return errno;
+    } else if (rmdir(srcDir.substr(0, srcDir.size() - sizeof(RAFT_LOG_DIR))
+                           .c_str())) {
+        LOG(WARNING) << "Removing copyset log directory failed, "
+                     << "probably it is shared, ignoring.";
+    }
+
+    destDir = recyclerDir;
+    destDir.append("/").append(RAFT_META_DIR);
+    srcDir = FsAdaptorUtil::GetPathFromUri(nodeOptions_.raft_meta_uri);
+    if (0 != (ret = rename(srcDir.c_str(), destDir.c_str()))) {
+        LOG(ERROR) << "Failed to move raft meta directory " << srcDir
+                   << " to recycler, error: " << strerror(errno);
+        return errno;
+    } else if (rmdir(srcDir.substr(0, srcDir.size() - sizeof(RAFT_META_DIR))
+                           .c_str())) {
+        LOG(WARNING) << "Removing copyset raft meta directory failed, "
+                     << "probably it is shared, ignoring.";
+    }
+
+    destDir = recyclerDir;
+    destDir.append("/").append(RAFT_SNAP_DIR);
+    srcDir = FsAdaptorUtil::GetPathFromUri(nodeOptions_.snapshot_uri);
+    if (0 != (ret = rename(srcDir.c_str(), destDir.c_str()))) {
+        LOG(ERROR) << "Failed to move raft snapshot directory " << srcDir
+                   << " to recycler, error: " << strerror(errno);
+        return errno;
+    } else if (rmdir(srcDir.substr(0, srcDir.size() - sizeof(RAFT_SNAP_DIR))
+                           .c_str())) {
+        LOG(WARNING) << "Removing copyset snapshot directory failed, "
+                     << "probably it is shared, ignoring.";
+    }
+
+    LOG(INFO) << "Moved all data of copyset <" << logicPoolId_ << ", "
+              << copysetId_ << "> to recyler directory: " << recyclerDir;
+    return 0;
 }
 
 void CopysetNode::on_apply(::braft::Iterator &iter) {
@@ -323,9 +414,9 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     braft::SnapshotMeta meta;
     reader->load_meta(&meta);
     if (0 == meta.old_peers_size()) {
-        initConf_.reset();
+        conf_.reset();
         for (int i = 0; i < meta.peers_size(); ++i) {
-            initConf_.add_peer(meta.peers(i));
+            conf_.add_peer(meta.peers(i));
         }
     }
 
@@ -352,7 +443,11 @@ void CopysetNode::on_error(const ::braft::Error &e) {
 }
 
 void CopysetNode::on_configuration_committed(const Configuration &conf) {
-    epoch_.fetch_add(1, std::memory_order_acq_rel);
+    {
+        std::unique_lock<std::mutex> lock_guard(confLock_);
+        conf_ = conf;
+        epoch_.fetch_add(1, std::memory_order_acq_rel);
+    }
     LOG(INFO) << "peer id: " << peerId_.to_string()
               << ", leader id: " << raftNode_->leader_id()
               << ", Configuration of this group is" << conf
@@ -369,6 +464,14 @@ void CopysetNode::on_start_following(const ::braft::LeaderChangeContext &ctx) {
     LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
               << ", peer id: " << peerId_.to_string()
               << "start following" << ctx;
+}
+
+LogicPoolID CopysetNode::GetLogicPoolId() const {
+    return logicPoolId_;
+}
+
+CopysetID CopysetNode::GetCopysetId() const {
+    return copysetId_;
 }
 
 uint64_t CopysetNode::GetConfEpoch() const {
@@ -401,6 +504,12 @@ int CopysetNode::LoadConfEpoch(const std::string &filePath) {
 
 int CopysetNode::SaveConfEpoch(const std::string &filePath) {
     return epochFile_->Save(filePath, logicPoolId_, copysetId_, epoch_);
+}
+
+void CopysetNode::ListPeers(std::vector<PeerId>* peers) {
+    std::unique_lock<std::mutex> lock_guard(confLock_);
+
+    conf_.list_peers(peers);
 }
 
 void CopysetNode::SetCSDateStore(std::shared_ptr<CSDataStore> datastore) {

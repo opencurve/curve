@@ -58,6 +58,9 @@ struct CopysetNodeOptions {
     // chunk snapshot uri，默认snapshot
     std::string chunkSnapshotUri;
 
+    // copyset data recycling uri，默认recycler
+    std::string recyclerUri;
+
     std::string ip;
     uint32_t port;
     // chunk文件的大小
