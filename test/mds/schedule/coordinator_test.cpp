@@ -18,7 +18,8 @@ namespace schedule {
 TEST(CoordinatorTest, test_copySet_heartbeat) {
     auto topoAdapter = std::make_shared<MockTopoAdapter>();
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
-    ScheduleConfig scheduleConfig(true, true, true, true, 10, 10, 10, 10, 2);
+    ScheduleConfig
+        scheduleConfig(true, true, true, true, 10, 10, 10, 10, 2, 1, 1, 1);
     coordinator->InitScheduler(scheduleConfig);
     auto testCopySetInfo = GetCopySetInfoForTest();
     EpochType startEpoch = 1;

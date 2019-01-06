@@ -128,6 +128,8 @@ std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfos() {
             infos.push_back(copySetInfo);
         }
     }
+
+    DVLOG(6) << "topoAdapter get " << infos.size() << " copySets in cluster";
     return infos;
 }
 
@@ -137,6 +139,7 @@ bool TopoAdapterImpl::GetChunkServerInfo(ChunkServerIdType id,
 
     ::curve::mds::topology::ChunkServer cs;
     if (!topo_->GetChunkServer(id, &cs)) {
+        LOG(ERROR) << "can not get chunkServer:" << id << " from topology";
         return false;
     }
     return ChunkServerFromTopoToSchedule(cs, out);
@@ -150,6 +153,9 @@ std::vector<ChunkServerInfo> TopoAdapterImpl::GetChunkServerInfos() {
             infos.push_back(info);
         }
     }
+
+    DVLOG(6) << "topoAdapter get " << infos.size()
+             << " chunkServers in cluster";
     return infos;
 }
 
@@ -158,8 +164,7 @@ int TopoAdapterImpl::GetStandardZoneNumInLogicalPool(PoolIdType id) {
     if (topo_->GetLogicalPool(id, &logicalPool)) {
         switch (logicalPool.GetLogicalPoolType()) {
             // TODO(lixiaocui): 暂未实现
-            case LogicalPoolType::APPENDECFILE:
-                return 0;
+            case LogicalPoolType::APPENDECFILE:return 0;
             case LogicalPoolType::APPENDFILE:
                 return logicalPool.GetRedundanceAndPlaceMentPolicy().
                     appendFileRAP.zoneNum;
@@ -200,9 +205,8 @@ bool TopoAdapterImpl::GetPeerInfo(ChunkServerIdType id, PeerInfo *peerInfo) {
             cs.GetHostIp(), cs.GetPort());
     } else {
         LOG(ERROR) << "topoAdapter can not find chunkServer("
-                   << canGetChunkServer
-                   << ") or Server(" << canGetServer << ")"
-                   << std::endl;
+                   << id << ", res:" << canGetChunkServer
+                   << ") or Server(res:" << canGetServer << ")";
         return false;
     }
     return true;
@@ -245,10 +249,14 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
     assert(out != nullptr);
 
     ::curve::mds::topology::Server server;
-    if (topo_->GetServer(origin.GetId(), &server)) {
+    if (topo_->GetServer(origin.GetServerId(), &server)) {
         out->info = PeerInfo{origin.GetId(), server.GetZoneId(), server.GetId(),
                              origin.GetHostIp(), origin.GetPort()};
     } else {
+        LOG(ERROR) << "can not get server:" << origin.GetId()
+                   << ", ip:" << origin.GetHostIp() << ", port:"
+                   << origin.GetPort() << " from topology";
+
         return false;
     }
     out->state = origin.GetChunkServerState().GetOnlineState();
@@ -271,6 +279,9 @@ ChunkServerIdType TopoAdapterImpl::SelectBestPlacementChunkServer(
     // chunkservers in same logical pool
     auto chunkServersId
         = topo_->GetChunkServerInLogicalPool(copySetInfo.id.first);
+
+    DVLOG(6) << "selectBestPlacementChunkServer get " << chunkServersId.size()
+             << " chunkServers in logical pool " << copySetInfo.id.first;
 
     if (chunkServersId.size() <= copySetInfo.peers.size()) {
         return ::curve::mds::topology::UNINTIALIZE_ID;
@@ -336,8 +347,7 @@ ChunkServerIdType TopoAdapterImpl::SelectBestPlacementChunkServer(
                          << ", capacity： "
                          << chunkServer.GetChunkServerState().GetDiskCapacity()
                          << ", used: "
-                         << chunkServer.GetChunkServerState().GetDiskUsed()
-                         << std::endl;
+                         << chunkServer.GetChunkServerState().GetDiskUsed();
             continue;
         }
 

@@ -22,16 +22,37 @@
 #include "src/mds/topology/topology_manager.h"
 #include "src/mds/topology/topology_service.h"
 #include "src/common/configuration.h"
-
-
+#include "src/mds/heartbeat/heartbeat_service.h"
+#include "src/mds/schedule/topoAdapter.h"
+#include "proto/heartbeat.pb.h"
 
 DEFINE_string(listenAddr, ":6666", "Initial  mds listen addr");
+DEFINE_bool(enableCopySetScheduler, false, "can copySet scheduler run");
+DEFINE_bool(enableLeaderScheduler, false, "can leader scheduler run");
+DEFINE_bool(enableRecoverScheduler, true, "can recover scheduler run");
+DEFINE_bool(enableReplicaScheduler, false, "can replica scheduler run");
+DEFINE_int64(copySetInterval, 30, "copySet scheduler run interval");
+DEFINE_int64(replicaInterval, 30, "replica scheduler run interval");
+DEFINE_int64(leaderInterval, 30, "leader scheduler run interval");
+DEFINE_int64(recoverInterval, 30, "recover scheduler run interval");
+DEFINE_int32(opConcurrent, 4, "operator num on a chunkserver");
+DEFINE_int32(transferLimit, 1800, "transfer leader time limit(second)");
+DEFINE_int32(RemoveLimit, 1800, "remove peer time limit(second)");
+DEFINE_int32(AddLimit, 7200, "add peer time limit(second)");
+DEFINE_uint64(heartbeatInterval, 10, "heartbeat interval");
+DEFINE_uint64(heartbeatMissTimeout, 30, "heartbeat miss interval");
+DEFINE_uint64(offlineTimeout, 1800, "timeout to offline");
 DEFINE_string(confPath, "deploy/local/mds/mds.conf", "mds confPath");
 
 using ::curve::mds::topology::TopologyAdminImpl;
 using ::curve::mds::topology::TopologyAdmin;
 using ::curve::mds::topology::TopologyServiceImpl;
 using ::curve::mds::topology::TopologyManager;
+using ::curve::mds::heartbeat::HeartbeatServiceImpl;
+using ::curve::mds::heartbeat::HeartbeatOption;
+using ::curve::mds::schedule::TopoAdapterImpl;
+using ::curve::mds::schedule::TopoAdapter;
+using ::curve::mds::schedule::ScheduleConfig;
 
 namespace curve {
 namespace mds {
@@ -48,7 +69,7 @@ void InitSessionOptions(common::Configuration *conf,
 }
 
 int curve_main(int argc, char **argv) {
-    google::InitGoogleLogging(argv[0]);
+    // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
     // 加载配置
@@ -72,23 +93,23 @@ int curve_main(int argc, char **argv) {
     ChunkSegmentAllocator *chunkSegmentAllocate_;
     SessionManager *sessionManager_;
 
-    storage_ =  new FakeNameServerStorage();
+    storage_ = new FakeNameServerStorage();
     inodeGenerator_ = new FakeInodeIDGenerator(0);
 
     std::shared_ptr<TopologyAdmin> topologyAdmin =
-       TopologyManager::GetInstance()->GetTopologyAdmin();
+        TopologyManager::GetInstance()->GetTopologyAdmin();
 
     std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
-                            std::make_shared<FackChunkIDGenerator>();
+        std::make_shared<FackChunkIDGenerator>();
     chunkSegmentAllocate_ =
-                new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
+        new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
 
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
     auto taskManager = std::make_shared<CleanTaskManager>();
-    auto cleanCore   = std::make_shared<CleanCore>(storage_);
+    auto cleanCore = std::make_shared<CleanCore>(storage_);
 
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
-        taskManager, storage_);
+                                                      taskManager, storage_);
 
     sessionManager_ = new SessionManager(std::make_shared<repo::Repo>());
 
@@ -103,20 +124,51 @@ int curve_main(int argc, char **argv) {
         return -1;
     }
 
-    // add rpc service
+    // init scheduler
+    auto topology = TopologyManager::GetInstance()->GetTopology();
+    auto topoAdapter = std::make_shared<TopoAdapterImpl>(
+        topology, TopologyManager::GetInstance()->GetServiceManager());
+    auto coordinator = std::make_shared<Coordinator>(topoAdapter);
+    ScheduleConfig scheduleConfig(
+        FLAGS_enableCopySetScheduler, FLAGS_enableLeaderScheduler,
+        FLAGS_enableRecoverScheduler, FLAGS_enableReplicaScheduler,
+        FLAGS_copySetInterval, FLAGS_leaderInterval, FLAGS_recoverInterval,
+        FLAGS_replicaInterval, FLAGS_opConcurrent, FLAGS_transferLimit,
+        FLAGS_RemoveLimit, FLAGS_AddLimit);
+    coordinator->InitScheduler(scheduleConfig);
+    coordinator->Run();
+
+    // init heartbeat manager
+    auto heartbeatManager = std::make_shared<HeartbeatManager>(topology,
+                                                               coordinator,
+                                                               topoAdapter);
+    HeartbeatOption heartbeatOption(FLAGS_heartbeatInterval,
+                                    FLAGS_heartbeatMissTimeout,
+                                    FLAGS_offlineTimeout);
+    heartbeatManager->Init(heartbeatOption);
+    heartbeatManager->Run();
+
+    // add heartbeat service
     brpc::Server server;
+    HeartbeatServiceImpl heartbeatService(heartbeatManager);
+    if (server.AddService(&heartbeatService,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(ERROR) << "add topologyService error";
+        return -1;
+    }
+
+    // add rpc service
     NameSpaceService namespaceService;
     if (server.AddService(&namespaceService,
-        brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "add namespaceService error";
         return -1;
     }
 
     // add topology service
-
     TopologyServiceImpl topologyService;
     if (server.AddService(&topologyService,
-        brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "add topologyService error";
         return -1;
     }
@@ -138,7 +190,6 @@ int curve_main(int argc, char **argv) {
     }
     return 0;
 }
-
 }  // namespace mds
 }  // namespace curve
 

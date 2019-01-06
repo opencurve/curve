@@ -14,6 +14,7 @@ namespace curve {
 namespace mds {
 namespace schedule {
 int RecoverScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
+    LOG(INFO) << "recoverScheduler begin.";
     int oneRoundGenOp = 0;
     for (auto copysetInfo : topo->GetCopySetInfos()) {
         // skip the copyset if there is already a pending operator
@@ -23,6 +24,9 @@ int RecoverScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
         }
 
         if (copysetInfo.configChangeInfo.IsInitialized()) {
+            LOG(WARNING) << "copySet(logicalPoolId:" << copysetInfo.id.first
+                         << ", copySetId:" << copysetInfo.id.second
+                         << ") has not ben initialized";
             continue;
         }
 
@@ -48,6 +52,10 @@ int RecoverScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
                               " chunkServer to fix offline one "
                            << peer.id;
             } else if (opController_->AddOperator(fixRes)) {
+                LOG(INFO) << "recoverScheduler generate operator:"
+                          << fixRes.OpToString() << "for copySet("
+                          << copysetInfo.id.first << ", copySetId:"
+                          << copysetInfo.id.second << ")";
                 oneRoundGenOp++;
             } else {
                 LOG(ERROR) << "recover scheduler add operator "
@@ -55,6 +63,8 @@ int RecoverScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
             }
         }
     }
+    LOG(INFO) << "recoverScheduler generate " << oneRoundGenOp
+              << " operators at this round";
     return oneRoundGenOp;
 }
 
@@ -104,6 +114,8 @@ bool RecoverScheduler::FixOfflinePeer(const std::shared_ptr<TopoAdapter> &topo,
             info, csId, OperatorPriority::HighPriority);
         op->timeLimit =
             std::chrono::seconds(GetAddPeerTimeLimitSec());
+        DVLOG(6) << "recoverScheduler create operator: " << op->OpToString()
+                 << " success";
         return true;
     }
 }

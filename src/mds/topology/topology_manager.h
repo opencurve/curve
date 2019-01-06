@@ -47,7 +47,6 @@ class TopologyManager : public Singleton<TopologyManager> {
     std::shared_ptr<TopologyServiceManager> serviceManager_;
     std::shared_ptr<TopologyAdmin> topologyAdmin_;
 };
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

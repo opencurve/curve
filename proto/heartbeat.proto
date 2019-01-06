@@ -13,23 +13,30 @@ option cc_generic_services = true;
 message CopysetInfo {
     required uint32 logicalPoolId = 1;
     required uint32 copysetId = 2;
-    repeated string peers = 3; // copyset replicas
-    required uint64 epoch = 4; // epoch, 用来标记配置变更，每变更一次，epoch会增加
-    required string leaderPeer = 5; // 该复制组的leader
-    optional ConfigChangeInfo configChangeInfo = 6; // 配置变更相关信息
-    optional CopysetStatistics stats = 7; // copyset的性能信息
+    // copyset replicas, IP:PORT:ID, e.g. 127.0.0.1:8200:0
+    repeated string peers = 3;
+    // epoch, 用来标记配置变更，每变更一次，epoch会增加
+    required uint64 epoch = 4;
+    // 该复制组的leader
+    required string leaderPeer = 5;
+    // 配置变更相关信息
+    optional ConfigChangeInfo configChangeInfo = 6;
+    // copyset的性能信息
+    optional CopysetStatistics stats = 7;
 };
 
 // TODO(合并)： add information of peerID
 message ConfigChangeInfo {
     required string peer = 1;
-    required bool finished = 2; // 配置变更是否成功
-    optional CandidateError err = 3; // 变更的error信息
+    // 配置变更是否成功
+    required bool finished = 2;
+    // 变更的error信息
+    optional CandidateError err = 3;
 };
 
 message CandidateError {
     required uint32 errType = 1;
-    required string errMsg  = 2;
+    required string errMsg = 2;
 };
 
 message CopysetStatistics {
@@ -41,8 +48,8 @@ message CopysetStatistics {
 
 // TODO(zhouwenyu): 如何更好定义
 message DiskState {
-	required uint32 errType = 1;
-	required string errMsg = 2;
+    required uint32 errType = 1;
+    required string errMsg = 2;
 }
 
 message ChunkServerStatisticInfo {
@@ -60,17 +67,24 @@ message ChunkServerHeartbeatRequest {
     required string ip = 5;
     required uint32 port = 6;
     required uint64 diskUsed = 7;
-    repeated CopysetInfo copysetInfos = 8; // 返回该chunk上所有copyset的信息
-    required uint32 leaderCount = 9; // 时间窗口内该chunkserver上leader的个数
-    required uint32 copysetCount = 10; // 时间窗口内该chunkserver上copyset的个数   ？是否需要
-    required ChunkServerStatisticInfo stats = 11; // chunkServer相关的统计信息
+    // 返回该chunk上所有copyset的信息
+    repeated CopysetInfo copysetInfos = 8;
+    // 时间窗口内该chunkserver上leader的个数
+    required uint32 leaderCount = 9;
+    // 时间窗口内该chunkserver上copyset的个数
+    required uint32 copysetCount = 10;
+    // chunkServer相关的统计信息
+    required ChunkServerStatisticInfo stats = 11;
 };
 
 // TODO(合并): ConfigchangeInfo-ConfigChangeType
 enum ConfigChangeType {
-    TRANSFER_LEADER = 1; // 无操作
-    ADD_PEER = 2; // 配置变更命令： 复制组增加一个成员
-    REMOVE_PEER = 3; // 配置变更命令： 复制组删除一个成员
+    // 配置变更命令： leader转换
+    TRANSFER_LEADER = 1;
+    // 配置变更命令： 复制组增加一个成员
+    ADD_PEER = 2;
+    // 配置变更命令： 复制组删除一个成员
+    REMOVE_PEER = 3;
 };
 
 message CopysetConf {
@@ -83,10 +97,10 @@ message CopysetConf {
 };
 
 message ChunkServerHeartbeatResponse {
-    repeated CopysetConf needUpdateCopysets = 1; // 返回需要进行变更的copyset的信息
+    // 返回需要进行变更的copyset的信息
+    repeated CopysetConf needUpdateCopysets = 1;
 };
 
 service HeartbeatService {
     rpc ChunkServerHeartbeat (ChunkServerHeartbeatRequest) returns (ChunkServerHeartbeatResponse);
 }
-

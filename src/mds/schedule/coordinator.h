@@ -28,18 +28,30 @@ namespace schedule {
 // TODO(chaojie-schedule): needTopoTocontain
 struct ScheduleConfig {
  public:
-  ScheduleConfig(bool enableCopySet, bool enableLeader, bool enableRecover,
-                 bool enableReplica, int64_t copySet, int64_t leader,
-                 int64_t recover, int64_t replica, int opConcurrent) {
+  ScheduleConfig(bool enableCopySet,
+                 bool enableLeader,
+                 bool enableRecover,
+                 bool enableReplica,
+                 int64_t copySetInerval,
+                 int64_t leaderInterval,
+                 int64_t recoverInterval,
+                 int64_t replicaInterval,
+                 int opConcurrent,
+                 int tranferLimit,
+                 int removeLimit,
+                 int addLimit) {
       this->EnableCopysetScheduler = enableCopySet;
       this->EnableLeaderScheduler = enableLeader;
       this->EnableRecoverScheduler = enableRecover;
       this->EnableReplicaScheduler = enableReplica;
-      this->CopysetSchedulerInterval = copySet;
-      this->LeaderSchedulerInterval = leader;
-      this->RecoverSchedulerInterval = recover;
-      this->ReplicaSchedulerInterval = replica;
+      this->CopysetSchedulerInterval = copySetInerval;
+      this->ReplicaSchedulerInterval = replicaInterval;
+      this->LeaderSchedulerInterval = leaderInterval;
+      this->RecoverSchedulerInterval = recoverInterval;
       this->OperatorConcurrent = opConcurrent;
+      this->TransferLeaderTimeLimitSec = tranferLimit;
+      this->RemovePeerTimeLimitSec = removeLimit;
+      this->AddPeerTimeLimitSec = addLimit;
   }
   bool EnableCopysetScheduler;
   bool EnableLeaderScheduler;
@@ -61,6 +73,7 @@ struct ScheduleConfig {
 
 class Coordinator {
  public:
+  Coordinator() = default;
   explicit Coordinator(const std::shared_ptr<TopoAdapter> &topo);
   ~Coordinator();
 
@@ -72,7 +85,8 @@ class Coordinator {
    *
    * @return if newConf is assigned return true else return false
    */
-  bool CopySetHeartbeat(const CopySetInfo &originInfo, CopySetConf *newConf);
+  virtual bool CopySetHeartbeat(const CopySetInfo &originInfo,
+                                CopySetConf *newConf);
 
   /**
    * @brief 根据配置初始化scheduler

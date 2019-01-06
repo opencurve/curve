@@ -38,6 +38,13 @@ class MockTopoAdapter : public TopoAdapter {
 
   MOCK_METHOD2(CreateCopySetAtChunkServer,
                bool(CopySetKey id, ChunkServerIdType csID));
+
+  MOCK_METHOD2(CopySetFromTopoToSchedule,
+               bool(const ::curve::mds::topology::CopySetInfo &origin,
+                   ::curve::mds::schedule::CopySetInfo *out));
+  MOCK_METHOD2(ChunkServerFromTopoToSchedule,
+               bool(const ::curve::mds::topology::ChunkServer &origin,
+                   ::curve::mds::schedule::ChunkServerInfo *out));
 };
 }  // namespace schedule
 }  // namespace mds

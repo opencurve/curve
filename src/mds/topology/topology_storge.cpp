@@ -71,18 +71,18 @@ bool DefaultTopologyStorage::LoadLogicalPool(
         LogicalPool::UserPolicy policy;
 
         if (!LogicalPool::TransRedundanceAndPlaceMentPolicyFromJsonStr(
-                rp.redundanceAndPlacementPolicy,
-                static_cast<LogicalPoolType>(rp.type),
-                &rap)) {
+            rp.redundanceAndPlacementPolicy,
+            static_cast<LogicalPoolType>(rp.type),
+            &rap)) {
             LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
                        << "parse redundanceAndPlacementPolicy string fail.";
             return false;
         }
 
         if (!LogicalPool::TransUserPolicyFromJsonStr(
-                rp.userPolicy,
-                static_cast<LogicalPoolType>(rp.type),
-                &policy)) {
+            rp.userPolicy,
+            static_cast<LogicalPoolType>(rp.type),
+            &policy)) {
             LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
                        << "parse userPolicy string fail.";
             return false;
@@ -232,7 +232,7 @@ bool DefaultTopologyStorage::LoadChunkServer(
                        static_cast<ChunkServerStatus>(rp.rwstatus));
         ChunkServerState csState;
         csState.SetDiskState(static_cast<DiskState>(rp.diskState));
-        csState.SetOnlineState(static_cast<OnlineState>(rp.onlineState));
+        csState.SetOnlineState(OnlineState::ONLINE);
         csState.SetDiskCapacity(rp.capacity);
         csState.SetDiskUsed(rp.used);
         cs.SetChunkServerState(csState);
@@ -271,9 +271,9 @@ bool DefaultTopologyStorage::LoadCopySet(
             return false;
         }
         std::pair<PoolIdType, CopySetIdType> key(rp.logicalPoolID,
-            rp.copySetID);
+                                                 rp.copySetID);
         auto ret = copySetMap->emplace(std::move(key),
-                std::move(copyset));
+                                       std::move(copyset));
         if (!ret.second) {
             LOG(ERROR) << "[DefaultTopologyStorage::LoadCopySet]: "
                        << "copySet Id duplicated, logicalPoolId = "
@@ -530,6 +530,7 @@ bool DefaultTopologyStorage::UpdateCopySet(const CopySetInfo &data) {
     std::string chunkServerListStr = data.GetCopySetMembersStr();
     CopySetRepo rp(data.GetId(),
                    data.GetLogicalPoolId(),
+                   data.GetEpoch(),
                    chunkServerListStr);
     if (repo_->UpdateCopySetRepo(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdateCopySet]: "

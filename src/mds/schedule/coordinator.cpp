@@ -5,6 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
+#include <glog/logging.h>
 #include <thread>  //NOLINT
 #include "src/mds/schedule/coordinator.h"
 
@@ -31,6 +32,7 @@ void Coordinator::InitScheduler(const ScheduleConfig &conf) {
                                               conf.TransferLeaderTimeLimitSec,
                                               conf.RemovePeerTimeLimitSec,
                                               conf.AddPeerTimeLimitSec);
+        LOG(INFO) << "run leader scheduler ok!";
     }
 
     if (conf.EnableCopysetScheduler) {
@@ -40,6 +42,7 @@ void Coordinator::InitScheduler(const ScheduleConfig &conf) {
                                                conf.TransferLeaderTimeLimitSec,
                                                conf.RemovePeerTimeLimitSec,
                                                conf.AddPeerTimeLimitSec);
+        LOG(INFO) << "run copySet scheduler ok!";
     }
 
     if (conf.EnableRecoverScheduler) {
@@ -49,6 +52,7 @@ void Coordinator::InitScheduler(const ScheduleConfig &conf) {
                                                conf.TransferLeaderTimeLimitSec,
                                                conf.RemovePeerTimeLimitSec,
                                                conf.AddPeerTimeLimitSec);
+        LOG(INFO) << "run recover scheduler ok!";
     }
 
     if (conf.EnableReplicaScheduler) {
@@ -58,6 +62,7 @@ void Coordinator::InitScheduler(const ScheduleConfig &conf) {
                                                conf.TransferLeaderTimeLimitSec,
                                                conf.RemovePeerTimeLimitSec,
                                                conf.AddPeerTimeLimitSec);
+        LOG(INFO) << "run replica scheduler ok!";
     }
 }
 
@@ -86,6 +91,9 @@ bool Coordinator::CopySetHeartbeat(const CopySetInfo &originInfo,
         return false;
     }
 
+    LOG(INFO) << "find operator on copySet(logicalPoolId:"
+              << originInfo.id.first
+              << ", copySetId:" << originInfo.id.second << ")";
     return opController_->ApplyOperator(originInfo, newConf);
 }
 
