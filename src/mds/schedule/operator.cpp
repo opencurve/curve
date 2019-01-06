@@ -55,7 +55,7 @@ bool Operator::IsTimeout() {
 std::string Operator::OpToString() {
     return "[startEpoch: " + std::to_string(startEpoch)
         + ", copysetID: (" + std::to_string(copsetID.first) + ","
-        + std::to_string(copsetID.second) + ", priority: "
+        + std::to_string(copsetID.second) + "), priority: "
         + std::to_string(priority) + "]";
 }
 }  // namespace schedule

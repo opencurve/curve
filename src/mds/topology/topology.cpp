@@ -295,15 +295,15 @@ int TopologyImpl::UpdateChunkServerState(const ChunkServerState &state,
         gettimeofday(&now, NULL);
         uint64_t currentTime = now.tv_sec;
         uint64_t lastTime = it->second.GetLastStateUpdateTime();
+        ChunkServer cs = it->second;
+        cs.SetChunkServerState(state);
+        cs.SetLastStateUpdateTime(currentTime);
         if ((currentTime - lastTime) >= kChunkServerStateUpdateFreq) {
-            ChunkServer cs = it->second;
-            cs.SetChunkServerState(state);
-            cs.SetLastStateUpdateTime(currentTime);
             if (!storage_->UpdateChunkServer(cs)) {
                 return kTopoErrCodeStorgeFail;
             }
-            it->second = cs;
         }
+        it->second = cs;
         return kTopoErrCodeSuccess;
     } else {
         return kTopoErrCodeChunkServerNotFound;
@@ -442,6 +442,8 @@ bool TopologyImpl::GetChunkServer(ChunkServerIdType chunkserverId,
         *out = it->second;
         return true;
     }
+
+    LOG(ERROR) << "topologyImpl can not get chunkServer: " << chunkserverId;
     return false;
 }
 

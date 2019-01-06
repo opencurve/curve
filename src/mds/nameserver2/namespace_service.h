@@ -12,7 +12,6 @@
 #include <brpc/controller.h>
 #include "proto/nameserver2.pb.h"
 
-
 namespace curve {
 namespace mds {
 

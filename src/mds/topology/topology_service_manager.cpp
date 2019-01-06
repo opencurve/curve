@@ -62,7 +62,7 @@ void TopologyServiceManager::RegistChunkServer(
         request->port(),
         request->diskpath());
     ChunkServerState state;
-    state.SetOnlineState(OFFLINE);
+    state.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(state);
 
     int errcode = topology_->AddChunkServer(chunkserver);

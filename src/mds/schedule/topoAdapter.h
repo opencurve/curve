@@ -142,6 +142,14 @@ class TopoAdapter {
    */
   virtual bool CreateCopySetAtChunkServer(
       CopySetKey id, ChunkServerIdType csID) = 0;
+
+  virtual bool CopySetFromTopoToSchedule(
+      const ::curve::mds::topology::CopySetInfo &origin,
+      ::curve::mds::schedule::CopySetInfo *out) = 0;
+
+  virtual bool ChunkServerFromTopoToSchedule(
+      const ::curve::mds::topology::ChunkServer &origin,
+      ::curve::mds::schedule::ChunkServerInfo *out) = 0;
 };
 
 // adapter实现
@@ -171,15 +179,15 @@ class TopoAdapterImpl : public TopoAdapter {
   bool CreateCopySetAtChunkServer(
       CopySetKey id, ChunkServerIdType csID) override;
 
- private:
   bool CopySetFromTopoToSchedule(
       const ::curve::mds::topology::CopySetInfo &origin,
-      ::curve::mds::schedule::CopySetInfo *out);
+      ::curve::mds::schedule::CopySetInfo *out) override;
 
   bool ChunkServerFromTopoToSchedule(
       const ::curve::mds::topology::ChunkServer &origin,
-      ::curve::mds::schedule::ChunkServerInfo *out);
+      ::curve::mds::schedule::ChunkServerInfo *out) override;
 
+ private:
   bool IsChunkServerHealthy(const ChunkServer &cs);
   // TODO(lixiaocui): consider capacity later
   // bool IsChunkServerCapacitySaturated(const ChunkServer &cs);

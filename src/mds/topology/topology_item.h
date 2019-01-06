@@ -403,6 +403,10 @@ class ChunkServer {
   std::string GetToken() const {
       return token_;
   }
+
+  void SetToken(std::string token) {
+      token_ = token;
+  }
   std::string GetDiskType() const {
       return diskType_;
   }
@@ -491,22 +495,20 @@ class CopySetInfo {
       return copySetId_;
   }
 
-  void SetEpoch(uint64_t epoch) {
+  void SetEpoch(EpochType epoch) {
       epoch_ = epoch;
   }
 
-  void IncreaseEpoch() {
-      epoch_++;
-  }
-
-  // TODO(chaojie): EpochType
   EpochType GetEpoch() const {
       return epoch_;
   }
 
-  // TODO(chaojie): add this function
   ChunkServerIdType GetLeader() const {
       return leader_;
+  }
+
+  void SetLeader(ChunkServerIdType leader) {
+      leader_ = leader;
   }
 
   std::set<ChunkServerIdType> GetCopySetMembers() const {

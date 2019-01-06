@@ -105,7 +105,6 @@ class Topology {
                          Server *out) const = 0;
   virtual bool GetChunkServer(ChunkServerIdType chunkserverId,
                               ChunkServer *out) const = 0;
-  // TODO(chaojie): +const
 
   virtual bool GetCopySet(CopySetKey key, CopySetInfo *out) const = 0;
 
@@ -166,10 +165,12 @@ class Topology {
   virtual std::vector<CopySetIdType> GetCopySetsInLogicalPool(
       PoolIdType logicalPoolId) const = 0;
 
-  // TODO(chaojie-schedule): add
   virtual std::vector<CopySetKey> GetCopySetsInCluster() const = 0;
+
   virtual std::vector<CopySetKey>
   GetCopySetsInChunkServer(ChunkServerIdType id) const = 0;
+
+  // TODO(chaojie-schedule): add Topology需要增加创建copyset的接口
 };
 
 class TopologyImpl : public Topology {
@@ -188,7 +189,6 @@ class TopologyImpl : public Topology {
   int init();
 
 // allocate id & token
-
   PoolIdType AllocateLogicalPoolId();
   PoolIdType AllocatePhysicalPoolId();
   ZoneIdType AllocateZoneId();
