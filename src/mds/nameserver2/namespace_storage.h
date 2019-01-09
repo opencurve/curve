@@ -30,10 +30,18 @@ std::ostream& operator << (std::ostream & os, StoreStatus &s);
 
 const char FILEINFOKEYPREFIX[] = "01";
 const char SEGMENTINFOKEYPREFIX[] = "02";
+const char SNAPSHOTFILEINFOKEYPREFIX[] = "03";
+// TODO(hzsunjianliang): if use single prefix for snapshot file?
 const int PREFIX_LENGTH = 2;
 
 std::string EncodeFileStoreKey(uint64_t parentID, const std::string &fileName);
+std::string EncodeSnapShotFileStoreKey(uint64_t parentID,
+                const std::string &fileName);
 std::string EncodeSegmentStoreKey(uint64_t inodeID, offset_t offset);
+
+
+// TODO(hzsunjianliang): may be storage need high level abstruction
+// put the encoding internal, not external
 
 
 // kv value storage for namespace and segment
@@ -49,6 +57,7 @@ class NameServerStorage {
 
     virtual StoreStatus DeleteFile(const std::string & storekey) = 0;
 
+    // TODO(lixiaocui1): need transaction here
     virtual StoreStatus RenameFile(const std::string & oldStoreKey,
                                    const FileInfo &oldfileInfo,
                                    const std::string & newStoreKey,
@@ -66,6 +75,14 @@ class NameServerStorage {
                                    const PageFileSegment * segment) = 0;
 
     virtual StoreStatus DeleteSegment(const std::string &storeKey) = 0;
+
+    // TODO(lixiaocui1): need transaction here
+    virtual StoreStatus SnapShotFile(const std::string & originalFileKey,
+                                    const FileInfo *originalFileInfo,
+                                    const std::string & snapshotFileKey,
+                                    const FileInfo * snapshotFileInfo) = 0;
+    virtual StoreStatus LoadSnapShotFile(
+                                std::vector<FileInfo> *snapShotFiles) = 0;
 };
 }  // namespace mds
 }  // namespace curve

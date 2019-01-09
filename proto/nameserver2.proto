@@ -16,7 +16,6 @@ enum FileType {
 enum FileStatus {
     kFileCreated = 0;
     kFileDeleting = 1;
-    kFileDeleted = 2;
 }
 
 message FileInfo {
@@ -55,6 +54,7 @@ enum  StatusCode {
     kFileNotUnderSnapShot = 121;
     kSnapshotDeleting = 122;
     kSnapshotFileNotExists = 123;
+    kSnapshotFileDeleteError = 124;
 
     kStorageError = 501;
     KInternalError = 502;
@@ -77,7 +77,7 @@ message PageFileSegment {
 message CreateFileRequest {
     required string     fileName = 1;
     required FileType   fileType = 2;
-    required uint64     fileLength = 3;
+    optional uint64     fileLength = 3;
 };
 
 message CreateFileResponse {
@@ -97,6 +97,7 @@ message GetOrAllocateSegmentRequest {
     required string     fileName = 1;
     required uint64     offset = 2;
     required bool       allocateIfNotExist = 3;
+    optional uint64     seqNum = 4; 
 }
 
 message GetOrAllocateSegmentResponse {
@@ -138,7 +139,7 @@ message CreateSnapShotRequest {
 
 message CreateSnapShotResponse {
     required StatusCode statusCode = 1;
-    optional uint64     seq = 2;
+    optional FileInfo   snapShotFileInfo = 2;
 }
 
 // list snapshots
@@ -239,14 +240,16 @@ service CurveFSService {
     rpc     ExtendFile(ExtendFileRequest) returns (ExtendFileResponse);
 
     // snapshot rpcs
-    rpc     CreateSnapShot(CreateFileRequest)
-                returns (CreateFileResponse);
+    rpc     CreateSnapShot(CreateSnapShotRequest)
+                returns (CreateSnapShotResponse);
     rpc     ListSnapShot(ListSnapShotFileInfoRequest)
             returns (ListSnapShotFileInfoResponse);
     rpc     DeleteSnapShot(DeleteSnapShotRequest)
             returns (DeleteSnapShotResponse);
     rpc     CheckSnapShotStatus(CheckSnapShotStatusRequest)
             returns (CheckSnapShotStatusResponse);
+    rpc     GetSnapShotFileSegment(GetOrAllocateSegmentRequest)
+                returns (GetOrAllocateSegmentResponse);
 
     // session rpcs
     rpc     OpenFile(OpenFileRequest) returns (OpenFileResponse);

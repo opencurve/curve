@@ -43,6 +43,13 @@ class MockNameServerStorage : public NameServerStorage {
                                          const PageFileSegment *));
 
     MOCK_METHOD1(DeleteSegment, StoreStatus(const std::string &));
+
+    MOCK_METHOD4(SnapShotFile, StoreStatus(const std::string & ,
+                                    const FileInfo *,
+                                    const std::string & ,
+                                    const FileInfo *));
+    MOCK_METHOD1(LoadSnapShotFile,
+        StoreStatus(std::vector<FileInfo> *snapShotFiles));
 };
 
 }  // namespace mds

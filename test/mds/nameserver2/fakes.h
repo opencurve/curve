@@ -117,16 +117,16 @@ class FakeNameServerStorage : public NameServerStorage {
                            const FileInfo &newfileInfo) override {
         std::lock_guard<std::mutex> guard(lock_);
 
-        std::string value = newfileInfo.SerializeAsString();
-        memKvMap_.insert(
-            std::move(std::pair<std::string, std::string>
-            (newStoreKey, std::move(value))));
-
         auto iter = memKvMap_.find(oldStoreKey);
         if (iter == memKvMap_.end()) {
             return StoreStatus::KeyNotExist;
         }
         memKvMap_.erase(iter);
+
+        std::string value = newfileInfo.SerializeAsString();
+        memKvMap_.insert(
+            std::move(std::pair<std::string, std::string>
+            (newStoreKey, std::move(value))));
 
         return StoreStatus::OK;
     }
@@ -134,6 +134,19 @@ class FakeNameServerStorage : public NameServerStorage {
     StoreStatus ListFile(const std::string & startStoreKey,
                          const std::string & endStoreKey,
                          std::vector<FileInfo> * files) override {
+        std::lock_guard<std::mutex> guard(lock_);
+
+        auto iter = memKvMap_.begin();
+        for ( iter; iter != memKvMap_.end(); iter++ ) {
+            if (iter->first.compare(startStoreKey) >= 0) {
+                if (iter->first.compare(endStoreKey) < 0) {
+                    FileInfo  validFile;
+                    validFile.ParseFromString(iter->second);
+                    files->push_back(validFile);
+                }
+            }
+        }
+
         return StoreStatus::OK;
     }
 
@@ -165,6 +178,40 @@ class FakeNameServerStorage : public NameServerStorage {
             return StoreStatus::KeyNotExist;
         }
         memKvMap_.erase(iter);
+        return StoreStatus::OK;
+    }
+
+    StoreStatus SnapShotFile(const std::string & originalFileKey,
+                            const FileInfo *originalFileInfo,
+                            const std::string & snapshotFileKey,
+                            const FileInfo * snapshotFileInfo) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string originalFileData = originalFileInfo->SerializeAsString();
+        std::string snapshotFileData = snapshotFileInfo->SerializeAsString();
+        memKvMap_.erase(originalFileKey);
+        memKvMap_.insert(std::move(std::pair<std::string, std::string>
+            (originalFileKey, std::move(originalFileData))));
+        memKvMap_.insert(std::move(std::pair<std::string, std::string>
+            (snapshotFileKey, std::move(snapshotFileData))));
+        return StoreStatus::OK;
+    }
+
+    StoreStatus LoadSnapShotFile(std::vector<FileInfo> *snapShotFiles)
+    override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string snapshotStartKey = SNAPSHOTFILEINFOKEYPREFIX;
+
+        auto iter = memKvMap_.begin();
+        for ( iter; iter != memKvMap_.end(); iter++ ) {
+            if ( iter->first.length() > snapshotStartKey.length() ) {
+                if (iter->first.substr(0, snapshotStartKey.length()).
+                    compare(snapshotStartKey) == 0) {
+                    FileInfo  validFile;
+                    validFile.ParseFromString(iter->second);
+                    snapShotFiles->push_back(validFile);
+                }
+            }
+        }
         return StoreStatus::OK;
     }
 

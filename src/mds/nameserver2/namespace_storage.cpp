@@ -27,6 +27,17 @@ std::string EncodeFileStoreKey(uint64_t parentID, const std::string &fileName) {
     return storeKey;
 }
 
+std::string EncodeSnapShotFileStoreKey(uint64_t parentID,
+    const std::string &fileName) {
+    std::string storeKey;
+    storeKey.resize(PREFIX_LENGTH + sizeof(parentID) + fileName.length());
+
+    memcpy(&(storeKey[0]), SNAPSHOTFILEINFOKEYPREFIX,  PREFIX_LENGTH);
+    ::curve::common::EncodeBigEndian(&(storeKey[2]), parentID);
+    memcpy(&(storeKey[10]), fileName.data(), fileName.length());
+    return storeKey;
+}
+
 std::string EncodeSegmentStoreKey(uint64_t inodeID, offset_t offset) {
     std::string storeKey;
     storeKey.resize(18);

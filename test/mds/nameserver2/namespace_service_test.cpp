@@ -13,6 +13,10 @@
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "test/mds/nameserver2/fakes.h"
+#include "test/mds/nameserver2/mock_clean_manager.h"
+#include "src/mds/nameserver2/clean_manager.h"
+#include "src/mds/nameserver2/clean_core.h"
+#include "src/mds/nameserver2/clean_task_manager.h"
 
 
 namespace curve {
@@ -24,16 +28,30 @@ class NameSpaceServiceTest : public ::testing::Test {
         // init the kcurvefs, use the fake element
         storage_ =  new FakeNameServerStorage();
         inodeGenerator_ = new FakeInodeIDGenerator(0);
+
+        cleanCore_ = std::make_shared<CleanCore>(storage_);
+        // new taskmanger for 2 worker thread, and check thread period 2 second
+        cleanTaskManager_ = std::make_shared<CleanTaskManager>(2, 2000);
+
+        snapShotCleanManager_ = std::make_shared<CleanManager>(cleanCore_,
+                cleanTaskManager_, storage_);
+
+        ASSERT_EQ(snapShotCleanManager_->Start(), true);
+
         std::shared_ptr<FackTopologyAdmin> topologyAdmin =
                                 std::make_shared<FackTopologyAdmin>();
         std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
                             std::make_shared<FackChunkIDGenerator>();
         chunkSegmentAllocate_ =
                 new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
-        kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_);
+        kCurveFS.Init(storage_, inodeGenerator_,
+            chunkSegmentAllocate_, snapShotCleanManager_);
     }
 
     void TearDown() override {
+        if (snapShotCleanManager_ != nullptr) {
+            ASSERT_EQ(snapShotCleanManager_->Stop(), true);
+        }
         if (storage_ != nullptr) delete storage_;
         if (inodeGenerator_ != nullptr) delete inodeGenerator_;
         if (chunkSegmentAllocate_ != nullptr) delete chunkSegmentAllocate_;
@@ -43,11 +61,14 @@ class NameSpaceServiceTest : public ::testing::Test {
     NameServerStorage *storage_;
     InodeIDGenerator *inodeGenerator_;
     ChunkSegmentAllocator *chunkSegmentAllocate_;
+    std::shared_ptr<CleanCore> cleanCore_;
+    std::shared_ptr<CleanTaskManager> cleanTaskManager_;
+    std::shared_ptr<CleanManager> snapShotCleanManager_;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
     brpc::Server server;
-    std::string listenAddr = "0.0.0.0:9000";
+    std::string listenAddr = "0.0.0.0:9761";
 
     // start server
     NameSpaceService namespaceService;
@@ -261,6 +282,149 @@ TEST_F(NameSpaceServiceTest, test1) {
     server.Join();
     return;
 }
+
+
+TEST_F(NameSpaceServiceTest, snapshottests) {
+    brpc::Server server;
+    std::string listenAddr = "0.0.0.0:9761";
+
+    // start server
+    NameSpaceService namespaceService;
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(server.Start(listenAddr.c_str(), &option), 0);
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(listenAddr.c_str(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+
+
+    // test create file
+    CreateFileRequest request;
+    CreateFileResponse response;
+
+    brpc::Controller cntl;
+    uint64_t fileLength = kMiniFileLength;
+
+    request.set_filename("/file1");
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+
+    cntl.set_log_id(2);
+    stub.CreateFile(&cntl,  &request, &response,  NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // get the file
+    cntl.Reset();
+    GetFileInfoRequest request1;
+    GetFileInfoResponse response1;
+    request1.set_filename("/file1");
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        FileInfo  file = response1.fileinfo();
+        ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(file.id(), 1);
+        ASSERT_EQ(file.filename(), "file1");
+        ASSERT_EQ(file.parentid(), 0);
+        ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
+        ASSERT_EQ(file.length(), fileLength);
+        ASSERT_EQ(file.fullpathname(), "/file1");
+        ASSERT_EQ(file.seqnum(), 0);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // test createsnapshotfile
+    cntl.Reset();
+    CreateSnapShotRequest snapshotRequest;
+    CreateSnapShotResponse snapshotResponses;
+    snapshotRequest.set_filename("/file1");
+    stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
+    if (!cntl.Failed()) {
+        FileInfo snapshotFileInfo;
+        snapshotFileInfo.CopyFrom(snapshotResponses.snapshotfileinfo());
+        ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(snapshotFileInfo.id(), 2);
+        ASSERT_EQ(snapshotFileInfo.parentid(), 1);
+        ASSERT_EQ(snapshotFileInfo.filename(), "file1-0");
+        ASSERT_EQ(snapshotFileInfo.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(snapshotFileInfo.fullpathname(), "/file1/file1-0");
+        ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
+        ASSERT_EQ(snapshotFileInfo.seqnum(), 0);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // get the original file
+    cntl.Reset();
+    request1.set_filename("/file1");
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        FileInfo file = response1.fileinfo();
+        ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(file.id(), 1);
+        ASSERT_EQ(file.filename(), "file1");
+        ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
+        ASSERT_EQ(file.length(), fileLength);
+        ASSERT_EQ(file.fullpathname(), "/file1");
+        ASSERT_EQ(file.seqnum(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // test deletesnapshotfile
+    cntl.Reset();
+    DeleteSnapShotRequest deleteRequest;
+    DeleteSnapShotResponse deleteResponse;
+    deleteRequest.set_filename("/file1");
+    deleteRequest.set_seq(0);
+    stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        LOG(ERROR) << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+
+    // list snapshotdelete ok
+    cntl.Reset();
+    ListSnapShotFileInfoRequest listRequest;
+    ListSnapShotFileInfoResponse listResponse;
+
+    listRequest.set_filename("/file1");
+    listRequest.add_seq(0);
+    stub.ListSnapShot(&cntl, &listRequest, &listResponse, NULL);
+
+    if (!cntl.Failed()) {
+        auto snapshotFileNum = listResponse.fileinfo_size();
+        if (snapshotFileNum == 0) {
+            LOG(INFO) << "snapfile deleted";
+        } else {
+            FileInfo snapShotFileInfo = listResponse.fileinfo(0);
+            ASSERT_EQ(snapShotFileInfo.id(), 2);
+            ASSERT_EQ(snapShotFileInfo.filestatus(), FileStatus::kFileDeleting);
+        }
+    } else {
+        ASSERT_TRUE(false);
+    }
+    server.Stop(10);
+    server.Join();
+}
+
 }  // namespace mds
 }  // namespace curve
 

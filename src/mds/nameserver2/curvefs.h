@@ -15,6 +15,8 @@
 #include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/nameserver2/define.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/clean_manager.h"
+#include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 
 namespace curve {
 namespace mds {
@@ -24,6 +26,8 @@ const uint64_t ROOTINODEID = 0;
 const char ROOTFILENAME[] = "/";
 const uint64_t INTERALGARBAGEDIR = 1;
 
+using ::curve::mds::DeleteSnapShotResponse;
+
 class CurveFS {
  public:
     // singleton, supported in c++11
@@ -31,7 +35,10 @@ class CurveFS {
         static CurveFS curvefs;
         return curvefs;
     }
-    void Init(NameServerStorage*, InodeIDGenerator*, ChunkSegmentAllocator*);
+    void Init(NameServerStorage*,
+            InodeIDGenerator*,
+            ChunkSegmentAllocator*,
+            std::shared_ptr<CleanManagerInterface>);
 
     // namespace ops
     StatusCode CreateFile(const std::string & fileName,
@@ -65,7 +72,28 @@ class CurveFS {
     FileInfo GetRootFileInfo(void) const {
         return rootFileInfo_;
     }
-    // TODO(hzsunjianliang): snapshot ops
+
+    StatusCode CreateSnapShotFile(const std::string &fileName,
+                            FileInfo *snapshotFileInfo);
+    StatusCode ListSnapShotFile(const std::string & fileName,
+                            std::vector<FileInfo> *snapshotFileInfos) const;
+    // async interface
+    StatusCode DeleteFileSnapShotFile(const std::string &fileName,
+                            FileSeqType seq,
+                            std::shared_ptr<AsyncDeleteSnapShotEntity> entity);
+    StatusCode CheckSnapShotFileStatus(const std::string &fileName,
+                            FileSeqType seq, FileStatus * status,
+                            uint32_t * progress) const;
+
+    StatusCode GetSnapShotFileInfo(const std::string &fileName,
+                            FileSeqType seq, FileInfo *snapshotFileInfo) const;
+
+    StatusCode GetSnapShotFileSegment(
+            const std::string & filename,
+            FileSeqType seq,
+            offset_t offset,
+            PageFileSegment *segment);
+
  private:
     CurveFS() = default;
 
@@ -80,15 +108,24 @@ class CurveFS {
 
     StatusCode PutFile(const FileInfo & fileInfo);
 
+    /**
+     * @brief 执行一次fileinfo的snapshot快照事务
+     * @param originalFileInfo: 原文件对于fileInfo
+     * @param SnapShotFile: 生成的snapshot文件对于fileInfo
+     * @return StatusCode: 成功或者失败
+     */
+    StatusCode SnapShotFile(const FileInfo * originalFileInfo,
+        const FileInfo * SnapShotFile) const;
+
  private:
     FileInfo rootFileInfo_;
     NameServerStorage*          storage_;
     InodeIDGenerator*           InodeIDGenerator_;
     ChunkSegmentAllocator*      chunkSegAllocator_;
+
+    std::shared_ptr<CleanManagerInterface> snapshotCleanManager_;
 };
-
 extern CurveFS &kCurveFS;
-
 }   // namespace mds
 }   // namespace curve
 #endif   // SRC_MDS_NAMESERVER2_CURVEFS_H_

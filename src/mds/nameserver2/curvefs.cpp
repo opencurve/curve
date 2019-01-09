@@ -5,7 +5,6 @@
  * Copyright (c) 2018 netease
  */
 
-
 #include <glog/logging.h>
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/common/string_util.h"
@@ -18,10 +17,12 @@ namespace mds {
 
 void CurveFS::Init(NameServerStorage* storage,
                 InodeIDGenerator* InodeIDGenerator,
-                ChunkSegmentAllocator* chunkSegAllocator) {
+                ChunkSegmentAllocator* chunkSegAllocator,
+                std::shared_ptr<CleanManagerInterface> snapshotCleanManager) {
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
+    snapshotCleanManager_ = snapshotCleanManager;
     InitRootFile();
 }
 
@@ -86,11 +87,41 @@ StatusCode CurveFS::LookUpFile(const FileInfo & parentFileInfo,
     }
 }
 
+// StatusCode PutFileInternal()
 
 StatusCode CurveFS::PutFile(const FileInfo & fileInfo) {
-    auto storeKey =
-        EncodeFileStoreKey(fileInfo.parentid(), fileInfo.filename());
+    std::string storeKey;
+    switch (fileInfo.filetype()) {
+        case FileType::INODE_PAGEFILE:
+            storeKey = EncodeFileStoreKey(fileInfo.parentid(),
+                fileInfo.filename());
+            break;
+        case FileType::INODE_SNAPSHOT_PAGEFILE:
+            storeKey = EncodeSnapShotFileStoreKey(fileInfo.parentid(),
+                fileInfo.filename());
+            break;
+        default:
+            return StatusCode::kNotSupported;
+    }
+
     if (storage_->PutFile(storeKey, fileInfo) != StoreStatus::OK) {
+        return StatusCode::kStorageError;
+    } else {
+        return StatusCode::kOK;
+    }
+}
+
+StatusCode CurveFS::SnapShotFile(const FileInfo * origFileInfo,
+    const FileInfo * snapshotFile) const {
+    auto origStoreKey =
+        EncodeFileStoreKey(origFileInfo->parentid(),
+            origFileInfo->filename());
+    auto snapshotStoreKey =
+        EncodeSnapShotFileStoreKey(snapshotFile->parentid(),
+            snapshotFile->filename());
+
+    if (storage_->SnapShotFile(origStoreKey, origFileInfo,
+        snapshotStoreKey, snapshotFile) != StoreStatus::OK) {
         return StatusCode::kStorageError;
     } else {
         return StatusCode::kOK;
@@ -141,6 +172,8 @@ StatusCode CurveFS::CreateFile(const std::string & fileName, FileType filetype,
         fileInfo.set_segmentsize(DefaultSegmentSize);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
+        fileInfo.set_fullpathname(fileName);
+        fileInfo.set_seqnum(0);
         ret = PutFile(fileInfo);
         return ret;
     }
@@ -188,6 +221,8 @@ StatusCode CurveFS::DeleteFile(const std::string & filename) {
     // TODO(hzsunjianliang): can not delete dir/snapshot father file
 
     auto storeKey = EncodeFileStoreKey(parentFileInfo.id(), lastEntry);
+
+    // TODO(hzsunjianliang): should sumbit async delete to task pool
     if (storage_->DeleteFile(storeKey) != StoreStatus::OK) {
         return StatusCode::kStorageError;
     }
@@ -257,6 +292,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         newFileInfo.CopyFrom(oldFileInfo);
         newFileInfo.set_parentid(parentFileInfo.id());
         newFileInfo.set_filename(lastEntry);
+        newFileInfo.set_fullpathname(newFileName);
 
         std::string oldStoreKey =
             EncodeFileStoreKey(oldFileInfo.parentid(), oldFileInfo.filename());
@@ -410,6 +446,254 @@ StatusCode CurveFS::DeleteSegment(const std::string &filename,
         return StatusCode::kStorageError;
     }
 }
+
+StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
+                                    FileInfo *snapshotFileInfo) {
+    FileInfo  parentFileInfo;
+    std::string lastEntry;
+
+    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << fileName << ", Walk Path error";
+        return ret;
+    }
+    if (lastEntry.empty()) {
+        return StatusCode::kFileNotExists;
+    }
+
+    FileInfo fileInfo;
+    ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << fileName << ", LookUpFile error";
+        return ret;
+    }
+
+    // check file type
+    if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
+        return StatusCode::kNotSupported;
+    }
+
+    // check  if snapshot exist
+    auto startKey = EncodeSnapShotFileStoreKey(fileInfo.id(), "");
+    auto endKey   = EncodeSnapShotFileStoreKey(fileInfo.id() + 1, "");
+
+    std::vector<FileInfo> snapShotFiles;
+    if ( storage_->ListFile(startKey, endKey, &snapShotFiles)
+            != StoreStatus::OK ) {
+        LOG(ERROR) << fileName  << "listFile fail";
+        return StatusCode::kStorageError;
+    }
+    if (snapShotFiles.size() != 0) {
+        LOG(INFO) << fileName << " exist snapshotfile, num = "
+            << snapShotFiles.size();
+        return StatusCode::kFileUnderSnapShot;
+    }
+
+    // TODO(hzsunjianliang): check if fileis open and session not expire
+    // then invalide client
+
+    // do snapshot
+    // first new snapshot fileinfo, based on the original fileInfo
+    InodeID inodeID;
+    if (InodeIDGenerator_->GenInodeID(&inodeID) != true) {
+        LOG(ERROR) << fileName << ", createSnapShotFile GenInodeID error";
+        return StatusCode::kStorageError;
+    }
+    *snapshotFileInfo = fileInfo;
+    snapshotFileInfo->set_id(inodeID);
+    snapshotFileInfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
+    snapshotFileInfo->set_parentid(fileInfo.id());
+    snapshotFileInfo->set_filename(fileInfo.filename() + "-" +
+            std::to_string(fileInfo.seqnum()));
+    snapshotFileInfo->set_fullpathname(fileName + "/" +
+        snapshotFileInfo->filename());
+    snapshotFileInfo->set_filestatus(FileStatus::kFileCreated);
+
+    // add original file snapshot seq number
+    fileInfo.set_seqnum(fileInfo.seqnum() + 1);
+
+    // do storage
+    ret = SnapShotFile(&fileInfo, snapshotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << fileName << ", SnapShotFile error";
+        return StatusCode::kStorageError;
+    }
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
+                            std::vector<FileInfo> *snapshotFileInfos) const {
+    FileInfo parentFileInfo;
+    std::string lastEntry;
+
+    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << fileName << ", Walk Path error";
+        return ret;
+    }
+    if (lastEntry.empty()) {
+        LOG(INFO) << fileName << ", dir not suppport SnapShot";
+        return StatusCode::kNotSupported;
+    }
+
+    FileInfo fileInfo;
+    ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << fileName << ", LookUpFile error";
+        return ret;
+    }
+
+    // check file type
+    if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
+        LOG(INFO) << fileName << ", filetype not support SnapShot";
+        return StatusCode::kNotSupported;
+    }
+
+    // list snapshot files
+    auto startKey = EncodeSnapShotFileStoreKey(fileInfo.id(), "");
+    auto endKey   = EncodeSnapShotFileStoreKey(fileInfo.id() + 1, "");
+
+    auto storeStatus =  storage_->ListFile(startKey, endKey, snapshotFileInfos);
+    if (storeStatus == StoreStatus::KeyNotExist ||
+        storeStatus == StoreStatus::OK) {
+        return StatusCode::kOK;
+    } else {
+        LOG(ERROR) << fileName << ", storage ListFile return = " << storeStatus;
+        return StatusCode::kStorageError;
+    }
+}
+
+StatusCode CurveFS::GetSnapShotFileInfo(const std::string &fileName,
+                        FileSeqType seq, FileInfo *snapshotFileInfo) const {
+    std::vector<FileInfo> snapShotFileInfos;
+    StatusCode ret =  ListSnapShotFile(fileName, &snapShotFileInfos);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "ListSnapShotFile error";
+        return ret;
+    }
+
+    if (snapShotFileInfos.size() == 0) {
+        LOG(INFO) << "file not under snapshot";
+        return StatusCode::kSnapshotFileNotExists;
+    }
+
+    int index;
+    for ( index = 0; index != snapShotFileInfos.size(); index++ ) {
+        if (snapShotFileInfos[index].seqnum() == static_cast<uint64_t>(seq)) {
+          break;
+        }
+    }
+    if (index == snapShotFileInfos.size()) {
+        LOG(INFO) << fileName << " snapshotFile seq = " << seq << " not find";
+        return StatusCode::kSnapshotFileNotExists;
+    }
+
+    *snapshotFileInfo = snapShotFileInfos[index];
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::DeleteFileSnapShotFile(const std::string &fileName,
+                        FileSeqType seq,
+                        std::shared_ptr<AsyncDeleteSnapShotEntity> entity) {
+    FileInfo snapShotFileInfo;
+    StatusCode ret =  GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "fileName = " << fileName
+            << ", seq = "<< seq
+            << ", GetSnapShotFileInfo file ,ret = " << ret;
+        return ret;
+    } else {
+        LOG(INFO) << "snapshotfile info = " << snapShotFileInfo.filename();
+    }
+
+    if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
+        LOG(INFO) << "fileName = " << fileName
+        << ", seq = " << seq
+        << ", snapshot is under deleting";
+        return StatusCode::kSnapshotDeleting;
+    }
+
+    if (snapShotFileInfo.filestatus() != FileStatus::kFileCreated) {
+        LOG(ERROR) << "fileName = " << fileName
+        << ", seq = " << seq
+        << ", status error, status = " << snapShotFileInfo.filestatus();
+        return StatusCode::KInternalError;
+    }
+
+    snapShotFileInfo.set_filestatus(FileStatus::kFileDeleting);
+    ret = PutFile(snapShotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "fileName = " << fileName
+            << ", seq = " << seq
+            << ", PutFile error = " << ret;
+        return StatusCode::KInternalError;
+    }
+
+    //  message the snapshot delete manager
+    if (!snapshotCleanManager_->SubmitDeleteSnapShotFileJob(
+                        snapShotFileInfo, entity)) {
+        LOG(ERROR) << "fileName = " << fileName
+                << ", seq = " << seq
+                << ", Delete Task Deduplicated";
+        return StatusCode::KInternalError;
+    }
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
+                                    FileSeqType seq, FileStatus * status,
+                                    uint32_t * progress) const {
+    FileInfo snapShotFileInfo;
+    StatusCode ret =  GetSnapShotFileInfo(fileName, seq, &snapShotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "GetSnapShotFileInfo file ,ret = " << ret;
+        return ret;
+    }
+
+    *status = snapShotFileInfo.filestatus();
+    if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
+        // TODO(hzsunjianliang): get the deleteing progress
+        *progress = 0;
+    }
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::GetSnapShotFileSegment(
+        const std::string & filename,
+        FileSeqType seq,
+        offset_t offset,
+        PageFileSegment *segment) {
+    assert(segment != nullptr);
+
+    FileInfo snapShotFileInfo;
+    StatusCode ret = GetSnapShotFileInfo(filename, seq, &snapShotFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "GetSnapShotFileInfo file ,ret = " << ret;
+        return ret;
+    }
+
+    if (offset % snapShotFileInfo.segmentsize() != 0) {
+        LOG(INFO) << "offset not align with segment";
+        return StatusCode::kParaError;
+    }
+
+    if (offset + snapShotFileInfo.segmentsize() > snapShotFileInfo.length()) {
+        LOG(INFO) << "bigger than file length";
+        return StatusCode::kParaError;
+    }
+
+    std::string storeKey =
+        EncodeSegmentStoreKey(snapShotFileInfo.id(), offset);
+    StoreStatus storeRet = storage_->GetSegment(storeKey, segment);
+    if (storeRet == StoreStatus::OK) {
+        return StatusCode::kOK;
+    } else if (storeRet == StoreStatus::KeyNotExist) {
+        return StatusCode::kSegmentNotAllocated;
+    } else {
+        return StatusCode::KInternalError;
+    }
+}
+
 
 CurveFS &kCurveFS = CurveFS::GetInstance();
 

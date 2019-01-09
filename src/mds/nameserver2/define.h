@@ -30,6 +30,7 @@ typedef  uint64_t offset_t;
 typedef uint16_t LogicalPoolID;
 typedef uint32_t SegmentSizeType;
 typedef uint32_t ChunkSizeType;
+typedef uint64_t FileSeqType;
 
 }  // namespace mds
 }  // namespace curve
