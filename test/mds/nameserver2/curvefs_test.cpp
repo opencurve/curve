@@ -12,6 +12,7 @@
 #include "test/mds/nameserver2/mock_namespace_storage.h"
 #include "test/mds/nameserver2/mock_inode_id_generator.h"
 #include "test/mds/nameserver2/mock_chunk_allocate.h"
+#include "test/mds/nameserver2/mock_clean_manager.h"
 #include "src/mds/common/topology_define.h"
 
 using ::testing::AtLeast;
@@ -31,8 +32,11 @@ class CurveFSTest: public ::testing::Test {
         storage_ = new MockNameServerStorage();
         inodeIdGenerator_ = new MockInodeIDGenerator();
         mockChunkAllocator_ = new MockChunkAllocator();
+        mockSnapShotCleanManager_ = std::make_shared<MockCleanManager>();
+
         curvefs_ =  &kCurveFS;
-        curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_);
+        curvefs_->Init(storage_, inodeIdGenerator_,
+            mockChunkAllocator_, mockSnapShotCleanManager_);
     }
 
     void TearDown() override {
@@ -45,6 +49,7 @@ class CurveFSTest: public ::testing::Test {
     MockNameServerStorage *storage_;
     MockInodeIDGenerator *inodeIdGenerator_;
     MockChunkAllocator *mockChunkAllocator_;
+    std::shared_ptr<MockCleanManager> mockSnapShotCleanManager_;
 };
 
 TEST_F(CurveFSTest, testCreateFile1) {
@@ -857,6 +862,572 @@ TEST_F(CurveFSTest, testDeleteSegment) {
                                           0), StatusCode::kStorageError);
     }
 }
+
+
+TEST_F(CurveFSTest, testCreateSnapshotFile) {
+    {
+        // test under snapshot
+        FileInfo originalFile;
+        originalFile.set_seqnum(1);
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo fileInfo1;
+        snapShotFiles.push_back(fileInfo1);
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(curvefs_->CreateSnapShotFile("/snapshotFile1",
+                &snapShotFileInfoRet), StatusCode::kFileUnderSnapShot);
+    }
+    {
+        // test File is not PageFile
+    }
+    {
+        // test storage ListFile error
+    }
+    {
+        // test GenId error
+    }
+    {
+        // test create snapshot ok
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(2),
+            Return(true)));
+
+        FileInfo snapShotFileInfo;
+        EXPECT_CALL(*storage_, SnapShotFile(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(curvefs_->CreateSnapShotFile("/originalFile",
+                &snapShotFileInfoRet), StatusCode::kOK);
+        ASSERT_EQ(snapShotFileInfoRet.parentid(), originalFile.id());
+        ASSERT_EQ(snapShotFileInfoRet.filename(),
+            originalFile.filename() + "-" +
+            std::to_string(originalFile.seqnum()) );
+        ASSERT_EQ(snapShotFileInfoRet.fullpathname(),
+            originalFile.fullpathname() + "/" +
+            snapShotFileInfoRet.filename());
+        ASSERT_EQ(snapShotFileInfoRet.filestatus(), FileStatus::kFileCreated);
+    }
+    {
+        // test storage snapshotFile Error
+    }
+}
+
+TEST_F(CurveFSTest, testListSnapShotFile) {
+    {
+        // workPath error
+    }
+    {
+        // dir not support
+        std::vector<FileInfo> snapFileInfos;
+        ASSERT_EQ(curvefs_->ListSnapShotFile("/", &snapFileInfos),
+        StatusCode::kNotSupported);
+    }
+    {
+        // lookupFile error
+        std::vector<FileInfo> snapFileInfos;
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->ListSnapShotFile("/originalFile", &snapFileInfos),
+            StatusCode::kFileNotExists);
+    }
+    {
+        // check type not support
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_DIRECTORY);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapFileInfos;
+        ASSERT_EQ(curvefs_->ListSnapShotFile("originalFile", &snapFileInfos),
+        StatusCode::kNotSupported);
+    }
+    {
+        // ListFile error
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        std::vector<FileInfo> snapFileInfos;
+        ASSERT_EQ(curvefs_->ListSnapShotFile("originalFile", &snapFileInfos),
+        StatusCode::kStorageError);
+    }
+    {
+        // ListFile ok
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapFileInfos;
+        FileInfo  snapShotFile;
+        snapShotFile.set_parentid(1);
+        snapFileInfos.push_back(snapShotFile);
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapFileInfos),
+        Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapFileInfosRet;
+        ASSERT_EQ(curvefs_->ListSnapShotFile("originalFile", &snapFileInfosRet),
+        StatusCode::kOK);
+
+        ASSERT_EQ(snapFileInfosRet.size(), 1);
+        ASSERT_EQ(snapFileInfosRet[0].SerializeAsString(),
+                snapShotFile.SerializeAsString());
+        }
+}
+
+
+TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
+    {
+        // ListSnapShotFile error
+        FileInfo snapshotFileInfo;
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/", 1, &snapshotFileInfo),
+        StatusCode::kNotSupported);
+    }
+    {
+        // snapfile not exist(not under snapshot)
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        FileInfo snapshotFileInfo;
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
+            1, &snapshotFileInfo), StatusCode::kSnapshotFileNotExists);
+    }
+    {
+        // under snapshot, butsnapfile not exist
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(2);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        FileInfo snapshotFileInfo;
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
+            1, &snapshotFileInfo), StatusCode::kSnapshotFileNotExists);
+    }
+    {
+        // test ok
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        FileInfo snapshotFileInfo;
+        ASSERT_EQ(curvefs_->GetSnapShotFileInfo("/originalFile",
+            1, &snapshotFileInfo), StatusCode::kOK);
+        ASSERT_EQ(snapshotFileInfo.SerializeAsString(),
+        snapInfo.SerializeAsString());
+    }
+}
+
+TEST_F(CurveFSTest, GetSnapShotFileSegment) {
+    {
+        // GetSnapShotFileInfo error
+        PageFileSegment segment;
+        ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/", 1, 0, &segment),
+            StatusCode::kNotSupported);
+    }
+    {
+        // offset not align
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_segmentsize(DefaultSegmentSize);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        PageFileSegment segment;
+        ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/originalFile",
+            1, 1, &segment), StatusCode::kParaError);
+    }
+    {
+        // storage->GetSegment return error
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_segmentsize(DefaultSegmentSize);
+        snapInfo.set_length(DefaultSegmentSize);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, GetSegment(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        PageFileSegment segment;
+        ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/originalFile",
+            1, 0, &segment), StatusCode::kSegmentNotAllocated);
+    }
+    {
+        // ok
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_segmentsize(DefaultSegmentSize);
+        snapInfo.set_length(DefaultSegmentSize);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        PageFileSegment expectSegment;
+        expectSegment.set_logicalpoolid(1);
+        expectSegment.set_segmentsize(DefaultSegmentSize);
+        expectSegment.set_chunksize(DefaultChunkSize);
+        expectSegment.set_startoffset(0);
+
+        PageFileChunkInfo *chunkInfo = expectSegment.add_chunks();
+        chunkInfo->set_chunkid(1);
+        chunkInfo->set_copysetid(1);
+
+        EXPECT_CALL(*storage_, GetSegment(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(expectSegment),
+            Return(StoreStatus::OK)));
+
+        PageFileSegment segment;
+        ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/originalFile",
+            1, 0, &segment), StatusCode::kOK);
+        ASSERT_EQ(expectSegment.SerializeAsString(),
+                    segment.SerializeAsString());
+    }
+}
+
+
+TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
+    {
+        // GetSnapShotFileInfo error
+        FileInfo snapshotFileInfo;
+        ASSERT_EQ(curvefs_->DeleteFileSnapShotFile("/", 1, nullptr),
+        StatusCode::kNotSupported);
+    }
+    {
+        // under deleteing
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filestatus(FileStatus::kFileDeleting);
+        snapShotFiles.push_back(snapInfo);
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
+            StatusCode::kSnapshotDeleting);
+    }
+    {
+        // delete snapshot file filetype error (internal case)
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_filename("originalFile-seq1");
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filetype(FileType::INODE_APPENDFILE);
+        snapShotFiles.push_back(snapInfo);
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
+            StatusCode::KInternalError);
+    }
+    {
+        // delete storage error
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_filename("originalFile-seq1");
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filetype(FileType::INODE_SNAPSHOT_PAGEFILE);
+        snapInfo.set_filestatus(FileStatus::kFileCreated);
+        snapShotFiles.push_back(snapInfo);
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
+            StatusCode::KInternalError);
+    }
+    {
+        // delete snapshot ok
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_filename("originalFile-seq1");
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filetype(FileType::INODE_SNAPSHOT_PAGEFILE);
+        snapInfo.set_filestatus(FileStatus::kFileCreated);
+        snapShotFiles.push_back(snapInfo);
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*mockSnapShotCleanManager_,
+            SubmitDeleteSnapShotFileJob(_, _))
+        .Times(1)
+        .WillOnce(Return(true));
+
+        EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
+            StatusCode::kOK);
+    }
+    {
+        //  message the snapshot delete manager error, return error
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_filename("originalFile-seq1");
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filetype(FileType::INODE_SNAPSHOT_PAGEFILE);
+        snapInfo.set_filestatus(FileStatus::kFileCreated);
+        snapShotFiles.push_back(snapInfo);
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*mockSnapShotCleanManager_,
+            SubmitDeleteSnapShotFileJob(_, _))
+        .Times(1)
+        .WillOnce(Return(false));
+
+        EXPECT_EQ(curvefs_->DeleteFileSnapShotFile("/originalFile", 1, nullptr),
+            StatusCode::KInternalError);
+    }
+}
+
+TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
+    // may be not needed
+}
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

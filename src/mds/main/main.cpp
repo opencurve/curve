@@ -14,9 +14,13 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/namespace_service.h"
 #include "src/mds/nameserver2/curvefs.h"
+#include "src/mds/nameserver2/clean_manager.h"
+#include "src/mds/nameserver2/clean_core.h"
+#include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/mds/topology/topology_admin.h"
 #include "src/mds/topology/topology_manager.h"
 #include "src/mds/topology/topology_service.h"
+
 
 
 DEFINE_string(listenAddr, ":6666", "Initial  mds listen addr");
@@ -48,7 +52,16 @@ int curve_main(int argc, char **argv) {
                             std::make_shared<FackChunkIDGenerator>();
     chunkSegmentAllocate_ =
                 new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
-    kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_);
+
+    // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
+    auto taskManager = std::make_shared<CleanTaskManager>();
+    auto cleanCore   = std::make_shared<CleanCore>(storage_);
+
+    auto cleanManger = std::make_shared<CleanManager>(cleanCore,
+        taskManager, storage_);
+
+    kCurveFS.Init(storage_, inodeGenerator_,
+        chunkSegmentAllocate_, cleanManger);
 
     // add rpc service
     brpc::Server server;

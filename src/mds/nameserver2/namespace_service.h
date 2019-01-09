@@ -51,6 +51,27 @@ class NameSpaceService: public CurveFSService {
                        const ::curve::mds::ExtendFileRequest* request,
                        ::curve::mds::ExtendFileResponse* response,
                        ::google::protobuf::Closure* done) override;
+
+    void CreateSnapShot(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::CreateSnapShotRequest* request,
+                       ::curve::mds::CreateSnapShotResponse* response,
+                       ::google::protobuf::Closure* done) override;
+    void ListSnapShot(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::ListSnapShotFileInfoRequest* request,
+                       ::curve::mds::ListSnapShotFileInfoResponse* response,
+                       ::google::protobuf::Closure* done) override;
+    void DeleteSnapShot(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::DeleteSnapShotRequest* request,
+                       ::curve::mds::DeleteSnapShotResponse* response,
+                       ::google::protobuf::Closure* done) override;
+    void CheckSnapShotStatus(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::CheckSnapShotStatusRequest* request,
+                       ::curve::mds::CheckSnapShotStatusResponse* response,
+                       ::google::protobuf::Closure* done) override;
+    void GetSnapShotFileSegment(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::GetOrAllocateSegmentRequest* request,
+                       ::curve::mds::GetOrAllocateSegmentResponse* response,
+                       ::google::protobuf::Closure* done);
 };
 }  // namespace mds
 }  // namespace curve
