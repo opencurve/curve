@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 #include "src/client/client_common.h"
 #include "test/client/fake/mockMDS.h"
 #include "test/client/fake/fakeChunkserver.h"
@@ -71,6 +72,159 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void OpenFile(::google::protobuf::RpcController* controller,
+                const ::curve::mds::OpenFileRequest* request,
+                ::curve::mds::OpenFileResponse* response,
+                ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+
+        auto resp = static_cast<::curve::mds::OpenFileResponse*>(
+                    fakeopenfile_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void RefreshSession(::google::protobuf::RpcController* controller,
+                        const curve::mds::ReFreshSessionRequest* request,
+                        curve::mds::ReFreshSessionResponse* response,
+                       ::google::protobuf::Closure* done) {
+        {
+            brpc::ClosureGuard done_guard(done);
+            if (fakeRefreshSession_->controller_ != nullptr &&
+                fakeRefreshSession_->controller_->Failed()) {
+                controller->SetFailed("failed");
+            }
+
+            static int seq = 1;
+
+            auto resp = static_cast<::curve::mds::ReFreshSessionResponse*>(
+                        fakeRefreshSession_->response_);
+            response->CopyFrom(*resp);
+
+            if (response->statuscode() == ::curve::mds::StatusCode::kOK) {
+                curve::mds::FileInfo * info = new curve::mds::FileInfo;
+                response->set_statuscode(::curve::mds::StatusCode::kOK);
+                response->set_sessionid("1234");
+                response->set_allocated_fileinfo(info);
+                response->mutable_fileinfo()->set_seqnum(seq++);
+                response->mutable_fileinfo()->set_filename("filename");
+                response->mutable_fileinfo()->set_id(1);
+                response->mutable_fileinfo()->set_parentid(0);
+                response->mutable_fileinfo()->set_filetype(curve::mds::FileType::INODE_PAGEFILE);     // NOLINT
+                response->mutable_fileinfo()->set_chunksize(4 * 1024 * 1024);
+                response->mutable_fileinfo()->set_length(4 * 1024 * 1024 * 1024ul);     // NOLINT
+                response->mutable_fileinfo()->set_ctime(12345678);
+                LOG(INFO) << "refresh session request!";
+            }
+        }
+        if (refreshtask_)
+            refreshtask_();
+    }
+
+    void CreateSnapShot(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::CreateSnapShotRequest* request,
+                       ::curve::mds::CreateSnapShotResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakecreatesnapshotret_->controller_ != nullptr &&
+             fakecreatesnapshotret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::mds::CreateSnapShotResponse*>(
+                    fakecreatesnapshotret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ListSnapShot(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::ListSnapShotFileInfoRequest* request,
+                       ::curve::mds::ListSnapShotFileInfoResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakelistsnapshotret_->controller_ != nullptr &&
+             fakelistsnapshotret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::mds::ListSnapShotFileInfoResponse*>(
+                    fakelistsnapshotret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void DeleteSnapShot(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::DeleteSnapShotRequest* request,
+                       ::curve::mds::DeleteSnapShotResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakedeletesnapshotret_->controller_ != nullptr &&
+             fakedeletesnapshotret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::mds::DeleteSnapShotResponse*>(
+                    fakedeletesnapshotret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void GetSnapShotFileSegment(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::GetOrAllocateSegmentRequest* request,
+                       ::curve::mds::GetOrAllocateSegmentResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakegetsnapsegmentinforet_->controller_ != nullptr &&
+             fakegetsnapsegmentinforet_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
+                    fakegetsnapsegmentinforet_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void DeleteChunkSnapshot(::google::protobuf::RpcController* controller,
+                    const ::curve::chunkserver::ChunkRequest* request,
+                    ::curve::chunkserver::ChunkResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakedeletesnapchunkret_->controller_ != nullptr &&
+             fakedeletesnapchunkret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::chunkserver::ChunkResponse*>(
+                    fakedeletesnapchunkret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ReadChunkSnapshot(::google::protobuf::RpcController* controller,
+                    const ::curve::chunkserver::ChunkRequest* request,
+                    ::curve::chunkserver::ChunkResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakereadchunksnapret_->controller_ != nullptr &&
+             fakereadchunksnapret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::chunkserver::ChunkResponse*>(
+                    fakereadchunksnapret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void CloseFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::CloseFileRequest* request,
+                    ::curve::mds::CloseFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeclosefile_->controller_ != nullptr &&
+             fakeclosefile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::mds::CloseFileResponse*>(
+                    fakeclosefile_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void SetCreateFileFakeReturn(FakeReturn* fakeret) {
         fakeCreateFileret_ = fakeret;
     }
@@ -83,9 +237,57 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakeGetOrAllocateSegmentret_ = fakeret;
     }
 
+    void SetOpenFile(FakeReturn* fakeret) {
+        fakeopenfile_ = fakeret;
+    }
+
+    void SetRefreshSession(FakeReturn* fakeret, std::function<void(void)> t) {
+        fakeRefreshSession_ = fakeret;
+        refreshtask_ = std::move(t);
+    }
+
+    void SetCreateSnapShot(FakeReturn* fakeret) {
+        fakecreatesnapshotret_ = fakeret;
+    }
+
+    void SetDeleteSnapShot(FakeReturn* fakeret) {
+        fakedeletesnapshotret_ = fakeret;
+    }
+
+    void SetListSnapShot(FakeReturn* fakeret) {
+        fakelistsnapshotret_ = fakeret;
+    }
+
+    void SetGetSnapshotSegmentInfo(FakeReturn* fakeret) {
+        fakegetsnapsegmentinforet_ = fakeret;
+    }
+
+    void SetReadChunkSnapshot(FakeReturn* fakeret) {
+        fakereadchunksnapret_ = fakeret;
+    }
+
+    void SetDeleteChunkSnapshot(FakeReturn* fakeret) {
+        fakedeletesnapchunkret_ = fakeret;
+    }
+
+    void SetCloseFile(FakeReturn* fakeret) {
+        fakeclosefile_ = fakeret;
+    }
+
     FakeReturn* fakeCreateFileret_;
     FakeReturn* fakeGetFileInforet_;
     FakeReturn* fakeGetOrAllocateSegmentret_;
+    FakeReturn* fakeopenfile_;
+    FakeReturn* fakeclosefile_;
+    FakeReturn* fakeRefreshSession_;
+
+    FakeReturn* fakecreatesnapshotret_;
+    FakeReturn* fakelistsnapshotret_;
+    FakeReturn* fakedeletesnapshotret_;
+    FakeReturn* fakereadchunksnapret_;
+    FakeReturn* fakedeletesnapchunkret_;
+    FakeReturn* fakegetsnapsegmentinforet_;
+    std::function<void(void)> refreshtask_;
 };
 
 class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
@@ -163,7 +365,7 @@ class FakeMDS {
 
     bool StartService();
     bool CreateCopysetNode();
-
+    void EnableNetUnstable(uint64_t waittime);
     void CreateFakeChunkservers();
 
     struct CopysetCreatStruct {

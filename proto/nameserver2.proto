@@ -23,7 +23,7 @@ message FileInfo {
     optional    string      fileName = 2;
     optional    uint64      parentId = 3;
     optional    FileType    fileType = 4;
-    optional    string      owner = 5;
+//  optional    uint32      owner = 5;
     optional    uint32      chunkSize = 6;
     optional    uint32      segmentSize = 7;
     optional    uint64      length = 8;
@@ -49,7 +49,6 @@ enum  StatusCode {
     kSegmentAllocateError = 108;
     kDirNotExist = 109;
     kNotSupported = 110;
-    kOwnerAuthFail = 111;
 
     kFileUnderSnapShot = 120;
     kFileNotUnderSnapShot = 121;
@@ -80,9 +79,8 @@ message PageFileSegment {
 
 message CreateFileRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
-    required FileType   fileType = 3;
-    optional uint64     fileLength = 4;
+    required FileType   fileType = 2;
+    optional uint64     fileLength = 3;
 };
 
 message CreateFileResponse {
@@ -91,7 +89,6 @@ message CreateFileResponse {
 
 message GetFileInfoRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
 }
 
 message GetFileInfoResponse {
@@ -101,10 +98,9 @@ message GetFileInfoResponse {
 
 message GetOrAllocateSegmentRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
-    required uint64     offset = 3;
-    required bool       allocateIfNotExist = 4;
-    optional uint64     seqNum = 5;
+    required uint64     offset = 2;
+    required bool       allocateIfNotExist = 3;
+    optional uint64     seqNum = 4;
 }
 
 message GetOrAllocateSegmentResponse {
@@ -114,8 +110,7 @@ message GetOrAllocateSegmentResponse {
 
 message DeleteSegmentRequest {
     required string    fileName = 1;
-    optional string    owner = 2;
-    required uint64    offset = 3;
+    required uint64    offset = 2;
 }
 
 message DeleteSegmentResponse {
@@ -125,7 +120,6 @@ message DeleteSegmentResponse {
 message RenameFileRequest {
     required string     oldFileName = 1;
     required string   newFileName = 2;
-    optional string     owner = 3;
 }
 
 message RenameFileResponse {
@@ -134,8 +128,7 @@ message RenameFileResponse {
 
 message ExtendFileRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
-    required uint64     newSize = 3;
+    required uint64     newSize = 2;
 }
 
 message ExtendFileResponse {
@@ -145,7 +138,6 @@ message ExtendFileResponse {
 // create snapshot
 message CreateSnapShotRequest {
     required string fileName = 1;
-    optional string owner = 2;
 }
 
 message CreateSnapShotResponse {
@@ -156,8 +148,7 @@ message CreateSnapShotResponse {
 // list snapshots
 message ListSnapShotFileInfoRequest {
     required string fileName = 1;
-    optional string owner = 2;
-    repeated uint64 seq = 3;
+    repeated uint64 seq = 2;
 }
 
 message ListSnapShotFileInfoResponse {
@@ -168,8 +159,7 @@ message ListSnapShotFileInfoResponse {
 // delete snapshot
 message DeleteSnapShotRequest {
     required string fileName = 1;
-    optional string owner = 2;
-    required uint64 seq = 3;
+    required uint64 seq = 2;
 }
 
 message DeleteSnapShotResponse {
@@ -180,8 +170,7 @@ message DeleteSnapShotResponse {
 
 message CheckSnapShotStatusRequest {
     required string fileName = 1;
-    optional string owner = 2;
-    required uint64 seq = 3;
+    required uint64 seq = 2;
 }
 
 message CheckSnapShotStatusResponse {
@@ -208,7 +197,6 @@ message ProtoSession {
 
 message OpenFileRequest {
     required string fileName = 1;
-    optional string owner = 2;
 };
 
 message OpenFileResponse {
@@ -220,7 +208,6 @@ message OpenFileResponse {
 message CloseFileRequest {
     required string fileName = 1;
     required string sessionID = 2;
-    optional string owner = 3;
 };
 
 message CloseFileResponse {
@@ -230,9 +217,8 @@ message CloseFileResponse {
 message ReFreshSessionRequest {
     required string fileName = 1;
     required string sessionID = 2;
-    optional string owner = 3;
-    required uint64 date = 4; //current time
-    required string signature = 5; //caculete based on token
+    required uint64 date = 3; //current time
+    required string signature = 4; //caculete based on token
 }
 
 message ReFreshSessionResponse {

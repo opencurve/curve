@@ -16,41 +16,52 @@
 #include <vector>
 
 #include "src/client/client_common.h"
-#include "src/client/session.h"
+#include "src/client/file_instance.h"
 #include "test/client/fake/mockMDS.h"
 #include "src/client/metacache.h"
 #include "test/client/fake/mock_schedule.h"
-#include "include/client/libcurve.h"
+#include "include/client/libcurve_qemu.h"
+#include "src/client/libcurve_file.h"
+#include "src/client/client_config.h"
+#include "src/client/service_helper.h"
+#include "src/client/mds_client.h"
+#include "src/client/config_info.h"
 
-DECLARE_string(metaserver_addr);
-DECLARE_uint32(chunk_size);
+extern std::string metaserver_addr;
+extern uint32_t chunk_size;
+extern std::string configpath;
 
+using curve::client::LogicalPoolCopysetIDInfo_t;
+using curve::client::MetaCacheErrorType;
+using curve::client::MDSClient;
+using curve::client::ServiceHelper;
+using curve::client::FileClient;
 using curve::client::LogicPoolID;
 using curve::client::CopysetID;
 using curve::client::Configuration;
 using curve::client::ChunkServerID;
 using curve::client::PeerId;
-using curve::client::Session;
+using curve::client::FileInstance;
 using curve::mds::CurveFSService;
 using curve::mds::topology::TopologyService;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
-class SessionTest : public ::testing::Test {
+class MDSClientTest : public ::testing::Test {
  public:
     void SetUp() {
-        session_ = new Session();
-        session_->Initialize();
+        MetaServerOption_t metaopt;
+        metaopt.metaaddrvec.push_back("127.0.0.1:8000");
+        mdsclient_.Initialize(metaopt);
     }
 
     void TearDown() {
-        session_->UnInitialize();
-        delete session_;
+        mdsclient_.UnInitialize();
     }
 
-    Session*    session_;
+    MDSClient    mdsclient_;
     static int i;
 };
 
-TEST_F(SessionTest, Createfile) {
+TEST_F(MDSClientTest, Createfile) {
     std::string filename = "./test.file";
     size_t len = 4 * 1024 * 1024;
 
@@ -65,8 +76,8 @@ TEST_F(SessionTest, Createfile) {
 
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
-
-    ASSERT_EQ(server.Start(FLAGS_metaserver_addr.c_str(), &options), 0);
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
 
     ::curve::mds::CreateFileResponse response;
     response.set_statuscode(::curve::mds::StatusCode::kFileExists);
@@ -76,19 +87,20 @@ TEST_F(SessionTest, Createfile) {
 
     curvefsservice.SetFakeReturn(fakeret);
 
-    CreateFileErrorType ret = session_->CreateFile(filename.c_str(), len);
+    LOG(INFO) << "now create file!";
+    LIBCURVE_ERROR ret = mdsclient_.CreateFile(filename.c_str(), len);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::EXISTS);
 
-    ASSERT_EQ(ret, CreateFileErrorType::FILE_ALREADY_EXISTS);
+    ASSERT_NE(LIBCURVE_ERROR::FAILED,
+         mdsclient_.CreateFile(filename.c_str(), len));
 
-    ASSERT_NE(CreateFileErrorType::FILE_CREATE_FAILED,
-         CreateFile(filename.c_str(), len));
-
+    LOG(INFO) << "create file done!";
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());
     delete fakeret;
 }
 
-TEST_F(SessionTest, GetFileInfo) {
+TEST_F(MDSClientTest, GetFileInfo) {
     std::string filename = "./test.file";
 
     brpc::Server server;
@@ -103,7 +115,7 @@ TEST_F(SessionTest, GetFileInfo) {
     // Start the server.
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
-    if (server.Start(FLAGS_metaserver_addr.c_str(),
+    if (server.Start(metaserver_addr.c_str(),
         &options) != 0) {
         LOG(ERROR) << "Fail to start Server";
     }
@@ -122,21 +134,21 @@ TEST_F(SessionTest, GetFileInfo) {
     response.mutable_fileinfo()->
         set_chunksize(4 * 1024 * 1024);
     response.mutable_fileinfo()->
-        set_length(4 * 1024 * 1024 * 1024);
+        set_length(4 * 1024 * 1024 * 1024ul);
     response.mutable_fileinfo()->
         set_ctime(12345678);
     // response.mutable_fileinfo()->
     //     set_snapshotid(0);
     response.mutable_fileinfo()->
-        set_segmentsize(1 * 1024 * 1024 * 1024);
+        set_segmentsize(1 * 1024 * 1024 * 1024ul);
     response.set_statuscode(::curve::mds::StatusCode::kOK);
 
     FakeReturn* fakeret = new FakeReturn(nullptr,
             static_cast<void*>(&response));
     curvefsservice.SetFakeReturn(fakeret);
 
-    FInfo_t* finfo = new FInfo_t;
-    session_->GetFileInfo(filename, finfo);
+    curve::client::FInfo_t* finfo = new curve::client::FInfo_t;
+    mdsclient_.GetFileInfo(filename, finfo);
 
     ASSERT_EQ(finfo->filename, filename);
     ASSERT_EQ(finfo->id, 1);
@@ -144,22 +156,9 @@ TEST_F(SessionTest, GetFileInfo) {
     ASSERT_EQ(static_cast<curve::mds::FileType>(finfo->filetype),
         curve::mds::FileType::INODE_PAGEFILE);
     ASSERT_EQ(finfo->chunksize, 4 * 1024 * 1024);
-    ASSERT_EQ(finfo->length, 4 * 1024 * 1024 * 1024);
+    ASSERT_EQ(finfo->length, 4 * 1024 * 1024 * 1024ul);
     ASSERT_EQ(finfo->ctime, 12345678);
-    ASSERT_EQ(finfo->segmentsize, 1 * 1024 * 1024 * 1024);
-    // ASSERT_EQ(finfo->snapshotid, 0);
-
-    FInfo f = GetInfo(filename.c_str());
-    ASSERT_EQ(f.filename, filename);
-    ASSERT_EQ(f.id, 1);
-    ASSERT_EQ(f.parentid, 0);
-    ASSERT_EQ(static_cast<curve::mds::FileType>(f.filetype),
-        curve::mds::FileType::INODE_PAGEFILE);
-    ASSERT_EQ(f.chunksize, 4 * 1024 * 1024);
-    ASSERT_EQ(f.length, 4 * 1024 * 1024 * 1024);
-    ASSERT_EQ(f.ctime, 12345678);
-    ASSERT_EQ(f.segmentsize, 1 * 1024 * 1024 * 1024);
-    // ASSERT_EQ(f.snapshotid, 0);
+    ASSERT_EQ(finfo->segmentsize, 1 * 1024 * 1024 * 1024ul);
 
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());
@@ -167,7 +166,7 @@ TEST_F(SessionTest, GetFileInfo) {
     delete finfo;
 }
 
-TEST_F(SessionTest, GetOrAllocateSegment) {
+TEST_F(MDSClientTest, GetOrAllocateSegment) {
     std::string filename = "./test.file";
 
     brpc::Server server;
@@ -185,7 +184,7 @@ TEST_F(SessionTest, GetOrAllocateSegment) {
     }
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
-    if (server.Start(FLAGS_metaserver_addr.c_str(), &options) != 0) {
+    if (server.Start(metaserver_addr.c_str(), &options) != 0) {
         LOG(ERROR) << "Fail to start Server";
     }
 
@@ -194,7 +193,7 @@ TEST_F(SessionTest, GetOrAllocateSegment) {
     response.set_statuscode(::curve::mds::StatusCode::kOK);
     response.set_allocated_pagefilesegment(pfs);
     response.mutable_pagefilesegment()->set_logicalpoolid(1234);
-    response.mutable_pagefilesegment()->set_segmentsize(1 * 1024 * 1024 * 1024);
+    response.mutable_pagefilesegment()->set_segmentsize(1*1024*1024*1024ul);
     response.mutable_pagefilesegment()->set_chunksize(4 * 1024 * 1024);
     response.mutable_pagefilesegment()->set_startoffset(0);
     for (int i = 0; i < 256; i ++) {
@@ -224,26 +223,34 @@ TEST_F(SessionTest, GetOrAllocateSegment) {
         static_cast<void*>(&response_1));
     topologyservice.SetFakeReturn(faktopologyeret);
 
-    curve::client::MetaCache* mc = session_->GetMetaCache();
+    curve::client::FInfo_t fi;
+    fi.chunksize   = 4 * 1024 * 1024;
+    fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
+    curve::client::MetaCache mc;
+    curve::client::ChunkIDInfo_t cinfo;
+    ASSERT_EQ(MetaCacheErrorType::CHUNKINFO_NOT_FOUND,
+                mc.GetChunkInfoByIndex(0, &cinfo));
+    LogicalPoolCopysetIDInfo_t lpcsIDInfo;
+    mdsclient_.GetOrAllocateSegment(true, &lpcsIDInfo, 0, &fi, &mc);
+    mdsclient_.GetServerList(lpcsIDInfo.lpid, lpcsIDInfo.cpidVec, &mc);
     for (int i = 0; i < 256; i++) {
-        curve::client::Chunkinfo_t chunkinfo;
-        ASSERT_EQ(0, mc->GetChunkInfo(i, &chunkinfo));
-        ASSERT_EQ(chunkinfo.logicpoolid_, 1234);
-        ASSERT_EQ(chunkinfo.copysetid_, i);
-        ASSERT_EQ(chunkinfo.chunkid_, i);
+        ASSERT_EQ(MetaCacheErrorType::OK, mc.GetChunkInfoByIndex(i, &cinfo)); // NOLINT
+        ASSERT_EQ(cinfo.lpid_, 1234);
+        ASSERT_EQ(cinfo.cpid_, i);
+        ASSERT_EQ(cinfo.cid_, i);
     }
 
     curve::client::EndPoint ep;
     butil::str2endpoint("127.0.0.1", 5000, &ep);
     curve::client::PeerId pd(ep);
     for (int i = 0; i < 256; i++) {
-        auto serverlist = mc->GetServerList(1234, i);
+        auto serverlist = mc.GetServerList(1234, i);
         ASSERT_TRUE(serverlist.IsValid());
         int chunkserverid = i * 3 + 1;
 
         uint32_t csid;
         curve::client::EndPoint temp;
-        mc->GetLeader(1234, i, &csid, &temp);
+        mc.GetLeader(1234, i, &csid, &temp);
         ASSERT_TRUE(csid == chunkserverid);
         ASSERT_TRUE(temp == ep);
         for (auto iter : serverlist.csinfos_) {
@@ -260,47 +267,43 @@ TEST_F(SessionTest, GetOrAllocateSegment) {
 
     uint32_t csid;
     curve::client::EndPoint temp;
-    ASSERT_EQ(-1, mc->GetLeader(2345, 0, &csid, &temp));
+    ASSERT_EQ(-1, mc.GetLeader(2345, 0, &csid, &temp));
 
     curve::client::EndPoint ep1;
     butil::str2endpoint("127.0.0.1", 7777, &ep1);
     ChunkServerID cid1 = 4;
-    mc->UpdateLeader(1234, 0, &cid1, ep1);
+    mc.UpdateLeader(1234, 0, &cid1, ep1);
 
     curve::client::EndPoint toep;
     ChunkServerID cid;
-    mc->GetLeader(1234, 0, &cid, &toep, false);
+    mc.GetLeader(1234, 0, &cid, &toep, false);
 
     ASSERT_EQ(ep1, toep);
-    ASSERT_EQ(0, mc->UpdateLeader(1234, 0, &cid1, ep1));
+    ASSERT_EQ(0, mc.UpdateLeader(1234, 0, &cid1, ep1));
 
-    ASSERT_EQ(0, mc->GetAppliedIndex(1111, 0));
+    ASSERT_EQ(0, mc.GetAppliedIndex(1111, 0));
+
+    // test applied index update
+    curve::client::CopysetInfo_t csinfo;
+    mc.UpdateCopysetInfo(111, 123, csinfo);
+    ASSERT_EQ(0, mc.GetAppliedIndex(111, 123));
+    mc.UpdateAppliedIndex(111, 123, 4);
+    ASSERT_EQ(4, mc.GetAppliedIndex(111, 123));
+    mc.UpdateAppliedIndex(111, 123, 100000);
+    ASSERT_EQ(100000, mc.GetAppliedIndex(111, 123));
+
     // Boundary test metacache.
     // we fake the disk size = 1G.
     // and the chunksize = 4M.
     // so if visit the chunk index > 255
     // will return failed.
-    curve::client::Chunkinfo_t chunkinfo;
-    ASSERT_EQ(-1, mc->GetChunkInfo(256, &chunkinfo));
-
-    class DerivedMetacache : public curve::client::MetaCache {
-     public:
-        DerivedMetacache():curve::client::MetaCache(nullptr) {
-        }
-        int testPrivateGetLeader(const LogicPoolID &logicPoolId,
-                        const CopysetID &copysetId,
-                        const Configuration &conf,
-                        PeerId *leaderId) {
-            return this->GetLeader(logicPoolId, copysetId, conf, leaderId);
-        }
-    };
-
-    DerivedMetacache* testmc = new DerivedMetacache();
+    curve::client::ChunkIDInfo_t chunkinfo;
+    ASSERT_EQ(MetaCacheErrorType::CHUNKINFO_NOT_FOUND, mc.GetChunkInfoByIndex(256, &chunkinfo));   // NOLINT
     curve::client::LogicPoolID lpid = 1234;
     curve::client::CopysetID copyid = 0;
     curve::client::PeerId pid;
     curve::client::Configuration conf;
-    ASSERT_EQ(-1, testmc->testPrivateGetLeader(lpid, copyid, conf, &pid));
+    ASSERT_EQ(-1, ServiceHelper::GetLeader(lpid, copyid, conf, &pid));
 
     curve::client::EndPoint ep11, ep22, ep33;
     butil::str2endpoint("127.0.0.1", 7777, &ep11);
@@ -314,8 +317,7 @@ TEST_F(SessionTest, GetOrAllocateSegment) {
     cfg.add_peer(pd11);
     cfg.add_peer(pd22);
     cfg.add_peer(pd33);
-    ASSERT_EQ(-1, testmc->testPrivateGetLeader(lpid, copyid, conf, &pid));
-
+    ASSERT_EQ(-1, ServiceHelper::GetLeader(lpid, copyid, conf, &pid));
 
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());
@@ -323,7 +325,7 @@ TEST_F(SessionTest, GetOrAllocateSegment) {
     delete faktopologyeret;
 }
 
-TEST_F(SessionTest, GetServerList) {
+TEST_F(MDSClientTest, GetServerList) {
     brpc::Server server;
 
     FakeTopologyService topologyservice;
@@ -334,7 +336,7 @@ TEST_F(SessionTest, GetServerList) {
     }
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
-    if (server.Start(FLAGS_metaserver_addr.c_str(), &options) != 0) {
+    if (server.Start(metaserver_addr.c_str(), &options) != 0) {
         LOG(ERROR) << "Fail to start Server";
     }
 
@@ -363,14 +365,15 @@ TEST_F(SessionTest, GetServerList) {
     for (int i = 0; i < 256; i++) {
         cpidvec.push_back(i);
     }
-    ASSERT_NE(-1, session_->GetServerList(1234, cpidvec));
+    curve::client::MetaCache mc;
+    ASSERT_NE(LIBCURVE_ERROR::FAILED,
+                mdsclient_.GetServerList(1234, cpidvec, &mc));
 
-    curve::client::MetaCache* mc = session_->GetMetaCache();
     curve::client::EndPoint ep;
     butil::str2endpoint("127.0.0.1", 5000, &ep);
     curve::client::PeerId pd(ep);
     for (int i = 0; i < 256; i++) {
-        auto serverlist = mc->GetServerList(1234, i);
+        auto serverlist = mc.GetServerList(1234, i);
         ASSERT_TRUE(serverlist.IsValid());
         int chunkserverid = i * 3 + 1;
         for (auto iter : serverlist.csinfos_) {
@@ -383,7 +386,7 @@ TEST_F(SessionTest, GetServerList) {
     delete faktopologyeret;
 }
 
-TEST_F(SessionTest, GetLeaderTest) {
+TEST_F(MDSClientTest, GetLeaderTest) {
     brpc::Server chunkserver1;
     brpc::Server chunkserver2;
     brpc::Server chunkserver3;
@@ -432,7 +435,7 @@ TEST_F(SessionTest, GetLeaderTest) {
     cfg.add_peer(pd2);
     cfg.add_peer(pd3);
 
-    curve::client::MetaCache* mc = session_->GetMetaCache();
+    curve::client::MetaCache mc;
     curve::client::CopysetInfo_t cslist;
 
     curve::client::CopysetPeerInfo_t peerinfo_1;
@@ -450,7 +453,7 @@ TEST_F(SessionTest, GetLeaderTest) {
     peerinfo_3.peerid_ = pd3;
     cslist.AddCopysetPeerInfo(peerinfo_3);
 
-    mc->UpdateCopysetInfo(1234, 1234, cslist);
+    mc.UpdateCopysetInfo(1234, 1234, cslist);
 
     curve::chunkserver::GetLeaderResponse response;
     response.set_leader_id(pd1.to_string());
@@ -460,7 +463,7 @@ TEST_F(SessionTest, GetLeaderTest) {
 
     curve::client::ChunkServerID ckid;
     curve::client::EndPoint leaderep;
-    mc->GetLeader(1234, 1234, &ckid, &leaderep, true);
+    mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
     ASSERT_EQ(ckid, 1);
     ASSERT_EQ(ep1, leaderep);
@@ -474,7 +477,7 @@ TEST_F(SessionTest, GetLeaderTest) {
 }
 
 
-TEST_F(SessionTest, GetFileInfoException) {
+TEST_F(MDSClientTest, GetFileInfoException) {
     std::string filename = "./test.file";
 
     brpc::Server server;
@@ -489,31 +492,31 @@ TEST_F(SessionTest, GetFileInfoException) {
     // Start the server.
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
-    if (server.Start(FLAGS_metaserver_addr.c_str(),
+    if (server.Start(metaserver_addr.c_str(),
         &options) != 0) {
         LOG(ERROR) << "Fail to start Server";
     }
     FakeReturn* fakeret = nullptr;
-    FInfo_t* finfo = nullptr;
+    curve::client::FInfo_t* finfo = nullptr;
     {
-        // curve::mds::FileInfo info;
+        curve::mds::FileInfo* info = new curve::mds::FileInfo;
         ::curve::mds::GetFileInfoResponse response;
-        response.set_statuscode(::curve::mds::StatusCode::kFileExists);
-        // response.set_allocated_fileinfo(info);
+        response.set_statuscode(::curve::mds::StatusCode::kOK);
+        response.set_allocated_fileinfo(info);
 
         fakeret = new FakeReturn(nullptr,
                 static_cast<void*>(&response));
         curvefsservice.SetFakeReturn(fakeret);
 
-        finfo = new FInfo_t;
-        ASSERT_EQ(::curve::mds::StatusCode::kFileExists,
-                session_->GetFileInfo(filename, finfo));
+        finfo = new curve::client::FInfo_t;
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                mdsclient_.GetFileInfo(filename, finfo));
     }
 
     {
         curve::mds::FileInfo * info = new curve::mds::FileInfo;
         ::curve::mds::GetFileInfoResponse response;
-        response.set_statuscode(::curve::mds::StatusCode::kFileExists);
+        response.set_statuscode(::curve::mds::StatusCode::kOK);
         info->clear_parentid();
         info->clear_id();
         info->clear_filetype();
@@ -528,9 +531,9 @@ TEST_F(SessionTest, GetFileInfoException) {
                 static_cast<void*>(&response));
         curvefsservice.SetFakeReturn(fakeret);
 
-        finfo = new FInfo_t;
-        ASSERT_EQ(::curve::mds::StatusCode::kFileExists,
-                session_->GetFileInfo(filename, finfo));
+        finfo = new curve::client::FInfo_t;
+        ASSERT_EQ(LIBCURVE_ERROR::OK,
+                mdsclient_.GetFileInfo(filename, finfo));
     }
 
     ASSERT_EQ(0, server.Stop(0));
@@ -539,8 +542,7 @@ TEST_F(SessionTest, GetFileInfoException) {
     delete finfo;
 }
 
-
-TEST_F(SessionTest, GetOrAllocateSegmentException) {
+TEST_F(MDSClientTest, GetOrAllocateSegmentException) {
     std::string filename = "./test.file";
 
     brpc::Server server;
@@ -558,7 +560,7 @@ TEST_F(SessionTest, GetOrAllocateSegmentException) {
     }
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
-    if (server.Start(FLAGS_metaserver_addr.c_str(), &options) != 0) {
+    if (server.Start(metaserver_addr.c_str(), &options) != 0) {
         LOG(ERROR) << "Fail to start Server";
     }
 
@@ -576,7 +578,11 @@ TEST_F(SessionTest, GetOrAllocateSegmentException) {
         static_cast<void*>(&response_1));
     topologyservice.SetFakeReturn(faktopologyeret);
 
-    ASSERT_EQ(-1, session_->GetOrAllocateSegment(0));
+    curve::client::FInfo_t fi;
+    LogicalPoolCopysetIDInfo_t lpcsIDInfo;
+    curve::client::MetaCache mc;
+    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+            mdsclient_.GetOrAllocateSegment(true, &lpcsIDInfo, 0, &fi, &mc));
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());
     delete fakeret;

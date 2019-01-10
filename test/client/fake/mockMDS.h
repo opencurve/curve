@@ -75,10 +75,27 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void OpenFile(::google::protobuf::RpcController* controller,
+                const ::curve::mds::OpenFileRequest* request,
+                ::curve::mds::OpenFileResponse* response,
+                ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+
+        auto resp = static_cast<::curve::mds::OpenFileResponse*>(
+                    fakeopenfile_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
+
+    void SetOpenFile(FakeReturn* fakeret) {
+        fakeopenfile_ = fakeret;
+    }
+
     FakeReturn* fakeret_;
+    FakeReturn* fakeopenfile_;
 };
 
 class FakeTopologyService : public curve::mds::topology::TopologyService {

@@ -7,32 +7,70 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <fcntl.h>  // NOLINT
 #include <string>
 #include <iostream>
 #include <atomic>
-#include <thread>   //NOLINT
-#include <chrono>   //NOLINT
+#include <thread>   // NOLINT
+#include <chrono>   // NOLINT
 
-#include "include/client/libcurve.h"
-#include "src/client/session.h"
+#include "include/client/libcurve_qemu.h"
+#include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
 
-DECLARE_uint32(chunk_size);
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
+uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
+std::string metaserver_addr = "127.0.0.1:6666";   // NOLINT
+
 DECLARE_uint64(test_disk_size);
 DEFINE_uint32(io_time, 5, "Duration for I/O test");
 DEFINE_bool(fake_mds, true, "create fake mds");
 DEFINE_bool(create_copysets, false, "create copysets on chunkserver");
 DEFINE_bool(verify_io, true, "verify read/write I/O getting done correctly");
 
-void callback(CurveAioContext* context) {
-    LOG(INFO) << "aio call back for op " << context->op
-              << " here, errorcode = " << context->err;
+bool writeflag = false;
+bool readflag = false;
+std::mutex writeinterfacemtx;
+std::condition_variable writeinterfacecv;
+std::mutex interfacemtx;
+std::condition_variable interfacecv;
+
+DECLARE_uint64(test_disk_size);
+void writecallbacktest(CurveAioContext* context) {
+    writeflag = true;
+    writeinterfacecv.notify_one();
+    LOG(INFO) << "aio call back here, errorcode = " << context->err;
+}
+void readcallbacktest(CurveAioContext* context) {
+    readflag = true;
+    interfacecv.notify_one();
+    LOG(INFO) << "aio call back here, errorcode = " << context->err;
 }
 
 int main(int argc, char ** argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
+    std::string configpath = "./client.conf";   // NOLINT
+    std::string config = ""\
+    "metaserver_addr=127.0.0.1:6666\n" \
+    "get_leader_retry=3\n"\
+    "request_scheduler_queue_capacity=4096\n"\
+    "request_scheduler_threadpool_size=2\n"\
+    "client_chunk_op_retry_interval_us=200000\n"\
+    "client_chunk_op_max_retry=3\n"\
+    "pre_allocate_context_num=1024\n"\
+    "io_split_max_size_kb=64\n"\
+    "enable_applied_index_read=1\n"\
+    "loglevel=0";
+
+    int fd_ =  open(configpath.c_str(), O_CREAT | O_RDWR);
+    int len = write(fd_, config.c_str(), config.length());
+    close(fd_);
+
+    if (Init(configpath.c_str()) != 0) {
+        LOG(FATAL) << "Fail to init config";
+    }
 
     std::string filename = "test.txt";
     // uint64_t size = FLAGS_test_disk_size;
@@ -48,19 +86,19 @@ int main(int argc, char ** argv) {
     }
 
     /**** libcurve file operation ****/
-    CreateFile(filename.c_str(), FLAGS_test_disk_size);
+    int filedesc = Open(filename.c_str(), FLAGS_test_disk_size, true);
+    Close(filedesc);
 
     sleep(1);
 
     int fd;
     char* buffer;
     char* readbuffer;
-
     if (!FLAGS_verify_io) {
         goto skip_write_io;
     }
 
-    fd = Open(filename.c_str());
+    fd = Open(filename.c_str(), 0, false);
 
     if (fd == -1) {
         LOG(FATAL) << "open file failed!";
@@ -79,31 +117,28 @@ int main(int argc, char ** argv) {
 
     uint64_t offset_base;
     for (int i = 0; i < 16; i ++) {
-        // unsigned int offset = rand_r(&offset_base) %
-        //                       (FLAGS_test_disk_size - 4096);
-        // offset -= offset % FLAGS_chunk_size;
-        uint64_t offset = i * FLAGS_chunk_size;
-        // *(unsigned int*)buffer = offset;
+        uint64_t offset = i * chunk_size;
         Write(fd, buffer, offset, 4096);
     }
-
-    // Test I/O at address >= 4G
-    // offset_base = 4ul * 64 * FLAGS_chunk_size;
-    // Write(fd, buffer, offset_base, 4096);
-    // Write(fd, buffer, offset_base, 4096);
-    // Write(fd, buffer, offset_base, 4096);
 
     CurveAioContext writeaioctx;
     writeaioctx.buf = buffer;
     writeaioctx.offset = 0;
     writeaioctx.op = LIBCURVE_OP_WRITE;
     writeaioctx.length = 8 * 1024;
-    writeaioctx.cb = callback;
+    writeaioctx.cb = writecallbacktest;
 
     AioWrite(fd, &writeaioctx);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    {
+        std::unique_lock<std::mutex> lk(writeinterfacemtx);
+        writeinterfacecv.wait(lk, []()->bool{return writeflag;});
+    }
+    writeflag = false;
     AioWrite(fd, &writeaioctx);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    {
+        std::unique_lock<std::mutex> lk(writeinterfacemtx);
+        writeinterfacecv.wait(lk, []()->bool{return writeflag;});
+    }
 
     readbuffer = new char[8 * 1024];
     CurveAioContext readaioctx;
@@ -111,9 +146,12 @@ int main(int argc, char ** argv) {
     readaioctx.offset = 0;
     readaioctx.length = 8 * 1024;
     writeaioctx.op = LIBCURVE_OP_READ;
-    readaioctx.cb = callback;
+    readaioctx.cb = readcallbacktest;
     AioRead(fd, &readaioctx);
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    {
+        std::unique_lock<std::mutex> lk(interfacemtx);
+        interfacecv.wait(lk, []()->bool{return readflag;});
+    }
 
     for (int i = 0; i < 1024; i++) {
         if (readbuffer[i] != 'a') {
@@ -159,8 +197,12 @@ skip_write_io:
             if (!FLAGS_verify_io) {
                 goto skip_read_io;
             }
-
+            readflag = false;
             AioRead(fd, &readaioctx);
+            {
+                std::unique_lock<std::mutex> lk(interfacemtx);
+                interfacecv.wait(lk, []()->bool{return readflag;});
+            }
             for (int i = 0; i < 1024; i++) {
                 if (readbuffer[i] != 'a') {
                     LOG(FATAL) << "read wrong data!";
@@ -215,6 +257,9 @@ skip_read_io:
         t.join();
     }
 
+    Close(fd);
+    UnInit();
+
     if (FLAGS_fake_mds) {
         mds.UnInitialize();
     }
@@ -224,8 +269,8 @@ skip_read_io:
     }
     delete[] buffer;
     delete[] readbuffer;
-    Close(fd);
 
 workflow_finish:
+    unlink(configpath.c_str());
     return 0;
 }

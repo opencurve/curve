@@ -21,8 +21,10 @@ COPTS = [
 
 cc_library(
     name = "curve_client",
-    srcs = glob(["*.cpp"]),
-    hdrs = glob(["*h", "*.hpp"]),
+    srcs = glob(["*.cpp"],
+            exclude = ["libcurve.cpp"]),
+    hdrs = glob(["*h"],
+            exclude = ["libcurve.h"]),
     defines = ["UNIT_TEST"],
     deps = [
         "@com_google_googletest//:gtest",

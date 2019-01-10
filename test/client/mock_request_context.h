@@ -20,7 +20,7 @@ using curve::test::CountDownEvent;
 
 class FakeRequestContext : public RequestContext {
  public:
-    FakeRequestContext() : RequestContext(nullptr) {}
+    FakeRequestContext() : RequestContext() {}
     virtual ~FakeRequestContext() {}
 };
 
@@ -53,12 +53,16 @@ class FakeRequestClosure : public RequestClosure {
         return reqCtx_;
     }
 
+    IOTracker* GettIOTracker() {
+        return tracker_;
+    }
+
  private:
     CountDownEvent *cond_;
 
  private:
     int errcode_ = -1;
-    IOContext *ctx_;
+    IOTracker *tracker_;
     RequestContext *reqCtx_;
 };
 
