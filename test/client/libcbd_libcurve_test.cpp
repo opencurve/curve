@@ -16,8 +16,8 @@
 
 #include "src/client/libcbd.h"
 
-#include "include/client/libcurve.h"
-#include "src/client/session.h"
+#include "include/client/libcurve_qemu.h"
+#include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
 
@@ -26,6 +26,7 @@
 
 #define filename    "test.img"
 
+extern std::string configpath;
 void LibcbdLibcurveTestCallback(CurveAioContext* context) {
     context->op = LIBCURVE_OP_MAX;
 }
@@ -33,6 +34,10 @@ void LibcbdLibcurveTestCallback(CurveAioContext* context) {
 class TestLibcbdLibcurve : public ::testing::Test {
  public:
     void SetUp() {
+        if (Init(configpath.c_str()) != 0) {
+            LOG(FATAL) << "Fail to init config";
+            return;
+        }
         mds_ = new FakeMDS(filename);
 
         /*** init mds service ***/
@@ -41,10 +46,10 @@ class TestLibcbdLibcurve : public ::testing::Test {
         mds_->CreateCopysetNode();
 
         int64_t t0 = butil::monotonic_time_ms();
-        CreateFileErrorType e;
+        int ret = -1;
         for (;;) {
-            e = CreateFile(filename, FILESIZE);
-            if (e == FILE_CREATE_OK || e == FILE_ALREADY_EXISTS) {
+            ret = Open(filename, FILESIZE, true);
+            if (ret == 0) {
                 LOG(INFO) << "Created file for test.";
                 break;
             }
@@ -56,15 +61,16 @@ class TestLibcbdLibcurve : public ::testing::Test {
                 break;
             }
 
-            LOG(INFO) << "Failed to create file, retrying again.";
+            LOG(ERROR) << "Failed to create file, retrying again.";
             usleep(100 * 1000);
         }
-        ASSERT_TRUE(e == FILE_CREATE_OK || e == FILE_ALREADY_EXISTS);
+        ASSERT_EQ(ret, 0);
     }
 
     void TearDown() {
         mds_->UnInitialize();
 
+        UnInit();
         delete mds_;
     }
 
@@ -72,20 +78,20 @@ class TestLibcbdLibcurve : public ::testing::Test {
     FakeMDS* mds_;
 };
 
-TEST_F(TestLibcbdLibcurve, InitTest) {
+TEST(TestLibcbd, InitTest) {
     int ret;
     CurveOptions opt;
 
     memset(&opt, 0, sizeof(opt));
-
     // testing with no conf specified
+    opt.conf = "";
     ret = cbd_lib_init(&opt);
     ASSERT_NE(ret, 0);
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, 0);
 
     // testing with conf specified
-    opt.conf = "invalid_conf_path";
+    opt.conf = "./client.conf";
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, 0);
     ret = cbd_lib_fini();
@@ -102,9 +108,9 @@ TEST_F(TestLibcbdLibcurve, ReadWriteTest) {
     memset(&opt, 0, sizeof(opt));
     memset(buf, 'a', BUFSIZE);
 
-    opt.conf = "invalid_conf_path";
+    opt.conf = "./client.conf";
     ret = cbd_lib_init(&opt);
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     fd = cbd_lib_open(filename);
     ASSERT_GE(fd, 0);
@@ -113,13 +119,13 @@ TEST_F(TestLibcbdLibcurve, ReadWriteTest) {
     ASSERT_EQ(size, FILESIZE);
 
     ret = cbd_lib_pwrite(fd, buf, 0, BUFSIZE);
-    ASSERT_EQ(ret, BUFSIZE);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     ret = cbd_lib_sync(fd);
     ASSERT_EQ(ret, 0);
 
     ret = cbd_lib_pread(fd, buf, 0, BUFSIZE);
-    ASSERT_EQ(ret, BUFSIZE);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     for (i = 0; i < BUFSIZE; i++) {
         if (buf[i] != 'a') {
@@ -129,10 +135,10 @@ TEST_F(TestLibcbdLibcurve, ReadWriteTest) {
     ASSERT_EQ(i, BUFSIZE);
 
     ret = cbd_lib_close(fd);
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     ret = cbd_lib_fini();
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 }
 
 TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
@@ -151,9 +157,9 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
     memset(&opt, 0, sizeof(opt));
     memset(buf, 'a', BUFSIZE);
 
-    opt.conf = "invalid_conf_path";
+    opt.conf = "./client.conf";
     ret = cbd_lib_init(&opt);
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     fd = cbd_lib_open(filename);
     ASSERT_GE(fd, 0);
@@ -163,7 +169,7 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
 
     aioCtx.op = LIBCURVE_OP_WRITE;
     ret = cbd_lib_aio_pwrite(fd, &aioCtx);
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     while (aioCtx.op == LIBCURVE_OP_WRITE) {
         usleep(10 * 1000);
@@ -174,7 +180,7 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
 
     aioCtx.op = LIBCURVE_OP_READ;
     ret = cbd_lib_aio_pread(fd, &aioCtx);
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     while (aioCtx.op == LIBCURVE_OP_READ) {
         usleep(10 * 1000);
@@ -188,8 +194,8 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
     ASSERT_EQ(i, BUFSIZE);
 
     ret = cbd_lib_close(fd);
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     ret = cbd_lib_fini();
-    ASSERT_EQ(ret, 0);
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 }

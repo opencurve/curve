@@ -7,7 +7,8 @@
  */
 
 #include "src/client/libcbd.h"
-#include "include/client/libcurve.h"
+#include "src/client/config_info.h"
+#include "include/client/libcurve_qemu.h"
 
 extern "C" {
 
@@ -18,10 +19,9 @@ int cbd_libcurve_init(const CurveOptions* options) {
     if (g_cbd_libcurve_options.inited) {
         return 0;
     }
-
     g_cbd_libcurve_options.conf = options->conf;
-    ret = Init(g_cbd_libcurve_options.conf);
-    if (!ret) {
+    ret = Init(options->conf);
+    if (ret != 0) {
         return ret;
     }
     g_cbd_libcurve_options.inited = true;
@@ -31,6 +31,7 @@ int cbd_libcurve_init(const CurveOptions* options) {
 
 int cbd_libcurve_fini() {
     UnInit();
+    g_cbd_libcurve_options.inited = false;
 
     return 0;
 }
@@ -38,7 +39,7 @@ int cbd_libcurve_fini() {
 int cbd_libcurve_open(const char* filename) {
     int fd = -1;
 
-    fd = Open(filename);
+    fd = Open(filename, 0, false);
 
     return fd;
 }
@@ -71,8 +72,13 @@ int cbd_libcurve_sync(int fd) {
 }
 
 int64_t cbd_libcurve_filesize(const char* filename) {
-    struct FInfo    info = GetInfo(filename);
-
+    int fd = cbd_libcurve_open(filename);
+    if (fd < 0) {
+        return -1;
+    }
+    struct FileStatInfo info;
+    StatFs(fd, filename, &info);
+    cbd_libcurve_close(fd);
     return info.length;
 }
 

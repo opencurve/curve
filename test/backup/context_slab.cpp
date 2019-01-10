@@ -10,14 +10,9 @@
 #include <algorithm>
 
 #include "src/client/client_common.h"
-#include "src/client/context_slab.h"
-#include "src/client/io_context.h"
+#include "test/backup/context_slab.h"
+#include "src/client/io_tracker.h"
 #include "src/client/request_context.h"
-
-DEFINE_int32(pre_allocate_context_num,
-            1024,
-            "preallocate context struct, in case frequently new and free");
-
 
 namespace curve {
 namespace client {
@@ -25,84 +20,93 @@ namespace client {
     }
 
     RequestContextSlab::~RequestContextSlab() {
-        UnInitialize();
     }
 
     bool RequestContextSlab::Initialize() {
+        pre_allocate_context_num_ = ClientConfig::GetContextSlabOption().
+                                    pre_allocate_context_num;
         return PreAllocateInternal();
     }
 
     void RequestContextSlab::UnInitialize() {
-        std::for_each(contextslab_.begin(), contextslab_.end(),
-                        [](RequestContext* ctx){
+        spinlock_.Lock();
+        std::for_each(contextslab_.begin(), contextslab_.end(), [](RequestContext* ctx){    // NOLINT
             delete ctx;
         });
         contextslab_.clear();
+        spinlock_.UnLock();
     }
 
     size_t RequestContextSlab::Size() {
-        return contextslab_.size();
+        spinlock_.Lock();
+        size_t size = contextslab_.size();
+        spinlock_.UnLock();
+        return size;
     }
 
     RequestContext* RequestContextSlab::Get() {
-        LOCK_HERE
+        spinlock_.Lock();
         RequestContext* temp = nullptr;
         if (CURVE_LIKELY(!contextslab_.empty())) {
             temp = contextslab_.front();
             contextslab_.pop_front();
         } else {
             temp = new (std::nothrow) RequestContext(this);
-            CHECK(temp != nullptr) << "Allocate RequestContext failed!";
         }
-        UNLOCK_HERE
+        spinlock_.UnLock();
         return temp;
     }
 
     void RequestContextSlab::Recyle(RequestContext* torecyle) {
-        LOCK_HERE
+        spinlock_.Lock();
         torecyle->Reset();
         contextslab_.push_front(torecyle);
-        while (contextslab_.size() >
-                2 * FLAGS_pre_allocate_context_num) {
+        while (contextslab_.size() > 2 * pre_allocate_context_num_) {
             auto temp = contextslab_.front();
             contextslab_.pop_front();
             delete temp;
         }
-        UNLOCK_HERE
+        spinlock_.UnLock();
     }
 
     bool RequestContextSlab::PreAllocateInternal() {
-        for (int i = 0; i < FLAGS_pre_allocate_context_num; i++) {
+        for (int i = 0; i < pre_allocate_context_num_; i++) {
             RequestContext* temp = new (std::nothrow) RequestContext(this);
-            CHECK(temp != nullptr) << "PreAllocateInternal Failed!";
             contextslab_.push_front(temp);
         }
         return true;
     }
 
-    IOContextSlab::IOContextSlab() {
-        infilghtIOContextNum_.store(0, std::memory_order_release);
+    IOTrackerSlab::IOTrackerSlab():
+                    waitinflightio_(false),
+                    inflightio_(0) {
     }
 
-    IOContextSlab::~IOContextSlab() {
+    IOTrackerSlab::~IOTrackerSlab() {
     }
 
-    bool IOContextSlab::Initialize() {
+    bool IOTrackerSlab::Initialize() {
+        pre_allocate_context_num_ = ClientConfig::GetContextSlabOption().
+                                    pre_allocate_context_num;
         return PreAllocateInternal();
     }
 
-    bool IOContextSlab::PreAllocateInternal() {
-        for (int i = 0; i < FLAGS_pre_allocate_context_num; i++) {
-            IOContext* temp = new (std::nothrow) IOContext(this);
-            CHECK(temp != nullptr) << "PreAllocateInternal Failed!";
+    bool IOTrackerSlab::PreAllocateInternal() {
+        for (int i = 0; i < pre_allocate_context_num_; i++) {
+            IOTracker* temp = new (std::nothrow) IOTracker(this);
             contextslab_.push_front(temp);
         }
         return true;
     }
 
-    IOContext* IOContextSlab::Get() {
-        LOCK_HERE
-        IOContext* temp = nullptr;
+    IOTracker* IOTrackerSlab::Get() {
+        spinlock_.Lock();
+        if (waitinflightio_.load(std::memory_order_relaxed)) {
+            spinlock_.UnLock();
+            WaitInternal();
+            spinlock_.Lock();
+        }
+        IOTracker* temp = nullptr;
         if (CURVE_LIKELY(!contextslab_.empty())) {
             temp = contextslab_.front();
             /**
@@ -121,45 +125,40 @@ namespace client {
              */ 
             if (CURVE_UNLIKELY(!temp->IsBusy())) {
                 contextslab_.pop_front();
-                UNLOCK_HERE
-                infilghtIOContextNum_.fetch_add(1,
-                        std::memory_order_acq_rel);
+                spinlock_.UnLock();
+                IncremInflightIONum();
                 return temp;
             }
         }
 
-        temp = new (std::nothrow) IOContext(this);
-        CHECK(temp != nullptr) << "Allocate IOContext failed!";
-        UNLOCK_HERE
-        infilghtIOContextNum_.fetch_add(1, std::memory_order_acq_rel);
+        temp = new (std::nothrow) IOTracker(this);
+        spinlock_.UnLock();
+        IncremInflightIONum();
         return temp;
     }
 
-    void IOContextSlab::UnInitialize() {
-        while (infilghtIOContextNum_.load(std::memory_order_acquire)) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
+    void IOTrackerSlab::UnInitialize() {
+        WaitInternal();
 
-        std::for_each(contextslab_.begin(),
-                    contextslab_.end(),
-                    [](IOContext* ctx){
+        spinlock_.Lock();
+        std::for_each(contextslab_.begin(), contextslab_.end(), [](IOTracker* ctx){     // NOLINT
             delete ctx;
         });
         contextslab_.clear();
+        spinlock_.UnLock();
     }
 
-    void IOContextSlab::Recyle(IOContext* torecyle) {
-        LOCK_HERE
-        infilghtIOContextNum_.fetch_sub(1, std::memory_order_acq_rel);
+    void IOTrackerSlab::Recyle(IOTracker* torecyle) {
+        spinlock_.Lock();
         torecyle->Reset();
         contextslab_.push_front(torecyle);
-        while (contextslab_.size() >
-                2 * FLAGS_pre_allocate_context_num) {
+        DecremInflightIONum();
+        while (contextslab_.size() > 2 * pre_allocate_context_num_) {
             auto temp = contextslab_.front();
             contextslab_.pop_front();
             delete temp;
         }
-        UNLOCK_HERE
+        spinlock_.UnLock();
     }
 }   // namespace client
 }   // namespace curve

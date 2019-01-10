@@ -4,7 +4,6 @@ package curve.chunkserver;
 option cc_generic_services = true;
 
 // Qos 参数
-
 message QosRequestParas {
     optional uint32 clientId = 1;
     optional int32 dmclockDelta = 2;
@@ -12,82 +11,65 @@ message QosRequestParas {
 }
 
 message QosResponseParas {
-    optional int32 phase = 1; // 0: 代表 reservation 阶段; 1: 代表 priority 阶段
-    optional int32 cost = 2; //
+    optional int32 phase = 1;   // 0: 代表 reservation 阶段; 1: 代表 priority 阶段
+    optional int32 cost = 2;    //
 }
 
 // For chunk
-
 enum CHUNK_OP_TYPE {
-    CHUNK_OP_DELETE = 0;    // 删除
-    CHUNK_OP_READ = 1;      // 读
-    CHUNK_OP_WRITE = 2;     // 写
-    CHUNK_OP_UNKNOWN = 3;   // 未知 Op
+    CHUNK_OP_DELETE = 0;            // 删除 chunk
+    CHUNK_OP_READ = 1;              // 读 chunk
+    CHUNK_OP_WRITE = 2;             // 写 chunk
+    CHUNK_OP_READ_SNAP = 3;         // read chunk snapshot
+    CHUNK_OP_DELETE_SNAP = 4;       // delete chunk snapshot
+    CHUNK_OP_UNKNOWN = 5;           // 未知 Op
 };
+
 // read/write 的实际数据在 rpc 的 attachment 中
 message ChunkRequest {
-    required CHUNK_OP_TYPE opType = 1; // for all
-    required uint32 logicPoolId = 2; // for all  // logicPoolId 实际上 uint16，但是 proto 没有 uint16
-    required uint32 copysetId = 3; // for all
-    required uint64 chunkId = 4; // for all
-    optional uint64 appliedIndex = 5; // for read
-    optional uint32 offset = 6; // for read/write
-    optional uint32 size = 7; // for read/write
+    required CHUNK_OP_TYPE opType = 1;  // for all
+    required uint32 logicPoolId = 2;    // for all  // logicPoolId 实际上 uint16，但是 proto 没有 uint16
+    required uint32 copysetId = 3;      // for all
+    required uint64 chunkId = 4;        // for all
+    optional uint64 appliedIndex = 5;   // for read
+    optional uint32 offset = 6;         // for read/write
+    optional uint32 size = 7;           // for read/write
     optional QosRequestParas deltaRho = 8; // for read/write
+    optional uint64 sn = 9;             // for write/read snapshot 写请求中表示文件当前版本号，读快照请求中表示请求的chunk的版本号
 };
 
 enum CHUNK_OP_STATUS {
-    CHUNK_OP_STATUS_SUCCESS = 0; // 成功
-    CHUNK_OP_STATUS_REDIRECTED = 1; // 不是 leader，重定向
-    CHUNK_OP_STATUS_DISK_FAIL = 2; // 磁盘返回错误
-    CHUNK_OP_STATUS_CRC_FAIL = 3; // CRC 校验失败
-    CHUNK_OP_STATUS_INVALID_REQUEST = 4; // 请求参数不对
-    CHUNK_OP_STATUS_NOSPACE = 5; // 空间不够
-    CHUNK_OP_STATUS_COPYSET_NOTEXIST = 6; // copyset 不存在
-    CHUNK_OP_STATUS_FAILURE_UNKNOWN = 7; // 其他错误
+    CHUNK_OP_STATUS_SUCCESS = 0;            // 成功
+    CHUNK_OP_STATUS_REDIRECTED = 1;         // 不是 leader，重定向
+    CHUNK_OP_STATUS_DISK_FAIL = 2;          // 磁盘返回错误
+    CHUNK_OP_STATUS_CRC_FAIL = 3;           // CRC 校验失败
+    CHUNK_OP_STATUS_INVALID_REQUEST = 4;    // 请求参数不对
+    CHUNK_OP_STATUS_NOSPACE = 5;            // 空间不够
+    CHUNK_OP_STATUS_COPYSET_NOTEXIST = 6;   // copyset 不存在
+    CHUNK_OP_STATUS_CHUNK_NOTEXIST = 7;     // chunk或其快照文件不存在
+    CHUNK_OP_STATUS_FAILURE_UNKNOWN = 8;    // 其他错误
 };
 
 message ChunkResponse {
     required CHUNK_OP_STATUS status = 1;
-    optional string redirect = 2; // 自己不是 leader，重定向给 leader
-    optional uint64 appliedIndex = 3; // 返回当前最新的 committedIndex, 注意 read 和 write 都要返回
+    optional string redirect = 2;       // 自己不是 leader，重定向给 leader
+    optional uint64 appliedIndex = 3;   // 返回当前最新的 committedIndex, 注意 read 和 write 都要返回
     optional QosResponseParas phaseCost = 4; // for read/write
+    optional uint64 chunkSn = 5;        // for GetChunkInfo 表示chunk文件版本号，0表示不存在
+    optional uint64 snapSn = 6;         // for GetChunkInfo 表示chunk文件快照的版本号，0表示不存在
+
 };
 
-// for chunk snapshot,考虑到当前 snapshot 设计不确定，单独隔离出来，既清晰，又方便后续改动
-// TODO(wudemiao)： snapshot 详细设计出来后可能会增加更多的Op和接口
-enum CHUNK_SNAPSHOT_OP_TYPE {
-    CHUNK_SNAPSHOT_OP_CREATE = 0; // 创建
-    CHUNK_SNAPSHOT_OP_DELETE = 1; // 删除
-    CHUNK_SNAPSHOT_OP_READ = 2; // 读
+message GetChunkInfoRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId = 2;
+    required uint64 chunkId = 3;
 };
 
-// read/write 的实际数据在 rpc 的 attachment 中
-message ChunkSnapshotRequest {
-    required CHUNK_SNAPSHOT_OP_TYPE opType = 1; // for all
-    required uint32 logicPoolId = 2; // for all  // logicPoolId 实际上 uint16，但是 proto 没有 uint16
-    required uint32 copysetId = 3; // for all
-    required uint64 chunkId = 4; // for all
-    required uint64 snapshotId = 5; // for all
-    optional uint32 size = 6; // for read
-    optional QosRequestParas deltaRho = 7; // for read
-};
-
-enum CHUNK_SNAPSHOT_OP_STATUS {
-    CHUNK_SNAPSHOT_OP_STATUS_SUCCESS = 0; // 成功
-    CHUNK_SNAPSHOT_OP_STATUS_REDIRECTED = 1; // 不是 leader，重定向
-    CHUNK_SNAPSHOT_OP_STATUS_DISK_FAIL = 2; // 磁盘返回错误
-    CHUNK_SNAPSHOT_OP_STATUS_CRC_FAIL = 3; // CRC 校验失败
-    CHUNK_SNAPSHOT_OP_STATUS_INVALID_REQUEST = 4; // 请求参数不对
-    CHUNK_SNAPSHOT_OP_STATUS_NOSPACE = 5; // 空间不够
-    CHUNK_SNAPSHOT_OP_STATUS_COPYSET_NOTEXIST = 6; // copyset 不存在
-    CHUNK_SNAPSHOT_OP_STATUS_FAILURE_UNKNOWN = 7; // 其他错误
-};
-
-message ChunkSnapshotResponse {
-    required CHUNK_SNAPSHOT_OP_STATUS status = 1;
-    optional string redirect = 2; // 自己不是 leader，重定向给 leader
-    optional QosResponseParas phaseCost = 3; // for read
+message GetChunkInfoResponse {
+    required CHUNK_OP_STATUS status = 1;
+    optional string redirect = 2;       // 自己不是 leader，重定向给 leader
+    repeated uint64 chunkSn = 3;        // chunk 版本号 和 snapshot 版本号
 };
 
 service ChunkService {
@@ -95,7 +77,8 @@ service ChunkService {
     rpc ReadChunk (ChunkRequest) returns (ChunkResponse);
     rpc WriteChunk (ChunkRequest) returns (ChunkResponse);
 
-    rpc CreateChunkSnapshot (ChunkSnapshotRequest) returns (ChunkSnapshotResponse);
-    rpc DeleteChunkSnapshot (ChunkSnapshotRequest) returns (ChunkSnapshotResponse);
-    rpc ReadChunkSnapshot (ChunkSnapshotRequest) returns (ChunkSnapshotResponse);
+    rpc ReadChunkSnapshot (ChunkRequest) returns (ChunkResponse);
+    rpc DeleteChunkSnapshot (ChunkRequest) returns (ChunkResponse);
+
+    rpc GetChunkInfo (GetChunkInfoRequest) returns (GetChunkInfoResponse);
 };

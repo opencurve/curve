@@ -14,6 +14,11 @@ namespace curve {
 namespace client {
 
 TEST(RequestSenderManagerTest, basic_test) {
+    IOSenderOption_t iosenderopt;
+    iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
+    iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
+    iosenderopt.enable_applied_index_read = 1;
+
     std::unique_ptr<RequestSenderManager> senderManager(
         new RequestSenderManager());
     ChunkServerID leaderId = 123456789;
@@ -23,7 +28,8 @@ TEST(RequestSenderManagerTest, basic_test) {
 
     for (int i = leaderId; i <= leaderId + 10000; ++i) {
         auto senderPtr1 = senderManager->GetOrCreateSender(leaderId,
-                                                           leaderAddr);
+                                                           leaderAddr,
+                                                           iosenderopt);
         ASSERT_TRUE(nullptr != senderPtr1);
     }
 }

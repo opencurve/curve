@@ -39,6 +39,10 @@ class MockRequestScheduler : public curve::client::RequestScheduler {
             .WillByDefault(Invoke(&schedule, &Schedule::ScheduleRequest));
     }
 
+    int Fini() {
+       return 0;
+    }
+
  private:
     Schedule schedule;
 };

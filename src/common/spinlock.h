@@ -26,8 +26,9 @@ class SpinLock {
     void UnLock() {
         flag_.clear(std::memory_order_release);
     }
+
  private:
-    std::atomic_flag CURVE_CACHELINE_ALIGNMENT flag_;
+    CURVE_CACHELINE_ALIGNMENT std::atomic_flag flag_;
 };
 }   // namespace common
 }   // namespace curve
