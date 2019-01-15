@@ -73,7 +73,9 @@ class CurveFS {
                           FileType filetype,
                           uint64_t length);
     /**
-     *  @brief 获取文件信息
+     *  @brief 获取文件信息。
+     *         如果文件不存在返回StatusCode::kFileNotExists
+     *         如果文件元数据获取错误，返回StatusCode::kStorageError
      *  @param filename：文件名
      *         inode：返回获取到的文件系统
      *  @return 是否成功，成功返回StatusCode::kOK

@@ -773,17 +773,35 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
                              ProtoSession *protoSession,
                              FileInfo  *fileInfo) {
     // 检查文件是否存在
-    auto ret1 = GetFileInfo(fileName, fileInfo);
-    if (ret1 != StatusCode::kOK) {
-        LOG(ERROR) << "get file info error, errCode = " << ret1;
-        return  ret1;
+    StatusCode ret;
+    ret = GetFileInfo(fileName, fileInfo);
+    if (ret == StatusCode::kFileNotExists) {
+        LOG(WARNING) << "OpenFile file not exist, fileName = " << fileName
+                   << ", clientIP = " << clientIP
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
+    } else if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "OpenFile get file info error, fileName = " << fileName
+                   << ", clientIP = " << clientIP
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
     }
 
-    auto ret2 = sessionManager_->InsertSession(fileName, clientIP,
-                                            protoSession);
-    if (ret2 != StatusCode::kOK) {
-        LOG(ERROR) << "insert session fail, errCode = " << ret2;
-        return ret2;
+    ret = sessionManager_->InsertSession(fileName, clientIP, protoSession);
+    if (ret == StatusCode::kFileOccupied) {
+        LOG(WARNING) << "OpenFile file occupied, fileName = " << fileName
+                   << ", clientIP = " << clientIP
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
+    } else if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "OpenFile insert session fail, fileName = " << fileName
+                   << ", clientIP = " << clientIP
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
     }
 
     return StatusCode::kOK;
@@ -793,16 +811,35 @@ StatusCode CurveFS::CloseFile(const std::string &fileName,
                               const std::string &sessionID) {
     // 检查文件是否存在
     FileInfo  fileInfo;
-    auto ret1 = GetFileInfo(fileName, &fileInfo);
-    if (ret1 != StatusCode::kOK) {
-        LOG(ERROR) << "get file info error, errCode = " << ret1;
-        return  ret1;
+    StatusCode ret;
+    ret = GetFileInfo(fileName, &fileInfo);
+    if (ret == StatusCode::kFileNotExists) {
+        LOG(WARNING) << "CloseFile file not exist, fileName = " << fileName
+                   << ", sessionID = " << sessionID
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
+    } else if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "CloseFile get file info error, fileName = " << fileName
+                   << ", sessionID = " << sessionID
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return  ret;
     }
 
-    auto ret2 = sessionManager_->DeleteSession(fileName, sessionID);
-    if (ret2 != StatusCode::kOK) {
-        LOG(ERROR) << "delete session fail, errCode = " << ret2;
-        return ret2;
+    ret = sessionManager_->DeleteSession(fileName, sessionID);
+    if (ret == StatusCode::kSessionNotExist) {
+        LOG(WARNING) << "CloseFile session not exit, fileName = " << fileName
+                   << ", sessionID = " << sessionID
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
+    } else if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "CloseFile delete session fail, fileName = " << fileName
+                   << ", sessionID = " << sessionID
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
     }
 
     return StatusCode::kOK;
@@ -815,19 +852,45 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                             const std::string &clientIP,
                             FileInfo  *fileInfo) {
     // 检查文件是否存在
-    auto ret1 = GetFileInfo(fileName, fileInfo);
-    if (ret1 != StatusCode::kOK) {
-        LOG(ERROR) << "get file info error, errCode = " << ret1;
-        return  ret1;
+    StatusCode ret;
+    ret = GetFileInfo(fileName, fileInfo);
+    if (ret == StatusCode::kFileNotExists) {
+        LOG(WARNING) << "RefreshSession file not exist, fileName = " << fileName
+                   << fileName
+                   << ", sessionid = " << sessionid
+                   << ", date = " << date
+                   << ", signature = " << signature
+                   << ", clientIP = " << clientIP
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return  ret;
+    } else if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "RefreshSession get file info error, fileName = "
+                   << fileName
+                   << ", sessionid = " << sessionid
+                   << ", date = " << date
+                   << ", signature = " << signature
+                   << ", clientIP = " << clientIP
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return  ret;
     }
 
     // TODO(hzchenwei7): 待实现，校验date有效性
 
-    auto ret2 = sessionManager_->UpdateSession(fileName, sessionid,
+    ret = sessionManager_->UpdateSession(fileName, sessionid,
                                             signature, clientIP);
-    if (ret2 != StatusCode::kOK) {
-        LOG(ERROR) << "update session fail, errCode = " << ret2;
-        return ret2;
+    // 目前UpdateSession只有一种异常情况StatusCode::kSessionNotExist
+    if (ret != StatusCode::kOK) {
+        LOG(WARNING) << "RefreshSession update session fail, fileName = "
+                   << fileName
+                   << ", sessionid = " << sessionid
+                   << ", date = " << date
+                   << ", signature = " << signature
+                   << ", clientIP = " << clientIP
+                   << ", errCode = " << ret
+                   << ", errName = " << StatusCode_Name(ret);
+        return ret;
     }
 
     return StatusCode::kOK;

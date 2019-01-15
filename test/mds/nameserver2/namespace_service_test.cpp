@@ -49,18 +49,15 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         sessionManager_ =
                new SessionManager(std::make_shared<FakeRepoInterface>());
-        conf_ = new common::Configuration();
-        conf_->SetConfigPath("deploy/local/mds/mds.conf");
-        ASSERT_EQ(conf_->LoadConfig(), true);
-        sessionOptions.sessionDbName = conf_->GetStringValue("session.DbName");
-        sessionOptions.sessionUser = conf_->GetStringValue("session.DbUser");
-        sessionOptions.sessionUrl = conf_->GetStringValue("session.DbUrl");
-        sessionOptions.sessionPassword =
-                                    conf_->GetStringValue("session.DbPassword");
-        sessionOptions.leaseTime = conf_->GetIntValue("session.leaseTime");
-        sessionOptions.toleranceTime =
-                                    conf_->GetIntValue("session.toleranceTime");
-        sessionOptions.intevalTime = conf_->GetIntValue("session.intevalTime");
+
+        // session repo已经fake，数据库相关参数不需要
+        sessionOptions.sessionDbName = "";
+        sessionOptions.sessionUser = "";
+        sessionOptions.sessionUrl = "";
+        sessionOptions.sessionPassword = "";
+        sessionOptions.leaseTime = 5000000;
+        sessionOptions.toleranceTime = 500000;
+        sessionOptions.intevalTime = 100000;
 
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         snapShotCleanManager_,
@@ -90,10 +87,6 @@ class NameSpaceServiceTest : public ::testing::Test {
             delete sessionManager_;
             sessionManager_ = nullptr;
         }
-        if (conf_ != nullptr) {
-            delete conf_;
-            conf_ = nullptr;
-        }
     }
 
  public:
@@ -106,7 +99,6 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<CleanManager> snapShotCleanManager_;
 
     SessionManager *sessionManager_;
-    common::Configuration *conf_;
     struct SessionOptions sessionOptions;
 };
 
@@ -467,25 +459,7 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // // RefreshSession case3.
-    // // 文件存在，session存在，ip/port不匹配，返回kParaError
-    // cntl.Reset();
-    // ReFreshSessionRequest request17;
-    // ReFreshSessionResponse response17;
-    // request17.set_filename("/file3");
-    // request17.set_sessionid(response10.protosession().sessionid());
-    // request17.set_date(common::TimeUtility::GetTimeofDayUs());
-    // request17.set_signature("todo,signature");
-
-    // stub.RefreshSession(&cntl, &request17, &response17, NULL);
-    // if (!cntl.Failed()) {
-    //     ASSERT_EQ(response17.statuscode(), StatusCode::kParaError);
-    // } else {
-    //     std::cout << cntl.ErrorText();
-    //     ASSERT_TRUE(false);
-    // }
-
-    // RefreshSession case4. 文件存在，session存在，session没有过期，返回成功
+    // RefreshSession case3. 文件存在，session存在，session没有过期，返回成功
     cntl.Reset();
     ReFreshSessionRequest request18;
     ReFreshSessionResponse response18;

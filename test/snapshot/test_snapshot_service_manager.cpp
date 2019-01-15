@@ -601,16 +601,19 @@ TEST_F(TestSnapshotServiceManager,
             Return(kErrCodeSnapshotServerSuccess)));
 
     CountDownEvent cond1(1);
+    CountDownEvent cond2(1);
 
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
-        .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
-                                task->Finish();
+        .WillOnce(Invoke([&cond1, &cond2] (
+                             std::shared_ptr<SnapshotTaskInfo> task) {
                                 while (1) {
                                     if (task->IsCanceled()) {
                                         cond1.Signal();
                                         break;
                                     }
                                 }
+                                task->Finish();
+                                cond2.Signal();
                             }));
 
     int ret = manager_->CreateSnapshot(
@@ -628,6 +631,7 @@ TEST_F(TestSnapshotServiceManager,
     ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
 
     cond1.Wait();
+    cond2.Wait();
 }
 
 TEST_F(TestSnapshotServiceManager,

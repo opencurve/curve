@@ -25,15 +25,27 @@ namespace curve {
 namespace mds {
 
 struct SessionOptions {
+    // session使用的数据库的信息，DB name
     std::string sessionDbName;
+    // session使用的数据库的信息，DB user
     std::string sessionUser;
+    // session使用的数据库的信息，DB url
     std::string sessionUrl;
+    // session使用的数据库的信息，DB password
     std::string sessionPassword;
+    // session过期时间，单位us
     uint32_t leaseTime;
+    // 能够容忍的client和mds之间的时钟不同步的时间，单位us
     uint32_t toleranceTime;
+    // session后台扫描线程扫描间隔时间，单位us
     uint32_t intevalTime;
 };
 
+/**
+  * @brief session在内存中的体现形式
+  * @detail
+  *    -  sesssion在内存中的体现，以<filename, Session>的map方式组织起来
+  */
 class Session {
  public:
     bool IsLeaseTimeOut();
@@ -72,10 +84,14 @@ class Session {
     Session& operator = (const Session &a);
 
  private:
+    // session最新更新时间，单位us
     uint64_t updateTime_;
+    // 能够容忍的client和mds之间的时钟不同步的时间，单位us
     uint32_t toleranceTime_;
     std::mutex sessionLock_;
+    // proto中定义的session结构，可用来返回给client
     ProtoSession protoSession_;
+    // client的ip
     std::string clientIP_;
 };
 
@@ -106,8 +122,9 @@ class SessionManager {
 
     /**
      *  @brief 插入session，session不存在时，直接插入；
-     *         session存在且在有效期，更新session有效期
-     *         session存在其不在有效期，删除旧session，插入新的session
+     *         session存在且在有效期，返回session被占用kFileOccupied
+     *         session存在且不在有效期，删除旧session，插入新的session
+     *         如果持久化失败，返回StatusCode::KInternalError
      *  @param fileName: 文件名
      *         clientIP：clientIP
      *         protoSession：返回生成的session
@@ -118,7 +135,9 @@ class SessionManager {
                            ProtoSession *protoSession);
 
     /**
-     *  @brief 删除session，如果session过期或者不存在，也返回成功
+     *  @brief 删除session，
+     *         如果session不存在，返回kSessionNotExist
+     *         如果从数据库删除失败，StatusCode::KInternalError
      *  @param fileName: 文件名
      *         sessionID：sessionid
      *  @return 是否成功，成功返回StatusCode::kOK
@@ -128,6 +147,7 @@ class SessionManager {
 
     /**
      *  @brief 检查session是否有效，更新有效的session的有效期
+     *         如果session不存在，或者sessionid不匹配，返回kSessionNotExist
      *  @param filename: 文件名
      *         sessionid：sessionid
      *         signature：用来验证client的身份
@@ -140,24 +160,58 @@ class SessionManager {
                            const std::string &clientIP);
 
  private:
+    // 启动mds时调用，从数据库中加载session信息到内存，返回调用是否成功
     bool LoadSession();
 
     bool InitRepo(const std::string &dbName,
                                   const std::string &user,
                                   const std::string &url,
                                   const std::string &password);
-
+    /**
+     *  @brief 后台扫描线程周期扫描任务，更新过期session状态，删除要删除的session
+     *  @param
+     *  @return
+     */
     void SessionScanFunc();
 
-    StatusCode ScanSessionMap();
+    /**
+     *  @brief 扫描sessionMap_，如果有过期的session，把状态标记为kSessionStaled
+     *  @param
+     *  @return
+     */
+    void ScanSessionMap();
 
-    StatusCode HandleDeleteSessionList();
+    /**
+     *  @brief 把待删除队列里的session从数据库中删除
+     *  @param
+     *  @return
+     */
+    void HandleDeleteSessionList();
 
+    /**
+     *  @brief 更新session在内存的状态到数据库
+     *  @param
+     *  @return
+     */
     void UpdateRepoSesssions();
 
+    /**
+     *  @brief 向内存和数据库插入一条新的session记录，数据库操作失败，返回
+     *         StatusCode::KInternalError
+     *  @param fileName：文件名
+     *         clientIP: client的IP
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
     StatusCode InsertNewSession(const std::string &fileName,
                                  const std::string &clientIP);
 
+    /**
+     *  @brief 从内存和数据库删除一条旧的session记录，数据库操作失败，返回
+     *         StatusCode::KInternalError
+     *  @param fileName：文件名
+     *         sessionId:
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
     StatusCode DeleteOldSession(const std::string &fileName,
                         const std::string &sessionId);
 
