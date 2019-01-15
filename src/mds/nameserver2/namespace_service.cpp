@@ -33,7 +33,8 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
         // TODO(hzsunjianliang): check if we should really print error here
         LOG(ERROR) << "logid = " << cntl->log_id()
             << ", CreateFile fail, filename = " <<  request->filename()
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -63,7 +64,8 @@ void NameSpaceService::GetFileInfo(
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
             << ", GetFileInfo fail, filename = " <<  request->filename()
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -101,7 +103,8 @@ void NameSpaceService::GetOrAllocateSegment(
             <<  request->filename()
             << ", offset = " << request->offset()
             << ", allocateTag = " << request->allocateifnotexist()
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -132,7 +135,8 @@ void NameSpaceService::DeleteSegment(
         LOG(ERROR) << "logid = " << cntl->log_id()
             << ", DeleteSegment fail, filename = " << request->filename()
             << ", offset = " << request->offset()
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -161,7 +165,8 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
         LOG(ERROR) << "logid = " << cntl->log_id()
             << ", RenameFile fail, oldfilename = " << request->oldfilename()
             << ", newfilename = " << request->newfilename()
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -189,7 +194,8 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
        LOG(ERROR) << "logid = " << cntl->log_id()
                   << ", ExtendFile fail, filename = " << request->filename()
                   << ", newsize = " << request->newsize()
-                  << ", statusCode = " << retCode;
+                  << ", statusCode = " << retCode
+                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
     } else {
        response->set_statuscode(StatusCode::kOK);
        LOG(INFO) << "logid = " << cntl->log_id()
@@ -219,7 +225,8 @@ void NameSpaceService::CreateSnapShot(
        response->set_statuscode(retCode);
        LOG(ERROR) << "logid = " << cntl->log_id()
                   << ", CreateSnapShot fail, filename = " << request->filename()
-                  << ", statusCode = " << retCode;
+                  << ", statusCode = " << retCode
+                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
     } else {
        response->set_statuscode(StatusCode::kOK);
        LOG(INFO) << "logid = " << cntl->log_id()
@@ -266,7 +273,8 @@ void NameSpaceService::ListSnapShot(
        response->set_statuscode(retCode);
        LOG(ERROR) << "logid = " << cntl->log_id()
                   << ", ListSnapShot fail, filename = " << request->filename()
-                  << ", statusCode = " << retCode;
+                  << ", statusCode = " << retCode
+                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
     } else {
        response->set_statuscode(StatusCode::kOK);
        LOG(INFO) << "logid = " << cntl->log_id()
@@ -303,7 +311,8 @@ void NameSpaceService::DeleteSnapShot(
         LOG(ERROR) << "logid = " << cntl->log_id()
                   << ", DeleteSnapShot fail, filename = " << request->filename()
                   << ", seq = " << request->seq()
-                  << ", statusCode = " << retCode;
+                  << ", statusCode = " << retCode
+                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
         return;
     }
     asynEntity->SetClosure(doneGuard.release());
@@ -360,7 +369,8 @@ void NameSpaceService::GetSnapShotFileSegment(
             <<  request->filename()
             << ", offset = " << request->offset()
             << ", seqnum = " << request->seqnum()
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -404,7 +414,8 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
             <<  request->filename()
             << ", clientip = " << clientIP
             << ", clientport = " << clientPort
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
         delete protoSession;
         delete fileInfo;
         return;
@@ -447,7 +458,8 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
             << ", sessionid = " << request->sessionid()
             << ", clientip = " << clientIP
             << ", clientport = " << clientPort
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -499,7 +511,8 @@ void NameSpaceService::RefreshSession(
             << ", signature = " << request->signature()
             << ", clientip = " << clientIP
             << ", clientport = " << clientPort
-            << ", statusCode = " << retCode;
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
         delete fileInfo;
         return;
     } else {

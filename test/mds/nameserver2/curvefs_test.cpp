@@ -41,10 +41,11 @@ class CurveFSTest: public ::testing::Test {
         mockRepo_ = std::make_shared<repo::MockRepo>();
         sessionManager_ = new SessionManager(mockRepo_);
 
-        sessionOptions_.sessionDbName = "curve_mds_repo_test";
-        sessionOptions_.sessionUser = "root";
-        sessionOptions_.sessionUrl = "localhost";
-        sessionOptions_.sessionPassword = "qwer";
+        // session repo已经mock，数据库相关参数不需要
+        sessionOptions_.sessionDbName = "";
+        sessionOptions_.sessionUser = "";
+        sessionOptions_.sessionUrl = "";
+        sessionOptions_.sessionPassword = "";
         sessionOptions_.leaseTime = 5000000;
         sessionOptions_.toleranceTime = 500000;
         sessionOptions_.intevalTime = 100000;

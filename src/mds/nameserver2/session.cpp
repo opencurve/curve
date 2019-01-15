@@ -131,15 +131,22 @@ StatusCode SessionManager::InsertSession(const std::string &fileName,
     auto iter = sessionMap_.find(fileName);
     if (iter == sessionMap_.end()) {
         // session不存在，生成并插入新的session
-        auto ret = InsertNewSession(fileName, clientIP);
+        StatusCode ret = InsertNewSession(fileName, clientIP);
         if (ret != StatusCode::kOK) {
-            LOG(ERROR) << "insert new sessioni error, errCode = " << ret;
+            LOG(ERROR) << "insert new session error, fileName = " << fileName
+                       << ", clientIP = " << clientIP
+                       << ", errCode = " << ret
+                       << ", errName = " << StatusCode_Name(ret);
             return ret;
         }
 
         auto iter = sessionMap_.find(fileName);
         *protoSession = (&(iter->second))->GetProtoSession();
 
+        LOG(INFO) << "not found old session, create new session"
+                  << ", fileName = " << fileName
+                  << ", new sessionId = " << iter->second.GetSessionId()
+                  << ", clientIP = " << clientIP;
         return StatusCode::kOK;
     }
 
@@ -149,30 +156,36 @@ StatusCode SessionManager::InsertSession(const std::string &fileName,
     if (session->IsLeaseTimeOut()) {
         // lease过期，删除过期lease，然后生成并插入新的session
         std::string oldSessionId = session->GetSessionId();
-        auto ret = DeleteOldSession(fileName, oldSessionId);
+        StatusCode ret = DeleteOldSession(fileName, oldSessionId);
         if (ret != StatusCode::kOK) {
-            LOG(ERROR) << "delete session fail, errCode = " << ret;
+            LOG(ERROR) << "delete session fail, fileName = " << fileName
+                       << ", clientIP = " << clientIP
+                       << ", errCode = " << ret
+                       << ", errName = " << StatusCode_Name(ret);
             return ret;
         }
 
-        auto ret1 = InsertNewSession(fileName, clientIP);
-        if (ret1 != StatusCode::kOK) {
-            LOG(ERROR) << "insert new sessioni error, errCode = "
-                        << ret1;
-            return ret1;
+        ret = InsertNewSession(fileName, clientIP);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "insert new sessioni error, fileName = " << fileName
+                       << ", clientIP = " << clientIP
+                       << ", errCode = " << ret
+                       << ", errName = " << StatusCode_Name(ret);
+            return ret;
         }
 
         auto iter = sessionMap_.find(fileName);
         *protoSession = (&(iter->second))->GetProtoSession();
 
-        LOG(INFO) << "old session lease timeout,create new session fileName = "
-                  << fileName
+        LOG(INFO) << "old session lease timeout, create new session"
+                  << " , fileName = " << fileName
                   << ", old sessionId = " << oldSessionId
-                  << ", new sessionId = " << iter->second.GetSessionId();
+                  << ", new sessionId = " << iter->second.GetSessionId()
+                  << ", clientIP = " << clientIP;
         return StatusCode::kOK;
     } else {
         LOG(ERROR) << "file is occupied by other client, fileName = "
-                   << fileName;
+                   << fileName << ", clientIP = " << clientIP;
         return StatusCode::kFileOccupied;
     }
 
@@ -188,25 +201,32 @@ StatusCode SessionManager::DeleteSession(const std::string &fileName,
     auto iter = sessionMap_.find(fileName);
     if (iter == sessionMap_.end()) {
         // session不存在，直接返回OK
-        LOG(ERROR) << "session not exist, delete session success.";
+        LOG(ERROR) << "session not exist, fileName = " << fileName
+                   << ", sessionID = " << sessionID;
         return StatusCode::kSessionNotExist;
     }
 
     // 检查sessionMap的sessionID是否和传入sessionID匹配
     if (iter->second.GetSessionId().compare(sessionID)) {
-        LOG(ERROR) << "sessionID not same in sessionMap, " <<
-                     "delete session success，" << "rpc session id = " <<
-                     sessionID << ", map sessionid = " <<
-                     iter->second.GetSessionId();
+        LOG(ERROR) << "sessionID not same in sessionMap"
+                   << ", retCode = kSessionNotExist"
+                   << ", fileName = " << fileName
+                   << ", rpc session id = " << sessionID
+                   << ", map sessionid = " << iter->second.GetSessionId();
         return StatusCode::kSessionNotExist;
     }
 
     // session存在，删除session
     auto ret = DeleteOldSession(fileName, sessionID);
     if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "delete session fail, errCode = " << ret;
+        LOG(ERROR) << "delete session fail, fileName = " << fileName
+                   << ", sessionID = " << sessionID
+                   << ", errCode = " << ret;
         return ret;
     }
+
+    LOG(INFO) << "delete session success, fileName = " << fileName
+              << ", sessionID = " << sessionID;
 
     return StatusCode::kOK;
 }
@@ -222,7 +242,10 @@ StatusCode SessionManager::UpdateSession(const std::string &fileName,
     auto iter = sessionMap_.find(fileName);
     if (iter == sessionMap_.end()) {
         // session不存在，返回session不存在
-        LOG(INFO) << "session not exist, " << fileName;
+        LOG(ERROR) << "session not exist, fileName = " << fileName
+                   << ", sessionid = " << sessionid
+                   << ", signature = " << signature
+                   << ", clientIP = " << clientIP;
         return StatusCode::kSessionNotExist;
     }
 
@@ -232,7 +255,12 @@ StatusCode SessionManager::UpdateSession(const std::string &fileName,
     do {
         // 检查sessionMap的sessionID是否和传入sessionid匹配
         if (session->GetSessionId().compare(sessionid)) {
-            LOG(ERROR) << "sessionID not same in sessionMap";
+            LOG(ERROR) << "sessionID not same in sessionMap"
+                       << ", fileName = " << fileName
+                       << ", rpc sessionid = " << sessionid
+                       << ", map sessionid = " << session->GetSessionId()
+                       << ", signature = " << signature
+                       << ", clientIP = " << clientIP;
             ret = StatusCode::kSessionNotExist;
             break;
         }
@@ -251,8 +279,8 @@ StatusCode SessionManager::UpdateSession(const std::string &fileName,
 }
 
 
-// 扫描sessionMap_，把过期的session放入deleteSessionList_
-StatusCode SessionManager::ScanSessionMap() {
+// 扫描sessionMap_，如果有过期的session，把状态标记为kSessionStaled
+void SessionManager::ScanSessionMap() {
     common::WriteLockGuard wl(rwLock_);
 
     auto iterator = sessionMap_.begin();
@@ -260,18 +288,16 @@ StatusCode SessionManager::ScanSessionMap() {
         if (iterator->second.IsLeaseTimeOut()
         && iterator->second.GetSessionStatus() == SessionStatus::kSessionOK) {
             LOG(INFO) << "session timeout, fileName = " << iterator->first
-            << ", sessionId = " << iterator->second.GetSessionId();
+                      << ", sessionId = " << iterator->second.GetSessionId();
             iterator->second.SetStatus(SessionStatus::kSessionStaled);
         }
 
         iterator++;
     }
-
-    return StatusCode::kOK;
 }
 
 // 扫描deleteSessionList_，把对应session从数据库中删除
-StatusCode SessionManager::HandleDeleteSessionList() {
+void SessionManager::HandleDeleteSessionList() {
     auto iter = deleteSessionList_.begin();
     while (iter != deleteSessionList_.end()) {
         std::string sessionId = iter->GetSessionId();
@@ -286,11 +312,8 @@ StatusCode SessionManager::HandleDeleteSessionList() {
 
         iter = deleteSessionList_.erase(iter);
         LOG(INFO) << "delete session from repo and delete list"
-                  << ", sessionId = "
-                  << sessionId;
+                  << ", sessionId = " << sessionId;
     }
-
-    return StatusCode::kOK;
 }
 
 void SessionManager::UpdateRepoSesssions() {
@@ -300,8 +323,7 @@ void SessionManager::UpdateRepoSesssions() {
     while (iterator != sessionMap_.end()) {
         std::string sessionId = iterator->second.GetSessionId();
         repo::SessionRepo sessionRepo;
-        auto ret = repo_->QuerySessionRepo(sessionId,
-                                    &sessionRepo);
+        auto ret = repo_->QuerySessionRepo(sessionId, &sessionRepo);
         if (ret != repo::OperationOK) {
             LOG(ERROR) << "query session from repo fail, sessionId = "
                        << sessionId << ", errCode = " << ret;
@@ -345,8 +367,10 @@ StatusCode SessionManager::InsertNewSession(const std::string &fileName,
                             createTime, clientIP);
     auto ret = repo_->InsertSessionRepo(sessionRepo);
     if (ret != repo::OperationOK) {
-        LOG(ERROR) << "insert session to repo fail, sessionId = "
-                   << sessionId << ", errCode = " << ret;
+        LOG(ERROR) << "insert session to repo fail, sessionId = " << sessionId
+                   << ", fileName = " << fileName
+                   << ", clientIP = " << clientIP
+                   << ", errCode = " << ret;
         return StatusCode::KInternalError;
     }
 
@@ -354,7 +378,9 @@ StatusCode SessionManager::InsertNewSession(const std::string &fileName,
     auto ret2 = sessionMap_.emplace(std::pair<const std::string, Session>
                                 (fileName, session));
     if (!ret2.second) {
-        LOG(ERROR) << "session map add session fail, sessionId = " << sessionId;
+        LOG(ERROR) << "session map add session fail, sessionId = " << sessionId
+                   << ", fileName = " << fileName
+                   << ", clientIP = " << clientIP;
         return StatusCode::KInternalError;
     }
 
@@ -367,7 +393,9 @@ StatusCode SessionManager::DeleteOldSession(const std::string &fileName,
     auto ret = repo_->DeleteSessionRepo(sessionId);
     if (ret != repo::OperationOK) {
         LOG(ERROR) << "delete session from repo fail, sessionId = "
-                   << sessionId << ", errCode = " << ret;
+                   << sessionId
+                   << ", fileName = " << fileName
+                   << ", errCode = " << ret;
         return StatusCode::KInternalError;
     }
 
@@ -509,19 +537,19 @@ bool SessionManager::LoadSession() {
 void SessionManager::SessionScanFunc() {
     LOG(INFO) << "start session scan thread.";
 
-    // 每秒扫描一次过期的session
+    // 周期性扫描内存中的session
     while (!sessionScanStop_) {
-        // 1、先扫描过期session，放到待删除队列
+        // 1、先扫描过期session，过期的session状态标记为kSessionStaled
         ScanSessionMap();
 
-        // 2、扫描deleteSessionList_，把session从数据库中删除
+        // 2、扫描deleteSessionList_，把列表中的session从数据库中删除
         HandleDeleteSessionList();
 
         // 3、睡眠一段时间
         usleep(intevalTime_);
     }
 
-    // 退出之前，确保过期session都从数据库中删除
+    // 退出之前，过期的session状态更新，需要删除的session都从数据库中删除
     ScanSessionMap();
     HandleDeleteSessionList();
 
@@ -537,7 +565,7 @@ void SessionManager::Stop() {
     // 以实现快速退出
     scanThread->join();
 
-    // 更新session在数据库的状态
+    // 退出之前，更新session在数据库的状态
     UpdateRepoSesssions();
     return;
 }

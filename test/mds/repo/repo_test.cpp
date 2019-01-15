@@ -397,6 +397,78 @@ TEST_F(RepoTest, testCopySetCUDA) {
     ASSERT_EQ(SqlException, repo->LoadCopySetRepos(&copySets));
 }
 
+TEST_F(RepoTest, testSessionCUDA) {
+    // insert session sessionid1
+    uint64_t leaseTime = 5000000;
+    uint64_t createTime = 123456789;
+    SessionRepo r1("/file1", "sessionid1", "token1", leaseTime,
+                    0, createTime, "127.0.0.1");
+    ASSERT_EQ(OperationOK, repo->InsertSessionRepo(r1));
+
+    // sessionid1不唯一，插入失败
+    ASSERT_EQ(SqlException, repo->InsertSessionRepo(r1));
+
+    // insert session sessionid2
+    SessionRepo r2("/file2", "sessionid2", "token2", leaseTime,
+                    0, createTime, "127.0.0.1");
+    ASSERT_EQ(OperationOK, repo->InsertSessionRepo(r2));
+
+    // query session
+    SessionRepo queryRes;
+    ASSERT_EQ(OperationOK,
+              repo->QuerySessionRepo(r1.sessionID,
+                                     &queryRes));
+    ASSERT_TRUE(queryRes == r1);
+    ASSERT_EQ(r1.sessionID, queryRes.sessionID);
+    ASSERT_EQ(r1.token, queryRes.token);
+    ASSERT_EQ(r1.fileName, queryRes.fileName);
+    ASSERT_EQ(r1.leaseTime, queryRes.leaseTime);
+    ASSERT_EQ(r1.sessionStatus, queryRes.sessionStatus);
+    ASSERT_EQ(r1.createTime, queryRes.createTime);
+    ASSERT_EQ(r1.clientIP, queryRes.clientIP);
+
+    // query all session
+    std::vector<SessionRepo> sessionList;
+    ASSERT_EQ(OperationOK, repo->LoadSessionRepo(&sessionList));
+    ASSERT_EQ(2, sessionList.size());
+    ASSERT_TRUE(r1 == sessionList[0]);
+    ASSERT_EQ(r1.sessionID, sessionList[0].sessionID);
+    ASSERT_EQ(r1.token, sessionList[0].token);
+    ASSERT_EQ(r1.fileName, sessionList[0].fileName);
+    ASSERT_EQ(r1.sessionStatus, sessionList[0].sessionStatus);
+    ASSERT_TRUE(r2 == sessionList[1]);
+    ASSERT_EQ(r2.sessionID, sessionList[1].sessionID);
+    ASSERT_EQ(r2.token, sessionList[1].token);
+    ASSERT_EQ(r2.fileName, sessionList[1].fileName);
+    ASSERT_EQ(r2.sessionStatus, sessionList[1].sessionStatus);
+
+    // update session
+    r1.sessionStatus = 1;
+    ASSERT_EQ(OperationOK, repo->UpdateSessionRepo(r1));
+    SessionRepo queryRes1;
+    ASSERT_EQ(OperationOK,
+              repo->QuerySessionRepo("sessionid1",
+                                     &queryRes1));
+    ASSERT_TRUE(r1 == queryRes1);
+    ASSERT_EQ(r1.sessionID, queryRes1.sessionID);
+    ASSERT_EQ(1, queryRes1.sessionStatus);
+
+    // delete session
+    ASSERT_EQ(OperationOK,
+              repo->DeleteSessionRepo(r1.sessionID));
+    SessionRepo queryRes2;
+    queryRes2.sessionID = "sessionIDtest";
+    ASSERT_EQ(OperationOK,
+              repo->QuerySessionRepo(r1.sessionID,
+                                     &queryRes2));
+    ASSERT_EQ("sessionIDtest", queryRes2.sessionID);
+
+    // close conn, query get sqlException
+    repo->getDataBase()->statement_->close();
+    ASSERT_EQ(SqlException, repo->QuerySessionRepo(r1.sessionID, &queryRes));
+    ASSERT_EQ(SqlException, repo->LoadSessionRepo(&sessionList));
+}
+
 TEST_F(RepoTest, testCheckConn) {
     repo->getDataBase()->conn_->close();
     CopySetRepo r1(1, 1, 1, "1-2-3");

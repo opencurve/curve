@@ -37,29 +37,49 @@ message FileInfo {
 
 // status code
 enum  StatusCode {
+    // 执行成功
     kOK = 0;
 
+    // 文件已存在
     kFileExists = 101;
+    // 文件不存在
     kFileNotExists = 102;
+    // 非目录类型
     kNotDirectory = 103;
+    // 传入参数错误
     kParaError = 104;
+    // 缩小文件，目前不支持缩小文件
     kShrinkBiggerFile = 105;
+    // 扩容单位错误，非segment size整数倍
     kExtentUnitError = 106;
+    // segment未分配
     kSegmentNotAllocated = 107;
+    // segment分配失败
     kSegmentAllocateError = 108;
+    // 目录不存在
     kDirNotExist = 109;
+    // 功能不支持
     kNotSupported = 110;
 
+    // 文件已处于快照中
     kFileUnderSnapShot = 120;
+    // 文件不在快照中
     kFileNotUnderSnapShot = 121;
+    // 快照删除中
     kSnapshotDeleting = 122;
+    // 快照文件不存在
     kSnapshotFileNotExists = 123;
+    // 快照文件删除失败
     kSnapshotFileDeleteError = 124;
 
+    // session不存在
     kSessionNotExist = 125;
+    // 文件已被占用
     kFileOccupied = 126;
 
+    // 元数据存储错误
     kStorageError = 501;
+    // 内部错误
     KInternalError = 502;
 };
 
@@ -199,6 +219,12 @@ message OpenFileRequest {
     required string fileName = 1;
 };
 
+// statusCode返回值，详见StatusCode定义:
+// StatusCode::kOK
+// StatusCode::kFileNotExists
+// StatusCode::kStorageError
+// StatusCode::kFileOccupied
+// StatusCode::KInternalError
 message OpenFileResponse {
     required StatusCode statusCode = 1;
     optional ProtoSession protoSession = 2;
@@ -210,6 +236,12 @@ message CloseFileRequest {
     required string sessionID = 2;
 };
 
+// statusCode返回值，详见StatusCode定义:
+// StatusCode::kOK
+// StatusCode::kFileNotExists
+// StatusCode::kStorageError
+// StatusCode::kSessionNotExist
+// StatusCode::KInternalError
 message CloseFileResponse {
     required StatusCode statusCode = 1;
 }
@@ -221,6 +253,11 @@ message ReFreshSessionRequest {
     required string signature = 4; //caculete based on token
 }
 
+// statusCode返回值，详见StatusCode定义:
+// StatusCode::kOK
+// StatusCode::kFileNotExists
+// StatusCode::kStorageError
+// StatusCode::kSessionNotExist
 message ReFreshSessionResponse {
     required StatusCode statusCode = 1;
     required string     sessionID = 2;
