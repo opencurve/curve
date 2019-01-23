@@ -10,6 +10,8 @@
 
 namespace curve {
 namespace repo {
+MakeSql makeSql;
+
 std::string convertToSqlValue(const std::string value) {
     return "'" + value + "'";
 }

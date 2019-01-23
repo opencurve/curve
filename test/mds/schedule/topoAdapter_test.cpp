@@ -283,6 +283,147 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     ASSERT_EQ(5, topoAdapter_->SelectBestPlacementChunkServer(copySetInfo, 1));
 }
 
+TEST_F(TestTopoAdapterImpl, test_selectRedundantReplica_num_not_satisfy) {
+    auto copySetInfo = GetCopySetInfoForTest();
+    // 1. test get standard replicaNum < 0
+    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+        .WillOnce(Return(false));
+    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+
+    // 2. test copySet peer nums = standard replicaNum
+    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).WillOnce(
+        DoAll(SetArgPointee<1>(GetLogicalPoolForTest()), Return(true)));
+    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+}
+
+TEST_F(TestTopoAdapterImpl, test_selectRedundantReplica_zoneNum_not_satisfy) {
+    auto copySetInfo = GetCopySetInfoForTest();
+    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 2, 3, "192.168.10.3", 9000);
+    PeerInfo peer4(4, 2, 4, "192.168.10.4", 9000);
+    copySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
+    // 1. test get standard zoneNum <= 0
+    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
+                        Return(true)))
+        .WillOnce(Return(false));
+    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+
+    // 2. test copySet don not satisfy standard zoneNum
+    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
+                                               Return(true)));
+    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+}
+
+TEST_F(TestTopoAdapterImpl,
+       test_selectRedundantReplica_zoneNum_equal_standard) {
+    auto copySetInfo = GetCopySetInfoForTest();
+    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
+    PeerInfo peer4(4, 3, 4, "192.168.10.4", 9000);
+    copySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
+    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
+                                               Return(true)));
+    // 1. test can not get chunkServer
+    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _)).WillOnce(Return(false));
+    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+
+    // 2. test one replica is offline
+    ::curve::mds::topology::ChunkServer
+        chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
+    ::curve::mds::topology::ChunkServerState chunkServerState;
+    chunkServerState.SetOnlineState(OnlineState::OFFLINE);
+    chunkServer3.SetChunkServerState(chunkServerState);
+    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
+    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer3), Return(true)));
+    EXPECT_CALL(*mockTopo_, GetServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)));
+    ASSERT_EQ(peer3.id,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+
+    // 3. test usd(chunkSever3) < used(chunkServer4)
+    chunkServerState.SetDiskUsed(100);
+    chunkServerState.SetOnlineState(OnlineState::ONLINE);
+    chunkServer3.SetChunkServerState(chunkServerState);
+    ::curve::mds::topology::ChunkServer
+        chunkServer4(4, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
+    chunkServerState.SetDiskUsed(1000);
+    chunkServer4.SetChunkServerState(chunkServerState);
+    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer3), Return(true)))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer4), Return(true)));
+    EXPECT_CALL(*mockTopo_, GetServer(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(server), Return(true)));
+    ASSERT_EQ(peer4.id,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+}
+
+TEST_F(TestTopoAdapterImpl,
+    test_selectRedundantReplia_zoneNum_latgerThan_standard) {
+    auto copySetInfo = GetCopySetInfoForTest();
+    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
+    PeerInfo peer4(4, 4, 4, "192.168.10.4", 9000);
+    copySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
+    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
+                                               Return(true)));
+    // 1. test one replica is offline
+    ::curve::mds::topology::ChunkServer
+        chunkServer1(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
+    ::curve::mds::topology::ChunkServerState chunkServerState;
+    chunkServerState.SetOnlineState(OnlineState::OFFLINE);
+    chunkServer1.SetChunkServerState(chunkServerState);
+    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
+    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
+    EXPECT_CALL(*mockTopo_, GetServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)));
+    ASSERT_EQ(peer1.id,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+
+    // 2. test maxUsed(chunkServer2)
+    chunkServerState.SetDiskUsed(100);
+    chunkServerState.SetOnlineState(OnlineState::ONLINE);
+    chunkServer1.SetChunkServerState(chunkServerState);
+    ::curve::mds::topology::ChunkServer
+        chunkServer2(2, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
+    chunkServerState.SetDiskUsed(1000);
+    chunkServer2.SetChunkServerState(chunkServerState);
+    ::curve::mds::topology::ChunkServer
+        chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
+    chunkServerState.SetDiskUsed(200);
+    chunkServer3.SetChunkServerState(chunkServerState);
+    ::curve::mds::topology::ChunkServer
+        chunkServer4(4, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
+    chunkServerState.SetDiskUsed(300);
+    chunkServer4.SetChunkServerState(chunkServerState);
+    EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
+    EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer2), Return(true)));
+    EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer3), Return(true)));
+    EXPECT_CALL(*mockTopo_, GetChunkServer(4, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkServer4), Return(true)));
+    EXPECT_CALL(*mockTopo_, GetServer(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(server), Return(true)));
+    ASSERT_EQ(peer2.id,
+        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
+}
+
 TEST_F(TestTopoAdapterImpl, test_GetCopySetInfo) {
     CopySetKey key;
     key.first = 1;

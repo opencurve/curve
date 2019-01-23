@@ -36,6 +36,9 @@ class MockTopoAdapter : public TopoAdapter {
                ChunkServerIdType(
                    const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer));
 
+  MOCK_METHOD1(SelectRedundantReplicaToRemove,
+                ChunkServerIdType(const CopySetInfo &copySetInfo));
+
   MOCK_METHOD2(CreateCopySetAtChunkServer,
                bool(CopySetKey id, ChunkServerIdType csID));
 
