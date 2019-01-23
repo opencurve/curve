@@ -17,7 +17,7 @@ namespace curve {
 namespace mds {
 namespace schedule {
 
-static class OperatorFactory {
+class OperatorFactory {
  public:
   /**
    * @brief generate operator to transfer leader
@@ -37,7 +37,9 @@ static class OperatorFactory {
    */
   Operator CreateAddPeerOperator(
       const CopySetInfo &info, ChunkServerIdType addPeer, OperatorPriority pri);
-} operatorFactory;
+};
+
+extern OperatorFactory operatorFactory;
 
 }  // namespace schedule
 }  // namespace mds

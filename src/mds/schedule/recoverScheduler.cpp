@@ -26,7 +26,7 @@ int RecoverScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
         if (copysetInfo.configChangeInfo.IsInitialized()) {
             LOG(WARNING) << "copySet(logicalPoolId:" << copysetInfo.id.first
                          << ", copySetId:" << copysetInfo.id.second
-                         << ") has not ben initialized";
+                         << ") configchangeInfo has been initialized";
             continue;
         }
 

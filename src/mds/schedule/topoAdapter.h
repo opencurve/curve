@@ -136,6 +136,16 @@ class TopoAdapter {
       const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer) = 0;
 
   /**
+   * @brief choose a chunkServer to remove
+   * select remove replica according to the following order
+   * 1. zone limit
+   * 2. offline one
+   * 3. max capacity
+   */
+  virtual ChunkServerIdType SelectRedundantReplicaToRemove(
+      const CopySetInfo &copySetInfo) = 0;
+
+  /**
    * @brief create copySet at add-peer. Raft add-configuration need to the add
    * one start raft-service first, so before send configuration mds need to tell
    * the add one to start raft service.
@@ -175,6 +185,9 @@ class TopoAdapterImpl : public TopoAdapter {
 
   ChunkServerIdType SelectBestPlacementChunkServer(
       const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer) override;
+
+  ChunkServerIdType SelectRedundantReplicaToRemove(
+      const CopySetInfo &copySetInfo) override;
 
   bool CreateCopySetAtChunkServer(
       CopySetKey id, ChunkServerIdType csID) override;

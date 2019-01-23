@@ -406,6 +406,106 @@ ChunkServerIdType TopoAdapterImpl::SelectBestPlacementChunkServer(
     return target;
 }
 
+ChunkServerIdType TopoAdapterImpl::SelectRedundantReplicaToRemove(
+    const CopySetInfo &copySetInfo) {
+    // 如果副本数量不大于标准副本数量，不应该进行移除，报警
+    int standardReplicaNum =
+        GetStandardReplicaNumInLogicalPool(copySetInfo.id.first);
+    if (standardReplicaNum <= 0) {
+        LOG(WARNING) << "topoAdapter get standard replicaNum "
+                     << standardReplicaNum << " in logicalPool,"
+                     " replicaNum must >=0, please check";
+        return ::curve::mds::topology::UNINTIALIZE_ID;
+    }
+    if (copySetInfo.peers.size() <= standardReplicaNum) {
+        LOG(WARNING) << "topoAdapter cannot select redundent replica for"
+                     << " copySet(" << copySetInfo.id.first << ", "
+                     << copySetInfo.id.second << ") beacuse replicaNum "
+                     << copySetInfo.peers.size()
+                     << " not bigger than standard num "
+                     << standardReplicaNum;
+        return ::curve::mds::topology::UNINTIALIZE_ID;
+    }
+
+    // 判断zone条件是否满足
+    std::map<ZoneIdType, std::vector<ChunkServerIdType>> zoneList;
+    int standardZoneNum = GetStandardZoneNumInLogicalPool(copySetInfo.id.first);
+    if (standardZoneNum <= 0) {
+        LOG(WARNING) << "topoAdapter get standard zoneNum "
+                     << standardZoneNum << " in logicalPool "
+                     << copySetInfo.id.first
+                     << ", zoneNum must >=0, please check";
+        return ::curve::mds::topology::UNINTIALIZE_ID;
+    }
+    for (auto &peer : copySetInfo.peers) {
+        auto item = zoneList.find(peer.zoneId);
+        if (item == zoneList.end()) {
+            zoneList.emplace(std::make_pair(peer.zoneId,
+                std::vector<ChunkServerIdType>({peer.id})));
+        } else {
+            item->second.emplace_back(peer.id);
+        }
+    }
+
+    // 1. 不满足标准zone数量，报警
+    if (zoneList.size() < standardZoneNum) {
+        LOG(ERROR) << "topoAdapter find copySet(" << copySetInfo.id.first
+                   << ", " << copySetInfo.id.second << ") replicas distribute"
+                   << " in " << zoneList.size() << " zones, less than standard"
+                   << "zoneNum " << standardZoneNum << ", please check";
+        return ::curve::mds::topology::UNINTIALIZE_ID;
+    }
+
+    // 2. 大于等于标准zone数量
+    // 2.1 等于标准zone数量
+    // 为了满足zone条件的限制, 应该要从zone下包含多个ps中选取
+    // 如replica的副本是 A(zone1) B(zone2) C(zone3) D(zone3) E(zone2)
+    // 那么移除的副本应该从BCDE中选择
+    // 2.2 大于标准zone数量
+    // 无论移除哪个后都一定会满足zone条件限制。因此优先移除状态不是online的，然后考虑
+    // chunkserver的使用容量的大小优先移除使用量大的
+    // 如replica副本是 A(zone1) B(zone2) C(zone3) D(zone4) E(zone4)
+    // 可以随意从ABCDE中移除一个
+    std::vector<ChunkServerIdType> candidateChunkServer;
+    for (auto item : zoneList) {
+        if (item.second.size() == 1) {
+            if (zoneList.size() == standardZoneNum) {
+                continue;
+            }
+        }
+
+        for (auto csId : item.second) {
+            candidateChunkServer.emplace_back(csId);
+        }
+    }
+
+    // 优先移除offline状态的副本，然后移除磁盘使用量较多的
+    uint64_t maxUsed = -1;
+    ChunkServerIdType re = -1;
+    for (auto csId : candidateChunkServer) {
+        ChunkServerInfo csInfo;
+        if (!GetChunkServerInfo(csId, &csInfo)) {
+            LOG(ERROR) << "topoAdapter cannot get chunkserver "
+                       << csId << " witch is a replica of copySet("
+                       << copySetInfo.id.first << ","
+                       << copySetInfo.id.second << ")";
+            return ::curve::mds::topology::UNINTIALIZE_ID;
+        }
+
+        if (csInfo.state != OnlineState::ONLINE) {
+            LOG(ERROR) << "topoAdapter find chunkServer " << csId
+                       << " offline, please check!";
+            return csId;
+        }
+
+        if (maxUsed == -1 || csInfo.diskUsed > maxUsed) {
+            maxUsed = csInfo.diskUsed;
+            re = csId;
+        }
+    }
+    return re;
+}
+
 bool TopoAdapterImpl::IsChunkServerHealthy(const ChunkServer &cs) {
     return cs.GetChunkServerState().GetOnlineState() == OnlineState::ONLINE &&
         cs.GetChunkServerState().GetDiskState() == DiskState::DISKNORMAL;

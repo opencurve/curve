@@ -262,7 +262,7 @@ struct SessionRepo : public RepoItem {
   void SetSessionStatus(uint16_t sessionStatus);
 };
 
-static class MakeSql {
+class MakeSql {
  public:
   std::string makeInsert(const RepoItem &t);
 
@@ -276,7 +276,9 @@ static class MakeSql {
 
  private:
   std::string makeCondtion(const RepoItem &t);
-} makeSql;
+};
+
+extern MakeSql makeSql;
 }  // namespace repo
 }  // namespace curve
 

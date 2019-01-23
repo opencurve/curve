@@ -70,8 +70,6 @@ TEST(OperatorSepTest, OperatorSepTest_AddPeer_Test) {
     auto originCopySetInfo = GetCopySetInfoForTest();
     std::shared_ptr<OperatorStep> addPeer = std::make_shared<AddPeer>(4);
 
-    ApplyStatus applyStatus;
-
     // 1. add peer haven't started
     CopySetConf copySetConf;
     ASSERT_EQ(ApplyStatus::Ordered,
@@ -117,8 +115,6 @@ TEST(OperatorStepTest, OperatorStepTest_RemovePeer_Test) {
     auto originCopySetInfo = GetCopySetInfoForTest();
     std::shared_ptr<OperatorStep>
         removePeer = std::make_shared<RemovePeer>(3);
-
-    ApplyStatus applyStatus;
 
     // 1. remove peer haven't started
     CopySetConf copySetConf;

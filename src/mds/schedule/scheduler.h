@@ -41,6 +41,7 @@ class Scheduler {
    */
   virtual int64_t GetRunningInterval();
 
+ protected:
   int GetTransferLeaderTimeLimitSec();
 
   int GetAddPeerTimeLimitSec();
@@ -154,13 +155,16 @@ class ReplicaScheduler : public Scheduler {
                    int addTimeLimitSec)
       : Scheduler(transTimeLimitSec,
                   removeTimeLimitSec,
-                  addTimeLimitSec) {}
+                  addTimeLimitSec) {
+                      this->opController_ = opController;
+                      this->runInterval_ = inter;
+                  }
 
   int Schedule(const std::shared_ptr<TopoAdapter> &topo) override;
   int64_t GetRunningInterval() override;
 
  private:
-  std::shared_ptr<Operator> *opController_;
+  std::shared_ptr<OperatorController> opController_;
   int64_t runInterval_;
 };
 }  // namespace schedule

@@ -13,6 +13,8 @@ using ::std::chrono::steady_clock;
 namespace curve {
 namespace mds {
 namespace schedule {
+OperatorFactory operatorFactory;
+
 Operator OperatorFactory::CreateTransferLeaderOperator(
     const CopySetInfo &info,
     ChunkServerIdType newLeader,
