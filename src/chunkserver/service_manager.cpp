@@ -12,6 +12,7 @@ namespace curve {
 namespace chunkserver {
 
 int ServiceManager::Init(const ServiceOptions &options) {
+    int ret = 0;
     options_ = options;
     chunkserver_ = options.chunkserver;
     copysetNodeManager_ = options.copysetNodeManager;
@@ -34,47 +35,45 @@ int ServiceManager::Init(const ServiceOptions &options) {
     server_ = new brpc::Server();
 
     chunkserverService_ = new ChunkServerServiceImpl(chunkserver_);
+    CHECK(nullptr != chunkserverService_) << "Fail to new ChunkServerService";
     copysetService_ = new CopysetServiceImpl(copysetNodeManager_);
+    CHECK(nullptr != copysetService_) << "Fail to new CopysetService";
     chunkService_ = new ChunkServiceImpl(chunkServiceOptions);
+    CHECK(nullptr != chunkService_) << "Fail to new ChunkService";
     braftCliService_ = new BRaftCliServiceImpl();
+    CHECK(nullptr != braftCliService_) << "Fail to new BRaftCliService";
     raftService_ = new braft::RaftServiceImpl(endPoint_);
+    CHECK(nullptr != raftService_) << "Fail to new RaftService";
     raftStatService_ = new braft::RaftStatImpl();
+    CHECK(nullptr != raftStatService_) << "Fail to new RaftStatService";
 
-    if (server_->AddService(chunkserverService_,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "Fail to add ChunkServerService";
-        return -1;
-    }
-    if (server_->AddService(copysetService_,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "Fail to add CopysetService";
-        return -1;
-    }
-    if (server_->AddService(chunkService_,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "Fail to add ChunkService";
-        return -1;
-    }
-    if (server_->AddService(braftCliService_,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "Fail to add BRaftCliService";
-        return -1;
-    }
-    if (server_->AddService(raftService_,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "Fail to add RaftService";
-        return -1;
-    }
-    if (server_->AddService(raftStatService_,
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "Fail to add RaftStatService";
-        return -1;
-    }
-    if (server_->AddService(braft::file_service(),
-                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "Fail to add FileService";
-        return -1;
-    }
+    ret = server_->AddService(chunkserverService_,
+                              brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add ChunkServerService";
+
+    ret = server_->AddService(copysetService_,
+                              brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add CopysetService";
+
+    ret = server_->AddService(chunkService_,
+                              brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add ChunkService";
+
+    ret = server_->AddService(braftCliService_,
+                              brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add BRaftCliService";
+
+    ret = server_->AddService(raftService_,
+                              brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add RaftService";
+
+    ret = server_->AddService(raftStatService_,
+                              brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add RaftStatService";
+
+    ret = server_->AddService(braft::file_service(),
+                              brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add FileService";
 
     if (!braft::NodeManager::GetInstance()->server_exists(endPoint_)) {
         braft::NodeManager::GetInstance()->add_address(endPoint_);

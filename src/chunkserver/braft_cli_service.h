@@ -22,20 +22,30 @@ namespace chunkserver {
 using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
 
+/**
+ * braft配置变更Rpc Service
+ */
 class BRaftCliServiceImpl : public CliService {
  public:
+    // 增加一个peer
     void add_peer(RpcController *controller,
                   const AddPeerRequest *request,
                   AddPeerResponse *response,
                   Closure *done);
+
+    // 移除一个peer
     void remove_peer(RpcController *controller,
                      const RemovePeerRequest *request,
                      RemovePeerResponse *response,
                      Closure *done);
+
+    // 获取copyset的leader
     void get_leader(RpcController *controller,
                     const GetLeaderRequest *request,
                     GetLeaderResponse *response,
                     Closure *done);
+
+    // 转移leader
     void transfer_leader(RpcController *controller,
                          const TransferLeaderRequest *request,
                          TransferLeaderResponse *response,

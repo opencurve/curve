@@ -13,7 +13,6 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/chunk_service.h"
-#include "src/sfs/sfsMock.h"
 
 using curve::chunkserver::CopysetNodeOptions;
 using curve::chunkserver::Configuration;
@@ -58,7 +57,6 @@ int main(int argc, char *argv[]) {
     copysetNodeOptions.logUri = FLAGS_copyset_dir;
     copysetNodeOptions.raftMetaUri = FLAGS_copyset_dir;
     copysetNodeOptions.raftSnapshotUri = FLAGS_copyset_dir;
-    copysetNodeOptions.copysetNodeManager = &CopysetNodeManager::GetInstance();
 
     Configuration conf;
     if (conf.parse_from(FLAGS_conf) != 0) {

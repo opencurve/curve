@@ -26,12 +26,14 @@ using curve::common::WriteLockGuard;
 
 class ChunkOpRequest;
 
-/* copyset 管理接口 */
+/**
+ * Copyset Node的管理者
+ */
 class CopysetNodeManager : public curve::common::Uncopyable {
  public:
     using CopysetNodePtr = std::shared_ptr<CopysetNode>;
 
-    /* 单例，仅仅在 c++11 下正确 */
+    // 单例，仅仅在 c++11或者更高版本下正确
     static CopysetNodeManager &GetInstance() {
         static CopysetNodeManager instance;
         return instance;
@@ -42,22 +44,53 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     int Fini();
 
     /**
-     * 创建 copyset node，两种情况需要创建 copyset node
-     *  1. 集群初始化，创建 copyset
-     *  2. 恢复的时候 add peer
+     * 创建copyset node，两种情况需要创建copyset node
+     *  1.集群初始化，创建copyset
+     *  2.恢复的时候add peer
      */
     bool CreateCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId,
-                           const Configuration &conf);  // 有 RPC service
-    /* 仅有接口，没有 RPC service */
+                           const Configuration &conf);
+
+    /**
+     * 删除copyset node
+     * @param logicPoolId:逻辑池id
+     * @param copysetId:复制组id
+     * @return true 成功，false失败
+     */
     bool DeleteCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId);
+
+    /**
+     * 判断指定的copyset是否存在
+     * @param logicPoolId:逻辑池子id
+     * @param copysetId:复制组id
+     * @return true存在，false不存在
+     */
     bool IsExist(const LogicPoolID &logicPoolId, const CopysetID &copysetId);
+
+    /**
+     * 获取指定的copyset
+     * @param logicPoolId:逻辑池子id
+     * @param copysetId:复制组id
+     * @return nullptr则为没查询到
+     */
     CopysetNodePtr GetCopysetNode(const LogicPoolID &logicPoolId,
                                   const CopysetID &copysetId) const;
+
+    /**
+     * 查询所有的copysets
+     * @param nodes:出参，返回所有的copyset
+     */
     void GetAllCopysetNodes(std::vector<CopysetNodePtr> *nodes) const;
-    void ScheduleRequest(std::shared_ptr<ChunkOpRequest> request);
-    /* 添加 RPC service */
+
+    /**
+     * 添加RPC service
+     * TODO(wudemiao): 目前仅仅用于测试，后期完善了会删除掉
+     * @param server:rpc Server
+     * @param listenAddress:监听的地址
+     * @return 0成功，-1失败
+     */
     int AddService(brpc::Server *server,
                    const butil::EndPoint &listenAddress);
 
@@ -68,9 +101,11 @@ class CopysetNodeManager : public curve::common::Uncopyable {
  private:
     using CopysetNodeMap = std::unordered_map<GroupId,
                                               std::shared_ptr<CopysetNode>>;
-
+    // 保护复制组 map的读写锁
     mutable RWLock rwLock_;
+    // 复制组map
     CopysetNodeMap copysetNodeMap_;
+    // 复制组配置选项
     CopysetNodeOptions copysetNodeOptions_;
 };
 

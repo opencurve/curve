@@ -8,7 +8,10 @@
 #ifndef CURVE_CHUNKSERVER_CHUNK_SERVICE_H
 #define CURVE_CHUNKSERVER_CHUNK_SERVICE_H
 
+#include <vector>
+
 #include "proto/chunk.pb.h"
+#include "src/chunkserver/config_info.h"
 
 namespace curve {
 namespace chunkserver {
@@ -18,16 +21,13 @@ using ::google::protobuf::Closure;
 
 class CopysetNodeManager;
 
-struct ChunkServiceOptions {
-    CopysetNodeManager *copysetNodeManager;
-};
-
 class ChunkServiceImpl : public ChunkService {
  public:
     explicit ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions) :
         chunkServiceOptions_(chunkServiceOptions),
         copysetNodeManager_(chunkServiceOptions.copysetNodeManager) {}
     ~ChunkServiceImpl() {}
+
     void DeleteChunk(RpcController *controller,
                      const ChunkRequest *request,
                      ChunkResponse *response,
@@ -42,6 +42,21 @@ class ChunkServiceImpl : public ChunkService {
                     const ChunkRequest *request,
                     ChunkResponse *response,
                     Closure *done);
+
+    void ReadChunkSnapshot(RpcController *controller,
+                           const ChunkRequest *request,
+                           ChunkResponse *response,
+                           Closure *done);
+
+    void DeleteChunkSnapshot(RpcController *controller,
+                             const ChunkRequest *request,
+                             ChunkResponse *response,
+                             Closure *done);
+
+    void GetChunkInfo(RpcController *controller,
+                      const GetChunkInfoRequest *request,
+                      GetChunkInfoResponse *response,
+                      Closure *done);
 
  private:
     ChunkServiceOptions chunkServiceOptions_;

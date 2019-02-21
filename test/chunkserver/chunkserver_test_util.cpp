@@ -13,11 +13,14 @@
 #include <brpc/controller.h>
 #include <brpc/server.h>
 
+#include <memory>
 #include <string>
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
+#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "test/chunkserver/mock_cs_data_store.h"
 
 namespace curve {
 namespace chunkserver {
@@ -33,6 +36,54 @@ std::string Exec(const char *cmd) {
     }
     pclose(pipe);
     return result;
+}
+
+std::shared_ptr<ChunkfilePool> InitChunkfilePool(std::shared_ptr<LocalFileSystem> fsptr,    //NOLINT
+                                                 int chunkfileCount,
+                                                 int chunkfileSize,
+                                                 int metaPageSize,
+                                                 std::string poolpath,
+                                                 std::string metaPath) {
+    auto filePoolPtr = std::make_shared<ChunkfilePool>(fsptr);
+    if (filePoolPtr == nullptr) {
+        LOG(FATAL) << "allocate chunkfile pool failed!";
+    }
+    int count = 1;
+    std::string dirname = poolpath;
+    while (count <= chunkfileCount) {
+        std::string  filename = poolpath + std::to_string(count);
+        fsptr->Mkdir(poolpath);
+        int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
+        char *data = new char[chunkfileSize + 4096];
+        memset(data, 'a', chunkfileSize + 4096);
+        fsptr->Write(fd, data, 0, chunkfileSize + 4096);
+        fsptr->Close(fd);
+        count++;
+        delete[] data;
+    }
+    /**
+     * 持久化chunkfilepool meta file
+     */
+    char persistency[4096] = {0};
+    uint32_t chunksize = chunkfileSize;
+    uint32_t metapagesize = metaPageSize;
+    uint32_t percent = 10;
+    ::memcpy(persistency, &chunksize, sizeof(uint32_t));
+    ::memcpy(persistency + sizeof(uint32_t), &metapagesize, sizeof(uint32_t));
+    ::memcpy(persistency + 2*sizeof(uint32_t), &percent, sizeof(uint32_t));
+    ::memcpy(persistency + 3*sizeof(uint32_t), dirname.c_str(), dirname.size());
+
+    int fd = fsptr->Open(metaPath.c_str(), O_RDWR | O_CREAT);
+    if (fd < 0) {
+        return nullptr;
+    }
+    int ret = fsptr->Write(fd, persistency, 0, 4096);
+    if (ret != 4096) {
+        return nullptr;
+    }
+    fsptr->Close(fd);
+
+    return filePoolPtr;
 }
 
 int StartChunkserver(const char *ip,
@@ -55,22 +106,46 @@ int StartChunkserver(const char *ip,
                    << errno << ", " << strerror(errno);
         return -1;
     }
+    LOG(INFO) << "start rpc server success";
 
+    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = ip;
     copysetNodeOptions.port = port;
     copysetNodeOptions.electionTimeoutMs = electionTimeoutMs;
     copysetNodeOptions.snapshotIntervalS = snapshotInterval;
+    copysetNodeOptions.electionTimeoutMs = 1500;
     copysetNodeOptions.catchupMargin = 50;
     copysetNodeOptions.chunkDataUri = copysetdir;
     copysetNodeOptions.chunkSnapshotUri = copysetdir;
     copysetNodeOptions.logUri = copysetdir;
     copysetNodeOptions.raftMetaUri = copysetdir;
     copysetNodeOptions.raftSnapshotUri = copysetdir;
-    copysetNodeOptions.copysetNodeManager =
-        &CopysetNodeManager::GetInstance();   //NOLINT
     copysetNodeOptions.maxChunkSize = kMaxChunkSize;
+    copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
+    copysetNodeOptions.localFileSystem = fs;
+
+    std::string copiedUri(copysetdir);
+    std::string chunkDataDir;
+    std::string protocol = FsAdaptorUtil::ParserUri(copiedUri, &chunkDataDir);
+    if (protocol.empty()) {
+        LOG(FATAL) << "not support chunk data uri's protocol"
+                   << " error chunkDataDir is: " << chunkDataDir;
+    }
+    copysetNodeOptions.chunkfilePool = std::make_shared<FakeChunkfilePool>(fs);
+    if (nullptr == copysetNodeOptions.chunkfilePool) {
+        LOG(FATAL) << "new chunfilepool failed";
+    }
+    ChunkfilePoolOptions cfop;
+    if (false == copysetNodeOptions.chunkfilePool->Initialize(cfop)) {
+        LOG(FATAL) << "chunfilepool init failed";
+    } else {
+        LOG(INFO) << "chunfilepool init success";
+    }
+
+    LOG_IF(FATAL, false == copysetNodeOptions.concurrentapply->Init(2, 1))
+        << "Failed to init concurrent apply module";
 
     Configuration conf;
     if (conf.parse_from(confs) != 0) {
@@ -84,13 +159,27 @@ int StartChunkserver(const char *ip,
     CHECK(CopysetNodeManager::GetInstance().CreateCopysetNode(logicPoolId,
                                                               copysetId,
                                                               conf));
+    auto copysetNode = CopysetNodeManager::GetInstance().GetCopysetNode(
+        logicPoolId,
+        copysetId);
+    DataStoreOptions options;
+    options.baseDir = "./test-temp";
+    options.chunkSize = 16 * 1024 * 1024;
+    options.pageSize = 4 * 1024;
+    std::shared_ptr<FakeCSDataStore> dataStore =
+        std::make_shared<FakeCSDataStore>(options, fs);
+    copysetNode->SetCSDateStore(dataStore);
 
+    LOG(INFO) << "start chunkserver success";
     /* Wait until 'CTRL-C' is pressed. then Stop() and Join() the service */
     while (!brpc::IsAskedToQuit()) {
         sleep(1);
     }
     LOG(INFO) << "server test service is going to quit";
+
     CopysetNodeManager::GetInstance().DeleteCopysetNode(logicPoolId, copysetId);
+    copysetNodeOptions.concurrentapply->Stop();
+
     server.Stop(0);
     server.Join();
 }

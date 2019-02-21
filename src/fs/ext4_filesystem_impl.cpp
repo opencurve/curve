@@ -110,7 +110,7 @@ int Ext4FileSystemImpl::Mkdir(const string& dirName) {
             continue;
         // 目录需要755权限，不然会出现“Permission denied”
         if (posixWrapper_->mkdir(path.c_str(), 0755) < 0) {
-            LOG(ERROR) << "mkdir failed: " << strerror(errno);
+            LOG(ERROR) << "mkdir " << path << " failed. "<< strerror(errno);
             return -errno;
         }
     }

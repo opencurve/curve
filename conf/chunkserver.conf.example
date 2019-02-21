@@ -4,7 +4,8 @@
 global.logfile=./chunkserver.log
 global.ip=127.0.0.1
 global.port=8200
-global.chunk_size=4194304
+global.chunk_size=4096
+global.meta_page_size=4096
 
 #
 # Testing purpose settings
@@ -23,10 +24,10 @@ copyset.log_applied_task=false
 copyset.election_timeout_ms=5000
 copyset.snapshot_interval=30
 copyset.catchup_margin=50
-copyset.chunk_data_uri=local://data/0/cs/data
-copyset.raft_log_uri=local://data/0/cs/log
-copyset.raft_meta_uri=local://data/0/cs/meta
-copyset.raft_snapshot_uri=local://data/0/cs/snapshot
+copyset.chunk_data_uri=local://./3
+copyset.raft_log_uri=local://./3
+copyset.raft_meta_uri=local://./3
+copyset.raft_snapshot_uri=local://./3
 
 #
 # Storage engine settings
@@ -37,3 +38,17 @@ storeng.sync_write=false
 # QoS settings
 #
 
+#
+# Concurrent apply module
+#
+concurrentapply.size=10
+concurrentapply.queuedepth=1
+
+#
+# Chunkfile pool
+#
+chunkfilepool.enable_get_chunk_from_pool=false
+chunkfilepool.chunk_file_pool_dir=./
+#chunkfilepool.meta_path=./chunkfilepool.meta
+chunkfilepool.cpmeta_file_size=4096
+chunkfilepool.retry_times=5

@@ -56,13 +56,13 @@ TEST_F(BraftCliServiceTest, basic) {
     const char *ip = "127.0.0.1";
     int port = 8200;
     const char *confs = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
-    int snapshotInterval = 30;
+    int snapshotInterval = 600;
     PeerId peer1("127.0.0.1:8200:0");
     PeerId peer2("127.0.0.1:8201:0");
     PeerId peer3("127.0.0.1:8202:0");
 
     /* default election timeout */
-    int electionTimeoutMs = 1000;
+    int electionTimeoutMs = 3000;
 
     /**
      * Start three chunk server by fork

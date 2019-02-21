@@ -26,7 +26,6 @@ using SequenceNum   = uint64_t;
 using ChunkSizeType = uint32_t;
 using PageSizeType = uint32_t;
 
-
 // braft
 using Configuration = braft::Configuration;
 using GroupId = braft::GroupId;

@@ -18,10 +18,11 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
-#include "src/sfs/sfsMock.h"
 
 namespace curve {
 namespace chunkserver {
+
+using curve::fs::FileSystemType;
 
 static std::string Exec(const char *cmd) {
     FILE *pipe = popen(cmd, "r");
@@ -46,7 +47,7 @@ class CopysetServiceTest : public testing::Test {
     }
 };
 
-// butil::AtExitManager atExitManager;
+butil::AtExitManager atExitManager;
 
 TEST_F(CopysetServiceTest, basic) {
     CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
@@ -62,6 +63,9 @@ TEST_F(CopysetServiceTest, basic) {
     ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
     ASSERT_EQ(0, server.Start(port, NULL));
 
+    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    ASSERT_TRUE(nullptr != fs);
+
     butil::string_printf(&copysetDir, "local://./data/%d", port);
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = ip;
@@ -73,6 +77,10 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeOptions.logUri = copysetDir;
     copysetNodeOptions.raftMetaUri = copysetDir;
     copysetNodeOptions.raftSnapshotUri = copysetDir;
+    copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
+    copysetNodeOptions.localFileSystem = fs;
+    copysetNodeOptions.chunkfilePool =
+        std::make_shared<ChunkfilePool>(fs);
     copysetNodeManager->Init(copysetNodeOptions);
 
     brpc::Channel channel;

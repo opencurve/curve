@@ -8,6 +8,8 @@
 #ifndef CHUNKSERVER_FILEPOOL_H
 #define CHUNKSERVER_FILEPOOL_H
 
+#include <glog/logging.h>
+
 #include <set>
 #include <mutex>  // NOLINT
 #include <vector>
@@ -25,40 +27,56 @@ namespace chunkserver {
 
 // chunkfilepool 配置选项
 struct ChunkfilePoolOptions {
+    // 开关，是否从chunkfile pool取chunk
+    bool        getChunkFromPool;
+
+    // chunkfilepool 文件夹路径,当getChunkFromPool为false的时候，需要设置该选项
+    char        chunkFilePoolDir[256];
+
     // 配置文件的chunk大小
-    uint32_t    chunksize;
+    uint32_t    chunkSize;
+
     // 配置文件中的metapage大小
-    uint32_t    metapagesize;
+    uint32_t    metaPageSize;
+
     // chunkfilepool meta文件地址
-    char        metapath[256];
-    // cpmetafilesize是chunkfilepool的 metafile信息
-    uint32_t    cpmetafilesize;
+    char        metaPath[256];
+
+    // cpmetafilesize是chunkfilepool的 metafile长度
+    uint32_t    cpMetaFileSize;
+
     // GetChunk重试次数
-    uint16_t    retrytimes;
+    uint16_t    retryTimes;
 
     ChunkfilePoolOptions() {
-        cpmetafilesize = 4096;
-        chunksize = 0;
-        metapagesize = 0;
-        retrytimes = 5;
-        ::memset(metapath, 0, 256);
+        getChunkFromPool = true;
+        cpMetaFileSize = 4096;
+        chunkSize = 0;
+        metaPageSize = 0;
+        retryTimes = 5;
+        ::memset(metaPath, 0, 256);
+        ::memset(chunkFilePoolDir, 0, 256);
     }
 
     ChunkfilePoolOptions& operator=(const ChunkfilePoolOptions& other) {
-        cpmetafilesize     = other.cpmetafilesize;
-        chunksize    = other.chunksize;
-        retrytimes   = other.retrytimes;
-        metapagesize = other.metapagesize;
-        ::memcpy(metapath, other.metapath, 256);
+        getChunkFromPool   = other.getChunkFromPool;
+        cpMetaFileSize     = other.cpMetaFileSize;
+        chunkSize    = other.chunkSize;
+        retryTimes   = other.retryTimes;
+        metaPageSize = other.metaPageSize;
+        ::memcpy(metaPath, other.metaPath, 256);
+        ::memcpy(chunkFilePoolDir, other.chunkFilePoolDir, 256);
         return *this;
     }
 
     ChunkfilePoolOptions(const ChunkfilePoolOptions& other) {
-        cpmetafilesize     = other.cpmetafilesize;
-        chunksize    = other.chunksize;
-        retrytimes   = other.retrytimes;
-        metapagesize = other.metapagesize;
-        ::memcpy(metapath, other.metapath, 256);
+        getChunkFromPool   = other.getChunkFromPool;
+        cpMetaFileSize     = other.cpMetaFileSize;
+        chunkSize    = other.chunkSize;
+        retryTimes   = other.retryTimes;
+        metaPageSize = other.metaPageSize;
+        ::memcpy(metaPath, other.metaPath, 256);
+        ::memcpy(chunkFilePoolDir, other.chunkFilePoolDir, 256);
     }
 };
 
@@ -67,6 +85,11 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
     // fsptr 本地文件系统.
     explicit ChunkfilePool(std::shared_ptr<LocalFileSystem> fsptr);
     virtual ~ChunkfilePool() = default;
+
+    /**
+     * 初始化函数
+     * @param: cfop是配置选项
+     */
     virtual bool Initialize(const ChunkfilePoolOptions& cfop);
     /**
      * datastore通过GetChunk接口获取新的chunk，GetChunk内部会将metapage原子赋值后返回。
@@ -79,7 +102,13 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
      * @param: chunkpath是需要回收的chunk路径
      */
     virtual int RecycleChunk(const std::string& chunkpath);
+    /**
+     * 获取当前chunkfile pool大小
+     */
     virtual size_t Size();
+    /**
+     * 析构,释放资源
+     */
     virtual void UnInitialize();
 
  private:
@@ -87,8 +116,19 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
     bool ScanInternal();
     // 检查chunkfile pool预分配是否合法
     bool CheckValid();
-    // 为新的chunkfile进行metapage赋值
+    /**
+     * 为新的chunkfile进行metapage赋值
+     * @param: sourcepath为要写入的文件路径
+     * @param: page为要写入的metapage信息
+     * @return: 成功返回0，否则返回小于0
+     */
     int WriteMetaPage(const std::string& sourcepath, char* page);
+    /**
+     * 直接分配chunk，不从chunkfilepool获取
+     * @param: chunkpath为datastore中chunk文件的路径
+     * @return: 成功返回0，否则返回小于0
+     */
+    int AllocateChunk(const std::string& chunkpath);
 
  private:
     // 保护tmpChunkvec_

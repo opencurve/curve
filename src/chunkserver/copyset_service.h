@@ -18,18 +18,25 @@ using ::google::protobuf::Closure;
 
 class CopysetNodeManager;
 
+/**
+ * 复制组管理的Rpc服务，目前仅有创建复制组
+ */
 class CopysetServiceImpl : public CopysetService {
  public:
     explicit CopysetServiceImpl(CopysetNodeManager* copysetNodeManager) :
         copysetNodeManager_(copysetNodeManager) {}
     ~CopysetServiceImpl() {}
 
+    /**
+     * 创建复制组
+     */
     void CreateCopysetNode(RpcController *controller,
                            const CopysetRequest *request,
                            CopysetResponse *response,
                            Closure *done);
 
  private:
+    // 复制组管理者
     CopysetNodeManager* copysetNodeManager_;
 };
 

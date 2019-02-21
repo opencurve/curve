@@ -10,6 +10,8 @@
 
 #include <gflags/gflags.h>
 
+#include <string>
+
 #include "include/chunkserver/chunkserver_common.h"
 
 // TODO(wenyu): add more command line arguments
@@ -36,7 +38,14 @@ void ChunkServer::InitCopysetNodeOptions() {
         conf_.GetStringValue("copyset.raft_snapshot_uri");
     copysetNodeOptions_.maxChunkSize =
         conf_.GetIntValue("global.chunk_size");
-    copysetNodeOptions_.copysetNodeManager = &copysetNodeManager_;
+    copysetNodeOptions_.pageSize =
+        conf_.GetIntValue("global.meta_page_size");
+    copysetNodeOptions_.concurrentapply = &concurrentapply_;
+    // TODO(wudemiao): 下面几个参数放在配置文件里面
+    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    copysetNodeOptions_.localFileSystem = fs;
+    copysetNodeOptions_.chunkfilePool
+        = std::make_shared<ChunkfilePool>(fs);       //NOLINT
 }
 
 void ChunkServer::InitQosOptions() {
@@ -63,27 +72,55 @@ int ChunkServer::Init(int argc, char **argv) {
     conf_.SetConfigPath(FLAGS_conf);
     // FIXME: may also log into syslog
     LOG_IF(FATAL, !conf_.LoadConfig())
-    << "Failed to open config file: " << conf_.GetConfigPath();
+        << "Failed to open config file: " << conf_.GetConfigPath();
     ReplaceConfigWithCmdFlags();
 
     LOG(INFO) << "Initializing ChunkServer modules";
 
     InitCopysetNodeOptions();
-    // copysetNodeManager_ = &kCopysetNodeManager;
     LOG_IF(FATAL, copysetNodeManager_.Init(copysetNodeOptions_) != 0)
     << "Failed to initialize CopysetNodeManager.";
 
+    LOG_IF(FATAL, false == concurrentapply_.Init(conf_.GetIntValue("concurrentapply.size"),            // NOLINT
+                                                 conf_.GetIntValue("concurrentapply.queuedepth")))     // NOLINT
+        << "Failed to initialize concurrentapply module!";
+
+    ChunkfilePoolOptions options;
+    options.chunkSize = conf_.GetIntValue("global.chunk_size");
+    options.metaPageSize = conf_.GetIntValue("global.meta_page_size");
+
+    options.retryTimes = conf_.GetIntValue("chunkfilepool.retry_times");
+    options.cpMetaFileSize
+        = conf_.GetIntValue("chunkfilepool.cpmeta_file_size");
+    options.getChunkFromPool
+        = conf_.GetBoolValue("chunkfilepool.enable_get_chunk_from_pool");
+    if (options.getChunkFromPool == false) {
+        std::string chunkFilePoolUri
+            = conf_.GetStringValue("chunkfilepool.chunk_file_pool_dir");
+        ::memcpy(options.chunkFilePoolDir,
+                 chunkFilePoolUri.c_str(),
+                 chunkFilePoolUri.size());
+    } else {
+        std::string metaUri
+            = conf_.GetStringValue("chunkfilepool.meta_path");
+        ::memcpy(options.metaPath,
+                 metaUri.c_str(),
+                 metaUri.size());
+    }
+    LOG_IF(FATAL, false == copysetNodeOptions_.chunkfilePool->Initialize(options))  //NOLINT
+        << "Failed to init chunk file pool";
+
     InitQosOptions();
     LOG_IF(FATAL, qosManager_.Init(qosOptions_) != 0)
-    << "Failed to initialize QosManager.";
+        << "Failed to initialize QosManager.";
 
     InitIntegrityOptions();
     LOG_IF(FATAL, integrity_.Init(integrityOptions_) != 0)
-    << "Failed to initialize integrity manager.";
+        << "Failed to initialize integrity manager.";
 
     InitServiceOptions();
     LOG_IF(FATAL, serviceManager_.Init(serviceOptions_) != 0)
-    << "Failed to initialize ServiceManager.";
+        << "Failed to initialize ServiceManager.";
 
     bool createTestCopyset = conf_.GetBoolValue("test.create_testcopyset");
     if (createTestCopyset) {
@@ -122,6 +159,7 @@ int ChunkServer::Fini() {
     << "Failed to shutdown CopysetNodeManager.";
     LOG_IF(ERROR, serviceManager_.Fini() != 0)
     << "Failed to shutdown ServiceManager.";
+    concurrentapply_.Stop();
 
     // We don't save config yet
     // conf_.SaveConfig();
