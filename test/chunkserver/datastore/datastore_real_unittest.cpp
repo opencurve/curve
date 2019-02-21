@@ -74,9 +74,9 @@ class DatastoreRealTest : public testing::Test {
 
         std::string chunkfilepool = "./chunkfilepool.meta";
         ChunkfilePoolOptions cfop;
-        cfop.chunksize = CHUNK_SIZE;
-        cfop.metapagesize = PAGE_SIZE;
-        memcpy(cfop.metapath, chunkfilepool.c_str(), chunkfilepool.size());
+        cfop.chunkSize = CHUNK_SIZE;
+        cfop.metaPageSize = PAGE_SIZE;
+        memcpy(cfop.metaPath, chunkfilepool.c_str(), chunkfilepool.size());
 
         allocateChunk(lfs_, 10);
         ASSERT_TRUE(filePool_->Initialize(cfop));

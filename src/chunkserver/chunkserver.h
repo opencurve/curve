@@ -13,12 +13,18 @@
 #include "src/chunkserver/integrity.h"
 #include "src/chunkserver/service_manager.h"
 #include "proto/chunkserver.pb.h"
+#include "src/fs/local_filesystem.h"
+#include "src/fs/fs_common.h"
 
 #ifndef SRC_CHUNKSERVER_CHUNKSERVER_H_
 #define SRC_CHUNKSERVER_CHUNKSERVER_H_
 
 namespace curve {
 namespace chunkserver {
+
+using curve::fs::LocalFileSystem;
+using curve::fs::LocalFsFactory;
+using curve::fs::FileSystemType;
 
 class ChunkServer {
  public:
@@ -57,6 +63,8 @@ class ChunkServer {
 
     ServiceOptions              serviceOptions_;
     ServiceManager              serviceManager_;
+
+    ConcurrentApplyModule       concurrentapply_;
 
     // TODO(wenyu): to be implement
     // StoreEngineAdaptor       storeng;

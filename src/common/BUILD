@@ -24,8 +24,8 @@ cc_library(
         "*.cpp",
     ]),
     copts = COPTS,
-    linkopts = [
-    ],
-    deps = ["//external:glog"],
     visibility = ["//visibility:public"],
+    deps = [
+        "//external:glog",
+    ],
 )

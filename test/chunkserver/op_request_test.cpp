@@ -1,6 +1,6 @@
 /*
  * Project: curve
- * Created Date: 18-8-25
+ * Created Date: 19-2-27
  * Author: wudemiao
  * Copyright (c) 2018 netease
  */
@@ -16,7 +16,7 @@
 #include "proto/chunk.pb.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
-#include "src/chunkserver/op_context.h"
+#include "src/chunkserver/op_request.h"
 #include "test/chunkserver/mock_cs_data_store.h"
 
 namespace curve {
@@ -30,14 +30,14 @@ class OpFakeClosure : public Closure {
     ~OpFakeClosure() {}
 };
 
-TEST(ChunkOpContextTest, encode) {
+TEST(ChunkOpRequestTest, encode) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     uint64_t chunkId = 12345;
     size_t offset = 0;
     uint32_t size = 16;
     uint64_t sn = 1;
-    /* for write without COW */
+
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
     request.set_logicpoolid(logicPoolId);
@@ -48,14 +48,31 @@ TEST(ChunkOpContextTest, encode) {
     std::string str(size, 'a');
     brpc::Controller *cntl = new brpc::Controller();
     cntl->request_attachment().append(str.c_str(), size);
+
+    Configuration conf;
+    std::shared_ptr<CopysetNode> nodePtr =
+        std::make_shared<CopysetNode>(logicPoolId, copysetId, conf);
+    std::shared_ptr<LocalFileSystem>
+        fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    DataStoreOptions options;
+    options.baseDir = "./test-temp";
+    options.chunkSize = 16 * 1024 * 1024;
+    options.pageSize = 4 * 1024;
+    std::shared_ptr<FakeCSDataStore> dataStore =
+        std::make_shared<FakeCSDataStore>(options, fs);
+    nodePtr->SetCSDateStore(dataStore);
+
     {
-        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
+        ChunkOpRequest *opReq
+            = new WriteChunkRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opCtx.Encode(&log));
+        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
 
         butil::IOBuf data;
-        opCtx.Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req1 = dynamic_cast<WriteChunkRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
 
         ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_WRITE, request.optype());
         ASSERT_EQ(logicPoolId, request.logicpoolid());
@@ -64,18 +81,22 @@ TEST(ChunkOpContextTest, encode) {
         ASSERT_EQ(offset, request.offset());
         ASSERT_EQ(size, request.size());
         ASSERT_STREQ(str.c_str(), data.to_string().c_str());
+        delete opReq;
     }
     /* for write with COW */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
     request.set_sn(sn);
     {
-        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
+        ChunkOpRequest *opReq
+            = new WriteChunkRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opCtx.Encode(&log));
+        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
 
         butil::IOBuf data;
-        opCtx.Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req1 = dynamic_cast<WriteChunkRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
 
         ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_WRITE, request.optype());
         ASSERT_EQ(logicPoolId, request.logicpoolid());
@@ -85,19 +106,23 @@ TEST(ChunkOpContextTest, encode) {
         ASSERT_EQ(size, request.size());
         ASSERT_EQ(sn, request.sn());
         ASSERT_STREQ(str.c_str(), data.to_string().c_str());
+        delete opReq;
     }
     /* for read */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
     request.set_offset(offset);
     request.set_size(size);
     {
-        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
+        ChunkOpRequest *opReq
+            = new ReadChunkRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opCtx.Encode(&log));
+        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
 
         butil::IOBuf data;
-        opCtx.Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req1 = dynamic_cast<ReadChunkRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
 
         ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_READ, request.optype());
         ASSERT_EQ(logicPoolId, request.logicpoolid());
@@ -105,35 +130,44 @@ TEST(ChunkOpContextTest, encode) {
         ASSERT_EQ(chunkId, request.chunkid());
         ASSERT_EQ(offset, request.offset());
         ASSERT_EQ(size, request.size());
+        delete opReq;
     }
 
     /* for detele */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
     {
-        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
+        ChunkOpRequest *opReq
+            = new DeleteChunkRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opCtx.Encode(&log));
+        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
 
         butil::IOBuf data;
-        opCtx.Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req1 = dynamic_cast<DeleteChunkRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
 
         ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_DELETE, request.optype());
         ASSERT_EQ(logicPoolId, request.logicpoolid());
         ASSERT_EQ(copysetId, request.copysetid());
         ASSERT_EQ(chunkId, request.chunkid());
+        delete opReq;
     }
     /* for read snapshot */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP);
     request.set_sn(sn);
     {
-        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
+        ChunkOpRequest *opReq
+            =
+            new ReadSnapshotRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opCtx.Encode(&log));
+        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
 
         butil::IOBuf data;
-        opCtx.Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req1 = dynamic_cast<ReadSnapshotRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
 
         ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP, request.optype());
         ASSERT_EQ(logicPoolId, request.logicpoolid());
@@ -142,28 +176,53 @@ TEST(ChunkOpContextTest, encode) {
         ASSERT_EQ(offset, request.offset());
         ASSERT_EQ(size, request.size());
         ASSERT_EQ(sn, request.sn());
+        delete opReq;
     }
     /* for detele snapshot */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
     {
-        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
+        ChunkOpRequest *opReq
+            = new DeleteSnapshotRequest(nodePtr,
+                                        cntl,
+                                        &request,
+                                        nullptr,
+                                        nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opCtx.Encode(&log));
+        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
 
         butil::IOBuf data;
-        opCtx.Decode(log, &request, &data);
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req1 = dynamic_cast<DeleteChunkRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
 
         ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP, request.optype());
         ASSERT_EQ(logicPoolId, request.logicpoolid());
         ASSERT_EQ(copysetId, request.copysetid());
         ASSERT_EQ(chunkId, request.chunkid());
+        delete opReq;
     }
-    // encode 异常测试，null data
+    /* for unknown op */
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN);
     {
-        ChunkRequest request;
-        ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
-        ASSERT_EQ(-1, opCtx.Encode(nullptr));
+        ChunkOpRequest *opReq = new DeleteSnapshotRequest(nodePtr,
+                                                          cntl,
+                                                          &request,
+                                                          nullptr,
+                                                          nullptr);
+
+        butil::IOBuf log;
+        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
+
+        butil::IOBuf data;
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        ASSERT_TRUE(req == nullptr);
+
+        ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN, request.optype());
+        ASSERT_EQ(logicPoolId, request.logicpoolid());
+        ASSERT_EQ(copysetId, request.copysetid());
+        ASSERT_EQ(chunkId, request.chunkid());
+        delete opReq;
     }
 }
 
@@ -177,16 +236,17 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
     uint64_t appliedIndex = 12;
 
     Configuration conf;
-    std::shared_ptr<CopysetNode> copysetNode =
+    std::shared_ptr<CopysetNode> nodePtr =
         std::make_shared<CopysetNode>(logicPoolId, copysetId, conf);
-    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    std::shared_ptr<LocalFileSystem>
+        fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
     DataStoreOptions options;
     options.baseDir = "./test-temp";
     options.chunkSize = 16 * 1024 * 1024;
     options.pageSize = 4 * 1024;
     std::shared_ptr<FakeCSDataStore> dataStore =
         std::make_shared<FakeCSDataStore>(options, fs);
-    copysetNode->SetCSDateStore(dataStore);
+    nodePtr->SetCSDateStore(dataStore);
 
     // write data store error will cause fatal, so not test in here
 
@@ -202,14 +262,41 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
         request.set_size(size);
         request.set_sn(sn);
         brpc::Controller *cntl = new brpc::Controller();
-        ChunkOpContext opCtx(cntl, &request, &response, nullptr);
+        ChunkOpRequest *opReq
+            = new ReadChunkRequest(nodePtr, cntl, &request, &response, nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
-        opCtx.OnApply(copysetNode, appliedIndex, &done);
+        opReq->OnApply(appliedIndex, &done);
         ASSERT_FALSE(cntl->Failed());
         ASSERT_EQ(0, cntl->ErrorCode());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response.status());
+        delete opReq;
+        delete cntl;
+    }
+    // read: chunk not exist
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq
+            = new ReadChunkRequest(nodePtr, cntl, &request, &response, nullptr);
+        dataStore->InjectError(CSErrorCode::ChunkNotExistError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
+                  response.status());
+        delete opReq;
+        delete cntl;
     }
     // read snapshot: data store error
     {
@@ -223,14 +310,47 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
         request.set_size(size);
         request.set_sn(sn);
         brpc::Controller *cntl = new brpc::Controller();
-        ChunkOpContext opCtx(cntl, &request, &response, nullptr);
+        ChunkOpRequest *opReq = new ReadSnapshotRequest(nodePtr,
+                                                        cntl,
+                                                        &request,
+                                                        &response,
+                                                        nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
-        opCtx.OnApply(copysetNode, appliedIndex, &done);
+        opReq->OnApply(appliedIndex, &done);
         ASSERT_FALSE(cntl->Failed());
         ASSERT_EQ(0, cntl->ErrorCode());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response.status());
+        delete opReq;
+        delete cntl;
+    }
+    // read snapshot: chunk not exist
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq = new ReadSnapshotRequest(nodePtr,
+                                                        cntl,
+                                                        &request,
+                                                        &response,
+                                                        nullptr);
+        dataStore->InjectError(CSErrorCode::ChunkNotExistError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
+                  response.status());
+        delete opReq;
+        delete cntl;
     }
     // delete : data store error
     {
@@ -242,14 +362,20 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
         request.set_chunkid(chunkId);
         request.set_sn(sn);
         brpc::Controller *cntl = new brpc::Controller();
-        ChunkOpContext opCtx(cntl, &request, &response, nullptr);
+        ChunkOpRequest *opReq = new DeleteChunkRequest(nodePtr,
+                                                       cntl,
+                                                       &request,
+                                                       &response,
+                                                       nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
-        opCtx.OnApply(copysetNode, appliedIndex, &done);
+        opReq->OnApply(appliedIndex, &done);
         ASSERT_FALSE(cntl->Failed());
         ASSERT_EQ(0, cntl->ErrorCode());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response.status());
+        delete opReq;
+        delete cntl;
     }
     // delete snapshot: data store error
     {
@@ -261,14 +387,20 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
         request.set_chunkid(chunkId);
         request.set_sn(sn);
         brpc::Controller *cntl = new brpc::Controller();
-        ChunkOpContext opCtx(cntl, &request, &response, nullptr);
+        ChunkOpRequest *opReq = new DeleteChunkRequest(nodePtr,
+                                                       cntl,
+                                                       &request,
+                                                       &response,
+                                                       nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
-        opCtx.OnApply(copysetNode, appliedIndex, &done);
+        opReq->OnApply(appliedIndex, &done);
         ASSERT_FALSE(cntl->Failed());
         ASSERT_EQ(0, cntl->ErrorCode());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   response.status());
+        delete opReq;
+        delete cntl;
     }
 }
 
@@ -282,7 +414,7 @@ TEST(ChunkOpContextTest, OnApplyFromLogTest) {
     uint64_t appliedIndex = 12;
 
     Configuration conf;
-    std::shared_ptr<CopysetNode> copysetNode =
+    std::shared_ptr<CopysetNode> nodePtr =
         std::make_shared<CopysetNode>(logicPoolId, copysetId, conf);
     std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
     DataStoreOptions options;
@@ -291,23 +423,7 @@ TEST(ChunkOpContextTest, OnApplyFromLogTest) {
     options.pageSize = 4 * 1024;
     std::shared_ptr<FakeCSDataStore> dataStore =
         std::make_shared<FakeCSDataStore>(options, fs);
-    copysetNode->SetCSDateStore(dataStore);
-
-    // unknown op
-    {
-        ChunkRequest request;
-        request.set_logicpoolid(1);
-        request.set_copysetid(1);
-        request.set_chunkid(1);
-        request.set_sn(sn);
-        request.set_offset(1);
-        request.set_size(1);
-        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN);
-        ChunkOpContext opCtx(nullptr, &request, nullptr, nullptr);
-        butil::IOBuf data;
-        opCtx.OnApplyFromLog(copysetNode, request, data, appliedIndex);
-        ASSERT_FALSE(dataStore->HasInjectError());
-    }
+    nodePtr->SetCSDateStore(dataStore);
 
     // read
     {
@@ -321,9 +437,9 @@ TEST(ChunkOpContextTest, OnApplyFromLogTest) {
         request.set_offset(1);
         request.set_size(1);
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
-        ChunkOpContext opCtx(nullptr, &request, nullptr, nullptr);
         butil::IOBuf data;
-        opCtx.OnApplyFromLog(copysetNode, request, data, appliedIndex);
+        ReadChunkRequest req;
+        req.OnApplyFromLog(dataStore, request, data);
         ASSERT_FALSE(dataStore->HasInjectError());
     }
     // read snapshot
@@ -338,9 +454,9 @@ TEST(ChunkOpContextTest, OnApplyFromLogTest) {
         request.set_offset(1);
         request.set_size(1);
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP);
-        ChunkOpContext opCtx(nullptr, &request, nullptr, nullptr);
         butil::IOBuf data;
-        opCtx.OnApplyFromLog(copysetNode, request, data, appliedIndex);
+        ReadSnapshotRequest req;
+        req.OnApplyFromLog(dataStore, request, data);
         ASSERT_FALSE(dataStore->HasInjectError());
     }
     // delete
@@ -353,10 +469,9 @@ TEST(ChunkOpContextTest, OnApplyFromLogTest) {
         request.set_chunkid(1);
         request.set_sn(sn);
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
-        ChunkOpContext opCtx(nullptr, &request, nullptr, nullptr);
         butil::IOBuf data;
-        dataStore->InjectError();
-        opCtx.OnApplyFromLog(copysetNode, request, data, appliedIndex);
+        DeleteChunkRequest req;
+        req.OnApplyFromLog(dataStore, request, data);
         ASSERT_FALSE(dataStore->HasInjectError());
     }
     // delete snapshot
@@ -368,11 +483,10 @@ TEST(ChunkOpContextTest, OnApplyFromLogTest) {
         request.set_copysetid(copysetID);
         request.set_chunkid(1);
         request.set_sn(sn);
-        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
-        ChunkOpContext opCtx(nullptr, &request, nullptr, nullptr);
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
         butil::IOBuf data;
-        dataStore->InjectError();
-        opCtx.OnApplyFromLog(copysetNode, request, data, appliedIndex);
+        DeleteSnapshotRequest req;
+        req.OnApplyFromLog(dataStore, request, data);
         ASSERT_FALSE(dataStore->HasInjectError());
     }
 }

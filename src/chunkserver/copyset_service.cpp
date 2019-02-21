@@ -21,7 +21,7 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
 
-    /* 解析 request 中的 peers */
+    // 解析request中的peers
     Configuration conf;
     for (int i = 0; i < request->peerid_size(); ++i) {
         PeerId peer;

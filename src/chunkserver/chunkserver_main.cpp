@@ -8,8 +8,6 @@
 
 #include "src/chunkserver/chunkserver.h"
 
-#include "src/sfs/sfsMock.h"
-
 /*
  * The Entry point of Chunkserver
  */

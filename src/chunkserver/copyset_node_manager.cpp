@@ -18,7 +18,6 @@
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/braft_cli_service.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_storage.h"
 
 namespace curve {
 namespace chunkserver {
@@ -27,7 +26,6 @@ std::once_flag addServiceFlag;
 
 int CopysetNodeManager::Init(const CopysetNodeOptions &copysetNodeOptions) {
     copysetNodeOptions_ = copysetNodeOptions;
-    ChunkserverStorage::Init();
     return 0;
 }
 
@@ -37,7 +35,6 @@ int CopysetNodeManager::Run() {
 }
 
 int CopysetNodeManager::Fini() {
-    ChunkserverStorage::UnInit();
     return 0;
 }
 
@@ -62,15 +59,6 @@ void CopysetNodeManager::GetAllCopysetNodes(
     }
 }
 
-/**
- * 原本设计，这里应该是根据 request 类型，将 request 分发给后端 Op 处理线程但是目前
- * rpc 的 bthread 和 Op 的 bthread 都是在同一个线程池，所以这里直接处理后续会隔离
- * 两边的线程
- */
-void CopysetNodeManager::ScheduleRequest(std::shared_ptr<ChunkOpRequest> request) { //NOLINT
-    request->Process();
-}
-
 bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
                                            const CopysetID &copysetId,
                                            const Configuration &conf) {
@@ -78,12 +66,10 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
     /* 加写锁 */
     WriteLockGuard writeLockGuard(rwLock_);
     if (copysetNodeMap_.end() == copysetNodeMap_.find(groupId)) {
-        std::unique_ptr<CSDataStore> dsPtr = std::make_unique<CSDataStore>();
         std::shared_ptr<CopysetNode> copysetNode =
             std::make_shared<CopysetNode>(logicPoolId,
                                           copysetId,
-                                          conf,
-                                          std::move(dsPtr));
+                                          conf);
         CHECK(nullptr != copysetNode) << "new copyset node <"
                                       << logicPoolId << ","
                                       << copysetId << "> failed ";

@@ -12,6 +12,8 @@
 
 #include <string>
 
+#include "src/fs/fs_common.h"
+#include "src/fs/local_filesystem.h"
 #include "src/chunkserver/chunkserver.h"
 
 butil::AtExitManager atExitManager;
@@ -23,6 +25,9 @@ void* run_chunkserver_thread(void *arg) {
 
     return NULL;
 }
+
+using curve::fs::LocalFsFactory;
+using curve::fs::FileSystemType;
 
 TEST(ChunkserverTest, LifeCycle) {
     int ret;
@@ -51,4 +56,7 @@ TEST(ChunkserverTest, LifeCycle) {
 
     ret = chunkserver.Fini();
     ASSERT_EQ(ret, 0);
+
+    ::system("rm -fr chunkfilepool.meta");
+    ::system("rm -fr chunkfilepool");
 }

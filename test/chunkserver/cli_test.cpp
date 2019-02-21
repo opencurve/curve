@@ -55,7 +55,7 @@ TEST_F(CliTest, basic) {
     const char *ip = "127.0.0.1";
     int port = 8200;
     const char *confs = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
-    int snapshotInterval = 30;
+    int snapshotInterval = 600;
 
     /**
      * 设置更大的默认选举超时时间，因为当前 ci 环境很容易出现超时
@@ -147,10 +147,13 @@ TEST_F(CliTest, basic) {
     ASSERT_TRUE(status.ok());
 
     /* 等待 transfer leader 成功 */
-    int waitFlushNoopEntry = 2000 * 1000;
     int waitTransferLeader = 3000 * 1000;
+    /**
+     * 配置变更因为设置一条 log entry 的完成复制，所以设置较长的 timeout
+     * 时间，以免在 ci 环境偶尔会出现超时出错
+     */
     braft::cli::CliOptions opt;
-    opt.timeout_ms = 3000;
+    opt.timeout_ms = 6000;
     opt.max_retry = 3;
 
     /* remove peer */

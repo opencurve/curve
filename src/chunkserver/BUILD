@@ -21,7 +21,9 @@ cc_library(
     name = "chunkserver-lib",
     srcs = glob(
         ["*.cpp"],
-        exclude = ["chunkserver_main.cpp"],
+        exclude = [
+            "chunkserver_main.cpp",
+        ],
     ),
     hdrs = glob([
         "*.h",
@@ -47,7 +49,9 @@ cc_library(
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver/chunkserverStorage:chunkserver-sfsadaptor-lib",
+        "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
+        "//src/fs:lfs",
     ],
 )
 
@@ -55,7 +59,9 @@ cc_library(
     name = "chunkserver-test-lib",
     srcs = glob(
         ["*.cpp"],
-        exclude = ["chunkserver_main.cpp"],
+        exclude = [
+            "chunkserver_main.cpp",
+        ],
     ),
     hdrs = glob([
         "*.h",
@@ -82,7 +88,9 @@ cc_library(
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver/chunkserverStorage:chunkserver-sfsadaptor-lib",
+        "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
+        "//src/fs:lfs",
     ],
 )
 
@@ -113,7 +121,8 @@ cc_binary(
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-lib",
-        "//src/chunkserver/chunkserverStorage:chunkserver-sfsadaptor-lib",
+        "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
+        "//src/fs:lfs",
     ],
 )

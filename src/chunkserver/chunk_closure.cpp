@@ -11,17 +11,27 @@ namespace curve {
 namespace chunkserver {
 
 void ChunkClosure::Run() {
-    /* Auto delete this after Run() */
+    /**
+     * 在Run结束之后，自动析构自己，这样可以避免
+     * 析构函数漏调
+     */
     std::unique_ptr<ChunkClosure> selfGuard(this);
-    /* Repsond this RPC. */
-    brpc::ClosureGuard doneGuard(opCtx_->GetClosure());
+    /**
+     * 确保done能够被调用，目的是保证rpc一定会返回
+     */
+    brpc::ClosureGuard doneGuard(request_->Closure());
+    /**
+     * 尽管在request propose给copyset的之前已经
+     * 对leader身份进行了确认，但是在copyset处理
+     * request的时候，当前copyset的身份还是有可能
+     * 变成非leader，所以需要判断ChunkClosure被调
+     * 用的时候，request的status，如果 ok，说明是
+     * 正常的apply处理，否则将请求转发
+     */
     if (status().ok()) {
         return;
     }
-    /* leader step down */
-    if (EPERM == status().error_code()) {
-        copysetNode_->RedirectChunkRequest(opCtx_->GetResponse());
-    }
+    request_->RedirectChunkRequest();
 }
 
 }  // namespace chunkserver
