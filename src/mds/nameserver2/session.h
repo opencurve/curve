@@ -16,6 +16,7 @@
 #include <thread> //NOLINT
 #include "proto/nameserver2.pb.h"
 #include "src/common/rw_lock.h"
+#include "src/common/uuid.h"
 #include "src/mds/nameserver2/define.h"
 #include "src/mds/repo/repo.h"
 
@@ -36,8 +37,11 @@ struct SessionOptions {
 class Session {
  public:
     bool IsLeaseTimeOut();
-    std::string GenSessionId();
+    inline std::string GenSessionId() {
+         return common::UUIDGenerator().GenerateUUID();
+    }
     std::string GenToken();
+
     Session(const Session &);
 
     Session(const std::string& sessionid,
