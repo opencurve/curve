@@ -6,13 +6,11 @@
  */
 
 #include "src/mds/nameserver2/session.h"
-#include <uuid/uuid.h>
 #include <glog/logging.h>
 #include <brpc/controller.h>
 #include <vector>
 #include <utility>
 #include "src/common/timeutility.h"
-
 
 
 namespace curve {
@@ -25,14 +23,6 @@ bool Session::IsLeaseTimeOut() {
     uint64_t currentTime = ::curve::common::TimeUtility::GetTimeofDayUs();
     return currentTime > updateTime_ + protoSession_.leasetime()
                          + toleranceTime_;
-}
-
-std::string Session::GenSessionId() {
-    char buf[40] = {0};
-    uuid_t uuid;
-    uuid_generate(uuid);
-    uuid_unparse(uuid, buf);
-    return buf;
 }
 
 std::string Session::GenToken() {
