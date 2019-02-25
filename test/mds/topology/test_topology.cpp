@@ -2275,7 +2275,7 @@ TEST_F(TestTopology, UpdateCopySet_StorageFail) {
 
     int ret = topology_->UpdateCopySet(csInfo);
 
-    ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
 
 TEST_F(TestTopology, UpdateCopySet_CopySetNotFound) {

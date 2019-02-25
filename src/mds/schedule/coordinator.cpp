@@ -6,8 +6,10 @@
  */
 
 #include <glog/logging.h>
+#include <string>
 #include <thread>  //NOLINT
 #include "src/mds/schedule/coordinator.h"
+#include "src/mds/topology/topology_item.h"
 
 namespace curve {
 namespace mds {
@@ -84,17 +86,56 @@ void Coordinator::Stop() {
     }
 }
 
-bool Coordinator::CopySetHeartbeat(const CopySetInfo &originInfo,
-                                   CopySetConf *newConf) {
+bool Coordinator::CopySetHeartbeat(
+    const ::curve::mds::topology::CopySetInfo &originInfo,
+    ::curve::mds::heartbeat::CopysetConf *out) {
+    CopySetInfo info;
+    if (!topo_->CopySetFromTopoToSchedule(originInfo, &info)) {
+        LOG(ERROR) << "coordinator cannot convert copySet(logicalPoolId:"
+                   << originInfo.GetLogicalPoolId() << ", copySetId:"
+                   << originInfo.GetId()
+                   << ") from heartbeat topo form to schedule form error";
+        return false;
+    }
+
     Operator op;
-    if (!opController_->GetOperatorById(originInfo.id, &op)) {
+    if (!opController_->GetOperatorById(info.id, &op)) {
         return false;
     }
 
     LOG(INFO) << "find operator on copySet(logicalPoolId:"
-              << originInfo.id.first
-              << ", copySetId:" << originInfo.id.second << ")";
-    return opController_->ApplyOperator(originInfo, newConf);
+              << info.id.first
+              << ", copySetId:" << info.id.second << ")";
+
+    // 根据leader上报的copyset信息更新operator的状态
+    // 如果有新的配置要下发，返回为true
+    CopySetConf res;
+    bool hasOrder = opController_->ApplyOperator(info, &res);
+    if (hasOrder) {
+        // build心跳中需要返回的copysetConf
+        out->set_logicalpoolid(res.id.first);
+        out->set_copysetid(res.id.second);
+        out->set_epoch(res.epoch);
+        out->set_type(res.type);
+
+        // set candidate
+        ChunkServerInfo chunkServer;
+        if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
+            LOG(ERROR) << "coordinator can not get chunkServer "
+                    << res.configChangeItem << " from topology";
+            return false;
+        }
+        std::string candidate = ::curve::mds::topology::BuildPeerId(
+            chunkServer.info.ip, chunkServer.info.port, 0);
+        out->set_configchangeitem(candidate);
+
+        // set 副本
+        for (auto peer : res.peers) {
+            out->add_peers(::curve::mds::topology::BuildPeerId(
+                peer.ip, peer.port, 0));
+        }
+    }
+    return hasOrder;
 }
 
 void Coordinator::RunScheduler(const std::shared_ptr<Scheduler> &s) {

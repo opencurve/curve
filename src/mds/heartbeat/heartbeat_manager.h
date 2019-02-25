@@ -12,174 +12,134 @@
 #include <map>
 #include <atomic>
 #include <string>
+#include <memory>
 
-#include "src/mds/topology/topology_manager.h"
+#include "src/mds/topology/topology.h"
 #include "src/mds/common/mds_define.h"
+#include "src/mds/heartbeat/topo_updater.h"
+#include "src/mds/heartbeat/copyset_conf_generator.h"
+#include "src/mds/heartbeat/chunkserver_healthy_checker.h"
 #include "src/mds/schedule/coordinator.h"
-#include "src/mds/schedule/topoAdapter.h"
-#include "src/common/concurrent/rw_lock.h"
+#include "src/common/concurrent/concurrent.h"
 #include "proto/heartbeat.pb.h"
 
-using ::curve::mds::topology::ChunkServerIdType;
+using ::curve::mds::topology::CopySetInfo;
 using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::CopySetIdType;
-using ::curve::mds::topology::TopologyManager;
+using ::curve::mds::topology::Topology;
 using ::curve::mds::schedule::Coordinator;
-using ::curve::mds::schedule::TopoAdapter;
-using ::std::chrono::steady_clock;
+
+using ::curve::common::Thread;
+using ::curve::common::Atomic;
+using ::curve::common::RWLock;
 
 namespace curve {
 namespace mds {
 namespace heartbeat {
-struct HeartbeatOption {
-  HeartbeatOption() : HeartbeatOption(0, 0, 0) {}
-  HeartbeatOption(uint64_t heartbeatInterval,
-                  uint64_t heartbeatMissTimeout,
-                  uint64_t offLineTimeout) {
-      this->heartbeatInterval = heartbeatInterval;
-      this->heartbeatMissTimeOut = heartbeatMissTimeout;
-      this->offLineTimeOut = offLineTimeout;
-  }
-
-  // heartbeatInterval: 正常心跳间隔.
-  // chunkServer每隔heartbeatInterval的时间会给mds发送心跳
-  uint64_t heartbeatInterval;
-  // heartbeatMissTimeout: 心跳超时时间
-  // 网络抖动总是存在的，后台线程在检测过程如果发现chunkserver在heartbeatMissTimeOut的
-  // 时间内没有心跳, 做报警处理
-  uint64_t heartbeatMissTimeOut;
-  // offLineTimeOut: 在offlineTimeOut的时间内如果没有收到chunkserver上报的心跳，
-  // 把chunkserver的状态置为offline, 并报警。
-  // schedule根据chunkserver的状态进行调度。
-  uint64_t offLineTimeOut;
-};
-
-struct HeartbeatInfo {
-  HeartbeatInfo() :
-    HeartbeatInfo(0, steady_clock::time_point(), true) {}
-  HeartbeatInfo(ChunkServerIdType id,
-                const steady_clock::time_point &time,
-                bool flag) {
-      this->csId = id;
-      this->lastReceivedTime = time;
-      this->OnlineFlag = flag;
-  }
-  ChunkServerIdType csId;
-  steady_clock::time_point lastReceivedTime;
-  bool OnlineFlag;
-};
-
+// HeartbeatManager: 主要处三种类型的任务
+// 1. 后台检查线程。
+//    - 更新chunkserver最近一次心跳时间
+//    - 定时检查chunkserver的在线状态
+// 3. 下发copyset的配置信息。
+//    - mds不存在上报的copyset，下发空配置指导chunkserver清理该copyset数据
+//    - 将copyset的信息pass到scheduler模块，check是否有配置变更需要下发
+//    - follower copyset的配置不包含chunkserver, 下发空配置指导chunkserver清理
+// 2. 更新topology信息。
+//    - 根据chunkserver上报的copyset的信息，更新topology中copyset的epoch,
+//      副本关系, 统计信息等
 class HeartbeatManager {
  public:
-  explicit HeartbeatManager(
-      std::shared_ptr<Topology> topology,
-      std::shared_ptr<Coordinator> coordinator,
-      std::shared_ptr<TopoAdapter> topoAdapter)
-      : topology_(topology),
-        coordinator_(coordinator),
-        topoAdapter_(topoAdapter) {
-      isStop_ = true;
-  }
+    HeartbeatManager(HeartbeatOption option,
+        std::shared_ptr<Topology> topology,
+        std::shared_ptr<Coordinator> coordinator);
 
-  ~HeartbeatManager() {}
+    ~HeartbeatManager() {}
 
-  /**
-   * @brief 初始化心跳模块
-   *
-   * @return 错误码
-   */
-  int Init(const HeartbeatOption &option);
+    /*
+    * @brief Init 用于mds初始化心跳模块, 把所有chunkserver注册到chunkserver健康
+    *             检查模块(class ChunkserverHealthyChecker)，chunkserver初始均设为
+    *             online状态
+    */
+    void Init();
 
-  /**
-   * @brief 运行心跳后端线程，执行心跳超时检查, offline检查
-   *
-   * 使用一定时器，每隔heartbeatMissTimeOut_周期时间执行如下检查：
-   * 1. OnlineFlag 初始值为false
-   * 2. 当OnlineFlag 值为false时，
-   *   若当前时间 - 上次心跳到达时间 <= heartbeatMissTimeOut_,
-   *   则置OnlineFlag为true,并更新topology中OnlineState为ONLINE
-   * 3. 当OnlineFlag 值为true时，
-   *   若当前时间 - 上次心跳到达时间 > heartbeatMissTimeOut_，
-   *   则报心跳miss报警
-   * 4. 若当前时间 - 上次心跳到达时间 > offLineTimeOut_,
-   *   则置OnlineFlag为false, 并更新topology中OnlineState为OFFLINE, 并报警
-   */
-  void Run();
+    /*
+    * @brief Run 起一个子线程运行健康检查模块，定时检查chunkserver的心跳是否miss
+    */
+    void Run();
 
-  /**
-   * @brief 停止心跳后端线程
-   */
-  void Stop();
+    /*
+    * @brief Stop 停止心跳后端线程
+    */
+    void Stop();
 
-  /**
-   * @brief 更新最近一次心跳到达时间
-   */
-  void UpdateLastReceivedHeartbeatTime(ChunkServerIdType csId,
-                                       const steady_clock::time_point &time);
-
-  /**
-   * @brief 处理心跳请求
-   */
-  void ChunkServerHeartbeat(const ChunkServerHeartbeatRequest &request,
-                            ChunkServerHeartbeatResponse *response);
-
-  /**
-   * @brief 心跳超时检查后端线程
-   */
-  void HeartbeatBackEnd();
-
-  void CheckHeartBeatInterval();
-
-  // for test
-  bool GetHeartBeatInfo(ChunkServerIdType id, HeartbeatInfo *info);
+    /**
+     * @brief ChunkServerHeartbeat处理心跳请求
+     *
+     * @param[in] request 心跳rpc请求
+     * @param[out] response 心跳处理结果
+     */
+    void ChunkServerHeartbeat(const ChunkServerHeartbeatRequest &request,
+                                ChunkServerHeartbeatResponse *response);
 
  private:
-  /**
-  * @brief 处理copyset信息，调用src/mds/schedule/coordinator.h中CopySetHeartbeat
-  * 接口上传copyset信息， 并获取当前配置变更操作, 由leader chunkServer调用
-  *
-  * @param copysetInfo copyset信息
-  * @param copysetConf 出参，heartbeat根据上报的copysetInfo做相应的处理，如果需要做
-  * 配置变更，通过copysetConf下发
-  *
-  * @return 如果有配置变更下发则返回true，没有配置变更下发则返回false
-  */
-  bool HandleCopysetInfo(const CopysetInfo &copysetInfo,
-                         CopysetConf *copysetConf);
+    /**
+     * @brief ChunkServerHealthyChecker 心跳超时检查后端线程
+     */
+    void ChunkServerHealthyChecker();
 
-  ChunkServerIdType GetPeerIdByIPPort(const std::string &ipPort);
+    /**
+     * @brief CheckRequest 检查心跳上报的request内容是否合法
+     *
+     * @return 合法返回true, 有非法参数返回false
+     */
+    bool CheckRequest(const ChunkServerHeartbeatRequest &request);
 
-  bool FromHeartbeatCopySetInfoToTopologyOne(
-      const ::curve::mds::heartbeat::CopysetInfo &info,
-      ::curve::mds::topology::CopySetInfo *out);
+    // TODO(lixiaocui): 优化，统一heartbeat和topology中两个CopySetInfo的名字
+    /**
+     * @brief FromHeartbeatCopySetInfoToTopologyOne 把心跳中copyset struct转化成
+     *        topology中copyset struct
+     *
+     * @param[in] info 心跳上报的copyset信息
+     * @param[out] out topology中的心跳结构
+     *
+     * @return 转化成功为true, 失败为false
+     */
+    bool FromHeartbeatCopySetInfoToTopologyOne(
+        const ::curve::mds::heartbeat::CopysetInfo &info,
+        ::curve::mds::topology::CopySetInfo *out);
 
-  bool PatrolCopySetInfo(const ::curve::mds::topology::CopySetInfo &reportInfo,
-                         CopysetConf *conf);
-
-  std::string GetIpPortByChunkServerId(ChunkServerIdType id);
-
-  bool CheckRequest(const ChunkServerHeartbeatRequest &request);
+    /**
+     * @brief GetChunkserverIdByPeerStr 心跳上报上来的chunkserver是ip:port:id的形式，
+     *       该函数从string中解析出ip,port,并根据ip,port从topo中获取对应的chunkserverId
+     *
+     * @param[in] peer ip:port:id形式的chunkserver信息
+     *
+     * @return 根据ip:port获取的chunkserverId
+     */
+    ChunkServerIdType GetChunkserverIdByPeerStr(std::string peer);
 
  private:
-  std::map<ChunkServerIdType, HeartbeatInfo> heartbeatInfos_;
-  std::shared_ptr<Topology> topology_;
-  std::shared_ptr<Coordinator> coordinator_;
-  std::shared_ptr<TopoAdapter> topoAdapter_;
+    // heartbeat相关依赖
+    std::shared_ptr<Topology> topology_;
+    std::shared_ptr<Coordinator> coordinator_;
 
-  // 持有schedule接口对象
-  // 心跳时间
-  uint64_t heartbeatIntervalSec_;
-  // 心跳超时时间
-  uint64_t heartbeatMissTimeOutSec_;
-  // offline检测超时时间
-  uint64_t offLineTimeOutSec_;
+    // healthyChecker_ 后台线程checker逻辑
+    std::shared_ptr<ChunkserverHealthyChecker> healthyChecker_;
+    // topoUpdater_ 更新topo中copyset的epoch, 复制组关系等信息
+    std::shared_ptr<TopoUpdater> topoUpdater_;
+    // CopysetConfGenerator 根据新旧copyset的信息确认是否需要生成命令下发给chunkserver //NOLINT
+    // 处理如下几种情况:
+    // 1. chunkserver上报的copyset在mds中不存在
+    // 2. leader copyset
+    // 3. copyset的最新复制组中不包含该chunkserver
+    std::shared_ptr<CopysetConfGenerator> copysetConfGenerator_;
 
-  mutable curve::common::RWLock hbinfoLock_;
-
-  // TODO(lixiaocui): 这里这些建议换成统一封装的thread aomic等
-  std::thread backEndThread_;
-  std::atomic_bool isStop_;
+    // 管理chunkserverHealthyChecker线程
+    Thread backEndThread_;
+    Atomic<bool> isStop_;
+    int chunkserverHealthyCheckerRunInter_;
 };
+
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve

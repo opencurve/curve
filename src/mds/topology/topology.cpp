@@ -748,13 +748,17 @@ int TopologyImpl::RemoveCopySet(CopySetKey key) {
     }
 }
 
+// 更新内存和数据库，如果更新数据库失败，打印WARNING
+// 这样数据库copyset的信息不一定是最新的，需要mds提供一个copyset的查询接口，外部需要获得
+// copyset信息的时候有从mds拿的入口
 int TopologyImpl::UpdateCopySet(const CopySetInfo &data) {
     WriteLockGuard wlockCopySet(copySetMutex_);
     CopySetKey key(data.GetLogicalPoolId(), data.GetId());
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
         if (!storage_->UpdateCopySet(data)) {
-            return kTopoErrCodeStorgeFail;
+            LOG(WARNING) << "update copyset{" << data.GetLogicalPoolId()
+                         << "," << data.GetId() << "} to repo fail";
         }
         it->second = data;
         return kTopoErrCodeSuccess;

@@ -17,6 +17,7 @@ cc_library(
         "//proto:heartbeat_cc_proto",
         "//proto:topology_cc_proto",
         "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
         "//src/mds/schedule",
         "//src/mds/topology",
     ],

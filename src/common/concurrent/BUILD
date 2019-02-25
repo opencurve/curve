@@ -27,6 +27,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
-        "//src/common:curve_uncopy"
+        "//src/common:curve_uncopy",
+        "//include:include-common"
     ],
 )
