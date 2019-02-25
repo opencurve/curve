@@ -17,12 +17,12 @@ namespace mds {
 namespace heartbeat {
 class MockCoordinator : public ::curve::mds::schedule::Coordinator {
  public:
-  MockCoordinator() {}
-  ~MockCoordinator() {}
+    MockCoordinator() {}
+    ~MockCoordinator() {}
 
-  MOCK_METHOD2(CopySetHeartbeat,
-               bool(const ::curve::mds::schedule::CopySetInfo &originInfo,
-                   ::curve::mds::schedule::CopySetConf *newConf));
+    MOCK_METHOD2(CopySetHeartbeat,
+                bool(const ::curve::mds::topology::CopySetInfo &originInfo,
+                    ::curve::mds::heartbeat::CopysetConf *newConf));
 };
 }  // namespace heartbeat
 }  // namespace mds

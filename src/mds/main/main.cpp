@@ -148,13 +148,12 @@ int curve_main(int argc, char **argv) {
     coordinator->Run();
 
     // init heartbeat manager
-    auto heartbeatManager = std::make_shared<HeartbeatManager>(topology,
-                                                               coordinator,
-                                                               topoAdapter);
     HeartbeatOption heartbeatOption(FLAGS_heartbeatInterval,
                                     FLAGS_heartbeatMissTimeout,
                                     FLAGS_offlineTimeout);
-    heartbeatManager->Init(heartbeatOption);
+    auto heartbeatManager = std::make_shared<HeartbeatManager>(
+        heartbeatOption, topology, coordinator);
+    heartbeatManager->Init();
     heartbeatManager->Run();
 
     // add heartbeat service
