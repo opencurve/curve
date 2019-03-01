@@ -41,7 +41,6 @@ TEST(CopysetNodeManager, basic) {
         copysetNodeOptions.logUri = "//.";
         copysetNodeOptions.raftMetaUri = "local://.";
         copysetNodeOptions.raftSnapshotUri = "local://.";
-
         ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
 
         ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,

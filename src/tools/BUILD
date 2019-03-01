@@ -60,3 +60,24 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_binary(
+    name = "curve_format",
+    srcs = [
+        "curve_format.cpp",
+    ],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:bvar",
+        "//external:gflags",
+        "//external:glog",
+        "//external:protobuf",
+        "//proto:chunkserver-cc-protos",
+        "//src/chunkserver:chunkserver-lib",
+        "//src/common:curve_common",
+        "//src/fs:lfs",
+    ],
+)

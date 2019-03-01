@@ -26,5 +26,6 @@ cc_library(
     copts = COPTS,
     linkopts = [
     ],
+    deps = ["//external:glog"],
     visibility = ["//visibility:public"],
 )
