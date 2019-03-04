@@ -6,7 +6,7 @@
  */
 
 #include "src/client/request_closure.h"
-#include "src/client/io_context.h"
+#include "src/client/io_tracker.h"
 #include "src/client/request_context.h"
 
 namespace curve {
@@ -17,12 +17,12 @@ RequestClosure::RequestClosure(RequestContext* reqctx) {
     reqCtx_ = reqctx;
 }
 
-RequestClosure::~RequestClosure() {
-    Reset();
+IOTracker* RequestClosure::GetIOTracker() {
+    return tracker_;
 }
 
-void RequestClosure::SetIOContext(IOContext* ioctx) {
-    ctx_ = ioctx;
+void RequestClosure::SetIOTracker(IOTracker* track) {
+    tracker_ = track;
 }
 
 void RequestClosure::SetFailed(int errorcode) {
@@ -30,7 +30,7 @@ void RequestClosure::SetFailed(int errorcode) {
 }
 
 void RequestClosure::Run() {
-    ctx_->HandleResponse(reqCtx_);
+    tracker_->HandleResponse(reqCtx_);
 }
 
 int RequestClosure::GetErrorCode() {
@@ -39,11 +39,6 @@ int RequestClosure::GetErrorCode() {
 
 RequestContext* RequestClosure::GetReqCtx() {
     return reqCtx_;
-}
-
-void RequestClosure::Reset() {
-    errcode_ = 0;
-    ctx_ = nullptr;
 }
 }   // namespace client
 }   // namespace curve

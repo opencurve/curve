@@ -1,0 +1,185 @@
+/*
+ * Project: curve
+ * File Created: Monday, 17th September 2018 3:22:06 pm
+ * Author: tongguangxun
+ * Copyright (c) 2018 NetEase
+ */
+#ifndef CURVE_LIBCURVE_IOSPLIT_CONTEXT_H
+#define CURVE_LIBCURVE_IOSPLIT_CONTEXT_H
+
+#include <set>
+#include <list>
+#include <atomic>
+
+#include "src/client/metacache.h"
+#include "src/client/mds_client.h"
+#include "src/client/client_common.h"
+#include "src/client/request_context.h"
+#include "src/client/libcurve_define.h"
+#include "src/client/request_scheduler.h"
+#include "include/curve_compiler_specific.h"
+#include "src/client/io_condition_varaiable.h"
+
+namespace curve {
+namespace client {
+class IOManager;
+
+// IOTracker用于跟踪一个用户IO，因为一个用户IO可能会跨chunkserver，
+// 因此在真正下发的时候会被拆分成多个小IO并发的向下发送，因此我们需要
+// 跟踪发送的request的执行情况。
+class CURVE_CACHELINE_ALIGNMENT IOTracker {
+ public:
+    /**
+     * 构造函数
+     * @param: iomanager负责回收当前iotracker
+     * @param: mc用于获取chunk信息
+     * @param: scheduler用于分发请求
+     */
+    IOTracker(IOManager* iomanager,
+              MetaCache* mc,
+              RequestScheduler* scheduler);
+    ~IOTracker() = default;
+
+    /**
+     * startread和startwrite将上层的同步和异步读写接口统一了
+     * CurveAioContext传入的为空值的时候，代表这个读写是同步，
+     * 否则是异步的，MDSClient和FInfo_t透传给splitor。
+     * @param: aioctx异步io上下文，为空的时候代表同步IO
+     * @param: buf是读写缓冲区
+     * @param: offset是读写偏移
+     * @param: length是读写长度
+     * @param: mdsclient透传给splitor，与mds通信
+     * @param: fi是当前io对应文件的基本信息
+     */
+    void StartRead(CurveAioContext* aioctx,
+                     char* buf,
+                     off_t offset,
+                     size_t length,
+                     MDSClient* mdsclient,
+                     const FInfo_t* fi);
+    void StartWrite(CurveAioContext* aioctx,
+                     const char* buf,
+                     off_t offset,
+                     size_t length,
+                     MDSClient* mdsclient,
+                     const FInfo_t* fi);
+    /**
+     * chunk相关接口是提供给snapshot使用的，上层的snapshot和file
+     * 接口是分开的，在IOTracker这里会将其统一，这样对下层来说不用
+     * 感知上层的接口类别。
+     * @param: lpid逻辑池id
+     * @param: cpid是copysetid
+     * @param: chunkID对应chunkid
+     * @param: seq是快照版本号
+     * @param: offset是快照内的offset
+     * @param: len是要读取的长度
+     * @param: buf是读取缓冲区
+     */
+    void ReadSnapChunk(LogicPoolID lpid,
+                     CopysetID cpid,
+                     ChunkID chunkID,
+                     uint64_t seq,
+                     uint64_t offset,
+                     uint64_t len,
+                     char *buf);
+    /**
+     * 删除seq版本号的快照数据
+     * @param: lpid逻辑池id
+     * @param: cpid是copysetid
+     * @param: chunkID对应chunkid
+     * @param: seq是快照版本号
+     */
+    void DeleteSnapChunk(LogicPoolID lpid,
+                     CopysetID cpid,
+                     ChunkID chunkId,
+                     uint64_t seq);
+    /**
+     * 获取chunk的版本信息，chunkInfo是出参
+     * @param: lpid逻辑池id
+     * @param: cpid是copysetid
+     * @param: chunkID对应chunkid
+     * @param: chunkInfo是快照的详细信息
+     */
+    void GetChunkInfo(LogicPoolID lpid,
+                     CopysetID cpid,
+                     ChunkID chunkId,
+                     ChunkInfoDetail *chunkInfo);
+
+    /**
+     * Wait用于同步接口等待，因为用户下来的IO被client内部线程接管之后
+     * 调用就可以向上返回了，但是用户的同步IO语意是要等到结果返回才能向上
+     * 返回的，因此这里的Wait会让用户线程等待。
+     * @return: 返回读写信息，异步IO的时候返回0或-1.0代表成功，-1代表失败
+     *          同步IO返回length或-1，length代表真实读写长度，-1代表读写失败
+     */
+    int  Wait();
+
+    /**
+     * 每个request都要有自己的OP类型，这里提供接口可以在io拆分的时候获取类型
+     */
+    OpType Optype() {return type_;}
+
+    /**
+     * 因为client的IO都是异步发送的，且一个IO被拆分成多个Request，因此在异步
+     * IO返回后就应该告诉IOTracker当前request已经返回，这样tracker可以处理
+     * 返回的request。
+     * @param: 待处理的异步request
+     */
+    void HandleResponse(RequestContext* reqctx);
+
+ private:
+    /**
+     * 当IO返回的时候调用done，由done负责向上返回
+     */
+    void Done();
+
+    /**
+     * 在io拆分或者，io分发失败的时候需要调用，设置返回状态，并向上返回
+     */
+    void ReturnOnFail();
+    /**
+     * 用户下来的大IO会被拆分成多个子IO，这里在返回之前将子IO资源回收
+     */
+    void DestoryRequestList();
+
+ private:
+    // io 类型
+    OpType  type_;
+
+    // 当前IO的数据内容，data是读写数据的buffer
+    off_t      offset_;
+    uint64_t   length_;
+    mutable const char*   data_;
+
+    // 当用户下发的是同步IO的时候，其需要在上层进行等待，因为client的
+    // IO发送流程全部是异步的，因此这里需要用条件变量等待，待异步IO返回
+    // 之后才将这个等待的条件变量唤醒，然后向上返回。
+    IOConditionVariable  iocv_;
+
+    // 异步IO的context，在异步IO返回时，通过调用aioctx
+    // 的异步回调进行返回。
+    CurveAioContext* aioctx_;
+
+    // 当前IO的errorcode
+    int errcode_;
+
+    // 当前IO被拆分成reqcount_个小IO
+    std::atomic<uint32_t> reqcount_;
+
+    // 大IO被拆分成多个request，这些request放在reqlist中国保存
+    std::list<RequestContext*>   reqlist_;
+
+    // scheduler用来将用户线程与client自己的线程切分
+    // 大IO被切分之后，将切分的reqlist传给scheduler向下发送
+    RequestScheduler* scheduler_;
+
+    // metacache为当前fileinstance的元数据信息
+    MetaCache* mc_;
+
+    // 对于异步IO，Tracker需要向上层通知当前IO已经处理结束
+    // iomanager可以将该tracker释放
+    IOManager* iomanager_;
+};
+}   // namespace client
+}   // namespace curve
+#endif  // !CURVE_LIBCURVE_IOSPLIT_CONTEXT_H

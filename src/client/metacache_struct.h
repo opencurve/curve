@@ -14,6 +14,7 @@
 #include <vector>
 #include <unordered_map>
 
+#include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
 #include "src/common/spinlock.h"
 
@@ -21,44 +22,8 @@ using curve::common::SpinLock;
 
 namespace curve {
 namespace client {
-
-typedef struct CopysetIDInfo {
-    CopysetID       copysetid_;
-    LogicPoolID     logicpoolid_;
-    CopysetIDInfo() {
-        logicpoolid_ = 0;
-        copysetid_ = 0;
-    }
-
-    CopysetIDInfo(LogicPoolID lpid, CopysetID csid) {
-        logicpoolid_ = lpid;
-        copysetid_ = csid;
-    }
-} CopysetIDInfo_t;
-
-typedef struct Chunkinfo : public CopysetIDInfo {
-    ChunkID         chunkid_;
-    Chunkinfo() {
-        chunkid_ = 0;
-        logicpoolid_ = 0;
-        copysetid_ = 0;
-    }
-
-    Chunkinfo(const Chunkinfo& chunkinfo) {
-        this->chunkid_ = chunkinfo.chunkid_;
-        this->logicpoolid_ = chunkinfo.logicpoolid_;
-        this->copysetid_ = chunkinfo.copysetid_;
-    }
-
-    Chunkinfo& operator=(const Chunkinfo& chunkinfo) {
-        this->chunkid_ = chunkinfo.chunkid_;
-        this->logicpoolid_ = chunkinfo.logicpoolid_;
-        this->copysetid_ = chunkinfo.copysetid_;
-        return *this;
-    }
-} Chunkinfo_t;
-
-typedef struct CopysetPeerInfo {
+// copyset内的peer的基本信息
+typedef struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
     ChunkServerID chunkserverid_;
     PeerId      peerid_;
 
@@ -77,7 +42,8 @@ typedef struct CopysetPeerInfo {
     }
 } CopysetPeerInfo_t;
 
-typedef struct CopysetInfo {
+// copyset的基本信息，包含peer信息、leader信息、appliedindex信息
+typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     std::vector<CopysetPeerInfo_t> csinfos_;
     uint32_t    lastappliedindex_;
     uint16_t    leaderindex_;
@@ -111,10 +77,22 @@ typedef struct CopysetInfo {
         return lastappliedindex_;
     }
 
+    /**
+     * read,write返回时，会携带最新的appliedindex更新当前的appliedindex
+     * 如果read，write失败，那么会将appliedindex更新为0
+     * @param: appliedindex为待更新的值
+     */
     void UpdateAppliedIndex(uint64_t appliedindex) {
-        lastappliedindex_ = appliedindex;
+        spinlock_.Lock();
+        if (appliedindex == 0 || appliedindex > lastappliedindex_)
+            lastappliedindex_ = appliedindex;
+        spinlock_.UnLock();
     }
 
+    /**
+     * 更改当前copyset的leader
+     * @param: leaderid为新的leader
+     */
     void ChangeLeaderID(const PeerId& leaderid) {
         spinlock_.Lock();
         leaderindex_ = 0;
@@ -127,6 +105,13 @@ typedef struct CopysetInfo {
         spinlock_.UnLock();
     }
 
+    /**
+     * 更新leader信息，并且获取其chunkserverID
+     * @param: chunkserverid是出参，为要获取的chunkserver信息
+     * @param: ep是当前leader的地址信息
+     * @param: newleader是否将新的leader信息push到copysetinfo中
+     * @return: 成功返回0，否则返回-1
+     */
     int UpdateLeaderAndGetChunkserverID(ChunkServerID* chunkserverid,
                                     const EndPoint& ep, bool newleader = true) {
         spinlock_.Lock();
@@ -160,18 +145,30 @@ typedef struct CopysetInfo {
         return -1;
     }
 
+    /**
+     * 获取leader信息
+     * @param: chunkserverid是出参
+     * @param: ep是出参
+     */
     int GetLeaderInfo(ChunkServerID* chunkserverid, EndPoint* ep) {
         *chunkserverid = csinfos_[leaderindex_].chunkserverid_;
         *ep = csinfos_[leaderindex_].peerid_.addr;
         return 0;
     }
 
+    /**
+     * 添加copyset的peerinfo
+     * @param: csinfo为待添加的peer信息
+     */
     void AddCopysetPeerInfo(const CopysetPeerInfo& csinfo) {
         spinlock_.Lock();
         csinfos_.push_back(csinfo);
         spinlock_.UnLock();
     }
 
+    /**
+     * 当前CopysetInfo是否合法
+     */
     bool IsValid() {
         return leaderindex_ != -1 && !csinfos_.empty();
     }

@@ -11,42 +11,49 @@
 #include <atomic>
 
 #include "src/client/client_common.h"
+#include "src/client/request_closure.h"
 
 namespace curve {
 namespace client {
 
 enum class OpType {
-    READ,
+    READ = 0,
     WRITE,
+    READ_SNAP,
+    DELETE_SNAP,
+    GET_CHUNK_INFO,
     UNKNOWN
 };
-class RequestClosure;
+
 class RequestContext {
  public:
-    explicit RequestContext(RequestContextSlab* reqctxslab);
+    RequestContext();
     ~RequestContext();
+    bool Init();
+    void UnInit();
 
-    void Reset();
-    void RecyleSelf();
+    // chunk的ID信息，sender在发送rpc的时候需要附带其ID信息
+    ChunkID             chunkid_;
+    CopysetID           copysetid_;
+    LogicPoolID         logicpoolid_;
 
-    mutable const char*  data_;
+    // 用户IO被拆分之后，其小IO有自己的offset和length
     off_t               offset_;
     OpType              optype_;
-    /**
-     * at chunkserver we treat fail if not read the length as the
-     * rpc assigned. so if the rpc returned length is not equal to
-     * rawlength_, we think the read is failed.
-     */
-    size_t          rawlength_;
-    ChunkID         chunkid_;
-    CopysetID       copysetid_;
-    LogicPoolID     logicpoolid_;
-    RequestClosure* done_;
+    size_t              rawlength_;
+    mutable const char* data_;
 
-    uint64_t    appliedindex_;
+    // 因为RPC都是异步发送，因此在一个Request结束时，RPC回调调用当前的done
+    // 来告知当前的request结束了
+    RequestClosure*     done_;
 
- private:
-    RequestContextSlab* reqctxslab_;
+    // request的版本信息
+    uint64_t            seq_;
+    // appliedindex_表示当前IO是否走chunkserver端的raft协议，为0的时候走raft
+    uint64_t            appliedindex_;
+
+    // 这个对应的GetChunkInfo的出参
+    ChunkInfoDetail*    chunkinfodetail_;
 };
 }  // namespace client
 }  // namespace curve

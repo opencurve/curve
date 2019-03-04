@@ -13,7 +13,7 @@
 
 #include "src/client/client_common.h"
 #include "src/client/metacache.h"
-#include "src/client/session.h"
+#include "src/client/file_instance.h"
 
 namespace curve {
 namespace client {
@@ -23,7 +23,7 @@ using ::testing::Invoke;
 
 class FakeMetaCache : public MetaCache {
  public:
-    FakeMetaCache() : MetaCache(new Session()) {}
+    FakeMetaCache() : MetaCache() {}
 
     int GetLeader(LogicPoolID logicPoolId,
                   CopysetID copysetId,
@@ -44,7 +44,7 @@ class FakeMetaCache : public MetaCache {
 
 class MockMetaCache : public MetaCache {
  public:
-    MockMetaCache() : MetaCache(new Session()) {}
+    MockMetaCache() : MetaCache() {}
 
     MOCK_METHOD5(GetLeader, int(LogicPoolID, CopysetID, ChunkServerID*,
                                 butil::EndPoint *, bool));

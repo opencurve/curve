@@ -19,22 +19,22 @@ namespace client {
 RequestScheduler::~RequestScheduler() {
 }
 
-int RequestScheduler::Init(int capacity,
-                           int threadNums,
-                           RequestSenderManager *senderManager,
+int RequestScheduler::Init(RequestScheduleOption_t reqschopt,
                            MetaCache *metaCache) {
-    if (0 != queue_.Init(capacity)) {
+    reqschopt_ = reqschopt;
+    if (0 != queue_.Init(reqschopt_.request_scheduler_queue_capacity)) {
         return -1;
     }
-    if (0 != threadPool_.Init(threadNums,
+    if (0 != threadPool_.Init(reqschopt_.request_scheduler_threadpool_size,
                               std::bind(&RequestScheduler::Process, this))) {
         return -1;
     }
-    if (0 != client_.Init(senderManager, metaCache)) {
+    if (0 != client_.Init(metaCache, reqschopt_.iosenderopt)) {
         return -1;
     }
     return 0;
 }
+
 int RequestScheduler::Run() {
     if (!running_.exchange(true, std::memory_order_acq_rel)) {
         stop_.store(false, std::memory_order_release);
@@ -46,7 +46,7 @@ int RequestScheduler::Run() {
 int RequestScheduler::Fini() {
     if (running_.exchange(false, std::memory_order_acq_rel)) {
         for (int i = 0; i < threadPool_.NumOfThreads(); ++i) {
-            /* notify the wait thread */
+            // notify the wait thread
             BBQItem<RequestContext *> stopReq(nullptr, true);
             queue_.Put(stopReq);
         }
@@ -78,7 +78,7 @@ int RequestScheduler::ScheduleRequest(RequestContext *request) {
 
 void RequestScheduler::Process() {
     while ((running_.load(std::memory_order_acquire)
-        || !queue_.Empty())  /* clear all request in the queue */
+        || !queue_.Empty())  // clear all request in the queue
         && !stop_.load(std::memory_order_acquire)) {
         BBQItem<RequestContext *> item = queue_.Take();
         if (!item.IsStop()) {
@@ -92,6 +92,7 @@ void RequestScheduler::Process() {
                     client_.ReadChunk(req->logicpoolid_,
                                       req->copysetid_,
                                       req->chunkid_,
+                                      req->seq_,
                                       req->offset_,
                                       req->rawlength_,
                                       req->appliedindex_,
@@ -103,10 +104,33 @@ void RequestScheduler::Process() {
                     client_.WriteChunk(req->logicpoolid_,
                                        req->copysetid_,
                                        req->chunkid_,
+                                       req->seq_,
                                        req->data_,
                                        req->offset_,
                                        req->rawlength_,
                                        guard.release());
+                    break;
+                case OpType::READ_SNAP:
+                    client_.ReadChunkSnapshot(req->logicpoolid_,
+                                              req->copysetid_,
+                                              req->chunkid_,
+                                              req->seq_,
+                                              req->offset_,
+                                              req->rawlength_,
+                                              guard.release());
+                    break;
+                case OpType::DELETE_SNAP:
+                    client_.DeleteChunkSnapshot(req->logicpoolid_,
+                                                req->copysetid_,
+                                                req->chunkid_,
+                                                req->seq_,
+                                                guard.release());
+                    break;
+                case OpType::GET_CHUNK_INFO:
+                    client_.GetChunkInfo(req->logicpoolid_,
+                                         req->copysetid_,
+                                         req->chunkid_,
+                                         guard.release());
                     break;
                 default:
                     /* TODO(wudemiao) 后期整个链路错误发统一了在处理 */
@@ -114,7 +138,10 @@ void RequestScheduler::Process() {
                     LOG(ERROR) << "unknown op type: OpType::UNKNOWN";
             }
         } else {
-            /* 一旦遇到 stop item，所有线程都可以退出 */
+            /**
+             * 一旦遇到stop item，所有线程都可以退出，因为此时
+             * queue里面所有的request都被处理完了
+             */
             stop_.store(true, std::memory_order_release);
         }
     }

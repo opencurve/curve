@@ -67,20 +67,23 @@ void Configuration::SetStringValue(const std::string &key,
     SetValue(key, value);
 }
 
-int Configuration::GetIntValue(const std::string &key) {
+int Configuration::GetIntValue(const std::string &key, uint64_t defaultvalue) {
     std::string value = GetValue(key);
-    return (value == "") ? 0 : std::stoi(value);
+    return (value == "") ? defaultvalue : std::stoi(value);
 }
 
 void Configuration::SetIntValue(const std::string &key, const int value) {
     SetValue(key, std::to_string(value));
 }
 
-bool Configuration::GetBoolValue(const std::string &key) {
+bool Configuration::GetBoolValue(const std::string &key, bool defaultvalue) {
     std::string svalue = config_[key];
     transform(svalue.begin(), svalue.end(), svalue.begin(), ::tolower);
 
-    return (svalue == "true") || (svalue == "yes") || (svalue == "1");
+    bool istrue = (svalue == "true") || (svalue == "yes") || (svalue == "1");
+    bool isfalse = (svalue == "false") || (svalue == "no") || (svalue == "0");
+    bool ret = istrue ? true : isfalse ? false : defaultvalue;
+    return ret;
 }
 
 void Configuration::SetBoolValue(const std::string &key, const bool value) {

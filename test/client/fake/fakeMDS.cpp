@@ -12,30 +12,29 @@
 #include <string>
 
 #include "test/client/fake/fakeMDS.h"
+#include "src/client/client_common.h"
 
-DECLARE_string(metaserver_addr);
-DECLARE_uint32(chunk_size);
-DECLARE_uint64(segment_size);
+extern std::string metaserver_addr;
+extern uint32_t chunk_size;
+extern uint32_t segment_size;
+
+using curve::client::SegmentInfo;
+using curve::client::ChunkInfoDetail;
 
 DEFINE_bool(fake_chunkserver, true, "create fake chunkserver");
-
-DEFINE_uint64(test_disk_size,
-                10 * 1024 * 1024 * 1024ul,
-                "test size");
-DEFINE_uint32(copyset_num,
-                32,
-                "copyset num in one chunkserver");
+DEFINE_uint64(test_disk_size, 10 * 1024 * 1024 * 1024ul, "test size");
+DEFINE_uint32(copyset_num, 32, "copyset num in one chunkserver");
+DEFINE_uint64(seq_num, 1, "seqnum");
 // raft::Configuration format to reuse raft parse functions
 DEFINE_string(chunkserver_list,
-                "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
-                "chunkserver address");
+             "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
+            "chunkserver address");
 
 using curve::chunkserver::COPYSET_OP_STATUS;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 
 FakeMDS::FakeMDS(std::string filename) {
     filename_ = filename;
-    // size_ = size;
 }
 
 bool FakeMDS::Initialize() {
@@ -61,9 +60,9 @@ void FakeMDS::UnInitialize() {
     server_->Join();
     for (unsigned i = 0; i < peers_.size(); i++) {
         chunkservers_[i]->Stop(0);
+        chunkservers_[i]->Join();
     }
     for (unsigned i = 0; i < peers_.size(); i++) {
-        chunkservers_[i]->Join();
         delete chunkservers_[i];
         delete chunkServices_[i];
         delete copysetServices_[i];
@@ -83,91 +82,71 @@ bool FakeMDS::StartService() {
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
 
-    if (server_->Start(FLAGS_metaserver_addr.c_str(), &options) != 0) {
+    if (server_->Start(metaserver_addr.c_str(), &options) != 0) {
         LOG(ERROR) << "Fail to start Server";
     }
 
-    /**************** CreateFile fake return ***********************/
-    ::curve::mds::CreateFileResponse* createfileresponse
-    = new ::curve::mds::CreateFileResponse();
-
+    /**
+     * set CreateFile fake return 
+     */
+    ::curve::mds::CreateFileResponse* createfileresponse = new ::curve::mds::CreateFileResponse();      // NOLINT
     createfileresponse->set_statuscode(::curve::mds::StatusCode::kOK);
-
-    FakeReturn* fakcreatefileeret
-     = new FakeReturn(nullptr, static_cast<void*>(createfileresponse));
+    FakeReturn* fakcreatefileeret = new FakeReturn(nullptr, static_cast<void*>(createfileresponse));      // NOLINT
     fakecurvefsservice_.SetCreateFileFakeReturn(fakcreatefileeret);
 
-    /**************  GetFileInfo fake return ***********************/
+    /**
+     * set GetFileInfo fake return 
+     */
     curve::mds::FileInfo * info = new curve::mds::FileInfo;
-    ::curve::mds::GetFileInfoResponse* getfileinforesponse
-    = new ::curve::mds::GetFileInfoResponse();
+    ::curve::mds::GetFileInfoResponse* getfileinforesponse = new ::curve::mds::GetFileInfoResponse();      // NOLINT
     getfileinforesponse->set_allocated_fileinfo(info);
-    getfileinforesponse->mutable_fileinfo()->
-        set_filename(filename_);
-    getfileinforesponse->mutable_fileinfo()->
-        set_id(1);
-    getfileinforesponse->mutable_fileinfo()->
-        set_parentid(0);
-    getfileinforesponse->mutable_fileinfo()->
-        set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-    getfileinforesponse->mutable_fileinfo()->
-        set_chunksize(FLAGS_chunk_size);
-    getfileinforesponse->mutable_fileinfo()->
-        set_length(FLAGS_test_disk_size);
-    getfileinforesponse->mutable_fileinfo()->
-        set_ctime(12345678);
-    // getfileinforesponse->mutable_fileinfo()->
-    //     set_snapshotid(0);
-    getfileinforesponse->mutable_fileinfo()->
-        set_segmentsize(FLAGS_segment_size);
+    getfileinforesponse->mutable_fileinfo()->set_filename(filename_);
+    getfileinforesponse->mutable_fileinfo()->set_id(1);
+    getfileinforesponse->mutable_fileinfo()->set_parentid(0);
+    getfileinforesponse->mutable_fileinfo()->set_filetype(curve::mds::FileType::INODE_PAGEFILE);      // NOLINT
+    getfileinforesponse->mutable_fileinfo()->set_chunksize(chunk_size);
+    getfileinforesponse->mutable_fileinfo()->set_length(FLAGS_test_disk_size);
+    getfileinforesponse->mutable_fileinfo()->set_ctime(12345678);
+    getfileinforesponse->mutable_fileinfo()->set_segmentsize(segment_size);
+
     getfileinforesponse->set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* fakeGetFileInforet
-    = new FakeReturn(nullptr, static_cast<void*>(getfileinforesponse));
+    FakeReturn* fakeGetFileInforet = new FakeReturn(nullptr, static_cast<void*>(getfileinforesponse));      // NOLINT
     fakecurvefsservice_.SetGetFileInfoFakeReturn(fakeGetFileInforet);
 
-    /********* GetOrAllocateSegment fake return *******************/
-    curve::mds::GetOrAllocateSegmentResponse* getallocateresponse
-    = new curve::mds::GetOrAllocateSegmentResponse();
-    curve::mds::PageFileSegment* pfs
-    = new curve::mds::PageFileSegment;
+    /**
+     * set GetOrAllocateSegment fake return 
+     */
+    curve::mds::GetOrAllocateSegmentResponse* getallocateresponse = new curve::mds::GetOrAllocateSegmentResponse();      // NOLINT
+    curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
 
-    getallocateresponse->
-        set_statuscode(::curve::mds::StatusCode::kOK);
-    getallocateresponse->
-        set_allocated_pagefilesegment(pfs);
-    getallocateresponse->
-        mutable_pagefilesegment()->set_logicalpoolid(10000);
-    getallocateresponse->
-        mutable_pagefilesegment()->set_segmentsize(FLAGS_segment_size);
-    getallocateresponse->
-        mutable_pagefilesegment()->set_chunksize(FLAGS_chunk_size);
-    getallocateresponse->
-        mutable_pagefilesegment()->set_startoffset(0);
+    getallocateresponse->set_statuscode(::curve::mds::StatusCode::kOK);
+    getallocateresponse->set_allocated_pagefilesegment(pfs);
+    getallocateresponse->mutable_pagefilesegment()->set_logicalpoolid(10000);
+    getallocateresponse->mutable_pagefilesegment()->set_segmentsize(segment_size);      // NOLINT
+    getallocateresponse->mutable_pagefilesegment()->set_chunksize(chunk_size);
+    getallocateresponse->mutable_pagefilesegment()->set_startoffset(0);
 
-    uint32_t chunknum = FLAGS_test_disk_size/FLAGS_chunk_size;
-    for (unsigned i = 0; i < chunknum; i ++) {
-        auto chunk = getallocateresponse->
-            mutable_pagefilesegment()->add_chunks();
+    uint32_t chunknum = FLAGS_test_disk_size/chunk_size;
+    for (unsigned i = 1; i <= chunknum; i ++) {
+        auto chunk = getallocateresponse->mutable_pagefilesegment()->add_chunks();      // NOLINT
         chunk->set_copysetid(i%FLAGS_copyset_num);
         chunk->set_chunkid(i);
     }
-    FakeReturn* fakeret
-    = new FakeReturn(nullptr, static_cast<void*>(getallocateresponse));
+    FakeReturn* fakeret = new FakeReturn(nullptr, static_cast<void*>(getallocateresponse));      // NOLINT
     fakecurvefsservice_.SetGetOrAllocateSegmentFakeReturn(fakeret);
 
-    /********** GetServerList fake return ***********************/
+    /**
+     * set GetServerList fake FakeReturn
+     */
     copysetnodeVec_.clear();
-    GetChunkServerListInCopySetsResponse* getserverlistresponse =
-        new GetChunkServerListInCopySetsResponse();
+    GetChunkServerListInCopySetsResponse* getserverlistresponse = new GetChunkServerListInCopySetsResponse();      // NOLINT
     getserverlistresponse->set_statuscode(0);
 
     for (unsigned i = 0; i < FLAGS_copyset_num; i ++) {
         CopysetCreatStruct copysetstruct;
         copysetstruct.logicpoolid = 10000;
         copysetstruct.copysetid = i;
-        // initialize leader randomly
         copysetstruct.leaderid = peers_[i % peers_.size()];
-
         auto csinfo = getserverlistresponse->add_csinfo();
         csinfo->set_copysetid(i);
 
@@ -176,20 +155,121 @@ bool FakeMDS::StartService() {
             cslocs->set_chunkserverid(j);
             cslocs->set_hostip(butil::ip2str(server_addrs_[j].ip).c_str());
             cslocs->set_port(server_addrs_[j].port);
-
             copysetstruct.conf.push_back(peers_[j]);
         }
         copysetnodeVec_.push_back(copysetstruct);
     }
-    FakeReturn* faktopologyeret = new FakeReturn(nullptr,
-                 static_cast<void*>(getserverlistresponse));
+    FakeReturn* faktopologyeret = new FakeReturn(nullptr,static_cast<void*>(getserverlistresponse));      // NOLINT
     faketopologyservice_.SetFakeReturn(faktopologyeret);
+
+    /**
+     * set openfile response
+     */
+
+    ::curve::mds::OpenFileResponse* openresponse =
+     new ::curve::mds::OpenFileResponse();
+    ::curve::mds::ProtoSession* se = new ::curve::mds::ProtoSession;
+    se->set_sessionid("1");
+    se->set_token("token");
+    se->set_createtime(12345);
+    se->set_leasetime(10000000);
+    se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
+
+    ::curve::mds::FileInfo* fin = new ::curve::mds::FileInfo;
+    fin->set_filename(filename_);
+    fin->set_id(1);
+    fin->set_parentid(0);
+    fin->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    fin->set_chunksize(chunk_size);
+    fin->set_length(segment_size);
+    fin->set_ctime(12345678);
+    fin->set_seqnum(FLAGS_seq_num);
+    fin->set_segmentsize(segment_size);
+
+    openresponse->set_statuscode(::curve::mds::StatusCode::kOK);
+    openresponse->set_allocated_protosession(se);
+    openresponse->set_allocated_fileinfo(fin);
+    FakeReturn* openfakeret = new FakeReturn(nullptr, static_cast<void*>(openresponse));      // NOLINT
+    fakecurvefsservice_.SetOpenFile(openfakeret);
+
+    /**
+     * set refresh response
+     */
+    ::curve::mds::ReFreshSessionResponse* refreshresp = new ::curve::mds::ReFreshSessionResponse();      // NOLINT
+    refreshresp->set_statuscode(::curve::mds::StatusCode::kOK);
+    refreshresp->set_sessionid("1234");
+    FakeReturn* refreshfakeret = new FakeReturn(nullptr, static_cast<void*>(refreshresp));      // NOLINT
+    fakecurvefsservice_.SetRefreshSession(refreshfakeret, nullptr);
+
+    /**
+     * set create snapshot response
+     */
+    ::curve::mds::CreateSnapShotResponse* response = new ::curve::mds::CreateSnapShotResponse();      // NOLINT
+    response->set_statuscode(::curve::mds::StatusCode::kOK);
+    ::curve::mds::FileInfo* finf = new ::curve::mds::FileInfo;
+    finf->set_filename(filename_);
+    finf->set_id(1);
+    finf->set_parentid(0);
+    finf->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    finf->set_chunksize(chunk_size);
+    finf->set_length(segment_size);
+    finf->set_ctime(12345678);
+    finf->set_seqnum(FLAGS_seq_num);
+    finf->set_segmentsize(segment_size);
+    response->set_allocated_snapshotfileinfo(finf);
+    FakeReturn* fakeret1 = new FakeReturn(nullptr, static_cast<void*>(response));      // NOLINT
+    fakecurvefsservice_.SetCreateSnapShot(fakeret1);
+
+    /**
+     * set list snapshot response
+     */
+    ::curve::mds::ListSnapShotFileInfoResponse* listresponse = new ::curve::mds::ListSnapShotFileInfoResponse;      // NOLINT
+    listresponse->add_fileinfo();
+    listresponse->mutable_fileinfo(0)->set_filename(filename_);
+    listresponse->mutable_fileinfo(0)->set_id(1);
+    listresponse->mutable_fileinfo(0)->set_parentid(0);
+    listresponse->mutable_fileinfo(0)->set_filetype(curve::mds::FileType::INODE_PAGEFILE);    // NOLINT
+    listresponse->mutable_fileinfo(0)->set_chunksize(chunk_size);
+    listresponse->mutable_fileinfo(0)->set_length(segment_size);
+    listresponse->mutable_fileinfo(0)->set_ctime(12345678);
+    listresponse->mutable_fileinfo(0)->set_seqnum(2);
+    listresponse->mutable_fileinfo(0)->set_segmentsize(segment_size);
+
+    listresponse->set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* listfakeret = new FakeReturn(nullptr, static_cast<void*>(listresponse));      // NOLINT
+    fakecurvefsservice_.SetListSnapShot(listfakeret);
+
+    /**
+     * set get snap allocate info
+     */
+    FakeReturn* snapfakeret = new FakeReturn(nullptr, static_cast<void*>(getallocateresponse));      // NOLINT
+    fakecurvefsservice_.SetGetSnapshotSegmentInfo(fakeret);
+
+    /**
+     * set delete snapshot response
+     */
+    ::curve::mds::DeleteSnapShotResponse* delresponse = new ::curve::mds::DeleteSnapShotResponse;      // NOLINT
+    delresponse->set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* delfakeret = new FakeReturn(nullptr, static_cast<void*>(delresponse));      // NOLINT
+    fakecurvefsservice_.SetDeleteSnapShot(delfakeret);
+
+    /**
+     * set fake close return
+     */
+    ::curve::mds::CloseFileResponse* closeresp = new ::curve::mds::CloseFileResponse;    // NOLINT
+    closeresp->set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* closefileret
+     = new FakeReturn(nullptr, static_cast<void*>(closeresp));
+    fakecurvefsservice_.SetCloseFile(closefileret);
+
 
     return true;
 }
 
 bool FakeMDS::CreateCopysetNode() {
-    /********** Create Copyset in target chunkserver *************/
+    /** 
+     * set Create Copyset in target chunkserver 
+     */
     if (FLAGS_fake_chunkserver) {
         CreateFakeChunkservers();
     }
@@ -232,6 +312,13 @@ bool FakeMDS::CreateCopysetNode() {
     return true;
 }
 
+void FakeMDS::EnableNetUnstable(uint64_t waittime) {
+    LOG(INFO) << "enable chunk rpc service net unstable!";
+    for (auto iter : chunkServices_) {
+        iter->EnableNetUnstable(waittime);
+    }
+}
+
 void FakeMDS::CreateFakeChunkservers() {
     for (unsigned i = 0; i < peers_.size(); i++) {
         if (chunkservers_[i]->AddService(chunkServices_[i],
@@ -255,5 +342,29 @@ void FakeMDS::CreateFakeChunkservers() {
         cpresp->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
         FakeReturn* fakereturn = new FakeReturn(nullptr, cpresp);
         copysetServices_[i]->SetFakeReturn(fakereturn);
+
+        ::curve::chunkserver::ChunkResponse* delresp =
+            new ::curve::chunkserver::ChunkResponse();
+        delresp->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        delresp->set_chunksn(1111);
+        delresp->set_snapsn(1);
+        FakeReturn* delfakeret = new FakeReturn(nullptr, delresp);
+        chunkServices_[i]->SetDeleteChunkSnapshot(delfakeret);
+
+        ::curve::chunkserver::ChunkResponse* readresp =
+            new ::curve::chunkserver::ChunkResponse();
+        readresp->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        readresp->set_appliedindex(10);
+        readresp->set_chunksn(1111);
+        readresp->set_snapsn(1);
+        FakeReturn* readfakeret = new FakeReturn(nullptr, readresp);
+        chunkServices_[i]->SetReadChunkSnapshot(readfakeret);
+
+        ::curve::chunkserver::GetChunkInfoResponse* getchunkinfo =
+            new ::curve::chunkserver::GetChunkInfoResponse();
+        getchunkinfo->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+        getchunkinfo->add_chunksn(1111);
+        FakeReturn* getinfofakeret = new FakeReturn(nullptr, getchunkinfo);
+        chunkServices_[i]->SetGetChunkInfo(getinfofakeret);
     }
 }
