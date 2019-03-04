@@ -23,7 +23,11 @@
 namespace curve {
 namespace snapshotserver {
 
+/**
+ * @brief 快照转储服务器配置结构体
+ */
 struct SnapshotServerOption {
+    // 监听地址
     std::string listenAddr;
 };
 
@@ -31,17 +35,41 @@ class SnapshotServer {
  public:
     SnapshotServer() {}
 
+    /**
+     * @brief 初始化
+     *
+     * @return 错误码
+     */
     int Init();
+
+    /**
+     * @brief 启动快照转储服务
+     *
+     * @return 错误码
+     */
     int Start();
+
+    /**
+     * @brief 停止快照转储服务器
+     *
+     * @return 错误码
+     */
     int Stop();
 
+    /**
+     * @brief 运行服务器直到ctrl+c
+     */
     void RunUntilAskedToQuit();
 
  private:
+    // brpc服务器
     std::shared_ptr<brpc::Server> server_;
+    // 快照转储rpc服务实现
     std::shared_ptr<SnapshotServiceImpl> service_;
+    // 快照转储rpc服务管理
     std::shared_ptr<SnapshotServiceManager> serviceManager_;
 
+    // 转储服务器配置项
     SnapshotServerOption options_;
 };
 

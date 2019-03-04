@@ -23,12 +23,11 @@ namespace curve {
 namespace snapshotserver {
 
 int SnapshotServer::Init() {
-    std::shared_ptr<UUIDGenerator> idGen =
-        std::make_shared<UUIDGenerator>();
     std::shared_ptr<CurveFsClient> client =
         std::make_shared<CurveFsClientImpl>();
     if (client->Init() < 0) {
         LOG(ERROR) << "curvefs_client init fail.";
+        return kErrCodeSnapshotServerInitFail;
     }
 
     std::shared_ptr<RepoInterface> repo =
@@ -38,17 +37,19 @@ int SnapshotServer::Init() {
         std::make_shared<DBSnapshotMetaStore>(repo);
     if (metaStore->Init() < 0) {
         LOG(ERROR) << "metaStore init fail.";
+        return kErrCodeSnapshotServerInitFail;
     }
     std::shared_ptr<SnapshotDataStore> dataStore =
         std::make_shared<S3SnapshotDataStore>();
     if (dataStore->Init() < 0) {
         LOG(ERROR) << "dataStore init fail.";
+        return kErrCodeSnapshotServerInitFail;
     }
 
     std::shared_ptr<SnapshotTaskManager> taskMgr =
         std::make_shared<SnapshotTaskManager>();
     std::shared_ptr<SnapshotCore> core =
-        std::make_shared<SnapshotCoreImpl>(idGen,
+        std::make_shared<SnapshotCoreImpl>(
             client,
             metaStore,
             dataStore);
@@ -56,6 +57,7 @@ int SnapshotServer::Init() {
             core);
     if (serviceManager_->Init() < 0) {
         LOG(ERROR) << "serviceManager init fail.";
+        return kErrCodeSnapshotServerInitFail;
     }
 
     server_ = std::make_shared<brpc::Server>();
@@ -64,7 +66,7 @@ int SnapshotServer::Init() {
     if (server_->AddService(service_.get(),
             brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "Failed to add snapshot_service!\n";
-            return kErrCodeSnapshotServerFail;
+        return kErrCodeSnapshotServerInitFail;
     }
 
     return kErrCodeSnapshotServerSuccess;
@@ -82,8 +84,10 @@ int SnapshotServer::Start() {
     serviceManager_->RecoverSnapshotTask();
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
+    // TODO(xuchaojie): ip Port use config instead.
     if (server_->Start("127.0.0.1:5555", &option) != 0) {
         LOG(ERROR) << "snapshot server start fail.";
+        return kErrCodeSnapshotServerStartFail;
     }
     return 0;
 }

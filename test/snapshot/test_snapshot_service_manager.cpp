@@ -665,7 +665,7 @@ TEST_F(TestSnapshotServiceManager,
         user2,
         file);
 
-    ASSERT_EQ(kErrCodeSnapshotServerFail, ret);
+    ASSERT_EQ(kErrCodeSnapshotUserNotMatch, ret);
 
     cond1.Wait();
 }
@@ -705,7 +705,7 @@ TEST_F(TestSnapshotServiceManager,
         user,
         file2);
 
-    ASSERT_EQ(kErrCodeSnapshotServerFail, ret);
+    ASSERT_EQ(kErrCodeSnapshotFileNameNotMatch, ret);
 
     cond1.Wait();
 }

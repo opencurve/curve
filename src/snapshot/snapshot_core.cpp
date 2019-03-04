@@ -14,6 +14,10 @@
 #include "src/snapshot/snapshot_define.h"
 #include "src/snapshot/snapshot_task.h"
 
+#include "src/common/uuid.h"
+
+using ::curve::common::UUIDGenerator;
+
 namespace curve {
 namespace snapshotserver {
 
@@ -21,10 +25,25 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
     const std::string &user,
     const std::string &snapshotName,
     SnapshotInfo *snapInfo) {
-    UUID uuid = UUIDGenerator_->GenerateUUID();
+    std::vector<SnapshotInfo> fileInfo;
+    int ret = metaStore_->GetSnapshotList(file, &fileInfo);
+    if (ret < 0) {
+        LOG(ERROR) << "GetSnapShotList error,"
+                   << " ret = " << ret;
+        return ret;
+    }
+    for (auto& snap : fileInfo) {
+        if (Status::error == snap.GetStatus()) {
+            LOG(INFO) << "Can not create snapshot when snapshot has error,"
+                      << " error snapshot id = " << snap.GetUuid();
+            return kErrCodeSnapshotCannotCreateWhenError;
+        }
+    }
+
+    UUID uuid = UUIDGenerator().GenerateUUID();
     SnapshotInfo info(uuid, user, file, snapshotName);
     info.SetStatus(Status::pending);
-    int ret = metaStore_->AddSnapshot(info);
+    ret = metaStore_->AddSnapshot(info);
     if (ret < 0) {
         LOG(ERROR) << "AddSnapshot error,"
                    << " ret = " << ret
@@ -404,7 +423,7 @@ int SnapshotCoreImpl::BuildChunkIndexData(
                 LOG(ERROR) << "GetChunkInfo return chunkInfo.chunkSn.size() "
                            << "invalid, size = "
                            << chunkInfo.chunkSn.size();
-                return kErrCodeSnapshotServerFail;
+                return kErrCodeSnapshotInternalError;
             }
             if (task->IsCanceled()) {
                 return kErrCodeSnapshotServerSuccess;
@@ -543,7 +562,7 @@ int SnapshotCoreImpl::TransferSnapshotData(
 
     if (chunkSize % kChunkSplitSize != 0) {
         LOG(ERROR) << "error!, ChunkSize is not align to kChunkSplitSize.";
-        return kErrCodeSnapshotServerFail;
+        return kErrCodeSnapshotChunkSizeNotAligned;
     }
 
     auto chunkDataVec = indexData.GetAllChunkDataName();
@@ -562,7 +581,7 @@ int SnapshotCoreImpl::TransferSnapshotData(
             LOG(ERROR) << "TransferSnapshotData, segNum >= segInfos.size()"
                        << " segNum = " << segNum
                        << ", size = " << segInfos.size();
-            return kErrCodeSnapshotServerFail;
+            return kErrCodeSnapshotInternalError;
         }
         uint64_t chunkIndexInSegment = chunkIndex % chunkPerSegment;
         if (chunkIndexInSegment >= segInfos[segNum].chunkvec.size()) {
@@ -573,7 +592,7 @@ int SnapshotCoreImpl::TransferSnapshotData(
                        << chunkIndexInSegment
                        << ", size = "
                        << segInfos[segNum].chunkvec.size();
-            return kErrCodeSnapshotServerFail;
+            return kErrCodeSnapshotInternalError;
         }
     }
 
@@ -590,19 +609,6 @@ int SnapshotCoreImpl::TransferSnapshotData(
             if (ret < 0) {
                 return ret;
             }
-        }
-        // delete chunk on curvefs
-        ret = client_->DeleteChunkSnapshot(
-                cidInfo,
-                seqNum);
-        if (ret < 0) {
-            LOG(ERROR) << "DeleteChunkSnapshot error, "
-                       << " ret = " << ret
-                       << ", logicalPool = " << cidInfo.lpid_
-                       << ", copysetId = " << cidInfo.cpid_
-                       << ", chunkId = " << cidInfo.cid_
-                       << ", seqNum = " << seqNum;
-            return ret;
         }
         task->SetProgress(static_cast<uint32_t>(
                 kProgressTransferSnapshotDataStart + index * progressPerData));
@@ -635,16 +641,16 @@ int SnapshotCoreImpl::DeleteSnapshotPre(
     }
     if (snapInfo->GetUser() != user) {
         LOG(ERROR) << "Can not delete snapshot by different user.";
-        return kErrCodeSnapshotServerFail;
+        return kErrCodeSnapshotUserNotMatch;
     }
     if (fileName != snapInfo->GetFileName()) {
         LOG(ERROR) << "Can not delete, fileName is not matched.";
-        return kErrCodeSnapshotServerFail;
+        return kErrCodeSnapshotFileNameNotMatch;
     }
 
 
     switch (snapInfo->GetStatus()) {
-        case Status::done :
+        case Status::done:
             snapInfo->SetStatus(Status::deleting);
             break;
         case Status::error:
@@ -652,11 +658,11 @@ int SnapshotCoreImpl::DeleteSnapshotPre(
             break;
         case Status::pending:
             LOG(ERROR) << "Can not delete snapshot unfinished.";
-            return kErrCodeSnapshotServerFail;
+            return kErrCodeSnapshotCannotDeleteUnfinished;
         case Status::canceling:
         case Status::deleting:
         case Status::errorDeleting:
-            return kErrCodeSnapshotTaskExist;
+            return kErrCodeSnapshotDeleteTaskExist;
             break;
         default:
             break;

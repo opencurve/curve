@@ -53,42 +53,42 @@ cc_library(
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/snapshot/repo:repo",
-        "//src/client2:curve_client"
+        "//src/client:curve_client"
     ],
 )
 
-#cc_binary(
-#    name = "snapshot-server",
-#    srcs = glob([
-#        "*.cpp","*.h"
-#    ]),
-#    copts = COPTS,
-#    linkopts = [
-#        "-lrt",
-#        "-lssl",
-#        "-lcrypto",
-#        "-ldl",
-#        "-lz",
-#        "-lpthread",
-#        "-laws-cpp-sdk-core",
-#        "-laws-cpp-sdk-s3",
-#        "-lmysqlcppconn",
-#        "-luuid",
-#        "-L/usr/local/lib",
-#    ],
-#    visibility = ["//visibility:public"],
-#    deps = [
-#        "//external:brpc",
-#        "//external:bthread",
-#        "//external:butil",
-#        "//external:gflags",
-#        "//external:leveldb",
-#        "//external:protobuf",
-#        "//proto:snapshotserver_cc_proto",
-#        "//src/common:curve_common",
-#        "//proto:nameserver2_cc_proto",
-#        "//proto:chunkserver-cc-protos",
-#        "//src/snapshot/repo:repo",
-#        "//src/client:curve_client"
-#    ],
-#)
+cc_binary(
+    name = "snapshot-server",
+    srcs = glob([
+        "*.cpp","*.h"
+    ]),
+    copts = COPTS,
+    linkopts = [
+        "-lrt",
+        "-lssl",
+        "-lcrypto",
+        "-ldl",
+        "-lz",
+        "-lpthread",
+        "-laws-cpp-sdk-core",
+        "-laws-cpp-sdk-s3",
+        "-lmysqlcppconn",
+        "-luuid",
+        "-L/usr/local/lib",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//proto:snapshotserver_cc_proto",
+        "//src/common:curve_common",
+        "//proto:nameserver2_cc_proto",
+        "//proto:chunkserver-cc-protos",
+        "//src/snapshot/repo:repo",
+        "//src/client:curve_client"
+    ],
+)

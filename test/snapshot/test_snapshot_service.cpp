@@ -33,7 +33,7 @@ class TestSnapshotServiceImpl : public ::testing::Test {
     ~TestSnapshotServiceImpl() {}
 
     virtual void SetUp() {
-        listenAddr_ = "127.0.0.1:8200";
+        listenAddr_ = "127.0.0.1:5555";
         server_ = new brpc::Server();
 
         manager_ = std::make_shared<MockSnapshotServiceManager>();
@@ -73,7 +73,7 @@ TEST_F(TestSnapshotServiceImpl, TestCreateSnapShotSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -102,7 +102,7 @@ TEST_F(TestSnapshotServiceImpl, TestDeleteSnapShotSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -131,7 +131,7 @@ TEST_F(TestSnapshotServiceImpl, TestCancelSnapShotSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -162,7 +162,7 @@ TEST_F(TestSnapshotServiceImpl, TestGetFileSnapshotInfoSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -189,7 +189,7 @@ TEST_F(TestSnapshotServiceImpl, TestActionIsNull) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Version=1&User=test&File=test&Limit=10"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Version=1&User=test&File=test&Limit=10"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -213,7 +213,7 @@ TEST_F(TestSnapshotServiceImpl, TestCreateSnapShotMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=CreateSnapshot&Version=1&User=test&Name=test"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=CreateSnapshot&Version=1&User=test&Name=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -239,7 +239,7 @@ TEST_F(TestSnapshotServiceImpl, TestDeleteSnapShotMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=DeleteSnapshot&Version=1&User=test&File=test"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=DeleteSnapshot&Version=1&User=test&File=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -266,7 +266,7 @@ TEST_F(TestSnapshotServiceImpl, TestCancelSnapShotMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=CancelSnapshot&Version=1&User=test&File=test"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=CancelSnapshot&Version=1&User=test&File=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -293,7 +293,7 @@ TEST_F(TestSnapshotServiceImpl, TestGetFileSnapshotInfoMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=GetFileSnapshotInfo&Version=1&User=test&Limit=10"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=GetFileSnapshotInfo&Version=1&User=test&Limit=10"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -316,13 +316,13 @@ TEST_F(TestSnapshotServiceImpl, TestCreateSnapShotFail) {
     EXPECT_CALL(*manager_, CreateSnapshot(_, _, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<3>(uuid),
-                    Return(kErrCodeSnapshotServerFail)));
+                    Return(kErrCodeSnapshotInternalError)));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -345,13 +345,13 @@ TEST_F(TestSnapshotServiceImpl, TestDeleteSnapShotFail) {
     std::string file = "test";
 
     EXPECT_CALL(*manager_, DeleteSnapshot(uuid, user, file))
-        .WillOnce(Return(kErrCodeSnapshotServerFail));
+        .WillOnce(Return(kErrCodeSnapshotInternalError));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -374,13 +374,13 @@ TEST_F(TestSnapshotServiceImpl, TestCancelSnapShotFail) {
     std::string file = "test";
 
     EXPECT_CALL(*manager_, CancelSnapshot(uuid, user, file))
-        .WillOnce(Return(kErrCodeSnapshotServerFail));
+        .WillOnce(Return(kErrCodeSnapshotInternalError));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -405,13 +405,13 @@ TEST_F(TestSnapshotServiceImpl, TestGetFileSnapshotInfoFail) {
     EXPECT_CALL(*manager_, GetFileSnapshotInfo(file, user, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(info),
-                    Return(kErrCodeSnapshotServerFail)));
+                    Return(kErrCodeSnapshotInternalError)));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -435,7 +435,7 @@ TEST_F(TestSnapshotServiceImpl, TestCreateSnapShotBadRequest) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:8200/SnapshotService?Action=xxx&Version=1&User=test&File=test&Name=test"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotService?Action=xxx&Version=1&User=test&File=test&Name=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"

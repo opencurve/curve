@@ -72,11 +72,11 @@ int SnapshotServiceManager::CancelSnapshot(UUID uuid,
     if (task != nullptr) {
         if (user != task->GetTaskInfo()->GetSnapshotInfo().GetUser()) {
             LOG(ERROR) << "Can not cancel snapshot by different user.";
-            return kErrCodeSnapshotServerFail;
+            return kErrCodeSnapshotUserNotMatch;
         }
         if (file != task->GetTaskInfo()->GetFileName()) {
             LOG(ERROR) << "Can not cancel, fileName is not matched.";
-            return kErrCodeSnapshotServerFail;
+            return kErrCodeSnapshotFileNameNotMatch;
         }
     }
 
@@ -99,7 +99,7 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
     const std::string &file) {
     SnapshotInfo snapInfo;
     int ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
-    if (kErrCodeSnapshotTaskExist == ret) {
+    if (kErrCodeSnapshotDeleteTaskExist == ret) {
         return kErrCodeSnapshotServerSuccess;
     } else if (ret < 0) {
         LOG(ERROR) << "DeleteSnapshotPre error, "
