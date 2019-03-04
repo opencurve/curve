@@ -14,24 +14,52 @@
 
 namespace curve {
 namespace client {
-
-class IOContext;
+class IOTracker;
 class RequestContext;
+
 class RequestClosure : public ::google::protobuf::Closure {
  public:
     explicit RequestClosure(RequestContext* reqctx);
-    CURVE_MOCK ~RequestClosure();
+    virtual ~RequestClosure() = default;
 
-    void SetIOContext(IOContext* ioctx);
-    CURVE_MOCK void SetFailed(int errorcode);
-    CURVE_MOCK void Run();
-    CURVE_MOCK int GetErrorCode();
-    CURVE_MOCK RequestContext* GetReqCtx();
-    void Reset();
+    /**
+     * clouser的callback执行函数
+     */
+    virtual void Run();
+
+    /**
+     *  获取request的错误码
+     */
+    virtual int GetErrorCode();
+
+    /**
+     *  获取当前closure属于哪个request
+     */
+    virtual RequestContext* GetReqCtx();
+
+    /**
+     * 获取当前request属于哪个iotracker
+     */
+    virtual IOTracker* GetIOTracker();
+
+    /**
+     * 设置返回错误
+     */
+    virtual void SetFailed(int errorcode);
+
+    /**
+     * 设置当前属于哪一个iotracker
+     */
+    void SetIOTracker(IOTracker* ioctx);
 
  private:
+    // 当前request的错误码
     int  errcode_;
-    IOContext* ctx_;
+
+    // 当前request的tracker信息
+    IOTracker* tracker_;
+
+    // closure的request信息
     RequestContext* reqCtx_;
 };
 }   // namespace client

@@ -14,31 +14,29 @@
 namespace curve {
 namespace client {
 
-RequestContext::RequestContext(RequestContextSlab* reqctxslab) {
+RequestContext::RequestContext() {
+    data_ = nullptr;
+    chunkinfodetail_ = nullptr;
+
+    seq_        = 0;
+    offset_     = 0;
+    rawlength_  = 0;
+
+    chunkid_      = 0;
+    copysetid_    = 0;
+    logicpoolid_  = 0;
+    appliedindex_ = 0;
+}
+bool RequestContext::Init() {
     done_ = new (std::nothrow) RequestClosure(this);
-    CHECK(done_ != nullptr) << "allocate request_closure failed!";
-    Reset();
-    reqctxslab_ = reqctxslab;
+    return done_ != nullptr;
+}
+
+void RequestContext::UnInit() {
+    delete done_;
 }
 
 RequestContext::~RequestContext() {
-    delete done_;
-    done_ = nullptr;
-}
-
-void RequestContext::RecyleSelf() {
-    reqctxslab_->Recyle(this);
-}
-
-void RequestContext::Reset() {
-    data_ = nullptr;
-    offset_ = 0;
-    rawlength_ = 0;
-    chunkid_ = 0;
-    copysetid_ = 0;
-    logicpoolid_ = 0;
-    appliedindex_ = 0;
-    done_->Reset();
 }
 }  // namespace client
 }  // namespace curve

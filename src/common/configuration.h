@@ -30,10 +30,10 @@ class Configuration {
     std::string GetStringValue(const std::string &key);
     void SetStringValue(const std::string &key, const std::string &value);
 
-    int GetIntValue(const std::string &key);
+    int GetIntValue(const std::string &key, uint64_t defaultvalue = 0);
     void SetIntValue(const std::string &key, const int value);
 
-    bool GetBoolValue(const std::string &key);
+    bool GetBoolValue(const std::string &key, bool defaultvalue = false);
     void SetBoolValue(const std::string &key, const bool value);
 
     std::string GetValue(const std::string &key);

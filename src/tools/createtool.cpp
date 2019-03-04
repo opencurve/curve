@@ -12,7 +12,7 @@
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
 
-#include "include/client/libcurve.h"
+#include "include/client/libcurve_qemu.h"
 #include "src/client/client_common.h"
 
 DEFINE_string(mds_addr, "127.0.0.1:9000", "mds addr");
@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
     brpc::Channel channel;
     if (channel.Init(FLAGS_mds_addr.c_str(), nullptr) != 0) {
         LOG(FATAL) << "Init channel  failed!";
-        return CreateFileErrorType::FILE_CREATE_FAILED;
+        return LIBCURVE_ERROR::FAILED;
     }
     curve::mds::CurveFSService_Stub stub(&channel);
 

@@ -7,8 +7,13 @@
 
 #include <glog/logging.h>
 #include <vector>
-#include "test/client/fake/mock_schedule.h"
 
+#include "test/client/fake/mock_schedule.h"
+#include "src/client/libcurve_file.h"
+#include "src/client/client_common.h"
+
+using curve::client::SegmentInfo;
+using curve::client::ChunkInfoDetail;
 
 struct datastruct {
     uint32_t length;
@@ -25,13 +30,35 @@ int Schedule::ScheduleRequest(
         int processed = 0;
         int totallength = 0;
         std::vector<datastruct> datavec;
-        // assume less than 10 request after split
+        LOG(ERROR) << size;
+
         for (auto iter : reqlist) {
+            auto req = iter->done_->GetReqCtx();
+            if (iter->optype_ == curve::client::OpType::READ_SNAP) {
+                memset(const_cast<char*>(iter->data_),
+                        fakedate[processed%10],
+                        iter->rawlength_);
+            }
+
+            if (iter->optype_ == curve::client::OpType::GET_CHUNK_INFO) {
+                req->seq_ = 1111;
+                req->chunkinfodetail_->chunkSn.push_back(2222);
+            }
+
             if (iter->optype_ == curve::client::OpType::READ) {
                 memset(const_cast<char*>(iter->data_),
-                        fakedate[processed],
+                        fakedate[processed%10],
                         iter->rawlength_);
-            } else {
+                LOG(ERROR)  << "request split"
+                            << ", off = " << iter->offset_
+                            << ", len = " << iter->rawlength_
+                            << ", seqnum = " << iter->seq_
+                            << ", chunkindex = " << iter->chunkid_
+                            << ", content = " << fakedate[processed%10]
+                            << ", address = " << &(iter->data_);
+            }
+
+            if (iter->optype_ == curve::client::OpType::WRITE) {
                 type = curve::client::OpType::WRITE;
                 datastruct datas;
                 datas.length = iter->rawlength_;
@@ -49,11 +76,7 @@ int Schedule::ScheduleRequest(
                        << ", offset = "
                        << iter->offset_
                        << ", length = "
-                       << iter->rawlength_
-                       << ", first data = "
-                       << iter->data_[0];
-            iter->done_->SetFailed(0);
-            iter->done_->Run();
+                       << iter->rawlength_;
             if (processed >= size) {
                 if (type == curve::client::OpType::WRITE) {
                     writebuffer = new char[totallength];
@@ -63,8 +86,12 @@ int Schedule::ScheduleRequest(
                         tempoffert += it.length;
                     }
                 }
+                iter->done_->SetFailed(0);
+                iter->done_->Run();
                 break;
             }
+            iter->done_->SetFailed(0);
+            iter->done_->Run();
         }
         return 0;
 }

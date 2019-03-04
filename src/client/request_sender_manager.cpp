@@ -15,7 +15,9 @@ namespace curve {
 namespace client {
 
 RequestSenderManager::SenderPtr RequestSenderManager::GetOrCreateSender(
-    const ChunkServerID &leaderId, const butil::EndPoint &leaderAddr) {
+                                            const ChunkServerID &leaderId,
+                                            const butil::EndPoint &leaderAddr,
+                                            IOSenderOption_t senderopt) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;
 
     std::lock_guard<std::mutex> guard(lock_);
@@ -23,10 +25,10 @@ RequestSenderManager::SenderPtr RequestSenderManager::GetOrCreateSender(
     if (senderPool_.end() != leaderIter) {
         return leaderIter->second;
     } else {
-        /* 不存在则创建 */
+        // 不存在则创建
         senderPtr = std::make_shared<RequestSender>(leaderId, leaderAddr);
         CHECK(nullptr != senderPtr) << "new RequestSender failed";
-        if (0 != senderPtr->Init()) {
+        if (0 != senderPtr->Init(senderopt)) {
             return nullptr;
         }
         senderPool_.insert(std::pair<ChunkServerID, SenderPtr>(leaderId,
