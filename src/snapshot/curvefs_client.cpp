@@ -7,21 +7,24 @@
 
 #include "src/snapshot/curvefs_client.h"
 
+using ::curve::client::LogicalPoolCopysetIDInfo;
+
 namespace curve {
 namespace snapshotserver {
 int CurveFsClientImpl::Init() {
     // TODO(xuchaojie): using config file instead.
     ClientConfigOption_t opt;
-    opt.metaserveropt.metaaddr = "192.168.1.1:6666";
-    opt.ctxslabopt.pre_allocate_context_num = 2048;
-    opt.reqslabopt.request_scheduler_queue_capacity = 4096;
-    opt.reqslabopt.request_scheduler_threadpool_size = 2;
-    opt.failreqslab.client_chunk_op_max_retry = 3;
-    opt.failreqslab.client_chunk_op_retry_interval_us = 500;
-    opt.metacacheopt.get_leader_retry = 3;
-    opt.ioopt.enable_applied_index_read = 1;
-    opt.ioopt.io_split_max_size_kb = 64;
-    opt.loglevel = 0;
+
+    opt.metaserveropt.metaaddrvec.push_back("127.0.0.1:6666");
+    opt.ioopt.reqschopt.request_scheduler_queue_capacity = 4096;
+    opt.ioopt.reqschopt.request_scheduler_threadpool_size = 2;
+    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
+    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
+    opt.ioopt.metacacheopt.get_leader_retry = 3;
+    opt.ioopt.iosenderopt.enable_applied_index_read = 1;
+    opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
+    opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
+    opt.loginfo.loglevel = 0;
     return client_.Init(opt);
 }
 
@@ -49,7 +52,9 @@ int CurveFsClientImpl::GetSnapshotSegmentInfo(const std::string &filename,
     uint64_t seq,
     uint64_t offset,
     SegmentInfo *segInfo) {
-    return client_.GetSnapshotSegmentInfo(filename, seq, offset, segInfo);
+    LogicalPoolCopysetIDInfo lpcsIDInfo;
+    return client_.GetSnapshotSegmentInfo(
+        filename, &lpcsIDInfo, seq, offset, segInfo);
 }
 
 int CurveFsClientImpl::ReadChunkSnapshot(ChunkIDInfo cidinfo,
