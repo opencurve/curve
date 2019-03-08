@@ -32,11 +32,17 @@ FileInstance::FileInstance() {
     finfo_.segmentsize = 1 * 1024 * 1024 * 1024ul;
 }
 
-bool FileInstance::Initialize(FileServiceOption_t fileservicopt) {
+bool FileInstance::Initialize(UserInfo_t userinfo,
+                              FileServiceOption_t fileservicopt) {
     fileopt_ = fileservicopt;
     bool ret = false;
     do {
-        if (mdsclient_.Initialize(fileopt_.metaserveropt) != 0) {
+        if (!userinfo.Valid()) {
+            LOG(ERROR) << "userinfo not valid!";
+            break;
+        }
+
+        if (mdsclient_.Initialize(userinfo, fileopt_.metaserveropt) != 0) {
             LOG(ERROR) << "MDSClient init failed!";
             break;
         }
@@ -116,6 +122,8 @@ LIBCURVE_ERROR FileInstance::Open(std::string fname, size_t size, bool create) {
         if (LIBCURVE_ERROR::OK == ret) {
             ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                       : LIBCURVE_ERROR::FAILED;
+        } else {
+            LOG(ERROR) << "Open file failed!";
         }
     }
     return ret;

@@ -68,6 +68,12 @@ void InitSessionOptions(common::Configuration *conf,
     sessionOptions->intevalTime = conf->GetIntValue("session.intevalTime");
 }
 
+void InitAuthOptions(common::Configuration *conf,
+                        struct RootAuthOption *authOptions) {
+    authOptions->rootOwner = conf->GetStringValue("auth.rootOwner");
+    authOptions->rootPassword = conf->GetStringValue("auth.rootPassword");
+}
+
 int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
@@ -86,6 +92,9 @@ int curve_main(int argc, char **argv) {
 
     struct SessionOptions sessionOptions;
     InitSessionOptions(&conf, &sessionOptions);
+
+    struct RootAuthOption authOptions;
+    InitAuthOptions(&conf, &authOptions);
 
     // init nameserver
     NameServerStorage *storage_;
@@ -115,7 +124,7 @@ int curve_main(int argc, char **argv) {
 
     if (!kCurveFS.Init(storage_, inodeGenerator_,
                   chunkSegmentAllocate_, cleanManger,
-                  sessionManager_, sessionOptions)) {
+                  sessionManager_, sessionOptions, authOptions)) {
         return -1;
     }
 

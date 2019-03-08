@@ -13,9 +13,11 @@ namespace client {
 
 void ServiceHelper::ProtoFileInfo2Local(curve::mds::FileInfo* finfo,
                                         FInfo_t* fi) {
+    if (finfo->has_owner()) {
+        fi->owner = finfo->owner();
+    }
     if (finfo->has_filename()) {
-        strcpy(fi->filename, finfo->filename().c_str());                            // NOLINT
-        fi->filename[finfo->filename().size()] = '\0';
+        fi->filename = finfo->filename();
     }
     if (finfo->has_id()) {
         fi->id = finfo->id();
@@ -84,6 +86,23 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
     }
 
     return 0;
+}
+
+bool ServiceHelper::GetUserInfoFromFilename(const std::string& filename,
+                                            std::string* realfilename,
+                                            std::string* user) {
+    auto user_end = filename.find_last_of("_");
+    auto user_begin = filename.find_last_of("_", user_end - 1);
+
+    if (user_end == filename.npos || user_begin == filename.npos) {
+        LOG(ERROR) << "get user info failed!";
+        return false;
+    }
+
+    *realfilename = filename.substr(0, user_begin);
+    *user = filename.substr(user_begin + 1, user_end - user_begin - 1);
+    LOG(INFO) << "user info [" << *user << "]";
+    return true;
 }
 }   // namespace client
 }   // namespace curve

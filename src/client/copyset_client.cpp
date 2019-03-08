@@ -42,14 +42,14 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
                              size_t length,
                              uint64_t appliedindex,
                              google::protobuf::Closure *done,
-                             int retriedTimes) {
+                             uint16_t retriedTimes) {
     brpc::ClosureGuard doneGuard(done);
 
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
-    for (int i = retriedTimes;
+    for (unsigned int i = retriedTimes;
         i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
@@ -100,13 +100,13 @@ int CopysetClient::WriteChunk(LogicPoolID logicPoolId,
                               off_t offset,
                               size_t length,
                               google::protobuf::Closure *done,
-                              int retriedTimes) {
+                              uint16_t retriedTimes) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
     brpc::ClosureGuard doneGuard(done);
 
-    for (int i = retriedTimes;
+    for (unsigned int i = retriedTimes;
         i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
@@ -156,14 +156,14 @@ int CopysetClient::ReadChunkSnapshot(LogicPoolID logicPoolId,
                                      off_t offset,
                                      size_t length,
                                      Closure *done,
-                                     int retriedTimes) {
+                                     uint16_t retriedTimes) {
     brpc::ClosureGuard doneGuard(done);
 
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
-    for (int i = retriedTimes;
+    for (unsigned int i = retriedTimes;
         i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
@@ -214,14 +214,14 @@ int CopysetClient::DeleteChunkSnapshot(LogicPoolID logicPoolId,
                                        ChunkID chunkId,
                                        uint64_t sn,
                                        Closure *done,
-                                       int retriedTimes) {
+                                       uint16_t retriedTimes) {
     brpc::ClosureGuard doneGuard(done);
 
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
-    for (int i = retriedTimes;
+    for (unsigned int i = retriedTimes;
          i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
@@ -271,13 +271,13 @@ int CopysetClient::GetChunkInfo(LogicPoolID logicPoolId,
                                 CopysetID copysetId,
                                 ChunkID chunkId,
                                 Closure *done,
-                                int retriedTimes) {
+                                uint16_t retriedTimes) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
     brpc::ClosureGuard doneGuard(done);
 
-    for (int i = retriedTimes;
+    for (unsigned int i = retriedTimes;
          i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,

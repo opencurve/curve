@@ -50,6 +50,9 @@ class CurveFSTest: public ::testing::Test {
         sessionOptions_.toleranceTime = 500000;
         sessionOptions_.intevalTime = 100000;
 
+        authOptions_.rootOwner = "root";
+        authOptions_.rootPassword = "root_password";
+
         EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
@@ -74,7 +77,7 @@ class CurveFSTest: public ::testing::Test {
 
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
                         mockSnapShotCleanManager_,
-                        sessionManager_, sessionOptions_);
+                        sessionManager_, sessionOptions_, authOptions_);
     }
 
     void TearDown() override {
@@ -95,14 +98,15 @@ class CurveFSTest: public ::testing::Test {
     SessionManager *sessionManager_;
     std::shared_ptr<repo::MockRepo> mockRepo_;
     struct SessionOptions sessionOptions_;
+    struct RootAuthOption authOptions_;
 };
 
 TEST_F(CurveFSTest, testCreateFile1) {
     // test parm error
-    ASSERT_EQ(curvefs_->CreateFile("/file1", FileType::INODE_PAGEFILE,
+    ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
                                    kMiniFileLength-1), StatusCode::kParaError);
 
-    ASSERT_EQ(curvefs_->CreateFile("/", FileType::INODE_DIRECTORY, 0),
+    ASSERT_EQ(curvefs_->CreateFile("/", "", FileType::INODE_DIRECTORY, 0),
               StatusCode::kFileExists);
 
     {
@@ -111,7 +115,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::OK));
 
-        auto statusCode = curvefs_->CreateFile("/file1",
+        auto statusCode = curvefs_->CreateFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength);
         ASSERT_EQ(statusCode, StatusCode::kFileExists);
     }
@@ -122,7 +126,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::InternalError));
 
-        auto statusCode = curvefs_->CreateFile("/file1",
+        auto statusCode = curvefs_->CreateFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
@@ -141,7 +145,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .Times(1)
         .WillOnce(Return(true));
 
-        auto statusCode = curvefs_->CreateFile("/file1",
+        auto statusCode = curvefs_->CreateFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
@@ -161,7 +165,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .WillOnce(Return(true));
 
 
-        auto statusCode = curvefs_->CreateFile("/file1",
+        auto statusCode = curvefs_->CreateFile("/file1", "owner1",
             FileType::INODE_PAGEFILE, kMiniFileLength);
         ASSERT_EQ(statusCode, StatusCode::kOK);
     }
@@ -176,7 +180,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
         .Times(1)
         .WillOnce(Return(false));
 
-        auto statusCode = curvefs_->CreateFile("/file1",
+        auto statusCode = curvefs_->CreateFile("/file1", "owner1",
                 FileType::INODE_PAGEFILE, kMiniFileLength);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
@@ -1657,6 +1661,95 @@ TEST_F(CurveFSTest, testRefreshSession) {
         .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
                         Return(repo::OperationOK)));
 }
+
+TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
+    // root用户，密码匹配
+    {
+        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
+                    authOptions_.rootOwner, authOptions_.rootPassword),
+                  StatusCode::kOK);
+    }
+
+    // root用户，密码不匹配
+    {
+        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
+                    authOptions_.rootOwner, "wrongpass"),
+                  StatusCode::kOwnerAuthFail);
+    }
+
+    // 普通用户，根目录下的文件非root用户认证失败
+    {
+        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
+                    "normaluser", "wrongpass"),
+                  StatusCode::kOwnerAuthFail);
+    }
+}
+
+TEST_F(CurveFSTest, testCheckPathOwner) {
+    // root用户，密码匹配
+    {
+        ASSERT_EQ(curvefs_->CheckPathOwner("/file1",
+                    authOptions_.rootOwner, authOptions_.rootPassword),
+                  StatusCode::kOK);
+    }
+
+    // root用户，密码不匹配
+    {
+        ASSERT_EQ(curvefs_->CheckPathOwner("/file1",
+                    authOptions_.rootOwner, "wrongpass"),
+                  StatusCode::kOwnerAuthFail);
+    }
+
+    // 普通用户，根目录下的文件非root用户认证成功
+    {
+        ASSERT_EQ(curvefs_->CheckPathOwner("/file1",
+                    "normaluser", "wrongpass"),
+                  StatusCode::kOK);
+    }
+}
+
+TEST_F(CurveFSTest, testCheckFileOwner) {
+    // root用户，密码匹配
+    {
+        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
+                    authOptions_.rootOwner, authOptions_.rootPassword),
+                  StatusCode::kOK);
+    }
+
+    // root用户，密码不匹配
+    {
+        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
+                    authOptions_.rootOwner, "wrongpass"),
+                  StatusCode::kOwnerAuthFail);
+    }
+
+    // 普通用户，根目录下的文件非root用户认证成功
+    {
+        FileInfo fileInfo;
+        fileInfo.set_owner("normaluser");
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
+                    "normaluser", ""), StatusCode::kOK);
+    }
+
+    // 普通用户，根目录下的文件非root用户认证失败
+    {
+        FileInfo fileInfo;
+        fileInfo.set_owner("normaluser");
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
+                    "normaluser1", ""), StatusCode::kOwnerAuthFail);
+    }
+}
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

@@ -194,9 +194,9 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -205,9 +205,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -242,13 +242,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -304,7 +305,7 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
 
-    EXPECT_CALL(*client_, DeleteSnapshot(fileName, seqNum))
+    EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(kErrCodeSnapshotServerSuccess));
 
     core_->HandleCreateSnapshotTask(task);
@@ -325,9 +326,9 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotInternalError)));
 
 
@@ -352,9 +353,9 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -364,9 +365,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotInternalError)));
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
@@ -390,9 +391,9 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -402,9 +403,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -431,9 +432,9 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -443,9 +444,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -472,9 +473,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -484,9 +485,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -495,7 +496,8 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
         .WillRepeatedly(Return(kErrCodeSnapshotInternalError));
@@ -519,9 +521,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -531,9 +533,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -568,10 +570,11 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -600,9 +603,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -612,9 +615,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -649,13 +652,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -688,9 +692,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -699,9 +703,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -736,13 +740,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -789,9 +794,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -800,9 +805,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -837,13 +842,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -897,9 +903,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -908,9 +914,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -945,13 +951,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -1009,9 +1016,9 @@ TEST_F(TestSnapshotCoreImpl,
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -1020,9 +1027,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -1057,13 +1064,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -1088,7 +1096,7 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfos.push_back(info);
     snapInfos.push_back(info2);
 
-    EXPECT_CALL(*metaStore_, GetSnapshotList(fileName, _))
+    EXPECT_CALL(*metaStore_, GetSnapshotList(fileName,  _))
         .WillOnce(DoAll(
                     SetArgPointee<1>(snapInfos),
                     Return(kErrCodeSnapshotServerSuccess)));
@@ -1126,9 +1134,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -1137,9 +1145,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -1174,13 +1182,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-            seqNum,
+          user,
+          seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -1252,9 +1261,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -1263,9 +1272,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -1300,13 +1309,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
+            user,
             seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -1381,9 +1391,9 @@ TEST_F(TestSnapshotCoreImpl,
         std::make_shared<SnapshotTaskInfo>(info);
 
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -1392,9 +1402,9 @@ TEST_F(TestSnapshotCoreImpl,
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -1429,13 +1439,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
+            user,
             seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -1490,7 +1501,7 @@ TEST_F(TestSnapshotCoreImpl,
         .Times(4)
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
-    EXPECT_CALL(*client_, DeleteSnapshot(fileName, seqNum))
+    EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(kErrCodeSnapshotInternalError));
 
     core_->HandleCreateSnapshotTask(task);
@@ -1564,13 +1575,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
+            user,
             seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     UUID uuid2 = "uuid2";
@@ -1607,7 +1619,7 @@ TEST_F(TestSnapshotCoreImpl,
         .Times(4)
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
-    EXPECT_CALL(*client_, DeleteSnapshot(fileName, seqNum))
+    EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(kErrCodeSnapshotServerSuccess));
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
@@ -1685,13 +1697,14 @@ TEST_F(TestSnapshotCoreImpl,
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
+            user,
             seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     UUID uuid2 = "uuid2";
@@ -1763,13 +1776,14 @@ TEST_F(TestSnapshotCoreImpl,
     SegmentInfo segInfo2;
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
+            user,
             seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     UUID uuid2 = "uuid2";
@@ -2122,9 +2136,9 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
     std::shared_ptr<SnapshotTaskInfo> task =
         std::make_shared<SnapshotTaskInfo>(info);
 
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, _))
+    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<1>(seqNum),
+                    SetArgPointee<2>(seqNum),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     FInfo snapInfo;
@@ -2133,9 +2147,9 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
     snapInfo.segmentsize = 2 * snapInfo.chunksize;
     snapInfo.length = 2 * snapInfo.segmentsize;
     snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, seqNum, _))
+    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
         .WillOnce(DoAll(
-                    SetArgPointee<2>(snapInfo),
+                    SetArgPointee<3>(snapInfo),
                     Return(kErrCodeSnapshotServerSuccess)));
 
 
@@ -2169,13 +2183,14 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
         ChunkIDInfo(chunkId4, lpid4, cpid4));
 
     EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
+            user,
             seqNum,
             _,
             _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo1),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
                     Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<3>(segInfo2),
+        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
                     Return(kErrCodeSnapshotServerSuccess)));
 
     uint64_t chunkSn = 100;
@@ -2231,9 +2246,10 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     // 此处捕获task，设置cancel
-    EXPECT_CALL(*client_, DeleteSnapshot(fileName, seqNum))
+    EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .Times(2)
         .WillOnce(Invoke([task](const std::string &filename,
+            const std::string &user,
             uint64_t seq) -> int {
                     task->Cancel();
                     return kErrCodeSnapshotServerSuccess;

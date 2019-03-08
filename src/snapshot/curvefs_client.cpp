@@ -8,6 +8,7 @@
 #include "src/snapshot/curvefs_client.h"
 
 using ::curve::client::LogicalPoolCopysetIDInfo;
+using ::curve::client::UserInfo;
 
 namespace curve {
 namespace snapshotserver {
@@ -34,27 +35,33 @@ int CurveFsClientImpl::UnInit() {
 }
 
 int CurveFsClientImpl::CreateSnapshot(const std::string &filename,
+    const std::string &user,
     uint64_t *seq) {
-    return client_.CreateSnapShot(filename, seq);
+    return client_.CreateSnapShot(filename, UserInfo(user, ""), seq);
 }
 
-int CurveFsClientImpl::DeleteSnapshot(
-    const std::string &filename, uint64_t seq) {
-    return client_.DeleteSnapShot(filename, seq);
+int CurveFsClientImpl::DeleteSnapshot(const std::string &filename,
+    const std::string &user,
+    uint64_t seq) {
+    return client_.DeleteSnapShot(filename, UserInfo(user, ""), seq);
 }
 
 int CurveFsClientImpl::GetSnapshot(
-    const std::string &filename, uint64_t seq, FInfo* snapInfo) {
-    return client_.GetSnapShot(filename, seq, snapInfo);
+    const std::string &filename,
+    const std::string &user,
+    uint64_t seq,
+    FInfo* snapInfo) {
+    return client_.GetSnapShot(filename, UserInfo(user, ""), seq, snapInfo);
 }
 
 int CurveFsClientImpl::GetSnapshotSegmentInfo(const std::string &filename,
+    const std::string &user,
     uint64_t seq,
     uint64_t offset,
     SegmentInfo *segInfo) {
     LogicalPoolCopysetIDInfo lpcsIDInfo;
     return client_.GetSnapshotSegmentInfo(
-        filename, &lpcsIDInfo, seq, offset, segInfo);
+        filename, UserInfo(user, ""), &lpcsIDInfo, seq, offset, segInfo);
 }
 
 int CurveFsClientImpl::ReadChunkSnapshot(ChunkIDInfo cidinfo,
