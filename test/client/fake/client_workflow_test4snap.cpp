@@ -41,6 +41,7 @@ std::condition_variable interfacecv;
 
 DECLARE_uint64(test_disk_size);
 
+using curve::client::UserInfo;
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;
 using curve::client::SnapshotClient;
@@ -57,7 +58,7 @@ int main(int argc, char ** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
 
-    std::string filename = "test.txt";
+    std::string filename = "1_userinfo_test.txt";
     /*** init mds service ***/
     FakeMDS mds(filename);
     if (FLAGS_fake_mds) {
@@ -88,7 +89,7 @@ int main(int argc, char ** argv) {
     }
 
     uint64_t seq = 0;
-    if (-1 == cl.CreateSnapShot(filename, &seq)) {
+    if (-1 == cl.CreateSnapShot(filename, UserInfo("test", ""), &seq)) {
         LOG(ERROR) << "create failed!";
         return -1;
     }
@@ -96,9 +97,10 @@ int main(int argc, char ** argv) {
     SegmentInfo seginfo;
     LogicalPoolCopysetIDInfo lpcsIDInfo;
     if (LIBCURVE_ERROR::FAILED == cl.GetSnapshotSegmentInfo(filename,
-                                                            &lpcsIDInfo,
-                                                            0, 0,
-                                                            &seginfo)) {
+                                                        UserInfo("test", ""),
+                                                        &lpcsIDInfo,
+                                                        0, 0,
+                                                        &seginfo)) {
         LOG(ERROR) << "GetSnapshotSegmentInfo failed!";
         return -1;
     }
@@ -110,7 +112,7 @@ int main(int argc, char ** argv) {
     }
 
     curve::client::FInfo_t sinfo;
-    if (-1 == cl.GetSnapShot(filename, seq, &sinfo)) {
+    if (-1 == cl.GetSnapShot(filename, UserInfo("test", ""), seq, &sinfo)) {
         LOG(ERROR) << "ListSnapShot failed!";
         return -1;
     }

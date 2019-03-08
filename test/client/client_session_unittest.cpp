@@ -28,6 +28,7 @@
 extern std::string metaserver_addr;
 extern std::string configpath;
 
+using curve::client::UserInfo;
 using curve::client::ClientConfig;
 using curve::client::FileClient;
 using curve::client::FileInstance;
@@ -91,12 +92,16 @@ TEST(TimerTaskWorkerTest, TimerTaskWorkerRunTaskTest) {
 }
 
 TEST(ClientSession, LeaseTaskTest) {
-    std::string filename = "./1.txt";
+    std::string filename = "./1_userinfo_.txt";
 
     ClientConfig cc;
     cc.Init(configpath.c_str());
-    FileInstance sess;
-    ASSERT_TRUE(sess.Initialize(cc.GetFileServiceOption()));
+
+    FileInstance fileinstance;
+    UserInfo userinfo("userinfo", "");
+    ASSERT_TRUE(fileinstance.Initialize(userinfo,
+                                        cc.GetFileServiceOption()));
+
     brpc::Server server;
     FakeMDSCurveFSService curvefsservice;
 
@@ -109,17 +114,17 @@ TEST(ClientSession, LeaseTaskTest) {
     se->set_createtime(12345);
     se->set_leasetime(10000000);
     se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
+
+    finfo->set_filename(filename);
     openresponse.set_statuscode(::curve::mds::StatusCode::kOK);
     openresponse.set_allocated_protosession(se);
-
     openresponse.set_allocated_fileinfo(finfo);
-    openresponse.mutable_fileinfo()->set_seqnum(2);
 
     FakeReturn* openfakeret
      = new FakeReturn(nullptr, static_cast<void*>(&openresponse));
     curvefsservice.SetOpenFile(openfakeret);
 
-    // 1. create a File
+    // 1. start service
     if (server.AddService(&curvefsservice,
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(FATAL) << "Fail to add service";
@@ -128,14 +133,6 @@ TEST(ClientSession, LeaseTaskTest) {
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
     ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
-    ::curve::mds::CreateFileResponse response;
-    response.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* fakeret
-     = new FakeReturn(nullptr, static_cast<void*>(&response));
-    curvefsservice.SetCreateFileFakeReturn(fakeret);
-    size_t len = 4 * 1024 * 1024ul;
-    LIBCURVE_ERROR ret = sess.Open(filename.c_str(), len, true);
-    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     // 2. set refresh response
     std::mutex mtx;
@@ -145,24 +142,25 @@ TEST(ClientSession, LeaseTaskTest) {
         refreshcv.notify_one();
     };
     curve::mds::FileInfo * info = new curve::mds::FileInfo;
+    info->set_filename(filename);
+    info->set_seqnum(2);
+    info->set_id(1);
+    info->set_parentid(0);
+    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    info->set_chunksize(4 * 1024 * 1024);
+    info->set_length(4 * 1024 * 1024 * 1024ul);
+    info->set_ctime(12345678);
+
     ::curve::mds::ReFreshSessionResponse refreshresp;
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     refreshresp.set_sessionid("1234");
     refreshresp.set_allocated_fileinfo(info);
-    refreshresp.mutable_fileinfo()->set_seqnum(2);
-    refreshresp.mutable_fileinfo()->set_filename(filename);
-    refreshresp.mutable_fileinfo()->set_id(1);
-    refreshresp.mutable_fileinfo()->set_parentid(0);
-    refreshresp.mutable_fileinfo()->set_filetype(curve::mds::FileType::INODE_PAGEFILE);     // NOLINT
-    refreshresp.mutable_fileinfo()->set_chunksize(4 * 1024 * 1024);
-    refreshresp.mutable_fileinfo()->set_length(4 * 1024 * 1024 * 1024ul);
-    refreshresp.mutable_fileinfo()->set_ctime(12345678);
     FakeReturn* refreshfakeret
-     = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
     curvefsservice.SetRefreshSession(refreshfakeret, refresht);
 
     // 3. open the file
-    LIBCURVE_ERROR openret = sess.Open(filename, 0, false);
+    LIBCURVE_ERROR openret = fileinstance.Open(filename, 0, false);
     ASSERT_EQ(openret, LIBCURVE_ERROR::OK);
 
     // 4. wait for refresh
@@ -214,16 +212,16 @@ TEST(ClientSession, LeaseTaskTest) {
     aioctx.cb = sessioncallback;
     aioctx.buf = nullptr;
 
-    sess.AioRead(&aioctx);
-    sess.AioWrite(&aioctx);
+    fileinstance.AioRead(&aioctx);
+    fileinstance.AioWrite(&aioctx);
 
     char buffer[10];
-    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, sess.Write(buffer, 0, 0));
-    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, sess.Read(buffer, 0, 0));
+    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, fileinstance.Write(buffer, 0, 0));
+    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, fileinstance.Read(buffer, 0, 0));
 
-    ASSERT_NE(-1, sess.Close());
+    ASSERT_NE(-1, fileinstance.Close());
 
-    sess.UnInitialize();
+    fileinstance.UnInitialize();
     server.Stop(0);
     server.Join();
 }
@@ -231,8 +229,10 @@ TEST(ClientSession, LeaseTaskTest) {
 TEST(ClientSession, AppliedIndexTest) {
     ClientConfig cc;
     cc.Init(configpath.c_str());
-    FileInstance sess;
-    ASSERT_TRUE(sess.Initialize(cc.GetFileServiceOption()));
+    FileInstance fileinstance;
+    UserInfo userinfo("userinfo", "");
+    ASSERT_TRUE(fileinstance.Initialize(userinfo,
+                                        cc.GetFileServiceOption()));
 
     // create fake chunkserver service
     FakeChunkServerService fakechunkservice;
@@ -247,7 +247,8 @@ TEST(ClientSession, AppliedIndexTest) {
     ASSERT_EQ(server.Start("127.0.0.1:5555", &options), 0);
 
     // fill metacache
-    curve::client::MetaCache* mc = sess.GetIOManager4File()->GetMetaCache();
+    curve::client::MetaCache* mc
+        = fileinstance.GetIOManager4File()->GetMetaCache();
     curve::client::ChunkIDInfo_t chunkinfo(1, 2, 3);
     mc->UpdateChunkInfoByIndex(0, chunkinfo);
     curve::client::CopysetInfo cpinfo;
@@ -268,9 +269,9 @@ TEST(ClientSession, AppliedIndexTest) {
     fakechunkservice.SetFakeWriteReturn(writeret);
 
     // send write request
-    // curve::client::IOManager4File* ioctx = sess.GetIOCtxManager();
+    // curve::client::IOManager4File* ioctx = fileinstance.GetIOCtxManager();
     char buffer[8192] = {0};
-    sess.Write(buffer, 0, 8192);
+    fileinstance.Write(buffer, 0, 8192);
 
     // create fake read return
     ::curve::chunkserver::ChunkResponse readresponse;
@@ -280,7 +281,7 @@ TEST(ClientSession, AppliedIndexTest) {
     fakechunkservice.SetFakeReadReturn(readret);
 
     // send read request
-    sess.Read(buffer, 0, 8192);
+    fileinstance.Read(buffer, 0, 8192);
 
     // verify buffer content
     for (int i = 0; i < 4096; i++) {
@@ -298,7 +299,7 @@ TEST(ClientSession, AppliedIndexTest) {
     fakechunkservice.SetFakeWriteReturn(writeret2);
 
     // send write request
-    sess.Write(buffer, 0, 8192);
+    fileinstance.Write(buffer, 0, 8192);
 
     // create fake read return
     ::curve::chunkserver::ChunkResponse readresponse2;
@@ -309,7 +310,7 @@ TEST(ClientSession, AppliedIndexTest) {
 
     // send read request
     memset(buffer, 1, 8192);
-    sess.Read(buffer, 0, 8192);
+    fileinstance.Read(buffer, 0, 8192);
 
     // verify buffer content
     for (int i = 0; i < 4096; i++) {
@@ -325,7 +326,7 @@ TEST(ClientSession, AppliedIndexTest) {
     fakechunkservice.SetFakeReadReturn(readret3);
 
     // send read request with applied index = 0
-    sess.Read(buffer, 0, 8192);
+    fileinstance.Read(buffer, 0, 8192);
 
     // verify buffer content
     for (int i = 0; i < 4096; i++) {
@@ -333,7 +334,7 @@ TEST(ClientSession, AppliedIndexTest) {
         ASSERT_EQ(buffer[i + 4096], 'd');
     }
 
-    sess.UnInitialize();
+    fileinstance.UnInitialize();
 
     delete writeret;
     delete writeret2;

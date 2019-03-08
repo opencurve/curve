@@ -34,40 +34,51 @@ class SnapshotClient {
   LIBCURVE_ERROR Init(ClientConfigOption_t opt);
   /**
    * 创建快照
+   * @param: userinfo是用户信息
    * @param: filename为要创建快照的文件名
    * @param: seq是出参，获取该文件的版本信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR CreateSnapShot(std::string filename, uint64_t* seq);
+  LIBCURVE_ERROR CreateSnapShot(std::string filename,
+                                UserInfo_t userinfo,
+                                uint64_t* seq);
   /**
    * 删除快照
+   * @param: userinfo是用户信息
    * @param: filename为要删除的文件名
    * @param: seq该文件的版本信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR DeleteSnapShot(std::string filename, uint64_t seq);
+  LIBCURVE_ERROR DeleteSnapShot(std::string filename,
+                                UserInfo_t userinfo,
+                                uint64_t seq);
   /**
    * 获取快照对应的文件信息
+   * @param: userinfo是用户信息
    * @param: filename为对应的文件名
    * @param: seq为该文件打快照时对应的版本信息
    * @param: snapinfo是出参，保存当前文件的基础信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   LIBCURVE_ERROR GetSnapShot(std::string fname,
+                             UserInfo_t userinfo,
                              uint64_t seq,
                              FInfo* snapinfo);
   /**
    * 列出当前文件对应版本列表的文件信息
+   * @param: userinfo是用户信息
    * @param: filenam文件名
    * @param: seqvec是当前文件的版本列表
    * @param: snapif是出参，获取多个seq号的文件信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   LIBCURVE_ERROR ListSnapShot(std::string filename,
+                            UserInfo_t userinfo,
                             const std::vector<uint64_t>* seqvec,
                             std::vector<FInfo*>* snapif);
   /**
    * 获取快照数据segment信息
+   * @param: userinfo是用户信息
    * @param: filenam文件名
    * @param: seq是文件版本号信息
    * @param: offset是文件的偏移
@@ -75,6 +86,7 @@ class SnapshotClient {
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   LIBCURVE_ERROR GetSnapshotSegmentInfo(std::string filename,
+                            UserInfo_t userinfo,
                             LogicalPoolCopysetIDInfo* lpcsIDInfo,
                             uint64_t seq,
                             uint64_t offset,
@@ -113,6 +125,15 @@ class SnapshotClient {
    * @param: chunkInfo是快照的详细信息
    */
   LIBCURVE_ERROR GetChunkInfo(ChunkIDInfo cidinfo, ChunkInfoDetail *chunkInfo);
+  /**
+   * 获取快照状态
+   * @param: userinfo是用户信息
+   * @param: filenam文件名
+   * @param: seq是文件版本号信息
+   */
+  LIBCURVE_ERROR CheckSnapShotStatus(std::string filename,
+                                UserInfo_t userinfo,
+                                uint64_t seq);
   /**
    * 析构，回收资源
    */

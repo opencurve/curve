@@ -112,18 +112,22 @@ class MockCurveFsClient : public CurveFsClient {
  public:
     MOCK_METHOD0(Init, int());
     MOCK_METHOD0(UnInit, int());
-    MOCK_METHOD2(CreateSnapshot,
+    MOCK_METHOD3(CreateSnapshot,
         int(const std::string &filename,
+        const std::string &user,
         uint64_t *seq));
-    MOCK_METHOD2(DeleteSnapshot,
+    MOCK_METHOD3(DeleteSnapshot,
         int(const std::string &filename,
+            const std::string &user,
             uint64_t seq));
-    MOCK_METHOD3(GetSnapshot,
+    MOCK_METHOD4(GetSnapshot,
         int(const std::string &filename,
+            const std::string &user,
             uint64_t seq,
             FInfo *snapInfo));
-    MOCK_METHOD4(GetSnapshotSegmentInfo,
+    MOCK_METHOD5(GetSnapshotSegmentInfo,
         int(const std::string &filename,
+        const std::string &user,
         uint64_t seq,
         uint64_t offset,
         SegmentInfo *segInfo));

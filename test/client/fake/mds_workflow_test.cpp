@@ -29,7 +29,7 @@ int main(int argc, char ** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
     /*** init mds service ***/
-    std::string filename = "./test.img";
+    std::string filename = "./1_userinfo_test.img";
     FakeMDS mds(filename);
     if (FLAGS_fake_mds) {
         mds.Initialize();

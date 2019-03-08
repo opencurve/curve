@@ -106,7 +106,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                 response->set_sessionid("1234");
                 response->set_allocated_fileinfo(info);
                 response->mutable_fileinfo()->set_seqnum(seq++);
-                response->mutable_fileinfo()->set_filename("filename");
+                response->mutable_fileinfo()->set_filename("_filename_");
                 response->mutable_fileinfo()->set_id(1);
                 response->mutable_fileinfo()->set_parentid(0);
                 response->mutable_fileinfo()->set_filetype(curve::mds::FileType::INODE_PAGEFILE);     // NOLINT
@@ -162,6 +162,21 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
         auto resp = static_cast<::curve::mds::DeleteSnapShotResponse*>(
                     fakedeletesnapshotret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void CheckSnapShotStatus(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::CheckSnapShotStatusRequest* request,
+                       ::curve::mds::CheckSnapShotStatusResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakechecksnapshotret_->controller_ != nullptr &&
+             fakechecksnapshotret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        auto resp = static_cast<::curve::mds::DeleteSnapShotResponse*>(
+                    fakechecksnapshotret_->response_);
         response->CopyFrom(*resp);
     }
 
@@ -274,6 +289,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakeclosefile_ = fakeret;
     }
 
+    void SetCheckSnap(FakeReturn* fakeret) {
+        fakechecksnapshotret_ = fakeret;
+    }
+
     FakeReturn* fakeCreateFileret_;
     FakeReturn* fakeGetFileInforet_;
     FakeReturn* fakeGetOrAllocateSegmentret_;
@@ -281,6 +300,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeclosefile_;
     FakeReturn* fakeRefreshSession_;
 
+    FakeReturn* fakechecksnapshotret_;
     FakeReturn* fakecreatesnapshotret_;
     FakeReturn* fakelistsnapshotret_;
     FakeReturn* fakedeletesnapshotret_;
