@@ -8,6 +8,7 @@ cc_library(
             "//external:gflags",
             "//external:leveldb",
             "//external:brpc",
+            "//thirdparties/etcdclient:etcdclientlib",
             "//proto:nameserver2_cc_proto",
             "//src/common:curve_common",
             "//src/mds/topology:topology",
@@ -15,3 +16,4 @@ cc_library(
             "//src/mds/common:mds_common"
     ]
 )
+
