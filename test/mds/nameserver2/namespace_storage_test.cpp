@@ -4,12 +4,201 @@
  * Author: hzsunjianliang
  * Copyright (c) 2018 netease
  */
-#include <gtest/gtest.h>
-#include "src/mds/nameserver2/namespace_storage.h"
 
+#include <stdio.h>
+#include <gtest/gtest.h>
+#include <glog/logging.h>
+#include "src/mds/nameserver2/namespace_storage.h"
+#include "src/common/timeutility.h"
+#include "test/mds/nameserver2/mock_etcdclient.h"
+
+using ::testing::_;
+using ::testing::Return;
+using ::testing::AtLeast;
+using ::testing::SetArgPointee;
+using ::testing::DoAll;
 
 namespace curve {
 namespace mds {
+class TestNameServerStorageImp : public ::testing::Test {
+ protected:
+  TestNameServerStorageImp() {}
+  ~TestNameServerStorageImp() {}
+
+  void SetUp() override {
+      client_ = std::make_shared<MockEtcdClient>();
+      storage_ = std::make_shared<NameServerStorageImp>(client_);
+  }
+
+  void TearDown() override {
+      client_ = nullptr;
+      storage_ = nullptr;
+  }
+
+  void GetFileInfoForTest(std::string *fileKey, FileInfo *fileinfo) {
+    std::string filename = "helloword-" + std::to_string(1) + ".log";
+    fileinfo->set_id(1);
+    fileinfo->set_filename(filename);
+    fileinfo->set_parentid(1<<8);
+    fileinfo->set_filetype(FileType::INODE_PAGEFILE);
+    fileinfo->set_chunksize(DefaultChunkSize);
+    fileinfo->set_length(10<<20);
+    fileinfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
+    std::string fullpathname = "/A/B/" + std::to_string(1) + "/" + filename;
+    fileinfo->set_fullpathname(fullpathname);
+    fileinfo->set_seqnum(1);
+    std::string encodeFileInfo;
+    ASSERT_TRUE(fileinfo->SerializeToString(&encodeFileInfo));
+    *fileKey = EncodeFileStoreKey(1<<8, filename);
+  }
+
+  void GetPageFileSegmentForTest(
+       std::string *fileKey, PageFileSegment *segment) {
+    segment->set_chunksize(16<<20);
+    segment->set_segmentsize(1 << 30);
+    segment->set_startoffset(0);
+    segment->set_logicalpoolid(16);
+    int size = segment->segmentsize()/segment->chunksize();
+    for (uint32_t i = 0; i < size; i++) {
+        PageFileChunkInfo *chunkinfo = segment->add_chunks();
+        chunkinfo->set_chunkid(i+1);
+        chunkinfo->set_copysetid(i+1);
+    }
+    *fileKey = EncodeSegmentStoreKey(1, 1);
+  }
+
+ protected:
+  std::shared_ptr<MockEtcdClient> client_;
+  std::shared_ptr<NameServerStorageImp> storage_;
+};
+
+TEST_F(TestNameServerStorageImp, test_putFile) {
+    std::string storeKey;
+    FileInfo fileinfo;
+    GetFileInfoForTest(&storeKey, &fileinfo);
+    EXPECT_CALL(*client_, Put(_, _))
+        .WillOnce(Return(EtcdErrCode::StatusOK))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdPut));
+    ASSERT_EQ(StoreStatus::OK, storage_->PutFile(storeKey, fileinfo));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->PutFile(storeKey, fileinfo));
+}
+
+TEST_F(TestNameServerStorageImp, test_getfile) {
+    // 1. get file err
+    FileInfo fileinfo;
+    EXPECT_CALL(*client_, Get(_, _))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdGet))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdGetNotExist));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->GetFile("", &fileinfo));
+    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetFile("", &fileinfo));
+
+    // 2. get file ok
+    FileInfo getInfo;
+    std::string fileKey, encodeFileinfo;
+    GetFileInfoForTest(&fileKey, &fileinfo);
+    ASSERT_TRUE(EncodeFileInfo(fileinfo, &encodeFileinfo));
+    EXPECT_CALL(*client_, Get(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(encodeFileinfo),
+                  Return(EtcdErrCode::StatusOK)));
+    ASSERT_EQ(StoreStatus::OK, storage_->GetFile("", &getInfo));
+    ASSERT_EQ(fileinfo.filename(), getInfo.filename());
+    ASSERT_EQ(fileinfo.fullpathname(), getInfo.fullpathname());
+    ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
+}
+
+TEST_F(TestNameServerStorageImp, test_deletefile) {
+    EXPECT_CALL(*client_, Delete(_))
+        .WillOnce(Return(EtcdErrCode::StatusOK))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdDelete));
+    ASSERT_EQ(StoreStatus::OK, storage_->DeleteFile(""));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteFile(""));
+}
+
+TEST_F(TestNameServerStorageImp, test_renamefile) {
+    EXPECT_CALL(*client_, Txn2(_, _))
+        .WillOnce(Return(EtcdErrCode::StatusOK))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdRename));
+    ASSERT_EQ(StoreStatus::OK,
+        storage_->RenameFile("", FileInfo{}, "", FileInfo{}));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->RenameFile("", FileInfo{}, "", FileInfo{}));
+}
+
+TEST_F(TestNameServerStorageImp, test_ListFile) {
+    // 1. list err
+    std::vector<FileInfo> listRes;
+    EXPECT_CALL(*client_, List(_, _, _))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdList))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdListNotExist));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->ListFile("", "", &listRes));
+    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->ListFile("", "", &listRes));
+
+    // 2. list ok
+    listRes.clear();
+    std::string filekey, encodeFileinfo;
+    FileInfo fileinfo;
+    GetFileInfoForTest(&filekey, &fileinfo);
+    ASSERT_TRUE(EncodeFileInfo(fileinfo, &encodeFileinfo));
+    EXPECT_CALL(*client_, List(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
+            Return(EtcdErrCode::StatusOK)));
+    ASSERT_EQ(StoreStatus::OK, storage_->ListFile("", "", &listRes));
+    ASSERT_EQ(1, listRes.size());
+    ASSERT_EQ(fileinfo.filename(), listRes[0].filename());
+    ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());
+}
+
+TEST_F(TestNameServerStorageImp, test_putsegment) {
+    PageFileSegment segment;
+    EXPECT_CALL(*client_, Put(_, _))
+        .WillOnce(Return(EtcdErrCode::StatusOK))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdPut));
+    ASSERT_EQ(StoreStatus::OK, storage_->PutSegment("", &segment));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->PutSegment("", &segment));
+}
+
+TEST_F(TestNameServerStorageImp, test_getSegment) {
+    // 1. get err
+    PageFileSegment segment;
+    EXPECT_CALL(*client_, Get(_, _))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdGet))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdGetNotExist));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->GetSegment("", &segment));
+    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetSegment("", &segment));
+
+    // 2. get ok
+    PageFileSegment getSegment;
+    std::string key, encodeSegment;
+    GetPageFileSegmentForTest(&key, &segment);
+    ASSERT_TRUE(EncodeSegment(segment, &encodeSegment));
+    EXPECT_CALL(*client_, Get(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(encodeSegment),
+                        Return(EtcdErrCode::StatusOK)));
+    ASSERT_EQ(StoreStatus::OK, storage_->GetSegment("", &getSegment));
+    ASSERT_EQ(segment.chunksize(), getSegment.chunksize());
+    ASSERT_EQ(segment.chunks_size(), getSegment.chunks_size());
+}
+
+TEST_F(TestNameServerStorageImp, test_deleteSegment) {
+    EXPECT_CALL(*client_, Delete(_))
+        .WillOnce(Return(EtcdErrCode::StatusOK))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdDelete));
+    ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(""));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteSegment(""));
+}
+
+TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
+    EXPECT_CALL(*client_, Txn2(_, _))
+        .WillOnce(Return(EtcdErrCode::StatusOK))
+        .WillOnce(Return(EtcdErrCode::ErrEtcdSnapshot));
+    FileInfo fileinfo;
+    ASSERT_EQ(StoreStatus::OK,
+        storage_->SnapShotFile("", &fileinfo, "", &fileinfo));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->SnapShotFile("", &fileinfo, "", &fileinfo));
+}
 
 TEST(NameSpaceStorageTest, EncodeFileStoreKey) {
     std::string filename = "foo.txt";
@@ -37,12 +226,24 @@ TEST(NameSpaceStorageTest, EncodeFileStoreKey) {
     ASSERT_EQ(static_cast<int>(str[9]), 0);
 }
 
+TEST(NameSpaceStorageTest, EncodeSnapShotFileStoreKey) {
+    std::string snapshotName = "hello-1";
+    uint64_t parentID = 8;
+    std::string str = EncodeSnapShotFileStoreKey(parentID, snapshotName);
+
+    ASSERT_EQ(str.size(), 17);
+    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), SNAPSHOTFILEINFOKEYPREFIX);
+    ASSERT_EQ(str.substr(10, snapshotName.length()), snapshotName);
+    for (int i = 2; i != 8; i++) {
+        ASSERT_EQ(static_cast<int>(str[i]), 0);
+    }
+    ASSERT_EQ(static_cast<int>(str[9]), 8);
+}
 
 TEST(NameSpaceStorageTest, EncodeSegmentStoreKey) {
     uint64_t inodeID = 8;
     offset_t offset = 3 << 16;
     std::string str = EncodeSegmentStoreKey(inodeID, offset);
-
 
     ASSERT_EQ(str.substr(0, PREFIX_LENGTH), SEGMENTINFOKEYPREFIX);
 
@@ -60,5 +261,77 @@ TEST(NameSpaceStorageTest, EncodeSegmentStoreKey) {
     ASSERT_EQ(static_cast<int>(str[17]), 0);
 }
 
+TEST(NameSpaceStorageTest, test_EncodeAnDecode_FileInfo) {
+    FileInfo fileInfo;
+    fileInfo.set_id(2<<8);
+    fileInfo.set_filename("helloword.log");
+    fileInfo.set_parentid(1<<8);
+    fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+    fileInfo.set_chunksize(DefaultChunkSize);
+    fileInfo.set_length(10<<20);
+    fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
+    fileInfo.set_fullpathname("/A/B/C/helloword.log");
+    fileInfo.set_seqnum(1);
+
+    // encode fileInfo
+    std::string out;
+    ASSERT_TRUE(EncodeFileInfo(fileInfo, &out));
+    ASSERT_EQ(fileInfo.ByteSize(), out.size());
+
+    // decode fileInfo
+    FileInfo decodeRes;
+    ASSERT_TRUE(DecodeFileInfo(out, &decodeRes));
+    ASSERT_EQ(fileInfo.id(), decodeRes.id());
+    ASSERT_EQ(fileInfo.filename(), decodeRes.filename());
+    ASSERT_EQ(fileInfo.parentid(), decodeRes.parentid());
+    ASSERT_EQ(fileInfo.filetype(), decodeRes.filetype());
+    ASSERT_EQ(fileInfo.chunksize(), decodeRes.chunksize());
+    ASSERT_EQ(fileInfo.length(), decodeRes.length());
+    ASSERT_EQ(fileInfo.ctime(), decodeRes.ctime());
+    ASSERT_EQ(fileInfo.fullpathname(), decodeRes.fullpathname());
+    ASSERT_EQ(fileInfo.seqnum(), decodeRes.seqnum());
+
+    // encode fileInfo ctime donnot set
+    fileInfo.clear_ctime();
+    ASSERT_FALSE(fileInfo.has_ctime());
+    ASSERT_TRUE(EncodeFileInfo(fileInfo, &out));
+    ASSERT_EQ(fileInfo.ByteSize(), out.size());
+
+    // decode
+    ASSERT_TRUE(DecodeFileInfo(out, &decodeRes));
+    ASSERT_FALSE(decodeRes.has_ctime());
+}
+
+TEST(NameSpaceStorageTest, test_EncodeAndDecode_Segment) {
+    PageFileSegment segment;
+    segment.set_chunksize(16<<20);
+    segment.set_segmentsize(1 << 30);
+    segment.set_startoffset(0);
+    segment.set_logicalpoolid(16);
+    int size = segment.segmentsize()/segment.chunksize();
+    for (uint32_t i = 0; i < size; i++) {
+        PageFileChunkInfo *chunkinfo = segment.add_chunks();
+        chunkinfo->set_chunkid(i+1);
+        chunkinfo->set_copysetid(i+1);
+    }
+
+    // encode segment
+    std::string out;
+    ASSERT_TRUE(EncodeSegment(segment, &out));
+    ASSERT_EQ(segment.ByteSize(), out.size());
+
+    // decode segment
+    PageFileSegment decodeRes;
+    ASSERT_TRUE(DecodeSegment(out, &decodeRes));
+    ASSERT_EQ(segment.logicalpoolid(), decodeRes.logicalpoolid());
+    ASSERT_EQ(segment.segmentsize(), decodeRes.segmentsize());
+    ASSERT_EQ(segment.chunksize(), decodeRes.chunksize());
+    ASSERT_EQ(segment.startoffset(), decodeRes.startoffset());
+    ASSERT_EQ(segment.chunks_size(), decodeRes.chunks_size());
+    for (int i = 0; i < size; i++) {
+        ASSERT_EQ(i+1, decodeRes.chunks(i).chunkid());
+        ASSERT_EQ(i+1, decodeRes.chunks(i).copysetid());
+    }
+}
 }  // namespace mds
 }  // namespace curve
