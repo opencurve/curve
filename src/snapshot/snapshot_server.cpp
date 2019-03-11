@@ -12,7 +12,7 @@
 #include "src/snapshot/snapshot_task_manager.h"
 #include "src/snapshot/snapshot_core.h"
 
-#include "src/snapshot/repo/repo.h"
+#include "src/snapshot/dao/snapshotRepo.h"
 
 #include "src/snapshot/snapshot_data_store.h"
 #include "src/snapshot/snapshot_data_store_s3.h"
@@ -30,8 +30,8 @@ int SnapshotServer::Init() {
         return kErrCodeSnapshotServerInitFail;
     }
 
-    std::shared_ptr<RepoInterface> repo =
-        std::make_shared<Repo>();
+    std::shared_ptr<SnapshotRepo> repo =
+        std::make_shared<SnapshotRepo>();
 
     std::shared_ptr<SnapshotMetaStore> metaStore =
         std::make_shared<DBSnapshotMetaStore>(repo);

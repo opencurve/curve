@@ -15,13 +15,13 @@
 #include <mysqlcurve/jdbc/cppconn/statement.h>
 #include <mysqlcurve/jdbc/cppconn/prepared_statement.h>
 
-#include "src/snapshot/repo/repo.h"
+#include "src/repo/repo.h"
 
 /*
  * interface test of connector/c++
 */
 namespace curve {
-namespace snapshotserver {
+namespace repo {
 TEST(MySqlTest, MySqlConn) {
     sql::Driver *driver;
     sql::Connection *conn;
@@ -180,5 +180,12 @@ TEST(MySqlTest, MySqlConn) {
         }
     }
 }
-}  // namespace snapshotserver
+}  // namespace repo
 }  // namespace curve
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+
+    return RUN_ALL_TESTS();
+}
+
