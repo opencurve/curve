@@ -59,7 +59,8 @@ message ChunkServerRegistResponse {
 message ListChunkServerRequest {
     //user either ip or serverID to list Chunkserver under server
     optional string ip = 1;
-    optional uint32 serverID = 2;
+    optional uint32 port = 2;
+    optional uint32 serverID = 3;
 }
 
 message ListChunkServerResponse {
@@ -102,23 +103,29 @@ message ServerInfo {
     required uint32 serverID = 1;
     required string hostName = 2;
     required string internalIp = 3;
-    required string externalIp = 4;
-    required uint32 zoneID = 5;
-    required uint32 physicalPoolID = 6;
-    required string desc = 7;
+    required uint32 internalPort = 4;
+    required string externalIp = 5;
+    required uint32 externalPort = 6;
+    required uint32 zoneID = 7;
+    required string zoneName = 8;
+    required uint32 physicalPoolID = 9;
+    required string physicalPoolName = 10;
+    required string desc = 11;
 }
 
 message ServerRegistRequest {
     required string hostName = 1;
     required string internalIp = 2; // for internal uses(between mds & chunkserver)
-    required string externalIp = 3; // for client use (read & write & snapshot and so on)
+    optional uint32 internalPort = 3;
+    required string externalIp = 4; // for client use (read & write & snapshot and so on)
+    optional uint32 externalPort = 5;
 
     //user either zoneID&physicalPoolID  or zoneName&physicalPoolName
-    optional uint32 zoneID = 7;
-    optional string zoneName = 4;
+    optional uint32 zoneID = 6;
+    optional string zoneName = 7;
     optional uint32 physicalPoolID = 8;
-    optional string physicalPoolName = 5; //physicalPoolName is unique
-    required string desc = 6;
+    optional string physicalPoolName = 9; //physicalPoolName is unique
+    required string desc = 10;
 }
 
 message ServerRegistResponse {
@@ -131,6 +138,7 @@ message GetServerRequest {
     optional uint32 serverID = 1;
     optional string hostName = 2;
     optional string hostIp = 3;
+    optional uint32 port = 4;
 }
 
 message GetServerResponse {
@@ -165,7 +173,8 @@ message ZoneInfo {
     required uint32 zoneID  = 1;
     required string zoneName = 2;
     required uint32 physicalPoolID = 3;
-    optional string desc = 4;
+    required string physicalPoolName = 4;
+    optional string desc = 5;
 }
 
 message ZoneRequest {

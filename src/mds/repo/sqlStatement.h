@@ -45,7 +45,9 @@ const char CreateServerTable[] =
     "    `serverID`          int           NOT NULL PRIMARY KEY COMMENT 'server id',\n" //NOLINT
     "    `hostName`          varchar(32)   NOT NULL COMMENT 'host name',\n"
     "    `internalHostIP`    varchar(16)   NOT NULL COMMENT 'internal host ip',\n"      //NOLINT
+    "    `internalPort`      int           NOT NULL COMMENT 'internal port',\n"
     "    `externalHostIP`    varchar(16)   NOT NULL COMMENT 'external host ip',\n"      //NOLINT
+    "    `externalPort`      int           NOT NULL COMMENT 'external port',\n"
     "    `zoneID`            int           NOT NULL COMMENT 'zone id it belongs to',\n" //NOLINT
     "    `poolID`            int           NOT NULL COMMENT 'pool id it belongs to',\n" //NOLINT
     "    `desc`              varchar(128)  NOT NULL COMMENT 'description of server',\n" //NOLINT
@@ -79,7 +81,8 @@ const char CreateLogicalPoolTable[] =
     "    `createTime`         bigint       NOT NULL COMMENT 'create time',\n"
     "    `status`             tinyint      NOT NULL COMMENT 'status',\n"
     "    `redundanceAndPlacementPolicy`    json     NOT NULL COMMENT 'policy of redundance and placement',\n"   //NOLINT
-    "    `userPolicy`         json         NOT NULL COMMENT 'user policy'\n"
+    "    `userPolicy`         json         NOT NULL COMMENT 'user policy',\n"
+    "    `availFlag`          boolean      NOT NULL COMMENT 'available flag'\n"
     ")COMMENT='logical pool';";
 
 const char CreateCopySetTable[] =

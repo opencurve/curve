@@ -64,7 +64,8 @@ class TestTopoloyAdmin : public ::testing::Test {
                 type,
                 rap,
                 policy,
-                createTime);
+                createTime,
+                true);
 
         EXPECT_CALL(*storage_, StorageLogicalPool(_))
             .WillOnce(Return(true));
@@ -110,7 +111,9 @@ class TestTopoloyAdmin : public ::testing::Test {
         Server server(id,
                 hostName,
                 internalHostIp,
+                0,
                 externalHostIp,
+                0,
                 zoneId,
                 physicalPoolId,
                 desc);

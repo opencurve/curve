@@ -38,8 +38,8 @@ std::string TopologyImpl::AllocateToken() {
 }
 
 int TopologyImpl::AddLogicalPool(const LogicalPool &data) {
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
+    ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
+    WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
     auto it = physicalPoolMap_.find(data.GetPhysicalPoolId());
     if (it != physicalPoolMap_.end()) {
         if (logicalPoolMap_.find(data.GetId()) == logicalPoolMap_.end()) {
@@ -57,7 +57,7 @@ int TopologyImpl::AddLogicalPool(const LogicalPool &data) {
 }
 
 int TopologyImpl::AddPhysicalPool(const PhysicalPool &data) {
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     if (physicalPoolMap_.find(data.GetId()) == physicalPoolMap_.end()) {
         if (!storage_->StoragePhysicalPool(data)) {
             return kTopoErrCodeStorgeFail;
@@ -70,8 +70,8 @@ int TopologyImpl::AddPhysicalPool(const PhysicalPool &data) {
 }
 
 int TopologyImpl::AddZone(const Zone &data) {
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
+    ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
+    WriteLockGuard wlockZone(zoneMutex_);
     auto it = physicalPoolMap_.find(data.GetPhysicalPoolId());
     if (it != physicalPoolMap_.end()) {
         if (zoneMap_.find(data.GetId()) == zoneMap_.end()) {
@@ -90,8 +90,8 @@ int TopologyImpl::AddZone(const Zone &data) {
 }
 
 int TopologyImpl::AddServer(const Server &data) {
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
+    ReadLockGuard rlockZone(zoneMutex_);
+    WriteLockGuard wlockServer(serverMutex_);
     auto it = zoneMap_.find(data.GetZoneId());
     if (it != zoneMap_.end()) {
         if (serverMap_.find(data.GetId()) == serverMap_.end()) {
@@ -110,8 +110,8 @@ int TopologyImpl::AddServer(const Server &data) {
 }
 
 int TopologyImpl::AddChunkServer(const ChunkServer &data) {
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
+    ReadLockGuard rlockServer(serverMutex_);
+    WriteLockGuard wlockChunkServer(chunkServerMutex_);
     auto it = serverMap_.find(data.GetServerId());
     if (it != serverMap_.end()) {
         if (chunkServerMap_.find(data.GetId()) == chunkServerMap_.end()) {
@@ -130,7 +130,7 @@ int TopologyImpl::AddChunkServer(const ChunkServer &data) {
 }
 
 int TopologyImpl::RemoveLogicalPool(PoolIdType id) {
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
+    WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
     auto it = logicalPoolMap_.find(id);
     if (it != logicalPoolMap_.end()) {
         if (!storage_->DeleteLogicalPool(id)) {
@@ -144,7 +144,7 @@ int TopologyImpl::RemoveLogicalPool(PoolIdType id) {
 }
 
 int TopologyImpl::RemovePhysicalPool(PoolIdType id) {
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(id);
     if (it != physicalPoolMap_.end()) {
         if (!storage_->DeletePhysicalPool(id)) {
@@ -158,8 +158,8 @@ int TopologyImpl::RemovePhysicalPool(PoolIdType id) {
 }
 
 int TopologyImpl::RemoveZone(ZoneIdType id) {
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
+    WriteLockGuard wlockZone(zoneMutex_);
     auto it = zoneMap_.find(id);
     if (it != zoneMap_.end()) {
         if (!storage_->DeleteZone(id)) {
@@ -177,8 +177,8 @@ int TopologyImpl::RemoveZone(ZoneIdType id) {
 }
 
 int TopologyImpl::RemoveServer(ServerIdType id) {
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
+    WriteLockGuard wlockZone(zoneMutex_);
+    WriteLockGuard wlockServer(serverMutex_);
     auto it = serverMap_.find(id);
     if (it != serverMap_.end()) {
         if (!storage_->DeleteServer(id)) {
@@ -196,8 +196,8 @@ int TopologyImpl::RemoveServer(ServerIdType id) {
 }
 
 int TopologyImpl::RemoveChunkServer(ChunkServerIdType id) {
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
+    WriteLockGuard wlockServer(serverMutex_);
+    WriteLockGuard wlockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
         if (!storage_->DeleteChunkServer(id)) {
@@ -215,7 +215,7 @@ int TopologyImpl::RemoveChunkServer(ChunkServerIdType id) {
 }
 
 int TopologyImpl::UpdateLogicalPool(const LogicalPool &data) {
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
+    WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
     auto it = logicalPoolMap_.find(data.GetId());
     if (it != logicalPoolMap_.end()) {
         if (!storage_->UpdateLogicalPool(data)) {
@@ -229,7 +229,7 @@ int TopologyImpl::UpdateLogicalPool(const LogicalPool &data) {
 }
 
 int TopologyImpl::UpdatePhysicalPool(const PhysicalPool &data) {
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(data.GetId());
     if (it != physicalPoolMap_.end()) {
         if (!storage_->UpdatePhysicalPool(data)) {
@@ -243,7 +243,7 @@ int TopologyImpl::UpdatePhysicalPool(const PhysicalPool &data) {
 }
 
 int TopologyImpl::UpdateZone(const Zone &data) {
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
+    WriteLockGuard wlockZone(zoneMutex_);
     auto it = zoneMap_.find(data.GetId());
     if (it != zoneMap_.end()) {
         if (!storage_->UpdateZone(data)) {
@@ -257,7 +257,7 @@ int TopologyImpl::UpdateZone(const Zone &data) {
 }
 
 int TopologyImpl::UpdateServer(const Server &data) {
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
+    WriteLockGuard wlockServer(serverMutex_);
     auto it = serverMap_.find(data.GetId());
     if (it != serverMap_.end()) {
         if (!storage_->UpdateServer(data)) {
@@ -272,7 +272,7 @@ int TopologyImpl::UpdateServer(const Server &data) {
 
 // 更新内存并持久化全部数据
 int TopologyImpl::UpdateChunkServer(const ChunkServer &data) {
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
+    WriteLockGuard wlockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(data.GetId());
     if (it != chunkServerMap_.end()) {
         if (!storage_->UpdateChunkServer(data)) {
@@ -288,7 +288,7 @@ int TopologyImpl::UpdateChunkServer(const ChunkServer &data) {
 // 更新内存，定期持久化数据
 int TopologyImpl::UpdateChunkServerState(const ChunkServerState &state,
                                          ChunkServerIdType id) {
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
+    WriteLockGuard wlockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
         timeval now;
@@ -314,7 +314,7 @@ PoolIdType TopologyImpl::FindLogicalPool(
     const std::string &logicalPoolName,
     const std::string &physicalPoolName) const {
     PoolIdType physicalPoolId = FindPhysicalPool(physicalPoolName);
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
+    ReadLockGuard rlockLogicalPool(logicalPoolMutex_);
     for (auto it = logicalPoolMap_.begin();
          it != logicalPoolMap_.end();
          it++) {
@@ -328,7 +328,7 @@ PoolIdType TopologyImpl::FindLogicalPool(
 
 PoolIdType TopologyImpl::FindPhysicalPool(
     const std::string &physicalPoolName) const {
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
+    ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
     for (auto it = physicalPoolMap_.begin();
          it != physicalPoolMap_.end();
          it++) {
@@ -347,7 +347,7 @@ ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
 
 ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
                                   PoolIdType physicalPoolId) const {
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
+    ReadLockGuard rlockZone(zoneMutex_);
     for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
         if ((it->second.GetPhysicalPoolId() == physicalPoolId) &&
             (it->second.GetName() == zoneName)) {
@@ -359,7 +359,7 @@ ZoneIdType TopologyImpl::FindZone(const std::string &zoneName,
 
 ServerIdType TopologyImpl::FindServerByHostName(
     const std::string &hostName) const {
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
+    ReadLockGuard rlockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
         if (it->second.GetHostName() == hostName) {
             return it->first;
@@ -368,12 +368,23 @@ ServerIdType TopologyImpl::FindServerByHostName(
     return static_cast<ServerIdType>(UNINTIALIZE_ID);
 }
 
-ServerIdType TopologyImpl::FindServerByHostIp(const std::string &hostIp) const {
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
+ServerIdType TopologyImpl::FindServerByHostIpPort(
+    const std::string &hostIp,
+    uint32_t port) const {
+    ReadLockGuard rlockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
-        if ((it->second.GetInternalHostIp() == hostIp) ||
-            (it->second.GetExternalHostIp() == hostIp)) {
-            return it->first;
+        if (it->second.GetInternalHostIp() == hostIp) {
+            if (0 == it->second.GetInternalPort()) {
+                return it->first;
+            } else if (port == it->second.GetInternalPort()) {
+                return it->first;
+            }
+        } else if (it->second.GetExternalHostIp() == hostIp) {
+            if (0 == it->second.GetExternalPort()) {
+                return it->first;
+            } else if (port == it->second.GetExternalPort()) {
+                return it->first;
+            }
         }
     }
     return static_cast<ServerIdType>(UNINTIALIZE_ID);
@@ -381,8 +392,8 @@ ServerIdType TopologyImpl::FindServerByHostIp(const std::string &hostIp) const {
 
 ChunkServerIdType TopologyImpl::FindChunkServer(const std::string &hostIp,
                                                 uint32_t port) const {
-    ServerIdType serverId = FindServerByHostIp(hostIp);
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
+    ServerIdType serverId = FindServerByHostIpPort(hostIp, port);
+    ReadLockGuard rlockChunkServer(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
          it != chunkServerMap_.end();
          it++) {
@@ -395,7 +406,7 @@ ChunkServerIdType TopologyImpl::FindChunkServer(const std::string &hostIp,
 }
 
 bool TopologyImpl::GetLogicalPool(PoolIdType poolId, LogicalPool *out) const {
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
+    ReadLockGuard rlockLogicalPool(logicalPoolMutex_);
     auto it = logicalPoolMap_.find(poolId);
     if (it != logicalPoolMap_.end()) {
         *out = it->second;
@@ -405,7 +416,7 @@ bool TopologyImpl::GetLogicalPool(PoolIdType poolId, LogicalPool *out) const {
 }
 
 bool TopologyImpl::GetPhysicalPool(PoolIdType poolId, PhysicalPool *out) const {
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
+    ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(poolId);
     if (it != physicalPoolMap_.end()) {
         *out = it->second;
@@ -415,7 +426,7 @@ bool TopologyImpl::GetPhysicalPool(PoolIdType poolId, PhysicalPool *out) const {
 }
 
 bool TopologyImpl::GetZone(ZoneIdType zoneId, Zone *out) const {
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
+    ReadLockGuard rlockZone(zoneMutex_);
     auto it = zoneMap_.find(zoneId);
     if (it != zoneMap_.end()) {
         *out = it->second;
@@ -425,7 +436,7 @@ bool TopologyImpl::GetZone(ZoneIdType zoneId, Zone *out) const {
 }
 
 bool TopologyImpl::GetServer(ServerIdType serverId, Server *out) const {
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
+    ReadLockGuard rlockServer(serverMutex_);
     auto it = serverMap_.find(serverId);
     if (it != serverMap_.end()) {
         *out = it->second;
@@ -436,7 +447,7 @@ bool TopologyImpl::GetServer(ServerIdType serverId, Server *out) const {
 
 bool TopologyImpl::GetChunkServer(ChunkServerIdType chunkserverId,
                                   ChunkServer *out) const {
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
+    ReadLockGuard rlockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(chunkserverId);
     if (it != chunkServerMap_.end()) {
         *out = it->second;
@@ -453,7 +464,7 @@ bool TopologyImpl::GetChunkServer(ChunkServerIdType chunkserverId,
 
 std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInCluster() const {
     std::list<ChunkServerIdType> ret;
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
+    ReadLockGuard rlockChunkServer(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
          it != chunkServerMap_.end();
          it++) {
@@ -464,7 +475,7 @@ std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInCluster() const {
 
 std::list<ServerIdType> TopologyImpl::GetServerInCluster() const {
     std::list<ServerIdType> ret;
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
+    ReadLockGuard rlockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
         ret.push_back(it->first);
     }
@@ -473,7 +484,7 @@ std::list<ServerIdType> TopologyImpl::GetServerInCluster() const {
 
 std::list<ZoneIdType> TopologyImpl::GetZoneInCluster() const {
     std::list<ZoneIdType> ret;
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
+    ReadLockGuard rlockZone(zoneMutex_);
     for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
         ret.push_back(it->first);
     }
@@ -482,7 +493,7 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInCluster() const {
 
 std::list<PoolIdType> TopologyImpl::GetPhysicalPoolInCluster() const {
     std::list<PoolIdType> ret;
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
+    ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
     for (auto it = physicalPoolMap_.begin();
          it != physicalPoolMap_.end();
          it++) {
@@ -493,7 +504,7 @@ std::list<PoolIdType> TopologyImpl::GetPhysicalPoolInCluster() const {
 
 std::list<PoolIdType> TopologyImpl::GetLogicalPoolInCluster() const {
     std::list<PoolIdType> ret;
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
+    ReadLockGuard rlockLogicalPool(logicalPoolMutex_);
     for (auto it = logicalPoolMap_.begin();
          it != logicalPoolMap_.end();
          it++) {
@@ -563,7 +574,7 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInPhysicalPool(PoolIdType id) const {
 std::list<PoolIdType> TopologyImpl::GetLogicalPoolInPhysicalPool(
     PoolIdType id) const {
     std::list<PoolIdType> ret;
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
+    ReadLockGuard rlockLogicalPool(logicalPoolMutex_);
     for (auto it = logicalPoolMap_.begin(); it != logicalPoolMap_.end(); it++) {
         if (it->second.GetPhysicalPoolId() == id) {
             ret.push_back(it->first);
@@ -599,12 +610,12 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInLogicalPool(PoolIdType id) const {
 }
 
 int TopologyImpl::init() {
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
+    WriteLockGuard wlockZone(zoneMutex_);
+    WriteLockGuard wlockServer(serverMutex_);
+    WriteLockGuard wlockChunkServer(chunkServerMutex_);
+    WriteLockGuard wlockCopySet(copySetMutex_);
 
     PoolIdType maxLogicalPoolId;
     if (!storage_->LoadLogicalPool(&logicalPoolMap_, &maxLogicalPoolId)) {
@@ -663,16 +674,49 @@ int TopologyImpl::init() {
         serverMap_[sId].AddChunkServer(it.first);
     }
 
+    // remove invalid copyset and logicalPool
+    int ret = CleanInvalidLogicalPoolAndCopyset();
+
+    if (kTopoErrCodeSuccess != ret) {
+        LOG(ERROR) << "CleanInvalidLogicalPoolAndCopyset error, ret = " << ret;
+        return ret;
+    }
+
     return kTopoErrCodeSuccess;
 }
+
+int TopologyImpl::CleanInvalidLogicalPoolAndCopyset() {
+    for (auto ix = logicalPoolMap_.begin(); ix != logicalPoolMap_.end();) {
+        if (false == ix->second.GetLogicalPoolAvaliableFlag()) {
+            for (auto it = copySetMap_.begin(); it != copySetMap_.end();) {
+                if (it->second.GetLogicalPoolId() == ix->first) {
+                    if (!storage_->DeleteCopySet(it->first)) {
+                        return kTopoErrCodeStorgeFail;
+                    }
+                    it = copySetMap_.erase(it);
+                } else {
+                    it++;
+                }
+            }
+            if (!storage_->DeleteLogicalPool(ix->first)) {
+                return kTopoErrCodeStorgeFail;
+            }
+            ix = logicalPoolMap_.erase(ix);
+        } else {
+            ix++;
+        }
+    }
+    return kTopoErrCodeSuccess;
+}
+
 
 CopySetIdType TopologyImpl::AllocateCopySetId(PoolIdType logicalPoolId) {
     return idGenerator_->GenCopySetId(logicalPoolId);
 }
 
 int TopologyImpl::AddCopySet(const CopySetInfo &data) {
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    ReadLockGuard rlockLogicalPool(logicalPoolMutex_);
+    WriteLockGuard wlockCopySet(copySetMutex_);
     auto it = logicalPoolMap_.find(data.GetLogicalPoolId());
     if (it != logicalPoolMap_.end()) {
         CopySetKey key(data.GetLogicalPoolId(), data.GetId());
@@ -690,48 +734,8 @@ int TopologyImpl::AddCopySet(const CopySetInfo &data) {
     }
 }
 
-// TODO(xuchaojie): 优化该逻辑，移除下述事物操作
-int TopologyImpl::AddCopySetList(const std::vector<CopySetInfo> &copysets) {
-    // 获取所有的锁，数据库事务操作时不允许其他数据库操作
-    std::lock_guard<curve::common::mutex> lockLogicalPool(logicalPoolMutex_);
-    std::lock_guard<curve::common::mutex> lockPhysicalPool(physicalPoolMutex_);
-    std::lock_guard<curve::common::mutex> lockZone(zoneMutex_);
-    std::lock_guard<curve::common::mutex> lockServer(serverMutex_);
-    std::lock_guard<curve::common::mutex> lockChunkServer(chunkServerMutex_);
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
-    for (const CopySetInfo &data : copysets) {
-        auto it = logicalPoolMap_.find(data.GetLogicalPoolId());
-        if (it != logicalPoolMap_.end()) {
-            CopySetKey key(data.GetLogicalPoolId(), data.GetId());
-            if (copySetMap_.find(key) != copySetMap_.end()) {
-                return kTopoErrCodeIdDuplicated;
-            }
-        } else {
-            return kTopoErrCodeLogicalPoolNotFound;
-        }
-    }
-
-    bool success = true;
-    for (const CopySetInfo &data : copysets) {
-        if (!storage_->StorageCopySet(data)) {
-            success = false;
-            break;
-        }
-    }
-
-    if (success) {
-        for (const CopySetInfo &data : copysets) {
-            CopySetKey key(data.GetLogicalPoolId(), data.GetId());
-            copySetMap_[key] = data;
-        }
-        return kTopoErrCodeSuccess;
-    } else {
-        return kTopoErrCodeStorgeFail;
-    }
-}
-
 int TopologyImpl::RemoveCopySet(CopySetKey key) {
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    WriteLockGuard wlockCopySet(copySetMutex_);
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
         if (!storage_->DeleteCopySet(key)) {
@@ -745,7 +749,7 @@ int TopologyImpl::RemoveCopySet(CopySetKey key) {
 }
 
 int TopologyImpl::UpdateCopySet(const CopySetInfo &data) {
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    WriteLockGuard wlockCopySet(copySetMutex_);
     CopySetKey key(data.GetLogicalPoolId(), data.GetId());
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
@@ -760,7 +764,7 @@ int TopologyImpl::UpdateCopySet(const CopySetInfo &data) {
 }
 
 bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    ReadLockGuard rlockCopySet(copySetMutex_);
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
         *out = it->second;
@@ -773,7 +777,7 @@ bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
 std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
     PoolIdType logicalPoolId) const {
     std::vector<CopySetIdType> ret;
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto it : copySetMap_) {
         if (it.first.first == logicalPoolId) {
             ret.push_back(it.first.second);
@@ -784,7 +788,7 @@ std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
 
 std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster() const {
     std::vector<CopySetKey> ret;
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto it : copySetMap_) {
         ret.push_back(it.first);
     }
@@ -794,7 +798,7 @@ std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster() const {
 std::vector<CopySetKey> TopologyImpl::GetCopySetsInChunkServer(
     ChunkServerIdType id) const {
     std::vector<CopySetKey> ret;
-    std::lock_guard<curve::common::mutex> lockCopySet(copySetMutex_);
+    ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto it : copySetMap_) {
         if (it.second.GetCopySetMembers().count(id) > 0) {
             ret.push_back(it.first);

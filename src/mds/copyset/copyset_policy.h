@@ -51,6 +51,11 @@ class ClusterInfo {
     ClusterInfo() {}
     virtual ~ClusterInfo() {}
 
+    ClusterInfo(const ClusterInfo&) = default;
+    ClusterInfo(ClusterInfo&&) = default;
+    ClusterInfo& operator=(const ClusterInfo&) = default;
+    ClusterInfo& operator=(ClusterInfo&&) = default;
+
     bool GetChunkServerInfo(curve::mds::topology::ChunkServerIdType id,
         ChunkServerInfo* out) const {
         for (auto& server : csInfo_) {

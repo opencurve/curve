@@ -204,14 +204,18 @@ ServerRepo::ServerRepo(uint32_t id) {
 ServerRepo::ServerRepo(uint32_t id,
                        const std::string &host,
                        const std::string &inIp,
+                       uint32_t inPort,
                        const std::string &exIp,
+                       uint32_t exPort,
                        uint16_t zoneID,
                        uint16_t poolID,
                        const std::string &desc) {
     this->serverID = id;
     this->hostName = host;
     this->internalHostIP = inIp;
+    this->internalPort = inPort;
     this->externalHostIP = exIp;
+    this->externalPort = exPort;
     this->zoneID = zoneID;
     this->poolID = poolID;
     this->desc = desc;
@@ -230,7 +234,9 @@ void ServerRepo::getKV(std::map<std::string, std::string> (*kv)) const {
     ((*kv))["serverID"] = std::to_string(serverID);
     ((*kv))["hostName"] = convertToSqlValue(hostName);
     ((*kv))["internalHostIP"] = convertToSqlValue(internalHostIP);
+    ((*kv))["internalPort"] = std::to_string(internalPort);
     ((*kv))["externalHostIP"] = convertToSqlValue(externalHostIP);
+    ((*kv))["externalPort"] = std::to_string(externalPort);
     ((*kv))["zoneID"] = std::to_string(zoneID);
     ((*kv))["poolID"] = std::to_string(poolID);
     ((*kv))["`desc`"] = convertToSqlValue(desc);
@@ -293,7 +299,8 @@ LogicalPoolRepo::LogicalPoolRepo(uint16_t logicalID,
                                  int64_t createTime,
                                  uint8_t status,
                                  const std::string &reduancePolicy,
-                                 const std::string &userPolicy) {
+                                 const std::string &userPolicy,
+                                 bool availFlag) {
     this->logicalPoolID = logicalID;
     this->logicalPoolName = logicalName;
     this->physicalPoolID = physicalID;
@@ -302,8 +309,10 @@ LogicalPoolRepo::LogicalPoolRepo(uint16_t logicalID,
     this->status = status;
     this->redundanceAndPlacementPolicy = reduancePolicy;
     this->userPolicy = userPolicy;
+    this->availFlag = availFlag;
 }
 
+// TODO(lixiaocui): 复制操作符的这种重载是不合适的
 bool LogicalPoolRepo::operator==(const curve::repo::LogicalPoolRepo &r) {
     return logicalPoolID == r.logicalPoolID &&
         logicalPoolName == r.logicalPoolName &&
@@ -322,6 +331,7 @@ void LogicalPoolRepo::getKV(std::map<std::string, std::string> (*kv)) const {
     (*kv)["redundanceAndPlacementPolicy"] =
         convertToSqlValue(redundanceAndPlacementPolicy);
     (*kv)["userPolicy"] = convertToSqlValue(userPolicy);
+    (*kv)["availFlag"] = std::to_string(availFlag);
 }
 
 void LogicalPoolRepo::getPrimaryKV(std::map<std::string,
@@ -367,19 +377,12 @@ std::string PhysicalPoolRepo::getTable() const {
 }
 
 // CopySet
-CopySetRepo::CopySetRepo(uint32_t id, uint16_t logicalPoolID) {
-    this->copySetID = id;
-    this->logicalPoolID = logicalPoolID;
-    this->epoch = 0;
-}
-
 CopySetRepo::CopySetRepo(uint32_t id,
                          uint16_t poolID,
-                         const std::string &chunkServerList) {
+                         uint64_t epoch) {
     this->copySetID = id;
     this->logicalPoolID = poolID;
-    this->epoch = 0;
-    this->chunkServerIDList = chunkServerList;
+    this->epoch = epoch;
 }
 
 CopySetRepo::CopySetRepo(uint32_t id,

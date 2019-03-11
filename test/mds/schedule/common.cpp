@@ -37,7 +37,7 @@ namespace schedule {
     policy.pageFileRAP.copysetNum = 10;
     ::curve::mds::topology::LogicalPool::UserPolicy userPolicy;
     ::curve::mds::topology::LogicalPool logicalPool
-        (1, "", 1, LogicalPoolType::PAGEFILE, policy, userPolicy, 1000);
+        (1, "", 1, LogicalPoolType::PAGEFILE, policy, userPolicy, 1000, true);
     return logicalPool;
 }
 }  // namespace schedule

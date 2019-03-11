@@ -99,8 +99,8 @@ TEST_F(TestTopoAdapterImpl, test_same_zone_or_same_server) {
     EXPECT_CALL(*mockTopo_, GetChunkServer(5, _)).WillOnce(Return(true));
 
     // GetServer
-    Server forServer4(4, "", "", "", 2, 1, "");
-    Server forServer5(2, "", "", "", 4, 1, "");
+    Server forServer4(4, "", "", 0, "", 0, 2, 1, "");
+    Server forServer5(2, "", "", 0, "", 0, 4, 1, "");
     EXPECT_CALL(*mockTopo_, GetServer(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(forServer4), Return(true)))
         .WillOnce(DoAll(SetArgPointee<1>(forServer5), Return(true)));
@@ -142,7 +142,7 @@ TEST_F(TestTopoAdapterImpl, test_dissatisfy_healthy) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer5), Return(true)));
 
     // GetServer
-    Server forServer4(4, "", "", "", 4, 1, "");
+    Server forServer4(4, "", "", 0, "", 0, 4, 1, "");
     EXPECT_CALL(*mockTopo_, GetServer(4, _))
         .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(forServer4),
                                        Return(true)));
@@ -236,7 +236,7 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
 
 
     // GetServer
-    Server forServer4(4, "", "", "", 4, 1, "");
+    Server forServer4(4, "", "", 0, "", 0, 4, 1, "");
     EXPECT_CALL(*mockTopo_, GetServer(4, _))
         .WillRepeatedly(DoAll(SetArgPointee<1>(forServer4),
                               Return(true)));
@@ -304,7 +304,7 @@ TEST_F(TestTopoAdapterImpl, test_GetCopySetInfo) {
     ::curve::mds::topology::ChunkServer
         chunkServer4(4, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
 
-    ::curve::mds::topology::Server server(1, "", "", "", 1, 1, "");
+    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
 
     EXPECT_CALL(*mockTopo_, GetCopySet(key, _))
         .WillOnce(Return(false))
@@ -369,7 +369,7 @@ TEST_F(TestTopoAdapterImpl, test_GetCopySetInfos) {
         chunkServer2(2, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
     ::curve::mds::topology::ChunkServer
         chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::Server server(1, "", "", "", 1, 1, "");
+    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
 
     EXPECT_CALL(*mockTopo_, GetCopySet(key1, _))
         .WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)));
@@ -393,7 +393,7 @@ TEST_F(TestTopoAdapterImpl, test_GetCopySetInfos) {
 TEST_F(TestTopoAdapterImpl, test_GetChunkSeverInfo) {
     ::curve::mds::topology::ChunkServer
         chunkServer(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::Server server(1, "", "", "", 1, 1, "");
+    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
 
     EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
         .WillOnce(Return(false))
@@ -419,7 +419,7 @@ TEST_F(TestTopoAdapterImpl, test_GetChunkServerInfos) {
 
     ::curve::mds::topology::ChunkServer
         chunkServer(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::Server server(1, "", "", "", 1, 1, "");
+    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
 
     EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer), Return(true)));
@@ -452,7 +452,7 @@ TEST_F(TestTopoAdapterImpl, test_GetParam) {
     policy.appendFileRAP.zoneNum = 4;
     ::curve::mds::topology::LogicalPool::UserPolicy userPolicy;
     ::curve::mds::topology::LogicalPool logicalPool
-        (1, "", 1, LogicalPoolType::APPENDFILE, policy, userPolicy, 1000);
+        (1, "", 1, LogicalPoolType::APPENDFILE, policy, userPolicy, 1000, true);
     EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
         .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(logicalPool),
                                        Return(true)));
@@ -463,7 +463,8 @@ TEST_F(TestTopoAdapterImpl, test_GetParam) {
     policy.appendECFileRAP.cSegmentNum = 2;
     policy.appendECFileRAP.dSegmentNum = 3;
     ::curve::mds::topology::LogicalPool logicalPool2
-        (1, "", 1, LogicalPoolType::APPENDECFILE, policy, userPolicy, 1000);
+        (1, "", 1, LogicalPoolType::APPENDECFILE, policy, userPolicy, 1000,
+         true);
     EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
         .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(logicalPool2),
                                        Return(true)));

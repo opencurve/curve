@@ -178,7 +178,8 @@ TEST_F(TestTopologyStorage, test_LoadLogicalPool_success) {
         100,
         LogicalPool::ALLOCATABLE,
         "{\"replicaNum\":3, \"copysetNum\":3, \"zoneNum\":3}",
-        "");
+        "",
+        true);
     logicalPoolRepos.push_back(data1);
 
     EXPECT_CALL(*repo_, LoadLogicalPoolRepos(_))
@@ -213,7 +214,8 @@ TEST_F(TestTopologyStorage, test_LoadLogicalPool_IdDuplicated) {
         100,
         LogicalPool::ALLOCATABLE,
         "{\"replicaNum\":3, \"copysetNum\":3, \"zoneNum\":3}",
-        "");
+        "",
+        true);
     logicalPoolRepos.push_back(data1);
     logicalPoolRepos.push_back(data1);
 
@@ -250,7 +252,8 @@ TEST_F(TestTopologyStorage, test_LoadLogicalPool_ParseRapJsonFail) {
         0,
         0,
         "{\"replicaNum\":3, \"copysetNum\":3}",
-        "");
+        "",
+        true);
     logicalPoolRepos.push_back(data1);
 
     EXPECT_CALL(*repo_, LoadLogicalPoolRepos(_))
@@ -377,7 +380,9 @@ TEST_F(TestTopologyStorage, test_LoadServer_success) {
     ServerRepo data(0x31,
         "server1",
         "ip1",
+        0,
         "ip2",
+        0,
         0x21,
         0x11,
         "desc");
@@ -407,7 +412,9 @@ TEST_F(TestTopologyStorage, test_LoadServer_IdDuplicated) {
     ServerRepo data(0x31,
         "server1",
         "ip1",
+        0,
         "ip2",
+        0,
         0x21,
         0x11,
         "desc");
@@ -520,6 +527,7 @@ TEST_F(TestTopologyStorage, test_LoadCopySet_success) {
     std::vector<CopySetRepo> copySetRepos;
     CopySetRepo data(0x51,
         0x01,
+        0,
         "[41, 42, 43]");
     copySetRepos.push_back(data);
     EXPECT_CALL(*repo_, LoadCopySetRepos(_))
@@ -548,6 +556,7 @@ TEST_F(TestTopologyStorage, test_LoadCopySet_IdDuplicated) {
     std::vector<CopySetRepo> copySetRepos;
     CopySetRepo data(0x51,
         0x01,
+        0,
         "[41, 42, 43]");
     copySetRepos.push_back(data);
     copySetRepos.push_back(data);
@@ -576,6 +585,7 @@ TEST_F(TestTopologyStorage, test_LoadCopySet_parseJsonFail) {
     std::vector<CopySetRepo> copySetRepos;
     CopySetRepo data(0x51,
         0x01,
+        0,
         "[41, 42, ab]");
     copySetRepos.push_back(data);
     EXPECT_CALL(*repo_, LoadCopySetRepos(_))

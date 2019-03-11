@@ -15,9 +15,16 @@
 #include "src/mds/copyset/copyset_manager.h"
 #include "src/mds/copyset/copyset_policy.h"
 
+
 namespace curve {
 namespace mds {
 namespace topology {
+
+
+struct ToplogyServiceManagerOption {
+    uint32_t CreateCopysetRpcTimeoutMs;
+    uint32_t CreateCopysetRpcRetryTime;
+};
 
 class TopologyServiceManager {
  public:
@@ -100,19 +107,24 @@ class TopologyServiceManager {
       const CopySetInfo &info, ChunkServerIdType id);
 
  private:
-  int CreateCopysetForLogicalPool(
-      const LogicalPool &lPool);
+    int CreateCopysetForLogicalPool(
+    const LogicalPool &lPool,
+    std::vector<CopySetInfo> *copysetInfos);
 
-  int GenCopysetForPageFilePool(
-      const LogicalPool &lPool,
-      std::vector<CopySetInfo> *copysetInfos);
+    int GenCopysetForPageFilePool(
+        const LogicalPool &lPool,
+        std::vector<CopySetInfo> *copysetInfos);
 
-  virtual int CreateCopysetOnChunkServer(
-      const std::vector<CopySetInfo> &copysetInfos);
+    int CreateCopysetOnChunkServer(
+        const std::vector<CopySetInfo> *copysetInfos);
+
+    int RemoveErrLogicalPoolAndCopyset(const LogicalPool &pool,
+        const std::vector<CopySetInfo> *copysetInfos);
 
  private:
-  std::shared_ptr<Topology> topology_;
-  std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
+    std::shared_ptr<Topology> topology_;
+    std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
+    ToplogyServiceManagerOption option_;
 };
 }  // namespace topology
 }  // namespace mds
