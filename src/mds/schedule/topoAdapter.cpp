@@ -86,6 +86,7 @@ bool CopySetInfo::ContainPeer(ChunkServerIdType id) const {
 
 ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  OnlineState state,
+                                 uint32_t leaderCount,
                                  uint64_t capacity,
                                  uint64_t used,
                                  uint64_t time,
@@ -93,6 +94,7 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  &statisticInfo) {
     this->info = info;
     this->state = state;
+    this->leaderCount = leaderCount,
     this->diskCapacity = capacity;
     this->diskUsed = used;
     this->stateUpdateTime = time;
