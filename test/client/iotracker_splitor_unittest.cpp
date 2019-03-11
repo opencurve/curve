@@ -69,7 +69,9 @@ class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
         fopt.metaserveropt.metaaddrvec.push_back("127.0.0.1:8000");
-        fopt.loglevel = 0;
+        fopt.metaserveropt.rpc_timeout_ms = 500;
+        fopt.metaserveropt.rpc_retry_times = 3;
+        fopt.loginfo.loglevel = 0;
         fopt.ioopt.iosplitopt.io_split_max_size_kb = 64;
         fopt.ioopt.iosenderopt.enable_applied_index_read = 1;
         fopt.ioopt.iosenderopt.rpc_timeout_ms = 500;

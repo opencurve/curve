@@ -22,7 +22,7 @@ SnapshotClient::SnapshotClient() {
 
 LIBCURVE_ERROR SnapshotClient::Init(ClientConfigOption_t clientopt) {
     google::SetCommandLineOption("minloglevel",
-            std::to_string(clientopt.loglevel).c_str());
+            std::to_string(clientopt.loginfo.loglevel).c_str());
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
     do {
         if (mdsclient_.Initialize(clientopt.metaserveropt)

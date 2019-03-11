@@ -50,7 +50,7 @@ TEST(SnapInstance, SnapShotTest) {
     opt.ioopt.iosenderopt.enable_applied_index_read = 1;
     opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
     opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
-    opt.loglevel = 0;
+    opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
@@ -277,7 +277,7 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     opt.ioopt.iosenderopt.enable_applied_index_read = 1;
     opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
     opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
-    opt.loglevel = 0;
+    opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
@@ -322,7 +322,7 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
     opt.ioopt.iosenderopt.enable_applied_index_read = 1;
     opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
     opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
-    opt.loglevel = 0;
+    opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
@@ -357,7 +357,7 @@ TEST(SnapInstance, GetChunkInfoTest) {
     opt.ioopt.iosenderopt.enable_applied_index_read = 1;
     opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
     opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
-    opt.loglevel = 0;
+    opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
