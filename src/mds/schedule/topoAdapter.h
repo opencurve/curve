@@ -14,7 +14,7 @@
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_service_manager.h"
 // #include "src/mds/topology/topology_stat.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "proto/topology.pb.h"
 #include "proto/heartbeat.pb.h"
 

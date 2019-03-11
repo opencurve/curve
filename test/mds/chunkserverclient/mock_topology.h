@@ -12,7 +12,6 @@
 #include <string>
 #include <list>
 #include <vector>
-#include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/common/mds_define.h"
@@ -36,7 +35,7 @@ using ::curve::mds::topology::PhysicalPool;
 
 namespace curve {
 namespace mds {
-namespace schedule {
+namespace topology {
 class MockTopology : public Topology {
  public:
   MockTopology() {}
@@ -177,12 +176,12 @@ class MockTopology : public Topology {
 
   MOCK_CONST_METHOD1(GetCopySetsInLogicalPool,
                      std::vector<CopySetIdType>(PoolIdType logicalPoolId));
-  // TODO(chaojie-schedule): add
+
   MOCK_CONST_METHOD0(GetCopySetsInCluster, std::vector<CopySetKey>());
   MOCK_CONST_METHOD1(GetCopySetsInChunkServer,
                      std::vector<CopySetKey>(ChunkServerIdType id));
 };
-}  // namespace schedule
+}  // namespace topology
 }  // namespace mds
 }  // namespace curve
 #endif  // CURVE_TEST_MDS_SCHEDULE_MOCK_TOPOLOGY_H

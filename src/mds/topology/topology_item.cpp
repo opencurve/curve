@@ -8,8 +8,10 @@
 #include "src/mds/topology/topology_item.h"
 
 #include <string>
+#include <vector>
 
 #include "json/json.h"
+#include "src/common/string_util.h"
 
 namespace curve {
 namespace mds {
@@ -138,6 +140,24 @@ bool CopySetInfo::SetCopySetMembersByJson(const std::string &jsonStr) {
     return true;
 }
 
+
+bool SplitPeerId(
+    const std::string &peerId,
+    std::string *ip,
+    uint32_t *port,
+    uint32_t *idx) {
+    std::vector<std::string> items;
+    curve::common::SplitString(peerId, ":", &items);
+    if (3 == items.size()) {
+        *ip = items[0];
+        *port = std::stoul(items[1]);
+        if (idx != nullptr) {
+            *idx = std::stoul(items[2]);
+        }
+        return true;
+    }
+    return false;
+}
 
 }  // namespace topology
 }  // namespace mds

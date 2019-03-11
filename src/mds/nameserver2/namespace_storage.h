@@ -16,7 +16,7 @@
 #include "proto/nameserver2.pb.h"
 
 #include "src/common/encode.h"
-#include "src/mds/nameserver2/define.h"
+#include "src/mds/common/mds_define.h"
 
 namespace curve {
 namespace mds {

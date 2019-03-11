@@ -17,7 +17,7 @@
 #include "proto/nameserver2.pb.h"
 #include "src/common/rw_lock.h"
 #include "src/common/uuid.h"
-#include "src/mds/nameserver2/define.h"
+#include "src/mds/common/mds_define.h"
 #include "src/mds/repo/repo.h"
 
 

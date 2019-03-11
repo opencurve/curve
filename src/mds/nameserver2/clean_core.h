@@ -10,10 +10,13 @@
 
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/topology/topology.h"
-#include "src/mds/nameserver2/define.h"
+#include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/task_progress.h"
+#include "src/mds/chunkserverclient/copyset_client.h"
 
-using  ::curve::mds::topology::Topology;
+using ::curve::mds::chunkserverclient::CopysetClient;
+using ::curve::mds::topology::TopologyManager;
+using ::curve::mds::topology::Topology;
 
 namespace curve {
 namespace mds {
@@ -22,6 +25,9 @@ class CleanCore {
  public:
     explicit CleanCore(NameServerStorage * storage) {
         storage_ = storage;
+        std::shared_ptr<Topology> topo =
+            TopologyManager::GetInstance()->GetTopology();
+        copysetClient_ = std::make_shared<CopysetClient>(topo);
     }
     /**
      * @brief 删除快照文件，更新task状态
@@ -42,13 +48,8 @@ class CleanCore {
                         TaskProgress* progress);
 
  private:
-    bool DeleteSnapShotChunk(LogicalPoolID logicalPoolId,
-                        PageFileChunkInfo chunk,
-                        SnapShotID snapshotID);
-
- private:
     NameServerStorage *storage_;
-    // TODO(hzsunjianliang): client-for-delete
+    std::shared_ptr<CopysetClient> copysetClient_;
 };
 
 }  // namespace mds

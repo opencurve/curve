@@ -14,7 +14,7 @@
 #include "test/mds/nameserver2/mock_inode_id_generator.h"
 #include "test/mds/nameserver2/mock_chunk_allocate.h"
 #include "test/mds/nameserver2/mock_clean_manager.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "test/mds/nameserver2/mock_repo.h"
 #include "src/common/timeutility.h"
 

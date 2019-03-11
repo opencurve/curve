@@ -583,6 +583,39 @@ class CopySetInfo {
   ChunkServerIdType candidate_;
 };
 
+/**
+ * @brief 生成peerId
+ *
+ * @param ip hostIp
+ * @param port 端口号
+ * @param idx index
+ *
+ * @return peerId
+ */
+inline std::string BuildPeerId(
+    const std::string &ip,
+    uint32_t port,
+    uint32_t idx = 0) {
+    return ip + ":" + std::to_string(port) + ":" + std::to_string(idx);
+}
+
+/**
+ * @brief 拆分peerId
+ *
+ * @param peerId peerId
+ * @param[out] ip hostIp
+ * @param[out] port 端口号
+ * @param[out] idx index
+ *
+ * @retval true success
+ * @retval false fail
+ */
+bool SplitPeerId(
+    const std::string &peerId,
+    std::string *ip,
+    uint32_t *port,
+    uint32_t *idx = nullptr);
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

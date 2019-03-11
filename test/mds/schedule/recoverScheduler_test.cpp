@@ -8,7 +8,7 @@
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/topology/topology_id_generator.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "test/mds/schedule/mock_topoAdapter.h"
 #include "test/mds/schedule/common.h"
 

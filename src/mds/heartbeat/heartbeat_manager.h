@@ -14,7 +14,7 @@
 #include <string>
 
 #include "src/mds/topology/topology_manager.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "src/mds/schedule/coordinator.h"
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/common/rw_lock.h"

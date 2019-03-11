@@ -14,7 +14,7 @@
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/schedule/operatorStep.h"
 #include "src/mds/topology/topology_item.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 
 using ::curve::mds::topology::EpochType;
 using ::curve::mds::topology::CopySetKey;

@@ -14,7 +14,7 @@
 #include <utility>
 #include <map>
 #include <string>
-#include "src/mds/nameserver2/define.h"
+#include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
