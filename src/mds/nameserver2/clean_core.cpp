@@ -37,14 +37,16 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
         LogicalPoolID logicalPoolID = segment.logicalpoolid();
         uint32_t chunkNum = segment.chunks_size();
         for (uint32_t j = 0; j != chunkNum; j++) {
-            SnapShotID snapShotID = static_cast<SnapShotID>(fileInfo.seqnum());
-            if ( false == DeleteSnapShotChunk(logicalPoolID,
-                            segment.chunks()[j],
-                            snapShotID) ) {
+            SeqNum seq = fileInfo.seqnum();
+            int ret = copysetClient_->DeleteSnapShotChunk(logicalPoolID,
+                segment.chunks()[j].copysetid(),
+                segment.chunks()[j].chunkid(),
+                seq);
+            if (ret != 0) {
                 LOG(ERROR) << "CleanSnapShotFile Error: "
                     << "DeleteChunk Error,  filename = "
                     << fileInfo.fullpathname()
-                    << ", sequenceNum = " << snapShotID;
+                    << ", sequenceNum = " << seq;
                 progress->SetStatus(TaskStatus::FAILED);
                 return StatusCode::kSnapshotFileDeleteError;
             }
@@ -81,14 +83,6 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
     progress->SetStatus(TaskStatus::SUCCESS);
     return StatusCode::kOK;
 }
-
-bool CleanCore::DeleteSnapShotChunk(LogicalPoolID logicalPoolId,
-                     PageFileChunkInfo chunk,
-                     SnapShotID snapshotID) {
-    // TODO(hzsunjianliang): xxx
-    return true;
-}
-
 
 void CleanCore::CleanCommonFile(const FileInfo & commonFile,
                                 TaskProgress* progress) {

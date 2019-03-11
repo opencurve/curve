@@ -16,7 +16,7 @@
 #include "src/mds/topology/topology_storge.h"
 #include "src/mds/topology/topology_service_manager.h"
 #include "src/mds/topology/singleton.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "src/mds/copyset/copyset_manager.h"
 #include "src/mds/topology/topology_admin.h"
 #include "test/mds/topology/mock_topology.h"

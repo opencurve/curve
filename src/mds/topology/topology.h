@@ -14,7 +14,7 @@
 #include <map>
 
 #include "proto/topology.pb.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_token_generator.h"

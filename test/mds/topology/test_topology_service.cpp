@@ -14,7 +14,7 @@
 #include <memory>
 
 #include "src/mds/topology/topology_service.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "test/mds/topology/mock_topology.h"
 #include "proto/topology.pb.h"
 

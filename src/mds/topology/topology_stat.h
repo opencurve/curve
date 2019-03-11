@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "src/common/rw_lock.h"
 
 namespace curve {

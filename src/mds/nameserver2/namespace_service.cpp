@@ -233,7 +233,6 @@ void NameSpaceService::ListSnapShot(
                     ::google::protobuf::RpcController* controller,
                     const ::curve::mds::ListSnapShotFileInfoRequest* request,
                     ::curve::mds::ListSnapShotFileInfoResponse* response,
-
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
@@ -281,7 +280,6 @@ void NameSpaceService::DeleteSnapShot(
                     ::google::protobuf::RpcController* controller,
                     const ::curve::mds::DeleteSnapShotRequest* request,
                     ::curve::mds::DeleteSnapShotResponse* resp,
-
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
@@ -334,7 +332,6 @@ void NameSpaceService::GetSnapShotFileSegment(
                     ::google::protobuf::RpcController* controller,
                     const ::curve::mds::GetOrAllocateSegmentRequest* request,
                     ::curve::mds::GetOrAllocateSegmentResponse* response,
-
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);

@@ -6,7 +6,7 @@
  */
 
 #include <glog/logging.h>
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorFactory.h"
 

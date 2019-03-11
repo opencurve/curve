@@ -14,7 +14,7 @@
 #include <map>
 #include <atomic>
 
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 
 namespace curve {
 namespace mds {

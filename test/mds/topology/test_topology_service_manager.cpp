@@ -13,7 +13,7 @@
 
 #include "proto/topology.pb.h"
 #include "src/mds/topology/topology_service_manager.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "test/mds/topology/mock_topology.h"
 
 namespace curve {

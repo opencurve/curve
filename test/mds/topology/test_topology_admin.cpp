@@ -12,7 +12,7 @@
 
 
 #include "src/mds/topology/topology_admin.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "test/mds/topology/mock_topology.h"
 #include "proto/nameserver2.pb.h"
 

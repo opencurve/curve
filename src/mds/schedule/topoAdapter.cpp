@@ -10,7 +10,7 @@
 #include <string>
 #include <map>
 #include "src/mds/schedule/topoAdapter.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 #include "proto/topology.pb.h"
 
 using ::curve::mds::heartbeat::CandidateError;

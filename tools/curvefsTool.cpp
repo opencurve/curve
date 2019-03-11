@@ -16,7 +16,7 @@
 #include <list>
 
 #include "proto/topology.pb.h"
-#include "src/mds/common/topology_define.h"
+#include "src/mds/common/mds_define.h"
 
 DEFINE_string(mds_ip, "127.0.0.1", "mds ip");
 DEFINE_int32(mds_port, 8000, "mds port");
