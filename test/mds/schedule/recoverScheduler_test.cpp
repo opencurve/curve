@@ -90,11 +90,11 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
         .WillRepeatedly(Return(std::vector<CopySetInfo>({testCopySetInfo})));
 
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
-                            100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
-                            100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
-                            100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
     ChunkServerIdType id1 = 1;
     ChunkServerIdType id2 = 2;
     ChunkServerIdType id3 = 3;

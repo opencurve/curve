@@ -685,6 +685,7 @@ TEST(TestCopySetInfo, test_copySetInfo_function) {
 TEST(TestChunkServerInfo, test_onlineState) {
     ChunkServerInfo cs(PeerInfo(1, 1, 1, "", 9000),
                        OnlineState::ONLINE,
+                       2,
                        1,
                        2,
                        1,

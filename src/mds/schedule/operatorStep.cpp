@@ -182,7 +182,7 @@ ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
         LOG(ERROR) << "CopySet(logicalPoolId: " << originInfo.id.first
                    << ",copySetId: " << originInfo.id.second
                    << "), apply remove peer " << this->remove_
-                   << "failed, report err: "
+                   << " failed, report err: "
                    << originInfo.configChangeInfo.err().errmsg();
         return ApplyStatus::Failed;
     }

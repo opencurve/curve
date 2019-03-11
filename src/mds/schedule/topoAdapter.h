@@ -44,7 +44,7 @@ namespace schedule {
 
 struct PeerInfo {
  public:
-  PeerInfo() = default;
+  PeerInfo() : port(0) {}
   PeerInfo(ChunkServerIdType id, ZoneIdType zoneId, ServerIdType sid,
            const std::string &ip, uint32_t port);
 
@@ -96,15 +96,17 @@ struct CopySetInfo {
 
 struct ChunkServerInfo {
  public:
-  ChunkServerInfo() = default;
-  ChunkServerInfo(const PeerInfo &info, OnlineState state, uint64_t capacity,
-                  uint64_t used, uint64_t time,
+  ChunkServerInfo() :
+    leaderCount(0), diskCapacity(0), diskUsed(0), stateUpdateTime(0) {}
+  ChunkServerInfo(const PeerInfo &info, OnlineState state, uint32_t leaderCount,
+                  uint64_t capacity, uint64_t used, uint64_t time,
                   const ChunkServerStatisticInfo &statisticInfo);
 
   bool IsOffline();
 
   PeerInfo info;
   OnlineState state;
+  uint32_t leaderCount;
   uint64_t diskCapacity;
   uint64_t diskUsed;
   uint64_t stateUpdateTime;
