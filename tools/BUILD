@@ -1,6 +1,6 @@
 cc_binary(
         name = "curvefsTool",
-        srcs = ["curvefs.cpp"],
+        srcs = ["curvefsTool.cpp"],
         deps = ["//proto:topology_cc_proto",
                 "//external:gflags",
                 "//src/mds/common:mds_common",

@@ -74,14 +74,16 @@ class LogicalPool {
         physicalPoolId_(UNINTIALIZE_ID),
         type_(PAGEFILE),
         createTime_(0),
-        status_(UNALLOCATABLE) {}
+        status_(UNALLOCATABLE),
+        avaliable_(false) {}
   LogicalPool(PoolIdType id,
               const std::string &name,
               PoolIdType phyPoolId,
               LogicalPoolType type,
               const RedundanceAndPlaceMentPolicy &rap,
               const UserPolicy &policy,
-              uint64_t createTime)
+              uint64_t createTime,
+              bool avaliable)
       : id_(id),
         name_(name),
         physicalPoolId_(phyPoolId),
@@ -89,7 +91,8 @@ class LogicalPool {
         rap_(rap),
         policy_(policy),
         createTime_(createTime),
-        status_(UNALLOCATABLE) {}
+        status_(UNALLOCATABLE),
+        avaliable_(avaliable) {}
 
   PoolIdType GetId() const {
       return id_;
@@ -139,6 +142,14 @@ class LogicalPool {
       return status_;
   }
 
+  void SetLogicalPoolAvaliableFlag(bool avaliable) {
+      avaliable_ = avaliable;
+  }
+
+  bool GetLogicalPoolAvaliableFlag() const {
+      return avaliable_;
+  }
+
  private:
   PoolIdType id_;
 
@@ -150,6 +161,7 @@ class LogicalPool {
 
   uint64_t createTime_;
   LogicalPoolStatus status_;
+  bool avaliable_;
 };
 
 class PhysicalPool {
@@ -255,21 +267,27 @@ class Server {
       : id_(UNINTIALIZE_ID),
         hostName_(""),
         internalHostIp_(""),
+        internalPort_(0),
         externalHostIp_(""),
+        externalPort_(0),
         zoneId_(UNINTIALIZE_ID),
         physicalPoolId_(UNINTIALIZE_ID),
         desc_("") {}
   Server(ServerIdType id,
          const std::string &hostName,
          const std::string &internalHostIp,
+         uint32_t internalPort,
          const std::string &externalHostIp,
+         uint32_t externalPort,
          ZoneIdType zoneId,
          PoolIdType physicalPoolId,
          const std::string &desc)
       : id_(id),
         hostName_(hostName),
         internalHostIp_(internalHostIp),
+        internalPort_(internalPort),
         externalHostIp_(externalHostIp),
+        externalPort_(externalPort),
         zoneId_(zoneId),
         physicalPoolId_(physicalPoolId),
         desc_(desc) {}
@@ -283,8 +301,14 @@ class Server {
   std::string GetInternalHostIp() const {
       return internalHostIp_;
   }
+  uint32_t GetInternalPort() const {
+      return internalPort_;
+  }
   std::string GetExternalHostIp() const {
       return externalHostIp_;
+  }
+  uint32_t GetExternalPort() const {
+      return externalPort_;
   }
   ZoneIdType GetZoneId() const {
       return zoneId_;
@@ -315,7 +339,9 @@ class Server {
   ServerIdType id_;
   std::string hostName_;
   std::string internalHostIp_;
+  uint32_t internalPort_;
   std::string externalHostIp_;
+  uint32_t externalPort_;
   ZoneIdType zoneId_;
   PoolIdType physicalPoolId_;
   std::string desc_;
@@ -330,7 +356,6 @@ class ChunkServerState {
         onlineState_(OFFLINE),
         diskCapacity_(0),
         diskUsed_(0) {}
-  ~ChunkServerState() {}
 
   void SetDiskState(DiskState state) {
       diskState_ = state;
@@ -486,7 +511,6 @@ class CopySetInfo {
         epoch_(0),
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID) {}
-  ~CopySetInfo() {}
 
   PoolIdType GetLogicalPoolId() const {
       return logicalPoolId_;
@@ -510,6 +534,10 @@ class CopySetInfo {
 
   void SetLeader(ChunkServerIdType leader) {
       leader_ = leader;
+  }
+
+  CopySetKey GetCopySetKey() const {
+      return CopySetKey(logicalPoolId_, copySetId_);
   }
 
   std::set<ChunkServerIdType> GetCopySetMembers() const {

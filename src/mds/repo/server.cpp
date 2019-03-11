@@ -29,7 +29,9 @@ int Repo::LoadServerRepos(std::vector<ServerRepo> *serverList) {
         res->getUInt("serverID"),
         res->getString("hostName"),
         res->getString("internalHostIP"),
+        res->getUInt("internalPort"),
         res->getString("externalHostIP"),
+        res->getUInt("externalPort"),
         static_cast<uint16_t>(res->getUInt("zoneID")),
         static_cast<uint16_t>(res->getUInt("poolID")),
         res->getString("desc")));
@@ -60,7 +62,9 @@ int Repo::QueryServerRepo(curve::repo::ServerIDType id,
     repo->serverID = res->getUInt("serverID");
     repo->hostName = res->getString("hostName");
     repo->internalHostIP = res->getString("internalHostIP");
+    repo->internalPort = res->getUInt("internalPort");
     repo->externalHostIP = res->getString("externalHostIP");
+    repo->externalPort = res->getUInt("externalPort");
     repo->zoneID = static_cast<uint16_t>(res->getInt("zoneID"));
     repo->poolID = static_cast<uint16_t>(res->getInt("poolID"));
     repo->desc = res->getString("desc");

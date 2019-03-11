@@ -10,6 +10,7 @@
 #include "test/mds/topology/mock_topology.h"
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_item.h"
+#include "src/common/configuration.h"
 
 namespace curve {
 namespace mds {
@@ -19,6 +20,7 @@ using ::testing::Return;
 using ::testing::_;
 using ::testing::Contains;
 using ::testing::SetArgPointee;
+using ::curve::common::Configuration;
 
 class TestTopology : public ::testing::Test {
  protected:
@@ -57,7 +59,8 @@ class TestTopology : public ::testing::Test {
                 type,
                 rap,
                 policy,
-                createTime);
+                createTime,
+                true);
 
         EXPECT_CALL(*storage_, StorageLogicalPool(_))
             .WillOnce(Return(true));
@@ -96,14 +99,18 @@ class TestTopology : public ::testing::Test {
     void PrepareAddServer(ServerIdType id = 0x31,
            const std::string &hostName = "testServer",
            const std::string &internalHostIp = "testInternalIp",
+           uint32_t internalPort = 0,
            const std::string &externalHostIp = "testExternalIp",
+           uint32_t externalPort = 0,
            ZoneIdType zoneId = 0x21,
            PoolIdType physicalPoolId = 0x11,
            const std::string &desc = "descServer") {
         Server server(id,
                 hostName,
                 internalHostIp,
+                internalPort,
                 externalHostIp,
+                externalPort,
                 zoneId,
                 physicalPoolId,
                 desc);
@@ -152,6 +159,7 @@ class TestTopology : public ::testing::Test {
     std::shared_ptr<MockTokenGenerator> tokenGenerator_;
     std::shared_ptr<MockStorage> storage_;
     std::shared_ptr<TopologyImpl> topology_;
+    std::shared_ptr<Configuration> conf_;
 };
 
 TEST_F(TestTopology, test_init_success) {
@@ -168,7 +176,7 @@ TEST_F(TestTopology, test_init_success) {
     serverMap_[0x31] = Server();
     chunkServerMap_[0x41] = ChunkServer();
     copySetMap_[std::pair<PoolIdType, CopySetIdType>(0x01, 0x51)] =
-        CopySetInfo();
+        CopySetInfo(0x01, 0x51);
 
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(DoAll(SetArgPointee<0>(logicalPoolMap_),
@@ -196,6 +204,11 @@ TEST_F(TestTopology, test_init_success) {
     EXPECT_CALL(*idGenerator_, initChunkServerIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initCopySetIdGenerator(_));
 
+    EXPECT_CALL(*storage_, DeleteLogicalPool(_))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*storage_, DeleteCopySet(_))
+        .WillOnce(Return(true));
+
     int ret = topology_->init();
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
@@ -204,6 +217,10 @@ TEST_F(TestTopology, test_init_loadLogicalPoolFail) {
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(Return(false));
 
+    std::shared_ptr<Configuration> conf_ =
+        std::make_shared<Configuration>();
+    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
+        600);
     int ret = topology_->init();
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -216,6 +233,10 @@ TEST_F(TestTopology, test_init_LoadPhysicalPoolFail) {
 
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
 
+    std::shared_ptr<Configuration> conf_ =
+        std::make_shared<Configuration>();
+    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
+        600);
     int ret = topology_->init();
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -231,6 +252,10 @@ TEST_F(TestTopology, test_init_LoadZoneFail) {
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
 
+    std::shared_ptr<Configuration> conf_ =
+        std::make_shared<Configuration>();
+    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
+        600);
     int ret = topology_->init();
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -249,6 +274,10 @@ TEST_F(TestTopology, test_init_LoadServerFail) {
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initZoneIdGenerator(_));
 
+    std::shared_ptr<Configuration> conf_ =
+        std::make_shared<Configuration>();
+    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
+        600);
     int ret = topology_->init();
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -270,6 +299,10 @@ TEST_F(TestTopology, test_init_LoadChunkServerFail) {
     EXPECT_CALL(*idGenerator_, initZoneIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initServerIdGenerator(_));
 
+    std::shared_ptr<Configuration> conf_ =
+        std::make_shared<Configuration>();
+    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
+        600);
     int ret = topology_->init();
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -294,6 +327,10 @@ TEST_F(TestTopology, test_init_LoadCopysetFail) {
     EXPECT_CALL(*idGenerator_, initServerIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initChunkServerIdGenerator(_));
 
+    std::shared_ptr<Configuration> conf_ =
+        std::make_shared<Configuration>();
+    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
+        600);
     int ret = topology_->init();
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -307,7 +344,8 @@ TEST_F(TestTopology, test_AddLogicalPool_success) {
             PAGEFILE,
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
-            0);
+            0,
+            true);
 
     EXPECT_CALL(*storage_, StorageLogicalPool(_))
         .WillOnce(Return(true));
@@ -329,7 +367,8 @@ TEST_F(TestTopology, test_AddLogicalPool_IdDuplicated) {
             PAGEFILE,
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
-            0);
+            0,
+            true);
 
     int ret = topology_->AddLogicalPool(pool);
 
@@ -345,7 +384,8 @@ TEST_F(TestTopology, test_AddLogicalPool_StorageFail) {
             PAGEFILE,
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
-            0);
+            0,
+            true);
 
     EXPECT_CALL(*storage_, StorageLogicalPool(_))
         .WillOnce(Return(false));
@@ -364,7 +404,8 @@ TEST_F(TestTopology, test_AddLogicalPool_PhysicalPoolNotFound) {
             PAGEFILE,
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
-            0);
+            0,
+            true);
 
 
     int ret = topology_->AddLogicalPool(pool);
@@ -491,7 +532,9 @@ TEST_F(TestTopology, test_AddServer_success) {
     Server server(id,
            "server1",
            "ip1",
+           0,
            "ip2",
+           0,
            zoneId,
            physicalPoolId,
            "desc");
@@ -518,7 +561,9 @@ TEST_F(TestTopology, test_AddServer_IdDuplicated) {
     Server server(id,
            "server1",
            "ip1",
+           0,
            "ip2",
+           0,
            zoneId,
            physicalPoolId,
            "desc");
@@ -541,7 +586,9 @@ TEST_F(TestTopology, test_AddServer_StorageFail) {
     Server server(id,
            "server1",
            "ip1",
+           0,
            "ip2",
+           0,
            zoneId,
            physicalPoolId,
            "desc");
@@ -559,7 +606,9 @@ TEST_F(TestTopology, test_AddServer_ZoneNotFound) {
     Server server(id,
            "server1",
            "ip1",
+           0,
            "ip2",
+           0,
            zoneId,
            physicalPoolId,
            "desc");
@@ -783,7 +832,9 @@ TEST_F(TestTopology, test_RemoveServer_success) {
     PrepareAddServer(serverId,
             "testSever",
             "ip1",
+            0,
             "ip2",
+            0,
             zoneId);
 
     EXPECT_CALL(*storage_, DeleteServer(_))
@@ -815,7 +866,9 @@ TEST_F(TestTopology, test_RemoveServer_StorageFail) {
     PrepareAddServer(serverId,
             "testSever",
             "ip1",
+            0,
             "ip2",
+            0,
             zoneId);
 
     EXPECT_CALL(*storage_, DeleteServer(_))
@@ -897,7 +950,8 @@ TEST_F(TestTopology, UpdateLogicalPool_success) {
             APPENDFILE,
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
-            0);
+            0,
+            true);
 
     EXPECT_CALL(*storage_, UpdateLogicalPool(_))
         .WillOnce(Return(true));
@@ -920,7 +974,8 @@ TEST_F(TestTopology, UpdateLogicalPool_LogicalPoolNotFound) {
             APPENDFILE,
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
-            0);
+            0,
+            true);
 
     int ret = topology_->UpdateLogicalPool(pool);
 
@@ -946,7 +1001,8 @@ TEST_F(TestTopology, UpdateLogicalPool_StorageFail) {
             APPENDFILE,
             LogicalPool::RedundanceAndPlaceMentPolicy(),
             LogicalPool::UserPolicy(),
-            0);
+            0,
+            true);
 
     EXPECT_CALL(*storage_, UpdateLogicalPool(_))
         .WillOnce(Return(false));
@@ -1072,7 +1128,9 @@ TEST_F(TestTopology, UpdateServer_success) {
     PrepareAddServer(serverId,
             "name1",
             "ip1",
+            0,
             "ip2",
+            0,
             zoneId,
             physicalPoolId,
             "desc1");
@@ -1080,7 +1138,9 @@ TEST_F(TestTopology, UpdateServer_success) {
     Server newServer(serverId,
             "name1",
             "ip1",
+            0,
             "ip2",
+            0,
             zoneId,
             physicalPoolId,
             "desc2");
@@ -1100,7 +1160,9 @@ TEST_F(TestTopology, UpdateServer_ServerNotFound) {
     Server newServer(serverId,
             "name1",
             "ip1",
+            0,
             "ip2",
+            0,
             zoneId,
             physicalPoolId,
             "desc2");
@@ -1118,7 +1180,9 @@ TEST_F(TestTopology, UpdateServer_StorageFail) {
     PrepareAddServer(serverId,
             "name1",
             "ip1",
+            0,
             "ip2",
+            0,
             zoneId,
             physicalPoolId,
             "desc1");
@@ -1126,7 +1190,9 @@ TEST_F(TestTopology, UpdateServer_StorageFail) {
     Server newServer(serverId,
             "name1",
             "ip1",
+            0,
             "ip2",
+            0,
             zoneId,
             physicalPoolId,
             "desc2");
@@ -1178,9 +1244,9 @@ TEST_F(TestTopology, UpdateChunkServer_UpdateServerSuccess) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId);
     PrepareAddServer(serverId, "server1",
-        "ip1", "ip2", zoneId, physicalPoolId);
+        "ip1", 0, "ip2", 0, zoneId, physicalPoolId);
     PrepareAddServer(serverId2, "server2",
-        "ip3", "ip4", zoneId, physicalPoolId);
+        "ip3", 0, "ip4", 0, zoneId, physicalPoolId);
     PrepareAddChunkServer(csId,
             "token",
             "ssd",
@@ -1411,7 +1477,7 @@ TEST_F(TestTopology, FindServerByHostName_ServerNotFound) {
                                         ret);
 }
 
-TEST_F(TestTopology, FindServerByHostIp_success) {
+TEST_F(TestTopology, FindServerByHostIpPort_success) {
     ServerIdType serverId = 0x31;
     std::string hostName = "host1";
     std::string internalHostIp = "ip1";
@@ -1421,12 +1487,14 @@ TEST_F(TestTopology, FindServerByHostIp_success) {
     PrepareAddServer(serverId,
             hostName,
             internalHostIp,
-            externalHostIp);
+            0,
+            externalHostIp,
+            0);
 
-    ServerIdType ret = topology_->FindServerByHostIp(internalHostIp);
+    ServerIdType ret = topology_->FindServerByHostIpPort(internalHostIp, 0);
     ASSERT_EQ(serverId, ret);
 
-    ServerIdType ret2 = topology_->FindServerByHostIp(externalHostIp);
+    ServerIdType ret2 = topology_->FindServerByHostIpPort(externalHostIp, 0);
     ASSERT_EQ(serverId, ret2);
 }
 
@@ -1440,9 +1508,11 @@ TEST_F(TestTopology, FindSeverByHostIp_ServerNotFound) {
     PrepareAddServer(serverId,
             hostName,
             internalHostIp,
-            externalHostIp);
+            0,
+            externalHostIp,
+            0);
 
-    ServerIdType ret = topology_->FindServerByHostIp("ip3");
+    ServerIdType ret = topology_->FindServerByHostIpPort("ip3", 0);
     ASSERT_EQ(static_cast<ServerIdType>(UNINTIALIZE_ID),
                                         ret);
 }
@@ -1460,7 +1530,9 @@ TEST_F(TestTopology, FindChunkServer_success) {
     PrepareAddServer(serverId,
             hostName,
             internalHostIp,
-            externalHostIp);
+            0,
+            externalHostIp,
+            0);
     PrepareAddChunkServer(csId,
             "token",
             "ssd",
@@ -1485,7 +1557,9 @@ TEST_F(TestTopology, FindChunkServer_ChunkServerNotFound) {
     PrepareAddServer(serverId,
             hostName,
             internalHostIp,
-            externalHostIp);
+            0,
+            externalHostIp,
+            0);
     PrepareAddChunkServer(csId,
             "token",
             "ssd",
@@ -1825,7 +1899,8 @@ TEST_F(TestTopology, GetChunkServerInLogicalPool_success) {
 
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddZone(zoneId, "name", physicalPoolId);
-    PrepareAddServer(serverId, "name2", "ip1", "ip2", zoneId, physicalPoolId);
+    PrepareAddServer(
+        serverId, "name2", "ip1", 0, "ip2", 0, zoneId, physicalPoolId);
     PrepareAddChunkServer(csId, "token", "ssd", serverId);
     PrepareAddChunkServer(csId2, "token", "ssd", serverId);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
@@ -1902,9 +1977,12 @@ TEST_F(TestTopology, AddCopySet_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -1932,9 +2010,12 @@ TEST_F(TestTopology, AddCopySet_IdDuplicated) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -1961,9 +2042,12 @@ TEST_F(TestTopology, AddCopySet_LogicalPoolNotFound) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -1989,9 +2073,12 @@ TEST_F(TestTopology, AddCopySet_StorageFail) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2019,9 +2106,12 @@ TEST_F(TestTopology, RemoveCopySet_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1", 0, "127.0.0.1", 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1", 0, "127.0.0.1", 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1", 0, "127.0.0.1", 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2050,9 +2140,12 @@ TEST_F(TestTopology, RemoveCopySet_storageFail) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2081,9 +2174,12 @@ TEST_F(TestTopology, RemoveCopySet_CopySetNotFound) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2109,9 +2205,12 @@ TEST_F(TestTopology, UpdateCopySet_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2147,9 +2246,12 @@ TEST_F(TestTopology, UpdateCopySet_StorageFail) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2185,9 +2287,12 @@ TEST_F(TestTopology, UpdateCopySet_CopySetNotFound) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2221,9 +2326,12 @@ TEST_F(TestTopology, GetCopySet_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2251,9 +2359,12 @@ TEST_F(TestTopology, GetCopySet_CopysetNotFound) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2281,9 +2392,12 @@ TEST_F(TestTopology, GetCopySetsInLogicalPool_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2308,9 +2422,12 @@ TEST_F(TestTopology, GetCopySetsInCluster_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
@@ -2335,9 +2452,12 @@ TEST_F(TestTopology, GetCopySetsInChunkServer_success) {
     PrepareAddZone(0x21, "zone1", physicalPoolId);
     PrepareAddZone(0x22, "zone2", physicalPoolId);
     PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
-    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
-    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddServer(
+        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
+    PrepareAddServer(
+        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
+    PrepareAddServer(
+        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);

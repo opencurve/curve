@@ -83,7 +83,9 @@ struct ServerRepo : public RepoItem {
   uint32_t serverID;
   std::string hostName;
   std::string internalHostIP;
+  uint32_t internalPort;
   std::string externalHostIP;
+  uint32_t externalPort;
   uint16_t zoneID;
   uint16_t poolID;
   std::string desc;
@@ -96,7 +98,9 @@ struct ServerRepo : public RepoItem {
   ServerRepo(uint32_t id,
              const std::string &host,
              const std::string &inIp,
+             uint32_t inPort,
              const std::string &exIp,
+             uint32_t exPort,
              uint16_t zoneID,
              uint16_t poolID,
              const std::string &desc);
@@ -146,6 +150,7 @@ struct LogicalPoolRepo : public RepoItem {
   uint8_t status;
   std::string redundanceAndPlacementPolicy;
   std::string userPolicy;
+  bool availFlag;
 
  public:
   LogicalPoolRepo() = default;
@@ -159,7 +164,8 @@ struct LogicalPoolRepo : public RepoItem {
                   int64_t createTime,
                   uint8_t status,
                   const std::string &reduancePolicy,
-                  const std::string &userPolicy);
+                  const std::string &userPolicy,
+                  bool availFlag);
 
   bool operator==(const LogicalPoolRepo &r);
 
@@ -204,9 +210,9 @@ struct CopySetRepo : public RepoItem {
  public:
   CopySetRepo() = default;
 
-  CopySetRepo(uint32_t id, uint16_t logicalPoolID);
-
-  CopySetRepo(uint32_t id, uint16_t poolID, const std::string &chunkServerList);
+  CopySetRepo(uint32_t id,
+              uint16_t poolID,
+              uint64_t epoch = 0);
 
   CopySetRepo(uint32_t id,
               uint16_t poolID,
