@@ -6,10 +6,10 @@
  */
 
 #include <glog/logging.h>
-#include "src/snapshot/repo/dataBase.h"
+#include "src/repo/dataBase.h"
 
 namespace curve {
-namespace snapshotserver {
+namespace repo {
 DataBase::DataBase(const std::string &user,
                    const std::string &url,
                    const std::string &password) {
@@ -25,6 +25,16 @@ DataBase::~DataBase() {
 
 int DataBase::connectDB() {
     try {
+        /*
+         * get_driver_instance() is not thread-safe.
+         * Either avoid invoking these methods from within multiple threads
+         * at once, or surround the calls with a mutex to prevent simultaneous
+         * execution in multiple threads.
+         * Make sure that you free con, the sql::Connection object,
+         * as soon as you do not need it any more. But do not explicitly
+         * free driver, the connector object.
+         * Connector/C++ takes care of freeing that.
+         */
         sql::Driver *driver;
         driver = get_driver_instance();
         conn_ = driver->connect(url_, user_, password_);
@@ -43,7 +53,11 @@ int DataBase::connectDB() {
 }
 
 int DataBase::Exec(const std::string &sql) {
+    std::lock_guard<std::mutex> guard(mutex_);
     try {
+        if (!CheckConn()) {
+            return ConnLost;
+        }
         statement_->execute(sql::SQLString(sql));
         return OperationOK;
     } catch (sql::SQLException &e) {
@@ -61,7 +75,12 @@ int DataBase::Exec(const std::string &sql) {
 
 // retrun value: rows affected
 int DataBase::ExecUpdate(const std::string &sql) {
+    std::lock_guard<std::mutex> guard(mutex_);
     try {
+        if (!CheckConn()) {
+            return ConnLost;
+        }
+
         statement_->executeUpdate(sql);
         return OperationOK;
     } catch (sql::SQLException &e) {
@@ -76,11 +95,15 @@ int DataBase::ExecUpdate(const std::string &sql) {
     }
 }
 
-// retrun queryResult
+// return queryResult
 int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
     assert(res != nullptr);
-
+    std::lock_guard<std::mutex> guard(mutex_);
     try {
+        if (!CheckConn()) {
+            return ConnLost;
+        }
+
         *res = statement_->executeQuery(sql);
         return OperationOK;
     } catch (sql::SQLException &e) {
@@ -95,5 +118,12 @@ int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
     }
 }
 
-}  // namespace snapshotserver
+bool DataBase::CheckConn() {
+    auto res = conn_->isValid() && !conn_->isClosed();
+    if (!res) {
+        LOG(ERROR) << "database connect situation false";
+    }
+    return res;
+}
+}  // namespace repo
 }  // namespace curve
