@@ -32,8 +32,8 @@ LIBCURVE_ERROR FileClient::Init(const char* configpath) {
         LOG(ERROR) << "config init failed!";
         return LIBCURVE_ERROR::FAILED;
     }
-    google::SetCommandLineOption("minloglevel",
-        std::to_string(clientconfig_.GetFileServiceOption().loglevel).c_str());
+    google::SetCommandLineOption("minloglevel", std::to_string(
+        clientconfig_.GetFileServiceOption().loginfo.loglevel).c_str());
     return LIBCURVE_ERROR::OK;
 }
 

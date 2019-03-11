@@ -79,7 +79,7 @@ int main(int argc, char ** argv) {
     opt.ioopt.metacacheopt.get_leader_retry = 3;
     opt.ioopt.iosenderopt.enable_applied_index_read = 1;
     opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
-    opt.loglevel = 0;
+    opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;
     if (cl.Init(opt) != 0) {
