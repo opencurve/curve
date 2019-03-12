@@ -425,7 +425,7 @@ int prepare_io_context(IoContext *ioCxt) {
     size_t offset, len;
 
     request_generator[tinfo->io_pattern](tinfo, &op, &offset, &len);
-    copyset = copysets[offset / chunk_size % chunks_per_copyset];
+    copyset = copysets[offset / chunk_size % nr_copysets];
 
     ioCxt->req = req;
     ioCxt->resp = new ChunkResponse();
