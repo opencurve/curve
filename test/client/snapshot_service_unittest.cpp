@@ -40,17 +40,17 @@ using curve::client::LogicalPoolCopysetIDInfo;
 
 TEST(SnapInstance, SnapShotTest) {
     ClientConfigOption_t opt;
-    opt.metaserveropt.rpc_timeout_ms = 500;
-    opt.metaserveropt.rpc_retry_times = 3;
-    opt.metaserveropt.metaaddrvec.push_back("127.0.0.1:8000");
-    opt.ioopt.reqschopt.request_scheduler_queue_capacity = 4096;
-    opt.ioopt.reqschopt.request_scheduler_threadpool_size = 2;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    opt.ioopt.metacacheopt.get_leader_retry = 3;
-    opt.ioopt.iosenderopt.enable_applied_index_read = 1;
-    opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
-    opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
+    opt.metaServerOpt.rpcTimeoutMs = 500;
+    opt.metaServerOpt.rpcRetryTimes = 3;
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;
@@ -110,6 +110,7 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(2, seq);
 
     // rpc failed
+    curvefsservice.CleanRetryTimes();
     brpc::Controller cntl;
     cntl.SetFailed(-1, "test fail");
     FakeReturn* fakeret2
@@ -118,6 +119,8 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
                                                         UserInfo("test", "t"),
                                                         &seq));
+    ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
+        curvefsservice.GetRetryTimes());
 
     // set return kFileUnderSnapShot
     ::curve::mds::CheckSnapShotStatusResponse* checkresp4 =
@@ -142,7 +145,19 @@ TEST(SnapInstance, SnapShotTest) {
                                                     UserInfo("", ""),
                                                     seq));
 
+    // snapshot not exist
+    ::curve::mds::DeleteSnapShotResponse noexist_resp;
+    noexist_resp.set_statuscode(::curve::mds::StatusCode::kSnapshotFileNotExists);      // NOLINT
+    FakeReturn* notexist_fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&noexist_resp));
+
+    curvefsservice.SetDeleteSnapShot(notexist_fakeret);
+    ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST, cl.DeleteSnapShot(filename,
+                                                    UserInfo("", ""),
+                                                    seq));
+
     // rpc fail
+    curvefsservice.CleanRetryTimes();
     brpc::Controller delcntl;
     delcntl.SetFailed(-1, "test fail");
     FakeReturn* delfakeret2
@@ -151,6 +166,8 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.DeleteSnapShot(filename,
                                                         UserInfo("test", "t"),
                                                         seq));
+    ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
+        curvefsservice.GetRetryTimes());
 
     // test get SegmentInfo
     // normal getinfo
@@ -205,7 +222,21 @@ TEST(SnapInstance, SnapShotTest) {
     for (int i = 0; i < 256; i ++) {
         ASSERT_EQ(seginfo.chunkvec[i].cid_, i);
     }
+
+    // rpc return not exist
+    curvefsservice.CleanRetryTimes();
+    curve::mds::GetOrAllocateSegmentResponse* getresp =
+            new curve::mds::GetOrAllocateSegmentResponse();
+    getresp->set_statuscode(::curve::mds::StatusCode::kSnapshotFileNotExists);
+    FakeReturn* getfake = new FakeReturn(nullptr,
+                                        static_cast<void*>(getresp));
+    curvefsservice.SetGetSnapshotSegmentInfo(getfake);
+    ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
+            cl.GetSnapshotSegmentInfo(filename, UserInfo("", ""),
+                                        &lpcsIDInfo, 0, 0, &seginfo));
+
     // rpc fail
+    curvefsservice.CleanRetryTimes();
     curve::mds::GetOrAllocateSegmentResponse* getresponse2 =
             new curve::mds::GetOrAllocateSegmentResponse();
     getresponse2->set_statuscode(::curve::mds::StatusCode::kOK);
@@ -217,6 +248,8 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
             cl.GetSnapshotSegmentInfo(filename, UserInfo("test", "t"),
                                         &lpcsIDInfo, 0, 0, &seginfo));
+    ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
+        curvefsservice.GetRetryTimes());
     // test list snapshot
     // normal delete test
     ::curve::mds::ListSnapShotFileInfoResponse listresponse;
@@ -267,6 +300,7 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(fivec[0]->filetype, curve::mds::FileType::INODE_PAGEFILE);
 
     // rpc fail
+    curvefsservice.CleanRetryTimes();
     ::curve::mds::ListSnapShotFileInfoResponse* listresponse1 =
         new ::curve::mds::ListSnapShotFileInfoResponse();
     brpc::Controller listcntl;
@@ -276,6 +310,11 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetListSnapShot(listfakeret2);
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
             cl.GetSnapShot(filename, UserInfo("test", "t"), seq, &sinfo));
+
+    ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
+        curvefsservice.GetRetryTimes());
+
+    curvefsservice.CleanRetryTimes();
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
             cl.ListSnapShot(filename, UserInfo("test", "t"), &seqvec, &fivec));
 /*
@@ -357,15 +396,15 @@ TEST(SnapInstance, SnapShotTest) {
 
 TEST(SnapInstance, ReadChunkSnapshotTest) {
     ClientConfigOption_t opt;
-    opt.metaserveropt.metaaddrvec.push_back("127.0.0.1:8000");
-    opt.ioopt.reqschopt.request_scheduler_queue_capacity = 4096;
-    opt.ioopt.reqschopt.request_scheduler_threadpool_size = 2;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    opt.ioopt.metacacheopt.get_leader_retry = 3;
-    opt.ioopt.iosenderopt.enable_applied_index_read = 1;
-    opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
-    opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;
@@ -402,15 +441,15 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
 
 TEST(SnapInstance, DeleteChunkSnapshotTest) {
     ClientConfigOption_t opt;
-    opt.metaserveropt.metaaddrvec.push_back("127.0.0.1:8000");
-    opt.ioopt.reqschopt.request_scheduler_queue_capacity = 4096;
-    opt.ioopt.reqschopt.request_scheduler_threadpool_size = 2;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    opt.ioopt.metacacheopt.get_leader_retry = 3;
-    opt.ioopt.iosenderopt.enable_applied_index_read = 1;
-    opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
-    opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;
@@ -437,15 +476,15 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
 
 TEST(SnapInstance, GetChunkInfoTest) {
     ClientConfigOption_t opt;
-    opt.metaserveropt.metaaddrvec.push_back("127.0.0.1:8000");
-    opt.ioopt.reqschopt.request_scheduler_queue_capacity = 4096;
-    opt.ioopt.reqschopt.request_scheduler_threadpool_size = 2;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    opt.ioopt.metacacheopt.get_leader_retry = 3;
-    opt.ioopt.iosenderopt.enable_applied_index_read = 1;
-    opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
-    opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;

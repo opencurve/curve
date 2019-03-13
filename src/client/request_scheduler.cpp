@@ -19,17 +19,17 @@ namespace client {
 RequestScheduler::~RequestScheduler() {
 }
 
-int RequestScheduler::Init(RequestScheduleOption_t reqschopt,
+int RequestScheduler::Init(RequestScheduleOption_t reqSchdulerOpt,
                            MetaCache *metaCache) {
-    reqschopt_ = reqschopt;
-    if (0 != queue_.Init(reqschopt_.request_scheduler_queue_capacity)) {
+    reqschopt_ = reqSchdulerOpt;
+    if (0 != queue_.Init(reqschopt_.queueCapacity)) {
         return -1;
     }
-    if (0 != threadPool_.Init(reqschopt_.request_scheduler_threadpool_size,
+    if (0 != threadPool_.Init(reqschopt_.threadpoolSize,
                               std::bind(&RequestScheduler::Process, this))) {
         return -1;
     }
-    if (0 != client_.Init(metaCache, reqschopt_.iosenderopt)) {
+    if (0 != client_.Init(metaCache, reqschopt_.ioSenderOpt)) {
         return -1;
     }
     return 0;

@@ -42,16 +42,16 @@ bool FileInstance::Initialize(UserInfo_t userinfo,
             break;
         }
 
-        if (mdsclient_.Initialize(userinfo, fileopt_.metaserveropt) != 0) {
+        if (mdsclient_.Initialize(userinfo, fileopt_.metaServerOpt) != 0) {
             LOG(ERROR) << "MDSClient init failed!";
             break;
         }
 
-        if (!iomanager4file_.Initialize(fileopt_.ioopt)) {
+        if (!iomanager4file_.Initialize(fileopt_.ioOpt)) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }
-        leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseopt,
+        leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
                                                         &mdsclient_,
                                                         &iomanager4file_);
         if (CURVE_UNLIKELY(leaseexcutor_ == nullptr)) {

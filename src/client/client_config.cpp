@@ -18,42 +18,42 @@ int ClientConfig::Init(const char* configpath) {
 
     fileServiceOption_.loginfo.loglevel = conf_.GetIntValue("loglevel", 2);
 
-    fileServiceOption_.ioopt.iosplitopt.io_split_max_size_kb
-    = conf_.GetIntValue("io_split_max_size_kb", 64);
+    fileServiceOption_.ioOpt.ioSplitOpt.ioSplitMaxSize
+    = conf_.GetIntValue("ioSplitMaxSize", 64);
 
-    fileServiceOption_.ioopt.iosenderopt.enable_applied_index_read
-    = conf_.GetIntValue("enable_applied_index_read", 1);
-    fileServiceOption_.ioopt.iosenderopt.rpc_timeout_ms
-    = conf_.GetIntValue("rpc_timeout_ms", 500);
-    fileServiceOption_.ioopt.iosenderopt.rpc_retry_times
-    = conf_.GetIntValue("rpc_retry_times", 3);
+    fileServiceOption_.ioOpt.ioSenderOpt.enableAppliedIndexRead
+    = conf_.GetIntValue("enableAppliedIndexRead", 1);
+    fileServiceOption_.ioOpt.ioSenderOpt.rpcTimeoutMs
+    = conf_.GetIntValue("rpcTimeoutMs", 500);
+    fileServiceOption_.ioOpt.ioSenderOpt.rpcRetryTimes
+    = conf_.GetIntValue("rpcRetryTimes", 3);
 
-    fileServiceOption_.ioopt.iosenderopt.failreqopt.client_chunk_op_max_retry
-    = conf_.GetIntValue("client_chunk_op_max_retry", 3);
-    fileServiceOption_.ioopt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us   // NOLINT
-    = conf_.GetIntValue("client_chunk_op_retry_interval_us", 500);
+    fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry
+    = conf_.GetIntValue("opMaxRetry", 3);
+    fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs   // NOLINT
+    = conf_.GetIntValue("opRetryIntervalUs", 500);
 
-    fileServiceOption_.ioopt.metacacheopt.get_leader_retry
-    = conf_.GetIntValue("get_leader_retry", 3);
-    fileServiceOption_.ioopt.metacacheopt.get_leader_retry_interval_us
-    = conf_.GetIntValue("get_leader_retry_interval_us", 500);
+    fileServiceOption_.ioOpt.metaCacheOpt.getLeaderRetry
+    = conf_.GetIntValue("getLeaderRetry", 3);
+    fileServiceOption_.ioOpt.metaCacheOpt.retryIntervalUs
+    = conf_.GetIntValue("retryIntervalUs", 500);
 
-    fileServiceOption_.ioopt.reqschopt.request_scheduler_queue_capacity
-    = conf_.GetIntValue("request_scheduler_queue_capacity", 4096);
-    fileServiceOption_.ioopt.reqschopt.request_scheduler_threadpool_size
-    = conf_.GetIntValue("request_scheduler_threadpool_size", 2);
-    fileServiceOption_.ioopt.reqschopt.iosenderopt
-    = fileServiceOption_.ioopt.iosenderopt;
+    fileServiceOption_.ioOpt.reqSchdulerOpt.queueCapacity
+    = conf_.GetIntValue("queueCapacity", 4096);
+    fileServiceOption_.ioOpt.reqSchdulerOpt.threadpoolSize
+    = conf_.GetIntValue("threadpoolSize", 2);
+    fileServiceOption_.ioOpt.reqSchdulerOpt.ioSenderOpt
+    = fileServiceOption_.ioOpt.ioSenderOpt;
 
-    fileServiceOption_.leaseopt.refresh_times_perLease
-    = conf_.GetIntValue("lease_refresh_times_pertime", 4);
+    fileServiceOption_.leaseOpt.refreshTimesPerLease
+    = conf_.GetIntValue("refreshTimesPerLease", 4);
 
-    fileServiceOption_.metaserveropt.metaaddrvec.push_back(conf_.
+    fileServiceOption_.metaServerOpt.metaaddrvec.push_back(conf_.
                                             GetStringValue("metaserver_addr"));
-    fileServiceOption_.metaserveropt.rpc_timeout_ms
-    = conf_.GetIntValue("rpc_timeout_ms", 500);
-    fileServiceOption_.metaserveropt.rpc_retry_times
-    = conf_.GetIntValue("rpc_timeout_ms", 500);
+    fileServiceOption_.metaServerOpt.rpcTimeoutMs
+    = conf_.GetIntValue("rpcTimeoutMs", 500);
+    fileServiceOption_.metaServerOpt.rpcRetryTimes
+    = conf_.GetIntValue("rpcTimeoutMs", 500);
 
     return 0;
 }

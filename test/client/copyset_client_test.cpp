@@ -123,17 +123,17 @@ TEST_F(CopysetClientTest, normal_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t iosenderopt;
-    iosenderopt.rpc_timeout_ms = 5000;
-    iosenderopt.rpc_retry_times = 3;
-    iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    iosenderopt.enable_applied_index_read = 1;
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.rpcTimeoutMs = 5000;
+    ioSenderOpt.rpcRetryTimes = 3;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    ioSenderOpt.enableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, iosenderopt);
+    copysetClient.Init(&mockMetaCache, ioSenderOpt);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -365,17 +365,17 @@ TEST_F(CopysetClientTest, write_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t iosenderopt;
-    iosenderopt.rpc_timeout_ms = 5000;
-    iosenderopt.rpc_retry_times = 3;
-    iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 5000;
-    iosenderopt.enable_applied_index_read = 1;
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.rpcTimeoutMs = 5000;
+    ioSenderOpt.rpcRetryTimes = 3;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
+    ioSenderOpt.enableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, iosenderopt);
+    copysetClient.Init(&mockMetaCache, ioSenderOpt);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -765,17 +765,17 @@ TEST_F(CopysetClientTest, read_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t iosenderopt;
-    iosenderopt.rpc_timeout_ms = 5000;
-    iosenderopt.rpc_retry_times = 3;
-    iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    iosenderopt.enable_applied_index_read = 1;
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.rpcTimeoutMs = 5000;
+    ioSenderOpt.rpcRetryTimes = 3;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    ioSenderOpt.enableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, iosenderopt);
+    copysetClient.Init(&mockMetaCache, ioSenderOpt);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -1193,17 +1193,17 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t iosenderopt;
-    iosenderopt.rpc_timeout_ms = 5000;
-    iosenderopt.rpc_retry_times = 3;
-    iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    iosenderopt.enable_applied_index_read = 1;
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.rpcTimeoutMs = 5000;
+    ioSenderOpt.rpcRetryTimes = 3;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    ioSenderOpt.enableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, iosenderopt);
+    copysetClient.Init(&mockMetaCache, ioSenderOpt);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -1665,17 +1665,17 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t iosenderopt;
-    iosenderopt.rpc_timeout_ms = 5000;
-    iosenderopt.rpc_retry_times = 3;
-    iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    iosenderopt.enable_applied_index_read = 1;
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.rpcTimeoutMs = 5000;
+    ioSenderOpt.rpcRetryTimes = 3;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    ioSenderOpt.enableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, iosenderopt);
+    copysetClient.Init(&mockMetaCache, ioSenderOpt);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -2070,17 +2070,17 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                                   brpc::SERVER_DOESNT_OWN_SERVICE), 0);
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
-    IOSenderOption_t iosenderopt;
-    iosenderopt.rpc_timeout_ms = 5000;
-    iosenderopt.rpc_retry_times = 3;
-    iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    iosenderopt.enable_applied_index_read = 1;
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.rpcTimeoutMs = 5000;
+    ioSenderOpt.rpcRetryTimes = 3;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    ioSenderOpt.enableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, iosenderopt);
+    copysetClient.Init(&mockMetaCache, ioSenderOpt);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;

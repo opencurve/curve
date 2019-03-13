@@ -48,7 +48,7 @@ class LeaseExcutor {
      * @param: mdsclient是与mds续约的client
      * @param: iomanager会在续约失败或者版本变更的时候进行io调度
      */
-    LeaseExcutor(LeaseOption_t leaseopt,
+    LeaseExcutor(LeaseOption_t leaseOpt,
                  MDSClient* mdscllent,
                  IOManager4File* iomanager);
     ~LeaseExcutor() = default;

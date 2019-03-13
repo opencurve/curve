@@ -41,14 +41,14 @@ int main(int argc, char ** argv) {
             std::string configpath = "./client.conf";   // NOLINT
             std::string config = ""\
             "metaserver_addr=127.0.0.1:6666\n" \
-            "get_leader_retry=3\n"\
-            "request_scheduler_queue_capacity=4096\n"\
-            "request_scheduler_threadpool_size=2\n"\
-            "client_chunk_op_retry_interval_us=200000\n"\
-            "client_chunk_op_max_retry=3\n"\
+            "getLeaderRetry=3\n"\
+            "queueCapacity=4096\n"\
+            "threadpoolSize=2\n"\
+            "opRetryIntervalUs=200000\n"\
+            "opMaxRetry=3\n"\
             "pre_allocate_context_num=1024\n"\
-            "io_split_max_size_kb=64\n"\
-            "enable_applied_index_read=1\n"\
+            "ioSplitMaxSize=64\n"\
+            "enableAppliedIndexRead=1\n"\
             "loglevel=0";
 
             int fd_ =  open(configpath.c_str(), O_CREAT | O_RDWR);

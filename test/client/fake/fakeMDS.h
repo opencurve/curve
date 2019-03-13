@@ -28,6 +28,10 @@ using ::curve::mds::topology::ChunkServerRegistResponse;
 
 class FakeMDSCurveFSService : public curve::mds::CurveFSService {
  public:
+    FakeMDSCurveFSService() {
+        retrytimes_ = 0;
+    }
+
     void CreateFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateFileRequest* request,
                        ::curve::mds::CreateFileResponse* response,
@@ -37,6 +41,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
              && fakeCreateFileret_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
+
+        retrytimes_++;
 
         auto resp = static_cast<::curve::mds::CreateFileResponse*>(
                 fakeCreateFileret_->response_);
@@ -52,6 +58,9 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
              fakeGetFileInforet_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
+
+        retrytimes_++;
+
         auto resp = static_cast<::curve::mds::GetFileInfoResponse*>(
                     fakeGetFileInforet_->response_);
         response->CopyFrom(*resp);
@@ -67,6 +76,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             controller->SetFailed("failed");
         }
 
+        retrytimes_++;
+
         auto resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
                     fakeGetOrAllocateSegmentret_->response_);
         response->CopyFrom(*resp);
@@ -77,6 +88,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                 ::curve::mds::OpenFileResponse* response,
                 ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
+
+        retrytimes_++;
 
         auto resp = static_cast<::curve::mds::OpenFileResponse*>(
                     fakeopenfile_->response_);
@@ -116,6 +129,9 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                 LOG(INFO) << "refresh session request!";
             }
         }
+
+        retrytimes_++;
+
         if (refreshtask_)
             refreshtask_();
     }
@@ -129,6 +145,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
              fakecreatesnapshotret_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
+
+        retrytimes_++;
 
         auto resp = static_cast<::curve::mds::CreateSnapShotResponse*>(
                     fakecreatesnapshotret_->response_);
@@ -145,6 +163,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             controller->SetFailed("failed");
         }
 
+        retrytimes_++;
+
         auto resp = static_cast<::curve::mds::ListSnapShotFileInfoResponse*>(
                     fakelistsnapshotret_->response_);
         response->CopyFrom(*resp);
@@ -159,6 +179,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
              fakedeletesnapshotret_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
+
+        retrytimes_++;
 
         auto resp = static_cast<::curve::mds::DeleteSnapShotResponse*>(
                     fakedeletesnapshotret_->response_);
@@ -190,6 +212,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             controller->SetFailed("failed");
         }
 
+        retrytimes_++;
+
         auto resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
                     fakegetsnapsegmentinforet_->response_);
         response->CopyFrom(*resp);
@@ -204,6 +228,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
              fakedeletesnapchunkret_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
+
+        retrytimes_++;
 
         auto resp = static_cast<::curve::chunkserver::ChunkResponse*>(
                     fakedeletesnapchunkret_->response_);
@@ -234,6 +260,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
              fakeclosefile_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
+
+        retrytimes_++;
 
         auto resp = static_cast<::curve::mds::CloseFileResponse*>(
                     fakeclosefile_->response_);
@@ -292,6 +320,16 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     void SetCheckSnap(FakeReturn* fakeret) {
         fakechecksnapshotret_ = fakeret;
     }
+
+    void CleanRetryTimes() {
+        retrytimes_ = 0;
+    }
+
+    uint64_t GetRetryTimes() {
+        return retrytimes_;
+    }
+
+    uint64_t retrytimes_;
 
     FakeReturn* fakeCreateFileret_;
     FakeReturn* fakeGetFileInforet_;

@@ -14,14 +14,14 @@ using curve::common::TimeUtility;
 
 namespace curve {
 namespace client {
-LeaseExcutor::LeaseExcutor(LeaseOption_t leaseopt,
+LeaseExcutor::LeaseExcutor(LeaseOption_t leaseOpt,
                            MDSClient* mdsclient,
                            IOManager4File* iomanager):
                            isleaseAvaliable_(true),
                            failedrefreshcount_(0) {
     mdsclient_   = mdsclient;
     iomanager_   = iomanager;
-    leaseoption_ = leaseopt;
+    leaseoption_ = leaseOpt;
     refreshTask_ = nullptr;
 }
 
@@ -40,7 +40,7 @@ bool LeaseExcutor::Start(FInfo_t fi, LeaseSession_t  lease) {
         this->RefreshLease();
     };
 
-    auto Interval = leasesession_.leaseTime/leaseoption_.refresh_times_perLease;
+    auto Interval = leasesession_.leaseTime/leaseoption_.refreshTimesPerLease;
 
     refreshTask_ = new (std::nothrow) TimerTask(Interval);
     if (refreshTask_ == nullptr) {
@@ -109,7 +109,7 @@ bool LeaseExcutor::LeaseValid() {
 
 void LeaseExcutor::IncremRefreshFailed() {
     failedrefreshcount_.fetch_add(1);
-    if (failedrefreshcount_.load() >= leaseoption_.refresh_times_perLease) {
+    if (failedrefreshcount_.load() >= leaseoption_.refreshTimesPerLease) {
         isleaseAvaliable_.store(false);
         iomanager_->LeaseTimeoutDisableIO();
     }

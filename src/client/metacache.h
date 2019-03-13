@@ -45,7 +45,7 @@ class MetaCache {
      * 初始化函数
      * @param: metacacheopt为当前metacache的配置option信息
      */
-    void Init(MetaCacheOption_t metacacheopt);
+    void Init(MetaCacheOption_t metaCacheOpt);
 
     /**
      * 通过chunk index获取chunkid信息
