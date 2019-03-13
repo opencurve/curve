@@ -47,7 +47,7 @@ struct SnapshotMetaPage {
     bool damaged;
     // 快照版本号
     SequenceNum sn;
-    // 表示当前快照page状态的为图标
+    // 表示当前快照page状态的位图表
     std::shared_ptr<Bitmap> bitmap;
 
     SnapshotMetaPage() : version(FORMAT_VERSION)
@@ -103,18 +103,17 @@ class CSSnapshot {
      * 获取快照版本号
      * @return: 返回快照版本号
      */
-    SequenceNum GetSn();
+    SequenceNum GetSn() const;
     /**
-     * 获取快照文件中指定块的状态
-     * @param pageIndex: 表示指定的块在快照中的偏移，每个块大小为4KB
-     * @return: 如果块被写过返回true，块没被写过返回false
+     * 获取表示快照文件的page状态的位图表
+     * @return: 返回位图表
      */
-    bool IsPageWritten(uint32_t pageIndex);
+    std::shared_ptr<const Bitmap> GetPageStatus() const;
     /**
      * 判断当前快照文件是否已经损坏
      * @return: 损坏返回true，未损坏返回false
      */
-    bool IsDamaged();
+    bool IsDamaged() const;
     /**
      * 标坏当前快照，并将damaged标记，写到pagecache
      * 如果需要刷盘，调用Sync接口

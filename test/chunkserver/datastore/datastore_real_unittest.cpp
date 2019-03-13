@@ -110,16 +110,15 @@ TEST_F(DatastoreRealTest, CombineTest) {
     std::string snap1Path = baseDir + "/" +
         FileNameOperator::GenerateSnapshotName(id, 1);
     CSErrorCode errorCode;
-    vector<SequenceNum> sns;
+    CSChunkInfo info;
 
     // chunk不存在时的相关验证
     {
         // 文件不存在
         ASSERT_FALSE(lfs_->FileExists(chunkPath));
         // 无法获取到chunk的版本号
-        errorCode = dataStore_->GetChunkInfo(id, &sns);
-        ASSERT_EQ(errorCode, CSErrorCode::Success);
-        ASSERT_EQ(0, sns.size());
+        errorCode = dataStore_->GetChunkInfo(id, &info);
+        ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
         // 读chunk时返回ChunkNotExistError
         char readbuf[PAGE_SIZE];
         errorCode = dataStore_->ReadChunk(id, sn, readbuf, offset, length);
@@ -144,10 +143,10 @@ TEST_F(DatastoreRealTest, CombineTest) {
         ASSERT_EQ(9, filePool_->Size());
         ASSERT_TRUE(lfs_->FileExists(chunkPath));
         // 可以获取到chunk的版本号
-        errorCode = dataStore_->GetChunkInfo(id, &sns);
+        errorCode = dataStore_->GetChunkInfo(id, &info);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
-        ASSERT_EQ(1, sns.size());
-        ASSERT_EQ(1, sns[0]);
+        ASSERT_EQ(1, info.curSn);
+        ASSERT_EQ(0, info.snapSn);
         // 读取写入的4KB验证一下,应当与写入数据相等
         char readbuf[PAGE_SIZE];
         errorCode = dataStore_->ReadChunk(id, sn, readbuf, offset, length);
@@ -210,10 +209,10 @@ TEST_F(DatastoreRealTest, CombineTest) {
                                            nullptr);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         // 产生快照文件
-        errorCode = dataStore_->GetChunkInfo(id, &sns);
+        errorCode = dataStore_->GetChunkInfo(id, &info);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
-        ASSERT_EQ(2, sns.size());
-        ASSERT_THAT(sns, UnorderedElementsAre(1, 2));
+        ASSERT_EQ(2, info.curSn);
+        ASSERT_EQ(1, info.snapSn);
         ASSERT_EQ(8, filePool_->Size());
         ASSERT_TRUE(lfs_->FileExists(snap1Path));
         // 为了验证统一区域重复写入只会cow一次，
@@ -255,9 +254,10 @@ TEST_F(DatastoreRealTest, CombineTest) {
         errorCode = dataStore_->DeleteSnapshotChunk(id, sn);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         ASSERT_FALSE(lfs_->FileExists(snap1Path));
-        errorCode = dataStore_->GetChunkInfo(id, &sns);
+        errorCode = dataStore_->GetChunkInfo(id, &info);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
-        ASSERT_THAT(sns, UnorderedElementsAre(2));
+        ASSERT_EQ(2, info.curSn);
+        ASSERT_EQ(0, info.snapSn);
     }
 
     // 模拟上次快照之后从未被写过，然后在新的快照中delete
@@ -266,10 +266,11 @@ TEST_F(DatastoreRealTest, CombineTest) {
         sn = 5;
         errorCode = dataStore_->DeleteSnapshotChunk(id, sn);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
-        errorCode = dataStore_->GetChunkInfo(id, &sns);
+        errorCode = dataStore_->GetChunkInfo(id, &info);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         // 此时chunk的版本仍然为2
-        ASSERT_THAT(sns, UnorderedElementsAre(2));
+        ASSERT_EQ(2, info.curSn);
+        ASSERT_EQ(0, info.snapSn);
         // 删完以后如果有写入操作，不会产生快照文件，但会变更版本号
         offset = 0;
         length = 1024 * PAGE_SIZE;
@@ -283,18 +284,18 @@ TEST_F(DatastoreRealTest, CombineTest) {
         // 此时chunk数据为[0,4MB]:d,[4MB,6MB]:c,[6MB,16MB]:a
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         // chunk 版本号变为5，不会产生快照
-        errorCode = dataStore_->GetChunkInfo(id, &sns);
+        errorCode = dataStore_->GetChunkInfo(id, &info);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
-        ASSERT_THAT(sns, UnorderedElementsAre(5));
+        ASSERT_EQ(5, info.curSn);
+        ASSERT_EQ(0, info.snapSn);
     }
 
     // 模拟删除chunk
     {
         errorCode = dataStore_->DeleteChunk(id, sn);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
-        errorCode = dataStore_->GetChunkInfo(id, &sns);
-        ASSERT_EQ(errorCode, CSErrorCode::Success);
-        ASSERT_EQ(0, sns.size());
+        errorCode = dataStore_->GetChunkInfo(id, &info);
+        ASSERT_EQ(errorCode, CSErrorCode::ChunkNotExistError);
         ASSERT_FALSE(lfs_->FileExists(chunkPath));
     }
 }

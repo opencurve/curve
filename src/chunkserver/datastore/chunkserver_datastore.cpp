@@ -150,8 +150,6 @@ CSErrorCode CSDataStore::ReadSnapshotChunk(ChunkID id,
     if (chunkFile == nullptr) {
         return CSErrorCode::ChunkNotExistError;
     }
-    CSChunkInfo info;
-    chunkFile->GetInfo(&info);
     CSErrorCode errorCode =
         chunkFile->ReadSpecifiedChunk(sn, buf, offset, length);
     if (errorCode != CSErrorCode::Success) {
@@ -192,10 +190,10 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
     }
     // 写chunk文件
     CSErrorCode errorCode = chunkFile->Write(sn,
-                                            buf,
-                                            offset,
-                                            length,
-                                            cost);
+                                             buf,
+                                             offset,
+                                             length,
+                                             cost);
     if (errorCode != CSErrorCode::Success) {
         LOG(ERROR) << "Write chunk file failed."
                    << "ChunkID = " << id;
@@ -204,21 +202,95 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSDataStore::GetChunkInfo(ChunkID id,
-                                      vector<SequenceNum>* sns) {
-    sns->clear();
+CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
+                                          SequenceNum sn,
+                                          SequenceNum correctedSn,
+                                          ChunkSizeType size,
+                                          const string& location) {
+    if (size != chunkSize_) {
+        LOG(ERROR) << "Invalid chunk size."
+                   << "size in arg = " << size
+                   << ", size should eaqual to" << chunkSize_;
+        return CSErrorCode::InvalidArgError;
+    }
     auto chunkFile = metaCache_.Get(id);
-    if (chunkFile != nullptr) {
-        CSChunkInfo info;
-        chunkFile->GetInfo(&info);
-        sns->push_back(info.curSn);
-        if (info.snapSn > 0)
-            sns->push_back(info.snapSn);
+    // 如果chunk文件不存在，则先创建chunk文件
+    if (chunkFile == nullptr) {
+        ChunkOptions options;
+        options.id = id;
+        options.sn = sn;
+        options.correctedSn = correctedSn;
+        options.baseDir = baseDir_;
+        options.chunkSize = chunkSize_;
+        options.pageSize = pageSize_;
+        options.location = location;
+        chunkFile = std::make_shared<CSChunkFile>(lfs_,
+                                                  chunkfilePool_,
+                                                  options);
+        CSErrorCode errorCode = chunkFile->Open(true);
+        if (errorCode != CSErrorCode::Success) {
+            LOG(ERROR) << "Create chunk file failed."
+                       << "ChunkID = " << id;
+            return errorCode;
+        }
+        // 如果有两个操作并发去创建chunk文件，
+        // 那么其中一个操作产生的chunkFile会优先加入metaCache，
+        // 后面的操作放弃当前产生的chunkFile使用前面产生的chunkFile
+        chunkFile = metaCache_.Set(id, chunkFile);
+    }
+    // 判断指定参数与存在的Chunk中的信息是否相符
+    // 不需要放到else当中，因为用户可能同时调用该接口
+    // 参数中指定了不同版本或者位置信息，就可能并发冲突，也需要进行判断
+    CSChunkInfo info;
+    chunkFile->GetInfo(&info);
+    if (info.location.compare(location) != 0
+        || info.curSn != sn
+        || info.correctedSn != correctedSn) {
+        LOG(ERROR) << "Confilic chunk already exists."
+                   << "sn in arg = " << sn
+                   << "correctedSn in arg" << correctedSn
+                   << ", location in arg = " << location
+                   << ", sn in chunk = " << info.curSn
+                   << ", location in chunk = " << info.location
+                   << ", corrected sn in chunk" << info.correctedSn;
+        return CSErrorCode::ChunkConflictError;
     }
     return CSErrorCode::Success;
 }
 
-inline CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
+CSErrorCode CSDataStore::PasteChunk(ChunkID id,
+                                    const char * buf,
+                                    off_t offset,
+                                    size_t length) {
+    auto chunkFile = metaCache_.Get(id);
+    // Paste Chunk要求Chunk必须存在
+    if (chunkFile == nullptr) {
+        LOG(ERROR) << "Paste Chunk failed, Chunk not exists."
+                   << "ChunkID = " << id;
+        return CSErrorCode::ChunkNotExistError;
+    }
+    CSErrorCode errcode = chunkFile->Paste(buf, offset, length);
+    if (errcode != CSErrorCode::Success) {
+        LOG(ERROR) << "Paste Chunk failed, Chunk not exists."
+                   << "ChunkID = " << id;
+        return errcode;
+    }
+    return CSErrorCode::Success;
+}
+
+CSErrorCode CSDataStore::GetChunkInfo(ChunkID id,
+                                      CSChunkInfo* chunkInfo) {
+    auto chunkFile = metaCache_.Get(id);
+    if (chunkFile == nullptr) {
+        LOG(ERROR) << "Get ChunkInfo failed, Chunk not exists."
+                   << "ChunkID = " << id;
+        return CSErrorCode::ChunkNotExistError;
+    }
+    chunkFile->GetInfo(chunkInfo);
+    return CSErrorCode::Success;
+}
+
+CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
     // 如果chunk文件还未加载，则加载到metaCache当中
     if (metaCache_.Get(id) == nullptr) {
         ChunkOptions options;

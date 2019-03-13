@@ -9,12 +9,25 @@
 #define SRC_COMMON_BITMAP_H_
 
 #include <stdint.h>
+#include <vector>
 
 namespace curve {
 namespace common {
 
+using std::vector;
+
 const int BITMAP_UNIT_SIZE = 8;
 const int ALIGN_FACTOR = 3;  // 2 ^ ALIGN_FACTOR = BITMAP_UNIT_SIZE
+
+/**
+ * 表示bitmap中的一段连续区域，为闭区间
+ */
+struct BitRange {
+    // 连续区域起始位置在bitmap中的索引
+    uint32_t beginIndex;
+    // 连续区域结束位置在bitmap中的索引
+    uint32_t endIndex;
+};
 
 class Bitmap {
  public:
@@ -31,6 +44,18 @@ class Bitmap {
      */
     explicit Bitmap(uint32_t bits, const char* bitmap);
     virtual ~Bitmap();
+    Bitmap() = delete;
+    /**
+     * 拷贝构造，使用深拷贝
+     * @param bitmap：从该对象拷贝内容
+     */
+    Bitmap(const Bitmap& bitmap);
+    /**
+     * 赋值函数，使用深拷贝
+     * @param bitmap：从该对象拷贝内容
+     * @reutrn：返回拷贝后对象引用
+     */
+    Bitmap& operator = (const Bitmap& bitmap);
     /**
      * 将所有位置1
      */
@@ -70,15 +95,41 @@ class Bitmap {
     /**
      * 获取指定位置及之后的首个位为1的位置
      * @param index: 指定位的位置，包含此位置
-     * @return: 首个位为1的位置，如果不存在返回END_POSITION
+     * @return: 首个位为1的位置，如果不存在返回NO_POS
      */
     uint32_t NextSetBit(uint32_t index) const;
     /**
+     * 获取指定起始位置到结束位置之间的的首个位为1的位置
+     * @param startIndex: 起始位置，包含此位置
+     * @param endIndex: 结束位置，包含此位置
+     * @return: 首个位为1的位置，如果指定范围内不存在则返回NO_POS
+     */
+    uint32_t NextSetBit(uint32_t startIndex, uint32_t endIndex) const;
+    /**
      * 获取指定位置及之后的首个位为0的位置
      * @param index: 指定位的位置，包含此位置
-     * @return: 首个位为0的位置，如果不存在返回END_POSITION
+     * @return: 首个位为0的位置，如果不存在返回NO_POS
      */
     uint32_t NextClearBit(uint32_t index) const;
+    /**
+     * 获取指定起始位置到结束位置之间的的首个位为0的位置
+     * @param startIndex: 起始位置，包含此位置
+     * @param endIndex: 结束位置，包含此位置
+     * @return: 首个位为0的位置，如果指定范围内不存在则返回NO_POS
+     */
+    uint32_t NextClearBit(uint32_t startIndex, uint32_t endIndex) const;
+    /**
+     * 将bitmap的指定区域分割成若干连续区域，划分依据为位状态，连续区域内的位状态一致
+     * 例如：00011100会被划分为三个区域，[0,2]、[3,5]、[6,7]
+     * @param startIndex: 指定区域的起始索引
+     * @param endIndex: 指定范围的结束索引
+     * @param clearRanges: 存放位状态为0的连续区域的向量,可以指定为nullptr
+     * @param setRanges: 存放位状态为1的连续区域的向量,可以指定为nullptr
+     */
+    void Divide(uint32_t startIndex,
+                uint32_t endIndex,
+                vector<BitRange>* clearRanges,
+                vector<BitRange>* setRanges) const;
     /**
      * bitmap的有效位数
      * @return: 返回位数
@@ -88,7 +139,7 @@ class Bitmap {
      * 获取bitmap的内存指针，用于持久化bitmap
      * @return: bitmap的内存指针
      */
-    const char* GetBitmap();
+    const char* GetBitmap() const;
 
  private:
     // bitmap的字节数
@@ -109,7 +160,8 @@ class Bitmap {
     }
 
  public:
-    static int END_POSITION;
+    // 表示不存在的位置，值为0xffffffff
+    static const uint32_t NO_POS;
 
  private:
     uint32_t    bits_;

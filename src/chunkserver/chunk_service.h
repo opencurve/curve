@@ -53,6 +53,16 @@ class ChunkServiceImpl : public ChunkService {
                              ChunkResponse *response,
                              Closure *done);
 
+    void CreateCloneChunk(RpcController *controller,
+                          const ChunkRequest *request,
+                          ChunkResponse *response,
+                          Closure *done);
+
+    void RecoverChunk(RpcController *controller,
+                      const ChunkRequest *request,
+                      ChunkResponse *response,
+                      Closure *done);
+
     void GetChunkInfo(RpcController *controller,
                       const GetChunkInfoRequest *request,
                       GetChunkInfoResponse *response,

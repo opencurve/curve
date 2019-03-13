@@ -77,6 +77,9 @@ class CSMetaCache {
 
 class CSDataStore {
  public:
+    // for ut mock
+    CSDataStore() {}
+
     CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
                 std::shared_ptr<ChunkfilePool> ChunkfilePool,
                 const DataStoreOptions& options);
@@ -101,7 +104,7 @@ class CSDataStore {
      * @return：返回错误码
      */
     virtual CSErrorCode DeleteSnapshotChunk(ChunkID id,
-                                               SequenceNum snapshotSn);
+                                            SequenceNum snapshotSn);
     /**
      * 读当前chunk的内容
      * @param id：要读取的chunk id
@@ -112,10 +115,10 @@ class CSDataStore {
      * @return：返回错误码
      */
     virtual CSErrorCode ReadChunk(ChunkID id,
-                                     SequenceNum sn,
-                                     char * buf,
-                                     off_t offset,
-                                     size_t length);
+                                  SequenceNum sn,
+                                  char * buf,
+                                  off_t offset,
+                                  size_t length);
     /**
      * 读指定版本的数据，可能读当前chunk文件，也有可能读快照文件
      * @param id：要读取的chunk id
@@ -126,10 +129,10 @@ class CSDataStore {
      * @return：返回错误码
      */
     virtual CSErrorCode ReadSnapshotChunk(ChunkID id,
-                                             SequenceNum sn,
-                                             char * buf,
-                                             off_t offset,
-                                             size_t length);
+                                          SequenceNum sn,
+                                          char * buf,
+                                          off_t offset,
+                                          size_t length);
     /**
      * 写数据
      * @param id：要写入的chunk id
@@ -147,16 +150,43 @@ class CSDataStore {
                                    size_t length,
                                    uint32_t* cost);
     /**
-     * 获取chunk的版本信息
-     * @param id：请求获取的chunk的id
-     * @param sns：chunk的所有版本号
+     * 创建克隆的Chunk，chunk中记录数据源位置信息
+     * 该接口需要保证幂等性，重复以相同参数进行创建返回成功
+     * 如果Chunk已存在，且Chunk的信息与参数不符，则返回失败
+     * @param id：要创建的chunk id
+     * @param sn：要创建的chunk的版本号
+     * @param correctedSn：修改chunk的correctedSn
+     * @param size：要创建的chunk大小
+     * @param location：数据源位置信息
      * @return：返回错误码
      */
+    virtual CSErrorCode CreateCloneChunk(ChunkID id,
+                                         SequenceNum sn,
+                                         SequenceNum correctedSn,
+                                         ChunkSizeType size,
+                                         const string& location);
+    /**
+     * 将从源端拷贝的数据写到本地，不会覆盖已写入的数据区域
+     * @param id：要写入的chunk id
+     * @param buf：要写入的数据内容
+     * @param offset：请求写入的偏移地址
+     * @param length：请求写入的数据长度
+     * @return：返回错误码
+     */
+    virtual CSErrorCode PasteChunk(ChunkID id,
+                                   const char* buf,
+                                   off_t offset,
+                                   size_t length);
+    /**
+     * 获取Chunk的详细信息
+     * @param id：请求获取的chunk的id
+     * @param chunkInfo：chunk的详细信息
+     */
     virtual CSErrorCode GetChunkInfo(ChunkID id,
-                                     vector<SequenceNum>* sns);
+                                     CSChunkInfo* chunkInfo);
 
  private:
-    inline CSErrorCode loadChunkFile(ChunkID id);
+    CSErrorCode loadChunkFile(ChunkID id);
 
  private:
     // 每个chunk的大小

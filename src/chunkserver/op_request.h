@@ -17,14 +17,19 @@
 #include "proto/chunk.pb.h"
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/concurrent_apply.h"
+#include "src/chunkserver/datastore/define.h"
 
 namespace curve {
 namespace chunkserver {
 
 using ::google::protobuf::RpcController;
+using curve::chunkserver::CSChunkInfo;
 
 class CopysetNode;
 class CSDataStore;
+class CloneManager;
+class CloneCore;
+class CloneTask;
 
 class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
  public:
@@ -76,7 +81,7 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
     /**
      * 转发request给leader
      */
-    void RedirectChunkRequest();
+    virtual void RedirectChunkRequest();
 
  public:
     /**
@@ -89,14 +94,14 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
      * data: encode之后的数据，实际上就是一条op log entry的data
      * op meta: 就是op的元数据，这里是op request部分的长度
      * op data: 就是request通过protobuf序列化后的数据
-     * @param cntl:rpc控制器
      * @param request:Chunk Request
-     * @param data:出参，存放序列化好的数据，用户自己保证data!=nullptr
+     * @param data:请求中包含的数据内容
+     * @param log:出参，存放序列化好的数据，用户自己保证data!=nullptr
      * @return 0成功，-1失败
      */
-    static int Encode(brpc::Controller *cntl,
-                      const ChunkRequest *request,
-                      butil::IOBuf *data);
+    static int Encode(const ChunkRequest *request,
+                      const butil::IOBuf *data,
+                      butil::IOBuf *log);
 
     /**
      * 反序列化，从log entry得到ChunkOpRequest，当前反序列出的ChunkRequest和data
@@ -113,9 +118,12 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
  protected:
     /**
      * 打包request为braft::task，propose给相应的复制组
+     * @param request:Chunk Request
+     * @param data:请求中包含的数据内容
      * @return 0成功，-1失败
      */
-    int Propose();
+    int Propose(const ChunkRequest *request,
+                const butil::IOBuf *data);
 
  protected:
     // chunk持久化接口
@@ -155,21 +163,20 @@ class DeleteChunkRequest : public ChunkOpRequest {
 };
 
 class ReadChunkRequest : public ChunkOpRequest {
+    friend class CloneCore;
+    friend class PasteChunkInternalRequest;
+
  public:
     ReadChunkRequest() :
         ChunkOpRequest() {}
     ReadChunkRequest(std::shared_ptr<CopysetNode> nodePtr,
+                     CloneManager* cloneMgr,
                      RpcController *cntl,
                      const ChunkRequest *request,
                      ChunkResponse *response,
                      ::google::protobuf::Closure *done);
-    virtual ~ReadChunkRequest() = default;
 
-    /**
-     * 如果request携带的applied index小于等于当前copyset的applied index
-     * 那么，可以直接read然后返回
-     */
-    void ReadDirect();
+    virtual ~ReadChunkRequest() = default;
 
     void Process() override;
     void OnApply(uint64_t index, ::google::protobuf::Closure *done) override;
@@ -178,8 +185,17 @@ class ReadChunkRequest : public ChunkOpRequest {
                         const butil::IOBuf &data) override;
 
  private:
+    // 根据chunk信息判断是否需要拷贝数据
+    bool NeedClone(const CSChunkInfo& chunkInfo);
+    // 从chunk文件中读数据
+    void ReadChunk();
+
+ private:
+    CloneManager* cloneMgr_;
     // 并发模块
     ConcurrentApplyModule* concurrentApplyModule_;
+    // 保存 apply index
+    uint64_t applyIndex;
 };
 
 class WriteChunkRequest : public ChunkOpRequest {
@@ -246,6 +262,59 @@ class DeleteSnapshotRequest : public ChunkOpRequest {
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+};
+
+class CreateCloneChunkRequest : public ChunkOpRequest {
+ public:
+    CreateCloneChunkRequest() :
+        ChunkOpRequest() {}
+    CreateCloneChunkRequest(std::shared_ptr<CopysetNode> nodePtr,
+                            RpcController *cntl,
+                            const ChunkRequest *request,
+                            ChunkResponse *response,
+                            ::google::protobuf::Closure *done) :
+        ChunkOpRequest(nodePtr,
+                       cntl,
+                       request,
+                       response,
+                       done) {}
+    virtual ~CreateCloneChunkRequest() = default;
+
+    void OnApply(uint64_t index, ::google::protobuf::Closure *done) override;
+    void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
+                        const ChunkRequest &request,
+                        const butil::IOBuf &data) override;
+};
+
+class PasteChunkInternalRequest : public ChunkOpRequest {
+ public:
+    PasteChunkInternalRequest() :
+        ChunkOpRequest() {}
+    PasteChunkInternalRequest(std::shared_ptr<ReadChunkRequest> readRequest,
+                              std::shared_ptr<CopysetNode> nodePtr,
+                              const ChunkRequest *request,
+                              const char* data,
+                              ::google::protobuf::Closure *done) :
+        ChunkOpRequest(nodePtr,
+                       nullptr,
+                       request,
+                       nullptr,
+                       done),
+        readRequest_(readRequest) {
+            data_.append(data, request->size());
+        }
+    virtual ~PasteChunkInternalRequest() = default;
+
+    void Process() override;
+    void RedirectChunkRequest() override;
+    void OnApply(uint64_t index, ::google::protobuf::Closure *done) override;
+    void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
+                        const ChunkRequest &request,
+                        const butil::IOBuf &data) override;
+
+ private:
+    std::shared_ptr<ReadChunkRequest> readRequest_;
+    butil::IOBuf data_;
 };
 
 }  // namespace chunkserver

@@ -157,7 +157,9 @@ int Ext4FileSystemImpl::Rename(const string& oldPath,
                                const string& newPath) {
     int rc = posixWrapper_->rename(oldPath.c_str(), newPath.c_str());
     if (rc < 0) {
-        LOG(ERROR) << "rename failed: " << strerror(errno);
+        LOG(ERROR) << "rename failed: " << strerror(errno)
+                   << ". old path: " << oldPath
+                   << ", new path: " << newPath;
         return -errno;
     }
     return 0;

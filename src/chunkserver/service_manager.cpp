@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2018 NetEase Inc. All rights reserved.
  * Project: Curve
- * 
- * History: 
+ *
+ * History:
  *          2018/08/30  Wenyu Zhou   Initial version
  */
 
@@ -16,6 +16,7 @@ int ServiceManager::Init(const ServiceOptions &options) {
     options_ = options;
     chunkserver_ = options.chunkserver;
     copysetNodeManager_ = options.copysetNodeManager;
+    cloneManager_ = options.cloneManager;
 
     butil::ip_t ip;
     if (butil::str2ip(options_.ip.c_str(), &ip) < 0) {
@@ -31,6 +32,7 @@ int ServiceManager::Init(const ServiceOptions &options) {
 
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = copysetNodeManager_;
+    chunkServiceOptions.cloneManager = cloneManager_;
 
     server_ = new brpc::Server();
 

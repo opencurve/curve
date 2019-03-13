@@ -56,7 +56,7 @@ LIBCURVE_ERROR FileClient::StatFs(int fd, FileStatInfo* finfo) {
     return fileserviceMap_[fd]->StatFs(finfo);
 }
 
-int FileClient::Open(std::string filename,
+int FileClient::Open(const std::string& filename,
                      UserInfo_t userinfo,
                      size_t size,
                      bool create) {

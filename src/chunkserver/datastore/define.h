@@ -8,8 +8,15 @@
 #ifndef SRC_CHUNKSERVER_DATASTORE_DEFINE_H_
 #define SRC_CHUNKSERVER_DATASTORE_DEFINE_H_
 
+#include <string>
+
+#include "include/chunkserver/chunkserver_common.h"
+#include "src/common/bitmap.h"
+
 namespace curve {
 namespace chunkserver {
+
+using curve::common::Bitmap;
 
 const uint8_t FORMAT_VERSION = 1;
 
@@ -35,6 +42,41 @@ enum CSErrorCode {
     ChunkNotExistError = 8,
     // 请求读写的区域超过了文件的大小
     OutOfRangeError = 9,
+    // 参数错误
+    InvalidArgError = 10,
+    // 创建chunk时存在冲突的chunk
+    ChunkConflictError = 11,
+};
+
+// Chunk的详细信息
+struct CSChunkInfo {
+    // chunk的id
+    ChunkID  chunkId;
+    // page的大小
+    uint32_t pageSize;
+    // chunk的大小
+    uint32_t chunkSize;
+    // chunk文件的版本号
+    SequenceNum curSn;
+    // chunk快照的版本号，如果快照不存在，则为0
+    SequenceNum snapSn;
+    // chunk的修正版本号
+    SequenceNum correctedSn;
+    // 表示chunk是否为CloneChunk
+    bool isClone;
+    // 如果是CloneChunk，表示数据源的位置；否则为空
+    std::string location;
+    // 如果是CloneChunk表示当前Chunk的page的状态，否则为nullptr
+    std::shared_ptr<Bitmap> bitmap;
+    CSChunkInfo() : chunkId(0)
+                  , pageSize(4096)
+                  , chunkSize(16 * 4096 * 4096)
+                  , curSn(0)
+                  , snapSn(0)
+                  , correctedSn(0)
+                  , isClone(false)
+                  , location("")
+                  , bitmap(nullptr) {}
 };
 
 }  // namespace chunkserver

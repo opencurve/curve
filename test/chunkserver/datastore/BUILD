@@ -1,3 +1,15 @@
+cc_library(
+    name = "datastore_mock",
+    srcs = [
+            "mock_chunkfile_pool.h",
+            "mock_datastore.h"
+            ],
+    deps = [
+            "//src/chunkserver/datastore:chunkserver_datastore",
+            ],
+    visibility = ["//visibility:public"],
+)
+
 cc_test(
     name = "curve_datastore_unittest",
     srcs = [
@@ -7,15 +19,9 @@ cc_test(
         "datastore_unittest_main.cpp",
         "chunkfilepool_helper.cpp",
         "chunkfilepool_helper.h",
-        "mock_chunkfile_pool.h",
     ],
     includes = ([]),
-    linkopts = ([
-        "-pthread",
-        "-std=c++11",
-        "-fPIC",
-        "-DGFLAGS_NS=google",
-    ]),
+    copts = ["-std=c++14"],
     deps = [
         "@com_google_googletest//:gtest",
         "//external:braft",
@@ -25,5 +31,6 @@ cc_test(
         "//src/common:curve_common",
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//test/fs:fs_mock",
+        "//test/chunkserver/datastore:datastore_mock",
     ],
 )

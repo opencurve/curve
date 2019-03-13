@@ -43,6 +43,9 @@ const char RAFT_LOG_DIR[]  = "log";
 class CopysetNode : public braft::StateMachine,
                     public std::enable_shared_from_this<CopysetNode> {
  public:
+    // for ut mock
+    CopysetNode() = default;
+
     CopysetNode(const LogicPoolID &logicPoolId,
                 const CopysetID &copysetId,
                 const Configuration &initConf);
@@ -54,18 +57,18 @@ class CopysetNode : public braft::StateMachine,
      * @param options
      * @return 0，成功，-1失败
      */
-    int Init(const CopysetNodeOptions &options);
+    virtual int Init(const CopysetNodeOptions &options);
 
     /**
      * Raft Node init，使得Raft Node运行起来
      * @return
      */
-    int Run();
+    virtual int Run();
 
     /**
      * 关闭copyset node
      */
-    void Fini();
+    virtual void Fini();
 
     /**
      * 返回复制组的逻辑池ID
@@ -83,48 +86,48 @@ class CopysetNode : public braft::StateMachine,
      * 返回当前副本是否在leader任期
      * @return
      */
-    bool IsLeaderTerm() const;
+    virtual bool IsLeaderTerm() const;
 
     /**
      * 返回leader id
      * @return
      */
-    PeerId GetLeaderId() const;
+    virtual PeerId GetLeaderId() const;
 
     /**
      * 返回copyset的配置版本
      * @return
      */
-    uint64_t GetConfEpoch() const;
+    virtual uint64_t GetConfEpoch() const;
 
     /**
      * 更新applied index，只有比它大的才更新
      * @param index
      */
-    void UpdateAppliedIndex(uint64_t index);
+    virtual void UpdateAppliedIndex(uint64_t index);
 
     /**
      * 返回当前最新的applied index
      * @return
      */
-    uint64_t GetAppliedIndex() const;
+    virtual uint64_t GetAppliedIndex() const;
 
     /**
      * 返回data store指针
      * @return
      */
-    std::shared_ptr<CSDataStore> GetDataStore() const;
+    virtual std::shared_ptr<CSDataStore> GetDataStore() const;
 
     /**
      * 返回ConcurrentApplyModule
      */
-    ConcurrentApplyModule* GetConcurrentApplyModule() const;
+    virtual ConcurrentApplyModule* GetConcurrentApplyModule() const;
 
     /**
      * 向copyset node propose一个op request
      * @param task
      */
-    void Propose(const braft::Task &task);
+    virtual void Propose(const braft::Task &task);
 
     /**
      * 删除复制组持久化数据

@@ -10,6 +10,7 @@
 #include <glog/logging.h>
 #include <string>
 #include <vector>
+#include <set>
 #include <atomic>
 #include <functional>
 
@@ -30,17 +31,10 @@ using curve::fs::LocalFileSystem;
 using curve::common::RWLock;
 using curve::common::WriteLockGuard;
 using curve::common::ReadLockGuard;
+using curve::common::BitRange;
 
 class ChunkfilePool;
 class CSSnapshot;
-
-struct CSChunkInfo {
-    ChunkID  chunkId;
-    uint32_t chunkSize;
-    SequenceNum curSn;
-    SequenceNum correctedSn;
-    SequenceNum snapSn;
-};
 
 /**
  * Chunkfile Metapage Format
@@ -57,21 +51,46 @@ struct ChunkFileMetaPage {
     SequenceNum sn;
     // chunk的修正版本号，与sn
     SequenceNum correctedSn;
+    // 表示数据源的位置信息，如果不是CloneChunk则为空
+    string location;
+    // 表示当前Chunk中page的状态，如果不是CloneChunk则为nullptr
+    std::shared_ptr<Bitmap> bitmap;
 
     ChunkFileMetaPage() : version(FORMAT_VERSION)
                         , sn(0)
-                        , correctedSn(0) {}
+                        , correctedSn(0)
+                        , location("")
+                        , bitmap(nullptr) {}
+    ChunkFileMetaPage(const ChunkFileMetaPage& metaPage);
+    ChunkFileMetaPage& operator = (const ChunkFileMetaPage& metaPage);
 
     void encode(char* buf);
     CSErrorCode decode(const char* buf);
 };
 
 struct ChunkOptions {
+    // chunk的id，将作为chunk的文件名
     ChunkID         id;
+    // chunk的版本号
     SequenceNum     sn;
+    // chunk的修正版本号
+    SequenceNum     correctedSn;
+    // chunk所在的目录
     std::string     baseDir;
+    // 如果要创建CloneChunk，需要指定该参数，表示数据源位置信息
+    std::string     location;
+    // chunk的大小
     ChunkSizeType   chunkSize;
+    // page的大小，bitmap中每个bit表示1个page，metapage大小也是1个page
     PageSizeType    pageSize;
+
+    ChunkOptions() : id(0)
+                   , sn(0)
+                   , correctedSn(0)
+                   , baseDir("")
+                   , location("")
+                   , chunkSize(0)
+                   , pageSize(0) {}
 };
 
 class CSChunkFile {
@@ -113,6 +132,16 @@ class CSChunkFile {
                       size_t length,
                       uint32_t* cost);
     /**
+     * 将拷贝的数据写入Chunk中
+     * 只会写入未写过的区域，不会覆盖已经写过的区域
+     * 可能存在并发，加写锁
+     * @param buf: 请求Paste的数据
+     * @param offset: 请求Paste的数据起始偏移
+     * @param length: 请求Paste的数据长度
+     * @return: 返回错误码
+     */
+    CSErrorCode Paste(const char * buf, off_t offset, size_t length);
+    /**
      * 读chunk文件
      * 可能存在并发，加读锁
      * @param buf: 读到的数据
@@ -152,11 +181,6 @@ class CSChunkFile {
      */
     void GetInfo(CSChunkInfo* info);
 
-    struct Extent {
-        off_t offset;
-        size_t length;
-    };
-
  private:
     /**
      * 判断是否需要创建新的快照
@@ -189,18 +213,10 @@ class CSChunkFile {
      */
     CSErrorCode copy2Snapshot(off_t offset, size_t length);
     /**
-     * 查询快照文件中已拷贝的连续区域和未拷贝的连续区域
-     * @param offset: 请求查询区域的其实偏移
-     * @param length: 请求查询区域的长度
-     * @param copiedExtents: 已拷贝过的连续区域的集合
-     *                       如果为空，则不统计已拷贝过的连续区域
-     * @param uncopiedExtents: 未拷贝过的连续区域的集合
-     *                         如果为空，则不统计未拷贝过的连续区域
+     * 更新clone chunk的bitmap
+     * 如果所有的page都已写过，则将clone chunk转成普通chunk
      */
-    void partExtents(off_t offset,
-                     size_t length,
-                     vector<Extent>* copiedExtents,
-                     vector<Extent>* uncopiedExtents);
+    CSErrorCode flush();
 
     inline string path() {
         return baseDir_ + "/" +
@@ -224,7 +240,26 @@ class CSChunkFile {
     }
 
     inline int writeData(const char* buf, off_t offset, size_t length) {
-        return lfs_->Write(fd_, buf, offset + pageSize_, length);
+        int rc = lfs_->Write(fd_, buf, offset + pageSize_, length);
+        if (rc < 0) {
+            return rc;
+        }
+        // 如果是clone chunk，需要判断是否需要更改bitmap并更新metapage
+        if (isCloneChunk()) {
+            uint32_t beginIndex = offset / pageSize_;
+            uint32_t endIndex = (offset + length - 1) / pageSize_;
+            for (uint32_t i = beginIndex; i <= endIndex; ++i) {
+                // 记录dirty page
+                if (!metaPage_.bitmap->Test(i)) {
+                    dirtyPages_.insert(i);
+                }
+            }
+        }
+        return rc;
+    }
+
+    inline bool isCloneChunk() {
+        return !metaPage_.location.empty();
     }
 
  private:
@@ -240,6 +275,8 @@ class CSChunkFile {
     std::string baseDir_;
     // chunk的metapage
     ChunkFileMetaPage metaPage_;
+    // 被写过但还未更新到metapage中的page索引
+    std::set<uint32_t> dirtyPages_;
     // 读写锁
     RWLock rwLock_;
     // 快照文件指针

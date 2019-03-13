@@ -17,7 +17,7 @@
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/op_request.h"
-#include "test/chunkserver/mock_cs_data_store.h"
+#include "test/chunkserver/fake_datastore.h"
 
 namespace curve {
 namespace chunkserver {
@@ -67,7 +67,9 @@ TEST(ChunkOpRequestTest, encode) {
             = new WriteChunkRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   &cntl->request_attachment(),
+                                   &log));
 
         butil::IOBuf data;
         auto req = ChunkOpRequest::Decode(log, &request, &data);
@@ -91,7 +93,9 @@ TEST(ChunkOpRequestTest, encode) {
             = new WriteChunkRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   &cntl->request_attachment(),
+                                   &log));
 
         butil::IOBuf data;
         auto req = ChunkOpRequest::Decode(log, &request, &data);
@@ -108,16 +112,53 @@ TEST(ChunkOpRequestTest, encode) {
         ASSERT_STREQ(str.c_str(), data.to_string().c_str());
         delete opReq;
     }
+
+    /* for paste chunk */
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_PASTE);
+    {
+        ChunkOpRequest *opReq
+            = new PasteChunkInternalRequest(nullptr,
+                                            nodePtr,
+                                            &request,
+                                            nullptr,
+                                            nullptr);
+
+        butil::IOBuf log;
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   &cntl->request_attachment(),
+                                   &log));
+
+        butil::IOBuf data;
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req1 = dynamic_cast<PasteChunkInternalRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
+
+        ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_PASTE, request.optype());
+        ASSERT_EQ(logicPoolId, request.logicpoolid());
+        ASSERT_EQ(copysetId, request.copysetid());
+        ASSERT_EQ(chunkId, request.chunkid());
+        ASSERT_EQ(offset, request.offset());
+        ASSERT_EQ(size, request.size());
+        ASSERT_STREQ(str.c_str(), data.to_string().c_str());
+        delete opReq;
+    }
     /* for read */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
     request.set_offset(offset);
     request.set_size(size);
     {
         ChunkOpRequest *opReq
-            = new ReadChunkRequest(nodePtr, cntl, &request, nullptr, nullptr);
+            = new ReadChunkRequest(nodePtr,
+                                   nullptr,
+                                   cntl,
+                                   &request,
+                                   nullptr,
+                                   nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   nullptr,
+                                   &log));
 
         butil::IOBuf data;
         auto req = ChunkOpRequest::Decode(log, &request, &data);
@@ -140,7 +181,9 @@ TEST(ChunkOpRequestTest, encode) {
             = new DeleteChunkRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   nullptr,
+                                   &log));
 
         butil::IOBuf data;
         auto req = ChunkOpRequest::Decode(log, &request, &data);
@@ -162,7 +205,9 @@ TEST(ChunkOpRequestTest, encode) {
             new ReadSnapshotRequest(nodePtr, cntl, &request, nullptr, nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   nullptr,
+                                   &log));
 
         butil::IOBuf data;
         auto req = ChunkOpRequest::Decode(log, &request, &data);
@@ -189,7 +234,9 @@ TEST(ChunkOpRequestTest, encode) {
                                         nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   nullptr,
+                                   &log));
 
         butil::IOBuf data;
         auto req = ChunkOpRequest::Decode(log, &request, &data);
@@ -202,6 +249,39 @@ TEST(ChunkOpRequestTest, encode) {
         ASSERT_EQ(chunkId, request.chunkid());
         delete opReq;
     }
+    /* for create clone chunk */
+    request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE);
+    std::string location("test@s3");
+    request.set_location(location);
+    request.set_size(options.chunkSize);
+    request.set_sn(sn);
+    {
+        ChunkOpRequest *opReq
+            = new CreateCloneChunkRequest(nodePtr,
+                                          cntl,
+                                          &request,
+                                          nullptr,
+                                          nullptr);
+
+        butil::IOBuf log;
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   nullptr,
+                                   &log));
+
+        butil::IOBuf data;
+        auto req = ChunkOpRequest::Decode(log, &request, &data);
+        auto req1 = dynamic_cast<CreateCloneChunkRequest*>(req.get());
+        ASSERT_TRUE(req1 != nullptr);
+
+        ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE, request.optype());
+        ASSERT_EQ(logicPoolId, request.logicpoolid());
+        ASSERT_EQ(copysetId, request.copysetid());
+        ASSERT_EQ(chunkId, request.chunkid());
+        ASSERT_EQ(options.chunkSize, request.size());
+        ASSERT_EQ(location, request.location());
+        ASSERT_EQ(sn, request.sn());
+        delete opReq;
+    }
     /* for unknown op */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_UNKNOWN);
     {
@@ -212,7 +292,9 @@ TEST(ChunkOpRequestTest, encode) {
                                                           nullptr);
 
         butil::IOBuf log;
-        ASSERT_EQ(0, opReq->Encode(cntl, &request, &log));
+        ASSERT_EQ(0, opReq->Encode(&request,
+                                   nullptr,
+                                   &log));
 
         butil::IOBuf data;
         auto req = ChunkOpRequest::Decode(log, &request, &data);
@@ -263,7 +345,12 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
         request.set_sn(sn);
         brpc::Controller *cntl = new brpc::Controller();
         ChunkOpRequest *opReq
-            = new ReadChunkRequest(nodePtr, cntl, &request, &response, nullptr);
+            = new ReadChunkRequest(nodePtr,
+                                   nullptr,
+                                   cntl,
+                                   &request,
+                                   &response,
+                                   nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
         opReq->OnApply(appliedIndex, &done);
@@ -287,7 +374,12 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
         request.set_sn(sn);
         brpc::Controller *cntl = new brpc::Controller();
         ChunkOpRequest *opReq
-            = new ReadChunkRequest(nodePtr, cntl, &request, &response, nullptr);
+            = new ReadChunkRequest(nodePtr,
+                                   nullptr,
+                                   cntl,
+                                   &request,
+                                   &response,
+                                   nullptr);
         dataStore->InjectError(CSErrorCode::ChunkNotExistError);
         OpFakeClosure done;
         opReq->OnApply(appliedIndex, &done);

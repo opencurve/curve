@@ -24,7 +24,7 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
-#include "test/chunkserver/mock_cs_data_store.h"
+#include "test/chunkserver/fake_datastore.h"
 
 namespace curve {
 namespace chunkserver {

@@ -889,7 +889,6 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                       response.status());
         }
-
         // get chunk info
         {
             brpc::Controller cntl;
@@ -905,7 +904,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                       response.status());
         }
     }
-}
+}  // NOLINT
 
 }  // namespace chunkserver
 }  // namespace curve
