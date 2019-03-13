@@ -20,6 +20,7 @@ using curve::fs::LocalFileSystem;
 class ConcurrentApplyModule;
 class ChunkfilePool;
 class CopysetNodeManager;
+class CloneManager;
 
 /**
  * copyset node的配置选项
@@ -83,6 +84,7 @@ struct CopysetNodeOptions {
  */
 struct ChunkServiceOptions {
     CopysetNodeManager *copysetNodeManager;
+    CloneManager *cloneManager;
 };
 
 }  // namespace chunkserver

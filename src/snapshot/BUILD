@@ -92,3 +92,22 @@ cc_binary(
         "//src/client:curve_client"
     ],
 )
+
+cc_library(
+    name = "s3_adapter",
+    srcs = [
+        "s3_adapter.cpp",
+        "s3_adapter.h",
+    ],
+    copts = COPTS,
+    linkopts = [
+        "-laws-cpp-sdk-core",
+        "-laws-cpp-sdk-s3",
+        "-L/usr/local/lib",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gflags",
+        "//external:glog",
+    ],
+)

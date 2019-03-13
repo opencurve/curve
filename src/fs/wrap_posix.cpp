@@ -5,7 +5,12 @@
 * Copyright (c) 2018 netease
 */
 
+#include <glog/logging.h>
 #include <stdio.h>
+#include <sys/syscall.h>
+#include <linux/fs.h>
+#include <string>
+
 #include "src/fs/wrap_posix.h"
 
 namespace curve {
@@ -32,7 +37,20 @@ int PosixWrapper::stat(const char *pathname, struct stat *buf) {
 }
 
 int PosixWrapper::rename(const char *oldpath, const char *newpath) {
-    return ::rename(oldpath, newpath);
+    /*   RENAME_NOREPLACE requires support from the underlying filesystem.
+     *   Support for various filesystems was added as follows:
+     *   ext4 (Linux 3.15);
+     *   btrfs, shmem, and cifs (Linux 3.17);
+     *   xfs (Linux 4.0);
+     *   Support for many other filesystems was added in Linux 4.9,
+     *   including etx2, minix, reiserfs, jfs, vfat, and bpf.
+     */
+    return ::syscall(SYS_renameat2,
+                     AT_FDCWD,
+                     oldpath,
+                     AT_FDCWD,
+                     newpath,
+                     RENAME_NOREPLACE);
 }
 
 DIR *PosixWrapper::opendir(const char *name) {

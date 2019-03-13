@@ -13,6 +13,36 @@
 namespace curve {
 namespace chunkserver {
 
+ChunkFileMetaPage::ChunkFileMetaPage(const ChunkFileMetaPage& metaPage) {
+    version = metaPage.version;
+    sn = metaPage.sn;
+    correctedSn = metaPage.correctedSn;
+    location = metaPage.location;
+    if (metaPage.bitmap != nullptr) {
+        bitmap = std::make_shared<Bitmap>(metaPage.bitmap->Size(),
+                                          metaPage.bitmap->GetBitmap());
+    } else {
+        bitmap = nullptr;
+    }
+}
+
+ChunkFileMetaPage& ChunkFileMetaPage::operator =(
+    const ChunkFileMetaPage& metaPage) {
+    if (this == &metaPage)
+        return *this;
+    version = metaPage.version;
+    sn = metaPage.sn;
+    correctedSn = metaPage.correctedSn;
+    location = metaPage.location;
+    if (metaPage.bitmap != nullptr) {
+        bitmap = std::make_shared<Bitmap>(metaPage.bitmap->Size(),
+                                          metaPage.bitmap->GetBitmap());
+    } else {
+        bitmap = nullptr;
+    }
+    return *this;
+}
+
 void ChunkFileMetaPage::encode(char* buf) {
     size_t len = 0;
     memcpy(buf, &version, sizeof(version));
@@ -21,6 +51,20 @@ void ChunkFileMetaPage::encode(char* buf) {
     len += sizeof(sn);
     memcpy(buf + len, &correctedSn, sizeof(correctedSn));
     len += sizeof(correctedSn);
+    size_t loc_size = location.size();
+    memcpy(buf + len, &loc_size, sizeof(loc_size));
+    len += sizeof(loc_size);
+    // CloneChunk需要序列化位置信息和bitmap信息
+    if (loc_size > 0) {
+        memcpy(buf + len, location.c_str(), loc_size);
+        len += loc_size;
+        uint32_t bits = bitmap->Size();
+        memcpy(buf + len, &bits, sizeof(bits));
+        len += sizeof(bits);
+        size_t bitmapBytes = (bits + 8 - 1) >> 3;
+        memcpy(buf + len, bitmap->GetBitmap(), bitmapBytes);
+        len += bitmapBytes;
+    }
     uint32_t crc = ::curve::common::CRC32(buf, len);
     memcpy(buf + len, &crc, sizeof(crc));
 }
@@ -42,6 +86,19 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
     len += sizeof(sn);
     memcpy(&correctedSn, buf + len, sizeof(correctedSn));
     len += sizeof(correctedSn);
+    size_t loc_size;
+    memcpy(&loc_size, buf + len, sizeof(loc_size));
+    len += sizeof(loc_size);
+    if (loc_size > 0) {
+        location = string(buf + len, loc_size);
+        len += loc_size;
+        uint32_t bits = 0;
+        memcpy(&bits, buf + len, sizeof(bits));
+        len += sizeof(bits);
+        bitmap = std::make_shared<Bitmap>(bits, buf + len);
+        size_t bitmapBytes = (bitmap->Size() + 8 - 1) >> 3;
+        len += bitmapBytes;
+    }
     uint32_t crc =  ::curve::common::CRC32(buf, len);
     uint32_t recordCrc;
     memcpy(&recordCrc, buf + len, sizeof(recordCrc));
@@ -67,6 +124,13 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
     CHECK(!baseDir_.empty()) << "Create chunk file failed";
     CHECK(lfs_ != nullptr) << "Create chunk file failed";
     metaPage_.sn = options.sn;
+    metaPage_.correctedSn = options.correctedSn;
+    metaPage_.location = options.location;
+    // 如果location不为空，则为CloneChunk，需要初始化Bitmap
+    if (!metaPage_.location.empty()) {
+        uint32_t bits = size_ / pageSize_;
+        metaPage_.bitmap = std::make_shared<Bitmap>(bits);
+    }
 }
 
 CSChunkFile::~CSChunkFile() {
@@ -85,7 +149,7 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
     string chunkFilePath = path();
     // 创建新文件,如果chunk文件已经存在则不用再创建
     // chunk文件存在可能有两种情况引起:
-    // 1.getchunk成功，但是后面stat或者loadmetapage时失败，下载再open的时候；
+    // 1.getchunk成功，但是后面stat或者loadmetapage时失败，下次再open的时候；
     // 2.两个写请求并发创建新的chunk文件
     if (createFile
         && !lfs_->FileExists(chunkFilePath)
@@ -93,7 +157,9 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         char buf[pageSize_] = {0};
         metaPage_.encode(buf);
         int rc = chunkfilePool_->GetChunk(chunkFilePath, buf);
-        if (rc != 0) {
+        // 并发创建文件时，可能前面线程已经创建成功，那么这里会返回-EEXIST
+        // 此时可以继续open已经生成的文件
+        if (rc != 0  && rc != -EEXIST) {
             LOG(ERROR) << "Error occured when create file."
                    << " filepath = " << chunkFilePath;
             return CSErrorCode::InternalError;
@@ -156,10 +222,10 @@ CSErrorCode CSChunkFile::LoadSnapshot(SequenceNum sn) {
 }
 
 CSErrorCode CSChunkFile::Write(SequenceNum sn,
-                       const char * buf,
-                       off_t offset,
-                       size_t length,
-                       uint32_t* cost) {
+                               const char * buf,
+                               off_t offset,
+                               size_t length,
+                               uint32_t* cost) {
     WriteLockGuard writeGuard(rwLock_);
     if (offset + length > size_) {
         LOG(ERROR) << "Write chunk out of range."
@@ -245,6 +311,70 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                    << ",chunk sn: " << metaPage_.sn;
         return CSErrorCode::InternalError;
     }
+    // 如果是clone chunk会更新bitmap
+    CSErrorCode errorCode = flush();
+    if (errorCode != CSErrorCode::Success) {
+        LOG(ERROR) << "Write data to chunk file failed."
+                   << "ChunkID: " << chunkId_
+                   << ",request sn: " << sn
+                   << ",chunk sn: " << metaPage_.sn;
+        return errorCode;
+    }
+    return CSErrorCode::Success;
+}
+
+CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
+    WriteLockGuard writeGuard(rwLock_);
+    if (offset + length > size_) {
+        LOG(ERROR) << "Paste chunk out of range."
+                   << "ChunkID: " << chunkId_
+                   << ", offset: " << offset
+                   << ", length: " << length
+                   << ", chunk size: " << size_;
+        return CSErrorCode::OutOfRangeError;
+    }
+    // 如果不是clone chunk直接返回成功
+    if (!isCloneChunk()) {
+        return CSErrorCode::Success;
+    }
+
+    // 上面下来的请求必须是pagesize对齐的
+    // 请求paste区域的起始page索引号
+    uint32_t beginIndex = offset / pageSize_;
+    // 请求paste区域的最后一个page索引号
+    uint32_t endIndex = (offset + length - 1) / pageSize_;
+    // 获取当前文件未被写过的range
+    std::vector<BitRange> uncopiedRange;
+    metaPage_.bitmap->Divide(beginIndex,
+                             endIndex,
+                             &uncopiedRange,
+                             nullptr);
+
+    // 对于未被写过的range，将相应的数据写入
+    off_t pasteOff;
+    size_t pasteSize;
+    for (auto& range : uncopiedRange) {
+        pasteOff = range.beginIndex * pageSize_;
+        pasteSize = (range.endIndex - range.beginIndex + 1) * pageSize_;
+        int rc = writeData(buf + (pasteOff - offset), pasteOff, pasteSize);
+        if (rc < 0) {
+            LOG(ERROR) << "Paste data to chunk failed."
+                       << "ChunkID: " << chunkId_
+                       << ", offset: " << offset
+                       << ", length: " << length;
+            return CSErrorCode::InternalError;
+        }
+    }
+
+    // 更新bitmap
+    CSErrorCode errorCode = flush();
+    if (errorCode != CSErrorCode::Success) {
+        LOG(ERROR) << "Paste data to chunk failed."
+                    << "ChunkID: " << chunkId_
+                    << ", offset: " << offset
+                    << ", length: " << length;
+        return errorCode;
+    }
     return CSErrorCode::Success;
 }
 
@@ -297,16 +427,27 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
         return CSErrorCode::ChunkNotExistError;
     }
 
-    // 版本等于快照文件的版本
-    vector<Extent> copiedExtents;
-    vector<Extent> uncopiedExtents;
-    partExtents(offset, length, &copiedExtents, &uncopiedExtents);
+    // 获取快照文件中已拷贝过和未被拷贝过的区域
+    uint32_t pageBeginIndex = offset / pageSize_;
+    uint32_t pageEndIndex = (offset + length - 1) / pageSize_;
+    std::vector<BitRange> copiedRange;
+    std::vector<BitRange> uncopiedRange;
+    std::shared_ptr<const Bitmap> snapBitmap = snapshot_->GetPageStatus();
+    snapBitmap->Divide(pageBeginIndex,
+                       pageEndIndex,
+                       &uncopiedRange,
+                       &copiedRange);
+
     CSErrorCode errorCode = CSErrorCode::Success;
+    off_t readOff;
+    size_t readSize;
     // 对于未拷贝的extent，读chunk的数据
-    for (auto& extent : uncopiedExtents) {
-        int rc = readData(buf + (extent.offset - offset),
-                          extent.offset,
-                          extent.length);
+    for (auto& range : uncopiedRange) {
+        readOff = range.beginIndex * pageSize_;
+        readSize = (range.endIndex - range.beginIndex + 1) * pageSize_;
+        int rc = readData(buf + (readOff - offset),
+                          readOff,
+                          readSize);
         if (rc < 0) {
             LOG(ERROR) << "Read chunk file failed. "
                        << "ChunkID: " << chunkId_
@@ -314,11 +455,13 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
             return CSErrorCode::InternalError;
         }
     }
-    // 对于以拷贝的extent，读snapshot的数据
-    for (auto& extent : copiedExtents) {
-        errorCode = snapshot_->Read(buf + (extent.offset - offset),
-                                    extent.offset,
-                                    extent.length);
+    // 对于已拷贝的range，读snapshot的数据
+    for (auto& range : copiedRange) {
+        readOff = range.beginIndex * pageSize_;
+        readSize = (range.endIndex - range.beginIndex + 1) * pageSize_;
+        errorCode = snapshot_->Read(buf + (readOff - offset),
+                                    readOff,
+                                    readSize);
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Read chunk file failed."
                        << "ChunkID: " << chunkId_
@@ -371,7 +514,6 @@ CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum fileSn)  {
     // 当快照系统调用DeleteSnapshotChunk以后，就不需要再cow了
     // 所以设置correctSn_为fileSn,写入时判断请求的sn小于等于correctSn_
     // 就不需要再创建快照做cow
-    // TODO(yyk) 后面考虑将修改correctedSn的逻辑和删除快照的逻辑分开
     SequenceNum chunkSn = std::max(metaPage_.correctedSn, metaPage_.sn);
     if (fileSn > chunkSn) {
         ChunkFileMetaPage tempMeta = metaPage_;
@@ -392,12 +534,23 @@ CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum fileSn)  {
 void CSChunkFile::GetInfo(CSChunkInfo* info)  {
     ReadLockGuard readGuard(rwLock_);
     info->chunkId = chunkId_;
+    info->pageSize = pageSize_;
     info->chunkSize = size_;
     info->curSn = metaPage_.sn;
     info->correctedSn = metaPage_.correctedSn;
     info->snapSn = (snapshot_ == nullptr
                         ? 0
                         : snapshot_->GetSn());
+    info->isClone = isCloneChunk();
+    info->location = metaPage_.location;
+    // 这里会有一次memcpy，否则需要对bitmap操作加锁
+    // 这一步存在ReadChunk关键路径上，对性能会有一定要求
+    // TODO(yyk) 需要评估哪种方法性能更好
+    if (metaPage_.bitmap != nullptr)
+        info->bitmap = std::make_shared<Bitmap>(metaPage_.bitmap->Size(),
+                                                metaPage_.bitmap->GetBitmap());
+    else
+        info->bitmap = nullptr;
 }
 
 bool CSChunkFile::needCreateSnapshot(SequenceNum sn) {
@@ -467,22 +620,35 @@ CSErrorCode CSChunkFile::loadMetaPage() {
 }
 
 CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {
+    // 获取快照文件中未被拷贝过的区域
+    uint32_t pageBeginIndex = offset / pageSize_;
+    uint32_t pageEndIndex = (offset + length - 1) / pageSize_;
+    std::vector<BitRange> uncopiedRange;
+    std::shared_ptr<const Bitmap> snapBitmap = snapshot_->GetPageStatus();
+    snapBitmap->Divide(pageBeginIndex,
+                       pageEndIndex,
+                       &uncopiedRange,
+                       nullptr);
+
     CSErrorCode errorCode = CSErrorCode::Success;
-    vector<Extent> uncopiedExtents;
-    partExtents(offset, length, nullptr, &uncopiedExtents);
+    off_t copyOff;
+    size_t copySize;
     // 将未拷贝过的区域从chunk文件读取出来，写入到snapshot文件
-    for (auto& extent : uncopiedExtents) {
-        char buf[extent.length] = {0};
-        int rc = readData(buf,
-                          extent.offset,
-                          extent.length);
+    for (auto& range : uncopiedRange) {
+        copyOff = range.beginIndex * pageSize_;
+        copySize = (range.endIndex - range.beginIndex + 1) * pageSize_;
+        std::shared_ptr<char> buf(new char[copySize],
+                                  std::default_delete<char[]>());
+        int rc = readData(buf.get(),
+                          copyOff,
+                          copySize);
         if (rc < 0) {
             LOG(ERROR) << "Read from chunk file failed."
                        << "ChunkID: " << chunkId_
                        << ",chunk sn: " << metaPage_.sn;
             return CSErrorCode::InternalError;
         }
-        errorCode = snapshot_->Write(buf, extent.offset, extent.length);
+        errorCode = snapshot_->Write(buf.get(), copyOff, copySize);
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Write to snapshot failed."
                        << "ChunkID: " << chunkId_
@@ -492,7 +658,7 @@ CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {
         }
     }
     // 如果快照文件被写过，需要调用Flush持久化metapage
-    if (uncopiedExtents.size() > 0) {
+    if (uncopiedRange.size() > 0) {
         errorCode = snapshot_->Flush();
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Flush snapshot metapage failed."
@@ -505,44 +671,33 @@ CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {
     return CSErrorCode::Success;
 }
 
-void CSChunkFile::partExtents(off_t offset,
-                              size_t length,
-                              vector<Extent>* copiedExtents,
-                              vector<Extent>* uncopiedExtents) {
-    if (length == 0)
-        return;
-    uint32_t pageBeginIndex = offset / pageSize_;
-    uint32_t pageEndIndex = (offset + length - 1) / pageSize_;
-    Extent ext;
-    ext.offset = pageBeginIndex * pageSize_;
-    ext.length = 0;
-    // copiedFlag表示当前extent属于已经拷贝过的extent还是未拷贝的extent
-    bool copiedFlag = snapshot_->IsPageWritten(pageBeginIndex);
-    bool hasCopiedPtr = copiedExtents != nullptr;
-    bool hasUncopiedPtr = uncopiedExtents != nullptr;
-    for (uint32_t i = pageBeginIndex; i <= pageEndIndex; ++i) {
-        if (copiedFlag != snapshot_->IsPageWritten(i)) {
-            // 将当前extent加到对应的vector
-            if (copiedFlag && hasCopiedPtr) {
-                copiedExtents->push_back(ext);
-            } else if (!copiedFlag && hasUncopiedPtr) {
-                uncopiedExtents->push_back(ext);
-            }
-            // 重新初始化extent
-            ext.offset = i * pageSize_;
-            ext.length = pageSize_;
-            // 标记反转
-            copiedFlag = !copiedFlag;
-        } else {
-            ext.length += pageSize_;
+CSErrorCode CSChunkFile::flush() {
+    ChunkFileMetaPage tempMeta = metaPage_;
+    bool needUpdateMeta = dirtyPages_.size() > 0;
+    for (auto pageIndex : dirtyPages_) {
+        tempMeta.bitmap->Set(pageIndex);
+    }
+    if (isCloneChunk()) {
+        // 如果所有的page都被写过,将Chunk标记为非clone chunk
+        if (tempMeta.bitmap->NextClearBit(0) == Bitmap::NO_POS) {
+            tempMeta.location = "";
+            tempMeta.bitmap = nullptr;
+            needUpdateMeta = true;
         }
     }
-    // 将最后一个extent加到对应的vector
-    if (copiedFlag && hasCopiedPtr) {
-        copiedExtents->push_back(ext);
-    } else if (!copiedFlag && hasUncopiedPtr) {
-        uncopiedExtents->push_back(ext);
+    if (needUpdateMeta) {
+        CSErrorCode errorCode = updateMetaPage(&tempMeta);
+        if (errorCode != CSErrorCode::Success) {
+            LOG(ERROR) << "Update metapage failed."
+                        << "ChunkID: " << chunkId_
+                        << ",chunk sn: " << metaPage_.sn;
+            return errorCode;
+        }
+        metaPage_.bitmap = tempMeta.bitmap;
+        metaPage_.location = tempMeta.location;
+        dirtyPages_.clear();
     }
+    return CSErrorCode::Success;
 }
 
 }  // namespace chunkserver

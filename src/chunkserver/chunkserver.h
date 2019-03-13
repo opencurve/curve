@@ -12,6 +12,8 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/service_manager.h"
+#include "src/chunkserver/clone_manager.h"
+#include "src/chunkserver/clone_core.h"
 #include "proto/chunkserver.pb.h"
 #include "src/fs/local_filesystem.h"
 #include "src/fs/fs_common.h"
@@ -87,6 +89,16 @@ class ChunkServer {
      * 初始化服务子系统选项
      */
     void InitServiceOptions();
+
+    /*
+     * 初始化克隆管理选项
+     */
+    void InitCloneOptions();
+
+    /*
+     * 初始化源端拷贝选项
+     */
+    void InitCopyerOptions();
 
     /*
      * 初始化心跳子系统选项
@@ -188,6 +200,26 @@ class ChunkServer {
      * 并发持久化模块
      */
     ConcurrentApplyModule       concurrentapply_;
+
+    /*
+     * 远端拷贝管理模块选项
+     */
+    CopyerOptions               copyerOptions_;
+
+    /*
+     * 远端拷贝管理模块
+     */
+    std::shared_ptr<OriginCopyer> copyer_;
+
+    /*
+     * 克隆管理模块选项
+     */
+    CloneOptions                cloneOptions_;
+
+    /*
+     * 克隆管理模块
+     */
+    CloneManager                cloneManager_;
 
     /*
      * Chunkserver元数据

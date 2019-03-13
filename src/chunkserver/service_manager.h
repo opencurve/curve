@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2018 NetEase Inc. All rights reserved.
  * Project: Curve
- * 
- * History: 
+ *
+ * History:
  *          2018/08/30  Wenyu Zhou   Initial version
  */
 
@@ -19,6 +19,7 @@
 #include "src/chunkserver/chunkserver_service.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/braft_cli_service.h"
+#include "src/chunkserver/clone_manager.h"
 
 #include "proto/chunk.pb.h"
 #include "proto/copyset.pb.h"
@@ -38,6 +39,7 @@ struct ServiceOptions {
     int                     port;
     ChunkServer*            chunkserver;
     CopysetNodeManager*     copysetNodeManager;
+    CloneManager*           cloneManager;
 };
 
 class ServiceManager {
@@ -64,6 +66,7 @@ class ServiceManager {
 
     ChunkServer*            chunkserver_;
     CopysetNodeManager*     copysetNodeManager_;
+    CloneManager*           cloneManager_;
 };
 
 }  // namespace chunkserver

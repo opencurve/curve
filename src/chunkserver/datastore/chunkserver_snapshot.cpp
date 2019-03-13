@@ -172,15 +172,15 @@ CSErrorCode CSSnapshot::Delete() {
     return CSErrorCode::Success;
 }
 
-SequenceNum CSSnapshot::GetSn() {
+SequenceNum CSSnapshot::GetSn() const {
     return metaPage_.sn;
 }
 
-bool CSSnapshot::IsPageWritten(uint32_t pageIndex) {
-    return metaPage_.bitmap->Test(pageIndex);
+std::shared_ptr<const Bitmap> CSSnapshot::GetPageStatus() const {
+    return metaPage_.bitmap;
 }
 
-bool CSSnapshot::IsDamaged() {
+bool CSSnapshot::IsDamaged() const {
     return metaPage_.damaged;
 }
 

@@ -88,6 +88,41 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
     req->Process();
 }
 
+void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
+                                        const ChunkRequest *request,
+                                        ChunkResponse *response,
+                                        Closure *done) {
+    brpc::ClosureGuard doneGuard(done);
+
+    // 请求创建的chunk大小和copyset配置的大小不一致
+    auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
+    if (request->size() != maxSize) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
+        DVLOG(9) << "Invalid chunk size: " << request->optype()
+                 << " request size: " << request->size()
+                 << " copyset size: " << maxSize;
+        return;
+    }
+
+    // 判断copyset是否存在
+    auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
+                                                       request->copysetid());
+    if (nullptr == nodePtr) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
+        LOG(ERROR) << "write chunk failed, copyset node is not found:"
+                   << request->logicpoolid() << "," << request->copysetid();
+        return;
+    }
+
+    std::shared_ptr<CreateCloneChunkRequest>
+        req = std::make_shared<CreateCloneChunkRequest>(nodePtr,
+                                                        controller,
+                                                        request,
+                                                        response,
+                                                        doneGuard.release());
+    req->Process();
+}
+
 void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                  const ChunkRequest *request,
                                  ChunkResponse *response,
@@ -114,12 +149,50 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
         return;
     }
 
-    std::shared_ptr<ReadChunkRequest>
-        req = std::make_shared<ReadChunkRequest>(nodePtr,
-                                                 controller,
-                                                 request,
-                                                 response,
-                                                 doneGuard.release());
+    std::shared_ptr<ReadChunkRequest> req =
+        std::make_shared<ReadChunkRequest>(nodePtr,
+                                           chunkServiceOptions_.cloneManager,
+                                           controller,
+                                           request,
+                                           response,
+                                           doneGuard.release());
+    req->Process();
+}
+
+void ChunkServiceImpl::RecoverChunk(RpcController *controller,
+                                    const ChunkRequest *request,
+                                    ChunkResponse *response,
+                                    Closure *done) {
+    brpc::ClosureGuard doneGuard(done);
+
+    auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
+    if (request->offset() + request->size() > maxSize) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
+        LOG(ERROR) << "I/O request, op: " << request->optype()
+                   << " offset: " << request->offset()
+                   << " size: " << request->size()
+                   << " max size: " << maxSize;
+        return;
+    }
+
+    // 判断copyset是否存在
+    auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
+                                                       request->copysetid());
+    if (nullptr == nodePtr) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
+        LOG(ERROR) << "recover chunk failed, copyset node is not found:"
+                   << request->logicpoolid() << "," << request->copysetid();
+        return;
+    }
+
+    // RecoverChunk请求和ReadChunk请求共用ReadChunkRequest
+    std::shared_ptr<ReadChunkRequest> req =
+        std::make_shared<ReadChunkRequest>(nodePtr,
+                                           chunkServiceOptions_.cloneManager,
+                                           controller,
+                                           request,
+                                           response,
+                                           doneGuard.release());
     req->Process();
 }
 
@@ -214,18 +287,21 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
     }
 
     CSErrorCode ret;
-    std::vector<SequenceNum> sns;
+    CSChunkInfo chunkInfo;
 
-    ret = nodePtr->GetDataStore()->GetChunkInfo(request->chunkid(), &sns);
+    ret = nodePtr->GetDataStore()->GetChunkInfo(request->chunkid(), &chunkInfo);
 
-    // 1.成功
     if (CSErrorCode::Success == ret) {
-        for (auto it = sns.begin(); it < sns.end(); ++it) {
-            response->add_chunksn(*it);
-        }
+        // 1.成功，此时chunk文件肯定存在
+        response->add_chunksn(chunkInfo.curSn);
+        if (chunkInfo.snapSn > 0)
+            response->add_chunksn(chunkInfo.snapSn);
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    } else if (CSErrorCode::ChunkNotExistError == ret) {
+        // 2.chunk文件不存在，返回的版本集合为空
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     } else {
-        // 2.其他错误，尽管当前get chunk info一定返回成功
+        // 3.其他错误
         LOG(ERROR) << "get chunk info failed, "
                    << " logic pool id: " << request->logicpoolid()
                    << " copyset id: " << request->copysetid()

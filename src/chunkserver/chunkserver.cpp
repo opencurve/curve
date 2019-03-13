@@ -18,6 +18,7 @@
 
 #include "proto/topology.pb.h"
 #include "include/chunkserver/chunkserver_common.h"
+#include "src/chunkserver/clone_copyer.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
 const uint32_t TOKEN_SIZE = 128;
@@ -102,6 +103,26 @@ void ChunkServer::InitServiceOptions() {
     serviceOptions_.port = conf_.GetIntValue("global.port");
     serviceOptions_.chunkserver = this;
     serviceOptions_.copysetNodeManager = &copysetNodeManager_;
+    serviceOptions_.cloneManager = &cloneManager_;
+}
+
+void ChunkServer::InitCopyerOptions() {
+    copyerOptions_.curveUser.owner =
+        conf_.GetStringValue("curve.root_username");
+    copyerOptions_.curveUser.password =
+        conf_.GetStringValue("curve.root_password");
+    copyerOptions_.curveConf = conf_.GetStringValue("curve.config_path");
+
+    auto curveClient = std::make_shared<FileClient>();
+    auto s3Adapter = std::make_shared<S3Adapter>();
+    copyer_ = std::make_shared<OriginCopyer>(curveClient, s3Adapter);
+}
+
+void ChunkServer::InitCloneOptions() {
+    cloneOptions_.threadNum = conf_.GetIntValue("clone.thread_num");
+    cloneOptions_.queueCapacity = conf_.GetIntValue("clone.queue_depth");
+    uint32_t sliceSize = conf_.GetIntValue("clone.slice_size");
+    cloneOptions_.core = std::make_shared<CloneCore>(sliceSize, copyer_);
 }
 
 int ChunkServer::PersistChunkServerMeta() {
@@ -403,6 +424,14 @@ int ChunkServer::Init(int argc, char **argv) {
     LOG_IF(FATAL, false == ret)
         << "Failed to init chunk file pool";
 
+    InitCopyerOptions();
+    LOG_IF(FATAL, copyer_->Init(copyerOptions_) != 0)
+        << "Failed to initialize clone copyer.";
+
+    InitCloneOptions();
+    LOG_IF(FATAL, cloneManager_.Init(cloneOptions_) != 0)
+        << "Failed to initialize clone manager.";
+
     InitServiceOptions();
     LOG_IF(FATAL, serviceManager_.Init(serviceOptions_) != 0)
         << "Failed to initialize ServiceManager.";
@@ -425,6 +454,10 @@ int ChunkServer::Fini() {
 
     LOG_IF(ERROR, heartbeat_.Fini() != 0)
         << "Failed to shutdown heartbeat manager.";
+    LOG_IF(ERROR, cloneManager_.Fini() != 0)
+        << "Failed to shutdown clone manager.";
+    LOG_IF(ERROR, copyer_->Fini() != 0)
+        << "Failed to shutdown clone copyer.";
     LOG_IF(ERROR, copysetNodeManager_.Fini() != 0)
         << "Failed to shutdown CopysetNodeManager.";
     LOG_IF(ERROR, serviceManager_.Fini() != 0)
@@ -443,6 +476,8 @@ int ChunkServer::Run() {
         << "Failed to start CopysetNodeManager.";
     LOG_IF(FATAL, heartbeat_.Run() != 0)
         << "Failed to start heartbeat manager.";
+    LOG_IF(FATAL, cloneManager_.Run() != 0)
+    << "Failed to start clone manager.";
 
     // TODO(wenyu): daemonize it
 

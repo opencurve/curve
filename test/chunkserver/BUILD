@@ -26,7 +26,7 @@ cc_test(
         "conf_epoch_file_test.cpp",
         "concurrent_apply_unittest.cpp",
         "mock_local_file_system.h",
-        "mock_cs_data_store.h",
+        "fake_datastore.h",
     ]),
     copts = ["-std=c++14"],
     deps = DEPS,
@@ -39,7 +39,7 @@ cc_test(
         "mock_local_file_system.h",
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
-        "mock_cs_data_store.h",
+        "fake_datastore.h",
     ]),
     copts = ["-std=c++14"],
     deps = DEPS,
@@ -51,7 +51,7 @@ cc_test(
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
         "chunkserver_snapshot_test.cpp",
-        "mock_cs_data_store.h",
+        "fake_datastore.h",
     ]),
     copts = ["-std=c++14"],
     deps = [
@@ -75,7 +75,7 @@ cc_test(
         "cli_test.cpp",
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
-        "mock_cs_data_store.h",
+        "fake_datastore.h",
     ]),
     copts = ["-std=c++14"],
     deps = DEPS,
@@ -87,7 +87,7 @@ cc_test(
         "braft_cli_service_test.cpp",
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
-        "mock_cs_data_store.h",
+        "fake_datastore.h",
     ]),
     copts = ["-std=c++14"],
     deps = DEPS,
@@ -96,7 +96,7 @@ cc_test(
 cc_library(
     name = "chunkserver-test-util-lib",
     srcs = glob([
-        "mock_cs_data_store.h",
+        "fake_datastore.h",
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
     ]),
@@ -122,7 +122,7 @@ cc_binary(
         "chunkserver_test_util.cpp",
         "chunkserver_test_util.h",
         "client.cpp",
-        "mock_cs_data_store.h",
+        "fake_datastore.h",
     ],
     copts = ["-std=c++14"],
     deps = [
@@ -167,7 +167,7 @@ cc_test(
         "chunkserver_test.cpp",
         "chunkserver_test_util.cpp",
         "chunkserver_test_util.h",
-        "mock_cs_data_store.h",
+        "fake_datastore.h",
     ],
     copts = ["-std=c++14"],
     deps = [
@@ -209,4 +209,15 @@ cc_test(
         "//test/client/fake:fake_lib",
         "@com_google_googletest//:gtest_main",
     ],
+)
+
+cc_library(
+    name = "chunkserver_mock",
+    srcs = [
+            "mock_copyset_node.h",
+            ],
+    deps = [
+            "//src/chunkserver:chunkserver-test-lib",
+            ],
+    visibility = ["//visibility:public"],
 )

@@ -16,7 +16,7 @@ cc_test(
     srcs = glob([
             "*.cpp",
         ]),
-    linkopts = ([
+    copts = ([
         "-std=c++11",
     ]),
     deps = [

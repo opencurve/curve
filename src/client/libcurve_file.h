@@ -29,13 +29,13 @@ namespace client {
 class FileClient {
  public:
   FileClient();
-  ~FileClient() = default;
+  virtual ~FileClient() = default;
 
   /**
    * file对象初始化函数
    * @param: 配置文件路径
    */
-  LIBCURVE_ERROR Init(const char* configpath);
+  virtual LIBCURVE_ERROR Init(const char* configpath);
   /**
    * 打开或创建文件
    * @param: filename文件名
@@ -44,10 +44,10 @@ class FileClient {
    * @param: create为true，文件不存在就创建
    * @return: 返回文件fd
    */
-  int Open(std::string filename,
-           UserInfo_t userinfo,
-           size_t size = 0,
-           bool create = false);
+  virtual int Open(const std::string& filename,
+                   UserInfo_t userinfo,
+                   size_t size = 0,
+                   bool create = false);
   /**
    * 同步模式读
    * @param: fd为当前open返回的文件描述符
@@ -56,7 +56,7 @@ class FileClient {
    * @parma：length为待读取的长度
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR Read(int fd, char* buf, off_t offset, size_t length);
+  virtual LIBCURVE_ERROR Read(int fd, char* buf, off_t offset, size_t length);
   /**
    * 同步模式写
    * @param: fd为当前open返回的文件描述符
@@ -65,37 +65,40 @@ class FileClient {
    * @parma：length为待读取的长度
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR Write(int fd, const char* buf, off_t offset, size_t length);
+  virtual LIBCURVE_ERROR Write(int fd,
+                               const char* buf,
+                               off_t offset,
+                               size_t length);
   /**
    * 异步模式读
    * @param: fd为当前open返回的文件描述符
    * @param: aioctx为异步读写的io上下文，保存基本的io信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR AioRead(int fd, CurveAioContext* aioctx);
+  virtual LIBCURVE_ERROR AioRead(int fd, CurveAioContext* aioctx);
   /**
    * 异步模式写
    * @param: fd为当前open返回的文件描述符
    * @param: aioctx为异步读写的io上下文，保存基本的io信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR AioWrite(int fd, CurveAioContext* aioctx);
+  virtual LIBCURVE_ERROR AioWrite(int fd, CurveAioContext* aioctx);
   /**
    * 获取文件信息
    * @param: fd为当前open返回的文件描述符
    * @param: finfo是出参，携带当前文件的基础信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR StatFs(int fd, FileStatInfo* finfo);
+  virtual LIBCURVE_ERROR StatFs(int fd, FileStatInfo* finfo);
   /**
    * close通过fd找到对应的instance进行删除
    * @param: fd为当前open返回的文件描述符
    */
-  void Close(int fd);
+  virtual void Close(int fd);
   /**
    * 析构，回收资源
    */
-  void UnInit();
+  virtual void UnInit();
 
  private:
   RWLock rwlock_;

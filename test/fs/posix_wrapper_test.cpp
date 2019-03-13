@@ -46,5 +46,24 @@ TEST_F(PosixWrapperTest, BasicTest) {
     ASSERT_EQ(0, wrapper.remove(DIR_PATH));
 }
 
+TEST_F(PosixWrapperTest, RenameTest) {
+    PosixWrapper wrapper;
+    ASSERT_EQ(0, wrapper.mkdir(DIR_PATH, 0755));
+    int fd = wrapper.open(FILE_PATH1, O_CREAT|O_RDWR, 0644);
+    ASSERT_GE(fd, 0);
+    ASSERT_EQ(0, wrapper.close(fd));
+    ASSERT_EQ(0, wrapper.rename(FILE_PATH1, FILE_PATH2));
+
+    wrapper.open(FILE_PATH1, O_CREAT|O_RDWR, 0644);
+    ASSERT_GE(fd, 0);
+    ASSERT_EQ(0, wrapper.close(fd));
+    ASSERT_EQ(-1, wrapper.rename(FILE_PATH1, FILE_PATH2));
+
+    ASSERT_EQ(0, wrapper.remove(FILE_PATH1));
+    ASSERT_EQ(0, wrapper.remove(FILE_PATH2));
+    ASSERT_EQ(0, wrapper.remove(DIR_PATH));
+}
+
+
 }  // namespace fs
 }  // namespace curve

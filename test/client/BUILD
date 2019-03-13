@@ -210,3 +210,14 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "client_mock",
+    srcs = [
+            "mock_file_client.h",
+            ],
+    deps = [
+            "//src/client:curve_client",
+            ],
+    visibility = ["//visibility:public"],
+)

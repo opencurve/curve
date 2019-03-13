@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_CHUNKSERVER_MOCK_CS_DATA_STORE_H_
-#define TEST_CHUNKSERVER_MOCK_CS_DATA_STORE_H_
+#ifndef TEST_CHUNKSERVER_FAKE_DATASTORE_H_
+#define TEST_CHUNKSERVER_FAKE_DATASTORE_H_
 
 #include <string>
 #include <set>
@@ -39,7 +39,7 @@ class FakeCSDataStore : public CSDataStore {
         chunk_ = nullptr;
     }
 
-    bool Initialize() {
+    bool Initialize() override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return false;
@@ -47,7 +47,7 @@ class FakeCSDataStore : public CSDataStore {
         return true;
     }
 
-    CSErrorCode DeleteChunk(ChunkID id, SequenceNum sn) {
+    CSErrorCode DeleteChunk(ChunkID id, SequenceNum sn) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -60,7 +60,8 @@ class FakeCSDataStore : public CSDataStore {
         }
     }
 
-    CSErrorCode DeleteSnapshotChunk(ChunkID id, SequenceNum snapshotSn) {
+    CSErrorCode DeleteSnapshotChunk(ChunkID id,
+                                    SequenceNum snapshotSn) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -77,7 +78,7 @@ class FakeCSDataStore : public CSDataStore {
                           SequenceNum sn,
                           char *buf,
                           off_t offset,
-                          size_t length) {
+                          size_t length) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -96,7 +97,7 @@ class FakeCSDataStore : public CSDataStore {
                                   SequenceNum sn,
                                   char *buf,
                                   off_t offset,
-                                  size_t length) {
+                                  size_t length) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -113,7 +114,7 @@ class FakeCSDataStore : public CSDataStore {
                            const char *buf,
                            off_t offset,
                            size_t length,
-                           uint32_t *cost) {
+                           uint32_t *cost) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
@@ -125,17 +126,47 @@ class FakeCSDataStore : public CSDataStore {
         return CSErrorCode::Success;
     }
 
+    CSErrorCode CreateCloneChunk(ChunkID id,
+                                 SequenceNum sn,
+                                 SequenceNum correctedSn,
+                                 ChunkSizeType size,
+                                 const string& location) override {
+        CSErrorCode errorCode = HasInjectError();
+        if (errorCode != CSErrorCode::Success) {
+            return errorCode;
+        }
+        chunkIds_.insert(id);
+        sn_ = sn;
+        return CSErrorCode::Success;
+    }
+
+    CSErrorCode PasteChunk(ChunkID id,
+                           const char * buf,
+                           off_t offset,
+                           size_t length) {
+        CSErrorCode errorCode = HasInjectError();
+        if (errorCode != CSErrorCode::Success) {
+            return errorCode;
+        }
+        if (chunkIds_.find(id) == chunkIds_.end()) {
+            return CSErrorCode::ChunkNotExistError;
+        }
+        ::memcpy(chunk_+offset, buf, length);
+        return CSErrorCode::Success;
+    }
+
     CSErrorCode GetChunkInfo(ChunkID id,
-                             vector<SequenceNum> *sns) {
+                             CSChunkInfo* info) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
         if (chunkIds_.find(id) != chunkIds_.end()) {
-            sns->push_back(sn_);
+            info->curSn = sn_;
+            info->snapSn = 0;
             return CSErrorCode::Success;
         } else {
-            return CSErrorCode::Success;
+            return CSErrorCode::ChunkNotExistError;
         }
     }
 
@@ -180,4 +211,4 @@ class FakeChunkfilePool : public ChunkfilePool {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // TEST_CHUNKSERVER_MOCK_CS_DATA_STORE_H_
+#endif  // TEST_CHUNKSERVER_FAKE_DATASTORE_H_
