@@ -25,13 +25,13 @@ LIBCURVE_ERROR SnapshotClient::Init(ClientConfigOption_t clientopt) {
             std::to_string(clientopt.loginfo.loglevel).c_str());
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
     do {
-        if (mdsclient_.Initialize(UserInfo("", ""), clientopt.metaserveropt)
+        if (mdsclient_.Initialize(UserInfo("", ""), clientopt.metaServerOpt)
             != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "MDSClient init failed!";
             break;
         }
 
-        if (!iomanager4chunk_.Initialize(clientopt.ioopt)) {
+        if (!iomanager4chunk_.Initialize(clientopt.ioOpt)) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }

@@ -53,8 +53,8 @@ bool SnapInstance::Initialize() {
             break;
         }
 
-        if (-1 == scheduler_->Init(ClientConfig::GetRequestSchedulerOption().request_scheduler_queue_capacity, //NOLINT
-                                    ClientConfig::GetRequestSchedulerOption().request_scheduler_threadpool_size, //NOLINT
+        if (-1 == scheduler_->Init(ClientConfig::GetRequestSchedulerOption().queueCapacity, //NOLINT
+                                    ClientConfig::GetRequestSchedulerOption().threadpoolSize, //NOLINT
                                     reqsenderManager_,
                                     mc_)) {
                 LOG(ERROR) << "Init scheduler_ failed!";

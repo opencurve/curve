@@ -25,7 +25,7 @@ class IOManager4Chunk : public IOManager {
  public:
     IOManager4Chunk();
     ~IOManager4Chunk() = default;
-    bool Initialize(IOOption_t  ioopt);
+    bool Initialize(IOOption_t  ioOpt);
 
    /**
     * 读取seq版本号的快照数据

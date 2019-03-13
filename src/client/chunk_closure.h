@@ -38,8 +38,8 @@ class ClientClosure : public Closure {
     virtual void SetResponse(Message* response) = 0;
     virtual void SetRetriedTimes(uint16_t retriedTimes) = 0;
 
-    static  void SetFailureRequestOption(FailureRequestOption_t  failreqopt) {
-        failReqOpt_ = failreqopt;
+    static void SetFailureRequestOption(FailureRequestOption_t failRequestOpt) {
+        failReqOpt_ = failRequestOpt;
     }
 
  protected:

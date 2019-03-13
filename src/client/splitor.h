@@ -21,7 +21,7 @@ namespace client {
 
 class Splitor {
  public:
-    static void Init(IOSplitOPtion_t iosplitopt);
+    static void Init(IOSplitOPtion_t ioSplitOpt);
     /**
      * 用户IO拆分成Chunk级别的IO
      * @param: iotracker大IO上下文信息

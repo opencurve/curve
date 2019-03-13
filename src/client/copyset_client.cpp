@@ -20,7 +20,7 @@ namespace curve {
 namespace client {
 
 int CopysetClient::Init(MetaCache *metaCache,
-                        IOSenderOption_t iosenderopt) {
+                        IOSenderOption_t ioSenderOpt) {
     if (nullptr == metaCache) {
         return -1;
     }
@@ -30,7 +30,7 @@ int CopysetClient::Init(MetaCache *metaCache,
     if (nullptr == senderManager_) {
         return -1;
     }
-    iosenderopt_ = iosenderopt;
+    iosenderopt_ = ioSenderOpt;
     return 0;
 }
 
@@ -50,7 +50,7 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
     butil::EndPoint leaderAddr;
 
     for (unsigned int i = retriedTimes;
-        i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
+        i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
                                         &leaderId, &leaderAddr, false)) {
@@ -62,8 +62,8 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
                              << "(write <" << logicPoolId << ", " << copysetId
                              << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
-                bthread_usleep(iosenderopt_.failreqopt.
-                                client_chunk_op_retry_interval_us);
+                bthread_usleep(iosenderopt_.failRequestOpt.
+                                opRetryIntervalUs);
                 continue;
             }
         }
@@ -83,8 +83,8 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
             break;
         } else {
             /* 如果建立连接失败，再等一定时间再重试 */
-            usleep(iosenderopt_.failreqopt.
-                    client_chunk_op_retry_interval_us);
+            usleep(iosenderopt_.failRequestOpt.
+                    opRetryIntervalUs);
             continue;
         }
     }
@@ -107,7 +107,7 @@ int CopysetClient::WriteChunk(LogicPoolID logicPoolId,
     brpc::ClosureGuard doneGuard(done);
 
     for (unsigned int i = retriedTimes;
-        i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
+        i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
                                         &leaderId, &leaderAddr, false)) {
@@ -119,8 +119,8 @@ int CopysetClient::WriteChunk(LogicPoolID logicPoolId,
                              << "(write <" << logicPoolId << ", " << copysetId
                              << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
-                bthread_usleep(iosenderopt_.failreqopt.
-                                client_chunk_op_retry_interval_us);
+                bthread_usleep(iosenderopt_.failRequestOpt.
+                                opRetryIntervalUs);
                 continue;
             }
         }
@@ -140,8 +140,8 @@ int CopysetClient::WriteChunk(LogicPoolID logicPoolId,
             /* 如果建立连接失败，再等一定时间再重试 */
             LOG(ERROR) << "create or reset sender failed (write <"
                        << logicPoolId << ", " << copysetId << ">)";
-            bthread_usleep(iosenderopt_.failreqopt.
-                            client_chunk_op_retry_interval_us);
+            bthread_usleep(iosenderopt_.failRequestOpt.
+                            opRetryIntervalUs);
             continue;
         }
     }
@@ -164,7 +164,7 @@ int CopysetClient::ReadChunkSnapshot(LogicPoolID logicPoolId,
     butil::EndPoint leaderAddr;
 
     for (unsigned int i = retriedTimes;
-        i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
+        i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
                                         &leaderId, &leaderAddr, false)) {
@@ -176,8 +176,8 @@ int CopysetClient::ReadChunkSnapshot(LogicPoolID logicPoolId,
                              << "(write <" << logicPoolId << ", " << copysetId
                              << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
-                bthread_usleep(iosenderopt_.failreqopt.
-                                client_chunk_op_retry_interval_us);
+                bthread_usleep(iosenderopt_.failRequestOpt.
+                                opRetryIntervalUs);
                 continue;
             }
         }
@@ -200,8 +200,8 @@ int CopysetClient::ReadChunkSnapshot(LogicPoolID logicPoolId,
             break;
         } else {
             /* 如果建立连接失败，再等一定时间再重试 */
-            bthread_usleep(iosenderopt_.failreqopt.
-                            client_chunk_op_retry_interval_us);
+            bthread_usleep(iosenderopt_.failRequestOpt.
+                            opRetryIntervalUs);
             continue;
         }
     }
@@ -222,7 +222,7 @@ int CopysetClient::DeleteChunkSnapshot(LogicPoolID logicPoolId,
     butil::EndPoint leaderAddr;
 
     for (unsigned int i = retriedTimes;
-         i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
+         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
                                         &leaderId, &leaderAddr, false)) {
@@ -234,8 +234,8 @@ int CopysetClient::DeleteChunkSnapshot(LogicPoolID logicPoolId,
                              << "(write <" << logicPoolId << ", " << copysetId
                              << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
-                bthread_usleep(iosenderopt_.failreqopt.
-                                client_chunk_op_retry_interval_us);
+                bthread_usleep(iosenderopt_.failRequestOpt.
+                                opRetryIntervalUs);
                 continue;
             }
         }
@@ -258,8 +258,8 @@ int CopysetClient::DeleteChunkSnapshot(LogicPoolID logicPoolId,
             break;
         } else {
             /* 如果建立连接失败，再等一定时间再重试 */
-            bthread_usleep(iosenderopt_.failreqopt.
-                            client_chunk_op_retry_interval_us);
+            bthread_usleep(iosenderopt_.failRequestOpt.
+                            opRetryIntervalUs);
             continue;
         }
     }
@@ -278,7 +278,7 @@ int CopysetClient::GetChunkInfo(LogicPoolID logicPoolId,
     brpc::ClosureGuard doneGuard(done);
 
     for (unsigned int i = retriedTimes;
-         i < iosenderopt_.failreqopt.client_chunk_op_max_retry; ++i) {
+         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
         if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
                                         &leaderId, &leaderAddr, false)) {
@@ -290,8 +290,8 @@ int CopysetClient::GetChunkInfo(LogicPoolID logicPoolId,
                              << "(write <" << logicPoolId << ", " << copysetId
                              << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
-                bthread_usleep(iosenderopt_.failreqopt.
-                                client_chunk_op_retry_interval_us);
+                bthread_usleep(iosenderopt_.failRequestOpt.
+                                opRetryIntervalUs);
                 continue;
             }
         }
@@ -313,8 +313,8 @@ int CopysetClient::GetChunkInfo(LogicPoolID logicPoolId,
             /* 如果建立连接失败，再等一定时间再重试 */
             LOG(ERROR) << "create or reset sender failed (write <"
                        << logicPoolId << ", " << copysetId << ">)";
-            bthread_usleep(iosenderopt_.failreqopt.
-                            client_chunk_op_retry_interval_us);
+            bthread_usleep(iosenderopt_.failRequestOpt.
+                            opRetryIntervalUs);
             continue;
         }
     }

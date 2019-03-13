@@ -30,10 +30,10 @@ TEST(ClientConfig, ClientConfigTest) {
 
     ASSERT_STREQ(metaopt.metaaddr.c_str(), "127.0.0.1:8000");
     ASSERT_EQ(ctxslab.pre_allocate_context_num, 1024);
-    ASSERT_EQ(reqschd.request_scheduler_queue_capacity, 4096);
-    ASSERT_EQ(reqschd.request_scheduler_threadpool_size, 2);
-    ASSERT_EQ(failreq.client_chunk_op_max_retry, 3);
-    ASSERT_EQ(failreq.client_chunk_op_retry_interval_us, 200000);
-    ASSERT_EQ(metacah.get_leader_retry, 3);
-    ASSERT_EQ(iooptio.enable_applied_index_read, 1);
+    ASSERT_EQ(reqschd.queueCapacity, 4096);
+    ASSERT_EQ(reqschd.threadpoolSize, 2);
+    ASSERT_EQ(failreq.opMaxRetry, 3);
+    ASSERT_EQ(failreq.opRetryIntervalUs, 200000);
+    ASSERT_EQ(metacah.getLeaderRetry, 3);
+    ASSERT_EQ(iooptio.enableAppliedIndexRead, 1);
 }

@@ -685,13 +685,13 @@ int init_copysets() {
     for (int i = 0; i < nr_copysets; i++) {
         retry = 20;
 
-        get_leader_retry:
+        getLeaderRetry:
         if (update_leader(copysets[i]) >= 0) {
             continue;
         } else if (retry > 0) {
             retry--;
             bthread_usleep(FLAGS_timeout_ms * 1000L);
-            goto get_leader_retry;
+            goto getLeaderRetry;
         } else {
             LOG(ERROR) << "Failed to get leader of copyset<"
                        << copysets[i]->poolId << ", " << copysets[i]->copysetId
