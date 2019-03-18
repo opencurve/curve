@@ -26,7 +26,8 @@ ChunkOpRequest::ChunkOpRequest() :
     cntl_(nullptr),
     request_(nullptr),
     response_(nullptr),
-    done_(nullptr) {}
+    done_(nullptr) {
+}
 
 ChunkOpRequest::ChunkOpRequest(std::shared_ptr<CopysetNode> nodePtr,
                                RpcController *cntl,
@@ -38,7 +39,8 @@ ChunkOpRequest::ChunkOpRequest(std::shared_ptr<CopysetNode> nodePtr,
     cntl_(dynamic_cast<brpc::Controller *>(cntl)),
     request_(request),
     response_(response),
-    done_(done) {}
+    done_(done) {
+}
 
 void ChunkOpRequest::Process() {
     brpc::ClosureGuard doneGuard(done_);
@@ -137,84 +139,6 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
     }
 }
 
-void ReadChunkRequest::Process() {
-    brpc::ClosureGuard doneGuard(done_);
-
-    if (!node_->IsLeaderTerm()) {
-        RedirectChunkRequest();
-        return;
-    }
-    /**
-     * 如果携带了applied index，且小于当前copyset node
-     * 的最新applied index，那么read
-     */
-    if (request_->has_appliedindex() &&
-        node_->GetAppliedIndex() >= request_->appliedindex()) {
-        char *readBuffer = nullptr;
-        size_t size = request_->size();
-
-        readBuffer = new(std::nothrow)char[size];
-        CHECK(nullptr != readBuffer)
-        << "new readBuffer failed " << strerror(errno);
-
-        auto ret = datastore_->ReadChunk(request_->chunkid(),
-                                         request_->sn(),
-                                         readBuffer,
-                                         request_->offset(),
-                                         size);
-        do {
-            /**
-             * 1.成功
-             */
-            if (CSErrorCode::Success == ret) {
-                cntl_->response_attachment().append(readBuffer, size);
-                response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-                DVLOG(9) << "read success: "
-                         << " logic pool id: " << request_->logicpoolid()
-                         << " copyset id: " << request_->copysetid()
-                         << " chunkid: " << request_->chunkid()
-                         << " data size: " << request_->size()
-                         << " read len :" << size;
-                break;
-            }
-
-            /**
-             * 2.chunk not exist
-             */
-            if (CSErrorCode::ChunkNotExistError == ret) {
-                response_->set_status(
-                    CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
-                break;
-            }
-
-            /**
-             * 3.其他错误
-             */
-            LOG(ERROR) << "read failed: "
-                       << " logic pool id: " << request_->logicpoolid()
-                       << " copyset id: " << request_->copysetid()
-                       << " chunkid: " << request_->chunkid()
-                       << " data size: " << request_->size()
-                       << " read len :" << size
-                       << " error: " << strerror(errno)
-                       << " data store return: " << ret;
-            response_->set_status(
-                CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
-        } while (0);
-
-        delete[] readBuffer;
-        response_->set_appliedindex(node_->GetAppliedIndex());
-        return;
-    }
-
-    /**
-     * 如果没有携带applied index，那么走raft一致性协议read
-     */
-    if (0 == Propose()) {
-        doneGuard.release();
-    }
-}
-
 void DeleteChunkRequest::OnApply(uint64_t index,
                                  ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
@@ -251,6 +175,129 @@ void DeleteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                      << " chunkid: " << request.chunkid()
                      << " error: " << strerror(errno)
                      << " data store return: " << ret;
+    }
+}
+
+ReadChunkRequest::ReadChunkRequest(std::shared_ptr<CopysetNode> nodePtr,
+                                   RpcController *cntl,
+                                   const ChunkRequest *request,
+                                   ChunkResponse *response,
+                                   ::google::protobuf::Closure *done) :
+    ChunkOpRequest(nodePtr, cntl, request, response, done),
+    concurrentApplyModule_(nodePtr->GetConcurrentApplyModule()) {
+}
+
+void ReadChunkRequest::ReadDirect() {
+    brpc::ClosureGuard doneGuard(done_);
+
+    char *readBuffer = nullptr;
+    size_t size = request_->size();
+
+    readBuffer = new(std::nothrow)char[size];
+    CHECK(nullptr != readBuffer)
+    << "new readBuffer failed " << strerror(errno);
+
+    auto ret = datastore_->ReadChunk(request_->chunkid(),
+                                     request_->sn(),
+                                     readBuffer,
+                                     request_->offset(),
+                                     size);
+    do {
+        /**
+         * 1.成功
+         */
+        if (CSErrorCode::Success == ret) {
+            cntl_->response_attachment().append(readBuffer, size);
+            response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+            DVLOG(9) << "read success: "
+                     << " logic pool id: " << request_->logicpoolid()
+                     << " copyset id: " << request_->copysetid()
+                     << " chunkid: " << request_->chunkid()
+                     << " data size: " << request_->size()
+                     << " read len :" << size;
+            break;
+        }
+
+        /**
+         * 2.chunk not exist
+         */
+        if (CSErrorCode::ChunkNotExistError == ret) {
+            response_->set_status(
+                CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
+            break;
+        }
+
+        /**
+         * 3.其他错误
+         */
+        LOG(ERROR) << "read failed: "
+                   << " logic pool id: " << request_->logicpoolid()
+                   << " copyset id: " << request_->copysetid()
+                   << " chunkid: " << request_->chunkid()
+                   << " data size: " << request_->size()
+                   << " read len :" << size
+                   << " error: " << strerror(errno)
+                   << " data store return: " << ret;
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+    } while (0);
+
+    delete[] readBuffer;
+    response_->set_appliedindex(node_->GetAppliedIndex());
+}
+
+void ReadChunkRequest::Process() {
+    brpc::ClosureGuard doneGuard(done_);
+
+    if (!node_->IsLeaderTerm()) {
+        RedirectChunkRequest();
+        return;
+    }
+
+    /**
+     * 如果携带了applied index，且小于当前copyset node
+     * 的最新applied index，那么read
+     */
+    if (request_->has_appliedindex() &&
+        node_->GetAppliedIndex() >= request_->appliedindex()) {
+        /**
+         * 构造shared_ptr<ReadChunkRequest>，因为在ChunkOpRequest只指定了
+         * std::enable_shared_from_this<ChunkOpRequest>，所以
+         * shared_from_this()返回的是shared_ptr<ChunkOpRequest>
+         */
+        auto thisPtr
+            = std::dynamic_pointer_cast<ReadChunkRequest>(shared_from_this());
+        /*
+         * 将read扔给并发层出于两个原因：
+         *  (1). 将read I/O操作和write等其它I/O操作都放在并发层处理，以便隔离
+         *  disk I/O和其他逻辑
+         *  (2). 为了保证线性一致性read的语义。因为当前apply是并发的，所以applied
+         *  index更新也是并发的，尽管applied index更新能够保证单调的，但是可能会存
+         *  在更新跳跃的情况，例如，index=6,7的2个op同时进入并发模块，并且都执行成
+         *  功返回了，这个时候leader挂了，new leader选出来，new leader上面有
+         *  index=6,7两个op的日志，但是没有apply，那么new leader必然需要回放这两
+         *  条日志，因为是并发的，所以index=7的op log可能先于index=6的被apply，然后
+         *  new leader的applied index会被更新为7，这个时候client来了一个想读index=6
+         *  的op写下的数据，携带的是applied index=7，这个时候ChunkServer比较携带的
+         *  applied index和Chunkserver的applied index，那么会判定通过走直接读，但是
+         *  ChunkServer实际上index=6的数据还没落盘。那么就会出现stale read。解决方法
+         *  就是read也进并发层排队，那么需要read index=6的read request，必定会排在
+         *  index=6的op的后面，也就是它们操作的是同一个chunk，并发层会将它们放在同一个
+         *  队列中，这样就能保证index=6的op apply之后，read才会被执行，这样就不会出现
+         *  stale read，保证了read的线性一致性
+         */
+        auto task = std::bind(&ReadChunkRequest::ReadDirect,
+                              thisPtr);
+        concurrentApplyModule_->Push(request_->chunkid(), task);
+        doneGuard.release();
+        return;
+    }
+
+    /**
+     * 如果没有携带applied index，那么走raft一致性协议read
+     */
+    if (0 == Propose()) {
+        doneGuard.release();
     }
 }
 

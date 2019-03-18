@@ -38,7 +38,8 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
     chunkDataApath_(),
     chunkDataRpath_(),
     appliedIndex_(0),
-    leaderTerm_(-1) {}
+    leaderTerm_(-1) {
+}
 
 CopysetNode::~CopysetNode() {
 }
@@ -451,6 +452,10 @@ uint64_t CopysetNode::GetAppliedIndex() const {
 
 std::shared_ptr<CSDataStore> CopysetNode::GetDataStore() const {
     return dataStore_;
+}
+
+ConcurrentApplyModule *CopysetNode::GetConcurrentApplyModule() const {
+    return concurrentapply_;
 }
 
 void CopysetNode::Propose(const braft::Task &task) {

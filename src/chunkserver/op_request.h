@@ -16,6 +16,7 @@
 
 #include "proto/chunk.pb.h"
 #include "include/chunkserver/chunkserver_common.h"
+#include "src/chunkserver/concurrent_apply.h"
 
 namespace curve {
 namespace chunkserver {
@@ -161,19 +162,24 @@ class ReadChunkRequest : public ChunkOpRequest {
                      RpcController *cntl,
                      const ChunkRequest *request,
                      ChunkResponse *response,
-                     ::google::protobuf::Closure *done) :
-        ChunkOpRequest(nodePtr,
-                       cntl,
-                       request,
-                       response,
-                       done) {}
+                     ::google::protobuf::Closure *done);
     virtual ~ReadChunkRequest() = default;
+
+    /**
+     * 如果request携带的applied index小于等于当前copyset的applied index
+     * 那么，可以直接read然后返回
+     */
+    void ReadDirect();
 
     void Process() override;
     void OnApply(uint64_t index, ::google::protobuf::Closure *done) override;
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
+
+ private:
+    // 并发模块
+    ConcurrentApplyModule* concurrentApplyModule_;
 };
 
 class WriteChunkRequest : public ChunkOpRequest {
