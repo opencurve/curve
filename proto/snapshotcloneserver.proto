@@ -1,0 +1,31 @@
+/*
+ * Project: curve
+ * Created Date: Fri Dec 14 2018
+ * Author: xuchaojie
+ * Copyright (c) 2018 netease
+ */
+
+syntax="proto2";
+
+package curve.snapshotcloneserver;
+
+option cc_generic_services = true;
+/*
+message ChunkName {
+    required string filename = 1;
+    required uint64 seqnum = 2;
+    required int32 index = 3;
+};
+*/
+message ChunkMap {
+    map<uint32, string> indexmap = 1;
+};
+
+message HttpRequest {};
+
+message HttpResponse {};
+
+service SnapshotCloneService{
+    rpc default_method(HttpRequest) returns (HttpResponse);
+};
+
