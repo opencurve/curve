@@ -51,12 +51,12 @@ proto_library(
 )
 
 cc_proto_library(
-    name = "snapshotserver_cc_proto",
-    deps = [":snapshotserver_proto"],
+    name = "snapshotcloneserver_cc_proto",
+    deps = [":snapshotcloneserver_proto"],
     visibility = ["//visibility:public"],
 )
 
 proto_library(
-    name = "snapshotserver_proto",
-    srcs = ["snapshotserver.proto"],
+    name = "snapshotcloneserver_proto",
+    srcs = ["snapshotcloneserver.proto"],
 )

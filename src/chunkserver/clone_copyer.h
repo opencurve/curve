@@ -18,12 +18,12 @@
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
 #include "src/client/libcurve_define.h"
-#include "src/snapshot/s3_adapter.h"
+#include "src/snapshotcloneserver/common/s3_adapter.h"
 
 namespace curve {
 namespace chunkserver {
 
-using curve::snapshotserver::S3Adapter;
+using curve::snapshotcloneserver::S3Adapter;
 using curve::client::FileClient;
 using curve::client::UserInfo;
 using curve::common::LocationOperator;
