@@ -84,12 +84,31 @@ int Ext4FileSystemImpl::Close(int fd) {
 }
 
 int Ext4FileSystemImpl::Delete(const string& path) {
-    int rc = posixWrapper_->remove(path.c_str());
+    int rc = 0;
+    // 如果删除对象是目录的话，需要先删除目录下的子对象
+    if (DirExists(path)) {
+        vector<string> names;
+        rc = List(path, &names);
+        if (rc < 0) {
+            LOG(ERROR) << "List " << path << " failed.";
+            return rc;
+        }
+        for (auto &name : names) {
+            string subPath = path + "/" + name;
+            // 递归删除子对象
+            rc = Delete(subPath);
+            if (rc < 0) {
+                LOG(ERROR) << "Delete " << subPath << " failed.";
+                return rc;
+            }
+        }
+    }
+    rc = posixWrapper_->remove(path.c_str());
     if (rc < 0) {
         LOG(ERROR) << "remove failed: " << strerror(errno);
         return -errno;
     }
-    return 0;
+    return rc;
 }
 
 int Ext4FileSystemImpl::Mkdir(const string& dirName) {
