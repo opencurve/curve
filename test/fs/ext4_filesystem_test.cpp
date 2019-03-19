@@ -91,13 +91,63 @@ TEST_F(Ext4LocalFileSystemTest, CloseTest) {
 }
 
 // test Delete
-TEST_F(Ext4LocalFileSystemTest, RemoveTest) {
-    EXPECT_CALL(*wrapper, remove(NotNull()))
-        .WillOnce(Return(0));
-    ASSERT_EQ(lfs->Delete(""), 0);
-    EXPECT_CALL(*wrapper, remove(NotNull()))
-        .WillOnce(Return(-1));
-    ASSERT_EQ(lfs->Delete(""), -errno);
+TEST_F(Ext4LocalFileSystemTest, DeleteTest) {
+    // fake env
+    {
+        struct stat dirInfo;
+        dirInfo.st_mode = S_IFDIR;
+        struct stat fileInfo;
+        fileInfo.st_mode = S_IFREG;
+        // /a is a file
+        EXPECT_CALL(*wrapper, stat(StrEq("/a"), NotNull()))
+            .WillRepeatedly(DoAll(SetArgPointee<1>(fileInfo),
+                                  Return(0)));
+        // /b is a dir
+        EXPECT_CALL(*wrapper, stat(StrEq("/b"), NotNull()))
+            .WillRepeatedly(DoAll(SetArgPointee<1>(dirInfo),
+                                  Return(0)));
+        // /b/1 is a file
+        EXPECT_CALL(*wrapper, stat(StrEq("/b/1"), NotNull()))
+            .WillRepeatedly(DoAll(SetArgPointee<1>(fileInfo),
+                                  Return(0)));
+
+        DIR* dirp = reinterpret_cast<DIR*>(0x01);
+        struct dirent entryArray[1];
+        memset(entryArray, 0, sizeof(entryArray));
+        memcpy(entryArray[0].d_name, "1", 1);
+        EXPECT_CALL(*wrapper, opendir(StrEq("/b")))
+            .WillOnce(Return(dirp));
+        EXPECT_CALL(*wrapper, readdir(dirp))
+            .Times(2)
+            .WillOnce(Return(entryArray))
+            .WillOnce(Return(nullptr));
+        EXPECT_CALL(*wrapper, closedir(_))
+            .WillOnce(Return(0));
+
+        EXPECT_CALL(*wrapper, remove(NotNull()))
+            .WillRepeatedly(Return(0));
+    }
+
+    // test delete dir
+    {
+        // success
+        ASSERT_EQ(lfs->Delete("/b"), 0);
+
+        // opendir failed
+        EXPECT_CALL(*wrapper, opendir(StrEq("/b")))
+            .WillOnce(Return(nullptr));
+        // List will failed
+        ASSERT_EQ(lfs->Delete("/b"), -errno);
+    }
+
+    // test delete file
+    {
+        ASSERT_EQ(lfs->Delete("/a"), 0);
+        // error occured when remove file
+        EXPECT_CALL(*wrapper, remove(NotNull()))
+            .WillOnce(Return(-1));
+        ASSERT_EQ(lfs->Delete("/a"), -errno);
+    }
 }
 
 // test Mkdir
@@ -229,6 +279,14 @@ TEST_F(Ext4LocalFileSystemTest, ReadTest) {
         .WillOnce(DoAll(SetVoidArgPointee<1>('3'), Return(1)));
     ASSERT_EQ(lfs->Read(666, buf, 0, 3), 3);
     ASSERT_STREQ(buf, "123");
+    // out of range test
+    memset(buf, 0, 4);
+    EXPECT_CALL(*wrapper, pread(_, NotNull(), _, _))
+        .WillOnce(DoAll(SetVoidArgPointee<1>('1'), Return(1)))
+        .WillOnce(DoAll(SetVoidArgPointee<1>('2'), Return(1)))
+        .WillOnce(Return(0));
+    ASSERT_EQ(lfs->Read(666, buf, 0, 3), 2);
+    ASSERT_STREQ(buf, "12");
     // pread failed
     EXPECT_CALL(*wrapper, pread(_, NotNull(), _, _))
         .WillOnce(Return(-1));

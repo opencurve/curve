@@ -85,25 +85,12 @@ class DatastoreRealTest : public testing::Test {
     }
 
     void TearDown() {
-        RemoveDir("./chunkfilepool");
-        RemoveDir(baseDir);
+        lfs_->Delete("./chunkfilepool");
+        lfs_->Delete(baseDir);
         lfs_->Delete("./chunkfilepool.meta");
         filePool_->UnInitialize();
         delete [] buf;
         buf = nullptr;
-    }
-
-    void RemoveDir(const std::string& dirPath) {
-        std::vector<std::string> filenames;
-        lfs_->List(dirPath, &filenames);
-        for (auto name : filenames) {
-            auto path = dirPath + "/" + name;
-            int err = lfs_->Delete(path.c_str());
-            if (err) {
-                LOG(INFO) << "unlink file failed!, errno = " << errno;
-            }
-        }
-        lfs_->Delete(dirPath);
     }
 
  protected:
