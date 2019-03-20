@@ -120,7 +120,7 @@ int curve_main(int argc, char **argv) {
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
                                                       taskManager, storage_);
 
-    sessionManager_ = new SessionManager(std::make_shared<repo::Repo>());
+    sessionManager_ = new SessionManager(std::make_shared<MdsRepo>());
 
     if (!kCurveFS.Init(storage_, inodeGenerator_,
                   chunkSegmentAllocate_, cleanManger,

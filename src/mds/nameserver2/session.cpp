@@ -302,7 +302,7 @@ void SessionManager::HandleDeleteSessionList() {
     while (iter != deleteSessionList_.end()) {
         std::string sessionId = iter->GetSessionId();
         // 从数据库中删除
-        auto ret = repo_->DeleteSessionRepo(iter->GetSessionId());
+        auto ret = repo_->DeleteSessionRepoItem(iter->GetSessionId());
         if (ret != repo::OperationOK) {
             LOG(ERROR) << "delete session from repo fail, sessionId = "
                        << iter->GetSessionId()
@@ -322,8 +322,9 @@ void SessionManager::UpdateRepoSesssions() {
     auto iterator = sessionMap_.begin();
     while (iterator != sessionMap_.end()) {
         std::string sessionId = iterator->second.GetSessionId();
-        repo::SessionRepo sessionRepo;
-        auto ret = repo_->QuerySessionRepo(sessionId, &sessionRepo);
+        SessionRepoItem sessionRepo;
+        auto ret = repo_->QuerySessionRepoItem(sessionId,
+                                    &sessionRepo);
         if (ret != repo::OperationOK) {
             LOG(ERROR) << "query session from repo fail, sessionId = "
                        << sessionId << ", errCode = " << ret;
@@ -339,7 +340,7 @@ void SessionManager::UpdateRepoSesssions() {
                       << ", repo status = "
                       << sessionRepo.GetSessionStatus();
             sessionRepo.SetSessionStatus(iterator->second.GetSessionStatus());
-            ret = repo_->UpdateSessionRepo(sessionRepo);
+            ret = repo_->UpdateSessionRepoItem(sessionRepo);
             if (ret != repo::OperationOK) {
                 LOG(ERROR) << "update session from repo fail, sessionId = "
                            << sessionId << ", errCode = " << ret;
@@ -362,10 +363,10 @@ StatusCode SessionManager::InsertNewSession(const std::string &fileName,
     uint32_t leaseTime = session.GetLeaseTime();
 
     // 持久化
-    repo::SessionRepo sessionRepo(fileName, sessionId, token, leaseTime,
+    SessionRepoItem sessionRepo(fileName, sessionId, token, leaseTime,
                             SessionStatus::kSessionOK,
                             createTime, clientIP);
-    auto ret = repo_->InsertSessionRepo(sessionRepo);
+    auto ret = repo_->InsertSessionRepoItem(sessionRepo);
     if (ret != repo::OperationOK) {
         LOG(ERROR) << "insert session to repo fail, sessionId = " << sessionId
                    << ", fileName = " << fileName
@@ -390,7 +391,7 @@ StatusCode SessionManager::InsertNewSession(const std::string &fileName,
 StatusCode SessionManager::DeleteOldSession(const std::string &fileName,
                                          const std::string &sessionId) {
     // 删除session持久化信息，
-    auto ret = repo_->DeleteSessionRepo(sessionId);
+    auto ret = repo_->DeleteSessionRepoItem(sessionId);
     if (ret != repo::OperationOK) {
         LOG(ERROR) << "delete session from repo fail, sessionId = "
                    << sessionId
@@ -405,7 +406,7 @@ StatusCode SessionManager::DeleteOldSession(const std::string &fileName,
     return StatusCode::kOK;
 }
 
-SessionManager::SessionManager(std::shared_ptr<repo::RepoInterface> repo) {
+SessionManager::SessionManager(std::shared_ptr<MdsRepo> repo) {
     repo_ = repo;
 }
 
@@ -469,8 +470,8 @@ bool SessionManager::LoadSession() {
     common::WriteLockGuard wl(rwLock_);
 
     // 启动mds时从数据库中加载session信息
-    std::vector<repo::SessionRepo> sessionList;
-    if (repo_->LoadSessionRepo(&sessionList) != repo::OperationOK) {
+    std::vector<SessionRepoItem> sessionList;
+    if (repo_->LoadSessionRepoItems(&sessionList) != repo::OperationOK) {
         LOG(ERROR) << "load session repo fail.";
         return false;
     }

@@ -1,6 +1,6 @@
 /*************************************************************************
 > File Name: mdsRepo.cpp
-> Author:
+> Author:lixiaocui
 > Created Time: Mon Dec 17 17:17:31 2018
 > Copyright (c) 2018 netease
  ************************************************************************/
@@ -131,14 +131,18 @@ ServerRepoItem::ServerRepoItem(uint32_t id) {
 ServerRepoItem::ServerRepoItem(uint32_t id,
                        const std::string &host,
                        const std::string &inIp,
+                       uint32_t inPort,
                        const std::string &exIp,
+                       uint32_t exPort,
                        uint16_t zoneID,
                        uint16_t poolID,
                        const std::string &desc) {
     this->serverID = id;
     this->hostName = host;
     this->internalHostIP = inIp;
+    this->internalPort = inPort;
     this->externalHostIP = exIp;
+    this->externalPort = exPort;
     this->zoneID = zoneID;
     this->poolID = poolID;
     this->desc = desc;
@@ -157,7 +161,9 @@ void ServerRepoItem::getKV(std::map<std::string, std::string> (*kv)) const {
     ((*kv))["serverID"] = std::to_string(serverID);
     ((*kv))["hostName"] = convertToSqlValue(hostName);
     ((*kv))["internalHostIP"] = convertToSqlValue(internalHostIP);
+    ((*kv))["internalPort"] = std::to_string(internalPort);
     ((*kv))["externalHostIP"] = convertToSqlValue(externalHostIP);
+    ((*kv))["externalPort"] = std::to_string(externalPort);
     ((*kv))["zoneID"] = std::to_string(zoneID);
     ((*kv))["poolID"] = std::to_string(poolID);
     ((*kv))["`desc`"] = convertToSqlValue(desc);
@@ -221,7 +227,8 @@ LogicalPoolRepoItem::LogicalPoolRepoItem(uint16_t logicalID,
                                  int64_t createTime,
                                  uint8_t status,
                                  const std::string &reduancePolicy,
-                                 const std::string &userPolicy) {
+                                 const std::string &userPolicy,
+                                 bool availFlag) {
     this->logicalPoolID = logicalID;
     this->logicalPoolName = logicalName;
     this->physicalPoolID = physicalID;
@@ -230,8 +237,10 @@ LogicalPoolRepoItem::LogicalPoolRepoItem(uint16_t logicalID,
     this->status = status;
     this->redundanceAndPlacementPolicy = reduancePolicy;
     this->userPolicy = userPolicy;
+    this->availFlag = availFlag;
 }
 
+// TODO(lixiaocui): 复制操作符的这种重载是不合适的
 bool LogicalPoolRepoItem::operator==(const LogicalPoolRepoItem &r) {
     return logicalPoolID == r.logicalPoolID &&
         logicalPoolName == r.logicalPoolName &&
@@ -240,8 +249,8 @@ bool LogicalPoolRepoItem::operator==(const LogicalPoolRepoItem &r) {
         createTime == r.createTime;
 }
 
-void LogicalPoolRepoItem::getKV(std::map<std::string,
-                                std::string> (*kv)) const {
+void LogicalPoolRepoItem::getKV(
+    std::map<std::string, std::string> (*kv)) const {
     (*kv)["logicalPoolID"] = std::to_string(logicalPoolID);
     (*kv)["logicalPoolName"] = convertToSqlValue(logicalPoolName);
     (*kv)["physicalPoolID"] = std::to_string(physicalPoolID);
@@ -251,6 +260,7 @@ void LogicalPoolRepoItem::getKV(std::map<std::string,
     (*kv)["redundanceAndPlacementPolicy"] =
         convertToSqlValue(redundanceAndPlacementPolicy);
     (*kv)["userPolicy"] = convertToSqlValue(userPolicy);
+    (*kv)["availFlag"] = std::to_string(availFlag);
 }
 
 void LogicalPoolRepoItem::getPrimaryKV(std::map<std::string,
@@ -486,7 +496,9 @@ int MdsRepo::LoadServerRepoItems(std::vector<ServerRepoItem> *serverList) {
         res->getUInt("serverID"),
         res->getString("hostName"),
         res->getString("internalHostIP"),
+        res->getUInt("internalPort"),
         res->getString("externalHostIP"),
+        res->getUInt("externalPort"),
         static_cast<uint16_t>(res->getUInt("zoneID")),
         static_cast<uint16_t>(res->getUInt("poolID")),
         res->getString("desc")));
@@ -592,8 +604,8 @@ int MdsRepo::LoadLogicalPoolRepoItems(
   assert(logicalPoolList != nullptr);
 
   sql::ResultSet *res;
-  int resCode =
-      db_->QueryRows(makeSql.makeQueryRows(LogicalPoolRepoItem{}), &res);
+  int resCode = db_->QueryRows(makeSql.makeQueryRows(
+      LogicalPoolRepoItem{}), &res);
   if (resCode != OperationOK) {
     return resCode;
   }
@@ -606,7 +618,8 @@ int MdsRepo::LoadLogicalPoolRepoItems(
         res->getInt64("createTime"),
         static_cast<uint8_t>(res->getInt("status")),
         res->getString("redundanceAndPlacementPolicy"),
-        res->getString("userPolicy")));
+        res->getString("userPolicy"),
+        res->getBoolean("availFlag")));
   }
 
   delete (res);

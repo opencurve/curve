@@ -11,15 +11,15 @@
 #include <gmock/gmock.h>
 #include <vector>
 #include <string>
-#include "src/mds/repo/repo.h"
+#include "src/mds/dao/mdsRepo.h"
 
 
 using ::testing::Return;
 using ::testing::_;
 
 namespace curve {
-namespace repo {
-class MockRepo : public RepoInterface {
+namespace mds {
+class MockRepo : public MdsRepo {
  public:
   MockRepo() {}
   ~MockRepo() {}
@@ -35,151 +35,146 @@ class MockRepo : public RepoInterface {
   MOCK_METHOD0(useDataBase, int());
   MOCK_METHOD0(dropDataBase, int());
 
-  MOCK_METHOD1(InsertChunkServerRepo,
+  MOCK_METHOD1(InsertChunkServerRepoItem,
                int(
-                   const ChunkServerRepo &cr));
+                   const ChunkServerRepoItem &cr));
 
-  MOCK_METHOD1(LoadChunkServerRepos,
-               int(std::vector<ChunkServerRepo>
-                   *chunkServerRepoList));
+  MOCK_METHOD1(LoadChunkServerRepoItems,
+               int(std::vector<ChunkServerRepoItem>
+                   *chunkServerRepoItemList));
 
-  MOCK_METHOD1(DeleteChunkServerRepo,
+  MOCK_METHOD1(DeleteChunkServerRepoItem,
                int(ChunkServerIDType
                    id));
 
-  MOCK_METHOD1(UpdateChunkServerRepo,
+  MOCK_METHOD1(UpdateChunkServerRepoItem,
                int(
-                   const ChunkServerRepo &cr));
+                   const ChunkServerRepoItem &cr));
 
-  MOCK_METHOD2(QueryChunkServerRepo,
+  MOCK_METHOD2(QueryChunkServerRepoItem,
                int(ChunkServerIDType
-                   id, ChunkServerRepo * repo));
+                   id, ChunkServerRepoItem * repo));
 
-  MOCK_METHOD1(InsertServerRepo,
+  MOCK_METHOD1(InsertServerRepoItem,
                int(
-                   const ServerRepo &sr));
+                   const ServerRepoItem &sr));
 
-  MOCK_METHOD1(LoadServerRepos,
-               int(std::vector<ServerRepo>
+  MOCK_METHOD1(LoadServerRepoItems,
+               int(std::vector<ServerRepoItem>
                    *serverList));
 
-  MOCK_METHOD1(DeleteServerRepo,
+  MOCK_METHOD1(DeleteServerRepoItem,
                int(ServerIDType
                    id));
 
-  MOCK_METHOD1(UpdateServerRepo,
+  MOCK_METHOD1(UpdateServerRepoItem,
                int(
-                   const ServerRepo &sr));
+                   const ServerRepoItem &sr));
 
-  MOCK_METHOD2(QueryServerRepo,
+  MOCK_METHOD2(QueryServerRepoItem,
                int(ServerIDType
-                   id, ServerRepo * repo));
+                   id, ServerRepoItem * repo));
 
-  MOCK_METHOD1(InsertZoneRepo,
+  MOCK_METHOD1(InsertZoneRepoItem,
                int(
-                   const ZoneRepo &zr));
+                   const ZoneRepoItem &zr));
 
-  MOCK_METHOD1(LoadZoneRepos,
-               int(std::vector<ZoneRepo>
+  MOCK_METHOD1(LoadZoneRepoItems,
+               int(std::vector<ZoneRepoItem>
                    *zonevector));
 
-  MOCK_METHOD1(DeleteZoneRepo,
+  MOCK_METHOD1(DeleteZoneRepoItem,
                int(ZoneIDType
                    id));
 
-  MOCK_METHOD1(UpdateZoneRepo,
+  MOCK_METHOD1(UpdateZoneRepoItem,
                int(
-                   const ZoneRepo &zr));
+                   const ZoneRepoItem &zr));
 
-  MOCK_METHOD2(QueryZoneRepo,
+  MOCK_METHOD2(QueryZoneRepoItem,
                int(ZoneIDType
-                   id, ZoneRepo * repo));
+                   id, ZoneRepoItem * repo));
 
-  MOCK_METHOD1(InsertPhysicalPoolRepo,
+  MOCK_METHOD1(InsertPhysicalPoolRepoItem,
                int(
-                   const PhysicalPoolRepo &pr));
+                   const PhysicalPoolRepoItem &pr));
 
-  MOCK_METHOD1(LoadPhysicalPoolRepos,
-               int(std::vector<PhysicalPoolRepo>
+  MOCK_METHOD1(LoadPhysicalPoolRepoItems,
+               int(std::vector<PhysicalPoolRepoItem>
                    *physicalPoolvector));
 
-  MOCK_METHOD1(DeletePhysicalPoolRepo,
+  MOCK_METHOD1(DeletePhysicalPoolRepoItem,
                int(PhysicalPoolIDType
                    id));
 
-  MOCK_METHOD1(UpdatePhysicalPoolRepo,
+  MOCK_METHOD1(UpdatePhysicalPoolRepoItem,
                int(
-                   const PhysicalPoolRepo &pr));
+                   const PhysicalPoolRepoItem &pr));
 
-  MOCK_METHOD2(QueryPhysicalPoolRepo,
+  MOCK_METHOD2(QueryPhysicalPoolRepoItem,
                int(PhysicalPoolIDType
-                   id, PhysicalPoolRepo * repo));
+                   id, PhysicalPoolRepoItem * repo));
 
-  MOCK_METHOD1(InsertLogicalPoolRepo,
+  MOCK_METHOD1(InsertLogicalPoolRepoItem,
                int(
-                   const LogicalPoolRepo &lr));
+                   const LogicalPoolRepoItem &lr));
 
-  MOCK_METHOD1(LoadLogicalPoolRepos,
-               int(std::vector<LogicalPoolRepo>
+  MOCK_METHOD1(LoadLogicalPoolRepoItems,
+               int(std::vector<LogicalPoolRepoItem>
                    *logicalPoolList));
 
-  MOCK_METHOD1(DeleteLogicalPoolRepo,
+  MOCK_METHOD1(DeleteLogicalPoolRepoItem,
                int(LogicalPoolIDType
                    id));
 
-  MOCK_METHOD1(UpdateLogicalPoolRepo,
+  MOCK_METHOD1(UpdateLogicalPoolRepoItem,
                int(
-                   const LogicalPoolRepo &lr));
+                   const LogicalPoolRepoItem &lr));
 
-  MOCK_METHOD2(QueryLogicalPoolRepo,
+  MOCK_METHOD2(QueryLogicalPoolRepoItem,
                int(LogicalPoolIDType
-                   id, LogicalPoolRepo * repo));
+                   id, LogicalPoolRepoItem * repo));
 
-  MOCK_METHOD1(InsertCopySetRepo,
+  MOCK_METHOD1(InsertCopySetRepoItem,
                int(
-                   const CopySetRepo &cr));
+                   const CopySetRepoItem &cr));
 
-  MOCK_METHOD1(LoadCopySetRepos,
-               int(std::vector<CopySetRepo>
+  MOCK_METHOD1(LoadCopySetRepoItems,
+               int(std::vector<CopySetRepoItem>
                    *copySetList));
 
-  MOCK_METHOD2(DeleteCopySetRepo,
+  MOCK_METHOD2(DeleteCopySetRepoItem,
                int(CopySetIDType
                    id, LogicalPoolIDType
                    lid));
 
-  MOCK_METHOD1(UpdateCopySetRepo,
+  MOCK_METHOD1(UpdateCopySetRepoItem,
                int(
-                   const CopySetRepo &cr));
+                   const CopySetRepoItem &cr));
 
-  MOCK_METHOD3(QueryCopySetRepo,
+  MOCK_METHOD3(QueryCopySetRepoItem,
                int(CopySetIDType
                    id,
                        LogicalPoolIDType
                    lid,
-                       CopySetRepo * repo));
+                       CopySetRepoItem * repo));
 
-  MOCK_METHOD1(InsertSessionRepo,
-               int(const SessionRepo &r));
+  MOCK_METHOD1(InsertSessionRepoItem,
+               int(const SessionRepoItem &r));
 
-  MOCK_METHOD1(LoadSessionRepo,
-               int(std::vector<SessionRepo> *sessionList));
+  MOCK_METHOD1(LoadSessionRepoItems,
+               int(std::vector<SessionRepoItem> *sessionList));
 
-  MOCK_METHOD1(DeleteSessionRepo,
+  MOCK_METHOD1(DeleteSessionRepoItem,
                int(const std::string &sessionID));
 
-  MOCK_METHOD1(UpdateSessionRepo,
-               int(const SessionRepo &r));
+  MOCK_METHOD1(UpdateSessionRepoItem,
+               int(const SessionRepoItem &r));
 
-  MOCK_METHOD2(QuerySessionRepo,
-                int(const std::string &sessionID, SessionRepo *r));
-
-  MOCK_METHOD1(SetAutoCommit, int(
-      const bool &autoCommit));
-  MOCK_METHOD0(Commit, int());
-  MOCK_METHOD0(RollBack, int());
+  MOCK_METHOD2(QuerySessionRepoItem,
+                int(const std::string &sessionID, SessionRepoItem *r));
 };
-}  // namespace repo
+}  // namespace mds
 }  // namespace curve
 
 #endif  // TEST_MDS_NAMESERVER2_MOCK_REPO_H_

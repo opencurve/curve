@@ -24,7 +24,7 @@ namespace mds {
 class SessionTest: public ::testing::Test {
  protected:
     void SetUp() override {
-        mockRepo_ = std::make_shared<repo::MockRepo>();
+        mockRepo_ = std::make_shared<MockRepo>();
         sessionOptions_.sessionDbName = "curve_mds_repo_test";
         sessionOptions_.sessionUser = "root";
         sessionOptions_.sessionUrl = "localhost";
@@ -38,7 +38,7 @@ class SessionTest: public ::testing::Test {
         mockRepo_ = nullptr;
     }
 
-    std::shared_ptr<repo::MockRepo> mockRepo_;
+    std::shared_ptr<MockRepo> mockRepo_;
     struct SessionOptions sessionOptions_;
 };
 
@@ -118,7 +118,7 @@ TEST_F(SessionTest, testLoadSession) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(Return(repo::SqlException));
 
@@ -147,17 +147,17 @@ TEST_F(SessionTest, testLoadSession) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        std::vector<repo::SessionRepo> sessionList;
+        std::vector<SessionRepoItem> sessionList;
 
-        sessionList.push_back(repo::SessionRepo("/file1", "sessionID1",
+        sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
                                 "token1", 12345, SessionStatus::kSessionOK ,
                                 123456, "127.0.0.1"));
 
-        sessionList.push_back(repo::SessionRepo("/file1", "sessionID2",
+        sessionList.push_back(SessionRepoItem("/file1", "sessionID2",
                                 "token2", 12345, SessionStatus::kSessionOK ,
                                 123456, "127.0.0.1"));
 
-        EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
@@ -187,21 +187,21 @@ TEST_F(SessionTest, testLoadSession) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        std::vector<repo::SessionRepo> sessionList;
+        std::vector<SessionRepoItem> sessionList;
 
-        sessionList.push_back(repo::SessionRepo("/file1", "sessionID1",
+        sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
                                 "token1", 12345, SessionStatus::kSessionOK ,
                                 123456, "127.0.0.1"));
 
-        sessionList.push_back(repo::SessionRepo("/file1", "sessionID2",
+        sessionList.push_back(SessionRepoItem("/file1", "sessionID2",
                                 "token2", 12345, SessionStatus::kSessionOK ,
                                 1234567, "127.0.0.1"));
 
-        sessionList.push_back(repo::SessionRepo("/file1", "sessionID3",
+        sessionList.push_back(SessionRepoItem("/file1", "sessionID3",
                                 "token3", 12345, SessionStatus::kSessionOK ,
                                 12345, "127.0.0.1"));
 
-        EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
@@ -225,16 +225,16 @@ TEST_F(SessionTest, testLoadSession) {
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
 
         // manager start之后，后台线程把无效的session从数据库删除
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
         .Times(2)
         .WillRepeatedly(Return(repo::OperationOK));
 
         sessionManager_.Start();
 
-        repo::SessionRepo sessionRepo("/file1", "sessionID2", "token3",
+        SessionRepoItem sessionRepo("/file1", "sessionID2", "token3",
                         sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
-        EXPECT_CALL(*mockRepo_, QuerySessionRepo(_, _))
+        EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
                             Return(repo::OperationOK)));
@@ -249,14 +249,14 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        std::vector<repo::SessionRepo> sessionList;
+        std::vector<SessionRepoItem> sessionList;
 
-        sessionList.push_back(repo::SessionRepo("/file1", "sessionID1",
+        sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
                                 "token1", 12345, SessionStatus::kSessionOK,
                                 ::curve::common::TimeUtility::GetTimeofDayUs(),
                                 "127.0.0.1"));
 
-        EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
@@ -287,11 +287,11 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
                                                     &protoSession),
                     StatusCode::kFileOccupied);
 
-        EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -301,10 +301,10 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
                                                     &protoSession),
                     StatusCode::kOK);
 
-        repo::SessionRepo sessionRepo("/file1", "sessionID1", "token1",
+        SessionRepoItem sessionRepo("/file1", "sessionID1", "token1",
                         sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
-        EXPECT_CALL(*mockRepo_, QuerySessionRepo(_, _))
+        EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
                             Return(repo::OperationOK)));
@@ -315,14 +315,14 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        std::vector<repo::SessionRepo> sessionList;
+        std::vector<SessionRepoItem> sessionList;
 
-        sessionList.push_back(repo::SessionRepo("/file1", "sessionID1",
+        sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
                                 "token1", 12345, SessionStatus::kSessionStaled,
                                 ::curve::common::TimeUtility::GetTimeofDayUs(),
                                 "127.0.0.1"));
 
-        EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
@@ -347,11 +347,11 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
 
         sessionManager_.Start();
 
-        EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -361,10 +361,10 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
                                                     &protoSession),
                     StatusCode::kOK);
 
-        repo::SessionRepo sessionRepo("/file1", "sessionID1", "token1",
+        SessionRepoItem sessionRepo("/file1", "sessionID1", "token1",
                         sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
-        EXPECT_CALL(*mockRepo_, QuerySessionRepo(_, _))
+        EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
                             Return(repo::OperationOK)));
@@ -377,7 +377,7 @@ TEST_F(SessionTest, insert_session_test) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -403,7 +403,7 @@ TEST_F(SessionTest, insert_session_test) {
         // 先open file
         ProtoSession protoSession1;
 
-        EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -421,11 +421,11 @@ TEST_F(SessionTest, insert_session_test) {
         usleep(sessionOptions_.leaseTime);
         ProtoSession protoSession3;
 
-        EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -435,10 +435,10 @@ TEST_F(SessionTest, insert_session_test) {
         ASSERT_NE(protoSession3.sessionid(), protoSession1.sessionid());
 
 
-        repo::SessionRepo sessionRepo("/file1", "sessionid", "token",
+        SessionRepoItem sessionRepo("/file1", "sessionid", "token",
                         sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
-        EXPECT_CALL(*mockRepo_, QuerySessionRepo(_, _))
+        EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
                             Return(repo::OperationOK)));
@@ -449,7 +449,7 @@ TEST_F(SessionTest, insert_session_test) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -475,7 +475,7 @@ TEST_F(SessionTest, insert_session_test) {
         // 先open file
         ProtoSession protoSession1;
 
-        EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -488,7 +488,7 @@ TEST_F(SessionTest, insert_session_test) {
 
         ProtoSession protoSession2;
         // 再open file, 从数据库中删除旧session失败
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::SqlException));
 
@@ -497,11 +497,11 @@ TEST_F(SessionTest, insert_session_test) {
             StatusCode::KInternalError);
 
         // 再open file, 从数据库中删除旧session成功，插入新session失败
-        EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::SqlException));
 
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -517,7 +517,7 @@ TEST_F(SessionTest, insert_session_test) {
 TEST_F(SessionTest, refresh_session_test) {
     SessionManager sessionManager_(mockRepo_);
 
-    EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+    EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
@@ -543,7 +543,7 @@ TEST_F(SessionTest, refresh_session_test) {
     // 先open file
     ProtoSession protoSession1;
 
-    EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+    EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
@@ -558,10 +558,10 @@ TEST_F(SessionTest, refresh_session_test) {
                                         "test_signature", "127.0.0.1"),
                 StatusCode::kOK);
 
-    repo::SessionRepo sessionRepo("/file1", "sessionid", "token",
+    SessionRepoItem sessionRepo("/file1", "sessionid", "token",
                     sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
-    EXPECT_CALL(*mockRepo_, QuerySessionRepo(_, _))
+    EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
                         Return(repo::OperationOK)));

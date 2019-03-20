@@ -38,7 +38,7 @@ class CurveFSTest: public ::testing::Test {
 
         mockSnapShotCleanManager_ = std::make_shared<MockCleanManager>();
 
-        mockRepo_ = std::make_shared<repo::MockRepo>();
+        mockRepo_ = std::make_shared<MockRepo>();
         sessionManager_ = new SessionManager(mockRepo_);
 
         // session repo已经mock，数据库相关参数不需要
@@ -53,7 +53,7 @@ class CurveFSTest: public ::testing::Test {
         authOptions_.rootOwner = "root";
         authOptions_.rootPassword = "root_password";
 
-        EXPECT_CALL(*mockRepo_, LoadSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -96,7 +96,7 @@ class CurveFSTest: public ::testing::Test {
     std::shared_ptr<MockCleanManager> mockSnapShotCleanManager_;
 
     SessionManager *sessionManager_;
-    std::shared_ptr<repo::MockRepo> mockRepo_;
+    std::shared_ptr<MockRepo> mockRepo_;
     struct SessionOptions sessionOptions_;
     struct RootAuthOption authOptions_;
 };
@@ -1506,7 +1506,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::SqlException));
 
@@ -1523,7 +1523,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -1532,10 +1532,10 @@ TEST_F(CurveFSTest, testOpenFile) {
                   StatusCode::kOK);
     }
 
-    repo::SessionRepo sessionRepo("/file1", "sessionid", "token",
+    SessionRepoItem sessionRepo("/file1", "sessionid", "token",
                     sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
-    EXPECT_CALL(*mockRepo_, QuerySessionRepo(_, _))
+    EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
                         Return(repo::OperationOK)));
@@ -1550,7 +1550,7 @@ TEST_F(CurveFSTest, testCloseFile) {
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
 
-    EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+    EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
@@ -1574,7 +1574,7 @@ TEST_F(CurveFSTest, testCloseFile) {
         .WillOnce(Return(StoreStatus::OK));
 
         // 再进行删除
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::SqlException));
 
@@ -1588,7 +1588,7 @@ TEST_F(CurveFSTest, testCloseFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockRepo_, DeleteSessionRepo(_))
+        EXPECT_CALL(*mockRepo_, DeleteSessionRepoItem(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -1606,7 +1606,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
 
-    EXPECT_CALL(*mockRepo_, InsertSessionRepo(_))
+    EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
@@ -1653,10 +1653,10 @@ TEST_F(CurveFSTest, testRefreshSession) {
                   StatusCode::kOK);
     }
 
-    repo::SessionRepo sessionRepo("/file1", "sessionid", "token",
+    SessionRepoItem sessionRepo("/file1", "sessionid", "token",
                     sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
-    EXPECT_CALL(*mockRepo_, QuerySessionRepo(_, _))
+    EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
                         Return(repo::OperationOK)));

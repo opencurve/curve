@@ -13,7 +13,7 @@
 #include <map>
 #include <thread>  //NOLINT
 #include <boost/shared_ptr.hpp>
-#include "src/mds/repo/repo.h"
+#include "src/mds/dao/mdsRepo.h"
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/topology/topology.h"

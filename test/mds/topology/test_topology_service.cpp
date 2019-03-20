@@ -47,8 +47,8 @@ class TestTopologyService : public ::testing::Test {
       std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
           std::make_shared<DefaultTokenGenerator>();
 
-      std::shared_ptr<::curve::repo::RepoInterface> repo_ =
-          std::make_shared<::curve::repo::Repo>();
+      std::shared_ptr<MdsRepo> repo_ =
+          std::make_shared<MdsRepo>();
 
       std::shared_ptr<TopologyStorage> storage_ =
           std::make_shared<DefaultTopologyStorage>(repo_);
