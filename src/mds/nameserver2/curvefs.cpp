@@ -922,10 +922,10 @@ StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
                 return StatusCode::kOwnerAuthFail;
             }
         } else if (ret == StoreStatus::KeyNotExist) {
-            LOG(ERROR) << fileInfo.filename() << " not exist";
+            LOG(ERROR) << paths[i] << " not exist";
             return StatusCode::kFileNotExists;
         } else {
-            LOG(ERROR) << "GetFile error, errcode = " << ret;
+            LOG(ERROR) << "GetFile " << paths[i] << " error, errcode = " << ret;
             return StatusCode::kStorageError;
         }
         tempParentID =  fileInfo.id();

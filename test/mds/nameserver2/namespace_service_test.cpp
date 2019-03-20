@@ -113,7 +113,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     std::string listenAddr = "0.0.0.0:9761";
 
     // start server
-    NameSpaceService namespaceService;
+    NameSpaceService namespaceService(new FileLockManager(8));
     ASSERT_EQ(server.AddService(&namespaceService,
             brpc::SERVER_DOESNT_OWN_SERVICE), 0);
 
@@ -647,7 +647,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     std::string listenAddr = "0.0.0.0:9761";
 
     // start server
-    NameSpaceService namespaceService;
+    NameSpaceService namespaceService(new FileLockManager(8));
     ASSERT_EQ(server.AddService(&namespaceService,
             brpc::SERVER_DOESNT_OWN_SERVICE), 0);
 
@@ -810,6 +810,19 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     }
     server.Stop(10);
     server.Join();
+}
+
+TEST_F(NameSpaceServiceTest, isPathValid) {
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(isPathValid("/"), true);
+    ASSERT_EQ(isPathValid("/a"), true);
+    ASSERT_EQ(isPathValid("/a/b/c/a/d"), true);
+    ASSERT_EQ(isPathValid("//"), false);
+    ASSERT_EQ(isPathValid("/a/"), false);
+    ASSERT_EQ(isPathValid("/a//b"), false);
+    ASSERT_EQ(isPathValid("//a/b"), false);
+    ASSERT_EQ(isPathValid("/a/b/"), false);
 }
 
 }  // namespace mds

@@ -58,7 +58,7 @@ int main(int argc, char ** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
 
-    std::string filename = "1_userinfo_test.txt";
+    std::string filename = "/1_userinfo_test.txt";
     /*** init mds service ***/
     FakeMDS mds(filename);
     if (FLAGS_fake_mds) {

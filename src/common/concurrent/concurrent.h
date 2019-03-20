@@ -2,7 +2,7 @@
  * Project: curve
  * File Created: Monday, 25th March 2019 11:47:46 am
  * Author: tongguangxun
- * Copyright (c)￼ 2018 netease
+ * Copyright (c)  2018 netease
  */
 
 #include <atomic>

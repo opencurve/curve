@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include "src/mds/nameserver2/curvefs.h"
+#include "src/mds/nameserver2/file_lock.h"
 
 namespace curve {
 namespace mds {
@@ -20,13 +21,24 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CreateFile request path is invalid, filename = "
+            << request->filename()
+            << ", filetype = " << request->filetype()
+            << ", filelength = " << request->filelength();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", CreateFile request, filename = " << request->filename()
         << ", filetype = " << request->filetype()
         << ", filelength = " << request->filelength();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -69,11 +81,20 @@ void NameSpaceService::GetFileInfo(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", GetFileInfo request path is invalid, filename = "
+            << request->filename();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", GetFileInfo request, filename = " << request->filename();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileReadLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -115,13 +136,24 @@ void NameSpaceService::GetOrAllocateSegment(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", GetOrAllocateSegment request path is invalid, filename = "
+            << request->filename()
+            << ", offset = " << request->offset() << ", allocateTag = "
+            << request->allocateifnotexist();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", GetOrAllocateSegment request, filename = " << request->filename()
         << ", offset = " << request->offset() << ", allocateTag = "
         << request->allocateifnotexist();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -170,12 +202,22 @@ void NameSpaceService::DeleteSegment(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", DeleteSegment request path is invalid, filename = "
+                << request->filename()
+                << ", offset = " << request->offset();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", DeleteSegment request, filename = " << request->filename()
         << ", offset = " << request->offset();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -217,12 +259,24 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->oldfilename())
+        || !isPathValid(request->newfilename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+        << ", RenameFile request path is invalid, oldfilename = "
+        << request->oldfilename()
+        << ", newfilename = " << request->newfilename();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", RenameFile request, oldfilename = " << request->oldfilename()
         << ", newfilename = " << request->newfilename();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileWriteLockGuard guard(fileLockManager_, request->oldfilename(),
+                                               request->newfilename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -276,12 +330,23 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", ExtendFile request path is invalid, filename = "
+                << request->filename()
+                << ", newsize = " << request->newsize();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", ExtendFile request, filename = " << request->filename()
               << ", newsize = " << request->newsize();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -325,12 +390,21 @@ void NameSpaceService::CreateSnapShot(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", CreateSnapShot request path is invalid, filename = "
+                  << request->filename();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", CreateSnapShot request, filename = "
               << request->filename();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -372,12 +446,21 @@ void NameSpaceService::ListSnapShot(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", CreateSnapShot request path is invalid, filename = "
+                  << request->filename();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", ListSnapShot request, filename = "
               << request->filename();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileReadLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -437,14 +520,23 @@ void NameSpaceService::DeleteSnapShot(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", DeleteSnapShot request path is invalid, filename = "
+                << request->filename()
+                << ", seq = " << request->seq();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", DeleteSnapShot request, filename = "
               << request->filename()
               << ", seq = " << request->seq();
 
-    // TODO(hzsunjialiang): lock the filepath&name and do check permission
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
 
-    std::string signature = "";
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -485,10 +577,21 @@ void NameSpaceService::CheckSnapShotStatus(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckSnapShotStatus request path is invalid, filename = "
+                << request->filename()
+                << ", seqnum" << request->seq();
+        return;
+    }
+
     LOG(INFO) << "logid = " << cntl->log_id()
               << ", CheckSnapShotStatus not support yet, filename = "
               << request->filename()
               << ", seqnum" << request->seq();
+
+    FileReadLockGuard guard(fileLockManager_, request->filename());
 
     std::string signature;
     if (request->has_signature()) {
@@ -542,10 +645,22 @@ void NameSpaceService::GetSnapShotFileSegment(
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     if ( !request->has_seqnum() ) {
+        response->set_statuscode(StatusCode::kParaError);
         LOG(ERROR) << "logid = " << cntl->log_id()
               << ", GetSnapShotFileSegment, filename = "
               << request->filename()
               << ", seqnum not found";
+        return;
+    }
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+              << ", GetSnapShotFileSegment request path is invalid, filename = "
+              << request->filename()
+              << " offset = " << request->offset()
+              << ", seqnum = " << request->seqnum();
+        return;
     }
 
     LOG(INFO) << "logid = " << cntl->log_id()
@@ -554,7 +669,9 @@ void NameSpaceService::GetSnapShotFileSegment(
               << " offset = " << request->offset()
               << ", seqnum = " << request->seqnum();
 
-    std::string signature = "";
+    FileReadLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -605,15 +722,26 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
-    uint32_t clientPort = cntl->remote_side().port;;
+    uint32_t clientPort = cntl->remote_side().port;
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", OpenFile request path is invalid, filename = "
+                << request->filename()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort;
+        return;
+    }
 
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", OpenFile request, filename = " << request->filename()
         << ", clientip = " << clientIP
         << ", clientport = " << clientPort;
 
-    // TODO(hzchenwei7): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -668,7 +796,18 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
-    uint32_t clientPort = cntl->remote_side().port;;
+    uint32_t clientPort = cntl->remote_side().port;
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CloseFile request path is invalid, filename = "
+                << request->filename()
+                << ", sessionid = " << request->sessionid()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort;
+        return;
+    }
 
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", CloseFile request, filename = " << request->filename()
@@ -676,8 +815,9 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
         << ", clientip = " << clientIP
         << ", clientport = " << clientPort;
 
-    // TODO(hzchenwei7): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -726,7 +866,21 @@ void NameSpaceService::RefreshSession(
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
-    uint32_t clientPort = cntl->remote_side().port;;
+    uint32_t clientPort = cntl->remote_side().port;
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        response->set_sessionid(request->sessionid());
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", RefreshSession request path is invalid, filename = "
+                << request->filename()
+                << ", sessionid = " << request->sessionid()
+                << ", date = " << request->date()
+                << ", signature = " << request->signature()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort;
+        return;
+    }
 
     LOG(INFO) << "logid = " << cntl->log_id()
         << ", RefreshSession request, filename = " << request->filename()
@@ -736,8 +890,9 @@ void NameSpaceService::RefreshSession(
         << ", clientip = " << clientIP
         << ", clientport = " << clientPort;
 
-    // TODO(hzchenwei7): lock the filepath&name and do check permission
-    std::string signature = "";
+    FileReadLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
     if (request->has_signature()) {
         signature = request->signature();
     }
@@ -792,6 +947,31 @@ void NameSpaceService::RefreshSession(
     return;
 }
 
+bool isPathValid(std::string path) {
+    if (path.empty() || path[0] != '/') {
+        return false;
+    }
+
+    if (path.size() > 1U && path[path.size() - 1] == '/') {
+        return false;
+    }
+
+    bool slash = false;
+    for (uint32_t i = 0; i < path.size(); i++) {
+        if (path[i] == '/') {
+            if (slash) {
+                return false;
+            }
+            slash = true;
+        } else {
+            slash = false;
+        }
+    }
+
+    // TODO(hzchenwei7): 将来如果有path有其他限制，可以在此处继续添加
+
+    return true;
+}
 }  // namespace mds
 }  // namespace curve
 

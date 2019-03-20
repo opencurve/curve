@@ -166,7 +166,8 @@ int curve_main(int argc, char **argv) {
     }
 
     // add rpc service
-    NameSpaceService namespaceService;
+    NameSpaceService namespaceService(new FileLockManager(
+                                    conf.GetIntValue("filelock.bucketNum")));
     if (server.AddService(&namespaceService,
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "add namespaceService error";

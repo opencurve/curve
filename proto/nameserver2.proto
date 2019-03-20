@@ -64,6 +64,7 @@ enum  StatusCode {
     kDirNotExist = 109;
     // 功能不支持
     kNotSupported = 110;
+    // owner认证失败
     kOwnerAuthFail = 111;
 
     // 文件已处于快照中
