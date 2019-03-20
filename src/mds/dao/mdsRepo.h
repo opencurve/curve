@@ -1,9 +1,12 @@
 /*************************************************************************
 > File Name: mdsRepo.h
-> Author:
+> Author: lixiaocui
 > Created Time: Mon Dec 17 17:17:31 2018
 > Copyright (c) 2018 netease
  ************************************************************************/
+
+#ifndef SRC_MDS_DAO_MDSREPO_H_
+#define SRC_MDS_DAO_MDSREPO_H_
 
 #include <list>
 #include <map>
@@ -70,7 +73,9 @@ struct ServerRepoItem : public RepoItem {
   uint32_t serverID;
   std::string hostName;
   std::string internalHostIP;
+  uint32_t internalPort;
   std::string externalHostIP;
+  uint32_t externalPort;
   uint16_t zoneID;
   uint16_t poolID;
   std::string desc;
@@ -81,12 +86,14 @@ struct ServerRepoItem : public RepoItem {
   explicit ServerRepoItem(uint32_t id);
 
   ServerRepoItem(uint32_t id,
-             const std::string &host,
-             const std::string &inIp,
-             const std::string &exIp,
-             uint16_t zoneID,
-             uint16_t poolID,
-             const std::string &desc);
+                const std::string &host,
+                const std::string &inIp,
+                uint32_t inPort,
+                const std::string &exIp,
+                uint32_t exPort,
+                uint16_t zoneID,
+                uint16_t poolID,
+                const std::string &desc);
 
   bool operator==(const ServerRepoItem &s);
 
@@ -133,6 +140,7 @@ struct LogicalPoolRepoItem : public RepoItem {
   uint8_t status;
   std::string redundanceAndPlacementPolicy;
   std::string userPolicy;
+  bool availFlag;;
 
  public:
   LogicalPoolRepoItem() = default;
@@ -146,7 +154,8 @@ struct LogicalPoolRepoItem : public RepoItem {
                   int64_t createTime,
                   uint8_t status,
                   const std::string &reduancePolicy,
-                  const std::string &userPolicy);
+                  const std::string &userPolicy,
+                  bool availFlag);
 
   bool operator==(const LogicalPoolRepoItem &r);
 
@@ -267,96 +276,96 @@ class MdsRepo : public RepoInterface {
   std::shared_ptr<curve::repo::DataBase> getDataBase();
 
   // chunkServerRepo operation
-  int InsertChunkServerRepoItem(const ChunkServerRepoItem &cr);
+  virtual int InsertChunkServerRepoItem(const ChunkServerRepoItem &cr);
 
-  int LoadChunkServerRepoItems(
+  virtual int LoadChunkServerRepoItems(
       std::vector<ChunkServerRepoItem> *chunkServerRepoList);
 
-  int DeleteChunkServerRepoItem(ChunkServerIDType id);
+  virtual int DeleteChunkServerRepoItem(ChunkServerIDType id);
 
-  int UpdateChunkServerRepoItem(const ChunkServerRepoItem &cr);
+  virtual int UpdateChunkServerRepoItem(const ChunkServerRepoItem &cr);
 
-  int QueryChunkServerRepoItem(ChunkServerIDType id,
+  virtual int QueryChunkServerRepoItem(ChunkServerIDType id,
                            ChunkServerRepoItem *repo);
 
   // server operation
-  int InsertServerRepoItem(const ServerRepoItem &sr);
+  virtual int InsertServerRepoItem(const ServerRepoItem &sr);
 
-  int LoadServerRepoItems(std::vector<ServerRepoItem> *serverList);
+  virtual int LoadServerRepoItems(std::vector<ServerRepoItem> *serverList);
 
-  int DeleteServerRepoItem(ServerIDType id);
+  virtual int DeleteServerRepoItem(ServerIDType id);
 
-  int UpdateServerRepoItem(const ServerRepoItem &sr);
+  virtual int UpdateServerRepoItem(const ServerRepoItem &sr);
 
-  int QueryServerRepoItem(ServerIDType id, ServerRepoItem *repo);
+  virtual int QueryServerRepoItem(ServerIDType id, ServerRepoItem *repo);
 
   // zone operation
-  int InsertZoneRepoItem(const ZoneRepoItem &zr);
+  virtual int InsertZoneRepoItem(const ZoneRepoItem &zr);
 
-  int LoadZoneRepoItems(std::vector<ZoneRepoItem> *zonevector);
+  virtual int LoadZoneRepoItems(std::vector<ZoneRepoItem> *zonevector);
 
-  int DeleteZoneRepoItem(ZoneIDType id);
+  virtual int DeleteZoneRepoItem(ZoneIDType id);
 
-  int UpdateZoneRepoItem(const ZoneRepoItem &zr);
+  virtual int UpdateZoneRepoItem(const ZoneRepoItem &zr);
 
-  int QueryZoneRepoItem(ZoneIDType id, ZoneRepoItem *repo);
+  virtual int QueryZoneRepoItem(ZoneIDType id, ZoneRepoItem *repo);
 
   // physical pool operation
-  int InsertPhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr);
+  virtual int InsertPhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr);
 
-  int LoadPhysicalPoolRepoItems(
+  virtual int LoadPhysicalPoolRepoItems(
       std::vector<PhysicalPoolRepoItem> *physicalPoolvector);
 
-  int DeletePhysicalPoolRepoItem(PhysicalPoolIDType id);
+  virtual int DeletePhysicalPoolRepoItem(PhysicalPoolIDType id);
 
-  int UpdatePhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr);
+  virtual int UpdatePhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr);
 
-  int QueryPhysicalPoolRepoItem(PhysicalPoolIDType id,
+  virtual int QueryPhysicalPoolRepoItem(PhysicalPoolIDType id,
                             PhysicalPoolRepoItem *repo);
 
   // logical pool operation
-  int InsertLogicalPoolRepoItem(const LogicalPoolRepoItem &lr);
+  virtual int InsertLogicalPoolRepoItem(const LogicalPoolRepoItem &lr);
 
-  int LoadLogicalPoolRepoItems(
+  virtual int LoadLogicalPoolRepoItems(
       std::vector<LogicalPoolRepoItem> *logicalPoolList);
 
-  int DeleteLogicalPoolRepoItem(LogicalPoolIDType id);
+  virtual int DeleteLogicalPoolRepoItem(LogicalPoolIDType id);
 
-  int UpdateLogicalPoolRepoItem(const LogicalPoolRepoItem &lr);
+  virtual int UpdateLogicalPoolRepoItem(const LogicalPoolRepoItem &lr);
 
-  int QueryLogicalPoolRepoItem(LogicalPoolIDType id,
+  virtual int QueryLogicalPoolRepoItem(LogicalPoolIDType id,
                            LogicalPoolRepoItem *repo);
 
   // copyset operation
-  int InsertCopySetRepoItem(const CopySetRepoItem &cr);
+  virtual int InsertCopySetRepoItem(const CopySetRepoItem &cr);
 
-  int LoadCopySetRepoItems(std::vector<CopySetRepoItem> *copySetList);
+  virtual int LoadCopySetRepoItems(std::vector<CopySetRepoItem> *copySetList);
 
-  int DeleteCopySetRepoItem(CopySetIDType id, LogicalPoolIDType lid);
+  virtual int DeleteCopySetRepoItem(CopySetIDType id, LogicalPoolIDType lid);
 
-  int UpdateCopySetRepoItem(const CopySetRepoItem &cr);
+  virtual int UpdateCopySetRepoItem(const CopySetRepoItem &cr);
 
-  int QueryCopySetRepoItem(CopySetIDType id,
+  virtual int QueryCopySetRepoItem(CopySetIDType id,
                        LogicalPoolIDType lid,
                        CopySetRepoItem *repo);
 
   // session operation
-  int InsertSessionRepoItem(const SessionRepoItem &r);
+  virtual int InsertSessionRepoItem(const SessionRepoItem &r);
 
-  int LoadSessionRepoItems(std::vector<SessionRepoItem> *sessionList);
+  virtual int LoadSessionRepoItems(std::vector<SessionRepoItem> *sessionList);
 
-  int DeleteSessionRepoItem(const std::string &sessionID);
+  virtual int DeleteSessionRepoItem(const std::string &sessionID);
 
-  int UpdateSessionRepoItem(const SessionRepoItem &r);
+  virtual int UpdateSessionRepoItem(const SessionRepoItem &r);
 
-  int QuerySessionRepoItem(const std::string &sessionID, SessionRepoItem *r);
+  virtual int QuerySessionRepoItem(
+      const std::string &sessionID, SessionRepoItem *r);
 
  private:
   std::shared_ptr<curve::repo::DataBase> db_;
   std::string dbName_;
 };
-
-
 }  // namespace mds
 }  // namespace curve
+#endif  // SRC_MDS_DAO_MDSREPO_H_
 

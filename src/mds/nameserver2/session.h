@@ -18,7 +18,7 @@
 #include "src/common/rw_lock.h"
 #include "src/common/uuid.h"
 #include "src/mds/common/mds_define.h"
-#include "src/mds/repo/repo.h"
+#include "src/mds/dao/mdsRepo.h"
 
 
 namespace curve {
@@ -97,7 +97,7 @@ class Session {
 
 class SessionManager {
  public:
-    explicit SessionManager(std::shared_ptr<repo::RepoInterface> repo);
+    explicit SessionManager(std::shared_ptr<MdsRepo> repo);
 
     /**
      *  @brief SessionManager初始化，参数初始化，repo初始化，从持久化加载session
@@ -231,7 +231,7 @@ class SessionManager {
     std::list<Session> deleteSessionList_;
 
     // session进行持久化的repo
-    std::shared_ptr<repo::RepoInterface> repo_;
+    std::shared_ptr<MdsRepo> repo_;
 
     // session的租约的有效时间，session manager初始化的时候设置
     uint32_t leaseTime_;

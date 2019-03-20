@@ -20,7 +20,7 @@
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/chunk_id_generator.h"
 #include "src/mds/nameserver2/session.h"
-#include "src/mds/repo/repo.h"
+#include "src/mds/dao/mdsRepo.h"
 #include "src/mds/topology/topology_admin.h"
 
 using ::curve::mds::topology::TopologyAdmin;
@@ -220,7 +220,7 @@ class FakeNameServerStorage : public NameServerStorage {
     std::map<std::string, std::string> memKvMap_;
 };
 
-class FakeRepoInterface : public repo::RepoInterface {
+class FakeRepoInterface : public MdsRepo {
  public:
     int connectDB(const std::string &dbName,
                         const std::string &user,
@@ -246,162 +246,164 @@ class FakeRepoInterface : public repo::RepoInterface {
     }
 
     // chunkServerRepo operation
-    int InsertChunkServerRepo(const repo::ChunkServerRepo &cr) override {
+    int InsertChunkServerRepoItem(const ChunkServerRepoItem &cr) override {
         return repo::OperationOK;
     }
 
-    int LoadChunkServerRepos(
-        std::vector<repo::ChunkServerRepo> *chunkServerRepoList) override {
+    int LoadChunkServerRepoItems(
+        std::vector<ChunkServerRepoItem> *chunkServerRepoList) override {
         return repo::OperationOK;
     }
 
-    int DeleteChunkServerRepo(repo::ChunkServerIDType id) override {
+    int DeleteChunkServerRepoItem(ChunkServerIDType id) override {
         return repo::OperationOK;
     }
 
-    int UpdateChunkServerRepo(const repo::ChunkServerRepo &cr) override {
+    int UpdateChunkServerRepoItem(const ChunkServerRepoItem &cr) override {
         return repo::OperationOK;
     }
 
-    int QueryChunkServerRepo(repo::ChunkServerIDType id,
-                                    repo::ChunkServerRepo *repo) override {
+    int QueryChunkServerRepoItem(ChunkServerIDType id,
+                                    ChunkServerRepoItem *repo) override {
         return repo::OperationOK;
     }
     // server operation
-    int InsertServerRepo(const repo::ServerRepo &sr) override {
+    int InsertServerRepoItem(const ServerRepoItem &sr) override {
         return repo::OperationOK;
     }
 
-    int LoadServerRepos(std::vector<repo::ServerRepo> *serverList) override {
+    int LoadServerRepoItems(std::vector<ServerRepoItem> *serverList) override {
         return repo::OperationOK;
     }
 
-    int DeleteServerRepo(repo::ServerIDType id) override {
+    int DeleteServerRepoItem(ServerIDType id) override {
         return repo::OperationOK;
     }
 
-    int UpdateServerRepo(const repo::ServerRepo &sr) override {
+    int UpdateServerRepoItem(const ServerRepoItem &sr) override {
         return repo::OperationOK;
     }
 
-    int QueryServerRepo(repo::ServerIDType id, repo::ServerRepo *repo)
+    int QueryServerRepoItem(ServerIDType id, ServerRepoItem *repo)
                                                                 override {
         return repo::OperationOK;
     }
 
     // zone operation
-    int InsertZoneRepo(const repo::ZoneRepo &zr) override {
+    int InsertZoneRepoItem(const ZoneRepoItem &zr) override {
         return repo::OperationOK;
     }
 
-    int LoadZoneRepos(std::vector<repo::ZoneRepo> *zonevector) override {
+    int LoadZoneRepoItems(std::vector<ZoneRepoItem> *zonevector) override {
         return repo::OperationOK;
     }
 
-    int DeleteZoneRepo(repo::ZoneIDType id) {
+    int DeleteZoneRepoItem(ZoneIDType id) {
         return repo::OperationOK;
     }
 
-    int UpdateZoneRepo(const repo::ZoneRepo &zr) override {
+    int UpdateZoneRepoItem(const ZoneRepoItem &zr) override {
         return repo::OperationOK;
     }
 
-    int QueryZoneRepo(repo::ZoneIDType id, repo::ZoneRepo *repo) override {
+    int QueryZoneRepoItem(ZoneIDType id, ZoneRepoItem *repo) override {
         return repo::OperationOK;
     }
 
     // physical pool operation
-    int InsertPhysicalPoolRepo(const repo::PhysicalPoolRepo &pr) override {
+    int InsertPhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr) override {
         return repo::OperationOK;
     }
 
-    int LoadPhysicalPoolRepos(
-        std::vector<repo::PhysicalPoolRepo> *physicalPoolvector) override {
+    int LoadPhysicalPoolRepoItems(
+        std::vector<PhysicalPoolRepoItem> *physicalPoolvector) override {
         return repo::OperationOK;
     }
 
-    int DeletePhysicalPoolRepo(repo::PhysicalPoolIDType id) override {
+    int DeletePhysicalPoolRepoItem(PhysicalPoolIDType id) override {
         return repo::OperationOK;
     }
 
-    int UpdatePhysicalPoolRepo(const repo::PhysicalPoolRepo &pr) override {
+    int UpdatePhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr) override {
         return repo::OperationOK;
     }
 
-    int QueryPhysicalPoolRepo(repo::PhysicalPoolIDType id,
-                                    repo::PhysicalPoolRepo *repo) override {
+    int QueryPhysicalPoolRepoItem(PhysicalPoolIDType id,
+                                    PhysicalPoolRepoItem *repo) override {
         return repo::OperationOK;
     }
 
     // logical pool operation
-    int InsertLogicalPoolRepo(const repo::LogicalPoolRepo &lr) override {
+    int InsertLogicalPoolRepoItem(const LogicalPoolRepoItem &lr) override {
         return repo::OperationOK;
     }
 
-    int LoadLogicalPoolRepos(
-        std::vector<repo::LogicalPoolRepo> *logicalPoolList) override {
+    int LoadLogicalPoolRepoItems(
+        std::vector<LogicalPoolRepoItem> *logicalPoolList) override {
         return repo::OperationOK;
     }
 
-    int DeleteLogicalPoolRepo(repo::LogicalPoolIDType id) override {
+    int DeleteLogicalPoolRepoItem(LogicalPoolIDType id) override {
         return repo::OperationOK;
     }
 
-    int UpdateLogicalPoolRepo(const repo::LogicalPoolRepo &lr) override {
+    int UpdateLogicalPoolRepoItem(const LogicalPoolRepoItem &lr) override {
         return repo::OperationOK;
     }
 
-    int QueryLogicalPoolRepo(repo::LogicalPoolIDType id,
-                                    repo::LogicalPoolRepo *repo) override {
+    int QueryLogicalPoolRepoItem(LogicalPoolIDType id,
+                                    LogicalPoolRepoItem *repo) override {
         return repo::OperationOK;
     }
 
     // copyset operation
-    int InsertCopySetRepo(const repo::CopySetRepo &cr) override {
+    int InsertCopySetRepoItem(const CopySetRepoItem &cr) override {
         return repo::OperationOK;
     }
 
-    int LoadCopySetRepos(std::vector<repo::CopySetRepo> *copySetList) override {
+    int LoadCopySetRepoItems(
+        std::vector<CopySetRepoItem> *copySetList) override {
         return repo::OperationOK;
     }
 
-    int DeleteCopySetRepo(repo::CopySetIDType id, repo::LogicalPoolIDType lid)
+    int DeleteCopySetRepoItem(CopySetIDType id, LogicalPoolIDType lid)
                                                                     override {
         return repo::OperationOK;
     }
 
-    int UpdateCopySetRepo(const repo::CopySetRepo &cr) override {
+    int UpdateCopySetRepoItem(const CopySetRepoItem &cr) override {
         return repo::OperationOK;
     }
 
-    int QueryCopySetRepo(repo::CopySetIDType id,
-                                repo::LogicalPoolIDType lid,
-                                repo::CopySetRepo *repo) override {
+    int QueryCopySetRepoItem(CopySetIDType id,
+                                LogicalPoolIDType lid,
+                                CopySetRepoItem *repo) override {
         return repo::OperationOK;
     }
 
     // session operation
-    int InsertSessionRepo(const repo::SessionRepo &r) override {
+    int InsertSessionRepoItem(const SessionRepoItem &r) override {
         LOG(INFO) << "InsertSessionRepo";
         return repo::OperationOK;
     }
 
-    int LoadSessionRepo(std::vector<repo::SessionRepo> *sessionList) override {
+    int LoadSessionRepoItems(
+        std::vector<SessionRepoItem> *sessionList) override {
         LOG(INFO) << "LoadSessionRepo";
         return repo::OperationOK;
     }
 
-    int DeleteSessionRepo(const std::string &sessionID) override {
+    int DeleteSessionRepoItem(const std::string &sessionID) override {
         LOG(INFO) << "DeleteSessionRepo";
         return repo::OperationOK;
     }
 
-    int UpdateSessionRepo(const repo::SessionRepo &r) override {
+    int UpdateSessionRepoItem(const SessionRepoItem &r) override {
         LOG(INFO) << "UpdateSessionRepo";
         return repo::OperationOK;
     }
 
-    int QuerySessionRepo(const std::string &sessionID, repo::SessionRepo *r) {
+    int QuerySessionRepoItem(const std::string &sessionID, SessionRepoItem *r) {
         LOG(INFO) << "QuerySessionRepo";
         return repo::OperationOK;
     }

@@ -14,7 +14,7 @@
 #include <map>
 
 #include "src/mds/topology/topology_item.h"
-#include "src/mds/repo/repo.h"
+#include "src/mds/dao/mdsRepo.h"
 
 
 namespace curve {
@@ -75,7 +75,7 @@ class TopologyStorage {
 class DefaultTopologyStorage : public TopologyStorage {
  public:
     explicit DefaultTopologyStorage(
-        std::shared_ptr<::curve::repo::RepoInterface> repo)
+        std::shared_ptr<MdsRepo> repo)
         : repo_(repo) {}
     virtual ~DefaultTopologyStorage() {}
 
@@ -125,7 +125,7 @@ class DefaultTopologyStorage : public TopologyStorage {
     virtual bool UpdateCopySet(const CopySetInfo &data);
 
  private:
-    std::shared_ptr<::curve::repo::RepoInterface> repo_;
+    std::shared_ptr<MdsRepo> repo_;
 };
 
 }  // namespace topology

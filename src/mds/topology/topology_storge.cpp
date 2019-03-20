@@ -16,9 +16,6 @@
 #include <string>
 #include <utility>
 
-#include "src/mds/repo/repo.h"
-#include "src/mds/repo/repoItem.h"
-#include "src/mds/repo/dataBase.h"
 #include "json/json.h"
 
 namespace curve {
@@ -26,13 +23,6 @@ namespace mds {
 namespace topology {
 
 using ::curve::repo::OperationOK;
-using ::curve::repo::LogicalPoolRepo;
-using ::curve::repo::PhysicalPoolRepo;
-using ::curve::repo::LogicalPoolRepo;
-using ::curve::repo::ZoneRepo;
-using ::curve::repo::ServerRepo;
-using ::curve::repo::ChunkServerRepo;
-using ::curve::repo::CopySetRepo;
 
 bool DefaultTopologyStorage::init(const std::string &dbName,
                                   const std::string &user,
@@ -58,15 +48,15 @@ bool DefaultTopologyStorage::LoadLogicalPool(
     std::unordered_map<PoolIdType,
                        LogicalPool> *logicalPoolMap,
     PoolIdType *maxLogicalPoolId) {
-    std::vector<LogicalPoolRepo> logicalPoolRepos;
-    if (repo_->LoadLogicalPoolRepos(&logicalPoolRepos) != OperationOK) {
+    std::vector<LogicalPoolRepoItem> logicalPoolRepos;
+    if (repo_->LoadLogicalPoolRepoItems(&logicalPoolRepos) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::LoadLogicalPool]: "
                    << "LoadLogicalPoolRepos fail.";
         return false;
     }
     logicalPoolMap->clear();
     *maxLogicalPoolId = 0;
-    for (LogicalPoolRepo &rp : logicalPoolRepos) {
+    for (LogicalPoolRepoItem &rp : logicalPoolRepos) {
         LogicalPool::RedundanceAndPlaceMentPolicy rap;
         LogicalPool::UserPolicy policy;
 
@@ -116,15 +106,15 @@ bool DefaultTopologyStorage::LoadLogicalPool(
 bool DefaultTopologyStorage::LoadPhysicalPool(
     std::unordered_map<PoolIdType, PhysicalPool> *physicalPoolMap,
     PoolIdType *maxPhysicalPoolId) {
-    std::vector<PhysicalPoolRepo> physicalPoolRepos;
-    if (repo_->LoadPhysicalPoolRepos(&physicalPoolRepos) != OperationOK) {
+    std::vector<PhysicalPoolRepoItem> physicalPoolRepos;
+    if (repo_->LoadPhysicalPoolRepoItems(&physicalPoolRepos) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::LoadPhysicalPool]: "
                    << "LoadPhysicalPoolRepos fail.";
         return false;
     }
     physicalPoolMap->clear();
     *maxPhysicalPoolId = 0;
-    for (PhysicalPoolRepo &rp : physicalPoolRepos) {
+    for (PhysicalPoolRepoItem &rp : physicalPoolRepos) {
         PhysicalPool pool(rp.physicalPoolID,
                           rp.physicalPoolName,
                           rp.desc);
@@ -147,15 +137,15 @@ bool DefaultTopologyStorage::LoadPhysicalPool(
 bool DefaultTopologyStorage::LoadZone(
     std::unordered_map<ZoneIdType, Zone> *zoneMap,
     ZoneIdType *maxZoneId) {
-    std::vector<ZoneRepo> zoneRepos;
-    if (repo_->LoadZoneRepos(&zoneRepos) != OperationOK) {
+    std::vector<ZoneRepoItem> zoneRepos;
+    if (repo_->LoadZoneRepoItems(&zoneRepos) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::LoadZone]: "
                    << "LoadZoneRepos fail.";
         return false;
     }
     zoneMap->clear();
     *maxZoneId = 0;
-    for (ZoneRepo &rp : zoneRepos) {
+    for (ZoneRepoItem &rp : zoneRepos) {
         Zone zone(rp.zoneID,
                   rp.zoneName,
                   rp.poolID,
@@ -179,15 +169,15 @@ bool DefaultTopologyStorage::LoadZone(
 bool DefaultTopologyStorage::LoadServer(
     std::unordered_map<ServerIdType, Server> *serverMap,
     ServerIdType *maxServerId) {
-    std::vector<ServerRepo> serverRepos;
-    if (repo_->LoadServerRepos(&serverRepos) != OperationOK) {
+    std::vector<ServerRepoItem> serverRepos;
+    if (repo_->LoadServerRepoItems(&serverRepos) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::LoadServer]: "
                    << "LoadServerRepos fail.";
         return false;
     }
     serverMap->clear();
     *maxServerId = 0;
-    for (ServerRepo &rp : serverRepos) {
+    for (ServerRepoItem &rp : serverRepos) {
         Server server(rp.serverID,
                       rp.hostName,
                       rp.internalHostIP,
@@ -216,15 +206,15 @@ bool DefaultTopologyStorage::LoadServer(
 bool DefaultTopologyStorage::LoadChunkServer(
     std::unordered_map<ChunkServerIdType, ChunkServer> *chunkServerMap,
     ChunkServerIdType *maxChunkServerId) {
-    std::vector<ChunkServerRepo> chunkServerRepos;
-    if (repo_->LoadChunkServerRepos(&chunkServerRepos) != OperationOK) {
+    std::vector<ChunkServerRepoItem> chunkServerRepos;
+    if (repo_->LoadChunkServerRepoItems(&chunkServerRepos) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::LoadChunkServer]: "
                    << "LoadChunkServerRepos fail.";
         return false;
     }
     chunkServerMap->clear();
     *maxChunkServerId = 0;
-    for (ChunkServerRepo &rp : chunkServerRepos) {
+    for (ChunkServerRepoItem &rp : chunkServerRepos) {
         ChunkServer cs(rp.chunkServerID,
                        rp.token,
                        rp.diskType,
@@ -258,15 +248,15 @@ bool DefaultTopologyStorage::LoadChunkServer(
 bool DefaultTopologyStorage::LoadCopySet(
     std::map<CopySetKey, CopySetInfo> *copySetMap,
     std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) {
-    std::vector<CopySetRepo> copySetRepos;
-    if (repo_->LoadCopySetRepos(&copySetRepos) != OperationOK) {
+    std::vector<CopySetRepoItem> copySetRepos;
+    if (repo_->LoadCopySetRepoItems(&copySetRepos) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::LoadCopySet]: "
                    << "LoadCopySetRepos fail.";
         return false;
     }
     copySetMap->clear();
     copySetIdMaxMap->clear();
-    for (CopySetRepo &rp : copySetRepos) {
+    for (CopySetRepoItem &rp : copySetRepos) {
         CopySetInfo copyset(rp.logicalPoolID, rp.copySetID);
         copyset.SetEpoch(rp.epoch);
         if (!copyset.SetCopySetMembersByJson(rp.chunkServerIDList)) {
@@ -298,7 +288,7 @@ bool DefaultTopologyStorage::StorageLogicalPool(const LogicalPool &data) {
         data.GetRedundanceAndPlaceMentPolicyJsonStr();
     std::string policyStr =
         data.GetUserPolicyJsonStr();
-    LogicalPoolRepo rp(data.GetId(),
+    LogicalPoolRepoItem rp(data.GetId(),
                        data.GetName(),
                        data.GetPhysicalPoolId(),
                        data.GetLogicalPoolType(),
@@ -307,7 +297,7 @@ bool DefaultTopologyStorage::StorageLogicalPool(const LogicalPool &data) {
                        rapStr,
                        policyStr,
                        data.GetLogicalPoolAvaliableFlag());
-    if (repo_->InsertLogicalPoolRepo(rp) != OperationOK) {
+    if (repo_->InsertLogicalPoolRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::StorageLogicalPool]: "
                    << "InsertLogicalPoolRepo fail.";
         return false;
@@ -316,10 +306,10 @@ bool DefaultTopologyStorage::StorageLogicalPool(const LogicalPool &data) {
 }
 
 bool DefaultTopologyStorage::StoragePhysicalPool(const PhysicalPool &data) {
-    PhysicalPoolRepo rp(data.GetId(),
+    PhysicalPoolRepoItem rp(data.GetId(),
                         data.GetName(),
                         data.GetDesc());
-    if (repo_->InsertPhysicalPoolRepo(rp) != OperationOK) {
+    if (repo_->InsertPhysicalPoolRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::StoragePhysicalPool]: "
                    << "InsertPhysicalPoolRepo fail.";
         return false;
@@ -328,11 +318,11 @@ bool DefaultTopologyStorage::StoragePhysicalPool(const PhysicalPool &data) {
 }
 
 bool DefaultTopologyStorage::StorageZone(const Zone &data) {
-    ZoneRepo rp(data.GetId(),
+    ZoneRepoItem rp(data.GetId(),
                 data.GetName(),
                 data.GetPhysicalPoolId(),
                 data.GetDesc());
-    if (repo_->InsertZoneRepo(rp) != OperationOK) {
+    if (repo_->InsertZoneRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::StorageZone]: "
                    << "InsertZoneRepo fail.";
         return false;
@@ -341,7 +331,7 @@ bool DefaultTopologyStorage::StorageZone(const Zone &data) {
 }
 
 bool DefaultTopologyStorage::StorageServer(const Server &data) {
-    ServerRepo rp(data.GetId(),
+    ServerRepoItem rp(data.GetId(),
                   data.GetHostName(),
                   data.GetInternalHostIp(),
                   data.GetInternalPort(),
@@ -350,7 +340,7 @@ bool DefaultTopologyStorage::StorageServer(const Server &data) {
                   data.GetZoneId(),
                   data.GetPhysicalPoolId(),
                   data.GetDesc());
-    if (repo_->InsertServerRepo(rp) != OperationOK) {
+    if (repo_->InsertServerRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::StorageServer]: "
                    << "InsertServerRepo fail.";
         return false;
@@ -360,7 +350,7 @@ bool DefaultTopologyStorage::StorageServer(const Server &data) {
 
 bool DefaultTopologyStorage::StorageChunkServer(const ChunkServer &data) {
     ChunkServerState csState = data.GetChunkServerState();
-    ChunkServerRepo rp(data.GetId(),
+    ChunkServerRepoItem rp(data.GetId(),
                        data.GetToken(),
                        data.GetDiskType(),
                        data.GetHostIp(),
@@ -373,7 +363,7 @@ bool DefaultTopologyStorage::StorageChunkServer(const ChunkServer &data) {
                        csState.GetDiskCapacity(),
                        csState.GetDiskUsed());
 
-    if (repo_->InsertChunkServerRepo(rp) != OperationOK) {
+    if (repo_->InsertChunkServerRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::StorageChunkServer]: "
                    << "StorageChunkServerRepo fail.";
         return false;
@@ -383,11 +373,11 @@ bool DefaultTopologyStorage::StorageChunkServer(const ChunkServer &data) {
 
 bool DefaultTopologyStorage::StorageCopySet(const CopySetInfo &data) {
     std::string chunkServerListStr = data.GetCopySetMembersStr();
-    CopySetRepo rp(data.GetId(),
+    CopySetRepoItem rp(data.GetId(),
                    data.GetLogicalPoolId(),
                    data.GetEpoch(),
                    chunkServerListStr);
-    if (repo_->InsertCopySetRepo(rp) != OperationOK) {
+    if (repo_->InsertCopySetRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::StorageCopySet]: "
                    << "InsertCopySetRepo fail.";
         return false;
@@ -396,7 +386,7 @@ bool DefaultTopologyStorage::StorageCopySet(const CopySetInfo &data) {
 }
 
 bool DefaultTopologyStorage::DeleteLogicalPool(PoolIdType id) {
-    if (repo_->DeleteLogicalPoolRepo(id) != OperationOK) {
+    if (repo_->DeleteLogicalPoolRepoItem(id) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::DeleteLogicalPool]: "
                    << "DeleteLogicalPoolRepo fail.";
         return false;
@@ -405,7 +395,7 @@ bool DefaultTopologyStorage::DeleteLogicalPool(PoolIdType id) {
 }
 
 bool DefaultTopologyStorage::DeletePhysicalPool(PoolIdType id) {
-    if (repo_->DeletePhysicalPoolRepo(id) != OperationOK) {
+    if (repo_->DeletePhysicalPoolRepoItem(id) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::DeletePhysicalPool]: "
                    << "DeletePhysicalPoolRepo fail.";
         return false;
@@ -414,7 +404,7 @@ bool DefaultTopologyStorage::DeletePhysicalPool(PoolIdType id) {
 }
 
 bool DefaultTopologyStorage::DeleteZone(ZoneIdType id) {
-    if (repo_->DeleteZoneRepo(id) != OperationOK) {
+    if (repo_->DeleteZoneRepoItem(id) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::DeleteZone]: "
                    << "DeleteZoneRepo fail.";
         return false;
@@ -423,7 +413,7 @@ bool DefaultTopologyStorage::DeleteZone(ZoneIdType id) {
 }
 
 bool DefaultTopologyStorage::DeleteServer(ServerIdType id) {
-    if (repo_->DeleteServerRepo(id) != OperationOK) {
+    if (repo_->DeleteServerRepoItem(id) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::DeleteServer]: "
                    << "DeleteServerRepo fail.";
         return false;
@@ -432,7 +422,7 @@ bool DefaultTopologyStorage::DeleteServer(ServerIdType id) {
 }
 
 bool DefaultTopologyStorage::DeleteChunkServer(ChunkServerIdType id) {
-    if (repo_->DeleteChunkServerRepo(id) != OperationOK) {
+    if (repo_->DeleteChunkServerRepoItem(id) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::DeleteChunkServer]: "
                    << "DeleteChunkServerRepo fail.";
         return false;
@@ -441,7 +431,7 @@ bool DefaultTopologyStorage::DeleteChunkServer(ChunkServerIdType id) {
 }
 
 bool DefaultTopologyStorage::DeleteCopySet(CopySetKey key) {
-    if (repo_->DeleteCopySetRepo(key.second, key.first) != OperationOK) {
+    if (repo_->DeleteCopySetRepoItem(key.second, key.first) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::DeleteCopySet]: "
                    << "DeleteCopySetRepo fail.";
         return false;
@@ -454,7 +444,7 @@ bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
         data.GetRedundanceAndPlaceMentPolicyJsonStr();
     std::string policyStr =
         data.GetUserPolicyJsonStr();
-    LogicalPoolRepo rp(data.GetId(),
+    LogicalPoolRepoItem rp(data.GetId(),
                        data.GetName(),
                        data.GetPhysicalPoolId(),
                        data.GetLogicalPoolType(),
@@ -463,7 +453,7 @@ bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
                        rapStr,
                        policyStr,
                        data.GetLogicalPoolAvaliableFlag());
-    if (repo_->UpdateLogicalPoolRepo(rp) != OperationOK) {
+    if (repo_->UpdateLogicalPoolRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdateLogicalPool]: "
                    << "UpdateLogicalPoolRepo fail.";
         return false;
@@ -472,10 +462,10 @@ bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
 }
 
 bool DefaultTopologyStorage::UpdatePhysicalPool(const PhysicalPool &data) {
-    PhysicalPoolRepo rp(data.GetId(),
+    PhysicalPoolRepoItem rp(data.GetId(),
                         data.GetName(),
                         data.GetDesc());
-    if (repo_->UpdatePhysicalPoolRepo(rp) != OperationOK) {
+    if (repo_->UpdatePhysicalPoolRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdatePhysicalPool]: "
                    << "UpdatePhysicalPoolRepo fail.";
         return false;
@@ -484,11 +474,11 @@ bool DefaultTopologyStorage::UpdatePhysicalPool(const PhysicalPool &data) {
 }
 
 bool DefaultTopologyStorage::UpdateZone(const Zone &data) {
-    ZoneRepo rp(data.GetId(),
+    ZoneRepoItem rp(data.GetId(),
                 data.GetName(),
                 data.GetPhysicalPoolId(),
                 data.GetDesc());
-    if (repo_->UpdateZoneRepo(rp) != OperationOK) {
+    if (repo_->UpdateZoneRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdateZone]: "
                    << "UpdateZoneRepo fail.";
         return false;
@@ -497,7 +487,7 @@ bool DefaultTopologyStorage::UpdateZone(const Zone &data) {
 }
 
 bool DefaultTopologyStorage::UpdateServer(const Server &data) {
-    ServerRepo rp(data.GetId(),
+    ServerRepoItem rp(data.GetId(),
                   data.GetHostName(),
                   data.GetInternalHostIp(),
                   data.GetInternalPort(),
@@ -506,7 +496,7 @@ bool DefaultTopologyStorage::UpdateServer(const Server &data) {
                   data.GetZoneId(),
                   data.GetPhysicalPoolId(),
                   data.GetDesc());
-    if (repo_->UpdateServerRepo(rp) != OperationOK) {
+    if (repo_->UpdateServerRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdateServer]: "
                    << "UpdateServerRepo fail.";
         return false;
@@ -516,7 +506,7 @@ bool DefaultTopologyStorage::UpdateServer(const Server &data) {
 
 bool DefaultTopologyStorage::UpdateChunkServer(const ChunkServer &data) {
     ChunkServerState csState = data.GetChunkServerState();
-    ChunkServerRepo rp(data.GetId(),
+    ChunkServerRepoItem rp(data.GetId(),
                        data.GetToken(),
                        data.GetDiskType(),
                        data.GetHostIp(),
@@ -529,7 +519,7 @@ bool DefaultTopologyStorage::UpdateChunkServer(const ChunkServer &data) {
                        csState.GetDiskCapacity(),
                        csState.GetDiskUsed());
 
-    if (repo_->UpdateChunkServerRepo(rp) != OperationOK) {
+    if (repo_->UpdateChunkServerRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdateChunkServer]: "
                    << "UpdateChunkServerRepo fail.";
         return false;
@@ -539,11 +529,11 @@ bool DefaultTopologyStorage::UpdateChunkServer(const ChunkServer &data) {
 
 bool DefaultTopologyStorage::UpdateCopySet(const CopySetInfo &data) {
     std::string chunkServerListStr = data.GetCopySetMembersStr();
-    CopySetRepo rp(data.GetId(),
+    CopySetRepoItem rp(data.GetId(),
                    data.GetLogicalPoolId(),
                    data.GetEpoch(),
                    chunkServerListStr);
-    if (repo_->UpdateCopySetRepo(rp) != OperationOK) {
+    if (repo_->UpdateCopySetRepoItem(rp) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::UpdateCopySet]: "
                    << "UpdateCopySetRepo fail.";
         return false;

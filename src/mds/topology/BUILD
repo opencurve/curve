@@ -24,7 +24,7 @@ cc_library(
         "//proto:topology_cc_proto",
         "//src/mds/common:mds_common",
         "//src/mds/copyset:copyset",
-        "//src/mds/repo:repo",
+        "//src/mds/dao:mdsrepo",
         "//src/common:curve_common",
     ],
 )
