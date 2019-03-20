@@ -10,14 +10,20 @@
 
 #include <brpc/closure_guard.h>
 #include <brpc/controller.h>
+#include <string>
 #include "proto/nameserver2.pb.h"
+#include "src/mds/nameserver2/file_lock.h"
 
 namespace curve {
 namespace mds {
+// TODO(hzchenwei7): isPathValid先放这里，目前就这里用
+bool isPathValid(std::string path);
 
 class NameSpaceService: public CurveFSService {
  public:
-    NameSpaceService() {}
+    explicit NameSpaceService(FileLockManager *fileLockManager) {
+        fileLockManager_ = fileLockManager;
+    }
 
     virtual ~NameSpaceService() {}
 
@@ -84,6 +90,9 @@ class NameSpaceService: public CurveFSService {
                         const ::curve::mds::ReFreshSessionRequest* request,
                         ::curve::mds::ReFreshSessionResponse* response,
                         ::google::protobuf::Closure* done) override;
+
+ private:
+    FileLockManager *fileLockManager_;
 };
 }  // namespace mds
 }  // namespace curve
