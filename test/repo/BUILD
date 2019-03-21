@@ -6,7 +6,7 @@ cc_test(
     ],
     deps = [
         "//external:json",
-        "//src/snapshot/repo",
+        "//src/repo:repo",
         "@com_google_googletest//:gtest",
     ],
 )

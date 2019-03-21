@@ -52,7 +52,7 @@ cc_library(
         "//src/common:curve_common",
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
-        "//src/snapshot/repo:repo",
+        "//src/snapshot/dao:snapshotrepo",
         "//src/client:curve_client"
     ],
 )
@@ -88,7 +88,7 @@ cc_binary(
         "//src/common:curve_common",
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
-        "//src/snapshot/repo:repo",
+        "//src/snapshot/dao:snapshotrepo",
         "//src/client:curve_client"
     ],
 )

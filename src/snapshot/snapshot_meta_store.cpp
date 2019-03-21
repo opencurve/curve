@@ -9,6 +9,8 @@
 #include <memory>
 #include <glog/logging.h> //NOLINT
 
+using ::curve::snapshotserver::SnapshotRepoItem;
+
 DEFINE_string(db_name, "curve_snapshot", "database name");
 DEFINE_string(user, "root", "user name");
 DEFINE_string(passwd, "qwer", "password");
@@ -24,7 +26,7 @@ int DBSnapshotMetaStore::Init() {
     if (repo_ -> connectDB(dbname, user, url, passwd) < 0) {
         return -1;
     }
-    if (repo_ -> createDataBase() < 0) {
+    if (repo_ -> createDatabase() < 0) {
         return -1;
     }
     if (repo_ -> useDataBase() < 0) {
@@ -41,8 +43,8 @@ int DBSnapshotMetaStore::Init() {
 
 int DBSnapshotMetaStore::LoadSnapshotInfos() {
     // load snapshot from db to map
-    std::vector<SnapshotRepo> snapRepoV;
-    if (repo_ -> LoadSnapshotRepos(&snapRepoV) < 0) {
+    std::vector<SnapshotRepoItem> snapRepoV;
+    if (repo_ -> LoadSnapshotRepoItems(&snapRepoV) < 0) {
         LOG(ERROR) << "Load snapshot repo failed";
         return -1;
     }
@@ -65,7 +67,7 @@ int DBSnapshotMetaStore::LoadSnapshotInfos() {
 
 int DBSnapshotMetaStore::AddSnapshot(const SnapshotInfo &info) {
     // first add to db
-    SnapshotRepo sr(info.GetUuid(),
+    SnapshotRepoItem sr(info.GetUuid(),
                    info.GetUser(),
                    info.GetFileName(),
                    info.GetSnapshotName(),
@@ -75,7 +77,7 @@ int DBSnapshotMetaStore::AddSnapshot(const SnapshotInfo &info) {
                    info.GetFileLength(),
                    info.GetCreateTime(),
                    static_cast<int>(info.GetStatus()));
-    if (repo_ -> InsertSnapshotRepo(sr) < 0) {
+    if (repo_ -> InsertSnapshotRepoItem(sr) < 0) {
         LOG(ERROR) << "Add snapshot failed";
         return -1;
     }
@@ -87,7 +89,7 @@ int DBSnapshotMetaStore::AddSnapshot(const SnapshotInfo &info) {
 
 int DBSnapshotMetaStore::DeleteSnapshot(const UUID uuid) {
     // first delete from  db
-    if (repo_ -> DeleteSnapshotRepo(uuid) < 0) {
+    if (repo_ -> DeleteSnapshotRepoItem(uuid) < 0) {
         LOG(ERROR) << "Delete snapshot failed";
         return -1;
     }
@@ -102,7 +104,7 @@ int DBSnapshotMetaStore::DeleteSnapshot(const UUID uuid) {
 
 int DBSnapshotMetaStore::UpdateSnapshot(const SnapshotInfo &info) {
     // first update db
-    SnapshotRepo sr(info.GetUuid(),
+    SnapshotRepoItem sr(info.GetUuid(),
                    info.GetUser(),
                    info.GetFileName(),
                    info.GetSnapshotName(),
@@ -112,7 +114,7 @@ int DBSnapshotMetaStore::UpdateSnapshot(const SnapshotInfo &info) {
                    info.GetFileLength(),
                    info.GetCreateTime(),
                    static_cast<int>(info.GetStatus()));
-    if (repo_ -> UpdateSnapshotRepo(sr) < 0) {
+    if (repo_ -> UpdateSnapshotRepoItem(sr) < 0) {
         LOG(ERROR) << "Update snapshot failed";
         return -1;
     }
