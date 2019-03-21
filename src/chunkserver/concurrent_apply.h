@@ -18,8 +18,10 @@
 
 #include "src/common/task_queue.h"
 #include "include/curve_compiler_specific.h"
+#include "src/common/count_down_event.h"
 
 using curve::common::TaskQueue;
+using curve::common::CountDownEvent;
 namespace curve {
 namespace chunkserver {
 
@@ -77,9 +79,8 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
     int queuedepth_;
     // 并发度
     int concurrentsize_;
-    // 用于统一启动后台线程的锁和条件变量
-    std::mutex startmtx_;
-    std::condition_variable startcv_;
+    // 用于统一启动后台线程完全创建完成的条件变量
+    CountDownEvent cond_;
     // 存储threadindex与taskthread的映射关系
     CURVE_CACHELINE_ALIGNMENT std::unordered_map<threadIndex, taskthread_t*> applypoolMap_;     // NOLINT
 };
