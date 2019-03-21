@@ -24,8 +24,8 @@
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "test/chunkserver/fake_datastore.h"
+#include "src/chunkserver/uri_paser.h"
 
 namespace curve {
 namespace chunkserver {
@@ -125,7 +125,7 @@ int StartChunkserver(const char *ip,
 
     std::string copiedUri(copysetdir);
     std::string chunkDataDir;
-    std::string protocol = FsAdaptorUtil::ParserUri(copiedUri, &chunkDataDir);
+    std::string protocol = UriParser::ParseUri(copiedUri, &chunkDataDir);
     if (protocol.empty()) {
         LOG(FATAL) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << chunkDataDir;
