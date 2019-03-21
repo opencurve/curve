@@ -24,7 +24,6 @@ cc_test(
         "copyset_service_test.cpp",
         "op_request_test.cpp",
         "copyset_node_test.cpp",
-        "mock_local_file_system.h",
         "conf_epoch_file_test.cpp",
         "inflight_throttle_test.cpp",
         "concurrent_apply_unittest.cpp",
@@ -40,7 +39,6 @@ cc_test(
     name = "chunk-test",
     srcs = glob([
         "chunk_service_test.cpp",
-        "mock_local_file_system.h",
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
         "fake_datastore.h",

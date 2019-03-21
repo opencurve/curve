@@ -20,8 +20,8 @@
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/braft_cli_service.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "src/chunkserver/braft_cli_service2.h"
+#include "src/chunkserver/uri_paser.h"
 
 
 namespace curve {
@@ -49,7 +49,7 @@ int CopysetNodeManager::Fini() {
 
 int CopysetNodeManager::ReloadCopysets() {
     std::string datadir =
-        FsAdaptorUtil::GetPathFromUri(copysetNodeOptions_.chunkDataUri);
+        UriParser::GetPathFromUri(copysetNodeOptions_.chunkDataUri);
     if (!copysetNodeOptions_.localFileSystem->DirExists(datadir)) {
         LOG(INFO) << datadir << " not exist. copysets was never created";
         return 0;
