@@ -1,16 +1,24 @@
 /*
  * Project: curve
- * File Created: Thursday, 22nd November 2018 2:03:49 pm
- * Author: tongguangxun
- * Copyright (c)￼ 2018 netease
+ * Created Date: Thursday March 21st 2019
+ * Author: yangyaokai
+ * Copyright (c) 2018 netease
  */
 
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#ifndef SRC_CHUNKSERVER_URI_PASER_H_
+#define SRC_CHUNKSERVER_URI_PASER_H_
+
+#include <limits.h>
+#include <string>
+#include <list>
 
 namespace curve {
 namespace chunkserver {
-    std::string FsAdaptorUtil::ParserUri(const std::string& uri,
-                                        std::string * param) {
+
+class UriParser {
+ public:
+    static std::string ParseUri(const std::string& uri,
+                             std::string * param) {
         // ${protocol}://${parameters}
         std::string protocol;
         do {
@@ -24,18 +32,18 @@ namespace chunkserver {
         return protocol;
     }
 
-    std::string FsAdaptorUtil::GetProtocolFromUri(const std::string& uri) {
+    static std::string GetProtocolFromUri(const std::string& uri) {
         std::string path;
-        return ParserUri(uri, &path);
+        return ParseUri(uri, &path);
     }
 
-    std::string FsAdaptorUtil::GetPathFromUri(const std::string& uri) {
+    static std::string GetPathFromUri(const std::string& uri) {
         std::string path;
-        FsAdaptorUtil::ParserUri(uri, &path);
+        ParseUri(uri, &path);
         return path;
     }
 
-    std::list<std::string> FsAdaptorUtil::ParserDirPath(std::string path) {
+    static std::list<std::string> ParseDirPath(std::string path) {
         std::list<std::string> dirpath;
         dirpath.clear();
         int startpos = NAME_MAX;
@@ -49,5 +57,9 @@ namespace chunkserver {
         }
         return dirpath;
     }
+};
+
 }  // namespace chunkserver
 }  // namespace curve
+
+#endif  // SRC_CHUNKSERVER_URI_PASER_H_
