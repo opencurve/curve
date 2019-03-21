@@ -18,7 +18,7 @@
 #include "src/fs/fs_common.h"
 #include "src/common/timeutility.h"
 #include "src/chunkserver/heartbeat.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 
 using curve::fs::FileSystemInfo;
 
@@ -43,7 +43,7 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     options_ = options;
 
     butil::ip_t csIp;
-    storePath_ = FsAdaptorUtil::GetPathFromUri(options_.storeUri);
+    storePath_ = UriParser::GetPathFromUri(options_.storeUri);
     if (butil::str2ip(options_.ip.c_str(), &csIp) < 0) {
         LOG(ERROR) << "Invalid Chunkserver IP provided: " << options_.ip;
         return -1;

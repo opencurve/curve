@@ -17,7 +17,7 @@
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/concurrent_apply.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 
 using curve::chunkserver::CopysetNodeOptions;
 using curve::chunkserver::Configuration;
@@ -25,7 +25,7 @@ using curve::chunkserver::CopysetNodeManager;
 using curve::chunkserver::ChunkfilePool;
 using curve::chunkserver::ChunkfilePoolOptions;
 using curve::chunkserver::ConcurrentApplyModule;
-using curve::chunkserver::FsAdaptorUtil;
+using curve::chunkserver::UriParser;
 using curve::chunkserver::LogicPoolID;
 using curve::chunkserver::CopysetID;
 using curve::common::Peer;
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
 
     std::string chunkDataDir;
     std::string
-        protocol = FsAdaptorUtil::ParserUri(FLAGS_copyset_dir, &chunkDataDir);
+        protocol = UriParser::ParseUri(FLAGS_copyset_dir, &chunkDataDir);
     if (protocol.empty()) {
         LOG(FATAL) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << chunkDataDir;
