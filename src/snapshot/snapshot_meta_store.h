@@ -12,7 +12,8 @@
 #include <string>
 #include <map>
 #include <mutex> //NOLINT
-#include "src/snapshot/repo/repo.h"
+
+#include "src/snapshot/dao/snapshotRepo.h"
 #include "src/snapshot/snapshot_define.h"
 
 namespace curve {
@@ -217,8 +218,9 @@ class SnapshotMetaStore {
 
 class DBSnapshotMetaStore : public SnapshotMetaStore{
  public:
-    explicit DBSnapshotMetaStore(std::shared_ptr<RepoInterface> repo)
-            :repo_(repo) {}
+    explicit DBSnapshotMetaStore(
+        std::shared_ptr<curve::snapshotserver::SnapshotRepo> repo)
+        :repo_(repo) {}
     ~DBSnapshotMetaStore() {}
     int Init() override;
     int AddSnapshot(const SnapshotInfo &snapinfo) override;
@@ -236,7 +238,7 @@ class DBSnapshotMetaStore : public SnapshotMetaStore{
      */
     int LoadSnapshotInfos();
     // db metastore的repo实现
-    std::shared_ptr<RepoInterface> repo_;
+    std::shared_ptr<curve::snapshotserver::SnapshotRepo> repo_;
     // key is UUID, map 需要考虑并发保护
     std::map<UUID, SnapshotInfo> snapInfos_;
     // 考虑使用rwlock

@@ -33,7 +33,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_ConnectDB) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
-    EXPECT_CALL(*repo, createDataBase())
+    EXPECT_CALL(*repo, createDatabase())
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*repo, useDataBase())
@@ -42,7 +42,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_ConnectDB) {
     EXPECT_CALL(*repo, createAllTables())
         .Times(1)
         .WillOnce(Return(0));
-     EXPECT_CALL(*repo, LoadSnapshotRepos(_))
+     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, metastore_->Init());
@@ -53,7 +53,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_CreateDB) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDataBase())
+    EXPECT_CALL(*repo, createDatabase())
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -63,7 +63,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_CreateDB) {
     EXPECT_CALL(*repo, createAllTables())
         .Times(1)
         .WillOnce(Return(0));
-     EXPECT_CALL(*repo, LoadSnapshotRepos(_))
+     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, metastore_->Init());
@@ -74,7 +74,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_UseDB) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDataBase())
+    EXPECT_CALL(*repo, createDatabase())
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
@@ -85,7 +85,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_UseDB) {
     EXPECT_CALL(*repo, createAllTables())
         .Times(1)
         .WillOnce(Return(0));
-     EXPECT_CALL(*repo, LoadSnapshotRepos(_))
+     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, metastore_->Init());
@@ -96,7 +96,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_CreateTable) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDataBase())
+    EXPECT_CALL(*repo, createDatabase())
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
@@ -108,7 +108,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_CreateTable) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
-     EXPECT_CALL(*repo, LoadSnapshotRepos(_))
+     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(1)
         .WillOnce(Return(0));
     ASSERT_EQ(0, metastore_->Init());
@@ -119,7 +119,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_LoadInfo) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-    EXPECT_CALL(*repo, createDataBase())
+    EXPECT_CALL(*repo, createDatabase())
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
@@ -131,7 +131,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_LoadInfo) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-     EXPECT_CALL(*repo, LoadSnapshotRepos(_))
+     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -139,7 +139,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreInit_LoadInfo) {
     ASSERT_EQ(-1, metastore_->Init());
 }
 TEST_F(TestDBSnapshotMetaStore, testMetaStoreAddSnapshot) {
-      EXPECT_CALL(*repo, InsertSnapshotRepo(_))
+      EXPECT_CALL(*repo, InsertSnapshotRepoItem(_))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -149,7 +149,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreAddSnapshot) {
     ASSERT_EQ(-1, metastore_->AddSnapshot(info));
 }
 TEST_F(TestDBSnapshotMetaStore, testMetaStoreDeleteSnapshot) {
-  EXPECT_CALL(*repo, DeleteSnapshotRepo(_))
+  EXPECT_CALL(*repo, DeleteSnapshotRepoItem(_))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -158,7 +158,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreDeleteSnapshot) {
     ASSERT_EQ(-1, metastore_->DeleteSnapshot(uuid));
 }
 TEST_F(TestDBSnapshotMetaStore, testMetaStoreUpdateSnapshot) {
-  EXPECT_CALL(*repo, UpdateSnapshotRepo(_))
+  EXPECT_CALL(*repo, UpdateSnapshotRepoItem(_))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -183,7 +183,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreUpdateSnapshot) {
     ASSERT_EQ(-1, metastore_->UpdateSnapshot(info));
 }
 TEST_F(TestDBSnapshotMetaStore, testMetaStoreGetSnapshot) {
-     EXPECT_CALL(*repo, InsertSnapshotRepo(_))
+     EXPECT_CALL(*repo, InsertSnapshotRepoItem(_))
         .Times(1)
         .WillOnce(Return(0));
     std::string uuid = "this-is-test-uuid";
@@ -194,7 +194,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreGetSnapshot) {
     ASSERT_EQ(-1, metastore_->GetSnapshotInfo("test", &tmpinfo));
 }
 TEST_F(TestDBSnapshotMetaStore, testMetaStoreGetSnapshotList1) {
-     EXPECT_CALL(*repo, InsertSnapshotRepo(_))
+     EXPECT_CALL(*repo, InsertSnapshotRepoItem(_))
         .Times(3)
         .WillOnce(Return(0))
         .WillOnce(Return(0))
@@ -211,7 +211,7 @@ TEST_F(TestDBSnapshotMetaStore, testMetaStoreGetSnapshotList1) {
     ASSERT_EQ(-1, metastore_->GetSnapshotList("null", &v));
 }
 TEST_F(TestDBSnapshotMetaStore, testMetaStoreGetSnapshotList2) {
-     EXPECT_CALL(*repo, InsertSnapshotRepo(_))
+     EXPECT_CALL(*repo, InsertSnapshotRepoItem(_))
         .Times(3)
         .WillOnce(Return(0))
         .WillOnce(Return(0))
