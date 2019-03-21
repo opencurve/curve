@@ -72,7 +72,7 @@ class CopysetClient : public Uncopyable {
                   size_t length,
                   uint64_t appliedindex,
                   google::protobuf::Closure *done,
-                  int retriedTimes = 0);
+                  uint16_t retriedTimes = 0);
 
     /**
     * 写Chunk
@@ -94,7 +94,7 @@ class CopysetClient : public Uncopyable {
                   off_t offset,
                   size_t length,
                   Closure *done,
-                  int retriedTimes = 0);
+                  uint16_t retriedTimes = 0);
 
     /**
      * 读Chunk快照文件
@@ -114,7 +114,7 @@ class CopysetClient : public Uncopyable {
                   off_t offset,
                   size_t length,
                   Closure *done,
-                  int retriedTimes = 0);
+                  uint16_t retriedTimes = 0);
 
     /**
      * 删除Chunk快照文件
@@ -130,7 +130,7 @@ class CopysetClient : public Uncopyable {
                   ChunkID chunkId,
                   uint64_t sn,
                   Closure *done,
-                  int retriedTimes = 0);
+                  uint16_t retriedTimes = 0);
 
     /**
      * 获取chunk文件的信息
@@ -144,7 +144,7 @@ class CopysetClient : public Uncopyable {
                   CopysetID copysetId,
                   ChunkID chunkId,
                   Closure *done,
-                  int retriedTimes = 0);
+                  uint16_t retriedTimes = 0);
 
  private:
     // 元数据缓存

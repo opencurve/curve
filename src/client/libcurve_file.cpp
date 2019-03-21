@@ -16,6 +16,8 @@
 #include "src/client/file_instance.h"
 #include "include/curve_compiler_specific.h"
 #include "src/client/iomanager4file.h"
+#include "src/client/service_helper.h"
+
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
@@ -56,17 +58,21 @@ LIBCURVE_ERROR FileClient::StatFs(int fd,
     return fileserviceMap_[fd]->StatFs(filename, finfo);
 }
 
-int FileClient::Open(std::string filename, size_t size, bool create) {
+int FileClient::Open(std::string filename,
+                     UserInfo_t userinfo,
+                     size_t size,
+                     bool create) {
     FileInstance* fileserv = new (std::nothrow) FileInstance();
     if (fileserv == nullptr ||
-        !fileserv->Initialize(clientconfig_.GetFileServiceOption())) {
+        !fileserv->Initialize(userinfo, clientconfig_.GetFileServiceOption())) {
         LOG(ERROR) << "FileInstance initialize failed!";
         delete fileserv;
         return -1;
     }
-    if (LIBCURVE_ERROR::FAILED ==
-        fileserv->Open(filename, size, create)) {
-        LOG(ERROR) << "open file failed!";
+
+    LIBCURVE_ERROR ret = fileserv->Open(filename, size, create);
+    if (LIBCURVE_ERROR::FAILED == ret || LIBCURVE_ERROR::AUTHFAIL == ret) {
+        LOG(ERROR) << ErrorNum2ErrorName(ret);
         delete fileserv;
         return -1;
     }
@@ -145,7 +151,15 @@ LIBCURVE_ERROR Init(const char* path) {
 }
 
 int Open(const char* filename, size_t size, bool create) {
-    return globalclient->Open(filename, size, create);
+    curve::client::UserInfo_t userinfo;
+    std::string realname;
+    if (!curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
+                                        &realname,
+                                        &userinfo.owner)) {
+        LOG(ERROR) << "get user info from filename failed!";
+        return LIBCURVE_ERROR::FAILED;
+    }
+    return globalclient->Open(realname, userinfo, size, create);
 }
 
 LIBCURVE_ERROR Read(int fd, char* buf, off_t offset, size_t length) {

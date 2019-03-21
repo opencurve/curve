@@ -37,13 +37,17 @@ class FileClient {
    */
   LIBCURVE_ERROR Init(const char* configpath);
   /**
-   * 打开文件
+   * 打开或创建文件
    * @param: filename文件名
+   * @param: userinfo是当前打开或创建时携带的user信息
    * @param: size文件长度，当create为true的时候以size长度创建文件
    * @param: create为true，文件不存在就创建
    * @return: 返回文件fd
    */
-  int Open(std::string filename, size_t size = 0, bool create = false);
+  int Open(std::string filename,
+           UserInfo_t userinfo,
+           size_t size = 0,
+           bool create = false);
   /**
    * 同步模式读
    * @param: fd为当前open返回的文件描述符
@@ -96,6 +100,7 @@ class FileClient {
 
  private:
   RWLock rwlock_;
+
   // 向上返回的文件描述符，对于QEMU来说，一个vdisk对应一个文件描述符
   std::atomic<uint64_t>    fdcount_;
 

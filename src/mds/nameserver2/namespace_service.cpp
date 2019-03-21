@@ -26,7 +26,24 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
         << ", filelength = " << request->filelength();
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    StatusCode retCode = kCurveFS.CreateFile(request->filename(),
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckPathOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckPathOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.CreateFile(request->filename(), request->owner(),
             request->filetype(), request->filelength());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
@@ -52,14 +69,29 @@ void NameSpaceService::GetFileInfo(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(ERROR) << "logid = " << cntl->log_id()
+    LOG(INFO) << "logid = " << cntl->log_id()
         << ", GetFileInfo request, filename = " << request->filename();
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
     StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
     retCode = kCurveFS.GetFileInfo(request->filename(),
         response->mutable_fileinfo());
-
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -89,8 +121,23 @@ void NameSpaceService::GetOrAllocateSegment(
         << request->allocateifnotexist();
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
 
     StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
     retCode = kCurveFS.GetOrAllocateSegment(request->filename(),
                 request->offset(),
                 request->allocateifnotexist(),
@@ -128,7 +175,24 @@ void NameSpaceService::DeleteSegment(
         << ", offset = " << request->offset();
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    StatusCode retCode = kCurveFS.DeleteSegment(request->filename(),
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.DeleteSegment(request->filename(),
             request->offset());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
@@ -158,7 +222,35 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
         << ", newfilename = " << request->newfilename();
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    StatusCode retCode = kCurveFS.RenameFile(request->oldfilename(),
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->oldfilename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->oldfilename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.CheckDestinationOwner(request->newfilename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->newfilename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.RenameFile(request->oldfilename(),
             request->newfilename());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
@@ -187,7 +279,24 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
               << ", newsize = " << request->newsize();
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    StatusCode retCode = kCurveFS.ExtendFile(request->filename(),
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.ExtendFile(request->filename(),
            request->newsize());
     if (retCode != StatusCode::kOK)  {
        response->set_statuscode(retCode);
@@ -219,7 +328,24 @@ void NameSpaceService::CreateSnapShot(
               << request->filename();
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
-    StatusCode retCode = kCurveFS.CreateSnapShotFile(request->filename(),
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.CreateSnapShotFile(request->filename(),
                                     response->mutable_snapshotfileinfo());
     if (retCode != StatusCode::kOK)  {
        response->set_statuscode(retCode);
@@ -249,8 +375,25 @@ void NameSpaceService::ListSnapShot(
               << request->filename();
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
     std::vector<FileInfo> snapShotFiles;
-    StatusCode retCode = kCurveFS.ListSnapShotFile(request->filename(),
+    retCode = kCurveFS.ListSnapShotFile(request->filename(),
                                 &snapShotFiles);
 
     if (retCode == StatusCode::kOK) {
@@ -287,7 +430,7 @@ void NameSpaceService::ListSnapShot(
 void NameSpaceService::DeleteSnapShot(
                     ::google::protobuf::RpcController* controller,
                     const ::curve::mds::DeleteSnapShotRequest* request,
-                    ::curve::mds::DeleteSnapShotResponse* resp,
+                    ::curve::mds::DeleteSnapShotResponse* response,
                     ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
@@ -300,14 +443,31 @@ void NameSpaceService::DeleteSnapShot(
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
 
     auto asynEntity =
-        std::make_shared<AsyncDeleteSnapShotEntity>(resp,
+        std::make_shared<AsyncDeleteSnapShotEntity>(response,
                         request, controller, nullptr);
 
-    StatusCode retCode =  kCurveFS.DeleteFileSnapShotFile(request->filename(),
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode =  kCurveFS.DeleteFileSnapShotFile(request->filename(),
                                     request->seq(), asynEntity);
 
     if (retCode != StatusCode::kOK) {
-        resp->set_statuscode(retCode);
+        response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
                   << ", DeleteSnapShot fail, filename = " << request->filename()
                   << ", seq = " << request->seq()
@@ -358,7 +518,24 @@ void NameSpaceService::GetSnapShotFileSegment(
               << " offset = " << request->offset()
               << ", seqnum = " << request->seqnum();
 
-    StatusCode retCode = kCurveFS.GetSnapShotFileSegment(request->filename(),
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.GetSnapShotFileSegment(request->filename(),
                         request->seqnum(),
                         request->offset(),
                         response->mutable_pagefilesegment());
@@ -400,9 +577,25 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
         << ", clientport = " << clientPort;
 
     // TODO(hzchenwei7): lock the filepath&name and do check permission
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
     ProtoSession *protoSession = new ProtoSession();
     FileInfo *fileInfo = new FileInfo();
-    StatusCode retCode;
     retCode = kCurveFS.OpenFile(request->filename(),
                                 clientIP,
                                 protoSession,
@@ -448,8 +641,23 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
         << ", clientport = " << clientPort;
 
     // TODO(hzchenwei7): lock the filepath&name and do check permission
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
 
     StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
     retCode = kCurveFS.CloseFile(request->filename(), request->sessionid());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
@@ -493,8 +701,25 @@ void NameSpaceService::RefreshSession(
         << ", clientport = " << clientPort;
 
     // TODO(hzchenwei7): lock the filepath&name and do check permission
-    FileInfo *fileInfo = new FileInfo();
+    std::string password = "";
+    if (request->has_password()) {
+        password = request->password();
+    }
+
     StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        response->set_sessionid(request->sessionid());
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    FileInfo *fileInfo = new FileInfo();
     retCode = kCurveFS.RefreshSession(request->filename(),
                                       request->sessionid(),
                                       request->date(),

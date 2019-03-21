@@ -273,12 +273,14 @@ void SnapshotCoreImpl::CancelAfterCreateSnapshotOnCurvefs(
     UUID uuid = task->GetUuid();
     uint64_t seqNum = info.GetSeqNum();
     int ret = client_->DeleteSnapshot(info.GetFileName(),
+        info.GetUser(),
         seqNum);
     if (ret < 0) {
         LOG(ERROR) << "Client DeleteSnapshot error "
                    << "while canceling CreateSnapshot, "
                    << " ret = " << ret
                    << ", fileName = " << info.GetFileName()
+                   << ", user = " << info.GetUser()
                    << ", seqNum = " << seqNum;
         HandleCreateSnapshotError(task);
         return;
@@ -317,7 +319,7 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
     std::shared_ptr<SnapshotTaskInfo> task) {
     uint64_t seqNum = 0;
     int ret =
-        client_->CreateSnapshot(fileName, &seqNum);
+        client_->CreateSnapshot(fileName, info->GetUser(), &seqNum);
     if (ret < 0) {
         LOG(ERROR) << "CreateSnapshot on curvefs fail, "
                    << " ret = " << ret;
@@ -326,11 +328,13 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
 
     FInfo snapInfo;
     ret = client_->GetSnapshot(fileName,
+        info->GetUser(),
         seqNum, &snapInfo);
     if (ret < 0) {
         LOG(ERROR) << "GetSnapShot on curvefs fail, "
                    << " ret = " << ret
                    << ", fileName = " << fileName
+                   << ", user = " << info->GetUser()
                    << ", seqNum = " << seqNum;
         return ret;
     }
@@ -358,6 +362,7 @@ int SnapshotCoreImpl::BuildChunkIndexData(
     std::shared_ptr<SnapshotTaskInfo> task) {
     int ret = 0;
     std::string fileName = info.GetFileName();
+    std::string user = info.GetUser();
     uint64_t seqNum = info.GetSeqNum();
     uint64_t fileLength = info.GetFileLength();
     uint64_t segmentSize = info.GetSegmentSize();
@@ -369,6 +374,7 @@ int SnapshotCoreImpl::BuildChunkIndexData(
         SegmentInfo segInfo;
         ret = client_->GetSnapshotSegmentInfo(
             fileName,
+            user,
             seqNum,
             offset,
             &segInfo);
@@ -376,6 +382,7 @@ int SnapshotCoreImpl::BuildChunkIndexData(
             LOG(ERROR) << "GetSnapshotSegmentInfo error, "
                        << " ret = " << ret
                        << ", fileName = " << fileName
+                       << ", user = " << user
                        << ", seqNum = " << seqNum
                        << ", offset = " << offset;
             return ret;
@@ -439,6 +446,7 @@ int SnapshotCoreImpl::BuildSegmentInfo(
     std::vector<SegmentInfo> *segInfos) {
     int ret = kErrCodeSnapshotServerSuccess;
     std::string fileName = info.GetFileName();
+    std::string user = info.GetUser();
     uint64_t seq = info.GetSeqNum();
     uint64_t fileLength = info.GetFileLength();
     uint64_t segmentSize = info.GetSegmentSize();
@@ -449,6 +457,7 @@ int SnapshotCoreImpl::BuildSegmentInfo(
         SegmentInfo segInfo;
         ret = client_->GetSnapshotSegmentInfo(
             fileName,
+            user,
             seq,
             offset,
             &segInfo);
@@ -456,6 +465,7 @@ int SnapshotCoreImpl::BuildSegmentInfo(
             LOG(ERROR) << "GetSnapshotSegmentInfo error,"
                        << " ret = " << ret
                        << ", fileName = " << fileName
+                       << ", user = " << user
                        << ", seq = " << seq
                        << ", offset = " << offset;
             return ret;
@@ -618,11 +628,13 @@ int SnapshotCoreImpl::TransferSnapshotData(
         }
     }
     ret = client_->DeleteSnapshot(info.GetFileName(),
+        info.GetUser(),
         seqNum);
     if (ret < 0) {
         LOG(ERROR) << "DeleteSnapshot error, "
                    << " ret = " << ret
                    << ", fileName = " << info.GetFileName()
+                   << ", user = " << info.GetUser()
                    << ", seqNum = " << seqNum;
         return ret;
     }
@@ -765,12 +777,14 @@ void SnapshotCoreImpl::HandleDeleteSnapshotTask(
     if ((Status::errorDeleting == info.GetStatus()) ||
         (Status::canceling == info.GetStatus())) {
         ret = client_->DeleteSnapshot(info.GetFileName(),
+            info.GetUser(),
             seqNum);
         if (ret < 0) {
             LOG(ERROR) << "Client DeleteSnapshot error "
                        << "while DeleteSnapshot, "
                        << " ret = " << ret
                        << " fileName = " << info.GetFileName()
+                       << " user = " << info.GetUser()
                        << " seqNum = " << seqNum;
             HandleDeleteSnapshotError(task);
             return;

@@ -24,6 +24,11 @@
 namespace curve {
 namespace mds {
 
+struct RootAuthOption {
+    std::string rootOwner;
+    std::string rootPassword;
+};
+
 
 const uint64_t ROOTINODEID = 0;
 const char ROOTFILENAME[] = "/";
@@ -47,12 +52,14 @@ class CurveFS {
      *         CleanManagerInterface:
      *         sessionManager：
      *         sessionOptions ：初始化所session需要的参数
+     *         authOptions : 对root用户进行认认证的参数
      *  @return 初始化是否成功
      */
     bool Init(NameServerStorage*, InodeIDGenerator*, ChunkSegmentAllocator*,
               std::shared_ptr<CleanManagerInterface>,
               SessionManager *sessionManager,
-              const struct SessionOptions &sessionOptions);
+              const struct SessionOptions &sessionOptions,
+              const struct RootAuthOption &authOptions);
 
     /**
      *  @brief CurveFS Uninit
@@ -65,11 +72,13 @@ class CurveFS {
     /**
      *  @brief 创建文件
      *  @param fileName: 文件名
+     *         owner: 文件的拥有者
      *         filetype：文件类型
      *         length：文件长度
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     StatusCode CreateFile(const std::string & fileName,
+                          const std::string& owner,
                           FileType filetype,
                           uint64_t length);
     /**
@@ -212,6 +221,41 @@ class CurveFS {
                               const std::string &clientIP,
                               FileInfo  *fileInfo);
 
+    /**
+     *  @brief 检查的文件owner
+     *  @param filename：文件名
+     *         owner：文件的拥有者
+     *  @return 是否成功，成功返回StatusCode::kOK
+     *          验证失败返回StatusCode::kOwnerAuthFail
+     *          其他失败
+     */
+    StatusCode CheckFileOwner(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &password);
+
+    /**
+     *  @brief 检查的文件各级目录的owner
+     *  @param filename：文件名
+     *         owner：文件的拥有者
+     *  @return 是否成功，成功返回StatusCode::kOK
+     *          验证失败返回StatusCode::kOwnerAuthFail
+     *          其他失败，kFileNotExists，kStorageError，kNotDirectory
+     */
+    StatusCode CheckPathOwner(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &password);
+
+    /**
+     *  @brief 检查的RenameNewfile文件各级目录的owner
+     *  @param filename：文件名
+     *         owner：文件的拥有者
+     *  @return 是否成功，成功返回StatusCode::kOK
+     *          验证失败返回StatusCode::kOwnerAuthFail
+     *          其他失败，kFileNotExists，kStorageError，kNotDirectory
+     */
+    StatusCode CheckDestinationOwner(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &password);
     // TODO(hzsunjianliang): snapshot ops
  private:
     CurveFS() = default;
@@ -236,6 +280,20 @@ class CurveFS {
     StatusCode SnapShotFile(const FileInfo * originalFileInfo,
         const FileInfo * SnapShotFile) const;
 
+    std::string GetRootOwner() {
+        return rootAuthOptions_.rootOwner;
+    }
+
+    std::string GetRootPassword() {
+        return rootAuthOptions_.rootPassword;
+    }
+
+    StatusCode CheckPathOwnerInternal(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &password,
+                              std::string *lastEntry,
+                              uint64_t *parentID);
+
  private:
     FileInfo rootFileInfo_;
     NameServerStorage*          storage_;
@@ -243,6 +301,7 @@ class CurveFS {
     ChunkSegmentAllocator*      chunkSegAllocator_;
     SessionManager *            sessionManager_;
     std::shared_ptr<CleanManagerInterface> snapshotCleanManager_;
+    struct RootAuthOption       rootAuthOptions_;
 };
 extern CurveFS &kCurveFS;
 }   // namespace mds

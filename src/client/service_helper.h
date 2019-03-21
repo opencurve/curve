@@ -41,6 +41,19 @@ class ServiceHelper {
                         const CopysetID &copysetId,
                         const Configuration &conf,
                         PeerId *leaderId);
+    /**
+     * 从文件名中获取user信息.
+     * 用户的user信息需要夹在文件名中，比如文件名为temp,用户名为user,
+     * 那么其完整的文件信息是:temp_user_。
+     * 如果文件名为: /temp_temp_,那么完整文件名为/temp_temp__user_。
+     * @param[in]: filename为用户传下来的文件名
+     * @param[out]:realfilename是真正文件名
+     * @param[out]: user信息,出参
+     * @return: 获取到user信息为true，否则false
+     */
+    static bool GetUserInfoFromFilename(const std::string& fname,
+                                       std::string* realfilename,
+                                       std::string* user);
 };
 }   // namespace client
 }   // namespace curve

@@ -99,7 +99,6 @@ typedef struct LogicalPoolCopysetIDInfo {
 
 typedef struct FInfo {
     uint64_t        id;
-    char            filename[4096];
     uint64_t        parentid;
     FileType        filetype;
     uint32_t        chunksize;
@@ -107,17 +106,41 @@ typedef struct FInfo {
     uint64_t        length;
     uint64_t        ctime;
     uint64_t        seqnum;
+    std::string     owner;
+    std::string     filename;
 
     FInfo() {
         id = 0;
         ctime = 0;
         seqnum = 0;
-        length = 0;
-        strcpy(filename, "");                                                           // NOLINT
+        length = 0;                                                        // NOLINT
         chunksize = 4 * 1024 * 1024;
         segmentsize = 1 * 1024 * 1024 * 1024ul;
     }
 } FInfo_t;
+
+// TODO(tongguangxun) : 当前密码为明文，后期需要添加加密逻辑
+// 存储用户信息
+typedef struct UserInfo {
+    // 当前执行的owner信息
+    std::string owner;
+    // 当owner=root的时候，需要提供password
+    std::string password;
+
+    UserInfo() {
+        owner = "";
+        password = "";
+    }
+
+    UserInfo(std::string own, std::string pwd) {
+        owner = own;
+        password = pwd;
+    }
+
+    bool Valid() {
+        return owner != "";
+    }
+} UserInfo_t;
 
 }   // namespace client
 }   // namespace curve

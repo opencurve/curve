@@ -21,8 +21,16 @@ enum LIBCURVE_ERROR {
     EXISTS,
     FAILED,
     DISABLEIO,
+    AUTHFAIL,   // 认证失败
+    DELETING,
+    NOTEXIST,
+    UNDER_SNAPSHOT,
+    NOT_UNDERSNAPSHOT,
+    DELETE_ERROR,
     UNKNOWN
 };
+
+const char* ErrorNum2ErrorName(LIBCURVE_ERROR err);
 
 typedef enum LIBCURVE_OP {
     LIBCURVE_OP_READ,

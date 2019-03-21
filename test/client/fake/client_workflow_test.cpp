@@ -72,7 +72,7 @@ int main(int argc, char ** argv) {
         LOG(FATAL) << "Fail to init config";
     }
 
-    std::string filename = "test.txt";
+    std::string filename = "1_userinfo_test.txt";
     // uint64_t size = FLAGS_test_disk_size;
 
     /*** init mds service ***/

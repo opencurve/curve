@@ -33,10 +33,11 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     /**
      * 初始化
+     * @param: userinfo为user信息
      * @param: fileservicopt fileclient的配置选项
      * @return: 成功返回true、否则返回false
      */
-    bool Initialize(FileServiceOption_t fileservicopt);
+    bool Initialize(UserInfo_t userinfo, FileServiceOption_t fileservicopt);
     /**
      * 打开文件
      * @param: filename为文件名
@@ -44,7 +45,9 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @param: create是创建flag
      * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR Open(std::string filename, size_t size, bool create);
+    LIBCURVE_ERROR Open(std::string filename,
+                        size_t size,
+                        bool create);
     /**
      * 同步模式读
      * @param: buf为当前待读取的缓冲区

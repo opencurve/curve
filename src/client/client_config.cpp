@@ -45,7 +45,7 @@ int ClientConfig::Init(const char* configpath) {
     fileServiceOption_.ioopt.reqschopt.iosenderopt
     = fileServiceOption_.ioopt.iosenderopt;
 
-    fileServiceOption_.leaseopt.refreshTimesPerLease
+    fileServiceOption_.leaseopt.refresh_times_perLease
     = conf_.GetIntValue("lease_refresh_times_pertime", 4);
 
     fileServiceOption_.metaserveropt.metaaddrvec.push_back(conf_.

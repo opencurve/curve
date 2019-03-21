@@ -40,7 +40,7 @@ bool LeaseExcutor::Start(FInfo_t fi, LeaseSession_t  lease) {
         this->RefreshLease();
     };
 
-    auto Interval = leasesession_.leaseTime/leaseoption_.refreshTimesPerLease;
+    auto Interval = leasesession_.leaseTime/leaseoption_.refresh_times_perLease;
 
     refreshTask_ = new (std::nothrow) TimerTask(Interval);
     if (refreshTask_ == nullptr) {
@@ -69,6 +69,9 @@ void LeaseExcutor::RefreshLease() {
     if (LIBCURVE_ERROR::FAILED == ret) {
         LOG(ERROR) << "refresh session rpc failed!";
         IncremRefreshFailed();
+        return;
+    } else if (LIBCURVE_ERROR::AUTHFAIL == ret) {
+        iomanager_->LeaseTimeoutDisableIO();
         return;
     }
 
@@ -106,7 +109,7 @@ bool LeaseExcutor::LeaseValid() {
 
 void LeaseExcutor::IncremRefreshFailed() {
     failedrefreshcount_.fetch_add(1);
-    if (failedrefreshcount_.load() >= leaseoption_.refreshTimesPerLease) {
+    if (failedrefreshcount_.load() >= leaseoption_.refresh_times_perLease) {
         isleaseAvaliable_.store(false);
         iomanager_->LeaseTimeoutDisableIO();
     }

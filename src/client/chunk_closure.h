@@ -36,7 +36,7 @@ class ClientClosure : public Closure {
  public:
     virtual void SetCntl(brpc::Controller* cntl) = 0;
     virtual void SetResponse(Message* response) = 0;
-    virtual void SetRetriedTimes(int retriedTimes) = 0;
+    virtual void SetRetriedTimes(uint16_t retriedTimes) = 0;
 
     static  void SetFailureRequestOption(FailureRequestOption_t  failreqopt) {
         failReqOpt_ = failreqopt;
@@ -59,13 +59,13 @@ class WriteChunkClosure : public ClientClosure {
     void SetResponse(Message* response) {
         response_ = dynamic_cast<ChunkResponse *>(response);
     }
-    void SetRetriedTimes(int retriedTimes) {
+    void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
 
  private:
     // 已经重试了几次
-    int                 retriedTimes_;
+    uint16_t             retriedTimes_;
     brpc::Controller    *cntl_;
     ChunkResponse       *response_;
     CopysetClient       *client_;
@@ -85,13 +85,13 @@ class ReadChunkClosure : public ClientClosure {
     void SetResponse(Message* response) {
         response_ = dynamic_cast<ChunkResponse *>(response);
     }
-    void SetRetriedTimes(int retriedTimes) {
+    void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
 
  private:
     // 已经重试了几次
-    int                 retriedTimes_;
+    uint16_t             retriedTimes_;
     brpc::Controller    *cntl_;
     ChunkResponse       *response_;
     CopysetClient       *client_;
@@ -111,13 +111,13 @@ class ReadChunkSnapClosure : public ClientClosure {
     void SetResponse(Message* response) {
         response_ = dynamic_cast<ChunkResponse *>(response);
     }
-    void SetRetriedTimes(int retriedTimes) {
+    void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
 
  private:
     // 已经重试了几次
-    int                 retriedTimes_;
+    uint16_t             retriedTimes_;
     brpc::Controller    *cntl_;
     ChunkResponse       *response_;
     CopysetClient       *client_;
@@ -137,13 +137,13 @@ class DeleteChunkSnapClosure : public ClientClosure {
     void SetResponse(Message* response) {
         response_ = dynamic_cast<ChunkResponse *>(response);
     }
-    void SetRetriedTimes(int retriedTimes) {
+    void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
 
  private:
     // 已经重试了几次
-    int                 retriedTimes_;
+    uint16_t             retriedTimes_;
     brpc::Controller    *cntl_;
     ChunkResponse       *response_;
     CopysetClient       *client_;
@@ -164,13 +164,13 @@ class GetChunkInfoClusure : public ClientClosure {
     void SetResponse(Message* response) {
         response_ = dynamic_cast<GetChunkInfoResponse *> (response);
     }
-    void SetRetriedTimes(int retriedTimes) {
+    void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
 
  private:
     // 已经重试了几次
-    int                     retriedTimes_;
+    uint16_t                 retriedTimes_;
     brpc::Controller        *cntl_;
     GetChunkInfoResponse    *response_;
     CopysetClient           *client_;
