@@ -20,7 +20,8 @@ ConcurrentApplyModule::ConcurrentApplyModule():
                                     stop_(0),
                                     isStarted_(false),
                                     concurrentsize_(0),
-                                    queuedepth_(0) {
+                                    queuedepth_(0),
+                                    cond_(0) {
     applypoolMap_.clear();
 }
 
@@ -45,23 +46,40 @@ bool ConcurrentApplyModule::Init(int concurrentsize, int queuedepth) {
         queuedepth_ = queuedepth;
     }
 
+    // 等待event事件数，等于线程数
+    cond_.Reset(concurrentsize);
+
+    /**
+     * 因为hash map并不是线程安全的，所以必须先将applyPoolMap_创建好
+     * 然后插入所有元素之后，之后才能创建线程，这样对applypoolMap_的
+     * read/write就不可能出现并发
+     */
     for (int i = 0; i < concurrentsize_; i++) {
         auto asyncth = new (std::nothrow) taskthread(queuedepth_);
         CHECK(asyncth != nullptr) << "allocate failed!";
         applypoolMap_.insert(std::make_pair(i, asyncth));
-        asyncth->th = std::move(std::thread(&ConcurrentApplyModule::Run, this, i));     // NOLINT
     }
 
-    isStarted_ = true;
-    startcv_.notify_all();
+    for (int i = 0; i < concurrentsize_; i++) {
+        applypoolMap_[i]->th = std::move(std::thread(&ConcurrentApplyModule::Run, this, i));     // NOLINT
+    }
+
+    /**
+     * 等待所有线程创建完成，默认等待5秒，后台线程还没有全部创建成功，
+     * 那么可以认为系统或者程序出现了问题，可以判定这次init失败了，直接退出
+     */
+    if (cond_.WaitFor(5000)) {
+        isStarted_ = true;
+    } else {
+        LOG(ERROR) << "init concurrent module's threads fail";
+        isStarted_ = false;
+    }
+
     return isStarted_;
 }
 
 void ConcurrentApplyModule::Run(int index) {
-    {
-        std::unique_lock<std::mutex> lk(startmtx_);
-        startcv_.wait(lk, [this]()->bool {return this->isStarted_;});
-    }
+    cond_.Signal();
     while (!stop_) {
         auto t = applypoolMap_[index]->tq.Pop();
         t();
