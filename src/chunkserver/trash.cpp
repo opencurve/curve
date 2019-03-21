@@ -13,7 +13,7 @@
 #include "src/chunkserver/datastore/filename_operator.h"
 #include "src/chunkserver/copyset_node.h"
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 
 using ::curve::chunkserver::RAFT_DATA_DIR;
 using ::curve::chunkserver::RAFT_META_DIR;
@@ -25,7 +25,7 @@ namespace chunkserver {
 int Trash::Init(TrashOptions options) {
     isStop_ = true;
 
-    if (FsAdaptorUtil::ParserUri(options.trashPath, &trashPath_).empty()) {
+    if (UriParser::ParseUri(options.trashPath, &trashPath_).empty()) {
         LOG(ERROR) << "not support trash uri's protocol"
                    << " error trashPath is: " << options.trashPath;
         return -1;
