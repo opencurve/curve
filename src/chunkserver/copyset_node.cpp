@@ -24,7 +24,7 @@
 #include "src/fs/fs_common.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/define.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 #include "src/common/crc32.h"
 
 namespace curve {
@@ -67,8 +67,8 @@ CopysetNode::~CopysetNode() {
 int CopysetNode::Init(const CopysetNodeOptions &options) {
     std::string groupId = ToGroupId(logicPoolId_, copysetId_);
 
-    std::string protocol = FsAdaptorUtil::ParserUri(options.chunkDataUri,
-                                                    &copysetDirPath_);
+    std::string protocol = UriParser::ParseUri(options.chunkDataUri,
+                                                &copysetDirPath_);
     if (protocol.empty()) {
         // TODO(wudemiao): 增加必要的错误码并返回
         LOG(ERROR) << "not support chunk data uri's protocol"

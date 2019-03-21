@@ -17,10 +17,10 @@
 #include <string>
 #include <cstdlib>
 
+#include "test/fs/mock_local_filesystem.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/copyset_node.h"
 #include "test/chunkserver/fake_datastore.h"
-#include "test/fs/mock_local_filesystem.h"
 #include "test/chunkserver/mock_node.h"
 #include "src/chunkserver/conf_epoch_file.h"
 #include "proto/heartbeat.pb.h"
@@ -40,6 +40,7 @@ using ::testing::InSequence;
 using ::testing::AtLeast;
 using ::testing::SaveArgPointee;
 
+using curve::fs::MockLocalFileSystem;
 using curve::fs::FileSystemType;
 using curve::fs::MockLocalFileSystem;
 
