@@ -51,40 +51,47 @@ class CurveFsClient {
      * @brief 创建快照
      *
      * @param filename 文件名
+     * @param user  用户信息
      * @param[out] seq 快照版本号
      *
      * @return 错误码
      */
     virtual int CreateSnapshot(const std::string &filename,
+        const std::string &user,
         uint64_t *seq) = 0;
 
     /**
      * @brief 删除快照
      *
      * @param filename 文件名
+     * @param user 用户信息
      * @param seq 快照版本号
      *
      * @return 错误码
      */
-    virtual int DeleteSnapshot(
-        const std::string &filename, uint64_t seq) = 0;
+    virtual int DeleteSnapshot(const std::string &filename,
+        const std::string &user,
+        uint64_t seq) = 0;
 
     /**
      * @brief 获取快照文件信息
      *
      * @param filename 文件名
+     * @param user 用户名
      * @param seq 快照版本号
      * @param[out] snapInfo 快照文件信息
      *
      * @return 错误码
      */
-    virtual int GetSnapshot(
-        const std::string &filename, uint64_t seq, FInfo* snapInfo) = 0;
+    virtual int GetSnapshot(const std::string &filename,
+        const std::string &user,
+        uint64_t seq, FInfo* snapInfo) = 0;
 
     /**
      * @brief 查询快照文件segment信息
      *
      * @param filename 文件名
+     * @param user 用户信息
      * @param seq 快照版本号
      * @param offset 偏移值
      * @param segInfo segment信息
@@ -92,6 +99,7 @@ class CurveFsClient {
      * @return 错误码
      */
     virtual int GetSnapshotSegmentInfo(const std::string &filename,
+        const std::string &user,
         uint64_t seq,
         uint64_t offset,
         SegmentInfo *segInfo) = 0;
@@ -146,15 +154,20 @@ class CurveFsClientImpl : public CurveFsClient {
     int UnInit() override;
 
     int CreateSnapshot(const std::string &filename,
+        const std::string &user,
         uint64_t *seq) override;
 
-    int DeleteSnapshot(const std::string &filename, uint64_t seq) override;
+    int DeleteSnapshot(const std::string &filename,
+        const std::string &user,
+        uint64_t seq) override;
 
     int GetSnapshot(const std::string &filename,
+        const std::string &user,
         uint64_t seq,
         FInfo* snapInfo) override;
 
     int GetSnapshotSegmentInfo(const std::string &filename,
+        const std::string &user,
         uint64_t seq,
         uint64_t offset,
         SegmentInfo *segInfo) override;

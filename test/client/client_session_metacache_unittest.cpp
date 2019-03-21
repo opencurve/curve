@@ -31,6 +31,9 @@ extern std::string metaserver_addr;
 extern uint32_t chunk_size;
 extern std::string configpath;
 
+using curve::client::FInfo;
+using curve::client::LeaseSession;
+using curve::client::UserInfo;
 using curve::client::LogicalPoolCopysetIDInfo_t;
 using curve::client::MetaCacheErrorType;
 using curve::client::MDSClient;
@@ -50,7 +53,8 @@ class MDSClientTest : public ::testing::Test {
     void SetUp() {
         MetaServerOption_t metaopt;
         metaopt.metaaddrvec.push_back("127.0.0.1:8000");
-        mdsclient_.Initialize(metaopt);
+        UserInfo userinfo("test", "");
+        mdsclient_.Initialize(userinfo, metaopt);
     }
 
     void TearDown() {
@@ -62,7 +66,7 @@ class MDSClientTest : public ::testing::Test {
 };
 
 TEST_F(MDSClientTest, Createfile) {
-    std::string filename = "./test.file";
+    std::string filename = "./1_userinfo_.file";
     size_t len = 4 * 1024 * 1024;
 
     brpc::Server server;
@@ -100,8 +104,102 @@ TEST_F(MDSClientTest, Createfile) {
     delete fakeret;
 }
 
+TEST_F(MDSClientTest, Openfile) {
+    std::string filename = "./1_userinfo_.file";
+    size_t len = 4 * 1024 * 1024;
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+
+    /**
+     * set openfile response
+     */
+    ::curve::mds::OpenFileResponse openresponse;
+
+    openresponse.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&openresponse));
+    curvefsservice.SetOpenFile(fakeret);
+
+    FInfo finfo;
+    LeaseSession lease;
+    ASSERT_EQ(mdsclient_.OpenFile(filename, &finfo, &lease),
+                LIBCURVE_ERROR::FAILED);
+
+    // has protosession no fileinfo
+    ::curve::mds::OpenFileResponse openresponse1;
+
+    ::curve::mds::ProtoSession* se = new ::curve::mds::ProtoSession;
+    se->set_sessionid("1");
+    se->set_token("token");
+    se->set_createtime(12345);
+    se->set_leasetime(10000000);
+    se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
+
+    openresponse1.set_statuscode(::curve::mds::StatusCode::kOK);
+    openresponse1.set_allocated_protosession(se);
+
+    FakeReturn* fakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&openresponse1));
+    curvefsservice.SetOpenFile(fakeret1);
+
+    ASSERT_EQ(mdsclient_.OpenFile(filename, &finfo, &lease),
+              LIBCURVE_ERROR::FAILED);
+
+    // has protosession and finfo
+    ::curve::mds::OpenFileResponse openresponse2;
+
+    ::curve::mds::ProtoSession* se2 = new ::curve::mds::ProtoSession;
+    se2->set_sessionid("1");
+    se2->set_token("token");
+    se2->set_createtime(12345);
+    se2->set_leasetime(10000000);
+    se2->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
+
+    ::curve::mds::FileInfo* fin = new ::curve::mds::FileInfo;
+    fin->set_filename("1_userinfo_.txt");
+    fin->set_id(1);
+    fin->set_parentid(0);
+    fin->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    fin->set_chunksize(4 * 1024 * 1024);
+    fin->set_length(1 * 1024 * 1024 * 1024ul);
+    fin->set_ctime(12345678);
+    fin->set_seqnum(0);
+    fin->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+
+    openresponse2.set_statuscode(::curve::mds::StatusCode::kOK);
+    openresponse2.set_allocated_protosession(se2);
+    openresponse2.set_allocated_fileinfo(fin);
+
+    FakeReturn* fakeret2
+     = new FakeReturn(nullptr, static_cast<void*>(&openresponse2));
+    curvefsservice.SetOpenFile(fakeret2);
+
+    ASSERT_EQ(mdsclient_.OpenFile(filename, &finfo, &lease),
+              LIBCURVE_ERROR::OK);
+
+    LOG(INFO) << "create file done!";
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+
+    delete fakeret;
+    delete fakeret1;
+    delete fakeret2;
+}
+
 TEST_F(MDSClientTest, GetFileInfo) {
-    std::string filename = "./test.file";
+    std::string filename = "./1_userinfo_.file";
 
     brpc::Server server;
 
@@ -167,7 +265,7 @@ TEST_F(MDSClientTest, GetFileInfo) {
 }
 
 TEST_F(MDSClientTest, GetOrAllocateSegment) {
-    std::string filename = "./test.file";
+    std::string filename = "./1_userinfo_.file";
 
     brpc::Server server;
 
@@ -478,7 +576,7 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
 
 TEST_F(MDSClientTest, GetFileInfoException) {
-    std::string filename = "./test.file";
+    std::string filename = "./1_userinfo_.file";
 
     brpc::Server server;
 
@@ -543,7 +641,7 @@ TEST_F(MDSClientTest, GetFileInfoException) {
 }
 
 TEST_F(MDSClientTest, GetOrAllocateSegmentException) {
-    std::string filename = "./test.file";
+    std::string filename = "./1_userinfo_.file";
 
     brpc::Server server;
 

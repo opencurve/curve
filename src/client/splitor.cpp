@@ -150,7 +150,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                                                 (off_t)chunkidx * fi->chunksize,
                                                 fi,
                                                 mc);
-        if (re == LIBCURVE_ERROR::FAILED) {
+        if (re == LIBCURVE_ERROR::FAILED || re == LIBCURVE_ERROR::AUTHFAIL) {
             LOG(ERROR) << "GetOrAllocateSegment failed!";
             return false;
         } else {

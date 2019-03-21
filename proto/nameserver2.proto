@@ -23,7 +23,7 @@ message FileInfo {
     optional    string      fileName = 2;
     optional    uint64      parentId = 3;
     optional    FileType    fileType = 4;
-//  optional    uint32      owner = 5;
+    optional    string      owner = 5;
     optional    uint32      chunkSize = 6;
     optional    uint32      segmentSize = 7;
     optional    uint64      length = 8;
@@ -60,6 +60,7 @@ enum  StatusCode {
     kDirNotExist = 109;
     // 功能不支持
     kNotSupported = 110;
+    kOwnerAuthFail = 111;
 
     // 文件已处于快照中
     kFileUnderSnapShot = 120;
@@ -99,8 +100,10 @@ message PageFileSegment {
 
 message CreateFileRequest {
     required string     fileName = 1;
-    required FileType   fileType = 2;
-    optional uint64     fileLength = 3;
+    optional string     owner = 2;
+    required FileType   fileType = 3;
+    optional uint64     fileLength = 4;
+    optional string     password = 5;
 };
 
 message CreateFileResponse {
@@ -109,6 +112,8 @@ message CreateFileResponse {
 
 message GetFileInfoRequest {
     required string     fileName = 1;
+    optional string     owner = 2;
+    optional string     password = 3;
 }
 
 message GetFileInfoResponse {
@@ -118,9 +123,11 @@ message GetFileInfoResponse {
 
 message GetOrAllocateSegmentRequest {
     required string     fileName = 1;
-    required uint64     offset = 2;
-    required bool       allocateIfNotExist = 3;
-    optional uint64     seqNum = 4;
+    optional string     owner = 2;
+    required uint64     offset = 3;
+    required bool       allocateIfNotExist = 4;
+    optional uint64     seqNum = 5;
+    optional string     password = 6;
 }
 
 message GetOrAllocateSegmentResponse {
@@ -130,7 +137,9 @@ message GetOrAllocateSegmentResponse {
 
 message DeleteSegmentRequest {
     required string    fileName = 1;
-    required uint64    offset = 2;
+    optional string    owner = 2;
+    required uint64    offset = 3;
+    optional string    password = 4;
 }
 
 message DeleteSegmentResponse {
@@ -140,6 +149,8 @@ message DeleteSegmentResponse {
 message RenameFileRequest {
     required string     oldFileName = 1;
     required string   newFileName = 2;
+    optional string     owner = 3;
+    optional string     password = 4;
 }
 
 message RenameFileResponse {
@@ -148,7 +159,9 @@ message RenameFileResponse {
 
 message ExtendFileRequest {
     required string     fileName = 1;
-    required uint64     newSize = 2;
+    optional string     owner = 2;
+    required uint64     newSize = 3;
+    optional string     password = 4;
 }
 
 message ExtendFileResponse {
@@ -158,6 +171,8 @@ message ExtendFileResponse {
 // create snapshot
 message CreateSnapShotRequest {
     required string fileName = 1;
+    optional string owner = 2;
+    optional string     password = 4;
 }
 
 message CreateSnapShotResponse {
@@ -168,7 +183,9 @@ message CreateSnapShotResponse {
 // list snapshots
 message ListSnapShotFileInfoRequest {
     required string fileName = 1;
-    repeated uint64 seq = 2;
+    optional string owner = 2;
+    repeated uint64 seq = 3;
+    optional string password = 4;
 }
 
 message ListSnapShotFileInfoResponse {
@@ -179,7 +196,9 @@ message ListSnapShotFileInfoResponse {
 // delete snapshot
 message DeleteSnapShotRequest {
     required string fileName = 1;
-    required uint64 seq = 2;
+    optional string owner = 2;
+    required uint64 seq = 3;
+    optional string password = 4;
 }
 
 message DeleteSnapShotResponse {
@@ -190,7 +209,9 @@ message DeleteSnapShotResponse {
 
 message CheckSnapShotStatusRequest {
     required string fileName = 1;
-    required uint64 seq = 2;
+    optional string owner = 2;
+    required uint64 seq = 3;
+    optional string password = 4;
 }
 
 message CheckSnapShotStatusResponse {
@@ -217,6 +238,8 @@ message ProtoSession {
 
 message OpenFileRequest {
     required string fileName = 1;
+    optional string owner = 2;
+    optional string password = 3;
 };
 
 // statusCode返回值，详见StatusCode定义:
@@ -234,6 +257,8 @@ message OpenFileResponse {
 message CloseFileRequest {
     required string fileName = 1;
     required string sessionID = 2;
+    optional string owner = 3;
+    optional string password = 4;
 };
 
 // statusCode返回值，详见StatusCode定义:
@@ -249,8 +274,10 @@ message CloseFileResponse {
 message ReFreshSessionRequest {
     required string fileName = 1;
     required string sessionID = 2;
-    required uint64 date = 3; //current time
-    required string signature = 4; //caculete based on token
+    optional string owner = 3;
+    required uint64 date = 4; //current time
+    required string signature = 5; //caculete based on token
+    optional string password = 6;
 }
 
 // statusCode返回值，详见StatusCode定义:

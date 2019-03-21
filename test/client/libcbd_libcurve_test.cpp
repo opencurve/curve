@@ -24,7 +24,7 @@
 #define BUFSIZE     4 * 1024
 #define FILESIZE    10uL * 1024 * 1024 * 1024
 
-#define filename    "test.img"
+#define filename    "1_userinfo_test.img"
 
 extern std::string configpath;
 void LibcbdLibcurveTestCallback(CurveAioContext* context) {

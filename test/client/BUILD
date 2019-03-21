@@ -55,6 +55,36 @@ cc_test(
 )
 
 cc_test(
+    name = "client_userinfo_unittest",
+    srcs = glob([
+        "*.h",
+        "client_unittest_main.cpp",
+        "client_userifo_unittest.cpp"],
+    ),
+    copts = COPTS,
+    defines = ["UNIT_TEST"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//include/client:include_client",
+        "//proto:chunkserver-cc-protos",
+        "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//test/client/fake:fake_lib",
+        "//test/utils:test-utils",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
     name = "client_test_unittest",
     srcs = glob([
         "*.h",
@@ -63,7 +93,8 @@ cc_test(
                 "snapshot_service_unittest.cpp",
                 "libcbd_libcurve_test.cpp",
                 "copyset_client_test.cpp",
-                "request_scheduler_test.cpp"
+                "request_scheduler_test.cpp",
+                "client_userifo_unittest.cpp"
                 ]
     ),
     copts = COPTS,

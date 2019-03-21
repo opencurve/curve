@@ -41,12 +41,12 @@ typedef struct MetaServerOption {
 
 /**
  * 租约基本配置
- * @refreshTimesPerLease: 一个租约内续约次数
+ * @refresh_times_perLease: 一个租约内续约次数
  */
 typedef struct LeaseOption {
-    uint16_t    refreshTimesPerLease;
+    uint16_t    refresh_times_perLease;
     LeaseOption() {
-        refreshTimesPerLease = 5;
+        refresh_times_perLease = 5;
     }
 } LeaseOption_t;
 

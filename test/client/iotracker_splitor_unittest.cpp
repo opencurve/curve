@@ -36,6 +36,7 @@ extern std::string configpath;
 
 extern char* writebuffer;
 
+using curve::client::UserInfo;
 using curve::client::FInfo_t;
 using curve::client::MDSClient;
 using curve::client::ClientConfig;
@@ -83,11 +84,12 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fopt.ioopt.reqschopt.request_scheduler_queue_capacity = 4096;
         fopt.ioopt.reqschopt.request_scheduler_threadpool_size = 2;
         fopt.ioopt.reqschopt.iosenderopt = fopt.ioopt.iosenderopt;
-        fopt.leaseopt.refreshTimesPerLease = 4;
+        fopt.leaseopt.refresh_times_perLease = 4;
 
         fileinstance_ = new FileInstance();
-        fileinstance_->Initialize(fopt);
-        mdsclient_.Initialize(fopt.metaserveropt);
+        UserInfo userinfo("userinfo", "12345");
+        fileinstance_->Initialize(userinfo, fopt);
+        mdsclient_.Initialize(userinfo, fopt.metaserveropt);
         InsertMetaCache();
     }
 
@@ -127,7 +129,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
 
         ::curve::mds::FileInfo* fin = new ::curve::mds::FileInfo;
-        fin->set_filename("test");
+        fin->set_filename("1_userinfo_.txt");
         fin->set_id(1);
         fin->set_parentid(0);
         fin->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
@@ -143,7 +145,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         FakeReturn* openfakeret = new FakeReturn(nullptr, static_cast<void*>(openresponse));      // NOLINT
         curvefsservice.SetOpenFile(openfakeret);
         // open will set the finfo for file instance
-        fileinstance_->Open("test", 0, false);
+        fileinstance_->Open("1_userinfo_.txt", 0, false);
 
         curve::mds::GetOrAllocateSegmentResponse* response =
             new curve::mds::GetOrAllocateSegmentResponse();
@@ -557,7 +559,8 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     fi.chunksize = 4 * 1024 * 1024;
     fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     auto fileserv = new FileInstance();
-    ASSERT_TRUE(fileserv->Initialize(fopt));
+    UserInfo userinfo("userinfo", "12345");
+    ASSERT_TRUE(fileserv->Initialize(userinfo, fopt));
 
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();

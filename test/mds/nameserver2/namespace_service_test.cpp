@@ -59,9 +59,11 @@ class NameSpaceServiceTest : public ::testing::Test {
         sessionOptions.toleranceTime = 500000;
         sessionOptions.intevalTime = 100000;
 
+        authOptions.rootOwner = "root";
+        authOptions.rootPassword = "root_password";
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         snapShotCleanManager_,
-                        sessionManager_, sessionOptions);
+                        sessionManager_, sessionOptions, authOptions);
     }
 
     void TearDown() override {
@@ -100,6 +102,7 @@ class NameSpaceServiceTest : public ::testing::Test {
 
     SessionManager *sessionManager_;
     struct SessionOptions sessionOptions;
+    struct RootAuthOption authOptions;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -130,6 +133,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     uint64_t fileLength = kMiniFileLength;
 
     request.set_filename("/file1");
+    request.set_owner("owner1");
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -143,6 +147,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     cntl.Reset();
     request.set_filename("/file2");
+    request.set_owner("owner2");
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -155,7 +160,22 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     cntl.Reset();
+    request.set_filename("/file3");
+    request.set_owner("owner3");
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    cntl.Reset();
     request.set_filename("/file2");
+    request.set_owner("owner2");
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -172,11 +192,13 @@ TEST_F(NameSpaceServiceTest, test1) {
     GetFileInfoRequest request1;
     GetFileInfoResponse response1;
     request1.set_filename("/file1");
+    request1.set_owner("owner1");
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
         ASSERT_EQ(response1.fileinfo().id(), 1);
         ASSERT_EQ(response1.fileinfo().filename(), "file1");
+        ASSERT_EQ(response1.fileinfo().owner(), "owner1");
         ASSERT_EQ(response1.fileinfo().parentid(), 0);
         ASSERT_EQ(response1.fileinfo().filetype(), INODE_PAGEFILE);
         ASSERT_EQ(response1.fileinfo().chunksize(), DefaultChunkSize);
@@ -192,6 +214,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     GetOrAllocateSegmentRequest request2;
     GetOrAllocateSegmentResponse response2;
     request2.set_filename("/file1");
+    request2.set_owner("owner1");
     request2.set_offset(DefaultSegmentSize);
     request2.set_allocateifnotexist(false);
     stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
@@ -203,6 +226,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     cntl.Reset();
     request2.set_filename("/file1");
+    request2.set_owner("owner1");
     request2.set_offset(DefaultSegmentSize);
     request2.set_allocateifnotexist(true);
     stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
@@ -226,6 +250,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     GetOrAllocateSegmentRequest request3;
     GetOrAllocateSegmentResponse response3;
     request3.set_filename("/file1");
+    request3.set_owner("owner1");
     request3.set_offset(DefaultSegmentSize);
     request3.set_allocateifnotexist(false);
     stub.GetOrAllocateSegment(&cntl, &request3, &response3, NULL);
@@ -238,12 +263,29 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test RenameFile
-    // file1 重命名为file3，第一次重命名成功，第二次file1不存在，重命名失败
+    // file1 重命名为file3
+    // 第一次用root作为owner重命名成功
+    // 第二次file1不存在，重命名失败
     cntl.Reset();
     RenameFileRequest request4;
     RenameFileResponse response4;
-    request4.set_oldfilename("/file1");
-    request4.set_newfilename("/file3");
+
+    cntl.Reset();
+    request4.set_oldfilename("/file3");
+    request4.set_newfilename("/file4");
+    request4.set_owner("owner3");
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kOwnerAuthFail);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request4.set_oldfilename("/file3");
+    request4.set_newfilename("/file4");
+    request4.set_owner(authOptions.rootOwner);
+    request4.set_password(authOptions.rootPassword);
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
@@ -252,8 +294,10 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     cntl.Reset();
-    request4.set_oldfilename("/file1");
-    request4.set_newfilename("/file3");
+    request4.set_oldfilename("/file3");
+    request4.set_newfilename("/file4");
+    request4.set_owner(authOptions.rootOwner);
+    request4.set_password(authOptions.rootPassword);
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kFileNotExists);
@@ -268,6 +312,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     ExtendFileRequest request5;
     ExtendFileResponse response5;
     request5.set_filename("/file2");
+    request5.set_owner("owner2");
     request5.set_newsize(newsize);
     stub.ExtendFile(&cntl, &request5, &response5, NULL);
     if (!cntl.Failed()) {
@@ -278,6 +323,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     cntl.Reset();
     request5.set_filename("/file2");
+    request5.set_owner("owner2");
     request5.set_newsize(kMiniFileLength);
     stub.ExtendFile(&cntl, &request5, &response5, NULL);
     if (!cntl.Failed()) {
@@ -291,7 +337,8 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     DeleteSegmentRequest request6;
     DeleteSegmentResponse response6;
-    request6.set_filename("/file3");
+    request6.set_filename("/file1");
+    request6.set_owner("owner1");
     request6.set_offset(DefaultSegmentSize);
 
     stub.DeleteSegment(&cntl, &request6, &response6, NULL);
@@ -304,7 +351,8 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     DeleteSegmentRequest request7;
     DeleteSegmentResponse response7;
-    request7.set_filename("/file3");
+    request7.set_filename("/file1");
+    request7.set_owner("owner1");
     request7.set_offset(DefaultSegmentSize);
 
     stub.DeleteSegment(&cntl, &request7, &response7, NULL);
@@ -314,12 +362,13 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
-    // begin session test，开始测试时，有/file2和/file3
+    // begin session test，开始测试时，有/file1,/file2和/file4
     // OpenFile case1. 文件不存在，返回kFileNotExists
     cntl.Reset();
     OpenFileRequest request8;
     OpenFileResponse response8;
-    request8.set_filename("/file1");
+    request8.set_filename("/file3");
+    request8.set_owner("owner3");
 
     stub.OpenFile(&cntl, &request8, &response8, NULL);
     if (!cntl.Failed()) {
@@ -333,6 +382,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     OpenFileRequest request9;
     OpenFileResponse response9;
     request9.set_filename("/file2");
+    request9.set_owner("owner2");
 
     stub.OpenFile(&cntl, &request9, &response9, NULL);
     if (!cntl.Failed()) {
@@ -347,14 +397,15 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     OpenFileRequest request10;
     OpenFileResponse response10;
-    request10.set_filename("/file3");
+    request10.set_filename("/file1");
+    request10.set_owner("owner1");
 
     stub.OpenFile(&cntl, &request10, &response10, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response10.statuscode(), StatusCode::kOK);
         ASSERT_EQ(response10.protosession().sessionstatus(),
                                                 SessionStatus::kSessionOK);
-        ASSERT_EQ(response10.fileinfo().filename(), "file3");
+        ASSERT_EQ(response10.fileinfo().filename(), "file1");
     } else {
         ASSERT_TRUE(false);
     }
@@ -364,6 +415,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     OpenFileRequest request11;
     OpenFileResponse response11;
     request11.set_filename("/file2");
+    request11.set_owner("owner2");
 
     stub.OpenFile(&cntl, &request11, &response11, NULL);
     if (!cntl.Failed()) {
@@ -376,7 +428,8 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     CloseFileRequest request12;
     CloseFileResponse response12;
-    request12.set_filename("/file1");
+    request12.set_filename("/file3");
+    request12.set_owner("owner3");
     request12.set_sessionid("test_session");
 
     stub.CloseFile(&cntl, &request12, &response12, NULL);
@@ -392,6 +445,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     CloseFileRequest request13;
     CloseFileResponse response13;
     request13.set_filename("/file2");
+    request13.set_owner("owner2");
     request13.set_sessionid("test_session");
 
     stub.CloseFile(&cntl, &request13, &response13, NULL);
@@ -406,6 +460,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     CloseFileRequest request14;
     CloseFileResponse response14;
     request14.set_filename("/file2");
+    request14.set_owner("owner2");
     request14.set_sessionid(response9.protosession().sessionid());
 
     stub.CloseFile(&cntl, &request14, &response14, NULL);
@@ -418,6 +473,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     // CloseFile case4. 文件存在，session不存在，返回成功
     cntl.Reset();
     request14.set_filename("/file2");
+    request14.set_owner("owner2");
     request14.set_sessionid(response9.protosession().sessionid());
 
     stub.CloseFile(&cntl, &request14, &response14, NULL);
@@ -431,7 +487,8 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     ReFreshSessionRequest request15;
     ReFreshSessionResponse response15;
-    request15.set_filename("/file1");
+    request15.set_filename("/file3");
+    request15.set_owner("owner3");
     request15.set_sessionid(response10.protosession().sessionid());
     request15.set_date(common::TimeUtility::GetTimeofDayUs());
     request15.set_signature("todo,signature");
@@ -440,6 +497,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     if (!cntl.Failed()) {
         ASSERT_EQ(response15.statuscode(), StatusCode::kFileNotExists);
     } else {
+        std::cout << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
 
@@ -447,7 +505,8 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     ReFreshSessionRequest request16;
     ReFreshSessionResponse response16;
-    request16.set_filename("/file3");
+    request16.set_filename("/file1");
+    request16.set_owner("owner1");
     request16.set_sessionid("test_session");
     request16.set_date(common::TimeUtility::GetTimeofDayUs());
     request16.set_signature("todo,signature");
@@ -463,7 +522,8 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     ReFreshSessionRequest request18;
     ReFreshSessionResponse response18;
-    request18.set_filename("/file3");
+    request18.set_filename("/file1");
+    request18.set_owner("owner1");
     request18.set_sessionid(response10.protosession().sessionid());
     request18.set_date(common::TimeUtility::GetTimeofDayUs());
     request18.set_signature("todo,signature");
@@ -511,6 +571,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     uint64_t fileLength = kMiniFileLength;
 
     request.set_filename("/file1");
+    request.set_owner("owner1");
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -527,6 +588,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     GetFileInfoRequest request1;
     GetFileInfoResponse response1;
     request1.set_filename("/file1");
+    request1.set_owner("owner1");
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         FileInfo  file = response1.fileinfo();
@@ -549,6 +611,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     CreateSnapShotRequest snapshotRequest;
     CreateSnapShotResponse snapshotResponses;
     snapshotRequest.set_filename("/file1");
+    snapshotRequest.set_owner("owner1");
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
     if (!cntl.Failed()) {
         FileInfo snapshotFileInfo;
@@ -568,6 +631,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     // get the original file
     cntl.Reset();
     request1.set_filename("/file1");
+    request1.set_owner("owner1");
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         FileInfo file = response1.fileinfo();
@@ -589,6 +653,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     DeleteSnapShotRequest deleteRequest;
     DeleteSnapShotResponse deleteResponse;
     deleteRequest.set_filename("/file1");
+    deleteRequest.set_owner("owner1");
     deleteRequest.set_seq(1);
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
@@ -605,6 +670,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     ListSnapShotFileInfoResponse listResponse;
 
     listRequest.set_filename("/file1");
+    listRequest.set_owner("owner1");
     listRequest.add_seq(2);
     stub.ListSnapShot(&cntl, &listRequest, &listResponse, NULL);
 

@@ -557,7 +557,7 @@ void GetChunkInfoClusure::Run() {
     status = response_->status();
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS == status) {
         reqDone->SetFailed(0);
-        for (size_t i = 0; i < response_->chunksn_size(); ++i) {
+        for (unsigned int i = 0; i < response_->chunksn_size(); ++i) {
             reqCtx->chunkinfodetail_->chunkSn.push_back(response_->chunksn(i));
         }
         return;

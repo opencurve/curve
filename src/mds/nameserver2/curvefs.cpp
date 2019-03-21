@@ -20,12 +20,14 @@ bool CurveFS::Init(NameServerStorage* storage,
                 ChunkSegmentAllocator* chunkSegAllocator,
                 std::shared_ptr<CleanManagerInterface> snapshotCleanManager,
                 SessionManager *sessionManager,
-                const struct SessionOptions &sessionOptions) {
+                const struct SessionOptions &sessionOptions,
+                const struct RootAuthOption &authOptions) {
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
     snapshotCleanManager_ = snapshotCleanManager;
     sessionManager_ = sessionManager;
+    rootAuthOptions_ = authOptions;
 
     InitRootFile();
 
@@ -50,6 +52,7 @@ void CurveFS::InitRootFile(void) {
     rootFileInfo_.set_id(ROOTINODEID);
     rootFileInfo_.set_filename(ROOTFILENAME);
     rootFileInfo_.set_filetype(FileType::INODE_DIRECTORY);
+    rootFileInfo_.set_owner(GetRootOwner());
 }
 
 StatusCode CurveFS::WalkPath(const std::string &fileName,
@@ -147,8 +150,9 @@ StatusCode CurveFS::SnapShotFile(const FileInfo * origFileInfo,
     }
 }
 
-StatusCode CurveFS::CreateFile(const std::string & fileName, FileType filetype,
-                               uint64_t length) {
+StatusCode CurveFS::CreateFile(const std::string & fileName,
+                               const std::string& owner,
+                               FileType filetype, uint64_t length) {
     FileInfo parentFileInfo;
     std::string lastEntry;
 
@@ -176,17 +180,19 @@ StatusCode CurveFS::CreateFile(const std::string & fileName, FileType filetype,
     }
 
     if (ret != StatusCode::kFileNotExists) {
-        return ret;
+         return ret;
     } else {
         InodeID inodeID;
         if ( InodeIDGenerator_->GenInodeID(&inodeID) != true ) {
             LOG(ERROR) << "GenInodeID  error";
             return StatusCode::kStorageError;
         }
+
         fileInfo.set_id(inodeID);
         fileInfo.set_filename(lastEntry);
         fileInfo.set_parentid(parentFileInfo.id());
         fileInfo.set_filetype(filetype);
+        fileInfo.set_owner(owner);
         fileInfo.set_chunksize(DefaultChunkSize);
         fileInfo.set_segmentsize(DefaultSegmentSize);
         fileInfo.set_length(length);
@@ -312,6 +318,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         newFileInfo.CopyFrom(oldFileInfo);
         newFileInfo.set_parentid(parentFileInfo.id());
         newFileInfo.set_filename(lastEntry);
+        newFileInfo.set_owner(parentFileInfo.owner());
         newFileInfo.set_fullpathname(newFileName);
 
         std::string oldStoreKey =
@@ -894,6 +901,162 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
     }
 
     return StatusCode::kOK;
+}
+
+StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &password,
+                              std::string *lastEntry,
+                              uint64_t *parentID) {
+    std::vector<std::string> paths;
+    ::curve::common::SplitString(filename, "/", &paths);
+
+    // 根目录不允许进行owner校验
+    if ( paths.size() == 0 ) {
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    *lastEntry = paths.back();
+    uint64_t tempParentID = rootFileInfo_.id();
+
+    for (uint32_t i = 0; i < paths.size() - 1; i++) {
+        FileInfo  fileInfo;
+        auto storeKey = EncodeFileStoreKey(tempParentID, paths[i]);
+        auto ret = storage_->GetFile(storeKey, &fileInfo);
+
+        if (ret ==  StoreStatus::OK) {
+            if (fileInfo.filetype() !=  FileType::INODE_DIRECTORY) {
+                LOG(INFO) << fileInfo.filename() << " is not an directory";
+                return StatusCode::kNotDirectory;
+            }
+
+            if (fileInfo.owner() != owner) {
+                LOG(ERROR) << fileInfo.filename() << " auth fail, owner = "
+                           << owner;
+                return StatusCode::kOwnerAuthFail;
+            }
+        } else if (ret == StoreStatus::KeyNotExist) {
+            LOG(ERROR) << fileInfo.filename() << " not exist";
+            return StatusCode::kFileNotExists;
+        } else {
+            LOG(ERROR) << "GetFile error, errcode = " << ret;
+            return StatusCode::kStorageError;
+        }
+        tempParentID =  fileInfo.id();
+    }
+
+    *parentID = tempParentID;
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::CheckDestinationOwner(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &password) {
+    if (owner.empty()) {
+        LOG(ERROR) << "file owner is empty, filename = " << filename
+                   << ", owner = " << owner;
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    // 如果是root用户，需要用password校验root用户身份。
+    // root用户身份通过password校验之后，不需要进行后续校验。
+    if (owner == GetRootOwner()) {
+        // TODO(hzchenwei7): 目前password明文传输，将来需要加密
+        if (password == GetRootPassword()) {
+            return StatusCode::kOK;
+        }
+        LOG(ERROR) << "check root owner fail, password auth fail.";
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    std::string lastEntry;
+    uint64_t parentID;
+    StatusCode ret;
+    ret = CheckPathOwnerInternal(filename, owner, password,
+                                 &lastEntry, &parentID);
+
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
+
+    // 非root用户不允许rename文件到根目录下
+    if (parentID == rootFileInfo_.id() && owner != GetRootOwner()) {
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::CheckPathOwner(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &password) {
+    if (owner.empty()) {
+        LOG(ERROR) << "file owner is empty, filename = " << filename
+                   << ", owner = " << owner;
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    // 如果是root用户，需要用password校验root用户身份。
+    // root用户身份通过password校验之后，不需要进行后续校验。
+    if (owner == GetRootOwner()) {
+        // TODO(hzchenwei7): 目前password明文传输，将来需要加密
+        if (password == GetRootPassword()) {
+            return StatusCode::kOK;
+        }
+        LOG(ERROR) << "check root owner fail, password auth fail.";
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    std::string lastEntry;
+    uint64_t parentID;
+    return CheckPathOwnerInternal(filename, owner, password,
+                                    &lastEntry, &parentID);
+}
+
+StatusCode CurveFS::CheckFileOwner(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &password) {
+    if (owner.empty()) {
+        LOG(ERROR) << "file owner is empty, filename = " << filename
+                   << ", owner = " << owner;
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    // 如果是root用户，需要用password校验root用户身份。
+    // root用户身份通过password校验之后，不需要进行后续校验。
+    if (owner == GetRootOwner()) {
+        // TODO(hzchenwei7): 目前password明文传输，将来需要加密
+        if (password == GetRootPassword()) {
+            return StatusCode::kOK;
+        }
+        LOG(ERROR) << "check root owner fail, password auth fail.";
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    std::string lastEntry;
+    uint64_t parentID;
+    StatusCode ret;
+    ret = CheckPathOwnerInternal(filename, owner, password,
+                                 &lastEntry, &parentID);
+
+    if (ret != StatusCode::kOK) {
+        return ret;
+    }
+
+    FileInfo  fileInfo;
+    std::string storeKey = EncodeFileStoreKey(parentID, lastEntry);
+    auto ret1 = storage_->GetFile(storeKey, &fileInfo);
+
+    if (ret1 == StoreStatus::OK) {
+        if (fileInfo.owner() != owner) {
+            return StatusCode::kOwnerAuthFail;
+        }
+        return StatusCode::kOK;
+    } else if  (ret1 == StoreStatus::KeyNotExist) {
+        return StatusCode::kFileNotExists;
+    } else {
+        return StatusCode::kStorageError;
+    }
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();
