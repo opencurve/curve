@@ -99,6 +99,11 @@ class CopysetNode : public braft::StateMachine,
     std::shared_ptr<CSDataStore> GetDataStore() const;
 
     /**
+     * 返回ConcurrentApplyModule
+     */
+    ConcurrentApplyModule* GetConcurrentApplyModule() const;
+
+    /**
      * 向copyset node propose一个op request
      * @param task
      */
