@@ -30,6 +30,12 @@ class FakeReturn {
 
 class FakeCurveFSService : public curve::mds::CurveFSService {
  public:
+    FakeCurveFSService() {
+        retrytimes_ = 0;
+        fakeret_ = nullptr;
+        fakeopenfile_ = nullptr;
+    }
+
     void CreateFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateFileRequest* request,
                        ::curve::mds::CreateFileResponse* response,
@@ -39,6 +45,8 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
          && fakeret_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
+
+        retrytimes_++;
 
         auto resp = static_cast<::curve::mds::CreateFileResponse*>(
             fakeret_->response_);
@@ -54,6 +62,9 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
              && fakeret_->controller_->Failed()) {
             controller->SetFailed("failed");
         }
+
+        retrytimes_++;
+
         auto resp = static_cast<::curve::mds::GetFileInfoResponse*>(
                     fakeret_->response_);
         response->CopyFrom(*resp);
@@ -70,6 +81,8 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
             controller->SetFailed("failed");
         }
 
+        retrytimes_++;
+
         auto resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
                     fakeret_->response_);
         response->CopyFrom(*resp);
@@ -80,6 +93,12 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
                 ::curve::mds::OpenFileResponse* response,
                 ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
+        if (fakeopenfile_->controller_ != nullptr
+             && fakeopenfile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
 
         auto resp = static_cast<::curve::mds::OpenFileResponse*>(
                     fakeopenfile_->response_);
@@ -94,12 +113,26 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         fakeopenfile_ = fakeret;
     }
 
+    void CleanRetryTimes() {
+        retrytimes_ = 0;
+    }
+
+    uint64_t GetRetryTimes() {
+        return retrytimes_;
+    }
+
+    uint64_t retrytimes_;
     FakeReturn* fakeret_;
     FakeReturn* fakeopenfile_;
 };
 
 class FakeTopologyService : public curve::mds::topology::TopologyService {
  public:
+    FakeTopologyService() {
+        retrytimes_ = 0;
+        fakeret_ = nullptr;
+    }
+
     void GetChunkServerListInCopySets(
                        ::google::protobuf::RpcController* controller,
                        const GetChunkServerListInCopySetsRequest* request,
@@ -111,6 +144,8 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
             controller->SetFailed("failed");
         }
 
+        retrytimes_++;
+
         auto resp = static_cast<GetChunkServerListInCopySetsResponse*>(
             fakeret_->response_);
         response->CopyFrom(*resp);
@@ -120,6 +155,15 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
         fakeret_ = fakeret;
     }
 
+    void CleanRetryTimes() {
+        retrytimes_ = 0;
+    }
+
+    uint64_t GetRetryTimes() {
+        return retrytimes_;
+    }
+
+    uint64_t retrytimes_;
     FakeReturn* fakeret_;
 };
 

@@ -13,14 +13,14 @@
 namespace curve {
 namespace client {
 
-int RequestSender::Init(IOSenderOption_t iosenderopt) {
+int RequestSender::Init(IOSenderOption_t ioSenderOpt) {
     if (0 != channel_.Init(serverEndPoint_, NULL)) {
         LOG(ERROR) << "failed to init channel to server, id: " << chunkServerId_
                    << ", "<< serverEndPoint_.ip << ":" << serverEndPoint_.port;
         return -1;
     }
-    iosenderopt_ = iosenderopt;
-    ClientClosure::SetFailureRequestOption(iosenderopt_.failreqopt);
+    iosenderopt_ = ioSenderOpt;
+    ClientClosure::SetFailureRequestOption(iosenderopt_.failRequestOpt);
 
     return 0;
 }
@@ -36,8 +36,8 @@ int RequestSender::ReadChunk(LogicPoolID logicPoolId,
     brpc::ClosureGuard doneGuard(done);
 
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpc_timeout_ms);
-    cntl->set_max_retry(iosenderopt_.rpc_retry_times);
+    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -49,7 +49,7 @@ int RequestSender::ReadChunk(LogicPoolID logicPoolId,
     request.set_chunkid(chunkId);
     request.set_offset(offset);
     request.set_size(length);
-    if (iosenderopt_.enable_applied_index_read && appliedindex > 0) {
+    if (iosenderopt_.enableAppliedIndexRead && appliedindex > 0) {
         request.set_appliedindex(appliedindex);
     }
     ChunkService_Stub stub(&channel_);
@@ -71,8 +71,8 @@ int RequestSender::WriteChunk(LogicPoolID logicPoolId,
     DVLOG(9) << "Sending request, buf header: "
              << " buf: " << *(unsigned int *)buf;
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpc_timeout_ms);
-    cntl->set_max_retry(iosenderopt_.rpc_retry_times);
+    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -102,8 +102,8 @@ int RequestSender::ReadChunkSnapshot(LogicPoolID logicPoolId,
     brpc::ClosureGuard doneGuard(done);
 
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpc_timeout_ms);
-    cntl->set_max_retry(iosenderopt_.rpc_retry_times);
+    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -130,8 +130,8 @@ int RequestSender::DeleteChunkSnapshot(LogicPoolID logicPoolId,
     brpc::ClosureGuard doneGuard(done);
 
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpc_timeout_ms);
-    cntl->set_max_retry(iosenderopt_.rpc_retry_times);
+    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -154,8 +154,8 @@ int RequestSender::GetChunkInfo(LogicPoolID logicPoolId,
     brpc::ClosureGuard doneGuard(done);
 
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpc_timeout_ms);
-    cntl->set_max_retry(iosenderopt_.rpc_retry_times);
+    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     GetChunkInfoResponse *response = new GetChunkInfoResponse();
     done->SetResponse(response);

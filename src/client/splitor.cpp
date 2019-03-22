@@ -16,8 +16,8 @@
 namespace curve {
 namespace client {
 IOSplitOPtion_t Splitor::iosplitopt_;
-void Splitor::Init(IOSplitOPtion_t iosplitopt) {
-    iosplitopt_ = iosplitopt;
+void Splitor::Init(IOSplitOPtion_t ioSplitOpt) {
+    iosplitopt_ = ioSplitOpt;
 }
 int Splitor::IO2ChunkRequests(IOTracker* iotracker,
                               MetaCache* mc,
@@ -91,7 +91,7 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
             return -1;
     }
 
-    auto max_split_size_bytes = 1024 * iosplitopt_.io_split_max_size_kb;
+    auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSize;
 
     uint64_t len = 0;
     uint64_t off = 0;
@@ -139,7 +139,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                             MDSClient* mdsclient,
                             const FInfo_t* fi,
                             ChunkIndex chunkidx) {
-    auto max_split_size_bytes = 1024 * iosplitopt_.io_split_max_size_kb;
+    auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSize;
 
     ChunkIDInfo_t chinfo;
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;

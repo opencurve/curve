@@ -15,12 +15,12 @@ namespace client {
 IOManager4Chunk::IOManager4Chunk() {
 }
 
-bool IOManager4Chunk::Initialize(IOOption_t ioopt) {
-    ioopt_ = ioopt;
-    mc_.Init(ioopt_.metacacheopt);
-    Splitor::Init(ioopt_.iosplitopt);
+bool IOManager4Chunk::Initialize(IOOption_t ioOpt) {
+    ioopt_ = ioOpt;
+    mc_.Init(ioopt_.metaCacheOpt);
+    Splitor::Init(ioopt_.ioSplitOpt);
     scheduler_ = new (std::nothrow) RequestScheduler();
-    if (-1 == scheduler_->Init(ioopt_.reqschopt, &mc_)) {
+    if (-1 == scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_)) {
         LOG(ERROR) << "Init scheduler_ failed!";
         return false;
     }

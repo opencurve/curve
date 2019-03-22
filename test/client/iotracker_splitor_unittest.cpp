@@ -69,27 +69,27 @@ void writecallback(CurveAioContext* context) {
 class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
-        fopt.metaserveropt.metaaddrvec.push_back("127.0.0.1:8000");
-        fopt.metaserveropt.rpc_timeout_ms = 500;
-        fopt.metaserveropt.rpc_retry_times = 3;
+        fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+        fopt.metaServerOpt.rpcTimeoutMs = 500;
+        fopt.metaServerOpt.rpcRetryTimes = 3;
         fopt.loginfo.loglevel = 0;
-        fopt.ioopt.iosplitopt.io_split_max_size_kb = 64;
-        fopt.ioopt.iosenderopt.enable_applied_index_read = 1;
-        fopt.ioopt.iosenderopt.rpc_timeout_ms = 500;
-        fopt.ioopt.iosenderopt.rpc_retry_times = 3;
-        fopt.ioopt.iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-        fopt.ioopt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;  // NOLINT
-        fopt.ioopt.metacacheopt.get_leader_retry = 3;
-        fopt.ioopt.metacacheopt.get_leader_retry_interval_us = 500;
-        fopt.ioopt.reqschopt.request_scheduler_queue_capacity = 4096;
-        fopt.ioopt.reqschopt.request_scheduler_threadpool_size = 2;
-        fopt.ioopt.reqschopt.iosenderopt = fopt.ioopt.iosenderopt;
-        fopt.leaseopt.refresh_times_perLease = 4;
+        fopt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+        fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+        fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 500;
+        fopt.ioOpt.ioSenderOpt.rpcRetryTimes = 3;
+        fopt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+        fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;  // NOLINT
+        fopt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+        fopt.ioOpt.metaCacheOpt.retryIntervalUs = 500;
+        fopt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+        fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+        fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
+        fopt.leaseOpt.refreshTimesPerLease = 4;
 
         fileinstance_ = new FileInstance();
         UserInfo userinfo("userinfo", "12345");
         fileinstance_->Initialize(userinfo, fopt);
-        mdsclient_.Initialize(userinfo, fopt.metaserveropt);
+        mdsclient_.Initialize(userinfo, fopt.metaServerOpt);
         InsertMetaCache();
     }
 
