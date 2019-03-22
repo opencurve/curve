@@ -31,7 +31,7 @@ class IOManager4File : public IOManager {
    * @param: ioopt为当前iomanager的配置信息
    * @return: 成功true,失败false
    */
-  bool Initialize(IOOption_t ioopt);
+  bool Initialize(IOOption_t ioOpt);
 
   /**
    * 同步模式读

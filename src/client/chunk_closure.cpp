@@ -59,7 +59,7 @@ void WriteChunkClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto write_retry;
     }
@@ -97,7 +97,7 @@ void WriteChunkClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto write_retry;
     }
@@ -108,7 +108,7 @@ void WriteChunkClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto write_retry;
     }
@@ -128,11 +128,11 @@ void WriteChunkClosure::Run() {
                << ", " << reqCtx->chunkid_ << "> offset=" << reqCtx->offset_
                << ", length=" << reqCtx->rawlength_
                << ", status=" << status;
-    bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+    bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
     goto write_retry;
 
 write_retry:
-    if (retriedTimes_ + 1 >= failReqOpt_.client_chunk_op_max_retry) {   //NOLINT
+    if (retriedTimes_ + 1 >= failReqOpt_.opMaxRetry) {   //NOLINT
         reqDone->SetFailed(status);
         metaCache->UpdateAppliedIndex(reqCtx->logicpoolid_,
                                       reqCtx->copysetid_,
@@ -180,7 +180,7 @@ void ReadChunkClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto read_retry;
     }
@@ -217,7 +217,7 @@ void ReadChunkClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
 
         goto read_retry;
@@ -229,7 +229,7 @@ void ReadChunkClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto read_retry;
     }
@@ -260,11 +260,11 @@ void ReadChunkClosure::Run() {
                << ", " << reqCtx->chunkid_ << "> offset=" << reqCtx->offset_
                << ", length=" << reqCtx->rawlength_
                << ", status=" << status;
-    bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);
+    bthread_usleep(failReqOpt_.opRetryIntervalUs);
     goto read_retry;
 
 read_retry:
-    if (retriedTimes_ + 1 >= failReqOpt_.client_chunk_op_max_retry) {
+    if (retriedTimes_ + 1 >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
         LOG(ERROR) << "retried times exceeds";
         return;
@@ -309,7 +309,7 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto read_retry;
     }
@@ -342,7 +342,7 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
 
         goto read_retry;
@@ -354,7 +354,7 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto read_retry;
     }
@@ -392,11 +392,11 @@ void ReadChunkSnapClosure::Run() {
                << ", offset=" << reqCtx->offset_
                << ", length=" << reqCtx->rawlength_
                << ", status=" << status;
-    bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+    bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
     goto read_retry;
 
 read_retry:
-    if (retriedTimes_ + 1 >= failReqOpt_.client_chunk_op_max_retry) {   //NOLINT
+    if (retriedTimes_ + 1 >= failReqOpt_.opMaxRetry) {   //NOLINT
         reqDone->SetFailed(status);
         LOG(ERROR) << "read snapshot retried times exceeds";
         return;
@@ -440,7 +440,7 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto delete_retry;
     }
@@ -470,7 +470,7 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
 
         goto delete_retry;
@@ -482,7 +482,7 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto delete_retry;
     }
@@ -502,11 +502,11 @@ void DeleteChunkSnapClosure::Run() {
                << ">, " << reqCtx->chunkid_
                << ", sn=" << reqCtx->seq_
                << ", status=" << status;
-    bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+    bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
     goto delete_retry;
 
 delete_retry:
-    if (retriedTimes_ + 1 >= failReqOpt_.client_chunk_op_max_retry) {   //NOLINT
+    if (retriedTimes_ + 1 >= failReqOpt_.opMaxRetry) {   //NOLINT
         reqDone->SetFailed(status);
         LOG(ERROR) << "delete snapshot retried times exceeds";
         return;
@@ -548,7 +548,7 @@ void GetChunkInfoClusure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto get_retry;
     }
@@ -581,7 +581,7 @@ void GetChunkInfoClusure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
 
         goto get_retry;
@@ -593,7 +593,7 @@ void GetChunkInfoClusure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+            bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
         }
         goto get_retry;
     }
@@ -611,11 +611,11 @@ void GetChunkInfoClusure::Run() {
                << "<" << reqCtx->logicpoolid_ << ", " << reqCtx->copysetid_
                << ">, " << reqCtx->chunkid_
                << ", status=" << status;
-    bthread_usleep(failReqOpt_.client_chunk_op_retry_interval_us);   //NOLINT
+    bthread_usleep(failReqOpt_.opRetryIntervalUs);   //NOLINT
     goto get_retry;
 
 get_retry:
-    if (retriedTimes_ + 1 >= failReqOpt_.client_chunk_op_max_retry) {   //NOLINT
+    if (retriedTimes_ + 1 >= failReqOpt_.opMaxRetry) {   //NOLINT
         reqDone->SetFailed(status);
         LOG(ERROR) << "get chunk info retried times exceeds";
         return;

@@ -19,8 +19,10 @@
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/libcurve_define.h"
+#include "src/common/rw_lock.h"
 
-// TODO(tongguangxun) : 添加mds端RPC重试逻辑，解耦重试逻辑与正常RPC收发逻辑
+using curve::common::RWLock;
+
 namespace curve {
 namespace client {
 class MetaCache;
@@ -198,6 +200,25 @@ class MDSClient {
     void UnInitialize();
 
  private:
+    /**
+     * 切换MDS链接
+     * @param[in][out]: mdsAddrleft代表当前RPC调用还有多少个mdsserver可以尝试，内部
+     *                  每重试一个mds addr就将该值减一
+     * @return: 成功则true,否则false
+     */
+    bool ChangeMDServer(int* mdsAddrleft);
+
+     /**
+     * client在于MDS通信失败时尝试重新连接，如果超过一定次数，就切换leader重试
+     * @param[in][out] :retrycount是入参，也是出参，更新重试的次数，
+     *        如果这个次数超过设置的规定次数，那么就切换leader重试，并将该值置0
+     * @param: mdsAddrleft代表当前RPC调用还有多少个mdsserver可以尝试，如果还有server
+     *          可以重试，就调用ChangeMDServer切换server重试。
+     * @return: 达到重试次数且切换server失败返回false， 否则返回true
+     */
+    bool UpdateRetryinfoOrChangeServer(int* retrycount, int* mdsAddrleft);
+
+ private:
     // 初始化标志，放置重复初始化
     bool            inited_;
 
@@ -209,6 +230,12 @@ class MDSClient {
 
     // 与mds通信时携带的user信息
     UserInfo_t userinfo_;
+
+    // 记录上一次重试过的leader信息, 该索引对应metaServerOpt_里leader addr的索引
+    int lastWorkingMDSAddrIndex_;
+
+    // 读写锁，在切换MDS地址的时候需要暂停其他线程的RPC调用
+    RWLock rwlock_;
 };
 }   // namespace client
 }   // namespace curve

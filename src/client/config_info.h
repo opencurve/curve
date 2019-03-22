@@ -25,99 +25,102 @@ typedef struct LogInfo {
 
 /**
  * mds client的基本配置
- * @rpc_timeout_ms: 设置rpc超时时间
- * @rpc_retry_times: 设置rpc重试次数
+ * @rpcTimeoutMs: 设置rpc超时时间
+ * @rpcRetryTimes: 设置rpc重试次数
+ * @retryIntervalUs: 设置rpc重试间隔时间
  * @metaaddrvec: mds server地址
  */
 typedef struct MetaServerOption {
-    uint64_t  rpc_timeout_ms;
-    uint16_t  rpc_retry_times;
+    uint64_t  rpcTimeoutMs;
+    uint16_t  rpcRetryTimes;
+    uint32_t  retryIntervalUs;
     std::vector<std::string> metaaddrvec;
     MetaServerOption() {
-        rpc_timeout_ms = 500;
-        rpc_retry_times = 3;
+        rpcTimeoutMs = 500;
+        rpcRetryTimes = 5;
+        retryIntervalUs = 200;
     }
 } MetaServerOption_t;
 
 /**
  * 租约基本配置
- * @refresh_times_perLease: 一个租约内续约次数
+ * @refreshTimesPerLease: 一个租约内续约次数
  */
 typedef struct LeaseOption {
-    uint16_t    refresh_times_perLease;
+    uint16_t    refreshTimesPerLease;
     LeaseOption() {
-        refresh_times_perLease = 5;
+        refreshTimesPerLease = 5;
     }
 } LeaseOption_t;
 
 /**
  * 发送失败的chunk request处理配置
- * @client_chunk_op_retry_interval_us: 相隔多久再重试
- * @client_chunk_op_max_retry: 最大重试次数
+ * @opRetryIntervalUs: 相隔多久再重试
+ * @opMaxRetry: 最大重试次数
  */
 typedef struct FailureRequestOption {
-    uint32_t client_chunk_op_retry_interval_us;
-    uint32_t client_chunk_op_max_retry;
+    uint32_t opRetryIntervalUs;
+    uint32_t opMaxRetry;
     FailureRequestOption() {
-        client_chunk_op_retry_interval_us = 200;
-        client_chunk_op_max_retry = 3;
+        opRetryIntervalUs = 200;
+        opMaxRetry = 3;
     }
 } FailureRequestOption_t;
 
 /**
  * 发送rpc给chunkserver的配置
- * @rpc_timeout_ms: rpc超时时间
- * @rpc_retry_times: rpc重试次数
- * @enable_applied_index_read: 是否开启使用appliedindex read
+ * @rpcTimeoutMs: rpc超时时间
+ * @rpcRetryTimes: rpc重试次数
+ * @enableAppliedIndexRead: 是否开启使用appliedindex read
  */
 typedef struct IOSenderOption {
-    uint64_t  rpc_timeout_ms;
-    uint16_t  rpc_retry_times;
-    bool enable_applied_index_read;
-    FailureRequestOption_t failreqopt;
+    uint64_t  rpcTimeoutMs;
+    uint16_t  rpcRetryTimes;
+    bool enableAppliedIndexRead;
+    FailureRequestOption_t failRequestOpt;
     IOSenderOption() {
-        rpc_timeout_ms = 500;
-        rpc_retry_times = 3;
+        rpcTimeoutMs = 500;
+        rpcRetryTimes = 3;
     }
 } IOSenderOption_t;
 
 /**
  * scheduler模块基本配置信息
- * @request_scheduler_queue_capacity: schedule模块配置的队列深度
- * @request_scheduler_threadpool_size: schedule模块线程数
+ * @queueCapacity: schedule模块配置的队列深度
+ * @threadpoolSize: schedule模块线程数
  */
 typedef struct RequestScheduleOption {
-    uint32_t request_scheduler_queue_capacity;
-    uint32_t request_scheduler_threadpool_size;
-    IOSenderOption_t iosenderopt;
+    uint32_t queueCapacity;
+    uint32_t threadpoolSize;
+    IOSenderOption_t ioSenderOpt;
     RequestScheduleOption() {
-        request_scheduler_queue_capacity = 1024;
-        request_scheduler_threadpool_size = 2;
+        queueCapacity = 1024;
+        threadpoolSize = 2;
     }
 } RequestScheduleOption_t;
 
 /**
  * metaccache模块配置信息
- * @get_leader_retry: 获取leader重试次数
- * @get_leader_retry_interval_us: 相隔多久进行重试
+ * @getLeaderRetry: 获取leader重试次数
+ * @retryIntervalUs: 相隔多久进行重试
  */
 typedef struct MetaCacheOption {
-    uint32_t get_leader_retry;
-    uint32_t get_leader_retry_interval_us;
+    uint32_t getLeaderRetry;
+    uint32_t retryIntervalUs;
     MetaCacheOption() {
-        get_leader_retry = 3;
-        get_leader_retry_interval_us = 200;
+        getLeaderRetry = 3;
+        retryIntervalUs = 200;
     }
 } MetaCacheOption_t;
 
 /**
  * IO 拆分模块配置信息
- * @io_split_max_size_kb: 拆分后一个request的最大大小
+ * @ioSplitMaxSize: 拆分后一个request的最大大小
  */
 typedef struct IOSplitOPtion {
-    uint64_t  io_split_max_size_kb;
+    uint64_t  ioSplitMaxSize;
     IOSplitOPtion() {
-        io_split_max_size_kb = 64;
+        ioSplitMaxSize = 64;
     }
 } IOSplitOPtion_t;
 
@@ -125,10 +128,10 @@ typedef struct IOSplitOPtion {
  * IOOption存储了当前io 操作所需要的所有配置信息
  */
 typedef struct IOOption {
-    IOSplitOPtion_t  iosplitopt;
-    IOSenderOption_t iosenderopt;
-    MetaCacheOption_t   metacacheopt;
-    RequestScheduleOption_t reqschopt;
+    IOSplitOPtion_t  ioSplitOpt;
+    IOSenderOption_t ioSenderOpt;
+    MetaCacheOption_t   metaCacheOpt;
+    RequestScheduleOption_t reqSchdulerOpt;
 } IOOption_t;
 
 /**
@@ -136,8 +139,8 @@ typedef struct IOOption {
  */
 typedef struct ClientConfigOption {
     LogInfo_t                  loginfo;
-    IOOption_t                 ioopt;
-    MetaServerOption_t         metaserveropt;
+    IOOption_t                 ioOpt;
+    MetaServerOption_t         metaServerOpt;
 } ClientConfigOption_t;
 
 /**
@@ -145,9 +148,9 @@ typedef struct ClientConfigOption {
  */
 typedef struct FileServiceOption {
     LogInfo_t                 loginfo;
-    IOOption_t                ioopt;
-    LeaseOption_t             leaseopt;
-    MetaServerOption_t        metaserveropt;
+    IOOption_t                ioOpt;
+    LeaseOption_t             leaseOpt;
+    MetaServerOption_t        metaServerOpt;
 } FileServiceOption_t;
 
 #endif  // ! CURVE_CONFIG_INFO_H

@@ -16,16 +16,17 @@ int CurveFsClientImpl::Init() {
     // TODO(xuchaojie): using config file instead.
     ClientConfigOption_t opt;
 
-    opt.metaserveropt.metaaddrvec.push_back("127.0.0.1:6666");
-    opt.ioopt.reqschopt.request_scheduler_queue_capacity = 4096;
-    opt.ioopt.reqschopt.request_scheduler_threadpool_size = 2;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_max_retry = 3;
-    opt.ioopt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 500;
-    opt.ioopt.metacacheopt.get_leader_retry = 3;
-    opt.ioopt.iosenderopt.enable_applied_index_read = 1;
-    opt.ioopt.iosplitopt.io_split_max_size_kb = 64;
-    opt.ioopt.reqschopt.iosenderopt = opt.ioopt.iosenderopt;
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:6666");
+    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
+
     return client_.Init(opt);
 }
 

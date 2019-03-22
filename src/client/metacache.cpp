@@ -26,8 +26,8 @@ MetaCache::~MetaCache() {
     lpcsid2serverlistMap_.clear();
 }
 
-void MetaCache::Init(MetaCacheOption_t metacacheopt) {
-    metacacheopt_ = metacacheopt;
+void MetaCache::Init(MetaCacheOption_t metaCacheOpt) {
+    metacacheopt_ = metaCacheOpt;
 }
 
 MetaCacheErrorType MetaCache::GetChunkInfoByIndex(ChunkIndex chunkidx, ChunkIDInfo_t* chunxinfo ) {  // NOLINT
@@ -89,8 +89,8 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
     int ret = 0;
     if (refresh) {
         uint32_t retry = 0;
-        while (retry++ < metacacheopt_.get_leader_retry) {
-            usleep(metacacheopt_.get_leader_retry_interval_us);
+        while (retry++ < metacacheopt_.getLeaderRetry) {
+            usleep(metacacheopt_.retryIntervalUs);
             ret = getleader();
             if (ret != -1) {
                 break;

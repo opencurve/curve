@@ -25,13 +25,13 @@ using curve::test::CountDownEvent;
 
 TEST(RequestSchedulerTest, fake_server_test) {
     RequestScheduleOption_t opt;
-    opt.request_scheduler_queue_capacity = 4096;
-    opt.request_scheduler_threadpool_size = 2;
-    opt.iosenderopt.rpc_timeout_ms = 200;
-    opt.iosenderopt.rpc_retry_times = 3;
-    opt.iosenderopt.failreqopt.client_chunk_op_max_retry = 5;
-    opt.iosenderopt.failreqopt.client_chunk_op_retry_interval_us = 5000;
-    opt.iosenderopt.enable_applied_index_read = 1;
+    opt.queueCapacity = 4096;
+    opt.threadpoolSize = 2;
+    opt.ioSenderOpt.rpcTimeoutMs = 200;
+    opt.ioSenderOpt.rpcRetryTimes = 3;
+    opt.ioSenderOpt.failRequestOpt.opMaxRetry = 5;
+    opt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
+    opt.ioSenderOpt.enableAppliedIndexRead = 1;
 
     brpc::Server server;
     std::string listenAddr = "127.0.0.1:8200";
@@ -57,8 +57,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(-1, requestScheduler.Init(opt, nullptr));
     }
 
-    opt.request_scheduler_queue_capacity = 100;
-    opt.request_scheduler_threadpool_size = 4;
+    opt.queueCapacity = 100;
+    opt.threadpoolSize = 4;
     ASSERT_EQ(0, requestScheduler.Init(opt, &mockMetaCache));
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
