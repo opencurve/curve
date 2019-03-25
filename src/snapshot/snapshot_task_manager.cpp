@@ -75,10 +75,11 @@ int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
         taskInfo->Lock();
         if (!taskInfo->IsFinish()) {
             taskInfo->Cancel();
+            return kErrCodeSnapshotServerSuccess;
         }
         taskInfo->UnLock();
     }
-    return 0;
+    return kErrCodeCannotCancelFinished;
 }
 
 void SnapshotTaskManager::BackEndThreadFunc() {
