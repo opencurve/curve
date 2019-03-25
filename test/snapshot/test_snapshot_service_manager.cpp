@@ -649,9 +649,12 @@ TEST_F(TestSnapshotServiceManager,
             Return(kErrCodeSnapshotServerSuccess)));
 
     CountDownEvent cond1(1);
+    CountDownEvent cond2(1);
 
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
-        .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+        .WillOnce(Invoke([&cond1, &cond2] (
+                        std::shared_ptr<SnapshotTaskInfo> task) {
+                                cond2.Wait();
                                 task->Finish();
                                 cond1.Signal();
                             }));
@@ -668,9 +671,9 @@ TEST_F(TestSnapshotServiceManager,
     ret = manager_->CancelSnapshot(uuidOut,
         user2,
         file);
+    cond2.Signal();
 
     ASSERT_EQ(kErrCodeSnapshotUserNotMatch, ret);
-
     cond1.Wait();
 }
 
@@ -689,9 +692,12 @@ TEST_F(TestSnapshotServiceManager,
             Return(kErrCodeSnapshotServerSuccess)));
 
     CountDownEvent cond1(1);
+    CountDownEvent cond2(1);
 
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
-        .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+        .WillOnce(Invoke([&cond1, &cond2] (
+                        std::shared_ptr<SnapshotTaskInfo> task) {
+                                cond2.Wait();
                                 task->Finish();
                                 cond1.Signal();
                             }));
@@ -708,9 +714,9 @@ TEST_F(TestSnapshotServiceManager,
     ret = manager_->CancelSnapshot(uuidOut,
         user,
         file2);
+    cond2.Signal();
 
     ASSERT_EQ(kErrCodeSnapshotFileNameNotMatch, ret);
-
     cond1.Wait();
 }
 
