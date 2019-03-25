@@ -40,6 +40,8 @@ const int kErrCodeSnapshotChunkSizeNotAligned = -8;
 const int kErrCodeSnapshotCannotDeleteUnfinished = -9;
 // 错误码: 不能对存在异常快照的文件打快照
 const int kErrCodeSnapshotCannotCreateWhenError = -10;
+// 错误码：取消的快照已完成
+const int kErrCodeCannotCancelFinished = -11;
 
 }  // namespace snapshotserver
 }  // namespace curve
