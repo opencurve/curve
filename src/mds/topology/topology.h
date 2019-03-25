@@ -19,7 +19,7 @@
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_token_generator.h"
 #include "src/mds/topology/topology_storge.h"
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;

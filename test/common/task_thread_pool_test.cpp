@@ -11,7 +11,7 @@
 #include <atomic>
 
 #include "test/utils/count_down_event.h"
-#include "src/common/task_thread_pool.h"
+#include "src/common/concurrent/task_thread_pool.h"
 
 namespace curve {
 namespace common {

@@ -18,7 +18,7 @@ COPTS = [
 ]
 
 cc_library(
-    name = "curve_common",
+    name = "curve_concurrent",
     srcs = glob([
         "*.h",
         "*.cpp",
@@ -27,18 +27,6 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
-        "//src/common/concurrent:curve_concurrent"
-    ],
-)
-
-cc_library(
-    name = "curve_uncopy",
-    srcs = glob([
-        "uncopyable.h",
-    ]),
-    copts = COPTS,
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:glog",
+        "//src/common:curve_uncopy"
     ],
 )

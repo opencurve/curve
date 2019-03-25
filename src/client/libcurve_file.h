@@ -13,7 +13,7 @@
 #include <atomic>
 #include <unordered_map>
 
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "src/client/config_info.h"
 #include "src/client/client_common.h"
 #include "src/client/libcurve_define.h"

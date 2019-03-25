@@ -10,7 +10,7 @@
 #include <thread>   //NOLINT
 #include <atomic>
 
-#include "src/common/count_down_event.h"
+#include "src/common/concurrent/count_down_event.h"
 
 namespace curve {
 namespace common {

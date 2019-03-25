@@ -16,7 +16,7 @@
 
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
-#include "src/common/spinlock.h"
+#include "src/common/concurrent/spinlock.h"
 
 using curve::common::SpinLock;
 

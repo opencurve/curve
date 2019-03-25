@@ -19,7 +19,7 @@
 #include <condition_variable>    // NOLINT
 
 #include "src/client/client_config.h"
-#include "src/common/spinlock.h"
+#include "src/common/concurrent/spinlock.h"
 #include "include/curve_compiler_specific.h"
 
 using curve::common::SpinLock;

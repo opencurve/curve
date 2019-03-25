@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "src/mds/common/mds_define.h"
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 
 namespace curve {
 namespace mds {

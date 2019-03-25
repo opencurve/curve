@@ -15,7 +15,7 @@
 
 #include "include/curve_compiler_specific.h"
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "src/common/crc32.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/filename_operator.h"

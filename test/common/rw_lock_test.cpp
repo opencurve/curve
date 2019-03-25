@@ -10,7 +10,7 @@
 
 #include <thread>   // NOLINT
 
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 
 namespace curve {
 namespace common {

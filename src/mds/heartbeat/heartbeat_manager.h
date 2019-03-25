@@ -17,7 +17,7 @@
 #include "src/mds/common/mds_define.h"
 #include "src/mds/schedule/coordinator.h"
 #include "src/mds/schedule/topoAdapter.h"
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "proto/heartbeat.pb.h"
 
 using ::curve::mds::topology::ChunkServerIdType;
