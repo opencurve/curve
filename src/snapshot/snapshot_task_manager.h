@@ -17,7 +17,7 @@
 
 #include "src/snapshot/snapshot_task.h"
 #include "src/snapshot/snapshot_thread_pool.h"
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "src/snapshot/snapshot_define.h"
 
 using ::curve::common::RWLock;

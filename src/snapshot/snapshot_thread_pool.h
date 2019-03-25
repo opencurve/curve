@@ -8,7 +8,7 @@
 #ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_THREAD_POOL_H_
 #define CURVE_SRC_SNAPSHOT_SNAPSHOT_THREAD_POOL_H_
 
-#include "src/common/task_thread_pool.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/snapshot/snapshot_task.h"
 
 namespace curve {

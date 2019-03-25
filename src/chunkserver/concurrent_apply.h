@@ -16,9 +16,9 @@
 #include <unordered_map>
 #include <condition_variable>    // NOLINT
 
-#include "src/common/task_queue.h"
+#include "src/common/concurrent/task_queue.h"
 #include "include/curve_compiler_specific.h"
-#include "src/common/count_down_event.h"
+#include "src/common/concurrent/count_down_event.h"
 
 using curve::common::TaskQueue;
 using curve::common::CountDownEvent;

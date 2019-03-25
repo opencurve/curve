@@ -15,7 +15,7 @@
 #include <atomic>
 #include <thread> //NOLINT
 #include "proto/nameserver2.pb.h"
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "src/common/uuid.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/dao/mdsRepo.h"

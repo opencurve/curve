@@ -12,8 +12,8 @@
 
 #include "src/common/uncopyable.h"
 #include "src/client/config_info.h"
-#include "src/common/bounded_blocking_queue.h"
-#include "src/common/thread_pool.h"
+#include "src/common/concurrent/bounded_blocking_queue.h"
+#include "src/common/concurrent/thread_pool.h"
 #include "src/client/client_common.h"
 #include "src/client/copyset_client.h"
 #include "include/curve_compiler_specific.h"

@@ -5,7 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
-#include "src/common/thread_pool.h"
+#include "src/common/concurrent/thread_pool.h"
 
 namespace curve {
 namespace common {

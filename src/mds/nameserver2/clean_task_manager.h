@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <thread> //NOLINT
 #include <mutex>  //NOLINT
-#include "src/common/task_thread_pool.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/clean_task.h"
 

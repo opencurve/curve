@@ -14,7 +14,7 @@
 #include <unordered_map>
 
 #include "src/chunkserver/copyset_node.h"
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 #include "src/common/uncopyable.h"
 
 namespace curve {

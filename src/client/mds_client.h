@@ -19,7 +19,7 @@
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/libcurve_define.h"
-#include "src/common/rw_lock.h"
+#include "src/common/concurrent/rw_lock.h"
 
 using curve::common::RWLock;
 
