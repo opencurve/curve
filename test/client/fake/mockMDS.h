@@ -105,12 +105,54 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void CreateCloneFile(::google::protobuf::RpcController* controller,
+                        const ::curve::mds::CreateCloneFileRequest* request,
+                        ::curve::mds::CreateCloneFileResponse* response,
+                        ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeCreateCloneFile_->controller_ != nullptr
+             && fakeCreateCloneFile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::CreateCloneFileResponse*>(
+                    fakeCreateCloneFile_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void SetCloneFileStatus(::google::protobuf::RpcController* controller,
+                        const ::curve::mds::SetCloneFileStatusRequest* request,
+                        ::curve::mds::SetCloneFileStatusResponse* response,
+                        ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeSetCloneFileStatus_->controller_ != nullptr
+             && fakeSetCloneFileStatus_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::SetCloneFileStatusResponse*>(
+                    fakeSetCloneFileStatus_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
 
     void SetOpenFile(FakeReturn* fakeret) {
         fakeopenfile_ = fakeret;
+    }
+
+    void SetCreateCloneFile(FakeReturn* fakeret) {
+        fakeCreateCloneFile_ = fakeret;
+    }
+
+    void SetCloneFileStatus(FakeReturn* fakeret) {
+        fakeSetCloneFileStatus_ = fakeret;
     }
 
     void CleanRetryTimes() {
@@ -124,6 +166,8 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
     uint64_t retrytimes_;
     FakeReturn* fakeret_;
     FakeReturn* fakeopenfile_;
+    FakeReturn* fakeCreateCloneFile_;
+    FakeReturn* fakeSetCloneFileStatus_;
 };
 
 class FakeTopologyService : public curve::mds::topology::TopologyService {

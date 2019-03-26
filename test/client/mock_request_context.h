@@ -11,12 +11,10 @@
 #include "src/client/client_common.h"
 #include "src/client/request_context.h"
 #include "src/client/request_closure.h"
-#include "test/utils/count_down_event.h"
+#include "src/common/concurrent/count_down_event.h"
 
 namespace curve {
 namespace client {
-
-using curve::test::CountDownEvent;
 
 class FakeRequestContext : public RequestContext {
  public:
@@ -26,7 +24,8 @@ class FakeRequestContext : public RequestContext {
 
 class FakeRequestClosure : public RequestClosure {
  public:
-    explicit FakeRequestClosure(CountDownEvent *cond, RequestContext *reqctx)
+    explicit FakeRequestClosure(curve::common::CountDownEvent *cond,
+                                RequestContext *reqctx)
         : cond_(cond),
           RequestClosure(reqctx) {
         reqCtx_ = reqctx;
@@ -58,7 +57,7 @@ class FakeRequestClosure : public RequestClosure {
     }
 
  private:
-    CountDownEvent *cond_;
+    curve::common::CountDownEvent *cond_;
 
  private:
     int errcode_ = -1;

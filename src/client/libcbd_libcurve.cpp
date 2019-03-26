@@ -77,7 +77,7 @@ int64_t cbd_libcurve_filesize(const char* filename) {
         return -1;
     }
     struct FileStatInfo info;
-    StatFs(fd, filename, &info);
+    StatFs(fd, &info);
     cbd_libcurve_close(fd);
     return info.length;
 }

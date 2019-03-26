@@ -22,9 +22,6 @@ RequestContext::RequestContext() {
     offset_     = 0;
     rawlength_  = 0;
 
-    chunkid_      = 0;
-    copysetid_    = 0;
-    logicpoolid_  = 0;
     appliedindex_ = 0;
 }
 bool RequestContext::Init() {

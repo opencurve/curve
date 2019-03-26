@@ -187,22 +187,16 @@ uint64_t MetaCache::GetAppliedIndex(LogicPoolID logicPoolId,
     return appliedindex;
 }
 
-void MetaCache::UpdateChunkInfoByID(LogicPoolID lpid,
-                                    CopysetID cpid,
-                                    ChunkID cid) {
-    auto key = LogicPoolCopysetChunkID2Str(lpid, cpid, cid);
+void MetaCache::UpdateChunkInfoByID(ChunkID cid, ChunkIDInfo cidinfo) {
     rwlock4chunkInfoMap_.WRLock();
-    chunkid2chunkInfoMap_[key] = ChunkIDInfo(cid, lpid, cpid);
+    chunkid2chunkInfoMap_[cid] = cidinfo;
     rwlock4chunkInfoMap_.Unlock();
 }
 
-MetaCacheErrorType MetaCache::GetChunkInfoByID(LogicPoolID lpid,
-                                CopysetID cpid,
-                                ChunkID chunkid,
+MetaCacheErrorType MetaCache::GetChunkInfoByID(ChunkID chunkid,
                                 ChunkIDInfo_t* chunkinfo) {
-    auto key = LogicPoolCopysetChunkID2Str(lpid, cpid, chunkid);
     rwlock4chunkInfoMap_.RDLock();
-    auto iter = chunkid2chunkInfoMap_.find(key);
+    auto iter = chunkid2chunkInfoMap_.find(chunkid);
     if (iter != chunkid2chunkInfoMap_.end()) {
         rwlock4chunkInfoMap_.Unlock();
         *chunkinfo = iter->second;

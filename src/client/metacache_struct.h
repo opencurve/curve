@@ -47,6 +47,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     std::vector<CopysetPeerInfo_t> csinfos_;
     uint32_t    lastappliedindex_;
     uint16_t    leaderindex_;
+    CopysetID   cpid_;
     SpinLock    spinlock_;
 
     CopysetInfo() {
@@ -61,6 +62,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     CopysetInfo& operator=(const CopysetInfo& other) {
+        this->cpid_ = other.cpid_;
         this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
         this->leaderindex_ = other.leaderindex_;
         this->lastappliedindex_ = other.lastappliedindex_;
@@ -68,6 +70,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     CopysetInfo(const CopysetInfo& other) {
+        this->cpid_ = other.cpid_;
         this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
         this->leaderindex_ = other.leaderindex_;
         this->lastappliedindex_ = other.lastappliedindex_;

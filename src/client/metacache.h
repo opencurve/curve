@@ -33,8 +33,7 @@ enum MetaCacheErrorType {
 class MetaCache {
  public:
     using CopysetLogicPoolIDStr      = std::string;
-    using CopysetLogicPoolChunkIDStr = std::string;
-    using ChunkInfoMap               = std::unordered_map<CopysetLogicPoolChunkIDStr, ChunkIDInfo_t>;       // NOLINT
+    using ChunkInfoMap               = std::unordered_map<ChunkID, ChunkIDInfo_t>;       // NOLINT
     using CopysetInfoMap             = std::unordered_map<CopysetLogicPoolIDStr, CopysetInfo_t>;            // NOLINT
     using ChunkIndexInfoMap          = std::map<ChunkIndex, ChunkIDInfo_t>;
 
@@ -56,14 +55,12 @@ class MetaCache {
     virtual MetaCacheErrorType GetChunkInfoByIndex(ChunkIndex chunkidx,
                                 ChunkIDInfo_t* chunkinfo);
     /**
-     * 通过chunkid获取chunkid信息
-     * @param: chunkidx以index查询chunk对应的id信息
+     * 通过chunkid获取chunkinfo id信息
+     * @param: chunkid是待查询的chunk id信息
      * @param: chunkinfo是出参，存储chunk的版本信息
      * @param: 成功返回OK, 否则返回UNKNOWN_ERROR
      */
-    virtual MetaCacheErrorType GetChunkInfoByID(LogicPoolID logicPoolId,
-                                CopysetID copysetId,
-                                ChunkID chunkid,
+    virtual MetaCacheErrorType GetChunkInfoByID(ChunkID chunkid,
                                 ChunkIDInfo_t* chunkinfo);
 
     /**
@@ -113,13 +110,10 @@ class MetaCache {
                                 ChunkIDInfo_t chunkinfo);
     /**
      * 通过chunk id更新chunkid信息
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @param: cid是待更新的chunkid
+     * @param: cid为chunkid
+     * @param: cidinfo为当前chunk对应的id信息
      */
-    virtual void UpdateChunkInfoByID(LogicPoolID lpid,
-                                CopysetID cpid,
-                                ChunkID cid);
+    virtual void UpdateChunkInfoByID(ChunkID cid, ChunkIDInfo cidinfo);
 
     /**
      * 当读写请求返回后，更新当前copyset的applyindex信息

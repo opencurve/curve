@@ -98,6 +98,22 @@ class FakeChunkServiceImpl : public ChunkService {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     }
 
+    void CreateCloneChunk(::google::protobuf::RpcController *controller,
+                      const ::curve::chunkserver::ChunkRequest *request,
+                      ::curve::chunkserver::ChunkResponse *response,
+                      google::protobuf::Closure *done) {
+        brpc::ClosureGuard doneGuard(done);
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    }
+
+    void RecoverChunk(::google::protobuf::RpcController *controller,
+                      const ::curve::chunkserver::ChunkRequest *request,
+                      ::curve::chunkserver::ChunkResponse *response,
+                      google::protobuf::Closure *done) {
+        brpc::ClosureGuard doneGuard(done);
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    }
+
  private:
     std::set<ChunkID> chunkIds_;
     /* 由于 bthread 栈空间的限制，这里不会开很大的空间，如果测试需要更大的空间
@@ -131,6 +147,16 @@ class MockChunkServiceImpl : public ChunkService {
         *controller,
         const ::curve::chunkserver::GetChunkInfoRequest *request,
         ::curve::chunkserver::GetChunkInfoResponse *response,
+        google::protobuf::Closure *done));
+    MOCK_METHOD4(CreateCloneChunk, void(::google::protobuf::RpcController
+        *controller,
+        const ::curve::chunkserver::ChunkRequest *request,
+        ::curve::chunkserver::ChunkResponse *response,
+        google::protobuf::Closure *done));
+    MOCK_METHOD4(RecoverChunk, void(::google::protobuf::RpcController
+        *controller,
+        const ::curve::chunkserver::ChunkRequest *request,
+        ::curve::chunkserver::ChunkResponse *response,
         google::protobuf::Closure *done));
 
     void DelegateToFake() {

@@ -30,7 +30,7 @@ LIBCURVE_ERROR AioRead(int fd, CurveAioContext* aioctx);
 LIBCURVE_ERROR AioWrite(int fd, CurveAioContext* aioctx);
 
 // 获取文件的基本信息
-LIBCURVE_ERROR StatFs(int fd, const char* filename, FileStatInfo* finfo);
+LIBCURVE_ERROR StatFs(int fd, FileStatInfo* finfo);
 void Close(int fd);
 
 void UnInit();

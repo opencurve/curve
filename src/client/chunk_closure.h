@@ -34,6 +34,10 @@ class CopysetClient;
  */
 class ClientClosure : public Closure {
  public:
+    ClientClosure(CopysetClient *client, Closure *done):
+                                        client_(client),
+                                        done_(done) {
+    }
     virtual void SetCntl(brpc::Controller* cntl) = 0;
     virtual void SetResponse(Message* response) = 0;
     virtual void SetRetriedTimes(uint16_t retriedTimes) = 0;
@@ -44,13 +48,19 @@ class ClientClosure : public Closure {
 
  protected:
     static FailureRequestOption_t  failReqOpt_;
+
+    // 已经重试了几次
+    uint16_t                 retriedTimes_;
+    brpc::Controller*        cntl_;
+    ChunkResponse*           response_;
+    CopysetClient*           client_;
+    Closure*                 done_;
 };
 
 class WriteChunkClosure : public ClientClosure {
  public:
     WriteChunkClosure(CopysetClient *client, Closure *done)
-        : client_(client),
-          done_(done) {}
+        : ClientClosure(client, done) {}
 
     void Run();
     void SetCntl(brpc::Controller* cntl) {
@@ -62,21 +72,12 @@ class WriteChunkClosure : public ClientClosure {
     void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
-
- private:
-    // 已经重试了几次
-    uint16_t             retriedTimes_;
-    brpc::Controller    *cntl_;
-    ChunkResponse       *response_;
-    CopysetClient       *client_;
-    Closure             *done_;
 };
 
 class ReadChunkClosure : public ClientClosure {
  public:
     ReadChunkClosure(CopysetClient *client, Closure *done)
-        : client_(client),
-          done_(done) {}
+        : ClientClosure(client, done) {}
 
     void Run();
     void SetCntl(brpc::Controller* cntl) {
@@ -88,21 +89,12 @@ class ReadChunkClosure : public ClientClosure {
     void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
-
- private:
-    // 已经重试了几次
-    uint16_t             retriedTimes_;
-    brpc::Controller    *cntl_;
-    ChunkResponse       *response_;
-    CopysetClient       *client_;
-    Closure             *done_;
 };
 
 class ReadChunkSnapClosure : public ClientClosure {
  public:
     ReadChunkSnapClosure(CopysetClient *client, Closure *done)
-        : client_(client),
-          done_(done) {}
+        : ClientClosure(client, done) {}
 
     void Run();
     void SetCntl(brpc::Controller* cntl) {
@@ -114,21 +106,12 @@ class ReadChunkSnapClosure : public ClientClosure {
     void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
-
- private:
-    // 已经重试了几次
-    uint16_t             retriedTimes_;
-    brpc::Controller    *cntl_;
-    ChunkResponse       *response_;
-    CopysetClient       *client_;
-    Closure             *done_;
 };
 
 class DeleteChunkSnapClosure : public ClientClosure {
  public:
     DeleteChunkSnapClosure(CopysetClient *client, Closure *done)
-        : client_(client),
-          done_(done) {}
+        : ClientClosure(client, done) {}
 
     void Run();
     void SetCntl(brpc::Controller* cntl) {
@@ -140,41 +123,63 @@ class DeleteChunkSnapClosure : public ClientClosure {
     void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
-
- private:
-    // 已经重试了几次
-    uint16_t             retriedTimes_;
-    brpc::Controller    *cntl_;
-    ChunkResponse       *response_;
-    CopysetClient       *client_;
-    Closure             *done_;
 };
 
-class GetChunkInfoClusure : public ClientClosure {
+class GetChunkInfoClosure : public ClientClosure {
  public:
-    GetChunkInfoClusure(CopysetClient *client,
+    GetChunkInfoClosure(CopysetClient *client,
                         Closure *done)
-        : client_(client),
-          done_(done) {}
+        : ClientClosure(client, done) {}
 
     void Run();
     void SetCntl(brpc::Controller* cntl) {
         cntl_ = cntl;
     }
     void SetResponse(Message* response) {
-        response_ = dynamic_cast<GetChunkInfoResponse *> (response);
+        chunkinforesponse_ = dynamic_cast<GetChunkInfoResponse *> (response);
     }
     void SetRetriedTimes(uint16_t retriedTimes) {
         retriedTimes_ = retriedTimes;
     }
 
  private:
-    // 已经重试了几次
-    uint16_t                 retriedTimes_;
-    brpc::Controller        *cntl_;
-    GetChunkInfoResponse    *response_;
-    CopysetClient           *client_;
-    Closure                 *done_;
+    GetChunkInfoResponse*    chunkinforesponse_;
+};
+
+class CreateCloneChunkClosure : public ClientClosure {
+ public:
+    CreateCloneChunkClosure(CopysetClient *client,
+                        Closure *done)
+        : ClientClosure(client, done) {}
+
+    void Run();
+    void SetCntl(brpc::Controller* cntl) {
+        cntl_ = cntl;
+    }
+    void SetResponse(Message* response) {
+        response_ = dynamic_cast<ChunkResponse *> (response);
+    }
+    void SetRetriedTimes(uint16_t retriedTimes) {
+        retriedTimes_ = retriedTimes;
+    }
+};
+
+class RecoverChunkClosure : public ClientClosure {
+ public:
+    RecoverChunkClosure(CopysetClient *client,
+                        Closure *done)
+        : ClientClosure(client, done) {}
+
+    void Run();
+    void SetCntl(brpc::Controller* cntl) {
+        cntl_ = cntl;
+    }
+    void SetResponse(Message* response) {
+        response_ = dynamic_cast<ChunkResponse *> (response);
+    }
+    void SetRetriedTimes(uint16_t retriedTimes) {
+        retriedTimes_ = retriedTimes;
+    }
 };
 
 }   // namespace client

@@ -99,15 +99,16 @@ bool FakeMDS::StartService() {
      */
     curve::mds::FileInfo * info = new curve::mds::FileInfo;
     ::curve::mds::GetFileInfoResponse* getfileinforesponse = new ::curve::mds::GetFileInfoResponse();      // NOLINT
+    info->set_filename(filename_.substr(1, filename_.size() -1));
+    info->set_id(1);
+    info->set_parentid(0);
+    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);      // NOLINT
+    info->set_chunksize(chunk_size);
+    info->set_length(FLAGS_test_disk_size);
+    info->set_ctime(12345678);
+    info->set_segmentsize(segment_size);
+    info->set_fullpathname(filename_);
     getfileinforesponse->set_allocated_fileinfo(info);
-    getfileinforesponse->mutable_fileinfo()->set_filename(filename_);
-    getfileinforesponse->mutable_fileinfo()->set_id(1);
-    getfileinforesponse->mutable_fileinfo()->set_parentid(0);
-    getfileinforesponse->mutable_fileinfo()->set_filetype(curve::mds::FileType::INODE_PAGEFILE);      // NOLINT
-    getfileinforesponse->mutable_fileinfo()->set_chunksize(chunk_size);
-    getfileinforesponse->mutable_fileinfo()->set_length(FLAGS_test_disk_size);
-    getfileinforesponse->mutable_fileinfo()->set_ctime(12345678);
-    getfileinforesponse->mutable_fileinfo()->set_segmentsize(segment_size);
 
     getfileinforesponse->set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* fakeGetFileInforet = new FakeReturn(nullptr, static_cast<void*>(getfileinforesponse));      // NOLINT
@@ -176,7 +177,7 @@ bool FakeMDS::StartService() {
     se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
 
     ::curve::mds::FileInfo* fin = new ::curve::mds::FileInfo;
-    fin->set_filename(filename_);
+    fin->set_filename(filename_.substr(1, filename_.size() -1));
     fin->set_id(1);
     fin->set_parentid(0);
     fin->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
@@ -185,6 +186,7 @@ bool FakeMDS::StartService() {
     fin->set_ctime(12345678);
     fin->set_seqnum(FLAGS_seq_num);
     fin->set_segmentsize(segment_size);
+    fin->set_fullpathname(filename_);
 
     openresponse->set_statuscode(::curve::mds::StatusCode::kOK);
     openresponse->set_allocated_protosession(se);

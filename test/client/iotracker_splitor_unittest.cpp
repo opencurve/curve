@@ -29,6 +29,7 @@
 #include "src/client/libcurve_file.h"
 #include "src/client/client_config.h"
 #include "src/client/mds_client.h"
+#include "src/client/metacache_struct.h"
 
 extern std::string metaserver_addr;
 extern uint32_t chunk_size;
@@ -36,6 +37,8 @@ extern std::string configpath;
 
 extern char* writebuffer;
 
+using curve::client::CopysetInfo_t;
+using curve::client::SegmentInfo;
 using curve::client::UserInfo;
 using curve::client::FInfo_t;
 using curve::client::MDSClient;
@@ -89,7 +92,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fileinstance_ = new FileInstance();
         UserInfo userinfo("userinfo", "12345");
         fileinstance_->Initialize(userinfo, fopt);
-        mdsclient_.Initialize(userinfo, fopt.metaServerOpt);
+        mdsclient_.Initialize(fopt.metaServerOpt);
         InsertMetaCache();
     }
 
@@ -195,9 +198,25 @@ class IOTrackerSplitorTest : public ::testing::Test {
         curve::client::FInfo_t fi;
         fi.chunksize   = 4 * 1024 * 1024;
         fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
+        SegmentInfo sinfo;
         LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-        mdsclient_.GetOrAllocateSegment(true, &lpcsIDInfo, 0, &fi, mc);
-        mdsclient_.GetServerList(lpcsIDInfo.lpid, lpcsIDInfo.cpidVec, mc);
+        mdsclient_.GetOrAllocateSegment(true, UserInfo("userinfo", "12345"),
+                                        0, &fi, &sinfo);
+        int count = 0;
+        for (auto iter : sinfo.chunkvec) {
+            uint64_t index = (sinfo.startoffset + count*fi.chunksize )
+                            / fi.chunksize;
+            mc->UpdateChunkInfoByIndex(index, iter);
+            ++count;
+        }
+
+        std::vector<CopysetInfo_t> cpinfoVec;
+        mdsclient_.GetServerList(lpcsIDInfo.lpid,
+                                 lpcsIDInfo.cpidVec, &cpinfoVec);
+
+        for (auto iter : cpinfoVec) {
+            mc->UpdateCopysetInfo(lpcsIDInfo.lpid, iter.cpid_, iter);
+        }
     }
 
     MDSClient mdsclient_;
@@ -677,17 +696,17 @@ TEST_F(IOTrackerSplitorTest, largeIOTest) {
         ASSERT_EQ(98, (char)(*(second->data_ + i)));
     }
 
-    ASSERT_EQ(1, first->chunkid_);
-    ASSERT_EQ(3, first->copysetid_);
-    ASSERT_EQ(2, first->logicpoolid_);
+    ASSERT_EQ(1, first->idinfo_.cid_);
+    ASSERT_EQ(3, first->idinfo_.cpid_);
+    ASSERT_EQ(2, first->idinfo_.lpid_);
     ASSERT_EQ(4 * 1024 * 1024 - length, first->offset_);
     ASSERT_EQ(64 * 1024, first->rawlength_);
     ASSERT_EQ(0, first->seq_);
     ASSERT_EQ(0, first->appliedindex_);
 
-    ASSERT_EQ(1, second->chunkid_);
-    ASSERT_EQ(3, second->copysetid_);
-    ASSERT_EQ(2, second->logicpoolid_);
+    ASSERT_EQ(1, second->idinfo_.cid_);
+    ASSERT_EQ(3, second->idinfo_.cpid_);
+    ASSERT_EQ(2, second->idinfo_.lpid_);
     ASSERT_EQ(4 * 1024 * 1024 - 64 * 1024, second->offset_);
     ASSERT_EQ(64 * 1024, second->rawlength_);
     ASSERT_EQ(0, second->seq_);

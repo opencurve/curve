@@ -83,11 +83,10 @@ class FileClient {
   /**
    * 获取文件信息
    * @param: fd为当前open返回的文件描述符
-   * @param: filename为文件名
    * @param: finfo是出参，携带当前文件的基础信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR StatFs(int fd, std::string filename, FileStatInfo* finfo);
+  LIBCURVE_ERROR StatFs(int fd, FileStatInfo* finfo);
   /**
    * close通过fd找到对应的instance进行删除
    * @param: fd为当前open返回的文件描述符

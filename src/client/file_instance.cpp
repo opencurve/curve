@@ -42,7 +42,9 @@ bool FileInstance::Initialize(UserInfo_t userinfo,
             break;
         }
 
-        if (mdsclient_.Initialize(userinfo, fileopt_.metaServerOpt) != 0) {
+        userinfo_ = userinfo;
+
+        if (mdsclient_.Initialize(fileopt_.metaServerOpt) != 0) {
             LOG(ERROR) << "MDSClient init failed!";
             break;
         }
@@ -52,6 +54,7 @@ bool FileInstance::Initialize(UserInfo_t userinfo,
             break;
         }
         leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
+                                                        userinfo_,
                                                         &mdsclient_,
                                                         &iomanager4file_);
         if (CURVE_UNLIKELY(leaseexcutor_ == nullptr)) {
@@ -93,9 +96,9 @@ void FileInstance::AioWrite(CurveAioContext* aioctx) {
     iomanager4file_.AioWrite(aioctx, &mdsclient_);
 }
 
-LIBCURVE_ERROR FileInstance::StatFs(std::string filename, FileStatInfo* finfo) {
+LIBCURVE_ERROR FileInstance::StatFs(FileStatInfo* finfo) {
     FInfo_t fi;
-    if (GetFileInfo(filename, &fi) == 0) {
+    if (GetFileInfo(finfo_.fullPathName, &fi) == 0) {
         finfo->ctime    = fi.ctime;
         finfo->length   = fi.length;
         finfo->filetype = fi.filetype;
@@ -107,7 +110,7 @@ LIBCURVE_ERROR FileInstance::StatFs(std::string filename, FileStatInfo* finfo) {
 }
 
 LIBCURVE_ERROR FileInstance::CreateFile(std::string filename, size_t size) {
-    return mdsclient_.CreateFile(filename, size);
+    return mdsclient_.CreateFile(filename, userinfo_, size);
 }
 
 LIBCURVE_ERROR FileInstance::Open(std::string fname, size_t size, bool create) {
@@ -118,7 +121,7 @@ LIBCURVE_ERROR FileInstance::Open(std::string fname, size_t size, bool create) {
     }
 
     if (LIBCURVE_ERROR::OK == ret || LIBCURVE_ERROR::EXISTS == ret) {
-        ret = mdsclient_.OpenFile(fname, &finfo_, &lease);
+        ret = mdsclient_.OpenFile(fname, userinfo_, &finfo_, &lease);
         if (LIBCURVE_ERROR::OK == ret) {
             ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                       : LIBCURVE_ERROR::FAILED;
@@ -130,11 +133,11 @@ LIBCURVE_ERROR FileInstance::Open(std::string fname, size_t size, bool create) {
 }
 
 LIBCURVE_ERROR FileInstance::GetFileInfo(std::string filename, FInfo_t* fi) {
-    return mdsclient_.GetFileInfo(filename, fi);
+    return mdsclient_.GetFileInfo(filename, userinfo_, fi);
 }
 
 LIBCURVE_ERROR FileInstance::Close() {
-    return mdsclient_.CloseFile(finfo_.filename,
+    return mdsclient_.CloseFile(finfo_.fullPathName, userinfo_,
                                 leaseexcutor_->GetLeaseSessionID());
 }
 }   // namespace client

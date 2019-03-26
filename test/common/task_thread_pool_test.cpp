@@ -10,13 +10,13 @@
 #include <iostream>
 #include <atomic>
 
-#include "test/utils/count_down_event.h"
+#include "src/common/concurrent/count_down_event.h"
 #include "src/common/concurrent/task_thread_pool.h"
 
 namespace curve {
 namespace common {
 
-using curve::test::CountDownEvent;
+using curve::common::CountDownEvent;
 
 void TestAdd1(int a, double b, CountDownEvent *cond) {
     double c = a + b;

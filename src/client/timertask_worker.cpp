@@ -77,9 +77,11 @@ void TimerTaskWorker::Run() {
     std::multimap<TimePoint, TimerTask*> tempmap;
     tempmap.clear();
     while (!stop_.load(std::memory_order_acquire)) {
-        if (taskmap_.empty()) {
-            std::unique_lock<std::mutex> lk(emptymtx_);
-            notemptycv_.wait(lk, [this]()->bool{return !this->taskmap_.empty();});  // NOLINT
+        {
+            std::unique_lock<std::mutex> lk(datamtx_);
+            notemptycv_.wait(lk, [this]()->bool{
+                return !this->taskmap_.empty();
+            });
         }
 
         std::unique_lock<std::mutex> sleeplk(sleepmtx_);

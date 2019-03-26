@@ -53,7 +53,7 @@ int Schedule::ScheduleRequest(
                             << ", off = " << iter->offset_
                             << ", len = " << iter->rawlength_
                             << ", seqnum = " << iter->seq_
-                            << ", chunkindex = " << iter->chunkid_
+                            << ", chunkindex = " << iter->idinfo_.cid_
                             << ", content = " << fakedate[processed%10]
                             << ", address = " << &(iter->data_);
             }
@@ -68,11 +68,11 @@ int Schedule::ScheduleRequest(
             }
             processed++;
             LOG(INFO) << "current request context chunkID : "
-                       << iter->chunkid_
+                       << iter->idinfo_.cid_
                        << ", copyset id = "
-                       << iter->copysetid_
+                       << iter->idinfo_.cpid_
                        << ", logic pool id ="
-                       << iter->logicpoolid_
+                       << iter->idinfo_.lpid_
                        << ", offset = "
                        << iter->offset_
                        << ", length = "

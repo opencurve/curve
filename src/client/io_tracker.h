@@ -10,6 +10,7 @@
 #include <set>
 #include <list>
 #include <atomic>
+#include <string>
 
 #include "src/client/metacache.h"
 #include "src/client/mds_client.h"
@@ -67,43 +68,63 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * chunk相关接口是提供给snapshot使用的，上层的snapshot和file
      * 接口是分开的，在IOTracker这里会将其统一，这样对下层来说不用
      * 感知上层的接口类别。
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @param: chunkID对应chunkid
+     * @param:chunkidinfo 目标chunk
      * @param: seq是快照版本号
      * @param: offset是快照内的offset
      * @param: len是要读取的长度
      * @param: buf是读取缓冲区
      */
-    void ReadSnapChunk(LogicPoolID lpid,
-                     CopysetID cpid,
-                     ChunkID chunkID,
+    void ReadSnapChunk(const ChunkIDInfo &cinfo,
                      uint64_t seq,
                      uint64_t offset,
                      uint64_t len,
                      char *buf);
     /**
      * 删除seq版本号的快照数据
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @param: chunkID对应chunkid
+     * @param:chunkidinfo 目标chunk
      * @param: seq是快照版本号
      */
-    void DeleteSnapChunk(LogicPoolID lpid,
-                     CopysetID cpid,
-                     ChunkID chunkId,
+    void DeleteSnapChunk(const ChunkIDInfo &cinfo,
                      uint64_t seq);
     /**
      * 获取chunk的版本信息，chunkInfo是出参
-     * @param: lpid逻辑池id
-     * @param: cpid是copysetid
-     * @param: chunkID对应chunkid
+     * @param:chunkidinfo 目标chunk
      * @param: chunkInfo是快照的详细信息
      */
-    void GetChunkInfo(LogicPoolID lpid,
-                     CopysetID cpid,
-                     ChunkID chunkId,
+    void GetChunkInfo(const ChunkIDInfo &cinfo,
                      ChunkInfoDetail *chunkInfo);
+
+   /**
+    * @brief lazy 创建clone chunk
+    * @detail
+    *  - location的格式定义为 A@B的形式。
+    *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
+    *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
+    *
+    * @param:location 数据源的url
+    * @param:chunkidinfo 目标chunk
+    * @param:sn chunk的序列号
+    * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
+    * @param:chunkSize chunk的大小
+    *
+    */
+    void CreateCloneChunk(const std::string &location,
+                                const ChunkIDInfo &chunkidinfo,
+                                uint64_t sn,
+                                uint64_t correntSn,
+                                uint64_t chunkSize);
+
+   /**
+    * @brief 实际恢复chunk数据
+    *
+    * @param:chunkidinfo chunkidinfo
+    * @param:offset 偏移
+    * @param:len 长度
+    *
+    */
+    void RecoverChunk(const ChunkIDInfo &chunkidinfo,
+                              uint64_t offset,
+                              uint64_t len);
 
     /**
      * Wait用于同步接口等待，因为用户下来的IO被client内部线程接管之后
@@ -141,6 +162,13 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * 用户下来的大IO会被拆分成多个子IO，这里在返回之前将子IO资源回收
      */
     void DestoryRequestList();
+
+    /**
+     * 填充request context common字段
+     * @param: idinfo为chunk的id信息
+     * @param: req为待填充的request context
+     */
+    void FillCommonFields(ChunkIDInfo idinfo, RequestContext* req);
 
  private:
     // io 类型

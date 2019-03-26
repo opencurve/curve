@@ -7,7 +7,7 @@ cc_test(
     ]),
     deps = [
         "//src/common:curve_common",
-        "//test/utils:test-utils",
+        "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest_main",
     ],
 )

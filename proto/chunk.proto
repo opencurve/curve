@@ -22,7 +22,9 @@ enum CHUNK_OP_TYPE {
     CHUNK_OP_WRITE = 2;             // 写 chunk
     CHUNK_OP_READ_SNAP = 3;         // read chunk snapshot
     CHUNK_OP_DELETE_SNAP = 4;       // delete chunk snapshot
-    CHUNK_OP_UNKNOWN = 5;           // 未知 Op
+    CHUNK_OP_CREATE_CLONE = 5;      // 创建clone chunk
+    CHUNK_OP_RECOVER = 6;           // 恢复clone chunk
+    CHUNK_OP_UNKNOWN = 7;           // 未知 Op
 };
 
 // read/write 的实际数据在 rpc 的 attachment 中
@@ -33,9 +35,11 @@ message ChunkRequest {
     required uint64 chunkId = 4;        // for all
     optional uint64 appliedIndex = 5;   // for read
     optional uint32 offset = 6;         // for read/write
-    optional uint32 size = 7;           // for read/write
+    optional uint32 size = 7;           // for read/write/clone 创建快照请求中表示请求创建的chunk大小
     optional QosRequestParas deltaRho = 8; // for read/write
     optional uint64 sn = 9;             // for write/read snapshot 写请求中表示文件当前版本号，读快照请求中表示请求的chunk的版本号
+    optional uint64 correctedSn = 10;   // for create clone chunk 用于修改chunk的correctedSn
+    optional string location = 11;      // for clone chunk
 };
 
 enum CHUNK_OP_STATUS {
@@ -81,4 +85,7 @@ service ChunkService {
     rpc DeleteChunkSnapshot (ChunkRequest) returns (ChunkResponse);
 
     rpc GetChunkInfo (GetChunkInfoRequest) returns (GetChunkInfoResponse);
+
+    rpc CreateCloneChunk (ChunkRequest) returns (ChunkResponse);
+    rpc RecoverChunk (ChunkRequest) returns (ChunkResponse);
 };

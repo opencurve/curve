@@ -34,9 +34,7 @@ int CopysetClient::Init(MetaCache *metaCache,
     return 0;
 }
 
-int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
-                             CopysetID copysetId,
-                             ChunkID chunkId,
+int CopysetClient::ReadChunk(ChunkIDInfo idinfo,
                              uint64_t sn,
                              off_t offset,
                              size_t length,
@@ -52,15 +50,15 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
     for (unsigned int i = retriedTimes;
         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
-        if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                         &leaderId, &leaderAddr, false)) {
             /* 没找到刷新cache */
-            if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                             &leaderId, &leaderAddr, true)) {
                 LOG(WARNING) << "Get leader address form cache failed, but "
                              << "also refresh leader address failed from mds."
-                             << "(write <" << logicPoolId << ", " << copysetId
-                             << ">)";
+                             << "(write <" << idinfo.lpid_
+                             << ", " << idinfo.cpid_ << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
                 bthread_usleep(iosenderopt_.failRequestOpt.
                                 opRetryIntervalUs);
@@ -77,8 +75,8 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
             ReadChunkClosure *readDone =
                 new ReadChunkClosure(this, doneGuard.release());
             readDone->SetRetriedTimes(i);
-            senderPtr->ReadChunk(logicPoolId, copysetId, chunkId, sn,
-                                 offset, length, appliedindex, readDone);
+            senderPtr->ReadChunk(idinfo, sn, offset, length,
+                                 appliedindex, readDone);
             /* 成功发起read，break出去，重试逻辑进入ReadChunkClosure回调 */
             break;
         } else {
@@ -92,9 +90,7 @@ int CopysetClient::ReadChunk(LogicPoolID logicPoolId,
     return 0;
 }
 
-int CopysetClient::WriteChunk(LogicPoolID logicPoolId,
-                              CopysetID copysetId,
-                              ChunkID chunkId,
+int CopysetClient::WriteChunk(ChunkIDInfo idinfo,
                               uint64_t sn,
                               const char *buf,
                               off_t offset,
@@ -109,15 +105,15 @@ int CopysetClient::WriteChunk(LogicPoolID logicPoolId,
     for (unsigned int i = retriedTimes;
         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
-        if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                         &leaderId, &leaderAddr, false)) {
             /* 没找到刷新cache */
-            if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                             &leaderId, &leaderAddr, true)) {
                 LOG(WARNING) << "Get leader address form cache failed, but "
-                             << "also refresh leader address failed from mds."
-                             << "(write <" << logicPoolId << ", " << copysetId
-                             << ">)";
+                        << "also refresh leader address failed from mds."
+                        << "(write <" << idinfo.lpid_ << ", " << idinfo.cpid_
+                        << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
                 bthread_usleep(iosenderopt_.failRequestOpt.
                                 opRetryIntervalUs);
@@ -132,14 +128,13 @@ int CopysetClient::WriteChunk(LogicPoolID logicPoolId,
             WriteChunkClosure *writeDone
                 = new WriteChunkClosure(this, doneGuard.release());
             writeDone->SetRetriedTimes(i);
-            senderPtr->WriteChunk(logicPoolId, copysetId, chunkId, sn,
-                                  buf, offset, length, writeDone);
+            senderPtr->WriteChunk(idinfo, sn, buf, offset, length, writeDone);
             /* 成功发起write，break出去，重试逻辑进 WriteChunkClosure回调 */
             break;
         } else {
             /* 如果建立连接失败，再等一定时间再重试 */
             LOG(ERROR) << "create or reset sender failed (write <"
-                       << logicPoolId << ", " << copysetId << ">)";
+                       << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
             bthread_usleep(iosenderopt_.failRequestOpt.
                             opRetryIntervalUs);
             continue;
@@ -149,9 +144,7 @@ int CopysetClient::WriteChunk(LogicPoolID logicPoolId,
     return 0;
 }
 
-int CopysetClient::ReadChunkSnapshot(LogicPoolID logicPoolId,
-                                     CopysetID copysetId,
-                                     ChunkID chunkId,
+int CopysetClient::ReadChunkSnapshot(ChunkIDInfo idinfo,
                                      uint64_t sn,
                                      off_t offset,
                                      size_t length,
@@ -166,15 +159,15 @@ int CopysetClient::ReadChunkSnapshot(LogicPoolID logicPoolId,
     for (unsigned int i = retriedTimes;
         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
-        if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                         &leaderId, &leaderAddr, false)) {
             /* 没找到刷新cache*/
-            if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                             &leaderId, &leaderAddr, true)) {
                 LOG(WARNING) << "Get leader address form cache failed, but "
                              << "also refresh leader address failed from mds."
-                             << "(write <" << logicPoolId << ", " << copysetId
-                             << ">)";
+                             << "(write <" << idinfo.lpid_
+                             << ", " << idinfo.cpid_ << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
                 bthread_usleep(iosenderopt_.failRequestOpt.
                                 opRetryIntervalUs);
@@ -191,8 +184,7 @@ int CopysetClient::ReadChunkSnapshot(LogicPoolID logicPoolId,
             ReadChunkSnapClosure *readDone =
                 new ReadChunkSnapClosure(this, doneGuard.release());
             readDone->SetRetriedTimes(i);
-            senderPtr->ReadChunkSnapshot(logicPoolId, copysetId, chunkId,
-                                         sn, offset, length, readDone);
+            senderPtr->ReadChunkSnapshot(idinfo, sn, offset, length, readDone);
             /**
              * 成功发起 read snapshot，break出去，
              * 重试逻辑进入 ReadChunkClosure 回调
@@ -209,9 +201,7 @@ int CopysetClient::ReadChunkSnapshot(LogicPoolID logicPoolId,
     return 0;
 }
 
-int CopysetClient::DeleteChunkSnapshot(LogicPoolID logicPoolId,
-                                       CopysetID copysetId,
-                                       ChunkID chunkId,
+int CopysetClient::DeleteChunkSnapshot(ChunkIDInfo idinfo,
                                        uint64_t sn,
                                        Closure *done,
                                        uint16_t retriedTimes) {
@@ -224,15 +214,15 @@ int CopysetClient::DeleteChunkSnapshot(LogicPoolID logicPoolId,
     for (unsigned int i = retriedTimes;
          i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
-        if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                         &leaderId, &leaderAddr, false)) {
             /* 没找到刷新cache */
-            if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                             &leaderId, &leaderAddr, true)) {
                 LOG(WARNING) << "Get leader address form cache failed, but "
                              << "also refresh leader address failed from mds."
-                             << "(write <" << logicPoolId << ", " << copysetId
-                             << ">)";
+                             << "(write <" << idinfo.lpid_
+                             << ", " << idinfo.cpid_ << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
                 bthread_usleep(iosenderopt_.failRequestOpt.
                                 opRetryIntervalUs);
@@ -249,8 +239,7 @@ int CopysetClient::DeleteChunkSnapshot(LogicPoolID logicPoolId,
             DeleteChunkSnapClosure *deleteDone =
                 new DeleteChunkSnapClosure(this, doneGuard.release());
             deleteDone->SetRetriedTimes(i);
-            senderPtr->DeleteChunkSnapshot(logicPoolId, copysetId, chunkId,
-                                           sn, deleteDone);
+            senderPtr->DeleteChunkSnapshot(idinfo, sn, deleteDone);
             /**
              * 成功发起 delete，break出去，
              * 重试逻辑进入 DeleteChunkSnapClosure 回调
@@ -267,9 +256,7 @@ int CopysetClient::DeleteChunkSnapshot(LogicPoolID logicPoolId,
     return 0;
 }
 
-int CopysetClient::GetChunkInfo(LogicPoolID logicPoolId,
-                                CopysetID copysetId,
-                                ChunkID chunkId,
+int CopysetClient::GetChunkInfo(ChunkIDInfo idinfo,
                                 Closure *done,
                                 uint16_t retriedTimes) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;
@@ -280,15 +267,15 @@ int CopysetClient::GetChunkInfo(LogicPoolID logicPoolId,
     for (unsigned int i = retriedTimes;
          i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
         /* cache中找 */
-        if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                         &leaderId, &leaderAddr, false)) {
             /* 没找到刷新cache */
-            if (-1 == metaCache_->GetLeader(logicPoolId, copysetId,
+            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
                                             &leaderId, &leaderAddr, true)) {
                 LOG(WARNING) << "Get leader address form cache failed, but "
                              << "also refresh leader address failed from mds."
-                             << "(write <" << logicPoolId << ", " << copysetId
-                             << ">)";
+                             << "(write <" << idinfo.lpid_
+                             << ", " << idinfo.cpid_ << ">)";
                 /* 刷新cache失败，再等一定时间再重试 */
                 bthread_usleep(iosenderopt_.failRequestOpt.
                                 opRetryIntervalUs);
@@ -300,19 +287,16 @@ int CopysetClient::GetChunkInfo(LogicPoolID logicPoolId,
                                                     leaderAddr,
                                                     iosenderopt_);
         if (nullptr != senderPtr) {
-            GetChunkInfoClusure *chunkInfoDone
-                = new GetChunkInfoClusure(this, doneGuard.release());
+            GetChunkInfoClosure *chunkInfoDone
+                = new GetChunkInfoClosure(this, doneGuard.release());
             chunkInfoDone->SetRetriedTimes(i);
-            senderPtr->GetChunkInfo(logicPoolId,
-                                    copysetId,
-                                    chunkId,
-                                    chunkInfoDone);
-            /* 成功发起，break出去，重试逻辑进入GetChunkInfoClusure回调 */
+            senderPtr->GetChunkInfo(idinfo, chunkInfoDone);
+            /* 成功发起，break出去，重试逻辑进入GetChunkInfoClosure回调 */
             break;
         } else {
             /* 如果建立连接失败，再等一定时间再重试 */
             LOG(ERROR) << "create or reset sender failed (write <"
-                       << logicPoolId << ", " << copysetId << ">)";
+                       << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
             bthread_usleep(iosenderopt_.failRequestOpt.
                             opRetryIntervalUs);
             continue;
@@ -322,5 +306,118 @@ int CopysetClient::GetChunkInfo(LogicPoolID logicPoolId,
     return 0;
 }
 
+int CopysetClient::CreateCloneChunk(ChunkIDInfo idinfo,
+                                    const std::string &location,
+                                    uint64_t sn,
+                                    uint64_t correntSn,
+                                    uint64_t chunkSize,
+                                    Closure *done,
+                                    uint16_t retriedTimes) {
+    std::shared_ptr<RequestSender> senderPtr = nullptr;
+    ChunkServerID leaderId;
+    butil::EndPoint leaderAddr;
+    brpc::ClosureGuard doneGuard(done);
+
+    for (unsigned int i = retriedTimes;
+         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
+        /* cache中找 */
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
+                                        &leaderId, &leaderAddr, false)) {
+            /* 没找到刷新cache */
+            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
+                                            &leaderId, &leaderAddr, true)) {
+                LOG(WARNING) << "Get leader address form cache failed, but "
+                             << "also refresh leader address failed from mds."
+                             << "(write <" << idinfo.lpid_
+                             << ", " << idinfo.cpid_ << ">)";
+                /* 刷新cache失败，再等一定时间再重试 */
+                bthread_usleep(iosenderopt_.failRequestOpt.
+                                opRetryIntervalUs);
+                continue;
+            }
+        }
+
+        auto senderPtr = senderManager_->GetOrCreateSender(leaderId,
+                                                    leaderAddr,
+                                                    iosenderopt_);
+        if (nullptr != senderPtr) {
+            CreateCloneChunkClosure *createCloneDone
+                = new CreateCloneChunkClosure(this, doneGuard.release());
+            createCloneDone->SetRetriedTimes(i);
+            senderPtr->CreateCloneChunk(idinfo,
+                                    createCloneDone,
+                                    location,
+                                    correntSn,
+                                    sn,
+                                    chunkSize);
+            /* 成功发起，break出去，重试逻辑进入CreateCloneChunkClosure回调 */
+            break;
+        } else {
+            /* 如果建立连接失败，再等一定时间再重试 */
+            LOG(ERROR) << "create or reset sender failed (write <"
+                       << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
+            bthread_usleep(iosenderopt_.failRequestOpt.
+                            opRetryIntervalUs);
+            continue;
+        }
+    }
+
+    return 0;
+}
+
+int CopysetClient::RecoverChunk(ChunkIDInfo idinfo,
+                                    uint64_t offset,
+                                    uint64_t len,
+                                    Closure *done,
+                                    uint16_t retriedTimes) {
+    std::shared_ptr<RequestSender> senderPtr = nullptr;
+    ChunkServerID leaderId;
+    butil::EndPoint leaderAddr;
+    brpc::ClosureGuard doneGuard(done);
+
+    for (unsigned int i = retriedTimes;
+         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
+        /* cache中找 */
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
+                                        &leaderId, &leaderAddr, false)) {
+            /* 没找到刷新cache */
+            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
+                                            &leaderId, &leaderAddr, true)) {
+                LOG(WARNING) << "Get leader address form cache failed, but "
+                             << "also refresh leader address failed from mds."
+                             << "(write <" << idinfo.lpid_
+                             << ", " << idinfo.cpid_ << ">)";
+                /* 刷新cache失败，再等一定时间再重试 */
+                bthread_usleep(iosenderopt_.failRequestOpt.
+                                opRetryIntervalUs);
+                continue;
+            }
+        }
+
+        auto senderPtr = senderManager_->GetOrCreateSender(leaderId,
+                                                    leaderAddr,
+                                                    iosenderopt_);
+        if (nullptr != senderPtr) {
+            RecoverChunkClosure *recoverChunkDone
+                = new RecoverChunkClosure(this, doneGuard.release());
+            recoverChunkDone->SetRetriedTimes(i);
+            senderPtr->RecoverChunk(idinfo,
+                                    recoverChunkDone,
+                                    offset,
+                                    len);
+            /* 成功发起，break出去，重试逻辑进入RecoverChunkClosure回调 */
+            break;
+        } else {
+            /* 如果建立连接失败，再等一定时间再重试 */
+            LOG(ERROR) << "create or reset sender failed (write <"
+                       << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
+            bthread_usleep(iosenderopt_.failRequestOpt.
+                            opRetryIntervalUs);
+            continue;
+        }
+    }
+
+    return 0;
+}
 }   // namespace client
 }   // namespace curve

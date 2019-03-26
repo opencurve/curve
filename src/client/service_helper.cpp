@@ -46,6 +46,9 @@ void ServiceHelper::ProtoFileInfo2Local(curve::mds::FileInfo* finfo,
     if (finfo->has_seqnum()) {
         fi->seqnum = finfo->seqnum();
     }
+    if (finfo->has_fullpathname()) {
+        fi->fullPathName = finfo->fullpathname();
+    }
 }
 
 int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,

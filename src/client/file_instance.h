@@ -76,11 +76,10 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     void AioWrite(CurveAioContext* aioctx);
     /**
      * 获取文件信息
-     * @param: filename为文件名
      * @param: finfo是出参，携带当前文件的基础信息
      * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR StatFs(std::string filename, FileStatInfo* finfo);
+    LIBCURVE_ERROR StatFs(FileStatInfo* finfo);
     LIBCURVE_ERROR Close();
 
     void UnInitialize();
@@ -97,6 +96,9 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     // 当前FileInstance的初始化配置信息
     FileServiceOption_t     fileopt_;
+
+    // 与mds通信时携带的user信息
+    UserInfo_t             userinfo_;
 
     // MDSClient是FileInstance与mds通信的唯一出口
     MDSClient               mdsclient_;

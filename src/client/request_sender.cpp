@@ -25,9 +25,7 @@ int RequestSender::Init(IOSenderOption_t ioSenderOpt) {
     return 0;
 }
 
-int RequestSender::ReadChunk(LogicPoolID logicPoolId,
-                             CopysetID copysetId,
-                             ChunkID chunkId,
+int RequestSender::ReadChunk(ChunkIDInfo idinfo,
                              uint64_t sn,
                              off_t offset,
                              size_t length,
@@ -44,9 +42,9 @@ int RequestSender::ReadChunk(LogicPoolID logicPoolId,
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_READ);
-    request.set_logicpoolid(logicPoolId);
-    request.set_copysetid(copysetId);
-    request.set_chunkid(chunkId);
+    request.set_logicpoolid(idinfo.lpid_);
+    request.set_copysetid(idinfo.cpid_);
+    request.set_chunkid(idinfo.cid_);
     request.set_offset(offset);
     request.set_size(length);
     if (iosenderopt_.enableAppliedIndexRead && appliedindex > 0) {
@@ -58,9 +56,7 @@ int RequestSender::ReadChunk(LogicPoolID logicPoolId,
     return 0;
 }
 
-int RequestSender::WriteChunk(LogicPoolID logicPoolId,
-                              CopysetID copysetId,
-                              ChunkID chunkId,
+int RequestSender::WriteChunk(ChunkIDInfo idinfo,
                               uint64_t sn,
                               const char *buf,
                               off_t offset,
@@ -79,9 +75,9 @@ int RequestSender::WriteChunk(LogicPoolID logicPoolId,
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_WRITE);
-    request.set_logicpoolid(logicPoolId);
-    request.set_copysetid(copysetId);
-    request.set_chunkid(chunkId);
+    request.set_logicpoolid(idinfo.lpid_);
+    request.set_copysetid(idinfo.cpid_);
+    request.set_chunkid(idinfo.cid_);
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(length);
@@ -92,9 +88,7 @@ int RequestSender::WriteChunk(LogicPoolID logicPoolId,
     return 0;
 }
 
-int RequestSender::ReadChunkSnapshot(LogicPoolID logicPoolId,
-                                     CopysetID copysetId,
-                                     ChunkID chunkId,
+int RequestSender::ReadChunkSnapshot(ChunkIDInfo idinfo,
                                      uint64_t sn,
                                      off_t offset,
                                      size_t length,
@@ -110,9 +104,9 @@ int RequestSender::ReadChunkSnapshot(LogicPoolID logicPoolId,
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP);
-    request.set_logicpoolid(logicPoolId);
-    request.set_copysetid(copysetId);
-    request.set_chunkid(chunkId);
+    request.set_logicpoolid(idinfo.lpid_);
+    request.set_copysetid(idinfo.cpid_);
+    request.set_chunkid(idinfo.cid_);
     request.set_sn(sn);
     request.set_offset(offset);
     request.set_size(length);
@@ -122,9 +116,7 @@ int RequestSender::ReadChunkSnapshot(LogicPoolID logicPoolId,
     return 0;
 }
 
-int RequestSender::DeleteChunkSnapshot(LogicPoolID logicPoolId,
-                                       CopysetID copysetId,
-                                       ChunkID chunkId,
+int RequestSender::DeleteChunkSnapshot(ChunkIDInfo idinfo,
                                        uint64_t sn,
                                        ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
@@ -138,18 +130,16 @@ int RequestSender::DeleteChunkSnapshot(LogicPoolID logicPoolId,
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
-    request.set_logicpoolid(logicPoolId);
-    request.set_copysetid(copysetId);
-    request.set_chunkid(chunkId);
+    request.set_logicpoolid(idinfo.lpid_);
+    request.set_copysetid(idinfo.cpid_);
+    request.set_chunkid(idinfo.cid_);
     request.set_sn(sn);
     ChunkService_Stub stub(&channel_);
     stub.DeleteChunkSnapshot(cntl, &request, response, doneGuard.release());
     return 0;
 }
 
-int RequestSender::GetChunkInfo(LogicPoolID logicPoolId,
-                                CopysetID copysetId,
-                                ChunkID chunkId,
+int RequestSender::GetChunkInfo(ChunkIDInfo idinfo,
                                 ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
@@ -161,12 +151,67 @@ int RequestSender::GetChunkInfo(LogicPoolID logicPoolId,
     done->SetResponse(response);
 
     GetChunkInfoRequest request;
-    request.set_logicpoolid(logicPoolId);
-    request.set_copysetid(copysetId);
-    request.set_chunkid(chunkId);
+    request.set_logicpoolid(idinfo.lpid_);
+    request.set_copysetid(idinfo.cpid_);
+    request.set_chunkid(idinfo.cid_);
     ChunkService_Stub stub(&channel_);
     stub.GetChunkInfo(cntl, &request, response, doneGuard.release());
     return 0;
+}
+
+int RequestSender::CreateCloneChunk(ChunkIDInfo idinfo,
+                                ClientClosure *done,
+                                const std::string &location,
+                                uint64_t correntSn,
+                                uint64_t sn,
+                                uint64_t chunkSize) {
+    brpc::ClosureGuard doneGuard(done);
+
+    brpc::Controller *cntl = new brpc::Controller();
+    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
+    done->SetCntl(cntl);
+    ChunkResponse *response = new ChunkResponse();
+    done->SetResponse(response);
+
+    ChunkRequest request;
+    request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::
+                                        CHUNK_OP_CREATE_CLONE);
+    request.set_logicpoolid(idinfo.lpid_);
+    request.set_copysetid(idinfo.cpid_);
+    request.set_chunkid(idinfo.cid_);
+    request.set_location(location);
+    request.set_sn(sn);
+    request.set_correctedsn(correntSn);
+    request.set_size(chunkSize);
+
+    ChunkService_Stub stub(&channel_);
+    stub.CreateCloneChunk(cntl, &request, response, doneGuard.release());
+}
+
+int RequestSender::RecoverChunk(ChunkIDInfo idinfo,
+                                ClientClosure *done,
+                                uint64_t offset,
+                                uint64_t len) {
+    brpc::ClosureGuard doneGuard(done);
+
+    brpc::Controller *cntl = new brpc::Controller();
+    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
+    done->SetCntl(cntl);
+    ChunkResponse *response = new ChunkResponse();
+    done->SetResponse(response);
+
+    ChunkRequest request;
+    request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_RECOVER);
+    request.set_logicpoolid(idinfo.lpid_);
+    request.set_copysetid(idinfo.cpid_);
+    request.set_chunkid(idinfo.cid_);
+    request.set_offset(offset);
+    request.set_size(len);
+
+    ChunkService_Stub stub(&channel_);
+    stub.RecoverChunk(cntl, &request, response, doneGuard.release());
 }
 
 int RequestSender::ResetSender(ChunkServerID chunkServerId,

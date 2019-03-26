@@ -178,9 +178,6 @@ class TimerTaskWorker {
     // 定时器容器锁
     std::mutex datamtx_;
 
-    // 定时器容器为空就等待
-    std::mutex emptymtx_;
-
     // 睡眠器，隔一段时间醒来执行定时器
     std::mutex sleepmtx_;
 

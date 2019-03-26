@@ -89,9 +89,7 @@ void RequestScheduler::Process() {
                 case OpType::READ:
                     DVLOG(9) << "Processing read request, buf header: "
                              << " buf: " << *(unsigned int*)req->data_;
-                    client_.ReadChunk(req->logicpoolid_,
-                                      req->copysetid_,
-                                      req->chunkid_,
+                    client_.ReadChunk(req->idinfo_,
                                       req->seq_,
                                       req->offset_,
                                       req->rawlength_,
@@ -101,9 +99,7 @@ void RequestScheduler::Process() {
                 case OpType::WRITE:
                     DVLOG(9) << "Processing write request, buf header: "
                              << " buf: " << *(unsigned int*)req->data_;
-                    client_.WriteChunk(req->logicpoolid_,
-                                       req->copysetid_,
-                                       req->chunkid_,
+                    client_.WriteChunk(req->idinfo_,
                                        req->seq_,
                                        req->data_,
                                        req->offset_,
@@ -111,26 +107,34 @@ void RequestScheduler::Process() {
                                        guard.release());
                     break;
                 case OpType::READ_SNAP:
-                    client_.ReadChunkSnapshot(req->logicpoolid_,
-                                              req->copysetid_,
-                                              req->chunkid_,
-                                              req->seq_,
-                                              req->offset_,
-                                              req->rawlength_,
-                                              guard.release());
+                    client_.ReadChunkSnapshot(req->idinfo_,
+                                        req->seq_,
+                                        req->offset_,
+                                        req->rawlength_,
+                                        guard.release());
                     break;
                 case OpType::DELETE_SNAP:
-                    client_.DeleteChunkSnapshot(req->logicpoolid_,
-                                                req->copysetid_,
-                                                req->chunkid_,
-                                                req->seq_,
-                                                guard.release());
+                    client_.DeleteChunkSnapshot(req->idinfo_,
+                                        req->seq_,
+                                        guard.release());
                     break;
                 case OpType::GET_CHUNK_INFO:
-                    client_.GetChunkInfo(req->logicpoolid_,
-                                         req->copysetid_,
-                                         req->chunkid_,
-                                         guard.release());
+                    client_.GetChunkInfo(req->idinfo_,
+                                        guard.release());
+                    break;
+                case OpType::CREATE_CLONE:
+                    client_.CreateCloneChunk(req->idinfo_,
+                                        req->location_,
+                                        req->seq_,
+                                        req->correntSeq_,
+                                        req->chunksize_,
+                                        guard.release());
+                    break;
+                case OpType::RECOVER_CHUNK:
+                    client_.RecoverChunk(req->idinfo_,
+                                        req->offset_,
+                                        req->rawlength_,
+                                        guard.release());
                     break;
                 default:
                     /* TODO(wudemiao) 后期整个链路错误发统一了在处理 */
