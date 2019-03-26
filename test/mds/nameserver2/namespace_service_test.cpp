@@ -705,6 +705,22 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_TRUE(false);
     }
 
+    // Check SnapShot Status
+    cntl.Reset();
+    CheckSnapShotStatusRequest checkRequest;
+    CheckSnapShotStatusResponse checkResponse;
+    checkRequest.set_filename("/file1");
+    checkRequest.set_owner("owner1");
+    checkRequest.set_seq(1);
+    stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(checkResponse.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(checkResponse.filestatus(), FileStatus::kFileCreated);
+        ASSERT_EQ(checkResponse.progress(), 0);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
     // test deletesnapshotfile
     cntl.Reset();
     DeleteSnapShotRequest deleteRequest;

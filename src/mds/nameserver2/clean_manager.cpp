@@ -53,5 +53,9 @@ bool CleanManager::RecoverCleanTasks(void) {
     }
 }
 
+std::shared_ptr<Task> CleanManager::GetTask(TaskIDType id) {
+    return taskMgr_->GetTask(id);
+}
+
 }  // namespace mds
 }  // namespace curve

@@ -222,6 +222,8 @@ message CheckSnapShotStatusRequest {
     optional string password = 4;
 }
 
+// statusCode为kOK时，fileStatus和progress才会赋值
+// 只有fileStatus是kFileDeleting时，progress表示快照文件删除进度，否则progress返回0
 message CheckSnapShotStatusResponse {
     required StatusCode statusCode = 1;
     optional FileStatus     fileStatus = 2;

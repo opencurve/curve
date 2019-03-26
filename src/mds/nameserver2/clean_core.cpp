@@ -16,8 +16,8 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
         LOG(ERROR) << "cleanSnapShot File Error, segmentsize = 0";
         return StatusCode::KInternalError;
     }
-    int  segmentNum = fileInfo.length() / fileInfo.segmentsize();
-    for (int i = 0; i != segmentNum; i++) {
+    uint32_t  segmentNum = fileInfo.length() / fileInfo.segmentsize();
+    for (uint32_t i = 0; i < segmentNum; i++) {
         // load  segment
         auto storeKey = EncodeSegmentStoreKey(fileInfo.id(),
             i * fileInfo.segmentsize());
@@ -62,7 +62,7 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
             return StatusCode::kSnapshotFileDeleteError;
         }
 
-        // TODO(hzsunjianliang): update progress
+        progress->SetProgress(100 * (i+1) / segmentNum);
     }
 
     // delete the storage

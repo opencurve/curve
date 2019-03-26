@@ -1482,7 +1482,205 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
 }
 
 TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
-    // may be not needed
+    // GetSnapShotFileInfo error
+    {
+        PageFileSegment segment;
+        ASSERT_EQ(curvefs_->GetSnapShotFileSegment("/", 1, 0, &segment),
+            StatusCode::kNotSupported);
+    }
+
+    // snapshot file is not deleting
+    {
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filestatus(FileStatus::kFileCreated);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        FileStatus fileStatus;
+        uint32_t progress;
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
+            1, &fileStatus, &progress), StatusCode::kOK);
+        ASSERT_EQ(fileStatus, FileStatus::kFileCreated);
+        ASSERT_EQ(progress, 0);
+    }
+
+    // snapshot file is deleting, task is not exist
+    {
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filestatus(FileStatus::kFileDeleting);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*mockSnapShotCleanManager_,
+            GetTask(_))
+        .Times(1)
+        .WillOnce(Return(nullptr));
+
+        FileStatus fileStatus;
+        uint32_t progress;
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
+            1, &fileStatus, &progress), StatusCode::kOK);
+        ASSERT_EQ(fileStatus, FileStatus::kFileDeleting);
+        ASSERT_EQ(progress, 100);
+    }
+
+    // snapshot file is deleting, task is PROGRESSING
+    {
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filestatus(FileStatus::kFileDeleting);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        auto task =
+                 std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
+        TaskProgress taskProgress;
+        taskProgress.SetProgress(50);
+        taskProgress.SetStatus(TaskStatus::PROGRESSING);
+        task->SetTaskProgress(taskProgress);
+        EXPECT_CALL(*mockSnapShotCleanManager_, GetTask(_))
+        .Times(1)
+        .WillOnce(Return(task));
+
+        FileStatus fileStatus;
+        uint32_t progress;
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
+            1, &fileStatus, &progress), StatusCode::kOK);
+        ASSERT_EQ(fileStatus, FileStatus::kFileDeleting);
+        ASSERT_EQ(progress, 50);
+    }
+
+    // snapshot file is deleting, task is FAILED
+    {
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filestatus(FileStatus::kFileDeleting);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        auto task =
+        std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
+        TaskProgress taskProgress;
+        taskProgress.SetProgress(50);
+        taskProgress.SetStatus(TaskStatus::FAILED);
+        task->SetTaskProgress(taskProgress);
+        EXPECT_CALL(*mockSnapShotCleanManager_, GetTask(_))
+        .Times(1)
+        .WillOnce(Return(task));
+
+        FileStatus fileStatus;
+        uint32_t progress;
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
+            1, &fileStatus, &progress), StatusCode::kSnapshotFileDeleteError);
+    }
+
+    // snapshot file is deleting, task is SUCCESS
+    {
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile");
+        originalFile.set_fullpathname("/originalFile");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        FileInfo snapInfo;
+        snapInfo.set_seqnum(1);
+        snapInfo.set_filestatus(FileStatus::kFileDeleting);
+        snapShotFiles.push_back(snapInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        auto task =
+        std::make_shared<SnapShotCleanTask>(1, nullptr, originalFile);
+        TaskProgress taskProgress;
+        taskProgress.SetProgress(100);
+        taskProgress.SetStatus(TaskStatus::SUCCESS);
+        task->SetTaskProgress(taskProgress);
+        EXPECT_CALL(*mockSnapShotCleanManager_, GetTask(_))
+        .Times(1)
+        .WillOnce(Return(task));
+
+        FileStatus fileStatus;
+        uint32_t progress;
+        ASSERT_EQ(curvefs_->CheckSnapShotFileStatus("/originalFile",
+            1, &fileStatus, &progress), StatusCode::kOK);
+        ASSERT_EQ(fileStatus, FileStatus::kFileDeleting);
+        ASSERT_EQ(progress, 100);
+    }
 }
 
 TEST_F(CurveFSTest, testOpenFile) {

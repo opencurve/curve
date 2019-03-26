@@ -160,21 +160,65 @@ class CurveFS {
         return rootFileInfo_;
     }
 
+    /**
+     *  @brief 创建快照，如果创建成功，返回创建的快照文件info
+     *  @param filename：文件名
+     *         snapshotFileInfo: 返回创建的快照文件info
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
     StatusCode CreateSnapShotFile(const std::string &fileName,
                             FileInfo *snapshotFileInfo);
+
+    /**
+     *  @brief 获取文件的所有快照info
+     *  @param filename：文件名
+     *         snapshotFileInfos: 返回文件的所有的快照info
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
     StatusCode ListSnapShotFile(const std::string & fileName,
                             std::vector<FileInfo> *snapshotFileInfos) const;
     // async interface
+    /**
+     *  @brief 删除快照文件，删除文件指定seq的快照文件
+     *  @param filename：文件名
+     *         seq: 快照的seq
+     *         entity: 异步删除快照entity
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
     StatusCode DeleteFileSnapShotFile(const std::string &fileName,
                             FileSeqType seq,
                             std::shared_ptr<AsyncDeleteSnapShotEntity> entity);
+
+    /**
+     *  @brief 获取快照的状态，如果状态是kFileDeleting，额外返回删除进度
+     *  @param fileName : 文件名
+     *         seq : 快照的sequence
+     *         [out] status : 文件状态 kFileCreated, kFileDeleting
+     *         [out] progress : 如果状态是kFileDeleting，这个参数额外返回删除进度
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
     StatusCode CheckSnapShotFileStatus(const std::string &fileName,
                             FileSeqType seq, FileStatus * status,
                             uint32_t * progress) const;
 
+    /**
+     *  @brief 获取快照info信息
+     *  @param filename：文件名
+     *         seq: 快照的seq
+     *         snapshotFileInfo: 返回查询到的快照信息
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
     StatusCode GetSnapShotFileInfo(const std::string &fileName,
                             FileSeqType seq, FileInfo *snapshotFileInfo) const;
 
+    /**
+     *  @brief 获取快照的segment信息
+     *  @param filename：文件名
+     *         seq: 快照的seq
+     *         offset：
+     *         segment: 返回查询到的快照segment信息
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
     StatusCode GetSnapShotFileSegment(
             const std::string & filename,
             FileSeqType seq,

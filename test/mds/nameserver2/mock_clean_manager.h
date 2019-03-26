@@ -21,6 +21,7 @@ class MockCleanManager: public CleanManagerInterface {
     ~MockCleanManager() {}
     MOCK_METHOD2(SubmitDeleteSnapShotFileJob, bool(const FileInfo&,
         std::shared_ptr<AsyncDeleteSnapShotEntity>));
+    MOCK_METHOD1(GetTask, std::shared_ptr<Task>(TaskIDType id));
 };
 
 }  // namespace mds

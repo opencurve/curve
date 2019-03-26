@@ -493,7 +493,46 @@ void NameSpaceService::CheckSnapShotStatus(
               << request->filename()
               << ", seqnum" << request->seq();
 
-    response->set_statuscode(StatusCode::kNotSupported);
+    std::string password;
+    if (request->has_password()) {
+        password = request->password();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(),
+                                        request->owner(), password);
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    FileStatus fileStatus;
+    uint32_t progress;
+    retCode = kCurveFS.CheckSnapShotFileStatus(request->filename(),
+                        request->seq(), &fileStatus, &progress);
+    if (retCode  != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckSnapShotFileStatus fail, filename = "
+            <<  request->filename()
+            << ", seq = " << request->seq()
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        response->set_filestatus(fileStatus);
+        response->set_progress(progress);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", CheckSnapShotFileStatus ok, filename = "
+            <<  request->filename()
+            << ", seq = " << request->seq()
+            << ", statusCode = " << retCode;
+    }
+
     return;
 }
 

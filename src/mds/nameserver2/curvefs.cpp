@@ -699,9 +699,31 @@ StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
 
     *status = snapShotFileInfo.filestatus();
     if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
-        // TODO(hzsunjianliang): get the deleteing progress
+        TaskIDType taskID = static_cast<TaskIDType>(snapShotFileInfo.id());
+        auto task = snapshotCleanManager_->GetTask(taskID);
+        if (task == nullptr) {
+            *progress = 100;
+            return StatusCode::kOK;
+        }
+
+        TaskStatus taskStatus = task->GetTaskProgress().GetStatus();
+        switch (taskStatus) {
+            case TaskStatus::PROGRESSING:
+                *progress = task->GetTaskProgress().GetProgress();
+                break;
+            case TaskStatus::FAILED:
+                *progress = 0;
+                LOG(ERROR) << "snapshot file delete fail, fileName = "
+                           << fileName << ", seq = " << seq;
+                return StatusCode::kSnapshotFileDeleteError;
+            case TaskStatus::SUCCESS:
+                *progress = 100;
+                break;
+        }
+    } else {
         *progress = 0;
     }
+
     return StatusCode::kOK;
 }
 
