@@ -5,6 +5,7 @@
  * Copyright (c) 2018 NetEase
  */
 
+#include <gtest/gtest.h>
 #include <brpc/server.h>
 
 #include <string>
@@ -109,24 +110,31 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
             static int seq = 1;
 
-            auto resp = static_cast<::curve::mds::ReFreshSessionResponse*>(
-                        fakeRefreshSession_->response_);
-            response->CopyFrom(*resp);
+            if (seq > 1) {
+                ASSERT_STREQ(request->filename().c_str(), "/1_userinfo_");
+            }
 
-            if (response->statuscode() == ::curve::mds::StatusCode::kOK) {
+           auto resp = static_cast<::curve::mds::ReFreshSessionResponse*>(
+                        fakeRefreshSession_->response_);
+
+            if (resp->statuscode() == ::curve::mds::StatusCode::kOK) {
                 curve::mds::FileInfo * info = new curve::mds::FileInfo;
+                info->set_seqnum(seq++);
+                info->set_filename("_filename_");
+                info->set_id(1);
+                info->set_parentid(0);
+                info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+                info->set_chunksize(4 * 1024 * 1024);
+                info->set_length(4 * 1024 * 1024 * 1024ul);
+                info->set_ctime(12345678);
+                info->set_fullpathname("/1_userinfo_");
+
                 response->set_statuscode(::curve::mds::StatusCode::kOK);
                 response->set_sessionid("1234");
                 response->set_allocated_fileinfo(info);
-                response->mutable_fileinfo()->set_seqnum(seq++);
-                response->mutable_fileinfo()->set_filename("_filename_");
-                response->mutable_fileinfo()->set_id(1);
-                response->mutable_fileinfo()->set_parentid(0);
-                response->mutable_fileinfo()->set_filetype(curve::mds::FileType::INODE_PAGEFILE);     // NOLINT
-                response->mutable_fileinfo()->set_chunksize(4 * 1024 * 1024);
-                response->mutable_fileinfo()->set_length(4 * 1024 * 1024 * 1024ul);     // NOLINT
-                response->mutable_fileinfo()->set_ctime(12345678);
                 LOG(INFO) << "refresh session request!";
+            } else {
+                response->CopyFrom(*resp);
             }
         }
 
@@ -268,6 +276,23 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void RenameFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::RenameFileRequest* request,
+                    ::curve::mds::RenameFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakerenamefile_->controller_ != nullptr &&
+             fakerenamefile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::CloseFileResponse*>(
+                    fakerenamefile_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void SetCreateFileFakeReturn(FakeReturn* fakeret) {
         fakeCreateFileret_ = fakeret;
     }
@@ -321,6 +346,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakechecksnapshotret_ = fakeret;
     }
 
+    void SetRenameFile(FakeReturn* fakeret) {
+        fakerenamefile_ = fakeret;
+    }
+
     void CleanRetryTimes() {
         retrytimes_ = 0;
     }
@@ -336,6 +365,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeGetOrAllocateSegmentret_;
     FakeReturn* fakeopenfile_;
     FakeReturn* fakeclosefile_;
+    FakeReturn* fakerenamefile_;
     FakeReturn* fakeRefreshSession_;
 
     FakeReturn* fakechecksnapshotret_;

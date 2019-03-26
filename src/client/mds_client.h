@@ -19,9 +19,13 @@
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/libcurve_define.h"
+#include "src/client/metacache_struct.h"
 #include "src/common/concurrent/rw_lock.h"
 
+#include "src/common/concurrent/concurrent.h"
+
 using curve::common::RWLock;
+using curve::common::ReadLockGuard;
 
 namespace curve {
 namespace client {
@@ -38,61 +42,68 @@ class MDSClient {
      * @param: metaaddr为mdsclient的配置信息
      * @return: 成功返回LIBCURVE_ERROR::OK,否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR Initialize(UserInfo_t userinfo, MetaServerOption_t metaaddr);
+    LIBCURVE_ERROR Initialize(MetaServerOption_t metaaddr);
     /**
      * 创建文件
      * @param: filename创建文件的文件名
+     * @param: userinfo为user信息
      * @param: size文件长度
      * @return: 成功返回LIBCURVE_ERROR::OK
      *          文件已存在返回LIBCURVE_ERROR::EXIST
      *          否则返回LIBCURVE_ERROR::FAILED
      *          如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      */
-    LIBCURVE_ERROR CreateFile(std::string filename,
-                                size_t size);
+    LIBCURVE_ERROR CreateFile(const std::string& filename,
+                            UserInfo_t userinfo,
+                            size_t size);
     /**
      * 打开文件
-     * @param: 是文件名
+     * @param: filename是文件名
+     * @param: userinfo为user信息
      * @param: fi是出参，保存该文件信息
      * @param: lease是出参，携带该文件对应的lease信息
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR OpenFile(std::string name,
+    LIBCURVE_ERROR OpenFile(const std::string& filename,
+                            UserInfo_t userinfo,
                             FInfo_t* fi,
                             LeaseSession* lease);
     /**
      * 获取copysetid对应的serverlist信息并更新到metacache
      * @param: logicPoolId逻辑池信息
      * @param: csid为要获取的copyset列表
-     * @param: mc是要更新的metacache
+     * @param: cpinfoVec保存获取到的server信息
      * @return: 成功返回LIBCURVE_ERROR::OK,否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetServerList(const LogicPoolID &logicPoolId,
                             const std::vector<CopysetID>& csid,
-                            MetaCache* mc);
+                            std::vector<CopysetInfo_t>* cpinfoVec);
     /**
      * 获取segment的chunk信息，并更新到Metacache
      * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
+     * @param: userinfo为user信息
      * @param: offset为文件整体偏移
      * @param: fi是当前文件的基本信息
-     * @param: mc是要更新的metacache
+     * @param[out]: segInfoh获取当前segment的内部chunk信息
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetOrAllocateSegment(bool allocate,
-                            LogicalPoolCopysetIDInfo* lpcsIDInfo,
+                            UserInfo_t userinfo,
                             uint64_t offset,
                             const FInfo_t* fi,
-                            MetaCache* mc);
+                            SegmentInfo *segInfo);
     /**
      * 获取文件信息，fi是出参
-     * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
+     * @param: filename是文件名
+     * @param: userinfo为user信息
      * @param: fi是出参，保存文件基本信息
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR GetFileInfo(std::string filename,
+    LIBCURVE_ERROR GetFileInfo(const std::string& filename,
+                            UserInfo_t userinfo,
                             FInfo_t* fi);
     /**
      * 创建版本号为seq的快照
@@ -102,7 +113,7 @@ class MDSClient {
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR CreateSnapShot(std::string filename,
+    LIBCURVE_ERROR CreateSnapShot(const std::string& filename,
                             UserInfo_t userinfo,
                             uint64_t* seq);
     /**
@@ -113,7 +124,7 @@ class MDSClient {
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR DeleteSnapShot(std::string filename,
+    LIBCURVE_ERROR DeleteSnapShot(const std::string& filename,
                             UserInfo_t userinfo,
                             uint64_t seq);
     /**
@@ -125,7 +136,7 @@ class MDSClient {
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR GetSnapShot(std::string filename,
+    LIBCURVE_ERROR GetSnapShot(const std::string& filename,
                             UserInfo_t userinfo,
                             uint64_t seq,
                             FInfo* snapif);
@@ -138,7 +149,7 @@ class MDSClient {
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR ListSnapShot(std::string filename,
+    LIBCURVE_ERROR ListSnapShot(const std::string& filename,
                             UserInfo_t userinfo,
                             const std::vector<uint64_t>* seq,
                             std::vector<FInfo*>* snapif);
@@ -149,24 +160,21 @@ class MDSClient {
      * @param: seq是创建快照时文件的版本信息
      * @param: offset是文件内的偏移
      * @param: segInfo是出参，保存chunk信息
-     * @param: mc是待更新的metacach指针
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR GetSnapshotSegmentInfo(std::string filename,
+    LIBCURVE_ERROR GetSnapshotSegmentInfo(const std::string& filename,
                             UserInfo_t userinfo,
-                            LogicalPoolCopysetIDInfo* lpcsIDInfo,
                             uint64_t seq,
                             uint64_t offset,
-                            SegmentInfo *segInfo,
-                            MetaCache* mc);
+                            SegmentInfo *segInfo);
     /**
      * 获取快照状态
      * @param: filenam文件名
      * @param: userinfo是用户信息
      * @param: seq是文件版本号信息
      */
-    LIBCURVE_ERROR CheckSnapShotStatus(std::string filename,
+    LIBCURVE_ERROR CheckSnapShotStatus(const std::string& filename,
                             UserInfo_t userinfo,
                             uint64_t seq);
 
@@ -181,10 +189,11 @@ class MDSClient {
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR RefreshSession(std::string filename,
-                            std::string sessionid,
+    LIBCURVE_ERROR RefreshSession(const std::string& filename,
+                            UserInfo_t userinfo,
+                            const std::string& sessionid,
                             uint64_t date,
-                            std::string signature,
+                            const std::string& signature,
                             leaseRefreshResult* resp);
     /**
      * 关闭文件，需要携带sessionid，这样mds端会在数据库删除该session信息
@@ -193,7 +202,83 @@ class MDSClient {
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR CloseFile(std::string filename, std::string sessionid);
+    LIBCURVE_ERROR CloseFile(const std::string& filename,
+                            UserInfo_t userinfo,
+                            const std::string& sessionid);
+
+    /**
+     * @brief 创建clone文件
+     * @detail
+     *  - 若是clone，sn重置为初始值
+     *  - 若是recover，sn不变
+     *
+     * @param:destination clone目标文件名
+     * @param:userinfo 用户信息
+     * @param:size 文件大小
+     * @param:sn 版本号
+     * @param[out] destFileId 创建的目标文件的Id
+     *
+     * @return 错误码
+     */
+    LIBCURVE_ERROR CreateCloneFile(const std::string &destination,
+                            UserInfo_t userinfo,
+                            uint32_t size,
+                            uint64_t sn,
+                            FInfo* fileinfo);
+
+    /**
+     * @brief 通知mds完成Clone Meta
+     *
+     * @param:destination 目标文件
+     * @param:userinfo用户信息
+     *
+     * @return 错误码
+     */
+    LIBCURVE_ERROR CompleteCloneMeta(const std::string &destination,
+                            UserInfo_t userinfo);
+
+    /**
+     * @brief 通知mds完成Clone Chunk
+     *
+     * @param:destination 目标文件
+     * @param:userinfo用户信息
+     *
+     * @return 错误码
+     */
+    LIBCURVE_ERROR CompleteCloneFile(const std::string &destination,
+                            UserInfo_t userinfo);
+
+    /**
+     * @brief 通知mds完成Clone Meta
+     *
+     * @param: filename 目标文件
+     * @param: filestatus为要设置的目标状态
+     * @param: userinfo用户信息
+     * @param: fileId为文件ID信息，非必填
+     *
+     * @return 错误码
+     */
+    LIBCURVE_ERROR SetCloneFileStatus(const std::string &filename,
+                                    const FileStatus& filestatus,
+                                    UserInfo_t userinfo,
+                                    uint64_t fileID = 0);
+
+    /**
+     * @brief 重名文件
+     *
+     * @param:userinfo 用户信息
+     * @param:originId 被恢复的原始文件Id
+     * @param:destinationId 克隆出的目标文件Id
+     * @param:origin 被恢复的原始文件名
+     * @param:destination 克隆出的目标文件
+     *
+     * @return 错误码
+     */
+    LIBCURVE_ERROR RenameFile(UserInfo_t userinfo,
+                              const std::string &origin,
+                              const std::string &destination,
+                              uint64_t originId = 0,
+                              uint64_t destinationId = 0);
     /**
      * 析构，回收资源
      */
@@ -218,6 +303,18 @@ class MDSClient {
      */
     bool UpdateRetryinfoOrChangeServer(int* retrycount, int* mdsAddrleft);
 
+    /**
+     * 为不同的request填充user信息
+     * @param: request是待填充的变量指针
+     */
+    template <class T>
+    void FillUserInfo(T* request, const UserInfo_t& userinfo) {
+        request->set_owner(userinfo.owner);
+        if (userinfo.password != "") {
+            request->set_password(userinfo.password);
+        }
+    }
+
  private:
     // 初始化标志，放置重复初始化
     bool            inited_;
@@ -227,9 +324,6 @@ class MDSClient {
 
     // 当前模块的初始化option配置
     MetaServerOption_t metaServerOpt_;
-
-    // 与mds通信时携带的user信息
-    UserInfo_t userinfo_;
 
     // 记录上一次重试过的leader信息, 该索引对应metaServerOpt_里leader addr的索引
     int lastWorkingMDSAddrIndex_;

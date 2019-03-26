@@ -49,6 +49,7 @@ class LeaseExcutor {
      * @param: iomanager会在续约失败或者版本变更的时候进行io调度
      */
     LeaseExcutor(LeaseOption_t leaseOpt,
+                 UserInfo_t userinfo,
                  MDSClient* mdscllent,
                  IOManager4File* iomanager);
     ~LeaseExcutor() = default;
@@ -99,6 +100,9 @@ class LeaseExcutor {
 
     // 用于续约的client
     MDSClient*              mdsclient_;
+
+    // 用于发起refression的user信息
+    UserInfo_t              userinfo_;
 
     // IO管理者，当文件需要更新版本信息或者disable io的时候调用其接口
     IOManager4File*         iomanager_;

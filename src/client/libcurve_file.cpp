@@ -48,14 +48,12 @@ void FileClient::UnInit() {
     fileserviceMap_.clear();
 }
 
-LIBCURVE_ERROR FileClient::StatFs(int fd,
-                                    std::string filename,
-                                    FileStatInfo* finfo) {
+LIBCURVE_ERROR FileClient::StatFs(int fd, FileStatInfo* finfo) {
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         return LIBCURVE_ERROR::FAILED;
     }
-    return fileserviceMap_[fd]->StatFs(filename, finfo);
+    return fileserviceMap_[fd]->StatFs(finfo);
 }
 
 int FileClient::Open(std::string filename,
@@ -189,8 +187,8 @@ void Close(int fd) {
     globalclient->Close(fd);
 }
 
-LIBCURVE_ERROR StatFs(int fd, const char* filename, FileStatInfo* finfo) {
-    return globalclient->StatFs(fd, filename, finfo);
+LIBCURVE_ERROR StatFs(int fd, FileStatInfo* finfo) {
+    return globalclient->StatFs(fd, finfo);
 }
 
 void UnInit() {

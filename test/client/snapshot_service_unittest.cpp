@@ -25,6 +25,7 @@
 extern std::string configpath;
 extern std::string metaserver_addr;
 
+using curve::client::ChunkIDInfo;
 using curve::client::UserInfo;
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;
@@ -85,7 +86,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret);
     ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
-                                                        UserInfo("test", "t"),
+                                                        UserInfo("test", ""),
                                                         &seq));
 
     // set sequence
@@ -117,7 +118,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(&cntl, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret2);
     ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
-                                                        UserInfo("test", "t"),
+                                                        UserInfo("test", ""),
                                                         &seq));
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
@@ -130,8 +131,36 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(checkfakeret3);
     ASSERT_EQ(LIBCURVE_ERROR::UNDER_SNAPSHOT, cl.CreateSnapShot(filename,
-                                                        UserInfo("test", "t"),
+                                                        UserInfo("test", ""),
                                                         &seq));
+
+    // test renamefile
+    ::curve::mds::RenameFileResponse renameresp;
+    renameresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* renamefakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&renameresp));
+    curvefsservice.SetRenameFile(renamefakeret);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cl.RenameCloneFile(UserInfo("test", ""),
+                                                        1, 2, "1", "2"));
+
+    renameresp.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
+    FakeReturn* renamefakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&renameresp));
+    curvefsservice.SetRenameFile(renamefakeret1);
+    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, cl.RenameCloneFile(UserInfo("test", ""),
+                                                        1, 2, "1", "2"));
+    ASSERT_EQ(2, seq);
+
+    curvefsservice.CleanRetryTimes();
+    brpc::Controller renamecntl;
+    renamecntl.SetFailed(-1, "test fail");
+    FakeReturn* renamefake2
+     = new FakeReturn(&renamecntl, static_cast<void*>(&renameresp));
+    curvefsservice.SetRenameFile(renamefake2);
+    ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.RenameCloneFile(UserInfo("test", ""),
+                                                        1, 2, "1", "2"));
+    ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
+        curvefsservice.GetRetryTimes());
 
     // test delete
     // normal delete test
@@ -164,7 +193,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(&delcntl, static_cast<void*>(&response));
     curvefsservice.SetDeleteSnapShot(delfakeret2);
     ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.DeleteSnapShot(filename,
-                                                        UserInfo("test", "t"),
+                                                        UserInfo("test", ""),
                                                         seq));
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
@@ -212,7 +241,7 @@ TEST(SnapInstance, SnapShotTest) {
                 static_cast<void*>(getresponse1));
     curvefsservice.SetGetSnapshotSegmentInfo(getfakeret1);
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-            cl.GetSnapshotSegmentInfo(filename, UserInfo("test", "t"),
+            cl.GetSnapshotSegmentInfo(filename, UserInfo("test", ""),
                                      &lpcsIDInfo, 0, 0, &seginfo));
     ASSERT_EQ(LIBCURVE_ERROR::OK,
             cl.GetServerList(lpcsIDInfo.lpid, lpcsIDInfo.cpidVec));
@@ -246,7 +275,7 @@ TEST(SnapInstance, SnapShotTest) {
                 static_cast<void*>(getresponse2));
     curvefsservice.SetGetSnapshotSegmentInfo(getfakeret2);
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            cl.GetSnapshotSegmentInfo(filename, UserInfo("test", "t"),
+            cl.GetSnapshotSegmentInfo(filename, UserInfo("test", ""),
                                         &lpcsIDInfo, 0, 0, &seginfo));
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
@@ -309,15 +338,15 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(&listcntl, static_cast<void*>(listresponse1));
     curvefsservice.SetListSnapShot(listfakeret2);
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            cl.GetSnapShot(filename, UserInfo("test", "t"), seq, &sinfo));
+            cl.GetSnapShot(filename, UserInfo("test", ""), seq, &sinfo));
 
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
 
     curvefsservice.CleanRetryTimes();
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            cl.ListSnapShot(filename, UserInfo("test", "t"), &seqvec, &fivec));
-/*
+            cl.ListSnapShot(filename, UserInfo("test", ""), &seqvec, &fivec));
+
     // rpc fail
     ::curve::mds::CheckSnapShotStatusResponse* checkresponse1 =
         new ::curve::mds::CheckSnapShotStatusResponse();
@@ -327,7 +356,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(&checkcntl, static_cast<void*>(checkresponse1));
     curvefsservice.SetCheckSnap(checkfakeret);
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", "t"), seq));
+            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
 
     // set return ok
     ::curve::mds::CheckSnapShotStatusResponse* checkresponse2 =
@@ -347,7 +376,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(checkresponse3));
     curvefsservice.SetCheckSnap(checkfakeret2);
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", "t"), seq));
+            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
 
     // set return kSnapshotDeleting
     ::curve::mds::CheckSnapShotStatusResponse* checkresp6 =
@@ -357,7 +386,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(checkresp6));
     curvefsservice.SetCheckSnap(checkfakeret5);
     ASSERT_EQ(LIBCURVE_ERROR::DELETING,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", "t"), seq));
+            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
 
     // set return kSnapshotFileNotExists
     ::curve::mds::CheckSnapShotStatusResponse* resp7 =
@@ -367,7 +396,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(resp7));
     curvefsservice.SetCheckSnap(checkfakeret6);
     ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", "t"), seq));
+            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
 
     // set return kSnapshotFileDeleteError
     ::curve::mds::CheckSnapShotStatusResponse* resp8 =
@@ -377,8 +406,8 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(resp8));
     curvefsservice.SetCheckSnap(checkfakeret7);
     ASSERT_EQ(LIBCURVE_ERROR::DELETE_ERROR,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", "t"), seq));
-*/
+            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
+
     cl.UnInit();
 
     ASSERT_EQ(0, server.Stop(0));
@@ -417,7 +446,7 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
     ChunkID cid = 1;
     CopysetInfo_t cpinfo;
-    mc->UpdateChunkInfoByID(2, 3, cid);
+    mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 
     IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
@@ -427,7 +456,8 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     char* buf = new char[len];
     memset(buf, 0, len);
     LOG(ERROR) << "start read snap chunk";
-    ASSERT_EQ(132 * 1024, ioctxmana->ReadSnapChunk(2, 3, cid, 0, 0, len, buf));
+    ASSERT_EQ(132 * 1024, ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0,
+                                                   len, buf));
     LOG(ERROR) << "read snap chunk success!";
     ASSERT_EQ(buf[0], 'a');
     ASSERT_EQ(buf[max_split_size_kb - 1], 'a');
@@ -463,13 +493,13 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
     MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
     ChunkID cid = 1;
     CopysetInfo_t cpinfo;
-    mc->UpdateChunkInfoByID(2, 3, cid);
+    mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 
     IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
     ioctxmana->SetRequestScheduler(mocksch);
 
-    ASSERT_EQ(0, ioctxmana->DeleteSnapChunk(2, 3, cid, 0));
+    ASSERT_EQ(0, ioctxmana->DeleteSnapChunk(ChunkIDInfo(cid, 2, 3), 0));
 
     cl.UnInit();
 }
@@ -496,14 +526,83 @@ TEST(SnapInstance, GetChunkInfoTest) {
     MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
     ChunkID cid = 1;
     CopysetInfo_t cpinfo;
-    mc->UpdateChunkInfoByID(2, 3, cid);
+    mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
     mc->UpdateCopysetInfo(2, 3, cpinfo);
 
     IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
     ioctxmana->SetRequestScheduler(mocksch);
     ChunkInfoDetail cinfode;
-    ASSERT_EQ(0, ioctxmana->GetChunkInfo(2, 3, cid, &cinfode));
+    ASSERT_EQ(0, ioctxmana->GetChunkInfo(ChunkIDInfo(cid, 2, 3), &cinfode));
 
     ASSERT_EQ(2222, cinfode.chunkSn[0]);
+    cl.UnInit();
+}
+
+TEST(SnapInstance, RecoverChunkTest) {
+    ClientConfigOption_t opt;
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
+    opt.loginfo.loglevel = 0;
+
+    SnapshotClient cl;
+    ASSERT_TRUE(!cl.Init(opt));
+    MockRequestScheduler* mocksch = new MockRequestScheduler;
+    mocksch->DelegateToFake();
+
+    // fake metacache
+    MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
+    ChunkID cid = 1;
+    CopysetInfo_t cpinfo;
+    mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
+    mc->UpdateCopysetInfo(2, 3, cpinfo);
+
+    IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
+    ioctxmana->SetRequestScheduler(mocksch);
+    ASSERT_EQ(0, ioctxmana->RecoverChunk(ChunkIDInfo(cid, 2, 3),
+                                            1, 4*1024*1024));
+
+    cl.UnInit();
+}
+
+TEST(SnapInstance, CreateCloneChunkTest) {
+    ClientConfigOption_t opt;
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
+    opt.loginfo.loglevel = 0;
+
+    SnapshotClient cl;
+    ASSERT_TRUE(!cl.Init(opt));
+    MockRequestScheduler* mocksch = new MockRequestScheduler;
+    mocksch->DelegateToFake();
+
+    // fake metacache
+    MetaCache* mc = cl.GetIOManager4Chunk()->GetMetaCache();
+    ChunkID cid = 1;
+    CopysetInfo_t cpinfo;
+    mc->UpdateChunkInfoByID(cid, ChunkIDInfo(cid, 2, 3));
+    mc->UpdateCopysetInfo(2, 3, cpinfo);
+
+    IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
+    ioctxmana->SetRequestScheduler(mocksch);
+    ASSERT_EQ(0, ioctxmana->CreateCloneChunk("destination",
+                                            ChunkIDInfo(cid, 2, 3),
+                                            1,
+                                            2,
+                                            1024));
+
     cl.UnInit();
 }

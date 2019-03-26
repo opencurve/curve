@@ -12,9 +12,9 @@
 #include "src/snapshot/snapshot_define.h"
 
 #include "test/snapshot/mock_snapshot_server.h"
-#include "test/utils/count_down_event.h"
+#include "src/common/concurrent/count_down_event.h"
 
-using ::curve::test::CountDownEvent;
+using curve::common::CountDownEvent;
 
 namespace curve {
 namespace snapshotserver {

@@ -39,7 +39,7 @@ class SnapshotClient {
    * @param: seq是出参，获取该文件的版本信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR CreateSnapShot(std::string filename,
+  LIBCURVE_ERROR CreateSnapShot(const std::string& filename,
                                 UserInfo_t userinfo,
                                 uint64_t* seq);
   /**
@@ -49,7 +49,7 @@ class SnapshotClient {
    * @param: seq该文件的版本信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR DeleteSnapShot(std::string filename,
+  LIBCURVE_ERROR DeleteSnapShot(const std::string& filename,
                                 UserInfo_t userinfo,
                                 uint64_t seq);
   /**
@@ -60,7 +60,7 @@ class SnapshotClient {
    * @param: snapinfo是出参，保存当前文件的基础信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR GetSnapShot(std::string fname,
+  LIBCURVE_ERROR GetSnapShot(const std::string& fname,
                              UserInfo_t userinfo,
                              uint64_t seq,
                              FInfo* snapinfo);
@@ -72,7 +72,7 @@ class SnapshotClient {
    * @param: snapif是出参，获取多个seq号的文件信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR ListSnapShot(std::string filename,
+  LIBCURVE_ERROR ListSnapShot(const std::string& filename,
                             UserInfo_t userinfo,
                             const std::vector<uint64_t>* seqvec,
                             std::vector<FInfo*>* snapif);
@@ -85,7 +85,7 @@ class SnapshotClient {
    * @param：segInfo是出参，保存当前文件的快照segment信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR GetSnapshotSegmentInfo(std::string filename,
+  LIBCURVE_ERROR GetSnapshotSegmentInfo(const std::string& filename,
                             UserInfo_t userinfo,
                             LogicalPoolCopysetIDInfo* lpcsIDInfo,
                             uint64_t seq,
@@ -131,9 +131,129 @@ class SnapshotClient {
    * @param: filenam文件名
    * @param: seq是文件版本号信息
    */
-  LIBCURVE_ERROR CheckSnapShotStatus(std::string filename,
+  LIBCURVE_ERROR CheckSnapShotStatus(const std::string& filename,
                                 UserInfo_t userinfo,
                                 uint64_t seq);
+  /**
+   * @brief 创建clone文件
+   * @detail
+   *  - 若是clone，sn重置为初始值
+   *  - 若是recover，sn不变
+   *
+   * @param:destination clone目标文件名
+   * @param:userinfo 用户信息
+   * @param:size 文件大小
+   * @param:sn 版本号
+   * @param[out] fileinfo 创建的目标文件的文件信息
+   *
+   * @return 错误码
+   */
+  LIBCURVE_ERROR CreateCloneFile(const std::string &destination,
+                                UserInfo_t userinfo,
+                                uint32_t size,
+                                uint64_t sn,
+                                FInfo* fileinfo);
+
+  /**
+   * @brief lazy 创建clone chunk
+   * @detail
+   *  - location的格式定义为 A@B的形式。
+   *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
+   *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
+   *
+   * @param:location 数据源的url
+   * @param:chunkidinfo 目标chunk
+   * @param:sn chunk的序列号
+   * @param:chunkSize chunk的大小
+   * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
+   *
+   * @return 错误码
+   */
+  LIBCURVE_ERROR CreateCloneChunk(const std::string &location,
+                                const ChunkIDInfo &chunkidinfo,
+                                uint64_t sn,
+                                uint64_t correntSn,
+                                uint64_t chunkSize);
+
+  /**
+   * @brief 实际恢复chunk数据
+   *
+   * @param:chunkidinfo chunkidinfo
+   * @param:offset 偏移
+   * @param:len 长度
+   *
+   * @return 错误码
+   */
+  LIBCURVE_ERROR RecoverChunk(const ChunkIDInfo &chunkidinfo,
+                              uint64_t offset,
+                              uint64_t len);
+
+  /**
+   * @brief 通知mds完成Clone Meta
+   *
+   * @param:destination 目标文件
+   * @param:userinfo用户信息
+   *
+   * @return 错误码
+   */
+  LIBCURVE_ERROR CompleteCloneMeta(const std::string &destination,
+                                UserInfo_t userinfo);
+
+  /**
+   * @brief 通知mds完成Clone Chunk
+   *
+   * @param:destination 目标文件
+   * @param:userinfo用户信息
+   *
+   * @return 错误码
+   */
+  LIBCURVE_ERROR CompleteCloneFile(const std::string &destination,
+                                UserInfo_t userinfo);
+
+  /**
+   * @brief 获取文件信息
+   *
+   * @param:filename 文件名
+   * @param:userinfo 用户信息
+   * @param[out] fileInfo 文件信息
+   *
+   * @return 错误码
+   */
+  LIBCURVE_ERROR GetFileInfo(const std::string &filename,
+                                UserInfo_t userinfo,
+                                FInfo* fileInfo);
+
+  /**
+   * @brief 查询或分配文件segment信息
+   *
+   * @param:userinfo 用户信息
+   * @param:offset 偏移值
+   * @param:segInfo segment信息
+   *
+   * @return 错误码
+   */
+  LIBCURVE_ERROR GetOrAllocateSegmentInfo(bool allocate,
+                                uint64_t offset,
+                                const FInfo_t* fi,
+                                UserInfo_t userinfo,
+                                SegmentInfo *segInfo);
+
+  /**
+   * @brief 为recover rename复制的文件
+   *
+   * @param:userinfo 用户信息
+   * @param:originId 被恢复的原始文件Id
+   * @param:destinationId 克隆出的目标文件Id
+   * @param:origin 被恢复的原始文件名
+   * @param:destination 克隆出的目标文件
+   *
+   * @return 错误码
+   */
+  LIBCURVE_ERROR RenameCloneFile(UserInfo_t userinfo,
+                              uint64_t originId,
+                              uint64_t destinationId,
+                              const std::string &origin,
+                              const std::string &destination);
   /**
    * 析构，回收资源
    */

@@ -32,6 +32,17 @@ using PeerId    = braft::PeerId;
 using Status    = butil::Status;
 using Configuration = braft::Configuration;
 
+/**
+ * 与nameserver.proto中的FileStatus一一对应
+ */
+enum class FileStatus {
+    Created = 0,
+    Deleting,
+    Cloning,
+    CloneMetaInstalled,
+    Cloned
+};
+
 typedef struct ChunkIDInfo {
     ChunkID         cid_;
     CopysetID       cpid_;
@@ -66,14 +77,6 @@ typedef struct ChunkIDInfo {
     }
 } ChunkIDInfo_t;
 
-// 保存每个segment的基本信息
-typedef struct SegmentInfo {
-    uint32_t segmentsize;
-    uint32_t chunksize;
-    uint64_t startoffset;
-    std::vector<ChunkIDInfo> chunkvec;
-} SegmentInfo_t;
-
 // 保存每个chunk对应的版本信息
 typedef struct ChunkInfoDetail {
     std::vector<uint64_t> chunkSn;
@@ -97,6 +100,15 @@ typedef struct LogicalPoolCopysetIDInfo {
     }
 } LogicalPoolCopysetIDInfo_t;
 
+// 保存每个segment的基本信息
+typedef struct SegmentInfo {
+    uint32_t segmentsize;
+    uint32_t chunksize;
+    uint64_t startoffset;
+    std::vector<ChunkIDInfo> chunkvec;
+    LogicalPoolCopysetIDInfo lpcpIDInfo;
+} SegmentInfo_t;
+
 typedef struct FInfo {
     uint64_t        id;
     uint64_t        parentid;
@@ -108,6 +120,7 @@ typedef struct FInfo {
     uint64_t        seqnum;
     std::string     owner;
     std::string     filename;
+    std::string     fullPathName;
 
     FInfo() {
         id = 0;

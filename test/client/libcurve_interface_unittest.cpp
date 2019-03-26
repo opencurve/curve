@@ -45,7 +45,7 @@ void readcallbacktest(CurveAioContext* context) {
 
 TEST(TestLibcurveInterface, InterfaceTest) {
     ASSERT_EQ(0, Init(configpath.c_str()));
-    std::string filename = "./1_userinfo_.txt";
+    std::string filename = "/1_userinfo_";
 
     // init mds service
     FakeMDS mds(filename);
@@ -169,7 +169,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
 TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     ASSERT_EQ(0, Init(configpath.c_str()));
     // open not create file
-    std::string filename = "./1_userinfo_.txt";
+    std::string filename = "/1_userinfo_";
     ASSERT_EQ(-1, Open(filename.c_str(), 0, false));
 
     char* buffer = new char[8 * 1024];

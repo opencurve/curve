@@ -15,13 +15,12 @@
 #include "test/client/mock_meta_cache.h"
 #include "test/client/mock_chunkservice.h"
 #include "test/client/mock_request_context.h"
-#include "test/utils/count_down_event.h"
+#include "src/common/concurrent/count_down_event.h"
 
 namespace curve {
 namespace client {
 
 using ::testing::AnyNumber;
-using curve::test::CountDownEvent;
 
 TEST(RequestSchedulerTest, fake_server_test) {
     RequestScheduleOption_t opt;
@@ -80,14 +79,12 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
         reqCtx->data_ = writebuff;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
-        CountDownEvent cond(0);
+        curve::common::CountDownEvent cond(0);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -98,14 +95,12 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
         reqCtx->data_ = writebuff;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
-        CountDownEvent cond(0);
+        curve::common::CountDownEvent cond(0);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ASSERT_EQ(-1, requestScheduler.ScheduleRequest(reqCtx));
@@ -131,16 +126,16 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
-        reqCtx->chunkid_ = chunkId;
+
         reqCtx->data_ = writebuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -152,15 +147,15 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         memset(readbuff1, '0', 16);
         reqCtx->data_ = readbuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -174,9 +169,9 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
         ::memset(writebuff1, 'a', 8);
         ::memset(writebuff1 + 8, '\0', 8);
@@ -184,7 +179,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -196,16 +191,16 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
         memset(readbuff1, '0', 16);
         reqCtx->data_ = readbuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -237,17 +232,17 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
-        reqCtx->chunkid_ = chunkId;
+
         ::memset(writebuff1, 'a', 16);
         reqCtx->data_ = writebuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -260,16 +255,16 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ_SNAP;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
         memset(readbuff1, '0', 16);
         reqCtx->data_ = readbuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -284,14 +279,14 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -305,14 +300,14 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::DELETE_SNAP;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -329,12 +324,12 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ChunkInfoDetail chunkInfo;
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::GET_CHUNK_INFO;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->chunkinfodetail_ = &chunkInfo;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -349,20 +344,65 @@ TEST(RequestSchedulerTest, fake_server_test) {
                   reqDone->GetErrorCode());
     }
 
+    // 测试createClonechunk
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::CREATE_CLONE;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
+        reqCtx->seq_ = sn;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len1;
+        reqCtx->location_ = "destination";
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqCtx->done_ = reqDone;
+
+        std::list<RequestContext *> reqCtxs;
+        reqCtxs.push_back(reqCtx);
+        ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
+        cond.Wait();
+        ASSERT_EQ(0, reqDone->GetErrorCode());
+    }
+
+    // 测试recoverChunk
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::RECOVER_CHUNK;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
+        reqCtx->seq_ = sn;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len1;
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqCtx->done_ = reqDone;
+
+        std::list<RequestContext *> reqCtxs;
+        reqCtxs.push_back(reqCtx);
+        ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
+        cond.Wait();
+        ASSERT_EQ(0, reqDone->GetErrorCode());
+    }
+
     /* read/write chunk test */
     const int kMaxLoop = 100;
     for (int i = 0; i < kMaxLoop; ++i) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
         reqCtx->data_ = writebuff;
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -375,16 +415,16 @@ TEST(RequestSchedulerTest, fake_server_test) {
     for (int i = 0; i < kMaxLoop; ++i) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         reqCtx->seq_ = sn;
         memset(readbuff, '0', 8);
         reqCtx->data_ = readbuff;
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -398,15 +438,15 @@ TEST(RequestSchedulerTest, fake_server_test) {
     {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::UNKNOWN;
-        reqCtx->logicpoolid_ = logicPoolId;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
         memset(readbuff, '0', 8);
         reqCtx->data_ = readbuff;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
 
@@ -418,14 +458,13 @@ TEST(RequestSchedulerTest, fake_server_test) {
     }
 
     /* 2. 并发测试 */
-    CountDownEvent cond(4 * kMaxLoop);
+    curve::common::CountDownEvent cond(4 * kMaxLoop);
     auto func = [&]() {
         for (int i = 0; i < kMaxLoop; ++i) {
             RequestContext *reqCtx = new FakeRequestContext();
             reqCtx->optype_ = OpType::WRITE;
-            reqCtx->logicpoolid_ = logicPoolId;
-            reqCtx->copysetid_ = copysetId;
-            reqCtx->chunkid_ = chunkId;
+            reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
             reqCtx->seq_ = sn;
             reqCtx->data_ = writebuff;
             reqCtx->offset_ = offset + i;
@@ -451,15 +490,15 @@ TEST(RequestSchedulerTest, fake_server_test) {
     for (int i = 0; i < kMaxLoop; i += 1) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::READ;
-        reqCtx->logicpoolid_ = 1000;
-        reqCtx->copysetid_ = copysetId;
-        reqCtx->chunkid_ = chunkId;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, 1000, copysetId);
+
+
         reqCtx->seq_ = sn;
         memset(readbuff, '0', 8);
         reqCtx->data_ = readbuff;
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
-        CountDownEvent cond(1);
+        curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtx));

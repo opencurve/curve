@@ -9,6 +9,7 @@
 #define CURVE_LIBCURVE_REQUEST_CONTEXT_H
 
 #include <atomic>
+#include <string>
 
 #include "src/client/client_common.h"
 #include "src/client/request_closure.h"
@@ -21,6 +22,8 @@ enum class OpType {
     WRITE,
     READ_SNAP,
     DELETE_SNAP,
+    CREATE_CLONE,
+    RECOVER_CHUNK,
     GET_CHUNK_INFO,
     UNKNOWN
 };
@@ -33,9 +36,7 @@ class RequestContext {
     void UnInit();
 
     // chunk的ID信息，sender在发送rpc的时候需要附带其ID信息
-    ChunkID             chunkid_;
-    CopysetID           copysetid_;
-    LogicPoolID         logicpoolid_;
+    ChunkIDInfo         idinfo_;
 
     // 用户IO被拆分之后，其小IO有自己的offset和length
     off_t               offset_;
@@ -54,6 +55,12 @@ class RequestContext {
 
     // 这个对应的GetChunkInfo的出参
     ChunkInfoDetail*    chunkinfodetail_;
+
+    // clone chunk请求需要携带源chunk的location及所需要创建的chunk的大小
+    uint32_t            chunksize_;
+    std::string         location_;
+    // create clone chunk时候用于修改chunk的correctedSn
+    uint64_t            correntSeq_;
 };
 }  // namespace client
 }  // namespace curve

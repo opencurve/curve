@@ -75,18 +75,11 @@ void IOTracker::StartWrite(CurveAioContext* aioctx,
     aioctx_ = aioctx;
     type_   = OpType::WRITE;
 
-    DVLOG(9) << "offset: " << aioctx->offset
-             << " length: " << aioctx->length
-             << " op: " << aioctx->op
-             << " buf: " << *(unsigned int*)buf;
-    int ret = Splitor::IO2ChunkRequests(this,
-                                        mc_,
-                                        &reqlist_,
-                                        data_,
-                                        offset_,
-                                        length_,
-                                        mdsclient,
-                                        fi);
+    DVLOG(9) << "offset: " << aioctx->offset << " length: " << aioctx->length
+             << " op: " << aioctx->op << " buf: " << *(unsigned int*)buf;
+
+    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, data_, offset_,
+                                        length_, mdsclient, fi);
     if (ret == 0) {
         reqcount_.store(reqlist_.size(), std::memory_order_release);
         ret = scheduler_->ScheduleRequest(reqlist_);
@@ -98,9 +91,7 @@ void IOTracker::StartWrite(CurveAioContext* aioctx,
     }
 }
 
-void IOTracker::ReadSnapChunk(LogicPoolID lpid,
-                              CopysetID cpid,
-                              ChunkID chunkid,
+void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
                               uint64_t seq,
                               uint64_t offset,
                               uint64_t len,
@@ -112,20 +103,8 @@ void IOTracker::ReadSnapChunk(LogicPoolID lpid,
 
     int ret = -1;
     do {
-        ChunkIDInfo_t cinfo;
-        mc_->GetChunkInfoByID(lpid, cpid, chunkid, &cinfo);
-        if (!cinfo.Valid()) {
-            LOG(ERROR) << "can not get valid chunk info in metacache";
-            break;
-        }
-        ret = Splitor::SingleChunkIO2ChunkRequests(this,
-                                                    mc_,
-                                                    &reqlist_,
-                                                    cinfo,
-                                                    data_,
-                                                    offset_,
-                                                    length_,
-                                                    seq);
+        ret = Splitor::SingleChunkIO2ChunkRequests(this, mc_, &reqlist_, cinfo,
+                                            data_, offset_, length_, seq);
         if (ret == 0) {
             reqcount_.store(reqlist_.size(), std::memory_order_release);
             ret = scheduler_->ScheduleRequest(reqlist_);
@@ -138,35 +117,24 @@ void IOTracker::ReadSnapChunk(LogicPoolID lpid,
     }
 }
 
-void IOTracker::DeleteSnapChunk(LogicPoolID lpid,
-                                CopysetID cpid,
-                                ChunkID chunkid,
+void IOTracker::DeleteSnapChunk(const ChunkIDInfo &cinfo,
                                 uint64_t seq) {
     type_ = OpType::DELETE_SNAP;
 
     int ret = -1;
     do {
-        ChunkIDInfo_t cinfo;
-        mc_->GetChunkInfoByID(lpid, cpid, chunkid, &cinfo);
-        if (!cinfo.Valid()) {
-            LOG(ERROR) << "can not get valid chunk info in metacache";
-            break;
-        }
-
         RequestContext* newreqNode = new (std::nothrow) RequestContext();
         if (newreqNode == nullptr || !newreqNode->Init()) {
             LOG(ERROR) << "allocate req node failed!";
             break;
         }
-        newreqNode->seq_         = seq;
-        newreqNode->optype_      = type_;
-        newreqNode->chunkid_     = cinfo.cid_;
-        newreqNode->copysetid_   = cinfo.cpid_;
-        newreqNode->logicpoolid_ = cinfo.lpid_;
-        newreqNode->done_->SetIOTracker(this);
+
+        newreqNode->seq_ = seq;
+        FillCommonFields(cinfo, newreqNode);
 
         reqlist_.push_back(newreqNode);
         reqcount_.store(reqlist_.size(), std::memory_order_release);
+
         ret = scheduler_->ScheduleRequest(reqlist_);
     } while (false);
 
@@ -176,35 +144,24 @@ void IOTracker::DeleteSnapChunk(LogicPoolID lpid,
     }
 }
 
-void IOTracker::GetChunkInfo(LogicPoolID lpid,
-                            CopysetID cpid,
-                            ChunkID chunkid,
+void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
                             ChunkInfoDetail *chunkInfo) {
     type_ = OpType::GET_CHUNK_INFO;
 
     int ret = -1;
     do {
-        ChunkIDInfo_t cinfo;
-        mc_->GetChunkInfoByID(lpid, cpid, chunkid, &cinfo);
-        if (!cinfo.Valid()) {
-            LOG(ERROR) << "can not get valid chunk info in metacache";
-            break;
-        }
-
         RequestContext* newreqNode = new (std::nothrow) RequestContext();
         if (newreqNode == nullptr || !newreqNode->Init()) {
             LOG(ERROR) << "allocate req node failed!";
             break;
         }
-        newreqNode->optype_      = type_;
-        newreqNode->chunkid_     = cinfo.cid_;
-        newreqNode->copysetid_   = cinfo.cpid_;
-        newreqNode->logicpoolid_ = cinfo.lpid_;
+
         newreqNode->chunkinfodetail_ = chunkInfo;
-        newreqNode->done_->SetIOTracker(this);
+        FillCommonFields(cinfo, newreqNode);
 
         reqlist_.push_back(newreqNode);
         reqcount_.store(reqlist_.size(), std::memory_order_release);
+
         ret = scheduler_->ScheduleRequest(reqlist_);
     } while (false);
 
@@ -212,6 +169,74 @@ void IOTracker::GetChunkInfo(LogicPoolID lpid,
         LOG(ERROR) << "split or schedule failed, return and recyle resource!";
         ReturnOnFail();
     }
+}
+
+void IOTracker::CreateCloneChunk(const std::string &location,
+                                const ChunkIDInfo &cinfo,
+                                uint64_t sn,
+                                uint64_t correntSn,
+                                uint64_t chunkSize) {
+    type_ = OpType::CREATE_CLONE;
+
+    int ret = -1;
+    do {
+        RequestContext* newreqNode = new (std::nothrow) RequestContext();
+        if (newreqNode == nullptr || !newreqNode->Init()) {
+            LOG(ERROR) << "allocate req node failed!";
+            break;
+        }
+
+        newreqNode->seq_         = sn;
+        newreqNode->chunksize_   = chunkSize;
+        newreqNode->location_    = location;
+        newreqNode->correntSeq_  = correntSn;
+        FillCommonFields(cinfo, newreqNode);
+
+        reqlist_.push_back(newreqNode);
+        reqcount_.store(reqlist_.size(), std::memory_order_release);
+
+        ret = scheduler_->ScheduleRequest(reqlist_);
+    } while (false);
+
+    if (ret == -1) {
+        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        ReturnOnFail();
+    }
+}
+
+void IOTracker::RecoverChunk(const ChunkIDInfo &cinfo,
+                                        uint64_t offset,
+                                        uint64_t len) {
+    type_ = OpType::RECOVER_CHUNK;
+
+    int ret = -1;
+    do {
+        RequestContext* newreqNode = new (std::nothrow) RequestContext();
+        if (newreqNode == nullptr || !newreqNode->Init()) {
+            LOG(ERROR) << "allocate req node failed!";
+            break;
+        }
+
+        newreqNode->rawlength_   = len;
+        newreqNode->offset_      = offset;
+        FillCommonFields(cinfo, newreqNode);
+
+        reqlist_.push_back(newreqNode);
+        reqcount_.store(reqlist_.size(), std::memory_order_release);
+
+        ret = scheduler_->ScheduleRequest(reqlist_);
+    } while (false);
+
+    if (ret == -1) {
+        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        ReturnOnFail();
+    }
+}
+
+void IOTracker::FillCommonFields(ChunkIDInfo idinfo, RequestContext* req) {
+    req->optype_      = type_;
+    req->idinfo_      = idinfo;
+    req->done_->SetIOTracker(this);
 }
 
 void IOTracker::HandleResponse(RequestContext* reqctx) {

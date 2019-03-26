@@ -8,6 +8,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <algorithm>
+#include <vector>
 #include "src/client/splitor.h"
 #include "src/client/mds_client.h"
 #include "src/client/file_instance.h"
@@ -81,7 +82,7 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker,
 int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
                                         MetaCache* mc,
                                         std::list<RequestContext*>* targetlist,
-                                        const ChunkIDInfo_t cid,
+                                        const ChunkIDInfo_t idinfo,
                                         const char* data,
                                         off_t offset,
                                         uint64_t length,
@@ -110,9 +111,7 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
         newreqNode->offset_      = tempoff;
         newreqNode->rawlength_   = len;
         newreqNode->optype_      = iotracker->Optype();
-        newreqNode->chunkid_     = cid.cid_;
-        newreqNode->copysetid_   = cid.cpid_;
-        newreqNode->logicpoolid_ = cid.lpid_;
+        newreqNode->idinfo_      = idinfo;
         newreqNode->done_->SetIOTracker(iotracker);
         targetlist->push_back(newreqNode);
 
@@ -120,9 +119,9 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
                  << ", off = " << tempoff
                  << ", len = " << len
                  << ", seqnum = " << seq
-                 << ", chunkid = " << cid.cid_
-                 << ", copysetid = " << cid.cpid_
-                 << ", logicpoolid = " << cid.lpid_;
+                 << ", chunkid = " << idinfo.cid_
+                 << ", copysetid = " << idinfo.cpid_
+                 << ", logicpoolid = " << idinfo.lpid_;
 
         leftlength -= len;
         off += len;
@@ -137,29 +136,44 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                             off_t off,
                             size_t len,
                             MDSClient* mdsclient,
-                            const FInfo_t* fi,
+                            const FInfo_t* fileinfo,
                             ChunkIndex chunkidx) {
     auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSize;
 
     ChunkIDInfo_t chinfo;
+    SegmentInfo segInfo;
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;
     MetaCacheErrorType chunkidxexist = mc->GetChunkInfoByIndex(chunkidx, &chinfo);          // NOLINT
     if (chunkidxexist == MetaCacheErrorType::CHUNKINFO_NOT_FOUND) {
         LIBCURVE_ERROR re = mdsclient->GetOrAllocateSegment(true,
-                                                &lpcsIDInfo,
-                                                (off_t)chunkidx * fi->chunksize,
-                                                fi,
-                                                mc);
+                                        UserInfo(fileinfo->owner, ""),
+                                        (off_t)chunkidx * fileinfo->chunksize,
+                                        fileinfo,
+                                        &segInfo);
         if (re == LIBCURVE_ERROR::FAILED || re == LIBCURVE_ERROR::AUTHFAIL) {
             LOG(ERROR) << "GetOrAllocateSegment failed!";
             return false;
         } else {
-            re = mdsclient->GetServerList(lpcsIDInfo.lpid,
-                                         lpcsIDInfo.cpidVec,
-                                         mc);
+            int count = 0;
+            for (auto iter : segInfo.chunkvec) {
+                uint64_t index = (segInfo.startoffset +
+                         count * fileinfo->chunksize) / fileinfo->chunksize;
+                mc->UpdateChunkInfoByIndex(index, iter);
+                ++count;
+            }
+
+            std::vector<CopysetInfo_t> cpinfoVec;
+            re = mdsclient->GetServerList(segInfo.lpcpIDInfo.lpid,
+                                         segInfo.lpcpIDInfo.cpidVec,
+                                         &cpinfoVec);
             if (re == LIBCURVE_ERROR::FAILED) {
                 LOG(ERROR) << "GetOrAllocateSegment failed!";
                 return false;
+            } else {
+                for (auto iter : cpinfoVec) {
+                    mc->UpdateCopysetInfo(segInfo.lpcpIDInfo.lpid,
+                    iter.cpid_, iter);
+                }
             }
         }
 
@@ -170,14 +184,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
         auto appliedindex_ = mc->GetAppliedIndex(chinfo.lpid_, chinfo.cpid_);
         std::list<RequestContext*> templist;
         if (len > max_split_size_bytes) {
-            ret = SingleChunkIO2ChunkRequests(iotracker,
-                                              mc,
-                                              &templist,
-                                              chinfo,
-                                              buf,
-                                              off,
-                                              len,
-                                              fi->seqnum);
+            ret = SingleChunkIO2ChunkRequests(iotracker, mc, &templist, chinfo,
+                                              buf, off, len, fileinfo->seqnum);
 
             for_each(templist.begin(), templist.end(), [&](RequestContext* it) {
                 it->appliedindex_ = appliedindex_;
@@ -189,14 +197,12 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
             if (newreqNode == nullptr || !newreqNode->Init()) {
                 return false;
             }
-            newreqNode->seq_          = fi->seqnum;
+            newreqNode->seq_          = fileinfo->seqnum;
             newreqNode->data_         = buf;
             newreqNode->offset_       = off;
             newreqNode->rawlength_    = len;
             newreqNode->optype_       = iotracker->Optype();
-            newreqNode->chunkid_      = chinfo.cid_;
-            newreqNode->copysetid_    = chinfo.cpid_;
-            newreqNode->logicpoolid_  = chinfo.lpid_;
+            newreqNode->idinfo_       = chinfo;
             newreqNode->appliedindex_ = appliedindex_;
             newreqNode->done_->SetIOTracker(iotracker);
 

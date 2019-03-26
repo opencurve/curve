@@ -54,9 +54,7 @@ class CopysetClient : public Uncopyable {
 
     /**
      * 读Chunk
-     * @param logicPoolId:逻辑池id
-     * @param copysetId:复制组id
-     * @param chunkId:Chunk文件id
+     * @param idinfo为chunk相关的id信息
      * @param sn:文件版本号
      * @param offset:读的偏移
      * @param length:读的长度
@@ -64,9 +62,7 @@ class CopysetClient : public Uncopyable {
      * @param done:上一层异步回调的closure
      * @param retriedTimes:已经重试了几次
      */
-    int ReadChunk(LogicPoolID logicPoolId,
-                  CopysetID copysetId,
-                  ChunkID chunkId,
+    int ReadChunk(ChunkIDInfo idinfo,
                   uint64_t sn,
                   off_t offset,
                   size_t length,
@@ -76,9 +72,7 @@ class CopysetClient : public Uncopyable {
 
     /**
     * 写Chunk
-    * @param logicPoolId:逻辑池id
-    * @param copysetId:复制组id
-    * @param chunkId:Chunk文件id
+    * @param idinfo为chunk相关的id信息
     * @param sn:文件版本号
     * @param buf:要写入的数据
      *@param offset:写的偏移
@@ -86,9 +80,7 @@ class CopysetClient : public Uncopyable {
     * @param done:上一层异步回调的closure
     * @param retriedTimes:已经重试了几次
     */
-    int WriteChunk(LogicPoolID logicPoolId,
-                  CopysetID copysetId,
-                  ChunkID chunkId,
+    int WriteChunk(ChunkIDInfo idinfo,
                   uint64_t sn,
                   const char *buf,
                   off_t offset,
@@ -98,18 +90,14 @@ class CopysetClient : public Uncopyable {
 
     /**
      * 读Chunk快照文件
-     * @param logicPoolId:逻辑池id
-     * @param copysetId:复制组id
-     * @param chunkId:Chunk文件id
+     * @param idinfo为chunk相关的id信息
      * @param sn:文件版本号
      * @param offset:读的偏移
      * @param length:读的长度
      * @param done:上一层异步回调的closure
      * @param retriedTimes:已经重试了几次
      */
-    int ReadChunkSnapshot(LogicPoolID logicPoolId,
-                  CopysetID copysetId,
-                  ChunkID chunkId,
+    int ReadChunkSnapshot(ChunkIDInfo idinfo,
                   uint64_t sn,
                   off_t offset,
                   size_t length,
@@ -118,31 +106,64 @@ class CopysetClient : public Uncopyable {
 
     /**
      * 删除Chunk快照文件
-     * @param logicPoolId:逻辑池id
-     * @param copysetId:复制组id
-     * @param chunkId:Chunk文件id
+     * @param idinfo为chunk相关的id信息
      * @param sn:文件版本号
      * @param done:上一层异步回调的closure
      * @param retriedTimes:已经重试了几次
      */
-    int DeleteChunkSnapshot(LogicPoolID logicPoolId,
-                  CopysetID copysetId,
-                  ChunkID chunkId,
+    int DeleteChunkSnapshot(ChunkIDInfo idinfo,
                   uint64_t sn,
                   Closure *done,
                   uint16_t retriedTimes = 0);
 
     /**
      * 获取chunk文件的信息
-     * @param logicPoolId:逻辑池id
-     * @param copysetId:复制组id
-     * @param chunkId:Chunk文件id
+     * @param idinfo为chunk相关的id信息
      * @param done:上一层异步回调的closure
      * @param retriedTimes:已经重试了几次
      */
-    int GetChunkInfo(LogicPoolID logicPoolId,
-                  CopysetID copysetId,
-                  ChunkID chunkId,
+    int GetChunkInfo(ChunkIDInfo idinfo,
+                  Closure *done,
+                  uint16_t retriedTimes = 0);
+
+    /**
+    * @brief lazy 创建clone chunk
+    * @detail
+    *  - location的格式定义为 A@B的形式。
+    *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
+    *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
+    *
+    * @param idinfo为chunk相关的id信息
+    * @param done:上一层异步回调的closure
+    * @param:location 数据源的url
+    * @param:sn chunk的序列号
+    * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
+    * @param:chunkSize chunk的大小
+    * @param retriedTimes:已经重试了几次
+    *
+    * @return 错误码
+    */
+    int CreateCloneChunk(ChunkIDInfo idinfo,
+                  const std::string &location,
+                  uint64_t sn,
+                  uint64_t correntSn,
+                  uint64_t chunkSize,
+                  Closure *done,
+                  uint16_t retriedTimes = 0);
+
+   /**
+    * @brief 实际恢复chunk数据
+    * @param idinfo为chunk相关的id信息
+    * @param done:上一层异步回调的closure
+    * @param:offset 偏移
+    * @param:len 长度
+    * @param retriedTimes:已经重试了几次
+    *
+    * @return 错误码
+    */
+    int RecoverChunk(ChunkIDInfo idinfo,
+                  uint64_t offset,
+                  uint64_t len,
                   Closure *done,
                   uint16_t retriedTimes = 0);
 

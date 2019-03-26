@@ -10,6 +10,7 @@
 
 #include <atomic>
 #include <mutex>    // NOLINT
+#include <string>
 #include <condition_variable>   // NOLINT
 
 #include "src/client/metacache.h"
@@ -29,44 +30,65 @@ class IOManager4Chunk : public IOManager {
 
    /**
     * 读取seq版本号的快照数据
-    * @param: lpid逻辑池id
-    * @param: cpid是copysetid
-    * @param: chunkID对应chunkid
+    * @param:chunkidinfo 目标chunk
     * @param: seq是快照版本号
     * @param: offset是快照内的offset
     * @param: len是要读取的长度
     * @param: buf是读取缓冲区
     * @return：成功返回真实读取长度，失败为-1
     */
-    int ReadSnapChunk(LogicPoolID lpid,
-                     CopysetID cpid,
-                     ChunkID chunkID,
+    int ReadSnapChunk(const ChunkIDInfo &chunkidinfo,
                      uint64_t seq,
                      uint64_t offset,
                      uint64_t len,
                      void *buf);
    /**
     * 删除seq版本号的快照数据
-    * @param: lpid逻辑池id
-    * @param: cpid是copysetid
-    * @param: chunkID对应chunkid
+    * @param:chunkidinfo 目标chunk
     * @param: seq是快照版本号
     */
-    int DeleteSnapChunk(LogicPoolID lpid,
-                     CopysetID cpid,
-                     ChunkID chunkId,
-                     uint64_t seq);
+    int DeleteSnapChunk(const ChunkIDInfo &chunkidinfo, uint64_t seq);
    /**
     * 获取chunk的版本信息，chunkInfo是出参
-    * @param: lpid逻辑池id
-    * @param: cpid是copysetid
-    * @param: chunkID对应chunkid
+    * @param:chunkidinfo 目标chunk
     * @param: chunkInfo是快照的详细信息
     */
-    int GetChunkInfo(LogicPoolID lpid,
-                     CopysetID cpid,
-                     ChunkID chunkId,
+    int GetChunkInfo(const ChunkIDInfo &chunkidinfo,
                      ChunkInfoDetail *chunkInfo);
+
+   /**
+    * @brief lazy 创建clone chunk
+    * @detail
+    *  - location的格式定义为 A@B的形式。
+    *  - 如果源数据在s3上，则location格式为uri@s3，uri为实际chunk对象的地址；
+    *  - 如果源数据在curvefs上，则location格式为/filename/chunkindex@cs
+    *
+    * @param:location 数据源的url
+    * @param:chunkidinfo 目标chunk
+    * @param:sn chunk的序列号
+    * @param:chunkSize chunk的大小
+    * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
+    *
+    * @return 成功返回0， 否则-1
+    */
+    int CreateCloneChunk(const std::string &location,
+                                const ChunkIDInfo &chunkidinfo,
+                                uint64_t sn,
+                                uint64_t correntSn,
+                                uint64_t chunkSize);
+
+   /**
+    * @brief 实际恢复chunk数据
+    *
+    * @param:chunkidinfo chunkidinfo
+    * @param:offset 偏移
+    * @param:len 长度
+    *
+    * @return 成功返回0， 否则-1
+    */
+    int RecoverChunk(const ChunkIDInfo &chunkidinfo,
+                              uint64_t offset,
+                              uint64_t len);
 
     /**
      * 因为curve client底层都是异步IO，每个IO会分配一个IOtracker跟踪IO

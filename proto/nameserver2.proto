@@ -152,7 +152,7 @@ message DeleteSegmentResponse {
 
 message RenameFileRequest {
     required string     oldFileName = 1;
-    required string   newFileName = 2;
+    required string     newFileName = 2;
 
     optional string     owner = 3;
     optional string     password = 4;
@@ -178,8 +178,8 @@ message ExtendFileResponse {
 
 // create snapshot
 message CreateSnapShotRequest {
-    required string fileName = 1;
-    optional string owner = 2;
+    required string     fileName = 1;
+    optional string     owner = 2;
     optional string     password = 4;
 }
 
@@ -304,7 +304,7 @@ message ReFreshSessionResponse {
 
 message  CreateCloneFileRequest {
     required string fileName = 1;
-    required string fileType = 2;
+    required FileType fileType = 2;
     required uint64 fileLength = 3;
     required uint64 seq = 4;
 

@@ -72,7 +72,8 @@ int main(int argc, char ** argv) {
         LOG(FATAL) << "Fail to init config";
     }
 
-    std::string filename = "1_userinfo_test.txt";
+    // filename必须是全路径
+    std::string filename = "/1_userinfo_";
     // uint64_t size = FLAGS_test_disk_size;
 
     /*** init mds service ***/

@@ -15,10 +15,12 @@ using curve::common::TimeUtility;
 namespace curve {
 namespace client {
 LeaseExcutor::LeaseExcutor(LeaseOption_t leaseOpt,
+                           UserInfo_t userinfo,
                            MDSClient* mdsclient,
                            IOManager4File* iomanager):
                            isleaseAvaliable_(true),
                            failedrefreshcount_(0) {
+    userinfo_    = userinfo;
     mdsclient_   = mdsclient;
     iomanager_   = iomanager;
     leaseoption_ = leaseOpt;
@@ -61,7 +63,8 @@ void LeaseExcutor::RefreshLease() {
         iomanager_->LeaseTimeoutDisableIO();
     }
     leaseRefreshResult response;
-    LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.filename,
+    LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.fullPathName,
+                                        userinfo_,
                                         leasesession_.sessionID,
                                         TimeUtility::GetTimeofDayUs(),
                                         "",
@@ -83,7 +86,6 @@ void LeaseExcutor::RefreshLease() {
         iomanager_->LeaseTimeoutDisableIO();
         refreshTask_->SetDeleteSelf();
         isleaseAvaliable_.store(false);
-        LOG(ERROR) << "session not exits in mds side!";
     } else {
         LOG(WARNING) << leasesession_.sessionID << " lease refresh failed!";
         IncremRefreshFailed();
