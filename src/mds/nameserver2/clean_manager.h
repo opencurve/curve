@@ -22,6 +22,7 @@ class CleanManagerInterface {
     virtual ~CleanManagerInterface() {}
     virtual bool SubmitDeleteSnapShotFileJob(const FileInfo&,
       std::shared_ptr<AsyncDeleteSnapShotEntity> entity) = 0;
+    virtual std::shared_ptr<Task> GetTask(TaskIDType id) = 0;
 };
 /**
  * CleanManager 用于异步清理 删除快照对应的数据
@@ -44,6 +45,8 @@ class CleanManager : public CleanManagerInterface {
          std::shared_ptr<AsyncDeleteSnapShotEntity> entity) override;
 
     bool RecoverCleanTasks(void);
+
+    std::shared_ptr<Task> GetTask(TaskIDType id) override;
 
  private:
     // TODO(hzsunjianliang): change to std::shared_ptr
