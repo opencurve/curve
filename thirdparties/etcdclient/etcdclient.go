@@ -5,20 +5,32 @@ package main
 
 enum EtcdErrCode
 {
-  StatusOK = 0,
-  ErrNewEtcdClientV3 = -1,
-  ErrEtcdPut = -2,
-  ErrEtcdGet = -3,
-  ErrEtcdGetNotExist = -4,
-  ErrEtcdList = -5,
-  ErrEtcdListNotExist = -6,
-  ErrEtcdDelete = -7,
-  ErrEtcdRename = -8,
-  ErrEtcdSnapshot = -9,
-  ErrObjectNotExist = -10,
-  ErrObjectType = -11,
-  ErrEtcdTxn = -12,
-  ErrEtcdTxnUnkownOp = -13
+	// grpc errCode, 具体的含义见:
+	// https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
+	// https://godoc.org/google.golang.org/grpc/codes#Code
+	OK = 0,
+	Canceled,
+	Unknown,
+	InvalidArgument,
+	DeadlineExceeded,
+	NotFound,
+	AlreadyExists,
+	PermissionDenied,
+	ResourceExhausted,
+	FailedPrecondition,
+	Aborted,
+	OutOfRange,
+	Unimplemented,
+	Internal,
+	Unavailable,
+	DataLoss,
+	Unauthenticated,
+
+	// 自定义错误码
+	TxnUnkownOp,
+	ObjectNotExist,
+	ErrObjectType,
+	KeyNotExist,
 };
 
 enum OpType {
@@ -45,11 +57,23 @@ import (
 	"context"
 	"fmt"
 	"errors"
+	"strings"
+	"time"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	mvccpb "go.etcd.io/etcd/mvcc/mvccpb"
-	"strings"
-	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+const (
+	EtcdNewClient = "NewCient"
+	EtcdPut = "Put"
+	EtcdGet = "Get"
+	EtcdList = "List"
+	EtcdDelete = "Delete"
+	EtcdTxn2 = "Txn2"
 )
 
 var globalClient *clientv3.Client
@@ -82,71 +106,111 @@ func GenOpList(cops []C.struct_Operation) ([]clientv3.Op, error) {
 	return res, nil
 }
 
-// TODO(lixiaocui): 下面的操作err细分，可能需要增加重试逻辑；
+func GetErrCode(op string, err error) C.enum_EtcdErrCode {
+	errCode := codes.Unknown
+	if entity, ok := err.(rpctypes.EtcdError); ok {
+		errCode = entity.Code()
+	} else if ev, ok := status.FromError(err); ok {
+		errCode = ev.Code()
+	} else if err == context.Canceled {
+		errCode = codes.Canceled
+	} else if err == context.DeadlineExceeded {
+		errCode = codes.DeadlineExceeded
+	}
+
+	if codes.OK != errCode {
+		fmt.Printf("etcd do %v get err:%v, errCode:%v\n", op, err, errCode)
+	}
+
+	switch errCode {
+	case codes.OK:
+		return C.OK
+	case codes.Canceled:
+		return C.Canceled
+	case codes.Unknown:
+		return C.Unknown
+	case codes.InvalidArgument:
+		return C.InvalidArgument
+	case codes.DeadlineExceeded:
+		return C.DeadlineExceeded
+	case codes.NotFound:
+		return C.NotFound
+	case codes.AlreadyExists:
+		return C.AlreadyExists
+	case codes.PermissionDenied:
+		return C.PermissionDenied
+	case codes.ResourceExhausted:
+		return C.ResourceExhausted
+	case codes.FailedPrecondition:
+		return C.FailedPrecondition
+	case codes.Aborted:
+		return C.Aborted
+	case codes.OutOfRange:
+		return C.OutOfRange
+	case codes.Unimplemented:
+		return C.Unimplemented
+	case codes.Internal:
+		return C.Internal
+	case codes.Unavailable:
+		return C.Unavailable
+	case codes.DataLoss:
+		return C.DataLoss
+	case codes.Unauthenticated:
+		return C.Unauthenticated
+	}
+
+	return C.Unknown
+}
+
 // TODO(lixiaocui): 日志打印看是否需要glog
 //export NewEtcdClientV3
 func NewEtcdClientV3(conf C.struct_EtcdConf) C.enum_EtcdErrCode {
 	var err error
 	globalClient, err = clientv3.New(clientv3.Config{
 		Endpoints:   GetEndpoint(C.GoStringN(conf.Endpoints, conf.len)),
-		DialTimeout: time.Duration(int(conf.DialTimeout)) * time.MilliSecond,
+		DialTimeout: time.Duration(int(conf.DialTimeout)) * time.Millisecond,
 	})
-	if err != nil {
-		fmt.Printf("new etcd client err: %v\n", err)
-		return C.ErrNewEtcdClientV3
-	}
-	return C.StatusOK
+	return GetErrCode(EtcdNewClient, err)
+}
+
+//export EtcdCloseClient
+func EtcdCloseClient() {
+	globalClient.Close()
 }
 
 //export EtcdClientPut
-func EtcdClientPut(timeout C.int, key, value *C.char, 
+func EtcdClientPut(timeout C.int, key, value *C.char,
 	keyLen, valueLen C.int) C.enum_EtcdErrCode {
 	goKey, goValue := C.GoStringN(key, keyLen), C.GoStringN(value, valueLen)
 	ctx, cancel := context.WithTimeout(context.Background(),
-		time.Duration(int(timeout))*time.MilliSecond)
+		time.Duration(int(timeout))*time.Millisecond)
 	defer cancel()
 
 	_, err := globalClient.Put(ctx, goKey, goValue)
-	if err != nil {
-		switch err {
-		case context.Canceled:
-			fmt.Printf("ctx is cancled by other routine: %v\n", err)
-		case context.DeadlineExceeded:
-			fmt.Printf("ctx is attached with a deadline " +
-				"is exceeded: %v\n", err)
-		case rpctypes.ErrEmptyKey:
-			fmt.Printf("client-side error: %v\n", err)
-		default:
-			fmt.Printf("bad cluster endpoints, which are not " +
-				"etcd servers: %v\n", err)
-		}
-		return C.ErrEtcdPut
-	}
-	return C.StatusOK
+	return GetErrCode(EtcdPut, err)
 }
 
 //export EtcdClientGet
-func EtcdClientGet(timeout C.int, key *C.char, keyLen C.int)
-	(C.enum_EtcdErrCode, *C.char, int) {
+func EtcdClientGet(timeout C.int, key *C.char,
+	keyLen C.int) (C.enum_EtcdErrCode, *C.char, int) {
 	goKey := C.GoStringN(key, keyLen)
 	ctx, cancel := context.WithTimeout(context.Background(),
-		time.Duration(int(timeout))*time.MilliSecond)
+		time.Duration(int(timeout))*time.Millisecond)
 	defer cancel()
 
 	resp, err := globalClient.Get(ctx, goKey)
-	if err != nil {
-		fmt.Printf("get key:%v err:%v\n", goKey, err)
-		return C.ErrEtcdGet, nil
+	errCode := GetErrCode(EtcdGet, err)
+	if errCode != C.OK {
+		return errCode, nil, 0
 	}
 
 	if resp.Count <= 0 {
-		fmt.Printf("key:%v do not exist\n", goKey)
-		return C.ErrEtcdGetNotExist, nil
+		return C.KeyNotExist, nil, 0
 	}
 
-	return C.StatusOK,
+	return errCode,
 		   C.CString(string(resp.Kvs[0].Value)),
-		   len(resp[0].Kvs[0].Value)
+		   len(resp.Kvs[0].Value)
 }
 
 // TODO(lixiaocui): list可能需要有长度限制
@@ -156,7 +220,7 @@ func EtcdClientList(timeout C.int, startKey, endKey *C.char,
 	goStartKey := C.GoStringN(startKey, startLen)
 	goEndKey := C.GoStringN(endKey, endLen)
 	ctx, cancel := context.WithTimeout(context.Background(),
-		time.Duration(int(timeout)) * time.MilliSecond)
+		time.Duration(int(timeout)) * time.Millisecond)
 	defer cancel()
 
 	var resp *clientv3.GetResponse
@@ -171,61 +235,39 @@ func EtcdClientList(timeout C.int, startKey, endKey *C.char,
 			ctx, goStartKey, clientv3.WithRange(goEndKey))
 	}
 
-	if err != nil {
-		fmt.Printf("list [startKey:%v, endKey:%v) err:%v",
-					goStartKey, goEndKey, err)
-		return C.ErrEtcdList, 0, 0
+	errCode := GetErrCode(EtcdList, err)
+	if errCode != C.OK {
+		return errCode, 0, 0
 	}
-
-	if resp.Count <= 0 {
-		fmt.Printf("list [startKey:%v, endKey:%v) not exist",
-					goStartKey, goEndKey)
-		return C.ErrEtcdListNotExist, 0, 0
-	}
-
-	return  C.StatusOK, AddManagedObject(resp.Kvs), resp.Count
+	return  errCode, AddManagedObject(resp.Kvs), resp.Count
 }
 
 //export EtcdClientDelete
-func EtcdClientDelete(
-	timeout C.int, key *C.char, keyLen C.int) C.enum_EtcdErrCode {
+func EtcdClientDelete(timeout C.int, key *C.char, keyLen C.int) C.enum_EtcdErrCode {
 	goKey := C.GoStringN(key, keyLen)
 	ctx, cancel := context.WithTimeout(context.Background(),
-		time.Duration(int(timeout))*time.MilliSecond)
+		time.Duration(int(timeout))*time.Millisecond)
 	defer cancel()
 
-	dresp, err := globalClient.Delete(ctx, goKey)
-	if err != nil {
-		fmt.Printf("delete key:%v err:%v\n", goKey, err)
-		return C.ErrEtcdDelete
-	}
-
-	fmt.Printf("delete %d entries of key:%v\n", dresp.Deleted, goKey)
-
-	return C.StatusOK
+	_, err := globalClient.Delete(ctx, goKey)
+	return GetErrCode(EtcdDelete, err)
 }
 
 //export EtcdClientTxn2
-func EtcdClientTxn2(
-	timeout C.int, op1, op2 C.struct_Operation) C.enum_EtcdErrCode {
+func EtcdClientTxn2(timeout C.int, op1, op2 C.struct_Operation) C.enum_EtcdErrCode {
 	ops := []C.struct_Operation{op1, op2}
 	etcdOps, err := GenOpList(ops)
 	if err != nil {
 		fmt.Printf("unknown op types, err: %v", err)
-		return C.ErrEtcdTxnUnkownOp
+		return C.TxnUnkownOp
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(),
-		time.Duration(int(timeout))*time.MilliSecond)
+		time.Duration(int(timeout))*time.Millisecond)
 	defer cancel()
 
 	_, err = globalClient.Txn(ctx).Then(etcdOps...).Commit()
-	if err != nil {
-		fmt.Printf("etcd do txn(%+v) err: %+v", ops, err)
-		return C.ErrEtcdTxn
-	}
-
-	return C.StatusOK
+	return GetErrCode(EtcdTxn2, err)
 }
 
 //export EtcdClientGetSingleObject
@@ -233,9 +275,9 @@ func EtcdClientGetSingleObject(
 	oid uint64) (C.enum_EtcdErrCode, *C.char, int) {
 	if value, exist := GetManagedObject(oid); !exist {
 		fmt.Printf("can not get object: %v", oid)
-		return C.ErrObjectNotExist, nil, 0
-	} else if res, ok := value.([]*mvccpb.KeyValue); ok{
-		return C.StatusOK, C.CString(string(res[0].Value)), len(res[0].Value)
+		return C.ObjectNotExist, nil, 0
+	} else if res, ok := value.([]*mvccpb.KeyValue); ok {
+		return C.OK, C.CString(string(res[0].Value)), len(res[0].Value)
 	} else {
 		fmt.Printf("object type err")
 		return C.ErrObjectType, nil, 0
@@ -246,9 +288,9 @@ func EtcdClientGetSingleObject(
 func EtcdClientGetMultiObject(
 	oid uint64, serial int) (C.enum_EtcdErrCode, *C.char, int) {
 	if value, exist := GetManagedObject(oid); !exist {
-		return C.ErrObjectNotExist, nil, 0
+		return C.ObjectNotExist, nil, 0
 	} else if res, ok := value.([]*mvccpb.KeyValue); ok {
-		return C.StatusOK, C.CString(string(res[serial].Value)),
+		return C.OK, C.CString(string(res[serial].Value)),
 			   len(res[serial].Value)
 	} else {
 		return C.ErrObjectType, nil, 0

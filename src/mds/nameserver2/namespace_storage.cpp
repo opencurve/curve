@@ -76,7 +76,7 @@ StoreStatus NameServerStorageImp::PutFile(
     }
 
     int errCode = client_->Put(storeKey, encodeFileInfo);
-    if (errCode != EtcdErrCode::StatusOK) {
+    if (errCode != EtcdErrCode::OK) {
          LOG(ERROR) << "put file: [" << fileInfo.filename() << "] err: "
                     << errCode;
     }
@@ -88,7 +88,7 @@ StoreStatus NameServerStorageImp::GetFile(
     std::string out;
     int errCode = client_->Get(storeKey, &out);
 
-    if (errCode == EtcdErrCode::StatusOK) {
+    if (errCode == EtcdErrCode::OK) {
         bool decodeOK = DecodeFileInfo(out, fileInfo);
         if (decodeOK) {
             LOG(ERROR) << "decode info of key[" << storeKey << "] err";
@@ -107,7 +107,7 @@ StoreStatus NameServerStorageImp::GetFile(
 StoreStatus NameServerStorageImp::DeleteFile(const std::string &storeKey) {
     int resCode = client_->Delete(storeKey);
 
-    if (resCode != EtcdErrCode::StatusOK) {
+    if (resCode != EtcdErrCode::OK) {
         LOG(ERROR) << "delete file of key: [" << storeKey << "] err: "
                    << resCode;
     }
@@ -138,7 +138,7 @@ StoreStatus NameServerStorageImp::RenameFile(
          newStoreKey.size(), encodeNewFileInfo.size()};
 
     int errCode = client_->Txn2(op1, op2);
-    if (errCode != EtcdErrCode::StatusOK) {
+    if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "rename file from [" << oldFileInfo.fullpathname()
                    << "] to [" << newFileInfo.fullpathname() << "] err: "
                    << errCode;
@@ -154,7 +154,7 @@ StoreStatus NameServerStorageImp::ListFile(
     int errCode = client_->List(
         startStoreKey.c_str(), endStoreKey.c_str(), &out);
 
-    if (errCode != EtcdErrCode::StatusOK) {
+    if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "list file of [start:" << startStoreKey
                    << ", end:" << endStoreKey << "] err:" << errCode;
         return getErrorCode(errCode);
@@ -182,7 +182,7 @@ StoreStatus NameServerStorageImp::PutSegment(
     }
 
     int errCode = client_->Put(storeKey, encodeSegment);
-    if (errCode != EtcdErrCode::StatusOK) {
+    if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "put segment of (logicalPoolId:"
                    << segment->logicalpoolid() << "err:" << errCode;
     }
@@ -194,7 +194,7 @@ StoreStatus NameServerStorageImp::GetSegment(
     std::string out;
     int errCode = client_->Get(storeKey, &out);
 
-    if (errCode == EtcdErrCode::StatusOK) {
+    if (errCode == EtcdErrCode::OK) {
         bool decodeOK = DecodeSegment(out, segment);
         if (decodeOK) {
             return StoreStatus::OK;
@@ -212,7 +212,7 @@ StoreStatus NameServerStorageImp::GetSegment(
 StoreStatus NameServerStorageImp::DeleteSegment(const std::string &storeKey) {
     int errCode = client_->Delete(storeKey);
 
-    if (errCode != EtcdErrCode::StatusOK) {
+    if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "delete segment of storeKey["
                    <<storeKey << "] err:" << errCode;
     }
@@ -246,7 +246,7 @@ StoreStatus NameServerStorageImp::SnapShotFile(
         snapshotFileKey.size(), encodeSnapshot.size()};
 
     int errCode = client_->Txn2(op1, op2);
-    if (errCode != EtcdErrCode::StatusOK) {
+    if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "store snapshot:" << snapshotFileInfo->fullpathname()
                    << ", fileinfo:" << originFileInfo->fullpathname() << "err";
     }
@@ -255,28 +255,38 @@ StoreStatus NameServerStorageImp::SnapShotFile(
 
 StoreStatus NameServerStorageImp::LoadSnapShotFile(
     std::vector<FileInfo> *snapshotFiles) {
-    return ListFile(SNAPSHOTFILEINFOKEYPREFIX, "", snapshotFiles);
+    std::string prefixEnd = "04";
+    return ListFile(SNAPSHOTFILEINFOKEYPREFIX, prefixEnd, snapshotFiles);
 }
 
 StoreStatus NameServerStorageImp::getErrorCode(int errCode) {
     switch (errCode) {
-        case EtcdErrCode::StatusOK:
+        case EtcdErrCode::OK:
             return StoreStatus::OK;
 
-        case EtcdErrCode::ErrNewEtcdClientV3:
-        case EtcdErrCode::ErrEtcdPut:
-        case EtcdErrCode::ErrEtcdGet:
-        case EtcdErrCode::ErrEtcdDelete:
-        case EtcdErrCode::ErrEtcdList:
-        case EtcdErrCode::ErrObjectNotExist:
-        case EtcdErrCode::ErrObjectType:
-        case EtcdErrCode::ErrEtcdTxn:
-        case EtcdErrCode::ErrEtcdTxnUnkownOp:
-            return StoreStatus::InternalError;
-
-        case EtcdErrCode::ErrEtcdGetNotExist:
-        case EtcdErrCode::ErrEtcdListNotExist:
+        case EtcdErrCode::KeyNotExist:
             return StoreStatus::KeyNotExist;
+
+        case EtcdErrCode::Unknown:
+        case EtcdErrCode::InvalidArgument:
+        case EtcdErrCode::AlreadyExists:
+        case EtcdErrCode::PermissionDenied:
+        case EtcdErrCode::OutOfRange:
+        case EtcdErrCode::Unimplemented:
+        case EtcdErrCode::Internal:
+        case EtcdErrCode::NotFound:
+        case EtcdErrCode::DataLoss:
+        case EtcdErrCode::Unauthenticated:
+        case EtcdErrCode::Canceled:
+        case EtcdErrCode::DeadlineExceeded:
+        case EtcdErrCode::ResourceExhausted:
+        case EtcdErrCode::FailedPrecondition:
+        case EtcdErrCode::Aborted:
+        case EtcdErrCode::Unavailable:
+        case EtcdErrCode::TxnUnkownOp:
+        case EtcdErrCode::ObjectNotExist:
+        case EtcdErrCode::ErrObjectType:
+            return StoreStatus::InternalError;
 
         default:
             return StoreStatus::InternalError;

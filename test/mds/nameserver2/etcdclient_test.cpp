@@ -26,8 +26,9 @@ class TestEtcdClinetImp : public ::testing::Test {
      client_ = std::make_shared<EtcdClientImp>();
      char endpoints[] = "127.0.0.1:2379";
      EtcdConf conf = {endpoints, strlen(endpoints), 20000};
-     ASSERT_EQ(0, client_->Init(conf, 20000));
-
+     ASSERT_EQ(0, client_->Init(conf, 200, 3));
+     ASSERT_EQ(EtcdErrCode::DeadlineExceeded, client_->Put("05", "hello word"));
+     client_->SetTimeout(20000);
      system("etcd&");
   }
 
@@ -64,7 +65,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         ASSERT_TRUE(fileinfo.SerializeToString(&encodeFileInfo));
         std::string encodeKey = EncodeFileStoreKey(i << 8, filename);
         if (i <= 9) {
-            ASSERT_EQ(EtcdErrCode::StatusOK,
+            ASSERT_EQ(EtcdErrCode::OK,
                 client_->Put(encodeKey, encodeFileInfo));
             keyMap[i] = encodeKey;
             fileName[i] = filename;
@@ -100,7 +101,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     for (int i = 0; i < keyMap.size(); i++) {
         std::string out;
         int errCode = client_->Get(keyMap[i], &out);
-        ASSERT_EQ(EtcdErrCode::StatusOK, errCode);
+        ASSERT_EQ(EtcdErrCode::OK, errCode);
         FileInfo fileinfo;
         ASSERT_TRUE(DecodeFileInfo(out, &fileinfo));
         ASSERT_EQ(fileName[i], fileinfo.filename());
@@ -110,7 +111,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     // 3. list file
     std::vector<std::string> listRes;
     int errCode = client_->List("01", "02", &listRes);
-    ASSERT_EQ(EtcdErrCode::StatusOK, errCode);
+    ASSERT_EQ(EtcdErrCode::OK, errCode);
     ASSERT_EQ(keyMap.size(), listRes.size());
     for (int i = 0; i < listRes.size(); i++) {
         FileInfo fileinfo;
@@ -121,11 +122,11 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
 
     // 4. delete file
     for (int i = 0; i < keyMap.size()/2; i++) {
-        ASSERT_EQ(EtcdErrCode::StatusOK, client_->Delete(keyMap[i]));
+        ASSERT_EQ(EtcdErrCode::OK, client_->Delete(keyMap[i]));
         // can not get delete file
         std::string out;
         ASSERT_EQ(
-            EtcdErrCode::ErrEtcdGetNotExist, client_->Get(keyMap[i], &out));
+            EtcdErrCode::KeyNotExist, client_->Get(keyMap[i], &out));
     }
 
     // 5. rename file: rename file9 ~ file10
@@ -139,14 +140,14 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
          const_cast<char*>(fileKey10.c_str()),
         const_cast<char*>(fileInfo10.c_str()),
         fileKey10.size(), fileInfo10.size()};
-    ASSERT_EQ(EtcdErrCode::StatusOK, client_->Txn2(op1, op2));
+    ASSERT_EQ(EtcdErrCode::OK, client_->Txn2(op1, op2));
 
     // cannot get file9
     std::string out;
-    ASSERT_EQ(EtcdErrCode::ErrEtcdGetNotExist,
+    ASSERT_EQ(EtcdErrCode::KeyNotExist,
         client_->Get(keyMap[9], &out));
     // get file10 ok
-    ASSERT_EQ(EtcdErrCode::StatusOK, client_->Get(fileKey10, &out));
+    ASSERT_EQ(EtcdErrCode::OK, client_->Get(fileKey10, &out));
     FileInfo fileinfo;
     ASSERT_TRUE(DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(fileName10, fileinfo.filename());
@@ -162,37 +163,39 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         const_cast<char*>(snapshotKey6.c_str()),
         const_cast<char*>(snapshotInfo6.c_str()),
         snapshotKey6.size(), snapshotInfo6.size()};
-    ASSERT_EQ(EtcdErrCode::StatusOK, client_->Txn2(op3, op4));
+    ASSERT_EQ(EtcdErrCode::OK, client_->Txn2(op3, op4));
     // get file6
-    ASSERT_EQ(EtcdErrCode::StatusOK, client_->Get(keyMap[6], &out));
+    ASSERT_EQ(EtcdErrCode::OK, client_->Get(keyMap[6], &out));
     ASSERT_TRUE(DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(2, fileinfo.seqnum());
     ASSERT_EQ(fileName[6], fileinfo.filename());
     // get snapshot6
-    ASSERT_EQ(EtcdErrCode::StatusOK, client_->Get(snapshotKey6, &out));
+    ASSERT_EQ(EtcdErrCode::OK, client_->Get(snapshotKey6, &out));
     ASSERT_TRUE(DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(1, fileinfo.seqnum());
     ASSERT_EQ(snapshotName6, fileinfo.filename());
     // list snapshotfile
-    ASSERT_EQ(EtcdErrCode::StatusOK, client_->List("03", "", &listRes));
+    ASSERT_EQ(EtcdErrCode::OK, client_->List("03", "04", &listRes));
     ASSERT_EQ(1, listRes.size());
 
     // 7. abnormal
     client_->SetTimeout(0);
-    ASSERT_EQ(EtcdErrCode::ErrEtcdPut, client_->Put(fileKey10, fileInfo10));
-    client_->SetTimeout(5000);
     ASSERT_EQ(
-        EtcdErrCode::ErrEtcdListNotExist, client_->List("04", "", &listRes));
-    client_->SetTimeout(0);
-    ASSERT_EQ(EtcdErrCode::ErrEtcdDelete, client_->Delete("05"));
-    ASSERT_EQ(EtcdErrCode::ErrEtcdGet, client_->Get(fileKey10, &out));
-    ASSERT_EQ(EtcdErrCode::ErrEtcdTxn, client_->Txn2(op3, op4));
+        EtcdErrCode::DeadlineExceeded, client_->Put(fileKey10, fileInfo10));
+    ASSERT_EQ(EtcdErrCode::DeadlineExceeded, client_->Delete("05"));
+    ASSERT_EQ(EtcdErrCode::DeadlineExceeded, client_->Get(fileKey10, &out));
+    ASSERT_EQ(EtcdErrCode::DeadlineExceeded, client_->Txn2(op3, op4));
+
     client_->SetTimeout(5000);
     Operation op5{
         OpType(5), const_cast<char*>(snapshotKey6.c_str()),
         const_cast<char*>(snapshotInfo6.c_str()),
         snapshotKey6.size(), snapshotInfo6.size()};
-    ASSERT_EQ(ErrEtcdTxnUnkownOp, client_->Txn2(op3, op5));
+    ASSERT_EQ(EtcdErrCode::TxnUnkownOp, client_->Txn2(op3, op5));
+
+    // close client
+    client_->CloseClient();
+    ASSERT_EQ(EtcdErrCode::Canceled, client_->Put(fileKey10, fileInfo10));
 }
 }  // namespace mds
 }  // namespace curve
