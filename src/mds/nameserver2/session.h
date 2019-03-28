@@ -157,6 +157,13 @@ class SessionManager {
                            const std::string &signature,
                            const std::string &clientIP);
 
+    /**
+     *  @brief 文件是否有在有效期内的session
+     *  @param filename: 文件名
+     *  @return 文件存在有效的session返回true，否则返回false
+     */
+    bool isFileHasValidSession(const std::string &fileName);
+
  private:
     // 启动mds时调用，从数据库中加载session信息到内存，返回调用是否成功
     bool LoadSession();

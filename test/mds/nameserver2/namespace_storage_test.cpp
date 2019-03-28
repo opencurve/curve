@@ -235,7 +235,6 @@ TEST_F(TestNameServerStorageImp, test_ListFile) {
     ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());
 }
 
-
 TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     // 1. list err
     std::vector<FileInfo> listRes;
@@ -259,6 +258,44 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     ASSERT_EQ(1, listRes.size());
     ASSERT_EQ(fileinfo.filename(), listRes[0].filename());
     ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());
+}
+
+TEST_F(TestNameServerStorageImp, test_getrecyclefile) {
+    // 1. get file err
+    FileInfo fileinfo;
+    EXPECT_CALL(*client_, Get(_, _))
+        .WillOnce(Return(EtcdErrCode::DeadlineExceeded))
+        .WillOnce(Return(EtcdErrCode::KeyNotExist));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->GetFile(fileinfo.parentid(),
+                                                            fileinfo.filename(),
+                                                            &fileinfo));
+    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetFile(fileinfo.parentid(),
+                                                          fileinfo.filename(),
+                                                          &fileinfo));
+
+    // 2. get file ok
+    FileInfo getInfo;
+    std::string encodeFileinfo;
+    GetFileInfoForTest(&fileinfo);
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
+                                                      &encodeFileinfo));
+    EXPECT_CALL(*client_, Get(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(encodeFileinfo),
+                  Return(EtcdErrCode::OK)));
+    ASSERT_EQ(StoreStatus::OK, storage_->GetFile(fileinfo.parentid(),
+                                                 fileinfo.filename(),
+                                                 &getInfo));
+    ASSERT_EQ(fileinfo.filename(), getInfo.filename());
+    ASSERT_EQ(fileinfo.fullpathname(), getInfo.fullpathname());
+    ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
+}
+
+TEST_F(TestNameServerStorageImp, test_deleterecyclefile) {
+    EXPECT_CALL(*client_, Delete(_))
+        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
+    ASSERT_EQ(StoreStatus::OK, storage_->DeleteFile(1234, ""));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteFile(1234, ""));
 }
 
 TEST_F(TestNameServerStorageImp, test_putsegment) {
@@ -362,6 +399,33 @@ TEST(NameSpaceStorageTest, EncodeSnapShotFileStoreKey) {
         ASSERT_EQ(static_cast<int>(str[i]), 0);
     }
     ASSERT_EQ(static_cast<int>(str[9]), 8);
+}
+
+TEST(NameSpaceStorageTest, EncodeRecycleFileStoreKey) {
+    std::string filename = "foo.txt";
+    uint64_t parentID = 8;
+    std::string str =
+        NameSpaceStorageCodec::EncodeRecycleFileStoreKey(parentID, filename);
+
+    ASSERT_EQ(str.size(), 17);
+    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), RECYCLEFILEINFOKEYPREFIX);
+    ASSERT_EQ(str.substr(10, filename.length()), filename);
+    for (int i = 2;  i != 9; i++) {
+        ASSERT_EQ(static_cast<int>(str[i]), 0);
+    }
+    ASSERT_EQ(static_cast<int>(str[9]), 8);
+
+    parentID = 8 << 8;
+    str = NameSpaceStorageCodec::EncodeRecycleFileStoreKey(parentID, filename);
+
+    ASSERT_EQ(str.size(), 17);
+    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), RECYCLEFILEINFOKEYPREFIX);
+    ASSERT_EQ(str.substr(10, filename.length()), filename);
+    for (int i = 2;  i != 8; i++) {
+        ASSERT_EQ(static_cast<int>(str[i]), 0);
+    }
+    ASSERT_EQ(static_cast<int>(str[8]), 8);
+    ASSERT_EQ(static_cast<int>(str[9]), 0);
 }
 
 TEST(NameSpaceStorageTest, EncodeSegmentStoreKey) {

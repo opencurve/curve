@@ -11,6 +11,7 @@ enum FileType {
     INODE_APPENDFILE = 2;
     INODE_APPENDECFILE = 3;
     INODE_SNAPSHOT_PAGEFILE = 4;
+    INODE_RECYCLE_PAGEFILE = 5;
 };
 
 enum FileStatus {
@@ -66,6 +67,8 @@ enum  StatusCode {
     kNotSupported = 110;
     // owner认证失败
     kOwnerAuthFail = 111;
+    // 目录非空
+    kDirNotEmpty = 112;
 
     // 文件已处于快照中
     kFileUnderSnapShot = 120;
@@ -77,7 +80,6 @@ enum  StatusCode {
     kSnapshotFileNotExists = 123;
     // 快照文件删除失败
     kSnapshotFileDeleteError = 124;
-
     // session不存在
     kSessionNotExist = 125;
     // 文件已被占用
@@ -85,7 +87,8 @@ enum  StatusCode {
 
     kCloneFileNameIllegal = 127;
     kCloneStatusNotMatch = 128;
-
+    // 文件删除失败
+    kCommonFileDeleteError = 129;
     // 元数据存储错误
     kStorageError = 501;
     // 内部错误
@@ -120,6 +123,17 @@ message CreateFileResponse {
     required StatusCode statusCode = 1;
 }
 
+message DeleteFileRequest {
+    required string     fileName = 1;
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
+};
+
+message DeleteFileResponse {
+    required StatusCode statusCode = 1;
+}
+
 message GetFileInfoRequest {
     required string     fileName = 1;
 
@@ -147,19 +161,6 @@ message GetOrAllocateSegmentRequest {
 message GetOrAllocateSegmentResponse {
     required StatusCode statusCode = 1;
     optional PageFileSegment pageFileSegment = 2;
-}
-
-message DeleteSegmentRequest {
-    required string    fileName = 1;
-    required uint64    offset = 3;
-
-    required string    owner = 2;
-    optional string    signature = 4;
-    required uint64    date = 6;
-}
-
-message DeleteSegmentResponse {
-    required StatusCode statusCode = 1;
 }
 
 message RenameFileRequest {
@@ -271,7 +272,6 @@ message ProtoSession {
 
 message OpenFileRequest {
     required string fileName = 1;
-
     required string     owner = 2;
     optional string     signature = 3;
     required uint64     date = 4;
@@ -363,11 +363,10 @@ message SetCloneFileStatusResponse {
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
+    rpc     DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
     rpc     GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
     rpc     GetOrAllocateSegment(GetOrAllocateSegmentRequest)
                 returns (GetOrAllocateSegmentResponse);
-
-    rpc     DeleteSegment(DeleteSegmentRequest) returns (DeleteSegmentResponse);
     rpc     RenameFile(RenameFileRequest) returns (RenameFileResponse);
     rpc     ExtendFile(ExtendFileRequest) returns (ExtendFileResponse);
 

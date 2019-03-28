@@ -148,14 +148,6 @@ class CurveFS {
         bool allocateIfNoExist, PageFileSegment *segment);
 
     /**
-     *  @brief 删除segment
-     *  @param filename：文件名
-     *         offset: segment的偏移
-     *  @return 是否成功，成功返回StatusCode::kOK
-     */
-    StatusCode DeleteSegment(const std::string &filename, offset_t offset);
-
-    /**
      *  @brief 获取root文件信息
      *  @param
      *  @return 返回获取到的root文件信息
@@ -293,9 +285,9 @@ class CurveFS {
      * @param filename 文件名
      * @param fileID 设置文件的inodeid
      * @param fileStatus 需要设置的状态
-     * 
+     *
      * @return  是否成功，成功返回StatusCode::kOK
-     * 
+     *
      */
     StatusCode SetCloneFileStatus(const std::string &filename,
                             uint64_t fileID,
@@ -395,13 +387,38 @@ class CurveFS {
                               std::string *lastEntry,
                               uint64_t *parentID);
 
+    /**
+     *  @brief 删除文件时，把待删除的文件放到回收站
+     *  @param: fileInfo：待删除的文件
+     *  @param[out]: waitDelteFileInfo：生成的待删除文件信息，一方面作为出参
+     *               一方面持久化到回收站
+     *  @return: 是否成功
+     */
+    StatusCode MoveFileToRecycle(const FileInfo &fileInfo,
+                                                FileInfo *waitDelteFileInfo);
+
+    /**
+     *  @brief 判断一个目录下是否没有文件
+     *  @param: fileInfo：目录的fileInfo
+     *  @param: result: 目录下是否是空的，true表示目录为空，false表示目录非空
+     *  @return: 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode isDirectoryEmpty(const FileInfo &fileInfo, bool *result);
+
+    /**
+     *  @brief 判断文件是否有有效的session
+     *  @param: fileName
+     *  @return: true表示文件有有效session，false表示文件无有效session
+     */
+    bool isFileHasValidSession(const std::string &fileName);
+
  private:
     FileInfo rootFileInfo_;
     NameServerStorage*          storage_;
     InodeIDGenerator*           InodeIDGenerator_;
     ChunkSegmentAllocator*      chunkSegAllocator_;
     SessionManager *            sessionManager_;
-    std::shared_ptr<CleanManagerInterface> snapshotCleanManager_;
+    std::shared_ptr<CleanManagerInterface> cleanManager_;
     struct RootAuthOption       rootAuthOptions_;
 };
 extern CurveFS &kCurveFS;

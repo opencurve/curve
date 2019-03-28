@@ -28,6 +28,13 @@ class MockChunkServerClient : public ChunkServerClient {
         ChunkID chunkId,
         uint64_t sn));
 
+    MOCK_METHOD5(DeleteChunk,
+        int(ChunkServerIdType csId,
+        LogicalPoolID logicalPoolId,
+        CopysetID copysetId,
+        ChunkID chunkId,
+        uint64_t sn));
+
     MOCK_METHOD4(GetLeader,
         int(ChunkServerIdType csId,
         LogicalPoolID logicalPoolId,

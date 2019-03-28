@@ -19,7 +19,6 @@ using ::curve::mds::topology::ChunkServerIdType;
 namespace curve {
 namespace mds {
 namespace chunkserverclient {
-
 int CopysetClient::DeleteSnapShotChunk(LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
@@ -58,6 +57,55 @@ int CopysetClient::DeleteSnapShotChunk(LogicalPoolID logicalPoolId,
         leaderId = copyset.GetLeader();
 
         ret = chunkserverClient_->DeleteChunkSnapshot(
+            leaderId, logicalPoolId, copysetId, chunkId, sn);
+        if (kMdsSuccess == ret) {
+            break;
+        }
+        retry++;
+    }
+    return ret;
+}
+
+int CopysetClient::DeleteChunk(LogicalPoolID logicalPoolId,
+                                    CopysetID copysetId,
+                                    ChunkID chunkId,
+                                    uint64_t sn) {
+    CopySetInfo copyset;
+    if (true != topo_->GetCopySet(
+        CopySetKey(logicalPoolId, copysetId),
+        &copyset)) {
+        return kMdsFail;
+    }
+
+    ChunkServerIdType leaderId =
+        copyset.GetLeader();
+
+    int ret = chunkserverClient_->DeleteChunk(
+        leaderId, logicalPoolId, copysetId, chunkId, sn);
+    if (kMdsSuccess == ret) {
+        return ret;
+    }
+
+    // delete Chunk在kCsClientCSOffline、kRpcFail、kCsClientNotLeader
+    // 这三种返回值时需要进行重试
+    uint32_t retry = 1;
+    while ((retry < kUpdateLeaderRetryTime) &&
+           ((kCsClientCSOffline == ret) ||
+            (kRpcFail == ret) ||
+            (kCsClientNotLeader == ret))) {
+        std::this_thread::sleep_for(
+                std::chrono::milliseconds(kUpdateLeaderRetryIntervalMs));
+        ret = UpdateLeader(&copyset);
+        if (ret < 0) {
+            LOG(ERROR) << "UpdateLeader fail."
+                       << " logicalPoolId = " << logicalPoolId
+                       << ", copysetId = " << copysetId;
+            break;
+        }
+
+        leaderId = copyset.GetLeader();
+
+        ret = chunkserverClient_->DeleteChunk(
             leaderId, logicalPoolId, copysetId, chunkId, sn);
         if (kMdsSuccess == ret) {
             break;

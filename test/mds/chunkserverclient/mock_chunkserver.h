@@ -24,6 +24,12 @@ class MockChunkService : public ChunkService {
         const ChunkRequest *request,
         ChunkResponse *response,
         Closure *done));
+
+    MOCK_METHOD4(DeleteChunk,
+        void(RpcController *controller,
+        const ChunkRequest *request,
+        ChunkResponse *response,
+        Closure *done));
 };
 
 class MockCliService : public CliService {

@@ -120,6 +120,32 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
+    StoreStatus GetRecycleFile(InodeID id, const std::string &filename,
+                                                FileInfo * fileInfo) {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeRecycleFileStoreKey(id, filename);
+        auto iter = memKvMap_.find(storeKey);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        fileInfo->ParseFromString(iter->second);
+        return StoreStatus::OK;
+    }
+
+    StoreStatus DeleteRecycleFile(InodeID id,
+                                   const std::string &filename) {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeRecycleFileStoreKey(id, filename);
+        auto iter = memKvMap_.find(storeKey);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        memKvMap_.erase(iter);
+        return StoreStatus::OK;
+    }
+
     StoreStatus DeleteSnapshotFile(InodeID id,
                             const std::string &filename) override {
         std::lock_guard<std::mutex> guard(lock_);
@@ -275,6 +301,24 @@ class FakeNameServerStorage : public NameServerStorage {
                     FileInfo  validFile;
                     validFile.ParseFromString(iter->second);
                     snapShotFiles->push_back(validFile);
+                }
+            }
+        }
+        return StoreStatus::OK;
+    }
+
+    StoreStatus LoadRecycleFile(std::vector<FileInfo> *recycleFiles)
+    override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string recycleStartKey = RECYCLEFILEINFOKEYPREFIX;
+
+        for (auto iter = memKvMap_.begin(); iter != memKvMap_.end(); iter++) {
+            if ( iter->first.length() > recycleStartKey.length() ) {
+                if (iter->first.substr(0, recycleStartKey.length()).
+                    compare(recycleStartKey) == 0) {
+                    FileInfo  validFile;
+                    validFile.ParseFromString(iter->second);
+                    recycleFiles->push_back(validFile);
                 }
             }
         }

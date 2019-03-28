@@ -265,6 +265,23 @@ StatusCode SessionManager::UpdateSession(const std::string &fileName,
     return ret;
 }
 
+bool SessionManager::isFileHasValidSession(const std::string &fileName) {
+    common::ReadLockGuard rl(rwLock_);
+
+    // 检查session是否存在
+    auto iter = sessionMap_.find(fileName);
+    if (iter == sessionMap_.end()) {
+        return false;
+    }
+
+    // 如果file有session存在，session是否在有效期内
+    Session *session = &(iter->second);
+    if (session->IsLeaseTimeOut()) {
+        return false;
+    }
+
+    return true;
+}
 
 // 扫描sessionMap_，如果有过期的session，把状态标记为kSessionStaled
 void SessionManager::ScanSessionMap() {
