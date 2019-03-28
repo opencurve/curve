@@ -105,9 +105,22 @@ class SnapShotCleanTask: public Task {
 
 class CommonFileCleanTask: public Task {
  public:
+    CommonFileCleanTask(TaskIDType taskID, std::shared_ptr<CleanCore> core,
+                FileInfo fileInfo) {
+        cleanCore_ = core;
+        fileInfo_ = fileInfo;
+        SetTaskProgress(TaskProgress());
+        SetTaskID(taskID);
+    }
+
     void Run(void) override {
+        cleanCore_->CleanFile(fileInfo_, GetMutableTaskProgress());
         return;
     }
+
+ private:
+    std::shared_ptr<CleanCore> cleanCore_;
+    FileInfo fileInfo_;
 };
 
 }  // namespace mds

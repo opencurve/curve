@@ -17,7 +17,7 @@ using ::testing::Return;
 namespace curve {
 namespace mds {
 
-TEST(CleanCore, test) {
+TEST(CleanCore, testcleansnapshotfile) {
     auto storage = new MockNameServerStorage();
     auto cleanCore = new CleanCore(storage);
 
@@ -80,6 +80,70 @@ TEST(CleanCore, test) {
     delete storage;
 }
 
+TEST(CleanCore, testcleanfile) {
+    auto storage = new MockNameServerStorage();
+    auto cleanCore = new CleanCore(storage);
 
+    {
+        // delete ok (no, segment)
+        EXPECT_CALL(*storage, GetSegment(_, _, _))
+        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
+
+
+        EXPECT_CALL(*storage, DeleteRecycleFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        FileInfo cleanFile;
+        cleanFile.set_length(kMiniFileLength);
+        cleanFile.set_segmentsize(DefaultSegmentSize);
+        TaskProgress progress;
+        ASSERT_EQ(cleanCore->CleanFile(cleanFile, &progress),
+            StatusCode::kOK);
+
+        ASSERT_EQ(progress.GetStatus(), TaskStatus::SUCCESS);
+        ASSERT_EQ(progress.GetProgress(), 100);
+    }
+
+    {
+        // all ok , but do DeleteFile namespace meta error
+        EXPECT_CALL(*storage, GetSegment(_, _, _))
+        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
+
+
+        EXPECT_CALL(*storage, DeleteRecycleFile(_, _))
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        FileInfo cleanFile;
+        cleanFile.set_length(kMiniFileLength);
+        cleanFile.set_segmentsize(DefaultSegmentSize);
+        TaskProgress progress;
+        ASSERT_EQ(cleanCore->CleanFile(cleanFile, &progress),
+            StatusCode::kCommonFileDeleteError);
+        ASSERT_EQ(progress.GetStatus(), TaskStatus::FAILED);
+    }
+
+    {
+        // get segment error
+        EXPECT_CALL(*storage, GetSegment(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        FileInfo cleanFile;
+        cleanFile.set_length(kMiniFileLength);
+        cleanFile.set_segmentsize(DefaultSegmentSize);
+        TaskProgress progress;
+        ASSERT_EQ(cleanCore->CleanFile(cleanFile, &progress),
+            StatusCode::kCommonFileDeleteError);
+        ASSERT_EQ(progress.GetStatus(), TaskStatus::FAILED);
+    }
+    {
+        // get segment ok, DeleteSnapShotChunk Error
+    }
+    {
+        // get segment ok, DeleteSnapShotChunk ok, DeleteSegment error
+    }
+    delete storage;
+}
 }  // namespace mds
 }  // namespace curve

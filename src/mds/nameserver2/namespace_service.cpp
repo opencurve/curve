@@ -73,6 +73,59 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
     return;
 }
 
+void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::DeleteFileRequest* request,
+                       ::curve::mds::DeleteFileResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", DeleteFile request path is invalid, filename = "
+            << request->filename();
+        return;
+    }
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", DeleteFile request, filename = " << request->filename();
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.DeleteFile(request->filename());
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", DeleteFile fail, filename = " <<  request->filename()
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", DeleteFile ok, filename = " << request->filename();
+    }
+    return;
+}
+
 void NameSpaceService::GetFileInfo(
                         ::google::protobuf::RpcController* controller,
                         const ::curve::mds::GetFileInfoRequest* request,
@@ -194,64 +247,6 @@ void NameSpaceService::GetOrAllocateSegment(
     return;
 }
 
-void NameSpaceService::DeleteSegment(
-                         ::google::protobuf::RpcController* controller,
-                         const ::curve::mds::DeleteSegmentRequest* request,
-                         ::curve::mds::DeleteSegmentResponse* response,
-                         ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-
-    if (!isPathValid(request->filename())) {
-        response->set_statuscode(StatusCode::kParaError);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                << ", DeleteSegment request path is invalid, filename = "
-                << request->filename()
-                << ", offset = " << request->offset();
-        return;
-    }
-
-    LOG(INFO) << "logid = " << cntl->log_id()
-        << ", DeleteSegment request, filename = " << request->filename()
-        << ", offset = " << request->offset();
-
-    FileWriteLockGuard guard(fileLockManager_, request->filename());
-
-    std::string signature;
-    if (request->has_signature()) {
-        signature = request->signature();
-    }
-
-    StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
-                                      signature, request->date());
-    if (retCode != StatusCode::kOK) {
-        response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
-        return;
-    }
-
-    retCode = kCurveFS.DeleteSegment(request->filename(),
-            request->offset());
-    if (retCode != StatusCode::kOK)  {
-        response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", DeleteSegment fail, filename = " << request->filename()
-            << ", offset = " << request->offset()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
-    } else {
-        response->set_statuscode(StatusCode::kOK);
-        LOG(INFO) << "logid = " << cntl->log_id()
-            << ", DeleteSegment ok, filename = " << request->filename()
-            << ", offset = " << request->offset();
-    }
-
-    return;
-}
 void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
                          const ::curve::mds::RenameFileRequest* request,
                          ::curve::mds::RenameFileResponse* response,

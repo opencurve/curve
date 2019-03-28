@@ -36,6 +36,14 @@ bool CleanManager::SubmitDeleteSnapShotFileJob(const FileInfo &fileInfo,
     return taskMgr_->PushTask(snapShotCleanTask);
 }
 
+bool CleanManager::SubmitDeleteCommonFileJob(const FileInfo &fileInfo) {
+    auto taskID = static_cast<TaskIDType>(fileInfo.id());
+    auto commonFileCleanTask =
+        std::make_shared<CommonFileCleanTask>(taskID, cleanCore_,
+                                            fileInfo);
+    return taskMgr_->PushTask(commonFileCleanTask);
+}
+
 bool CleanManager::RecoverCleanTasks(void) {
     // load task from store
     std::vector<FileInfo> snapShotFiles;
@@ -51,6 +59,22 @@ bool CleanManager::RecoverCleanTasks(void) {
             SubmitDeleteSnapShotFileJob(file, nullptr);
         }
     }
+
+    // TODO(hzchenwei7) : 回收普通文件逻辑
+    // 后续可以考虑加上延迟7天删除、线程池隔离等；
+    // 后续需要提供管理接口，查看垃圾站的情况，等等。
+    std::vector<FileInfo> recoveryFiles;
+    ret = storage_->LoadRecycleFile(&recoveryFiles);
+    if (ret != StoreStatus::OK) {
+        LOG(ERROR) << "Load recoveryFile error, ret = " << ret;
+        return false;
+    }
+
+    for (auto & file : recoveryFiles) {
+        SubmitDeleteCommonFileJob(file);
+    }
+
+    return true;
 }
 
 std::shared_ptr<Task> CleanManager::GetTask(TaskIDType id) {

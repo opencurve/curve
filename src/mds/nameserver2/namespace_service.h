@@ -39,6 +39,11 @@ class NameSpaceService: public CurveFSService {
                        ::curve::mds::CreateFileResponse* response,
                        ::google::protobuf::Closure* done) override;
 
+    void DeleteFile(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::DeleteFileRequest* request,
+                       ::curve::mds::DeleteFileResponse* response,
+                       ::google::protobuf::Closure* done) override;
+
     void GetFileInfo(::google::protobuf::RpcController* controller,
                        const ::curve::mds::GetFileInfoRequest* request,
                        ::curve::mds::GetFileInfoResponse* response,
@@ -48,11 +53,6 @@ class NameSpaceService: public CurveFSService {
                        const ::curve::mds::GetOrAllocateSegmentRequest* request,
                        ::curve::mds::GetOrAllocateSegmentResponse* response,
                        ::google::protobuf::Closure* done) override;
-
-    void DeleteSegment(::google::protobuf::RpcController* controller,
-                         const ::curve::mds::DeleteSegmentRequest* request,
-                         ::curve::mds::DeleteSegmentResponse* response,
-                         ::google::protobuf::Closure* done) override;
 
     void RenameFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::RenameFileRequest* request,

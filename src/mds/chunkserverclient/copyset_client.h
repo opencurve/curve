@@ -52,6 +52,20 @@ class CopysetClient {
         ChunkID chunkId,
         uint64_t sn);
 
+    /**
+     * @brief 删除非快照文件的Chunk文件
+     *
+     * @param logicPoolId 逻辑池id
+     * @param copysetId 复制组id
+     * @param chunkId Chunk文件id
+     * @param sn 文件版本号
+     *
+     * @return 错误码
+     */
+    int DeleteChunk(LogicalPoolID logicalPoolId,
+        CopysetID copysetId,
+        ChunkID chunkId,
+        uint64_t sn);
 
     /**
      * @brief 更新leader
