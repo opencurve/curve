@@ -34,5 +34,15 @@ TEST(Common, SpliteString) {
         items.clear();
     }
 }
+
+TEST(Common, StringToUll) {
+    std::string str = "18446744073709551615";
+    uint64_t out;
+    ASSERT_TRUE(StringToUll(str, &out));
+    ASSERT_EQ(ULLONG_MAX, out);
+
+    str = "ffff";
+    ASSERT_FALSE(StringToUll(str, &out));
+}
 }  // namespace common
 }  // namespace curve

@@ -7,6 +7,8 @@
 
 #include <gtest/gtest.h>
 #include <glog/logging.h>
+#include <thread> //NOLINT
+#include <chrono> //NOLINT
 #include <cstdlib>
 #include <memory>
 #include "src/mds/nameserver2/etcd_client.h"
@@ -19,26 +21,32 @@ namespace mds {
 // 接口测试
 class TestEtcdClinetImp : public ::testing::Test {
  protected:
-  TestEtcdClinetImp() {}
-  ~TestEtcdClinetImp() {}
+    TestEtcdClinetImp() {}
+    ~TestEtcdClinetImp() {}
 
-  void SetUp() override {
-     client_ = std::make_shared<EtcdClientImp>();
-     char endpoints[] = "127.0.0.1:2379";
-     EtcdConf conf = {endpoints, strlen(endpoints), 20000};
-     ASSERT_EQ(0, client_->Init(conf, 200, 3));
-     ASSERT_EQ(EtcdErrCode::DeadlineExceeded, client_->Put("05", "hello word"));
-     client_->SetTimeout(20000);
-     system("etcd&");
-  }
+    void SetUp() override {
+        client_ = std::make_shared<EtcdClientImp>();
+        char endpoints[] = "127.0.0.1:2379";
+        EtcdConf conf = {endpoints, strlen(endpoints), 20000};
+        ASSERT_EQ(0, client_->Init(conf, 200, 3));
+        ASSERT_EQ(
+            EtcdErrCode::DeadlineExceeded, client_->Put("05", "hello word"));
+        ASSERT_EQ(EtcdErrCode::DeadlineExceeded,
+            client_->CompareAndSwap("04", "10", "110"));
 
-  void TearDown() override {
-      client_ = nullptr;
-      system("rm -fr default.etcd");
-  }
+        client_->SetTimeout(20000);
+        system("etcd&");
+    }
+
+    void TearDown() override {
+        client_ = nullptr;
+        system("killall etcd");
+        system("rm -fr default.etcd");
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
 
  protected:
-  std::shared_ptr<EtcdClientImp> client_;
+    std::shared_ptr<EtcdClientImp> client_;
 };
 
 TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
@@ -181,7 +189,18 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(EtcdErrCode::OK, client_->List("03", "04", &listRes));
     ASSERT_EQ(1, listRes.size());
 
-    // 7. abnormal
+    // 7. test CompareAndSwap
+    ASSERT_EQ(EtcdErrCode::OK,
+        client_->CompareAndSwap("04", "", "100"));
+    ASSERT_EQ(EtcdErrCode::OK, client_->Get("04", &out));
+    ASSERT_EQ("100", out);
+
+    ASSERT_EQ(EtcdErrCode::OK,
+        client_->CompareAndSwap("04", "100", "200"));
+    ASSERT_EQ(EtcdErrCode::OK, client_->Get("04", &out));
+    ASSERT_EQ("200", out);
+
+    // 8. abnormal
     client_->SetTimeout(0);
     ASSERT_EQ(
         EtcdErrCode::DeadlineExceeded, client_->Put(fileKey10, fileInfo10));
@@ -199,6 +218,8 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     // close client
     client_->CloseClient();
     ASSERT_EQ(EtcdErrCode::Canceled, client_->Put(fileKey10, fileInfo10));
+    ASSERT_EQ(EtcdErrCode::Canceled,
+        client_->CompareAndSwap("04", "300", "400"));
 }
 }  // namespace mds
 }  // namespace curve

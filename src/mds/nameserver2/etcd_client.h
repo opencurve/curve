@@ -70,6 +70,18 @@ class StorageClient {
   * @return 错误码
   */
   virtual int Txn2(Operation op1, Operation op2) = 0;
+
+  /**
+   * @brief CompareAndSwap 事务，实现CAS
+   *
+   * @param[in] key
+   * @param[in] preV 需要满足的value条件
+   * @param[in] target 新的value
+   *
+   * @return 错误码
+   */
+  virtual int CompareAndSwap(
+      std::string key, std::string preV, std::string target) = 0;
 };
 
 class EtcdClientImp : public StorageClient {
@@ -102,6 +114,9 @@ class EtcdClientImp : public StorageClient {
   int Delete(std::string key) override;
 
   int Txn2(Operation op1, Operation op2) override;
+
+  int CompareAndSwap(
+      std::string key, std::string preV, std::string target) override;
 
   // for test
   void SetTimeout(int time);

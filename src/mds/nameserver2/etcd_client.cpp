@@ -8,6 +8,7 @@
 #include <glog/logging.h>
 #include <cassert>
 #include "src/mds/nameserver2/etcd_client.h"
+#include "src/common/string_util.h"
 
 namespace curve {
 namespace mds {
@@ -45,11 +46,11 @@ int EtcdClientImp::Get(std::string key, std::string *out) {
         EtcdClientGet_return res = EtcdClientGet(
             timeout_, const_cast<char*>(key.c_str()), key.size());
         errCode = res.r0;
+        needRetry = NeedRetry(errCode);
         if (res.r0 == EtcdErrCode::OK) {
             *out = std::string(res.r1, res.r1 + res.r2);
             free(res.r1);
         } else {
-            needRetry = NeedRetry(errCode);
             LOG(ERROR) << "get file[" << key << "] err: " << res.r0;
         }
     } while (needRetry && ++retry <= retryTimes_);
@@ -70,10 +71,10 @@ int EtcdClientImp::List(std::string startKey, std::string endKey,
             timeout_, const_cast<char*>(startKey.c_str()),
             const_cast<char*>(endKey.c_str()), startKey.size(), endKey.size());
         errCode = res.r0;
+        needRetry = NeedRetry(errCode);
         if (res.r0 != EtcdErrCode::OK) {
             LOG(ERROR) << "list file of [start:" << startKey
                     << ", end:" << endKey << "] err:" << res.r0;
-            needRetry = NeedRetry(errCode);
         } else {
             for (int i = 0; i < res.r2; i++) {
                 EtcdClientGetMultiObject_return objRes =
@@ -114,6 +115,21 @@ int EtcdClientImp::Txn2(Operation op1, Operation op2) {
     int errCode;
     do {
         errCode = EtcdClientTxn2(timeout_, op1, op2);
+        needRetry = NeedRetry(errCode);
+    } while (needRetry && ++retry <= retryTimes_);
+    return errCode;
+}
+
+int EtcdClientImp::CompareAndSwap(
+      std::string key, std::string preV, std::string target) {
+    bool needRetry = false;
+    int retry = 0;
+    int errCode;
+    do {
+        errCode = EtcdClientCompareAndSwap(
+            timeout_, const_cast<char*>(key.c_str()),
+            const_cast<char*>(preV.c_str()), const_cast<char*>(target.c_str()),
+            key.size(), preV.size(), target.size());
         needRetry = NeedRetry(errCode);
     } while (needRetry && ++retry <= retryTimes_);
     return errCode;
