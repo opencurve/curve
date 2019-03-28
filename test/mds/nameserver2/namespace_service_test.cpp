@@ -126,7 +126,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
 
     // test CreateFile
-    // create /file1 , /file2
+    // create /file1 , /file2, /dir/file3
     CreateFileRequest request;
     CreateFileResponse response;
     brpc::Controller cntl;
@@ -160,7 +160,21 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     cntl.Reset();
-    request.set_filename("/file3");
+    request.set_filename("/dir");
+    request.set_owner("owner3");
+    request.set_filetype(INODE_DIRECTORY);
+    request.set_filelength(0);
+
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    cntl.Reset();
+    request.set_filename("/dir/file3");
     request.set_owner("owner3");
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
@@ -173,6 +187,37 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
+    // 在一个不存在的目录下创建文件，会失败 kFileNotExists
+    cntl.Reset();
+    request.set_filename("/dir4/file4");
+    request.set_owner("owner4");
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        FAIL();
+    }
+
+    // 在一个文件下创建文件，会失败 kNotDirectory
+    cntl.Reset();
+    request.set_filename("/file2/file4");
+    request.set_owner("owner2");
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kNotDirectory);
+    } else {
+        FAIL();
+    }
+
+    // 如果创建一个已经存在的文件，会创建失败kFileExists
     cntl.Reset();
     request.set_filename("/file2");
     request.set_owner("owner2");
@@ -264,14 +309,16 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     // test RenameFile
     // file1 重命名为file3
-    // 第一次用root作为owner重命名成功
-    // 第二次file1不存在，重命名失败
+    // 第一次重命名到根目录下，非root owner，失败
+    // 第二次重命名成功 /dir/file3 -> /dir/file4
+    // 第三次原文件不存在，重命名失败
+    // 第四次重命名到根目录下，root owner，成功 /dir/file4 -> /file4
     cntl.Reset();
     RenameFileRequest request4;
     RenameFileResponse response4;
 
     cntl.Reset();
-    request4.set_oldfilename("/file3");
+    request4.set_oldfilename("/dir/file3");
     request4.set_newfilename("/file4");
     request4.set_owner("owner3");
     stub.RenameFile(&cntl, &request4, &response4, NULL);
@@ -282,10 +329,9 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     cntl.Reset();
-    request4.set_oldfilename("/file3");
-    request4.set_newfilename("/file4");
-    request4.set_owner(authOptions.rootOwner);
-    request4.set_password(authOptions.rootPassword);
+    request4.set_oldfilename("/dir/file3");
+    request4.set_newfilename("/dir/file4");
+    request4.set_owner("owner3");
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
@@ -294,13 +340,24 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     cntl.Reset();
-    request4.set_oldfilename("/file3");
+    request4.set_oldfilename("/dir/file3");
+    request4.set_newfilename("/dir/file3");
+    request4.set_owner("owner3");
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request4.set_oldfilename("/dir/file4");
     request4.set_newfilename("/file4");
     request4.set_owner(authOptions.rootOwner);
     request4.set_password(authOptions.rootPassword);
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(response4.statuscode(), StatusCode::kFileNotExists);
+        ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
     } else {
         ASSERT_TRUE(false);
     }

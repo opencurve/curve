@@ -115,6 +115,7 @@ StatusCode CurveFS::PutFile(const FileInfo & fileInfo) {
     std::string storeKey;
     switch (fileInfo.filetype()) {
         case FileType::INODE_PAGEFILE:
+        case FileType::INODE_DIRECTORY:
             storeKey = EncodeFileStoreKey(fileInfo.parentid(),
                 fileInfo.filename());
             break;
