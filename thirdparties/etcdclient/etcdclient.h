@@ -17,26 +17,38 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 /* Start of preamble from import "C" comments.  */
 
 
-#line 3 "/home/lixiaocui1/Project/go/src/wrappertoc/Test1/etcdclient.go"
+#line 3 "/home/lixiaocui1/Project/go/src/wrappertoc/Test2/etcdclient.go"
 
 #include <stdlib.h>
 
 enum EtcdErrCode
 {
-  StatusOK = 0,
-  ErrNewEtcdClientV3 = -1,
-  ErrEtcdPut = -2,
-  ErrEtcdGet = -3,
-  ErrEtcdGetNotExist = -4,
-  ErrEtcdList = -5,
-  ErrEtcdListNotExist = -6,
-  ErrEtcdDelete = -7,
-  ErrEtcdRename = -8,
-  ErrEtcdSnapshot = -9,
-  ErrObjectNotExist = -10,
-  ErrObjectType = -11,
-  ErrEtcdTxn = -12,
-  ErrEtcdTxnUnkownOp = -13
+	// grpc errCode, 具体的含义见:
+	// https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
+	// https://godoc.org/google.golang.org/grpc/codes#Code
+	OK = 0,
+	Canceled,
+	Unknown,
+	InvalidArgument,
+	DeadlineExceeded,
+	NotFound,
+	AlreadyExists,
+	PermissionDenied,
+	ResourceExhausted,
+	FailedPrecondition,
+	Aborted,
+	OutOfRange,
+	Unimplemented,
+	Internal,
+	Unavailable,
+	DataLoss,
+	Unauthenticated,
+
+	// 自定义错误码
+	TxnUnkownOp,
+	ObjectNotExist,
+	ErrObjectType,
+	KeyNotExist,
 };
 
 enum OpType {
@@ -107,16 +119,17 @@ extern "C" {
 #endif
 
 
-// TODO(lixiaocui): 下面的操作err细分，可能需要增加重试逻辑；
 // TODO(lixiaocui): 日志打印看是否需要glog
 
-extern GoInt32 NewEtcdClientV3(struct EtcdConf p0);
+extern GoUint32 NewEtcdClientV3(struct EtcdConf p0);
 
-extern GoInt32 EtcdClientPut(int p0, char* p1, char* p2, int p3, int p4);
+extern void EtcdCloseClient();
+
+extern GoUint32 EtcdClientPut(int p0, char* p1, char* p2, int p3, int p4);
 
 /* Return type for EtcdClientGet */
 struct EtcdClientGet_return {
-	GoInt32 r0;
+	GoUint32 r0;
 	char* r1;
 	GoInt r2;
 };
@@ -125,7 +138,7 @@ extern struct EtcdClientGet_return EtcdClientGet(int p0, char* p1, int p2);
 
 /* Return type for EtcdClientList */
 struct EtcdClientList_return {
-	GoInt32 r0;
+	GoUint32 r0;
 	GoUint64 r1;
 	GoInt64 r2;
 };
@@ -134,13 +147,13 @@ struct EtcdClientList_return {
 
 extern struct EtcdClientList_return EtcdClientList(int p0, char* p1, char* p2, int p3, int p4);
 
-extern GoInt32 EtcdClientDelete(int p0, char* p1, int p2);
+extern GoUint32 EtcdClientDelete(int p0, char* p1, int p2);
 
-extern GoInt32 EtcdClientTxn2(int p0, struct Operation p1, struct Operation p2);
+extern GoUint32 EtcdClientTxn2(int p0, struct Operation p1, struct Operation p2);
 
 /* Return type for EtcdClientGetSingleObject */
 struct EtcdClientGetSingleObject_return {
-	GoInt32 r0;
+	GoUint32 r0;
 	char* r1;
 	GoInt r2;
 };
@@ -149,7 +162,7 @@ extern struct EtcdClientGetSingleObject_return EtcdClientGetSingleObject(GoUint6
 
 /* Return type for EtcdClientGetMultiObject */
 struct EtcdClientGetMultiObject_return {
-	GoInt32 r0;
+	GoUint32 r0;
 	char* r1;
 	GoInt r2;
 };
