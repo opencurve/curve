@@ -17,38 +17,38 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 /* Start of preamble from import "C" comments.  */
 
 
-#line 3 "/home/lixiaocui1/Project/go/src/wrappertoc/Test2/etcdclient.go"
+#line 3 "/home/lixiaocui1/Project/go/src/wrappertoc/Test4/etcdclient.go"
 
 #include <stdlib.h>
 
 enum EtcdErrCode
 {
-	// grpc errCode, 具体的含义见:
-	// https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
-	// https://godoc.org/google.golang.org/grpc/codes#Code
-	OK = 0,
-	Canceled,
-	Unknown,
-	InvalidArgument,
-	DeadlineExceeded,
-	NotFound,
-	AlreadyExists,
-	PermissionDenied,
-	ResourceExhausted,
-	FailedPrecondition,
-	Aborted,
-	OutOfRange,
-	Unimplemented,
-	Internal,
-	Unavailable,
-	DataLoss,
-	Unauthenticated,
+    // grpc errCode, 具体的含义见:
+    // https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
+    // https://godoc.org/google.golang.org/grpc/codes#Code
+    OK = 0,
+    Canceled,
+    Unknown,
+    InvalidArgument,
+    DeadlineExceeded,
+    NotFound,
+    AlreadyExists,
+    PermissionDenied,
+    ResourceExhausted,
+    FailedPrecondition,
+    Aborted,
+    OutOfRange,
+    Unimplemented,
+    Internal,
+    Unavailable,
+    DataLoss,
+    Unauthenticated,
 
-	// 自定义错误码
-	TxnUnkownOp,
-	ObjectNotExist,
-	ErrObjectType,
-	KeyNotExist,
+    // 自定义错误码
+    TxnUnkownOp,
+    ObjectNotExist,
+    ErrObjectType,
+    KeyNotExist,
 };
 
 enum OpType {
@@ -57,17 +57,17 @@ enum OpType {
 };
 
 struct EtcdConf {
-	char *Endpoints;
-	int len;
+    char *Endpoints;
+    int len;
     int DialTimeout;
 };
 
 struct Operation {
-	enum OpType opType;
-	char *key;
-	char *value;
-	int keyLen;
-	int valueLen;
+    enum OpType opType;
+    char *key;
+    char *value;
+    int keyLen;
+    int valueLen;
 };
 
 #line 1 "cgo-generated-wrapper"
@@ -129,18 +129,18 @@ extern GoUint32 EtcdClientPut(int p0, char* p1, char* p2, int p3, int p4);
 
 /* Return type for EtcdClientGet */
 struct EtcdClientGet_return {
-	GoUint32 r0;
-	char* r1;
-	GoInt r2;
+    GoUint32 r0;
+    char* r1;
+    GoInt r2;
 };
 
 extern struct EtcdClientGet_return EtcdClientGet(int p0, char* p1, int p2);
 
 /* Return type for EtcdClientList */
 struct EtcdClientList_return {
-	GoUint32 r0;
-	GoUint64 r1;
-	GoInt64 r2;
+    GoUint32 r0;
+    GoUint64 r1;
+    GoInt64 r2;
 };
 
 // TODO(lixiaocui): list可能需要有长度限制
@@ -151,20 +151,22 @@ extern GoUint32 EtcdClientDelete(int p0, char* p1, int p2);
 
 extern GoUint32 EtcdClientTxn2(int p0, struct Operation p1, struct Operation p2);
 
+extern GoUint32 EtcdClientCompareAndSwap(int p0, char* p1, char* p2, char* p3, int p4, int p5, int p6);
+
 /* Return type for EtcdClientGetSingleObject */
 struct EtcdClientGetSingleObject_return {
-	GoUint32 r0;
-	char* r1;
-	GoInt r2;
+    GoUint32 r0;
+    char* r1;
+    GoInt r2;
 };
 
 extern struct EtcdClientGetSingleObject_return EtcdClientGetSingleObject(GoUint64 p0);
 
 /* Return type for EtcdClientGetMultiObject */
 struct EtcdClientGetMultiObject_return {
-	GoUint32 r0;
-	char* r1;
-	GoInt r2;
+    GoUint32 r0;
+    char* r1;
+    GoInt r2;
 };
 
 extern struct EtcdClientGetMultiObject_return EtcdClientGetMultiObject(GoUint64 p0, GoInt p1);

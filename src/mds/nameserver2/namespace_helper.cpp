@@ -5,6 +5,7 @@
  * Copyright (c)￼ 2018 netease
  */
 #include "src/mds/nameserver2/namespace_helper.h"
+#include "src/common/string_util.h"
 
 namespace curve {
 namespace mds {
@@ -12,6 +13,7 @@ namespace mds {
 const char FILEINFOKEYPREFIX[] = "01";
 const char SEGMENTINFOKEYPREFIX[] = "02";
 const char SNAPSHOTFILEINFOKEYPREFIX[] = "03";
+const char INODESTOREKEY[] = "04";
 // TODO(hzsunjianliang): if use single prefix for snapshot file?
 const int PREFIX_LENGTH = 2;
 const int SEGMENTKEYLEN = 18;
@@ -68,5 +70,13 @@ bool NameSpaceStorageCodec::DecodeSegment(const std::string info,
     return segment->ParseFromString(info);
 }
 
+std::string NameSpaceStorageCodec::EncodeInodeID(uint64_t value) {
+    return std::to_string(value);
+}
+
+bool NameSpaceStorageCodec::DecodeInodeID(
+    const std::string &value, uint64_t *out) {
+    return ::curve::common::StringToUll(value, out);
+}
 }   // namespace mds
 }   // namespace curve

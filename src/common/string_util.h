@@ -16,13 +16,14 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <glog/logging.h>
 #include <string>
 #include <vector>
 
 namespace curve {
 namespace common {
 
-static inline void SplitString(const std::string& full,
+static void SplitString(const std::string& full,
                                const std::string& delim,
                                std::vector<std::string>* result) {
     result->clear();
@@ -51,6 +52,20 @@ static inline void SplitString(const std::string& full,
     }
 }
 
+static bool StringToUll(const std::string &value, uint64_t *out) {
+    try {
+        *out = std::stoull(value);
+        return true;
+    } catch (std::invalid_argument &e) {
+        LOG(ERROR) << "decode InodeId string:{" << value << "}, err:"
+                   << e.what();
+        return false;
+    } catch (std::out_of_range &e) {
+        LOG(ERROR) << "decode InodeId string:{" << value << "}, err:"
+                   << e.what();
+        return false;
+    }
+}
 }  // namespace common
 }  // namespace curve
 

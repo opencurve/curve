@@ -16,7 +16,7 @@
 
 namespace curve {
 namespace mds {
-class MockEtcdClient : public StorageClient {
+class MockEtcdClient : public EtcdClientImp {
  public:
   ~MockEtcdClient() {}
   MOCK_METHOD2(Put, int(std::string, std::string));
