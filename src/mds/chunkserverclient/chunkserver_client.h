@@ -50,6 +50,23 @@ class ChunkServerClient {
         uint64_t sn);
 
     /**
+     * @brief 删除非快照chunk文件
+     *
+     * @param leaderId leader的ID
+     * @param logicalPoolId 逻辑池的ID
+     * @param copysetId 复制组的ID
+     * @param chunkId chunk文件ID
+     * @param sn 文件版本号
+     *
+     * @return 错误码
+     */
+    virtual int DeleteChunk(ChunkServerIdType leaderId,
+        LogicalPoolID logicalPoolId,
+        CopysetID copysetId,
+        ChunkID chunkId,
+        uint64_t sn);
+
+    /**
      * @brief 获取leader
      * @detail
      *   向目标chunkserver发送报文查询leader

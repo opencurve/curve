@@ -574,6 +574,246 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcReturnLeaderPeerNotExist) {
     ASSERT_EQ(kMdsFail, ret);
 }
 
+TEST_F(TestChunkServerClient, TestDeleteChunkSuccess) {
+    MockChunkService chunkService;
+    ASSERT_EQ(server_->AddService(&chunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    ChunkServerIdType csId = 0x01;
+    LogicalPoolID logicalPoolId = 0x11;
+    CopysetID copysetId = 0x21;
+    ChunkID chunkId = 0x31;
+    uint64_t sn = 100;
+
+    ChunkServer chunkserver(
+        csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
+    ChunkServerState csState;
+    csState.SetDiskState(DISKNORMAL);
+    csState.SetOnlineState(ONLINE);
+    chunkserver.SetChunkServerState(csState);
+
+    EXPECT_CALL(*topo_, GetChunkServer(csId, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
+            Return(true)));
+    ChunkResponse response;
+    response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    EXPECT_CALL(chunkService, DeleteChunk(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                Invoke([](RpcController *controller,
+                          const ChunkRequest *request,
+                          ChunkResponse *response,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                    })));
+
+    int ret = client_->DeleteChunk(
+        csId, logicalPoolId, copysetId, chunkId, sn);
+    ASSERT_EQ(kMdsSuccess, ret);
+}
+
+TEST_F(TestChunkServerClient, TestDeleteChunkGetChunkServerFail) {
+    MockChunkService chunkService;
+    ASSERT_EQ(server_->AddService(&chunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    ChunkServerIdType csId = 0x01;
+    LogicalPoolID logicalPoolId = 0x11;
+    CopysetID copysetId = 0x21;
+    ChunkID chunkId = 0x31;
+    uint64_t sn = 100;
+
+    ChunkServer chunkserver(
+        csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
+    ChunkServerState csState;
+    csState.SetDiskState(DISKNORMAL);
+    csState.SetOnlineState(ONLINE);
+    chunkserver.SetChunkServerState(csState);
+
+    EXPECT_CALL(*topo_, GetChunkServer(csId, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
+            Return(false)));
+
+
+    int ret = client_->DeleteChunk(
+        csId, logicalPoolId, copysetId, chunkId, sn);
+    ASSERT_EQ(kMdsFail, ret);
+}
+
+TEST_F(TestChunkServerClient, TestDeleteChunkChunkServerOFFLINE) {
+    MockChunkService chunkService;
+    ASSERT_EQ(server_->AddService(&chunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    ChunkServerIdType csId = 0x01;
+    LogicalPoolID logicalPoolId = 0x11;
+    CopysetID copysetId = 0x21;
+    ChunkID chunkId = 0x31;
+    uint64_t sn = 100;
+
+    ChunkServer chunkserver(
+        csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
+    ChunkServerState csState;
+    csState.SetDiskState(DISKNORMAL);
+    csState.SetOnlineState(OFFLINE);
+    chunkserver.SetChunkServerState(csState);
+
+    EXPECT_CALL(*topo_, GetChunkServer(csId, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
+            Return(true)));
+
+    int ret = client_->DeleteChunk(
+        csId, logicalPoolId, copysetId, chunkId, sn);
+    ASSERT_EQ(kCsClientCSOffline, ret);
+}
+
+TEST_F(TestChunkServerClient, TestDeleteChunkRpcChannelInitFail) {
+    MockChunkService chunkService;
+    ASSERT_EQ(server_->AddService(&chunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    ChunkServerIdType csId = 0x01;
+    LogicalPoolID logicalPoolId = 0x11;
+    CopysetID copysetId = 0x21;
+    ChunkID chunkId = 0x31;
+    uint64_t sn = 100;
+
+    ChunkServer chunkserver(
+        csId, "", "", 0x101, "", 8888, "", READWRITE);
+    ChunkServerState csState;
+    csState.SetDiskState(DISKNORMAL);
+    csState.SetOnlineState(ONLINE);
+    chunkserver.SetChunkServerState(csState);
+
+    EXPECT_CALL(*topo_, GetChunkServer(csId, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
+            Return(true)));
+
+    int ret = client_->DeleteChunk(
+        csId, logicalPoolId, copysetId, chunkId, sn);
+    ASSERT_EQ(kRpcChannelInitFail, ret);
+}
+
+TEST_F(TestChunkServerClient, TestDeleteChunkRpcCntlFail) {
+    MockChunkService chunkService;
+    ASSERT_EQ(server_->AddService(&chunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    ChunkServerIdType csId = 0x01;
+    LogicalPoolID logicalPoolId = 0x11;
+    CopysetID copysetId = 0x21;
+    ChunkID chunkId = 0x31;
+    uint64_t sn = 100;
+
+    ChunkServer chunkserver(
+        csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
+    ChunkServerState csState;
+    csState.SetDiskState(DISKNORMAL);
+    csState.SetOnlineState(ONLINE);
+    chunkserver.SetChunkServerState(csState);
+
+    EXPECT_CALL(*topo_, GetChunkServer(csId, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
+            Return(true)));
+    ChunkResponse response;
+    response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    EXPECT_CALL(chunkService, DeleteChunk(_, _, _, _))
+        .Times(kRpcRetryTime)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                Invoke([](RpcController *controller,
+                          const ChunkRequest *request,
+                          ChunkResponse *response,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                          std::this_thread::sleep_for(
+                                std::chrono::milliseconds(kRpcTimeoutMs + 1));
+                    })));
+
+    int ret = client_->DeleteChunk(
+        csId, logicalPoolId, copysetId, chunkId, sn);
+    ASSERT_EQ(kRpcFail, ret);
+}
+
+TEST_F(TestChunkServerClient, TestDeleteChunkRpcReturnFail) {
+    MockChunkService chunkService;
+    ASSERT_EQ(server_->AddService(&chunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    ChunkServerIdType csId = 0x01;
+    LogicalPoolID logicalPoolId = 0x11;
+    CopysetID copysetId = 0x21;
+    ChunkID chunkId = 0x31;
+    uint64_t sn = 100;
+
+    ChunkServer chunkserver(
+        csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
+    ChunkServerState csState;
+    csState.SetDiskState(DISKNORMAL);
+    csState.SetOnlineState(ONLINE);
+    chunkserver.SetChunkServerState(csState);
+
+    EXPECT_CALL(*topo_, GetChunkServer(csId, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
+            Return(true)));
+    ChunkResponse response;
+    response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+    EXPECT_CALL(chunkService, DeleteChunk(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                Invoke([](RpcController *controller,
+                          const ChunkRequest *request,
+                          ChunkResponse *response,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                    })));
+
+    int ret = client_->DeleteChunk(
+        csId, logicalPoolId, copysetId, chunkId, sn);
+    ASSERT_EQ(kCsClientReturnFail, ret);
+}
+
+TEST_F(TestChunkServerClient, TestDeleteChunkReturnNotLeader) {
+    MockChunkService chunkService;
+    ASSERT_EQ(server_->AddService(&chunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    ChunkServerIdType csId = 0x01;
+    LogicalPoolID logicalPoolId = 0x11;
+    CopysetID copysetId = 0x21;
+    ChunkID chunkId = 0x31;
+    uint64_t sn = 100;
+
+    ChunkServer chunkserver(
+        csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
+    ChunkServerState csState;
+    csState.SetDiskState(DISKNORMAL);
+    csState.SetOnlineState(ONLINE);
+    chunkserver.SetChunkServerState(csState);
+
+    EXPECT_CALL(*topo_, GetChunkServer(csId, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
+            Return(true)));
+    ChunkResponse response;
+    response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
+    EXPECT_CALL(chunkService, DeleteChunk(_, _, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response),
+                Invoke([](RpcController *controller,
+                          const ChunkRequest *request,
+                          ChunkResponse *response,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                    })));
+
+    int ret = client_->DeleteChunk(
+        csId, logicalPoolId, copysetId, chunkId, sn);
+    ASSERT_EQ(kCsClientNotLeader, ret);
+}
+
 }  // namespace chunkserverclient
 }  // namespace mds
 }  // namespace curve

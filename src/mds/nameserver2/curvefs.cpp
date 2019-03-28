@@ -21,14 +21,14 @@ namespace mds {
 bool CurveFS::Init(NameServerStorage* storage,
                 InodeIDGenerator* InodeIDGenerator,
                 ChunkSegmentAllocator* chunkSegAllocator,
-                std::shared_ptr<CleanManagerInterface> snapshotCleanManager,
+                std::shared_ptr<CleanManagerInterface> cleanManager,
                 SessionManager *sessionManager,
                 const struct SessionOptions &sessionOptions,
                 const struct RootAuthOption &authOptions) {
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
-    snapshotCleanManager_ = snapshotCleanManager;
+    cleanManager_ = cleanManager;
     sessionManager_ = sessionManager;
     rootAuthOptions_ = authOptions;
 
@@ -204,6 +204,64 @@ StatusCode CurveFS::GetFileInfo(const std::string & filename,
     }
 }
 
+StatusCode CurveFS::MoveFileToRecycle(const FileInfo &fileInfo,
+                                                FileInfo *waitDeleteFileInfo) {
+    waitDeleteFileInfo->CopyFrom(fileInfo);
+    waitDeleteFileInfo->set_filestatus(FileStatus::kFileDeleting);
+    waitDeleteFileInfo->set_filetype(INODE_RECYCLE_PAGEFILE);
+
+    auto ret = storage_->PutFile(*waitDeleteFileInfo);
+    if (ret != StoreStatus::OK) {
+        LOG(ERROR) << "move file to recycle, put recycle file fail, fileName = "
+                   << waitDeleteFileInfo->fullpathname();
+        return StatusCode::kStorageError;
+    }
+
+    ret = storage_->DeleteFile(fileInfo.parentid(), fileInfo.filename());
+    if (ret != StoreStatus::OK) {
+        LOG(ERROR) << "move file to recycle, delete origin file fail"
+                   << ", fileName = " << waitDeleteFileInfo->fullpathname();
+        storage_->DeleteRecycleFile(waitDeleteFileInfo->parentid(),
+                                    waitDeleteFileInfo->filename());
+        if (ret != StoreStatus::OK) {
+            LOG(ERROR) << "move file to recycle, delete recycle file fail"
+                       << ", fileName = " << waitDeleteFileInfo->fullpathname();
+        }
+
+        return StatusCode::kStorageError;
+    }
+
+    return StatusCode::kOK;
+}
+
+StatusCode CurveFS::isDirectoryEmpty(const FileInfo &fileInfo, bool *result) {
+    assert(fileInfo.filetype() == FileType::INODE_DIRECTORY);
+    std::vector<FileInfo> fileInfoList;
+    auto storeStatus = storage_->ListFile(fileInfo.id(), fileInfo.id() + 1,
+                                          &fileInfoList);
+    if (storeStatus == StoreStatus::KeyNotExist) {
+        *result = true;
+        return StatusCode::kOK;
+    }
+
+    if (storeStatus != StoreStatus::OK) {
+        LOG(ERROR) << "list file fail, dir name = " << fileInfo.fullpathname();
+        return StatusCode::kStorageError;
+    }
+
+    if (fileInfoList.size() ==  0) {
+        *result = true;
+        return StatusCode::kOK;
+    }
+
+    *result = false;
+    return StatusCode::kOK;
+}
+
+bool CurveFS::isFileHasValidSession(const std::string &fileName) {
+    return sessionManager_->isFileHasValidSession(fileName);
+}
+
 StatusCode CurveFS::DeleteFile(const std::string & filename) {
     std::string lastEntry;
     FileInfo parentFileInfo;
@@ -220,17 +278,89 @@ StatusCode CurveFS::DeleteFile(const std::string & filename) {
     FileInfo fileInfo;
     ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
     if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "delete file lookupfile fail, fileName = " << filename;
         return ret;
     }
 
-    // TODO(hzsunjianliang): can not delete dir/snapshot father file
+    if (fileInfo.filetype() == FileType::INODE_DIRECTORY) {
+        // 目录下如果有还有文件，则不能删除
+        bool isEmpty = false;
+        auto ret1 = isDirectoryEmpty(fileInfo, &isEmpty);
+        if (ret1 != StatusCode::kOK) {
+            LOG(ERROR) << "check is directory empty fail, filename = "
+                       << filename << ", ret = " << ret1;
+            return ret;
+        }
+        if (!isEmpty) {
+            LOG(WARNING) << "delete file, file is directory and not empty"
+                       << ", filename = " << filename;
+            return StatusCode::kDirNotEmpty;
+        }
+        auto ret = storage_->DeleteFile(fileInfo.parentid(),
+                                                fileInfo.filename());
+        if (ret != StoreStatus::OK) {
+            LOG(ERROR) << "delete file, file is directory and delete fail"
+                       << ", filename = " << filename
+                       << ", ret = " << ret;
+            return StatusCode::kStorageError;
+        }
 
-    // TODO(hzsunjianliang): should sumbit async delete to task pool
-    if (storage_->DeleteFile(parentFileInfo.id(), lastEntry)
-        != StoreStatus::OK) {
-        return StatusCode::kStorageError;
+        LOG(INFO) << "delete file success, file is directory"
+                  << ", filename = " << filename;
+        return StatusCode::kOK;
+    } else if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
+        // 检查文件是否有快照
+        std::vector<FileInfo> snapshotFileInfos;
+        auto ret = ListSnapShotFile(filename, &snapshotFileInfos);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "delete file, list snapshot file fail"
+                       << ", filename = " << filename;
+            return ret;
+        }
+        if (snapshotFileInfos.size() != 0) {
+            LOG(WARNING) << "delete file, file is under snapshot, cannot delete"
+                       << ", filename = " << filename;
+            return StatusCode::kFileUnderSnapShot;
+        }
+
+        // TODO(hzchenwei7) :删除文件还需考虑克隆的情况
+
+        // 检查文件是否有分配出去的可用session
+        if (isFileHasValidSession(filename)) {
+            LOG(WARNING) << "delete file, file has valid session, cannot delete"
+                       << ", filename = " << filename;
+            return StatusCode::kFileOccupied;
+        }
+
+        // 把文件移到回收站
+        FileInfo toDelteFileInfo;
+        ret = MoveFileToRecycle(fileInfo, &toDelteFileInfo);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "delete file, move file to recycle fail"
+                       << ", filename = " << filename
+                       << ", ret = " << ret;
+            return StatusCode::KInternalError;
+        }
+
+        // 提交一个删除文件的任务
+        if (!cleanManager_->SubmitDeleteCommonFileJob(toDelteFileInfo)) {
+            LOG(ERROR) << "fileName = " << filename
+                    << ", submit delete file job fail.";
+            return StatusCode::KInternalError;
+        }
+
+        LOG(INFO) << "delete file success, file is pagefile"
+                  << ", filename = " << filename;
+        return StatusCode::kOK;
+    } else {
+        // 目前deletefile只支持INODE_DIRECTORY，INODE_PAGEFILE类型文件的删除；
+        // INODE_SNAPSHOT_PAGEFILE不调用本接口删除；
+        // 其他文件类型，系统暂时不支持。
+        LOG(ERROR) << "delete file fail, file type not support delete"
+                   << ", filename = " << filename
+                   << ", fileType = " << fileInfo.filetype();
+        return kNotSupported;
     }
-    return StatusCode::kOK;
 }
 
 StatusCode CurveFS::ReadDir(const std::string & dirname,
@@ -404,63 +534,6 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
         }
     }  else {
         return StatusCode::KInternalError;
-    }
-}
-
-StatusCode CurveFS::DeleteSegment(const std::string &fileName,
-                                  offset_t offset) {
-    FileInfo  fileInfo;
-    auto ret = GetFileInfo(fileName, &fileInfo);
-    if (ret != StatusCode::kOK) {
-        LOG(INFO) << "get source file error, fileName = "
-                  << fileName << ", offset = " << offset
-                  << ", errCode = " << ret;
-        return  ret;
-    }
-
-    if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
-        LOG(INFO) << "not pageFile, can't do this, fileName = "
-                  << fileName << ", offset = " << offset;
-        return StatusCode::kParaError;
-    }
-
-    if (offset % fileInfo.segmentsize() != 0) {
-        LOG(INFO) << "offset not align with segment, fileName = "
-                  << fileName << ", offset = " << offset;
-        return StatusCode::kParaError;
-    }
-
-    if (offset + fileInfo.segmentsize() > fileInfo.length()) {
-        LOG(INFO) << "bigger than file length, first extentFile, fileName = "
-                  << fileName << ", offset = " << offset;
-        return StatusCode::kParaError;
-    }
-
-    PageFileSegment segment;
-    auto storeRet = storage_->GetSegment(fileInfo.id(), offset, &segment);
-    if (storeRet == StoreStatus::KeyNotExist) {
-        return StatusCode::kSegmentNotAllocated;
-    } else if (storeRet == StoreStatus::OK) {
-        if (segment.startoffset() != offset) {
-            LOG(ERROR) << "get segment offset is not same, startoffset = "
-                       << segment.startoffset() << ", fileName = "
-                       << fileName << ", offset = " << offset;
-            return StatusCode::KInternalError;
-        }
-        if (storage_->DeleteSegment(fileInfo.id(), offset) != StoreStatus::OK) {
-            LOG(ERROR) << "delete segment fail, fileInfo.id() = "
-                       << fileInfo.id() << ", offset = " << offset
-                       << ", fileName = " << fileName
-                       << ", offset = " << offset;
-            return StatusCode::kStorageError;
-        }
-        return StatusCode::kOK;
-    } else {
-        LOG(ERROR) << "get segment fail, kStorageError, fileInfo.id() = "
-                   << fileInfo.id() << ", offset = " << offset
-                   << ", fileName = " << fileName
-                   << ", offset = " << offset;
-        return StatusCode::kStorageError;
     }
 }
 
@@ -643,7 +716,7 @@ StatusCode CurveFS::DeleteFileSnapShotFile(const std::string &fileName,
     }
 
     //  message the snapshot delete manager
-    if (!snapshotCleanManager_->SubmitDeleteSnapShotFileJob(
+    if (!cleanManager_->SubmitDeleteSnapShotFileJob(
                         snapShotFileInfo, entity)) {
         LOG(ERROR) << "fileName = " << fileName
                 << ", seq = " << seq
@@ -667,7 +740,7 @@ StatusCode CurveFS::CheckSnapShotFileStatus(const std::string &fileName,
     *status = snapShotFileInfo.filestatus();
     if (snapShotFileInfo.filestatus() == FileStatus::kFileDeleting) {
         TaskIDType taskID = static_cast<TaskIDType>(snapShotFileInfo.id());
-        auto task = snapshotCleanManager_->GetTask(taskID);
+        auto task = cleanManager_->GetTask(taskID);
         if (task == nullptr) {
             *progress = 100;
             return StatusCode::kOK;

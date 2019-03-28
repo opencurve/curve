@@ -38,10 +38,10 @@ class NameSpaceServiceTest : public ::testing::Test {
         // new taskmanger for 2 worker thread, and check thread period 2 second
         cleanTaskManager_ = std::make_shared<CleanTaskManager>(2, 2000);
 
-        snapShotCleanManager_ = std::make_shared<CleanManager>(cleanCore_,
+        cleanManager_ = std::make_shared<CleanManager>(cleanCore_,
                 cleanTaskManager_, storage_);
 
-        ASSERT_EQ(snapShotCleanManager_->Start(), true);
+        ASSERT_EQ(cleanManager_->Start(), true);
 
         std::shared_ptr<FackTopologyAdmin> topologyAdmin =
                                 std::make_shared<FackTopologyAdmin>();
@@ -65,15 +65,15 @@ class NameSpaceServiceTest : public ::testing::Test {
         authOptions.rootOwner = "root";
         authOptions.rootPassword = "root_password";
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
-                        snapShotCleanManager_,
+                        cleanManager_,
                         sessionManager_, sessionOptions, authOptions);
     }
 
     void TearDown() override {
         kCurveFS.Uninit();
 
-        if (snapShotCleanManager_ != nullptr) {
-            ASSERT_EQ(snapShotCleanManager_->Stop(), true);
+        if (cleanManager_ != nullptr) {
+            ASSERT_EQ(cleanManager_->Stop(), true);
         }
 
         if (storage_ != nullptr) {
@@ -101,7 +101,7 @@ class NameSpaceServiceTest : public ::testing::Test {
 
     std::shared_ptr<CleanCore> cleanCore_;
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
-    std::shared_ptr<CleanManager> snapShotCleanManager_;
+    std::shared_ptr<CleanManager> cleanManager_;
 
     SessionManager *sessionManager_;
     struct SessionOptions sessionOptions;
@@ -414,38 +414,6 @@ TEST_F(NameSpaceServiceTest, test1) {
     stub.ExtendFile(&cntl, &request5, &response5, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response5.statuscode(), StatusCode::kShrinkBiggerFile);
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    // test DeleteSegment
-    // 回收空间，第一次回收成功，第二次回收失败
-    cntl.Reset();
-    DeleteSegmentRequest request6;
-    DeleteSegmentResponse response6;
-    request6.set_filename("/file1");
-    request6.set_owner("owner1");
-    request6.set_date(TimeUtility::GetTimeofDayUs());
-    request6.set_offset(DefaultSegmentSize);
-
-    stub.DeleteSegment(&cntl, &request6, &response6, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response6.statuscode(), StatusCode::kOK);
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    DeleteSegmentRequest request7;
-    DeleteSegmentResponse response7;
-    request7.set_filename("/file1");
-    request7.set_owner("owner1");
-    request7.set_date(TimeUtility::GetTimeofDayUs());
-    request7.set_offset(DefaultSegmentSize);
-
-    stub.DeleteSegment(&cntl, &request7, &response7, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response7.statuscode(), StatusCode::kSegmentNotAllocated);
     } else {
         ASSERT_TRUE(false);
     }
@@ -808,6 +776,330 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     } else {
         ASSERT_TRUE(false);
     }
+    server.Stop(10);
+    server.Join();
+}
+
+TEST_F(NameSpaceServiceTest, deletefiletests) {
+    brpc::Server server;
+    std::string listenAddr = "0.0.0.0:9761";
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(server.Start(listenAddr.c_str(), &option), 0);
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(listenAddr.c_str(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+
+    // 先创建文件/file1，目录/dir1，文件/dir1/file2
+    CreateFileRequest request;
+    CreateFileResponse response;
+
+    brpc::Controller cntl;
+    uint64_t fileLength = kMiniFileLength;
+
+    request.set_filename("/file1");
+    request.set_owner("owner");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+
+    cntl.set_log_id(2);
+    stub.CreateFile(&cntl,  &request, &response,  NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request.set_filename("/dir1");
+    request.set_owner("owner");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_DIRECTORY);
+    request.set_filelength(0);
+
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    cntl.Reset();
+    request.set_filename("/dir1/file2");
+    request.set_owner("owner");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+
+    // 查看文件/file1，目录/dir1，文件/dir1/file2的状态
+    cntl.Reset();
+    GetFileInfoRequest request1;
+    GetFileInfoResponse response1;
+    request1.set_filename("/file1");
+    request1.set_owner("owner");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        FileInfo  file = response1.fileinfo();
+        ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(file.id(), 1);
+        ASSERT_EQ(file.filename(), "file1");
+        ASSERT_EQ(file.parentid(), 0);
+        ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
+        ASSERT_EQ(file.length(), fileLength);
+        ASSERT_EQ(file.fullpathname(), "/file1");
+        ASSERT_EQ(file.seqnum(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request1.set_filename("/dir1");
+    request1.set_owner("owner");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        FileInfo  file = response1.fileinfo();
+        ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(file.id(), 2);
+        ASSERT_EQ(file.filename(), "dir1");
+        ASSERT_EQ(file.parentid(), 0);
+        ASSERT_EQ(file.filetype(), INODE_DIRECTORY);
+        ASSERT_EQ(file.fullpathname(), "/dir1");
+        ASSERT_EQ(file.seqnum(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request1.set_filename("/dir1/file2");
+    request1.set_owner("owner");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        FileInfo file = response1.fileinfo();
+        ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(file.id(), 3);
+        ASSERT_EQ(file.filename(), "file2");
+        ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
+        ASSERT_EQ(file.length(), fileLength);
+        ASSERT_EQ(file.fullpathname(), "/dir1/file2");
+        ASSERT_EQ(file.seqnum(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // 开始测试删除文件逻辑
+    // 1 如果文件有被session占用，那么返回kFileOccupied
+    cntl.Reset();
+    OpenFileRequest request2;
+    OpenFileResponse response2;
+    request2.set_filename("/file1");
+    request2.set_owner("owner");
+    request2.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.OpenFile(&cntl, &request2, &response2, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response2.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(response2.protosession().sessionstatus(),
+                                    SessionStatus::kSessionOK);
+        ASSERT_EQ(response2.fileinfo().filename(), "file1");
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    DeleteFileRequest request3;
+    DeleteFileResponse response3;
+    request3.set_filename("/file1");
+    request3.set_owner("owner");
+    request3.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kFileOccupied);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    CloseFileRequest request4;
+    CloseFileResponse response4;
+    request4.set_filename("/file1");
+    request4.set_owner("owner");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
+    request4.set_sessionid(response2.protosession().sessionid());
+
+    stub.CloseFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // 2 如果文件有快照，那么删除文件返回kFileUnderSnapShot
+    cntl.Reset();
+    CreateSnapShotRequest snapshotRequest;
+    CreateSnapShotResponse snapshotResponses;
+    snapshotRequest.set_filename("/file1");
+    snapshotRequest.set_owner("owner");
+    snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
+    if (!cntl.Failed()) {
+        FileInfo snapshotFileInfo;
+        snapshotFileInfo.CopyFrom(snapshotResponses.snapshotfileinfo());
+        ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(snapshotFileInfo.id(), 4);
+        ASSERT_EQ(snapshotFileInfo.parentid(), 1);
+        ASSERT_EQ(snapshotFileInfo.filename(), "file1-1");
+        ASSERT_EQ(snapshotFileInfo.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(snapshotFileInfo.fullpathname(), "/file1/file1-1");
+        ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
+        ASSERT_EQ(snapshotFileInfo.seqnum(), 1);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request3.set_filename("/file1");
+    request3.set_owner("owner");
+    request3.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kFileUnderSnapShot);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    DeleteSnapShotRequest deleteRequest;
+    DeleteSnapShotResponse deleteResponse;
+    deleteRequest.set_filename("/file1");
+    deleteRequest.set_owner("owner");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    deleteRequest.set_seq(1);
+    stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kOK);
+    } else {
+        LOG(ERROR) << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 3 如果目录下有文件，那么删除目录返回kDirNotEmpty
+    cntl.Reset();
+    request3.set_filename("/dir1");
+    request3.set_owner("owner");
+    request3.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kDirNotEmpty);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 4 删除文件/file1成功，查询文件已经删除
+    cntl.Reset();
+    request3.set_filename("/file1");
+    request3.set_owner("owner");
+    request3.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request1.set_filename("/file1");
+    request1.set_owner("owner");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response1.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // 4 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
+    cntl.Reset();
+    request3.set_filename("/dir1/file2");
+    request3.set_owner("owner");
+    request3.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request1.set_filename("/dir1/file2");
+    request1.set_owner("owner");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response1.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request3.set_filename("/dir1");
+    request3.set_owner("owner");
+    request3.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request1.set_filename("/dir1");
+    request1.set_owner("owner");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response1.statuscode(), StatusCode::kFileNotExists);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
     server.Stop(10);
     server.Join();
 }

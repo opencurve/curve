@@ -20,6 +20,8 @@ extern const char FILEINFOKEYPREFIX[];
 extern const char SEGMENTINFOKEYPREFIX[];
 extern const char SNAPSHOTFILEINFOKEYPREFIX[];
 extern const char INODESTOREKEY[];
+extern const char RECYCLEFILEINFOKEYPREFIX[];
+extern const char RECYCLEFILEINFOKEYEND[];
 
 extern const int PREFIX_LENGTH;
 extern const int SEGMENTKEYLEN;
@@ -30,6 +32,8 @@ class NameSpaceStorageCodec {
                                 const std::string &fileName);
     static std::string EncodeSnapShotFileStoreKey(uint64_t parentID,
                                 const std::string &fileName);
+    static std::string EncodeRecycleFileStoreKey(uint64_t parentID,
+                                                const std::string &fileName);
     static std::string EncodeSegmentStoreKey(uint64_t inodeID, offset_t offset);
 
     static bool EncodeFileInfo(const FileInfo &finlInfo, std::string *out);

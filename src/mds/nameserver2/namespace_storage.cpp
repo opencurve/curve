@@ -102,6 +102,53 @@ StoreStatus NameServerStorageImp::DeleteFile(InodeID id,
     return getErrorCode(resCode);
 }
 
+StoreStatus NameServerStorageImp::GetRecycleFile(InodeID id,
+                            const std::string &filename,
+                            FileInfo * fileInfo) {
+    std::string storeKey;
+    if (GetStoreKey(FileType::INODE_RECYCLE_PAGEFILE, id, filename, &storeKey)
+        != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed,filename = " << filename;
+        return StoreStatus::InternalError;
+    }
+
+    std::string out;
+    int errCode = client_->Get(storeKey, &out);
+
+    if (errCode == EtcdErrCode::OK) {
+        bool decodeOK = NameSpaceStorageCodec::DecodeFileInfo(out, fileInfo);
+        if (decodeOK) {
+            LOG(ERROR) << "decode info of key[" << storeKey << "] err";
+            return StoreStatus::OK;
+        } else {
+            return StoreStatus::InternalError;
+        }
+    } else {
+        LOG(ERROR) << "get file info of key[" << storeKey << "] err: "
+                   << errCode;
+    }
+
+    return getErrorCode(errCode);
+}
+
+StoreStatus NameServerStorageImp::DeleteRecycleFile(InodeID id,
+                            const std::string &filename) {
+    std::string storeKey;
+    if (GetStoreKey(FileType::INODE_RECYCLE_PAGEFILE, id, filename, &storeKey)
+        != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed,filename = " << filename;
+        return StoreStatus::InternalError;
+    }
+
+    int resCode = client_->Delete(storeKey);
+
+    if (resCode != EtcdErrCode::OK) {
+        LOG(ERROR) << "delete file of key: [" << storeKey << "] err: "
+                   << resCode;
+    }
+    return getErrorCode(resCode);
+}
+
 StoreStatus NameServerStorageImp::DeleteSnapshotFile(InodeID id,
                                                 const std::string &filename) {
     std::string storeKey;
@@ -381,6 +428,12 @@ StoreStatus NameServerStorageImp::LoadSnapShotFile(
                             prefixEnd, snapshotFiles);
 }
 
+StoreStatus NameServerStorageImp::LoadRecycleFile(
+    std::vector<FileInfo> *recycleFiles) {
+    return ListFileInternal(RECYCLEFILEINFOKEYPREFIX,
+                            RECYCLEFILEINFOKEYEND, recycleFiles);
+}
+
 StoreStatus NameServerStorageImp::getErrorCode(int errCode) {
     switch (errCode) {
         case EtcdErrCode::OK:
@@ -428,6 +481,9 @@ StoreStatus NameServerStorageImp::GetStoreKey(FileType filetype,
             *storeKey =
                 NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(id, filename);
             break;
+        case FileType::INODE_RECYCLE_PAGEFILE:
+            *storeKey = NameSpaceStorageCodec::EncodeRecycleFileStoreKey(id,
+                                                                    filename);
         default:
             return StoreStatus::InternalError;
     }

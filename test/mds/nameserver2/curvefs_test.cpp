@@ -39,7 +39,7 @@ class CurveFSTest: public ::testing::Test {
         inodeIdGenerator_ = new MockInodeIDGenerator();
         mockChunkAllocator_ = new MockChunkAllocator();
 
-        mockSnapShotCleanManager_ = std::make_shared<MockCleanManager>();
+        mockcleanManager_ = std::make_shared<MockCleanManager>();
 
         mockRepo_ = std::make_shared<MockRepo>();
         sessionManager_ = new SessionManager(mockRepo_);
@@ -79,7 +79,7 @@ class CurveFSTest: public ::testing::Test {
         curvefs_ =  &kCurveFS;
 
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
-                        mockSnapShotCleanManager_,
+                        mockcleanManager_,
                         sessionManager_, sessionOptions_, authOptions_);
     }
 
@@ -96,7 +96,7 @@ class CurveFSTest: public ::testing::Test {
     MockInodeIDGenerator *inodeIdGenerator_;
     MockChunkAllocator *mockChunkAllocator_;
 
-    std::shared_ptr<MockCleanManager> mockSnapShotCleanManager_;
+    std::shared_ptr<MockCleanManager> mockcleanManager_;
 
     SessionManager *sessionManager_;
     std::shared_ptr<MockRepo> mockRepo_;
@@ -258,25 +258,208 @@ TEST_F(CurveFSTest, testGetFileInfo) {
     }
 }
 
-
 TEST_F(CurveFSTest, testDeleteFile) {
     // test remove root
     ASSERT_EQ(curvefs_->DeleteFile("/"), StatusCode::kParaError);
 
-    // test ok
+    // test delete directory ok
     {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(StoreStatus::OK));
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
 
         EXPECT_CALL(*storage_, DeleteFile(_, _))
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(StoreStatus::OK));
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/dir1"), StatusCode::kOK);
+    }
+
+    // test delete directory, directory is not empty
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        fileInfoList.push_back(fileInfo);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/dir1"), StatusCode::kDirNotEmpty);
+    }
+
+    // test delete directory, delete file fail
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, DeleteFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/dir1"), StatusCode::kStorageError);
+    }
+
+    // test delete pagefile ok
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*storage_, DeleteFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*mockcleanManager_,
+            SubmitDeleteCommonFileJob(_))
+        .Times(1)
+        .WillOnce(Return(true));
 
         ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kOK);
     }
 
-    //  test filenotexist fail
+    // test delete pagefile，cleanManager fail
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*storage_, DeleteFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*mockcleanManager_,
+            SubmitDeleteCommonFileJob(_))
+        .Times(1)
+        .WillOnce(Return(false));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::KInternalError);
+    }
+
+    // test delete pagefile, file under snapshot
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        fileInfoList.push_back(fileInfo);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1"),
+                                StatusCode::kFileUnderSnapShot);
+    }
+
+    // test delete pagefile, storage error
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::KInternalError);
+    }
+
+    // test delete pagefile, storage error
+    {
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*storage_, DeleteFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        EXPECT_CALL(*storage_, DeleteRecycleFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::KInternalError);
+    }
+
+    //  test file not exist
     {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
@@ -285,13 +468,16 @@ TEST_F(CurveFSTest, testDeleteFile) {
         ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kFileNotExists);
     }
 
-    // test storage delete  error
+    // delete not support file type
     {
-        EXPECT_CALL(*storage_, DeleteFile(_, _))
-        .Times(AtLeast(1))
-        .WillOnce(Return(StoreStatus::InternalError));
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_APPENDFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kStorageError);
+        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kNotSupported);
     }
 }
 
@@ -753,165 +939,6 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
                   0, true,  &segment), StatusCode::kStorageError);
-    }
-}
-
-
-TEST_F(CurveFSTest, testDeleteSegment) {
-    // test normal delete exist segment
-    {
-        PageFileSegment segment;
-
-        FileInfo fileInfo1;
-        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
-
-        FileInfo fileInfo2;
-        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
-        fileInfo2.set_length(kMiniFileLength);
-        fileInfo2.set_segmentsize(DefaultSegmentSize);
-
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
-
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        EXPECT_CALL(*storage_, DeleteSegment(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
-                                          0), StatusCode::kOK);
-    }
-
-    // file type 不是pagefile
-    {
-        PageFileSegment segment;
-
-        FileInfo fileInfo1;
-        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
-
-        FileInfo fileInfo2;
-        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
-
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
-
-        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
-                                          0), StatusCode::kParaError);
-    }
-
-    // offset not align segment size
-    {
-        PageFileSegment segment;
-
-        FileInfo fileInfo1;
-        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
-
-        FileInfo fileInfo2;
-        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
-        fileInfo2.set_length(kMiniFileLength);
-        fileInfo2.set_segmentsize(DefaultSegmentSize);
-
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
-
-        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
-                                          1), StatusCode::kParaError);
-    }
-
-    // offset + segmentsize > file length
-    {
-        PageFileSegment segment;
-
-        FileInfo fileInfo1;
-        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
-
-        FileInfo fileInfo2;
-        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
-        fileInfo2.set_length(kMiniFileLength);
-        fileInfo2.set_segmentsize(DefaultSegmentSize);
-
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
-
-        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
-                            kMiniFileLength), StatusCode::kParaError);
-    }
-
-    // get segment not exist
-    {
-        PageFileSegment segment;
-
-        FileInfo fileInfo1;
-        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
-
-        FileInfo fileInfo2;
-        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
-        fileInfo2.set_length(kMiniFileLength);
-        fileInfo2.set_segmentsize(DefaultSegmentSize);
-
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
-
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::KeyNotExist));
-
-        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
-                                          0), StatusCode::kSegmentNotAllocated);
-    }
-
-    // delete segment fail
-    {
-        PageFileSegment segment;
-
-        FileInfo fileInfo1;
-        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
-
-        FileInfo fileInfo2;
-        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
-        fileInfo2.set_length(kMiniFileLength);
-        fileInfo2.set_segmentsize(DefaultSegmentSize);
-
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
-                        Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
-                        Return(StoreStatus::OK)));
-
-        EXPECT_CALL(*storage_, GetSegment(_, _, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        EXPECT_CALL(*storage_, DeleteSegment(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
-
-        ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
-                                          0), StatusCode::kStorageError);
     }
 }
 
@@ -1434,7 +1461,7 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockSnapShotCleanManager_,
+        EXPECT_CALL(*mockcleanManager_,
             SubmitDeleteSnapShotFileJob(_, _))
         .Times(1)
         .WillOnce(Return(true));
@@ -1473,7 +1500,7 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*mockSnapShotCleanManager_,
+        EXPECT_CALL(*mockcleanManager_,
             SubmitDeleteSnapShotFileJob(_, _))
         .Times(1)
         .WillOnce(Return(false));
@@ -1547,7 +1574,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*mockSnapShotCleanManager_,
+        EXPECT_CALL(*mockcleanManager_,
             GetTask(_))
         .Times(1)
         .WillOnce(Return(nullptr));
@@ -1590,7 +1617,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         taskProgress.SetProgress(50);
         taskProgress.SetStatus(TaskStatus::PROGRESSING);
         task->SetTaskProgress(taskProgress);
-        EXPECT_CALL(*mockSnapShotCleanManager_, GetTask(_))
+        EXPECT_CALL(*mockcleanManager_, GetTask(_))
         .Times(1)
         .WillOnce(Return(task));
 
@@ -1632,7 +1659,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         taskProgress.SetProgress(50);
         taskProgress.SetStatus(TaskStatus::FAILED);
         task->SetTaskProgress(taskProgress);
-        EXPECT_CALL(*mockSnapShotCleanManager_, GetTask(_))
+        EXPECT_CALL(*mockcleanManager_, GetTask(_))
         .Times(1)
         .WillOnce(Return(task));
 
@@ -1672,7 +1699,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         taskProgress.SetProgress(100);
         taskProgress.SetStatus(TaskStatus::SUCCESS);
         task->SetTaskProgress(taskProgress);
-        EXPECT_CALL(*mockSnapShotCleanManager_, GetTask(_))
+        EXPECT_CALL(*mockcleanManager_, GetTask(_))
         .Times(1)
         .WillOnce(Return(task));
 
