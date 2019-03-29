@@ -1,0 +1,18 @@
+1.编译整个工程
+2.在curve目录下执行 ./curvefs_python/config.sh
+3.编译curvefs库
+4.拷贝生成libcurvefs动态库到动态库可以搜索的路径
+5.接口封装在curvefs.py中，可以通过import curvefs使用
+
+eg：
+
+编译整个工程：
+bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true --define=libunwind=true
+
+在curve目录下执行配置脚本
+sh ./curvefs_python/config.sh
+
+编译curvefs库（需要增加一个linkopt选项，指定curvefs_python/tmplib路径）：
+bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true --define=libunwind=true --linkopt -L/home/hzzhaojianming/curve/curvefs_python/tmplib
+
+编译成功，拷贝libcurvefs.so并重命名为_curvefs.so
