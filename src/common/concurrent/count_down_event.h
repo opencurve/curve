@@ -10,6 +10,7 @@
 
 #include <mutex>                //NOLINT
 #include <condition_variable>   //NOLINT
+#include <chrono>               //NOLINT
 
 namespace curve {
 namespace common {
@@ -66,13 +67,24 @@ class CountDownEvent {
 
     /**
      * 等待initCnt的event发生，或者指定时长
-     * @param elapsedMs: 等待的ms数
+     * @param waitMs: 等待的ms数
      * @return：如果所有等待的event都发生，那么就返回true，否则false
      */
-     bool WaitFor(int elapsedMs) {
+    bool WaitFor(int waitMs) {
         std::unique_lock<std::mutex> guard(mutex_);
-        if (count_ > 0) {
-            cond_.wait_for(guard, std::chrono::microseconds(elapsedMs));
+        auto start = std::chrono::high_resolution_clock::now();
+
+        while (count_ > 0) {
+            auto now = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> elapsed = now - start;
+            // 计算还剩余多少时间
+            int leftMs = waitMs - static_cast<int>(elapsed.count());
+            if (leftMs > 0) {
+                auto ret = cond_.wait_for(guard,
+                                          std::chrono::milliseconds(leftMs));
+            } else {
+                break;
+            }
         }
 
         if (count_ > 0) {
@@ -80,13 +92,13 @@ class CountDownEvent {
         } else {
             return true;
         }
-     }
+    }
 
  private:
-    mutable std::mutex      mutex_;
+    mutable std::mutex mutex_;
     std::condition_variable cond_;
     // 需要等待的事件计数
-    int                     count_;
+    int count_;
 };
 
 }  // namespace common
