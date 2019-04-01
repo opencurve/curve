@@ -31,5 +31,51 @@ TEST(Crc32TEST, BasicTest) {
     ASSERT_NE(crc2, crc3);
 }
 
+TEST(Crc32TEST, StandardResults) {
+  // From rfc3720 section B.4.
+  char buf[32];
+
+  memset(buf, 0, sizeof(buf));
+  ASSERT_EQ(0x8a9136aaU, CRC32(buf, sizeof(buf)));
+
+  memset(buf, 0xff, sizeof(buf));
+  ASSERT_EQ(0x62a8ab43U, CRC32(buf, sizeof(buf)));
+
+  for (int i = 0; i < 32; i++) {
+    buf[i] = i;
+  }
+  ASSERT_EQ(0x46dd794eU, CRC32(buf, sizeof(buf)));
+
+  for (int i = 0; i < 32; i++) {
+    buf[i] = 31 - i;
+  }
+  ASSERT_EQ(0x113fdb5cU, CRC32(buf, sizeof(buf)));
+
+  unsigned char data[48] = {
+    0x01, 0xc0, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x14, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x04, 0x00,
+    0x00, 0x00, 0x00, 0x14,
+    0x00, 0x00, 0x00, 0x18,
+    0x28, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+    0x02, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+  };
+  ASSERT_EQ(0xd9963a56, CRC32(reinterpret_cast<char*>(data), sizeof(data)));
+}
+
+TEST(Crc32TEST, Values) {
+  ASSERT_NE(CRC32("a", 1), CRC32("foo", 3));
+}
+
+TEST(Crc32TEST, Extend) {
+  ASSERT_EQ(CRC32("hello world", 11),
+            CRC32(CRC32("hello ", 6), "world", 5));
+}
+
 }  // namespace common
 }  // namespace curve
