@@ -16,6 +16,10 @@ enum FileType {
 enum FileStatus {
     kFileCreated = 0;
     kFileDeleting = 1;
+
+    kFileCloning = 2;
+    kFileCloneMetaInstalled = 3;
+    kFileCloned = 4;
 }
 
 message FileInfo {
@@ -149,8 +153,12 @@ message DeleteSegmentResponse {
 message RenameFileRequest {
     required string     oldFileName = 1;
     required string   newFileName = 2;
+
     optional string     owner = 3;
     optional string     password = 4;
+
+    optional uint64     oldFileID = 5;
+    optional uint64     newFileID = 6;
 }
 
 message RenameFileResponse {
@@ -291,6 +299,35 @@ message ReFreshSessionResponse {
     optional FileInfo   fileInfo = 3;
 };
 
+
+message  CreateCloneFileRequest {
+    required string fileName = 1;
+    required string fileType = 2;
+    required uint64 fileLength = 3;
+    required uint64 seq = 4;
+
+    optional string owner = 5;
+    optional string password = 6;
+}
+
+message CreateCloneFileResponse {
+    required StatusCode statusCode = 1;
+    optional FileInfo fileInfo = 2;
+}
+
+message SetCloneFileStatusRequest {
+    required string fileName = 1;
+    optional uint64 fileID = 2;
+    required FileStatus fileStatus = 3;
+
+    optional string owner = 4;
+    optional string password = 5;
+}
+
+message SetCloneFileStatusResponse {
+    required StatusCode statusCode = 1;
+}
+
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
@@ -319,4 +356,8 @@ service CurveFSService {
     rpc     CloseFile(CloseFileRequest) returns (CloseFileResponse);
     rpc     RefreshSession(ReFreshSessionRequest)
         returns (ReFreshSessionResponse);
+
+    // clone rpcs
+    rpc     CreateCloneFile(CreateCloneFileRequest) returns (CreateCloneFileResponse);
+    rpc     SetCloneFileStatus(SetCloneFileStatusRequest) returns (SetCloneFileStatusResponse);
 }
