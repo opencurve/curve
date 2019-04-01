@@ -9,6 +9,7 @@
 
 #include <thread>   //NOLINT
 #include <atomic>
+#include <chrono>   //NOLINT
 
 #include "src/common/concurrent/count_down_event.h"
 
@@ -46,7 +47,7 @@ TEST(CountDownEventTest, basic) {
         };
 
         std::thread t1(func);
-        std::this_thread::sleep_for(std::chrono::microseconds(3*sleepMs));
+        std::this_thread::sleep_for(std::chrono::milliseconds(3*sleepMs));
         ASSERT_TRUE(isRun.load());
 
         t1.join();
@@ -169,6 +170,52 @@ TEST(CountDownEventTest, basic) {
         waitThread.join();
         ASSERT_EQ(true, passWait);
         ASSERT_EQ(kEventNum, signalCount.load(std::memory_order_acquire));
+    }
+    // WaitFor test: timeout
+    {
+        CountDownEvent cond(100);
+        int waitForMs = 2000;
+
+        auto SignalFunc = [&] {
+            cond.Signal();
+            cond.Signal();
+        };
+
+        std::thread t1(SignalFunc);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        cond.WaitFor(waitForMs);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        std::chrono::duration<double, std::milli> elpased = end - start;
+        std::cerr << "elapsed: " << elpased.count() << std::endl;
+        // 事件未到达，超时返回，可以容许在一定的误差
+        ASSERT_GT(static_cast<int>(elpased.count()), waitForMs-1000);
+
+        t1.join();
+    }
+    // WaitFor test: event arrive, not timeout
+    {
+        CountDownEvent cond(2);
+        int waitForMs = 2000;
+
+        auto SignalFunc = [&] {
+            cond.Signal();
+            cond.Signal();
+        };
+
+        std::thread t1(SignalFunc);
+
+        auto start = std::chrono::high_resolution_clock::now();
+        cond.WaitFor(waitForMs);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        std::chrono::duration<double, std::milli> elpased = end - start;
+        std::cerr << "elapsed: " << elpased.count() << std::endl;
+        // 事件达到，提前返回
+        ASSERT_GT(waitForMs, static_cast<int>(elpased.count()));
+
+        t1.join();
     }
 }
 
