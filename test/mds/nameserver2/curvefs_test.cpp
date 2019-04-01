@@ -111,7 +111,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
     {
         // test file exist
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::OK));
 
@@ -122,7 +122,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
     {
         // test get storage error
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -133,11 +133,11 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
     {
         // test put storage error
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        EXPECT_CALL(*storage_, PutFile(_, _))
+        EXPECT_CALL(*storage_, PutFile(_))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -152,11 +152,11 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
     {
         // test put storage ok
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        EXPECT_CALL(*storage_, PutFile(_, _))
+        EXPECT_CALL(*storage_, PutFile(_))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::OK));
 
@@ -172,7 +172,7 @@ TEST_F(CurveFSTest, testCreateFile1) {
 
     {
         // test inode allocate error
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -200,7 +200,7 @@ TEST_F(CurveFSTest, testGetFileInfo) {
     {
         // test path not exist
         FileInfo  fileInfo;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->GetFileInfo("/file1/file2", &fileInfo),
@@ -209,7 +209,7 @@ TEST_F(CurveFSTest, testGetFileInfo) {
     {
         // test stoarge error
         FileInfo fileInfo;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
         ASSERT_EQ(curvefs_->GetFileInfo("/file1/file2", &fileInfo),
@@ -218,7 +218,7 @@ TEST_F(CurveFSTest, testGetFileInfo) {
     {
         // test  ok
         FileInfo fileInfo;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
         .WillRepeatedly(Return(StoreStatus::OK));
 
@@ -229,9 +229,9 @@ TEST_F(CurveFSTest, testGetFileInfo) {
         // test  WalkPath NOT DIRECTORY
         FileInfo  fileInfo;
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
             Return(StoreStatus::OK)));
 
         FileInfo retFileInfo;
@@ -243,9 +243,9 @@ TEST_F(CurveFSTest, testGetFileInfo) {
         // test LookUpFile internal Error
         FileInfo  fileInfo;
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
             Return(StoreStatus::OK)))
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -262,11 +262,11 @@ TEST_F(CurveFSTest, testDeleteFile) {
 
     // test ok
     {
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*storage_, DeleteFile(_))
+        EXPECT_CALL(*storage_, DeleteFile(_, _))
         .Times(AtLeast(1))
         .WillRepeatedly(Return(StoreStatus::OK));
 
@@ -275,7 +275,7 @@ TEST_F(CurveFSTest, testDeleteFile) {
 
     //  test filenotexist fail
     {
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -284,7 +284,7 @@ TEST_F(CurveFSTest, testDeleteFile) {
 
     // test storage delete  error
     {
-        EXPECT_CALL(*storage_, DeleteFile(_))
+        EXPECT_CALL(*storage_, DeleteFile(_, _))
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -299,9 +299,9 @@ TEST_F(CurveFSTest, testReadDir) {
     // test not directory
     {
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ReadDir("/file1", &items),
@@ -311,7 +311,7 @@ TEST_F(CurveFSTest, testReadDir) {
 
     // test getFile Not exist
     {
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -322,9 +322,9 @@ TEST_F(CurveFSTest, testReadDir) {
     // test listFile ok
     {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)));
 
         std::vector<FileInfo> sideEffectArgs;
@@ -353,14 +353,14 @@ TEST_F(CurveFSTest, testRenameFile) {
     // test rename ok
     {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(3))
         .WillOnce(Return(StoreStatus::OK))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)))
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        EXPECT_CALL(*storage_, RenameFile(_, _, _, _))
+        EXPECT_CALL(*storage_, RenameFile(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -371,7 +371,7 @@ TEST_F(CurveFSTest, testRenameFile) {
     // old file not exist
     {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -382,7 +382,7 @@ TEST_F(CurveFSTest, testRenameFile) {
     // new file parent directory not exist
     {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
         .WillOnce(Return(StoreStatus::OK))
         .WillOnce(Return(StoreStatus::KeyNotExist));
@@ -394,10 +394,10 @@ TEST_F(CurveFSTest, testRenameFile) {
     // new file exist
     {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(3))
         .WillOnce(Return(StoreStatus::OK))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)))
         .WillOnce(Return(StoreStatus::OK));
 
@@ -408,14 +408,14 @@ TEST_F(CurveFSTest, testRenameFile) {
     // storage renamefile fail
     {
         fileInfo.set_filetype(FileType::INODE_DIRECTORY);
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(AtLeast(3))
         .WillOnce(Return(StoreStatus::OK))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)))
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        EXPECT_CALL(*storage_, RenameFile(_, _, _, _))
+        EXPECT_CALL(*storage_, RenameFile(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -441,21 +441,21 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_length(kMiniFileLength);
 
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ExtendFile("/user1/file1", 0),
                   StatusCode::kShrinkBiggerFile);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
@@ -472,11 +472,11 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
@@ -493,14 +493,14 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, PutFile(_, _))
+        EXPECT_CALL(*storage_, PutFile(_))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -518,9 +518,9 @@ TEST_F(CurveFSTest, testExtendFile) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -537,11 +537,11 @@ TEST_F(CurveFSTest, testExtendFile) {
         FileInfo fileInfo2;
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
@@ -564,14 +564,14 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -591,14 +591,14 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -608,7 +608,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(true));
 
 
-        EXPECT_CALL(*storage_, PutSegment(_, _))
+        EXPECT_CALL(*storage_, PutSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -626,11 +626,11 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         FileInfo fileInfo2;
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
@@ -649,11 +649,11 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
@@ -672,11 +672,11 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->GetOrAllocateSegment("/user1/file2",
@@ -695,14 +695,14 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -727,14 +727,14 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -744,7 +744,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(true));
 
 
-        EXPECT_CALL(*storage_, PutSegment(_, _))
+        EXPECT_CALL(*storage_, PutSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -767,18 +767,18 @@ TEST_F(CurveFSTest, testDeleteSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*storage_, DeleteSegment(_))
+        EXPECT_CALL(*storage_, DeleteSegment(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -796,11 +796,11 @@ TEST_F(CurveFSTest, testDeleteSegment) {
         FileInfo fileInfo2;
         fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
@@ -819,11 +819,11 @@ TEST_F(CurveFSTest, testDeleteSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
@@ -842,11 +842,11 @@ TEST_F(CurveFSTest, testDeleteSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->DeleteSegment("/user1/file2",
@@ -865,14 +865,14 @@ TEST_F(CurveFSTest, testDeleteSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -892,18 +892,18 @@ TEST_F(CurveFSTest, testDeleteSegment) {
         fileInfo2.set_length(kMiniFileLength);
         fileInfo2.set_segmentsize(DefaultSegmentSize);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*storage_, DeleteSegment(_))
+        EXPECT_CALL(*storage_, DeleteSegment(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -919,16 +919,16 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         originalFile.set_seqnum(1);
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo fileInfo1;
         snapShotFiles.push_back(fileInfo1);
 
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -955,13 +955,13 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -972,7 +972,7 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
             Return(true)));
 
         FileInfo snapShotFileInfo;
-        EXPECT_CALL(*storage_, SnapShotFile(_, _, _, _))
+        EXPECT_CALL(*storage_, SnapShotFile(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1006,7 +1006,7 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
     {
         // lookupFile error
         std::vector<FileInfo> snapFileInfos;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -1022,9 +1022,9 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_DIRECTORY);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapFileInfos;
@@ -1040,12 +1040,12 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -1062,9 +1062,9 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapFileInfos;
@@ -1072,7 +1072,7 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         snapShotFile.set_parentid(1);
         snapFileInfos.push_back(snapShotFile);
 
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapFileInfos),
         Return(StoreStatus::OK)));
@@ -1104,13 +1104,13 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1128,16 +1128,16 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(2);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1155,16 +1155,16 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
         FileInfo snapInfo;
         snapInfo.set_seqnum(1);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1193,9 +1193,9 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1203,7 +1203,7 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         snapInfo.set_seqnum(1);
         snapInfo.set_segmentsize(DefaultSegmentSize);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1223,11 +1223,11 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1236,12 +1236,12 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         snapInfo.set_segmentsize(DefaultSegmentSize);
         snapInfo.set_length(DefaultSegmentSize);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
@@ -1260,11 +1260,11 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)))
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
 
@@ -1274,7 +1274,7 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         snapInfo.set_segmentsize(DefaultSegmentSize);
         snapInfo.set_length(DefaultSegmentSize);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1289,9 +1289,9 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         chunkInfo->set_chunkid(1);
         chunkInfo->set_copysetid(1);
 
-        EXPECT_CALL(*storage_, GetSegment(_, _))
+        EXPECT_CALL(*storage_, GetSegment(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(expectSegment),
+        .WillOnce(DoAll(SetArgPointee<2>(expectSegment),
             Return(StoreStatus::OK)));
 
         PageFileSegment segment;
@@ -1301,7 +1301,6 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
                     segment.SerializeAsString());
     }
 }
-
 
 TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
     {
@@ -1319,9 +1318,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1330,7 +1329,7 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1347,9 +1346,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1359,7 +1358,7 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapInfo.set_filetype(FileType::INODE_APPENDFILE);
         snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1376,9 +1375,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1389,12 +1388,12 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapInfo.set_filestatus(FileStatus::kFileCreated);
         snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, PutFile(_, _))
+        EXPECT_CALL(*storage_, PutFile(_))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -1410,9 +1409,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1423,12 +1422,12 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapInfo.set_filestatus(FileStatus::kFileCreated);
         snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, PutFile(_, _))
+        EXPECT_CALL(*storage_, PutFile(_))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1449,9 +1448,9 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1462,12 +1461,12 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         snapInfo.set_filestatus(FileStatus::kFileCreated);
         snapShotFiles.push_back(snapInfo);
 
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, PutFile(_, _))
+        EXPECT_CALL(*storage_, PutFile(_))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1498,9 +1497,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1508,7 +1507,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileCreated);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1530,9 +1529,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1540,7 +1539,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1567,9 +1566,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1577,7 +1576,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1609,9 +1608,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1619,7 +1618,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1649,9 +1648,9 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(originalFile),
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
             Return(StoreStatus::OK)));
 
         std::vector<FileInfo> snapShotFiles;
@@ -1659,7 +1658,7 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         snapInfo.set_seqnum(1);
         snapInfo.set_filestatus(FileStatus::kFileDeleting);
         snapShotFiles.push_back(snapInfo);
-        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
                 Return(StoreStatus::OK)));
@@ -1688,7 +1687,7 @@ TEST_F(CurveFSTest, testOpenFile) {
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
@@ -1700,7 +1699,7 @@ TEST_F(CurveFSTest, testOpenFile) {
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1717,7 +1716,7 @@ TEST_F(CurveFSTest, testOpenFile) {
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1744,7 +1743,7 @@ TEST_F(CurveFSTest, testCloseFile) {
     FileInfo  fileInfo;
 
     // 先插入session
-    EXPECT_CALL(*storage_, GetFile(_, _))
+    EXPECT_CALL(*storage_, GetFile(_, _, _))
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
 
@@ -1758,7 +1757,7 @@ TEST_F(CurveFSTest, testCloseFile) {
 
     // 文件不存在
     {
-         EXPECT_CALL(*storage_, GetFile(_, _))
+         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->CloseFile("/file1", "sessionidxxxxx"),
@@ -1767,7 +1766,7 @@ TEST_F(CurveFSTest, testCloseFile) {
 
     // 从数据库删除session失败
     {
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1782,7 +1781,7 @@ TEST_F(CurveFSTest, testCloseFile) {
 
     // 执行成功
     {
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1800,7 +1799,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
     FileInfo  fileInfo;
 
     // 先插入session
-    EXPECT_CALL(*storage_, GetFile(_, _))
+    EXPECT_CALL(*storage_, GetFile(_, _, _))
     .Times(1)
     .WillOnce(Return(StoreStatus::OK));
 
@@ -1815,7 +1814,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
     // 文件不存在
     {
         FileInfo  fileInfo1;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
@@ -1827,7 +1826,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
     // 更新session失败
     {
         FileInfo  fileInfo1;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1840,7 +1839,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
     // 执行成功
     {
         FileInfo  fileInfo1;
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1925,9 +1924,9 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
     {
         FileInfo fileInfo;
         fileInfo.set_owner("normaluser");
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
@@ -1938,9 +1937,9 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
     {
         FileInfo fileInfo;
         fileInfo.set_owner("normaluser");
-        EXPECT_CALL(*storage_, GetFile(_, _))
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)));
 
         ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
