@@ -19,10 +19,10 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
     uint32_t  segmentNum = fileInfo.length() / fileInfo.segmentsize();
     for (uint32_t i = 0; i < segmentNum; i++) {
         // load  segment
-        auto storeKey = EncodeSegmentStoreKey(fileInfo.id(),
-            i * fileInfo.segmentsize());
         PageFileSegment segment;
-        StoreStatus storeRet = storage_->GetSegment(storeKey, &segment);
+        StoreStatus storeRet = storage_->GetSegment(fileInfo.id(),
+                                                    i * fileInfo.segmentsize(),
+                                                    &segment);
         if (storeRet == StoreStatus::KeyNotExist) {
             continue;
         } else if (storeRet !=  StoreStatus::OK) {
@@ -53,7 +53,8 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
         }
 
         // delete segment
-        storeRet = storage_->DeleteSegment(storeKey);
+        storeRet = storage_->DeleteSegment(fileInfo.id(),
+                                           i * fileInfo.segmentsize());
         if (storeRet != StoreStatus::OK) {
             LOG(ERROR) << "cleanSnapShot File Error: "
             << "DeleteSegment Error,  filename = " << fileInfo.fullpathname()
@@ -66,10 +67,8 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
     }
 
     // delete the storage
-    auto snapShotFileStoreKey =
-        EncodeSnapShotFileStoreKey(fileInfo.parentid(), fileInfo.filename());
-
-    StoreStatus ret =  storage_->DeleteFile(snapShotFileStoreKey);
+    StoreStatus ret =  storage_->DeleteSnapshotFile(fileInfo.parentid(),
+                                                fileInfo.filename());
     if (ret != StoreStatus::OK) {
         LOG(INFO) << "delete snapshotfile error, retCode = " << ret;
         progress->SetStatus(TaskStatus::FAILED);

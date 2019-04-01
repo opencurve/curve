@@ -76,10 +76,11 @@ class FackTopologyAdmin: public TopologyAdmin {
 
 class FakeNameServerStorage : public NameServerStorage {
  public:
-    StoreStatus PutFile(const std::string & storeKey,
-          const FileInfo & fileInfo) override {
+    StoreStatus PutFile(const FileInfo & fileInfo) override {
         std::lock_guard<std::mutex> guard(lock_);
-
+        std::string storeKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+                                                        fileInfo.parentid(),
+                                                        fileInfo.filename());
         auto iter = memKvMap_.find(storeKey);
         if (iter != memKvMap_.end()) {
             memKvMap_.erase(iter);
@@ -92,9 +93,12 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus GetFile(const std::string & storeKey,
-          FileInfo * fileInfo) override {
+    StoreStatus GetFile(InodeID id,
+                        const std::string &filename,
+                        FileInfo * fileInfo) override {
         std::lock_guard<std::mutex> guard(lock_);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
         auto iter = memKvMap_.find(storeKey);
         if (iter == memKvMap_.end()) {
             return StoreStatus::KeyNotExist;
@@ -103,9 +107,12 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus DeleteFile(const std::string & storekey) override {
+    StoreStatus DeleteFile(InodeID id,
+                            const std::string &filename) override {
         std::lock_guard<std::mutex> guard(lock_);
-        auto iter = memKvMap_.find(storekey);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeFileStoreKey(id, filename);
+        auto iter = memKvMap_.find(storeKey);
         if (iter == memKvMap_.end()) {
             return StoreStatus::KeyNotExist;
         }
@@ -113,11 +120,29 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus RenameFile(const std::string & oldStoreKey,
-                           const FileInfo &oldfileInfo,
-                           const std::string & newStoreKey,
+    StoreStatus DeleteSnapshotFile(InodeID id,
+                            const std::string &filename) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(id, filename);
+        auto iter = memKvMap_.find(storeKey);
+        if (iter == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        memKvMap_.erase(iter);
+        return StoreStatus::OK;
+    }
+
+    StoreStatus RenameFile(const FileInfo &oldfileInfo,
                            const FileInfo &newfileInfo) override {
         std::lock_guard<std::mutex> guard(lock_);
+
+        std::string oldStoreKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+                                                  oldfileInfo.parentid(),
+                                                  oldfileInfo.filename());
+        std::string newStoreKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+                                                  newfileInfo.parentid(),
+                                                  newfileInfo.filename());
 
         auto iter = memKvMap_.find(oldStoreKey);
         if (iter == memKvMap_.end()) {
@@ -133,10 +158,14 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus ListFile(const std::string & startStoreKey,
-                         const std::string & endStoreKey,
+    StoreStatus ListFile(InodeID startid,
+                         InodeID endid,
                          std::vector<FileInfo> * files) override {
         std::lock_guard<std::mutex> guard(lock_);
+        std::string startStoreKey =
+                NameSpaceStorageCodec::EncodeFileStoreKey(startid, "");
+        std::string endStoreKey =
+                NameSpaceStorageCodec::EncodeFileStoreKey(endid, "");
 
         for (auto iter = memKvMap_.begin(); iter != memKvMap_.end(); iter++) {
             if (iter->first.compare(startStoreKey) >= 0) {
@@ -151,10 +180,35 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
+    StoreStatus ListSnapshotFile(InodeID startid,
+                         InodeID endid,
+                         std::vector<FileInfo> * files) override {
+        std::lock_guard<std::mutex> guard(lock_);
+        std::string startStoreKey =
+                NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(startid, "");
+        std::string endStoreKey =
+                NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(endid, "");
 
-    StoreStatus GetSegment(const std::string & storeKey,
+        for (auto iter = memKvMap_.begin(); iter != memKvMap_.end(); iter++) {
+            if (iter->first.compare(startStoreKey) >= 0) {
+                if (iter->first.compare(endStoreKey) < 0) {
+                    FileInfo  validFile;
+                    validFile.ParseFromString(iter->second);
+                    files->push_back(validFile);
+                }
+            }
+        }
+
+        return StoreStatus::OK;
+    }
+
+    StoreStatus GetSegment(InodeID id,
+                            uint64_t off,
                            PageFileSegment *segment) override {
         std::lock_guard<std::mutex> guard(lock_);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
+
         auto iter = memKvMap_.find(storeKey);
         if (iter == memKvMap_.end()) {
             return StoreStatus::KeyNotExist;
@@ -163,17 +217,24 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus PutSegment(const std::string & storeKey,
+    StoreStatus PutSegment(InodeID id,
+                           uint64_t off,
                            const PageFileSegment * segment) override {
         std::lock_guard<std::mutex> guard(lock_);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
+
         std::string value = segment->SerializeAsString();
         memKvMap_.insert(std::move(std::pair<std::string, std::string>
             (storeKey, std::move(value))));
         return StoreStatus::OK;
     }
 
-    StoreStatus DeleteSegment(const std::string &storeKey) override {
+    StoreStatus DeleteSegment(InodeID id, uint64_t off) override {
         std::lock_guard<std::mutex> guard(lock_);
+        std::string storeKey =
+            NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
+
         auto iter = memKvMap_.find(storeKey);
         if (iter == memKvMap_.end()) {
             return StoreStatus::KeyNotExist;
@@ -182,11 +243,16 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus SnapShotFile(const std::string & originalFileKey,
-                            const FileInfo *originalFileInfo,
-                            const std::string & snapshotFileKey,
+    StoreStatus SnapShotFile(const FileInfo *originalFileInfo,
                             const FileInfo * snapshotFileInfo) override {
         std::lock_guard<std::mutex> guard(lock_);
+        auto originalFileKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+                                            originalFileInfo->parentid(),
+                                            originalFileInfo->filename());
+        auto snapshotFileKey = NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(   // NOLINT
+                                            snapshotFileInfo->parentid(),
+                                            snapshotFileInfo->filename());
+
         std::string originalFileData = originalFileInfo->SerializeAsString();
         std::string snapshotFileData = snapshotFileInfo->SerializeAsString();
         memKvMap_.erase(originalFileKey);

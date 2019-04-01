@@ -23,11 +23,11 @@ TEST(CleanCore, test) {
 
     {
         // delete ok (no, segment)
-        EXPECT_CALL(*storage, GetSegment(_, _))
+        EXPECT_CALL(*storage, GetSegment(_, _, _))
         .WillRepeatedly(Return(StoreStatus::KeyNotExist));
 
 
-        EXPECT_CALL(*storage, DeleteFile(_))
+        EXPECT_CALL(*storage, DeleteSnapshotFile(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -43,11 +43,11 @@ TEST(CleanCore, test) {
     }
     {
         // all ok , but do DeleteFile namespace meta error
-        EXPECT_CALL(*storage, GetSegment(_, _))
+        EXPECT_CALL(*storage, GetSegment(_, _, _))
         .WillRepeatedly(Return(StoreStatus::KeyNotExist));
 
 
-        EXPECT_CALL(*storage, DeleteFile(_))
+        EXPECT_CALL(*storage, DeleteSnapshotFile(_, _))
         .WillOnce(Return(StoreStatus::InternalError));
 
         FileInfo cleanFile;
@@ -60,7 +60,7 @@ TEST(CleanCore, test) {
 
     {
         // get segment error
-        EXPECT_CALL(*storage, GetSegment(_, _))
+        EXPECT_CALL(*storage, GetSegment(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 

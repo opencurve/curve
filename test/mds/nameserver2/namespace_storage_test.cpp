@@ -35,7 +35,7 @@ class TestNameServerStorageImp : public ::testing::Test {
       storage_ = nullptr;
   }
 
-  void GetFileInfoForTest(std::string *fileKey, FileInfo *fileinfo) {
+  void GetFileInfoForTest(FileInfo *fileinfo) {
     std::string filename = "helloword-" + std::to_string(1) + ".log";
     fileinfo->set_id(1);
     fileinfo->set_filename(filename);
@@ -49,7 +49,6 @@ class TestNameServerStorageImp : public ::testing::Test {
     fileinfo->set_seqnum(1);
     std::string encodeFileInfo;
     ASSERT_TRUE(fileinfo->SerializeToString(&encodeFileInfo));
-    *fileKey = EncodeFileStoreKey(1<<8, filename);
   }
 
   void GetPageFileSegmentForTest(
@@ -64,7 +63,7 @@ class TestNameServerStorageImp : public ::testing::Test {
         chunkinfo->set_chunkid(i+1);
         chunkinfo->set_copysetid(i+1);
     }
-    *fileKey = EncodeSegmentStoreKey(1, 1);
+    *fileKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(1, 1);
   }
 
  protected:
@@ -75,7 +74,7 @@ class TestNameServerStorageImp : public ::testing::Test {
 TEST_F(TestNameServerStorageImp, test_putFile) {
     std::string storeKey;
     FileInfo fileinfo;
-    GetFileInfoForTest(&storeKey, &fileinfo);
+    GetFileInfoForTest(&fileinfo);
     EXPECT_CALL(*client_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Unknown))
@@ -97,45 +96,45 @@ TEST_F(TestNameServerStorageImp, test_putFile) {
         .WillOnce(Return(EtcdErrCode::TxnUnkownOp))
         .WillOnce(Return(EtcdErrCode::ObjectNotExist))
         .WillOnce(Return(EtcdErrCode::ErrObjectType));
-    ASSERT_EQ(StoreStatus::OK, storage_->PutFile(storeKey, fileinfo));
+    ASSERT_EQ(StoreStatus::OK, storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->PutFile(storeKey, fileinfo));
+        storage_->PutFile(fileinfo));
 }
 
 TEST_F(TestNameServerStorageImp, test_getfile) {
@@ -144,18 +143,25 @@ TEST_F(TestNameServerStorageImp, test_getfile) {
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(Return(EtcdErrCode::DeadlineExceeded))
         .WillOnce(Return(EtcdErrCode::KeyNotExist));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->GetFile("", &fileinfo));
-    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetFile("", &fileinfo));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->GetFile(fileinfo.parentid(),
+                                                            fileinfo.filename(),
+                                                            &fileinfo));
+    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetFile(fileinfo.parentid(),
+                                                          fileinfo.filename(),
+                                                          &fileinfo));
 
     // 2. get file ok
     FileInfo getInfo;
-    std::string fileKey, encodeFileinfo;
-    GetFileInfoForTest(&fileKey, &fileinfo);
-    ASSERT_TRUE(EncodeFileInfo(fileinfo, &encodeFileinfo));
+    std::string encodeFileinfo;
+    GetFileInfoForTest(&fileinfo);
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
+                                                      &encodeFileinfo));
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(encodeFileinfo),
                   Return(EtcdErrCode::OK)));
-    ASSERT_EQ(StoreStatus::OK, storage_->GetFile("", &getInfo));
+    ASSERT_EQ(StoreStatus::OK, storage_->GetFile(fileinfo.parentid(),
+                                                 fileinfo.filename(),
+                                                 &getInfo));
     ASSERT_EQ(fileinfo.filename(), getInfo.filename());
     ASSERT_EQ(fileinfo.fullpathname(), getInfo.fullpathname());
     ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
@@ -165,8 +171,8 @@ TEST_F(TestNameServerStorageImp, test_deletefile) {
     EXPECT_CALL(*client_, Delete(_))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
-    ASSERT_EQ(StoreStatus::OK, storage_->DeleteFile(""));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteFile(""));
+    ASSERT_EQ(StoreStatus::OK, storage_->DeleteFile(1234, ""));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteFile(1234, ""));
 }
 
 TEST_F(TestNameServerStorageImp, test_renamefile) {
@@ -174,9 +180,9 @@ TEST_F(TestNameServerStorageImp, test_renamefile) {
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     ASSERT_EQ(StoreStatus::OK,
-        storage_->RenameFile("", FileInfo{}, "", FileInfo{}));
+        storage_->RenameFile(FileInfo{}, FileInfo{}));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->RenameFile("", FileInfo{}, "", FileInfo{}));
+        storage_->RenameFile(FileInfo{}, FileInfo{}));
 }
 
 TEST_F(TestNameServerStorageImp, test_ListFile) {
@@ -184,19 +190,20 @@ TEST_F(TestNameServerStorageImp, test_ListFile) {
     std::vector<FileInfo> listRes;
     EXPECT_CALL(*client_, List(_, _, _))
         .WillOnce(Return(EtcdErrCode::Canceled));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->ListFile("", "", &listRes));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->ListFile(0, 0, &listRes));
 
     // 2. list ok
     listRes.clear();
-    std::string filekey, encodeFileinfo;
+    std::string encodeFileinfo;
     FileInfo fileinfo;
-    GetFileInfoForTest(&filekey, &fileinfo);
-    ASSERT_TRUE(EncodeFileInfo(fileinfo, &encodeFileinfo));
+    GetFileInfoForTest(&fileinfo);
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
+                                                      &encodeFileinfo));
     EXPECT_CALL(*client_, List(_, _, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
             Return(EtcdErrCode::OK)));
-    ASSERT_EQ(StoreStatus::OK, storage_->ListFile("", "", &listRes));
+    ASSERT_EQ(StoreStatus::OK, storage_->ListFile(0, 0, &listRes));
     ASSERT_EQ(1, listRes.size());
     ASSERT_EQ(fileinfo.filename(), listRes[0].filename());
     ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());
@@ -207,8 +214,8 @@ TEST_F(TestNameServerStorageImp, test_putsegment) {
     EXPECT_CALL(*client_, Put(_, _))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Canceled));
-    ASSERT_EQ(StoreStatus::OK, storage_->PutSegment("", &segment));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->PutSegment("", &segment));
+    ASSERT_EQ(StoreStatus::OK, storage_->PutSegment(0, 0, &segment));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->PutSegment(0, 0, &segment));
 }
 
 TEST_F(TestNameServerStorageImp, test_getSegment) {
@@ -217,18 +224,18 @@ TEST_F(TestNameServerStorageImp, test_getSegment) {
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(Return(EtcdErrCode::Canceled))
         .WillOnce(Return(EtcdErrCode::KeyNotExist));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->GetSegment("", &segment));
-    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetSegment("", &segment));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->GetSegment(0, 0, &segment));
+    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetSegment(0, 0, &segment));
 
     // 2. get ok
     PageFileSegment getSegment;
     std::string key, encodeSegment;
     GetPageFileSegmentForTest(&key, &segment);
-    ASSERT_TRUE(EncodeSegment(segment, &encodeSegment));
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeSegment(segment, &encodeSegment));
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(encodeSegment),
                         Return(EtcdErrCode::OK)));
-    ASSERT_EQ(StoreStatus::OK, storage_->GetSegment("", &getSegment));
+    ASSERT_EQ(StoreStatus::OK, storage_->GetSegment(0, 0, &getSegment));
     ASSERT_EQ(segment.chunksize(), getSegment.chunksize());
     ASSERT_EQ(segment.chunks_size(), getSegment.chunks_size());
 }
@@ -237,8 +244,8 @@ TEST_F(TestNameServerStorageImp, test_deleteSegment) {
     EXPECT_CALL(*client_, Delete(_))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Aborted));
-    ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(""));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteSegment(""));
+    ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(0, 0));
+    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteSegment(0, 0));
 }
 
 TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
@@ -246,16 +253,18 @@ TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     FileInfo fileinfo;
+    fileinfo.set_filetype(FileType::INODE_PAGEFILE);
     ASSERT_EQ(StoreStatus::OK,
-        storage_->SnapShotFile("", &fileinfo, "", &fileinfo));
+        storage_->SnapShotFile(&fileinfo, &fileinfo));
     ASSERT_EQ(StoreStatus::InternalError,
-        storage_->SnapShotFile("", &fileinfo, "", &fileinfo));
+        storage_->SnapShotFile(&fileinfo, &fileinfo));
 }
 
 TEST(NameSpaceStorageTest, EncodeFileStoreKey) {
     std::string filename = "foo.txt";
     uint64_t parentID = 8;
-    std::string str = EncodeFileStoreKey(parentID, filename);
+    std::string str =
+        NameSpaceStorageCodec::EncodeFileStoreKey(parentID, filename);
 
     ASSERT_EQ(str.size(), 17);
     ASSERT_EQ(str.substr(0, PREFIX_LENGTH), FILEINFOKEYPREFIX);
@@ -266,7 +275,7 @@ TEST(NameSpaceStorageTest, EncodeFileStoreKey) {
     ASSERT_EQ(static_cast<int>(str[9]), 8);
 
     parentID = 8 << 8;
-    str = EncodeFileStoreKey(parentID, filename);
+    str = NameSpaceStorageCodec::EncodeFileStoreKey(parentID, filename);
 
     ASSERT_EQ(str.size(), 17);
     ASSERT_EQ(str.substr(0, PREFIX_LENGTH), FILEINFOKEYPREFIX);
@@ -281,7 +290,9 @@ TEST(NameSpaceStorageTest, EncodeFileStoreKey) {
 TEST(NameSpaceStorageTest, EncodeSnapShotFileStoreKey) {
     std::string snapshotName = "hello-1";
     uint64_t parentID = 8;
-    std::string str = EncodeSnapShotFileStoreKey(parentID, snapshotName);
+    std::string str = NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(
+                                                            parentID,
+                                                            snapshotName);
 
     ASSERT_EQ(str.size(), 17);
     ASSERT_EQ(str.substr(0, PREFIX_LENGTH), SNAPSHOTFILEINFOKEYPREFIX);
@@ -295,7 +306,8 @@ TEST(NameSpaceStorageTest, EncodeSnapShotFileStoreKey) {
 TEST(NameSpaceStorageTest, EncodeSegmentStoreKey) {
     uint64_t inodeID = 8;
     offset_t offset = 3 << 16;
-    std::string str = EncodeSegmentStoreKey(inodeID, offset);
+    std::string str =
+        NameSpaceStorageCodec::EncodeSegmentStoreKey(inodeID, offset);
 
     ASSERT_EQ(str.substr(0, PREFIX_LENGTH), SEGMENTINFOKEYPREFIX);
 
@@ -327,12 +339,12 @@ TEST(NameSpaceStorageTest, test_EncodeAnDecode_FileInfo) {
 
     // encode fileInfo
     std::string out;
-    ASSERT_TRUE(EncodeFileInfo(fileInfo, &out));
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileInfo, &out));
     ASSERT_EQ(fileInfo.ByteSize(), out.size());
 
     // decode fileInfo
     FileInfo decodeRes;
-    ASSERT_TRUE(DecodeFileInfo(out, &decodeRes));
+    ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &decodeRes));
     ASSERT_EQ(fileInfo.id(), decodeRes.id());
     ASSERT_EQ(fileInfo.filename(), decodeRes.filename());
     ASSERT_EQ(fileInfo.parentid(), decodeRes.parentid());
@@ -346,11 +358,11 @@ TEST(NameSpaceStorageTest, test_EncodeAnDecode_FileInfo) {
     // encode fileInfo ctime donnot set
     fileInfo.clear_ctime();
     ASSERT_FALSE(fileInfo.has_ctime());
-    ASSERT_TRUE(EncodeFileInfo(fileInfo, &out));
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileInfo, &out));
     ASSERT_EQ(fileInfo.ByteSize(), out.size());
 
     // decode
-    ASSERT_TRUE(DecodeFileInfo(out, &decodeRes));
+    ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &decodeRes));
     ASSERT_FALSE(decodeRes.has_ctime());
 }
 
@@ -369,12 +381,12 @@ TEST(NameSpaceStorageTest, test_EncodeAndDecode_Segment) {
 
     // encode segment
     std::string out;
-    ASSERT_TRUE(EncodeSegment(segment, &out));
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeSegment(segment, &out));
     ASSERT_EQ(segment.ByteSize(), out.size());
 
     // decode segment
     PageFileSegment decodeRes;
-    ASSERT_TRUE(DecodeSegment(out, &decodeRes));
+    ASSERT_TRUE(NameSpaceStorageCodec::DecodeSegment(out, &decodeRes));
     ASSERT_EQ(segment.logicalpoolid(), decodeRes.logicalpoolid());
     ASSERT_EQ(segment.segmentsize(), decodeRes.segmentsize());
     ASSERT_EQ(segment.chunksize(), decodeRes.chunksize());
