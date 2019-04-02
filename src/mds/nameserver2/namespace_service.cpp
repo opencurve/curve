@@ -972,6 +972,136 @@ bool isPathValid(std::string path) {
 
     return true;
 }
+
+void NameSpaceService::CreateCloneFile(
+                        ::google::protobuf::RpcController* controller,
+                       const ::curve::mds::CreateCloneFileRequest* request,
+                       ::curve::mds::CreateCloneFileResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+            << ", CreateCloneFile request, filename = " << request->filename()
+            << ", filetype = " << request->filetype()
+            << ", filelength = " << request->filelength()
+            << ", seq = " << request->seq()
+            << ", owner = " << request->owner()
+            << ", chunksize = " << request->chunksize();
+
+    // chunksize 必须得设置
+    if (!request->has_chunksize()) {
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << "CreateCloneFile error, chunksize not setted"
+            << ". filename = " << request->filename();
+        response->set_statuscode(StatusCode::kParaError);
+        return;
+    }
+
+    // TODO(hzsunjianliang): 只允许root用户进行创建cloneFile
+    std::string signature = "";
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+
+    // 检查权限
+    StatusCode ret = kCurveFS.CheckPathOwner(request->date(),
+        request->filename(), request->owner(), signature);
+
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CreateCloneFile CheckPathOwner fail, filename = "
+            <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << ret;
+        return;
+    }
+
+    // 创建clone文件
+    ret = kCurveFS.CreateCloneFile(request->filename(),
+                            request->owner(),
+                            request->filetype(),
+                            request->filelength(),
+                            request->seq(),
+                            request->chunksize(),
+                            response->mutable_fileinfo());
+    response->set_statuscode(ret);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CreateCloneFile fail, filename = " <<  request->filename()
+            << ", statusCode = " << ret
+            << ", StatusCode_Name = " << StatusCode_Name(ret);
+    } else {
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", CreateFile ok, filename = " << request->filename();
+    }
+    return;
+}
+
+void NameSpaceService::SetCloneFileStatus(
+                        ::google::protobuf::RpcController* controller,
+                       const ::curve::mds::SetCloneFileStatusRequest* request,
+                       ::curve::mds::SetCloneFileStatusResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", SetCloneFileStatus request, filename = " << request->filename()
+        << ", set filestatus = " << request->filestatus()
+        << ", has_fileid = " << request->has_fileid();
+
+    uint64_t fileID = request->fileid();
+    if (!request->has_fileid()) {
+        fileID = kUnitializedFileID;
+    }
+
+    // TODO(hzsunjianliang): lock the filepath&name
+
+    // TODO(hzsunjianliang): 只允许root用户进行创建cloneFile
+    std::string signature = "";
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    StatusCode ret = kCurveFS.CheckPathOwner(request->date(),
+        request->filename(), request->owner(), signature);
+
+    if (ret != StatusCode::kOK) {
+        response->set_statuscode(ret);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", SetCloneFileStatus CheckPathOwner fail, filename = "
+            <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << ret;
+        return;
+    }
+
+
+    ret = kCurveFS.SetCloneFileStatus(request->filename(),
+                                fileID,
+                                request->filestatus());
+    response->set_statuscode(ret);
+    if (ret != StatusCode::kOK) {
+         LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", SetCloneFileStatus fail, filename = " <<  request->filename()
+            << ", statusCode = " << ret
+            << ", StatusCode_Name = " << StatusCode_Name(ret);
+    } else {
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", SetCloneFileStatus ok, filename = " << request->filename();
+    }
+}
+
+
 }  // namespace mds
 }  // namespace curve
 

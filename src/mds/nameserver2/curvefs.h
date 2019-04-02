@@ -117,6 +117,7 @@ class CurveFS {
      *         newFileName：希望重命名的新文件名
      *  @return 是否成功，成功返回StatusCode::kOK
      */
+    // TODO(hzsunjianliang): 添加源文件的inode的参数，用于检查
     StatusCode RenameFile(const std::string & oldFileName,
                           const std::string & newFileName);
 
@@ -269,6 +270,37 @@ class CurveFS {
                               FileInfo  *fileInfo);
 
     /**
+     * @breif 创建克隆文件，当前克隆文件的创建只有root用户能够创建
+     * @param filename 文件名
+     * @param owner 调用接口的owner信息
+     * @param filetype 文件的类型
+     * @param length 克隆文件的长度
+     * @param seq 版本号
+     * @param ChunkSizeType 创建克隆文件的chunk大小
+     * @param[out] fileInfo 创建成功克隆文件的fileInfo
+     * @return 成功返回StatusCode:kOK
+     */
+    StatusCode CreateCloneFile(const std::string &filename,
+                            const std::string& owner,
+                            FileType filetype,
+                            uint64_t length,
+                            FileSeqType seq,
+                            ChunkSizeType chunksize,
+                            FileInfo *fileInfo);
+
+    /**
+     * @brief 设置克隆文件的状态
+     * @param filename 文件名
+     * @param fileID 设置文件的inodeid
+     * @param fileStatus 需要设置的状态
+     * 
+     * @return  是否成功，成功返回StatusCode::kOK
+     * 
+     */
+    StatusCode SetCloneFileStatus(const std::string &filename,
+                            uint64_t fileID,
+                            FileStatus fileStatus);
+    /**
      *  @brief 检查的文件owner
      *  @param: date是用于计算signature的时间
      *  @param: filename：文件名
@@ -312,7 +344,7 @@ class CurveFS {
                               const std::string &filename,
                               const std::string &owner,
                               const std::string &signature);
-    // TODO(hzsunjianliang): snapshot ops
+
  private:
     CurveFS() = default;
 
