@@ -1988,6 +1988,259 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
 }
 
 
+TEST_F(CurveFSTest, testCreateCloneFile) {
+    // test parm error
+    ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
+                FileType::INODE_DIRECTORY, kMiniFileLength, kStartSeqNum,
+                DefaultChunkSize, nullptr), StatusCode::kParaError);
+
+    ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
+                FileType::INODE_PAGEFILE, kMiniFileLength - 1, kStartSeqNum,
+                DefaultChunkSize, nullptr), StatusCode::kParaError);
+
+    {
+        // test file exist
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::OK));
+
+        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
+                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
+                    DefaultChunkSize, nullptr);
+        ASSERT_EQ(statusCode, StatusCode::kFileExists);
+    }
+
+    {
+        // test get storage error
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
+                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
+                    DefaultChunkSize, nullptr);
+        ASSERT_EQ(statusCode, StatusCode::kStorageError);
+    }
+
+    {
+        // test inode allocate error
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+        .Times(1)
+        .WillOnce(Return(false));
+
+        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
+                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
+                    DefaultChunkSize, nullptr);
+        ASSERT_EQ(statusCode, StatusCode::kStorageError);
+    }
+
+    {
+        // test put storage error
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+        .Times(1)
+        .WillOnce(Return(true));
+
+        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
+                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
+                    DefaultChunkSize, nullptr);
+        ASSERT_EQ(statusCode, StatusCode::kStorageError);
+    }
+    {
+        // test ok
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+        .Times(1)
+        .WillOnce(Return(true));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::OK));
+
+        FileInfo fileInfo;
+        auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
+                    FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
+                    DefaultChunkSize, &fileInfo);
+        ASSERT_EQ(statusCode, StatusCode::kOK);
+        ASSERT_EQ(fileInfo.filename(), "file1");
+        ASSERT_EQ(fileInfo.owner(), "owner1");
+        ASSERT_EQ(fileInfo.filetype(), FileType::INODE_PAGEFILE);
+        ASSERT_EQ(fileInfo.filestatus(), FileStatus::kFileCloning);
+        ASSERT_EQ(fileInfo.fullpathname(), "/file1");
+        ASSERT_EQ(fileInfo.length(), kMiniFileLength);
+        ASSERT_EQ(fileInfo.segmentsize(), DefaultSegmentSize);
+        ASSERT_EQ(fileInfo.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(fileInfo.seqnum(), kStartSeqNum);
+    }
+}
+
+TEST_F(CurveFSTest, testSetCloneFileStatus) {
+    {
+        // test path not exist
+        FileInfo  fileInfo;
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1/file2",
+            kUnitializedFileID, FileStatus::kFileCloned),
+                  StatusCode::kFileNotExists);
+    }
+
+    {
+        // test stoarge error
+        FileInfo fileInfo;
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1/file2",
+            kUnitializedFileID, FileStatus::kFileCloned),
+                StatusCode::kStorageError);
+    }
+
+    {
+        // test  WalkPath NOT DIRECTORY
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1/file2",
+            kUnitializedFileID, FileStatus::kFileCloned),
+                StatusCode::kFileNotExists);
+    }
+    {
+        // test LookUpFile internal Error
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1/file2",
+            kUnitializedFileID, FileStatus::kFileCloned),
+                StatusCode::kStorageError);
+    }
+    {
+        // test inodeid not match
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_id(100);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1",
+            10, FileStatus::kFileCloned),
+                StatusCode::kFileNotExists);
+    }
+    {
+        // test filestatus not ok
+        const struct {
+            FileStatus originStatus;
+            FileStatus setStatus;
+            StatusCode expectReturn;
+            int putFileTime;
+        } testCases[] {
+            {FileStatus::kFileCloning, FileStatus::kFileCloneMetaInstalled,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCloning, FileStatus::kFileCloning,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCloneMetaInstalled,
+                FileStatus::kFileCloneMetaInstalled,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCloned, FileStatus::kFileCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCloning, FileStatus::kFileCloned,
+                StatusCode::kCloneStatusNotMatch, 0},
+            {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileCloning,
+                StatusCode::kCloneStatusNotMatch, 0},
+            {FileStatus::kFileCreated, FileStatus::kFileCloned,
+                StatusCode::kCloneStatusNotMatch, 0},
+        };
+
+        for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {
+            {
+                FileInfo fileInfo;
+                fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+                fileInfo.set_filestatus(testCases[i].originStatus);
+                EXPECT_CALL(*storage_, GetFile(_, _, _))
+                .Times(1)
+                .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                    Return(StoreStatus::OK)));
+
+                EXPECT_CALL(*storage_, PutFile(_))
+                .Times(AtLeast(testCases[i].putFileTime))
+                .WillOnce(Return(StoreStatus::OK));
+
+
+                ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1",
+                    kUnitializedFileID, testCases[i].setStatus),
+                    testCases[i].expectReturn);
+            }
+        }
+    }
+    {
+        // test put file error
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileCloneMetaInstalled);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/file1",
+            kUnitializedFileID, FileStatus::kFileCloned),
+                StatusCode::kStorageError);
+    }
+    {
+        // test put file ok
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo.set_filestatus(FileStatus::kFileCloneMetaInstalled);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(AtLeast(1))
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->SetCloneFileStatus("/file1",
+            kUnitializedFileID, FileStatus::kFileCloned),
+                StatusCode::kOK);
+    }
+}
+
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);

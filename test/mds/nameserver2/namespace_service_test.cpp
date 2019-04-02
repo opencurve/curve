@@ -825,6 +825,89 @@ TEST_F(NameSpaceServiceTest, isPathValid) {
     ASSERT_EQ(isPathValid("/a/b/"), false);
 }
 
+TEST_F(NameSpaceServiceTest, clonetest) {
+    brpc::Server server;
+    std::string listenAddr = "0.0.0.0:9761";
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(server.Start(listenAddr.c_str(), &option), 0);
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(listenAddr.c_str(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+
+    // create clone file
+    CreateCloneFileRequest request;
+    CreateCloneFileResponse response;
+    brpc::Controller cntl;
+
+    request.set_filename("/clonefile1");
+    request.set_filetype(FileType::INODE_PAGEFILE);
+    request.set_filelength(kMiniFileLength);
+    request.set_seq(10);
+    request.set_chunksize(DefaultChunkSize);
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_owner("tom");
+    cntl.set_log_id(1);
+
+    stub.CreateCloneFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // get file
+    GetFileInfoRequest getRequest;
+    GetFileInfoResponse getResponse;
+
+    cntl.Reset();
+    getRequest.set_filename("/clonefile1");
+    getRequest.set_date(TimeUtility::GetTimeofDayUs());
+    getRequest.set_owner("tom");
+
+    stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
+    if (!cntl.Failed()) {
+        FileInfo fileInfo = getResponse.fileinfo();
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(fileInfo.filename(), "clonefile1");
+        ASSERT_EQ(fileInfo.fullpathname(), "/clonefile1");
+        ASSERT_EQ(fileInfo.filetype(), FileType::INODE_PAGEFILE);
+        ASSERT_EQ(fileInfo.owner(), "tom");
+        ASSERT_EQ(fileInfo.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(fileInfo.segmentsize(), DefaultSegmentSize);
+        ASSERT_EQ(fileInfo.length(), kMiniFileLength);
+        ASSERT_EQ(fileInfo.filestatus(), FileStatus::kFileCloning);
+    } else {
+        FAIL();
+    }
+
+    // set clone file status
+    SetCloneFileStatusRequest setRequest;
+    SetCloneFileStatusResponse setResponse;
+
+    cntl.Reset();
+    setRequest.set_filename("/clonefile1");
+    setRequest.set_date(TimeUtility::GetTimeofDayUs());
+    setRequest.set_owner("tom");
+    setRequest.set_filestatus(FileStatus::kFileCloneMetaInstalled);
+
+    stub.SetCloneFileStatus(&cntl, &setRequest, &setResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        FAIL();
+    }
+}
+
 }  // namespace mds
 }  // namespace curve
 

@@ -90,6 +90,14 @@ class NameSpaceService: public CurveFSService {
                         const ::curve::mds::ReFreshSessionRequest* request,
                         ::curve::mds::ReFreshSessionResponse* response,
                         ::google::protobuf::Closure* done) override;
+    void CreateCloneFile(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::CreateCloneFileRequest* request,
+                       ::curve::mds::CreateCloneFileResponse* response,
+                       ::google::protobuf::Closure* done) override;
+    void SetCloneFileStatus(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::SetCloneFileStatusRequest* request,
+                       ::curve::mds::SetCloneFileStatusResponse* response,
+                       ::google::protobuf::Closure* done) override;
 
  private:
     FileLockManager *fileLockManager_;

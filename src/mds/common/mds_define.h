@@ -101,6 +101,11 @@ const uint64_t DefaultChunkSize = 16 * kMB;
 const uint64_t DefaultSegmentSize = kGB * 1;
 const uint64_t kMiniFileLength = DefaultSegmentSize * 10;
 
+
+const SeqNum kStartSeqNum = 1;
+
+const InodeID kUnitializedFileID = 0;
+
 typedef uint64_t offset_t;
 typedef uint16_t LogicalPoolID;
 typedef uint32_t CopysetID;

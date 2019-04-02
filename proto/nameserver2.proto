@@ -83,6 +83,9 @@ enum  StatusCode {
     // 文件已被占用
     kFileOccupied = 126;
 
+    kCloneFileNameIllegal = 127;
+    kCloneStatusNotMatch = 128;
+
     // 元数据存储错误
     kStorageError = 501;
     // 内部错误

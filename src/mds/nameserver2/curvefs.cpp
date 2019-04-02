@@ -176,8 +176,9 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
         fileInfo.set_fullpathname(fileName);
-        // 约定seqnum从1开始
-        fileInfo.set_seqnum(1);
+        fileInfo.set_seqnum(kStartSeqNum);
+        fileInfo.set_filestatus(FileStatus::kFileCreated);
+
         ret = PutFile(fileInfo);
         return ret;
     }
@@ -889,6 +890,150 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
 
     return StatusCode::kOK;
 }
+
+StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
+                            const std::string& owner,
+                            FileType filetype,
+                            uint64_t length,
+                            FileSeqType seq,
+                            ChunkSizeType chunksize,
+                            FileInfo *retFileInfo) {
+    // 检查基本参数
+    if (filetype != FileType::INODE_PAGEFILE) {
+        LOG(ERROR) << "CreateCloneFile err, filename = " << fileName
+                << ", filetype not support";
+        return StatusCode::kParaError;
+    }
+
+    if  (length < kMiniFileLength || seq < kStartSeqNum) {
+        LOG(ERROR) << "CreateCloneFile err, filename = " << fileName
+                    << "file Length < MinFileLength " << kMiniFileLength
+                    << ", length = " << length;
+        return StatusCode::kParaError;
+    }
+
+    // 检查文件是否存在
+    FileInfo parentFileInfo;
+    std::string lastEntry;
+    auto ret = WalkPath(fileName, &parentFileInfo, &lastEntry);
+    if ( ret != StatusCode::kOK ) {
+        return ret;
+    }
+    if (lastEntry.empty()) {
+        return StatusCode::kCloneFileNameIllegal;
+    }
+
+    FileInfo fileInfo;
+    ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
+    if (ret == StatusCode::kOK) {
+        return StatusCode::kFileExists;
+    }
+
+    if (ret != StatusCode::kFileNotExists) {
+         return ret;
+    } else {
+        InodeID inodeID;
+        if (InodeIDGenerator_->GenInodeID(&inodeID) != true) {
+            LOG(ERROR) << "CreateCloneFile filename = " << fileName
+                << ", GenInodeID error";
+            return StatusCode::kStorageError;
+        }
+
+        fileInfo.set_id(inodeID);
+        fileInfo.set_parentid(parentFileInfo.id());
+
+        fileInfo.set_filename(lastEntry);
+        fileInfo.set_fullpathname(fileName);
+
+        fileInfo.set_filetype(filetype);
+        fileInfo.set_owner(owner);
+
+        fileInfo.set_chunksize(chunksize);
+        fileInfo.set_segmentsize(DefaultSegmentSize);
+        fileInfo.set_length(length);
+        fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
+
+        fileInfo.set_seqnum(seq);
+
+        fileInfo.set_filestatus(FileStatus::kFileCloning);
+
+        ret = PutFile(fileInfo);
+        if (ret == StatusCode::kOK && retFileInfo != nullptr) {
+            *retFileInfo = fileInfo;
+        }
+        return ret;
+    }
+}
+
+
+StatusCode CurveFS::SetCloneFileStatus(const std::string &filename,
+                            uint64_t fileID,
+                            FileStatus fileStatus) {
+    std::string lastEntry;
+    FileInfo parentFileInfo;
+    auto ret = WalkPath(filename, &parentFileInfo, &lastEntry);
+    if ( ret != StatusCode::kOK ) {
+        if (ret == StatusCode::kNotDirectory) {
+            return StatusCode::kFileNotExists;
+        }
+        return ret;
+    } else {
+        if (lastEntry.empty()) {
+            return StatusCode::kCloneFileNameIllegal;
+        }
+
+        FileInfo fileInfo;
+        StatusCode ret = LookUpFile(parentFileInfo, lastEntry, &fileInfo);
+
+        if (ret != StatusCode::kOK) {
+            return ret;
+        } else {
+            if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
+                return StatusCode::kNotSupported;
+            }
+        }
+
+        if (fileID !=  kUnitializedFileID && fileID != fileInfo.id()) {
+            LOG(WARNING) << "SetCloneFileStatus, filename = " << filename
+                << "fileID not Matched, src fileID = " << fileID
+                << ", stored fileID = " << fileInfo.id();
+            return StatusCode::kFileNotExists;
+        }
+
+        switch (fileInfo.filestatus()) {
+            case kFileCloning:
+                if (fileStatus == kFileCloneMetaInstalled ||
+                    fileStatus == kFileCloning) {
+                    // noop
+                } else {
+                    return kCloneStatusNotMatch;
+                }
+                break;
+            case kFileCloneMetaInstalled:
+                if (fileStatus == kFileCloned ||
+                    fileStatus == kFileCloneMetaInstalled ) {
+                    // noop
+                } else {
+                    return kCloneStatusNotMatch;
+                }
+                break;
+            case kFileCloned:
+                if (fileStatus == kFileCloned) {
+                    // noop
+                } else {
+                    return kCloneStatusNotMatch;
+                }
+                break;
+            default:
+                return kCloneStatusNotMatch;
+        }
+
+        fileInfo.set_filestatus(fileStatus);
+
+        return PutFile(fileInfo);
+    }
+}
+
 
 StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
                               const std::string &owner,
