@@ -71,8 +71,7 @@ StatusCode CurveFS::WalkPath(const std::string &fileName,
     uint64_t parentID = rootFileInfo_.id();
 
     for (uint32_t i = 0; i < paths.size() - 1; i++) {
-        auto storeKey = EncodeFileStoreKey(parentID, paths[i]);
-        auto ret = storage_->GetFile(storeKey, fileInfo);
+        auto ret = storage_->GetFile(parentID, paths[i], fileInfo);
 
         if (ret ==  StoreStatus::OK) {
             if (fileInfo->filetype() !=  FileType::INODE_DIRECTORY) {
@@ -96,9 +95,7 @@ StatusCode CurveFS::LookUpFile(const FileInfo & parentFileInfo,
                     const std::string &fileName, FileInfo *fileInfo) const {
     assert(fileInfo != nullptr);
 
-    std::string storeKey = EncodeFileStoreKey(parentFileInfo.id(), fileName);
-
-    auto ret = storage_->GetFile(storeKey, fileInfo);
+    auto ret = storage_->GetFile(parentFileInfo.id(), fileName, fileInfo);
 
     if (ret == StoreStatus::OK) {
         return StatusCode::kOK;
@@ -112,22 +109,7 @@ StatusCode CurveFS::LookUpFile(const FileInfo & parentFileInfo,
 // StatusCode PutFileInternal()
 
 StatusCode CurveFS::PutFile(const FileInfo & fileInfo) {
-    std::string storeKey;
-    switch (fileInfo.filetype()) {
-        case FileType::INODE_PAGEFILE:
-        case FileType::INODE_DIRECTORY:
-            storeKey = EncodeFileStoreKey(fileInfo.parentid(),
-                fileInfo.filename());
-            break;
-        case FileType::INODE_SNAPSHOT_PAGEFILE:
-            storeKey = EncodeSnapShotFileStoreKey(fileInfo.parentid(),
-                fileInfo.filename());
-            break;
-        default:
-            return StatusCode::kNotSupported;
-    }
-
-    if (storage_->PutFile(storeKey, fileInfo) != StoreStatus::OK) {
+    if (storage_->PutFile(fileInfo) != StoreStatus::OK) {
         return StatusCode::kStorageError;
     } else {
         return StatusCode::kOK;
@@ -135,16 +117,8 @@ StatusCode CurveFS::PutFile(const FileInfo & fileInfo) {
 }
 
 StatusCode CurveFS::SnapShotFile(const FileInfo * origFileInfo,
-    const FileInfo * snapshotFile) const {
-    auto origStoreKey =
-        EncodeFileStoreKey(origFileInfo->parentid(),
-            origFileInfo->filename());
-    auto snapshotStoreKey =
-        EncodeSnapShotFileStoreKey(snapshotFile->parentid(),
-            snapshotFile->filename());
-
-    if (storage_->SnapShotFile(origStoreKey, origFileInfo,
-        snapshotStoreKey, snapshotFile) != StoreStatus::OK) {
+                                const FileInfo * snapshotFile) const {
+    if (storage_->SnapShotFile(origFileInfo, snapshotFile) != StoreStatus::OK) {
         return StatusCode::kStorageError;
     } else {
         return StatusCode::kOK;
@@ -247,10 +221,9 @@ StatusCode CurveFS::DeleteFile(const std::string & filename) {
 
     // TODO(hzsunjianliang): can not delete dir/snapshot father file
 
-    auto storeKey = EncodeFileStoreKey(parentFileInfo.id(), lastEntry);
-
     // TODO(hzsunjianliang): should sumbit async delete to task pool
-    if (storage_->DeleteFile(storeKey) != StoreStatus::OK) {
+    if (storage_->DeleteFile(parentFileInfo.id(), lastEntry)
+        != StoreStatus::OK) {
         return StatusCode::kStorageError;
     }
     return StatusCode::kOK;
@@ -273,10 +246,9 @@ StatusCode CurveFS::ReadDir(const std::string & dirname,
         return StatusCode::kNotDirectory;
     }
 
-    auto startKey  = EncodeFileStoreKey(fileInfo.id(), "");
-    auto endKey    = EncodeFileStoreKey(fileInfo.id() + 1, "");
-
-    if ( storage_->ListFile(startKey, endKey, files) != StoreStatus::OK ) {
+    if (storage_->ListFile(fileInfo.id(),
+                            fileInfo.id() + 1,
+                            files) != StoreStatus::OK ) {
         return StatusCode::kStorageError;
     }
     return StatusCode::kOK;
@@ -322,13 +294,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         newFileInfo.set_owner(parentFileInfo.owner());
         newFileInfo.set_fullpathname(newFileName);
 
-        std::string oldStoreKey =
-            EncodeFileStoreKey(oldFileInfo.parentid(), oldFileInfo.filename());
-        std::string newStoreKey =
-            EncodeFileStoreKey(newFileInfo.parentid(), newFileInfo.filename());
-
-        auto ret = storage_->RenameFile(oldStoreKey, oldFileInfo,
-                                        newStoreKey, newFileInfo);
+        auto ret = storage_->RenameFile(oldFileInfo, newFileInfo);
         if ( ret != StoreStatus::OK ) {
             LOG(ERROR) << "storage_ renamefile error, error = " << ret;
             return StatusCode::kStorageError;
@@ -401,8 +367,7 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
         return StatusCode::kParaError;
     }
 
-    auto storeKey = EncodeSegmentStoreKey(fileInfo.id(), offset);
-    auto storeRet = storage_->GetSegment(storeKey, segment);
+    auto storeRet = storage_->GetSegment(fileInfo.id(), offset, segment);
     if (storeRet == StoreStatus::OK) {
         return StatusCode::kOK;
     } else if (storeRet == StoreStatus::KeyNotExist) {
@@ -419,9 +384,12 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
                 LOG(ERROR) << "AllocateChunkSegment error";
                 return StatusCode::kSegmentAllocateError;
             }
-            if (storage_->PutSegment(storeKey, segment) != StoreStatus::OK) {
-                LOG(ERROR) << "PutSegment fail, fileInfo.id() = " << storeKey
-                           << ", offset = " << offset;
+            if (storage_->PutSegment(fileInfo.id(), offset, segment)
+                != StoreStatus::OK) {
+                LOG(ERROR) << "PutSegment fail, fileInfo.id() = "
+                           << fileInfo.id()
+                           << ", offset = "
+                           << offset;
                 return StatusCode::kStorageError;
             }
 
@@ -464,9 +432,8 @@ StatusCode CurveFS::DeleteSegment(const std::string &fileName,
         return StatusCode::kParaError;
     }
 
-    auto storeKey = EncodeSegmentStoreKey(fileInfo.id(), offset);
     PageFileSegment segment;
-    auto storeRet = storage_->GetSegment(storeKey, &segment);
+    auto storeRet = storage_->GetSegment(fileInfo.id(), offset, &segment);
     if (storeRet == StoreStatus::KeyNotExist) {
         return StatusCode::kSegmentNotAllocated;
     } else if (storeRet == StoreStatus::OK) {
@@ -476,7 +443,7 @@ StatusCode CurveFS::DeleteSegment(const std::string &fileName,
                        << fileName << ", offset = " << offset;
             return StatusCode::KInternalError;
         }
-        if (storage_->DeleteSegment(storeKey) != StoreStatus::OK) {
+        if (storage_->DeleteSegment(fileInfo.id(), offset) != StoreStatus::OK) {
             LOG(ERROR) << "delete segment fail, fileInfo.id() = "
                        << fileInfo.id() << ", offset = " << offset
                        << ", fileName = " << fileName
@@ -520,12 +487,9 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
     }
 
     // check  if snapshot exist
-    auto startKey = EncodeSnapShotFileStoreKey(fileInfo.id(), "");
-    auto endKey   = EncodeSnapShotFileStoreKey(fileInfo.id() + 1, "");
-
     std::vector<FileInfo> snapShotFiles;
-    if ( storage_->ListFile(startKey, endKey, &snapShotFiles)
-            != StoreStatus::OK ) {
+    if (storage_->ListSnapshotFile(fileInfo.id(),
+                  fileInfo.id() + 1, &snapShotFiles) != StoreStatus::OK ) {
         LOG(ERROR) << fileName  << "listFile fail";
         return StatusCode::kStorageError;
     }
@@ -596,10 +560,9 @@ StatusCode CurveFS::ListSnapShotFile(const std::string & fileName,
     }
 
     // list snapshot files
-    auto startKey = EncodeSnapShotFileStoreKey(fileInfo.id(), "");
-    auto endKey   = EncodeSnapShotFileStoreKey(fileInfo.id() + 1, "");
-
-    auto storeStatus =  storage_->ListFile(startKey, endKey, snapshotFileInfos);
+    auto storeStatus =  storage_->ListSnapshotFile(fileInfo.id(),
+                                           fileInfo.id() + 1,
+                                           snapshotFileInfos);
     if (storeStatus == StoreStatus::KeyNotExist ||
         storeStatus == StoreStatus::OK) {
         return StatusCode::kOK;
@@ -777,9 +740,7 @@ StatusCode CurveFS::GetSnapShotFileSegment(
         return StatusCode::kParaError;
     }
 
-    std::string storeKey =
-        EncodeSegmentStoreKey(fileInfo.id(), offset);
-    StoreStatus storeRet = storage_->GetSegment(storeKey, segment);
+    StoreStatus storeRet = storage_->GetSegment(fileInfo.id(), offset, segment);
     if (storeRet == StoreStatus::OK) {
         return StatusCode::kOK;
     } else if (storeRet == StoreStatus::KeyNotExist) {
@@ -944,8 +905,7 @@ StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
 
     for (uint32_t i = 0; i < paths.size() - 1; i++) {
         FileInfo  fileInfo;
-        auto storeKey = EncodeFileStoreKey(tempParentID, paths[i]);
-        auto ret = storage_->GetFile(storeKey, &fileInfo);
+        auto ret = storage_->GetFile(tempParentID, paths[i], &fileInfo);
 
         if (ret ==  StoreStatus::OK) {
             if (fileInfo.filetype() !=  FileType::INODE_DIRECTORY) {
@@ -1067,8 +1027,7 @@ StatusCode CurveFS::CheckFileOwner(const std::string &filename,
     }
 
     FileInfo  fileInfo;
-    std::string storeKey = EncodeFileStoreKey(parentID, lastEntry);
-    auto ret1 = storage_->GetFile(storeKey, &fileInfo);
+    auto ret1 = storage_->GetFile(parentID, lastEntry, &fileInfo);
 
     if (ret1 == StoreStatus::OK) {
         if (fileInfo.owner() != owner) {
