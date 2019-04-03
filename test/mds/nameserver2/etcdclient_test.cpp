@@ -63,7 +63,8 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         fileinfo.set_seqnum(1);
         std::string encodeFileInfo;
         ASSERT_TRUE(fileinfo.SerializeToString(&encodeFileInfo));
-        std::string encodeKey = EncodeFileStoreKey(i << 8, filename);
+        std::string encodeKey =
+            NameSpaceStorageCodec::EncodeFileStoreKey(i << 8, filename);
         if (i <= 9) {
             ASSERT_EQ(EtcdErrCode::OK,
                 client_->Put(encodeKey, encodeFileInfo));
@@ -83,7 +84,9 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
             fileinfo.set_filename(snapshotName6);
             fileinfo.set_fullpathname(fullpathname);
             ASSERT_TRUE(fileinfo.SerializeToString(&snapshotInfo6));
-            snapshotKey6 = EncodeSnapShotFileStoreKey(i << 8, snapshotName6);
+            snapshotKey6 = NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(
+                                                                i << 8,
+                                                                snapshotName6);
         }
 
         if (i == 9) {
@@ -103,7 +106,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         int errCode = client_->Get(keyMap[i], &out);
         ASSERT_EQ(EtcdErrCode::OK, errCode);
         FileInfo fileinfo;
-        ASSERT_TRUE(DecodeFileInfo(out, &fileinfo));
+        ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
         ASSERT_EQ(fileName[i], fileinfo.filename());
         ASSERT_EQ(fullPathname[i], fileinfo.fullpathname());
     }
@@ -114,10 +117,10 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(EtcdErrCode::OK, errCode);
     ASSERT_EQ(keyMap.size(), listRes.size());
     for (int i = 0; i < listRes.size(); i++) {
-        FileInfo fileinfo;
-        ASSERT_TRUE(DecodeFileInfo(listRes[i], &fileinfo));
-        ASSERT_EQ(fileName[i], fileinfo.filename());
-        ASSERT_EQ(fullPathname[i], fileinfo.fullpathname());
+        FileInfo finfo;
+        ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(listRes[i], &finfo));
+        ASSERT_EQ(fileName[i], finfo.filename());
+        ASSERT_EQ(fullPathname[i], finfo.fullpathname());
     }
 
     // 4. delete file
@@ -149,7 +152,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     // get file10 ok
     ASSERT_EQ(EtcdErrCode::OK, client_->Get(fileKey10, &out));
     FileInfo fileinfo;
-    ASSERT_TRUE(DecodeFileInfo(out, &fileinfo));
+    ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(fileName10, fileinfo.filename());
 
     // 6. snapshot of keyMap[6]
@@ -166,12 +169,12 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(EtcdErrCode::OK, client_->Txn2(op3, op4));
     // get file6
     ASSERT_EQ(EtcdErrCode::OK, client_->Get(keyMap[6], &out));
-    ASSERT_TRUE(DecodeFileInfo(out, &fileinfo));
+    ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(2, fileinfo.seqnum());
     ASSERT_EQ(fileName[6], fileinfo.filename());
     // get snapshot6
     ASSERT_EQ(EtcdErrCode::OK, client_->Get(snapshotKey6, &out));
-    ASSERT_TRUE(DecodeFileInfo(out, &fileinfo));
+    ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(1, fileinfo.seqnum());
     ASSERT_EQ(snapshotName6, fileinfo.filename());
     // list snapshotfile
