@@ -20,6 +20,9 @@
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/mds/nameserver2/session.h"
 
+#include "src/common/authenticator.h"
+
+using curve::common::Authenticator;
 
 namespace curve {
 namespace mds {
@@ -267,39 +270,48 @@ class CurveFS {
 
     /**
      *  @brief 检查的文件owner
-     *  @param filename：文件名
-     *         owner：文件的拥有者
+     *  @param: date是用于计算signature的时间
+     *  @param: filename：文件名
+     *  @param: owner：文件的拥有者
+     *  @param: signature是用户侧传过来的签名信息
      *  @return 是否成功，成功返回StatusCode::kOK
      *          验证失败返回StatusCode::kOwnerAuthFail
      *          其他失败
      */
-    StatusCode CheckFileOwner(const std::string &filename,
+    StatusCode CheckFileOwner(uint64_t date,
+                              const std::string &filename,
                               const std::string &owner,
-                              const std::string &password);
+                              const std::string &signature);
 
     /**
      *  @brief 检查的文件各级目录的owner
-     *  @param filename：文件名
-     *         owner：文件的拥有者
+     *  @param: date是用于计算signature的时间
+     *  @param: filename：文件名
+     *  @param: owner：文件的拥有者
+     *  @param: signature是用户侧传过来的签名信息
      *  @return 是否成功，成功返回StatusCode::kOK
      *          验证失败返回StatusCode::kOwnerAuthFail
      *          其他失败，kFileNotExists，kStorageError，kNotDirectory
      */
-    StatusCode CheckPathOwner(const std::string &filename,
+    StatusCode CheckPathOwner(uint64_t date,
+                              const std::string &filename,
                               const std::string &owner,
-                              const std::string &password);
+                              const std::string &signature);
 
     /**
      *  @brief 检查的RenameNewfile文件各级目录的owner
-     *  @param filename：文件名
-     *         owner：文件的拥有者
+     *  @param: date是用于计算signature的时间
+     *  @param: filename：文件名
+     *  @param: owner：文件的拥有者
+     *  @param: signature是用户侧传过来的签名信息
      *  @return 是否成功，成功返回StatusCode::kOK
      *          验证失败返回StatusCode::kOwnerAuthFail
      *          其他失败，kFileNotExists，kStorageError，kNotDirectory
      */
-    StatusCode CheckDestinationOwner(const std::string &filename,
+    StatusCode CheckDestinationOwner(uint64_t date,
+                              const std::string &filename,
                               const std::string &owner,
-                              const std::string &password);
+                              const std::string &signature);
     // TODO(hzsunjianliang): snapshot ops
  private:
     CurveFS() = default;
@@ -328,13 +340,26 @@ class CurveFS {
         return rootAuthOptions_.rootOwner;
     }
 
-    std::string GetRootPassword() {
-        return rootAuthOptions_.rootPassword;
-    }
+    /**
+     * @brief: 检查当前请求date是否合法，与当前时间前后15分钟内为合法
+     * @param: date请求的时间点
+     * @return: 合法返回true，否则false
+     */
+    bool CheckDate(uint64_t date);
+    /**
+     *  @brief 检查请求的signature是否合法
+     *  @param: date是用于计算signature的时间
+     *  @param: owner：文件的拥有者
+     *  @param: signature是用户侧传过来的签名信息
+     *  @return: 签名合法为true，否则false
+     */
+    bool CheckSignature(uint64_t date,
+                        const std::string& owner,
+                        const std::string& signature);
 
     StatusCode CheckPathOwnerInternal(const std::string &filename,
                               const std::string &owner,
-                              const std::string &password,
+                              const std::string &signature,
                               std::string *lastEntry,
                               uint64_t *parentID);
 

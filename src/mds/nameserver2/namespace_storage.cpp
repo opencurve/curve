@@ -77,7 +77,7 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
 StoreStatus NameServerStorageImp::DeleteFile(InodeID id,
                                             const std::string &filename) {
     std::string storeKey;
-    if (GetStoreKey(FileType::INODE_SNAPSHOT_PAGEFILE, id, filename, &storeKey)
+    if (GetStoreKey(FileType::INODE_PAGEFILE, id, filename, &storeKey)
         != StoreStatus::OK) {
         LOG(ERROR) << "get store key failed,filename = " << filename;
         return StoreStatus::InternalError;

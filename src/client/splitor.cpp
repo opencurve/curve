@@ -155,10 +155,10 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
             return false;
         } else {
             int count = 0;
-            for (auto iter : segInfo.chunkvec) {
+            for (auto chunkidinfo : segInfo.chunkvec) {
                 uint64_t index = (segInfo.startoffset +
                          count * fileinfo->chunksize) / fileinfo->chunksize;
-                mc->UpdateChunkInfoByIndex(index, iter);
+                mc->UpdateChunkInfoByIndex(index, chunkidinfo);
                 ++count;
             }
 
@@ -170,9 +170,9 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                 LOG(ERROR) << "GetOrAllocateSegment failed!";
                 return false;
             } else {
-                for (auto iter : cpinfoVec) {
+                for (auto cpinfo : cpinfoVec) {
                     mc->UpdateCopysetInfo(segInfo.lpcpIDInfo.lpid,
-                    iter.cpid_, iter);
+                    cpinfo.cpid_, cpinfo);
                 }
             }
         }

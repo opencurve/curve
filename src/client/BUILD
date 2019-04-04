@@ -36,6 +36,7 @@ cc_library(
         "//external:braft",
         "//external:protobuf",
         "//src/common:curve_common",
+        "//src/common:curve_auth",
         "//include/client:include_client",
         "//include:include-common",
         "//proto:nameserver2_cc_proto",

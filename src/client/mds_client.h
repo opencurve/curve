@@ -21,11 +21,13 @@
 #include "src/client/libcurve_define.h"
 #include "src/client/metacache_struct.h"
 #include "src/common/concurrent/rw_lock.h"
-
+#include "src/common/timeutility.h"
+#include "src/common/authenticator.h"
 #include "src/common/concurrent/concurrent.h"
 
 using curve::common::RWLock;
 using curve::common::ReadLockGuard;
+using curve::common::Authenticator;
 
 namespace curve {
 namespace client {
@@ -183,8 +185,6 @@ class MDSClient {
      * 续约结果将会通过leaseRefreshResult* resp返回给调用层
      * @param: filename是要续约的文件名
      * @param: sessionid是文件的session信息
-     * @param: date是当前时间
-     * @param: signature是签名信息
      * @param: resp是mds端传递过来的lease信息
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
@@ -192,8 +192,6 @@ class MDSClient {
     LIBCURVE_ERROR RefreshSession(const std::string& filename,
                             UserInfo_t userinfo,
                             const std::string& sessionid,
-                            uint64_t date,
-                            const std::string& signature,
                             leaseRefreshResult* resp);
     /**
      * 关闭文件，需要携带sessionid，这样mds端会在数据库删除该session信息
@@ -309,9 +307,16 @@ class MDSClient {
      */
     template <class T>
     void FillUserInfo(T* request, const UserInfo_t& userinfo) {
+        uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
         request->set_owner(userinfo.owner);
+        request->set_date(date);
+
         if (userinfo.password != "") {
-            request->set_password(userinfo.password);
+            std::string str2sig = Authenticator::GetString2Signature(date,
+                                                        userinfo.owner);
+            std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                         userinfo.password);
+            request->set_signature(sig);
         }
     }
 

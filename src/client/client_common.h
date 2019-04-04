@@ -132,12 +132,11 @@ typedef struct FInfo {
     }
 } FInfo_t;
 
-// TODO(tongguangxun) : 当前密码为明文，后期需要添加加密逻辑
 // 存储用户信息
 typedef struct UserInfo {
     // 当前执行的owner信息
     std::string owner;
-    // 当owner=root的时候，需要提供password
+    // 当owner=root的时候，需要提供password作为计算signature的key
     std::string password;
 
     UserInfo() {

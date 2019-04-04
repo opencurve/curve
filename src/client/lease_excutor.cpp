@@ -66,8 +66,6 @@ void LeaseExcutor::RefreshLease() {
     LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.fullPathName,
                                         userinfo_,
                                         leasesession_.sessionID,
-                                        TimeUtility::GetTimeofDayUs(),
-                                        "",
                                         &response);
     if (LIBCURVE_ERROR::FAILED == ret) {
         LOG(ERROR) << "refresh session rpc failed!";

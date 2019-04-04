@@ -13,7 +13,8 @@ cc_library(
             "//src/common:curve_common",
             "//src/mds/topology:topology",
             "//src/mds/chunkserverclient:chunkserverclient",
-            "//src/mds/common:mds_common"
+            "//src/mds/common:mds_common",
+            "//src/common:curve_auth"
     ]
 )
 
