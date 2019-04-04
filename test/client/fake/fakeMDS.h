@@ -5,6 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
+#ifndef TEST_CLIENT_FAKE_FAKEMDS_H_
+#define TEST_CLIENT_FAKE_FAKEMDS_H_
 #include <gtest/gtest.h>
 #include <brpc/server.h>
 
@@ -18,9 +20,10 @@
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
 #include "proto/copyset.pb.h"
+#include "src/common/timeutility.h"
+#include "src/common/authenticator.h"
 
-#ifndef TEST_CLIENT_FAKE_FAKEMDS_H_
-#define TEST_CLIENT_FAKE_FAKEMDS_H_
+using curve::common::Authenticator;
 
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
@@ -154,6 +157,13 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             controller->SetFailed("failed");
         }
 
+        if (request->has_signature()) {
+            CheckAuth(request->signature(),
+                      request->filename(),
+                      request->owner(),
+                      request->date());
+        }
+
         retrytimes_++;
 
         auto resp = static_cast<::curve::mds::CreateSnapShotResponse*>(
@@ -169,6 +179,13 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         if (fakelistsnapshotret_->controller_ != nullptr &&
              fakelistsnapshotret_->controller_->Failed()) {
             controller->SetFailed("failed");
+        }
+
+        if (request->has_signature()) {
+            CheckAuth(request->signature(),
+                      request->filename(),
+                      request->owner(),
+                      request->date());
         }
 
         retrytimes_++;
@@ -188,6 +205,13 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             controller->SetFailed("failed");
         }
 
+        if (request->has_signature()) {
+            CheckAuth(request->signature(),
+                      request->filename(),
+                      request->owner(),
+                      request->date());
+        }
+
         retrytimes_++;
 
         auto resp = static_cast<::curve::mds::DeleteSnapShotResponse*>(
@@ -205,6 +229,13 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             controller->SetFailed("failed");
         }
 
+        if (request->has_signature()) {
+            CheckAuth(request->signature(),
+                      request->filename(),
+                      request->owner(),
+                      request->date());
+        }
+
         auto resp = static_cast<::curve::mds::DeleteSnapShotResponse*>(
                     fakechecksnapshotret_->response_);
         response->CopyFrom(*resp);
@@ -218,6 +249,13 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         if (fakegetsnapsegmentinforet_->controller_ != nullptr &&
              fakegetsnapsegmentinforet_->controller_->Failed()) {
             controller->SetFailed("failed");
+        }
+
+        if (request->has_signature()) {
+            CheckAuth(request->signature(),
+                      request->filename(),
+                      request->owner(),
+                      request->date());
         }
 
         retrytimes_++;
@@ -356,6 +394,16 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
     uint64_t GetRetryTimes() {
         return retrytimes_;
+    }
+
+    void CheckAuth(const std::string& signature,
+                   const std::string& filename,
+                   const std::string& owner,
+                   uint64_t date) {
+        std::string str2sig = Authenticator::GetString2Signature(date, owner);
+        std::string sigtest = Authenticator::CalcString2Signature(str2sig,
+                                                                "123");
+        ASSERT_STREQ(sigtest.c_str(), signature.c_str());
     }
 
     uint64_t retrytimes_;
