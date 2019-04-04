@@ -308,6 +308,9 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(kErrCodeSnapshotServerSuccess));
 
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _))
+        .WillOnce(Return(LIBCURVE_ERROR::OK));
+
     core_->HandleCreateSnapshotTask(task);
 
     ASSERT_TRUE(task->IsFinish());
@@ -672,108 +675,6 @@ TEST_F(TestSnapshotCoreImpl,
 
     EXPECT_CALL(*dataStore_, PutChunkIndexData(_, _))
         .WillOnce(Return(kErrCodeSnapshotInternalError));
-
-    core_->HandleCreateSnapshotTask(task);
-
-    ASSERT_TRUE(task->IsFinish());
-}
-
-TEST_F(TestSnapshotCoreImpl,
-    TestHandleCreateSnapshotTask_GetSnapshotListFail) {
-    UUID uuid = "uuid1";
-    std::string user = "user1";
-    std::string fileName = "file1";
-    std::string desc = "snap1";
-    uint64_t seqNum = 100;
-
-    SnapshotInfo info(uuid, user, fileName, desc);
-    info.SetStatus(Status::pending);
-    std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
-
-
-    EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<2>(seqNum),
-                    Return(kErrCodeSnapshotServerSuccess)));
-
-    FInfo snapInfo;
-    snapInfo.seqnum = 100;
-    snapInfo.chunksize = 2 * kChunkSplitSize;
-    snapInfo.segmentsize = 2 * snapInfo.chunksize;
-    snapInfo.length = 2 * snapInfo.segmentsize;
-    snapInfo.ctime = 10;
-    EXPECT_CALL(*client_, GetSnapshot(fileName, user, seqNum, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<3>(snapInfo),
-                    Return(kErrCodeSnapshotServerSuccess)));
-
-
-    EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
-        .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
-
-    LogicPoolID lpid1 = 1;
-    CopysetID cpid1 = 1;
-    ChunkID chunkId1 = 1;
-    LogicPoolID lpid2 = 2;
-    CopysetID cpid2 = 2;
-    ChunkID chunkId2 = 2;
-
-    SegmentInfo segInfo1;
-    segInfo1.chunkvec.push_back(
-        ChunkIDInfo(chunkId1, lpid1, cpid1));
-    segInfo1.chunkvec.push_back(
-        ChunkIDInfo(chunkId2, lpid2, cpid2));
-
-    LogicPoolID lpid3 = 3;
-    CopysetID cpid3 = 3;
-    ChunkID chunkId3 = 3;
-    LogicPoolID lpid4 = 4;
-    CopysetID cpid4 = 4;
-    ChunkID chunkId4 = 4;
-
-    SegmentInfo segInfo2;
-    segInfo2.chunkvec.push_back(
-        ChunkIDInfo(chunkId3, lpid3, cpid3));
-    segInfo2.chunkvec.push_back(
-        ChunkIDInfo(chunkId4, lpid4, cpid4));
-
-    EXPECT_CALL(*client_, GetSnapshotSegmentInfo(fileName,
-          user,
-          seqNum,
-            _,
-            _))
-        .Times(2)
-        .WillOnce(DoAll(SetArgPointee<4>(segInfo1),
-                    Return(kErrCodeSnapshotServerSuccess)))
-        .WillOnce(DoAll(SetArgPointee<4>(segInfo2),
-                    Return(kErrCodeSnapshotServerSuccess)));
-
-    uint64_t chunkSn = 100;
-    ChunkInfoDetail chunkInfo;
-    chunkInfo.chunkSn.push_back(chunkSn);
-    EXPECT_CALL(*client_, GetChunkInfo(_, _))
-        .Times(4)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkInfo),
-                    Return(kErrCodeSnapshotServerSuccess)));
-
-    EXPECT_CALL(*dataStore_, PutChunkIndexData(_, _))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
-
-    UUID uuid2 = "uuid2";
-    std::string desc2 = "desc2";
-
-    std::vector<SnapshotInfo> snapInfos;
-    SnapshotInfo info2(uuid2, user, fileName, desc2);
-    info2.SetStatus(Status::done);
-    snapInfos.push_back(info);
-    snapInfos.push_back(info2);
-
-    EXPECT_CALL(*metaStore_, GetSnapshotList(fileName, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<1>(snapInfos),
-                    Return(kErrCodeSnapshotInternalError)));
 
     core_->HandleCreateSnapshotTask(task);
 
@@ -1622,6 +1523,9 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*client_, DeleteSnapshot(fileName, user, seqNum))
         .WillOnce(Return(kErrCodeSnapshotServerSuccess));
 
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _))
+        .WillOnce(Return(LIBCURVE_ERROR::OK));
+
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
         .Times(1)
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
@@ -1867,40 +1771,6 @@ TEST_F(TestSnapshotCoreImpl,
     EXPECT_CALL(*metaStore_, DeleteSnapshot(uuid))
         .WillOnce(Return(kErrCodeSnapshotServerSuccess));
 
-    core_->HandleDeleteSnapshotTask(task);
-    ASSERT_TRUE(task->IsFinish());
-}
-
-TEST_F(TestSnapshotCoreImpl,
-    TestHandleDeleteSnapshotTask_GetSnapshotListFail) {
-    UUID uuid = "uuid1";
-    std::string user = "user1";
-    std::string fileName = "file1";
-    std::string desc = "snap1";
-    uint64_t seqNum = 100;
-
-    SnapshotInfo info(uuid, user, fileName, desc);
-    info.SetSeqNum(seqNum);
-    info.SetStatus(Status::deleting);
-    std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
-
-    UUID uuid2 = "uuid2";
-    std::string desc2 = "desc2";
-
-    std::vector<SnapshotInfo> snapInfos;
-    SnapshotInfo info2(uuid2, user, fileName, desc2);
-    info2.SetStatus(Status::done);
-    snapInfos.push_back(info);
-    snapInfos.push_back(info2);
-
-    EXPECT_CALL(*metaStore_, GetSnapshotList(fileName, _))
-        .WillOnce(DoAll(
-                    SetArgPointee<1>(snapInfos),
-                    Return(kErrCodeSnapshotInternalError)));
-
-    EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
     core_->HandleDeleteSnapshotTask(task);
     ASSERT_TRUE(task->IsFinish());
 }
@@ -2255,6 +2125,9 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
                     return kErrCodeSnapshotServerSuccess;
                         }))
         .WillOnce(Return(kErrCodeSnapshotServerSuccess));
+
+    EXPECT_CALL(*client_, CheckSnapShotStatus(_, _, _))
+        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
 
     // 进入cancel
     EXPECT_CALL(*dataStore_, ChunkDataExist(_))

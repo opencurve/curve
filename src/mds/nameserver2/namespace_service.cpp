@@ -442,10 +442,6 @@ void NameSpaceService::DeleteSnapShot(
 
     // TODO(hzsunjialiang): lock the filepath&name and do check permission
 
-    auto asynEntity =
-        std::make_shared<AsyncDeleteSnapShotEntity>(response,
-                        request, controller, nullptr);
-
     std::string password = "";
     if (request->has_password()) {
         password = request->password();
@@ -464,7 +460,7 @@ void NameSpaceService::DeleteSnapShot(
     }
 
     retCode =  kCurveFS.DeleteFileSnapShotFile(request->filename(),
-                                    request->seq(), asynEntity);
+                                    request->seq(), nullptr);
 
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
@@ -475,8 +471,7 @@ void NameSpaceService::DeleteSnapShot(
                   << ", StatusCode_Name = " << StatusCode_Name(retCode);
         return;
     }
-    asynEntity->SetClosure(doneGuard.release());
-    // release the rpc return to the async back ground process
+    response->set_statuscode(StatusCode::kOK);
     return;
 }
 

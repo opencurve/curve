@@ -140,6 +140,12 @@ class MockCurveFsClient : public CurveFsClient {
     MOCK_METHOD2(DeleteChunkSnapshot,
         int(ChunkIDInfo cidinfo,
         uint64_t seq));
+
+    MOCK_METHOD3(CheckSnapShotStatus,
+        int(std::string filename,
+        std::string user,
+        uint64_t seq));
+
     MOCK_METHOD2(GetChunkInfo,
         int(ChunkIDInfo cidinfo,
         ChunkInfoDetail *chunkInfo));

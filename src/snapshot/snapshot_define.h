@@ -17,6 +17,8 @@ typedef std::string UUID;
 
 // 转储chunk分片大小
 const uint64_t kChunkSplitSize = 1024u * 1024u;
+// CheckSnapShotStatus调用间隔
+const uint32_t kCheckSnapshotStatusIntervalMs = 1000u;
 
 // 错误码：执行成功
 const int kErrCodeSnapshotServerSuccess = 0;
