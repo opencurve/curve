@@ -132,6 +132,16 @@ class CurveFsClient {
         uint64_t seq) = 0;
 
     /**
+     * 获取快照状态
+     * @param: userinfo是用户信息
+     * @param: filenam文件名
+     * @param: seq是文件版本号信息
+     */
+    virtual int CheckSnapShotStatus(std::string filename,
+                                std::string user,
+                                uint64_t seq) = 0;
+
+    /**
      * @brief 获取chunk的版本号信息
      *
      * @param cidinfo chunk ID 信息
@@ -180,6 +190,10 @@ class CurveFsClientImpl : public CurveFsClient {
 
     int DeleteChunkSnapshot(ChunkIDInfo cidinfo,
         uint64_t seq) override;
+
+    int CheckSnapShotStatus(std::string filename,
+                            std::string user,
+                            uint64_t seq) override;
 
     int GetChunkInfo(ChunkIDInfo cidinfo,
         ChunkInfoDetail *chunkInfo) override;

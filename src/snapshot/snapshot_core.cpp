@@ -27,11 +27,6 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
     SnapshotInfo *snapInfo) {
     std::vector<SnapshotInfo> fileInfo;
     int ret = metaStore_->GetSnapshotList(file, &fileInfo);
-    if (ret < 0) {
-        LOG(ERROR) << "GetSnapShotList error,"
-                   << " ret = " << ret;
-        return ret;
-    }
     for (auto& snap : fileInfo) {
         if (Status::error == snap.GetStatus()) {
             LOG(INFO) << "Can not create snapshot when snapshot has error,"
@@ -285,6 +280,24 @@ void SnapshotCoreImpl::CancelAfterCreateSnapshotOnCurvefs(
         HandleCreateSnapshotError(task);
         return;
     }
+    do {
+        ret = client_->CheckSnapShotStatus(info.GetFileName(),
+            info.GetUser(),
+            seqNum);
+            if (LIBCURVE_ERROR::OK == ret ||
+                LIBCURVE_ERROR::NOTEXIST == ret) {
+                break;
+            } else if (LIBCURVE_ERROR::DELETING == ret) {
+                // nothing
+            } else {
+                LOG(ERROR) << "CheckSnapShotStatus fail"
+                           << ", ret = " << ret;
+                HandleCreateSnapshotError(task);
+                return;
+            }
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(kCheckSnapshotStatusIntervalMs));
+    } while (LIBCURVE_ERROR::DELETING == ret);
     HandleClearSnapshotOnMateStore(task);
 }
 
@@ -638,8 +651,27 @@ int SnapshotCoreImpl::TransferSnapshotData(
                    << ", seqNum = " << seqNum;
         return ret;
     }
+    do {
+        ret = client_->CheckSnapShotStatus(info.GetFileName(),
+            info.GetUser(),
+            seqNum);
+            if (LIBCURVE_ERROR::OK == ret ||
+                LIBCURVE_ERROR::NOTEXIST == ret) {
+                break;
+            } else if (LIBCURVE_ERROR::DELETING == ret) {
+                // nothing
+            } else {
+                LOG(ERROR) << "CheckSnapShotStatus fail"
+                           << ", ret = " << ret;
+                return ret;
+            }
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(kCheckSnapshotStatusIntervalMs));
+    } while (LIBCURVE_ERROR::DELETING == ret);
+
     return kErrCodeSnapshotServerSuccess;
 }
+
 
 int SnapshotCoreImpl::DeleteSnapshotPre(
     UUID uuid,
@@ -789,6 +821,25 @@ void SnapshotCoreImpl::HandleDeleteSnapshotTask(
             HandleDeleteSnapshotError(task);
             return;
         }
+
+        do {
+            ret = client_->CheckSnapShotStatus(info.GetFileName(),
+                info.GetUser(),
+                seqNum);
+                if (LIBCURVE_ERROR::OK == ret ||
+                    LIBCURVE_ERROR::NOTEXIST == ret) {
+                    break;
+                } else if (LIBCURVE_ERROR::DELETING == ret) {
+                    // nothing
+                } else {
+                    LOG(ERROR) << "CheckSnapShotStatus fail"
+                               << ", ret = " << ret;
+                    HandleDeleteSnapshotError(task);
+                    return;
+                }
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(kCheckSnapshotStatusIntervalMs));
+        } while (LIBCURVE_ERROR::DELETING == ret);
     }
 
     task->SetProgress(kDelProgressDeleteChunkIndexDataComplete);
@@ -828,13 +879,6 @@ int SnapshotCoreImpl::BuildSnapshotMap(const std::string &fileName,
     FileSnapMap *fileSnapshotMap) {
     std::vector<SnapshotInfo> snapInfos;
     int ret = metaStore_->GetSnapshotList(fileName, &snapInfos);
-    if (ret < 0) {
-        LOG(ERROR) << "GetSnapshotList error,"
-                   << " ret = " << ret
-                   << ", fileName = " << fileName;
-        return ret;
-    }
-
     for (auto &snap : snapInfos) {
         if (snap.GetSeqNum() != seqNum) {
             ChunkIndexDataName name(snap.GetFileName(), snap.GetSeqNum());
