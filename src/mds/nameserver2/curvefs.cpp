@@ -11,6 +11,9 @@
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"
 #include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/common/mds_define.h"
+
+using curve::common::TimeUtility;
 
 namespace curve {
 namespace mds {
@@ -889,7 +892,7 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
 
 StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
                               const std::string &owner,
-                              const std::string &password,
+                              const std::string &signature,
                               std::string *lastEntry,
                               uint64_t *parentID) {
     std::vector<std::string> paths;
@@ -932,30 +935,37 @@ StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::CheckDestinationOwner(const std::string &filename,
+StatusCode CurveFS::CheckDestinationOwner(uint64_t date,
+                              const std::string &filename,
                               const std::string &owner,
-                              const std::string &password) {
+                              const std::string &signature) {
     if (owner.empty()) {
         LOG(ERROR) << "file owner is empty, filename = " << filename
                    << ", owner = " << owner;
         return StatusCode::kOwnerAuthFail;
     }
 
-    // 如果是root用户，需要用password校验root用户身份。
-    // root用户身份通过password校验之后，不需要进行后续校验。
+    StatusCode ret = StatusCode::kOwnerAuthFail;
+
+    if (!CheckDate(date)) {
+        LOG(ERROR) << "check date fail, request is staled.";
+        return ret;
+    }
+
+    // 如果是root用户，需要用signature校验root用户身份。
+    // root用户身份通过signature校验之后，不需要进行后续校验。
     if (owner == GetRootOwner()) {
-        // TODO(hzchenwei7): 目前password明文传输，将来需要加密
-        if (password == GetRootPassword()) {
-            return StatusCode::kOK;
-        }
-        LOG(ERROR) << "check root owner fail, password auth fail.";
-        return StatusCode::kOwnerAuthFail;
+        ret = CheckSignature(date, owner, signature)
+              ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
+        LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
+              << "check root owner fail, signature auth fail.";
+        return ret;
     }
 
     std::string lastEntry;
     uint64_t parentID;
-    StatusCode ret;
-    ret = CheckPathOwnerInternal(filename, owner, password,
+
+    ret = CheckPathOwnerInternal(filename, owner, signature,
                                  &lastEntry, &parentID);
 
     if (ret != StatusCode::kOK) {
@@ -970,56 +980,69 @@ StatusCode CurveFS::CheckDestinationOwner(const std::string &filename,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::CheckPathOwner(const std::string &filename,
+StatusCode CurveFS::CheckPathOwner(uint64_t date,
+                              const std::string &filename,
                               const std::string &owner,
-                              const std::string &password) {
+                              const std::string &signature) {
     if (owner.empty()) {
         LOG(ERROR) << "file owner is empty, filename = " << filename
                    << ", owner = " << owner;
         return StatusCode::kOwnerAuthFail;
     }
 
-    // 如果是root用户，需要用password校验root用户身份。
-    // root用户身份通过password校验之后，不需要进行后续校验。
+    StatusCode ret = StatusCode::kOwnerAuthFail;
+
+    if (!CheckDate(date)) {
+        LOG(ERROR) << "check date fail, request is staled.";
+        return ret;
+    }
+
+    // 如果是root用户，需要用signature校验root用户身份。
+    // root用户身份通过signature校验之后，不需要进行后续校验。
     if (owner == GetRootOwner()) {
-        // TODO(hzchenwei7): 目前password明文传输，将来需要加密
-        if (password == GetRootPassword()) {
-            return StatusCode::kOK;
-        }
-        LOG(ERROR) << "check root owner fail, password auth fail.";
-        return StatusCode::kOwnerAuthFail;
+        ret = CheckSignature(date, owner, signature)
+              ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
+        LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
+              << "check root owner fail, signature auth fail.";
+        return ret;
     }
 
     std::string lastEntry;
     uint64_t parentID;
-    return CheckPathOwnerInternal(filename, owner, password,
+    return CheckPathOwnerInternal(filename, owner, signature,
                                     &lastEntry, &parentID);
 }
 
-StatusCode CurveFS::CheckFileOwner(const std::string &filename,
+StatusCode CurveFS::CheckFileOwner(uint64_t date,
+                              const std::string &filename,
                               const std::string &owner,
-                              const std::string &password) {
+                              const std::string &signature) {
     if (owner.empty()) {
         LOG(ERROR) << "file owner is empty, filename = " << filename
                    << ", owner = " << owner;
         return StatusCode::kOwnerAuthFail;
     }
 
-    // 如果是root用户，需要用password校验root用户身份。
-    // root用户身份通过password校验之后，不需要进行后续校验。
+    StatusCode ret = StatusCode::kOwnerAuthFail;
+
+    if (!CheckDate(date)) {
+        LOG(ERROR) << "check date fail, request is staled.";
+        return ret;
+    }
+
+    // 如果是root用户，需要用signature校验root用户身份。
+    // root用户身份通过signature校验之后，不需要进行后续校验。
     if (owner == GetRootOwner()) {
-        // TODO(hzchenwei7): 目前password明文传输，将来需要加密
-        if (password == GetRootPassword()) {
-            return StatusCode::kOK;
-        }
-        LOG(ERROR) << "check root owner fail, password auth fail.";
-        return StatusCode::kOwnerAuthFail;
+        ret = CheckSignature(date, owner, signature)
+              ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
+        LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
+              << "check root owner fail, signature auth fail.";
+        return ret;
     }
 
     std::string lastEntry;
     uint64_t parentID;
-    StatusCode ret;
-    ret = CheckPathOwnerInternal(filename, owner, password,
+    ret = CheckPathOwnerInternal(filename, owner, signature,
                                  &lastEntry, &parentID);
 
     if (ret != StatusCode::kOK) {
@@ -1039,6 +1062,25 @@ StatusCode CurveFS::CheckFileOwner(const std::string &filename,
     } else {
         return StatusCode::kStorageError;
     }
+}
+
+// kStaledRequestTimeIntervalUs表示request的过期时间，防止request被截取并回放
+bool CurveFS::CheckDate(uint64_t date) {
+    uint64_t current = TimeUtility::GetTimeofDayUs();
+
+    // 防止机器间时间漂移
+    uint64_t interval = (date > current) ? date - current : current - date;
+
+    return interval < kStaledRequestTimeIntervalUs;
+}
+
+bool CurveFS::CheckSignature(uint64_t date,
+                             const std::string& owner,
+                             const std::string& signature) {
+    std::string str2sig = Authenticator::GetString2Signature(date, owner);
+    std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                rootAuthOptions_.rootPassword);
+    return signature == sig;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();
