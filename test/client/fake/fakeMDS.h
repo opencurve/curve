@@ -22,6 +22,7 @@
 #include "proto/copyset.pb.h"
 #include "src/common/timeutility.h"
 #include "src/common/authenticator.h"
+#include "proto/heartbeat.pb.h"
 
 using curve::common::Authenticator;
 
@@ -29,6 +30,9 @@ using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using ::curve::mds::topology::ChunkServerRegistRequest;
 using ::curve::mds::topology::ChunkServerRegistResponse;
+
+using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
+using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
 
 class FakeMDSCurveFSService : public curve::mds::CurveFSService {
  public:
@@ -468,6 +472,39 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
     FakeReturn* fakeret_;
 };
 
+typedef void (*HeartbeatCallback) (
+    ::google::protobuf::RpcController* controller,
+    const HeartbeatRequest* request,
+    HeartbeatResponse* response,
+    ::google::protobuf::Closure* done);
+
+class FakeMDSHeartbeatService : public curve::mds::heartbeat::HeartbeatService {
+ public:
+    FakeMDSHeartbeatService() : cb_(nullptr) {}
+
+    void ChunkServerHeartbeat(::google::protobuf::RpcController* controller,
+                              const HeartbeatRequest* request,
+                              HeartbeatResponse* response,
+                              ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        std::unique_lock<std::mutex> lock(cbMtx_);
+
+        if (cb_) {
+            cb_(controller, request, response, done_guard.release());
+        }
+    }
+
+    void SetCallback(HeartbeatCallback cb) {
+        std::unique_lock<std::mutex> lock(cbMtx_);
+        cb_ = cb;
+    }
+
+ private:
+    HeartbeatCallback cb_;
+
+    mutable std::mutex          cbMtx_;
+};
+
 class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
  public:
     void CreateCopysetNode(
@@ -504,6 +541,10 @@ class FakeMDS {
     void EnableNetUnstable(uint64_t waittime);
     void CreateFakeChunkservers();
 
+    void SetChunkServerHeartbeatCallback(HeartbeatCallback cb) {
+        fakeHeartbeatService_.SetCallback(cb);
+    }
+
     struct CopysetCreatStruct {
         curve::client::LogicPoolID logicpoolid;
         curve::client::CopysetID copysetid;
@@ -524,6 +565,7 @@ class FakeMDS {
     uint64_t size_;
     FakeMDSCurveFSService fakecurvefsservice_;
     FakeMDSTopologyService faketopologyservice_;
+    FakeMDSHeartbeatService fakeHeartbeatService_;
 };
 
 #endif   // TEST_CLIENT_FAKE_FAKEMDS_H_

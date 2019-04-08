@@ -142,7 +142,6 @@ class FakeChunkServerService : public ChunkService {
                     ::curve::chunkserver::ChunkResponse *response,
                     google::protobuf::Closure *done) {
         brpc::ClosureGuard doneGuard(done);
-        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
 
         if (fakewriteret_->controller_ != nullptr && fakewriteret_->controller_->Failed()) {    // NOLINT
             controller->SetFailed("failed");
