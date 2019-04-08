@@ -252,7 +252,7 @@ TEST_F(DatastoreRealTest, CombineTest) {
         errorCode = dataStore_->DeleteChunk(id, sn);
         ASSERT_EQ(errorCode, CSErrorCode::SnapshotExistError);
         // 转储完之后，删除快照
-        errorCode = dataStore_->DeleteSnapshotChunk(id, snapSn);
+        errorCode = dataStore_->DeleteSnapshotChunk(id, sn);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         ASSERT_FALSE(lfs_->FileExists(snap1Path));
         errorCode = dataStore_->GetChunkInfo(id, &sns);
@@ -264,8 +264,7 @@ TEST_F(DatastoreRealTest, CombineTest) {
     {
         // 假设打完文件快照后，文件版本为5，当前快照版本为4
         sn = 5;
-        SequenceNum snapSn = sn - 1;
-        errorCode = dataStore_->DeleteSnapshotChunk(id, snapSn);
+        errorCode = dataStore_->DeleteSnapshotChunk(id, sn);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
         errorCode = dataStore_->GetChunkInfo(id, &sns);
         ASSERT_EQ(errorCode, CSErrorCode::Success);
