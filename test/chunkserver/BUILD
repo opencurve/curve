@@ -182,6 +182,31 @@ cc_test(
         "//src/chunkserver:chunkserver-test-lib",
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
+        "//test/client/fake:fake_lib",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "heartbeat_test",
+    srcs = [
+        "heartbeat_test_main.cpp",
+        "heartbeat_test.h",
+        "heartbeat_test.cpp",
+        "heartbeat_module_test.cpp",
+    ],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//proto:chunkserver-cc-protos",
+        "//src/chunkserver:chunkserver-test-lib",
+        "//src/common:curve_common",
+        "//test/client/fake:fake_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )

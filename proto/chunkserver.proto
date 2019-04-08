@@ -2,16 +2,14 @@ syntax="proto2";
 package curve.chunkserver;
 option cc_generic_services = true;
 
-// ChunkServer service
-enum CHUNKSERVER_OP_TYPE {
-    CHUNKSERVER_OP_TYPE_ENABLE = 0;
-    CHUNKSERVER_OP_TYPE_DISABLE = 1;
-    CHUNKSERVER_OP_TYPE_GETSTATE = 2;
-    CHUNKSERVER_OP_TYPE_GETINFO = 3;
+message ChunkServerMetadata {
+    required uint32 version = 1;
+    required uint32 id = 2;
+    required string token = 3;
+    required uint32 checksum = 4;
 };
 
-message ChunkServerRequest {
-    required CHUNKSERVER_OP_TYPE op = 1;
+message ChunkServerStopRequest {
 };
 
 enum CHUNKSERVER_OP_STATUS {
@@ -19,26 +17,10 @@ enum CHUNKSERVER_OP_STATUS {
     CHUNKSERVER_OP_STATUS_FAILURE_UNKNOWN = 1;
 };
 
-enum CHUNKSERVER_STATE {
-    CHUNKSERVER_STATE_OK = 0;
-    CHUNKSERVER_STATE_DISABLED = 1;
-};
-
-message ChunkServerInfo {
-    required int32 id = 1;
-    required string name = 2;
-    required CHUNKSERVER_STATE state = 3;
-    required int32 capacity = 4;
-    required int32 available = 5;
-};
-
-message ChunkServerResponse {
+message ChunkServerStopResponse {
     required CHUNKSERVER_OP_STATUS status = 1;
-    optional CHUNKSERVER_STATE state = 2;
-    optional ChunkServerInfo info = 3;
 };
 
 service ChunkServerService {
-    rpc GetState(ChunkServerRequest) returns(ChunkServerResponse);
-    rpc GetInfo(ChunkServerRequest) returns(ChunkServerResponse);
+    rpc Stop(ChunkServerStopRequest) returns(ChunkServerStopResponse);
 };
