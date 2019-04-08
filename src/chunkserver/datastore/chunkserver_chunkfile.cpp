@@ -347,11 +347,8 @@ CSErrorCode CSChunkFile::Delete()  {
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum snapshotSn)  {
+CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum fileSn)  {
     WriteLockGuard writeGuard(rwLock_);
-    // fileSn 表示该快照转储过程中用户文件的版本号
-    // TODO(yyk) 这里不适合由chunkserver来加1，而是调用方直接传文件版本号
-    SequenceNum fileSn = snapshotSn + 1;
 
     // delete snapshot if exists
     // 快照文件存在时，判断fileSn与当前sn_的大小
