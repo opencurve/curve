@@ -22,6 +22,22 @@ cc_library(
     srcs = glob([
         "*.h",
         "*.cpp",
+        ],exclude = ["authenticator.*"]
+    ),
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:glog",
+        "//external:butil",
+        "//src/common/concurrent:curve_concurrent"
+    ],
+)
+
+cc_library(
+    name = "curve_auth",
+    srcs = glob([
+        "authenticator.h",
+        "authenticator.cpp",
     ]),
     copts = COPTS,
     visibility = ["//visibility:public"],

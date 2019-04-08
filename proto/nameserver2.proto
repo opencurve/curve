@@ -104,10 +104,12 @@ message PageFileSegment {
 
 message CreateFileRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
     required FileType   fileType = 3;
     optional uint64     fileLength = 4;
-    optional string     password = 5;
+
+    required string     owner = 2;
+    optional string     signature = 5;
+    required uint64     date = 6;
 };
 
 message CreateFileResponse {
@@ -116,8 +118,10 @@ message CreateFileResponse {
 
 message GetFileInfoRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
-    optional string     password = 3;
+
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
 }
 
 message GetFileInfoResponse {
@@ -127,11 +131,13 @@ message GetFileInfoResponse {
 
 message GetOrAllocateSegmentRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
     required uint64     offset = 3;
     required bool       allocateIfNotExist = 4;
     optional uint64     seqNum = 5;
-    optional string     password = 6;
+
+    required string     owner = 2;
+    optional string     signature = 6;
+    required uint64     date = 7;
 }
 
 message GetOrAllocateSegmentResponse {
@@ -141,9 +147,11 @@ message GetOrAllocateSegmentResponse {
 
 message DeleteSegmentRequest {
     required string    fileName = 1;
-    optional string    owner = 2;
     required uint64    offset = 3;
-    optional string    password = 4;
+
+    required string    owner = 2;
+    optional string    signature = 4;
+    required uint64    date = 6;
 }
 
 message DeleteSegmentResponse {
@@ -154,8 +162,10 @@ message RenameFileRequest {
     required string     oldFileName = 1;
     required string     newFileName = 2;
 
-    optional string     owner = 3;
-    optional string     password = 4;
+    required string     owner = 3;
+    optional string     signature = 4;
+    required uint64     date = 7;
+
 
     optional uint64     oldFileID = 5;
     optional uint64     newFileID = 6;
@@ -167,9 +177,11 @@ message RenameFileResponse {
 
 message ExtendFileRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
     required uint64     newSize = 3;
-    optional string     password = 4;
+
+    required string     owner = 2;
+    optional string     signature = 4;
+    required uint64     date = 5;
 }
 
 message ExtendFileResponse {
@@ -179,8 +191,10 @@ message ExtendFileResponse {
 // create snapshot
 message CreateSnapShotRequest {
     required string     fileName = 1;
-    optional string     owner = 2;
-    optional string     password = 4;
+
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
 }
 
 message CreateSnapShotResponse {
@@ -190,10 +204,12 @@ message CreateSnapShotResponse {
 
 // list snapshots
 message ListSnapShotFileInfoRequest {
-    required string fileName = 1;
-    optional string owner = 2;
-    repeated uint64 seq = 3;
-    optional string password = 4;
+    required string     fileName = 1;
+    repeated uint64     seq = 3;
+
+    required string     owner = 2;
+    optional string     signature = 4;
+    required uint64     date = 5;
 }
 
 message ListSnapShotFileInfoResponse {
@@ -203,10 +219,12 @@ message ListSnapShotFileInfoResponse {
 
 // delete snapshot
 message DeleteSnapShotRequest {
-    required string fileName = 1;
-    optional string owner = 2;
-    required uint64 seq = 3;
-    optional string password = 4;
+    required string     fileName = 1;
+    required uint64     seq = 3;
+
+    required string     owner = 2;
+    optional string     signature = 4;
+    required uint64     date = 5;
 }
 
 message DeleteSnapShotResponse {
@@ -216,10 +234,12 @@ message DeleteSnapShotResponse {
 // check snapshot status
 
 message CheckSnapShotStatusRequest {
-    required string fileName = 1;
-    optional string owner = 2;
-    required uint64 seq = 3;
-    optional string password = 4;
+    required string     fileName = 1;
+    required uint64     seq = 3;
+
+    required string     owner = 2;
+    optional string     signature = 4;
+    required uint64     date = 5;
 }
 
 // statusCode为kOK时，fileStatus和progress才会赋值
@@ -248,8 +268,10 @@ message ProtoSession {
 
 message OpenFileRequest {
     required string fileName = 1;
-    optional string owner = 2;
-    optional string password = 3;
+
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
 };
 
 // statusCode返回值，详见StatusCode定义:
@@ -265,10 +287,12 @@ message OpenFileResponse {
 };
 
 message CloseFileRequest {
-    required string fileName = 1;
-    required string sessionID = 2;
-    optional string owner = 3;
-    optional string password = 4;
+    required string     fileName = 1;
+    required string     sessionID = 2;
+
+    required string     owner = 3;
+    optional string     signature = 4;
+    required uint64     date = 5;
 };
 
 // statusCode返回值，详见StatusCode定义:
@@ -282,12 +306,12 @@ message CloseFileResponse {
 }
 
 message ReFreshSessionRequest {
-    required string fileName = 1;
-    required string sessionID = 2;
-    optional string owner = 3;
-    required uint64 date = 4; //current time
-    required string signature = 5; //caculete based on token
-    optional string password = 6;
+    required string     fileName = 1;
+    required string     sessionID = 2;
+
+    required string     owner = 3;
+    required uint64     date = 4; //current time
+    optional string     signature = 5; //caculete based on token
 }
 
 // statusCode返回值，详见StatusCode定义:
@@ -303,13 +327,15 @@ message ReFreshSessionResponse {
 
 
 message  CreateCloneFileRequest {
-    required string fileName = 1;
-    required FileType fileType = 2;
-    required uint64 fileLength = 3;
-    required uint64 seq = 4;
+    required string     fileName = 1;
+    required FileType   fileType = 2;
+    required uint64     fileLength = 3;
+    required uint64     seq = 4;
+    optional uint32     chunksize = 5;
 
-    optional string owner = 5;
-    optional string password = 6;
+    required string     owner = 6;
+    optional string     signature = 7;
+    required uint64     date =8;
 }
 
 message CreateCloneFileResponse {
@@ -318,12 +344,13 @@ message CreateCloneFileResponse {
 }
 
 message SetCloneFileStatusRequest {
-    required string fileName = 1;
-    optional uint64 fileID = 2;
+    required string     fileName = 1;
+    optional uint64     fileID = 2;
     required FileStatus fileStatus = 3;
 
-    optional string owner = 4;
-    optional string password = 5;
+    required string     owner = 4;
+    optional string     signature = 5;
+    required uint64     date = 6;
 }
 
 message SetCloneFileStatusResponse {

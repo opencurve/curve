@@ -132,6 +132,7 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
         curve::mds::OpenFileRequest request;
         curve::mds::OpenFileResponse response;
         request.set_filename(filename);
+
         FillUserInfo<curve::mds::OpenFileRequest>(
             &request, userinfo);
 
@@ -212,8 +213,8 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
         request.set_filename(filename);
         request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
         request.set_filelength(size);
-        FillUserInfo<curve::mds::CreateFileRequest>(
-            &request, userinfo);
+
+        FillUserInfo<curve::mds::CreateFileRequest>(&request, userinfo);
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -267,8 +268,8 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& fname,
         curve::mds::CloseFileResponse response;
         request.set_filename(fname);
         request.set_sessionid(sessionid);
-        FillUserInfo<curve::mds::CloseFileRequest>(
-            &request, userinfo);
+
+        FillUserInfo<curve::mds::CloseFileRequest>(&request, userinfo);
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -323,8 +324,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
         curve::mds::GetFileInfoResponse response;
         request.set_filename(filename);
 
-        FillUserInfo<curve::mds::GetFileInfoRequest>(
-            &request, uinfo);
+        FillUserInfo<curve::mds::GetFileInfoRequest>(&request, uinfo);
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -385,8 +385,8 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         ::curve::mds::CreateSnapShotResponse response;
 
         request.set_filename(filename);
-        FillUserInfo<::curve::mds::CreateSnapShotRequest>(
-            &request, userinfo);
+
+        FillUserInfo<::curve::mds::CreateSnapShotRequest>(&request, userinfo);
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -453,8 +453,8 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
 
         request.set_seq(seq);
         request.set_filename(filename);
-        FillUserInfo<::curve::mds::DeleteSnapShotRequest>(
-            &request, userinfo);
+
+        FillUserInfo<::curve::mds::DeleteSnapShotRequest>(&request, userinfo);
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -515,6 +515,7 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
 
         request.set_filename(filename);
         request.add_seq(seq);
+
         FillUserInfo<::curve::mds::ListSnapShotFileInfoRequest>(
             &request, userinfo);
 
@@ -583,6 +584,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         ::curve::mds::ListSnapShotFileInfoResponse response;
 
         request.set_filename(filename);
+
         FillUserInfo<::curve::mds::ListSnapShotFileInfoRequest>(
             &request, userinfo);
 
@@ -662,6 +664,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
         request.set_offset(offset);
         request.set_allocateifnotexist(false);
         request.set_seqnum(seq);
+
         FillUserInfo<::curve::mds::GetOrAllocateSegmentRequest>(
             &request, userinfo);
 
@@ -775,8 +778,6 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
 LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                                 UserInfo_t userinfo,
                                 const std::string& sessionid,
-                                uint64_t date,
-                                const std::string& signature,
                                 leaseRefreshResult* resp) {
     brpc::Controller cntl;
     cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
@@ -786,12 +787,11 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
     curve::mds::ReFreshSessionRequest request;
     curve::mds::ReFreshSessionResponse response;
 
-    request.set_signature("");
     request.set_filename(filename);
     request.set_sessionid(sessionid);
-    request.set_date(TimeUtility::GetTimeofDayUs());
-    FillUserInfo<::curve::mds::ReFreshSessionRequest>(
-        &request, userinfo);
+
+    FillUserInfo<::curve::mds::ReFreshSessionRequest>(&request, userinfo);
+
     {
         ReadLockGuard readGuard(rwlock_);
         curve::mds::CurveFSService_Stub stub(channel_);
@@ -852,6 +852,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
 
         request.set_seq(seq);
         request.set_filename(filename);
+
         FillUserInfo<::curve::mds::CheckSnapShotStatusRequest>(
             &request, userinfo);
 
@@ -1253,8 +1254,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(UserInfo_t userinfo,
             request.set_newfileid(destinationId);
         }
 
-        FillUserInfo<::curve::mds::RenameFileRequest>(
-            &request, userinfo);
+        FillUserInfo<::curve::mds::RenameFileRequest>(&request, userinfo);
 
         {
             ReadLockGuard readGuard(rwlock_);

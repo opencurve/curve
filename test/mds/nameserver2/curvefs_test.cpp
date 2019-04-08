@@ -25,6 +25,9 @@ using ::testing::Return;
 using ::testing::ReturnArg;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using curve::common::Authenticator;
+
+using curve::common::TimeUtility;
 
 namespace curve {
 namespace mds {
@@ -1860,62 +1863,99 @@ TEST_F(CurveFSTest, testRefreshSession) {
 }
 
 TEST_F(CurveFSTest, testCheckRenameNewfilePathOwner) {
-    // root用户，密码匹配
+    uint64_t date = TimeUtility::GetTimeofDayUs();
+
+    // root用户，签名匹配，date超时
     {
-        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
-                    authOptions_.rootOwner, authOptions_.rootPassword),
+        std::string filename = "/file1";
+        std::string str2sig = Authenticator::GetString2Signature(date,
+                                                authOptions_.rootOwner);
+        std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                authOptions_.rootPassword);
+        ASSERT_EQ(curvefs_->CheckDestinationOwner(date, filename,
+                    authOptions_.rootOwner, sig),
                   StatusCode::kOK);
+
+        ASSERT_EQ(curvefs_->CheckDestinationOwner(date + 15 * 2000 * 2000,
+                    filename, authOptions_.rootOwner, sig),
+                  StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，密码不匹配
+    // root用户，签名不匹配
     {
-        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
+        ASSERT_EQ(curvefs_->CheckDestinationOwner(date, "/file1",
                     authOptions_.rootOwner, "wrongpass"),
                   StatusCode::kOwnerAuthFail);
     }
 
     // 普通用户，根目录下的文件非root用户认证失败
     {
-        ASSERT_EQ(curvefs_->CheckDestinationOwner("/file1",
+        ASSERT_EQ(curvefs_->CheckDestinationOwner(date, "/file1",
                     "normaluser", "wrongpass"),
                   StatusCode::kOwnerAuthFail);
     }
 }
 
 TEST_F(CurveFSTest, testCheckPathOwner) {
-    // root用户，密码匹配
+    uint64_t date = TimeUtility::GetTimeofDayUs();
+
+    // root用户，签名匹配, 并检测date过期
     {
-        ASSERT_EQ(curvefs_->CheckPathOwner("/file1",
-                    authOptions_.rootOwner, authOptions_.rootPassword),
+        std::string filename = "/file1";
+        std::string str2sig = Authenticator::GetString2Signature(date,
+                                                authOptions_.rootOwner);
+        std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                authOptions_.rootPassword);
+
+        ASSERT_EQ(curvefs_->CheckPathOwner(date, filename,
+                    authOptions_.rootOwner, sig),
                   StatusCode::kOK);
+
+        ASSERT_EQ(curvefs_->CheckPathOwner(date + 15 * 2000 * 2000,
+                    filename, authOptions_.rootOwner, sig),
+                  StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，密码不匹配
+    // root用户，签名不匹配
     {
-        ASSERT_EQ(curvefs_->CheckPathOwner("/file1",
+        ASSERT_EQ(curvefs_->CheckPathOwner(date, "/file1",
                     authOptions_.rootOwner, "wrongpass"),
                   StatusCode::kOwnerAuthFail);
     }
 
-    // 普通用户，根目录下的文件非root用户认证成功
+    // 普通用户，根目录下的文件非root用户认证成功, 并检测date超时
     {
-        ASSERT_EQ(curvefs_->CheckPathOwner("/file1",
+        ASSERT_EQ(curvefs_->CheckPathOwner(date, "/file1",
                     "normaluser", "wrongpass"),
                   StatusCode::kOK);
+
+        ASSERT_EQ(curvefs_->CheckPathOwner(date + 15 * 2000 * 2000, "/file1",
+                    "normaluser", "wrongpass"),
+                  StatusCode::kOwnerAuthFail);
     }
 }
 
 TEST_F(CurveFSTest, testCheckFileOwner) {
-    // root用户，密码匹配
+    uint64_t date = TimeUtility::GetTimeofDayUs();
+    // root用户，签名匹配
     {
-        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
-                    authOptions_.rootOwner, authOptions_.rootPassword),
+        std::string filename = "/file1";
+        std::string str2sig = Authenticator::GetString2Signature(date,
+                                                authOptions_.rootOwner);
+        std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                authOptions_.rootPassword);
+
+        ASSERT_EQ(curvefs_->CheckFileOwner(date, filename,
+                    authOptions_.rootOwner, sig),
                   StatusCode::kOK);
+        ASSERT_EQ(curvefs_->CheckFileOwner(date + 15 * 2000 * 2000, filename,
+                    authOptions_.rootOwner, sig),
+                  StatusCode::kOwnerAuthFail);
     }
 
-    // root用户，密码不匹配
+    // root用户，签名不匹配
     {
-        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
+        ASSERT_EQ(curvefs_->CheckFileOwner(date, "/file1",
                     authOptions_.rootOwner, "wrongpass"),
                   StatusCode::kOwnerAuthFail);
     }
@@ -1929,7 +1969,7 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
+        ASSERT_EQ(curvefs_->CheckFileOwner(date, "/file1",
                     "normaluser", ""), StatusCode::kOK);
     }
 
@@ -1942,7 +1982,7 @@ TEST_F(CurveFSTest, testCheckFileOwner) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->CheckFileOwner("/file1",
+        ASSERT_EQ(curvefs_->CheckFileOwner(date, "/file1",
                     "normaluser1", ""), StatusCode::kOwnerAuthFail);
     }
 }

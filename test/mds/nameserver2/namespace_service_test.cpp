@@ -19,7 +19,10 @@
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
+#include "src/common/authenticator.h"
 
+using curve::common::TimeUtility;
+using curve::common::Authenticator;
 
 namespace curve {
 namespace mds {
@@ -134,6 +137,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     request.set_filename("/file1");
     request.set_owner("owner1");
+    request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -148,6 +152,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request.set_filename("/file2");
     request.set_owner("owner2");
+    request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -162,6 +167,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request.set_filename("/dir");
     request.set_owner("owner3");
+    request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_DIRECTORY);
     request.set_filelength(0);
 
@@ -176,6 +182,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request.set_filename("/dir/file3");
     request.set_owner("owner3");
+    request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -191,6 +198,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request.set_filename("/dir4/file4");
     request.set_owner("owner4");
+    request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -206,6 +214,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request.set_filename("/file2/file4");
     request.set_owner("owner2");
+    request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -221,6 +230,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request.set_filename("/file2");
     request.set_owner("owner2");
+    request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -238,6 +248,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     GetFileInfoResponse response1;
     request1.set_filename("/file1");
     request1.set_owner("owner1");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response1.statuscode(), StatusCode::kOK);
@@ -260,6 +271,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     GetOrAllocateSegmentResponse response2;
     request2.set_filename("/file1");
     request2.set_owner("owner1");
+    request2.set_date(TimeUtility::GetTimeofDayUs());
     request2.set_offset(DefaultSegmentSize);
     request2.set_allocateifnotexist(false);
     stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
@@ -272,6 +284,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request2.set_filename("/file1");
     request2.set_owner("owner1");
+    request2.set_date(TimeUtility::GetTimeofDayUs());
     request2.set_offset(DefaultSegmentSize);
     request2.set_allocateifnotexist(true);
     stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
@@ -296,6 +309,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     GetOrAllocateSegmentResponse response3;
     request3.set_filename("/file1");
     request3.set_owner("owner1");
+    request3.set_date(TimeUtility::GetTimeofDayUs());
     request3.set_offset(DefaultSegmentSize);
     request3.set_allocateifnotexist(false);
     stub.GetOrAllocateSegment(&cntl, &request3, &response3, NULL);
@@ -321,6 +335,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     request4.set_oldfilename("/dir/file3");
     request4.set_newfilename("/file4");
     request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kOwnerAuthFail);
@@ -332,6 +347,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     request4.set_oldfilename("/dir/file3");
     request4.set_newfilename("/dir/file4");
     request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
@@ -343,6 +359,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     request4.set_oldfilename("/dir/file3");
     request4.set_newfilename("/dir/file3");
     request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kFileNotExists);
@@ -351,10 +368,20 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     cntl.Reset();
-    request4.set_oldfilename("/dir/file4");
+
+    std::string oldname = "/dir/file4";
+    uint64_t date = TimeUtility::GetTimeofDayUs();
+    std::string str2sig = Authenticator::GetString2Signature(date,
+                                                authOptions.rootOwner);
+    std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                authOptions.rootPassword);
+
+    request4.set_oldfilename(oldname);
     request4.set_newfilename("/file4");
     request4.set_owner(authOptions.rootOwner);
-    request4.set_password(authOptions.rootPassword);
+    request4.set_date(date);
+    request4.set_signature(sig);
+
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
@@ -370,6 +397,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     ExtendFileResponse response5;
     request5.set_filename("/file2");
     request5.set_owner("owner2");
+    request5.set_date(TimeUtility::GetTimeofDayUs());
     request5.set_newsize(newsize);
     stub.ExtendFile(&cntl, &request5, &response5, NULL);
     if (!cntl.Failed()) {
@@ -381,6 +409,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request5.set_filename("/file2");
     request5.set_owner("owner2");
+    request5.set_date(TimeUtility::GetTimeofDayUs());
     request5.set_newsize(kMiniFileLength);
     stub.ExtendFile(&cntl, &request5, &response5, NULL);
     if (!cntl.Failed()) {
@@ -396,6 +425,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     DeleteSegmentResponse response6;
     request6.set_filename("/file1");
     request6.set_owner("owner1");
+    request6.set_date(TimeUtility::GetTimeofDayUs());
     request6.set_offset(DefaultSegmentSize);
 
     stub.DeleteSegment(&cntl, &request6, &response6, NULL);
@@ -410,6 +440,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     DeleteSegmentResponse response7;
     request7.set_filename("/file1");
     request7.set_owner("owner1");
+    request7.set_date(TimeUtility::GetTimeofDayUs());
     request7.set_offset(DefaultSegmentSize);
 
     stub.DeleteSegment(&cntl, &request7, &response7, NULL);
@@ -426,6 +457,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     OpenFileResponse response8;
     request8.set_filename("/file3");
     request8.set_owner("owner3");
+    request8.set_date(TimeUtility::GetTimeofDayUs());
 
     stub.OpenFile(&cntl, &request8, &response8, NULL);
     if (!cntl.Failed()) {
@@ -440,6 +472,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     OpenFileResponse response9;
     request9.set_filename("/file2");
     request9.set_owner("owner2");
+    request9.set_date(TimeUtility::GetTimeofDayUs());
 
     stub.OpenFile(&cntl, &request9, &response9, NULL);
     if (!cntl.Failed()) {
@@ -456,6 +489,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     OpenFileResponse response10;
     request10.set_filename("/file1");
     request10.set_owner("owner1");
+    request10.set_date(TimeUtility::GetTimeofDayUs());
 
     stub.OpenFile(&cntl, &request10, &response10, NULL);
     if (!cntl.Failed()) {
@@ -473,6 +507,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     OpenFileResponse response11;
     request11.set_filename("/file2");
     request11.set_owner("owner2");
+    request11.set_date(TimeUtility::GetTimeofDayUs());
 
     stub.OpenFile(&cntl, &request11, &response11, NULL);
     if (!cntl.Failed()) {
@@ -487,6 +522,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     CloseFileResponse response12;
     request12.set_filename("/file3");
     request12.set_owner("owner3");
+    request12.set_date(TimeUtility::GetTimeofDayUs());
     request12.set_sessionid("test_session");
 
     stub.CloseFile(&cntl, &request12, &response12, NULL);
@@ -503,6 +539,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     CloseFileResponse response13;
     request13.set_filename("/file2");
     request13.set_owner("owner2");
+    request13.set_date(TimeUtility::GetTimeofDayUs());
     request13.set_sessionid("test_session");
 
     stub.CloseFile(&cntl, &request13, &response13, NULL);
@@ -518,6 +555,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     CloseFileResponse response14;
     request14.set_filename("/file2");
     request14.set_owner("owner2");
+    request14.set_date(TimeUtility::GetTimeofDayUs());
     request14.set_sessionid(response9.protosession().sessionid());
 
     stub.CloseFile(&cntl, &request14, &response14, NULL);
@@ -531,6 +569,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     request14.set_filename("/file2");
     request14.set_owner("owner2");
+    request14.set_date(TimeUtility::GetTimeofDayUs());
     request14.set_sessionid(response9.protosession().sessionid());
 
     stub.CloseFile(&cntl, &request14, &response14, NULL);
@@ -546,6 +585,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     ReFreshSessionResponse response15;
     request15.set_filename("/file3");
     request15.set_owner("owner3");
+    request15.set_date(TimeUtility::GetTimeofDayUs());
     request15.set_sessionid(response10.protosession().sessionid());
     request15.set_date(common::TimeUtility::GetTimeofDayUs());
     request15.set_signature("todo,signature");
@@ -564,6 +604,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     ReFreshSessionResponse response16;
     request16.set_filename("/file1");
     request16.set_owner("owner1");
+    request16.set_date(TimeUtility::GetTimeofDayUs());
     request16.set_sessionid("test_session");
     request16.set_date(common::TimeUtility::GetTimeofDayUs());
     request16.set_signature("todo,signature");
@@ -581,6 +622,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     ReFreshSessionResponse response18;
     request18.set_filename("/file1");
     request18.set_owner("owner1");
+    request18.set_date(TimeUtility::GetTimeofDayUs());
     request18.set_sessionid(response10.protosession().sessionid());
     request18.set_date(common::TimeUtility::GetTimeofDayUs());
     request18.set_signature("todo,signature");
@@ -629,6 +671,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
 
     request.set_filename("/file1");
     request.set_owner("owner1");
+    request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_filetype(INODE_PAGEFILE);
     request.set_filelength(fileLength);
 
@@ -646,6 +689,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     GetFileInfoResponse response1;
     request1.set_filename("/file1");
     request1.set_owner("owner1");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         FileInfo  file = response1.fileinfo();
@@ -669,6 +713,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     CreateSnapShotResponse snapshotResponses;
     snapshotRequest.set_filename("/file1");
     snapshotRequest.set_owner("owner1");
+    snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
     stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
     if (!cntl.Failed()) {
         FileInfo snapshotFileInfo;
@@ -689,6 +734,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     cntl.Reset();
     request1.set_filename("/file1");
     request1.set_owner("owner1");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
     stub.GetFileInfo(&cntl, &request1, &response1, NULL);
     if (!cntl.Failed()) {
         FileInfo file = response1.fileinfo();
@@ -711,6 +757,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     CheckSnapShotStatusResponse checkResponse;
     checkRequest.set_filename("/file1");
     checkRequest.set_owner("owner1");
+    checkRequest.set_date(TimeUtility::GetTimeofDayUs());
     checkRequest.set_seq(1);
     stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
     if (!cntl.Failed()) {
@@ -727,6 +774,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     DeleteSnapShotResponse deleteResponse;
     deleteRequest.set_filename("/file1");
     deleteRequest.set_owner("owner1");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
     deleteRequest.set_seq(1);
     stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
     if (!cntl.Failed()) {
@@ -744,6 +792,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
 
     listRequest.set_filename("/file1");
     listRequest.set_owner("owner1");
+    listRequest.set_date(TimeUtility::GetTimeofDayUs());
     listRequest.add_seq(2);
     stub.ListSnapShot(&cntl, &listRequest, &listResponse, NULL);
 
