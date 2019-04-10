@@ -17,6 +17,7 @@ using ::testing::Return;
 using ::testing::ReturnArg;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using curve::common::TimeUtility;
 
 namespace curve {
 namespace mds {
@@ -150,11 +151,11 @@ TEST_F(SessionTest, testLoadSession) {
         std::vector<SessionRepoItem> sessionList;
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
-                                "token1", 12345, SessionStatus::kSessionOK ,
+                                12345, SessionStatus::kSessionOK ,
                                 123456, "127.0.0.1"));
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID2",
-                                "token2", 12345, SessionStatus::kSessionOK ,
+                                12345, SessionStatus::kSessionOK ,
                                 123456, "127.0.0.1"));
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
@@ -190,15 +191,15 @@ TEST_F(SessionTest, testLoadSession) {
         std::vector<SessionRepoItem> sessionList;
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
-                                "token1", 12345, SessionStatus::kSessionOK ,
+                                12345, SessionStatus::kSessionOK ,
                                 123456, "127.0.0.1"));
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID2",
-                                "token2", 12345, SessionStatus::kSessionOK ,
+                                12345, SessionStatus::kSessionOK ,
                                 1234567, "127.0.0.1"));
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID3",
-                                "token3", 12345, SessionStatus::kSessionOK ,
+                                12345, SessionStatus::kSessionOK ,
                                 12345, "127.0.0.1"));
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
@@ -231,7 +232,7 @@ TEST_F(SessionTest, testLoadSession) {
 
         sessionManager_.Start();
 
-        SessionRepoItem sessionRepo("/file1", "sessionID2", "token3",
+        SessionRepoItem sessionRepo("/file1", "sessionID2",
                         sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
@@ -252,7 +253,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         std::vector<SessionRepoItem> sessionList;
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
-                                "token1", 12345, SessionStatus::kSessionOK,
+                                12345, SessionStatus::kSessionOK,
                                 ::curve::common::TimeUtility::GetTimeofDayUs(),
                                 "127.0.0.1"));
 
@@ -301,7 +302,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
                                                     &protoSession),
                     StatusCode::kOK);
 
-        SessionRepoItem sessionRepo("/file1", "sessionID1", "token1",
+        SessionRepoItem sessionRepo("/file1", "sessionID1",
                         sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
@@ -318,7 +319,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         std::vector<SessionRepoItem> sessionList;
 
         sessionList.push_back(SessionRepoItem("/file1", "sessionID1",
-                                "token1", 12345, SessionStatus::kSessionStaled,
+                                12345, SessionStatus::kSessionStaled,
                                 ::curve::common::TimeUtility::GetTimeofDayUs(),
                                 "127.0.0.1"));
 
@@ -361,7 +362,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
                                                     &protoSession),
                     StatusCode::kOK);
 
-        SessionRepoItem sessionRepo("/file1", "sessionID1", "token1",
+        SessionRepoItem sessionRepo("/file1", "sessionID1",
                         sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
@@ -435,7 +436,7 @@ TEST_F(SessionTest, insert_session_test) {
         ASSERT_NE(protoSession3.sessionid(), protoSession1.sessionid());
 
 
-        SessionRepoItem sessionRepo("/file1", "sessionid", "token",
+        SessionRepoItem sessionRepo("/file1", "sessionid",
                         sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
@@ -558,7 +559,7 @@ TEST_F(SessionTest, refresh_session_test) {
                                         "test_signature", "127.0.0.1"),
                 StatusCode::kOK);
 
-    SessionRepoItem sessionRepo("/file1", "sessionid", "token",
+    SessionRepoItem sessionRepo("/file1", "sessionid",
                     sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
@@ -567,6 +568,44 @@ TEST_F(SessionTest, refresh_session_test) {
                         Return(repo::OperationOK)));
 
     sessionManager_.Stop();
+}
+
+// 测试session退出时快速唤醒流程
+TEST_F(SessionTest, fast_exit_test) {
+    SessionManager sessionManager_(mockRepo_);
+
+    EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
+    .Times(1)
+    .WillOnce(Return(repo::OperationOK));
+
+    EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+    .Times(1)
+    .WillOnce(Return(repo::OperationOK));
+
+    EXPECT_CALL(*mockRepo_, createDatabase())
+    .Times(1)
+    .WillOnce(Return(repo::OperationOK));
+
+    EXPECT_CALL(*mockRepo_, useDataBase())
+    .Times(1)
+    .WillOnce(Return(repo::OperationOK));
+
+    EXPECT_CALL(*mockRepo_, createAllTables())
+    .Times(1)
+    .WillOnce(Return(repo::OperationOK));
+
+    sessionOptions_.intevalTime = 5000000;
+    ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
+
+    uint64_t startTime = TimeUtility::GetTimeofDayUs();
+    sessionManager_.Start();
+
+    // 等session过期
+    usleep(sessionOptions_.leaseTime);
+
+    sessionManager_.Stop();
+    uint64_t endTime = TimeUtility::GetTimeofDayUs();
+    ASSERT_LT(endTime, startTime + sessionOptions_.intevalTime);
 }
 }  // namespace mds
 }  // namespace curve

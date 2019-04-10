@@ -223,7 +223,6 @@ struct SessionRepoItem : public RepoItem {
  public:
   uint32_t entryID;
   std::string sessionID;
-  std::string token;
   std::string fileName;
   uint32_t leaseTime;
   uint16_t sessionStatus;
@@ -235,7 +234,7 @@ struct SessionRepoItem : public RepoItem {
   SessionRepoItem() = default;
 
   SessionRepoItem(std::string fileName, std::string sessionID,
-              std::string token, uint32_t leaseTime,
+              uint32_t leaseTime,
               uint16_t sessionStatus, uint64_t createTime,
               std::string clientIP);
 

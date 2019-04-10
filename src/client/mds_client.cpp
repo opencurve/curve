@@ -160,7 +160,6 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
                 infoComplete = true;
                 ::curve::mds::ProtoSession leasesession = response.protosession();  // NOLINT
                 lease->sessionID     = leasesession.sessionid();
-                lease->token         = leasesession.token();
                 lease->leaseTime     = leasesession.leasetime();
                 lease->createTime    = leasesession.createtime();
             }

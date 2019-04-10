@@ -968,7 +968,7 @@ bool isPathValid(std::string path) {
         }
     }
 
-    // TODO(hzchenwei7): 将来如果有path有其他限制，可以在此处继续添加
+    // 将来如果有path有其他限制，可以在此处继续添加
 
     return true;
 }

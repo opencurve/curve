@@ -70,7 +70,6 @@ create table if not exists `curve_copyset` (
 create table if not exists `curve_session` (
     `entryID`       INT       unsigned     NOT NULL AUTO_INCREMENT  COMMENT '递增ID',
     `sessionID`     VARCHAR(64)            NOT NULL   COMMENT  '唯一sessionID',
-    `token`         VARCHAR(128)           NOT NULL   COMMENT  'session对应的token',
     `fileName`      VARCHAR(256)           NOT NULL   COMMENT  'session对应的fileName',
     `leaseTime`     INT       unsigned     NOT NULL   COMMENT   'session对应的时间',
     `sessionStatus` TINYINT   unsigned     NOT NULL   COMMENT  'session状态，0: kSessionOK, 1: kSessionStaled, 2:ksessionDeleted',

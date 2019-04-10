@@ -247,7 +247,6 @@ TEST_F(MDSClientTest, Openfile) {
 
     ::curve::mds::ProtoSession* se = new ::curve::mds::ProtoSession;
     se->set_sessionid("1");
-    se->set_token("token");
     se->set_createtime(12345);
     se->set_leasetime(10000000);
     se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
@@ -267,7 +266,6 @@ TEST_F(MDSClientTest, Openfile) {
 
     ::curve::mds::ProtoSession* se2 = new ::curve::mds::ProtoSession;
     se2->set_sessionid("1");
-    se2->set_token("token");
     se2->set_createtime(12345);
     se2->set_leasetime(10000000);
     se2->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);

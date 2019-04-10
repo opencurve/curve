@@ -101,7 +101,6 @@ const char CreateSessionTable[] =
     " create table if not exists `curve_session` (\n"
     "   `entryID`       INT       unsigned     NOT NULL AUTO_INCREMENT  COMMENT '递增ID',\n"                                //NOLINT
     "   `sessionID`     VARCHAR(64)            NOT NULL   COMMENT  '唯一sessionID',\n"                                      //NOLINT
-    "   `token`         VARCHAR(128)           NOT NULL   COMMENT  'session对应的token',\n"                                 //NOLINT
     "   `fileName`      VARCHAR(256)           NOT NULL   COMMENT  'session对应的fileName',\n"                                //NOLINT
     "   `leaseTime`     INT       unsigned     NOT NULL   COMMENT   'session对应的时间',\n"                                 //NOLINT
     "   `sessionStatus` TINYINT   unsigned     NOT NULL   COMMENT  'session状态，0: kSessionOK, 1: kSessionStaled, 2:ksessionDeleted',\n"   //NOLINT

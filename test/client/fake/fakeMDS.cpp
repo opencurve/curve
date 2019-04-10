@@ -91,7 +91,7 @@ bool FakeMDS::StartService() {
     }
 
     /**
-     * set CreateFile fake return 
+     * set CreateFile fake return
      */
     ::curve::mds::CreateFileResponse* createfileresponse = new ::curve::mds::CreateFileResponse();      // NOLINT
     createfileresponse->set_statuscode(::curve::mds::StatusCode::kOK);
@@ -99,7 +99,7 @@ bool FakeMDS::StartService() {
     fakecurvefsservice_.SetCreateFileFakeReturn(fakcreatefileeret);
 
     /**
-     * set GetFileInfo fake return 
+     * set GetFileInfo fake return
      */
     curve::mds::FileInfo * info = new curve::mds::FileInfo;
     ::curve::mds::GetFileInfoResponse* getfileinforesponse = new ::curve::mds::GetFileInfoResponse();      // NOLINT
@@ -119,7 +119,7 @@ bool FakeMDS::StartService() {
     fakecurvefsservice_.SetGetFileInfoFakeReturn(fakeGetFileInforet);
 
     /**
-     * set GetOrAllocateSegment fake return 
+     * set GetOrAllocateSegment fake return
      */
     curve::mds::GetOrAllocateSegmentResponse* getallocateresponse = new curve::mds::GetOrAllocateSegmentResponse();      // NOLINT
     curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
@@ -175,7 +175,6 @@ bool FakeMDS::StartService() {
      new ::curve::mds::OpenFileResponse();
     ::curve::mds::ProtoSession* se = new ::curve::mds::ProtoSession;
     se->set_sessionid("1");
-    se->set_token("token");
     se->set_createtime(12345);
     se->set_leasetime(10000000);
     se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
@@ -273,8 +272,8 @@ bool FakeMDS::StartService() {
 }
 
 bool FakeMDS::CreateCopysetNode() {
-    /** 
-     * set Create Copyset in target chunkserver 
+    /**
+     * set Create Copyset in target chunkserver
      */
     if (FLAGS_fake_chunkserver) {
         CreateFakeChunkservers();
