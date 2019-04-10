@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c) 2018 NetEase
  */
-#ifndef CURVE_LIBCURVE_INTERFACE_H
-#define CURVE_LIBCURVE_INTERFACE_H
+#ifndef INCLUDE_CLIENT_LIBCURVE_QEMU_H_
+#define INCLUDE_CLIENT_LIBCURVE_QEMU_H_
 
 #include <unistd.h>
 #include <stdint.h>
@@ -39,4 +39,4 @@ void UnInit();
 }
 #endif
 
-#endif  // !CURVE_LIBCURVE_INTERFACE_H
+#endif  // INCLUDE_CLIENT_LIBCURVE_QEMU_H_

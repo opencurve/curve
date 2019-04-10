@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CHUNKSERVER_FILEPOOL_H
-#define CHUNKSERVER_FILEPOOL_H
+#ifndef SRC_CHUNKSERVER_DATASTORE_CHUNKFILE_POOL_H_
+#define SRC_CHUNKSERVER_DATASTORE_CHUNKFILE_POOL_H_
 
 #include <glog/logging.h>
 
@@ -152,4 +152,4 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
 }   // namespace chunkserver
 }   // namespace curve
 
-#endif
+#endif  // SRC_CHUNKSERVER_DATASTORE_CHUNKFILE_POOL_H_

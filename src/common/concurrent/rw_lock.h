@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_COMMON_RW_LOCK_H
-#define CURVE_COMMON_RW_LOCK_H
+#ifndef SRC_COMMON_CONCURRENT_RW_LOCK_H_
+#define SRC_COMMON_CONCURRENT_RW_LOCK_H_
 
 #include <pthread.h>
 #include <assert.h>
@@ -81,4 +81,4 @@ class WriteLockGuard : public Uncopyable {
 }  // namespace common
 }  // namespace curve
 
-#endif  // CURVE_COMMON_RW_LOCK_H
+#endif  // SRC_COMMON_CONCURRENT_RW_LOCK_H_

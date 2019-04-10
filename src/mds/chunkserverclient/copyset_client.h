@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_NAMESERVER2_COPYSET_CLIENT_H_
-#define CURVE_SRC_MDS_NAMESERVER2_COPYSET_CLIENT_H_
+#ifndef SRC_MDS_CHUNKSERVERCLIENT_COPYSET_CLIENT_H_
+#define SRC_MDS_CHUNKSERVERCLIENT_COPYSET_CLIENT_H_
 
 #include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology_manager.h"
@@ -72,4 +72,4 @@ class CopysetClient {
 }  // namespace curve
 
 
-#endif  // CURVE_SRC_MDS_NAMESERVER2_COPYSET_CLIENT_H_
+#endif  // SRC_MDS_CHUNKSERVERCLIENT_COPYSET_CLIENT_H_

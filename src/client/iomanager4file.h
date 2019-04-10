@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_IOCONTEXT_MANAGER_H
-#define CURVE_IOCONTEXT_MANAGER_H
+#ifndef SRC_CLIENT_IOMANAGER4FILE_H_
+#define SRC_CLIENT_IOMANAGER4FILE_H_
 
 #include <atomic>
 #include <mutex>  // NOLINT
@@ -161,4 +161,4 @@ class IOManager4File : public IOManager {
 };
 }   // namespace client
 }   // namespace curve
-#endif  // !CURVE_IOCONTEXT_MANAGER_H
+#endif  // SRC_CLIENT_IOMANAGER4FILE_H_

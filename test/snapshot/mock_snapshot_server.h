@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_TEST_SNAPSHOT_MOCK_SNAPSHOT_SERVER_H_
-#define CURVE_TEST_SNAPSHOT_MOCK_SNAPSHOT_SERVER_H_
+#ifndef TEST_SNAPSHOT_MOCK_SNAPSHOT_SERVER_H_
+#define TEST_SNAPSHOT_MOCK_SNAPSHOT_SERVER_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -178,4 +178,4 @@ class MockSnapshotServiceManager : public SnapshotServiceManager {
 }  // namespace snapshotserver
 }  // namespace curve
 
-#endif  // CURVE_TEST_SNAPSHOT_MOCK_SNAPSHOT_SERVER_H_
+#endif  // TEST_SNAPSHOT_MOCK_SNAPSHOT_SERVER_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_TEST_UTIL_H
-#define CURVE_CHUNKSERVER_TEST_UTIL_H
+#ifndef TEST_CHUNKSERVER_CHUNKSERVER_TEST_UTIL_H_
+#define TEST_CHUNKSERVER_CHUNKSERVER_TEST_UTIL_H_
 
 #include <butil/status.h>
 #include <unistd.h>
@@ -190,4 +190,4 @@ class TestCluster {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_TEST_UTIL_H
+#endif  // TEST_CHUNKSERVER_CHUNKSERVER_TEST_UTIL_H_

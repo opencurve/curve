@@ -6,8 +6,8 @@
  */
 
 
-#ifndef CURVE_SRC_MDS_SCHEDULE_OPERATORSTEP_H_
-#define CURVE_SRC_MDS_SCHEDULE_OPERATORSTEP_H_
+#ifndef SRC_MDS_SCHEDULE_OPERATORSTEP_H_
+#define SRC_MDS_SCHEDULE_OPERATORSTEP_H_
 
 #include <cstdint>
 #include <string>
@@ -101,4 +101,4 @@ class RemovePeer : public OperatorStep {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_SCHEDULE_OPERATORSTEP_H_
+#endif  // SRC_MDS_SCHEDULE_OPERATORSTEP_H_

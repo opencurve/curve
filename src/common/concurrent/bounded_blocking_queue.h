@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_COMMON_BOUNDED_BLOCKING_QUEUE_H
-#define CURVE_COMMON_BOUNDED_BLOCKING_QUEUE_H
+#ifndef SRC_COMMON_CONCURRENT_BOUNDED_BLOCKING_QUEUE_H_
+#define SRC_COMMON_CONCURRENT_BOUNDED_BLOCKING_QUEUE_H_
 
 #include <cassert>
 #include <cstdio>
@@ -126,4 +126,4 @@ class BoundedBlockingQueue : public Uncopyable {
 }  // namespace common
 }  // namespace curve
 
-#endif  // CURVE_COMMON_BOUNDED_BLOCKING_QUEUE_H
+#endif  // SRC_COMMON_CONCURRENT_BOUNDED_BLOCKING_QUEUE_H_

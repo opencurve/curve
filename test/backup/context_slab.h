@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c) 2018 NetEase
  */
-#ifndef CURVE_IOCONTEXT_CACHE_H
-#define CURVE_IOCONTEXT_CACHE_H
+#ifndef TEST_BACKUP_CONTEXT_SLAB_H_
+#define TEST_BACKUP_CONTEXT_SLAB_H_
 
 #include <gflags/gflags.h>
 
@@ -103,4 +103,4 @@ class IOTrackerSlab {
 };
 }   // namespace client
 }   // namespace curve
-#endif  // !CURVE_IOCONTEXT_CACHE_H
+#endif  // TEST_BACKUP_CONTEXT_SLAB_H_

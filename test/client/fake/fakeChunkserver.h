@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_CLIENT_FAKE_CHUNKSERVICE_H
-#define CURVE_CLIENT_FAKE_CHUNKSERVICE_H
+#ifndef TEST_CLIENT_FAKE_FAKECHUNKSERVER_H_
+#define TEST_CLIENT_FAKE_FAKECHUNKSERVER_H_
 
 #include <brpc/controller.h>
 #include <brpc/server.h>
@@ -184,4 +184,4 @@ class FakeChunkServerService : public ChunkService {
     FakeReturn* fakereadret_;
 };
 
-#endif  // CURVE_CLIENT_FAKECHUNKSERVICE_H
+#endif  // TEST_CLIENT_FAKE_FAKECHUNKSERVER_H_

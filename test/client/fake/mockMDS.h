@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c) 2018 NetEase
  */
-#ifndef TEST_CURVE_MOCK_MDS_H
-#define TEST_CURVE_MOCK_MDS_H
+#ifndef TEST_CLIENT_FAKE_MOCKMDS_H_
+#define TEST_CLIENT_FAKE_MOCKMDS_H_
 
 #include <glog/logging.h>
 
@@ -236,4 +236,4 @@ class FakeCliService : public curve::chunkserver::CliService {
     FakeReturn* fakeret_;
 };
 
-#endif
+#endif  // TEST_CLIENT_FAKE_MOCKMDS_H_

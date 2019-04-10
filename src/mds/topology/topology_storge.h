@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_H_
-#define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_H_
+#ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_H_
+#define SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_H_
 
 #include <list>
 #include <unordered_map>
@@ -131,4 +131,4 @@ class DefaultTopologyStorage : public TopologyStorage {
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
-#endif  // CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_H_
+#endif  // SRC_MDS_TOPOLOGY_TOPOLOGY_STORGE_H_

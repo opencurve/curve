@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_SCHEDULE_TOPOADAPTER_H_
-#define CURVE_SRC_MDS_SCHEDULE_TOPOADAPTER_H_
+#ifndef SRC_MDS_SCHEDULE_TOPOADAPTER_H_
+#define SRC_MDS_SCHEDULE_TOPOADAPTER_H_
 #include <cstdint>
 #include <vector>
 #include <string>
@@ -222,4 +222,4 @@ class TopoAdapterImpl : public TopoAdapter {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_SCHEDULE_TOPOADAPTER_H_
+#endif  // SRC_MDS_SCHEDULE_TOPOADAPTER_H_

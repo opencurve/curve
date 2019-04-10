@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_COMMON_DEFINE_H
-#define CURVE_COMMON_DEFINE_H
+#ifndef SRC_COMMON_CURVE_DEFINE_H_
+#define SRC_COMMON_CURVE_DEFINE_H_
 
 #include <butil/endpoint.h>
 #include <butil/status.h>
@@ -39,4 +39,4 @@ using kGB               = 1024*kMB;
 }  // namespace common
 }  // namespace curve
 
-#endif  // !CURVE_COMMON_DEFINE_H
+#endif  // SRC_COMMON_CURVE_DEFINE_H_

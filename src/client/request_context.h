@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_LIBCURVE_REQUEST_CONTEXT_H
-#define CURVE_LIBCURVE_REQUEST_CONTEXT_H
+#ifndef SRC_CLIENT_REQUEST_CONTEXT_H_
+#define SRC_CLIENT_REQUEST_CONTEXT_H_
 
 #include <atomic>
 #include <string>
@@ -64,4 +64,4 @@ class RequestContext {
 };
 }  // namespace client
 }  // namespace curve
-#endif  // !CURVE_LIBCURVE_REQUEST_CONTEXT_H
+#endif  // SRC_CLIENT_REQUEST_CONTEXT_H_

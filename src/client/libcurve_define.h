@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_LIBCURVE_DEFINE_H
-#define CURVE_LIBCURVE_DEFINE_H
+#ifndef SRC_CLIENT_LIBCURVE_DEFINE_H_
+#define SRC_CLIENT_LIBCURVE_DEFINE_H_
 #include <stdint.h>
 
 enum FileType {
@@ -56,4 +56,4 @@ typedef struct FileStatInfo {
     uint64_t        ctime;
 } FileStatInfo_t;
 
-#endif  // !CURVE_LIBCURVE_DEFINE_H
+#endif  // SRC_CLIENT_LIBCURVE_DEFINE_H_

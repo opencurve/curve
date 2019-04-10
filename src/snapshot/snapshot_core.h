@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOTCORE_H_
-#define CURVE_SRC_SNAPSHOT_SNAPSHOTCORE_H_
+#ifndef SRC_SNAPSHOT_SNAPSHOT_CORE_H_
+#define SRC_SNAPSHOT_SNAPSHOT_CORE_H_
 
 #include <memory>
 #include <string>
@@ -325,4 +325,4 @@ class SnapshotCoreImpl : public SnapshotCore {
 }  // namespace snapshotserver
 }  // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOTCORE_H_
+#endif  // SRC_SNAPSHOT_SNAPSHOT_CORE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_FS_MOCK_LOCAL_FILESYSTEM_H
-#define TEST_FS_MOCK_LOCAL_FILESYSTEM_H
+#ifndef TEST_FS_MOCK_LOCAL_FILESYSTEM_H_
+#define TEST_FS_MOCK_LOCAL_FILESYSTEM_H_
 
 #include <gmock/gmock.h>
 #include <string>
@@ -41,4 +41,4 @@ class MockLocalFileSystem : public LocalFileSystem {
 }  // namespace fs
 }  // namespace curve
 
-#endif  // TEST_FS_MOCK_LOCAL_FILESYSTEM_H
+#endif  // TEST_FS_MOCK_LOCAL_FILESYSTEM_H_

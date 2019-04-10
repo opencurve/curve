@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_CLI_SERVICE_H
-#define CURVE_CHUNKSERVER_CLI_SERVICE_H
+#ifndef SRC_CHUNKSERVER_BRAFT_CLI_SERVICE_H_
+#define SRC_CHUNKSERVER_BRAFT_CLI_SERVICE_H_
 
 #include <butil/status.h>
 #include <braft/node.h>
@@ -61,4 +61,4 @@ class BRaftCliServiceImpl : public CliService {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_CLI_SERVICE_H
+#endif  // SRC_CHUNKSERVER_BRAFT_CLI_SERVICE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_LIBCURVE_SPINLOCK_H
-#define CURVE_LIBCURVE_SPINLOCK_H
+#ifndef SRC_COMMON_CONCURRENT_SPINLOCK_H_
+#define SRC_COMMON_CONCURRENT_SPINLOCK_H_
 
 #include <atomic>
 #include "include/curve_compiler_specific.h"
@@ -32,4 +32,4 @@ class SpinLock {
 };
 }   // namespace common
 }   // namespace curve
-#endif  // CURVE_LIBCURVE_SPINLOCK_H
+#endif  // SRC_COMMON_CONCURRENT_SPINLOCK_H_

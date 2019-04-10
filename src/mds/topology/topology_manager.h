@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_MANAGER_H_
-#define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_MANAGER_H_
+#ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_MANAGER_H_
+#define SRC_MDS_TOPOLOGY_TOPOLOGY_MANAGER_H_
 
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_id_generator.h"
@@ -51,4 +51,4 @@ class TopologyManager : public Singleton<TopologyManager> {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_MANAGER_H_
+#endif  // SRC_MDS_TOPOLOGY_TOPOLOGY_MANAGER_H_

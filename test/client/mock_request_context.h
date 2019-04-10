@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_MOCK_REQUEST_CONTEXT_H
-#define CURVE_CLIENT_MOCK_REQUEST_CONTEXT_H
+#ifndef TEST_CLIENT_MOCK_REQUEST_CONTEXT_H_
+#define TEST_CLIENT_MOCK_REQUEST_CONTEXT_H_
 
 #include "src/client/client_common.h"
 #include "src/client/request_context.h"
@@ -68,4 +68,4 @@ class FakeRequestClosure : public RequestClosure {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_CLIENT_MOCK_REQUEST_CONTEXT_H
+#endif  // TEST_CLIENT_MOCK_REQUEST_CONTEXT_H_

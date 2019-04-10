@@ -6,8 +6,8 @@
  */
 
 
-#ifndef CURVE_SRC_MDS_SCHEDULE_FORTEST_COMMON_H
-#define CURVE_SRC_MDS_SCHEDULE_FORTEST_COMMON_H
+#ifndef TEST_MDS_SCHEDULE_COMMON_H_
+#define TEST_MDS_SCHEDULE_COMMON_H_
 
 #include <boost/shared_ptr.hpp>
 #include "src/mds/schedule/operatorStep.h"
@@ -36,4 +36,4 @@ namespace schedule {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_SCHEDULE_FORTEST_COMMON_H
+#endif  // TEST_MDS_SCHEDULE_COMMON_H_

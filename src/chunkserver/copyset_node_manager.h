@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_COPYSET_NODE_MANAGER_H
-#define CURVE_CHUNKSERVER_COPYSET_NODE_MANAGER_H
+#ifndef SRC_CHUNKSERVER_COPYSET_NODE_MANAGER_H_
+#define SRC_CHUNKSERVER_COPYSET_NODE_MANAGER_H_
 
 #include <mutex>    //NOLINT
 #include <vector>
@@ -124,4 +124,4 @@ class CopysetNodeManager : public curve::common::Uncopyable {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_COPYSET_NODE_MANAGER_H
+#endif  // SRC_CHUNKSERVER_COPYSET_NODE_MANAGER_H_

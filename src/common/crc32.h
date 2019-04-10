@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_COMMON_CRC32_H
-#define CURVE_COMMON_CRC32_H
+#ifndef SRC_COMMON_CRC32_H_
+#define SRC_COMMON_CRC32_H_
 
 #include <stdint.h>
 #include <sys/types.h>
@@ -42,4 +42,4 @@ inline uint32_t CRC32(uint32_t crc, const char *pData, size_t iLen) {
 }  // namespace common
 }  // namespace curve
 
-#endif  // CURVE_COMMON_CRC32_H
+#endif  // SRC_COMMON_CRC32_H_

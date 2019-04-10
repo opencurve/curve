@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_LIBCURVE_METACACHE_STRUCT_H
-#define CURVE_LIBCURVE_METACACHE_STRUCT_H
+#ifndef SRC_CLIENT_METACACHE_STRUCT_H_
+#define SRC_CLIENT_METACACHE_STRUCT_H_
 
 #include <string>
 #include <list>
@@ -180,4 +180,4 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_LIBCURVE_METACACHE_STRUCT_H
+#endif  // SRC_CLIENT_METACACHE_STRUCT_H_

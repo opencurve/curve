@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_FS_MOCK_POSIX_WRAPPER_H
-#define TEST_FS_MOCK_POSIX_WRAPPER_H
+#ifndef TEST_FS_MOCK_POSIX_WRAPPER_H_
+#define TEST_FS_MOCK_POSIX_WRAPPER_H_
 
 #include <gmock/gmock.h>
 
@@ -39,4 +39,4 @@ class MockPosixWrapper : public PosixWrapper {
 }  // namespace fs
 }  // namespace curve
 
-#endif  // TEST_FS_MOCK_POSIX_WRAPPER_H
+#endif  // TEST_FS_MOCK_POSIX_WRAPPER_H_

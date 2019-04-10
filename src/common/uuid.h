@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_COMMON_UUID_GENERATOR_H_
-#define CURVE_COMMON_UUID_GENERATOR_H_
+#ifndef SRC_COMMON_UUID_H_
+#define SRC_COMMON_UUID_H_
 extern "C" {
 #include <uuid/uuid.h>
 void uuid_generate(uuid_t out);
@@ -78,4 +78,4 @@ class UUIDGenerator {
 }  // namespace common
 }  // namespace curve
 
-#endif  // CURVE_COMMON_UUID_GENERATOR_H_
+#endif  // SRC_COMMON_UUID_H_

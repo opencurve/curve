@@ -6,8 +6,8 @@
  */
 
 
-#ifndef CURVE_TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H
-#define CURVE_TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H
+#ifndef TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H_
+#define TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H_
 
 #include <gmock/gmock.h>
 #include "src/mds/schedule/coordinator.h"
@@ -27,5 +27,5 @@ class MockCoordinator : public ::curve::mds::schedule::Coordinator {
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve
-#endif  // CURVE_TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H
+#endif  // TEST_MDS_HEARTBEAT_MOCK_COORDINATOR_H_
 

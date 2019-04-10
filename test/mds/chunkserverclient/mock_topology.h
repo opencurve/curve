@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_TEST_MDS_SCHEDULE_MOCK_TOPOLOGY_H
-#define CURVE_TEST_MDS_SCHEDULE_MOCK_TOPOLOGY_H
+#ifndef TEST_MDS_CHUNKSERVERCLIENT_MOCK_TOPOLOGY_H_
+#define TEST_MDS_CHUNKSERVERCLIENT_MOCK_TOPOLOGY_H_
 
 #include <gmock/gmock.h>
 #include <string>
@@ -184,4 +184,4 @@ class MockTopology : public Topology {
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
-#endif  // CURVE_TEST_MDS_SCHEDULE_MOCK_TOPOLOGY_H
+#endif  // TEST_MDS_CHUNKSERVERCLIENT_MOCK_TOPOLOGY_H_

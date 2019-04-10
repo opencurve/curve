@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_COMPILER_SPECFIC_H
-#define CURVE_COMPILER_SPECFIC_H
+#ifndef INCLUDE_CURVE_COMPILER_SPECIFIC_H_
+#define INCLUDE_CURVE_COMPILER_SPECIFIC_H_
 
 // Cacheline related --------------------------------------
 #define CURVE_CACHELINE_SIZE 64
@@ -25,12 +25,12 @@
 #else
 #  define CURVE_LIKELY(expr) (expr)
 #  define CURVE_UNLIKELY(expr) (expr)
-#endif
+#endif  // INCLUDE_CURVE_COMPILER_SPECIFIC_H_
 
 #ifdef UNIT_TEST
 #define CURVE_MOCK virtual
 #else
 #define CURVE_MOCK
-#endif
+#endif  // INCLUDE_CURVE_COMPILER_SPECIFIC_H_
 
-#endif
+#endif  // INCLUDE_CURVE_COMPILER_SPECIFIC_H_

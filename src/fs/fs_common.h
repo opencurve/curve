@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_FS_FS_COMMON_H
-#define CURVE_FS_FS_COMMON_H
+#ifndef SRC_FS_FS_COMMON_H_
+#define SRC_FS_FS_COMMON_H_
 
 namespace curve {
 namespace fs {
@@ -25,4 +25,4 @@ struct FileSystemInfo {
 
 }  // namespace fs
 }  // namespace curve
-#endif  // CURVE_FS_FS_COMMON_H
+#endif  // SRC_FS_FS_COMMON_H_

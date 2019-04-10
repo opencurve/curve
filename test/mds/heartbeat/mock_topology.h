@@ -6,8 +6,8 @@
  */
 
 
-#ifndef CURVE_TEST_MDS_HEARTBEAT_MOCK_TOPOLOGY_H
-#define CURVE_TEST_MDS_HEARTBEAT_MOCK_TOPOLOGY_H
+#ifndef TEST_MDS_HEARTBEAT_MOCK_TOPOLOGY_H_
+#define TEST_MDS_HEARTBEAT_MOCK_TOPOLOGY_H_
 
 #include <gmock/gmock.h>
 #include <string>
@@ -185,4 +185,4 @@ class MockTopology : public Topology {
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve
-#endif  // CURVE_TEST_MDS_HEARTBEAT_MOCK_TOPOLOGY_H
+#endif  // TEST_MDS_HEARTBEAT_MOCK_TOPOLOGY_H_

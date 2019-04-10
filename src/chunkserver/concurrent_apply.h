@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_CHUNKERVER_CONCURRENT_H
-#define CURVE_CHUNKERVER_CONCURRENT_H
+#ifndef SRC_CHUNKSERVER_CONCURRENT_APPLY_H_
+#define SRC_CHUNKSERVER_CONCURRENT_APPLY_H_
 
 #include <glog/logging.h>
 #include <unistd.h>
@@ -87,4 +87,4 @@ class CURVE_CACHELINE_ALIGNMENT ConcurrentApplyModule {
 }   // namespace chunkserver
 }   // namespace curve
 
-#endif  // !CURVE_CHUNKERVER_CONCURRENT_H
+#endif  // SRC_CHUNKSERVER_CONCURRENT_APPLY_H_

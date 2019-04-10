@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_LIBCURVE_MOCK_H
-#define CURVE_LIBCURVE_MOCK_H
+#ifndef TEST_CLIENT_FAKE_MOCK_SCHEDULE_H_
+#define TEST_CLIENT_FAKE_MOCK_SCHEDULE_H_
 
 #include <gmock/gmock.h>
 
@@ -47,4 +47,4 @@ class MockRequestScheduler : public curve::client::RequestScheduler {
     Schedule schedule;
 };
 
-#endif  // !CURVE_LIBCURVE_IOSPLIT_CONTEXT_H
+#endif  // TEST_CLIENT_FAKE_MOCK_SCHEDULE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_COMMON_MDS_DEFINE_H_
-#define CURVE_SRC_MDS_COMMON_MDS_DEFINE_H_
+#ifndef SRC_MDS_COMMON_MDS_DEFINE_H_
+#define SRC_MDS_COMMON_MDS_DEFINE_H_
 
 #include <cstdint>
 
@@ -117,5 +117,5 @@ typedef uint64_t FileSeqType;
 }  // namespace curve
 
 
-#endif  // CURVE_SRC_MDS_COMMON_MDS_DEFINE_H_
+#endif  // SRC_MDS_COMMON_MDS_DEFINE_H_
 

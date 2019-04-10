@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_LIBCURVE_COMMON_H
-#define CURVE_LIBCURVE_COMMON_H
+#ifndef SRC_CLIENT_CLIENT_COMMON_H_
+#define SRC_CLIENT_CLIENT_COMMON_H_
 
 #include <butil/endpoint.h>
 #include <butil/status.h>
@@ -157,4 +157,4 @@ typedef struct UserInfo {
 }   // namespace client
 }   // namespace curve
 
-#endif  // !CURVE_LIBCURVE_COMMON_H
+#endif  // SRC_CLIENT_CLIENT_COMMON_H_

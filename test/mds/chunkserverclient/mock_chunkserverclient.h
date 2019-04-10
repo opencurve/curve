@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
-#define CURVE_TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
+#ifndef TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
+#define TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
 
 #include "src/mds/chunkserverclient/chunkserver_client.h"
 
@@ -39,4 +39,4 @@ class MockChunkServerClient : public ChunkServerClient {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
+#endif  // TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_

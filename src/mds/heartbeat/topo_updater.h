@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_HEARTBEAT_TOPO_UPDATER_H_
-#define CURVE_SRC_MDS_HEARTBEAT_TOPO_UPDATER_H_
+#ifndef SRC_MDS_HEARTBEAT_TOPO_UPDATER_H_
+#define SRC_MDS_HEARTBEAT_TOPO_UPDATER_H_
 
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/topology/topology.h"
@@ -36,4 +36,4 @@ class TopoUpdater {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_HEARTBEAT_TOPO_UPDATER_H_
+#endif  // SRC_MDS_HEARTBEAT_TOPO_UPDATER_H_

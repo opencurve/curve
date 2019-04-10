@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_LIBCURVE_IO_CONDITION_VARAIABLE_H
-#define CURVE_LIBCURVE_IO_CONDITION_VARAIABLE_H
+#ifndef SRC_CLIENT_IO_CONDITION_VARAIABLE_H_
+#define SRC_CLIENT_IO_CONDITION_VARAIABLE_H_
 
 #include <condition_variable>   //NOLINT
 #include <mutex>    //NOLINT
@@ -59,4 +59,4 @@ class IOConditionVariable {
 };
 }   // namespace client
 }   // namespace curve
-#endif  // !CURVE_LIBCURVE_IO_CONDITION_VARAIABLE_H
+#endif  // SRC_CLIENT_IO_CONDITION_VARAIABLE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_TOPOLOGY_SINGLETON_H_
-#define CURVE_SRC_MDS_TOPOLOGY_SINGLETON_H_
+#ifndef SRC_MDS_TOPOLOGY_SINGLETON_H_
+#define SRC_MDS_TOPOLOGY_SINGLETON_H_
 
 #include <mutex>  // NOLINT
 #include <memory>
@@ -46,4 +46,4 @@ template <class T>
 std::shared_ptr<T> Singleton<T>::m_instance = nullptr;
 
 
-#endif  // CURVE_SRC_MDS_TOPOLOGY_SINGLETON_H_
+#endif  // SRC_MDS_TOPOLOGY_SINGLETON_H_

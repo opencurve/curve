@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_FS_POSIX_H
-#define CURVE_FS_POSIX_H
+#ifndef SRC_FS_WRAP_POSIX_H_
+#define SRC_FS_WRAP_POSIX_H_
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -46,4 +46,4 @@ class PosixWrapper {
 }  // namespace fs
 }  // namespace curve
 
-#endif  // CURVE_FS_POSIX_H
+#endif  // SRC_FS_WRAP_POSIX_H_

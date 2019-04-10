@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_LEASE_EXCUTOR_H
-#define CURVE_LEASE_EXCUTOR_H
+#ifndef SRC_CLIENT_LEASE_EXCUTOR_H_
+#define SRC_CLIENT_LEASE_EXCUTOR_H_
 
 #include <string>
 
@@ -127,4 +127,4 @@ class LeaseExcutor {
 };
 }   // namespace client
 }   // namespace curve
-#endif  // !CURVE_LEASE_EXCUTOR_H
+#endif  // SRC_CLIENT_LEASE_EXCUTOR_H_

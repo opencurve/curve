@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_ADAPTOR_UTIL_H
-#define CURVE_CHUNKSERVER_ADAPTOR_UTIL_H
+#ifndef SRC_CHUNKSERVER_CHUNKSERVERSTORAGE_CHUNKSERVER_ADAPTOR_UTIL_H_
+#define SRC_CHUNKSERVER_CHUNKSERVERSTORAGE_CHUNKSERVER_ADAPTOR_UTIL_H_
 
 #include <limits.h>
 #include <string>
@@ -44,4 +44,4 @@ class FsAdaptorUtil {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // !CURVE_CHUNKSERVER_ADAPTOR_UTIL_H
+#endif  // SRC_CHUNKSERVER_CHUNKSERVERSTORAGE_CHUNKSERVER_ADAPTOR_UTIL_H_

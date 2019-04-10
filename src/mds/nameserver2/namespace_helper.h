@@ -4,6 +4,9 @@
  * Author: tongguangxun
  * Copyright (c)￼ 2018 netease
  */
+
+#ifndef SRC_MDS_NAMESERVER2_NAMESPACE_HELPER_H_
+#define SRC_MDS_NAMESERVER2_NAMESPACE_HELPER_H_
 #include <string>
 
 #include "src/common/encode.h"
@@ -38,3 +41,4 @@ class NameSpaceStorageCodec {
 };
 }   // namespace mds
 }   // namespace curve
+#endif  // SRC_MDS_NAMESERVER2_NAMESPACE_HELPER_H_

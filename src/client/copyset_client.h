@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_COPYSETCLIENT_H
-#define CURVE_CLIENT_COPYSETCLIENT_H
+#ifndef SRC_CLIENT_COPYSET_CLIENT_H_
+#define SRC_CLIENT_COPYSET_CLIENT_H_
 
 #include <google/protobuf/stubs/callback.h>
 #include <gflags/gflags.h>
@@ -179,4 +179,4 @@ class CopysetClient : public Uncopyable {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_CLIENT_COPYSETCLIENT_H
+#endif  // SRC_CLIENT_COPYSET_CLIENT_H_

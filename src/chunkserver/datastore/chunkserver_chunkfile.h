@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c) 2018 NetEase
  */
-#ifndef CURVE_CHUNKSERVER_CHUNKSERVER_CHUNKFILE_H
-#define CURVE_CHUNKSERVER_CHUNKSERVER_CHUNKFILE_H
+#ifndef SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_CHUNKFILE_H_
+#define SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_CHUNKFILE_H_
 
 #include <glog/logging.h>
 #include <string>
@@ -252,4 +252,4 @@ class CSChunkFile {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // !CURVE_CHUNKSERVER_CHUNKSERVER_CHUNKFILE_H
+#endif  // SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_CHUNKFILE_H_

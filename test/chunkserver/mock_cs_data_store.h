@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_MOCK_CS_DATA_STORE_H
-#define CURVE_MOCK_CS_DATA_STORE_H
+#ifndef TEST_CHUNKSERVER_MOCK_CS_DATA_STORE_H_
+#define TEST_CHUNKSERVER_MOCK_CS_DATA_STORE_H_
 
 #include <string>
 #include <set>
@@ -180,4 +180,4 @@ class FakeChunkfilePool : public ChunkfilePool {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_MOCK_CS_DATA_STORE_H
+#endif  // TEST_CHUNKSERVER_MOCK_CS_DATA_STORE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_HEARTBEAT_HEARTBEAT_SERVICE_H_
-#define CURVE_SRC_MDS_HEARTBEAT_HEARTBEAT_SERVICE_H_
+#ifndef SRC_MDS_HEARTBEAT_HEARTBEAT_SERVICE_H_
+#define SRC_MDS_HEARTBEAT_HEARTBEAT_SERVICE_H_
 
 #include <brpc/server.h>
 #include <boost/shared_ptr.hpp>
@@ -42,4 +42,4 @@ class HeartbeatServiceImpl : public HeartbeatService {
 
 
 
-#endif  // CURVE_SRC_MDS_HEARTBEAT_HEARTBEAT_SERVICE_H_
+#endif  // SRC_MDS_HEARTBEAT_HEARTBEAT_SERVICE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_HEARTBEAT_HEARTBEAT_MANAGER_H_
-#define CURVE_SRC_MDS_HEARTBEAT_HEARTBEAT_MANAGER_H_
+#ifndef SRC_MDS_HEARTBEAT_HEARTBEAT_MANAGER_H_
+#define SRC_MDS_HEARTBEAT_HEARTBEAT_MANAGER_H_
 
 #include <vector>
 #include <map>
@@ -144,4 +144,4 @@ class HeartbeatManager {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_HEARTBEAT_HEARTBEAT_MANAGER_H_
+#endif  // SRC_MDS_HEARTBEAT_HEARTBEAT_MANAGER_H_

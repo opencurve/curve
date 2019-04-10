@@ -5,6 +5,9 @@
  * Copyright (c)  2018 netease
  */
 
+#ifndef SRC_COMMON_CONCURRENT_CONCURRENT_H_
+#define SRC_COMMON_CONCURRENT_CONCURRENT_H_
+
 #include <atomic>
 #include <thread>   // NOLINT
 #include <condition_variable>   // NOLINT
@@ -42,4 +45,6 @@ using TaskThreadPool        = TaskThreadPool;
 
 }   // namespace common
 }   // namespace curve
+#endif  // SRC_COMMON_CONCURRENT_CONCURRENT_H_
+
 

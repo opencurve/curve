@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c)￼ 2018 netease
  */
-#ifndef CURVE_SNAPSHOT_SERVICE_ADAPTOR_H
-#define CURVE_SNAPSHOT_SERVICE_ADAPTOR_H
+#ifndef TEST_BACKUP_SNAPSHOT_INSTANCE_H_
+#define TEST_BACKUP_SNAPSHOT_INSTANCE_H_
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <string>
@@ -68,4 +68,4 @@ class SnapInstance {
 }   // namespace client
 }   // namespace curve
 
-#endif   // !CURVE_SNAPSHOT_SERVICE_ADAPTOR_H
+#endif  // TEST_BACKUP_SNAPSHOT_INSTANCE_H_

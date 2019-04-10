@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_TEST_MDS_TOPOLOGY_MOCK_TOPOLOGY_H_
-#define CURVE_TEST_MDS_TOPOLOGY_MOCK_TOPOLOGY_H_
+#ifndef TEST_MDS_TOPOLOGY_MOCK_TOPOLOGY_H_
+#define TEST_MDS_TOPOLOGY_MOCK_TOPOLOGY_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -430,4 +430,4 @@ class MockCopysetServiceImpl : public CopysetService {
 }  // namespace curve
 
 
-#endif  // CURVE_TEST_MDS_TOPOLOGY_MOCK_TOPOLOGY_H_
+#endif  // TEST_MDS_TOPOLOGY_MOCK_TOPOLOGY_H_

@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_CONFIG_INFO_H
-#define CURVE_CONFIG_INFO_H
+#ifndef SRC_CLIENT_CONFIG_INFO_H_
+#define SRC_CLIENT_CONFIG_INFO_H_
 
 #include <stdint.h>
 #include <string>
@@ -153,4 +153,4 @@ typedef struct FileServiceOption {
     MetaServerOption_t        metaServerOpt;
 } FileServiceOption_t;
 
-#endif  // ! CURVE_CONFIG_INFO_H
+#endif  // SRC_CLIENT_CONFIG_INFO_H_

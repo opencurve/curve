@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_REQUEST_SCHEULER_H
-#define CURVE_CLIENT_REQUEST_SCHEULER_H
+#ifndef SRC_CLIENT_REQUEST_SCHEDULER_H_
+#define SRC_CLIENT_REQUEST_SCHEDULER_H_
 
 #include <list>
 
@@ -97,4 +97,4 @@ class RequestScheduler : public Uncopyable {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_CLIENT_REQUEST_SCHEULER_H
+#endif  // SRC_CLIENT_REQUEST_SCHEDULER_H_

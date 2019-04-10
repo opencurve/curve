@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_MOCK_META_CACHE_H
-#define CURVE_CLIENT_MOCK_META_CACHE_H
+#ifndef TEST_CLIENT_MOCK_META_CACHE_H_
+#define TEST_CLIENT_MOCK_META_CACHE_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -66,4 +66,4 @@ class MockMetaCache : public MetaCache {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_CLIENT_MOCK_META_CACHE_H
+#endif  // TEST_CLIENT_MOCK_META_CACHE_H_

@@ -6,8 +6,8 @@
  *          2018/12/23  Wenyu Zhou   Initial version
  */
 
-#ifndef TEST_CHUNKSERVER_HEARTBEAT_TEST_H
-#define TEST_CHUNKSERVER_HEARTBEAT_TEST_H
+#ifndef TEST_CHUNKSERVER_HEARTBEAT_TEST_H_
+#define TEST_CHUNKSERVER_HEARTBEAT_TEST_H_
 
 #include <braft/node_manager.h>
 #include <braft/node.h>                  // NodeImpl
@@ -29,4 +29,4 @@ int RemovePeersData(bool rmChunkServerMeta = false);
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // TEST_CHUNKSERVER_HEARTBEAT_TEST_H
+#endif  // TEST_CHUNKSERVER_HEARTBEAT_TEST_H_

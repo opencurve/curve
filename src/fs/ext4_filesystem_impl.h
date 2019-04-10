@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_FS_EXT4_FILESYSTEM_H
-#define CURVE_FS_EXT4_FILESYSTEM_H
+#ifndef SRC_FS_EXT4_FILESYSTEM_IMPL_H_
+#define SRC_FS_EXT4_FILESYSTEM_IMPL_H_
 
 #include <memory>
 #include <string>
@@ -56,4 +56,4 @@ class Ext4FileSystemImpl : public LocalFileSystem {
 }  // namespace fs
 }  // namespace curve
 
-#endif  // CURVE_FS_EXT4_FILESYSTEM_H
+#endif  // SRC_FS_EXT4_FILESYSTEM_IMPL_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVICE_H
-#define CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVICE_H
+#ifndef SRC_SNAPSHOT_SNAPSHOT_SERVICE_H_
+#define SRC_SNAPSHOT_SNAPSHOT_SERVICE_H_
 
 #include <brpc/server.h>
 #include <memory>
@@ -56,4 +56,4 @@ class SnapshotServiceImpl : public SnapshotService {
 }  // namespace snapshotserver
 }  // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVICE_H
+#endif  // SRC_SNAPSHOT_SNAPSHOT_SERVICE_H_

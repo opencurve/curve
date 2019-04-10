@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_HEARTBEAT_COPYSET_CONF_GENERATOR_H_
-#define CURVE_SRC_MDS_HEARTBEAT_COPYSET_CONF_GENERATOR_H_
+#ifndef SRC_MDS_HEARTBEAT_COPYSET_CONF_GENERATOR_H_
+#define SRC_MDS_HEARTBEAT_COPYSET_CONF_GENERATOR_H_
 
 #include <string>
 #include "src/mds/topology/topology.h"
@@ -90,4 +90,4 @@ class CopysetConfGenerator {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_HEARTBEAT_COPYSET_CONF_GENERATOR_H_
+#endif  // SRC_MDS_HEARTBEAT_COPYSET_CONF_GENERATOR_H_

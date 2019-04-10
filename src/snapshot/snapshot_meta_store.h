@@ -5,8 +5,8 @@
 > Copyright (c) 2018 netease
  ************************************************************************/
 
-#ifndef _SNAPSHOT_META_STORE_H
-#define _SNAPSHOT_META_STORE_H
+#ifndef SRC_SNAPSHOT_SNAPSHOT_META_STORE_H_
+#define SRC_SNAPSHOT_SNAPSHOT_META_STORE_H_
 
 #include <vector>
 #include <string>
@@ -246,4 +246,4 @@ class DBSnapshotMetaStore : public SnapshotMetaStore{
 };
 }  // namespace snapshotserver
 }  // namespace curve
-#endif
+#endif  // SRC_SNAPSHOT_SNAPSHOT_META_STORE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_CLI_H
-#define CURVE_CHUNKSERVER_CLI_H
+#ifndef SRC_CHUNKSERVER_CLI_H_
+#define SRC_CHUNKSERVER_CLI_H_
 
 #include <braft/cli.h>
 #include <braft/configuration.h>
@@ -51,4 +51,4 @@ butil::Status TransferLeader(const LogicPoolID &logicPoolId,
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_CLI_H
+#endif  // SRC_CHUNKSERVER_CLI_H_

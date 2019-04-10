@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
-#define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
+#ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
+#define SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
 
 #include <list>
 #include <string>
@@ -620,4 +620,4 @@ bool SplitPeerId(
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_
+#endif  // SRC_MDS_TOPOLOGY_TOPOLOGY_ITEM_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_MOCK_LOCAL_FILE_SYSTEM_H
-#define CURVE_MOCK_LOCAL_FILE_SYSTEM_H
+#ifndef TEST_CHUNKSERVER_MOCK_LOCAL_FILE_SYSTEM_H_
+#define TEST_CHUNKSERVER_MOCK_LOCAL_FILE_SYSTEM_H_
 
 #include <gmock/gmock.h>
 #include <gmock/gmock-generated-function-mockers.h>
@@ -47,4 +47,4 @@ class MockLocalFileSystem : public LocalFileSystem {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_MOCK_LOCAL_FILE_SYSTEM_H
+#endif  // TEST_CHUNKSERVER_MOCK_LOCAL_FILE_SYSTEM_H_

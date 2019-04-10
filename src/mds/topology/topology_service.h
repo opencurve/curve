@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
-#define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
+#ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
+#define SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
 
 
 #include <gflags/gflags.h>
@@ -152,4 +152,4 @@ class TopologyServiceImpl : public TopologyService {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
+#endif  // SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_

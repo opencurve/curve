@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_CLIENT_SERVICE_ADAPTOR_H
-#define CURVE_CLIENT_SERVICE_ADAPTOR_H
+#ifndef SRC_CLIENT_SERVICE_HELPER_H_
+#define SRC_CLIENT_SERVICE_HELPER_H_
 
 #include <brpc/channel.h>
 #include <brpc/controller.h>
@@ -57,4 +57,4 @@ class ServiceHelper {
 };
 }   // namespace client
 }   // namespace curve
-#endif  // ! CURVE_CLIENT_SERVICE_ADAPTOR_H
+#endif  // SRC_CLIENT_SERVICE_HELPER_H_

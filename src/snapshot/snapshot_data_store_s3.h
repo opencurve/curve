@@ -5,8 +5,8 @@
 > Copyright (c) 2018 netease
  ************************************************************************/
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_S3_H
-#define CURVE_SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_S3_H
+#ifndef SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_S3_H_
+#define SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_S3_H_
 
 #include <map>
 #include <vector>
@@ -66,4 +66,4 @@ class S3SnapshotDataStore : public SnapshotDataStore {
 }   // namespace snapshotserver
 }   // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_S3_H
+#endif  // SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_S3_H_

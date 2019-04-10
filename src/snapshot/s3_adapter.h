@@ -5,8 +5,8 @@
     > Copyright (c) 2018 netease
  ************************************************************************/
 
-#ifndef _NOS_ADAPTER_H
-#define _NOS_ADAPTER_H
+#ifndef SRC_SNAPSHOT_S3_ADAPTER_H_
+#define SRC_SNAPSHOT_S3_ADAPTER_H_
 #include <map>
 #include <string>
 #include <aws/core/Aws.h>   //NOLINT
@@ -166,4 +166,4 @@ class S3Adapter {
 };
 }  // namespace snapshotserver
 }  // namespace curve
-#endif
+#endif  // SRC_SNAPSHOT_S3_ADAPTER_H_

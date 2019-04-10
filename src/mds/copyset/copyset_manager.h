@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_COPYSET_COPYSET_MANAGER_H_
-#define CURVE_SRC_MDS_COPYSET_COPYSET_MANAGER_H_
+#ifndef SRC_MDS_COPYSET_COPYSET_MANAGER_H_
+#define SRC_MDS_COPYSET_COPYSET_MANAGER_H_
 
 
 #include <memory>
@@ -34,4 +34,4 @@ std::shared_ptr<CopysetPolicy> GetCopysetPolicy(uint32_t zoneNum,
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_COPYSET_COPYSET_MANAGER_H_
+#endif  // SRC_MDS_COPYSET_COPYSET_MANAGER_H_

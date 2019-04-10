@@ -6,8 +6,8 @@
  */
 
 
-#ifndef CURVE_SRC_MDS_SCHEDULE_OPERATOR_H_
-#define CURVE_SRC_MDS_SCHEDULE_OPERATOR_H_
+#ifndef SRC_MDS_SCHEDULE_OPERATOR_H_
+#define SRC_MDS_SCHEDULE_OPERATOR_H_
 
 #include <vector>
 #include <string>
@@ -71,4 +71,4 @@ class Operator {
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
-#endif   // CURVE_SRC_MDS_SCHEDULE_OPERATOR_H_
+#endif  // SRC_MDS_SCHEDULE_OPERATOR_H_

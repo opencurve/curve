@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef SRC_MDS_NAMESERVER2_ETCD_STORAGE_H_
-#define SRC_MDS_NAMESERVER2_ETCD_STORAGE_H_
+#ifndef SRC_MDS_NAMESERVER2_ETCD_CLIENT_H_
+#define SRC_MDS_NAMESERVER2_ETCD_CLIENT_H_
 
 #include <string>
 #include <vector>
@@ -133,6 +133,6 @@ class EtcdClientImp : public StorageClient {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // SRC_MDS_NAMESERVER2_ETCD_STORAGE_H_
+#endif  // SRC_MDS_NAMESERVER2_ETCD_CLIENT_H_
 
 
