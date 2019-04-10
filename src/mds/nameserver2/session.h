@@ -14,6 +14,7 @@
 #include <mutex>  //NOLINT
 #include <atomic>
 #include <thread> //NOLINT
+#include <condition_variable>
 #include "proto/nameserver2.pb.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/uuid.h"
@@ -52,12 +53,10 @@ class Session {
     inline std::string GenSessionId() {
          return common::UUIDGenerator().GenerateUUID();
     }
-    std::string GenToken();
 
     Session(const Session &);
 
     Session(const std::string& sessionid,
-                  const std::string& token,
                   const uint32_t leasetime,
                   const uint64_t createtime,
                   const uint32_t toleranceTime,
@@ -72,7 +71,6 @@ class Session {
 
     std::string GetClientIp();
     std::string GetSessionId();
-    std::string GetToken();
     uint64_t GetCreateTime();
     uint32_t GetLeaseTime();
     SessionStatus GetSessionStatus();
@@ -241,6 +239,12 @@ class SessionManager {
 
     // session的后台线程扫描频率，session manager初始化时设置
     uint32_t intevalTime_;
+
+    // 配合exitcv_进行后台线程周期性任务
+    std::mutex exitmtx_;
+
+    // 后台线程使用信号量进行周期性睡眠
+    std::condition_variable exitcv_;
 };
 }  // namespace mds
 }  // namespace curve

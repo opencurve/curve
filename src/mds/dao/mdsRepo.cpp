@@ -355,12 +355,11 @@ std::string CopySetRepoItem::getTable() const {
 
 // session
 SessionRepoItem::SessionRepoItem(std::string fileName, std::string sessionID,
-                         std::string token, uint32_t leaseTime,
+                         uint32_t leaseTime,
                          uint16_t sessionStatus, uint64_t createTime,
                          std::string clientIP) {
   this->fileName = fileName;
   this->sessionID = sessionID;
-  this->token = token;
   this->leaseTime = leaseTime;
   this->sessionStatus = sessionStatus;
   this->createTime = createTime;
@@ -372,16 +371,13 @@ SessionRepoItem::SessionRepoItem(std::string sessionID) {
 }
 
 bool SessionRepoItem::operator==(const SessionRepoItem &r) {
-  return sessionID == r.sessionID &&
-         token == r.token &&
-         fileName == r.fileName;
+  return sessionID == r.sessionID && fileName == r.fileName;
 }
 
 
 void SessionRepoItem::getKV(std::map<std::string, std::string> *kv) const {
   (*kv)["fileName"] = convertToSqlValue(fileName);
   (*kv)["sessionID"] = convertToSqlValue(sessionID);
-  (*kv)["token"] = convertToSqlValue(token);
   (*kv)["leaseTime"] = std::to_string(leaseTime);
   (*kv)["sessionStatus"] = std::to_string(sessionStatus);
   (*kv)["createTime"] = std::to_string(createTime);
@@ -785,7 +781,6 @@ int MdsRepo::LoadSessionRepoItems(std::vector<SessionRepoItem> *sessionList) {
         sessionList->push_back(
             SessionRepoItem(res->getString("fileName"),
                         res->getString("sessionID"),
-                        res->getString("token"),
                         res->getUInt("leaseTime"),
                         static_cast<uint8_t>(res->getUInt("sessionStatus")),
                         res->getUInt64("createTime"),
@@ -819,7 +814,6 @@ int MdsRepo::QuerySessionRepoItem(const std::string &sessionID,
     if (res->next()) {
         repo->fileName = res->getString("fileName");
         repo->sessionID = res->getString("sessionID");
-        repo->token = res->getString("token");
         repo->leaseTime = res->getUInt("leaseTime");
         repo->sessionStatus =
                         static_cast<uint8_t>(res->getUInt("sessionStatus"));

@@ -16,7 +16,14 @@
 
 namespace curve {
 namespace mds {
-// TODO(hzchenwei7): isPathValid先放这里，目前就这里用
+/**
+ *  @brief 判断一个路径是否是合法的，判断规则：
+ *         路径应该是从根目录开始的全路径，以"/"开始，各层目录以单个"/"进行分隔，
+ *         除根目录以外，所有的path不得以"/"结尾。
+ *  @param path 用来判断的路径，路径应该是从根目录开始的全路径
+ *  @return true表示合法，false表示不合法
+ */
+// isPathValid先放这里，目前就这里用
 bool isPathValid(std::string path);
 
 class NameSpaceService: public CurveFSService {

@@ -10,6 +10,7 @@
 #include <brpc/controller.h>
 #include <vector>
 #include <utility>
+#include <chrono>
 #include "src/common/timeutility.h"
 
 
@@ -23,11 +24,6 @@ bool Session::IsLeaseTimeOut() {
     uint64_t currentTime = ::curve::common::TimeUtility::GetTimeofDayUs();
     return currentTime > updateTime_ + protoSession_.leasetime()
                          + toleranceTime_;
-}
-
-std::string Session::GenToken() {
-    // TODO(hzchenwei7): 待实现，生成token
-    return "token";
 }
 
 Session::Session(const Session &a) {
@@ -46,14 +42,12 @@ Session& Session::operator = (const Session& a) {
 }
 
 Session::Session(const std::string& sessionid,
-                                const std::string& token,
                                 const uint32_t leasetime,
                                 const uint64_t createtime,
                                 const uint32_t toleranceTime,
                                 const SessionStatus status,
                                 const std::string& clientIP) {
     protoSession_.set_sessionid(sessionid);
-    protoSession_.set_token(token);
     protoSession_.set_leasetime(leasetime);
     protoSession_.set_createtime(createtime);
     protoSession_.set_sessionstatus(status);
@@ -67,7 +61,6 @@ Session::Session(uint32_t leaseTime,
                             const std::string& clientIP) {
     uint64_t createTime = ::curve::common::TimeUtility::GetTimeofDayUs();
     protoSession_.set_sessionid(GenSessionId());
-    protoSession_.set_token(GenToken());
     protoSession_.set_leasetime(leaseTime);
     protoSession_.set_createtime(createTime);
     protoSession_.set_sessionstatus(SessionStatus::kSessionOK);
@@ -91,10 +84,6 @@ std::string Session::GetClientIp() {
 
 std::string Session::GetSessionId() {
     return protoSession_.sessionid();
-}
-
-std::string Session::GetToken() {
-    return protoSession_.token();
 }
 
 uint64_t Session::GetCreateTime() {
@@ -265,8 +254,6 @@ StatusCode SessionManager::UpdateSession(const std::string &fileName,
             break;
         }
 
-        // TODO(hzchenwei7): 待实现，校验signature和token
-
         // 无论lease没有过期，只要身份校验通过，更新lease时间
         if (session->IsLeaseTimeOut()) {
             session->SetStatus(SessionStatus::kSessionOK);
@@ -358,12 +345,11 @@ StatusCode SessionManager::InsertNewSession(const std::string &fileName,
     Session session(leaseTime_, toleranceTime_, clientIP);
 
     std::string sessionId = session.GetSessionId();
-    std::string token = session.GetToken();
     uint64_t createTime = session.GetCreateTime();
     uint32_t leaseTime = session.GetLeaseTime();
 
     // 持久化
-    SessionRepoItem sessionRepo(fileName, sessionId, token, leaseTime,
+    SessionRepoItem sessionRepo(fileName, sessionId, leaseTime,
                             SessionStatus::kSessionOK,
                             createTime, clientIP);
     auto ret = repo_->InsertSessionRepoItem(sessionRepo);
@@ -484,7 +470,6 @@ bool SessionManager::LoadSession() {
         auto sessionMapIter = sessionMap_.find(repoIter->fileName);
         if (sessionMapIter == sessionMap_.end()) {
             Session session(repoIter->sessionID,
-                                    repoIter->token,
                                     repoIter->leaseTime,
                                     repoIter->createTime,
                                     toleranceTime_,
@@ -495,7 +480,6 @@ bool SessionManager::LoadSession() {
         } else if (sessionMapIter->second.GetCreateTime() >
                                                         repoIter->createTime) {
             Session session(repoIter->sessionID,
-                                    repoIter->token,
                                     repoIter->leaseTime,
                                     repoIter->createTime,
                                     toleranceTime_,
@@ -507,7 +491,6 @@ bool SessionManager::LoadSession() {
             deleteSessionList_.push_back(sessionMapIter->second);
             sessionMap_.erase(sessionMapIter);
             Session session(repoIter->sessionID,
-                                    repoIter->token,
                                     repoIter->leaseTime,
                                     repoIter->createTime,
                                     toleranceTime_,
@@ -547,7 +530,9 @@ void SessionManager::SessionScanFunc() {
         HandleDeleteSessionList();
 
         // 3、睡眠一段时间
-        usleep(intevalTime_);
+        std::unique_lock<std::mutex> lk(exitmtx_);
+        exitcv_.wait_for(lk, std::chrono::microseconds(intevalTime_),
+                         [&]()->bool{ return sessionScanStop_;});
     }
 
     // 退出之前，过期的session状态更新，需要删除的session都从数据库中删除
@@ -562,8 +547,9 @@ void SessionManager::Stop() {
     sessionScanStop_ = true;
     LOG(INFO) << "stop SessionManager, join thread.";
 
-    // TODO(hzchenwei7): 后续通过信号量快速唤醒处在睡眠过程中的线程，
-    // 以实现快速退出
+    // 通过信号量快速唤醒处在睡眠过程中的线程，以实现快速退出
+    exitcv_.notify_one();
+
     scanThread->join();
 
     // 退出之前，更新session在数据库的状态

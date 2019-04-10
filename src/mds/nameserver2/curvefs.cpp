@@ -871,8 +871,6 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
         return  ret;
     }
 
-    // TODO(hzchenwei7): 待实现，校验date有效性
-
     ret = sessionManager_->UpdateSession(fileName, sessionid,
                                             signature, clientIP);
     // 目前UpdateSession只有一种异常情况StatusCode::kSessionNotExist

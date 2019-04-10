@@ -84,7 +84,6 @@ typedef struct ChunkInfoDetail {
 
 typedef struct LeaseSession {
     std::string sessionID;
-    std::string token;
     uint32_t leaseTime;
     uint64_t createTime;
 } LeaseSession_t;

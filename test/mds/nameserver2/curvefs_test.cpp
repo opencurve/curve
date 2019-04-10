@@ -1732,7 +1732,7 @@ TEST_F(CurveFSTest, testOpenFile) {
                   StatusCode::kOK);
     }
 
-    SessionRepoItem sessionRepo("/file1", "sessionid", "token",
+    SessionRepoItem sessionRepo("/file1", "sessionid",
                     sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
@@ -1853,7 +1853,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
                   StatusCode::kOK);
     }
 
-    SessionRepoItem sessionRepo("/file1", "sessionid", "token",
+    SessionRepoItem sessionRepo("/file1", "sessionid",
                     sessionOptions_.leaseTime, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))

@@ -263,10 +263,9 @@ enum SessionStatus {
 
 message ProtoSession {
     required string sessionID  = 1;
-    required string token = 2;
-    required uint32 leaseTime = 3;
-    required uint64 createTime = 4;
-    required SessionStatus sessionStatus = 5;
+    required uint32 leaseTime = 2;
+    required uint64 createTime = 3;
+    required SessionStatus sessionStatus = 4;
     // other useful infos
 };
 
@@ -315,7 +314,7 @@ message ReFreshSessionRequest {
 
     required string     owner = 3;
     required uint64     date = 4; //current time
-    optional string     signature = 5; //caculete based on token
+    optional string     signature = 5;
 }
 
 // statusCode返回值，详见StatusCode定义:

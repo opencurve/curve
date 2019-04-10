@@ -111,7 +111,6 @@ TEST(ClientSession, LeaseTaskTest) {
     curve::mds::FileInfo * finfo = new curve::mds::FileInfo;
     ::curve::mds::ProtoSession* se = new ::curve::mds::ProtoSession;
     se->set_sessionid("1");
-    se->set_token("token");
     se->set_createtime(12345);
     se->set_leasetime(10000000);
     se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
