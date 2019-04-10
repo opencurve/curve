@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CONFIG_INFO_H
-#define CURVE_CONFIG_INFO_H
+#ifndef SRC_CHUNKSERVER_CONFIG_INFO_H_
+#define SRC_CHUNKSERVER_CONFIG_INFO_H_
 
 #include <string>
 
@@ -88,4 +88,4 @@ struct ChunkServiceOptions {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CONFIG_INFO_H
+#endif  // SRC_CHUNKSERVER_CONFIG_INFO_H_

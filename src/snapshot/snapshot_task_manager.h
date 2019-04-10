@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_TASK_MANAGER_H_
-#define CURVE_SRC_SNAPSHOT_SNAPSHOT_TASK_MANAGER_H_
+#ifndef SRC_SNAPSHOT_SNAPSHOT_TASK_MANAGER_H_
+#define SRC_SNAPSHOT_SNAPSHOT_TASK_MANAGER_H_
 
 #include <memory>
 #include <map>
@@ -148,4 +148,4 @@ class SnapshotTaskManager {
 }  // namespace snapshotserver
 }  // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOT_TASK_MANAGER_H_
+#endif  // SRC_SNAPSHOT_SNAPSHOT_TASK_MANAGER_H_

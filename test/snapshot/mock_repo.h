@@ -4,13 +4,14 @@
 > Created Time: Thu 27 Dec 2018 09:56:04 PM CST
 > Copyright (c) 2018 netease
  ************************************************************************/
+#ifndef TEST_SNAPSHOT_MOCK_REPO_H_
+#define TEST_SNAPSHOT_MOCK_REPO_H_
+
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "src/snapshot/dao/snapshotRepo.h"
 #include <string>  //NOLINT
 #include <vector>  //NOLINT
-#ifndef _MOCK_REPO_H
-#define _MOCK_REO_H
 
 using ::testing::Return;
 using ::testing::_;
@@ -53,4 +54,4 @@ class MockRepo : public SnapshotRepo {
 };
 }  // namespace snapshotserver
 }  // namespace curve
-#endif
+#endif  // TEST_SNAPSHOT_MOCK_REPO_H_

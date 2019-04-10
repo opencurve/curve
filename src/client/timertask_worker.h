@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_CLIENT_TIMERTASK_WROKER_H
-#define CURVE_CLIENT_TIMERTASK_WROKER_H
+#ifndef SRC_CLIENT_TIMERTASK_WORKER_H_
+#define SRC_CLIENT_TIMERTASK_WORKER_H_
 
 #include <functional>
 #include <thread>   // NOLINT
@@ -193,4 +193,4 @@ class TimerTaskWorker {
 }   // namespace client
 }   // namespace curve
 
-#endif  // !CURVE_CLIENT_TIMERTASK_WROKER_H
+#endif  // SRC_CLIENT_TIMERTASK_WORKER_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_COPYSET_COPYSET_POLICY_H_
-#define CURVE_SRC_MDS_COPYSET_COPYSET_POLICY_H_
+#ifndef SRC_MDS_COPYSET_COPYSET_POLICY_H_
+#define SRC_MDS_COPYSET_COPYSET_POLICY_H_
 
 
 #include <set>
@@ -221,4 +221,4 @@ class CopysetPermutationPolicyN33 : public CopysetPermutationPolicy {
 }  // namespace curve
 
 
-#endif  // CURVE_SRC_MDS_COPYSET_COPYSET_POLICY_H_
+#endif  // SRC_MDS_COPYSET_COPYSET_POLICY_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_REQUEST_H
-#define CURVE_CHUNKSERVER_REQUEST_H
+#ifndef SRC_CHUNKSERVER_OP_REQUEST_H_
+#define SRC_CHUNKSERVER_OP_REQUEST_H_
 
 #include <google/protobuf/message.h>
 #include <butil/iobuf.h>
@@ -251,4 +251,4 @@ class DeleteSnapshotRequest : public ChunkOpRequest {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_REQUEST_H
+#endif  // SRC_CHUNKSERVER_OP_REQUEST_H_

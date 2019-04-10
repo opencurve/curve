@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_LIBCURVE_REQUEST_CLOSURE_H
-#define CURVE_LIBCURVE_REQUEST_CLOSURE_H
+#ifndef SRC_CLIENT_REQUEST_CLOSURE_H_
+#define SRC_CLIENT_REQUEST_CLOSURE_H_
 
 // for Closure
 #include <google/protobuf/stubs/callback.h>
@@ -65,4 +65,4 @@ class RequestClosure : public ::google::protobuf::Closure {
 }   // namespace client
 }   // namespace curve
 
-#endif  // !CURVE_LIBCURVE_REQUEST_CLOSURE_H
+#endif  // SRC_CLIENT_REQUEST_CLOSURE_H_

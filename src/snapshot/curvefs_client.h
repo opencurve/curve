@@ -5,8 +5,8 @@
     > Copyright (c) 2018 netease
  ************************************************************************/
 
-#ifndef _CURVEFS_CLIENT_H
-#define _CURVEFS_CLIENT_H
+#ifndef SRC_SNAPSHOT_CURVEFS_CLIENT_H_
+#define SRC_SNAPSHOT_CURVEFS_CLIENT_H_
 
 
 #include<string>
@@ -204,4 +204,4 @@ class CurveFsClientImpl : public CurveFsClient {
 
 }  // namespace snapshotserver
 }  // namespace curve
-#endif
+#endif  // SRC_SNAPSHOT_CURVEFS_CLIENT_H_

@@ -8,8 +8,8 @@
 #include <gmock/gmock.h>
 #include <string>
 #include "src/snapshot/s3_adapter.h"
-#ifndef _MOCK_S3_ADAPTER_H
-#define _MOCK_S3_ADAPTER_H
+#ifndef TEST_SNAPSHOT_MOCK_S3_ADAPTER_H_
+#define TEST_SNAPSHOT_MOCK_S3_ADAPTER_H_
 
 using ::testing::Return;
 namespace curve {
@@ -54,4 +54,4 @@ class MockS3Adapter : public S3Adapter {
 };
 }  // namespace snapshotserver
 }  // namespace curve
-#endif
+#endif  // TEST_SNAPSHOT_MOCK_S3_ADAPTER_H_

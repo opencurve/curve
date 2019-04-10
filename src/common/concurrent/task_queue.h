@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_COMMON_TASK_QUEUE_H
-#define CURVE_COMMON_TASK_QUEUE_H
+#ifndef SRC_COMMON_CONCURRENT_TASK_QUEUE_H_
+#define SRC_COMMON_CONCURRENT_TASK_QUEUE_H_
 
 #include <future>       // NOLINT
 #include <queue>        // NOLINT
@@ -52,4 +52,4 @@ class TaskQueue {
 
 }   // namespace common
 }   // namespace curve
-#endif  // !CURVE_COMMON_TASK_QUEUE_H
+#endif  // SRC_COMMON_CONCURRENT_TASK_QUEUE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
-#define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
+#ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
+#define SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
 
 #include <vector>
 #include <memory>
@@ -64,4 +64,4 @@ class TopologyAdminImpl : public TopologyAdmin {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
+#endif  // SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_

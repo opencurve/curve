@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVER_H
-#define CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVER_H
+#ifndef SRC_SNAPSHOT_SNAPSHOT_SERVER_H_
+#define SRC_SNAPSHOT_SNAPSHOT_SERVER_H_
 
 
 
@@ -76,4 +76,4 @@ class SnapshotServer {
 }  // namespace snapshotserver
 }  // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVER_H
+#endif  // SRC_SNAPSHOT_SNAPSHOT_SERVER_H_

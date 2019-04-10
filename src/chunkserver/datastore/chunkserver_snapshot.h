@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVEFS_CHUNKSERVER_CHUNKSERVER_SNAPSHOT_H
-#define CURVEFS_CHUNKSERVER_CHUNKSERVER_SNAPSHOT_H
+#ifndef SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_SNAPSHOT_H_
+#define SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_SNAPSHOT_H_
 
 #include <glog/logging.h>
 #include <string>
@@ -184,4 +184,4 @@ class CSSnapshot {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVEFS_CHUNKSERVER_CHUNKSERVER_SNAPSHOT_H
+#endif  // SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_SNAPSHOT_H_

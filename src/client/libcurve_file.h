@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_LIBCURVE_FILE_H
-#define CURVE_LIBCURVE_FILE_H
+#ifndef SRC_CLIENT_LIBCURVE_FILE_H_
+#define SRC_CLIENT_LIBCURVE_FILE_H_
 
 #include <unistd.h>
 #include <string>
@@ -111,4 +111,4 @@ class FileClient {
 };
 }   // namespace client
 }   // namespace curve
-#endif  // !CURVE_LIBCURVE_H
+#endif  // SRC_CLIENT_LIBCURVE_FILE_H_

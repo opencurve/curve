@@ -15,8 +15,8 @@
 //
 // Simple hash function used for internal data structures
 
-#ifndef CURVE_COMMON_HASH_H_
-#define CURVE_COMMON_HASH_H_
+#ifndef SRC_COMMON_HASH_H_
+#define SRC_COMMON_HASH_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -65,4 +65,4 @@ uint32_t Hash(const char* data, size_t n, uint32_t seed) {
 }  // namespace common
 }  // namespace curve
 
-#endif  // CURVE_COMMON_HASH_H_
+#endif  // SRC_COMMON_HASH_H_

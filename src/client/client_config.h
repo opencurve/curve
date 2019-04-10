@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_CLIENT_CONFIG_H
-#define CURVE_CLIENT_CONFIG_H
+#ifndef SRC_CLIENT_CLIENT_CONFIG_H_
+#define SRC_CLIENT_CLIENT_CONFIG_H_
 
 #include <glog/logging.h>
 #include <string>
@@ -28,4 +28,4 @@ class ClientConfig {
 }   // namespace client
 }   // namespace curve
 
-#endif  // !CURVE_CLIENT_CONFIG_H
+#endif  // SRC_CLIENT_CLIENT_CONFIG_H_

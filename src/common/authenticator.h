@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c)￼ 2018 netease
  */
-#ifndef CURVE_COMMON_AUTHENTICATOR_H
-#define CURVE_COMMON_AUTHENTICATOR_H
+#ifndef SRC_COMMON_AUTHENTICATOR_H_
+#define SRC_COMMON_AUTHENTICATOR_H_
 
 #include <openssl/hmac.h>
 #include <openssl/x509.h>
@@ -53,4 +53,4 @@ class Authenticator {
 }   // namespace common
 }   // namespace curve
 
-#endif
+#endif  // SRC_COMMON_AUTHENTICATOR_H_

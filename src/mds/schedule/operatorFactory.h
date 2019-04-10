@@ -11,8 +11,8 @@
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/schedule/operatorStep.h"
 
-#ifndef CURVE_SRC_MDS_SCHEDULE_OPERATOR_FACTORY_H_
-#define CURVE_SRC_MDS_SCHEDULE_OPERATOR_FACTORY_H_
+#ifndef SRC_MDS_SCHEDULE_OPERATORFACTORY_H_
+#define SRC_MDS_SCHEDULE_OPERATORFACTORY_H_
 namespace curve {
 namespace mds {
 namespace schedule {
@@ -44,4 +44,4 @@ extern OperatorFactory operatorFactory;
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
-#endif  // CURVE_SRC_MDS_SCHEDULE_OPERATOR_FACTORY_H_
+#endif  // SRC_MDS_SCHEDULE_OPERATORFACTORY_H_

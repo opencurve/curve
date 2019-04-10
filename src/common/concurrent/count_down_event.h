@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_COUNT_DOWN_EVENT_H
-#define CURVE_COUNT_DOWN_EVENT_H
+#ifndef SRC_COMMON_CONCURRENT_COUNT_DOWN_EVENT_H_
+#define SRC_COMMON_CONCURRENT_COUNT_DOWN_EVENT_H_
 
 #include <mutex>                //NOLINT
 #include <condition_variable>   //NOLINT
@@ -104,4 +104,4 @@ class CountDownEvent {
 }  // namespace common
 }  // namespace curve
 
-#endif  // CURVE_COUNT_DOWN_EVENT_H
+#endif  // SRC_COMMON_CONCURRENT_COUNT_DOWN_EVENT_H_

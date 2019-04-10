@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c)￼ 2018 netease
  */
-#ifndef CURVE_CHUNKSERVER_CHUNKFILEPOOL_HELPER
-#define CURVE_CHUNKSERVER_CHUNKFILEPOOL_HELPER
+#ifndef TEST_CHUNKSERVER_DATASTORE_CHUNKFILEPOOL_HELPER_H_
+#define TEST_CHUNKSERVER_DATASTORE_CHUNKFILEPOOL_HELPER_H_
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -21,4 +21,4 @@ using curve::fs::LocalFsFactory;
 
 void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr, uint32_t num);
 
-#endif  // !CURVE_CHUNKSERVER_CHUNKFILEPOOL_HELPER
+#endif  // TEST_CHUNKSERVER_DATASTORE_CHUNKFILEPOOL_HELPER_H_

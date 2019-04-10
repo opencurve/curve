@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_IOMANAGER_H
-#define CURVE_IOMANAGER_H
+#ifndef SRC_CLIENT_IOMANAGER_H_
+#define SRC_CLIENT_IOMANAGER_H_
 
 #include "src/client/io_tracker.h"
 
@@ -22,4 +22,4 @@ class IOManager {
 }   // namespace client
 }   // namespace curve
 
-#endif  // !CURVE_IOMANAGER_H
+#endif  // SRC_CLIENT_IOMANAGER_H_

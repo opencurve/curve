@@ -6,8 +6,8 @@
  */
 
 
-#ifndef CURVE_SRC_MDS_SCHEDULE_COORDINATOR_H_
-#define CURVE_SRC_MDS_SCHEDULE_COORDINATOR_H_
+#ifndef SRC_MDS_SCHEDULE_COORDINATOR_H_
+#define SRC_MDS_SCHEDULE_COORDINATOR_H_
 
 #include <vector>
 #include <map>
@@ -153,4 +153,4 @@ class Coordinator {
 }  // namespace mds
 }  // namespace curve
 
-#endif   // CURVE_SRC_MDS_SCHEDULE_COORDINATOR_H_
+#endif  // SRC_MDS_SCHEDULE_COORDINATOR_H_

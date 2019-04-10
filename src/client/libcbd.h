@@ -6,8 +6,8 @@
  *          2018/10/10  Wenyu Zhou   Initial version
  */
 
-#ifndef __LIBCBD_H__
-#define __LIBCBD_H__
+#ifndef SRC_CLIENT_LIBCBD_H_
+#define SRC_CLIENT_LIBCBD_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,4 +94,4 @@ int64_t cbd_libcurve_filesize(const char* filename);
 }  // extern "C"
 #endif
 
-#endif  // __LIBCBD_H__
+#endif  // SRC_CLIENT_LIBCBD_H_

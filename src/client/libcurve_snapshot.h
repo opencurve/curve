@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_LIBCURVE_CHUNK_H
-#define CURVE_LIBCURVE_CHUNK_H
+#ifndef SRC_CLIENT_LIBCURVE_SNAPSHOT_H_
+#define SRC_CLIENT_LIBCURVE_SNAPSHOT_H_
 
 #include <unistd.h>
 #include <string>
@@ -272,4 +272,4 @@ class SnapshotClient {
 };
 }   // namespace client
 }   // namespace curve
-#endif  // !CURVE_LIBCURVE_H
+#endif  // SRC_CLIENT_LIBCURVE_SNAPSHOT_H_

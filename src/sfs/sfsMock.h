@@ -5,12 +5,12 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_SFS_MOCK_H
-#define CURVE_SFS_MOCK_H
+#ifndef SRC_SFS_SFSMOCK_H_
+#define SRC_SFS_SFSMOCK_H_
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE             /* See feature_test_macros(7) */
-#endif  // !1
+#endif  // SRC_SFS_SFSMOCK_H_  // !1
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -80,4 +80,4 @@ class LocalFsFactory {
 }  // namespace sfs
 }  // namespace curve
 
-#endif
+#endif  // SRC_SFS_SFSMOCK_H_

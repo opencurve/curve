@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_CHUNK_REQUEST_SENDER_H
-#define CURVE_CLIENT_CHUNK_REQUEST_SENDER_H
+#ifndef SRC_CLIENT_REQUEST_SENDER_H_
+#define SRC_CLIENT_REQUEST_SENDER_H_
 
 #include <brpc/channel.h>
 #include <butil/endpoint.h>
@@ -168,4 +168,4 @@ class RequestSender {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_CLIENT_CHUNK_REQUEST_SENDER_H
+#endif  // SRC_CLIENT_REQUEST_SENDER_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_MOCK_CHUNKSERVICE_H
-#define CURVE_CLIENT_MOCK_CHUNKSERVICE_H
+#ifndef TEST_CLIENT_MOCK_CHUNKSERVICE_H_
+#define TEST_CLIENT_MOCK_CHUNKSERVICE_H_
 
 #include <brpc/controller.h>
 #include <brpc/server.h>
@@ -175,4 +175,4 @@ class MockChunkServiceImpl : public ChunkService {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_CLIENT_MOCK_CHUNKSERVICE_H
+#endif  // TEST_CLIENT_MOCK_CHUNKSERVICE_H_

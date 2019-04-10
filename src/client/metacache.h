@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c) 2018 NetEase
  */
-#ifndef CURVE_LIBCURVE_METACACHE_H
-#define CURVE_LIBCURVE_METACACHE_H
+#ifndef SRC_CLIENT_METACACHE_H_
+#define SRC_CLIENT_METACACHE_H_
 
 #include <string>
 #include <list>
@@ -181,4 +181,4 @@ class MetaCache {
 
 }   // namespace client
 }   // namespace curve
-#endif   // !CURVE_LIBCURVE_METACACHE_H
+#endif  // SRC_CLIENT_METACACHE_H_

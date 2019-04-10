@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_DEFINE_H_
-#define CURVE_SRC_SNAPSHOT_SNAPSHOT_DEFINE_H_
+#ifndef SRC_SNAPSHOT_SNAPSHOT_DEFINE_H_
+#define SRC_SNAPSHOT_SNAPSHOT_DEFINE_H_
 
 #include <string>
 
@@ -48,4 +48,4 @@ const int kErrCodeCannotCancelFinished = -11;
 }  // namespace snapshotserver
 }  // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOT_DEFINE_H_
+#endif  // SRC_SNAPSHOT_SNAPSHOT_DEFINE_H_

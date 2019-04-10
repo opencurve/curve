@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c) 2018 NetEase
  */
-#ifndef CURVE_LIBCURVE_SESSION_H
-#define CURVE_LIBCURVE_SESSION_H
+#ifndef SRC_CLIENT_FILE_INSTANCE_H_
+#define SRC_CLIENT_FILE_INSTANCE_H_
 
 #include <brpc/channel.h>
 #include <brpc/controller.h>
@@ -111,4 +111,4 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 };
 }   // namespace client
 }   // namespace curve
-#endif   // !CURVE_LIBCURVE_SESSION_H
+#endif  // SRC_CLIENT_FILE_INSTANCE_H_

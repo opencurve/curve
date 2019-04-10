@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_COPYSET_SERVICE_H
-#define CURVE_CHUNKSERVER_COPYSET_SERVICE_H
+#ifndef SRC_CHUNKSERVER_COPYSET_SERVICE_H_
+#define SRC_CHUNKSERVER_COPYSET_SERVICE_H_
 
 #include "proto/copyset.pb.h"
 
@@ -43,4 +43,4 @@ class CopysetServiceImpl : public CopysetService {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_COPYSET_SERVICE_H
+#endif  // SRC_CHUNKSERVER_COPYSET_SERVICE_H_

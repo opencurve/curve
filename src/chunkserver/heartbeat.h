@@ -6,8 +6,8 @@
  *          2018/12/20  Wenyu Zhou   Initial version
  */
 
-#ifndef SRC_CHUNKSERVER_HEARTBEAT_H
-#define SRC_CHUNKSERVER_HEARTBEAT_H
+#ifndef SRC_CHUNKSERVER_HEARTBEAT_H_
+#define SRC_CHUNKSERVER_HEARTBEAT_H_
 
 #include <braft/node_manager.h>
 #include <braft/node.h>                  // NodeImpl
@@ -473,5 +473,5 @@ class Heartbeat {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // SRC_CHUNKSERVER_HEARTBEAT_H
+#endif  // SRC_CHUNKSERVER_HEARTBEAT_H_
 

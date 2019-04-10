@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_FS_LOCAL_FILESYSTEM_H
-#define CURVE_FS_LOCAL_FILESYSTEM_H
+#ifndef SRC_FS_LOCAL_FILESYSTEM_H_
+#define SRC_FS_LOCAL_FILESYSTEM_H_
 
 #include <inttypes.h>
 #include <assert.h>
@@ -184,5 +184,5 @@ class LocalFsFactory {
 
 }  // namespace fs
 }  // namespace curve
-#endif  // CURVE_FS_LOCAL_FILESYSTEM_H
+#endif  // SRC_FS_LOCAL_FILESYSTEM_H_
 

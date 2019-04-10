@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_CHUNK_REQUEST_SENDER_MANAGER_H
-#define CURVE_CLIENT_CHUNK_REQUEST_SENDER_MANAGER_H
+#ifndef SRC_CLIENT_REQUEST_SENDER_MANAGER_H_
+#define SRC_CLIENT_REQUEST_SENDER_MANAGER_H_
 
 #include <mutex>    //NOLINT
 #include <unordered_map>
@@ -52,4 +52,4 @@ class RequestSenderManager : public Uncopyable {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_CLIENT_CHUNK_REQUEST_SENDER_MANAGER_H
+#endif  // SRC_CLIENT_REQUEST_SENDER_MANAGER_H_

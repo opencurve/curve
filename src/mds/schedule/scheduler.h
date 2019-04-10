@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_SCHEDULE_SCHEDULER_H_
-#define CURVE_SRC_MDS_SCHEDULE_SCHEDULER_H_
+#ifndef SRC_MDS_SCHEDULE_SCHEDULER_H_
+#define SRC_MDS_SCHEDULE_SCHEDULER_H_
 
 #include <string>
 #include <vector>
@@ -241,4 +241,4 @@ class ReplicaScheduler : public Scheduler {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_SCHEDULE_SCHEDULER_H_
+#endif  // SRC_MDS_SCHEDULE_SCHEDULER_H_

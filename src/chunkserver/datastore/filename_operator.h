@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_FILENAME_OPERATOR_H
-#define CURVE_CHUNKSERVER_FILENAME_OPERATOR_H
+#ifndef SRC_CHUNKSERVER_DATASTORE_FILENAME_OPERATOR_H_
+#define SRC_CHUNKSERVER_DATASTORE_FILENAME_OPERATOR_H_
 
 #include <string>
 #include <vector>
@@ -72,4 +72,4 @@ class FileNameOperator {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_FILENAME_OPERATOR_H
+#endif  // SRC_CHUNKSERVER_DATASTORE_FILENAME_OPERATOR_H_

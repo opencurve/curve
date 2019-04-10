@@ -5,8 +5,8 @@
  * Copyright (c) 2018 NetEase
  */
 
-#ifndef CURVE_CHUNKSERVER_CHUNKSERVER_DATASTORE_H
-#define CURVE_CHUNKSERVER_CHUNKSERVER_DATASTORE_H
+#ifndef SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_DATASTORE_H_
+#define SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_DATASTORE_H_
 
 #include <glog/logging.h>
 #include <string>
@@ -176,4 +176,4 @@ class CSDataStore {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // !CURVE_CHUNKSERVER_CHUNKSERVER_DATASTORE_H
+#endif  // SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_DATASTORE_H_

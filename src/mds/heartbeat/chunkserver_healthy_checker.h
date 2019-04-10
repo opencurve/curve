@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_MDS_HEARTBEAT_CHUNKSERVER_HEALTHY_CHECKER_H_
-#define CURVE_SRC_MDS_HEARTBEAT_CHUNKSERVER_HEALTHY_CHECKER_H_
+#ifndef SRC_MDS_HEARTBEAT_CHUNKSERVER_HEALTHY_CHECKER_H_
+#define SRC_MDS_HEARTBEAT_CHUNKSERVER_HEALTHY_CHECKER_H_
 
 #include <chrono> //NOLINT
 #include <memory>
@@ -106,5 +106,5 @@ class ChunkserverHealthyChecker {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // CURVE_SRC_MDS_HEARTBEAT_CHUNKSERVER_HEALTHY_CHECKER_H_
+#endif  // SRC_MDS_HEARTBEAT_CHUNKSERVER_HEALTHY_CHECKER_H_
 

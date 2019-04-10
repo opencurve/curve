@@ -5,8 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
-#ifndef CURVE_IOCONTEXT_MANAGER4CHUNK_H
-#define CURVE_IOCONTEXT_MANAGER4CHUNK_H
+#ifndef SRC_CLIENT_IOMANAGER4CHUNK_H_
+#define SRC_CLIENT_IOMANAGER4CHUNK_H_
 
 #include <atomic>
 #include <mutex>    // NOLINT
@@ -126,4 +126,4 @@ class IOManager4Chunk : public IOManager {
 
 }   // namespace client
 }   // namespace curve
-#endif  // !CURVE_IOCONTEXT_MANAGER_H
+#endif  // SRC_CLIENT_IOMANAGER4CHUNK_H_

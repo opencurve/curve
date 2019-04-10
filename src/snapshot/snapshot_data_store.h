@@ -5,8 +5,8 @@
 > Copyright (c) 2018 netease
  ************************************************************************/
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_H
-#define CURVE_SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_H
+#ifndef SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_H_
+#define SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_H_
 
 #include <glog/logging.h>
 
@@ -316,4 +316,4 @@ class SnapshotDataStore {
 }   // namespace snapshotserver
 }   // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_H
+#endif  // SRC_SNAPSHOT_SNAPSHOT_DATA_STORE_H_

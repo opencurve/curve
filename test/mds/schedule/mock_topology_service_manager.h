@@ -6,8 +6,8 @@
  */
 
 
-#ifndef CURVE_TEST_MOCK_TOPOLOGY_SERVICE_MANAGER_H
-#define CURVE_TEST_MOCK_TOPOLOGY_SERVICE_MANAGER_H
+#ifndef TEST_MDS_SCHEDULE_MOCK_TOPOLOGY_SERVICE_MANAGER_H_
+#define TEST_MDS_SCHEDULE_MOCK_TOPOLOGY_SERVICE_MANAGER_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -37,5 +37,5 @@ class MockTopologyServiceManager : public TopologyServiceManager {
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
-#endif  // CURVE_TEST_MOCK_TOPOLOGY_SERVICE_MANAGER_H
+#endif  // TEST_MDS_SCHEDULE_MOCK_TOPOLOGY_SERVICE_MANAGER_H_
 

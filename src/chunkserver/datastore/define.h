@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_DATASTORE_DEFINE_H
-#define CURVE_CHUNKSERVER_DATASTORE_DEFINE_H
+#ifndef SRC_CHUNKSERVER_DATASTORE_DEFINE_H_
+#define SRC_CHUNKSERVER_DATASTORE_DEFINE_H_
 
 namespace curve {
 namespace chunkserver {
@@ -40,4 +40,4 @@ enum CSErrorCode {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_DATASTORE_DEFINE_H
+#endif  // SRC_CHUNKSERVER_DATASTORE_DEFINE_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_THREAD_POOL_H
-#define CURVE_CLIENT_THREAD_POOL_H
+#ifndef SRC_COMMON_CONCURRENT_THREAD_POOL_H_
+#define SRC_COMMON_CONCURRENT_THREAD_POOL_H_
 
 #include <functional>
 #include <thread>   //NOLINT
@@ -39,4 +39,4 @@ class ThreadPool : public Uncopyable {
 }  // namespace common
 }  // namespace curve
 
-#endif  // CURVE_CLIENT_THREAD_POOL_H
+#endif  // SRC_COMMON_CONCURRENT_THREAD_POOL_H_

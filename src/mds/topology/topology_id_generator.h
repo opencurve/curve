@@ -4,8 +4,8 @@
  * Author: xuchaojie
  * Copyright (c) 2018 netease
  */
-#ifndef CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ID_GENERATOR_H_
-#define CURVE_SRC_MDS_TOPOLOGY_TOPOLOGY_ID_GENERATOR_H_
+#ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_ID_GENERATOR_H_
+#define SRC_MDS_TOPOLOGY_TOPOLOGY_ID_GENERATOR_H_
 
 #include <cstdint>
 #include <list>
@@ -94,4 +94,4 @@ class DefaultIdGenerator : public TopologyIdGenerator {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // TOPOLOGY_TOPOLOGY_ID_GENERATOR_H_
+#endif  // SRC_MDS_TOPOLOGY_TOPOLOGY_ID_GENERATOR_H_

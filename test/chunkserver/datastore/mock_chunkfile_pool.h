@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_CHUNKSERVER_MOCK_CHUNKFILE_POOL_H
-#define TEST_CHUNKSERVER_MOCK_CHUNKFILE_POOL_H
+#ifndef TEST_CHUNKSERVER_DATASTORE_MOCK_CHUNKFILE_POOL_H_
+#define TEST_CHUNKSERVER_DATASTORE_MOCK_CHUNKFILE_POOL_H_
 
 #include <gmock/gmock.h>
 #include <string>
@@ -31,4 +31,4 @@ class MockChunkfilePool : public ChunkfilePool {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // TEST_CHUNKSERVER_MOCK_CHUNKFILE_POOL_H
+#endif  // TEST_CHUNKSERVER_DATASTORE_MOCK_CHUNKFILE_POOL_H_

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CONF_EPOCH_FILE_H
-#define CURVE_CONF_EPOCH_FILE_H
+#ifndef SRC_CHUNKSERVER_CONF_EPOCH_FILE_H_
+#define SRC_CHUNKSERVER_CONF_EPOCH_FILE_H_
 
 #include <string>
 
@@ -66,4 +66,4 @@ class ConfEpochFile {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CONF_EPOCH_FILE_H
+#endif  // SRC_CHUNKSERVER_CONF_EPOCH_FILE_H_

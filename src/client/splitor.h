@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c) 2018 NetEase
  */
-#ifndef CURVE_LIBCURVE_SPLITOR_H
-#define CURVE_LIBCURVE_SPLITOR_H
+#ifndef SRC_CLIENT_SPLITOR_H_
+#define SRC_CLIENT_SPLITOR_H_
 
 #include <list>
 
@@ -90,4 +90,4 @@ class Splitor {
 };
 }   // namespace client
 }   // namespace curve
-#endif
+#endif  // SRC_CLIENT_SPLITOR_H_

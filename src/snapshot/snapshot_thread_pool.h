@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_THREAD_POOL_H_
-#define CURVE_SRC_SNAPSHOT_SNAPSHOT_THREAD_POOL_H_
+#ifndef SRC_SNAPSHOT_SNAPSHOT_THREAD_POOL_H_
+#define SRC_SNAPSHOT_SNAPSHOT_THREAD_POOL_H_
 
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/snapshot/snapshot_task.h"
@@ -59,4 +59,4 @@ class SnapshotThreadPool {
 }  // namespace snapshotserver
 }  // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOT_THREAD_POOL_H_
+#endif  // SRC_SNAPSHOT_SNAPSHOT_THREAD_POOL_H_

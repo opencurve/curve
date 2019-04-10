@@ -4,8 +4,8 @@
  * Author: tongguangxun
  * Copyright (c) 2018 NetEase
  */
-#ifndef CURVE_LIBCURVE_IOSPLIT_CONTEXT_H
-#define CURVE_LIBCURVE_IOSPLIT_CONTEXT_H
+#ifndef SRC_CLIENT_IO_TRACKER_H_
+#define SRC_CLIENT_IO_TRACKER_H_
 
 #include <set>
 #include <list>
@@ -210,4 +210,4 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
 };
 }   // namespace client
 }   // namespace curve
-#endif  // !CURVE_LIBCURVE_IOSPLIT_CONTEXT_H
+#endif  // SRC_CLIENT_IO_TRACKER_H_

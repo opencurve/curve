@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVICE_MANAGER_H_
-#define CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVICE_MANAGER_H_
+#ifndef SRC_SNAPSHOT_SNAPSHOT_SERVICE_MANAGER_H_
+#define SRC_SNAPSHOT_SNAPSHOT_SERVICE_MANAGER_H_
 
 #include <memory>
 #include <string>
@@ -165,4 +165,4 @@ class SnapshotServiceManager {
 }  // namespace snapshotserver
 }  // namespace curve
 
-#endif  // CURVE_SRC_SNAPSHOT_SNAPSHOT_SERVICE_MANAGER_H_
+#endif  // SRC_SNAPSHOT_SNAPSHOT_SERVICE_MANAGER_H_

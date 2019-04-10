@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_TEST_MDS_HEARTBEAT_COMMON_H
-#define CURVE_TEST_MDS_HEARTBEAT_COMMON_H
+#ifndef TEST_MDS_HEARTBEAT_COMMON_H_
+#define TEST_MDS_HEARTBEAT_COMMON_H_
 
 #include "proto/heartbeat.pb.h"
 
@@ -17,6 +17,6 @@ ChunkServerHeartbeatRequest GetChunkServerHeartbeatRequestForTest();
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve
-#endif  // CURVE_TEST_MDS_HEARTBEAT_COMMON_H
+#endif  // TEST_MDS_HEARTBEAT_COMMON_H_
 
 

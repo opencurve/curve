@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_COPYSET_NODE_H
-#define CURVE_CHUNKSERVER_COPYSET_NODE_H
+#ifndef SRC_CHUNKSERVER_COPYSET_NODE_H_
+#define SRC_CHUNKSERVER_COPYSET_NODE_H_
 
 #include <butil/memory/ref_counted.h>
 
@@ -283,4 +283,4 @@ class CopysetNode : public braft::StateMachine,
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_COPYSET_NODE_H
+#endif  // SRC_CHUNKSERVER_COPYSET_NODE_H_

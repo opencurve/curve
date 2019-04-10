@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CLIENT_CHUNK_CLOSURE_H
-#define CURVE_CLIENT_CHUNK_CLOSURE_H
+#ifndef SRC_CLIENT_CHUNK_CLOSURE_H_
+#define SRC_CLIENT_CHUNK_CLOSURE_H_
 
 #include <google/protobuf/stubs/callback.h>
 #include <brpc/controller.h>
@@ -185,4 +185,4 @@ class RecoverChunkClosure : public ClientClosure {
 }   // namespace client
 }   // namespace curve
 
-#endif  // CURVE_CLIENT_CHUNK_CLOSURE_H
+#endif  // SRC_CLIENT_CHUNK_CLOSURE_H_

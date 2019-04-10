@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef CURVE_CHUNKSERVER_CHUNK_CLOSURE_H
-#define CURVE_CHUNKSERVER_CHUNK_CLOSURE_H
+#ifndef SRC_CHUNKSERVER_CHUNK_CLOSURE_H_
+#define SRC_CHUNKSERVER_CHUNK_CLOSURE_H_
 
 #include <brpc/closure_guard.h>
 
@@ -39,4 +39,4 @@ class ChunkClosure : public braft::Closure {
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // CURVE_CHUNKSERVER_CHUNK_CLOSURE_H
+#endif  // SRC_CHUNKSERVER_CHUNK_CLOSURE_H_
