@@ -302,48 +302,48 @@ class CurveFS {
                             FileStatus fileStatus);
     /**
      *  @brief 检查的文件owner
-     *  @param: date是用于计算signature的时间
      *  @param: filename：文件名
      *  @param: owner：文件的拥有者
      *  @param: signature是用户侧传过来的签名信息
+     *  @param: date是用于计算signature的时间
      *  @return 是否成功，成功返回StatusCode::kOK
      *          验证失败返回StatusCode::kOwnerAuthFail
      *          其他失败
      */
-    StatusCode CheckFileOwner(uint64_t date,
-                              const std::string &filename,
+    StatusCode CheckFileOwner(const std::string &filename,
                               const std::string &owner,
-                              const std::string &signature);
+                              const std::string &signature,
+                              uint64_t date);
 
     /**
      *  @brief 检查的文件各级目录的owner
-     *  @param: date是用于计算signature的时间
      *  @param: filename：文件名
      *  @param: owner：文件的拥有者
      *  @param: signature是用户侧传过来的签名信息
+     *  @param: date是用于计算signature的时间
      *  @return 是否成功，成功返回StatusCode::kOK
      *          验证失败返回StatusCode::kOwnerAuthFail
      *          其他失败，kFileNotExists，kStorageError，kNotDirectory
      */
-    StatusCode CheckPathOwner(uint64_t date,
-                              const std::string &filename,
+    StatusCode CheckPathOwner(const std::string &filename,
                               const std::string &owner,
-                              const std::string &signature);
+                              const std::string &signature,
+                              uint64_t date);
 
     /**
      *  @brief 检查的RenameNewfile文件各级目录的owner
-     *  @param: date是用于计算signature的时间
      *  @param: filename：文件名
      *  @param: owner：文件的拥有者
      *  @param: signature是用户侧传过来的签名信息
+     *  @param: date是用于计算signature的时间
      *  @return 是否成功，成功返回StatusCode::kOK
      *          验证失败返回StatusCode::kOwnerAuthFail
      *          其他失败，kFileNotExists，kStorageError，kNotDirectory
      */
-    StatusCode CheckDestinationOwner(uint64_t date,
-                              const std::string &filename,
+    StatusCode CheckDestinationOwner(const std::string &filename,
                               const std::string &owner,
-                              const std::string &signature);
+                              const std::string &signature,
+                              uint64_t date);
 
  private:
     CurveFS() = default;
@@ -380,14 +380,14 @@ class CurveFS {
     bool CheckDate(uint64_t date);
     /**
      *  @brief 检查请求的signature是否合法
-     *  @param: date是用于计算signature的时间
      *  @param: owner：文件的拥有者
      *  @param: signature是用户侧传过来的签名信息
+     *  @param: date是用于计算signature的时间
      *  @return: 签名合法为true，否则false
      */
-    bool CheckSignature(uint64_t date,
-                        const std::string& owner,
-                        const std::string& signature);
+    bool CheckSignature(const std::string& owner,
+                        const std::string& signature,
+                        uint64_t date);
 
     StatusCode CheckPathOwnerInternal(const std::string &filename,
                               const std::string &owner,

@@ -140,10 +140,11 @@ class SnapshotClient {
    *  - 若是clone，sn重置为初始值
    *  - 若是recover，sn不变
    *
-   * @param:destination clone目标文件名
-   * @param:userinfo 用户信息
-   * @param:size 文件大小
-   * @param:sn 版本号
+   * @param: destination clone目标文件名
+   * @param: userinfo 用户信息
+   * @param: size 文件大小
+   * @param: sn 版本号
+   * @param: chunksize是要创建文件的chunk大小
    * @param[out] fileinfo 创建的目标文件的文件信息
    *
    * @return 错误码
@@ -152,6 +153,7 @@ class SnapshotClient {
                                 UserInfo_t userinfo,
                                 uint32_t size,
                                 uint64_t sn,
+                                uint32_t chunksize,
                                 FInfo* fileinfo);
 
   /**

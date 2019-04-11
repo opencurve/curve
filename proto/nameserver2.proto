@@ -335,7 +335,7 @@ message  CreateCloneFileRequest {
     required FileType   fileType = 2;
     required uint64     fileLength = 3;
     required uint64     seq = 4;
-    optional uint32     chunksize = 5;
+    required uint32     chunksize = 5;
 
     required string     owner = 6;
     optional string     signature = 7;

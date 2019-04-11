@@ -968,6 +968,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
                                         UserInfo_t userinfo,
                                         uint32_t size,
                                         uint64_t sn,
+                                        uint32_t chunksize,
                                         FInfo* fileinfo) {
     // 记录当前mds重试次数
     int count = 0;
@@ -985,6 +986,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
         request.set_filename(destination);
         request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
         request.set_filelength(size);
+        request.set_chunksize(chunksize);
         request.set_seq(sn);
 
         FillUserInfo<::curve::mds::CreateCloneFileRequest>(
@@ -1018,6 +1020,9 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
         } else if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
             LOG(ERROR) << "auth failed!";
             return LIBCURVE_ERROR::AUTHFAIL;
+        } else if (curve::mds::StatusCode::kFileExists == stcode) {
+            LOG(INFO) << "file already exists!";
+            return LIBCURVE_ERROR::EXISTS;
         }
 
         return LIBCURVE_ERROR::FAILED;
@@ -1090,6 +1095,8 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         } else if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
             LOG(ERROR) << "auth failed!";
             return LIBCURVE_ERROR::AUTHFAIL;
+        } else if (curve::mds::StatusCode::kFileNotExists == stcode) {
+            return LIBCURVE_ERROR::NOTEXIST;
         }
     }
 

@@ -902,6 +902,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
                                                             UserInfo(),
                                                             10 * 1024 * 1024,
                                                             0,
+                                                            4*1024*1024,
                                                             &finfo));
 
     ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
@@ -921,6 +922,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
                                                             UserInfo(),
                                                             10 * 1024 * 1024,
                                                             0,
+                                                            4*1024*1024,
                                                             &finfo));
     // 请求成功
     info->set_id(5);
@@ -937,6 +939,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
                                                             UserInfo(),
                                                             10 * 1024 * 1024,
                                                             0,
+                                                            4*1024*1024,
                                                             &finfo));
     ASSERT_EQ(5, finfo.id);
 }

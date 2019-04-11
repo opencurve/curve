@@ -110,8 +110,14 @@ LIBCURVE_ERROR SnapshotClient::CreateCloneFile(const std::string &destination,
                                         UserInfo_t userinfo,
                                         uint32_t size,
                                         uint64_t sn,
+                                        uint32_t chunksize,
                                         FInfo* finfo) {
-    return mdsclient_.CreateCloneFile(destination, userinfo, size, sn, finfo);
+    return mdsclient_.CreateCloneFile(destination,
+                                      userinfo,
+                                      size,
+                                      sn,
+                                      chunksize,
+                                      finfo);
 }
 
 LIBCURVE_ERROR SnapshotClient::GetFileInfo(const std::string &filename,

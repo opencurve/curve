@@ -121,6 +121,7 @@ typedef struct FInfo {
     std::string     owner;
     std::string     filename;
     std::string     fullPathName;
+    FileStatus      filestatus;
 
     FInfo() {
         id = 0;
