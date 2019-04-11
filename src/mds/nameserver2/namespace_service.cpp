@@ -44,8 +44,8 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckPathOwner(request->date(), request->filename(),
-                                      request->owner(), signature);
+    retCode = kCurveFS.CheckPathOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -100,8 +100,8 @@ void NameSpaceService::GetFileInfo(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                      request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -159,8 +159,8 @@ void NameSpaceService::GetOrAllocateSegment(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -223,8 +223,8 @@ void NameSpaceService::DeleteSegment(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -282,8 +282,8 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->oldfilename(),
-                                      request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->oldfilename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -293,9 +293,9 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
         return;
     }
 
-    retCode = kCurveFS.CheckDestinationOwner(request->date(),
-                                             request->newfilename(),
-                                             request->owner(), signature);
+    retCode = kCurveFS.CheckDestinationOwner(request->newfilename(),
+                                             request->owner(), signature,
+                                             request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR)  << "logid = " << cntl->log_id()
@@ -352,8 +352,8 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -410,8 +410,8 @@ void NameSpaceService::CreateSnapShot(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -466,8 +466,8 @@ void NameSpaceService::ListSnapShot(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -542,8 +542,8 @@ void NameSpaceService::DeleteSnapShot(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -599,8 +599,8 @@ void NameSpaceService::CheckSnapShotStatus(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                      request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -677,8 +677,8 @@ void NameSpaceService::GetSnapShotFileSegment(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -747,8 +747,8 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -823,8 +823,8 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                        request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -898,8 +898,8 @@ void NameSpaceService::RefreshSession(
     }
 
     StatusCode retCode;
-    retCode = kCurveFS.CheckFileOwner(request->date(), request->filename(),
-                                      request->owner(), signature);
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         response->set_sessionid(request->sessionid());
@@ -1009,8 +1009,9 @@ void NameSpaceService::CreateCloneFile(
 
 
     // 检查权限
-    StatusCode ret = kCurveFS.CheckPathOwner(request->date(),
-        request->filename(), request->owner(), signature);
+    StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
+                                             request->owner(),
+                                             signature, request->date());
 
     if (ret != StatusCode::kOK) {
         response->set_statuscode(ret);
@@ -1072,8 +1073,9 @@ void NameSpaceService::SetCloneFileStatus(
 
     FileWriteLockGuard guard(fileLockManager_, request->filename());
 
-    StatusCode ret = kCurveFS.CheckPathOwner(request->date(),
-        request->filename(), request->owner(), signature);
+    StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
+                                             request->owner(),
+                                             signature, request->date());
 
     if (ret != StatusCode::kOK) {
         response->set_statuscode(ret);

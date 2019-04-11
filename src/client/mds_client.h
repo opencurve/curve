@@ -214,6 +214,7 @@ class MDSClient {
      * @param:userinfo 用户信息
      * @param:size 文件大小
      * @param:sn 版本号
+     * @param:chunksize是创建文件的chunk大小
      * @param[out] destFileId 创建的目标文件的Id
      *
      * @return 错误码
@@ -222,6 +223,7 @@ class MDSClient {
                             UserInfo_t userinfo,
                             uint32_t size,
                             uint64_t sn,
+                            uint32_t chunksize,
                             FInfo* fileinfo);
 
     /**

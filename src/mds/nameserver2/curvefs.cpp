@@ -1080,10 +1080,10 @@ StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::CheckDestinationOwner(uint64_t date,
-                              const std::string &filename,
+StatusCode CurveFS::CheckDestinationOwner(const std::string &filename,
                               const std::string &owner,
-                              const std::string &signature) {
+                              const std::string &signature,
+                              uint64_t date) {
     if (owner.empty()) {
         LOG(ERROR) << "file owner is empty, filename = " << filename
                    << ", owner = " << owner;
@@ -1100,7 +1100,7 @@ StatusCode CurveFS::CheckDestinationOwner(uint64_t date,
     // 如果是root用户，需要用signature校验root用户身份。
     // root用户身份通过signature校验之后，不需要进行后续校验。
     if (owner == GetRootOwner()) {
-        ret = CheckSignature(date, owner, signature)
+        ret = CheckSignature(owner, signature, date)
               ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
         LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
               << "check root owner fail, signature auth fail.";
@@ -1125,10 +1125,10 @@ StatusCode CurveFS::CheckDestinationOwner(uint64_t date,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::CheckPathOwner(uint64_t date,
-                              const std::string &filename,
+StatusCode CurveFS::CheckPathOwner(const std::string &filename,
                               const std::string &owner,
-                              const std::string &signature) {
+                              const std::string &signature,
+                              uint64_t date) {
     if (owner.empty()) {
         LOG(ERROR) << "file owner is empty, filename = " << filename
                    << ", owner = " << owner;
@@ -1145,7 +1145,7 @@ StatusCode CurveFS::CheckPathOwner(uint64_t date,
     // 如果是root用户，需要用signature校验root用户身份。
     // root用户身份通过signature校验之后，不需要进行后续校验。
     if (owner == GetRootOwner()) {
-        ret = CheckSignature(date, owner, signature)
+        ret = CheckSignature(owner, signature, date)
               ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
         LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
               << "check root owner fail, signature auth fail.";
@@ -1158,10 +1158,10 @@ StatusCode CurveFS::CheckPathOwner(uint64_t date,
                                     &lastEntry, &parentID);
 }
 
-StatusCode CurveFS::CheckFileOwner(uint64_t date,
-                              const std::string &filename,
+StatusCode CurveFS::CheckFileOwner(const std::string &filename,
                               const std::string &owner,
-                              const std::string &signature) {
+                              const std::string &signature,
+                              uint64_t date) {
     if (owner.empty()) {
         LOG(ERROR) << "file owner is empty, filename = " << filename
                    << ", owner = " << owner;
@@ -1178,7 +1178,7 @@ StatusCode CurveFS::CheckFileOwner(uint64_t date,
     // 如果是root用户，需要用signature校验root用户身份。
     // root用户身份通过signature校验之后，不需要进行后续校验。
     if (owner == GetRootOwner()) {
-        ret = CheckSignature(date, owner, signature)
+        ret = CheckSignature(owner, signature, date)
               ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
         LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
               << "check root owner fail, signature auth fail.";
@@ -1219,9 +1219,9 @@ bool CurveFS::CheckDate(uint64_t date) {
     return interval < kStaledRequestTimeIntervalUs;
 }
 
-bool CurveFS::CheckSignature(uint64_t date,
-                             const std::string& owner,
-                             const std::string& signature) {
+bool CurveFS::CheckSignature(const std::string& owner,
+                             const std::string& signature,
+                             uint64_t date) {
     std::string str2sig = Authenticator::GetString2Signature(date, owner);
     std::string sig = Authenticator::CalcString2Signature(str2sig,
                                                 rootAuthOptions_.rootPassword);
