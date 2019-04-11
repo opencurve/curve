@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <braft/configuration.h>
 
 #include <string>
 
@@ -20,6 +21,9 @@
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
+#include "src/client/client_common.h"
+
+using curve::client::EndPoint;
 
 #define BUFSIZE     4 * 1024
 #define FILESIZE    10uL * 1024 * 1024 * 1024
@@ -40,10 +44,16 @@ class TestLibcbdLibcurve : public ::testing::Test {
         }
         mds_ = new FakeMDS(filename);
 
+        // 设置leaderid
+        EndPoint ep;
+        butil::str2endpoint("127.0.0.1", 8200, &ep);
+        braft::PeerId pd(ep);
+
         /*** init mds service ***/
         mds_->Initialize();
+        mds_->StartCliService(pd);
         mds_->StartService();
-        mds_->CreateCopysetNode();
+        mds_->CreateCopysetNode(true);
 
         int64_t t0 = butil::monotonic_time_ms();
         int ret = -1;

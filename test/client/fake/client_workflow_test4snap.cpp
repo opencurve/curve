@@ -41,6 +41,8 @@ std::condition_variable interfacecv;
 
 DECLARE_uint64(test_disk_size);
 
+using curve::client::ChunkServerAddr;
+using curve::client::EndPoint;
 using curve::client::UserInfo;
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;
@@ -65,7 +67,12 @@ int main(int argc, char ** argv) {
         mds.Initialize();
         mds.StartService();
         if (FLAGS_create_copysets) {
-            mds.CreateCopysetNode();
+            // 设置leaderid
+            EndPoint ep;
+            butil::str2endpoint("127.0.0.1", 8200, &ep);
+            PeerId pd(ep);
+            mds.StartCliService(pd);
+            mds.CreateCopysetNode(true);
         }
     }
 

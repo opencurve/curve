@@ -21,6 +21,10 @@
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/libcurve_file.h"
+#include "src/client/client_common.h"
+
+using curve::client::ChunkServerAddr;
+using curve::client::EndPoint;
 
 extern std::string configpath;
 
@@ -47,11 +51,17 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     ASSERT_EQ(0, Init(configpath.c_str()));
     std::string filename = "/1_userinfo_";
 
+    // 设置leaderid
+    EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 8200, &ep);
+    PeerId pd(ep);
+
     // init mds service
     FakeMDS mds(filename);
     mds.Initialize();
+    mds.StartCliService(pd);
     mds.StartService();
-    mds.CreateCopysetNode();
+    mds.CreateCopysetNode(true);
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     // libcurve file operation

@@ -24,6 +24,7 @@
 #include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
 
+using braft::PeerId;
 using curve::common::Authenticator;
 
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
@@ -537,9 +538,11 @@ class FakeMDS {
     void UnInitialize();
 
     bool StartService();
-    bool CreateCopysetNode();
+    bool CreateCopysetNode(bool enablecli = false);
     void EnableNetUnstable(uint64_t waittime);
-    void CreateFakeChunkservers();
+    void CreateFakeChunkservers(bool enablecli);
+
+    void StartCliService(PeerId leaderID);
 
     void SetChunkServerHeartbeatCallback(HeartbeatCallback cb) {
         fakeHeartbeatService_.SetCallback(cb);
@@ -548,8 +551,8 @@ class FakeMDS {
     struct CopysetCreatStruct {
         curve::client::LogicPoolID logicpoolid;
         curve::client::CopysetID copysetid;
-        curve::client::PeerId leaderid;
-        std::vector<curve::client::PeerId> conf;
+        PeerId leaderid;
+        std::vector<PeerId> conf;
     };
 
  private:
@@ -557,12 +560,13 @@ class FakeMDS {
     brpc::Server* server_;
     std::vector<brpc::Server *> chunkservers_;
     std::vector<butil::EndPoint> server_addrs_;
-    std::vector<braft::PeerId> peers_;
+    std::vector<PeerId> peers_;
     std::vector<FakeChunkService *> chunkServices_;
     std::vector<FakeCreateCopysetService *> copysetServices_;
     std::string filename_;
 
     uint64_t size_;
+    CliServiceFake        fakeCliService_;
     FakeMDSCurveFSService fakecurvefsservice_;
     FakeMDSTopologyService faketopologyservice_;
     FakeMDSHeartbeatService fakeHeartbeatService_;

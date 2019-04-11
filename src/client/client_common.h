@@ -10,7 +10,6 @@
 
 #include <butil/endpoint.h>
 #include <butil/status.h>
-#include <braft/configuration.h>
 
 #include <unistd.h>
 #include <string>
@@ -28,9 +27,7 @@ using ChunkServerID = uint32_t;
 using ChunkIndex    = uint32_t;
 
 using EndPoint  = butil::EndPoint;
-using PeerId    = braft::PeerId;
 using Status    = butil::Status;
-using Configuration = braft::Configuration;
 
 /**
  * 与nameserver.proto中的FileStatus一一对应
@@ -153,6 +150,52 @@ typedef struct UserInfo {
         return owner != "";
     }
 } UserInfo_t;
+
+// ChunkServerAddr 代表一个copyset group里的一个chunkserver节点
+// 与braft中的PeerID对应
+struct ChunkServerAddr {
+    // 节点的地址信息
+    EndPoint addr_;
+
+    ChunkServerAddr() = default;
+    explicit ChunkServerAddr(butil::EndPoint addr) : addr_(addr) {}
+    ChunkServerAddr(const ChunkServerAddr& csaddr) : addr_(csaddr.addr_) {}
+
+    bool IsEmpty() const {
+        return (addr_.ip == butil::IP_ANY && addr_.port == 0);
+    }
+
+    // 重置当前地址信息
+    void Reset() {
+        addr_.ip = butil::IP_ANY;
+        addr_.port = 0;
+    }
+
+    // 从字符串中将地址信息解析出来
+    int Parse(const std::string& str) {
+        int idx;
+        char ip_str[64];
+        if (2 > sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
+                       &addr_.port, &idx)) {
+            Reset();
+            return -1;
+        }
+        if (0 != butil::str2ip(ip_str, &addr_.ip)) {
+            Reset();
+            return -1;
+        }
+        return 0;
+    }
+
+    // 将该节点地址信息转化为字符串形式
+    // 在get leader调用中可以将该值直接传入request
+    std::string ToString() const {
+        char str[128];
+        snprintf(str, sizeof(str), "%s:%d",
+                 butil::endpoint2str(addr_).c_str(), 0);
+        return std::string(str);
+    }
+};
 
 }   // namespace client
 }   // namespace curve
