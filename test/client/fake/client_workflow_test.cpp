@@ -18,6 +18,10 @@
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
+#include "src/client/client_common.h"
+
+using curve::client::ChunkServerAddr;
+using curve::client::EndPoint;
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
@@ -82,7 +86,12 @@ int main(int argc, char ** argv) {
         mds.Initialize();
         mds.StartService();
         if (FLAGS_create_copysets) {
-            mds.CreateCopysetNode();
+            // 设置leaderid
+            EndPoint ep;
+            butil::str2endpoint("127.0.0.1", 8200, &ep);
+            PeerId pd(ep);
+            mds.StartCliService(pd);
+            mds.CreateCopysetNode(true);
         }
     }
 

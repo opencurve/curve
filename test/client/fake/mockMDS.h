@@ -213,8 +213,10 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
 
 class FakeCliService : public curve::chunkserver::CliService {
  public:
-    void get_leader(
-                    ::google::protobuf::RpcController* controller,
+    FakeCliService() {
+        invoketimes_ = 0;
+    }
+    void get_leader(::google::protobuf::RpcController* controller,
                     const curve::chunkserver::GetLeaderRequest* request,
                     curve::chunkserver::GetLeaderResponse* response,
                     ::google::protobuf::Closure* done) {
@@ -227,12 +229,24 @@ class FakeCliService : public curve::chunkserver::CliService {
         auto resp = static_cast<curve::chunkserver::GetLeaderResponse*>(
             fakeret_->response_);
         response->CopyFrom(*resp);
+
+        invoketimes_++;
+    }
+
+    int GetInvokeTimes() {
+        return invoketimes_;
+    }
+
+    void CleanInvokeTimes() {
+        invoketimes_ = 0;
     }
 
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
 
+ private:
+    int invoketimes_;
     FakeReturn* fakeret_;
 };
 

@@ -271,12 +271,12 @@ bool FakeMDS::StartService() {
     return true;
 }
 
-bool FakeMDS::CreateCopysetNode() {
-    /**
+bool FakeMDS::CreateCopysetNode(bool enablecli) {
+    /** 
      * set Create Copyset in target chunkserver
      */
     if (FLAGS_fake_chunkserver) {
-        CreateFakeChunkservers();
+        CreateFakeChunkservers(enablecli);
     }
 
     LOG(INFO) << "copyset num: " << copysetnodeVec_.size()
@@ -324,13 +324,18 @@ void FakeMDS::EnableNetUnstable(uint64_t waittime) {
     }
 }
 
-void FakeMDS::CreateFakeChunkservers() {
+void FakeMDS::CreateFakeChunkservers(bool enablecli) {
     for (unsigned i = 0; i < peers_.size(); i++) {
         if (chunkservers_[i]->AddService(chunkServices_[i],
                               brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add service";
         }
         if (chunkservers_[i]->AddService(copysetServices_[i],
+                              brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+            LOG(FATAL) << "Fail to add service";
+        }
+
+        if (enablecli && chunkservers_[i]->AddService(&fakeCliService_,
                               brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add service";
         }
@@ -372,4 +377,8 @@ void FakeMDS::CreateFakeChunkservers() {
         FakeReturn* getinfofakeret = new FakeReturn(nullptr, getchunkinfo);
         chunkServices_[i]->SetGetChunkInfo(getinfofakeret);
     }
+}
+
+void FakeMDS::StartCliService(PeerId leaderID) {
+    fakeCliService_.SetPeerID(leaderID);
 }

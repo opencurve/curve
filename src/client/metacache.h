@@ -162,13 +162,24 @@ class MetaCache {
                                         ChunkID chunkid);
 
  private:
+    /**
+     * 更新copyset的leader信息
+     * @param[in]: logicPoolId逻辑池信息
+     * @param[in]: copysetId复制组信息
+     * @param[out]: toupdateCopyset为metacache中待更新的copyset信息指针
+     */
+    int UpdateLeaderInternal(LogicPoolID logicPoolId,
+                             CopysetID copysetId,
+                             CopysetInfo* toupdateCopyset);
+
+ private:
     MetaCacheOption_t   metacacheopt_;
 
     // chunkindex到chunkidinfo的映射表
     CURVE_CACHELINE_ALIGNMENT ChunkIndexInfoMap     chunkindex2idMap_;
 
     // logicalpoolid和copysetid到copysetinfo的映射表
-    CURVE_CACHELINE_ALIGNMENT CopysetInfoMap        lpcsid2serverlistMap_;
+    CURVE_CACHELINE_ALIGNMENT CopysetInfoMap        lpcsid2CopsetInfoMap_;
 
     // chunkid到chunkidinfo的映射表
     CURVE_CACHELINE_ALIGNMENT ChunkInfoMap          chunkid2chunkInfoMap_;
