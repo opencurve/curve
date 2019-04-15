@@ -35,14 +35,14 @@ void ChunkserverHealthyChecker::CheckHeartBeatInterval() {
                 LOG(WARNING) << "heartbeatManager find chunkServer: "
                              << value.first << " heartbeat miss, "
                              << timePass / milliseconds(1)
-                             << " seconds from last heartbeat";
+                             << " milliseconds from last heartbeat";
             } else {
                 // 若当前时间 - 上次心跳到达时间 > offline, 报警, 设为offline
                 if (value.second.OnlineFlag) {
                     LOG(ERROR) << "heartbeatManager find chunkServer: "
                                << value.first << " offline, "
                                << timePass / milliseconds(1)
-                               << " seconds from last heartbeat";
+                               << " milliseconds from last heartbeat";
                     needUpdate = true;
                 }
             }
