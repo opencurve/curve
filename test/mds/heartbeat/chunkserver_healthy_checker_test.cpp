@@ -20,9 +20,9 @@ namespace mds {
 namespace heartbeat {
 TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
     HeartbeatOption option;
-    option.heartbeatIntervalMs = 1;
-    option.heartbeatMissTimeOutMs = 3;
-    option.offLineTimeOutMs = 5;
+    option.heartbeatIntervalMs = 1000;
+    option.heartbeatMissTimeOutMs = 3000;
+    option.offLineTimeOutMs = 5000;
     std::shared_ptr<MockTopology> topology = std::make_shared<MockTopology>();
     std::shared_ptr<ChunkserverHealthyChecker> checker =
         std::make_shared<ChunkserverHealthyChecker>(option, topology);
@@ -30,9 +30,9 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
     HeartbeatInfo info;
     checker->UpdateLastReceivedHeartbeatTime(1, steady_clock::now());
     checker->UpdateLastReceivedHeartbeatTime(
-        2, steady_clock::now() - std::chrono::milliseconds(4));
+        2, steady_clock::now() - std::chrono::milliseconds(4000));
     checker->UpdateLastReceivedHeartbeatTime(
-        3, steady_clock::now() - std::chrono::milliseconds(10));
+        3, steady_clock::now() - std::chrono::milliseconds(10000));
     ASSERT_TRUE(checker->GetHeartBeatInfo(1, &info));
     ASSERT_TRUE(info.OnlineFlag);
     ASSERT_TRUE(checker->GetHeartBeatInfo(2, &info));
