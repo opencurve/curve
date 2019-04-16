@@ -33,7 +33,7 @@ class TestSnapshotCoreImpl : public ::testing::Test {
 
     virtual void SetUp() {
         client_ = std::make_shared<MockCurveFsClient>();
-        metaStore_ = std::make_shared<MockSnapshotMetaStore>();
+        metaStore_ = std::make_shared<MockSnapshotCloneMetaStore>();
         dataStore_ = std::make_shared<MockSnapshotDataStore>();
         core_ = std::make_shared<SnapshotCoreImpl>(client_,
                 metaStore_,
@@ -50,7 +50,7 @@ class TestSnapshotCoreImpl : public ::testing::Test {
  protected:
     std::shared_ptr<SnapshotCoreImpl> core_;
     std::shared_ptr<MockCurveFsClient> client_;
-    std::shared_ptr<MockSnapshotMetaStore> metaStore_;
+    std::shared_ptr<MockSnapshotCloneMetaStore> metaStore_;
     std::shared_ptr<MockSnapshotDataStore> dataStore_;
 };
 

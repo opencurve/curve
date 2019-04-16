@@ -14,7 +14,7 @@
 #include <map>
 
 #include "src/snapshotcloneserver/common/curvefs_client.h"
-#include "src/snapshotcloneserver/snapshot/snapshot_meta_store.h"
+#include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 #include "src/snapshotcloneserver/common/define.h"
 
@@ -145,7 +145,7 @@ class SnapshotCoreImpl : public SnapshotCore {
       */
     SnapshotCoreImpl(
         std::shared_ptr<CurveFsClient> client,
-        std::shared_ptr<SnapshotMetaStore> metaStore,
+        std::shared_ptr<SnapshotCloneMetaStore> metaStore,
         std::shared_ptr<SnapshotDataStore> dataStore)
     : client_(client),
       metaStore_(metaStore),
@@ -323,7 +323,7 @@ class SnapshotCoreImpl : public SnapshotCore {
     // curvefs客户端对象
     std::shared_ptr<CurveFsClient> client_;
     // meta数据存储
-    std::shared_ptr<SnapshotMetaStore> metaStore_;
+    std::shared_ptr<SnapshotCloneMetaStore> metaStore_;
     // data数据存储
     std::shared_ptr<SnapshotDataStore> dataStore_;
 };

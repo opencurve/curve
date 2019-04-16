@@ -11,11 +11,11 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 
-#include "src/snapshotcloneserver/dao/snapshotRepo.h"
+#include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
 
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store_s3.h"
-#include "src/snapshotcloneserver/snapshot/snapshot_meta_store.h"
+#include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 
@@ -30,11 +30,11 @@ int SnapshotCloneServer::Init() {
         return kErrCodeSnapshotServerInitFail;
     }
 
-    std::shared_ptr<SnapshotRepo> repo =
-        std::make_shared<SnapshotRepo>();
+    std::shared_ptr<SnapshotCloneRepo> repo =
+        std::make_shared<SnapshotCloneRepo>();
 
-    std::shared_ptr<SnapshotMetaStore> metaStore =
-        std::make_shared<DBSnapshotMetaStore>(repo);
+    std::shared_ptr<SnapshotCloneMetaStore> metaStore =
+        std::make_shared<DBSnapshotCloneMetaStore>(repo);
     if (metaStore->Init() < 0) {
         LOG(ERROR) << "metaStore init fail.";
         return kErrCodeSnapshotServerInitFail;
@@ -63,13 +63,9 @@ int SnapshotCloneServer::Init() {
     std::shared_ptr<CloneTaskManager> cloneTaskMgr =
         std::make_shared<CloneTaskManager>();
 
-    std::shared_ptr<CloneMetaStore> cloneStore =
-        std::make_shared<DBCloneMetaStore>(repo);
-
     std::shared_ptr<CloneCore> cloneCore =
         std::make_shared<CloneCoreImpl>(
             client,
-            cloneStore,
             metaStore,
             dataStore);
 

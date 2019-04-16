@@ -15,8 +15,7 @@
 
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 #include "src/snapshotcloneserver/common/define.h"
-#include "src/snapshotcloneserver/clone/clone_meta_store.h"
-#include "src/snapshotcloneserver/snapshot/snapshot_meta_store.h"
+#include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 
 namespace curve {
@@ -101,11 +100,9 @@ class CloneCoreImpl : public CloneCore {
  public:
     CloneCoreImpl(
         std::shared_ptr<CurveFsClient> client,
-        std::shared_ptr<CloneMetaStore> cloneStore,
-        std::shared_ptr<SnapshotMetaStore> metaStore,
+        std::shared_ptr<SnapshotCloneMetaStore> metaStore,
         std::shared_ptr<SnapshotDataStore> dataStore)
       : client_(client),
-        cloneStore_(cloneStore),
         metaStore_(metaStore),
         dataStore_(dataStore) {}
 
@@ -303,8 +300,7 @@ class CloneCoreImpl : public CloneCore {
 
  private:
     std::shared_ptr<CurveFsClient> client_;
-    std::shared_ptr<CloneMetaStore> cloneStore_;
-    std::shared_ptr<SnapshotMetaStore> metaStore_;
+    std::shared_ptr<SnapshotCloneMetaStore> metaStore_;
     std::shared_ptr<SnapshotDataStore> dataStore_;
 };
 

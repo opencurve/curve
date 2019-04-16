@@ -31,12 +31,12 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     CloneTaskType taskType,
     CloneInfo *cloneInfo) {
     std::vector<CloneInfo> list;
-    cloneStore_->GetCloneInfoList(&list);
+    metaStore_->GetCloneInfoList(&list);
     for (auto &info : list) {
-        if (source == info.source &&
-            CloneStatus::error == info.status) {
+        if (source == info.GetSrc() &&
+            CloneStatus::error == info.GetStatus()) {
             LOG(ERROR) << "Can not clone/recover when has error,"
-                      << " error taskid = " << info.taskId;
+                      << " error taskid = " << info.GetTaskId();
             return kErrCodeSnapshotCannotCreateWhenError;
         }
     }
@@ -91,8 +91,8 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     UUID uuid = UUIDGenerator().GenerateUUID();
     CloneInfo info(uuid, user, taskType,
         source, destination, fileType, lazyFlag);
-    info.status = CloneStatus::cloning;
-    ret = cloneStore_->AddCloneInfo(info);
+    info.SetStatus(CloneStatus::cloning);
+    ret = metaStore_->AddCloneInfo(info);
     if (ret < 0) {
         LOG(ERROR) << "AddCloneInfo error"
                    << ", ret = " << ret
@@ -146,7 +146,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
         }
     }
 
-    CloneStep step = task->GetCloneInfo().nextStep;
+    CloneStep step = task->GetCloneInfo().GetNextStep();
     while (step != CloneStep::kEnd) {
         switch (step) {
             case CloneStep::kCreateCloneFile:
@@ -206,7 +206,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
                 HandleCloneError(task);
                 return;
         }
-        step = task->GetCloneInfo().nextStep;
+        step = task->GetCloneInfo().GetNextStep();
     }
     HandleCloneSuccess(task);
 }
@@ -216,7 +216,7 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
     FInfo *newFileInfo,
     CloneSegmentMap *segInfos) {
     segInfos->clear();
-    UUID source = task->GetCloneInfo().source;
+    UUID source = task->GetCloneInfo().GetSrc();
 
     SnapshotInfo snapInfo;
     int ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
@@ -230,8 +230,8 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
     newFileInfo->length = snapInfo.GetFileLength();
     if (IsRecover(task)) {
         FInfo fInfo;
-        std::string destination = task->GetCloneInfo().destination;
-        std::string user = task->GetCloneInfo().user;
+        std::string destination = task->GetCloneInfo().GetDest();
+        std::string user = task->GetCloneInfo().GetUser();
         ret = client_->GetFileInfo(destination, user, &fInfo);
         if (ret < 0) {
             LOG(ERROR) << "GetFileInfo fail"
@@ -241,15 +241,15 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
             return ret;
         }
         // 从快照恢复的destinationId为目标文件的id
-        task->GetCloneInfo().destinationId = fInfo.id;
+        task->GetCloneInfo().SetDestId(fInfo.id);
         // 从快照恢复seqnum+1
         newFileInfo->seqnum = fInfo.seqnum + 1;
     } else {
         newFileInfo->seqnum = kInitializeSeqNum;
     }
-    newFileInfo->owner = task->GetCloneInfo().user;
+    newFileInfo->owner = task->GetCloneInfo().GetUser();
     newFileInfo->filename = CloneCoreImpl::kCloneTempDir + "/" +
-        task->GetCloneInfo().destination;
+        task->GetCloneInfo().GetDest();
 
     ChunkIndexDataName indexName(snapInfo.GetFileName(),
          snapInfo.GetSeqNum());
@@ -297,8 +297,8 @@ int CloneCoreImpl::BuildFileInfoFromFile(
     FInfo *newFileInfo,
     CloneSegmentMap *segInfos) {
     segInfos->clear();
-    UUID source = task->GetCloneInfo().source;
-    std::string user = task->GetCloneInfo().user;
+    UUID source = task->GetCloneInfo().GetSrc();
+    std::string user = task->GetCloneInfo().GetUser();
 
     FInfo fInfo;
     // TODO(xuchaojie): 从文件克隆的source暂使用文件名，设计后续改为UUID
@@ -315,8 +315,8 @@ int CloneCoreImpl::BuildFileInfoFromFile(
     newFileInfo->segmentsize = fInfo.segmentsize;
     newFileInfo->length = fInfo.length;
     newFileInfo->seqnum = kInitializeSeqNum;
-    newFileInfo->owner = task->GetCloneInfo().user;
-    newFileInfo->filename = task->GetCloneInfo().destination;
+    newFileInfo->owner = task->GetCloneInfo().GetUser();
+    newFileInfo->filename = task->GetCloneInfo().GetDest();
 
     uint64_t fileLength = fInfo.length;
     uint64_t segmentSize = fInfo.segmentsize;
@@ -386,13 +386,13 @@ int CloneCoreImpl::CreateCloneFile(
                    << ", return fileId = " << fInfoOut.id;
         return ret;
     }
-    task->GetCloneInfo().originId = fInfoOut.id;
+    task->GetCloneInfo().SetOriginId(fInfoOut.id);
     if (IsClone(task)) {
         // 克隆情况下destinationId = originId;
-        task->GetCloneInfo().destinationId = fInfoOut.id;
+        task->GetCloneInfo().SetDestId(fInfoOut.id);
     }
-    task->GetCloneInfo().nextStep = CloneStep::kCreateCloneMeta;
-    ret = cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneMeta);
+    ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after CreateCloneFile error."
                    << " ret = " << ret;
@@ -409,8 +409,8 @@ int CloneCoreImpl::CreateCloneMeta(
     if (ret < 0) {
         return ret;
     }
-    task->GetCloneInfo().nextStep = CloneStep::kCreateCloneChunk;
-    ret = cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneChunk);
+    ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after CreateCloneMeta error."
                    << " ret = " << ret;
@@ -434,7 +434,7 @@ int CloneCoreImpl::CreateCloneChunk(
                     cloneChunkInfo.second.location);
             } else {
                 location = LocationOperator::GenerateCurveLocation(
-                    task->GetCloneInfo().destination,
+                    task->GetCloneInfo().GetDest(),
                     std::stoull(cloneChunkInfo.second.location));
             }
             ChunkIDInfo cidInfo = cloneChunkInfo.second.chunkIdInfo;
@@ -456,8 +456,8 @@ int CloneCoreImpl::CreateCloneChunk(
             }
         }
     }
-    task->GetCloneInfo().nextStep = CloneStep::kCompleteCloneMeta;
-    ret = cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
+    ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after CreateCloneChunk error."
                    << " ret = " << ret;
@@ -471,7 +471,7 @@ int CloneCoreImpl::CompleteCloneMeta(
     const FInfo &fInfo,
     const CloneSegmentMap &segInfos) {
     std::string origin = fInfo.filename;
-    std::string user = task->GetCloneInfo().user;
+    std::string user = task->GetCloneInfo().GetUser();
     int ret = client_->CompleteCloneMeta(origin, user);
     if (ret < 0) {
         LOG(ERROR) << "CompleteCloneMeta fail"
@@ -481,13 +481,13 @@ int CloneCoreImpl::CompleteCloneMeta(
         return ret;
     }
     if (IsLazy(task)) {
-        task->GetCloneInfo().nextStep =
-            CloneStep::kRenameCloneFile;
+        task->GetCloneInfo().SetNextStep(
+            CloneStep::kRenameCloneFile);
     } else {
-        task->GetCloneInfo().nextStep =
-            CloneStep::kRecoverChunk;
+        task->GetCloneInfo().SetNextStep(
+            CloneStep::kRecoverChunk);
     }
-    ret = cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after CompleteCloneMeta error."
                    << " ret = " << ret;
@@ -539,8 +539,8 @@ int CloneCoreImpl::RecoverChunk(
             kProgressRecoverChunkBegin + index * progressPerData));
         index++;
     }
-    task->GetCloneInfo().nextStep = CloneStep::kCompleteCloneFile;
-    ret = cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneFile);
+    ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after RecoverChunk error."
                    << " ret = " << ret;
@@ -553,10 +553,10 @@ int CloneCoreImpl::RenameCloneFile(
     std::shared_ptr<CloneTaskInfo> task,
     const FInfo &fInfo) {
     std::string user = fInfo.owner;
-    uint64_t originId = task->GetCloneInfo().originId;
-    uint64_t destinationId = task->GetCloneInfo().destinationId;
+    uint64_t originId = task->GetCloneInfo().GetOriginId();
+    uint64_t destinationId = task->GetCloneInfo().GetDestId();
     std::string origin = fInfo.filename;
-    std::string destination = task->GetCloneInfo().destination;
+    std::string destination = task->GetCloneInfo().GetDest();
 
     // 判断原始文件存不存在
     FInfo oriFInfo;
@@ -605,11 +605,11 @@ int CloneCoreImpl::RenameCloneFile(
     }
 
     if (IsLazy(task)) {
-        task->GetCloneInfo().nextStep = CloneStep::kRecoverChunk;
+        task->GetCloneInfo().SetNextStep(CloneStep::kRecoverChunk);
     } else {
-        task->GetCloneInfo().nextStep = CloneStep::kEnd;
+        task->GetCloneInfo().SetNextStep(CloneStep::kEnd);
     }
-    ret = cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after RenameCloneFile error."
                    << " ret = " << ret;
@@ -624,11 +624,11 @@ int CloneCoreImpl::CompleteCloneFile(
     const CloneSegmentMap &segInfos) {
     std::string fileName;
     if (IsLazy(task)) {
-        fileName = task->GetCloneInfo().destination;
+        fileName = task->GetCloneInfo().GetDest();
     } else {
         fileName = fInfo.filename;
     }
-    std::string user = task->GetCloneInfo().user;
+    std::string user = task->GetCloneInfo().GetUser();
     int ret = client_->CompleteCloneFile(fileName, user);
     if (ret < 0) {
         LOG(ERROR) << "CompleteCloneFile fail"
@@ -638,11 +638,11 @@ int CloneCoreImpl::CompleteCloneFile(
         return ret;
     }
     if (IsLazy(task)) {
-        task->GetCloneInfo().nextStep = CloneStep::kEnd;
+        task->GetCloneInfo().SetNextStep(CloneStep::kEnd);
     } else {
-        task->GetCloneInfo().nextStep = CloneStep::kRenameCloneFile;
+        task->GetCloneInfo().SetNextStep(CloneStep::kRenameCloneFile);
     }
-    ret = cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
         LOG(ERROR) << "UpdateCloneInfo after CompleteCloneFile error."
                    << " ret = " << ret;
@@ -655,8 +655,8 @@ void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
     if (IsSnapshot(task)) {
         UpdateSnapshotStatus(task);
     }
-    task->GetCloneInfo().status = CloneStatus::done;
-    cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    task->GetCloneInfo().SetStatus(CloneStatus::done);
+    metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     task->SetProgress(kProgressCloneComplete);
 
     task->Lock();
@@ -664,7 +664,7 @@ void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
     task->Finish();
     task->UnLock();
     LOG(INFO) << "Clone or Recover Success"
-              << ", taskid = " << task->GetCloneInfo().taskId;
+              << ", taskid = " << task->GetCloneInfo().GetTaskId();
     return;
 }
 
@@ -672,19 +672,19 @@ void CloneCoreImpl::HandleCloneError(std::shared_ptr<CloneTaskInfo> task) {
     if (IsSnapshot(task)) {
         UpdateSnapshotStatus(task);
     }
-    task->GetCloneInfo().status = CloneStatus::error;
-    cloneStore_->UpdateCloneInfo(task->GetCloneInfo());
+    task->GetCloneInfo().SetStatus(CloneStatus::error);
+    metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     task->Finish();
     LOG(ERROR) << "Clone or Recover fail"
-               << ", taskid = " << task->GetCloneInfo().taskId
+               << ", taskid = " << task->GetCloneInfo().GetTaskId()
                << ", step = "
-               << static_cast<int>(task->GetCloneInfo().nextStep);
+               << static_cast<int>(task->GetCloneInfo().GetNextStep());
     return;
 }
 
 int CloneCoreImpl::UpdateSnapshotStatus(
     std::shared_ptr<CloneTaskInfo> task) {
-    UUID source = task->GetCloneInfo().source;
+    UUID source = task->GetCloneInfo().GetSrc();
     SnapshotInfo snapInfo;
     int ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
     if (ret < 0) {
@@ -703,38 +703,38 @@ int CloneCoreImpl::UpdateSnapshotStatus(
 }
 
 int CloneCoreImpl::GetCloneInfoList(std::vector<CloneInfo> *taskList) {
-    cloneStore_->GetCloneInfoList(taskList);
+    metaStore_->GetCloneInfoList(taskList);
     return kErrCodeSnapshotServerSuccess;
 }
 
 int CloneCoreImpl::GetCloneInfo(TaskIdType taskId, CloneInfo *cloneInfo) {
-    return cloneStore_->GetCloneInfo(taskId, cloneInfo);
+    return metaStore_->GetCloneInfo(taskId, cloneInfo);
 }
 
 inline bool CloneCoreImpl::IsLazy(std::shared_ptr<CloneTaskInfo> task) {
-    return task->GetCloneInfo().isLazy;
+    return task->GetCloneInfo().GetIsLazy();
 }
 
 inline bool CloneCoreImpl::IsSnapshot(std::shared_ptr<CloneTaskInfo> task) {
-    return CloneFileType::kSnapshot == task->GetCloneInfo().fileType;
+    return CloneFileType::kSnapshot == task->GetCloneInfo().GetFileType();
 }
 
 inline bool CloneCoreImpl::IsFile(std::shared_ptr<CloneTaskInfo> task) {
-    return CloneFileType::kFile == task->GetCloneInfo().fileType;
+    return CloneFileType::kFile == task->GetCloneInfo().GetFileType();
 }
 
 inline bool CloneCoreImpl::IsRecover(std::shared_ptr<CloneTaskInfo> task) {
-    return CloneTaskType::kRecover == task->GetCloneInfo().type;
+    return CloneTaskType::kRecover == task->GetCloneInfo().GetTaskType();
 }
 
 inline bool CloneCoreImpl::IsClone(std::shared_ptr<CloneTaskInfo> task) {
-    return CloneTaskType::kClone == task->GetCloneInfo().type;
+    return CloneTaskType::kClone == task->GetCloneInfo().GetTaskType();
 }
 
 bool CloneCoreImpl::NeedUpdateCloneMeta(
     std::shared_ptr<CloneTaskInfo> task) {
     bool ret = true;
-    CloneStep step = task->GetCloneInfo().nextStep;
+    CloneStep step = task->GetCloneInfo().GetNextStep();
     if (CloneStep::kCreateCloneFile == step ||
         CloneStep::kCreateCloneMeta == step ||
         CloneStep::kEnd == step) {

@@ -28,6 +28,8 @@ namespace repo {
  */
 class RepoInterface {
  public:
+  RepoInterface() {}
+  virtual ~RepoInterface() {}
   /**
    * @brief 创建数据库实例并发起连接
    * @param 数据库名称
@@ -69,6 +71,9 @@ class RepoInterface {
  */
 struct RepoItem {
  public:
+  RepoItem() {}
+  virtual ~RepoItem() {}
+
   /**
    * @brief 获取数据记录信息
    * @param[out] 保存数据信息的map
