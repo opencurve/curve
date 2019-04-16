@@ -218,8 +218,8 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     // close client
     client_->CloseClient();
     ASSERT_EQ(EtcdErrCode::Canceled, client_->Put(fileKey10, fileInfo10));
-    ASSERT_EQ(EtcdErrCode::Canceled,
-        client_->CompareAndSwap("04", "300", "400"));
+    ASSERT_FALSE(
+        EtcdErrCode::OK == client_->CompareAndSwap("04", "300", "400"));
 }
 }  // namespace mds
 }  // namespace curve
