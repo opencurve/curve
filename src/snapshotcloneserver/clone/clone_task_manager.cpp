@@ -47,7 +47,7 @@ int CloneTaskManager::PushTask(std::shared_ptr<CloneTask> task) {
         workingTasksLockGuard(cloningTasksLock_);
 
     std::string destination =
-        task->GetTaskInfo()->GetCloneInfo().destination;
+        task->GetTaskInfo()->GetCloneInfo().GetDest();
     auto ret = cloningTasks_.emplace(
         destination,
         task);

@@ -24,6 +24,7 @@ const char PhysicalPoolTable[] = "curve_physicalpool";
 const char CopySetTable[] = "curve_copyset";
 const char SessionTable[] = "curve_session";
 const char SnapshotTable[] = "snapshot";
+const char CloneTable[] = "clone";
 
 const char CreateChunkServerTable[] =
     "create table if not exists `curve_chunkserver` (\n"
@@ -115,7 +116,7 @@ const char CreateSnapshotTable[] =
     "create table if not exists `snapshot` (\n"
     "    `uuid`             varchar(64)   NOT NULL PRIMARY KEY COMMENT 'snapshot uuid',\n"      //NOLINT
     "    `user`             varchar(64)   NOT NULL COMMENT 'snapshot owner',\n"                 //NOLINT
-    "    `filename`         varchar(64)   NOT NULL COMMENT 'snapshot source file',\n"           // NOLINT
+    "    `filename`         varchar(256)   NOT NULL COMMENT 'snapshot source file',\n"           // NOLINT
     "    `seqnum`           bigint        NOT NULL COMMENT 'snapshot file sequence number',\n"  //NOLINT
     "    `chunksize`        int           NOT NULL COMMENT 'snapshot file chunk size',\n"       //NOLINT
     "    `segmentsize`      int           NOT NULL COMMENT 'snapshot file segment size',\n"     //NOLINT
@@ -124,6 +125,23 @@ const char CreateSnapshotTable[] =
     "    `status`           tinyint       NOT NULL COMMENT 'snapshotstate: done,deleting,processing,canceling,error',\n"    //NOLINT
     "    `snapdesc`         varchar(128)  NOT NULL COMMENT 'snapshot file user description'\n"  //NOLINT
     ")COMMENT='snapshot';";
+
+const char CreateCloneTable[] =
+    "create table if not exists `clone` (\n"
+    "    `taskid`           varchar(64)   NOT NULL PRIMARY KEY COMMENT 'task ID',\n"            //NOLINT
+    "    `user`             varchar(64)   NOT NULL COMMENT 'clone owner',\n"                    //NOLINT
+    "    `tasktype`         tinyint       NOT NULL COMMENT 'clone task type(clone or recovery)',\n"           // NOLINT
+    "    `src`              varchar(256)  NOT NULL COMMENT 'clone file source',\n"              //NOLINT
+    "    `dest`             varchar(256)  NOT NULL COMMENT 'clone file destination',\n"         //NOLINT
+    "    `originID`         bigint        NOT NULL COMMENT 'clone file source inode id',\n"     //NOLINT
+    "    `destID`           bigint        NOT NULL COMMENT 'clone file destination inode id',\n"//NOLINT
+    "    `time`             bigint        NOT NULL COMMENT 'clone/recovery create time',\n"           //NOLINT
+    "    `filetype`         tinyint       NOT NULL COMMENT 'curvefs file or snapshot file',\n"    //NOLINT
+    "    `isLazy`           boolean       NOT NULL COMMENT 'clone task sync or async',\n"    //NOLINT
+    "    `nextstep`         tinyint       NOT NULL COMMENT 'clone/recovery processing step',\n"    //NOLINT
+    "    `status`           tinyint       NOT NULL COMMENT 'clone/recovery task status'\n"    //NOLINT
+    ")COMMENT='clone';";
+
 
 
 const char CreateDataBase[] = "create database if not exists %s;";
@@ -162,6 +180,7 @@ const std::map<std::string, std::string> CurveMDSTables = {
 
 const std::map<std::string, std::string> CurveSnapshotTables = {
     {SnapshotTable, CreateSnapshotTable},
+    {CloneTable, CreateCloneTable},
 };
 }  // namespace repo
 }  // namespace curve

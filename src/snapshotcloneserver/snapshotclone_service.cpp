@@ -472,13 +472,13 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     Json::Value listObj;
     for (auto &info :  cloneTaskInfos) {
         Json::Value cloneTaskObj;
-        cloneTaskObj["User"] = info.GetCloneInfo().user;
-        cloneTaskObj["File"] = info.GetCloneInfo().destination;
+        cloneTaskObj["User"] = info.GetCloneInfo().GetUser();
+        cloneTaskObj["File"] = info.GetCloneInfo().GetDest();
         cloneTaskObj["TaskType"] = static_cast<int> (
-            info.GetCloneInfo().type);
+            info.GetCloneInfo().GetTaskType());
         cloneTaskObj["TaskStatus"] = static_cast<int> (
-            info.GetCloneInfo().status);
-        cloneTaskObj["Time"] = info.GetCloneInfo().time;
+            info.GetCloneInfo().GetStatus());
+        cloneTaskObj["Time"] = info.GetCloneInfo().GetTime();
         listObj.append(cloneTaskObj);
     }
     mainObj["TaskInfos"] = listObj;

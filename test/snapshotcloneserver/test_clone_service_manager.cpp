@@ -292,14 +292,14 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccess) {
     ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
     ASSERT_EQ(1, infos.size());
     CloneInfo cInfo = infos[0].GetCloneInfo();
-    ASSERT_EQ("uuid1", cInfo.taskId);
-    ASSERT_EQ(user, cInfo.user);
-    ASSERT_EQ(CloneTaskType::kClone, cInfo.type);
-    ASSERT_EQ(source, cInfo.source);
-    ASSERT_EQ(destination, cInfo.destination);
-    ASSERT_EQ(CloneFileType::kSnapshot, cInfo.fileType);
-    ASSERT_EQ(lazyFlag, cInfo.isLazy);
-    ASSERT_EQ(CloneStatus::cloning, cInfo.status);
+    ASSERT_EQ("uuid1", cInfo.GetTaskId());
+    ASSERT_EQ(user, cInfo.GetUser());
+    ASSERT_EQ(CloneTaskType::kClone, cInfo.GetTaskType());
+    ASSERT_EQ(source, cInfo.GetSrc());
+    ASSERT_EQ(destination, cInfo.GetDest());
+    ASSERT_EQ(CloneFileType::kSnapshot, cInfo.GetFileType());
+    ASSERT_EQ(lazyFlag, cInfo.GetIsLazy());
+    ASSERT_EQ(CloneStatus::cloning, cInfo.GetStatus());
 
     cond1.Wait();
 }

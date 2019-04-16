@@ -32,11 +32,9 @@ class TestCloneCoreImpl : public ::testing::Test {
 
     virtual void SetUp() {
         client_ = std::make_shared<MockCurveFsClient>();
-        metaStore_ = std::make_shared<MockSnapshotMetaStore>();
+        metaStore_ = std::make_shared<MockSnapshotCloneMetaStore>();
         dataStore_ = std::make_shared<MockSnapshotDataStore>();
-        cloneStore_ = std::make_shared<MockCloneMetaStore>();
         core_ = std::make_shared<CloneCoreImpl>(client_,
-            cloneStore_,
             metaStore_,
             dataStore_);
     }
@@ -46,7 +44,6 @@ class TestCloneCoreImpl : public ::testing::Test {
         metaStore_ = nullptr;
         dataStore_ = nullptr;
         core_ = nullptr;
-        cloneStore_ = nullptr;
     }
 
  protected:
@@ -111,9 +108,8 @@ class TestCloneCoreImpl : public ::testing::Test {
  protected:
     std::shared_ptr<CloneCoreImpl> core_;
     std::shared_ptr<MockCurveFsClient> client_;
-    std::shared_ptr<MockSnapshotMetaStore> metaStore_;
+    std::shared_ptr<MockSnapshotCloneMetaStore> metaStore_;
     std::shared_ptr<MockSnapshotDataStore> dataStore_;
-    std::shared_ptr<MockCloneMetaStore> cloneStore_;
 };
 
 TEST_F(TestCloneCoreImpl, TestClonePreForSnapSuccess) {
@@ -130,7 +126,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapSuccess) {
                 SetArgPointee<1>(snap),
                 Return(kErrCodeSnapshotServerSuccess)));
 
-    EXPECT_CALL(*cloneStore_, AddCloneInfo(_))
+    EXPECT_CALL(*metaStore_, AddCloneInfo(_))
         .WillOnce(Return(kErrCodeSnapshotServerSuccess));
 
     int ret = core_->CloneOrRecoverPre(
@@ -152,7 +148,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSuccess) {
     EXPECT_CALL(*client_, GetFileInfo(source, user, _))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
-    EXPECT_CALL(*cloneStore_, AddCloneInfo(_))
+    EXPECT_CALL(*metaStore_, AddCloneInfo(_))
         .WillOnce(Return(kErrCodeSnapshotServerSuccess));
 
     int ret = core_->CloneOrRecoverPre(
@@ -215,7 +211,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreAddCloneInfoFail) {
                 SetArgPointee<1>(snap),
                 Return(kErrCodeSnapshotServerSuccess)));
 
-    EXPECT_CALL(*cloneStore_, AddCloneInfo(_))
+    EXPECT_CALL(*metaStore_, AddCloneInfo(_))
         .WillOnce(Return(kErrCodeSnapshotInternalError));
 
     int ret = core_->CloneOrRecoverPre(
@@ -284,11 +280,11 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileFail) {
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForCloneBySnapshot) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -307,11 +303,11 @@ TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskSuccessForCloneBySnapshotNotLazy) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, false);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -331,11 +327,11 @@ TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskFailOnBuildFileInfoFromSnapshot) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotFail(task);
@@ -348,11 +344,11 @@ TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskFailOnCreateCloneFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -365,11 +361,11 @@ TEST_F(TestCloneCoreImpl,
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCloneMeta) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -383,11 +379,11 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCloneMeta) {
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCreateCloneChunk) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -402,11 +398,11 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCreateCloneChunk) {
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneMeta) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -422,11 +418,11 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneMeta) {
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRenameCloneFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -443,11 +439,11 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRenameCloneFile) {
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRecoverChunk) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -465,11 +461,11 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFileOnRecoverChunk) {
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneFail) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromSnapshotSuccess(task);
@@ -488,11 +484,11 @@ TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskFailOnCompleteCloneFail) {
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForCloneByFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kFile, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromFileSuccess(task);
@@ -512,11 +508,11 @@ TEST_F(TestCloneCoreImpl,
     HandleCloneOrRecoverTaskForCloneByFileFailOnBuildFileInfoFromFile) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kFile, true);
-    info.status = CloneStatus::cloning;
+    info.SetStatus(CloneStatus::cloning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
-    EXPECT_CALL(*cloneStore_, UpdateCloneInfo(_))
+    EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
 
     MockBuildFileInfoFromFileFail(task);
@@ -545,7 +541,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotSuccess(
                 SetArgPointee<1>(info),
                 Return(kErrCodeSnapshotServerSuccess)));
 
-    if (CloneTaskType::kRecover == task->GetCloneInfo().type) {
+    if (CloneTaskType::kRecover == task->GetCloneInfo().GetTaskType()) {
         FInfo fInfo;
         fInfo.id = 100;
         EXPECT_CALL(*client_, GetFileInfo(_, _, _))
@@ -658,7 +654,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotFail(
                 SetArgPointee<1>(info),
                 Return(kErrCodeSnapshotServerSuccess)));
 
-    if (CloneTaskType::kRecover == task->GetCloneInfo().type) {
+    if (CloneTaskType::kRecover == task->GetCloneInfo().GetTaskType()) {
         FInfo fInfo;
         fInfo.id = 100;
         EXPECT_CALL(*client_, GetFileInfo(_, _, _))
