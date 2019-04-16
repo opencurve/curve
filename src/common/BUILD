@@ -25,6 +25,11 @@ cc_library(
         ],exclude = ["authenticator.*"]
     ),
     copts = COPTS,
+    linkopts = [
+        "-laws-cpp-sdk-s3",
+        "-laws-cpp-sdk-core",
+        "-L/usr/local/lib"
+    ],
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",

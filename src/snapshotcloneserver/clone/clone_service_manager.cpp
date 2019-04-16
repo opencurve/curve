@@ -50,7 +50,7 @@ int CloneServiceManager::CloneFile(const UUID &source,
         std::make_shared<CloneTaskInfo>(cloneInfo);
     std::shared_ptr<CloneTask> task =
         std::make_shared<CloneTask>(
-            cloneInfo.taskId, taskInfo, cloneCore_);
+            cloneInfo.GetTaskId(), taskInfo, cloneCore_);
     ret = cloneTaskMgr_->PushTask(task);
     if (ret < 0) {
         LOG(ERROR) << "CloneTaskMgr Push Task error"
@@ -81,7 +81,7 @@ int CloneServiceManager::RecoverFile(const UUID &source,
         std::make_shared<CloneTaskInfo>(cloneInfo);
     std::shared_ptr<CloneTask> task =
         std::make_shared<CloneTask>(
-            cloneInfo.taskId, taskInfo, cloneCore_);
+            cloneInfo.GetTaskId(), taskInfo, cloneCore_);
     ret = cloneTaskMgr_->PushTask(task);
     if (ret < 0) {
         LOG(ERROR) << "CloneTaskMgr Push Task error"
@@ -101,8 +101,8 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
         return ret;
     }
     for (auto &cloneInfo : cloneInfos) {
-        if (cloneInfo.user == user) {
-            switch (cloneInfo.status) {
+        if (cloneInfo.GetUser() == user) {
+            switch (cloneInfo.GetStatus()) {
                 case CloneStatus::done : {
                     info->emplace_back(cloneInfo, 100);
                     break;
@@ -113,7 +113,7 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                 }
                 case CloneStatus::cloning:
                 case CloneStatus::recovering: {
-                    TaskIdType taskId = cloneInfo.taskId;
+                    TaskIdType taskId = cloneInfo.GetTaskId();
                     std::shared_ptr<CloneTask> task =
                         cloneTaskMgr_->GetTask(taskId);
                     if (task != nullptr) {
@@ -126,7 +126,7 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                             LOG(ERROR) << "can not reach here!";
                             continue;
                         }
-                        switch (newInfo.status) {
+                        switch (newInfo.GetStatus()) {
                             case CloneStatus::done : {
                                 info->emplace_back(newInfo, 100);
                                 break;
@@ -159,14 +159,14 @@ int CloneServiceManager::RecoverCloneTask() {
         return ret;
     }
     for (auto &cloneInfo : list) {
-        switch (cloneInfo.status) {
+        switch (cloneInfo.GetStatus()) {
             case CloneStatus::cloning:
             case CloneStatus::recovering: {
                 std::shared_ptr<CloneTaskInfo> taskInfo =
                     std::make_shared<CloneTaskInfo>(cloneInfo);
                 std::shared_ptr<CloneTask> task =
                     std::make_shared<CloneTask>(
-                        cloneInfo.taskId, taskInfo, cloneCore_);
+                        cloneInfo.GetTaskId(), taskInfo, cloneCore_);
                 ret = cloneTaskMgr_->PushTask(task);
                 if (ret < 0) {
                     LOG(ERROR) << "CloneTaskMgr Push Task error"

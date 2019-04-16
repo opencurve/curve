@@ -56,19 +56,26 @@ class MockSnapshotCore : public SnapshotCore {
         int(const UUID uuid, SnapshotInfo *info));
 };
 
-class MockSnapshotMetaStore : public SnapshotMetaStore {
+class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
  public:
     MOCK_METHOD0(Init, int());
     MOCK_METHOD1(AddSnapshot, int(const SnapshotInfo &snapinfo));
-    MOCK_METHOD1(DeleteSnapshot, int(UUID uuid));
+    MOCK_METHOD1(DeleteSnapshot, int(const UUID &uuid));
     MOCK_METHOD1(UpdateSnapshot, int(const SnapshotInfo &snapinfo));
     MOCK_METHOD2(GetSnapshotInfo,
-        int(UUID uuid, SnapshotInfo *info));
+        int(const UUID &uuid, SnapshotInfo *info));
     MOCK_METHOD2(GetSnapshotList,
         int(const std::string &filename,
             std::vector<SnapshotInfo> *v));
     MOCK_METHOD1(GetSnapshotList,
         int(std::vector<SnapshotInfo> *list));
+    MOCK_METHOD1(AddCloneInfo, int(const CloneInfo &info));
+    MOCK_METHOD1(DeleteCloneInfo, int(const std::string &taskID));
+    MOCK_METHOD1(UpdateCloneInfo, int(const CloneInfo &info));
+    MOCK_METHOD2(GetCloneInfo,
+        int(const std::string &taskID, CloneInfo *info));
+    MOCK_METHOD1(GetCloneInfoList,
+        int(std::vector<CloneInfo> *list));
 };
 
 class MockSnapshotDataStore : public SnapshotDataStore {
@@ -268,27 +275,6 @@ class MockCloneCore : public CloneCore {
     MOCK_METHOD2(GetCloneInfo,
         int(TaskIdType taskId, CloneInfo *cloneInfo));
 };
-
-class MockCloneMetaStore : public CloneMetaStore {
- public:
-    MOCK_METHOD0(Init, int());
-    MOCK_METHOD1(AddCloneInfo,
-        int(const CloneInfo &cloneInfo));
-
-    MOCK_METHOD1(DeleteCloneInfo,
-        int(const TaskIdType &uuid));
-
-    MOCK_METHOD1(UpdateCloneInfo,
-        int(const CloneInfo &cloneInfo));
-
-    MOCK_METHOD2(GetCloneInfo,
-        int(const TaskIdType &uuid,
-            CloneInfo *info));
-
-    MOCK_METHOD1(GetCloneInfoList,
-        int(std::vector<CloneInfo> *list));
-};
-
 }  // namespace snapshotcloneserver
 }  // namespace curve
 

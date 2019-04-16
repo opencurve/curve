@@ -1,12 +1,12 @@
 /*************************************************************************
-> File Name: snapshotRepo.h
+> File Name: snapshotcloneRepo.h
 > Author:
 > Created Time: Mon Dec 17 17:17:31 2018
 > Copyright (c) 2018 netease
  ************************************************************************/
 
-#ifndef SRC_SNAPSHOTCLONESERVER_DAO_SNAPSHOTREPO_H_
-#define SRC_SNAPSHOTCLONESERVER_DAO_SNAPSHOTREPO_H_
+#ifndef SRC_SNAPSHOTCLONESERVER_DAO_SNAPSHOTCLONEREPO_H_
+#define SRC_SNAPSHOTCLONESERVER_DAO_SNAPSHOTCLONEREPO_H_
 
 #include <list>
 #include <map>
@@ -60,11 +60,54 @@ struct SnapshotRepoItem : public curve::repo::RepoItem {
   std::string getTable() const override;
 };
 
-class SnapshotRepo : public curve::repo::RepoInterface {
+/**
+ * @brief 克隆记录数据项接口类
+ *
+ */
+struct CloneRepoItem : public curve::repo::RepoItem {
  public:
-  SnapshotRepo() {}
+  std::string taskID;
+  std::string user;
+  uint8_t tasktype;
+  std::string src;
+  std::string dest;
+  uint64_t originID;
+  uint64_t destID;
+  uint64_t time;
+  uint8_t filetype;
+  bool isLazy;
+  uint8_t nextstep;
+  uint8_t status;
+  CloneRepoItem() = default;
+  explicit CloneRepoItem(const std::string &taskID);
+  CloneRepoItem(const std::string &taskID,
+                const std::string &user,
+                uint8_t tasktype,
+                const std::string &src,
+                const std::string &dest,
+                uint64_t originID,
+                uint64_t destID,
+                uint64_t time,
+                uint8_t filetype,
+                bool isLazy,
+                uint8_t nextstep,
+                uint8_t status);
 
-  ~SnapshotRepo() {}
+  bool operator==(const CloneRepoItem &r);
+
+  // 参见虚基类注释说明
+  void getKV(std::map<std::string, std::string> *kv) const override;
+
+  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+
+  std::string getTable() const override;
+};
+
+class SnapshotCloneRepo : public curve::repo::RepoInterface {
+ public:
+  SnapshotCloneRepo() {}
+
+  ~SnapshotCloneRepo() {}
   // 参见虚基类注释说明
   int connectDB(const std::string &dbName, const std::string &user,
                 const std::string &url, const std::string &password) override;
@@ -99,7 +142,7 @@ class SnapshotRepo : public curve::repo::RepoInterface {
    * @param 快照uuid
    * @return 错误码（同上）
    */
-  virtual int DeleteSnapshotRepoItem(const std::string uuid);
+  virtual int DeleteSnapshotRepoItem(const std::string &uuid);
   /**
    * @brief 更新一条快照记录
    * @param 快照记录对象
@@ -112,7 +155,7 @@ class SnapshotRepo : public curve::repo::RepoInterface {
    * @param[out] 快照记录对象指针
    * @return 错误码（同上）
    */
-  virtual int QuerySnapshotRepoItem(const std::string uuid,
+  virtual int QuerySnapshotRepoItem(const std::string &uuid,
                                     SnapshotRepoItem *sr);
   /**
    * @brief 加载快照记录
@@ -121,6 +164,40 @@ class SnapshotRepo : public curve::repo::RepoInterface {
    */
   virtual int LoadSnapshotRepoItems(
               std::vector<SnapshotRepoItem> *snapshotlist);
+  /**
+   * @breif 插入一条克隆记录
+   * @param 克隆记录
+   * @return 错误码（同上）
+   */
+  virtual int InsertCloneRepoItem(const CloneRepoItem &cr);
+  /**
+   * @brief 删除一条克隆记录
+   * @param 克隆任务ID
+   * @return 错误码（同上）
+   */
+  virtual int DeleteCloneRepoItem(const std::string &taskID);
+  /**
+   * @brief 更新一条克隆记录
+   * @param 克隆记录对象
+   * @return 错误码（同上）
+   */
+  virtual int UpdateCloneRepoItem(const CloneRepoItem &cr);
+  /**
+   * @brief 查询一条克隆记录
+   * @param 克隆任务ID
+   * @param[out] 克隆记录对象指针
+   * @return 错误码（同上）
+   */
+  virtual int QueryCloneRepoItem(const std::string &taskID,
+                                    CloneRepoItem *cr);
+  /**
+   * @brief 加载克隆记录
+   * @param 克隆记录对象vector指针
+   * @return 错误码（同上）
+   */
+  virtual int LoadCloneRepoItems(
+              std::vector<CloneRepoItem> *clonelist);
+
 
  private:
   // database指针
@@ -131,5 +208,4 @@ class SnapshotRepo : public curve::repo::RepoInterface {
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-#endif  // SRC_SNAPSHOTCLONESERVER_DAO_SNAPSHOTREPO_H_
-
+#endif  // SRC_SNAPSHOTCLONESERVER_DAO_SNAPSHOTCLONEREPO_H_

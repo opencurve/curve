@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 #include <json/json.h>
-#include "src/snapshotcloneserver/dao/snapshotRepo.h"
+#include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -27,7 +27,7 @@ using ::curve::repo::InternalError;
 class RepoTest : public ::testing::Test {
  public:
   void SetUp() override {
-      repo = new SnapshotRepo();
+      repo = new SnapshotCloneRepo();
       ASSERT_EQ(OperationOK,
                 repo->connectDB("curve_snapshot_repo_test",
                                 "root",
@@ -44,10 +44,10 @@ class RepoTest : public ::testing::Test {
       delete (repo);
   }
 
-  SnapshotRepo *repo;
+  SnapshotCloneRepo *repo;
 };
 
-TEST_F(RepoTest, testSnapshotRepoCUDA) {
+TEST_F(RepoTest, testSnapshotCUDA) {
     SnapshotRepoItem sr1("uuid1",
                        "curve",
                        "test",
@@ -91,8 +91,53 @@ TEST_F(RepoTest, testSnapshotRepoCUDA) {
     ASSERT_EQ(SqlException, repo->LoadSnapshotRepoItems(&list));
     ASSERT_EQ(SqlException, repo->createAllTables());
 }
+TEST_F(RepoTest, testCloneCUDA) {
+    CloneRepoItem sr1("taskid-test",
+                       "user1",
+                       1,
+                       "src_file",
+                       "dest_file",
+                       1,
+                       2,
+                       9999,
+                       1,
+                       true,
+                       1,
+                       1);
+    ASSERT_EQ(OperationOK, repo->InsertCloneRepoItem(sr1));
+
+    // query id=taskid-test
+    CloneRepoItem queryRes;
+    ASSERT_EQ(OperationOK,
+              repo->QueryCloneRepoItem(sr1.taskID, &queryRes));
+    ASSERT_TRUE(queryRes == sr1);
+
+    // query all
+    std::vector<CloneRepoItem> list;
+    ASSERT_EQ(OperationOK, repo->LoadCloneRepoItems(&list));
+    ASSERT_EQ(1, list.size());
+    ASSERT_TRUE(sr1 == list[0]);
+
+    // update status
+    sr1.status = 0;
+    ASSERT_EQ(OperationOK, repo->UpdateCloneRepoItem(sr1));
+    queryRes.taskID = "taskid-test";
+    ASSERT_EQ(OperationOK,
+              repo->QueryCloneRepoItem(sr1.taskID, &queryRes));
+    ASSERT_EQ(sr1.status, queryRes.status);
+
+    // delete id=taskid-test
+    ASSERT_EQ(OperationOK, repo->DeleteCloneRepoItem(sr1.taskID));
+    ASSERT_EQ(OperationOK,
+              repo->QueryCloneRepoItem(sr1.taskID, &queryRes));
+
+    // close statement, query get sqlException
+    repo->getDataBase()->statement_->close();
+    ASSERT_EQ(SqlException, repo->QueryCloneRepoItem("test", &queryRes));
+    ASSERT_EQ(SqlException, repo->LoadCloneRepoItems(&list));
+    ASSERT_EQ(SqlException, repo->createAllTables());
+}
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
-
 
