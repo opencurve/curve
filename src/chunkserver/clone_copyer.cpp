@@ -22,11 +22,7 @@ int OriginCopyer::Init(const CopyerOptions& options) {
                    << "error code: " << errorCode;
         return -1;
     }
-    /*s3Client_->Init();
-    if (ret < 0) {
-        LOG(ERROR) << "Init s3 client failed.";
-        return ret;
-    }*/
+    s3Client_->Init(options.s3Conf);
     curveUser_ = options.curveUser;
     return 0;
 }
@@ -36,7 +32,7 @@ int OriginCopyer::Fini() {
         curveClient_->Close(pair.second);
     }
     curveClient_->UnInit();
-    // s3Client_->Deinit();
+    s3Client_->Deinit();
     return 0;
 }
 
@@ -65,8 +61,13 @@ int OriginCopyer::DownloadFromS3(const string& objectName,
                                      off_t off,
                                      size_t size,
                                      char* buf) {
-    // TODO(yyk)
-    return 0;
+    int ret = s3Client_->GetObject(objectName, buf, off, size);
+    if (ret < 0) {
+        LOG(ERROR) << "Failed to get s3 object."
+                   << "objectName: " << objectName
+                   << ", ret: " << ret;
+    }
+    return ret;
 }
 
 int OriginCopyer::DownloadFromCurve(const string& fileName,

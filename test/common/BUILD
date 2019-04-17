@@ -9,3 +9,14 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "common_mock",
+    srcs = [
+            "mock_s3_adapter.h",
+            ],
+    deps = [
+            "//src/common:curve_common",
+            ],
+    visibility = ["//visibility:public"],
+)

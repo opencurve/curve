@@ -53,7 +53,6 @@ cc_library(
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
         "//src/fs:lfs",
-        "//src/snapshotcloneserver:s3_adapter",
         "//src/client:curve_client",
     ],
 )
@@ -96,7 +95,6 @@ cc_library(
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
         "//src/fs:lfs",
-        "//src/snapshotcloneserver:s3_adapter",
         "//src/client:curve_client",
     ],
 )
