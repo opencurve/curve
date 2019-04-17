@@ -12,20 +12,20 @@ using ::curve::client::UserInfo;
 
 namespace curve {
 namespace snapshotcloneserver {
-int CurveFsClientImpl::Init() {
-    // TODO(xuchaojie): using config file instead.
+int CurveFsClientImpl::Init(const CurveClientOptions &options) {
     ClientConfigOption_t opt;
 
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:6666");
-    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.metaServerOpt.metaaddrvec.push_back(options.mdsAddr);
+    opt.ioOpt.reqSchdulerOpt.queueCapacity = options.requestQueueCap;
+    opt.ioOpt.reqSchdulerOpt.threadpoolSize = options.threadNum;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = options.requestMaxRetry;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs
+        = options.requestRetryIntervalUs;
+    opt.ioOpt.metaCacheOpt.getLeaderRetry = options.getLeaderRetry;
+    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = options.enableApplyIndexRead;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = options.ioSplitSize;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
-    opt.loginfo.loglevel = 0;
+    opt.loginfo.loglevel = options.loglevel;
 
     return client_.Init(opt);
 }
