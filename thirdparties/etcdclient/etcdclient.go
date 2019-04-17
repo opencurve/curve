@@ -176,7 +176,9 @@ func NewEtcdClientV3(conf C.struct_EtcdConf) C.enum_EtcdErrCode {
 
 //export EtcdCloseClient
 func EtcdCloseClient() {
-    globalClient.Close()
+    if (globalClient != nil) {
+        globalClient.Close()
+    }
 }
 
 //export EtcdClientPut

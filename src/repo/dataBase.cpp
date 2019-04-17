@@ -52,27 +52,6 @@ int DataBase::connectDB() {
     }
 }
 
-int DataBase::Exec(const std::string &sql) {
-    std::lock_guard<std::mutex> guard(mutex_);
-    try {
-        if (!CheckConn()) {
-            return ConnLost;
-        }
-        statement_->execute(sql::SQLString(sql));
-        return OperationOK;
-    } catch (sql::SQLException &e) {
-        LOG(ERROR) << "exec sql: " << sql << "get sqlException, "
-                   << "error code: " << e.getErrorCode() << ", "
-                   << "error message: " << e.what();
-        return SqlException;
-    } catch (std::runtime_error &e) {
-        LOG(ERROR) << "[dataBase.cpp] exec sql: " << sql
-                   << "get runtime_error, "
-                   << "error message: " << e.what();
-        return RuntimeExecption;
-    }
-}
-
 // retrun value: rows affected
 int DataBase::ExecUpdate(const std::string &sql) {
     std::lock_guard<std::mutex> guard(mutex_);

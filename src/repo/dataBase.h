@@ -38,8 +38,6 @@ class DataBase {
   int connectDB();
 
   // CRUD
-  int Exec(const std::string &sql);
-
   int ExecUpdate(const std::string &sql);
 
   int QueryRows(const std::string &sql, sql::ResultSet **res);
