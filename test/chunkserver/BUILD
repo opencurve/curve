@@ -11,6 +11,7 @@ DEPS = [
     "//src/chunkserver/datastore:chunkserver_datastore",
     "//src/common:curve_common",
     "//src/fs:lfs",
+    "//test/fs:fs_mock",
     "@com_google_googletest//:gtest",
     "@com_google_googletest//:gtest_main",
 ]

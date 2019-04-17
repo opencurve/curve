@@ -20,7 +20,7 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/copyset_node.h"
 #include "test/chunkserver/fake_datastore.h"
-#include "test/chunkserver/mock_local_file_system.h"
+#include "test/fs/mock_local_filesystem.h"
 #include "src/chunkserver/conf_epoch_file.h"
 
 namespace curve {
@@ -38,6 +38,7 @@ using ::testing::AtLeast;
 using ::testing::SaveArgPointee;
 
 using curve::fs::FileSystemType;
+using curve::fs::MockLocalFileSystem;
 
 class FakeSnapshotReader : public braft::SnapshotReader {
  public:
@@ -147,7 +148,7 @@ TEST(CopysetNodeTest, error_test) {
             .WillOnce(Return(writeLen));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, Rename(_, _)).Times(1).WillOnce(Return(0));
+        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, List(_, _)).Times(1).WillOnce(Return(-1));
 
         copysetNode.on_snapshot_save(&writer, &closure);
@@ -186,7 +187,7 @@ TEST(CopysetNodeTest, error_test) {
             .WillOnce(Return(writeLen));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, Rename(_, _)).Times(1).WillOnce(Return(-1));
+        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1).WillOnce(Return(-1));
 
         copysetNode.on_snapshot_save(&writer, &closure);
         LOG(INFO) << closure.status().error_cstr();
@@ -258,7 +259,7 @@ TEST(CopysetNodeTest, error_test) {
             .WillOnce(Return(writeLen));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, Rename(_, _)).Times(1).WillOnce(Return(0));
+        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, List(_, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
 
@@ -381,7 +382,7 @@ TEST(CopysetNodeTest, error_test) {
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
         EXPECT_CALL(*mockfs, List(_, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, Rename(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1)
             .WillOnce(Return(0));
         EXPECT_CALL(*mockfs, FileExists(_)).Times(1).WillOnce(Return(true));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(-1));
@@ -408,7 +409,7 @@ TEST(CopysetNodeTest, error_test) {
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
         EXPECT_CALL(*mockfs, List(_, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, Rename(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1)
             .WillOnce(Return(1));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));

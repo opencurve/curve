@@ -232,10 +232,10 @@ TEST_F(Ext4LocalFileSystemTest, FileExistsTest) {
 
 // test Rename
 TEST_F(Ext4LocalFileSystemTest, RenameTest) {
-    EXPECT_CALL(*wrapper, rename(NotNull(), NotNull()))
+    EXPECT_CALL(*wrapper, rename(NotNull(), NotNull(), 0))
         .WillOnce(Return(0));
     ASSERT_EQ(lfs->Rename("/a", "/b"), 0);
-    EXPECT_CALL(*wrapper, rename(NotNull(), NotNull()))
+    EXPECT_CALL(*wrapper, rename(NotNull(), NotNull(), 0))
         .WillOnce(Return(-1));
     ASSERT_EQ(lfs->Rename("/a", "/b"), -errno);
 }
