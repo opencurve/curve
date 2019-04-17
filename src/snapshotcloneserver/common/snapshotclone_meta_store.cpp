@@ -12,34 +12,38 @@
 using ::curve::snapshotcloneserver::SnapshotRepoItem;
 using ::curve::snapshotcloneserver::CloneRepoItem;
 
-DEFINE_string(db_name, "curve_snapshot", "database name");
-DEFINE_string(user, "root", "user name");
-DEFINE_string(passwd, "qwer", "password");
-DEFINE_string(url, "localhost", "db url");
 namespace curve {
 namespace snapshotcloneserver {
 
-int DBSnapshotCloneMetaStore::Init() {
-    std::string dbname = FLAGS_db_name;
-    std::string user = FLAGS_user;
-    std::string passwd = FLAGS_passwd;
-    std::string url = FLAGS_url;
-    if (repo_ -> connectDB(dbname, user, url, passwd) < 0) {
+int DBSnapshotCloneMetaStore::Init(
+        const SnapshotCloneMetaStoreOptions &options) {
+    std::string dbname = options.dbName;
+    std::string user = options.dbUser;
+    std::string passwd = options.dbPassword;
+    std::string url = options.dbAddr;
+    auto ret = 0;
+    ret = repo_ -> connectDB(dbname, user, url, passwd);
+    if (ret < 0) {
         return -1;
     }
-    if (repo_ -> createDatabase() < 0) {
+    ret = repo_->createDatabase();
+    if (ret < 0) {
         return -1;
     }
-    if (repo_ -> useDataBase() < 0) {
+    ret = repo_->useDataBase();
+    if (ret < 0) {
         return -1;
     }
-    if (repo_ -> createAllTables() < 0) {
+    ret = repo_->createAllTables();
+    if (ret < 0) {
         return -1;
     }
-    if (LoadSnapshotInfos() < 0) {
+    ret = LoadSnapshotInfos();
+    if (ret < 0) {
         return -1;
     }
-    if (LoadCloneInfos() < 0) {
+    ret = LoadCloneInfos();
+    if (ret < 0) {
         return -1;
     }
     return 0;
@@ -85,7 +89,9 @@ int DBSnapshotCloneMetaStore::AddCloneInfo(const CloneInfo &info) {
                      info.GetIsLazy(),
                      static_cast<uint8_t>(info.GetNextStep()),
                      static_cast<uint8_t>(info.GetStatus()));
-    if (repo_ -> InsertCloneRepoItem(cr) < 0) {
+    auto ret = 0;
+    ret = repo_ -> InsertCloneRepoItem(cr);
+    if (ret < 0) {
         LOG(ERROR) << "Add cloneinfo failed";
         return -1;
     }
@@ -97,7 +103,9 @@ int DBSnapshotCloneMetaStore::AddCloneInfo(const CloneInfo &info) {
 
 int DBSnapshotCloneMetaStore::DeleteCloneInfo(const std::string &taskID) {
     // first delete from  db
-    if (repo_ -> DeleteCloneRepoItem(taskID) < 0) {
+    auto ret = 0;
+    ret = repo_->DeleteCloneRepoItem(taskID);
+    if (ret < 0) {
         LOG(ERROR) << "Delete cloneinfo failed";
         return -1;
     }
@@ -124,7 +132,9 @@ int DBSnapshotCloneMetaStore::UpdateCloneInfo(const CloneInfo &info) {
                       info.GetIsLazy(),
                       static_cast<uint8_t>(info.GetNextStep()),
                       static_cast<uint8_t>(info.GetStatus()));
-    if (repo_ -> UpdateCloneRepoItem(cr) < 0) {
+    auto ret = 0;
+    ret = repo_->UpdateCloneRepoItem(cr);
+    if (ret < 0) {
         LOG(ERROR) << "Update cloneinfo failed";
         return -1;
     }

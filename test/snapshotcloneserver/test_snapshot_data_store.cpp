@@ -35,7 +35,7 @@ class TestS3SnapshotDataStore : public ::testing::Test {
 
 
 TEST_F(TestS3SnapshotDataStore, testInit) {
-    EXPECT_CALL(*adapter, Init()).Times(3);
+    EXPECT_CALL(*adapter, Init(_)).Times(3);
     EXPECT_CALL(*adapter, BucketExist())
         .Times(3)
         .WillOnce(Return(true))
@@ -45,9 +45,9 @@ TEST_F(TestS3SnapshotDataStore, testInit) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
-    ASSERT_EQ(0, store_->Init());
-    ASSERT_EQ(0, store_->Init());
-    ASSERT_EQ(-1, store_->Init());
+    ASSERT_EQ(0, store_->Init(""));
+    ASSERT_EQ(0, store_->Init(""));
+    ASSERT_EQ(-1, store_->Init(""));
 }
 TEST_F(TestS3SnapshotDataStore, testChunkIndexDataExist) {
     ChunkIndexDataName indexDataName("test", 1);

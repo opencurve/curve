@@ -18,6 +18,7 @@
 #include "src/snapshotcloneserver/clone/clone_core.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
+#include "src/snapshotcloneserver/common/config.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -58,7 +59,7 @@ class MockSnapshotCore : public SnapshotCore {
 
 class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
  public:
-    MOCK_METHOD0(Init, int());
+    MOCK_METHOD1(Init, int(const SnapshotCloneMetaStoreOptions&));
     MOCK_METHOD1(AddSnapshot, int(const SnapshotInfo &snapinfo));
     MOCK_METHOD1(DeleteSnapshot, int(const UUID &uuid));
     MOCK_METHOD1(UpdateSnapshot, int(const SnapshotInfo &snapinfo));
@@ -80,7 +81,7 @@ class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
 
 class MockSnapshotDataStore : public SnapshotDataStore {
  public:
-    MOCK_METHOD0(Init, int());
+    MOCK_METHOD1(Init, int(const std::string&));
     MOCK_METHOD2(PutChunkIndexData,
         int(const ChunkIndexDataName &name,
             const ChunkIndexData &meta));
@@ -121,7 +122,7 @@ class MockSnapshotDataStore : public SnapshotDataStore {
 
 class MockCurveFsClient : public CurveFsClient {
  public:
-    MOCK_METHOD0(Init, int());
+    MOCK_METHOD1(Init, int(const CurveClientOptions &));
     MOCK_METHOD0(UnInit, int());
     MOCK_METHOD3(CreateSnapshot,
         int(const std::string &filename,
