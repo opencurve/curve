@@ -215,9 +215,10 @@ class SnapshotDataStore {
     virtual ~SnapshotDataStore() {}
     /**
      * 快照的datastore初始化，根据存储的类型有不同的实现
+     * @param s3配置文件路径
      * @return 0 初始化成功/ -1 初始化失败
      */
-    virtual int Init() = 0;
+    virtual int Init(const std::string &confpath) = 0;
     /**
      * 存储快照文件的元数据信息到datastore中
      * @param 元数据对象名
