@@ -28,7 +28,7 @@ class MockLocalFileSystem : public LocalFileSystem {
     MOCK_METHOD1(Mkdir, int(const string&));
     MOCK_METHOD1(DirExists, bool(const string&));
     MOCK_METHOD1(FileExists, bool(const string&));
-    MOCK_METHOD2(Rename, int(const string&, const string&));
+    MOCK_METHOD3(Rename, int(const string&, const string&, unsigned int));
     MOCK_METHOD2(List, int(const string&, vector<string>*));
     MOCK_METHOD4(Read, int(int, char*, uint64_t, int));
     MOCK_METHOD4(Write, int(int, const char*, uint64_t, int));

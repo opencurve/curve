@@ -99,9 +99,16 @@ class LocalFileSystem {
      * @param oldPath：原文件或目录路径
      * @param newPath：新的文件或目录路径
      * 新的文件或目录在重命名之前不存在，否则返回错误
+     * @param flags:重命名使用的模式，默认值为0
+     * 可选择RENAME_EXCHANGE、RENAME_EXCHANGE、RENAME_WHITEOUT三种模式
+     * https://manpages.debian.org/testing/manpages-dev/renameat2.2.en.html
      * @return 成功返回0
      */
-    virtual int Rename(const string& oldPath, const string& newPath) = 0;
+    virtual int Rename(const string& oldPath,
+                       const string& newPath,
+                       unsigned int flags = 0) {
+        return DoRename(oldPath, newPath, flags);
+    }
 
     /**
      * 列举指定路径下的所有文件和目录名
@@ -165,6 +172,11 @@ class LocalFileSystem {
      * @return 成功返回0
      */
     virtual int Fsync(int fd) = 0;
+
+ private:
+    virtual int DoRename(const string& oldPath,
+                         const string& newPath,
+                         unsigned int flags) {}
 };
 
 

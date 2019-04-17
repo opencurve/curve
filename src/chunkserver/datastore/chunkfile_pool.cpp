@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include <fcntl.h>
+#include <linux/fs.h>
 #include <errno.h>
 #include <cctype>
 
@@ -124,7 +125,14 @@ int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
         LOG(INFO) << "src path = " << srcpath.c_str()
                   << ", dist path = " << targetpath.c_str();
         if (ret == 0) {
-            ret = fsptr_->Rename(srcpath.c_str(), targetpath.c_str());
+            // 这里使用RENAME_NOREPLACE模式来rename文件
+            // 当目标文件存在时，不允许被覆盖
+            // 也就是说通过chunkfilepool创建文件需要保证目标文件不存在
+            // datastore可能存在并发创建文件的场景
+            // 通过rename一来保证文件创建的原子性，二来保证不会覆盖已有文件
+            ret = fsptr_->Rename(srcpath.c_str(),
+                                 targetpath.c_str(),
+                                 RENAME_NOREPLACE);
         }
 
         if (ret < 0) {

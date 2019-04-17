@@ -8,8 +8,6 @@
 #include <glog/logging.h>
 #include <stdio.h>
 #include <sys/syscall.h>
-#include <linux/fs.h>
-#include <string>
 
 #include "src/fs/wrap_posix.h"
 
@@ -36,7 +34,9 @@ int PosixWrapper::stat(const char *pathname, struct stat *buf) {
     return ::stat(pathname, buf);
 }
 
-int PosixWrapper::rename(const char *oldpath, const char *newpath) {
+int PosixWrapper::rename(const char *oldpath,
+                         const char *newpath,
+                         unsigned int flags) {
     /*   RENAME_NOREPLACE requires support from the underlying filesystem.
      *   Support for various filesystems was added as follows:
      *   ext4 (Linux 3.15);
@@ -50,7 +50,7 @@ int PosixWrapper::rename(const char *oldpath, const char *newpath) {
                      oldpath,
                      AT_FDCWD,
                      newpath,
-                     RENAME_NOREPLACE);
+                     flags);
 }
 
 DIR *PosixWrapper::opendir(const char *name) {
