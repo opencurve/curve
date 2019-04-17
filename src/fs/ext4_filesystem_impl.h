@@ -34,7 +34,6 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     int Mkdir(const string& dirPath) override;
     bool DirExists(const string& dirPath) override;
     bool FileExists(const string& filePath) override;
-    int Rename(const string& oldPath, const string& newPath) override;
     int List(const string& dirPath, vector<std::string>* names) override;
     int Read(int fd, char* buf, uint64_t offset, int length) override;
     int Write(int fd, const char* buf, uint64_t offset, int length) override;
@@ -45,6 +44,9 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     int Fsync(int fd) override;
 
  private:
+    int DoRename(const string& oldPath,
+                 const string& newPath,
+                 unsigned int flags) override;
     explicit Ext4FileSystemImpl(std::shared_ptr<PosixWrapper>);
 
  private:

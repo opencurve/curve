@@ -153,13 +153,15 @@ bool Ext4FileSystemImpl::FileExists(const string& filePath) {
         return false;
 }
 
-int Ext4FileSystemImpl::Rename(const string& oldPath,
-                               const string& newPath) {
-    int rc = posixWrapper_->rename(oldPath.c_str(), newPath.c_str());
+int Ext4FileSystemImpl::DoRename(const string& oldPath,
+                                 const string& newPath,
+                                 unsigned int flags) {
+    int rc = posixWrapper_->rename(oldPath.c_str(), newPath.c_str(), flags);
     if (rc < 0) {
         LOG(ERROR) << "rename failed: " << strerror(errno)
                    << ". old path: " << oldPath
-                   << ", new path: " << newPath;
+                   << ", new path: " << newPath
+                   << ", flag: " << flags;
         return -errno;
     }
     return 0;

@@ -14,6 +14,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <linux/fs.h>
+#include <string>
 
 namespace curve {
 namespace fs {
@@ -28,7 +30,9 @@ class PosixWrapper {
     virtual int remove(const char *pathname);
     virtual int mkdir(const char *pathname, mode_t mode);
     virtual int stat(const char *pathname, struct stat *buf);
-    virtual int rename(const char *oldpath, const char *newpath);
+    virtual int rename(const char *oldpath,
+                       const char *newpath,
+                       unsigned int flags = 0);
     virtual DIR *opendir(const char *name);
     virtual struct dirent *readdir(DIR *dirp);
     virtual int closedir(DIR *dirp);
