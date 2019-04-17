@@ -13,18 +13,27 @@
 #include <vector>
 #include <string>
 #include "src/mds/nameserver2/etcd_client.h"
+#include "src/mds/nameserver2/namespace_storage_cache.h"
 
 namespace curve {
 namespace mds {
 class MockEtcdClient : public EtcdClientImp {
  public:
-  ~MockEtcdClient() {}
-  MOCK_METHOD2(Put, int(std::string, std::string));
-  MOCK_METHOD2(Get, int(std::string, std::string*));
-  MOCK_METHOD3(List,
-    int(std::string, std::string, std::vector<std::string>*));
-  MOCK_METHOD1(Delete, int(std::string));
-  MOCK_METHOD2(Txn2, int(Operation, Operation));
+    virtual ~MockEtcdClient() {}
+    MOCK_METHOD2(Put, int(std::string, std::string));
+    MOCK_METHOD2(Get, int(std::string, std::string*));
+    MOCK_METHOD3(List,
+        int(std::string, std::string, std::vector<std::string>*));
+    MOCK_METHOD1(Delete, int(std::string));
+    MOCK_METHOD2(Txn2, int(Operation, Operation));
+};
+
+class MockLRUCache : public LRUCache {
+ public:
+    virtual ~MockLRUCache() {}
+    MOCK_METHOD2(Put, void(const std::string&, const std::string&));
+    MOCK_METHOD2(Get, bool(const std::string&, std::string*));
+    MOCK_METHOD1(Remove, void(const std::string&));
 };
 }  // namespace mds
 }  // namespace curve

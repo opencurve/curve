@@ -12,12 +12,14 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <memory>
 #include "proto/nameserver2.pb.h"
 
 #include "src/common/encode.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/etcd_client.h"
 #include "src/mds/nameserver2/namespace_helper.h"
+#include "src/mds/nameserver2/namespace_storage_cache.h"
 
 namespace curve {
 namespace mds {
@@ -33,7 +35,6 @@ std::ostream& operator << (std::ostream & os, StoreStatus &s);
 // put the encoding internal, not external
 
 
-// TODO(lixiaocui): 接口不传入key，直接在函数中encode, 只需要依赖info就可以
 // kv value storage for namespace and segment
 class NameServerStorage {
  public:
@@ -179,46 +180,47 @@ class NameServerStorage {
 
 class NameServerStorageImp : public NameServerStorage {
  public:
-  explicit NameServerStorageImp(std::shared_ptr<StorageClient> client);
+  explicit NameServerStorageImp(
+      std::shared_ptr<StorageClient> client, std::shared_ptr<Cache> cache);
   ~NameServerStorageImp() {}
 
-  StoreStatus PutFile(const FileInfo & fileInfo) override;
+    StoreStatus PutFile(const FileInfo & fileInfo) override;
 
-  StoreStatus GetFile(InodeID id,
-                      const std::string &filename,
-                      FileInfo * fileInfo) override;
+    StoreStatus GetFile(InodeID id,
+                        const std::string &filename,
+                        FileInfo * fileInfo) override;
 
-  StoreStatus DeleteFile(InodeID id,
-                         const std::string &filename) override;
+    StoreStatus DeleteFile(InodeID id,
+                            const std::string &filename) override;
 
-  StoreStatus DeleteSnapshotFile(InodeID id,
-                         const std::string &filename) override;
+    StoreStatus DeleteSnapshotFile(InodeID id,
+                            const std::string &filename) override;
 
-  StoreStatus RenameFile(const FileInfo &oldfileInfo,
-                         const FileInfo &newfileInfo) override;
+    StoreStatus RenameFile(const FileInfo &oldfileInfo,
+                            const FileInfo &newfileInfo) override;
 
-  StoreStatus ListFile(InodeID startid,
-                       InodeID endid,
-                       std::vector<FileInfo> * files) override;
+    StoreStatus ListFile(InodeID startid,
+                        InodeID endid,
+                        std::vector<FileInfo> * files) override;
 
-  StoreStatus ListSnapshotFile(InodeID startid,
-                       InodeID endid,
-                       std::vector<FileInfo> * files) override;
+    StoreStatus ListSnapshotFile(InodeID startid,
+                        InodeID endid,
+                        std::vector<FileInfo> * files) override;
 
-  StoreStatus GetSegment(InodeID id,
-                         uint64_t off,
-                         PageFileSegment *segment) override;
+    StoreStatus GetSegment(InodeID id,
+                            uint64_t off,
+                            PageFileSegment *segment) override;
 
-  StoreStatus PutSegment(InodeID id,
-                         uint64_t off,
-                         const PageFileSegment * segment) override;
+    StoreStatus PutSegment(InodeID id,
+                            uint64_t off,
+                            const PageFileSegment * segment) override;
 
-  StoreStatus DeleteSegment(InodeID id, uint64_t off) override;
+    StoreStatus DeleteSegment(InodeID id, uint64_t off) override;
 
-  StoreStatus SnapShotFile(const FileInfo *originalFileInfo,
-                           const FileInfo * snapshotFileInfo) override;
+    StoreStatus SnapShotFile(const FileInfo *originalFileInfo,
+                            const FileInfo * snapshotFileInfo) override;
 
-  StoreStatus LoadSnapShotFile(std::vector<FileInfo> *snapShotFiles) override;
+    StoreStatus LoadSnapShotFile(std::vector<FileInfo> *snapShotFiles) override;
 
  private:
     StoreStatus ListFileInternal(const std::string& startStoreKey,
@@ -231,7 +233,11 @@ class NameServerStorageImp : public NameServerStorage {
     StoreStatus getErrorCode(int errCode);
 
  private:
-  std::shared_ptr<StorageClient> client_;
+    // namespace-meta缓存
+    std::shared_ptr<Cache> cache_;
+
+    // 底层存储介质
+    std::shared_ptr<StorageClient> client_;
 };
 }  // namespace mds
 }  // namespace curve
