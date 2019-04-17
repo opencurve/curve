@@ -112,7 +112,7 @@ void ChunkServer::InitCopyerOptions() {
     copyerOptions_.curveUser.password =
         conf_.GetStringValue("curve.root_password");
     copyerOptions_.curveConf = conf_.GetStringValue("curve.config_path");
-
+    copyerOptions_.s3Conf = conf_.GetStringValue("s3.config_path");
     auto curveClient = std::make_shared<FileClient>();
     auto s3Adapter = std::make_shared<S3Adapter>();
     copyer_ = std::make_shared<OriginCopyer>(curveClient, s3Adapter);

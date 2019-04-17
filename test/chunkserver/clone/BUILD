@@ -21,6 +21,7 @@ cc_test(
         "//test/chunkserver:chunkserver_mock",
         "//test/chunkserver/clone:clone_mock",
         "//test/client:client_mock",
+        "//test/common:common_mock",
     ],
 )
 

@@ -13,11 +13,13 @@
 #include "src/chunkserver/clone_copyer.h"
 #include "test/chunkserver/clone/clone_test_util.h"
 #include "test/client/mock_file_client.h"
+#include "test/common/mock_s3_adapter.h"
 
 namespace curve {
 namespace chunkserver {
 
 using curve::client::MockFileClient;
+using curve::common::MockS3Adapter;
 
 const char CURVE_CONF[] = "client.conf";
 const char S3_CONF[] = "s3.conf";
@@ -28,16 +30,17 @@ class CloneCopyerTest : public testing::Test  {
  public:
     void SetUp() {
         curveClient_ = std::make_shared<MockFileClient>();
+        s3Client_ = std::make_shared<MockS3Adapter>();
     }
     void TearDown() {}
 
  protected:
     std::shared_ptr<MockFileClient> curveClient_;
+    std::shared_ptr<MockS3Adapter> s3Client_;
 };
 
 TEST_F(CloneCopyerTest, BasicTest) {
-    // TODO(yyk) 补充s3Client的测试
-    OriginCopyer copyer(curveClient_, nullptr);
+    OriginCopyer copyer(curveClient_, s3Client_);
     CopyerOptions options;
     options.curveConf = CURVE_CONF;
     options.s3Conf = S3_CONF;
@@ -106,6 +109,22 @@ TEST_F(CloneCopyerTest, BasicTest) {
             .WillOnce(Return(LIBCURVE_ERROR::FAILED));
         ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
 
+        /* 用例:读s3上的数据，读取成功
+         * 预期:返回0
+         */
+        location = "test@s3";
+        EXPECT_CALL(*s3Client_, GetObject("test", _, off, size))
+            .WillOnce(Return(0));
+        ASSERT_EQ(0, copyer.Download(location, off, size, buf));
+
+        /* 用例:读s3上的数据，读取失败
+         * 预期:返回-1
+         */
+        location = "test@s3";
+        EXPECT_CALL(*s3Client_, GetObject("test", _, off, size))
+            .WillOnce(Return(-1));
+        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+
         delete [] buf;
     }
     // fini test
@@ -115,6 +134,8 @@ TEST_F(CloneCopyerTest, BasicTest) {
         EXPECT_CALL(*curveClient_, Close(2))
             .Times(1);
         EXPECT_CALL(*curveClient_, UnInit())
+            .Times(1);
+        EXPECT_CALL(*s3Client_, Deinit())
             .Times(1);
         ASSERT_EQ(0, copyer.Fini());
     }
