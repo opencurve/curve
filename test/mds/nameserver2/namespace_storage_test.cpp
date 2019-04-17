@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <gtest/gtest.h>
 #include <glog/logging.h>
+#include <memory>
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/common/timeutility.h"
 #include "test/mds/nameserver2/mock_etcdclient.h"
@@ -22,53 +23,55 @@ namespace curve {
 namespace mds {
 class TestNameServerStorageImp : public ::testing::Test {
  protected:
-  TestNameServerStorageImp() {}
-  ~TestNameServerStorageImp() {}
+    TestNameServerStorageImp() {}
+    ~TestNameServerStorageImp() {}
 
-  void SetUp() override {
-      client_ = std::make_shared<MockEtcdClient>();
-      storage_ = std::make_shared<NameServerStorageImp>(client_);
-  }
-
-  void TearDown() override {
-      client_ = nullptr;
-      storage_ = nullptr;
-  }
-
-  void GetFileInfoForTest(FileInfo *fileinfo) {
-    std::string filename = "helloword-" + std::to_string(1) + ".log";
-    fileinfo->set_id(1);
-    fileinfo->set_filename(filename);
-    fileinfo->set_parentid(1<<8);
-    fileinfo->set_filetype(FileType::INODE_PAGEFILE);
-    fileinfo->set_chunksize(DefaultChunkSize);
-    fileinfo->set_length(10<<20);
-    fileinfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
-    std::string fullpathname = "/A/B/" + std::to_string(1) + "/" + filename;
-    fileinfo->set_fullpathname(fullpathname);
-    fileinfo->set_seqnum(1);
-    std::string encodeFileInfo;
-    ASSERT_TRUE(fileinfo->SerializeToString(&encodeFileInfo));
-  }
-
-  void GetPageFileSegmentForTest(
-       std::string *fileKey, PageFileSegment *segment) {
-    segment->set_chunksize(16<<20);
-    segment->set_segmentsize(1 << 30);
-    segment->set_startoffset(0);
-    segment->set_logicalpoolid(16);
-    int size = segment->segmentsize()/segment->chunksize();
-    for (uint32_t i = 0; i < size; i++) {
-        PageFileChunkInfo *chunkinfo = segment->add_chunks();
-        chunkinfo->set_chunkid(i+1);
-        chunkinfo->set_copysetid(i+1);
+    void SetUp() override {
+        client_ = std::make_shared<MockEtcdClient>();
+        cache_ = std::make_shared<MockLRUCache>();
+        storage_ = std::make_shared<NameServerStorageImp>(client_, cache_);
     }
-    *fileKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(1, 1);
-  }
+
+    void TearDown() override {
+        client_ = nullptr;
+        storage_ = nullptr;
+    }
+
+    void GetFileInfoForTest(FileInfo *fileinfo) {
+        std::string filename = "helloword-" + std::to_string(1) + ".log";
+        fileinfo->set_id(1);
+        fileinfo->set_filename(filename);
+        fileinfo->set_parentid(1<<8);
+        fileinfo->set_filetype(FileType::INODE_PAGEFILE);
+        fileinfo->set_chunksize(DefaultChunkSize);
+        fileinfo->set_length(10<<20);
+        fileinfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
+        std::string fullpathname = "/A/B/" + std::to_string(1) + "/" + filename;
+        fileinfo->set_fullpathname(fullpathname);
+        fileinfo->set_seqnum(1);
+        std::string encodeFileInfo;
+        ASSERT_TRUE(fileinfo->SerializeToString(&encodeFileInfo));
+    }
+
+    void GetPageFileSegmentForTest(
+        std::string *fileKey, PageFileSegment *segment) {
+        segment->set_chunksize(16<<20);
+        segment->set_segmentsize(1 << 30);
+        segment->set_startoffset(0);
+        segment->set_logicalpoolid(16);
+        int size = segment->segmentsize()/segment->chunksize();
+        for (uint32_t i = 0; i < size; i++) {
+            PageFileChunkInfo *chunkinfo = segment->add_chunks();
+            chunkinfo->set_chunkid(i+1);
+            chunkinfo->set_copysetid(i+1);
+        }
+        *fileKey = NameSpaceStorageCodec::EncodeSegmentStoreKey(1, 1);
+    }
 
  protected:
-  std::shared_ptr<MockEtcdClient> client_;
-  std::shared_ptr<NameServerStorageImp> storage_;
+    std::shared_ptr<MockEtcdClient> client_;
+    std::shared_ptr<MockLRUCache> cache_;
+    std::shared_ptr<NameServerStorageImp> storage_;
 };
 
 TEST_F(TestNameServerStorageImp, test_putFile) {
@@ -140,6 +143,7 @@ TEST_F(TestNameServerStorageImp, test_putFile) {
 TEST_F(TestNameServerStorageImp, test_getfile) {
     // 1. get file err
     FileInfo fileinfo;
+    EXPECT_CALL(*cache_, Get(_, _)).Times(2).WillRepeatedly(Return(false));
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(Return(EtcdErrCode::DeadlineExceeded))
         .WillOnce(Return(EtcdErrCode::KeyNotExist));
@@ -156,9 +160,20 @@ TEST_F(TestNameServerStorageImp, test_getfile) {
     GetFileInfoForTest(&fileinfo);
     ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
                                                       &encodeFileinfo));
+    EXPECT_CALL(*cache_, Get(_, _)).WillOnce(Return(false));
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(encodeFileinfo),
                   Return(EtcdErrCode::OK)));
+    ASSERT_EQ(StoreStatus::OK, storage_->GetFile(fileinfo.parentid(),
+                                                 fileinfo.filename(),
+                                                 &getInfo));
+    ASSERT_EQ(fileinfo.filename(), getInfo.filename());
+    ASSERT_EQ(fileinfo.fullpathname(), getInfo.fullpathname());
+    ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
+
+    // 3. get file from cache ok
+    EXPECT_CALL(*cache_, Get(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(encodeFileinfo), Return(true)));
     ASSERT_EQ(StoreStatus::OK, storage_->GetFile(fileinfo.parentid(),
                                                  fileinfo.filename(),
                                                  &getInfo));
@@ -173,6 +188,17 @@ TEST_F(TestNameServerStorageImp, test_deletefile) {
         .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
     ASSERT_EQ(StoreStatus::OK, storage_->DeleteFile(1234, ""));
     ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteFile(1234, ""));
+}
+
+
+TEST_F(TestNameServerStorageImp, test_deletesnapshotfile) {
+    EXPECT_CALL(*client_, Delete(_))
+        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
+    ASSERT_EQ(StoreStatus::OK,
+        storage_->DeleteSnapshotFile(1234, ""));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->DeleteSnapshotFile(1234, ""));
 }
 
 TEST_F(TestNameServerStorageImp, test_renamefile) {
@@ -209,6 +235,32 @@ TEST_F(TestNameServerStorageImp, test_ListFile) {
     ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());
 }
 
+
+TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
+    // 1. list err
+    std::vector<FileInfo> listRes;
+    EXPECT_CALL(*client_, List(_, _, _))
+        .WillOnce(Return(EtcdErrCode::Canceled));
+    ASSERT_EQ(
+        StoreStatus::InternalError, storage_->ListSnapshotFile(0, 0, &listRes));
+
+    // 2. list ok
+    listRes.clear();
+    std::string encodeFileinfo;
+    FileInfo fileinfo;
+    GetFileInfoForTest(&fileinfo);
+    ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
+                                                      &encodeFileinfo));
+    EXPECT_CALL(*client_, List(_, _, _))
+        .WillOnce(DoAll(
+            SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
+            Return(EtcdErrCode::OK)));
+    ASSERT_EQ(StoreStatus::OK, storage_->ListSnapshotFile(0, 0, &listRes));
+    ASSERT_EQ(1, listRes.size());
+    ASSERT_EQ(fileinfo.filename(), listRes[0].filename());
+    ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());
+}
+
 TEST_F(TestNameServerStorageImp, test_putsegment) {
     PageFileSegment segment;
     EXPECT_CALL(*client_, Put(_, _))
@@ -221,6 +273,7 @@ TEST_F(TestNameServerStorageImp, test_putsegment) {
 TEST_F(TestNameServerStorageImp, test_getSegment) {
     // 1. get err
     PageFileSegment segment;
+    EXPECT_CALL(*cache_, Get(_, _)).Times(2).WillRepeatedly(Return(false));
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(Return(EtcdErrCode::Canceled))
         .WillOnce(Return(EtcdErrCode::KeyNotExist));
@@ -232,9 +285,17 @@ TEST_F(TestNameServerStorageImp, test_getSegment) {
     std::string key, encodeSegment;
     GetPageFileSegmentForTest(&key, &segment);
     ASSERT_TRUE(NameSpaceStorageCodec::EncodeSegment(segment, &encodeSegment));
+    EXPECT_CALL(*cache_, Get(_, _)).WillOnce(Return(false));
     EXPECT_CALL(*client_, Get(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(encodeSegment),
                         Return(EtcdErrCode::OK)));
+    ASSERT_EQ(StoreStatus::OK, storage_->GetSegment(0, 0, &getSegment));
+    ASSERT_EQ(segment.chunksize(), getSegment.chunksize());
+    ASSERT_EQ(segment.chunks_size(), getSegment.chunks_size());
+
+    // 3. get file from cache ok
+    EXPECT_CALL(*cache_, Get(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(encodeSegment), Return(true)));
     ASSERT_EQ(StoreStatus::OK, storage_->GetSegment(0, 0, &getSegment));
     ASSERT_EQ(segment.chunksize(), getSegment.chunksize());
     ASSERT_EQ(segment.chunks_size(), getSegment.chunks_size());
