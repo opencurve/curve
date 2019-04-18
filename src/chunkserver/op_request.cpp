@@ -137,7 +137,7 @@ std::shared_ptr<ChunkOpRequest> ChunkOpRequest::Decode(butil::IOBuf log,
         case CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP:
             return std::make_shared<ReadSnapshotRequest>();
         case CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP:
-            return std::make_shared<DeleteChunkRequest>();
+            return std::make_shared<DeleteSnapshotRequest>();
         case CHUNK_OP_TYPE::CHUNK_OP_PASTE:
             return std::make_shared<PasteChunkInternalRequest>();
         case CHUNK_OP_TYPE::CHUNK_OP_CREATE_CLONE:
