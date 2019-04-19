@@ -97,6 +97,33 @@ class CopysetNode : public braft::StateMachine,
     virtual PeerId GetLeaderId() const;
 
     /**
+     * 返回是否是复制组Leader
+     * @return
+     */
+    virtual bool IsLeader() const;
+
+    /**
+     * @brief 切换复制组的Leader
+     * @param[in] peerId 目标Leader的成员ID
+     * @return 心跳任务的引用
+     */
+    butil::Status TransferLeader(const PeerId& peerId);
+
+    /**
+     * @brief 复制组添加新成员
+     * @param[in] peerId 新成员的ID
+     * @return 心跳任务的引用
+     */
+    butil::Status AddPeer(const PeerId& peerId);
+
+    /**
+     * @brief 复制组删除成员
+     * @param[in] peerId 将要删除成员的ID
+     * @return 心跳任务的引用
+     */
+    butil::Status RemovePeer(const PeerId& peerId);
+
+    /**
      * 返回copyset的配置版本
      * @return
      */
