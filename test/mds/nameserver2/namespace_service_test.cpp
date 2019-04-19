@@ -690,7 +690,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(snapshotFileInfo.id(), 2);
         ASSERT_EQ(snapshotFileInfo.parentid(), 1);
         ASSERT_EQ(snapshotFileInfo.filename(), "file1-1");
-        ASSERT_EQ(snapshotFileInfo.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(snapshotFileInfo.filetype(), INODE_SNAPSHOT_PAGEFILE);
         ASSERT_EQ(snapshotFileInfo.fullpathname(), "/file1/file1-1");
         ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(snapshotFileInfo.seqnum(), 1);
@@ -976,7 +976,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(snapshotFileInfo.id(), 4);
         ASSERT_EQ(snapshotFileInfo.parentid(), 1);
         ASSERT_EQ(snapshotFileInfo.filename(), "file1-1");
-        ASSERT_EQ(snapshotFileInfo.filetype(), INODE_PAGEFILE);
+        ASSERT_EQ(snapshotFileInfo.filetype(), INODE_SNAPSHOT_PAGEFILE);
         ASSERT_EQ(snapshotFileInfo.fullpathname(), "/file1/file1-1");
         ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(snapshotFileInfo.seqnum(), 1);

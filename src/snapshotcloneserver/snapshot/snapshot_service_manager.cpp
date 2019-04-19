@@ -159,8 +159,10 @@ int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
                         SnapshotInfo newInfo;
                         ret = core_->GetSnapshotInfo(uuid, &newInfo);
                         if (ret < 0) {
-                            LOG(ERROR) << "can not reach here!";
-                            continue;
+                            LOG(ERROR) << "GetSnapshotInfo fail"
+                                       << ", ret = " << ret
+                                       << ", uuid = " << uuid;
+                            return ret;
                         }
                         switch (newInfo.GetStatus()) {
                             case Status::done: {

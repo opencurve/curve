@@ -40,8 +40,8 @@ DEFINE_int32(transferLimit, 1800, "transfer leader time limit(second)");
 DEFINE_int32(RemoveLimit, 1800, "remove peer time limit(second)");
 DEFINE_int32(AddLimit, 7200, "add peer time limit(second)");
 DEFINE_uint64(heartbeatInterval, 10, "heartbeat interval");
-DEFINE_uint64(heartbeatMissTimeout, 30, "heartbeat miss interval");
-DEFINE_uint64(offlineTimeout, 1800, "timeout to offline");
+DEFINE_uint64(heartbeatMissTimeout, 5000, "heartbeat miss interval");
+DEFINE_uint64(offlineTimeout, 1800000, "timeout to offline");
 DEFINE_string(confPath, "deploy/local/mds/mds.conf", "mds confPath");
 
 using ::curve::mds::topology::TopologyAdminImpl;
@@ -105,11 +105,26 @@ int curve_main(int argc, char **argv) {
     storage_ = new FakeNameServerStorage();
     inodeGenerator_ = new FakeInodeIDGenerator(0);
 
+    /*
+    std::shared_ptr<EtcdClientImp> sclient =
+        std::make_shared<EtcdClientImp>();
+
+    char *endpt = "127.0.0.1:2379";
+    sclient->Init(EtcdConf{endpt, 14, 5000}, 5000, 3);
+    //判断返回值
+    storage_ = new NameServerStorageImp(sclient);
+    inodeGenerator_ = new InodeIdGeneratorImp(sclient);
+    inodeGenerator_->Init();
+    //判断返回值
+    */
+    // TODO(lixiaocui): 初始化并启用etcd
+
     std::shared_ptr<TopologyAdmin> topologyAdmin =
         TopologyManager::GetInstance()->GetTopologyAdmin();
 
     std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
         std::make_shared<FackChunkIDGenerator>();
+    // TODO(lixiaocui): 处理掉fake
     chunkSegmentAllocate_ =
         new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
 

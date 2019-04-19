@@ -65,6 +65,13 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
     std::vector<CopySetIdType> copySetIds =
         topology_->GetCopySetsInLogicalPool(logicalPoolChosenId);
 
+    if (0 == copySetIds.size()) {
+        LOG(ERROR) << "[AllocateChunkRandomInSingleLogicalPool]:"
+                   << " Does not have any copySetIds needed,"
+                   << " logicalPoolId = " << logicalPoolChosenId;
+        return false;
+    }
+
     infos->clear();
     for (uint32_t i = 0; i < chunkNumber; i++) {
         int randomCopySetIndex = std::rand() % copySetIds.size();

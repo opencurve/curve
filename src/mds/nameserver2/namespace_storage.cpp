@@ -278,7 +278,7 @@ StoreStatus NameServerStorageImp::ListFileInternal(
                                            std::vector<FileInfo> *files) {
     std::vector<std::string> out;
     int errCode = client_->List(
-        startStoreKey.c_str(), endStoreKey.c_str(), &out);
+        startStoreKey, endStoreKey, &out);
 
     if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "list file of [start:" << startStoreKey

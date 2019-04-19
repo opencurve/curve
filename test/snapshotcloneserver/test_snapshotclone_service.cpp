@@ -492,7 +492,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -536,6 +536,206 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
     LOG(ERROR) << cntl.response_attachment();
 }
 
+TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingParam) {
+    UUID uuid = "uuid1";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileMissingParam) {
+    UUID uuid = "uuid1";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskMissingParam) {
+    UUID uuid = "uuid1";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=GetCloneTasks&User=test"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
+    UUID uuid = "uuid1";
+
+    EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _))
+        .WillOnce(Return(kErrCodeSnapshotInternalError));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
+    UUID uuid = "uuid1";
+
+    EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _))
+        .WillOnce(Return(kErrCodeSnapshotInternalError));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
+    UUID uuid = "uuid1";
+
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _))
+        .WillOnce(Return(kErrCodeSnapshotInternalError));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=GetCloneTasks&Version=1&User=test"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileInvalidParam) {
+    UUID uuid = "uuid1";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=tru"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileInvalidParam) {
+    UUID uuid = "uuid1";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=fal"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

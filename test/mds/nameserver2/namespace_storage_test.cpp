@@ -241,7 +241,7 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     EXPECT_CALL(*client_, List(_, _, _))
         .WillOnce(Return(EtcdErrCode::Canceled));
     ASSERT_EQ(
-        StoreStatus::InternalError, storage_->ListSnapshotFile(0, 0, &listRes));
+        StoreStatus::InternalError, storage_->ListSnapshotFile(1, 2, &listRes));
 
     // 2. list ok
     listRes.clear();
@@ -250,11 +250,16 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     GetFileInfoForTest(&fileinfo);
     ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
                                                       &encodeFileinfo));
-    EXPECT_CALL(*client_, List(_, _, _))
+    std::string startStoreKey =
+        NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(1, "");
+    std::string endStoreKey =
+        NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(2, "");
+
+    EXPECT_CALL(*client_, List(startStoreKey, endStoreKey, _))
         .WillOnce(DoAll(
             SetArgPointee<2>(std::vector<std::string>{encodeFileinfo}),
             Return(EtcdErrCode::OK)));
-    ASSERT_EQ(StoreStatus::OK, storage_->ListSnapshotFile(0, 0, &listRes));
+    ASSERT_EQ(StoreStatus::OK, storage_->ListSnapshotFile(1, 2, &listRes));
     ASSERT_EQ(1, listRes.size());
     ASSERT_EQ(fileinfo.filename(), listRes[0].filename());
     ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());

@@ -100,7 +100,8 @@ TEST_F(TestS3SnapshotDataStore, testDeleteIndexChunk) {
 TEST_F(TestS3SnapshotDataStore, testDataChunkOp) {
     ChunkDataName cdName("test", 1, 1);
     std::string cdKey = cdName.ToDataChunkKey();
-    ChunkDataName tmp = cdName.ToChunkDataName(cdKey);
+    ChunkDataName tmp;
+    ToChunkDataName(cdKey, &tmp);
     Aws::String obj = "test-1-1";
     EXPECT_CALL(*adapter, ObjectExist(obj))
         .Times(2)
@@ -173,6 +174,91 @@ TEST_F(TestS3SnapshotDataStore, testDeleteDataChunk) {
         .WillOnce(Return(-1));
     ASSERT_EQ(0, store_->DeleteChunkData(cdName));
     ASSERT_EQ(-1, store_->DeleteChunkData(cdName));
+}
+
+TEST(TestChunkDataName, TestToChunkDataNameSuccess) {
+    std::vector<ChunkDataName> testcases = {
+        {"file1", 10, 100},
+        {"file-1", 10, 100},
+        {"file-", 10, 100},
+        {"file1", 0, 0}
+    };
+
+    for (auto &name : testcases) {
+        std::string key = name.ToDataChunkKey();
+        ChunkDataName data;
+        bool ret = ToChunkDataName(key, &data);
+        ASSERT_EQ(name, data) << "assert failed in key : " << key;
+        ASSERT_TRUE(ret) << "assert failed in key : " << key;
+    }
+}
+
+TEST(TestChunkDataName, TestToChunkDataNameFail) {
+    std::vector<std::string> testcases = {
+        "",
+        "-10-100"
+    };
+    for (auto &key : testcases) {
+        ChunkDataName data;
+        bool ret = ToChunkDataName(key, &data);
+        ASSERT_FALSE(ret) << "asser failed in key : " << key;
+    }
+}
+
+TEST(TestChunkIndexData, TestSerialize) {
+    std::string data;
+    ChunkIndexData indexData;
+    indexData.SetFileName("file1");
+    indexData.PutChunkDataName(ChunkDataName("file1", 10, 100));
+    bool ret = indexData.Serialize(&data);
+    ASSERT_TRUE(ret);
+    ASSERT_STREQ("\n\x10\bd\x12\ffile1-100-10", data.c_str());
+}
+
+TEST(TestChunkIndexData, TestUnSerialize) {
+    std::string str = "\n\x10\bd\x12\ffile1-100-10";
+    ChunkIndexData indexData;
+    bool ret = indexData.Unserialize(str);
+    ASSERT_TRUE(ret);
+}
+
+TEST(TestChunkIndexData, TestGetChunkDataName) {
+    std::string data;
+    ChunkIndexData indexData;
+    indexData.SetFileName("file1");
+    ChunkDataName name("file1", 10, 100);
+    indexData.PutChunkDataName(name);
+    ChunkDataName out1, out2;
+    bool ret1 = indexData.GetChunkDataName(100, &out1);
+    ASSERT_TRUE(ret1);
+    ASSERT_EQ(name, out1);
+    bool ret2 = indexData.GetChunkDataName(1, &out2);
+    ASSERT_FALSE(ret2);
+}
+
+TEST(TestChunkIndexData, TestIsExistChunkDataName) {
+    std::string data;
+    ChunkIndexData indexData;
+    indexData.SetFileName("file1");
+    ChunkDataName name("file1", 10, 100);
+    indexData.PutChunkDataName(name);
+    bool ret1 = indexData.IsExistChunkDataName(name);
+    ASSERT_TRUE(ret1);
+    bool ret2 = indexData.IsExistChunkDataName(ChunkDataName("file1", 10, 99));
+    ASSERT_FALSE(ret2);
+}
+
+
+TEST(TestChunkIndexData, TestGetAllChunkIndex) {
+    std::string data;
+    ChunkIndexData indexData;
+    indexData.SetFileName("file1");
+    ChunkDataName name("file1", 10, 100);
+    indexData.PutChunkDataName(name);
+    std::vector<ChunkIndexType> ret =
+        indexData.GetAllChunkIndex();
+    ASSERT_EQ(1, ret.size());
+    ASSERT_EQ(100, ret[0]);
 }
 
 }  // namespace snapshotcloneserver
