@@ -221,7 +221,7 @@ class MDSClient {
      */
     LIBCURVE_ERROR CreateCloneFile(const std::string &destination,
                             UserInfo_t userinfo,
-                            uint32_t size,
+                            uint64_t size,
                             uint64_t sn,
                             uint32_t chunksize,
                             FInfo* fileinfo);

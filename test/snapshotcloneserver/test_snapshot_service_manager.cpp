@@ -444,10 +444,15 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
 
     std::string user2 = "user2";
     UUID uuid3 = "uuid3";
+    UUID uuid4 = "uuid4";
 
     SnapshotInfo snap3(uuid3, user2, file, desc);
     snap3.SetStatus(Status::done);
     snapInfo.push_back(snap3);
+
+    SnapshotInfo snap4(uuid4, user, file, desc);
+    snap4.SetStatus(Status::error);
+    snapInfo.push_back(snap4);
 
     EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _))
         .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
@@ -456,7 +461,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
     std::vector<FileSnapshotInfo> fileSnapInfo;
     ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
     ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
-    ASSERT_EQ(2, fileSnapInfo.size());
+    ASSERT_EQ(3, fileSnapInfo.size());
 
     for (auto v : fileSnapInfo) {
         SnapshotInfo s = v.GetSnapshotInfo();
@@ -472,6 +477,12 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
             ASSERT_EQ(desc2, s.GetSnapshotName());
             ASSERT_EQ(Status::done, s.GetStatus());
             ASSERT_EQ(100, v.GetSnapProgress());
+        } else if (s.GetUuid() == uuid4) {
+            ASSERT_EQ(file, s.GetFileName());
+            ASSERT_EQ(user, s.GetUser());
+            ASSERT_EQ(desc, s.GetSnapshotName());
+            ASSERT_EQ(Status::error, s.GetStatus());
+            ASSERT_EQ(0, v.GetSnapProgress());
         } else {
             FAIL() << "should not exist this uuid = "
                    << s.GetUuid();

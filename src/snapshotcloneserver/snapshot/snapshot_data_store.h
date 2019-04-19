@@ -16,7 +16,6 @@
 #include <list>
 #include <string>
 #include <memory>
-#include "proto/snapshotcloneserver.pb.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -42,44 +41,11 @@ class ChunkDataName {
      * @return: 对象名称字符串
      */
     std::string ToDataChunkKey() const {
-        std::string name = this->fileName_
-                            + kChunkDataNameSeprator
-                            + std::to_string(this->chunkIndex_)
-                            + kChunkDataNameSeprator
-                            + std::to_string(this->chunkSeqNum_);
-        return name;
-    }
-    /**
-     * 根据对象名称解析生成chunkdataname对象
-     * @param 对象的名称
-     * @return: ChunkDataName对象
-     */
-    ChunkDataName ToChunkDataName(const std::string &name) const {
-        ChunkDataName cdName;
-        // 逆向解析string，以支持文件名具有分隔字符的情况
-        std::string::size_type pos =
-            name.find_last_of(kChunkDataNameSeprator);
-        std::string::size_type lastPos = std::string::npos;
-        if (std::string::npos == pos) {
-            LOG(ERROR) << "ToChunkDataName error, namestr = " << name;
-            return cdName;
-        }
-        std::string seqNumStr = name.substr(pos + 1, lastPos);
-        cdName.chunkSeqNum_ = std::stoll(seqNumStr);
-        lastPos = pos;
-
-        pos =
-            name.find_last_of(kChunkDataNameSeprator, lastPos);
-        if (std::string::npos == pos) {
-            LOG(ERROR) << "ToChunkDataName error, namestr = " << name;
-            return cdName;
-        }
-        std::string chunkIndexStr = name.substr(pos + 1, lastPos);
-        cdName.chunkIndex_ = std::stoll(chunkIndexStr);
-        lastPos = pos;
-
-        cdName.fileName_ = name.substr(0, lastPos);
-        return cdName;
+        return fileName_
+            + kChunkDataNameSeprator
+            + std::to_string(this->chunkIndex_)
+            + kChunkDataNameSeprator
+            + std::to_string(this->chunkSeqNum_);
     }
 
     std::string fileName_;
@@ -87,6 +53,22 @@ class ChunkDataName {
     ChunkIndexType chunkIndex_;
 };
 
+inline bool operator==(const ChunkDataName &lhs, const ChunkDataName &rhs) {
+    return (lhs.fileName_ == rhs.fileName_) &&
+           (lhs.chunkSeqNum_ == rhs.chunkSeqNum_) &&
+           (lhs.chunkIndex_ == rhs.chunkIndex_);
+}
+
+/**
+ * @brief 根据对象名称解析生成chunkdataname对象
+ *
+ * @param name 对象名
+ * @param[out] cName chunkDataName对象
+ *
+ * @retVal true 成功
+ * @retVal false 失败
+ */
+bool ToChunkDataName(const std::string &name, ChunkDataName *cName);
 
 class ChunkIndexDataName {
  public:
@@ -102,12 +84,11 @@ class ChunkIndexDataName {
      * @return: 索引chunk的名称字符串
      */
     std::string ToIndexDataChunkKey() const {
-        // filename+fileseqnum
-        std::string name = this->fileName_
+        return this->fileName_
             + "-"
             + std::to_string(this->fileSeqNum_);
-        return name;
     }
+
     // 文件名
     std::string fileName_;
     // 文件版本号
@@ -122,69 +103,31 @@ class ChunkIndexData {
      * @param 保存序列化后数据的指针
      * @return: true 序列化成功/ false 序列化失败
      */
-    bool Serialize(std::string *data) const {
-        ChunkMap map;
-        for (const auto &m : this->chunkMap_) {
-            map.mutable_indexmap()->
-                insert({m.first,
-                    ChunkDataName(fileName_, m.second, m.first).
-                    ToDataChunkKey()});
-        }
-        // Todo：可以转化为stream给adpater接口使用SerializeToOstream
-        return map.SerializeToString(data);
-    }
+    bool Serialize(std::string *data) const;
+
     /**
      * 反序列化索引chunk的数据到map中
      * @param 索引chunk存储的数据
      * @return: true 反序列化成功/ false 反序列化失败
      */
-    bool Unserialize(const std::string &data) {
-         ChunkMap map;
-        if (map.ParseFromString(data)) {
-            for (const auto &m : map.indexmap()) {
-                ChunkDataName chunkDataName;
-                this->chunkMap_.emplace(m.first,
-                    chunkDataName.ToChunkDataName(m.second).chunkSeqNum_);
-            }
-            return true;
-        } else {
-            return false;
-        }
-    }
+    bool Unserialize(const std::string &data);
 
     void PutChunkDataName(const ChunkDataName &name) {
         chunkMap_.emplace(name.chunkIndex_, name.chunkSeqNum_);
     }
 
-    bool GetChunkDataName(ChunkIndexType index, ChunkDataName* nameOut) const {
-        auto it = chunkMap_.find(index);
-        if (it != chunkMap_.end()) {
-            *nameOut = ChunkDataName(fileName_, it->second, index);
-            return true;
-        } else {
-            return false;
-        }
+    bool GetChunkDataName(ChunkIndexType index, ChunkDataName* nameOut) const;
+
+    bool IsExistChunkDataName(const ChunkDataName &name) const;
+
+    std::vector<ChunkIndexType> GetAllChunkIndex() const;
+
+    void SetFileName(const std::string &fileName) {
+        fileName_ = fileName;
     }
 
-    bool IsExistChunkDataName(const ChunkDataName &name) const {
-        if (fileName_ != name.fileName_) {
-            return false;
-        }
-        auto it = chunkMap_.find(name.chunkIndex_);
-        if (it != chunkMap_.end()) {
-            if (it->second == name.chunkSeqNum_) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    std::vector<ChunkIndexType> GetAllChunkIndex() const {
-        std::vector<ChunkIndexType> ret;
-        for (auto it : chunkMap_) {
-            ret.emplace_back(it.first);
-        }
-        return ret;
+    std::string GetFileName() {
+        return fileName_;
     }
 
  private:

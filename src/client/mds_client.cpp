@@ -965,7 +965,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& lpid,
 
 LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
                                         UserInfo_t userinfo,
-                                        uint32_t size,
+                                        uint64_t size,
                                         uint64_t sn,
                                         uint32_t chunksize,
                                         FInfo* fileinfo) {
@@ -1097,6 +1097,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         } else if (curve::mds::StatusCode::kFileNotExists == stcode) {
             return LIBCURVE_ERROR::NOTEXIST;
         }
+        return LIBCURVE_ERROR::FAILED;
     }
 
     return LIBCURVE_ERROR::FAILED;

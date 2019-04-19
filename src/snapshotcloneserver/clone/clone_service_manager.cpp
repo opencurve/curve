@@ -123,8 +123,10 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                         CloneInfo newInfo;
                         ret = cloneCore_->GetCloneInfo(taskId, &newInfo);
                         if (ret < 0) {
-                            LOG(ERROR) << "can not reach here!";
-                            continue;
+                            LOG(ERROR) << "GetCloneInfo fail"
+                                       << ", ret = " << ret
+                                       << ", taskId = " << taskId;
+                            return ret;
                         }
                         switch (newInfo.GetStatus()) {
                             case CloneStatus::done : {
