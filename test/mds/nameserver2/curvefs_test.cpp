@@ -590,8 +590,12 @@ TEST_F(CurveFSTest, testRenameFile) {
                         Return(StoreStatus::OK)))
         .WillOnce(Return(StoreStatus::OK));
 
+        EXPECT_CALL(*storage_, RenameFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
-                  StatusCode::kFileExists);
+                  StatusCode::kOK);
     }
 
     // storage renamefile fail
@@ -1017,6 +1021,8 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
             originalFile.fullpathname() + "/" +
             snapShotFileInfoRet.filename());
         ASSERT_EQ(snapShotFileInfoRet.filestatus(), FileStatus::kFileCreated);
+        ASSERT_EQ(
+            snapShotFileInfoRet.filetype(), FileType::INODE_SNAPSHOT_PAGEFILE);
     }
     {
         // test storage snapshotFile Error

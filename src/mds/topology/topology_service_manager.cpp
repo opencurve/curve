@@ -1159,6 +1159,8 @@ void TopologyServiceManager::GetChunkServerListInCopySets(
             return;
         }
     }
+    response->set_statuscode(kTopoErrCodeSuccess);
+    return;
 }
 
 }  // namespace topology

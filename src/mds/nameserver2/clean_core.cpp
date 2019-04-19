@@ -19,7 +19,7 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
     for (uint32_t i = 0; i < segmentNum; i++) {
         // load  segment
         PageFileSegment segment;
-        StoreStatus storeRet = storage_->GetSegment(fileInfo.id(),
+        StoreStatus storeRet = storage_->GetSegment(fileInfo.parentid(),
                                                     i * fileInfo.segmentsize(),
                                                     &segment);
         if (storeRet == StoreStatus::KeyNotExist) {
@@ -50,18 +50,6 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
                 return StatusCode::kSnapshotFileDeleteError;
             }
         }
-
-        // delete segment
-        storeRet = storage_->DeleteSegment(fileInfo.id(),
-                                           i * fileInfo.segmentsize());
-        if (storeRet != StoreStatus::OK) {
-            LOG(ERROR) << "cleanSnapShot File Error: "
-            << "DeleteSegment Error,  filename = " << fileInfo.fullpathname()
-            << ", sequenceNum = " << fileInfo.seqnum();
-            progress->SetStatus(TaskStatus::FAILED);
-            return StatusCode::kSnapshotFileDeleteError;
-        }
-
         progress->SetProgress(100 * (i+1) / segmentNum);
     }
 

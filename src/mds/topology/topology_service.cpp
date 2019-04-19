@@ -729,12 +729,6 @@ void TopologyServiceImpl::GetChunkServerListInCopySets(
                    << " to " << cntl->remote_side()
                    << ". [GetChunkServerListInCopySetsResponse] "
                    << response->DebugString();
-    } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [GetChunkServerListInCopySetsResponse] "
-                  << response->DebugString();
     }
 }
 

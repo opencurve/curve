@@ -292,8 +292,6 @@ int DBSnapshotCloneMetaStore::GetSnapshotList(const std::string &name,
     if (v->size() != 0) {
         return 0;
     }
-    LOG(ERROR) << "GetSnapshotList failed,"
-               << "filename:" << name;
     return -1;
 }
 int DBSnapshotCloneMetaStore::GetSnapshotList(std::vector<SnapshotInfo> *list) {

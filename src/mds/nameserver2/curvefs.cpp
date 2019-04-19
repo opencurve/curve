@@ -413,15 +413,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
 
     FileInfo newFileInfo;
     auto ret3 = LookUpFile(parentFileInfo, lastEntry, &newFileInfo);
-    if (ret3 != StatusCode::kFileNotExists) {
-        if (StatusCode::kOK == ret3) {
-            LOG(INFO) << "dest file LookUpFile file exist";
-            return StatusCode::kFileExists;
-        } else {
-            LOG(INFO) << "dest file LookUpFile return: " << ret3;
-            return ret3;
-        }
-    } else {
+    if (ret3 == StatusCode::kOK || ret3 == StatusCode::kFileNotExists) {
         newFileInfo.CopyFrom(oldFileInfo);
         newFileInfo.set_parentid(parentFileInfo.id());
         newFileInfo.set_filename(lastEntry);
@@ -434,6 +426,9 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
             return StatusCode::kStorageError;
         }
         return StatusCode::kOK;
+    } else {
+        LOG(INFO) << "dest file LookUpFile return: " << ret3;
+        return ret3;
     }
 }
 
@@ -587,6 +582,7 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
         return StatusCode::kStorageError;
     }
     *snapshotFileInfo = fileInfo;
+    snapshotFileInfo->set_filetype(FileType::INODE_SNAPSHOT_PAGEFILE);
     snapshotFileInfo->set_id(inodeID);
     snapshotFileInfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
     snapshotFileInfo->set_parentid(fileInfo.id());

@@ -17,17 +17,18 @@ enum FileType {
 };
 
 enum LIBCURVE_ERROR {
-    OK = 0,
-    EXISTS,
-    FAILED,
-    DISABLEIO,
-    AUTHFAIL,   // 认证失败
-    DELETING,
-    NOTEXIST,
-    UNDER_SNAPSHOT,
-    NOT_UNDERSNAPSHOT,
-    DELETE_ERROR,
-    UNKNOWN
+    OK                  = 0,
+    EXISTS              = 1,
+    FAILED              = 2,
+    DISABLEIO           = 3,
+    AUTHFAIL            = 4,   // 认证失败
+    DELETING            = 5,
+    NOTEXIST            = 6,
+    UNDER_SNAPSHOT      = 7,
+    NOT_UNDERSNAPSHOT   = 8,
+    DELETE_ERROR        = 9,
+    NOT_ALLOCATE        = 10,
+    UNKNOWN             = 11
 };
 
 const char* ErrorNum2ErrorName(LIBCURVE_ERROR err);
