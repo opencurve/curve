@@ -10,6 +10,7 @@
 #include <glog/logging.h>
 #include <brpc/controller.h>
 #include <butil/sys_byteorder.h>
+#include <braft/closure_helper.h>
 
 #include <cassert>
 
@@ -533,6 +534,92 @@ bool CopysetNode::IsLeaderTerm() const {
 PeerId CopysetNode::GetLeaderId() const {
     return raftNode_->leader_id();
 }
+
+bool CopysetNode::IsLeader() const {
+    return raftNode_->is_leader();
+}
+
+static void DummyFunc(void* arg, const butil::Status& status) {
+}
+
+butil::Status CopysetNode::TransferLeader(const PeerId& peerId) {
+    butil::Status status;
+
+    if (raftNode_->leader_id() == peerId) {
+        butil::Status status = butil::Status::OK();
+        DVLOG(6) << "Skipped transferring leader to leader itself: " << peerId;
+
+        return status;
+    }
+
+    int rc = raftNode_->transfer_leadership_to(peerId);
+    if (rc != 0) {
+        status = butil::Status(rc, "Failed to transfer leader of copyset "
+                               "<%u, %u> to peer %s, error: %s",
+                               logicPoolId_, copysetId_,
+                               peerId.to_string().c_str(), berror(rc));
+        LOG(ERROR) << status.error_str();
+
+        return status;
+    }
+
+    status = butil::Status::OK();
+    LOG(INFO) << "Transferred leader of copyset "
+              << ToGroupIdStr(logicPoolId_, copysetId_)
+              << " to peer " <<  peerId;
+
+    return status;
+}
+
+butil::Status CopysetNode::AddPeer(const PeerId& peerId) {
+    std::vector<PeerId> peers;
+    ListPeers(&peers);
+
+    for (auto peer : peers) {
+        if (peer == peerId) {
+            butil::Status status = butil::Status::OK();
+            DVLOG(6) << peerId << " is already a member of copyset "
+                     << ToGroupIdStr(logicPoolId_, copysetId_)
+                     << ", skip adding peer";
+
+            return status;
+        }
+    }
+
+    braft::Closure* addPeerDone = braft::NewCallback(DummyFunc,
+            reinterpret_cast<void *>(0));
+    raftNode_->add_peer(peerId, addPeerDone);
+
+    return butil::Status::OK();
+}
+
+butil::Status CopysetNode::RemovePeer(const PeerId& peerId) {
+    std::vector<PeerId> peers;
+    ListPeers(&peers);
+
+    bool peerValid = false;
+    for (auto peer : peers) {
+        if (peer == peerId) {
+            peerValid = true;
+            break;
+        }
+    }
+
+    if (!peerValid) {
+        butil::Status status = butil::Status::OK();
+        DVLOG(6) << peerId << " is not a member of copyset "
+                 << ToGroupIdStr(logicPoolId_, copysetId_) << ", skip removing";
+
+        return status;
+    }
+
+    braft::Closure* removePeerDone = braft::NewCallback(DummyFunc,
+            reinterpret_cast<void *>(0));
+    raftNode_->remove_peer(peerId, removePeerDone);
+
+    return butil::Status::OK();
+}
+
 
 void CopysetNode::UpdateAppliedIndex(uint64_t index) {
     uint64_t curIndex = appliedIndex_.load(std::memory_order_acquire);
