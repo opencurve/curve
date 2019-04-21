@@ -19,6 +19,7 @@
 #include "proto/chunk.pb.h"
 #include "src/chunkserver/conf_epoch_file.h"
 #include "src/chunkserver/config_info.h"
+#include "proto/heartbeat.pb.h"
 
 
 namespace curve {
@@ -26,6 +27,7 @@ namespace chunkserver {
 
 using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
+using ::curve::mds::heartbeat::ConfigChangeType;
 
 class CopysetNodeManager;
 
@@ -111,6 +113,17 @@ class CopysetNode : public braft::StateMachine,
      * @return
      */
     virtual uint64_t GetAppliedIndex() const;
+
+    /**
+     * @brief: 查询配置变更的状态，TODO(wudemiao): 后面修改braft再补充单测
+     * @param type[out]: 配置变更类型
+     * @param oldConf[out]: 老的配置
+     * @param alterPeer[out]: 变更的peer
+     * @return 0查询成功，-1查询异常失败
+     */
+    virtual int GetConfChange(ConfigChangeType *type,
+                              Configuration *oldConf,
+                              PeerId *alterPeer);
 
     /**
      * 返回data store指针
