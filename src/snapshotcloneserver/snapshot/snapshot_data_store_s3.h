@@ -13,8 +13,9 @@
 #include <list>
 #include <string>
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
-#include "src/snapshotcloneserver/common/s3_adapter.h"
+#include "src/common/s3_adapter.h"
 
+using ::curve::common::S3Adapter;
 namespace curve {
 namespace snapshotcloneserver {
 
@@ -24,7 +25,7 @@ class S3SnapshotDataStore : public SnapshotDataStore {
         s3Adapter_ = std::make_shared<S3Adapter>();
      }
     ~S3SnapshotDataStore() {}
-    int Init() override;
+    int Init(const std::string &path) override;
     int PutChunkIndexData(const ChunkIndexDataName &name,
                         const ChunkIndexData &meta) override;
     int GetChunkIndexData(const ChunkIndexDataName &name,
@@ -60,7 +61,7 @@ class S3SnapshotDataStore : public SnapshotDataStore {
      }
 
  private:
-    std::shared_ptr<curve::snapshotcloneserver::S3Adapter> s3Adapter_;
+    std::shared_ptr<curve::common::S3Adapter> s3Adapter_;
 };
 
 }   // namespace snapshotcloneserver

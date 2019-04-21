@@ -15,6 +15,7 @@
 
 #include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/snapshotcloneserver/common/config.h"
 #include "src/common/concurrent/concurrent.h"
 
 namespace curve {
@@ -376,7 +377,7 @@ class SnapshotCloneMetaStore {
      * 初始化metastore，不同的metastore可以有不同的实现，可以是初始化目录文件或者初始化数据库
      * @return: 0 初始化成功/ 初始化失败 -1
      */
-    virtual int Init() = 0;
+    virtual int Init(const SnapshotCloneMetaStoreOptions &options) = 0;
     // 添加一条快照信息记录
     /**
      * 添加一条快照记录到metastore中
@@ -456,7 +457,7 @@ class DBSnapshotCloneMetaStore : public SnapshotCloneMetaStore{
         std::shared_ptr<curve::snapshotcloneserver::SnapshotCloneRepo> repo)
         :repo_(repo) {}
     ~DBSnapshotCloneMetaStore() {}
-    int Init() override;
+    int Init(const SnapshotCloneMetaStoreOptions &options) override;
     int AddSnapshot(const SnapshotInfo &snapinfo) override;
     int DeleteSnapshot(const UUID &uuid) override;
     int UpdateSnapshot(const SnapshotInfo &snapinfo) override;

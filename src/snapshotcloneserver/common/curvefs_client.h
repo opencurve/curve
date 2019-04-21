@@ -17,6 +17,7 @@
 #include "src/client/client_common.h"
 #include "src/client/libcurve_snapshot.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/snapshotcloneserver/common/config.h"
 
 using ::curve::client::SegmentInfo;
 using ::curve::client::LogicPoolID;
@@ -40,7 +41,7 @@ class CurveFsClient {
      *
      * @return 错误码
      */
-    virtual int Init() = 0;
+    virtual int Init(const CurveClientOptions &options) = 0;
     // TODO(xuchaojie): 后续考虑支持用户登录的方式，接口不传user。
 
     /**
@@ -296,7 +297,7 @@ class CurveFsClientImpl : public CurveFsClient {
     virtual ~CurveFsClientImpl() {}
 
     // 以下接口定义见CurveFsClient接口注释
-    int Init() override;
+    int Init(const CurveClientOptions &options) override;
 
     int UnInit() override;
 
