@@ -11,9 +11,10 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <string>
-#include "src/snapshotcloneserver/common/s3_adapter.h"
+#include "src/common/s3_adapter.h"
 
 using ::testing::Return;
+using ::curve::common::S3Adapter;
 namespace curve {
 namespace snapshotcloneserver {
 
@@ -22,7 +23,7 @@ class MockS3Adapter : public S3Adapter {
     MockS3Adapter() {}
     ~MockS3Adapter() {}
 
-    MOCK_METHOD0(Init, void());
+    MOCK_METHOD1(Init, void(const std::string &));
     MOCK_METHOD0(Deinit, void());
     MOCK_METHOD0(CreateBucket, int());
     MOCK_METHOD0(DeleteBucket, int());

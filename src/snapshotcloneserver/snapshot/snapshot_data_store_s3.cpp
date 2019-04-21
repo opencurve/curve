@@ -15,9 +15,9 @@ namespace curve {
 namespace snapshotcloneserver {
 
 // nos conf
-int S3SnapshotDataStore::Init() {
+int S3SnapshotDataStore::Init(const std::string &path) {
     // Init server conf
-    s3Adapter_->Init();
+    s3Adapter_->Init(path);
     // create bucket if not exist
     if (!s3Adapter_->BucketExist()) {
         return s3Adapter_->CreateBucket();

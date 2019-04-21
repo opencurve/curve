@@ -20,17 +20,11 @@
 #include "src/snapshotcloneserver/snapshotclone_service.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_service_manager.h"
 #include "src/snapshotcloneserver/clone/clone_service_manager.h"
+#include "src/common/configuration.h"
+#include "src/snapshotcloneserver/common/config.h"
 
 namespace curve {
 namespace snapshotcloneserver {
-
-/**
- * @brief 快照转储服务器配置结构体
- */
-struct SnapshotServerOption {
-    // 监听地址
-    std::string listenAddr;
-};
 
 class SnapshotCloneServer {
  public:
@@ -70,8 +64,13 @@ class SnapshotCloneServer {
     std::shared_ptr<SnapshotServiceManager> snapshotServiceManager_;
     std::shared_ptr<CloneServiceManager> cloneServiceManager_;
 
+    common::Configuration conf_;
+    // curve client options
+    CurveClientOptions clientOption_;
     // 转储服务器配置项
-    SnapshotServerOption options_;
+    SnapshotCloneServerOptions serverOption_;
+    // snapshot metastore options
+    SnapshotCloneMetaStoreOptions metastoreOption_;
 };
 
 }  // namespace snapshotcloneserver
