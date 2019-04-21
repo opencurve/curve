@@ -26,6 +26,12 @@ class TestDBSnapshotCloneMetaStore : public ::testing::Test {
 
     std::shared_ptr<MockRepo> repo;
     std::shared_ptr<DBSnapshotCloneMetaStore> metastore_;
+    SnapshotCloneMetaStoreOptions options {
+        .dbName = "curve_test",
+        .dbUser = "root",
+        .dbPassword = "qwer",
+        .dbAddr = "localhost"
+    };
 };
 
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_ConnectDB) {
@@ -42,11 +48,14 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_ConnectDB) {
     EXPECT_CALL(*repo, createAllTables())
         .Times(1)
         .WillOnce(Return(0));
-     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
+    EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(1)
         .WillOnce(Return(0));
-    ASSERT_EQ(0, metastore_->Init());
-    ASSERT_EQ(-1, metastore_->Init());
+    EXPECT_CALL(*repo, LoadCloneRepoItems(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, metastore_->Init(options));
+    ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateDB) {
     EXPECT_CALL(*repo, connectDB(_, _, _, _))
@@ -63,11 +72,14 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateDB) {
     EXPECT_CALL(*repo, createAllTables())
         .Times(1)
         .WillOnce(Return(0));
-     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
+    EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(1)
         .WillOnce(Return(0));
-    ASSERT_EQ(0, metastore_->Init());
-    ASSERT_EQ(-1, metastore_->Init());
+    EXPECT_CALL(*repo, LoadCloneRepoItems(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, metastore_->Init(options));
+    ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_UseDB) {
     EXPECT_CALL(*repo, connectDB(_, _, _, _))
@@ -85,11 +97,14 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_UseDB) {
     EXPECT_CALL(*repo, createAllTables())
         .Times(1)
         .WillOnce(Return(0));
-     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
+    EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(1)
         .WillOnce(Return(0));
-    ASSERT_EQ(0, metastore_->Init());
-    ASSERT_EQ(-1, metastore_->Init());
+    EXPECT_CALL(*repo, LoadCloneRepoItems(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, metastore_->Init(options));
+    ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateTable) {
     EXPECT_CALL(*repo, connectDB(_, _, _, _))
@@ -108,13 +123,16 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateTable) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
-     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
+    EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(1)
         .WillOnce(Return(0));
-    ASSERT_EQ(0, metastore_->Init());
-    ASSERT_EQ(-1, metastore_->Init());
+    EXPECT_CALL(*repo, LoadCloneRepoItems(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, metastore_->Init(options));
+    ASSERT_EQ(-1, metastore_->Init(options));
 }
-TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadInfo) {
+TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadSnapshotInfo) {
     EXPECT_CALL(*repo, connectDB(_, _, _, _))
         .Times(2)
         .WillOnce(Return(0))
@@ -131,12 +149,43 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadInfo) {
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
-     EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
+    EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
-    ASSERT_EQ(0, metastore_->Init());
-    ASSERT_EQ(-1, metastore_->Init());
+    EXPECT_CALL(*repo, LoadCloneRepoItems(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, metastore_->Init(options));
+    ASSERT_EQ(-1, metastore_->Init(options));
+}
+TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadCloneInfo) {
+    EXPECT_CALL(*repo, connectDB(_, _, _, _))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*repo, createDatabase())
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*repo, useDataBase())
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*repo, createAllTables())
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*repo, LoadSnapshotRepoItems(_))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*repo, LoadCloneRepoItems(_))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1));
+    ASSERT_EQ(0, metastore_->Init(options));
+    ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreAddSnapshot) {
       EXPECT_CALL(*repo, InsertSnapshotRepoItem(_))
@@ -224,6 +273,102 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreGetSnapshotList2) {
     metastore_->AddSnapshot(info3);
     std::vector<SnapshotInfo> v;
     ASSERT_EQ(0, metastore_->GetSnapshotList(&v));
+}
+TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreAddCloneInfo) {
+      EXPECT_CALL(*repo, InsertCloneRepoItem(_))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1));
+    std::string taskId = "this-is-test-taskID";
+    CloneInfo info(taskId,
+                    "user1",
+                    CloneTaskType::kClone,
+                    "src",
+                    "dest",
+                    CloneFileType::kFile,
+                    true);
+    ASSERT_EQ(0, metastore_->AddCloneInfo(info));
+    ASSERT_EQ(-1, metastore_->AddCloneInfo(info));
+}
+TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreDeleteCloneInfo) {
+  EXPECT_CALL(*repo, DeleteCloneRepoItem(_))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1));
+    std::string taskId = "this-is-test-taskID";
+    ASSERT_EQ(0, metastore_->DeleteCloneInfo(taskId));
+    ASSERT_EQ(-1, metastore_->DeleteCloneInfo(taskId));
+}
+TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreUpdateCloneInfo) {
+  EXPECT_CALL(*repo, UpdateCloneRepoItem(_))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1));
+    std::string taskId = "this-is-test-taskID";
+    CloneInfo info(taskId,
+                  "user1",
+                  CloneTaskType::kClone,
+                  "src",
+                  "dest",
+                  CloneFileType::kFile,
+                  true);
+    ASSERT_EQ(0, metastore_->UpdateCloneInfo(info));
+    ASSERT_EQ(-1, metastore_->UpdateCloneInfo(info));
+}
+TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreGetCloneInfo) {
+     EXPECT_CALL(*repo, InsertCloneRepoItem(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    std::string taskId = "this-is-test-taskID";
+    CloneInfo info(taskId,
+                  "user1",
+                  CloneTaskType::kClone,
+                  "src",
+                  "dest",
+                  CloneFileType::kFile,
+                  true);
+    CloneInfo tmpinfo;
+    std::string tmpId = "test";
+    metastore_->AddCloneInfo(info);
+    ASSERT_EQ(0, metastore_->GetCloneInfo(taskId, &tmpinfo));
+    ASSERT_EQ(-1, metastore_->GetCloneInfo(tmpId, &tmpinfo));
+}
+TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreGetCloneInfoList) {
+     EXPECT_CALL(*repo, InsertCloneRepoItem(_))
+        .Times(3)
+        .WillOnce(Return(0))
+        .WillOnce(Return(0))
+        .WillOnce(Return(0));
+    std::string taskId1 = "this-is-test-taskId1";
+    std::string taskId2 = "this-is-test-taskId2";
+    std::string taskId3 = "this-is-test-taskId3";
+    CloneInfo info1(taskId1,
+                    "user1",
+                    CloneTaskType::kClone,
+                    "src1",
+                    "dest1",
+                    CloneFileType::kFile,
+                    true);
+    CloneInfo info2(taskId2,
+                    "user1",
+                    CloneTaskType::kClone,
+                    "src2",
+                    "dest2",
+                    CloneFileType::kFile,
+                    true);
+    CloneInfo info3(taskId3,
+                    "user1",
+                    CloneTaskType::kClone,
+                    "src3",
+                    "dest3",
+                    CloneFileType::kFile,
+                    true);
+    metastore_->AddCloneInfo(info1);
+    metastore_->AddCloneInfo(info2);
+    metastore_->AddCloneInfo(info3);
+    std::vector<CloneInfo> v;
+    ASSERT_EQ(0, metastore_->GetCloneInfoList(&v));
+    v.clear();
 }
 }  // namespace snapshotcloneserver
 }  // namespace curve
