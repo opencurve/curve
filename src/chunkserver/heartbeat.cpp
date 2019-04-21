@@ -22,331 +22,23 @@ namespace chunkserver {
 
 using curve::fs::FileSystemInfo;
 
-CopysetNodeManager* CopysetInfo::copysetNodeManager_ = nullptr;
-
-void CopysetInfo::SetCopysetNodeManager(CopysetNodeManager* man) {
-    copysetNodeManager_ = man;
-}
-
-CopysetInfo::CopysetInfo(LogicPoolID poolId, CopysetID copysetId) :
-        poolId_(poolId),
-        copysetId_(copysetId),
-        term_(0) {
-    taskOngoing_.store(false, std::memory_order_release);
-    newTask_.store(false, std::memory_order_release);
-    copyset_ = CopysetNodePtr(nullptr);
-    task_ = HeartbeatTaskPtr(new HeartbeatTask());
-}
-
-CopysetInfo::~CopysetInfo() {
-}
-
-CopysetID CopysetInfo::GetCopysetId() {
-    return copysetId_;
-}
-
-LogicPoolID CopysetInfo::GetLogicPoolId() {
-    return poolId_;
-}
-
-GroupNid CopysetInfo::GetGroupId() {
-    return ToGroupNid(poolId_, copysetId_);
-}
-
-uint64_t CopysetInfo::GetEpoch() {
-    return copyset_->GetConfEpoch();
-}
-
-PeerId& CopysetInfo::GetPeerInTask() {
-    return task_->GetPeerId();
-}
-
-CopysetNodePtr CopysetInfo::GetCopysetNode() {
-    return copyset_;
-}
-
-void CopysetInfo::SetCopysetNode(CopysetNodePtr copyset) {
-    poolId_ = copyset->GetLogicPoolId();
-    copysetId_ = copyset->GetCopysetId();
-    copyset_ = copyset;
-}
-
-bool CopysetInfo::IsTaskOngoing() {
-    return taskOngoing_.load(std::memory_order_acquire);
-}
-
-bool CopysetInfo::HasTask() {
-    return newTask_.load(std::memory_order_acquire);
-}
-
-void CopysetInfo::ReleaseTask() {
-    newTask_.store(false, std::memory_order_release);
-}
-
-uint64_t CopysetInfo::GetTerm() {
-    return term_;
-}
-
-void CopysetInfo::UpdateTerm(uint64_t term) {
-    term_ = term;
-}
-
-int CopysetInfo::GetNode(scoped_refptr<braft::NodeImpl>* node) {
-    braft::NodeManager* const nm = braft::NodeManager::GetInstance();
-    std::vector<scoped_refptr<braft::NodeImpl>> nodes;
-    std::string groupId = std::to_string(ToGroupNid(poolId_, copysetId_));
-
-    nm->get_nodes_by_group_id(groupId, &nodes);
-    if (nodes.empty()) {
-        LOG(ERROR) << "Failed to get copyset node "
-                   << ToGroupIdStr(poolId_, copysetId_);
-        return ENOENT;
-    } else if (nodes.size() > 1) {
-        LOG(ERROR) << "Multiple copyset nodes exist in current chunkserver "
-                   << ToGroupIdStr(poolId_, copysetId_);
-        return EINVAL;
-    }
-    *node = nodes.front();
-
-    return 0;
-}
-
-bool CopysetInfo::IsLeader() {
-    scoped_refptr<braft::NodeImpl> node;
-    if (GetNode(&node)) {
-        LOG(ERROR) << "Failed to get node impl of copyset "
-                   << ToGroupIdStr(poolId_, copysetId_);
-        return false;
-    }
-
-    return node->is_leader();
-}
-
-int CopysetInfo::GetLeader(PeerId* leader) {
-    scoped_refptr<braft::NodeImpl> node;
-    if (GetNode(&node)) {
-        LOG(ERROR) << "Failed to get node impl of copyset "
-                   << ToGroupIdStr(poolId_, copysetId_);
-        return -1;
-    }
-
-    *leader = node->leader_id();
-
-    return 0;
-}
-
-int CopysetInfo::ListPeers(std::vector<PeerId>* peers) {
-    copyset_->ListPeers(peers);
-
-    return 0;
-}
-
-void CopysetInfo::NewTask(TASK_TYPE type, const PeerId& peerId) {
-    TaskStatus status = TaskStatus::OK();
-
-    taskOngoing_.store(true, std::memory_order_release);
-    newTask_.store(true, std::memory_order_release);
-    task_->NewTask(type, peerId);
-
-    switch (type) {
-    case TASK_TYPE_TRANSFER_LEADER:
-        status = TransferLeader(peerId);
-        break;
-    case TASK_TYPE_ADD_PEER:
-        status = AddPeer(peerId);
-        break;
-    case TASK_TYPE_REMOVE_PEER:
-        status = RemovePeer(peerId);
-        break;
-    case TASK_TYPE_CLEAN_PEER:
-        status = CleanPeer();
-        break;
-    case TASK_TYPE_NONE:
-        // Ignore for invalid task cases
-        LOG(INFO) << "Ignore invalid TASK_TYPE_NONE task";
-        break;
-    default:
-        LOG(FATAL) << "Impossible operatioon type" << type;
-        break;
-    }
-    if (!status.ok()) {
-        FinishTask(status);
-    }
-}
-
-static void AsyncFinishTask(CopysetInfoPtr info, const TaskStatus& status) {
-    info->FinishTask(status);
-}
-
-void CopysetInfo::FinishTask(const TaskStatus& status) {
-    task_->SetStatus(status);
-    taskOngoing_.store(false, std::memory_order_release);
-}
-
-TaskStatus CopysetInfo::TransferLeader(const PeerId& peerId) {
-    TaskStatus status;
-    scoped_refptr<braft::NodeImpl> node;
-    if (GetNode(&node) != 0) {
-        status = TaskStatus(EINVAL, "Failed to get node of copyset <%u, %u>",
-                            poolId_, copysetId_);
-        LOG(ERROR) << status.error_str();
-
-        return status;
-    }
-
-    if (node->leader_id() == peerId) {
-        TaskStatus status = TaskStatus::OK();
-        DVLOG(6) << "Skipped transferring leader to leader itself: " << peerId;
-
-        FinishTask(status);
-        return status;
-    }
-
-    int rc = node->transfer_leadership_to(peerId);
-    if (rc != 0) {
-        status = TaskStatus(rc, "Failed to transfer leader of copyset <%u, %u>"
-                                " to peer %s, error: %s",
-                            poolId_, copysetId_, peerId.to_string().c_str(),
-                            berror(rc));
-        LOG(ERROR) << status.error_str();
-
-        return status;
-    }
-
-    status = TaskStatus::OK();
-    FinishTask(status);
-
-    LOG(INFO) << "Transferred leader of copyset "
-              << ToGroupIdStr(poolId_, copysetId_) << " to peer " <<  peerId;
-
-    return status;
-}
-
-TaskStatus CopysetInfo::AddPeer(const PeerId& peerId) {
-    scoped_refptr<braft::NodeImpl> node;
-    if (GetNode(&node) != 0) {
-        TaskStatus status(EINVAL, "Failed to get node impl of copyset <%u, %u>",
-                          poolId_, copysetId_);
-        LOG(ERROR) << status.error_str();
-
-        return status;
-    }
-
-    std::vector<PeerId> peers;
-    if (ListPeers(&peers) != 0) {
-        TaskStatus status(-1, "Failed to get peer list of copyset <%u, %u>",
-                          poolId_, copysetId_);
-        LOG(ERROR) << status.error_str();
-
-        return status;
-    }
-
-    for (auto peer : peers) {
-        if (peer == peerId) {
-            TaskStatus status = TaskStatus::OK();
-            DVLOG(6) << peerId << " is already a member of copyset "
-                     << ToGroupIdStr(poolId_, copysetId_)
-                     << ", skip adding peer";
-
-            FinishTask(status);
-            return status;
-        }
-    }
-
-    braft::Closure* addPeerDone = braft::NewCallback(AsyncFinishTask,
-            CopysetInfoPtr(this->shared_from_this()));
-    node->add_peer(peerId, addPeerDone);
-
-    return TaskStatus::OK();
-}
-
-TaskStatus CopysetInfo::RemovePeer(const PeerId& peerId) {
-    scoped_refptr<braft::NodeImpl> node;
-    if (GetNode(&node) != 0) {
-        TaskStatus status(EINVAL, "Failed to get node impl of copyset <%u, %u>",
-                          poolId_, copysetId_);
-        LOG(ERROR) << status.error_str();
-
-        return status;
-    }
-
-    std::vector<PeerId> peers;
-    if (ListPeers(&peers) != 0) {
-        TaskStatus status(-1, "Failed to get peer list of copyset <%u, %u>",
-                          poolId_, copysetId_);
-        LOG(ERROR) << status.error_str();
-
-        return status;
-    }
-
-    bool peerValid = false;
-    for (auto peer : peers) {
-        if (peer == peerId) {
-            peerValid = true;
-            break;
-        }
-    }
-
-    if (!peerValid) {
-        TaskStatus status = TaskStatus::OK();
-        DVLOG(6) << peerId << " is not a member of copyset "
-                 << ToGroupIdStr(poolId_, copysetId_) << ", skip removing";
-
-        FinishTask(status);
-        return status;
-    }
-
-    braft::Closure* removePeerDone = braft::NewCallback(AsyncFinishTask,
-            CopysetInfoPtr(this->shared_from_this()));
-    node->remove_peer(peerId, removePeerDone);
-
-    return TaskStatus::OK();
-}
-
-TaskStatus CopysetInfo::CleanPeer() {
-    CopysetNodeManager* copysetMan = CopysetInfo::copysetNodeManager_;
-    if (!copysetMan->PurgeCopysetNodeData(poolId_, copysetId_)) {
+TaskStatus Heartbeat::PurgeCopyset(LogicPoolID poolId, CopysetID copysetId) {
+    if (!copysetMan_->PurgeCopysetNodeData(poolId, copysetId)) {
         LOG(ERROR) << "Failed to clean copyset "
-                   << ToGroupIdStr(poolId_, copysetId_) << " and its data.";
+                   << ToGroupIdStr(poolId, copysetId) << " and its data.";
 
         return TaskStatus(-1, "Failed to clean copyset");
     }
 
     LOG(INFO) << "Successfully cleaned copyset "
-              << ToGroupIdStr(poolId_, copysetId_) << " and its data.";
+              << ToGroupIdStr(poolId, copysetId) << " and its data.";
 
     return TaskStatus::OK();
-}
-
-TaskStatus& CopysetInfo::GetStatus() {
-    return task_->GetStatus();
-}
-
-void HeartbeatTask::SetStatus(const TaskStatus& status) {
-    status_ = status;
-}
-
-TaskStatus& HeartbeatTask::GetStatus() {
-    return status_;
-}
-
-PeerId& HeartbeatTask::GetPeerId() {
-    return peerId_;
-}
-
-TASK_TYPE HeartbeatTask::GetType() {
-    return type_;
-}
-
-void HeartbeatTask::NewTask(TASK_TYPE type, const PeerId& peerId) {
-    type_ = type;
-    peerId_ = peerId;
 }
 
 int Heartbeat::Init(const HeartbeatOptions &options) {
     toStop_.store(false, std::memory_order_release);
     options_ = options;
-    term_ = 0;
 
     dataDirPath_ = FsAdaptorUtil::GetPathFromUri(options_.dataUri);
 
@@ -373,7 +65,7 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     LOG(INFO) << "MDS address: " << options_.mdsIp << ":" << options_.mdsPort;
     LOG(INFO) << "Chunkserver address: " << options_.ip << ":" << options_.port;
 
-    CopysetInfo::SetCopysetNodeManager(options_.copysetNodeManager);
+    copysetMan_ = options.copysetNodeManager;
 
     return 0;
 }
@@ -424,7 +116,6 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopysetInfo* info,
     int ret;
     LogicPoolID poolId = copyset->GetLogicPoolId();
     CopysetID copysetId = copyset->GetCopysetId();
-    CopysetInfoPtr copysetInfo = GetCopysetInfo(copyset);
 
     info->set_logicalpoolid(poolId);
     info->set_copysetid(copysetId);
@@ -432,23 +123,12 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopysetInfo* info,
 
     std::vector<PeerId> peers;
 
-    ret = copysetInfo->ListPeers(&peers);
-    if (ret != 0) {
-        LOG(ERROR) << "Failed to get peer list of copyset "
-                   << ToGroupIdStr(poolId, copysetId);
-        return -1;
-    }
+    copyset->ListPeers(&peers);
     for (PeerId peer : peers) {
         info->add_peers(peer.to_string().c_str());
     }
 
-    PeerId leader;
-    ret = copysetInfo->GetLeader(&leader);
-    if (ret != 0) {
-        LOG(ERROR) << "Failed to get leader of copyset "
-                   << ToGroupIdStr(poolId, copysetId);
-        return -1;
-    }
+    PeerId leader = copyset->GetLeaderId();
     info->set_leaderpeer(leader.to_string());
 
     /*
@@ -456,77 +136,24 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopysetInfo* info,
      * monitoring feature is ready
      */
 
-    if (!copysetInfo->HasTask()) {
+    ConfigChangeType    type;
+    Configuration       conf;
+    PeerId              peer;
+
+    if ((ret = copyset->GetConfChange(&type, &conf, &peer)) != 0) {
+        LOG(ERROR) << "Failed to get config change state of copyset "
+                   << ToGroupIdStr(poolId, copysetId);
+        return ret;
+    } else if (type == curve::mds::heartbeat::NONE) {
         return 0;
     }
 
     ConfigChangeInfo* confChxInfo = new ConfigChangeInfo();
-    confChxInfo->set_peer(copysetInfo->GetPeerInTask().to_string());
-    confChxInfo->set_finished(!copysetInfo->IsTaskOngoing());
-    if (!copysetInfo->IsTaskOngoing()) {
-        CandidateError* err = new CandidateError();
-        err->set_errtype(copysetInfo->GetStatus().error_code());
-        err->set_errmsg(copysetInfo->GetStatus().error_str());
-
-        confChxInfo->set_allocated_err(err);
-        copysetInfo->ReleaseTask();
-    }
-
+    confChxInfo->set_peer(peer.to_string());
+    confChxInfo->set_finished(false);
     info->set_allocated_configchangeinfo(confChxInfo);
 
     return 0;
-}
-
-int Heartbeat::UpdateCopysetInfo(const std::vector<CopysetNodePtr>& copysets) {
-    /*
-     * 此处term为心跳周期号，每个心跳一个term号，跟raft的term没有关系，用来区别
-     * 活跃与非活跃Copyset跟踪项
-     */
-    ++term_;
-
-    // Update term of available copysets
-    for (CopysetNodePtr copyset : copysets) {
-        LogicPoolID poolId = copyset->GetLogicPoolId();
-        CopysetID copysetId = copyset->GetCopysetId();
-        GroupNid groupId = ToGroupNid(poolId, copysetId);
-
-        if (copysets_.count(groupId) == 0) {
-            copysets_[groupId] = CopysetInfoPtr(new CopysetInfo(poolId,
-                                                                copysetId));
-        }
-        CopysetInfoPtr copysetInfo = copysets_[groupId];
-        if (copysetInfo->GetCopysetNode() != copyset) {
-            copysetInfo->SetCopysetNode(copyset);
-        }
-        copysetInfo->UpdateTerm(term_);
-    }
-
-    return 0;
-}
-
-void Heartbeat::CleanAgingCopysetInfo() {
-    for (auto copyset : copysets_) {
-        CopysetInfoPtr info = copyset.second;
-        if (info->GetTerm() < term_ && (!info->HasTask())) {
-            LOG(INFO) << "Removing copyset info "
-                      << ToGroupIdStr(info->GetLogicPoolId(),
-                                    info->GetCopysetId());
-            copysets_.erase(info->GetGroupId());
-        }
-    }
-}
-
-CopysetInfoPtr Heartbeat::GetCopysetInfo(LogicPoolID poolId,
-                                         CopysetID copysetId) {
-    GroupNid groupId = ToGroupNid(poolId, copysetId);
-    if (copysets_.count(groupId) == 0) {
-        copysets_[groupId] = CopysetInfoPtr(new CopysetInfo(poolId, copysetId));
-    }
-    return copysets_[groupId];
-}
-
-CopysetInfoPtr Heartbeat::GetCopysetInfo(CopysetNodePtr copyset) {
-    return GetCopysetInfo(copyset->GetLogicPoolId(), copyset->GetCopysetId());
 }
 
 int Heartbeat::BuildRequest(HeartbeatRequest* req) {
@@ -569,14 +196,11 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     req->set_diskused(cap - avail);
 
     std::vector<CopysetNodePtr> copysets;
-    CopysetNodeManager* copysetMan = options_.copysetNodeManager;
-    copysetMan->GetAllCopysetNodes(&copysets);
-
-    UpdateCopysetInfo(copysets);
+    copysetMan_->GetAllCopysetNodes(&copysets);
 
     req->set_copysetcount(copysets.size());
     int leaders = 0;
-    // Inactive copysets are skipped and will be purged later
+
     for (CopysetNodePtr copyset : copysets) {
         curve::mds::heartbeat::CopysetInfo* info = req->add_copysetinfos();
 
@@ -587,7 +211,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
                                      copyset->GetCopysetId());
             return -1;
         }
-        if (GetCopysetInfo(copyset)->IsLeader()) {
+        if (copyset->IsLeader()) {
             ++leaders;
         }
     }
@@ -686,34 +310,25 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
         CopysetConf conf = response.needupdatecopysets(i);
         GroupNid groupId = ToGroupNid(conf.logicalpoolid(), conf.copysetid());
 
-        // std::vector<PeerId> peers;
         uint64_t epoch = conf.epoch();
 
         // Perform validations
-        if (copysets_.count(groupId) == 0) {
+        CopysetNodePtr copyset = copysetMan_->GetCopysetNode(
+                conf.logicalpoolid(), conf.copysetid());
+        if (copyset == nullptr) {
             TaskStatus status(ENOENT, "Failed to find copyset <%u, %u>",
                               conf.logicalpoolid(), conf.copysetid());
             LOG(ERROR) << status.error_str();
-
-            copysets_[groupId] = CopysetInfoPtr(
-                    new CopysetInfo(conf.logicalpoolid(), conf.copysetid()));
-            CopysetInfoPtr copysetInfo = copysets_[groupId];
-            copysetInfo->NewTask(TASK_TYPE_NONE, PeerId());
-            copysetInfo->FinishTask(status);
             continue;
         }
-        CopysetInfoPtr copysetInfo = copysets_[groupId];
-        if (epoch < copysetInfo->GetEpoch()) {
+        if (epoch < copyset->GetConfEpoch()) {
             TaskStatus status(EINVAL, "Invalid epoch aginast copyset <%u, %u>"
                                       " expected epoch: %lu, recevied: %lu",
                               conf.logicalpoolid(),
                               conf.copysetid(),
-                              copysetInfo->GetEpoch(),
+                              copyset->GetConfEpoch(),
                               epoch);
             LOG(ERROR) << status.error_str();
-
-            copysetInfo->NewTask(TASK_TYPE_NONE, PeerId());
-            copysetInfo->FinishTask(status);
             continue;
         }
 
@@ -729,7 +344,7 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
         if (cleanPeer) {
             LOG(INFO) << "Clean peer " << csEp_ << " of copyset "
                       << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copysetInfo->NewTask(TASK_TYPE_CLEAN_PEER, PeerId());
+            PurgeCopyset(conf.logicalpoolid(), conf.copysetid());
             continue;
         }
 
@@ -739,9 +354,6 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                                       "<%u, %u>",
                               conf.logicalpoolid(), conf.copysetid());
             LOG(ERROR) << status.error_str();
-
-            copysetInfo->NewTask(TASK_TYPE_NONE, PeerId());
-            copysetInfo->FinishTask(status);
             continue;
         }
         PeerId peerId;
@@ -752,26 +364,23 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                               conf.logicalpoolid(), conf.copysetid(),
                               peerStr.c_str());
             LOG(ERROR) << status.error_str();
-
-            copysetInfo->NewTask(TASK_TYPE_NONE, PeerId());
-            copysetInfo->FinishTask(status);
             continue;
         }
         switch (conf.type()) {
         case curve::mds::heartbeat::TRANSFER_LEADER:
             LOG(INFO) << "Transfer leader to " << peerId << " on copyset "
                       << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copysetInfo->NewTask(TASK_TYPE_TRANSFER_LEADER, peerId);
+            copyset->TransferLeader(peerId);
             break;
         case curve::mds::heartbeat::ADD_PEER:
             LOG(INFO) << "Adding peer " << peerId << " to copyset "
                       << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copysetInfo->NewTask(TASK_TYPE_ADD_PEER, peerId);
+            copyset->AddPeer(peerId);
             break;
         case curve::mds::heartbeat::REMOVE_PEER:
             LOG(INFO) << "Removing peer " << peerId << " from copyset "
                       << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copysetInfo->NewTask(TASK_TYPE_REMOVE_PEER, peerId);
+            copyset->RemovePeer(peerId);
             break;
         default:
             TaskStatus status(EINVAL, "Invalid operation %d against copyset"
@@ -779,9 +388,6 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                               conf.type(),
                               conf.logicalpoolid(), conf.copysetid());
             LOG(ERROR) << status.error_str();
-
-            copysetInfo->NewTask(TASK_TYPE_NONE, PeerId());
-            copysetInfo->FinishTask(status);
             break;
         }
     }
@@ -790,7 +396,6 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
 }
 
 void Heartbeat::WaitForNextHeartbeat() {
-    // TODO(wenyu): triggering with more accurate timer
     static int64_t t0 = butil::monotonic_time_ms();
     int64_t t1 = butil::monotonic_time_ms();
 
@@ -828,8 +433,6 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
             sleep(1);
             continue;
         }
-
-        heartbeat->CleanAgingCopysetInfo();
 
         DVLOG(1) << "executing heartbeat info";
         ret = heartbeat->ExecTask(resp);
