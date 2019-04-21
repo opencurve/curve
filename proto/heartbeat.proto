@@ -85,6 +85,8 @@ enum ConfigChangeType {
     ADD_PEER = 2;
     // 配置变更命令： 复制组删除一个成员
     REMOVE_PEER = 3;
+    // 配置变更命令： 没有配置变更
+    NONE = 4;
 };
 
 message CopysetConf {
