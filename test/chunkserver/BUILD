@@ -193,7 +193,6 @@ cc_test(
         "heartbeat_test_main.cpp",
         "heartbeat_test.h",
         "heartbeat_test.cpp",
-        "heartbeat_module_test.cpp",
     ],
     deps = [
         "//external:braft",
