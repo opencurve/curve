@@ -571,5 +571,44 @@ void CopysetNode::Propose(const braft::Task &task) {
     raftNode_->apply(task);
 }
 
+int CopysetNode::GetConfChange(ConfigChangeType *type,
+                               Configuration *oldConf,
+                               PeerId *alterPeer) {
+    Configuration adding, removing;
+    PeerId transferee;
+    bool ret
+        = raftNode_->conf_changes(oldConf, &adding, &removing, &transferee);
+
+    if (false == ret) {
+        *type = ConfigChangeType::NONE;
+        return 0;
+    }
+
+    // 目前仅支持单个成员的配置变更
+    if (1 == adding.size()) {
+        *type = ConfigChangeType::ADD_PEER;
+        *alterPeer = *adding.begin();
+        return 0;
+    }
+
+    if (1 == removing.size()) {
+        *type = ConfigChangeType::REMOVE_PEER;
+        *alterPeer = *removing.begin();
+        return 0;
+    }
+
+    if (!transferee.is_empty()) {
+        *type = ConfigChangeType::TRANSFER_LEADER;
+        *alterPeer = transferee;
+        return 0;
+    }
+
+    /*
+     * 当前使用braft进行配置变更，仅限一次变更单个成员，所以
+     * 如果发现一次变更多个成员，那么认为失败，有问题
+     */
+    return -1;
+}
+
 }  // namespace chunkserver
 }  // namespace curve
