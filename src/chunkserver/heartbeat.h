@@ -137,6 +137,11 @@ class Heartbeat {
      */
     TaskStatus PurgeCopyset(LogicPoolID poolId, CopysetID copysetId);
 
+    /*
+     * 更新ChunkServer性能复合metric
+     */
+    void UpdateChunkserverPerfMetric();
+
  private:
     /*
      * 心跳线程
@@ -172,6 +177,39 @@ class Heartbeat {
      * Copyset管理模块
      */
     CopysetNodeManager*             copysetMan_;
+
+    /*
+     * ChunkServer读请求累计数
+     */
+    std::shared_ptr<bvar::PassiveStatus<uint64_t>>                  readCnt_;
+    /*
+     * ChunkServer写请求累计数
+     */
+    std::shared_ptr<bvar::PassiveStatus<uint64_t>>                  writeCnt_;
+    /*
+     * ChunkServer读请求累计字节数
+     */
+    std::shared_ptr<bvar::PassiveStatus<uint64_t>>                  readBytes_;
+    /*
+     * ChunkServer写请求累计字节数
+     */
+    std::shared_ptr<bvar::PassiveStatus<uint64_t>>                  writeBytes_;
+    /*
+     * ChunkServer读请求每秒计数
+     */
+    std::shared_ptr<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>> readIops_;
+    /*
+     * ChunkServer写请求每秒计数
+     */
+    std::shared_ptr<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>> writeIops_;
+    /*
+     * ChunkServer读请求每秒字节数
+     */
+    std::shared_ptr<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>> readBps_;
+    /*
+     * ChunkServer写请求每秒字节数
+     */
+    std::shared_ptr<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>> writeBps_;
 };
 
 }  // namespace chunkserver

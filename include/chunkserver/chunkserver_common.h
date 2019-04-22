@@ -40,6 +40,20 @@ using FileSystemAdaptor = braft::FileSystemAdaptor;
 using DirReader = braft::DirReader;
 using PosixFileSystemAdaptor = braft::PosixFileSystemAdaptor;
 
+/*
+ * IO性能统计复合metric类型
+ */
+struct IoPerfMetric {
+    uint64_t    readCount;
+    uint64_t    writeCount;
+    uint64_t    readBytes;
+    uint64_t    writeBytes;
+    uint64_t    readIops;
+    uint64_t    writeIops;
+    uint64_t    readBps;
+    uint64_t    writeBps;
+};
+
 /**
  *  将(LogicPoolID, CopysetID)二元组转换成数字格式的复制组ID,格式如下：
  *  |            group id           |

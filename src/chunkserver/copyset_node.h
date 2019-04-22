@@ -183,6 +183,27 @@ class CopysetNode : public braft::StateMachine,
     void ListPeers(std::vector<PeerId>* peers);
 
     /**
+     * @brief 增加读请求的IOPS和BPS性能统计计数
+     * @param bytes[in] 读请求的字节数
+     * @return
+     */
+    void IncReadMetrics(uint32_t bytes);
+
+    /**
+     * @brief 增加写请求的IOPS和BPS性能统计计数
+     * @param bytes[in] 写请求的字节数
+     * @return
+     */
+    void IncWriteMetrics(uint32_t bytes);
+
+    /**
+     * @brief 获取Copyset性能统计复合metric
+     * @param metric[out] 返回的性能统计复合metric
+     * @return
+     */
+    void GetPerfMetrics(IoPerfMetric* metric);
+
+    /**
      * 下面的接口都是继承StateMachine实现的接口
      */
  public:
@@ -321,6 +342,22 @@ class CopysetNode : public braft::StateMachine,
     std::atomic<int64_t> leaderTerm_;
     // 复制组数据回收站目录
     std::string         recyclerUri_;
+    // 复制组读请求累计数
+    std::shared_ptr<bvar::Adder<uint64_t>>                   readCounter_;
+    // 复制组写请求累计数
+    std::shared_ptr<bvar::Adder<uint64_t>>                   writeCounter_;
+    // 复制组读请求累计字节数
+    std::shared_ptr<bvar::Adder<uint64_t>>                   readBytes_;
+    // 复制组写请求累计字节数
+    std::shared_ptr<bvar::Adder<uint64_t>>                   writeBytes_;
+    // 复制组读请求每秒计数
+    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>>  readIops_;
+    // 复制组写请求每秒计数
+    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>>  writeIops_;
+    // 复制组读请求每秒字节数
+    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>>  readBps_;
+    // 复制组写请求每秒字节数
+    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>>  writeBps_;
 };
 
 }  // namespace chunkserver
