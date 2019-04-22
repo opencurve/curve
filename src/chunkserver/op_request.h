@@ -79,6 +79,16 @@ class ChunkOpRequest : public std::enable_shared_from_this<ChunkOpRequest> {
     ChunkID ChunkId() { return request_->chunkid(); }
 
     /**
+     * 返回请求类型
+     */
+    CHUNK_OP_TYPE OpType() { return request_->optype(); }
+
+    /**
+     * 返回请求大小
+     */
+    uint32_t RequestSize() { return request_->size(); }
+
+    /**
      * 转发request给leader
      */
     virtual void RedirectChunkRequest();
