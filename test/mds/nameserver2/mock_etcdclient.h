@@ -26,6 +26,7 @@ class MockEtcdClient : public EtcdClientImp {
         int(std::string, std::string, std::vector<std::string>*));
     MOCK_METHOD1(Delete, int(std::string));
     MOCK_METHOD2(Txn2, int(Operation, Operation));
+    MOCK_METHOD3(CompareAndSwap, int(std::string, std::string, std::string));
 };
 
 class MockLRUCache : public LRUCache {
