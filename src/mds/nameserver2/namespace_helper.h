@@ -20,6 +20,7 @@ extern const char FILEINFOKEYPREFIX[];
 extern const char SEGMENTINFOKEYPREFIX[];
 extern const char SNAPSHOTFILEINFOKEYPREFIX[];
 extern const char INODESTOREKEY[];
+extern const char CHUNKSTOREKEY[];
 extern const char RECYCLEFILEINFOKEYPREFIX[];
 extern const char RECYCLEFILEINFOKEYEND[];
 
@@ -40,8 +41,8 @@ class NameSpaceStorageCodec {
     static bool DecodeFileInfo(const std::string info, FileInfo *fileInfo);
     static bool EncodeSegment(const PageFileSegment &segment, std::string *out);
     static bool DecodeSegment(const std::string info, PageFileSegment *segment);
-    static std::string EncodeInodeID(uint64_t value);
-    static bool DecodeInodeID(const std::string &value, uint64_t *out);
+    static std::string EncodeID(uint64_t value);
+    static bool DecodeID(const std::string &value, uint64_t *out);
 };
 }   // namespace mds
 }   // namespace curve

@@ -13,13 +13,13 @@
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/etcd_client.h"
 #include "src/common/concurrent/concurrent.h"
-
-using ::curve::common::Atomic;
+#include "src/mds/nameserver2/etcd_id_generator.h"
+#include "src/mds/nameserver2/namespace_helper.h"
 
 namespace curve {
 namespace mds {
 const uint64_t INODEINITIALIZE = 0;
-const uint64_t BUNDLEALLOCATED = 1000;
+const uint64_t INODEBUNDLEALLOCATED = 1000;
 
 class InodeIDGenerator {
  public:
@@ -37,38 +37,18 @@ class InodeIDGenerator {
 
 class InodeIdGeneratorImp : public InodeIDGenerator {
  public:
-    explicit InodeIdGeneratorImp(std::shared_ptr<StorageClient> client) :
-        client_(client),
-        nextId_(INODEINITIALIZE),
-        bundleEnd_(INODEINITIALIZE) {}
+    explicit InodeIdGeneratorImp(std::shared_ptr<StorageClient> client) {
+        generator_ = std::make_shared<EtcdIdGenerator>(
+            client, INODESTOREKEY, INODEINITIALIZE, INODEBUNDLEALLOCATED);
+    }
     virtual ~InodeIdGeneratorImp() {}
-
-    /*
-    * @brief Init 从etcd中申请n个inodeId
-    *
-    * @return true表示load成功，false表示不成功
-    */
-    bool Init();
 
     bool GenInodeID(InodeID *id) override;
 
  private:
-    /*
-    * @brief 从storage中批量申请ID
-    *
-    * @param[in] requiredNum 需要申请的id个数
-    *
-    * @param[out] false表示申请失败，true表示申请成功
-    */
-    bool AllocateBundleIds(int requiredNum);
-
- private:
-    std::shared_ptr<StorageClient> client_;
-    uint64_t nextId_;
-    uint64_t bundleEnd_;
-
-    ::curve::common::RWLock lock_;
+    std::shared_ptr<EtcdIdGenerator> generator_;
 };
+
 }  // namespace mds
 }  // namespace curve
 
