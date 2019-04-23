@@ -14,8 +14,9 @@ const char FILEINFOKEYPREFIX[] = "01";
 const char SEGMENTINFOKEYPREFIX[] = "02";
 const char SNAPSHOTFILEINFOKEYPREFIX[] = "03";
 const char INODESTOREKEY[] = "04";
-const char RECYCLEFILEINFOKEYPREFIX[] = "05";
-const char RECYCLEFILEINFOKEYEND[] = "06";
+const char CHUNKSTOREKEY[] = "05";
+const char RECYCLEFILEINFOKEYPREFIX[] = "06";
+const char RECYCLEFILEINFOKEYEND[] = "07";
 // TODO(hzsunjianliang): if use single prefix for snapshot file?
 const int PREFIX_LENGTH = 2;
 const int SEGMENTKEYLEN = 18;
@@ -83,11 +84,11 @@ bool NameSpaceStorageCodec::DecodeSegment(const std::string info,
     return segment->ParseFromString(info);
 }
 
-std::string NameSpaceStorageCodec::EncodeInodeID(uint64_t value) {
+std::string NameSpaceStorageCodec::EncodeID(uint64_t value) {
     return std::to_string(value);
 }
 
-bool NameSpaceStorageCodec::DecodeInodeID(
+bool NameSpaceStorageCodec::DecodeID(
     const std::string &value, uint64_t *out) {
     return ::curve::common::StringToUll(value, out);
 }

@@ -8,17 +8,48 @@
 #ifndef SRC_MDS_NAMESERVER2_CHUNK_ID_GENERATOR_H_
 #define SRC_MDS_NAMESERVER2_CHUNK_ID_GENERATOR_H_
 
+#include <memory>
 #include "src/mds/common/mds_define.h"
+#include "src/mds/nameserver2/etcd_client.h"
+#include "src/common/concurrent/concurrent.h"
+#include "src/mds/nameserver2/etcd_id_generator.h"
+#include "src/mds/nameserver2/namespace_helper.h"
+
+using ::curve::common::Atomic;
 
 namespace curve {
 namespace  mds {
+const uint64_t CHUNKINITIALIZE = 0;
+const uint64_t CHUNKBUNDLEALLOCATED = 1000;
 
 class ChunkIDGenerator {
  public:
     virtual  ~ChunkIDGenerator() {}
+
+    /*
+    * @brief GenChunkID 生成全局递增的id
+    *
+    * @param[out] 生成的id
+    *
+    * @return true表示生成成功， false表示生成失败
+    */
     virtual bool GenChunkID(ChunkID *id) = 0;
 };
 
+class ChunkIDGeneratorImp : public ChunkIDGenerator {
+ public:
+    explicit ChunkIDGeneratorImp(std::shared_ptr<StorageClient> client) {
+        generator_ = std::make_shared<EtcdIdGenerator>(
+            client, CHUNKSTOREKEY, CHUNKINITIALIZE, CHUNKBUNDLEALLOCATED);
+    }
+    virtual ~ChunkIDGeneratorImp() {}
+
+    bool GenChunkID(ChunkID *id) override;
+
+ private:
+    std::shared_ptr<EtcdIdGenerator> generator_;
+};
 }  // namespace mds
 }  // namespace curve
+
 #endif  // SRC_MDS_NAMESERVER2_CHUNK_ID_GENERATOR_H_

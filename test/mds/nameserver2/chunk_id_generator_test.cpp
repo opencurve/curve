@@ -1,7 +1,7 @@
 /*
  * Project: curve
- * Created Date: Thur March 28th 2019
- * Author: lixiaocui1
+ * Created Date: Thur Apr 24th 2019
+ * Author: lixiaocui
  * Copyright (c) 2018 netease
  */
 
@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 #include <thread> //NOLINT
 #include <chrono> //NOLINT
-#include "src/mds/nameserver2/inode_id_generator.h"
+#include "src/mds/nameserver2/chunk_id_generator.h"
 #include "src/mds/nameserver2/namespace_helper.h"
 #include "test/mds/nameserver2/mock_etcdclient.h"
 
@@ -20,44 +20,44 @@ using ::testing::DoAll;
 
 namespace curve {
 namespace mds {
-class TestInodeIdGenerator : public ::testing::Test {
+class TestChunkIdGenerator : public ::testing::Test {
  protected:
-    TestInodeIdGenerator() {}
-    ~TestInodeIdGenerator() {}
+    TestChunkIdGenerator() {}
+    ~TestChunkIdGenerator() {}
 
     void SetUp() override {
         client_ = std::make_shared<MockEtcdClient>();
-        inodeIdGen_ = std::make_shared<InodeIdGeneratorImp>(client_);
+        chunkIdGen_ = std::make_shared<ChunkIDGeneratorImp>(client_);
     }
 
     void TearDown() override {
         client_ = nullptr;
-        inodeIdGen_ = nullptr;
+        chunkIdGen_ = nullptr;
     }
 
  protected:
     std::shared_ptr<MockEtcdClient> client_;
-    std::shared_ptr<InodeIdGeneratorImp> inodeIdGen_;
+    std::shared_ptr<ChunkIDGeneratorImp> chunkIdGen_;
 };
 
-TEST_F(TestInodeIdGenerator, test_all) {
-    uint64_t alloc1 = INODEINITIALIZE + INODEBUNDLEALLOCATED;
-    uint64_t alloc2 = alloc1 + INODEBUNDLEALLOCATED;
+TEST_F(TestChunkIdGenerator, test_all) {
+    uint64_t alloc1 = CHUNKINITIALIZE + CHUNKBUNDLEALLOCATED;
+    uint64_t alloc2 = alloc1 + CHUNKBUNDLEALLOCATED;
     std::string strAlloc1 = NameSpaceStorageCodec::EncodeID(alloc1);
-    EXPECT_CALL(*client_, Get(INODESTOREKEY, _))
+    EXPECT_CALL(*client_, Get(CHUNKSTOREKEY, _))
         .WillOnce(Return(EtcdErrCode::KeyNotExist))
         .WillOnce(DoAll(SetArgPointee<1>(strAlloc1), Return(EtcdErrCode::OK)));
     EXPECT_CALL(*client_, CompareAndSwap(
-        INODESTOREKEY, "", NameSpaceStorageCodec::EncodeID(alloc1)))
+        CHUNKSTOREKEY, "", NameSpaceStorageCodec::EncodeID(alloc1)))
         .WillOnce(Return(EtcdErrCode::OK));
     EXPECT_CALL(*client_, CompareAndSwap(
-        INODESTOREKEY, strAlloc1, NameSpaceStorageCodec::EncodeID(alloc2)))
+        CHUNKSTOREKEY, strAlloc1, NameSpaceStorageCodec::EncodeID(alloc2)))
         .WillOnce(Return(EtcdErrCode::OK));
 
-    uint64_t end = 2 * INODEBUNDLEALLOCATED;
+    uint64_t end = 2 * CHUNKBUNDLEALLOCATED;
     InodeID res;
-    for (int i = INODEINITIALIZE + 1; i <= end; i++) {
-        ASSERT_TRUE(inodeIdGen_->GenInodeID(&res));
+    for (int i = CHUNKINITIALIZE + 1; i <= end; i++) {
+        ASSERT_TRUE(chunkIdGen_->GenChunkID(&res));
         ASSERT_EQ(i, res);
     }
 }
