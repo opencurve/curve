@@ -48,7 +48,7 @@ TEST_F(SessionTest, testRepoInit) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::SqlException));
 
@@ -59,7 +59,7 @@ TEST_F(SessionTest, testRepoInit) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -74,7 +74,7 @@ TEST_F(SessionTest, testRepoInit) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -93,7 +93,7 @@ TEST_F(SessionTest, testRepoInit) {
     {
         SessionManager sessionManager_(mockRepo_);
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -123,7 +123,7 @@ TEST_F(SessionTest, testLoadSession) {
         .Times(1)
         .WillOnce(Return(repo::SqlException));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -163,7 +163,7 @@ TEST_F(SessionTest, testLoadSession) {
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -207,7 +207,7 @@ TEST_F(SessionTest, testLoadSession) {
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -262,7 +262,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -328,7 +328,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -382,7 +382,7 @@ TEST_F(SessionTest, insert_session_test) {
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -454,7 +454,7 @@ TEST_F(SessionTest, insert_session_test) {
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -522,7 +522,7 @@ TEST_F(SessionTest, refresh_session_test) {
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
-    EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+    EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
@@ -578,7 +578,7 @@ TEST_F(SessionTest, fast_exit_test) {
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
-    EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+    EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 

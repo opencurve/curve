@@ -109,8 +109,10 @@ class SnapshotCloneRepo : public curve::repo::RepoInterface {
 
   ~SnapshotCloneRepo() {}
   // 参见虚基类注释说明
+  // TODO(hzzhaojianming) 可以考虑将入参整合成一个option
   int connectDB(const std::string &dbName, const std::string &user,
-                const std::string &url, const std::string &password) override;
+                const std::string &url, const std::string &password,
+                uint32_t poolSize) override;
 
   int createAllTables() override;
 
@@ -125,6 +127,8 @@ class SnapshotCloneRepo : public curve::repo::RepoInterface {
    * @return database实例的智能指针
    */
   std::shared_ptr<curve::repo::DataBase> getDataBase();
+
+  void setDataBase(std::shared_ptr<curve::repo::DataBase> db);
 
 
   /**

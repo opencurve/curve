@@ -80,6 +80,8 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
         metastoreOption_.dbPassword =
             conf_.GetStringValue("metastore.db_passwd");
         metastoreOption_.dbAddr = conf_.GetStringValue("metastore.db_address");
+        metastoreOption_.dbPoolSize =
+            conf_.GetIntValue("metastore.db_poolsize");
     }
     std::shared_ptr<SnapshotCloneRepo> repo =
         std::make_shared<SnapshotCloneRepo>();

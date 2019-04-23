@@ -13,11 +13,13 @@ namespace curve {
 namespace snapshotcloneserver {
 
 int SnapshotCloneRepo::connectDB(const std::string &dbName,
-                    const std::string &user,
-                    const std::string &url, const std::string &password) {
+                                 const std::string &user,
+                                 const std::string &url,
+                                 const std::string &password,
+                                 uint32_t poolSize) {
     dbName_ = dbName;
-    db_ = std::make_shared<DataBase>(user, url, password);
-    return db_->connectDB();
+    db_ = std::make_shared<DataBase>(user, url, password, dbName, poolSize);
+    return db_->InitDB();
 }
 
 int SnapshotCloneRepo::createDatabase() {
@@ -27,21 +29,21 @@ int SnapshotCloneRepo::createDatabase() {
              kLen,
              CreateDataBase,
              dbName_.c_str());
-    return db_->ExecUpdate(createSql);
+    return db_->Execute(createSql);
 }
 
 int SnapshotCloneRepo::useDataBase() {
     const size_t kLen = UseDataBaseLen + dbName_.size() + 1;
     char useSql[kLen];
     snprintf(useSql, kLen, UseDataBase, dbName_.c_str());
-    return db_->ExecUpdate(useSql);
+    return db_->Execute(useSql);
 }
 
 int SnapshotCloneRepo::dropDataBase() {
     const size_t kLen = DropDataBaseLen + dbName_.size() + 1;
     char dropSql[kLen];
     snprintf(dropSql, kLen, DropDataBase, dbName_.c_str());
-    return db_->ExecUpdate(dropSql);
+    return db_->Execute(dropSql);
 }
 
 int SnapshotCloneRepo::createAllTables() {
@@ -58,6 +60,10 @@ int SnapshotCloneRepo::createAllTables() {
 
 std::shared_ptr<DataBase> SnapshotCloneRepo::getDataBase() {
     return db_;
+}
+
+void SnapshotCloneRepo::setDataBase(std::shared_ptr<DataBase> db) {
+    db_ = db;
 }
 
 int SnapshotCloneRepo::InsertCloneRepoItem(const CloneRepoItem &cr) {

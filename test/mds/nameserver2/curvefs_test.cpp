@@ -63,7 +63,7 @@ class CurveFSTest: public ::testing::Test {
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _))
+        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 

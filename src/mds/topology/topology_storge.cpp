@@ -29,7 +29,8 @@ bool DefaultTopologyStorage::init(const TopologyOption &option) {
             option.dbName,
             option.user,
             option.url,
-            option.password) != OperationOK) {
+            option.password,
+            option.poolSize) != OperationOK) {
         LOG(ERROR) << "[DefaultTopologyStorage::init]: connectDB fail.";
         return false;
     } else if (repo_->createDatabase() != OperationOK) {

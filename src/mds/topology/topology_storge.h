@@ -74,7 +74,6 @@ class DefaultTopologyStorage : public TopologyStorage {
         : repo_(repo) {}
 
     bool init(const TopologyOption &option);
-
     bool LoadLogicalPool(
         std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
         PoolIdType *maxLogicalPoolId) override;

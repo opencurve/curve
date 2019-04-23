@@ -9,6 +9,7 @@
 #include <gtest/gtest.h>
 #include <json/json.h>
 #include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
+#include "test/snapshotcloneserver/mock_db.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -32,7 +33,8 @@ class RepoTest : public ::testing::Test {
                 repo->connectDB("curve_snapshot_repo_test",
                                 "root",
                                 "localhost",
-                                "qwer"));
+                                "qwer",
+                                16));
       ASSERT_EQ(OperationOK, repo->dropDataBase());
       ASSERT_EQ(OperationOK, repo->createDatabase());
       ASSERT_EQ(OperationOK, repo->useDataBase());
@@ -41,7 +43,6 @@ class RepoTest : public ::testing::Test {
 
   void TearDown() override {
       repo->dropDataBase();
-      delete (repo);
   }
 
   SnapshotCloneRepo *repo;
@@ -84,12 +85,24 @@ TEST_F(RepoTest, testSnapshotCUDA) {
     ASSERT_EQ(OperationOK, repo->DeleteSnapshotRepoItem(sr1.uuid));
     ASSERT_EQ(OperationOK,
               repo->QuerySnapshotRepoItem(sr1.uuid, &queryRes));
-
-    // close statement, query get sqlException
-    repo->getDataBase()->statement_->close();
+}
+TEST_F(RepoTest, testSnapshotCUDAFailed) {
+    std::shared_ptr<curve::repo::MockDB> db =
+          std::make_shared<curve::repo::MockDB>();
+    std::shared_ptr<curve::repo::DataBase> orig_db = repo->getDataBase();
+    repo->setDataBase(db);
+    EXPECT_CALL(*db, QueryRows(_, _))
+          .Times(2)
+          .WillOnce(Return(SqlException))
+          .WillOnce(Return(SqlException));
+    EXPECT_CALL(*db, ExecUpdate(_)).Times(1).WillOnce(Return(SqlException));
+    SnapshotRepoItem queryRes;
+    std::vector<SnapshotRepoItem> list;
     ASSERT_EQ(SqlException, repo->QuerySnapshotRepoItem("test", &queryRes));
     ASSERT_EQ(SqlException, repo->LoadSnapshotRepoItems(&list));
     ASSERT_EQ(SqlException, repo->createAllTables());
+    repo->setDataBase(orig_db);
+    db = nullptr;
 }
 TEST_F(RepoTest, testCloneCUDA) {
     CloneRepoItem sr1("taskid-test",
@@ -130,14 +143,25 @@ TEST_F(RepoTest, testCloneCUDA) {
     ASSERT_EQ(OperationOK, repo->DeleteCloneRepoItem(sr1.taskID));
     ASSERT_EQ(OperationOK,
               repo->QueryCloneRepoItem(sr1.taskID, &queryRes));
+}
 
-    // close statement, query get sqlException
-    repo->getDataBase()->statement_->close();
+TEST_F(RepoTest, testCloneCUDAFailed) {
+    std::shared_ptr<curve::repo::MockDB> db =
+          std::make_shared<curve::repo::MockDB>();
+    std::shared_ptr<curve::repo::DataBase>orig_db = repo->getDataBase();
+    repo->setDataBase(db);
+    EXPECT_CALL(*db, QueryRows(_, _))
+          .Times(2)
+          .WillOnce(Return(SqlException))
+          .WillOnce(Return(SqlException));
+    EXPECT_CALL(*db, ExecUpdate(_)).Times(1).WillOnce(Return(SqlException));
+    CloneRepoItem queryRes;
+    std::vector<CloneRepoItem> list;
     ASSERT_EQ(SqlException, repo->QueryCloneRepoItem("test", &queryRes));
     ASSERT_EQ(SqlException, repo->LoadCloneRepoItems(&list));
     ASSERT_EQ(SqlException, repo->createAllTables());
+    repo->setDataBase(orig_db);
+    db = nullptr;
 }
-
 }  // namespace snapshotcloneserver
 }  // namespace curve
-

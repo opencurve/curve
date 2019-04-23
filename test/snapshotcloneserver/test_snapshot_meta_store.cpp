@@ -35,7 +35,7 @@ class TestDBSnapshotCloneMetaStore : public ::testing::Test {
 };
 
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_ConnectDB) {
-    EXPECT_CALL(*repo, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo, connectDB(_, _, _, _, _))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(-1));
@@ -58,7 +58,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_ConnectDB) {
     ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateDB) {
-    EXPECT_CALL(*repo, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo, connectDB(_, _, _, _, _))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
@@ -82,7 +82,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateDB) {
     ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_UseDB) {
-    EXPECT_CALL(*repo, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo, connectDB(_, _, _, _, _))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
@@ -107,7 +107,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_UseDB) {
     ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateTable) {
-    EXPECT_CALL(*repo, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo, connectDB(_, _, _, _, _))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
@@ -133,7 +133,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_CreateTable) {
     ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadSnapshotInfo) {
-    EXPECT_CALL(*repo, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo, connectDB(_, _, _, _, _))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));
@@ -160,7 +160,7 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadSnapshotInfo) {
     ASSERT_EQ(-1, metastore_->Init(options));
 }
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreInit_LoadCloneInfo) {
-    EXPECT_CALL(*repo, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo, connectDB(_, _, _, _, _))
         .Times(2)
         .WillOnce(Return(0))
         .WillOnce(Return(0));

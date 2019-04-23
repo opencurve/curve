@@ -24,11 +24,12 @@ class MockRepo : public MdsRepo {
   MockRepo() {}
   ~MockRepo() {}
 
-  MOCK_METHOD4(connectDB, int(
+  MOCK_METHOD5(connectDB, int(
       const std::string &dbName,
       const std::string &user,
       const std::string &url,
-      const std::string &password));
+      const std::string &password,
+      uint32_t poolsize));
 
   MOCK_METHOD0(createAllTables, int());
   MOCK_METHOD0(createDatabase, int());
