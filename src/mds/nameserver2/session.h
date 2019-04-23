@@ -169,7 +169,8 @@ class SessionManager {
     bool InitRepo(const std::string &dbName,
                                   const std::string &user,
                                   const std::string &url,
-                                  const std::string &password);
+                                  const std::string &password,
+                                  uint32_t poolSize);
     /**
      *  @brief 后台扫描线程周期扫描任务，更新过期session状态，删除要删除的session
      *  @param

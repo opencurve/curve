@@ -416,8 +416,10 @@ SessionManager::SessionManager(std::shared_ptr<MdsRepo> repo) {
 bool SessionManager::InitRepo(const std::string &dbName,
                                   const std::string &user,
                                   const std::string &url,
-                                  const std::string &password) {
-    if (repo_->connectDB(dbName, user, url, password) != repo::OperationOK) {
+                                  const std::string &password,
+                                  uint32_t poolSize) {
+    if (repo_->connectDB(dbName, user, url,
+                         password, poolSize) != repo::OperationOK) {
         LOG(ERROR) << "connectDB fail.";
         return false;
     } else if (repo_->createDatabase() != repo::OperationOK) {
@@ -440,7 +442,8 @@ bool SessionManager::Init(const struct SessionOptions &sessionOptions) {
     std::string sessionUser = sessionOptions.sessionUser;
     std::string sessionUrl = sessionOptions.sessionUrl;
     std::string sessionPassword = sessionOptions.sessionPassword;
-    if (!InitRepo(sessionDbName, sessionUser, sessionUrl, sessionPassword)) {
+    if (!InitRepo(sessionDbName, sessionUser,
+          sessionUrl, sessionPassword, 16)) {
         LOG(ERROR) << "init repo fail.";
         return false;
     }

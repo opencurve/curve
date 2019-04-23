@@ -26,7 +26,8 @@ class RepoItemTest : public ::testing::Test {
                 repo->connectDB("curve_mds_repo_test",
                                 "root",
                                 "localhost",
-                                "qwer"));
+                                "qwer",
+                                16));
       ASSERT_EQ(OperationOK, repo->dropDataBase());
       ASSERT_EQ(OperationOK, repo->createDatabase());
       ASSERT_EQ(OperationOK, repo->useDataBase());
@@ -35,7 +36,7 @@ class RepoItemTest : public ::testing::Test {
 
   void TearDown() override {
       repo->dropDataBase();
-      delete (repo);
+//      delete (repo);
   }
 
   MdsRepo *repo;
@@ -101,12 +102,6 @@ TEST_F(RepoItemTest, testChunkserverCUDA) {
     ASSERT_EQ(OperationOK,
               repo->QueryChunkServerRepoItem(r1.chunkServerID, &queryRes));
     ASSERT_EQ(0, queryRes.chunkServerID);
-
-    // close statement, query get sqlException
-    repo->getDataBase()->statement_->close();
-    ASSERT_EQ(SqlException, repo->QueryChunkServerRepoItem(2, &queryRes));
-    ASSERT_EQ(SqlException, repo->LoadChunkServerRepoItems(&chunkServers));
-    ASSERT_EQ(SqlException, repo->createAllTables());
 }
 
 TEST_F(RepoItemTest, testServerCUDA) {
@@ -166,11 +161,6 @@ TEST_F(RepoItemTest, testServerCUDA) {
     queryRes.serverID = 0;
     ASSERT_EQ(OperationOK, repo->QueryServerRepoItem(s1.serverID, &queryRes));
     ASSERT_EQ(0, queryRes.serverID);
-
-    // close statement, query get sqlException
-    repo->getDataBase()->statement_->close();
-    ASSERT_EQ(SqlException, repo->QueryServerRepoItem(2, &queryRes));
-    ASSERT_EQ(SqlException, repo->LoadServerRepoItems(&servers));
 }
 
 TEST_F(RepoItemTest, testZoneCUDA) {
@@ -214,11 +204,6 @@ TEST_F(RepoItemTest, testZoneCUDA) {
     queryRes.zoneID = 0;
     ASSERT_EQ(OperationOK, repo->QueryZoneRepoItem(r1.zoneID, &queryRes));
     ASSERT_EQ(0, queryRes.zoneID);
-
-    // close statement, query get sqlException
-    repo->getDataBase()->statement_->close();
-    ASSERT_EQ(SqlException, repo->QueryZoneRepoItem(2, &queryRes));
-    ASSERT_EQ(SqlException, repo->LoadZoneRepoItems(&zones));
 }
 
 TEST_F(RepoItemTest, testLogicalPoolCUDA) {
@@ -275,11 +260,6 @@ TEST_F(RepoItemTest, testLogicalPoolCUDA) {
     ASSERT_EQ(OperationOK,
               repo->QueryLogicalPoolRepoItem(r1.logicalPoolID, &queryRes));
     ASSERT_EQ(0, queryRes.logicalPoolID);
-
-    // close conn, query get sqlException
-    repo->getDataBase()->statement_->close();
-    ASSERT_EQ(SqlException, repo->QueryLogicalPoolRepoItem(2, &queryRes));
-    ASSERT_EQ(SqlException, repo->LoadLogicalPoolRepoItems(&logicalPools));
 }
 
 TEST_F(RepoItemTest, testPhysicalPoolCUDA) {
@@ -326,11 +306,6 @@ TEST_F(RepoItemTest, testPhysicalPoolCUDA) {
     ASSERT_EQ(OperationOK,
               repo->QueryPhysicalPoolRepoItem(r1.physicalPoolID, &queryRes));
     ASSERT_EQ(0, queryRes.physicalPoolID);
-
-    // close conn, query get sqlException
-    repo->getDataBase()->statement_->close();
-    ASSERT_EQ(SqlException, repo->QueryPhysicalPoolRepoItem(2, &queryRes));
-    ASSERT_EQ(SqlException, repo->LoadPhysicalPoolRepoItems(&physicalPools));
 }
 
 TEST_F(RepoItemTest, testCopySetCUDA) {
@@ -390,11 +365,6 @@ TEST_F(RepoItemTest, testCopySetCUDA) {
                                      &queryRes));
     ASSERT_EQ(0, queryRes.copySetID);
     ASSERT_EQ(0, queryRes.logicalPoolID);
-
-    // close conn, query get sqlException
-    repo->getDataBase()->statement_->close();
-    ASSERT_EQ(SqlException, repo->QueryCopySetRepoItem(1, 2, &queryRes));
-    ASSERT_EQ(SqlException, repo->LoadCopySetRepoItems(&copySets));
 }
 
 TEST_F(RepoItemTest, testSessionCUDA) {
@@ -459,18 +429,6 @@ TEST_F(RepoItemTest, testSessionCUDA) {
               repo->QuerySessionRepoItem(r1.sessionID,
                                      &queryRes2));
     ASSERT_EQ("sessionIDtest", queryRes2.sessionID);
-
-    // close conn, query get sqlException
-    repo->getDataBase()->statement_->close();
-    ASSERT_EQ(SqlException,
-        repo->QuerySessionRepoItem(r1.sessionID, &queryRes));
-    ASSERT_EQ(SqlException, repo->LoadSessionRepoItems(&sessionList));
-}
-
-TEST_F(RepoItemTest, testCheckConn) {
-    repo->getDataBase()->conn_->close();
-    CopySetRepoItem r1(1, 1, 1, "1-2-3");
-    ASSERT_EQ(ConnLost, repo->InsertCopySetRepoItem(r1));
 }
 }  // namespace mds
 }  // namespace curve

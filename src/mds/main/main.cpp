@@ -130,6 +130,8 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
         conf->GetStringValue("mds.DbUrl");
     topologyOption->password =
         conf->GetStringValue("mds.DbPassword");
+    topologyOption->poolSize =
+        conf->GetIntValue("mds.DbPoolSize");
     topologyOption->ChunkServerStateUpdateSec =
         conf->GetIntValue("mds.topology.ChunkServerStateUpdateSec", 60);
     topologyOption->CreateCopysetRpcTimeoutMs =

@@ -8,14 +8,10 @@
 #ifndef SRC_REPO_DATABASE_H_
 #define SRC_REPO_DATABASE_H_
 
-#include <mysqlcurve/jdbc/mysql_connection.h>
-#include <mysqlcurve/jdbc/cppconn/driver.h>
-#include <mysqlcurve/jdbc/cppconn/exception.h>
-#include <mysqlcurve/jdbc/cppconn/resultset.h>
-#include <mysqlcurve/jdbc/cppconn/statement.h>
-#include <mysqlcurve/jdbc/cppconn/prepared_statement.h>
 #include <string>
 #include <mutex> //NOLINT
+
+#include "src/repo/connPool.h"
 
 namespace curve {
 namespace repo {
@@ -31,29 +27,34 @@ class DataBase {
 
   DataBase(const std::string &url,
            const std::string &user,
-           const std::string &password);
+           const std::string &password,
+           const std::string &schema,
+           uint32_t capacity);
 
-  ~DataBase();
-
-  int connectDB();
+  virtual ~DataBase();
+  virtual int InitDB();
 
   // CRUD
-  int ExecUpdate(const std::string &sql);
-
-  int QueryRows(const std::string &sql, sql::ResultSet **res);
+  // 执行数据库的创建删除操作
+  virtual int Execute(const std::string &sql);
+  // 在数据库schema已经存在的情况下执行sql语句
+  virtual int ExecUpdate(const std::string &sql);
+  // 执行数据库查询语句
+  virtual int QueryRows(const std::string &sql, sql::ResultSet **res);
 
  private:
-  bool CheckConn();
-
- public:
+  // 数据库连接池对象
+  ConnPool* connPool_;
+  // 数据库服务地址
   std::string url_;
+  // 数据库用户名
   std::string user_;
+  // 数据库认证密码
   std::string password_;
-
-  sql::Connection *conn_;
-  sql::Statement *statement_;
-
-  std::mutex mutex_;
+  // 数据库连接池最大连接上限
+  uint32_t connPoolCapacity_;
+  // 数据库schema
+  std::string schema_;
 };
 }  // namespace repo
 }  // namespace curve

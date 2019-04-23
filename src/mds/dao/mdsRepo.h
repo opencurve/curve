@@ -262,7 +262,8 @@ class MdsRepo : public RepoInterface {
   ~MdsRepo() {}
 
   int connectDB(const std::string &dbName, const std::string &user,
-                const std::string &url, const std::string &password) override;
+                const std::string &url, const std::string &password,
+                uint32_t poolSize) override;
 
   int createAllTables() override;
 
