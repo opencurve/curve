@@ -43,7 +43,8 @@ class RepoInterface {
   virtual int connectDB(const std::string &dbName,
                         const std::string &user,
                         const std::string &url,
-                        const std::string &password) = 0;
+                        const std::string &password,
+                        uint32_t poolSize) = 0;
 
   /**
    * @brief 创建repo需要的表文件

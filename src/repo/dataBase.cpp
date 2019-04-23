@@ -12,97 +12,133 @@ namespace curve {
 namespace repo {
 DataBase::DataBase(const std::string &user,
                    const std::string &url,
-                   const std::string &password) {
+                   const std::string &password,
+                   const std::string &schema,
+                   uint32_t capacity) {
     this->url_ = url;
     this->user_ = user;
     this->password_ = password;
+    this->connPoolCapacity_ = capacity;
+    this->schema_ = schema;
 }
 
 DataBase::~DataBase() {
-    delete statement_;
-    delete conn_;
+    connPool_ = nullptr;
 }
 
-int DataBase::connectDB() {
-    try {
-        /*
-         * get_driver_instance() is not thread-safe.
-         * Either avoid invoking these methods from within multiple threads
-         * at once, or surround the calls with a mutex to prevent simultaneous
-         * execution in multiple threads.
-         * Make sure that you free con, the sql::Connection object,
-         * as soon as you do not need it any more. But do not explicitly
-         * free driver, the connector object.
-         * Connector/C++ takes care of freeing that.
-         */
-        sql::Driver *driver;
-        driver = get_driver_instance();
-        conn_ = driver->connect(url_, user_, password_);
-        statement_ = conn_->createStatement();
-        return OperationOK;
-    } catch (sql::SQLException &e) {
-        LOG(ERROR) << "connect fail, "
-                   << "error code: " << e.getErrorCode() << ", "
-                   << "error message: " << e.what();
-        return SqlException;
-    } catch (std::runtime_error &e) {
-        LOG(ERROR) << "[dataBase.cpp] connect db get runtime_error, "
-                   << "error message: " << e.what();
-        return RuntimeExecption;
+int DataBase::InitDB() {
+    connPool_ = ConnPool::GetInstance(
+                url_, user_, password_, connPoolCapacity_);
+    if (connPool_ == nullptr) {
+        LOG(ERROR) << "Init Database failed!";
+        return InternalError;
+    }
+    return OperationOK;
+}
+
+int DataBase::Execute(const std::string &sql) {
+    sql::Connection *conn;
+    sql::Statement *statement;
+    conn = connPool_->GetConnection();
+    if (conn) {
+        try {
+              statement = conn->createStatement();
+              statement->execute(sql);
+              delete statement;
+              connPool_->PutConnection(conn);
+              return OperationOK;
+        } catch (sql::SQLException &e) {
+              LOG(ERROR) << "execute sql: " << sql << "get sqlException, "
+                         << "error code: " << e.getErrorCode() << ", "
+                         << "error message: " << e.what();
+              delete statement;
+              connPool_->PutConnection(conn);
+              return SqlException;
+        } catch (std::runtime_error &e) {
+              LOG(ERROR) << "execute sql: " << sql << "get runtime_error, "
+                         << "error message: " << e.what();
+              delete statement;
+              connPool_->PutConnection(conn);
+              return RuntimeExecption;
+        }
+    } else {
+        LOG(ERROR) << "Can not get connection, please check whether the "
+                   << "database is started or the connection pool size conf "
+                   << "is too small";
+        return InternalError;
     }
 }
 
+
 // retrun value: rows affected
 int DataBase::ExecUpdate(const std::string &sql) {
-    std::lock_guard<std::mutex> guard(mutex_);
-    try {
-        if (!CheckConn()) {
-            return ConnLost;
+    sql::Connection *conn;
+    sql::Statement *statement;
+    conn = connPool_->GetConnection();
+    if (conn) {
+        try {
+              conn->setSchema(schema_);
+              statement = conn->createStatement();
+              statement->executeUpdate(sql);
+              delete statement;
+              connPool_->PutConnection(conn);
+              return OperationOK;
+        } catch (sql::SQLException &e) {
+              LOG(ERROR) << "execUpdate sql: " << sql << "get sqlException, "
+                         << "error code: " << e.getErrorCode() << ", "
+                         << "error message: " << e.what();
+              delete statement;
+              connPool_->PutConnection(conn);
+              return SqlException;
+        } catch (std::runtime_error &e) {
+              LOG(ERROR) << "execUpdate sql: " << sql << "get runtime_error, "
+                         << "error message: " << e.what();
+              delete statement;
+              connPool_->PutConnection(conn);
+              return RuntimeExecption;
         }
-
-        statement_->executeUpdate(sql);
-        return OperationOK;
-    } catch (sql::SQLException &e) {
-        LOG(ERROR) << "execUpdate sql: " << sql << "get sqlException, "
-                   << "error code: " << e.getErrorCode() << ", "
-                   << "error message: " << e.what();
-        return SqlException;
-    } catch (std::runtime_error &e) {
-        LOG(ERROR) << "execUpdate sql: " << sql << "get runtime_error, "
-                   << "error message: " << e.what();
-        return RuntimeExecption;
+    } else {
+        LOG(ERROR) << "Can not get connection, please check whether the "
+                   << "database is started or the connection pool size conf "
+                   << "is too small";
+        return InternalError;
     }
 }
 
 // return queryResult
 int DataBase::QueryRows(const std::string &sql, sql::ResultSet **res) {
     assert(res != nullptr);
-    std::lock_guard<std::mutex> guard(mutex_);
-    try {
-        if (!CheckConn()) {
-            return ConnLost;
+    sql::Connection *conn;
+    sql::Statement *statement;
+    conn = connPool_->GetConnection();
+    if (conn) {
+        try {
+              conn->setSchema(schema_);
+              statement = conn->createStatement();
+              *res = statement->executeQuery(sql);
+              delete statement;
+              connPool_->PutConnection(conn);
+              return OperationOK;
+        } catch (sql::SQLException &e) {
+              LOG(ERROR) << "queryRows sql: " << sql << "get sqlException, "
+                         << "error code: " << e.getErrorCode() << ", "
+                         << "error message: " << e.what();
+              delete statement;
+              connPool_->PutConnection(conn);
+              return SqlException;
+        } catch (std::runtime_error &e) {
+              LOG(ERROR) << "queryRows sql: " << sql << "get runtime_error, "
+                         << "error message: " << e.what();
+              delete statement;
+              connPool_->PutConnection(conn);
+              return RuntimeExecption;
         }
-
-        *res = statement_->executeQuery(sql);
-        return OperationOK;
-    } catch (sql::SQLException &e) {
-        LOG(ERROR) << "queryRows sql: " << sql << "get sqlException, "
-                   << "error code: " << e.getErrorCode() << ", "
-                   << "error message: " << e.what();
-        return SqlException;
-    } catch (std::runtime_error &e) {
-        LOG(ERROR) << "queryRows sql: " << sql << "get runtime_error, "
-                   << "error message: " << e.what();
-        return RuntimeExecption;
+    } else {
+        LOG(ERROR) << "Can not get connection, please check whether the "
+                   << "database is started or the connection pool size conf "
+                   << "is too small";
+        return InternalError;
     }
-}
-
-bool DataBase::CheckConn() {
-    auto res = conn_->isValid() && !conn_->isClosed();
-    if (!res) {
-        LOG(ERROR) << "database connect situation false";
-    }
-    return res;
 }
 }  // namespace repo
 }  // namespace curve

@@ -13,5 +13,6 @@ cc_library(
     deps = [
         "//external:glog",
         "//external:json",
+        "//src/common:curve_common",
     ],
 )

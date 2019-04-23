@@ -72,6 +72,8 @@ struct SnapshotCloneMetaStoreOptions {
   std::string dbPassword;
   // 数据库服务地址
   std::string dbAddr;
+  // 数据库连接池最大连接数
+  uint32_t dbPoolSize;
 };
 
 

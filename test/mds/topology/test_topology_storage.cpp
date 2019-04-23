@@ -50,7 +50,7 @@ TEST_F(TestTopologyStorage, test_init_success) {
     std::string url = "url";
     std::string password = "password";
 
-    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _, _))
         .WillOnce(Return(OperationOK));
 
     EXPECT_CALL(*repo_, createDatabase())
@@ -78,7 +78,7 @@ TEST_F(TestTopologyStorage, test_init_connectDbFail) {
     std::string url = "url";
     std::string password = "password";
 
-    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _, _))
         .WillOnce(Return(SqlException));
 
     TopologyOption option;
@@ -97,7 +97,7 @@ TEST_F(TestTopologyStorage, test_init_createDatabaseFail) {
     std::string url = "url";
     std::string password = "password";
 
-    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _, _))
         .WillOnce(Return(OperationOK));
 
     EXPECT_CALL(*repo_, createDatabase())
@@ -119,7 +119,7 @@ TEST_F(TestTopologyStorage, test_init_useDataBaseFail) {
     std::string url = "url";
     std::string password = "password";
 
-    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _, _))
         .WillOnce(Return(OperationOK));
 
     EXPECT_CALL(*repo_, createDatabase())
@@ -144,7 +144,7 @@ TEST_F(TestTopologyStorage, test_init_createAllTablesFail) {
     std::string url = "url";
     std::string password = "password";
 
-    EXPECT_CALL(*repo_, connectDB(_, _, _, _))
+    EXPECT_CALL(*repo_, connectDB(_, _, _, _, _))
         .WillOnce(Return(OperationOK));
 
     EXPECT_CALL(*repo_, createDatabase())
