@@ -282,7 +282,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
@@ -303,7 +303,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 

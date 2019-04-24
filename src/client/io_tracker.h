@@ -80,12 +80,13 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
                      uint64_t len,
                      char *buf);
     /**
-     * 删除seq版本号的快照数据
+     * 删除此次转储时产生的或者历史遗留的快照
+     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
      * @param:chunkidinfo 目标chunk
-     * @param: seq是快照版本号
+     * @param: seq是需要修正的版本号
      */
-    void DeleteSnapChunk(const ChunkIDInfo &cinfo,
-                     uint64_t seq);
+    void DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
+                     uint64_t correctedSeq);
     /**
      * 获取chunk的版本信息，chunkInfo是出参
      * @param:chunkidinfo 目标chunk

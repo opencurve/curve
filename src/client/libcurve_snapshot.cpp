@@ -199,9 +199,10 @@ LIBCURVE_ERROR SnapshotClient::ReadChunkSnapshot(ChunkIDInfo cidinfo,
     return ret < 0 ? LIBCURVE_ERROR::FAILED : LIBCURVE_ERROR::OK;
 }
 
-LIBCURVE_ERROR SnapshotClient::DeleteChunkSnapshot(ChunkIDInfo cidinfo,
-                                        uint64_t seq) {
-    int ret = iomanager4chunk_.DeleteSnapChunk(cidinfo, seq);
+LIBCURVE_ERROR SnapshotClient::DeleteChunkSnapshotOrCorrectSn(
+    ChunkIDInfo cidinfo, uint64_t correctedSeq) {
+    int ret = iomanager4chunk_.DeleteSnapChunkOrCorrectSn(cidinfo,
+                                                          correctedSeq);
     return ret < 0 ? LIBCURVE_ERROR::FAILED : LIBCURVE_ERROR::OK;
 }
 

@@ -497,7 +497,7 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
     IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
     ioctxmana->SetRequestScheduler(mocksch);
 
-    ASSERT_EQ(0, ioctxmana->DeleteSnapChunk(ChunkIDInfo(cid, 2, 3), 0));
+    ASSERT_EQ(0, ioctxmana->DeleteSnapChunkOrCorrectSn(ChunkIDInfo(cid, 2, 3), 0));  // NOLINT
 
     cl.UnInit();
 }

@@ -98,13 +98,15 @@ class CSDataStore {
      */
     virtual CSErrorCode DeleteChunk(ChunkID id, SequenceNum sn);
     /**
-     * 删除指定的快照文件
+     * 删除此次转储时产生的或者历史遗留的快照
+     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
      * @param id：要删除的快照的chunk id
-     * @param snapshotSn：要删除快照的版本号
+     * @param correctedSn：需要修正的版本号
+     * 快照不存在的情况下，需要修改chunk的correctedSn为此参数值
      * @return：返回错误码
      */
-    virtual CSErrorCode DeleteSnapshotChunk(ChunkID id,
-                                            SequenceNum snapshotSn);
+    virtual CSErrorCode DeleteSnapshotChunkOrCorrectSn(
+        ChunkID id, SequenceNum correctedSn);
     /**
      * 读当前chunk的内容
      * @param id：要读取的chunk id

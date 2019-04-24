@@ -32,11 +32,12 @@ namespace curve {
 namespace mds {
 namespace chunkserverclient {
 
-int ChunkServerClient::DeleteChunkSnapshot(ChunkServerIdType leaderId,
+int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
+    ChunkServerIdType leaderId,
     LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
-    uint64_t sn) {
+    uint64_t correctedSn) {
     ChunkServer chunkServer;
     if (true != topology_->GetChunkServer(leaderId, &chunkServer)) {
         return kMdsFail;
@@ -66,18 +67,19 @@ int ChunkServerClient::DeleteChunkSnapshot(ChunkServerIdType leaderId,
     request.set_logicpoolid(logicalPoolId);
     request.set_copysetid(copysetId);
     request.set_chunkid(chunkId);
-    request.set_sn(sn);
+    request.set_correctedsn(correctedSn);
 
     ChunkResponse response;
     uint32_t retry = 0;
     do {
-        LOG(INFO) << "Send DeleteChunkSnapshot[log_id=" << cntl.log_id()
+        LOG(INFO) << "Send DeleteChunkSnapshotOrCorrectSn[log_id="
+                  << cntl.log_id()
                   << "] from " << cntl.local_side()
                   << " to " << cntl.remote_side()
                   << ". [ChunkRequest] "
                   << request.DebugString();
         cntl.Reset();
-        stub.DeleteChunkSnapshot(&cntl,
+        stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
             &request,
             &response,
             nullptr);
