@@ -22,43 +22,57 @@ using curve::common::SpinLock;
 
 namespace curve {
 namespace client {
-// copyset内的peer的基本信息
+
+static inline bool
+operator==(const ChunkServerAddr& addr1, const ChunkServerAddr& addr2) {
+    return (addr1.addr_ == addr2.addr_);
+}
+
+// copyset内的chunkserver节点的基本信息
+// 包含当前chunkserver的id信息，以及chunkserver的地址信息
 typedef struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
+    // 当前chunkserver节点的ID
     ChunkServerID chunkserverid_;
-    PeerId      peerid_;
+    // 当前chunkserver节点的地址信息
+    ChunkServerAddr      csaddr_;
 
     CopysetPeerInfo():chunkserverid_(0) {
     }
 
-    CopysetPeerInfo(ChunkServerID cid, PeerId pid) {
+    CopysetPeerInfo(ChunkServerID cid, ChunkServerAddr addr_) {
         this->chunkserverid_ = cid;
-        this->peerid_ = pid;
+        this->csaddr_ = addr_;
     }
 
     CopysetPeerInfo& operator=(const CopysetPeerInfo& other) {
         this->chunkserverid_ = other.chunkserverid_;
-        this->peerid_ = other.peerid_;
+        this->csaddr_ = other.csaddr_;
         return *this;
     }
 } CopysetPeerInfo_t;
 
 // copyset的基本信息，包含peer信息、leader信息、appliedindex信息
 typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
+    // 当前copyset的节点信息
     std::vector<CopysetPeerInfo_t> csinfos_;
+    // 当前节点的apply信息，在read的时候需要，用来避免读IO进入raft
     uint32_t    lastappliedindex_;
-    uint16_t    leaderindex_;
+    // leader在本copyset信息中的索引，用于后面避免重复尝试同一个leader
+    int16_t     leaderindex_;
+    // 当前copyset的id信息
     CopysetID   cpid_;
+    // 用于保护对copyset信息的修改
     SpinLock    spinlock_;
 
     CopysetInfo() {
         csinfos_.clear();
-        leaderindex_ = 0;
+        leaderindex_ = -1;
         lastappliedindex_ = 0;
     }
 
     ~CopysetInfo() {
         csinfos_.clear();
-        leaderindex_ = 0;
+        leaderindex_ = -1;
     }
 
     CopysetInfo& operator=(const CopysetInfo& other) {
@@ -94,18 +108,26 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
 
     /**
      * 更改当前copyset的leader
-     * @param: leaderid为新的leader
+     * @param: leaderaddr为新的leader
      */
-    void ChangeLeaderID(const PeerId& leaderid) {
+    void ChangeLeaderID(const ChunkServerAddr& leaderaddr) {
         spinlock_.Lock();
-        leaderindex_ = 0;
+        uint16_t tempindex = 0;
         for (auto iter : csinfos_) {
-            if (iter.peerid_ == leaderid) {
+            if (iter.csaddr_ == leaderaddr) {
                 break;
             }
-            leaderindex_++;
+            tempindex++;
         }
+        leaderindex_ = tempindex;
         spinlock_.UnLock();
+    }
+
+    /**
+     * 获取当前leader的索引
+     */
+    int16_t GetCurrentLeaderIndex() {
+        return leaderindex_;
     }
 
     /**
@@ -118,22 +140,24 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     int UpdateLeaderAndGetChunkserverID(ChunkServerID* chunkserverid,
                                     const EndPoint& ep, bool newleader = true) {
         spinlock_.Lock();
-        leaderindex_ = 0;
+
+        uint16_t tempindex = 0;
         for (auto iter : csinfos_) {
-            if (iter.peerid_.addr == ep) {
+            if (iter.csaddr_.addr_ == ep) {
                 *chunkserverid = iter.chunkserverid_;
                 break;
             }
-            leaderindex_++;
+            tempindex++;
         }
+        leaderindex_ = tempindex;
+
         if (leaderindex_ >= csinfos_.size() && newleader) {
             /**
-             * the new leader addr not in the copyset
-             * current, we just push the new leader into copyset info
-             * later, if chunkserver can not get leader, we will get 
-             * latest copyset info
+             * client在接收到RPC返回redirect回复的时候会更新metacache的leader信息，
+             * 如果返回的redirect chunkserver不在这个metacache里，则直接将这个新的
+             * leader插入到metacache中。
              */
-            PeerId pd(ep);
+            ChunkServerAddr pd(ep);
             csinfos_.push_back(CopysetPeerInfo(*chunkserverid, pd));
             spinlock_.UnLock();
             // TODO(tongguangxun): pull latest copyset info
@@ -154,8 +178,13 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      * @param: ep是出参
      */
     int GetLeaderInfo(ChunkServerID* chunkserverid, EndPoint* ep) {
+        // 第一次获取leader,如果当前leader信息没有确定，返回-1，由外部主动发起更新leader
+        if (leaderindex_ < 0 || leaderindex_ >= csinfos_.size()) {
+            return -1;
+        }
+
         *chunkserverid = csinfos_[leaderindex_].chunkserverid_;
-        *ep = csinfos_[leaderindex_].peerid_.addr;
+        *ep = csinfos_[leaderindex_].csaddr_.addr_;
         return 0;
     }
 
@@ -173,7 +202,14 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      * 当前CopysetInfo是否合法
      */
     bool IsValid() {
-        return leaderindex_ != -1 && !csinfos_.empty();
+        return !csinfos_.empty();
+    }
+
+    /**
+     * 更新leaderindex
+     */
+    void UpdateLeaderIndex(int index) {
+        leaderindex_ = index;
     }
 } CopysetInfo_t;
 

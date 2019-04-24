@@ -947,8 +947,8 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& lpid,
 
                 EndPoint ep;
                 butil::str2endpoint(hostip.c_str(), port, &ep);
-                PeerId pd(ep);
-                csinfo.peerid_ = pd;
+                ChunkServerAddr pd(ep);
+                csinfo.csaddr_ = pd;
 
                 copysetseverl.AddCopysetPeerInfo(csinfo);
             }

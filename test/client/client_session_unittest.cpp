@@ -238,8 +238,15 @@ TEST(ClientSession, AppliedIndexTest) {
 
     // create fake chunkserver service
     FakeChunkServerService fakechunkservice;
+    // 设置cli服务
+    CliServiceFake fakeCliservice;
+
     brpc::Server server;
     if (server.AddService(&fakechunkservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+    if (server.AddService(&fakeCliservice,
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(FATAL) << "Fail to add service";
     }
@@ -256,10 +263,14 @@ TEST(ClientSession, AppliedIndexTest) {
     curve::client::CopysetInfo cpinfo;
     curve::client::EndPoint ep;
     butil::str2endpoint("127.0.0.1", 5555, &ep);
-    curve::client::PeerId pd(ep);
-    curve::client::CopysetPeerInfo peer(1, pd);
+
+    braft::PeerId pd(ep);
+    curve::client::CopysetPeerInfo
+        peer(1, curve::client::ChunkServerAddr(ep));
     cpinfo.csinfos_.push_back(peer);
     mc->UpdateCopysetInfo(2, 3, cpinfo);
+
+    fakeCliservice.SetPeerID(pd);
 
     // 1. first write with applied index = 0 return
     // create fake return
