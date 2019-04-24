@@ -8,12 +8,16 @@
 #ifndef TEST_CLIENT_FAKE_FAKECHUNKSERVER_H_
 #define TEST_CLIENT_FAKE_FAKECHUNKSERVER_H_
 
+#include <braft/configuration.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
 #include <glog/logging.h>
 #include <thread>   // NOLINT
 #include "proto/chunk.pb.h"
+#include "proto/cli.pb.h"
+#include "src/client/client_common.h"
 
+using braft::PeerId;
 using curve::chunkserver::ChunkService;
 using curve::chunkserver::CHUNK_OP_STATUS;
 
@@ -133,6 +137,24 @@ class FakeChunkService : public ChunkService {
     bool wait4netunstable;
     uint64_t waittimeMS;
     char chunk_[8192];
+};
+
+class CliServiceFake : public curve::chunkserver::CliService {
+ public:
+    void get_leader(::google::protobuf::RpcController* controller,
+                    const curve::chunkserver::GetLeaderRequest* request,
+                    curve::chunkserver::GetLeaderResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        response->set_leader_id(leaderid_.to_string());
+    }
+
+    void SetPeerID(PeerId peerid) {
+        leaderid_ = peerid;
+    }
+
+ private:
+    PeerId leaderid_;
 };
 
 class FakeChunkServerService : public ChunkService {
