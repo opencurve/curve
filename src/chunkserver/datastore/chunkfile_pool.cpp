@@ -62,7 +62,7 @@ int ChunkfilePoolHelper::PersistEnCodeMetaInfo(
 
     root[kCRC] = crc;
 
-    int fd = fsptr->Open(persistPath.c_str(), O_RDWR|O_CREAT);
+    int fd = fsptr->Open(persistPath.c_str(), O_RDWR|O_CREAT|O_SYNC);
     if (fd < 0) {
         LOG(ERROR) << "meta file open failed, "
                    << persistPath.c_str();
@@ -85,7 +85,6 @@ int ChunkfilePoolHelper::PersistEnCodeMetaInfo(
         return -1;
     }
 
-    fsptr->Fsync(fd);
     fsptr->Close(fd);
     delete[] writeBuffer;
     return 0;
@@ -381,7 +380,6 @@ int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
 }
 
 void ChunkfilePool::UnInitialize() {
-    fsptr_              = nullptr;
     currentdir_         = "";
 
     std::unique_lock<std::mutex> lk(mtx_);

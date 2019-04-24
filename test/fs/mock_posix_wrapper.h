@@ -24,7 +24,8 @@ class MockPosixWrapper : public PosixWrapper {
     MOCK_METHOD1(remove, int(const char*));
     MOCK_METHOD2(mkdir, int(const char*, mode_t));
     MOCK_METHOD2(stat, int(const char*, struct stat*));
-    MOCK_METHOD3(rename, int(const char*, const char*, unsigned int));
+    MOCK_METHOD2(rename, int(const char*, const char*));
+    MOCK_METHOD3(renameat2, int(const char*, const char*, unsigned int));
     MOCK_METHOD1(opendir, DIR*(const char*));
     MOCK_METHOD1(readdir, struct dirent*(DIR*));
     MOCK_METHOD1(closedir, int(DIR*));
@@ -34,6 +35,7 @@ class MockPosixWrapper : public PosixWrapper {
     MOCK_METHOD2(fstat, int(int, struct stat*));
     MOCK_METHOD1(fsync, int(int));
     MOCK_METHOD2(statfs, int(const char*, struct statfs*));
+    MOCK_METHOD1(uname, int(struct utsname *));
 };
 
 }  // namespace fs

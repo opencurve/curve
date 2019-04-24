@@ -166,9 +166,10 @@ class CSChunkFile {
     /**
      * 删除chunk文件
      * 正常不存在并发，与其他操作互斥，加写锁
+     * @param: 调用DeleteChunk接口时的文件版本号
      * @return: 返回错误码
      */
-    CSErrorCode Delete();
+    CSErrorCode Delete(SequenceNum sn);
     /**
      * 删除此次转储时产生的或者历史遗留的快照
      * 如果转储过程中没有产生快照，则修改chunk的correctedSn
@@ -262,6 +263,25 @@ class CSChunkFile {
 
     inline bool isCloneChunk() {
         return !metaPage_.location.empty();
+    }
+
+    inline bool CheckOffsetAndLength(off_t offset, size_t len) {
+        // 检查offset+len是否越界
+        if (offset + len > size_) {
+            return false;
+        }
+
+        // 检查offset是否对齐
+        if (offset % pageSize_ != 0) {
+            return false;
+        }
+
+        // 检查len是否对齐
+        if (len % pageSize_ != 0) {
+            return false;
+        }
+
+        return true;
     }
 
  private:
