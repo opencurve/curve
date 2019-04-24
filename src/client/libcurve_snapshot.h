@@ -107,11 +107,13 @@ class SnapshotClient {
                           uint64_t len,
                           void *buf);
   /**
-   * 删除seq版本号的快照数据
+   * 删除此次转储时产生的或者历史遗留的快照
+   * 如果转储过程中没有产生快照，则修改chunk的correctedSn
    * @param: cidinfo是当前chunk对应的id信息
-   * @param: seq是快照版本号
+   * @param: correctedSeq是chunk需要修正的版本
    */
-  LIBCURVE_ERROR DeleteChunkSnapshot(ChunkIDInfo cidinfo, uint64_t seq);
+  LIBCURVE_ERROR DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
+                                                uint64_t correctedSeq);
   /**
    * 获取chunk的版本信息，chunkInfo是出参
    * @param: cidinfo是当前chunk对应的id信息

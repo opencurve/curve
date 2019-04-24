@@ -117,8 +117,8 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
     }
 }
 
-void IOTracker::DeleteSnapChunk(const ChunkIDInfo &cinfo,
-                                uint64_t seq) {
+void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
+                                uint64_t correctedSeq) {
     type_ = OpType::DELETE_SNAP;
 
     int ret = -1;
@@ -129,7 +129,7 @@ void IOTracker::DeleteSnapChunk(const ChunkIDInfo &cinfo,
             break;
         }
 
-        newreqNode->seq_ = seq;
+        newreqNode->correctedSeq_ = correctedSeq;
         FillCommonFields(cinfo, newreqNode);
 
         reqlist_.push_back(newreqNode);
@@ -189,7 +189,7 @@ void IOTracker::CreateCloneChunk(const std::string &location,
         newreqNode->seq_         = sn;
         newreqNode->chunksize_   = chunkSize;
         newreqNode->location_    = location;
-        newreqNode->correntSeq_  = correntSn;
+        newreqNode->correctedSeq_  = correntSn;
         FillCommonFields(cinfo, newreqNode);
 
         reqlist_.push_back(newreqNode);

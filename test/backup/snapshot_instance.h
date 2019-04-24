@@ -49,10 +49,10 @@ class SnapInstance {
                            uint64_t offset,
                            uint64_t len,
                            void *buf);
-    int DeleteChunkSnapshot(LogicPoolID lpid,
-                           CopysetID cpid,
-                           ChunkID chunkID,
-                           uint64_t seq);
+    int DeleteChunkSnapshotOrCorrectSn(LogicPoolID lpid,
+                                      CopysetID cpid,
+                                      ChunkID chunkID,
+                                      uint64_t correctedSeq);
     int GetChunkInfo(LogicPoolID lpid,
                            CopysetID cpid,
                            ChunkID chunkID,

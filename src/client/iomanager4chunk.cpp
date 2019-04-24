@@ -46,10 +46,10 @@ int IOManager4Chunk::ReadSnapChunk(const ChunkIDInfo &chunkidinfo,
     return temp.Wait();
 }
 
-int IOManager4Chunk::DeleteSnapChunk(const ChunkIDInfo &chunkidinfo,
-                                        uint64_t seq) {
+int IOManager4Chunk::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &chunkidinfo,
+                                                uint64_t correctedSeq) {
     IOTracker temp(this, &mc_, scheduler_);
-    temp.DeleteSnapChunk(chunkidinfo, seq);
+    temp.DeleteSnapChunkOrCorrectSn(chunkidinfo, correctedSeq);
     return temp.Wait();
 }
 
