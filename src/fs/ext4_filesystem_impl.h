@@ -26,7 +26,7 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     static std::shared_ptr<Ext4FileSystemImpl> getInstance();
     void SetPosixWrapper(std::shared_ptr<PosixWrapper> wrapper);
 
-    int Init() override;
+    int Init(const LocalFileSystemOption& option) override;
     int Statfs(const string& path, struct FileSystemInfo* info) override;
     int Open(const string& path, int flags) override;
     int Close(int fd) override;
@@ -44,15 +44,17 @@ class Ext4FileSystemImpl : public LocalFileSystem {
     int Fsync(int fd) override;
 
  private:
+    explicit Ext4FileSystemImpl(std::shared_ptr<PosixWrapper>);
     int DoRename(const string& oldPath,
                  const string& newPath,
                  unsigned int flags) override;
-    explicit Ext4FileSystemImpl(std::shared_ptr<PosixWrapper>);
+    bool CheckKernelVersion();
 
  private:
     static std::shared_ptr<Ext4FileSystemImpl> self_;
     static std::mutex mutex_;
     std::shared_ptr<PosixWrapper> posixWrapper_;
+    bool enableRenameat2_;
 };
 
 }  // namespace fs

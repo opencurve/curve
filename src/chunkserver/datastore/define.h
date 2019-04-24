@@ -19,6 +19,7 @@ namespace chunkserver {
 using curve::common::Bitmap;
 
 const uint8_t FORMAT_VERSION = 1;
+const SequenceNum kInvalidSeq = 0;
 
 // define error code
 enum CSErrorCode {
@@ -46,6 +47,10 @@ enum CSErrorCode {
     InvalidArgError = 10,
     // 创建chunk时存在冲突的chunk
     ChunkConflictError = 11,
+    // 状态冲突
+    StatusConflictError = 12,
+    // page未被写过，读clone chunk时读到未写过的page时会出现
+    PageNerverWrittenError = 13,
 };
 
 // Chunk的详细信息
@@ -77,6 +82,34 @@ struct CSChunkInfo {
                   , isClone(false)
                   , location("")
                   , bitmap(nullptr) {}
+
+    bool operator== (const CSChunkInfo& rhs) const {
+        if (chunkId != rhs.chunkId ||
+            pageSize != rhs.pageSize ||
+            chunkSize != rhs.chunkSize ||
+            curSn != rhs.curSn ||
+            snapSn != rhs.snapSn ||
+            correctedSn != rhs.correctedSn ||
+            isClone != rhs.isClone ||
+            location != rhs.location) {
+            return false;
+        }
+        // 如果bitmap都不是nullptr，比较内容是否相等
+        if (bitmap != nullptr && rhs.bitmap != nullptr) {
+            if (*bitmap != *rhs.bitmap)
+                return false;
+        } else {
+            // 判断两者是否都为nullptr
+            if (bitmap != rhs.bitmap)
+                return false;
+        }
+
+        return true;
+    }
+
+    bool operator!= (const CSChunkInfo& rhs) const {
+        return !(*this == rhs);
+    }
 };
 
 }  // namespace chunkserver

@@ -7,16 +7,18 @@
 
 #include "test/chunkserver/datastore/chunkfilepool_helper.h"
 
-void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr, uint32_t num) {
+void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr,
+                   uint32_t num,
+                   std::string poolDir) {
     char* data = new (std::nothrow) char[16 * 1024 * 1024 + 4096];              // NOLINT
     memset(data, '0', 16 * 1024 * 1024 + 4096);
 
-    fsptr->Mkdir("./chunkfilepool");
+    fsptr->Mkdir(poolDir);
     uint32_t count = 0;
     while (count < num) {
         count++;
         auto filename = std::to_string(count);
-        std::string tmpchunkfilepath = "./chunkfilepool/" + filename;            // NOLINT
+        std::string tmpchunkfilepath = poolDir + "/" + filename;            // NOLINT
 
         int ret = fsptr->Open(tmpchunkfilepath.c_str(), O_RDWR | O_CREAT);                  //NOLINT
         if (ret < 0) {
