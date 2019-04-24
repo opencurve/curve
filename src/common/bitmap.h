@@ -57,6 +57,18 @@ class Bitmap {
      */
     Bitmap& operator = (const Bitmap& bitmap);
     /**
+     * 比较两个bitmap是否相同
+     * @param bitmap：待比较的bitmap
+     * @return：如果相同返回true，如果不同返回false
+     */
+    bool operator == (const Bitmap& bitmap) const;
+    /**
+     * 比较两个bitmap是否不同
+     * @param bitmap：待比较的bitmap
+     * @return：如果不同返回true，如果相同返回false
+     */
+    bool operator != (const Bitmap& bitmap) const;
+    /**
      * 将所有位置1
      */
     void Set();

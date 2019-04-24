@@ -59,6 +59,76 @@ class Ext4LocalFileSystemTest : public testing::Test {
     std::shared_ptr<Ext4FileSystemImpl> lfs;
 };
 
+TEST_F(Ext4LocalFileSystemTest, InitTest) {
+    LocalFileSystemOption option;
+    option.enableRenameat2 = true;
+    struct utsname kernel_info;
+
+    // 测试版本偏低的情况
+    snprintf(kernel_info.release,
+             sizeof(kernel_info.release),
+             "%s",
+             "2.16.0");
+    EXPECT_CALL(*wrapper, uname(NotNull()))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(kernel_info),
+                              Return(0)));
+    ASSERT_EQ(lfs->Init(option), -1);
+
+    snprintf(kernel_info.release,
+             sizeof(kernel_info.release),
+             "%s",
+             "3.14.0-sss");
+    EXPECT_CALL(*wrapper, uname(NotNull()))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(kernel_info),
+                              Return(0)));
+    ASSERT_EQ(lfs->Init(option), -1);
+
+    snprintf(kernel_info.release,
+             sizeof(kernel_info.release),
+             "%s",
+             "3.14.19-sss");
+    EXPECT_CALL(*wrapper, uname(NotNull()))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(kernel_info),
+                              Return(0)));
+    ASSERT_EQ(lfs->Init(option), -1);
+
+    snprintf(kernel_info.release,
+             sizeof(kernel_info.release),
+             "%s",
+             "3.15.0-sss");
+    EXPECT_CALL(*wrapper, uname(NotNull()))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(kernel_info),
+                              Return(0)));
+    ASSERT_EQ(0, lfs->Init(option));
+
+    snprintf(kernel_info.release,
+             sizeof(kernel_info.release),
+             "%s",
+             "3.15.1-sss");
+    EXPECT_CALL(*wrapper, uname(NotNull()))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(kernel_info),
+                              Return(0)));
+    ASSERT_EQ(0, lfs->Init(option));
+
+    snprintf(kernel_info.release,
+             sizeof(kernel_info.release),
+             "%s",
+             "3.16.0-sss");
+    EXPECT_CALL(*wrapper, uname(NotNull()))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(kernel_info),
+                              Return(0)));
+    ASSERT_EQ(0, lfs->Init(option));
+
+    snprintf(kernel_info.release,
+             sizeof(kernel_info.release),
+             "%s",
+             "4.16.0");
+    EXPECT_CALL(*wrapper, uname(NotNull()))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(kernel_info),
+                              Return(0)));
+    ASSERT_EQ(0, lfs->Init(option));
+}
+
 // test Statfs
 TEST_F(Ext4LocalFileSystemTest, StatfsTest) {
     FileSystemInfo fsinfo;
@@ -232,10 +302,34 @@ TEST_F(Ext4LocalFileSystemTest, FileExistsTest) {
 
 // test Rename
 TEST_F(Ext4LocalFileSystemTest, RenameTest) {
-    EXPECT_CALL(*wrapper, rename(NotNull(), NotNull(), 0))
+    LocalFileSystemOption option;
+    option.enableRenameat2 = false;
+    ASSERT_EQ(0, lfs->Init(option));
+    EXPECT_CALL(*wrapper, rename(NotNull(), NotNull()))
         .WillOnce(Return(0));
     ASSERT_EQ(lfs->Rename("/a", "/b"), 0);
-    EXPECT_CALL(*wrapper, rename(NotNull(), NotNull(), 0))
+    EXPECT_CALL(*wrapper, rename(NotNull(), NotNull()))
+        .WillOnce(Return(-1));
+    ASSERT_EQ(lfs->Rename("/a", "/b"), -errno);
+}
+
+// test Rename
+TEST_F(Ext4LocalFileSystemTest, Renameat2Test) {
+    LocalFileSystemOption option;
+    option.enableRenameat2 = true;
+    struct utsname kernel_info;
+    snprintf(kernel_info.release,
+             sizeof(kernel_info.release),
+             "%s",
+             "3.15.1-sss");
+    EXPECT_CALL(*wrapper, uname(NotNull()))
+        .WillRepeatedly(DoAll(SetArgPointee<0>(kernel_info),
+                              Return(0)));
+    ASSERT_EQ(0, lfs->Init(option));
+    EXPECT_CALL(*wrapper, renameat2(NotNull(), NotNull(), 0))
+        .WillOnce(Return(0));
+    ASSERT_EQ(lfs->Rename("/a", "/b"), 0);
+    EXPECT_CALL(*wrapper, renameat2(NotNull(), NotNull(), 0))
         .WillOnce(Return(-1));
     ASSERT_EQ(lfs->Rename("/a", "/b"), -errno);
 }

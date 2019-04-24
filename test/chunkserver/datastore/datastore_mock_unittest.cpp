@@ -115,13 +115,11 @@ class CSDataStore_test : public testing::Test {
         }
 
         inline void FakeEncodeSnapshot(char* buf,
-                                       bool damaged,
                                        SequenceNum sn) {
             uint32_t bits = CHUNK_SIZE / PAGE_SIZE;
             SnapshotMetaPage metaPage;
             metaPage.version = FORMAT_VERSION;
             metaPage.sn = sn;
-            metaPage.damaged = damaged;
             metaPage.bitmap = std::make_shared<Bitmap>(bits);
             metaPage.encode(buf);
         }
@@ -203,7 +201,7 @@ class CSDataStore_test : public testing::Test {
                                 chunk1MetaPage + PAGE_SIZE),
                                 Return(PAGE_SIZE)));
             // fake read chunk1's snapshot1 metapage
-            FakeEncodeSnapshot(chunk1SnapMetaPage, false, 1);
+            FakeEncodeSnapshot(chunk1SnapMetaPage, 1);
             EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
                 .WillRepeatedly(DoAll(
                                 SetArrayArgument<1>(chunk1SnapMetaPage,
@@ -653,6 +651,14 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
     // create new chunk and open it
     string chunk3Path = string(baseDir) + "/" +
                         FileNameOperator::GenerateChunkFileName(id);
+
+    // 如果sn为0，返回InvalidArgError
+    EXPECT_EQ(CSErrorCode::InvalidArgError, dataStore->WriteChunk(id,
+                                                                  0,
+                                                                  buf,
+                                                                  offset,
+                                                                  length,
+                                                                  nullptr));
     // expect call chunkfile pool GetChunk
     EXPECT_CALL(*lfs_, FileExists(chunk3Path))
         .WillOnce(Return(false));
@@ -701,14 +707,17 @@ TEST_F(CSDataStore_test, WriteChunkTest1) {
 TEST_F(CSDataStore_test, WriteChunkTest2) {
     // initialize
     FakeEnv();
+    // set chunk2's correctedSn as 3
+    FakeEncodeChunk(chunk2MetaPage, 2, 4);
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 2;
-    SequenceNum sn = 1;
+    SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
     char buf[length] = {0};
-    // will return BackwardRequestError
+
+    // sn<chunk.sn  sn>chunk.correctedsn
     EXPECT_EQ(CSErrorCode::BackwardRequestError,
               dataStore->WriteChunk(id,
                                     sn,
@@ -716,10 +725,26 @@ TEST_F(CSDataStore_test, WriteChunkTest2) {
                                     offset,
                                     length,
                                     nullptr));
-    CSChunkInfo info;
-    dataStore->GetChunkInfo(id, &info);
-    ASSERT_EQ(2, info.curSn);
-    ASSERT_EQ(0, info.snapSn);
+
+    // sn<chunk.sn  sn==chunk.correctedsn
+    sn = 2;
+    EXPECT_EQ(CSErrorCode::BackwardRequestError,
+              dataStore->WriteChunk(id,
+                                    sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
+
+    // sn<chunk.sn  sn<chunk.correctedsn
+    sn = 1;
+    EXPECT_EQ(CSErrorCode::BackwardRequestError,
+              dataStore->WriteChunk(id,
+                                    sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -738,7 +763,7 @@ TEST_F(CSDataStore_test, WriteChunkTest3) {
     // initialize
     FakeEnv();
     // set chunk2's correctedSn as 3
-    FakeEncodeChunk(chunk2MetaPage, 3, 2);
+    FakeEncodeChunk(chunk2MetaPage, 4, 2);
     EXPECT_CALL(*lfs_, Read(3, NotNull(), 0, PAGE_SIZE))
         .WillRepeatedly(DoAll(
                         SetArrayArgument<1>(chunk2MetaPage,
@@ -747,11 +772,12 @@ TEST_F(CSDataStore_test, WriteChunkTest3) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 2;
-    SequenceNum sn = 2;
+    SequenceNum sn = 3;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
     char buf[length] = {0};
-    // will return BackwardRequestError
+
+    // sn>chunk.sn  sn<chunk.correctedsn
     EXPECT_EQ(CSErrorCode::BackwardRequestError,
               dataStore->WriteChunk(id,
                                     sn,
@@ -760,10 +786,25 @@ TEST_F(CSDataStore_test, WriteChunkTest3) {
                                     length,
                                     nullptr));
 
-    CSChunkInfo info;
-    dataStore->GetChunkInfo(id, &info);
-    ASSERT_EQ(2, info.curSn);
-    ASSERT_EQ(0, info.snapSn);
+    // sn==chunk.sn  sn<chunk.correctedsn
+    sn = 2;
+    EXPECT_EQ(CSErrorCode::BackwardRequestError,
+              dataStore->WriteChunk(id,
+                                    sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
+
+    // sn==chunk.sn  sn<chunk.correctedsn
+    sn = 1;
+    EXPECT_EQ(CSErrorCode::BackwardRequestError,
+              dataStore->WriteChunk(id,
+                                    sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -800,21 +841,47 @@ TEST_F(CSDataStore_test, WriteChunkTest4) {
                                     offset,
                                     length,
                                     nullptr));
-    // return OutOfRangeError if offset+length > CHUNK_SIZE
+    CSChunkInfo info;
+    dataStore->GetChunkInfo(id, &info);
+    ASSERT_EQ(2, info.curSn);
+    ASSERT_EQ(0, info.snapSn);
+
+    // return InvalidArgError if offset+length > CHUNK_SIZE
     offset = CHUNK_SIZE;
-    EXPECT_CALL(*lfs_, Write(3, NotNull(), PAGE_SIZE + offset, length))
+    EXPECT_CALL(*lfs_, Write(3, NotNull(), _, __amd64))
         .Times(0);
-    EXPECT_EQ(CSErrorCode::OutOfRangeError,
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->WriteChunk(id,
                                     sn,
                                     buf,
                                     offset,
                                     length,
                                     nullptr));
-    CSChunkInfo info;
-    dataStore->GetChunkInfo(id, &info);
-    ASSERT_EQ(2, info.curSn);
-    ASSERT_EQ(0, info.snapSn);
+    // return InvalidArgError if length not aligned
+    offset = PAGE_SIZE;
+    length = PAGE_SIZE - 1;
+    EXPECT_CALL(*lfs_, Write(3, NotNull(), _, _))
+        .Times(0);
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
+              dataStore->WriteChunk(id,
+                                    sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
+    // return InvalidArgError if offset not aligned
+    offset = PAGE_SIZE + 1;
+    length = PAGE_SIZE;
+    EXPECT_CALL(*lfs_, Write(3, NotNull(), _, _))
+        .Times(0);
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
+              dataStore->WriteChunk(id,
+                                    sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
+
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -904,7 +971,7 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
         .WillOnce(Return(4));
     // will read snapshot metapage
     char metapage[PAGE_SIZE] = {0};
-    FakeEncodeSnapshot(metapage, false, 2);
+    FakeEncodeSnapshot(metapage, 2);
     EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(metapage,
                         metapage + PAGE_SIZE),
@@ -942,6 +1009,15 @@ TEST_F(CSDataStore_test, WriteChunkTest7) {
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->WriteChunk(id,
                                     sn,
+                                    buf,
+                                    offset,
+                                    length,
+                                    nullptr));
+
+    // sn - 1 < chunk.sn ， 返回 BackwardRequestError
+    EXPECT_EQ(CSErrorCode::BackwardRequestError,
+              dataStore->WriteChunk(id,
+                                    sn - 1,
                                     buf,
                                     offset,
                                     length,
@@ -1060,20 +1136,28 @@ TEST_F(CSDataStore_test, WriteChunkTest10) {
 /**
  * WriteChunkTest
  * case:chunk存在,请求sn大于chunk的sn和correctSn
- *      chunk存在快照
+ *      chunk存在快照,snapsn<chunk.sn
  * 预期结果:存在历史快照未删除，写失败，返回SnapshotConflictError
  */
 TEST_F(CSDataStore_test, WriteChunkTest11) {
     // initialize
     FakeEnv();
+    // set chunk1's correctedSn as 3
+    FakeEncodeChunk(chunk1MetaPage, 3, 2);
+    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, PAGE_SIZE))
+        .WillRepeatedly(DoAll(
+                        SetArrayArgument<1>(chunk1MetaPage,
+                        chunk1MetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 1;
-    SequenceNum sn = 3;
+    SequenceNum sn = 4;
     off_t offset = 0;
     size_t length = PAGE_SIZE;
     char buf[length] = {0};
 
+    // sn>chunk.sn, sn>chunk.correctedsn
     EXPECT_EQ(CSErrorCode::SnapshotConflictError,
               dataStore->WriteChunk(id,
                                     sn,
@@ -1081,6 +1165,7 @@ TEST_F(CSDataStore_test, WriteChunkTest11) {
                                     offset,
                                     length,
                                     nullptr));
+
     CSChunkInfo info;
     dataStore->GetChunkInfo(id, &info);
     ASSERT_EQ(2, info.curSn);
@@ -1096,57 +1181,7 @@ TEST_F(CSDataStore_test, WriteChunkTest11) {
 
 /**
  * WriteChunkTest
- * case:chunk存在,请求sn等于chunk的sn且不小于correctSn
- *      chunk存在快照
- *      snapshot已损坏
- * 预期结果:直接写chunk文件
- */
-TEST_F(CSDataStore_test, WriteChunkTest12) {
-    // initialize
-    FakeEnv();
-    // set snapshot damaged
-    FakeEncodeSnapshot(chunk1SnapMetaPage, true, 1);
-    EXPECT_CALL(*lfs_, Read(2, NotNull(), 0, PAGE_SIZE))
-        .WillRepeatedly(DoAll(
-                        SetArrayArgument<1>(chunk1SnapMetaPage,
-                        chunk1SnapMetaPage + PAGE_SIZE),
-                        Return(PAGE_SIZE)));
-    EXPECT_TRUE(dataStore->Initialize());
-
-    ChunkID id = 1;
-    SequenceNum sn = 2;
-    off_t offset = 0;
-    size_t length = PAGE_SIZE;
-    char buf[length] = {0};
-    // will not create snapshot
-    // will not cow
-    // will write data
-    EXPECT_CALL(*lfs_, Write(1, NotNull(), PAGE_SIZE + offset, length))
-        .Times(1);
-
-    EXPECT_EQ(CSErrorCode::Success,
-              dataStore->WriteChunk(id,
-                                    sn,
-                                    buf,
-                                    offset,
-                                    length,
-                                    nullptr));
-    CSChunkInfo info;
-    dataStore->GetChunkInfo(id, &info);
-    ASSERT_EQ(2, info.curSn);
-    ASSERT_EQ(1, info.snapSn);
-
-    EXPECT_CALL(*lfs_, Close(1))
-        .Times(1);
-    EXPECT_CALL(*lfs_, Close(2))
-        .Times(1);
-    EXPECT_CALL(*lfs_, Close(3))
-        .Times(1);
-}
-
-/**
- * WriteChunkTest
- * 写clone chunk
+ * 写clone chunk，模拟克隆
  * case1:clone chunk存在，写入区域之前未写过
  * 预期结果1:写入数据并更新bitmap
  * case2:clone chunk存在，写入区域之前已写过
@@ -1306,6 +1341,182 @@ TEST_F(CSDataStore_test, WriteChunkTest13) {
 }
 
 /**
+ * WriteChunkTest
+ * 写clone chunk，模拟恢复
+ * case1:clone chunk 存在，sn<chunk.sn||sn<chunk.correctedSn
+ * 预期结果1:写入数据，然后clone chunk会被转为普通chunk
+ * case2:clone chunk存在，sn>chunk.sn,sn==chunk.correctedsn
+ * 预期结果2:写入数据并更新bitmap,更新chunk.sn为sn
+ * case3:clone chunk存在，sn==chunk.sn,sn==chunk.correctedsn
+ * 预期结果3:写入数据并更新bitmap
+ * case4:clone chunk 存在，sn>chunk.sn, sn>chunk.correctedsn
+ * 预期结果4:返回StatusConflictError
+ */
+TEST_F(CSDataStore_test, WriteChunkTest14) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 3;
+    SequenceNum sn = 2;
+    SequenceNum correctedSn = 3;
+    off_t offset = 0;
+    size_t length = PAGE_SIZE;
+    char buf[length] = {0};
+    CSChunkInfo info;
+    // 创建 clone chunk
+    {
+        char chunk3MetaPage[PAGE_SIZE] = {0};
+        shared_ptr<Bitmap> bitmap =
+            make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+        FakeEncodeChunk(chunk3MetaPage, correctedSn, sn, bitmap, location);
+        // create new chunk and open it
+        string chunk3Path = string(baseDir) + "/" +
+                            FileNameOperator::GenerateChunkFileName(id);
+        // expect call chunkfile pool GetChunk
+        EXPECT_CALL(*lfs_, FileExists(chunk3Path))
+            .WillOnce(Return(false));
+        EXPECT_CALL(*fpool_, GetChunk(chunk3Path, NotNull()))
+            .WillOnce(Return(0));
+        EXPECT_CALL(*lfs_, Open(chunk3Path, _))
+            .Times(1)
+            .WillOnce(Return(4));
+        // will read metapage
+        EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+            .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
+                            chunk3MetaPage + PAGE_SIZE),
+                            Return(PAGE_SIZE)));
+        EXPECT_EQ(CSErrorCode::Success,
+                  dataStore->CreateCloneChunk(id,
+                                              sn,
+                                              correctedSn,
+                                              CHUNK_SIZE,
+                                              location));
+        ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
+        ASSERT_EQ(2, info.curSn);
+        ASSERT_EQ(3, info.correctedSn);
+        ASSERT_EQ(0, info.snapSn);
+        ASSERT_EQ(true, info.isClone);
+        ASSERT_EQ(0, info.bitmap->NextClearBit(0));
+        ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
+    }
+
+    // case1:clone chunk存在
+    {
+        // sn == chunk.sn, sn < chunk.correctedSn
+        sn = 2;
+        ASSERT_EQ(CSErrorCode::BackwardRequestError,
+                  dataStore->WriteChunk(id,
+                                        sn,
+                                        buf,
+                                        offset,
+                                        length,
+                                        nullptr));
+
+        // sn < chunk.sn, sn < chunk.correctedSn
+        sn = 1;
+        ASSERT_EQ(CSErrorCode::BackwardRequestError,
+                  dataStore->WriteChunk(id,
+                                        sn,
+                                        buf,
+                                        offset,
+                                        length,
+                                        nullptr));
+    }
+
+    // case2:chunk存在，且是clone chunk，
+    {
+        id = 3;
+        offset = PAGE_SIZE;
+        length = 2 * PAGE_SIZE;
+        sn = 3;  // sn > chunk.sn;sn == correctedsn
+        EXPECT_CALL(*lfs_, Write(4, NotNull(), PAGE_SIZE + offset, length))
+            .Times(1);
+        // update metapage
+        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+            .Times(2);
+        ASSERT_EQ(CSErrorCode::Success,
+                  dataStore->WriteChunk(id,
+                                        sn,
+                                        buf,
+                                        offset,
+                                        length,
+                                        nullptr));
+        // 检查paste后chunk的状态
+        ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
+        ASSERT_EQ(3, info.curSn);
+        ASSERT_EQ(3, info.correctedSn);
+        ASSERT_EQ(0, info.snapSn);
+        ASSERT_EQ(true, info.isClone);
+        ASSERT_EQ(1, info.bitmap->NextSetBit(0));
+        ASSERT_EQ(3, info.bitmap->NextClearBit(1));
+        ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(3));
+    }
+
+    // case3:chunk存在，且是clone chunk
+    // sn > chunk.sn;sn == correctedsn
+    {
+        offset = 0;
+        length = 4 * PAGE_SIZE;
+        // [2 * PAGE_SIZE, 4 * PAGE_SIZE)区域已写过，[0, PAGE_SIZE)为metapage
+        EXPECT_CALL(*lfs_, Write(4, NotNull(), offset + PAGE_SIZE, length))
+            .Times(1);
+        EXPECT_CALL(*lfs_, Write(4, NotNull(), 0, PAGE_SIZE))
+            .Times(1);
+        ASSERT_EQ(CSErrorCode::Success,
+                  dataStore->WriteChunk(id,
+                                        sn,
+                                        buf,
+                                        offset,
+                                        length,
+                                        nullptr));
+        // paste后，chunk的状态不变
+        ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
+        ASSERT_EQ(3, info.curSn);
+        ASSERT_EQ(3, info.correctedSn);
+        ASSERT_EQ(0, info.snapSn);
+        ASSERT_EQ(true, info.isClone);
+        ASSERT_EQ(0, info.bitmap->NextSetBit(0));
+        ASSERT_EQ(4, info.bitmap->NextClearBit(0));
+        ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(4));
+    }
+
+    // case3:chunk存在，且是clone chunk
+    // sn > chunk.sn;sn > correctedsn
+    {
+        sn = 4;
+        // 不会写数据
+        EXPECT_CALL(*lfs_, Write(4, NotNull(), _, _))
+            .Times(0);
+        ASSERT_EQ(CSErrorCode::StatusConflictError,
+                  dataStore->WriteChunk(id,
+                                        sn,
+                                        buf,
+                                        offset,
+                                        length,
+                                        nullptr));
+        // chunk的状态不变
+        ASSERT_EQ(CSErrorCode::Success, dataStore->GetChunkInfo(id, &info));
+        ASSERT_EQ(3, info.curSn);
+        ASSERT_EQ(3, info.correctedSn);
+        ASSERT_EQ(0, info.snapSn);
+        ASSERT_EQ(true, info.isClone);
+        ASSERT_EQ(0, info.bitmap->NextSetBit(0));
+        ASSERT_EQ(4, info.bitmap->NextClearBit(0));
+        ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(4));
+    }
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(4))
+        .Times(1);
+}
+
+/**
  * WriteChunkTest 异常测试
  * case:创建快照文件时出错
  * 预期结果:写失败，不会改变当前chunk状态
@@ -1415,7 +1626,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest2) {
         .WillOnce(Return(4));
     // will read snapshot metapage
     char metapage[PAGE_SIZE] = {0};
-    FakeEncodeSnapshot(metapage, false, 2);
+    FakeEncodeSnapshot(metapage, 2);
     EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(metapage,
                         metapage + PAGE_SIZE),
@@ -1474,7 +1685,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest3) {
         .WillOnce(Return(4));
     // will read snapshot metapage
     char metapage[PAGE_SIZE] = {0};
-    FakeEncodeSnapshot(metapage, false, 2);
+    FakeEncodeSnapshot(metapage, 2);
     EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(metapage,
                         metapage + PAGE_SIZE),
@@ -1593,7 +1804,7 @@ TEST_F(CSDataStore_test, WriteChunkErrorTest4) {
         .WillOnce(Return(4));
     // will read snapshot metapage
     char metapage[PAGE_SIZE] = {0};
-    FakeEncodeSnapshot(metapage, false, 2);
+    FakeEncodeSnapshot(metapage, 2);
     EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
         .WillOnce(DoAll(SetArrayArgument<1>(metapage,
                         metapage + PAGE_SIZE),
@@ -1894,8 +2105,8 @@ TEST_F(CSDataStore_test, ReadChunkTest1) {
 
 /**
  * ReadChunkTest
- * case:chunk存在，读取区域超过chunk大小
- * 预期结果:返回OutOfRangeError错误码
+ * case:chunk存在，读取区域超过chunk大小或者offset和length未对齐
+ * 预期结果:返回InvalidArgError错误码
  */
 TEST_F(CSDataStore_test, ReadChunkTest2) {
     // initialize
@@ -1908,7 +2119,25 @@ TEST_F(CSDataStore_test, ReadChunkTest2) {
     size_t length = PAGE_SIZE;
     char buf[length] = {0};
     // test read out of range
-    EXPECT_EQ(CSErrorCode::OutOfRangeError,
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
+              dataStore->ReadChunk(id,
+                                   sn,
+                                   buf,
+                                   offset,
+                                   length));
+    // return InvalidArgError if length not aligned
+    offset = PAGE_SIZE;
+    length = PAGE_SIZE - 1;
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
+              dataStore->ReadChunk(id,
+                                   sn,
+                                   buf,
+                                   offset,
+                                   length));
+    // return InvalidArgError if offset not aligned
+    offset = PAGE_SIZE + 1;
+    length = PAGE_SIZE;
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->ReadChunk(id,
                                    sn,
                                    buf,
@@ -1953,6 +2182,100 @@ TEST_F(CSDataStore_test, ReadChunkTest3) {
     EXPECT_CALL(*lfs_, Close(2))
         .Times(1);
     EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+/**
+ * ReadChunkTest
+ * 读取 clone chunk
+ * case1:读取区域未被写过
+ * 预期结果:返回PageNerverWrittenError
+ * case2:读取区域部分被写过
+ * 预期结果:返回PageNerverWrittenError
+ * case3:读取区域已被写过
+ * 预期结果:返回Success，数据成功写入
+ */
+TEST_F(CSDataStore_test, ReadChunkTest4) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 3;
+    SequenceNum sn = 1;
+    SequenceNum correctedSn = 2;
+    CSChunkInfo info;
+    char chunk3MetaPage[PAGE_SIZE] = {0};
+    shared_ptr<Bitmap> bitmap = make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+    bitmap->Set(0);
+    FakeEncodeChunk(chunk3MetaPage, correctedSn, sn, bitmap, location);
+
+    // create new chunk and open it
+    string chunk3Path = string(baseDir) + "/" +
+                        FileNameOperator::GenerateChunkFileName(id);
+    // expect call chunkfile pool GetChunk
+    EXPECT_CALL(*lfs_, FileExists(chunk3Path))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*fpool_, GetChunk(chunk3Path, NotNull()))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*lfs_, Open(chunk3Path, _))
+        .Times(1)
+        .WillOnce(Return(4));
+    // will read metapage
+    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
+                        chunk3MetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    EXPECT_EQ(CSErrorCode::Success,
+                dataStore->CreateCloneChunk(id,
+                                            sn,
+                                            correctedSn,
+                                            CHUNK_SIZE,
+                                            location));
+
+    // case1: 读取未写过区域
+    off_t offset = 1 * PAGE_SIZE;
+    size_t length = PAGE_SIZE;
+    char buf[2 * length] = {0};
+    EXPECT_CALL(*lfs_, Read(_, _, _, _))
+        .Times(0);
+    EXPECT_EQ(CSErrorCode::PageNerverWrittenError,
+              dataStore->ReadChunk(id,
+                                   sn,
+                                   buf,
+                                   offset,
+                                   length));
+
+    // case2: 读取区域部分被写过
+    offset = 0;
+    length = 2 * PAGE_SIZE;
+    EXPECT_CALL(*lfs_, Read(_, _, _, _))
+        .Times(0);
+    EXPECT_EQ(CSErrorCode::PageNerverWrittenError,
+              dataStore->ReadChunk(id,
+                                   sn,
+                                   buf,
+                                   offset,
+                                   length));
+
+    // case3: 读取区域已写过
+    offset = 0;
+    length = PAGE_SIZE;
+    EXPECT_CALL(*lfs_, Read(4, NotNull(), offset + PAGE_SIZE, length))
+        .Times(1);
+    EXPECT_EQ(CSErrorCode::Success,
+              dataStore->ReadChunk(id,
+                                   sn,
+                                   buf,
+                                   offset,
+                                   length));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(4))
         .Times(1);
 }
 
@@ -2036,7 +2359,25 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest2) {
     size_t length = 2 * PAGE_SIZE;
     char buf[length] = {0};
     // test out of range
-    EXPECT_EQ(CSErrorCode::OutOfRangeError,
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
+              dataStore->ReadSnapshotChunk(id,
+                                           sn,
+                                           buf,
+                                           offset,
+                                           length));
+    // test offset not aligned
+    offset = CHUNK_SIZE - 1;
+    length = CHUNK_SIZE;
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
+              dataStore->ReadSnapshotChunk(id,
+                                           sn,
+                                           buf,
+                                           offset,
+                                           length));
+    // test length not aligned
+    offset = CHUNK_SIZE;
+    length = CHUNK_SIZE + 1;
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->ReadSnapshotChunk(id,
                                            sn,
                                            buf,
@@ -2044,6 +2385,7 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest2) {
                                            length));
     // test in range
     offset = PAGE_SIZE;
+    length = 2 * PAGE_SIZE;
     EXPECT_CALL(*lfs_, Read(1, NotNull(), offset + PAGE_SIZE, length))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
@@ -2100,7 +2442,7 @@ TEST_F(CSDataStore_test, ReadSnapshotChunkTest3) {
     offset = CHUNK_SIZE;
     length = PAGE_SIZE * 4;
     char readBuf[length] = {0};
-    EXPECT_EQ(CSErrorCode::OutOfRangeError,
+    EXPECT_EQ(CSErrorCode::InvalidArgError,
               dataStore->ReadSnapshotChunk(id,
                                            sn,
                                            readBuf,
@@ -2279,6 +2621,7 @@ TEST_F(CSDataStore_test, DeleteChunkTest1) {
 
     ChunkID id = 3;
     SequenceNum sn = 2;
+
     // test chunk not exists
     EXPECT_EQ(CSErrorCode::Success,
               dataStore->DeleteChunk(id, sn));
@@ -2294,7 +2637,7 @@ TEST_F(CSDataStore_test, DeleteChunkTest1) {
 /**
  * DeleteChunkTest
  * case:chunk存在快照文件
- * 预期结果:返回SnapshotExistError
+ * 预期结果:返回Success， chunk被删除，快照被删除
  */
 TEST_F(CSDataStore_test, DeleteChunkTest2) {
     // initialize
@@ -2303,20 +2646,24 @@ TEST_F(CSDataStore_test, DeleteChunkTest2) {
 
     ChunkID id = 1;
     SequenceNum sn = 2;
-    // delete chunk with snapshot
-    EXPECT_EQ(CSErrorCode::SnapshotExistError,
-              dataStore->DeleteChunk(id, sn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
     EXPECT_CALL(*lfs_, Close(2))
         .Times(1);
+
+    // delete chunk with snapshot
+    EXPECT_EQ(CSErrorCode::Success,
+              dataStore->DeleteChunk(id, sn));
+    CSChunkInfo info;
+    ASSERT_EQ(CSErrorCode::ChunkNotExistError,
+              dataStore->GetChunkInfo(id, &info));
+
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
 }
 
 /**
- * DeleteChunkTest
  * case:chunk存在,快照文件不存在
  * 预期结果:返回成功
  */
@@ -2327,6 +2674,7 @@ TEST_F(CSDataStore_test, DeleteChunkTest3) {
 
     ChunkID id = 2;
     SequenceNum sn = 2;
+
     // chunk will be closed
     EXPECT_CALL(*lfs_, Close(3))
         .Times(1);
@@ -2334,7 +2682,53 @@ TEST_F(CSDataStore_test, DeleteChunkTest3) {
     EXPECT_CALL(*fpool_, RecycleChunk(chunk2Path))
         .WillOnce(Return(0));
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteChunk(id, sn));
+            dataStore->DeleteChunk(id, sn));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+}
+
+/**
+ * DeleteChunkTest
+ * chunk存在,快照文件不存在
+ * case1: sn<chunkinfo.sn
+ * 预期结果1:返回BackwardRequestError
+ * case2: sn>chunkinfo.sn
+ * 预期结果2:返回成功
+ */
+TEST_F(CSDataStore_test, DeleteChunkTest4) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 2;
+    SequenceNum sn = 2;
+
+    // case1
+    {
+        // chunk will be closed
+        EXPECT_CALL(*lfs_, Close(3))
+            .Times(0);
+        // expect to call chunkfilepool RecycleChunk
+        EXPECT_CALL(*fpool_, RecycleChunk(chunk2Path))
+            .Times(0);
+        EXPECT_EQ(CSErrorCode::BackwardRequestError,
+                dataStore->DeleteChunk(id, 1));
+    }
+
+    // case2
+    {
+        // chunk will be closed
+        EXPECT_CALL(*lfs_, Close(3))
+            .Times(1);
+        // expect to call chunkfilepool RecycleChunk
+        EXPECT_CALL(*fpool_, RecycleChunk(chunk2Path))
+            .WillOnce(Return(0));
+        EXPECT_EQ(CSErrorCode::Success,
+                dataStore->DeleteChunk(id, 3));
+    }
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -2469,7 +2863,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest3) {
     // chunk's metapage should not be updated
     EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
         .Times(0);
-    EXPECT_EQ(CSErrorCode::Success,
+    EXPECT_EQ(CSErrorCode::BackwardRequestError,
               dataStore->DeleteSnapshotChunkOrCorrectSn(id, fileSn));
 
     // 下则用例用于补充DeleteSnapshotChunkOrCorrectSnTest2用例中
@@ -2587,6 +2981,69 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest6) {
 }
 
 /**
+ * DeleteSnapshotChunkOrCorrectSnTest
+ * case:chunk存在,snapshot不存在，chunk为clone chunk
+ * 预期结果:返回StatusConflictError
+ */
+TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnTest7) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 3;
+    SequenceNum sn = 2;
+    SequenceNum correctedSn = 4;
+    CSChunkInfo info;
+    char chunk3MetaPage[PAGE_SIZE] = {0};
+    shared_ptr<Bitmap> bitmap = make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
+    FakeEncodeChunk(chunk3MetaPage, correctedSn, sn, bitmap, location);
+
+    // create new chunk and open it
+    string chunk3Path = string(baseDir) + "/" +
+                        FileNameOperator::GenerateChunkFileName(id);
+    // expect call chunkfile pool GetChunk
+    EXPECT_CALL(*lfs_, FileExists(chunk3Path))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*fpool_, GetChunk(chunk3Path, NotNull()))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*lfs_, Open(chunk3Path, _))
+        .Times(1)
+        .WillOnce(Return(4));
+    // will read metapage
+    EXPECT_CALL(*lfs_, Read(4, NotNull(), 0, PAGE_SIZE))
+        .WillOnce(DoAll(SetArrayArgument<1>(chunk3MetaPage,
+                        chunk3MetaPage + PAGE_SIZE),
+                        Return(PAGE_SIZE)));
+    EXPECT_EQ(CSErrorCode::Success,
+                dataStore->CreateCloneChunk(id,
+                                            sn,
+                                            correctedSn,
+                                            CHUNK_SIZE,
+                                            location));
+
+    // 无论correctedSn为多少，都返回StatusConflictError
+    EXPECT_EQ(CSErrorCode::StatusConflictError,
+              dataStore->DeleteSnapshotChunkOrCorrectSn(id, 1));
+    EXPECT_EQ(CSErrorCode::StatusConflictError,
+              dataStore->DeleteSnapshotChunkOrCorrectSn(id, 2));
+    EXPECT_EQ(CSErrorCode::StatusConflictError,
+              dataStore->DeleteSnapshotChunkOrCorrectSn(id, 3));
+    EXPECT_EQ(CSErrorCode::StatusConflictError,
+              dataStore->DeleteSnapshotChunkOrCorrectSn(id, 4));
+    EXPECT_EQ(CSErrorCode::StatusConflictError,
+              dataStore->DeleteSnapshotChunkOrCorrectSn(id, 5));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(4))
+        .Times(1);
+}
+
+/**
  * DeleteSnapshotChunkOrCorrectSnErrorTest
  * case:修改correctedSn时失败
  * 预期结果:返回失败，correctedSn的值未改变
@@ -2655,14 +3112,18 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkOrCorrectSnErrorTest2) {
 
 /**
  * CreateCloneChunkTest
- * case1:指定的chunk不存在，指定chunksize与配置一致
- * 预期结果1:创建成功
- * case2:指定的chunk存在，参数与原chunk一致
- * 预期结果2:返回成功
- * case3:指定的chunk存在，参数与原chunk不一致
- * 预期结果3:返回ChunkConflictError，不改变原chunk信息
- * case4:指定的chunk存在，指定chunksize与配置不一致
- * 预期结果4: case4返回InvalidArgError，不改变原chunk信息
+ * case1:指定的chunk不存在，输入错误的参数
+ * 预期结果1:返回InvalidArgError
+ * case2:指定的chunk不存在，指定chunksize与配置一致
+ * 预期结果2:创建成功
+ * case3:指定的chunk存在，参数与原chunk一致
+ * 预期结果3:返回成功
+ * case4:指定的chunk存在，参数与原chunk不一致
+ * 预期结果4:返回ChunkConflictError，不改变原chunk信息
+ * case5:指定的chunk存在，指定chunksize与配置不一致
+ * 预期结果5: 返回InvalidArgError，不改变原chunk信息
+ * case6:指定的chunk存在，chunk不是clone chunk，参数与chunk信息一致
+ * 预期结果:返回ChunkConflictError，不改变原chunk信息
  */
 TEST_F(CSDataStore_test, CreateCloneChunkTest) {
     // initialize
@@ -2677,7 +3138,34 @@ TEST_F(CSDataStore_test, CreateCloneChunkTest) {
     shared_ptr<Bitmap> bitmap = make_shared<Bitmap>(CHUNK_SIZE / PAGE_SIZE);
     FakeEncodeChunk(chunk3MetaPage, correctedSn, sn, bitmap, location);
 
-    // case1:指定的chunk不存在，指定chunksize与配置一致
+    // case1:输入错误的参数
+    {
+        // size != chunksize
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->CreateCloneChunk(id,
+                                              sn,
+                                              correctedSn,
+                                              PAGE_SIZE,
+                                              location));
+
+        // sn == 0
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->CreateCloneChunk(id,
+                                              0,
+                                              correctedSn,
+                                              CHUNK_SIZE,
+                                              location));
+
+        // location is empty
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->CreateCloneChunk(id,
+                                              sn,
+                                              correctedSn,
+                                              CHUNK_SIZE,
+                                              ""));
+    }
+
+    // case2:指定的chunk不存在，指定chunksize与配置一致
     {
         // create new chunk and open it
         string chunk3Path = string(baseDir) + "/" +
@@ -2712,7 +3200,7 @@ TEST_F(CSDataStore_test, CreateCloneChunkTest) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
 
-    // case2:指定的chunk存在，参数与原chunk一致
+    // case3:指定的chunk存在，参数与原chunk一致
     {
         EXPECT_EQ(CSErrorCode::Success,
                   dataStore->CreateCloneChunk(id,
@@ -2731,7 +3219,7 @@ TEST_F(CSDataStore_test, CreateCloneChunkTest) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
 
-    // case3:指定的chunk存在，参数与原chunk不一致
+    // case4:指定的chunk存在，参数与原chunk不一致
     // 返回ChunkConflictError，但是不会改变原chunk信息
     {
         // 版本不一致
@@ -2766,7 +3254,7 @@ TEST_F(CSDataStore_test, CreateCloneChunkTest) {
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
     }
 
-    // case4:指定的chunk存在，指定chunksize与配置不一致
+    // case5:指定的chunk存在，指定chunksize与配置不一致
     // 返回InvalidArgError，但是不会改变原chunk信息
     {
         EXPECT_EQ(CSErrorCode::InvalidArgError,
@@ -2784,6 +3272,25 @@ TEST_F(CSDataStore_test, CreateCloneChunkTest) {
         ASSERT_TRUE(info.isClone);
         ASSERT_STREQ(location, info.location.c_str());
         ASSERT_EQ(Bitmap::NO_POS, info.bitmap->NextSetBit(0));
+    }
+
+    // case6:已存在chunk，chunk不是clone chunk
+    {
+        // location 为空
+        EXPECT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->CreateCloneChunk(1,  // id
+                                              2,  // sn
+                                              0,  // correctedSn
+                                              CHUNK_SIZE,
+                                              ""));
+
+        // location 不为空
+        EXPECT_EQ(CSErrorCode::ChunkConflictError,
+                  dataStore->CreateCloneChunk(1,  // id
+                                              2,  // sn
+                                              0,  // correctedSn
+                                              CHUNK_SIZE,
+                                              location));
     }
 
     EXPECT_CALL(*lfs_, Close(1))
@@ -2840,8 +3347,8 @@ TEST_F(CSDataStore_test, CreateCloneChunkErrorTest) {
  * PasteChunkTedt
  * case1:chunk 不存在
  * 预期结果1:返回ChunkNotExistError
- * case2:chunk存在，请求偏移超过chunk文件大小
- * 预期结果2:返回OutOfRangeError
+ * case2:chunk存在，请求偏移超过chunk文件大小或偏移长度未对齐
+ * 预期结果2:返回InvalidArgError
  * case3:chunk存在，但不是clone chunk
  * 预期结果3:返回成功
  * case4:chunk存在，且是clone chunk，写入区域之前未写过
@@ -2905,11 +3412,25 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
                                         length));
     }
 
-    // case2:chunk存在，请求偏移超过chunk文件大小
+    // case2:chunk存在，请求偏移超过chunk文件大小或偏移长度未对齐
     {
         id = 3;  // not exist
         offset = CHUNK_SIZE;
-        ASSERT_EQ(CSErrorCode::OutOfRangeError,
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id,
+                                        buf,
+                                        offset,
+                                        length));
+        offset = PAGE_SIZE - 1;
+        length = PAGE_SIZE;
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
+                  dataStore->PasteChunk(id,
+                                        buf,
+                                        offset,
+                                        length));
+        offset = PAGE_SIZE;
+        length = PAGE_SIZE + 1;
+        ASSERT_EQ(CSErrorCode::InvalidArgError,
                   dataStore->PasteChunk(id,
                                         buf,
                                         offset,
@@ -2918,7 +3439,21 @@ TEST_F(CSDataStore_test, PasteChunkTest1) {
 
     // case3:chunk存在，但不是clone chunk
     {
+        EXPECT_CALL(*lfs_, Write(_, NotNull(), _, _))
+            .Times(0);
+
+        // 快照不存在
         id = 2;
+        offset = 0;
+        length = PAGE_SIZE;
+        ASSERT_EQ(CSErrorCode::Success,
+                  dataStore->PasteChunk(id,
+                                        buf,
+                                        offset,
+                                        length));
+
+        // 快照存在
+        id = 1;
         offset = 0;
         ASSERT_EQ(CSErrorCode::Success,
                   dataStore->PasteChunk(id,

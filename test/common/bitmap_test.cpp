@@ -72,6 +72,39 @@ TEST(BitmapTEST, constructor_test) {
             ASSERT_FALSE(bitmap3.Test(i));
         }
     }
+
+    // 测试比较操作符
+    {
+        Bitmap bitmap1(16);
+        Bitmap bitmap2(16);
+        Bitmap bitmap3(32);
+        ASSERT_TRUE(bitmap1 == bitmap2);
+        ASSERT_FALSE(bitmap1 != bitmap2);
+        ASSERT_FALSE(bitmap1 == bitmap3);
+        ASSERT_TRUE(bitmap1 != bitmap3);
+
+        bitmap1.Set(1);
+        ASSERT_FALSE(bitmap1 == bitmap2);
+        ASSERT_TRUE(bitmap1 != bitmap2);
+        ASSERT_FALSE(bitmap1 == bitmap3);
+        ASSERT_TRUE(bitmap1 != bitmap3);
+
+        bitmap1.Set();
+        bitmap2.Set();
+        bitmap3.Set();
+        ASSERT_TRUE(bitmap1 == bitmap2);
+        ASSERT_FALSE(bitmap1 != bitmap2);
+        ASSERT_FALSE(bitmap1 == bitmap3);
+        ASSERT_TRUE(bitmap1 != bitmap3);
+
+        bitmap1.Clear();
+        bitmap2.Clear();
+        bitmap3.Clear();
+        ASSERT_TRUE(bitmap1 == bitmap2);
+        ASSERT_FALSE(bitmap1 != bitmap2);
+        ASSERT_FALSE(bitmap1 == bitmap3);
+        ASSERT_TRUE(bitmap1 != bitmap3);
+    }
 }
 
 TEST(BitmapTEST, basic_test) {
