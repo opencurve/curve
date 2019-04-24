@@ -17,6 +17,7 @@
 #include "proto/cli.pb.h"
 #include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
+#include "src/client/metacache_struct.h"
 
 namespace curve {
 namespace client {
@@ -35,12 +36,15 @@ class ServiceHelper {
      * @param: copysetId为复制组的ID
      * @param: conf为当前复制组的raft配置信息
      * @param: leaderId是出参，返回当前copyset的leader信息
+     * @param: currentleaderIndex是当前集群中使用的索引信息，在重新找leader时，
+     *         需要跳过这个index，以提高查找leader的效率
      * @return: 成功返回0，否则返回-1
      */
     static int GetLeader(const LogicPoolID &logicPoolId,
                         const CopysetID &copysetId,
-                        const Configuration &conf,
-                        PeerId *leaderId);
+                        const std::vector<CopysetPeerInfo_t> &conf,
+                        ChunkServerAddr *leaderId,
+                        int16_t currentleaderIndex);
     /**
      * 从文件名中获取user信息.
      * 用户的user信息需要夹在文件名中，比如文件名为temp,用户名为user,

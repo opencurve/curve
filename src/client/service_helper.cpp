@@ -56,42 +56,50 @@ void ServiceHelper::ProtoFileInfo2Local(curve::mds::FileInfo* finfo,
 
 int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
                             const CopysetID &copysetId,
-                            const Configuration &conf,
-                            PeerId *leaderId) {
+                            const std::vector<CopysetPeerInfo_t> &conf,
+                            ChunkServerAddr *leaderId,
+                            int16_t currentleaderIndex) {
     if (conf.empty()) {
         LOG(ERROR) << "Empty group configuration";
         return -1;
     }
 
-    leaderId->reset();
-    for (Configuration::const_iterator iter = conf.begin();
-         iter != conf.end(); ++iter) {
+    int16_t index = -1;
+    leaderId->Reset();
+    for (auto iter = conf.begin(); iter != conf.end(); ++iter) {
+        ++index;
+        if (index == currentleaderIndex) {
+            LOG(INFO) << "skip current server address!";
+            continue;
+        }
+
         brpc::Channel channel;
-        if (channel.Init(iter->addr, NULL) != 0) {
+        if (channel.Init(iter->csaddr_.addr_, NULL) != 0) {
             LOG(ERROR) << "Fail to init channel to"
-                        << iter->to_string().c_str();
+                        << iter->csaddr_.ToString().c_str();
             return -1;
         }
         curve::chunkserver::CliService_Stub stub(&channel);
         curve::chunkserver::GetLeaderRequest request;
         curve::chunkserver::GetLeaderResponse response;
         brpc::Controller cntl;
+
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
-        request.set_peer_id(iter->to_string());
+        request.set_peer_id(iter->csaddr_.ToString());
+
         stub.get_leader(&cntl, &request, &response, NULL);
+
         if (cntl.Failed()) {
             LOG(ERROR) << "GetLeader failed, "
                        << cntl.ErrorText();
             continue;
         }
-        leaderId->parse(response.leader_id());
-    }
-    if (leaderId->is_empty()) {
-        return -1;
+        leaderId->Parse(response.leader_id());
+        return leaderId->IsEmpty() ? -1 : 0;
     }
 
-    return 0;
+    return -1;
 }
 
 bool ServiceHelper::GetUserInfoFromFilename(const std::string& filename,

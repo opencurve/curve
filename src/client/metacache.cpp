@@ -7,12 +7,17 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <bthread/bthread.h>
+
 #include "proto/cli.pb.h"
 
 #include "src/client/metacache.h"
 #include "src/client/mds_client.h"
 #include "src/client/client_common.h"
+#include "src/common/concurrent/concurrent.h"
 
+using curve::common::WriteLockGuard;
+using curve::common::ReadLockGuard;
 using curve::client::ClientConfig;
 
 namespace curve {
@@ -23,7 +28,7 @@ MetaCache::MetaCache() {
 MetaCache::~MetaCache() {
     chunkindex2idMap_.clear();
     chunkid2chunkInfoMap_.clear();
-    lpcsid2serverlistMap_.clear();
+    lpcsid2CopsetInfoMap_.clear();
 }
 
 void MetaCache::Init(MetaCacheOption_t metaCacheOpt) {
@@ -31,26 +36,15 @@ void MetaCache::Init(MetaCacheOption_t metaCacheOpt) {
 }
 
 MetaCacheErrorType MetaCache::GetChunkInfoByIndex(ChunkIndex chunkidx, ChunkIDInfo_t* chunxinfo ) {  // NOLINT
-    rwlock4ChunkInfo_.RDLock();
+    ReadLockGuard rdlk(rwlock4ChunkInfo_);
     auto iter = chunkindex2idMap_.find(chunkidx);
     if (iter != chunkindex2idMap_.end()) {
-        rwlock4ChunkInfo_.Unlock();
         *chunxinfo = iter->second;
         return MetaCacheErrorType::OK;
     }
-    rwlock4ChunkInfo_.Unlock();
     return MetaCacheErrorType::CHUNKINFO_NOT_FOUND;
 }
 
-/**
- * 1. check the logicPoolId and CopysetID assosiate serverlist exists or not
- * 2. server list should exist, because GetOrAllocateSegment will 
- *    get serverlist imediately
- * 3. check exists again, if not exists, return failed
- * 4. if exists, check if need refresh
- * 5. if need refresh, we invoke chunkserver cli getleader service
- * 6. if no need refresh, just return the leader id and server addr
- */
 int MetaCache::GetLeader(LogicPoolID logicPoolId,
                         CopysetID copysetId,
                         ChunkServerID* serverId,
@@ -58,41 +52,26 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                         bool refresh) {
     std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
 
+    CopysetInfo_t targetInfo;
     rwlock4CopysetInfo_.RDLock();
-    auto iter = lpcsid2serverlistMap_.find(mapkey);
-    if (iter == lpcsid2serverlistMap_.end()) {
+    auto iter = lpcsid2CopsetInfoMap_.find(mapkey);
+    if (iter == lpcsid2CopsetInfoMap_.end()) {
         rwlock4CopysetInfo_.Unlock();
         LOG(ERROR) << "server list not exist, LogicPoolID = " << logicPoolId
                    << ", CopysetID = " << copysetId;
         return -1;
     }
+    targetInfo = iter->second;
     rwlock4CopysetInfo_.Unlock();
-
-    auto getleader = [&]() ->int {
-        Configuration cfg;
-        for (auto it : iter->second.csinfos_) {
-            cfg.add_peer(it.peerid_);
-        }
-        PeerId  leaderid;
-        int ret = ServiceHelper::GetLeader(logicPoolId,
-                                            copysetId,
-                                            cfg,
-                                            &leaderid);
-        if (ret == -1) {
-            LOG(ERROR) << "get leader failed!";
-            return -1;
-        }
-        iter->second.ChangeLeaderID(leaderid);
-        return 0;
-    };
 
     int ret = 0;
     if (refresh) {
         uint32_t retry = 0;
         while (retry++ < metacacheopt_.getLeaderRetry) {
-            usleep(metacacheopt_.retryIntervalUs);
-            ret = getleader();
+            bthread_usleep(metacacheopt_.retryIntervalUs);
+            ret = UpdateLeaderInternal(logicPoolId, copysetId, &targetInfo);
             if (ret != -1) {
+                UpdateCopysetInfo(logicPoolId, copysetId, targetInfo);
                 break;
             }
         }
@@ -102,21 +81,37 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
         LOG(ERROR) << "get leader failed after retry!";
         return -1;
     }
-    return iter->second.GetLeaderInfo(serverId, serverAddr);
+
+    return targetInfo.GetLeaderInfo(serverId, serverAddr);
+}
+
+int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
+                                    CopysetID copysetId,
+                                    CopysetInfo* toupdateCopyset) {
+    ChunkServerAddr  leaderaddr;
+    int ret = ServiceHelper::GetLeader(logicPoolId, copysetId,
+                                      toupdateCopyset->csinfos_, &leaderaddr,
+                                      toupdateCopyset->GetCurrentLeaderIndex());
+
+    if (ret == -1) {
+        LOG(ERROR) << "get leader failed!";
+        return -1;
+    }
+    toupdateCopyset->ChangeLeaderID(leaderaddr);
+    return 0;
 }
 
 CopysetInfo_t MetaCache::GetServerList(LogicPoolID logicPoolId,
                                         CopysetID copysetId) {
     std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
     CopysetInfo_t ret;
-    rwlock4CopysetInfo_.RDLock();
-    auto iter = lpcsid2serverlistMap_.find(mapkey);
-    if (iter == lpcsid2serverlistMap_.end()) {
+
+    ReadLockGuard rdlk(rwlock4CopysetInfo_);
+    auto iter = lpcsid2CopsetInfoMap_.find(mapkey);
+    if (iter == lpcsid2CopsetInfoMap_.end()) {
         // it's impossible to get here
-        rwlock4CopysetInfo_.Unlock();
         return ret;
     }
-    rwlock4CopysetInfo_.Unlock();
     return iter->second;
 }
 
@@ -131,78 +126,68 @@ int MetaCache::UpdateLeader(LogicPoolID logicPoolId,
                 const EndPoint &leaderAddr) {
     std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
 
-    int ret = 0;
-    rwlock4CopysetInfo_.RDLock();
-    auto iter = lpcsid2serverlistMap_.find(mapkey);
-    if (iter == lpcsid2serverlistMap_.end()) {
+    ReadLockGuard rdlk(rwlock4CopysetInfo_);
+    auto iter = lpcsid2CopsetInfoMap_.find(mapkey);
+    if (iter == lpcsid2CopsetInfoMap_.end()) {
         // it's impossible to get here
-        rwlock4CopysetInfo_.Unlock();
         return -1;
     }
-    ret = iter->second.UpdateLeaderAndGetChunkserverID(leaderId, leaderAddr); // NOLINT
-    rwlock4CopysetInfo_.Unlock();
-    return ret;
+
+    return iter->second.UpdateLeaderAndGetChunkserverID(leaderId, leaderAddr);
 }
 
 void MetaCache::UpdateChunkInfoByIndex(ChunkIndex cindex, ChunkIDInfo_t cinfo) {  // NOLINT
-    rwlock4ChunkInfo_.WRLock();
+    WriteLockGuard wrlk(rwlock4ChunkInfo_);
     chunkindex2idMap_[cindex] = cinfo;
-    rwlock4ChunkInfo_.Unlock();
 }
 
 void MetaCache::UpdateCopysetInfo(LogicPoolID logicPoolid,
                                         CopysetID copysetid,
-                                        CopysetInfo_t cslist) {
+                                        CopysetInfo_t csinfo) {
     auto key = LogicPoolCopysetID2Str(logicPoolid, copysetid);
-    rwlock4CopysetInfo_.WRLock();
-    lpcsid2serverlistMap_[key] = cslist;
-    rwlock4CopysetInfo_.Unlock();
+    WriteLockGuard wrlk(rwlock4CopysetInfo_);
+    lpcsid2CopsetInfoMap_[key] = csinfo;
 }
 
 void MetaCache::UpdateAppliedIndex(LogicPoolID logicPoolId,
                                 CopysetID copysetId,
                                 uint64_t appliedindex) {
     std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
-    rwlock4CopysetInfo_.RDLock();
-    auto iter = lpcsid2serverlistMap_.find(mapkey);
-    if (iter == lpcsid2serverlistMap_.end()) {
-        rwlock4CopysetInfo_.Unlock();
+
+    WriteLockGuard wrlk(rwlock4CopysetInfo_);
+    auto iter = lpcsid2CopsetInfoMap_.find(mapkey);
+    if (iter == lpcsid2CopsetInfoMap_.end()) {
         return;
     }
     iter->second.UpdateAppliedIndex(appliedindex);
-    rwlock4CopysetInfo_.Unlock();
 }
 
 uint64_t MetaCache::GetAppliedIndex(LogicPoolID logicPoolId,
                                     CopysetID copysetId) {
     std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
-    rwlock4CopysetInfo_.RDLock();
-    auto iter = lpcsid2serverlistMap_.find(mapkey);
-    if (iter == lpcsid2serverlistMap_.end()) {
-        rwlock4CopysetInfo_.Unlock();
+
+    ReadLockGuard rdlk(rwlock4CopysetInfo_);
+    auto iter = lpcsid2CopsetInfoMap_.find(mapkey);
+    if (iter == lpcsid2CopsetInfoMap_.end()) {
         return 0;
     }
-    uint64_t appliedindex = iter->second.GetAppliedIndex();
-    rwlock4CopysetInfo_.Unlock();
-    return appliedindex;
+
+    return iter->second.GetAppliedIndex();
 }
 
 void MetaCache::UpdateChunkInfoByID(ChunkID cid, ChunkIDInfo cidinfo) {
-    rwlock4chunkInfoMap_.WRLock();
+    WriteLockGuard wrlk(rwlock4chunkInfoMap_);
     chunkid2chunkInfoMap_[cid] = cidinfo;
-    rwlock4chunkInfoMap_.Unlock();
 }
 
 MetaCacheErrorType MetaCache::GetChunkInfoByID(ChunkID chunkid,
                                 ChunkIDInfo_t* chunkinfo) {
-    rwlock4chunkInfoMap_.RDLock();
+    ReadLockGuard rdlk(rwlock4chunkInfoMap_);
     auto iter = chunkid2chunkInfoMap_.find(chunkid);
     if (iter != chunkid2chunkInfoMap_.end()) {
-        rwlock4chunkInfoMap_.Unlock();
         *chunkinfo = iter->second;
         return MetaCacheErrorType::OK;
     }
-    rwlock4chunkInfoMap_.Unlock();
     return MetaCacheErrorType::CHUNKINFO_NOT_FOUND;
 }
 
