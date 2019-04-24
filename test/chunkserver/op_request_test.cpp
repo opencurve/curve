@@ -240,7 +240,7 @@ TEST(ChunkOpRequestTest, encode) {
 
         butil::IOBuf data;
         auto req = ChunkOpRequest::Decode(log, &request, &data);
-        auto req1 = dynamic_cast<DeleteChunkRequest*>(req.get());
+        auto req1 = dynamic_cast<DeleteSnapshotRequest*>(req.get());
         ASSERT_TRUE(req1 != nullptr);
 
         ASSERT_EQ(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP, request.optype());

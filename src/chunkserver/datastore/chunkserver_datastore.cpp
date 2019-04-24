@@ -246,13 +246,13 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
     if (info.location.compare(location) != 0
         || info.curSn != sn
         || info.correctedSn != correctedSn) {
-        LOG(ERROR) << "Confilic chunk already exists."
+        LOG(ERROR) << "Conflict chunk already exists."
                    << "sn in arg = " << sn
-                   << "correctedSn in arg" << correctedSn
+                   << "correctedSn in arg = " << correctedSn
                    << ", location in arg = " << location
                    << ", sn in chunk = " << info.curSn
                    << ", location in chunk = " << info.location
-                   << ", corrected sn in chunk" << info.correctedSn;
+                   << ", corrected sn in chunk = " << info.correctedSn;
         return CSErrorCode::ChunkConflictError;
     }
     return CSErrorCode::Success;
