@@ -18,6 +18,8 @@
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/mds/nameserver2/session.h"
+#include "src/mds/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/topology/topology_admin.h"
 #include "src/mds/topology/topology_manager.h"
 #include "src/mds/topology/topology_service.h"
@@ -26,23 +28,7 @@
 #include "src/mds/schedule/topoAdapter.h"
 #include "proto/heartbeat.pb.h"
 
-DEFINE_string(listenAddr, ":6666", "Initial  mds listen addr");
-DEFINE_bool(enableCopySetScheduler, false, "can copySet scheduler run");
-DEFINE_bool(enableLeaderScheduler, false, "can leader scheduler run");
-DEFINE_bool(enableRecoverScheduler, true, "can recover scheduler run");
-DEFINE_bool(enableReplicaScheduler, false, "can replica scheduler run");
-DEFINE_int64(copySetInterval, 30, "copySet scheduler run interval");
-DEFINE_int64(replicaInterval, 30, "replica scheduler run interval");
-DEFINE_int64(leaderInterval, 30, "leader scheduler run interval");
-DEFINE_int64(recoverInterval, 30, "recover scheduler run interval");
-DEFINE_int32(opConcurrent, 4, "operator num on a chunkserver");
-DEFINE_int32(transferLimit, 1800, "transfer leader time limit(second)");
-DEFINE_int32(RemoveLimit, 1800, "remove peer time limit(second)");
-DEFINE_int32(AddLimit, 7200, "add peer time limit(second)");
-DEFINE_uint64(heartbeatInterval, 10, "heartbeat interval");
-DEFINE_uint64(heartbeatMissTimeout, 5000, "heartbeat miss interval");
-DEFINE_uint64(offlineTimeout, 1800000, "timeout to offline");
-DEFINE_string(confPath, "deploy/local/mds/mds.conf", "mds confPath");
+DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 
 using ::curve::mds::topology::TopologyAdminImpl;
 using ::curve::mds::topology::TopologyAdmin;
@@ -52,37 +38,86 @@ using ::curve::mds::heartbeat::HeartbeatServiceImpl;
 using ::curve::mds::heartbeat::HeartbeatOption;
 using ::curve::mds::schedule::TopoAdapterImpl;
 using ::curve::mds::schedule::TopoAdapter;
-using ::curve::mds::schedule::ScheduleConfig;
+using ::curve::mds::schedule::ScheduleOption;
+using ::curve::common::Configuration;
 
 namespace curve {
 namespace mds {
-void InitSessionOptions(common::Configuration *conf,
+void InitSessionOptions(Configuration *conf,
                         struct SessionOptions *sessionOptions) {
-    sessionOptions->sessionDbName = conf->GetStringValue("session.DbName");
-    sessionOptions->sessionUser = conf->GetStringValue("session.DbUser");
-    sessionOptions->sessionUrl = conf->GetStringValue("session.DbUrl");
-    sessionOptions->sessionPassword =
-                                    conf->GetStringValue("session.DbPassword");
-    sessionOptions->leaseTime = conf->GetIntValue("session.leaseTime");
-    sessionOptions->toleranceTime = conf->GetIntValue("session.toleranceTime");
-    sessionOptions->intevalTime = conf->GetIntValue("session.intevalTime");
+    sessionOptions->sessionDbName = conf->GetStringValue("mds.session.DbName");
+    sessionOptions->sessionUser = conf->GetStringValue("mds.session.DbUser");
+    sessionOptions->sessionUrl = conf->GetStringValue("mds.session.DbUrl");
+    sessionOptions->sessionPassword = conf->GetStringValue(
+        "mds.session.DbPassword");
+    sessionOptions->leaseTime = conf->GetIntValue("mds.session.leaseTime");
+    sessionOptions->toleranceTime =
+        conf->GetIntValue("mds.session.toleranceTime");
+    sessionOptions->intevalTime = conf->GetIntValue("mds.session.intevalTime");
 }
 
-void InitAuthOptions(common::Configuration *conf,
-                        struct RootAuthOption *authOptions) {
-    authOptions->rootOwner = conf->GetStringValue("auth.rootOwner");
-    authOptions->rootPassword = conf->GetStringValue("auth.rootPassword");
+void InitAuthOptions(Configuration *conf,
+                     struct RootAuthOption *authOptions) {
+    authOptions->rootOwner = conf->GetStringValue("mds.auth.rootOwner");
+    authOptions->rootPassword = conf->GetStringValue("mds.auth.rootPassword");
+}
+
+void InitScheduleOption(Configuration *conf,
+    ScheduleOption *scheduleOption) {
+    scheduleOption->enableCopysetScheduler =
+        conf->GetBoolValue("mds.enable.copyset.scheduler");
+    scheduleOption->enableLeaderScheduler =
+        conf->GetBoolValue("mds.enable.leader.scheduler");
+    scheduleOption->enableRecoverScheduler =
+        conf->GetBoolValue("mds.enable.recover.scheduler");
+    scheduleOption->enableReplicaScheduler =
+        conf->GetBoolValue("mds.replica.replica.scheduler");
+    scheduleOption->copysetSchedulerInterval =
+        conf->GetIntValue("mds.copyset.scheduler.interval");
+    scheduleOption->leaderSchedulerInterval =
+        conf->GetIntValue("mds.leader.scheduler.interval");
+    scheduleOption->recoverSchedulerInterval =
+        conf->GetIntValue("mds.recover.scheduler.interval");
+    scheduleOption->replicaSchedulerInterval =
+        conf->GetIntValue("mds.replica.scheduler.interval");
+
+    scheduleOption->operatorConcurrent =
+        conf->GetIntValue("mds.schduler.operator.concurrent");
+    scheduleOption->transferLeaderTimeLimitSec =
+        conf->GetIntValue("mds.schduler.transfer.limit");
+    scheduleOption->addPeerTimeLimitSec =
+        conf->GetIntValue("mds.scheduler.add.limit");
+    scheduleOption->removePeerTimeLimitSec =
+        conf->GetIntValue("mds.scheduler.remove.limit");
+}
+
+void InitHeartbeatOption(Configuration *conf,
+    HeartbeatOption *heartbeatOption) {
+    heartbeatOption->heartbeatIntervalMs =
+        conf->GetIntValue("mds.heartbeat.interval");
+    heartbeatOption->heartbeatMissTimeOutMs =
+        conf->GetIntValue("mds.heartbeat.misstimeout");
+    heartbeatOption->offLineTimeOutMs =
+        conf->GetIntValue("mds.heartbeat.offlinetimeout");
+}
+
+void InitEtcdConf(Configuration *conf, EtcdConf *etcdConf) {
+    std::string endpoint = conf->GetStringValue("mds.etcd.endpoint");
+    etcdConf->Endpoints = new char[endpoint.size()];
+    std::memcpy(etcdConf->Endpoints, endpoint.c_str(), endpoint.size());
+    etcdConf->len = endpoint.size();
+    etcdConf->DialTimeout = conf->GetIntValue("mds.etcd.dailtimeout");
 }
 
 int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
-    // 加载配置
+    //=========================加载配置===============================//
     LOG(INFO) << "load mds configuration.";
 
     std::string confPath = FLAGS_confPath.c_str();
-    common::Configuration conf;
+    Configuration conf;
     conf.SetConfigPath(confPath);
     if (!conf.LoadConfig()) {
         LOG(ERROR) << "load mds configuration fail, conf path = "
@@ -90,87 +125,109 @@ int curve_main(int argc, char **argv) {
         return -1;
     }
 
-    struct SessionOptions sessionOptions;
+    //========================初始化个配置项==========================//
+    SessionOptions sessionOptions;
     InitSessionOptions(&conf, &sessionOptions);
 
-    struct RootAuthOption authOptions;
+    RootAuthOption authOptions;
     InitAuthOptions(&conf, &authOptions);
 
-    // init nameserver
-    NameServerStorage *storage_;
-    InodeIDGenerator *inodeGenerator_;
-    ChunkSegmentAllocator *chunkSegmentAllocate_;
-    SessionManager *sessionManager_;
+    ScheduleOption scheduleOption;
+    InitScheduleOption(&conf, &scheduleOption);
 
-    storage_ = new FakeNameServerStorage();
-    inodeGenerator_ = new FakeInodeIDGenerator(0);
+    HeartbeatOption heartbeatOption;
+    InitHeartbeatOption(&conf, &heartbeatOption);
 
-    /*
-    std::shared_ptr<EtcdClientImp> sclient =
-        std::make_shared<EtcdClientImp>();
+    EtcdConf etcdConf;
+    InitEtcdConf(&conf, &etcdConf);
 
-    char *endpt = "127.0.0.1:2379";
-    sclient->Init(EtcdConf{endpt, 14, 5000}, 5000, 3);
-    //判断返回值
-    storage_ = new NameServerStorageImp(sclient);
-    inodeGenerator_ = new InodeIdGeneratorImp(sclient);
-    inodeGenerator_->Init();
-    //判断返回值
-    */
-    // TODO(lixiaocui): 初始化并启用etcd
+    // ===========================init curveFs========================//
+    // init EtcdClient
+    auto client = std::make_shared<EtcdClientImp>();
+    auto res = client->Init(
+                etcdConf,
+                conf.GetIntValue("mds.etcd.operation.timeout"),
+                conf.GetIntValue("mds.etcd.retry.times"));
+    if (res != EtcdErrCode::OK) {
+        LOG(ERROR) << "init etcd client err! "
+                  << "etcdaddr: " << etcdConf.Endpoints
+                  << ", etcdaddr len: " << etcdConf.len
+                  << ", etcdtimeout: " << etcdConf.DialTimeout
+                  << ", operation timeout: "
+                  << conf.GetIntValue("mds.etcd.operation.timeout")
+                  << ", etcd retrytimes: "
+                  << conf.GetIntValue("mds.etcd.retry.times");
+        return -1;
+    } else {
+        LOG(INFO) << "init etcd client ok! "
+                  << "etcdaddr: " << etcdConf.Endpoints
+                  << ", etcdaddr len: " << etcdConf.len
+                  << ", etcdtimeout: " << etcdConf.DialTimeout
+                  << ", operation timeout: "
+                  << conf.GetIntValue("mds.etcd.operation.timeout")
+                  << ", etcd retrytimes: "
+                  << conf.GetIntValue("mds.etcd.retry.times");
+    }
 
-    std::shared_ptr<TopologyAdmin> topologyAdmin =
-        TopologyManager::GetInstance()->GetTopologyAdmin();
+    // init InodeIDGenerator
+    auto inodeIdGenerator = std::make_shared<InodeIdGeneratorImp>(client);
 
-    std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
-        std::make_shared<FackChunkIDGenerator>();
-    // TODO(lixiaocui): 处理掉fake
-    chunkSegmentAllocate_ =
+    // init ChunkIDGenerator
+    auto chunkIdGenerator = std::make_shared<ChunkIDGeneratorImp>(client);
+
+    // init LRUCache
+    auto cache =
+        std::make_shared<LRUCache>(conf.GetIntValue("mds.cache.count"));
+
+    // init NameServerStorage
+    NameServerStorage *storage = new NameServerStorageImp(client, cache);
+
+    // init TopoAdmin
+    auto topologyAdmin = TopologyManager::GetInstance()->GetTopologyAdmin();
+
+    // init ChunkSegmentAllocator
+    ChunkSegmentAllocator *chunkSegmentAllocate =
         new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
 
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
+    // init CleanManager
     auto taskManager = std::make_shared<CleanTaskManager>();
-    auto cleanCore = std::make_shared<CleanCore>(storage_);
+    auto cleanCore = std::make_shared<CleanCore>(storage);
 
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
-                                                      taskManager, storage_);
+                                                      taskManager, storage);
 
-    sessionManager_ = new SessionManager(std::make_shared<MdsRepo>());
+    // init SessionManager
+    SessionManager *sessionManager =
+        new SessionManager(std::make_shared<MdsRepo>());
 
-    if (!kCurveFS.Init(storage_, inodeGenerator_,
-                  chunkSegmentAllocate_, cleanManger,
-                  sessionManager_, sessionOptions, authOptions)) {
+    if (!kCurveFS.Init(storage, inodeIdGenerator.get(),
+                  chunkSegmentAllocate, cleanManger,
+                  sessionManager, sessionOptions, authOptions)) {
         return -1;
     }
 
+    // start clean manager
     if (!cleanManger->Start()) {
         LOG(ERROR) << "start cleanManager fail.";
         return -1;
     }
 
-    // init scheduler
+    // =========================init scheduler======================//
     auto topology = TopologyManager::GetInstance()->GetTopology();
     auto topoAdapter = std::make_shared<TopoAdapterImpl>(
         topology, TopologyManager::GetInstance()->GetServiceManager());
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
-    ScheduleConfig scheduleConfig(
-        FLAGS_enableCopySetScheduler, FLAGS_enableLeaderScheduler,
-        FLAGS_enableRecoverScheduler, FLAGS_enableReplicaScheduler,
-        FLAGS_copySetInterval, FLAGS_leaderInterval, FLAGS_recoverInterval,
-        FLAGS_replicaInterval, FLAGS_opConcurrent, FLAGS_transferLimit,
-        FLAGS_RemoveLimit, FLAGS_AddLimit);
-    coordinator->InitScheduler(scheduleConfig);
+    coordinator->InitScheduler(scheduleOption);
     coordinator->Run();
 
-    // init heartbeat manager
-    HeartbeatOption heartbeatOption(FLAGS_heartbeatInterval,
-                                    FLAGS_heartbeatMissTimeout,
-                                    FLAGS_offlineTimeout);
+    // =======================init heartbeat manager================//
     auto heartbeatManager = std::make_shared<HeartbeatManager>(
         heartbeatOption, topology, coordinator);
     heartbeatManager->Init();
     heartbeatManager->Run();
 
+    // =========================add service========================//
     // add heartbeat service
     brpc::Server server;
     HeartbeatServiceImpl heartbeatService(heartbeatManager);
@@ -182,7 +239,7 @@ int curve_main(int argc, char **argv) {
 
     // add rpc service
     NameSpaceService namespaceService(new FileLockManager(
-                                    conf.GetIntValue("filelock.bucketNum")));
+        conf.GetIntValue("mds.filelock.bucketNum")));
     if (server.AddService(&namespaceService,
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "add namespaceService error";
@@ -200,7 +257,8 @@ int curve_main(int argc, char **argv) {
     // start rpc server
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    if (server.Start(FLAGS_listenAddr.c_str(), &option) != 0) {
+    if (server.Start(
+        conf.GetStringValue("mds.listen.addr").c_str(), &option) != 0) {
         LOG(ERROR) << "start brpc server error";
         return -1;
     }

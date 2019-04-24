@@ -10,7 +10,7 @@
 #include "test/mds/schedule/mock_topoAdapter.h"
 #include "test/mds/schedule/common.h"
 
-using ::curve::mds::schedule::ScheduleConfig;
+using ::curve::mds::schedule::ScheduleOption;
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
@@ -22,9 +22,20 @@ namespace schedule {
 TEST(CoordinatorTest, test_copySet_heartbeat) {
     auto topoAdapter = std::make_shared<MockTopoAdapter>();
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
-    ScheduleConfig
-        scheduleConfig(true, true, true, true, 10, 10, 10, 10, 2, 1, 1, 1);
-    coordinator->InitScheduler(scheduleConfig);
+    ScheduleOption scheduleOption;
+    scheduleOption.enableCopysetScheduler = true;
+    scheduleOption.enableLeaderScheduler = true;
+    scheduleOption.enableRecoverScheduler = true;
+    scheduleOption.enableReplicaScheduler = true;
+    scheduleOption.copysetSchedulerInterval = 10;
+    scheduleOption.leaderSchedulerInterval = 10;
+    scheduleOption.recoverSchedulerInterval = 10;
+    scheduleOption.replicaSchedulerInterval = 10;
+    scheduleOption.operatorConcurrent = 2;
+    scheduleOption.transferLeaderTimeLimitSec = 1;
+    scheduleOption.addPeerTimeLimitSec = 1;
+    scheduleOption.removePeerTimeLimitSec = 1;
+    coordinator->InitScheduler(scheduleOption);
 
     ::curve::mds::topology::CopySetInfo testCopySetInfo(1, 1);
     testCopySetInfo.SetEpoch(1);
