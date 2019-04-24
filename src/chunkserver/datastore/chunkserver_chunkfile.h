@@ -172,10 +172,10 @@ class CSChunkFile {
     /**
      * 删除chunk文件的快照
      * 正常不存在并发，与其他操作互斥，加写锁
-     * @param fileSn:表示该快照转储过程中用户文件的版本号
+     * @param snapshotSn:表示发出请求时快照文件的版本号
      * @return: 返回错误码
      */
-    CSErrorCode DeleteSnapshot(SequenceNum fileSn);
+    CSErrorCode DeleteSnapshot(SequenceNum snapshotSn);
     /**
      * 调用fsync将snapshot文件在pagecache中的数据刷盘
      */
