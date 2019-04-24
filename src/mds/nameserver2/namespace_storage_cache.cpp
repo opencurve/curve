@@ -58,9 +58,10 @@ void LRUCache::RemoveLocked(const std::string &key) {
 }
 
 void LRUCache::MoveToFront(const std::list<Item>::iterator &elem) {
+    Item duplica{elem->key, elem->value};
     ll_.erase(elem);
-    ll_.push_front(*elem);
-    cache_[elem->key] = ll_.begin();
+    ll_.push_front(duplica);
+    cache_[duplica.key] = ll_.begin();
 }
 
 void LRUCache::RemoveOldest() {
@@ -70,9 +71,9 @@ void LRUCache::RemoveOldest() {
 }
 
 void LRUCache::RemoveElement(const std::list<Item>::iterator &elem) {
-    ll_.erase(elem);
     auto iter = cache_.find(elem->key);
     cache_.erase(iter);
+    ll_.erase(elem);
 }
 
 }  // namespace mds

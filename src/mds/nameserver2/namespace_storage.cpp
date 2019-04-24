@@ -56,7 +56,7 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
     std::string storeKey;
     if (GetStoreKey(FileType::INODE_PAGEFILE, parentid, filename, &storeKey)
         != StoreStatus::OK) {
-        LOG(ERROR) << "get store key failed,filename = " << filename;
+        LOG(ERROR) << "get store key failed, filename = " << filename;
         return StoreStatus::InternalError;
     }
 
@@ -71,7 +71,8 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
         if (decodeOK) {
             return StoreStatus::OK;
         } else {
-            LOG(ERROR) << "decode info of key[" << storeKey << "] err";
+            LOG(ERROR) << "decode info of key[" << storeKey << "] err"
+                       << ", fileinfo: " << fileInfo->DebugString();
             return StoreStatus::InternalError;
         }
     } else {

@@ -23,47 +23,47 @@ Coordinator::~Coordinator() {
     Stop();
 }
 
-void Coordinator::InitScheduler(const ScheduleConfig &conf) {
+void Coordinator::InitScheduler(const ScheduleOption &conf) {
     opController_ =
-        std::make_shared<OperatorController>(conf.OperatorConcurrent);
+        std::make_shared<OperatorController>(conf.operatorConcurrent);
 
-    if (conf.EnableLeaderScheduler) {
+    if (conf.enableLeaderScheduler) {
         schedulerController_[SchedulerType::LeaderSchedulerType] =
             std::make_shared<LeaderScheduler>(opController_,
-                                              conf.LeaderSchedulerInterval,
-                                              conf.TransferLeaderTimeLimitSec,
-                                              conf.RemovePeerTimeLimitSec,
-                                              conf.AddPeerTimeLimitSec);
+                                              conf.leaderSchedulerInterval,
+                                              conf.transferLeaderTimeLimitSec,
+                                              conf.removePeerTimeLimitSec,
+                                              conf.addPeerTimeLimitSec);
         LOG(INFO) << "run leader scheduler ok!";
     }
 
-    if (conf.EnableCopysetScheduler) {
+    if (conf.enableCopysetScheduler) {
         schedulerController_[SchedulerType::CopySetSchedulerType] =
             std::make_shared<CopySetScheduler>(opController_,
-                                               conf.CopysetSchedulerInterval,
-                                               conf.TransferLeaderTimeLimitSec,
-                                               conf.RemovePeerTimeLimitSec,
-                                               conf.AddPeerTimeLimitSec);
+                                               conf.copysetSchedulerInterval,
+                                               conf.transferLeaderTimeLimitSec,
+                                               conf.removePeerTimeLimitSec,
+                                               conf.addPeerTimeLimitSec);
         LOG(INFO) << "run copySet scheduler ok!";
     }
 
-    if (conf.EnableRecoverScheduler) {
+    if (conf.enableRecoverScheduler) {
         schedulerController_[SchedulerType::RecoverSchedulerType] =
             std::make_shared<RecoverScheduler>(opController_,
-                                               conf.RecoverSchedulerInterval,
-                                               conf.TransferLeaderTimeLimitSec,
-                                               conf.RemovePeerTimeLimitSec,
-                                               conf.AddPeerTimeLimitSec);
+                                               conf.recoverSchedulerInterval,
+                                               conf.transferLeaderTimeLimitSec,
+                                               conf.removePeerTimeLimitSec,
+                                               conf.addPeerTimeLimitSec);
         LOG(INFO) << "run recover scheduler ok!";
     }
 
-    if (conf.EnableReplicaScheduler) {
+    if (conf.enableReplicaScheduler) {
         schedulerController_[SchedulerType::ReplicaSchedulerType] =
             std::make_shared<ReplicaScheduler>(opController_,
-                                               conf.ReplicaSchedulerInterval,
-                                               conf.TransferLeaderTimeLimitSec,
-                                               conf.RemovePeerTimeLimitSec,
-                                               conf.AddPeerTimeLimitSec);
+                                               conf.replicaSchedulerInterval,
+                                               conf.transferLeaderTimeLimitSec,
+                                               conf.removePeerTimeLimitSec,
+                                               conf.addPeerTimeLimitSec);
         LOG(INFO) << "run replica scheduler ok!";
     }
 }

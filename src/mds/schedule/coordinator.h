@@ -26,49 +26,24 @@ namespace curve {
 namespace mds {
 namespace schedule {
 // TODO(chaojie-schedule): needTopoTocontain
-struct ScheduleConfig {
+struct ScheduleOption {
  public:
-    ScheduleConfig(bool enableCopySet,
-                    bool enableLeader,
-                    bool enableRecover,
-                    bool enableReplica,
-                    int64_t copySetInerval,
-                    int64_t leaderInterval,
-                    int64_t recoverInterval,
-                    int64_t replicaInterval,
-                    int opConcurrent,
-                    int tranferLimit,
-                    int removeLimit,
-                    int addLimit) {
-        this->EnableCopysetScheduler = enableCopySet;
-        this->EnableLeaderScheduler = enableLeader;
-        this->EnableRecoverScheduler = enableRecover;
-        this->EnableReplicaScheduler = enableReplica;
-        this->CopysetSchedulerInterval = copySetInerval;
-        this->ReplicaSchedulerInterval = replicaInterval;
-        this->LeaderSchedulerInterval = leaderInterval;
-        this->RecoverSchedulerInterval = recoverInterval;
-        this->OperatorConcurrent = opConcurrent;
-        this->TransferLeaderTimeLimitSec = tranferLimit;
-        this->RemovePeerTimeLimitSec = removeLimit;
-        this->AddPeerTimeLimitSec = addLimit;
-    }
-    bool EnableCopysetScheduler;
-    bool EnableLeaderScheduler;
-    bool EnableRecoverScheduler;
-    bool EnableReplicaScheduler;
+    bool enableCopysetScheduler;
+    bool enableLeaderScheduler;
+    bool enableRecoverScheduler;
+    bool enableReplicaScheduler;
 
     // scheduler calculate interval
-    int64_t CopysetSchedulerInterval;
-    int64_t LeaderSchedulerInterval;
-    int64_t RecoverSchedulerInterval;
-    int64_t ReplicaSchedulerInterval;
+    int64_t copysetSchedulerInterval;
+    int64_t leaderSchedulerInterval;
+    int64_t recoverSchedulerInterval;
+    int64_t replicaSchedulerInterval;
 
     // para
-    int OperatorConcurrent;
-    int TransferLeaderTimeLimitSec;
-    int AddPeerTimeLimitSec;
-    int RemovePeerTimeLimitSec;
+    int operatorConcurrent;
+    int transferLeaderTimeLimitSec;
+    int addPeerTimeLimitSec;
+    int removePeerTimeLimitSec;
 };
 
 class Coordinator {
@@ -94,7 +69,7 @@ class Coordinator {
      *
      * @param[in] conf, scheduler配置信息
      */
-    void InitScheduler(const ScheduleConfig &conf);
+    void InitScheduler(const ScheduleOption &conf);
 
     /**
      * @brief 根据scheduler的配置在后台运行各种scheduler
