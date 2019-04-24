@@ -36,16 +36,20 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
         LogicalPoolID logicalPoolID = segment.logicalpoolid();
         uint32_t chunkNum = segment.chunks_size();
         for (uint32_t j = 0; j != chunkNum; j++) {
-            SeqNum seq = fileInfo.seqnum();
-            int ret = copysetClient_->DeleteSnapShotChunk(logicalPoolID,
+            // 删除快照时如果chunk不存在快照，则需要修改chunk的correctedSn
+            // 防止删除快照后，后续的写触发chunk的快照
+            // correctSn为创建快照后文件的版本号，也就是快照版本号+1
+            SeqNum correctSn = fileInfo.seqnum() + 1;
+            int ret = copysetClient_->DeleteChunkSnapshotOrCorrectSn(
+                logicalPoolID,
                 segment.chunks()[j].copysetid(),
                 segment.chunks()[j].chunkid(),
-                seq);
+                correctSn);
             if (ret != 0) {
                 LOG(ERROR) << "CleanSnapShotFile Error: "
-                    << "DeleteChunk Error,  filename = "
+                    << "DeleteChunkSnapshotOrCorrectSn Error,  filename = "
                     << fileInfo.fullpathname()
-                    << ", sequenceNum = " << seq;
+                    << ", correctSn = " << correctSn;
                 progress->SetStatus(TaskStatus::FAILED);
                 return StatusCode::kSnapshotFileDeleteError;
             }

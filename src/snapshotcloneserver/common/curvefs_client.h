@@ -125,15 +125,16 @@ class CurveFsClient {
                         uint64_t len,
                         void *buf) = 0;
     /**
-     * @brief 删除snapshot chunk
+     * @brief 删除此次转储时产生的或者历史遗留的快照
+     *        如果转储过程中没有产生快照，则修改chunk的correctedSn
      *
      * @param cidinfo chunk ID信息
-     * @param seq 版本号
+     * @param correctedSeq chunk快照不存在时需要修正的版本号
      *
      * @return 错误码
      */
-    virtual int DeleteChunkSnapshot(ChunkIDInfo cidinfo,
-        uint64_t seq) = 0;
+    virtual int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
+        uint64_t correctedSeq) = 0;
 
     /**
      * 获取快照状态
@@ -326,7 +327,7 @@ class CurveFsClientImpl : public CurveFsClient {
                         uint64_t len,
                         void *buf) override;
 
-    int DeleteChunkSnapshot(ChunkIDInfo cidinfo,
+    int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
         uint64_t seq) override;
 
     int CheckSnapShotStatus(std::string filename,

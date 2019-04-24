@@ -48,10 +48,10 @@ class ChunkServiceImpl : public ChunkService {
                            ChunkResponse *response,
                            Closure *done);
 
-    void DeleteChunkSnapshot(RpcController *controller,
-                             const ChunkRequest *request,
-                             ChunkResponse *response,
-                             Closure *done);
+    void DeleteChunkSnapshotOrCorrectSn(RpcController *controller,
+                                        const ChunkRequest *request,
+                                        ChunkResponse *response,
+                                        Closure *done);
 
     void CreateCloneChunk(RpcController *controller,
                           const ChunkRequest *request,

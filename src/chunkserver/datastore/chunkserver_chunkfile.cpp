@@ -490,18 +490,20 @@ CSErrorCode CSChunkFile::Delete()  {
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum snapshotSn)  {
+CSErrorCode CSChunkFile::DeleteSnapshotOrCorrectSn(SequenceNum correctedSn)  {
     WriteLockGuard writeGuard(rwLock_);
 
-    // MDS发出删除快照操作时，文件的版本号为snapshotSn+1
-    SequenceNum fileSn = snapshotSn + 1;
-    // delete snapshot if exists
-    // 快照文件存在时，判断fileSn与当前sn_的大小
-    // 正常情况下fileSn等于sn_,表示当前chunk的快照是此次转储过程中产生的
-    // 特殊情况下如果fileSn大于sn_,说明快照是历史快照产生的没有删除掉
-    // 但如果fileSn小于sn_，一般发生在日志恢复的时候，且恢复之前又一个版本号更加新
-    // 的写请求，那么快照文件应当是在删除操作后产生的，此时不能删除快照文件
-    if (snapshot_ != nullptr && fileSn >= metaPage_.sn) {
+    /*
+     * 如果快照存在时需要根据correctedSn与当前sn_的大小判断是否可以删除快照
+     * 1.正常情况下correctedSn等于sn_,表示当前chunk的快照是此次转储过程中产生的
+     *   此时需要删除快照文件
+     * 2.特殊情况下如果correctedSn大于sn_,说明快照是历史快照产生的没有删除掉
+     *   此时也可以删除快照文件
+     * 3.如果correctedSn小于sn_，一般发生在日志恢复的时候，
+     *   且恢复之前有一个版本号更加新的写请求，那么快照文件应当是在删除操作后产生的
+     *   此时不能删除快照文件
+     */
+    if (snapshot_ != nullptr && correctedSn >= metaPage_.sn) {
         CSErrorCode errorCode = snapshot_->Delete();
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Delete snapshot failed."
@@ -513,13 +515,20 @@ CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum snapshotSn)  {
         snapshot_ = nullptr;
     }
 
-    // 当快照系统调用DeleteSnapshotChunk以后，就不需要再cow了
-    // 所以设置correctSn_为fileSn,写入时判断请求的sn小于等于correctSn_
-    // 就不需要再创建快照做cow
+    /*
+     * 写数据时，会比较metapage中的sn和correctedSn的最大值
+     * 如果写请求的版本大于这个最大值就会产生快照
+     * 如果调用了DeleteSnapshotChunkOrCorrectSn，在没有新快照的情况下，就不需要再cow了
+     * 1.所以当发现参数中的correctedSn大于最大值，需要更新metapage中的correctedSn
+     *   这样下次如果有数据写入就不会产生快照
+     * 2.如果等于最大值，要么就是此次快照转储过程中chunk被写过，要么就是重复调用了此接口
+     *   此时不需要更改metapage
+     * 3.如果小于最大值，正常情况只有raft日志恢复时才会出现
+     */
     SequenceNum chunkSn = std::max(metaPage_.correctedSn, metaPage_.sn);
-    if (fileSn > chunkSn) {
+    if (correctedSn > chunkSn) {
         ChunkFileMetaPage tempMeta = metaPage_;
-        tempMeta.correctedSn = fileSn;
+        tempMeta.correctedSn = correctedSn;
         CSErrorCode errorCode = updateMetaPage(&tempMeta);
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Update metapage failed."

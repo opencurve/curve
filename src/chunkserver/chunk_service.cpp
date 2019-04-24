@@ -228,11 +228,19 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
     req->Process();
 }
 
-void ChunkServiceImpl::DeleteChunkSnapshot(RpcController *controller,
-                                           const ChunkRequest *request,
-                                           ChunkResponse *response,
-                                           Closure *done) {
+void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
+    RpcController *controller,
+    const ChunkRequest *request,
+    ChunkResponse *response,
+    Closure *done) {
     brpc::ClosureGuard doneGuard(done);
+
+    if (false == request->has_correctedsn()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
+        LOG(ERROR) << "delete chunk snapshot failed, no corrected sn:"
+                   << request->logicpoolid() << "," << request->copysetid();
+        return;
+    }
 
     // 判断copyset是否存在
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),

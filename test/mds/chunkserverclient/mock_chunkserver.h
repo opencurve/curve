@@ -19,7 +19,7 @@ using ::google::protobuf::Closure;
 
 class MockChunkService : public ChunkService {
  public:
-    MOCK_METHOD4(DeleteChunkSnapshot,
+    MOCK_METHOD4(DeleteChunkSnapshotOrCorrectSn,
         void(RpcController *controller,
         const ChunkRequest *request,
         ChunkResponse *response,

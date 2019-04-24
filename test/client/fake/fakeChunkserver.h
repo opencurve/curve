@@ -62,7 +62,8 @@ class FakeChunkService : public ChunkService {
         }
     }
 
-    void DeleteChunkSnapshot(::google::protobuf::RpcController* controller,
+    void DeleteChunkSnapshotOrCorrectSn(
+                    ::google::protobuf::RpcController* controller,
                     const ::curve::chunkserver::ChunkRequest* request,
                     ::curve::chunkserver::ChunkResponse* response,
                     ::google::protobuf::Closure* done) {

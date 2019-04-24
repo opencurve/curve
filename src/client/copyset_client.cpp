@@ -201,10 +201,10 @@ int CopysetClient::ReadChunkSnapshot(ChunkIDInfo idinfo,
     return 0;
 }
 
-int CopysetClient::DeleteChunkSnapshot(ChunkIDInfo idinfo,
-                                       uint64_t sn,
-                                       Closure *done,
-                                       uint16_t retriedTimes) {
+int CopysetClient::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
+                                                  uint64_t correctedSn,
+                                                  Closure *done,
+                                                  uint16_t retriedTimes) {
     brpc::ClosureGuard doneGuard(done);
 
     std::shared_ptr<RequestSender> senderPtr = nullptr;
@@ -239,7 +239,9 @@ int CopysetClient::DeleteChunkSnapshot(ChunkIDInfo idinfo,
             DeleteChunkSnapClosure *deleteDone =
                 new DeleteChunkSnapClosure(this, doneGuard.release());
             deleteDone->SetRetriedTimes(i);
-            senderPtr->DeleteChunkSnapshot(idinfo, sn, deleteDone);
+            senderPtr->DeleteChunkSnapshotOrCorrectSn(idinfo,
+                                                      correctedSn,
+                                                      deleteDone);
             /**
              * 成功发起 delete，break出去，
              * 重试逻辑进入 DeleteChunkSnapClosure 回调

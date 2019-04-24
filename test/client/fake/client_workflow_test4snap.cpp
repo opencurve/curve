@@ -126,7 +126,7 @@ int main(int argc, char ** argv) {
         }
     }
 
-    cl.DeleteChunkSnapshot(ChunkIDInfo(1, 10000, 1), 2);
+    cl.DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo(1, 10000, 1), 2);
 
     ChunkInfoDetail *chunkInfo = new ChunkInfoDetail;
     cl.GetChunkInfo(ChunkIDInfo(1, 10000, 1), chunkInfo);

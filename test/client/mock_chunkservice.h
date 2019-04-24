@@ -72,7 +72,8 @@ class FakeChunkServiceImpl : public ChunkService {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     }
 
-    void DeleteChunkSnapshot(::google::protobuf::RpcController *controller,
+    void DeleteChunkSnapshotOrCorrectSn(
+                             ::google::protobuf::RpcController *controller,
                              const ::curve::chunkserver::ChunkRequest *request,
                              ::curve::chunkserver::ChunkResponse *response,
                              google::protobuf::Closure *done) {
@@ -138,7 +139,8 @@ class MockChunkServiceImpl : public ChunkService {
         const ::curve::chunkserver::ChunkRequest *request,
         ::curve::chunkserver::ChunkResponse *response,
         google::protobuf::Closure *done));
-    MOCK_METHOD4(DeleteChunkSnapshot, void(::google::protobuf::RpcController
+    MOCK_METHOD4(DeleteChunkSnapshotOrCorrectSn, void(
+        ::google::protobuf::RpcController
         *controller,
         const ::curve::chunkserver::ChunkRequest *request,
         ::curve::chunkserver::ChunkResponse *response,
