@@ -490,9 +490,11 @@ CSErrorCode CSChunkFile::Delete()  {
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum fileSn)  {
+CSErrorCode CSChunkFile::DeleteSnapshot(SequenceNum snapshotSn)  {
     WriteLockGuard writeGuard(rwLock_);
 
+    // MDS发出删除快照操作时，文件的版本号为snapshotSn+1
+    SequenceNum fileSn = snapshotSn + 1;
     // delete snapshot if exists
     // 快照文件存在时，判断fileSn与当前sn_的大小
     // 正常情况下fileSn等于sn_,表示当前chunk的快照是此次转储过程中产生的

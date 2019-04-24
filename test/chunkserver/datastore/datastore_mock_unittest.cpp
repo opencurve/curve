@@ -2380,10 +2380,10 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest1) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 3;
-    SequenceNum sn = 3;
+    SequenceNum snapSn = 2;
     // test chunk not exists
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteSnapshotChunk(id, sn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -2419,9 +2419,9 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest2) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 1;
-    // fileSn > sn
-    // fileSn == correctedSn
-    SequenceNum fileSn = 3;
+    // snapSn + 1 > sn
+    // snapSn + 1 == correctedSn
+    SequenceNum snapSn = 2;
     // snapshot will be closed
     EXPECT_CALL(*lfs_, Close(2))
         .Times(1);
@@ -2432,7 +2432,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest2) {
     EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -2460,9 +2460,9 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest3) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 1;
-    // fileSn < sn
-    // fileSn > correctedSn
-    SequenceNum fileSn = 2;
+    // snapSn + 1 < sn
+    // snapSn + 1 > correctedSn
+    SequenceNum snapSn = 1;
     // snapshot should not be closed
     EXPECT_CALL(*lfs_, Close(2))
         .Times(0);
@@ -2470,13 +2470,13 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest3) {
     EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     // 下则用例用于补充DeleteSnapshotChunkTest2用例中
-    // 当 fileSn == sn 时的边界情况
-    // fileSn == sn
-    // fileSn > correctedSn
-    fileSn = 3;
+    // 当 snapSn + 1 == sn 时的边界情况
+    // snapSn + 1 == sn
+    // snapSn + 1 > correctedSn
+    snapSn = 2;
     // snapshot will be closed
     EXPECT_CALL(*lfs_, Close(2))
         .Times(1);
@@ -2487,7 +2487,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest3) {
     EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -2498,7 +2498,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest3) {
 /**
  * DeleteSnapshotChunkTest
  * case:chunk存在,snapshot存在
- *      fileSn > chunk的sn以及correctedSn
+ *      snapSn+1 > chunk的sn以及correctedSn
  * 预期结果:删除快照，并修改correctedSn,返回成功
  */
 TEST_F(CSDataStore_test, DeleteSnapshotChunkTest4) {
@@ -2507,9 +2507,9 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest4) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 1;
-    // fileSn > sn
-    // fileSn > correctedSn
-    SequenceNum fileSn = 3;
+    // snapSn+1 > sn
+    // snapSn+1 > correctedSn
+    SequenceNum snapSn = 2;
     // snapshot will be closed
     EXPECT_CALL(*lfs_, Close(2))
         .Times(1);
@@ -2520,7 +2520,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest4) {
     EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -2531,7 +2531,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest4) {
 /**
  * DeleteSnapshotChunkTest
  * case:chunk存在,snapshot不存在
- *      fileSn <= chunk的sn或correctedSn
+ *      snapSn+1 <= chunk的sn或correctedSn
  * 预期结果:不会修改correctedSn,返回成功
  */
 TEST_F(CSDataStore_test, DeleteSnapshotChunkTest5) {
@@ -2540,14 +2540,14 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest5) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 2;
-    // fileSn == sn
-    // fileSn > correctedSn
-    SequenceNum fileSn = 2;
+    // snapSn+1 == sn
+    // snapSn+1 > correctedSn
+    SequenceNum snapSn = 1;
     // chunk's metapage should not be updated
     EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -2560,7 +2560,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest5) {
 /**
  * DeleteSnapshotChunkTest
  * case:chunk存在,snapshot不存在
- *      fileSn > chunk的sn及correctedSn
+ *      snapSn+1 > chunk的sn及correctedSn
  * 预期结果:修改correctedSn,返回成功
  */
 TEST_F(CSDataStore_test, DeleteSnapshotChunkTest6) {
@@ -2569,14 +2569,14 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkTest6) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 2;
-    // fileSn > sn
-    // fileSn > correctedSn
-    SequenceNum fileSn = 3;
+    // snapSn+1 > sn
+    // snapSn+1 > correctedSn
+    SequenceNum snapSn = 3;
     // chunk's metapage will be updated
     EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -2597,21 +2597,21 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkErrorTest1) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 2;
-    // fileSn > sn
-    // fileSn > correctedSn
-    SequenceNum fileSn = 3;
+    // snapSn+1 > sn
+    // snapSn+1 > correctedSn
+    SequenceNum snapSn = 2;
 
     // write chunk metapage failed
     EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
         .WillOnce(Return(-UT_ERRNO));
     EXPECT_EQ(CSErrorCode::InternalError,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     // chunk's metapage will be updated
     EXPECT_CALL(*lfs_, Write(3, NotNull(), 0, PAGE_SIZE))
         .Times(1);
     EXPECT_EQ(CSErrorCode::Success,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
@@ -2632,9 +2632,9 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkErrorTest2) {
     EXPECT_TRUE(dataStore->Initialize());
 
     ChunkID id = 1;
-    // fileSn > sn
-    // fileSn > correctedSn
-    SequenceNum fileSn = 3;
+    // snapSn+1 > sn
+    // snapSn+1 > correctedSn
+    SequenceNum snapSn = 2;
     // snapshot will be closed
     EXPECT_CALL(*lfs_, Close(2))
         .Times(1);
@@ -2645,7 +2645,7 @@ TEST_F(CSDataStore_test, DeleteSnapshotChunkErrorTest2) {
     EXPECT_CALL(*lfs_, Write(1, NotNull(), 0, PAGE_SIZE))
         .Times(0);
     EXPECT_EQ(CSErrorCode::InternalError,
-              dataStore->DeleteSnapshotChunk(id, fileSn));
+              dataStore->DeleteSnapshotChunk(id, snapSn));
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
