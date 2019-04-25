@@ -149,7 +149,7 @@ int Heartbeat::GetFileSystemSpaces(size_t* capacity, size_t* avail) {
     return 0;
 }
 
-int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopysetInfo* info,
+int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
                                 CopysetNodePtr copyset) {
     int ret;
     LogicPoolID poolId = copyset->GetLogicPoolId();
@@ -245,7 +245,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     int leaders = 0;
 
     for (CopysetNodePtr copyset : copysets) {
-        curve::mds::heartbeat::CopysetInfo* info = req->add_copysetinfos();
+        curve::mds::heartbeat::CopySetInfo* info = req->add_copysetinfos();
 
         ret = BuildCopysetInfo(info, copyset);
         if (ret != 0) {
@@ -270,7 +270,7 @@ void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
              << ", copyset count: " << request.copysetcount()
              << ", leader count: " << request.leadercount();
     for (int i = 0; i < request.copysetinfos_size(); i ++) {
-        const curve::mds::heartbeat::CopysetInfo& info =
+        const curve::mds::heartbeat::CopySetInfo& info =
             request.copysetinfos(i);
 
         std::string peersStr = "";

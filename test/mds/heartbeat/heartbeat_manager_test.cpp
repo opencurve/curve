@@ -89,7 +89,7 @@ TEST_F(TestHeartbeatManager, test_getChunkserverIdByPeerStr) {
 
     // 1. test invalid form
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(10);
@@ -148,7 +148,7 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
 
     // 3. has candidate and cannot get candidate
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(10);
@@ -178,7 +178,7 @@ TEST_F(TestHeartbeatManager, test_follower_reqEpoch_notSmallerThan_mdsRecord) {
     ChunkServerHeartbeatResponse response;
 
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(2);
@@ -223,7 +223,7 @@ TEST_F(TestHeartbeatManager,
     ChunkServerHeartbeatResponse response;
 
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
@@ -270,7 +270,7 @@ TEST_F(TestHeartbeatManager,
     ChunkServerHeartbeatResponse response;
 
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
@@ -320,7 +320,7 @@ TEST_F(TestHeartbeatManager,
     ChunkServerHeartbeatResponse response;
 
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
@@ -371,7 +371,7 @@ TEST_F(TestHeartbeatManager,
     ChunkServerHeartbeatResponse response;
 
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
@@ -434,7 +434,7 @@ TEST_F(TestHeartbeatManager,
     ChunkServerHeartbeatResponse response;
 
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
@@ -627,7 +627,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
         4, "hello", "", 1, "192.168.10.4", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
     request.clear_copysetinfos();
-    CopysetInfo info;
+    ::curve::mds::heartbeat::CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(10);

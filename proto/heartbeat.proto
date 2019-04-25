@@ -10,7 +10,7 @@ package curve.mds.heartbeat;
 
 option cc_generic_services = true;
 
-message CopysetInfo {
+message CopySetInfo {
     required uint32 logicalPoolId = 1;
     required uint32 copysetId = 2;
     // copyset replicas, IP:PORT:ID, e.g. 127.0.0.1:8200:0
@@ -68,7 +68,7 @@ message ChunkServerHeartbeatRequest {
     required uint32 port = 6;
     required uint64 diskUsed = 7;
     // 返回该chunk上所有copyset的信息
-    repeated CopysetInfo copysetInfos = 8;
+    repeated CopySetInfo copysetInfos = 8;
     // 时间窗口内该chunkserver上leader的个数
     required uint32 leaderCount = 9;
     // 时间窗口内该chunkserver上copyset的个数
