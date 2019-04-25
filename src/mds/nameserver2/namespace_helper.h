@@ -17,10 +17,15 @@ namespace curve {
 namespace mds {
 
 extern const char FILEINFOKEYPREFIX[];
+extern const char FILEINFOKEYEND[];
 extern const char SEGMENTINFOKEYPREFIX[];
+extern const char SEGMENTINFOKEYEND[];
 extern const char SNAPSHOTFILEINFOKEYPREFIX[];
+extern const char SNAPSHOTFILEINFOKEYEND[];
 extern const char INODESTOREKEY[];
+extern const char INODESTOREKEYEND[];
 extern const char CHUNKSTOREKEY[];
+extern const char CHUNKSTOREKEYEND[];
 extern const char RECYCLEFILEINFOKEYPREFIX[];
 extern const char RECYCLEFILEINFOKEYEND[];
 

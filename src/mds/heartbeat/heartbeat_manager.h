@@ -105,7 +105,7 @@ class HeartbeatManager {
      * @return 转化成功为true, 失败为false
      */
     bool FromHeartbeatCopySetInfoToTopologyOne(
-        const ::curve::mds::heartbeat::CopysetInfo &info,
+        const ::curve::mds::heartbeat::CopySetInfo &info,
         ::curve::mds::topology::CopySetInfo *out);
 
     /**
