@@ -243,8 +243,6 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(LIBCURVE_ERROR::OK,
             cl.GetSnapshotSegmentInfo(filename, UserInfo("test", ""),
                                      &lpcsIDInfo, 0, 0, &seginfo));
-    ASSERT_EQ(LIBCURVE_ERROR::OK,
-            cl.GetServerList(lpcsIDInfo.lpid, lpcsIDInfo.cpidVec));
 
     ASSERT_EQ(seginfo.segmentsize, 1*1024*1024*1024ul);
     ASSERT_EQ(seginfo.chunksize, 4 * 1024 * 1024);

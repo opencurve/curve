@@ -81,11 +81,18 @@ LIBCURVE_ERROR SnapshotClient::GetSnapshotSegmentInfo(
                                         SegmentInfo *segInfo) {
     LIBCURVE_ERROR ret = mdsclient_.GetSnapshotSegmentInfo(filename, userinfo,
                                         seq, offset, segInfo);
+
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(INFO) << "GetSnapshotSegmentInfo failed, ret = " << ret;
+        return ret;
+    }
+
     *lpcsIDInfo = segInfo->lpcpIDInfo;
     for (auto iter : segInfo->chunkvec) {
         iomanager4chunk_.GetMetaCache()->UpdateChunkInfoByID(iter.cid_, iter);
     }
-    return ret;
+
+    return GetServerList(lpcsIDInfo->lpid, lpcsIDInfo->cpidVec);
 }
 
 LIBCURVE_ERROR SnapshotClient::GetServerList(const LogicPoolID& lpid,
@@ -112,12 +119,8 @@ LIBCURVE_ERROR SnapshotClient::CreateCloneFile(const std::string &destination,
                                         uint64_t sn,
                                         uint32_t chunksize,
                                         FInfo* finfo) {
-    return mdsclient_.CreateCloneFile(destination,
-                                      userinfo,
-                                      size,
-                                      sn,
-                                      chunksize,
-                                      finfo);
+    return mdsclient_.CreateCloneFile(destination, userinfo, size,
+                                      sn, chunksize, finfo);
 }
 
 LIBCURVE_ERROR SnapshotClient::GetFileInfo(const std::string &filename,
@@ -133,6 +136,12 @@ LIBCURVE_ERROR SnapshotClient::GetOrAllocateSegmentInfo(bool allocate,
                                         SegmentInfo *segInfo) {
     LIBCURVE_ERROR ret = mdsclient_.GetOrAllocateSegment(allocate, userinfo,
                                         offset, fi, segInfo);
+
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(INFO) << "GetSnapshotSegmentInfo failed, ret = " << ret;
+        return ret;
+    }
+
     // update metacache
     int count = 0;
     for (auto iter : segInfo->chunkvec) {
@@ -141,7 +150,7 @@ LIBCURVE_ERROR SnapshotClient::GetOrAllocateSegmentInfo(bool allocate,
         iomanager4chunk_.GetMetaCache()->UpdateChunkInfoByIndex(index, iter);
         ++count;
     }
-    return ret;
+    return GetServerList(segInfo->lpcpIDInfo.lpid, segInfo->lpcpIDInfo.cpidVec);
 }
 
 LIBCURVE_ERROR SnapshotClient::RenameCloneFile(UserInfo_t userinfo,

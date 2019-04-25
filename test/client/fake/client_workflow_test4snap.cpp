@@ -112,12 +112,6 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
-    if (LIBCURVE_ERROR::FAILED == cl.GetServerList(lpcsIDInfo.lpid,
-                                                    lpcsIDInfo.cpidVec)) {
-        LOG(ERROR) << "GetSnapshotSegmentInfo failed!";
-        return -1;
-    }
-
     curve::client::FInfo_t sinfo;
     if (-1 == cl.GetSnapShot(filename, UserInfo("test", ""), seq, &sinfo)) {
         LOG(ERROR) << "ListSnapShot failed!";
