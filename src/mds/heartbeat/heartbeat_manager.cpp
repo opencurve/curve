@@ -83,7 +83,7 @@ void HeartbeatManager::ChunkServerHeartbeat(
     // 处理心跳中的copyset
     for (auto &value : request.copysetinfos()) {
         // heartbeat中copysetInfo格式转化为topology的格式
-        CopySetInfo reportCopySetInfo;
+        ::curve::mds::topology::CopySetInfo reportCopySetInfo;
         if (!FromHeartbeatCopySetInfoToTopologyOne(value,
                 &reportCopySetInfo)) {
             LOG(ERROR) << "heartbeatManager receive copySet(logicalPoolId: "
@@ -157,9 +157,9 @@ bool HeartbeatManager::CheckRequest(
 }
 
 bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
-    const CopysetInfo &info,
-    CopySetInfo *out) {
-    CopySetInfo topoCopysetInfo(
+    const ::curve::mds::heartbeat::CopySetInfo &info,
+    ::curve::mds::topology::CopySetInfo *out) {
+    ::curve::mds::topology::CopySetInfo topoCopysetInfo(
         static_cast<PoolIdType>(info.logicalpoolid()), info.copysetid());
     // 设置 epoch
     topoCopysetInfo.SetEpoch(info.epoch());
