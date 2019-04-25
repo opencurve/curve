@@ -72,10 +72,29 @@ TEST(CleanCore, testcleansnapshotfile) {
             StatusCode::kSnapshotFileDeleteError);
     }
     {
-        // get segment ok, DeleteSnapShotChunk Error
+        // 联调Bug修复：快照文件共享源文件的segment，所以在查询segment的时候需要使用
+        // ParentID 进行查找
+        uint64_t expectParentID = 101;
+        EXPECT_CALL(*storage, GetSegment(expectParentID, _, _))
+        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage, DeleteSnapshotFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        FileInfo cleanFile;
+        cleanFile.set_length(kMiniFileLength);
+        cleanFile.set_segmentsize(DefaultSegmentSize);
+        cleanFile.set_parentid(expectParentID);
+        TaskProgress progress;
+        ASSERT_EQ(cleanCore->CleanSnapShotFile(cleanFile, &progress),
+            StatusCode::kOK);
+
+        ASSERT_EQ(progress.GetStatus(), TaskStatus::SUCCESS);
+        ASSERT_EQ(progress.GetProgress(), 100);
     }
     {
-        // get segment ok, DeleteSnapShotChunk ok, DeleteSegment error
+        // get segment ok, DeleteSnapShotChunk Error
     }
     delete storage;
 }
