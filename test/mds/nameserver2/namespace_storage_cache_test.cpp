@@ -74,8 +74,6 @@ TEST(CaCheTest, test_cache_with_large_data_capacity_no_limit) {
     fileinfo.set_chunksize(DefaultChunkSize);
     fileinfo.set_length(10 << 20);
     fileinfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
-    std::string fullpathname = "/A/B/" + std::to_string(i) + "/" + filename;
-    fileinfo.set_fullpathname(fullpathname);
     fileinfo.set_seqnum(1);
     std::string encodeFileInfo;
     ASSERT_TRUE(fileinfo.SerializeToString(&encodeFileInfo));
@@ -90,7 +88,6 @@ TEST(CaCheTest, test_cache_with_large_data_capacity_no_limit) {
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfoout));
     NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfoout);
     ASSERT_EQ(filename, fileinfoout.filename());
-    ASSERT_EQ(fullpathname, fileinfoout.fullpathname());
 
     // 2. remove
     cache->Remove(encodeKey);

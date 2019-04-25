@@ -119,7 +119,9 @@ class CurveFS {
      */
     // TODO(hzsunjianliang): 添加源文件的inode的参数，用于检查
     StatusCode RenameFile(const std::string & oldFileName,
-                          const std::string & newFileName);
+                          const std::string & newFileName,
+                          uint64_t oldFileId,
+                          uint64_t newFileId);
 
     /**
      *  @brief 扩容文件
@@ -411,6 +413,13 @@ class CurveFS {
      *  @return: true表示文件有有效session，false表示文件无有效session
      */
     bool isFileHasValidSession(const std::string &fileName);
+
+    /**
+     *  @brief 判断文件是否能够删除或者rename
+     *  @param: fileName
+     *  @return: kOK文件可以被删除或者rename，否则返回错误码
+     */
+    StatusCode CheckFileCanDeleteOrRename(const std::string &fileName);
 
  private:
     FileInfo rootFileInfo_;

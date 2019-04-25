@@ -53,7 +53,6 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     // 1. put file
     std::map<int, std::string> keyMap;
     std::map<int, std::string> fileName;
-    std::map<int, std::string> fullPathname;
     std::string fileInfo9, fileKey10, fileInfo10, fileName10;
     std::string fileInfo6, snapshotKey6, snapshotInfo6, snapshotName6;
     for (int i = 0; i < 11; i++) {
@@ -66,8 +65,6 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         fileinfo.set_chunksize(DefaultChunkSize);
         fileinfo.set_length(10 << 20);
         fileinfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
-        std::string fullpathname = "/A/B/" + std::to_string(i) + "/" + filename;
-        fileinfo.set_fullpathname(fullpathname);
         fileinfo.set_seqnum(1);
         std::string encodeFileInfo;
         ASSERT_TRUE(fileinfo.SerializeToString(&encodeFileInfo));
@@ -78,7 +75,6 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
                 client_->Put(encodeKey, encodeFileInfo));
             keyMap[i] = encodeKey;
             fileName[i] = filename;
-            fullPathname[i] = fullpathname;
         }
 
         if (i == 6) {
@@ -88,9 +84,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
 
             fileinfo.set_seqnum(1);
             snapshotName6 = "helloword-" + std::to_string(i) + ".log.snap";
-            fullpathname = fullpathname + "/" + snapshotName6;
             fileinfo.set_filename(snapshotName6);
-            fileinfo.set_fullpathname(fullpathname);
             ASSERT_TRUE(fileinfo.SerializeToString(&snapshotInfo6));
             snapshotKey6 = NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(
                                                                 i << 8,
@@ -116,7 +110,6 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         FileInfo fileinfo;
         ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
         ASSERT_EQ(fileName[i], fileinfo.filename());
-        ASSERT_EQ(fullPathname[i], fileinfo.fullpathname());
     }
 
     // 3. list file
@@ -128,7 +121,6 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         FileInfo finfo;
         ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(listRes[i], &finfo));
         ASSERT_EQ(fileName[i], finfo.filename());
-        ASSERT_EQ(fullPathname[i], finfo.fullpathname());
     }
 
     // 4. delete file

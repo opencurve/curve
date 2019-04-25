@@ -43,6 +43,11 @@ class MockNameServerStorage : public NameServerStorage {
     MOCK_METHOD2(RenameFile, StoreStatus(const FileInfo &,
                                          const FileInfo &));
 
+    MOCK_METHOD4(ReplaceFileAndRecycleOldFile, StoreStatus(const FileInfo &,
+                                                        const FileInfo &,
+                                                        const FileInfo &,
+                                                        const FileInfo &));
+
     MOCK_METHOD3(ListFile, StoreStatus(InodeID,
                                        InodeID,
                                        std::vector<FileInfo> * files));
