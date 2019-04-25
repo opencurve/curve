@@ -692,8 +692,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
             return LIBCURVE_ERROR::AUTHFAIL;
         }
 
-        if (stcode == ::curve::mds::StatusCode::kOK ||
-            stcode == ::curve::mds::StatusCode::kSegmentNotAllocated) {
+        if (stcode == ::curve::mds::StatusCode::kOK) {
             LogicPoolID logicpoolid = 0;
             curve::mds::PageFileSegment pfs;
             if (response.has_pagefilesegment()) {
@@ -708,14 +707,14 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
                 if (pfs.has_segmentsize()) {
                     segInfo->segmentsize = pfs.segmentsize();
                 } else {
-                    LOG(ERROR) << "page file segment has no logicpool info";
+                    LOG(ERROR) << "page file segment has no segmentsize info";
                     break;
                 }
 
                 if (pfs.has_chunksize()) {
                     segInfo->chunksize = pfs.chunksize();
                 } else {
-                    LOG(ERROR) << "page file segment has no logicpool info";
+                    LOG(ERROR) << "page file segment has no chunksize info";
                     break;
                 }
 
@@ -768,6 +767,8 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
 
         if (stcode == ::curve::mds::StatusCode::kSnapshotFileNotExists) {
             return LIBCURVE_ERROR::NOTEXIST;
+        } else if (stcode == ::curve::mds::StatusCode::kSegmentNotAllocated) {
+            return LIBCURVE_ERROR::NOT_ALLOCATE;
         }
         return LIBCURVE_ERROR::FAILED;
     }
@@ -1156,9 +1157,13 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
             continue;
         } else {
             if (curve::mds::StatusCode::kOwnerAuthFail
-                            == response.statuscode()) {
+                                                    == response.statuscode()) {
                 LOG(ERROR) << "auth failed!";
                 return LIBCURVE_ERROR::AUTHFAIL;
+            } else if (::curve::mds::StatusCode::kSegmentNotAllocated
+                                                    == response.statuscode()) {
+                LOG(WARNING) << "segment not allocated!";
+                return LIBCURVE_ERROR::NOT_ALLOCATE;
             }
 
             uint64_t startoffset = 0;
