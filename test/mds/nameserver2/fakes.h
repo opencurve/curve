@@ -184,6 +184,51 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
+    StoreStatus ReplaceFileAndRecycleOldFile(const FileInfo &oldFInfo,
+                                    const FileInfo &newFInfo,
+                                    const FileInfo &conflictFInfo,
+                                    const FileInfo &recycleFInfo) override {
+        std::lock_guard<std::mutex> guard(lock_);
+
+        std::string oldStoreKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+                                                  oldFInfo.parentid(),
+                                                  oldFInfo.filename());
+        std::string newStoreKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+                                                  newFInfo.parentid(),
+                                                  newFInfo.filename());
+        std::string conflictStoreKey =
+                            NameSpaceStorageCodec::EncodeFileStoreKey(
+                                                  conflictFInfo.parentid(),
+                                                  conflictFInfo.filename());
+        std::string recyclestoreKey =
+                            NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
+                                                  recycleFInfo.parentid(),
+                                                  recycleFInfo.filename());
+
+        auto iter = memKvMap_.find(conflictStoreKey);
+        if (iter != memKvMap_.end()) {
+            memKvMap_.erase(iter);
+        }
+
+        std::string value = recycleFInfo.SerializeAsString();
+        memKvMap_.insert(
+            std::move(std::pair<std::string, std::string>
+            (recyclestoreKey, std::move(value))));
+
+        auto iter1 = memKvMap_.find(oldStoreKey);
+        if (iter1 == memKvMap_.end()) {
+            return StoreStatus::KeyNotExist;
+        }
+        memKvMap_.erase(iter1);
+
+        value = newFInfo.SerializeAsString();
+        memKvMap_.insert(
+            std::move(std::pair<std::string, std::string>
+            (newStoreKey, std::move(value))));
+
+        return StoreStatus::OK;
+    }
+
     StoreStatus ListFile(InodeID startid,
                          InodeID endid,
                          std::vector<FileInfo> * files) override {

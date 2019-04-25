@@ -46,8 +46,7 @@ class TestNameServerStorageImp : public ::testing::Test {
         fileinfo->set_chunksize(DefaultChunkSize);
         fileinfo->set_length(10<<20);
         fileinfo->set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
-        std::string fullpathname = "/A/B/" + std::to_string(1) + "/" + filename;
-        fileinfo->set_fullpathname(fullpathname);
+
         fileinfo->set_seqnum(1);
         std::string encodeFileInfo;
         ASSERT_TRUE(fileinfo->SerializeToString(&encodeFileInfo));
@@ -168,7 +167,6 @@ TEST_F(TestNameServerStorageImp, test_getfile) {
                                                  fileinfo.filename(),
                                                  &getInfo));
     ASSERT_EQ(fileinfo.filename(), getInfo.filename());
-    ASSERT_EQ(fileinfo.fullpathname(), getInfo.fullpathname());
     ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
 
     // 3. get file from cache ok
@@ -178,7 +176,6 @@ TEST_F(TestNameServerStorageImp, test_getfile) {
                                                  fileinfo.filename(),
                                                  &getInfo));
     ASSERT_EQ(fileinfo.filename(), getInfo.filename());
-    ASSERT_EQ(fileinfo.fullpathname(), getInfo.fullpathname());
     ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
 }
 
@@ -291,7 +288,6 @@ TEST_F(TestNameServerStorageImp, test_getrecyclefile) {
                                                  fileinfo.filename(),
                                                  &getInfo));
     ASSERT_EQ(fileinfo.filename(), getInfo.filename());
-    ASSERT_EQ(fileinfo.fullpathname(), getInfo.fullpathname());
     ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
 }
 

@@ -537,89 +537,369 @@ TEST_F(CurveFSTest, testReadDir) {
 
 
 TEST_F(CurveFSTest, testRenameFile) {
-    FileInfo fileInfo;
-
     // test rename ok
     {
-        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(3))
-        .WillOnce(Return(StoreStatus::OK))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+        .Times(AtLeast(4))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, RenameFile(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kOK);
+    }
+
+    // old file is under snapshot, can not rename
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapshotFileInfos;
+        snapshotFileInfos.push_back(fileInfo1);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
+                  StatusCode::kFileUnderSnapShot);
     }
 
     // old file not exist
     {
-        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kFileNotExists);
     }
 
     // new file parent directory not exist
     {
-        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillOnce(Return(StoreStatus::OK))
-        .WillOnce(Return(StoreStatus::KeyNotExist));
-
-        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
-                  StatusCode::kFileNotExists);
-    }
-
-    // new file exist
-    {
-        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(3))
-        .WillOnce(Return(StoreStatus::OK))
+        .Times(3)
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
                         Return(StoreStatus::OK)))
-        .WillOnce(Return(StoreStatus::OK));
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                        Return(StoreStatus::OK)))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        EXPECT_CALL(*storage_, RenameFile(_, _))
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
+        .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
-                  StatusCode::kOK);
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
+                  StatusCode::kFileNotExists);
     }
 
     // storage renamefile fail
     {
-        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(AtLeast(3))
-        .WillOnce(Return(StoreStatus::OK))
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+        .Times(AtLeast(4))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
         EXPECT_CALL(*storage_, RenameFile(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2"),
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
                   StatusCode::kStorageError);
     }
 
     // rename same file
     {
-        ASSERT_EQ(curvefs_->RenameFile("/file1", "/file1"),
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/file1", 0, 0),
                   StatusCode::kFileExists);
+    }
+
+    // rename root
+    {
+        ASSERT_EQ(curvefs_->RenameFile("/", "/file1", 0, 0),
+                  StatusCode::kParaError);
+    }
+    // rename to root
+    {
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/", 0, 0),
+                  StatusCode::kParaError);
+    }
+
+    // rename dir
+    {
+        FileInfo fileInfo;
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(AtLeast(1))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
+                  StatusCode::kNotSupported);
+    }
+
+    // new file exist, rename success
+    {
+        uint64_t fileId = 10;
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        FileInfo fileInfo3;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        fileInfo3.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_id(10);
+        fileInfo3.set_id(11);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(6)
+        // 查找/file1
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /file1是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // 查找/trash/file2
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo3),
+                        Return(StoreStatus::OK)))
+        // check /trash/file2是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo3),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*mockcleanManager_, SubmitDeleteCommonFileJob(_))
+        .Times(1)
+        .WillOnce(Return(true));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(3)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, ReplaceFileAndRecycleOldFile(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 10, 11),
+                  StatusCode::kOK);
+    }
+
+    // new file exist, filetype mismatch
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(4)
+        // 查找/file1
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /file1是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // 查找/trash/file2
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
+                  StatusCode::kFileExists);
+    }
+
+    // new file exist, new file under snapshot
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(6)
+        // 查找/file1
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /file1是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // 查找/trash/file2
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /trash/file2是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapshotFileInfos;
+        snapshotFileInfos.push_back(fileInfo1);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(2)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
+                  StatusCode::kFileUnderSnapShot);
+    }
+
+    // new file exist, mv to recycle fail
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(6)
+        // 查找/file1
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /file1是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // 查找/trash/file2
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /trash/file2是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ReplaceFileAndRecycleOldFile(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(2)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
+                  StatusCode::kStorageError);
+    }
+
+    // new file exist, rename fail
+    {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(6)
+        // 查找/file1
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /file1是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // 查找/trash/file2
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /trash/file2是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(2)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, ReplaceFileAndRecycleOldFile(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
+                  StatusCode::kStorageError);
+    }
+
+    // new file exist, submit delete job fail
+        {
+        FileInfo fileInfo1;
+        FileInfo fileInfo2;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(6)
+        // 查找/file1
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /file1是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // 查找/trash/file2
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        // check /trash/file2是否有快照
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*mockcleanManager_, SubmitDeleteCommonFileJob(_))
+        .Times(1)
+        .WillOnce(Return(false));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(2)
+        .WillOnce(Return(StoreStatus::KeyNotExist))
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, ReplaceFileAndRecycleOldFile(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
+                  StatusCode::KInternalError);
     }
 }
 
@@ -986,7 +1266,6 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1017,9 +1296,6 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         ASSERT_EQ(snapShotFileInfoRet.filename(),
             originalFile.filename() + "-" +
             std::to_string(originalFile.seqnum()) );
-        ASSERT_EQ(snapShotFileInfoRet.fullpathname(),
-            originalFile.fullpathname() + "/" +
-            snapShotFileInfoRet.filename());
         ASSERT_EQ(snapShotFileInfoRet.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(
             snapShotFileInfoRet.filetype(), FileType::INODE_SNAPSHOT_PAGEFILE);
@@ -1055,7 +1331,6 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_DIRECTORY);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1073,7 +1348,6 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1095,7 +1369,6 @@ TEST_F(CurveFSTest, testListSnapShotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1137,7 +1410,6 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1161,7 +1433,6 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1188,7 +1459,6 @@ TEST_F(CurveFSTest, testGetSnapShotFileInfo) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1226,7 +1496,6 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1256,7 +1525,6 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_segmentsize(DefaultSegmentSize);
         originalFile.set_length(DefaultSegmentSize);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1293,7 +1561,6 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         originalFile.set_segmentsize(DefaultSegmentSize);
         originalFile.set_length(DefaultSegmentSize);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1351,7 +1618,6 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1379,7 +1645,6 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1408,7 +1673,6 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1442,7 +1706,6 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1481,7 +1744,6 @@ TEST_F(CurveFSTest, DeleteFileSnapShotFile) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1530,7 +1792,6 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1562,7 +1823,6 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1599,7 +1859,6 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1641,7 +1900,6 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -1681,7 +1939,6 @@ TEST_F(CurveFSTest, CheckSnapShotFileStatus) {
         originalFile.set_id(1);
         originalFile.set_seqnum(1);
         originalFile.set_filename("originalFile");
-        originalFile.set_fullpathname("/originalFile");
         originalFile.set_filetype(FileType::INODE_PAGEFILE);
 
         EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -2113,7 +2370,6 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
         ASSERT_EQ(fileInfo.owner(), "owner1");
         ASSERT_EQ(fileInfo.filetype(), FileType::INODE_PAGEFILE);
         ASSERT_EQ(fileInfo.filestatus(), FileStatus::kFileCloning);
-        ASSERT_EQ(fileInfo.fullpathname(), "/file1");
         ASSERT_EQ(fileInfo.length(), kMiniFileLength);
         ASSERT_EQ(fileInfo.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(fileInfo.chunksize(), DefaultChunkSize);

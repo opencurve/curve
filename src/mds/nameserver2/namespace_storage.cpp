@@ -198,8 +198,10 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
     std::string encodeNewFileInfo;
     if (!NameSpaceStorageCodec::EncodeFileInfo(oldFInfo, &encodeOldFileInfo) ||
         !NameSpaceStorageCodec::EncodeFileInfo(newFInfo, &encodeNewFileInfo)) {
-       LOG(ERROR) << "encode oldfile: " << oldFInfo.fullpathname()
-                  << " or newfile: " << newFInfo.fullpathname() << "err";
+       LOG(ERROR) << "encode oldfile inodeid : " << oldFInfo.id()
+                  << ", oldfile: " << oldFInfo.filename()
+                  << " or newfile inodeid : " << newFInfo.id()
+                  << ", newfile: " << newFInfo.filename() << "err";
        return StoreStatus::InternalError;
     }
 
@@ -220,14 +222,24 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
 
     int errCode = client_->Txn2(op1, op2);
     if (errCode != EtcdErrCode::OK) {
-        LOG(ERROR) << "rename file from [" << oldFInfo.fullpathname()
-                   << "] to [" << newFInfo.fullpathname() << "] err: "
+        LOG(ERROR) << "rename file from [" << oldFInfo.id() << ", "
+                   << oldFInfo.filename() << "] to [" << newFInfo.id()
+                   << ", " << newFInfo.filename() << "] err: "
                    << errCode;
     } else {
         // 最后更新到缓存
         cache_->Put(newStoreKey, encodeNewFileInfo);
     }
     return getErrorCode(errCode);
+}
+
+StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
+                                            const FileInfo &oldFInfo,
+                                            const FileInfo &newFInfo,
+                                            const FileInfo &conflictFInfo,
+                                            const FileInfo &recycleFInfo) {
+    // TODO(hzchenwei7): 待实现，需要小翠帮助。
+    return StoreStatus::OK;
 }
 
 StoreStatus NameServerStorageImp::ListFile(InodeID startid,
@@ -389,9 +401,10 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
     std::string encodeSnapshot;
     if (!NameSpaceStorageCodec::EncodeFileInfo(*originFInfo, &encodeFileInfo) ||
     !NameSpaceStorageCodec::EncodeFileInfo(*snapshotFInfo, &encodeSnapshot)) {
-        LOG(ERROR) << "encode originfile:" << originFInfo->fullpathname()
-                   << " or snapshotfile:"  << snapshotFInfo->fullpathname()
-                   << " err";
+        LOG(ERROR) << "encode originfile inodeid : " << originFInfo->id()
+                   << ", originfile: " << originFInfo->filename()
+                   << " or snapshotfile inodeid : " << snapshotFInfo->id()
+                   << ", snapshotfile: " << snapshotFInfo->filename() << "err";
         return StoreStatus::InternalError;
     }
 
@@ -412,8 +425,10 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
 
     int errCode = client_->Txn2(op1, op2);
     if (errCode != EtcdErrCode::OK) {
-        LOG(ERROR) << "store snapshot:" << snapshotFInfo->fullpathname()
-                   << ", fileinfo:" << originFInfo->fullpathname() << "err";
+        LOG(ERROR) << "store snapshot inodeid : " << snapshotFInfo->id()
+                   << ", snapshot: " << snapshotFInfo->filename()
+                   << ", fileinfo inodeid : " << originFInfo->id()
+                   << ", fileinfo: " << originFInfo->filename() << "err";
     } else {
         // 最后put到缓存中
         cache_->Put(originFileKey, encodeFileInfo);

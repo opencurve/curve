@@ -322,16 +322,15 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     // test RenameFile
-    // file1 重命名为file3
-    // 第一次重命名到根目录下，非root owner，失败
-    // 第二次重命名成功 /dir/file3 -> /dir/file4
-    // 第三次原文件不存在，重命名失败
-    // 第四次重命名到根目录下，root owner，成功 /dir/file4 -> /file4
+    // 重命名到根目录下，非root owner，失败
+    // fileinfoid不匹配，失败
+    // 重命名成功 /dir/file3 -> /dir/file4
+    // 原文件不存在，重命名失败
+    // 重命名到根目录下，root owner，成功 /dir/file4 -> /file4
     cntl.Reset();
     RenameFileRequest request4;
     RenameFileResponse response4;
-    // TODO(hzchenwei7): 为了测试，这里临时注释
-/*
+
     cntl.Reset();
     request4.set_oldfilename("/dir/file3");
     request4.set_newfilename("/file4");
@@ -343,7 +342,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     } else {
         ASSERT_TRUE(false);
     }
-*/
+
     cntl.Reset();
     request4.set_oldfilename("/dir/file3");
     request4.set_newfilename("/dir/file4");
@@ -386,6 +385,20 @@ TEST_F(NameSpaceServiceTest, test1) {
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request4.set_oldfilename("/file4");
+    request4.set_newfilename("/dir/file5");
+    request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
+    request4.set_oldfileid(10000);
+    request4.set_newfileid(100);
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kParaError);
     } else {
         ASSERT_TRUE(false);
     }
@@ -670,7 +683,6 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(file.chunksize(), DefaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
-        ASSERT_EQ(file.fullpathname(), "/file1");
         ASSERT_EQ(file.seqnum(), 1);
     } else {
         ASSERT_TRUE(false);
@@ -692,7 +704,6 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(snapshotFileInfo.parentid(), 1);
         ASSERT_EQ(snapshotFileInfo.filename(), "file1-1");
         ASSERT_EQ(snapshotFileInfo.filetype(), INODE_SNAPSHOT_PAGEFILE);
-        ASSERT_EQ(snapshotFileInfo.fullpathname(), "/file1/file1-1");
         ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(snapshotFileInfo.seqnum(), 1);
     } else {
@@ -714,7 +725,6 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(file.chunksize(), DefaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
-        ASSERT_EQ(file.fullpathname(), "/file1");
         ASSERT_EQ(file.seqnum(), 2);
     } else {
         ASSERT_TRUE(false);
@@ -869,7 +879,6 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(file.chunksize(), DefaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
-        ASSERT_EQ(file.fullpathname(), "/file1");
         ASSERT_EQ(file.seqnum(), 1);
     } else {
         ASSERT_TRUE(false);
@@ -887,7 +896,6 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(file.filename(), "dir1");
         ASSERT_EQ(file.parentid(), 0);
         ASSERT_EQ(file.filetype(), INODE_DIRECTORY);
-        ASSERT_EQ(file.fullpathname(), "/dir1");
         ASSERT_EQ(file.seqnum(), 1);
     } else {
         ASSERT_TRUE(false);
@@ -907,7 +915,6 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(file.chunksize(), DefaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
-        ASSERT_EQ(file.fullpathname(), "/dir1/file2");
         ASSERT_EQ(file.seqnum(), 1);
     } else {
         ASSERT_TRUE(false);
@@ -978,7 +985,6 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(snapshotFileInfo.parentid(), 1);
         ASSERT_EQ(snapshotFileInfo.filename(), "file1-1");
         ASSERT_EQ(snapshotFileInfo.filetype(), INODE_SNAPSHOT_PAGEFILE);
-        ASSERT_EQ(snapshotFileInfo.fullpathname(), "/file1/file1-1");
         ASSERT_EQ(snapshotFileInfo.filestatus(), FileStatus::kFileCreated);
         ASSERT_EQ(snapshotFileInfo.seqnum(), 1);
     } else {
@@ -1172,7 +1178,6 @@ TEST_F(NameSpaceServiceTest, clonetest) {
         FileInfo fileInfo = getResponse.fileinfo();
         ASSERT_EQ(response.statuscode(), StatusCode::kOK);
         ASSERT_EQ(fileInfo.filename(), "clonefile1");
-        ASSERT_EQ(fileInfo.fullpathname(), "/clonefile1");
         ASSERT_EQ(fileInfo.filetype(), FileType::INODE_PAGEFILE);
         ASSERT_EQ(fileInfo.owner(), "tom");
         ASSERT_EQ(fileInfo.chunksize(), DefaultChunkSize);
