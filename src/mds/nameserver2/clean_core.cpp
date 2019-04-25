@@ -26,7 +26,8 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
             continue;
         } else if (storeRet !=  StoreStatus::OK) {
             LOG(ERROR) << "cleanSnapShot File Error: "
-            << "GetSegment Error,  filename = " << fileInfo.fullpathname()
+            << "GetSegment Error, inodeid = " << fileInfo.id()
+            << ", filename = " << fileInfo.filename()
             << ", sequenceNum = " << fileInfo.seqnum();
             progress->SetStatus(TaskStatus::FAILED);
             return StatusCode::kSnapshotFileDeleteError;
@@ -47,8 +48,9 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
                 correctSn);
             if (ret != 0) {
                 LOG(ERROR) << "CleanSnapShotFile Error: "
-                    << "DeleteChunkSnapshotOrCorrectSn Error,  filename = "
-                    << fileInfo.fullpathname()
+                    << "DeleteChunkSnapshotOrCorrectSn Error"
+                    << ", inodeid = " << fileInfo.id()
+                    << ", filename = " << fileInfo.filename()
                     << ", correctSn = " << correctSn;
                 progress->SetStatus(TaskStatus::FAILED);
                 return StatusCode::kSnapshotFileDeleteError;
@@ -65,7 +67,8 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
         progress->SetStatus(TaskStatus::FAILED);
         return StatusCode::kSnapshotFileDeleteError;
     } else {
-        LOG(INFO) << "filename = " << fileInfo.fullpathname()
+        LOG(INFO) << "inodeid = " << fileInfo.id()
+            << ", filename = " << fileInfo.filename()
             << ", seq = " << fileInfo.seqnum() << ", deleted";
     }
 
@@ -91,7 +94,8 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
             continue;
         } else if (storeRet !=  StoreStatus::OK) {
             LOG(ERROR) << "Clean common File Error: "
-            << "GetSegment Error,  filename = " << commonFile.fullpathname();
+            << "GetSegment Error, inodeid = " << commonFile.id()
+            << ", filename = " << commonFile.filename();
             progress->SetStatus(TaskStatus::FAILED);
             return StatusCode::kCommonFileDeleteError;
         }
@@ -107,8 +111,8 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
                 seq);
             if (ret != 0) {
                 LOG(ERROR) << "Clean common File Error: "
-                    << "DeleteChunk Error,  filename = "
-                    << commonFile.fullpathname()
+                    << "DeleteChunk Error, inodeid = " << commonFile.id()
+                    << ", filename = " << commonFile.filename()
                     << ", sequenceNum = " << seq;
                 progress->SetStatus(TaskStatus::FAILED);
                 return StatusCode::kCommonFileDeleteError;
@@ -120,7 +124,8 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
                                     i * commonFile.segmentsize());
         if (storeRet != StoreStatus::OK) {
             LOG(ERROR) << "Clean common File Error: "
-            << "DeleteSegment Error,  filename = " << commonFile.fullpathname()
+            << "DeleteSegment Error, inodeid = " << commonFile.id()
+            << ", filename = " << commonFile.filename()
             << ", sequenceNum = " << commonFile.seqnum();
             progress->SetStatus(TaskStatus::FAILED);
             return StatusCode::kCommonFileDeleteError;
@@ -137,7 +142,8 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
         progress->SetStatus(TaskStatus::FAILED);
         return StatusCode::kCommonFileDeleteError;
     } else {
-        LOG(INFO) << "filename = " << commonFile.fullpathname()
+        LOG(INFO) << "inodeid = " << commonFile.id()
+            << ", filename = " << commonFile.filename()
             << ", seq = " << commonFile.seqnum() << ", deleted";
     }
 

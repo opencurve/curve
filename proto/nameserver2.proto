@@ -34,8 +34,7 @@ message FileInfo {
     optional    uint64      length = 8;
     optional    uint64      ctime  = 9;
     optional    uint64      seqNum =  10;
-    optional    string      fullPathName = 11;
-    optional    FileStatus  fileStatus = 12;
+    optional    FileStatus  fileStatus = 11;
 }
 
 // TODO(hzsunjianliang): add a errorcode msg table

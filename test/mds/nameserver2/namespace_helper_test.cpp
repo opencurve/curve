@@ -128,7 +128,6 @@ TEST(NameSpaceHelperTest, test_EncodeAnDecode_FileInfo) {
     fileInfo.set_chunksize(DefaultChunkSize);
     fileInfo.set_length(10<<20);
     fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
-    fileInfo.set_fullpathname("/A/B/C/helloword.log");
     fileInfo.set_seqnum(1);
 
     // encode fileInfo
@@ -146,7 +145,6 @@ TEST(NameSpaceHelperTest, test_EncodeAnDecode_FileInfo) {
     ASSERT_EQ(fileInfo.chunksize(), decodeRes.chunksize());
     ASSERT_EQ(fileInfo.length(), decodeRes.length());
     ASSERT_EQ(fileInfo.ctime(), decodeRes.ctime());
-    ASSERT_EQ(fileInfo.fullpathname(), decodeRes.fullpathname());
     ASSERT_EQ(fileInfo.seqnum(), decodeRes.seqnum());
 
     // encode fileInfo ctime donnot set

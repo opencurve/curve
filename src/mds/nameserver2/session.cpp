@@ -10,7 +10,7 @@
 #include <brpc/controller.h>
 #include <vector>
 #include <utility>
-#include <chrono>
+#include <chrono>   // NOLINT
 #include "src/common/timeutility.h"
 
 

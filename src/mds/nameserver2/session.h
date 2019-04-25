@@ -11,11 +11,9 @@
 #include <map>
 #include <list>
 #include <string>
-#include <mutex>  //NOLINT
-#include <atomic>
 #include <thread> //NOLINT
-#include <condition_variable>
 #include "proto/nameserver2.pb.h"
+#include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/uuid.h"
 #include "src/mds/common/mds_define.h"
@@ -221,7 +219,7 @@ class SessionManager {
                         const std::string &sessionId);
 
     // 控制后台扫描线程是否需要停止扫描
-    std::atomic_bool sessionScanStop_;
+    curve::common::Atomic<bool> sessionScanStop_;
 
     // session的后台扫描线程，扫描回收过期的session
     std::thread *scanThread;
@@ -248,10 +246,10 @@ class SessionManager {
     uint32_t intevalTime_;
 
     // 配合exitcv_进行后台线程周期性任务
-    std::mutex exitmtx_;
+    curve::common::Mutex exitmtx_;
 
     // 后台线程使用信号量进行周期性睡眠
-    std::condition_variable exitcv_;
+    curve::common::ConditionVariable exitcv_;
 };
 }  // namespace mds
 }  // namespace curve

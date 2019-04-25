@@ -102,6 +102,21 @@ class NameServerStorage {
   virtual StoreStatus RenameFile(const FileInfo &oldfileInfo,
                                  const FileInfo &newfileInfo) = 0;
   /**
+   * @brief RenameFile 事务，存储新的file的元数据信息，删除旧的元数据信息。
+   *        新的file已被conflictFInfo占用，需要把被占用的文件移到回收站。
+   *
+   * @param[in] oldFileInfo
+   * @param[in] newFileInfo
+   * @param[in] conflictFInfo
+   * @param[in] recycleFInfo
+   *
+   * @return StoreStaus 错误码
+   */
+  virtual StoreStatus ReplaceFileAndRecycleOldFile(const FileInfo &oldFInfo,
+                                            const FileInfo &newFInfo,
+                                            const FileInfo &conflictFInfo,
+                                            const FileInfo &recycleFInfo) = 0;
+  /**
    * @brief ListFile 获取[startid, endid)之间的所有文件
    *
    * @param[in] startidid为起始id
@@ -222,6 +237,11 @@ class NameServerStorageImp : public NameServerStorage {
 
     StoreStatus RenameFile(const FileInfo &oldfileInfo,
                             const FileInfo &newfileInfo) override;
+
+    StoreStatus ReplaceFileAndRecycleOldFile(const FileInfo &oldFInfo,
+                                        const FileInfo &newFInfo,
+                                        const FileInfo &conflictFInfo,
+                                        const FileInfo &recycleFInfo) override;
 
     StoreStatus ListFile(InodeID startid,
                         InodeID endid,

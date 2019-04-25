@@ -175,7 +175,6 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_segmentsize(DefaultSegmentSize);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
-        fileInfo.set_fullpathname(fileName);
         fileInfo.set_seqnum(kStartSeqNum);
         fileInfo.set_filestatus(FileStatus::kFileCreated);
 
@@ -204,6 +203,7 @@ StatusCode CurveFS::GetFileInfo(const std::string & filename,
     }
 }
 
+// TODO(hzchenwei7): MoveFileToRecycle改用事务的方式
 StatusCode CurveFS::MoveFileToRecycle(const FileInfo &fileInfo,
                                                 FileInfo *waitDeleteFileInfo) {
     waitDeleteFileInfo->CopyFrom(fileInfo);
@@ -212,20 +212,23 @@ StatusCode CurveFS::MoveFileToRecycle(const FileInfo &fileInfo,
 
     auto ret = storage_->PutFile(*waitDeleteFileInfo);
     if (ret != StoreStatus::OK) {
-        LOG(ERROR) << "move file to recycle, put recycle file fail, fileName = "
-                   << waitDeleteFileInfo->fullpathname();
+        LOG(ERROR) << "move file to recycle, put recycle file fail, inodeid = "
+                   << waitDeleteFileInfo->id() << ", fileName = "
+                   << waitDeleteFileInfo->filename();
         return StatusCode::kStorageError;
     }
 
     ret = storage_->DeleteFile(fileInfo.parentid(), fileInfo.filename());
     if (ret != StoreStatus::OK) {
         LOG(ERROR) << "move file to recycle, delete origin file fail"
-                   << ", fileName = " << waitDeleteFileInfo->fullpathname();
+                   << ", inodeid = " << waitDeleteFileInfo->id()
+                   << ", fileName = " << waitDeleteFileInfo->filename();
         storage_->DeleteRecycleFile(waitDeleteFileInfo->parentid(),
                                     waitDeleteFileInfo->filename());
         if (ret != StoreStatus::OK) {
             LOG(ERROR) << "move file to recycle, delete recycle file fail"
-                       << ", fileName = " << waitDeleteFileInfo->fullpathname();
+                       << ", inodeid = " << waitDeleteFileInfo->id()
+                       << ", fileName = " << waitDeleteFileInfo->filename();
         }
 
         return StatusCode::kStorageError;
@@ -245,7 +248,8 @@ StatusCode CurveFS::isDirectoryEmpty(const FileInfo &fileInfo, bool *result) {
     }
 
     if (storeStatus != StoreStatus::OK) {
-        LOG(ERROR) << "list file fail, dir name = " << fileInfo.fullpathname();
+        LOG(ERROR) << "list file fail, inodeid = " << fileInfo.id()
+                   << ", dir name = " << fileInfo.filename();
         return StatusCode::kStorageError;
     }
 
@@ -309,27 +313,12 @@ StatusCode CurveFS::DeleteFile(const std::string & filename) {
                   << ", filename = " << filename;
         return StatusCode::kOK;
     } else if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
-        // 检查文件是否有快照
-        std::vector<FileInfo> snapshotFileInfos;
-        auto ret = ListSnapShotFile(filename, &snapshotFileInfos);
+        StatusCode ret = CheckFileCanDeleteOrRename(filename);
         if (ret != StatusCode::kOK) {
-            LOG(ERROR) << "delete file, list snapshot file fail"
-                       << ", filename = " << filename;
+            LOG(ERROR) << "delete file, can not delete file"
+                       << ", filename = " << filename
+                       << ", ret = " << ret;
             return ret;
-        }
-        if (snapshotFileInfos.size() != 0) {
-            LOG(WARNING) << "delete file, file is under snapshot, cannot delete"
-                       << ", filename = " << filename;
-            return StatusCode::kFileUnderSnapShot;
-        }
-
-        // TODO(hzchenwei7) :删除文件还需考虑克隆的情况
-
-        // 检查文件是否有分配出去的可用session
-        if (isFileHasValidSession(filename)) {
-            LOG(WARNING) << "delete file, file has valid session, cannot delete"
-                       << ", filename = " << filename;
-            return StatusCode::kFileOccupied;
         }
 
         // 把文件移到回收站
@@ -388,8 +377,41 @@ StatusCode CurveFS::ReadDir(const std::string & dirname,
     return StatusCode::kOK;
 }
 
+StatusCode CurveFS::CheckFileCanDeleteOrRename(const std::string &fileName) {
+    // 检查文件是否有快照
+    std::vector<FileInfo> snapshotFileInfos;
+    auto ret = ListSnapShotFile(fileName, &snapshotFileInfos);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "CheckFileCanDeleteOrRename, list snapshot file fail"
+                    << ", fileName = " << fileName;
+        return ret;
+    }
+
+    if (snapshotFileInfos.size() != 0) {
+        LOG(WARNING) << "CheckFileCanDeleteOrRename, file is under snapshot, "
+                     << "cannot delete or rename, fileName = " << fileName;
+        return StatusCode::kFileUnderSnapShot;
+    }
+
+    // TODO(hzchenwei7) :删除文件还需考虑克隆的情况
+
+    // 检查文件是否有分配出去的可用session
+    if (isFileHasValidSession(fileName)) {
+        LOG(WARNING) << "CheckFileCanDeleteOrRename, file has valid session, "
+                     << "cannot delete or rename, fileName = " << fileName;
+        return StatusCode::kFileOccupied;
+    }
+
+    return StatusCode::kOK;
+}
+
 StatusCode CurveFS::RenameFile(const std::string & oldFileName,
-                               const std::string & newFileName) {
+                               const std::string & newFileName,
+                               uint64_t oldFileId, uint64_t newFileId) {
+    if (oldFileName == "/" || newFileName  == "/") {
+        return StatusCode::kParaError;
+    }
+
     if (!oldFileName.compare(newFileName)) {
         LOG(INFO) << "rename same name, oldFileName = " << oldFileName
                   << ", newFileName = " << newFileName;
@@ -397,10 +419,36 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     }
 
     FileInfo  oldFileInfo;
-    auto ret1 = GetFileInfo(oldFileName, &oldFileInfo);
-    if (ret1 != StatusCode::kOK) {
-        LOG(INFO) << "get source file error, errCode = " << ret1;
-        return  ret1;
+    StatusCode ret = GetFileInfo(oldFileName, &oldFileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "get source file error, errCode = " << ret;
+        return ret;
+    }
+
+    if (oldFileId != 0 && oldFileId != oldFileInfo.id()) {
+        LOG(ERROR) << "rename file, oldFileId missmatch"
+                   << ", oldFileName = " << oldFileName
+                   << ", newFileName = " << newFileName
+                   << ", oldFileInfo.id() = " << oldFileInfo.id()
+                   << ", oldFileId = " << oldFileId;
+        return StatusCode::kParaError;
+    }
+
+    // 目前只支持对INODE_PAGEFILE类型进行rename
+    if (oldFileInfo.filetype() != FileType::INODE_PAGEFILE) {
+        LOG(ERROR) << "rename oldFileName = " << oldFileName
+                   << ", fileType not support, fileType = "
+                   << oldFileInfo.filetype();
+        return StatusCode::kNotSupported;
+    }
+
+    // 判断oldFileName能否rename，文件是否正在被使用，是否正在快照中，是否正在克隆
+    ret = CheckFileCanDeleteOrRename(oldFileName);
+    if (ret != StatusCode::kOK) {
+        LOG(ERROR) << "rename fail, can not rename file"
+                << ", oldFileName = " << oldFileName
+                << ", ret = " << ret;
+        return ret;
     }
 
     FileInfo parentFileInfo;
@@ -411,14 +459,76 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         return StatusCode::kFileNotExists;
     }
 
-    FileInfo newFileInfo;
-    auto ret3 = LookUpFile(parentFileInfo, lastEntry, &newFileInfo);
-    if (ret3 == StatusCode::kOK || ret3 == StatusCode::kFileNotExists) {
+    FileInfo existNewFileInfo;
+    auto ret3 = LookUpFile(parentFileInfo, lastEntry, &existNewFileInfo);
+    if (ret3 == StatusCode::kOK) {
+        if (newFileId != 0 && newFileId != existNewFileInfo.id()) {
+            LOG(ERROR) << "rename file, newFileId missmatch"
+                        << ", oldFileName = " << oldFileName
+                        << ", newFileName = " << newFileName
+                        << ", newFileInfo.id() = " << existNewFileInfo.id()
+                        << ", newFileId = " << newFileId;
+            return StatusCode::kParaError;
+        }
+
+        // newFileName存在, 能否被覆盖，判断文件类型
+         if (existNewFileInfo.filetype() != FileType::INODE_PAGEFILE) {
+            LOG(ERROR) << "rename oldFileName = " << oldFileName
+                       << " to newFileName = " << newFileName
+                       << "file type mismatch. old fileType = "
+                       << oldFileInfo.filetype() << ", new fileType = "
+                       << existNewFileInfo.filetype();
+            return StatusCode::kFileExists;
+        }
+
+        // 判断newFileName能否rename，是否正在被使用，是否正在快照中，是否正在克隆
+        StatusCode ret = CheckFileCanDeleteOrRename(newFileName);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "cannot rename file"
+                        << ", newFileName = " << newFileName
+                        << ", ret = " << ret;
+            return ret;
+        }
+
+        // 需要把existNewFileInfo移到回收站
+        FileInfo recycleFileInfo;
+        recycleFileInfo.CopyFrom(existNewFileInfo);
+        recycleFileInfo.set_filestatus(FileStatus::kFileDeleting);
+        recycleFileInfo.set_filetype(INODE_RECYCLE_PAGEFILE);
+
+        // 进行rename
+        FileInfo newFileInfo;
         newFileInfo.CopyFrom(oldFileInfo);
         newFileInfo.set_parentid(parentFileInfo.id());
         newFileInfo.set_filename(lastEntry);
-        newFileInfo.set_owner(parentFileInfo.owner());
-        newFileInfo.set_fullpathname(newFileName);
+
+        auto ret1 = storage_->ReplaceFileAndRecycleOldFile(oldFileInfo,
+                                                        newFileInfo,
+                                                        existNewFileInfo,
+                                                        recycleFileInfo);
+        if (ret1 != StoreStatus::OK) {
+            LOG(ERROR) << "storage_ ReplaceFileAndRecycleOldFile error"
+                        << ", oldFileName = " << oldFileName
+                        << ", newFileName = " << newFileName
+                        << ", ret = " << ret1;
+
+            return StatusCode::kStorageError;
+        }
+
+        // 提交一个删除文件的任务
+        if (!cleanManager_->SubmitDeleteCommonFileJob(recycleFileInfo)) {
+            LOG(ERROR) << "rename file, submit delete file job fail, "
+                        << "fileName = " << newFileName;
+            return StatusCode::KInternalError;
+        }
+
+        return StatusCode::kOK;
+    } else if (ret3 == StatusCode::kFileNotExists) {
+        // newFileName不存在, 直接rename
+        FileInfo newFileInfo;
+        newFileInfo.CopyFrom(oldFileInfo);
+        newFileInfo.set_parentid(parentFileInfo.id());
+        newFileInfo.set_filename(lastEntry);
 
         auto ret = storage_->RenameFile(oldFileInfo, newFileInfo);
         if ( ret != StoreStatus::OK ) {
@@ -588,8 +698,6 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
     snapshotFileInfo->set_parentid(fileInfo.id());
     snapshotFileInfo->set_filename(fileInfo.filename() + "-" +
             std::to_string(fileInfo.seqnum()));
-    snapshotFileInfo->set_fullpathname(fileName + "/" +
-        snapshotFileInfo->filename());
     snapshotFileInfo->set_filestatus(FileStatus::kFileCreated);
 
     // add original file snapshot seq number
@@ -1010,7 +1118,6 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
         fileInfo.set_parentid(parentFileInfo.id());
 
         fileInfo.set_filename(lastEntry);
-        fileInfo.set_fullpathname(fileName);
 
         fileInfo.set_filetype(filetype);
         fileInfo.set_owner(owner);
