@@ -91,14 +91,7 @@ class SnapshotClient {
                             uint64_t seq,
                             uint64_t offset,
                             SegmentInfo *segInfo);
-  /**
-   * 获取logicalpool中copyset的serverlist
-   * @param: lpid是逻辑池id
-   * @param: csid是逻辑池中的copysetid数据集
-   * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
-   */
-  LIBCURVE_ERROR GetServerList(const LogicPoolID& lpid,
-                            const std::vector<CopysetID>& csid);
+
   /**
    * 读取seq版本号的快照数据
    * @param: cidinfo是当前chunk对应的id信息
@@ -264,6 +257,16 @@ class SnapshotClient {
    * 获取iomanager信息，测试代码使用
    */
   IOManager4Chunk* GetIOManager4Chunk() {return &iomanager4chunk_;}
+
+ private:
+  /**
+   * 获取logicalpool中copyset的serverlist
+   * @param: lpid是逻辑池id
+   * @param: csid是逻辑池中的copysetid数据集
+   * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+   */
+  LIBCURVE_ERROR GetServerList(const LogicPoolID& lpid,
+                            const std::vector<CopysetID>& csid);
 
  private:
   // MDSClient负责与Metaserver通信，所有通信都走这个接口
