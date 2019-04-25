@@ -288,6 +288,8 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
         return;
     }
 
+    // TODO(hzchenwei7): 为了测试，这里临时注释
+    /*
     retCode = kCurveFS.CheckDestinationOwner(request->newfilename(),
                                              request->owner(), signature,
                                              request->date());
@@ -300,7 +302,7 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
                     << ", statusCode = " << retCode;
         return;
     }
-
+    */
     retCode = kCurveFS.RenameFile(request->oldfilename(),
             request->newfilename());
     if (retCode != StatusCode::kOK)  {
