@@ -106,11 +106,12 @@ bool FakeMDS::StartService() {
     info->set_filename(filename_.substr(1, filename_.size() -1));
     info->set_id(1);
     info->set_parentid(0);
-    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);      // NOLINT
+    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
     info->set_chunksize(chunk_size);
     info->set_length(FLAGS_test_disk_size);
     info->set_ctime(12345678);
     info->set_segmentsize(segment_size);
+    info->set_owner("userinfo");
     getfileinforesponse->set_allocated_fileinfo(info);
 
     getfileinforesponse->set_statuscode(::curve::mds::StatusCode::kOK);
@@ -188,6 +189,7 @@ bool FakeMDS::StartService() {
     fin->set_ctime(12345678);
     fin->set_seqnum(FLAGS_seq_num);
     fin->set_segmentsize(segment_size);
+    fin->set_owner("userinfo");
 
     openresponse->set_statuscode(::curve::mds::StatusCode::kOK);
     openresponse->set_allocated_protosession(se);

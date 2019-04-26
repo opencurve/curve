@@ -139,6 +139,58 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void RenameFile(::google::protobuf::RpcController* controller,
+                const ::curve::mds::RenameFileRequest* request,
+                ::curve::mds::RenameFileResponse* response,
+                ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakerenamefile_->controller_ != nullptr
+             && fakerenamefile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::RenameFileResponse*>(
+                    fakerenamefile_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ExtendFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ExtendFileRequest* request,
+                    ::curve::mds::ExtendFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeextendfile_->controller_ != nullptr &&
+             fakeextendfile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::CloseFileResponse*>(
+                    fakeextendfile_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void DeleteFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::DeleteFileRequest* request,
+                    ::curve::mds::DeleteFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakedeletefile_->controller_ != nullptr &&
+             fakedeletefile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::CloseFileResponse*>(
+                    fakedeletefile_->response_);
+        response->CopyFrom(*resp);
+    }
+
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
@@ -155,6 +207,18 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         fakeSetCloneFileStatus_ = fakeret;
     }
 
+    void SetRenameFile(FakeReturn* fakeret) {
+        fakerenamefile_ = fakeret;
+    }
+
+    void SetExtendFile(FakeReturn* fakeret) {
+        fakeextendfile_ = fakeret;
+    }
+
+    void SetDeleteFile(FakeReturn* fakeret) {
+        fakedeletefile_ = fakeret;
+    }
+
     void CleanRetryTimes() {
         retrytimes_ = 0;
     }
@@ -168,6 +232,9 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeopenfile_;
     FakeReturn* fakeCreateCloneFile_;
     FakeReturn* fakeSetCloneFileStatus_;
+    FakeReturn* fakerenamefile_;
+    FakeReturn* fakeextendfile_;
+    FakeReturn* fakedeletefile_;
 };
 
 class FakeTopologyService : public curve::mds::topology::TopologyService {

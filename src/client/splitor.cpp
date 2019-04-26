@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 #include <algorithm>
 #include <vector>
+#include <string>
 #include "src/client/splitor.h"
 #include "src/client/mds_client.h"
 #include "src/client/file_instance.h"
@@ -144,6 +145,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
     SegmentInfo segInfo;
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;
     MetaCacheErrorType chunkidxexist = mc->GetChunkInfoByIndex(chunkidx, &chinfo);          // NOLINT
+
     if (chunkidxexist == MetaCacheErrorType::CHUNKINFO_NOT_FOUND) {
         LIBCURVE_ERROR re = mdsclient->GetOrAllocateSegment(true,
                                         UserInfo(fileinfo->owner, ""),
