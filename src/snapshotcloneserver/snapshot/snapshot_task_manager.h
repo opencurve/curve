@@ -19,6 +19,7 @@
 #include "src/snapshotcloneserver/common/thread_pool.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/snapshotcloneserver/common/config.h"
 
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
@@ -36,7 +37,7 @@ class SnapshotTaskManager {
       * @brief 默认构造函数
       */
     SnapshotTaskManager()
-        : isStop(true) {}
+        : isStop_(true) {}
 
     /**
      * @brief 析构函数
@@ -45,9 +46,12 @@ class SnapshotTaskManager {
         Stop();
     }
 
-    int Init(std::shared_ptr<ThreadPool> pool) {
+    int Init(std::shared_ptr<ThreadPool> pool,
+        const SnapshotCloneServerOptions &option) {
+        snapshotTaskManagerScanIntervalMs_ =
+            option.snapshotTaskManagerScanIntervalMs;
         threadpool_ = pool;
-        return kErrCodeSnapshotServerSuccess;
+        return kErrCodeSuccess;
     }
 
     /**
@@ -133,7 +137,10 @@ class SnapshotTaskManager {
     std::shared_ptr<ThreadPool> threadpool_;
 
     // 当前任务管理是否停止，用于支持start，stop功能
-    std::atomic_bool isStop;
+    std::atomic_bool isStop_;
+
+    // 快照后台线程扫描等待队列和工作队列的扫描周期(单位：ms)
+    int snapshotTaskManagerScanIntervalMs_;
 };
 
 }  // namespace snapshotcloneserver

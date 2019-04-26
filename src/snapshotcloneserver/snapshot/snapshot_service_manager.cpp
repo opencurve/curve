@@ -12,10 +12,10 @@
 namespace curve {
 namespace snapshotcloneserver {
 
-int SnapshotServiceManager::Init() {
+int SnapshotServiceManager::Init(const SnapshotCloneServerOptions &option) {
     std::shared_ptr<ThreadPool> pool =
-        std::make_shared<ThreadPool>(kSnapsnotPoolThreadNum);
-    return taskMgr_->Init(pool);
+        std::make_shared<ThreadPool>(option.snapshotPoolThreadNum);
+    return taskMgr_->Init(pool, option);
 }
 
 int SnapshotServiceManager::Start() {
@@ -57,7 +57,7 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
                    << ret;
         return ret;
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 int SnapshotServiceManager::CancelSnapshot(UUID uuid,
@@ -67,11 +67,11 @@ int SnapshotServiceManager::CancelSnapshot(UUID uuid,
     if (task != nullptr) {
         if (user != task->GetTaskInfo()->GetSnapshotInfo().GetUser()) {
             LOG(ERROR) << "Can not cancel snapshot by different user.";
-            return kErrCodeSnapshotUserNotMatch;
+            return kErrCodeInvalidUser;
         }
         if (file != task->GetTaskInfo()->GetFileName()) {
             LOG(ERROR) << "Can not cancel, fileName is not matched.";
-            return kErrCodeSnapshotFileNameNotMatch;
+            return kErrCodeFileNameNotMatch;
         }
     }
 
@@ -86,7 +86,7 @@ int SnapshotServiceManager::CancelSnapshot(UUID uuid,
                    << file;
         return ret;
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
@@ -94,16 +94,13 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
     const std::string &file) {
     SnapshotInfo snapInfo;
     int ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
-    if (kErrCodeSnapshotDeleteTaskExist == ret) {
-        return kErrCodeSnapshotServerSuccess;
+    if (kErrCodeTaskExist == ret) {
+        return kErrCodeSuccess;
     } else if (ret < 0) {
-        LOG(ERROR) << "DeleteSnapshotPre error, "
-                   << " ret ="
-                   << ret
-                   << ", uuid = "
-                   << uuid
-                   << ", file ="
-                   << file;
+        LOG(ERROR) << "DeleteSnapshotPre fail"
+                   << ", ret = " << ret
+                   << ", uuid = " << uuid
+                   << ", file =" << file;
         return ret;
     }
     std::shared_ptr<SnapshotTaskInfo> taskInfo =
@@ -114,11 +111,10 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
     ret = taskMgr_->PushTask(task);
     if (ret < 0) {
         LOG(ERROR) << "Push Task error, "
-                   << " ret = "
-                   << ret;
+                   << " ret = " << ret;
         return ret;
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
@@ -186,7 +182,7 @@ int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
             }
         }
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 int SnapshotServiceManager::RecoverSnapshotTask() {
@@ -242,7 +238,7 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
                 break;
         }
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 }  // namespace snapshotcloneserver
