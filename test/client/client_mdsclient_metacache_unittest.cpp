@@ -21,7 +21,7 @@
 #include "test/client/fake/mockMDS.h"
 #include "src/client/metacache.h"
 #include "test/client/fake/mock_schedule.h"
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/client_config.h"
 #include "src/client/service_helper.h"
@@ -34,12 +34,12 @@ extern std::string metaserver_addr;
 extern uint32_t chunk_size;
 extern std::string configpath;
 
+using curve::client::UserInfo_t;
 using curve::client::CopysetPeerInfo;
 using curve::client::CopysetInfo_t;
 using curve::client::SegmentInfo;
 using curve::client::FInfo;
 using curve::client::LeaseSession;
-using curve::client::UserInfo;
 using curve::client::LogicalPoolCopysetIDInfo_t;
 using curve::client::MetaCacheErrorType;
 using curve::client::MDSClient;
@@ -64,12 +64,17 @@ class MDSClientTest : public ::testing::Test {
         metaopt.rpcRetryTimes = 5;
         metaopt.retryIntervalUs = 200;
         mdsclient_.Initialize(metaopt);
+        userinfo.owner = "test";
+        fileClient_.Init(configpath.c_str());
     }
 
     void TearDown() {
         mdsclient_.UnInitialize();
+        fileClient_.UnInit();
     }
 
+    FileClient          fileClient_;
+    UserInfo_t          userinfo;
     MDSClient           mdsclient_;
     MetaServerOption_t  metaopt;
     static int i;
@@ -103,9 +108,8 @@ TEST_F(MDSClientTest, Createfile) {
     curvefsservice.SetFakeReturn(fakeret);
 
     LOG(INFO) << "now create file!";
-    LIBCURVE_ERROR ret = mdsclient_.CreateFile(filename.c_str(),
-                                    UserInfo("test", ""), len);
-    ASSERT_EQ(ret, LIBCURVE_ERROR::EXISTS);
+    int ret = fileClient_.Create(filename.c_str(), userinfo, len);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
 
     // set response file exist
     ::curve::mds::CreateFileResponse response1;
@@ -115,8 +119,8 @@ TEST_F(MDSClientTest, Createfile) {
      = new FakeReturn(nullptr, static_cast<void*>(&response1));
 
     curvefsservice.SetFakeReturn(fakeret1);
-    ASSERT_EQ(LIBCURVE_ERROR::OK, mdsclient_.CreateFile(filename.c_str(),
-                                    UserInfo("test", ""), len));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileClient_.Create(filename.c_str(),
+                                    userinfo, len));
 
 
     // 设置rpc失败，触发重试
@@ -129,11 +133,75 @@ TEST_F(MDSClientTest, Createfile) {
     curvefsservice.SetFakeReturn(fakeret2);
     curvefsservice.CleanRetryTimes();
 
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-         mdsclient_.CreateFile(filename.c_str(),
-                                UserInfo("test", ""), len));
-    ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
-        curvefsservice.GetRetryTimes());
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED,
+             fileClient_.Create(filename.c_str(),
+                                userinfo, len));
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
+
+    LOG(INFO) << "create file done!";
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+    delete fakeret;
+    delete fakeret2;
+}
+
+TEST_F(MDSClientTest, MkDir) {
+    std::string dirpath = "/1";
+    size_t len = 4 * 1024 * 1024;
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+
+    // set response file exist
+    ::curve::mds::CreateFileResponse response;
+    response.set_statuscode(::curve::mds::StatusCode::kFileExists);
+
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&response));
+
+    curvefsservice.SetFakeReturn(fakeret);
+
+    LOG(INFO) << "now create file!";
+    int ret = fileClient_.Mkdir(dirpath.c_str(), userinfo);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
+
+    // set response file exist
+    ::curve::mds::CreateFileResponse response1;
+    response1.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&response1));
+
+    curvefsservice.SetFakeReturn(fakeret1);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileClient_.Mkdir(dirpath.c_str(),
+                                    userinfo));
+
+
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret2
+     = new FakeReturn(&cntl, static_cast<void*>(&response));
+
+    curvefsservice.SetFakeReturn(fakeret2);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED,
+             fileClient_.Mkdir(dirpath.c_str(), userinfo));
+    // 一个mds地址重试3次，配置文件中有两个mds地址，所以要重试6次
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
 
     LOG(INFO) << "create file done!";
     ASSERT_EQ(0, server.Stop(0));
@@ -170,7 +238,7 @@ TEST_F(MDSClientTest, Closefile) {
 
     LOG(INFO) << "now create file!";
     LIBCURVE_ERROR ret = mdsclient_.CloseFile(filename.c_str(),
-                            UserInfo("test", ""), "sessid");
+                            userinfo, "sessid");
     ASSERT_EQ(ret, LIBCURVE_ERROR::NOTEXIST);
 
 
@@ -184,7 +252,7 @@ TEST_F(MDSClientTest, Closefile) {
 
     LOG(INFO) << "now create file!";
     ret = mdsclient_.CloseFile(filename.c_str(),
-                                UserInfo("test", ""), "sessid");
+                                userinfo, "sessid");
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
     // 设置rpc失败，触发重试
@@ -198,7 +266,7 @@ TEST_F(MDSClientTest, Closefile) {
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
          mdsclient_.CloseFile(filename.c_str(),
-                                UserInfo("test", ""),  "sessid"));
+                                userinfo,  "sessid"));
     ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
         curvefsservice.GetRetryTimes());
 
@@ -239,8 +307,7 @@ TEST_F(MDSClientTest, Openfile) {
 
     FInfo finfo;
     LeaseSession lease;
-    ASSERT_EQ(mdsclient_.OpenFile(filename, UserInfo("test", ""),
-                 &finfo, &lease), LIBCURVE_ERROR::FAILED);
+    ASSERT_EQ(fileClient_.Open(filename, userinfo), -1*LIBCURVE_ERROR::FAILED);
 
     // has protosession no fileinfo
     ::curve::mds::OpenFileResponse openresponse1;
@@ -258,8 +325,7 @@ TEST_F(MDSClientTest, Openfile) {
      = new FakeReturn(nullptr, static_cast<void*>(&openresponse1));
     curvefsservice.SetOpenFile(fakeret1);
 
-    ASSERT_EQ(mdsclient_.OpenFile(filename, UserInfo("test", ""),
-                                &finfo, &lease), LIBCURVE_ERROR::FAILED);
+    ASSERT_EQ(fileClient_.Open(filename, userinfo), -1*LIBCURVE_ERROR::FAILED);
 
     // has protosession and finfo
     ::curve::mds::OpenFileResponse openresponse2;
@@ -289,8 +355,7 @@ TEST_F(MDSClientTest, Openfile) {
      = new FakeReturn(nullptr, static_cast<void*>(&openresponse2));
     curvefsservice.SetOpenFile(fakeret2);
 
-    ASSERT_EQ(mdsclient_.OpenFile(filename, UserInfo("test", ""),
-                    &finfo, &lease), LIBCURVE_ERROR::OK);
+    ASSERT_EQ(fileClient_.Open(filename, userinfo), LIBCURVE_ERROR::OK);
 
     LOG(INFO) << "create file done!";
     ASSERT_EQ(0, server.Stop(0));
@@ -299,6 +364,479 @@ TEST_F(MDSClientTest, Openfile) {
     delete fakeret;
     delete fakeret1;
     delete fakeret2;
+}
+
+TEST_F(MDSClientTest, Renamefile) {
+    std::string filename1 = "/1_userinfo_";
+    std::string filename2 = "/1_userinfo_";
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+
+    // set response file exist
+    ::curve::mds::RenameFileResponse response;
+    response.set_statuscode(::curve::mds::StatusCode::kFileExists);
+
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&response));
+
+    curvefsservice.SetRenameFile(fakeret);
+
+    int ret = fileClient_.Rename(userinfo, filename1, filename2);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
+
+    // set rename file ok
+    ::curve::mds::RenameFileResponse response1;
+    response1.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&response1));
+
+    curvefsservice.SetRenameFile(fakeret1);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileClient_.Rename(userinfo,
+                                                        filename1,
+                                                        filename2));
+
+    // set rename file dir not exists
+    ::curve::mds::RenameFileResponse response2;
+    response2.set_statuscode(::curve::mds::StatusCode::kDirNotExist);
+
+    FakeReturn* fakeret3
+     = new FakeReturn(nullptr, static_cast<void*>(&response2));
+
+    curvefsservice.SetRenameFile(fakeret3);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::NOTEXIST,
+              fileClient_.Rename(userinfo, filename1, filename2));
+
+    // set rename file auth fail
+    ::curve::mds::RenameFileResponse response3;
+    response3.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
+
+    FakeReturn* fakeret4
+     = new FakeReturn(nullptr, static_cast<void*>(&response3));
+
+    curvefsservice.SetRenameFile(fakeret4);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::AUTHFAIL,
+              fileClient_.Rename(userinfo, filename1, filename2));
+
+    // set rename file MDS storage error
+    ::curve::mds::RenameFileResponse response4;
+    response4.set_statuscode(::curve::mds::StatusCode::kStorageError);
+
+    FakeReturn* fakeret5
+     = new FakeReturn(nullptr, static_cast<void*>(&response4));
+
+    curvefsservice.SetRenameFile(fakeret5);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
+              fileClient_.Rename(userinfo, filename1, filename2));
+
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret2
+     = new FakeReturn(&cntl, static_cast<void*>(&response));
+
+    curvefsservice.SetRenameFile(fakeret2);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, fileClient_.Rename(userinfo,
+                                                        filename1,
+                                                        filename2));
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
+
+    LOG(INFO) << "create file done!";
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+    delete fakeret;
+    delete fakeret2;
+    delete fakeret3;
+    delete fakeret4;
+    delete fakeret5;
+}
+
+TEST_F(MDSClientTest, Extendfile) {
+    std::string filename1 = "/1_userinfo_";
+    uint64_t newsize = 10 * 1024 * 1024 * 1024ul;
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+
+    // set response file exist
+    ::curve::mds::ExtendFileResponse response;
+    response.set_statuscode(::curve::mds::StatusCode::kFileExists);
+
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&response));
+
+    curvefsservice.SetExtendFile(fakeret);
+
+    int ret = fileClient_.Extend(filename1, userinfo, newsize);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
+
+    // set extend file ok
+    ::curve::mds::ExtendFileResponse response1;
+    response1.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&response1));
+
+    curvefsservice.SetExtendFile(fakeret1);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileClient_.Extend(filename1,
+                                                    userinfo,
+                                                    newsize));
+
+    // set extend file dir not exists
+    ::curve::mds::ExtendFileResponse response2;
+    response2.set_statuscode(::curve::mds::StatusCode::kDirNotExist);
+
+    FakeReturn* fakeret3
+     = new FakeReturn(nullptr, static_cast<void*>(&response2));
+
+    curvefsservice.SetExtendFile(fakeret3);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::NOTEXIST,
+              fileClient_.Extend(filename1, userinfo, newsize));
+
+    // set extend file auth fail
+    ::curve::mds::ExtendFileResponse response3;
+    response3.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
+
+    FakeReturn* fakeret4
+     = new FakeReturn(nullptr, static_cast<void*>(&response3));
+
+    curvefsservice.SetExtendFile(fakeret4);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::AUTHFAIL,
+              fileClient_.Extend(filename1, userinfo, newsize));
+
+    // set extend file mds storage error
+    ::curve::mds::ExtendFileResponse response4;
+    response4.set_statuscode(::curve::mds::StatusCode::kStorageError);
+
+    FakeReturn* fakeret5
+     = new FakeReturn(nullptr, static_cast<void*>(&response4));
+
+    curvefsservice.SetExtendFile(fakeret5);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
+              fileClient_.Extend(filename1, userinfo, newsize));
+
+    // set extend bigger file
+    ::curve::mds::ExtendFileResponse response5;
+    response5.set_statuscode(::curve::mds::StatusCode::kShrinkBiggerFile);
+
+    FakeReturn* fakeret6
+     = new FakeReturn(nullptr, static_cast<void*>(&response5));
+
+    curvefsservice.SetExtendFile(fakeret6);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE,
+              fileClient_.Extend(filename1, userinfo, newsize));
+
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret2
+     = new FakeReturn(&cntl, static_cast<void*>(&response));
+
+    curvefsservice.SetExtendFile(fakeret2);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, fileClient_.Extend(filename1,
+                                                        userinfo,
+                                                        newsize));
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
+
+    LOG(INFO) << "create file done!";
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+    delete fakeret;
+    delete fakeret2;
+    delete fakeret3;
+    delete fakeret4;
+    delete fakeret5;
+    delete fakeret6;
+}
+
+TEST_F(MDSClientTest, Deletefile) {
+    std::string filename1 = "/1_userinfo_";
+    uint64_t newsize = 10 * 1024 * 1024 * 1024ul;
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+
+    // set response file exist
+    ::curve::mds::DeleteFileResponse response;
+    response.set_statuscode(::curve::mds::StatusCode::kFileNotExists);
+
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&response));
+
+    curvefsservice.SetDeleteFile(fakeret);
+
+    int ret = fileClient_.Unlink(filename1, userinfo);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::NOTEXIST);
+
+    // set extend file ok
+    ::curve::mds::DeleteFileResponse response1;
+    response1.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&response1));
+
+    curvefsservice.SetDeleteFile(fakeret1);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileClient_.Unlink(filename1,
+                                                    userinfo));
+
+    // set delete file dir not exists
+    ::curve::mds::DeleteFileResponse response2;
+    response2.set_statuscode(::curve::mds::StatusCode::kDirNotExist);
+
+    FakeReturn* fakeret3
+     = new FakeReturn(nullptr, static_cast<void*>(&response2));
+
+    curvefsservice.SetDeleteFile(fakeret3);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::NOTEXIST,
+              fileClient_.Unlink(filename1, userinfo));
+
+    // set delete file auth fail
+    ::curve::mds::DeleteFileResponse response3;
+    response3.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
+
+    FakeReturn* fakeret4
+     = new FakeReturn(nullptr, static_cast<void*>(&response3));
+
+    curvefsservice.SetDeleteFile(fakeret4);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::AUTHFAIL,
+              fileClient_.Unlink(filename1, userinfo));
+
+    // set delete file mds storage error
+    ::curve::mds::DeleteFileResponse response4;
+    response4.set_statuscode(::curve::mds::StatusCode::kStorageError);
+
+    FakeReturn* fakeret5
+     = new FakeReturn(nullptr, static_cast<void*>(&response4));
+
+    curvefsservice.SetDeleteFile(fakeret5);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
+              fileClient_.Unlink(filename1, userinfo));
+
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret2
+     = new FakeReturn(&cntl, static_cast<void*>(&response));
+
+    curvefsservice.SetDeleteFile(fakeret2);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, fileClient_.Unlink(filename1,
+                                                        userinfo));
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
+
+    LOG(INFO) << "create file done!";
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+    delete fakeret;
+    delete fakeret2;
+}
+
+TEST_F(MDSClientTest, Rmdir) {
+    std::string filename1 = "/1/";
+    uint64_t newsize = 10 * 1024 * 1024 * 1024ul;
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+
+    // set response dir not exist
+    ::curve::mds::DeleteFileResponse response;
+    response.set_statuscode(::curve::mds::StatusCode::kDirNotExist);
+
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&response));
+
+    curvefsservice.SetDeleteFile(fakeret);
+
+    int ret = fileClient_.Rmdir(filename1, userinfo);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::NOTEXIST);
+
+    // set extend file ok
+    ::curve::mds::DeleteFileResponse response1;
+    response1.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&response1));
+
+    curvefsservice.SetDeleteFile(fakeret1);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileClient_.Rmdir(filename1,
+                                                    userinfo));
+
+    // set delete file dir not exists
+    ::curve::mds::DeleteFileResponse response2;
+    response2.set_statuscode(::curve::mds::StatusCode::kDirNotExist);
+
+    FakeReturn* fakeret3
+     = new FakeReturn(nullptr, static_cast<void*>(&response2));
+
+    curvefsservice.SetDeleteFile(fakeret3);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::NOTEXIST,
+              fileClient_.Rmdir(filename1, userinfo));
+
+    // set delete file auth fail
+    ::curve::mds::DeleteFileResponse response3;
+    response3.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
+
+    FakeReturn* fakeret4
+     = new FakeReturn(nullptr, static_cast<void*>(&response3));
+
+    curvefsservice.SetDeleteFile(fakeret4);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::AUTHFAIL,
+              fileClient_.Rmdir(filename1, userinfo));
+
+    // set delete file mds storage error
+    ::curve::mds::DeleteFileResponse response4;
+    response4.set_statuscode(::curve::mds::StatusCode::kStorageError);
+
+    FakeReturn* fakeret5
+     = new FakeReturn(nullptr, static_cast<void*>(&response4));
+
+    curvefsservice.SetDeleteFile(fakeret5);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
+              fileClient_.Rmdir(filename1, userinfo));
+
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret2
+     = new FakeReturn(&cntl, static_cast<void*>(&response));
+
+    curvefsservice.SetDeleteFile(fakeret2);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, fileClient_.Rmdir(filename1,
+                                                        userinfo));
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
+
+    LOG(INFO) << "create file done!";
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+    delete fakeret;
+    delete fakeret2;
+}
+
+TEST_F(MDSClientTest, StatFile) {
+    std::string filename = "/1_userinfo_";
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    // Start the server.
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    if (server.Start(metaserver_addr.c_str(),
+        &options) != 0) {
+        LOG(ERROR) << "Fail to start Server";
+    }
+
+    curve::mds::FileInfo * info = new curve::mds::FileInfo;
+    ::curve::mds::GetFileInfoResponse response;
+    info->set_filename("_filename_");
+    info->set_id(1);
+    info->set_parentid(0);
+    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    info->set_chunksize(4 * 1024 * 1024);
+    info->set_length(4 * 1024 * 1024 * 1024ul);
+    info->set_ctime(12345678);
+    info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+    info->set_fullpathname("/1_userinfo_");
+
+    response.set_allocated_fileinfo(info);
+    response.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakeret =
+        new FakeReturn(nullptr, static_cast<void*>(&response));
+    curvefsservice.SetFakeReturn(fakeret);
+
+    curve::client::FInfo_t* finfo = new curve::client::FInfo_t;
+    FileStatInfo fstat;
+    fileClient_.StatFile(filename, userinfo, &fstat);
+
+    ASSERT_EQ(fstat.id, 1);
+    ASSERT_EQ(fstat.parentid, 0);
+    ASSERT_EQ(static_cast<curve::mds::FileType>(fstat.filetype),
+        curve::mds::FileType::INODE_PAGEFILE);
+    ASSERT_EQ(fstat.ctime, 12345678);
+    ASSERT_EQ(fstat.length, 4 * 1024 * 1024 * 1024ul);
+
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret2
+     = new FakeReturn(&cntl, static_cast<void*>(&response));
+
+    curvefsservice.SetFakeReturn(fakeret2);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED,
+         fileClient_.StatFile(filename, userinfo, &fstat));
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
+
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+    delete fakeret;
+    delete fakeret2;
+    delete finfo;
 }
 
 TEST_F(MDSClientTest, GetFileInfo) {
@@ -340,7 +878,7 @@ TEST_F(MDSClientTest, GetFileInfo) {
     curvefsservice.SetFakeReturn(fakeret);
 
     curve::client::FInfo_t* finfo = new curve::client::FInfo_t;
-    mdsclient_.GetFileInfo(filename, UserInfo("test", ""), finfo);
+    mdsclient_.GetFileInfo(filename, userinfo, finfo);
 
     ASSERT_EQ(finfo->filename, "_filename_");
     ASSERT_EQ(finfo->id, 1);
@@ -364,7 +902,7 @@ TEST_F(MDSClientTest, GetFileInfo) {
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
          mdsclient_.GetFileInfo(filename.c_str(),
-          UserInfo("test", ""), finfo));
+          userinfo, finfo));
     ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
         curvefsservice.GetRetryTimes());
 
@@ -442,7 +980,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
 
     SegmentInfo segInfo;
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-    mdsclient_.GetOrAllocateSegment(true, UserInfo("test", ""),
+    mdsclient_.GetOrAllocateSegment(true, userinfo,
                                     0, &fi, &segInfo);
     int count = 0;
     for (auto iter : segInfo.chunkvec) {
@@ -821,7 +1359,7 @@ TEST_F(MDSClientTest, GetFileInfoException) {
 
         finfo = new curve::client::FInfo_t;
         ASSERT_EQ(LIBCURVE_ERROR::OK,
-                mdsclient_.GetFileInfo(filename, UserInfo("test", ""), finfo));
+                mdsclient_.GetFileInfo(filename, userinfo, finfo));
     }
 
     {
@@ -844,7 +1382,7 @@ TEST_F(MDSClientTest, GetFileInfoException) {
 
         finfo = new curve::client::FInfo_t;
         ASSERT_EQ(LIBCURVE_ERROR::OK,
-                mdsclient_.GetFileInfo(filename, UserInfo("test", ""), finfo));
+                mdsclient_.GetFileInfo(filename, userinfo, finfo));
     }
 
     ASSERT_EQ(0, server.Stop(0));
@@ -894,7 +1432,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegmentException) {
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;
     curve::client::MetaCache mc;
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            mdsclient_.GetOrAllocateSegment(true, UserInfo("test", ""),
+            mdsclient_.GetOrAllocateSegment(true, userinfo,
                     0, &fi, &segInfo));
 
 
@@ -909,7 +1447,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegmentException) {
     curvefsservice.CleanRetryTimes();
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            mdsclient_.GetOrAllocateSegment(true, UserInfo("test", ""),
+            mdsclient_.GetOrAllocateSegment(true, userinfo,
                         0, &fi, &segInfo));
 
     ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
@@ -958,7 +1496,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     curvefsservice.CleanRetryTimes();
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED, mdsclient_.CreateCloneFile("destination",
-                                                            UserInfo(),
+                                                            userinfo,
                                                             10 * 1024 * 1024,
                                                             0,
                                                             4*1024*1024,
@@ -978,7 +1516,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
 
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, mdsclient_.CreateCloneFile(
                                                             "destination",
-                                                            UserInfo(),
+                                                            userinfo,
                                                             10 * 1024 * 1024,
                                                             0,
                                                             4*1024*1024,
@@ -995,7 +1533,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
     curvefsservice.SetCreateCloneFile(fakecreateclone2);
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, mdsclient_.CreateCloneFile("destination",
-                                                            UserInfo(),
+                                                            userinfo,
                                                             10 * 1024 * 1024,
                                                             0,
                                                             4*1024*1024,
@@ -1038,7 +1576,7 @@ TEST_F(MDSClientTest, CompleteCloneMeta) {
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED, mdsclient_.CompleteCloneMeta(
                                                             "destination",
-                                                            UserInfo()));
+                                                            userinfo));
 
     ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
             curvefsservice.GetRetryTimes());
@@ -1054,7 +1592,7 @@ TEST_F(MDSClientTest, CompleteCloneMeta) {
 
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, mdsclient_.CompleteCloneMeta(
                                                             "destination",
-                                                            UserInfo()));
+                                                            userinfo));
     // 请求成功
     curve::mds::SetCloneFileStatusResponse response2;
     response2.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -1065,7 +1603,7 @@ TEST_F(MDSClientTest, CompleteCloneMeta) {
     curvefsservice.SetCloneFileStatus(fakecreateclone2);
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, mdsclient_.CompleteCloneMeta("destination",
-                                                            UserInfo()));
+                                                            userinfo));
 }
 
 TEST_F(MDSClientTest, CompleteCloneFile) {
@@ -1103,7 +1641,7 @@ TEST_F(MDSClientTest, CompleteCloneFile) {
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED, mdsclient_.CompleteCloneFile(
                                                             "destination",
-                                                            UserInfo()));
+                                                            userinfo));
 
     ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
             curvefsservice.GetRetryTimes());
@@ -1119,7 +1657,7 @@ TEST_F(MDSClientTest, CompleteCloneFile) {
 
     ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, mdsclient_.CompleteCloneFile(
                                                             "destination",
-                                                            UserInfo()));
+                                                            userinfo));
     // 请求成功
     curve::mds::SetCloneFileStatusResponse response2;
     response2.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -1130,5 +1668,5 @@ TEST_F(MDSClientTest, CompleteCloneFile) {
     curvefsservice.SetCloneFileStatus(fakecreateclone2);
 
     ASSERT_EQ(LIBCURVE_ERROR::OK, mdsclient_.CompleteCloneFile("destination",
-                                                            UserInfo()));
+                                                            userinfo));
 }

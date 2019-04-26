@@ -37,9 +37,9 @@ extern std::string configpath;
 
 extern char* writebuffer;
 
+using curve::client::UserInfo_t;
 using curve::client::CopysetInfo_t;
 using curve::client::SegmentInfo;
-using curve::client::UserInfo;
 using curve::client::FInfo_t;
 using curve::client::MDSClient;
 using curve::client::ClientConfig;
@@ -58,13 +58,13 @@ std::mutex writemtx;
 std::condition_variable writecv;
 
 void readcallback(CurveAioContext* context) {
-    LOG(INFO) << "aio call back here, errorcode = " << context->err;
+    LOG(INFO) << "aio call back here, errorcode = " << context->ret;
     ioreadflag = true;
     readcv.notify_one();
 }
 
 void writecallback(CurveAioContext* context) {
-    LOG(INFO) << "aio call back here, errorcode = " << context->err;
+    LOG(INFO) << "aio call back here, errorcode = " << context->ret;
     iowriteflag = true;
     writecv.notify_one();
 }
@@ -90,9 +90,11 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fopt.leaseOpt.refreshTimesPerLease = 4;
 
         fileinstance_ = new FileInstance();
-        UserInfo userinfo("userinfo", "12345");
-        fileinstance_->Initialize(userinfo, fopt);
+        userinfo.owner = "userinfo";
+        userinfo.password = "12345";
+
         mdsclient_.Initialize(fopt.metaServerOpt);
+        fileinstance_->Initialize(&mdsclient_, userinfo, fopt);
         InsertMetaCache();
     }
 
@@ -147,7 +149,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         FakeReturn* openfakeret = new FakeReturn(nullptr, static_cast<void*>(openresponse));      // NOLINT
         curvefsservice.SetOpenFile(openfakeret);
         // open will set the finfo for file instance
-        fileinstance_->Open("1_userinfo_.txt", 0, false);
+        fileinstance_->Open("1_userinfo_.txt", userinfo);
 
         curve::mds::GetOrAllocateSegmentResponse* response =
             new curve::mds::GetOrAllocateSegmentResponse();
@@ -199,8 +201,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
         SegmentInfo sinfo;
         LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-        mdsclient_.GetOrAllocateSegment(true, UserInfo("userinfo", "12345"),
-                                        0, &fi, &sinfo);
+        mdsclient_.GetOrAllocateSegment(true, userinfo, 0, &fi, &sinfo);
         int count = 0;
         for (auto iter : sinfo.chunkvec) {
             uint64_t index = (sinfo.startoffset + count*fi.chunksize )
@@ -218,6 +219,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         }
     }
 
+    UserInfo_t userinfo;
     MDSClient mdsclient_;
     FileServiceOption_t fopt;
     curve::client::ClientConfig cc;
@@ -241,8 +243,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartRead) {
     CurveAioContext aioctx;
     aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
     aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = 0;
-    aioctx.err = LIBCURVE_ERROR::UNKNOWN;
+    aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = readcallback;
     aioctx.buf = new char[aioctx.length];
 
@@ -287,8 +288,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartWrite) {
     CurveAioContext aioctx;
     aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
     aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = 0;
-    aioctx.err = LIBCURVE_ERROR::UNKNOWN;
+    aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = writecallback;
     aioctx.buf = new char[aioctx.length];
 
@@ -436,8 +436,7 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartRead) {
     CurveAioContext aioctx;
     aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
     aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = 0;
-    aioctx.err = LIBCURVE_ERROR::UNKNOWN;
+    aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = readcallback;
     aioctx.buf = new char[aioctx.length];
     ioreadflag = false;
@@ -469,8 +468,7 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
     CurveAioContext aioctx;
     aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
     aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = 0;
-    aioctx.err = LIBCURVE_ERROR::UNKNOWN;
+    aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = writecallback;
     aioctx.buf = new char[aioctx.length];
 
@@ -511,7 +509,7 @@ TEST_F(IOTrackerSplitorTest, ManagerStartRead) {
     char* data = new char[length];
 
     auto threadfunc = [&]() {
-        ASSERT_EQ(LIBCURVE_ERROR::OK, ioctxmana->Read(data,
+        ASSERT_EQ(length, ioctxmana->Read(data,
                                         offset,
                                         length,
                                         &mdsclient_));
@@ -577,8 +575,12 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     fi.chunksize = 4 * 1024 * 1024;
     fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     auto fileserv = new FileInstance();
-    UserInfo userinfo("userinfo", "12345");
-    ASSERT_TRUE(fileserv->Initialize(userinfo, fopt));
+
+    UserInfo_t rootuserinfo;
+    rootuserinfo.owner = "userinfo";
+    rootuserinfo.password = "12345";
+
+    ASSERT_TRUE(fileserv->Initialize(&mdsclient_, userinfo, fopt));
 
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();
@@ -591,8 +593,8 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     char* buf = new char[length];
 
     auto waitfunc = [&]() {
-        uint32_t retlen = iotracker->Wait();
-        ASSERT_EQ(-1, retlen);
+        int retlen = iotracker->Wait();
+        ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, retlen);
     };
 
     auto threadfunc = [&]() {
@@ -637,10 +639,10 @@ TEST_F(IOTrackerSplitorTest, BoundaryTEST) {
     memset(buf + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
     auto threadfunc = [&]() {
-        ASSERT_EQ(LIBCURVE_ERROR::FAILED, ioctxmana->Write(buf,
-                                    offset,
-                                    length,
-                                    &mdsclient_));
+        ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, ioctxmana->Write(buf,
+                                                                offset,
+                                                                length,
+                                                                &mdsclient_));
     };
     std::thread process(threadfunc);
 

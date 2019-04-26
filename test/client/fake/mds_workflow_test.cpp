@@ -11,7 +11,7 @@
 #include <fcntl.h>
 #include <iostream>
 
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 #include "src/client/config_info.h"
 #include "src/client/client_common.h"
 #include "test/client/fake/fakeMDS.h"
@@ -29,7 +29,7 @@ int main(int argc, char ** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
     google::InitGoogleLogging(argv[0]);
     /*** init mds service ***/
-    std::string filename = "./1_userinfo_test.img";
+    std::string filename = "./1_userinfo_";
     FakeMDS mds(filename);
     if (FLAGS_fake_mds) {
         mds.Initialize();
@@ -57,14 +57,17 @@ int main(int argc, char ** argv) {
 
             Init(configpath.c_str());
 
-            Open(filename.c_str(), FLAGS_test_disk_size, true);
+            C_UserInfo_t userinfo;
+            memcpy(userinfo.owner, "userinfo", 9);
+
+            Create(filename.c_str(), &userinfo, FLAGS_test_disk_size);
 
             sleep(10);
 
             int fd;
             char* buffer;
             char* readbuffer;
-            fd = Open(filename.c_str(), 0, false);
+            fd = Open(filename.c_str(), &userinfo);
 
             if (fd == -1) {
                 LOG(FATAL) << "open file failed!";

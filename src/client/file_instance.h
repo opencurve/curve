@@ -33,21 +33,22 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     /**
      * 初始化
+     * @param: mdsclient为全局的mds client
      * @param: userinfo为user信息
      * @param: fileservicopt fileclient的配置选项
      * @return: 成功返回true、否则返回false
      */
-    bool Initialize(UserInfo_t userinfo, FileServiceOption_t fileservicopt);
+    bool Initialize(MDSClient* mdsclient,
+                    const UserInfo_t& userinfo,
+                    FileServiceOption_t fileservicopt);
     /**
      * 打开文件
      * @param: filename为文件名
-     * @param: size为文件长度
-     * @param: create是创建flag
+     * @param: userinfo为user信息
      * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR Open(std::string filename,
-                        size_t size,
-                        bool create);
+    int Open(const std::string& filename,
+                        UserInfo_t userinfo);
     /**
      * 同步模式读
      * @param: buf为当前待读取的缓冲区
@@ -55,7 +56,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @parma：length为待读取的长度
      * @return： 成功返回读取真实长度，-1为失败
      */
-    LIBCURVE_ERROR  Read(char* buf, off_t offset, size_t length);
+    int Read(char* buf, off_t offset, size_t length);
     /**
      * 同步模式写
      * @param: buf为当前待写入的缓冲区
@@ -63,7 +64,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @parma：length为待读取的长度
      * @return： 成功返回写入真实长度，-1为失败
      */
-    LIBCURVE_ERROR  Write(const char* buf, off_t offset, size_t length);
+    int Write(const char* buf, off_t offset, size_t length);
     /**
      * 异步模式读
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
@@ -74,21 +75,15 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
      */
     void AioWrite(CurveAioContext* aioctx);
-    /**
-     * 获取文件信息
-     * @param: finfo是出参，携带当前文件的基础信息
-     * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
-     */
-    LIBCURVE_ERROR StatFs(FileStatInfo* finfo);
-    LIBCURVE_ERROR Close();
+
+    int Close();
 
     void UnInitialize();
 
     IOManager4File* GetIOManager4File() {return &iomanager4file_;}
 
  private:
-    LIBCURVE_ERROR GetFileInfo(std::string filename, FInfo_t* fi);
-    LIBCURVE_ERROR CreateFile(std::string filename, size_t size);
+    int GetFileInfo(const std::string& filename, FInfo_t* fi);
 
  private:
     // 保存当前file的文件信息
@@ -101,7 +96,7 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     UserInfo_t             userinfo_;
 
     // MDSClient是FileInstance与mds通信的唯一出口
-    MDSClient               mdsclient_;
+    MDSClient*              mdsclient_;
 
     // 每个文件都持有与MDS通信的lease，leaseexcutor是续约执行者
     LeaseExcutor*           leaseexcutor_;

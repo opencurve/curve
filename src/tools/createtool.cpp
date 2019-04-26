@@ -12,7 +12,7 @@
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
 
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 #include "src/client/client_common.h"
 
 DEFINE_string(mds_addr, "127.0.0.1:9000", "mds addr");

@@ -14,7 +14,7 @@
 #include <thread>   // NOLINT
 #include <chrono>   // NOLINT
 
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
@@ -44,12 +44,12 @@ DECLARE_uint64(test_disk_size);
 void writecallbacktest(CurveAioContext* context) {
     writeflag = true;
     writeinterfacecv.notify_one();
-    LOG(INFO) << "aio call back here, errorcode = " << context->err;
+    LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 void readcallbacktest(CurveAioContext* context) {
     readflag = true;
     interfacecv.notify_one();
-    LOG(INFO) << "aio call back here, errorcode = " << context->err;
+    LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
 int main(int argc, char ** argv) {
@@ -96,8 +96,9 @@ int main(int argc, char ** argv) {
     }
 
     /**** libcurve file operation ****/
-    int filedesc = Open(filename.c_str(), FLAGS_test_disk_size, true);
-    Close(filedesc);
+    C_UserInfo_t userinfo;
+    memcpy(userinfo.owner, "userinfo", 9);
+    Create(filename.c_str(), &userinfo, FLAGS_test_disk_size);
 
     sleep(1);
 
@@ -108,7 +109,7 @@ int main(int argc, char ** argv) {
         goto skip_write_io;
     }
 
-    fd = Open(filename.c_str(), 0, false);
+    fd = Open(filename.c_str(), &userinfo);
 
     if (fd == -1) {
         LOG(FATAL) << "open file failed!";

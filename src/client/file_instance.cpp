@@ -32,7 +32,8 @@ FileInstance::FileInstance() {
     finfo_.segmentsize = 1 * 1024 * 1024 * 1024ul;
 }
 
-bool FileInstance::Initialize(UserInfo_t userinfo,
+bool FileInstance::Initialize(MDSClient* mdsclient,
+                              const UserInfo_t& userinfo,
                               FileServiceOption_t fileservicopt) {
     fileopt_ = fileservicopt;
     bool ret = false;
@@ -43,11 +44,7 @@ bool FileInstance::Initialize(UserInfo_t userinfo,
         }
 
         userinfo_ = userinfo;
-
-        if (mdsclient_.Initialize(fileopt_.metaServerOpt) != 0) {
-            LOG(ERROR) << "MDSClient init failed!";
-            break;
-        }
+        mdsclient_ = mdsclient;
 
         if (!iomanager4file_.Initialize(fileopt_.ioOpt)) {
             LOG(ERROR) << "Init io context manager failed!";
@@ -55,7 +52,7 @@ bool FileInstance::Initialize(UserInfo_t userinfo,
         }
         leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
                                                         userinfo_,
-                                                        &mdsclient_,
+                                                        mdsclient_,
                                                         &iomanager4file_);
         if (CURVE_UNLIKELY(leaseexcutor_ == nullptr)) {
             LOG(ERROR) << "allocate lease excutor failed!";
@@ -74,71 +71,50 @@ bool FileInstance::Initialize(UserInfo_t userinfo,
 void FileInstance::UnInitialize() {
     iomanager4file_.UnInitialize();
     leaseexcutor_->Stop();
-    mdsclient_.UnInitialize();
+    mdsclient_->UnInitialize();
 
     delete leaseexcutor_;
     leaseexcutor_ = nullptr;
 }
 
-LIBCURVE_ERROR FileInstance::Read(char* buf, off_t offset, size_t length) {
-    return iomanager4file_.Read(buf, offset, length, &mdsclient_);
+int FileInstance::Read(char* buf, off_t offset, size_t length) {
+    return iomanager4file_.Read(buf, offset, length, mdsclient_);
 }
 
-LIBCURVE_ERROR FileInstance::Write(const char* buf, off_t offset, size_t len) {
-    return iomanager4file_.Write(buf, offset, len, &mdsclient_);
+int FileInstance::Write(const char* buf, off_t offset, size_t len) {
+    return iomanager4file_.Write(buf, offset, len, mdsclient_);
 }
 
 void FileInstance::AioRead(CurveAioContext* aioctx) {
-    iomanager4file_.AioRead(aioctx, &mdsclient_);
+    iomanager4file_.AioRead(aioctx, mdsclient_);
 }
 
 void FileInstance::AioWrite(CurveAioContext* aioctx) {
-    iomanager4file_.AioWrite(aioctx, &mdsclient_);
+    iomanager4file_.AioWrite(aioctx, mdsclient_);
 }
 
-LIBCURVE_ERROR FileInstance::StatFs(FileStatInfo* finfo) {
-    FInfo_t fi;
-    if (GetFileInfo(finfo_.fullPathName, &fi) == 0) {
-        finfo->ctime    = fi.ctime;
-        finfo->length   = fi.length;
-        finfo->filetype = fi.filetype;
-    } else {
-        LOG(ERROR) << "Get file info failed!";
-        return LIBCURVE_ERROR::FAILED;
-    }
-    return LIBCURVE_ERROR::OK;
-}
-
-LIBCURVE_ERROR FileInstance::CreateFile(std::string filename, size_t size) {
-    return mdsclient_.CreateFile(filename, userinfo_, size);
-}
-
-LIBCURVE_ERROR FileInstance::Open(std::string fname, size_t size, bool create) {
+int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
     LeaseSession_t  lease;
-    LIBCURVE_ERROR ret = LIBCURVE_ERROR::OK;
-    if (create) {
-        ret = CreateFile(fname, size);
+    int ret = -LIBCURVE_ERROR::FAILED;
+
+    ret = mdsclient_->OpenFile(filename, userinfo_, &finfo_, &lease);
+    if (LIBCURVE_ERROR::OK == ret) {
+        finfo_.fullPathName = filename;
+        ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
+                                                    : LIBCURVE_ERROR::FAILED;
+    } else {
+        LOG(ERROR) << "Open file failed!";
     }
 
-    if (LIBCURVE_ERROR::OK == ret || LIBCURVE_ERROR::EXISTS == ret) {
-        ret = mdsclient_.OpenFile(fname, userinfo_, &finfo_, &lease);
-        if (LIBCURVE_ERROR::OK == ret) {
-            finfo_.fullPathName = fname;
-            ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
-                                                      : LIBCURVE_ERROR::FAILED;
-        } else {
-            LOG(ERROR) << "Open file failed!";
-        }
-    }
-    return ret;
+    return -ret;
 }
 
-LIBCURVE_ERROR FileInstance::GetFileInfo(std::string filename, FInfo_t* fi) {
-    return mdsclient_.GetFileInfo(filename, userinfo_, fi);
+int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {
+    return -mdsclient_->GetFileInfo(filename, userinfo_, fi);
 }
 
-LIBCURVE_ERROR FileInstance::Close() {
-    return mdsclient_.CloseFile(finfo_.fullPathName, userinfo_,
+int FileInstance::Close() {
+    return -mdsclient_->CloseFile(finfo_.fullPathName, userinfo_,
                                 leaseexcutor_->GetLeaseSessionID());
 }
 }   // namespace client
