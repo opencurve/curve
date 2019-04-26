@@ -29,13 +29,13 @@
 #include "src/client/file_instance.h"
 #include "src/client/splitor.h"
 #include "src/client/libcurve_file.h"
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 
 std::string metaserver_addr = "127.0.0.1:8000";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./client.conf";   // NOLINT
-std::string config = "metaserver_addr=127.0.0.1:8000\n"   // NOLINT
+std::string config = "metaserver_addr=127.0.0.1:8000@127.0.0.1:8000\n"   // NOLINT
 "getLeaderRetry=3\n"\
 "queueCapacity=4096\n"\
 "threadpoolSize=2\n"\

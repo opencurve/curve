@@ -8,7 +8,7 @@
 
 #include "src/client/libcbd.h"
 #include "src/client/config_info.h"
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 
 extern "C" {
 
@@ -39,7 +39,7 @@ int cbd_libcurve_fini() {
 int cbd_libcurve_open(const char* filename) {
     int fd = -1;
 
-    fd = Open(filename, 0, false);
+    fd = Open4Qemu(filename);
 
     return fd;
 }
@@ -72,13 +72,8 @@ int cbd_libcurve_sync(int fd) {
 }
 
 int64_t cbd_libcurve_filesize(const char* filename) {
-    int fd = cbd_libcurve_open(filename);
-    if (fd < 0) {
-        return -1;
-    }
     struct FileStatInfo info;
-    StatFs(fd, &info);
-    cbd_libcurve_close(fd);
+    StatFile4Qemu(filename, &info);
     return info.length;
 }
 

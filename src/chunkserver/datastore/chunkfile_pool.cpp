@@ -166,7 +166,7 @@ int ChunkfilePool::AllocateChunk(const std::string& chunkpath) {
     }
 
     char* data = new (std::nothrow) char[chunklen];
-    memset(data, '0', chunklen);
+    memset(data, 0, chunklen);
 
     ret = fsptr_->Write(fd, data, 0, chunklen);
     if (ret < 0) {

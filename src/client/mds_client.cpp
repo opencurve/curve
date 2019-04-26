@@ -18,6 +18,7 @@ using curve::common::TimeUtility;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
+// TODO(tongguangxun) :为rpc添加uuid作为requestid
 namespace curve {
 namespace client {
 MDSClient::MDSClient() {
@@ -118,7 +119,7 @@ bool MDSClient::UpdateRetryinfoOrChangeServer(int* retrycount,
 }
 
 LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
-                                    UserInfo_t userinfo,
+                                    const UserInfo_t& userinfo,
                                     FInfo_t* fi,
                                     LeaseSession* lease) {
     // 记录当前mds重试次数
@@ -133,12 +134,13 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
         curve::mds::OpenFileResponse response;
         request.set_filename(filename);
 
-        FillUserInfo<curve::mds::OpenFileRequest>(
-            &request, userinfo);
+        FillUserInfo<curve::mds::OpenFileRequest>(&request, userinfo);
 
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
+
+        LOG(INFO) << "OpenFile: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -173,30 +175,29 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
         }
 
         if (!infoComplete) {
-            LOG(ERROR) << "file info not complete!";
+            LOG(ERROR) << "mds response has no file info!";
             return LIBCURVE_ERROR::FAILED;
         }
 
-        auto retcode = response.statuscode();
-        if (curve::mds::StatusCode::kOK == retcode) {
-            return LIBCURVE_ERROR::OK;
-        } else if (curve::mds::StatusCode::kFileExists == retcode) {
-            LOG(WARNING) << "file already exists!";
-            return LIBCURVE_ERROR::EXISTS;
-        } else if (curve::mds::StatusCode::kOwnerAuthFail
-                                                    == response.statuscode()) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
 
-        return LIBCURVE_ERROR::FAILED;
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "OpenFile: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
-                                    UserInfo_t userinfo,
-                                    size_t size) {
+                                    const UserInfo_t& userinfo,
+                                    size_t size,
+                                    bool normalFile) {
     // 记录当前mds重试次数
     int count = 0;
     // 记录还没重试的mds addr数量
@@ -205,15 +206,22 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         curve::mds::CreateFileRequest request;
         curve::mds::CreateFileResponse response;
         request.set_filename(filename);
-        request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-        request.set_filelength(size);
+        if (normalFile) {
+            request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+            request.set_filelength(size);
+        } else {
+            request.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
+        }
 
         FillUserInfo<curve::mds::CreateFileRequest>(&request, userinfo);
+
+        LOG(INFO) << "CreateFile: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner
+                  << ", is nomalfile: " << normalFile;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -222,7 +230,7 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
         }
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "Create file failed, errcorde = "
+            LOG(ERROR) << "Create file or directory failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -235,23 +243,24 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
             continue;
         }
 
+        LIBCURVE_ERROR retcode;
         curve::mds::StatusCode stcode = response.statuscode();
-        if (stcode == curve::mds::StatusCode::kFileExists) {
-            return LIBCURVE_ERROR::EXISTS;
-        } else if (stcode == curve::mds::StatusCode::kOK) {
-            return LIBCURVE_ERROR::OK;
-        } else if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
+        MDSStatusCode2LibcurveError(stcode, &retcode);
 
-        return LIBCURVE_ERROR::FAILED;
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "CreateFile: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", is nomalfile: " << normalFile
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
 
-LIBCURVE_ERROR MDSClient::CloseFile(const std::string& fname,
-                                    UserInfo_t userinfo,
+LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
+                                    const UserInfo_t& userinfo,
                                     const std::string& sessionid) {
     // 记录当前mds重试次数
     int count = 0;
@@ -261,14 +270,17 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& fname,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         curve::mds::CloseFileRequest request;
         curve::mds::CloseFileResponse response;
-        request.set_filename(fname);
+        request.set_filename(filename);
         request.set_sessionid(sessionid);
 
         FillUserInfo<curve::mds::CloseFileRequest>(&request, userinfo);
+
+        LOG(INFO) << "CloseFile: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner
+                  << ", sessionid = " << sessionid;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -290,25 +302,25 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& fname,
             continue;
         }
 
-        auto retcode = response.statuscode();
-        if (retcode == ::curve::mds::StatusCode::kOK) {
-            return LIBCURVE_ERROR::OK;
-        } else if (retcode == ::curve::mds::StatusCode::kFileNotExists) {
-            LOG(WARNING) << "file not exists!";
-            return LIBCURVE_ERROR::NOTEXIST;
-        } else if (curve::mds::StatusCode::kOwnerAuthFail == response.statuscode()) {   // NOLINT
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
 
-        return LIBCURVE_ERROR::FAILED;
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "CloseFile: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", sessionid = " << sessionid
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
-                                                UserInfo_t uinfo,
-                                                FInfo_t* fi) {
+                                    const UserInfo_t& uinfo,
+                                    FInfo_t* fi) {
     // 记录当前mds重试次数
     int count = 0;
     // 记录还没重试的mds addr数量
@@ -317,13 +329,15 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         curve::mds::GetFileInfoRequest request;
         curve::mds::GetFileInfoResponse response;
         request.set_filename(filename);
 
         FillUserInfo<curve::mds::GetFileInfoRequest>(&request, uinfo);
+
+        LOG(INFO) << "GetFileInfo: filename = " << filename.c_str()
+                  << ", owner = " << uinfo.owner;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -351,24 +365,24 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
             break;
         }
 
-        auto retcode = response.statuscode();
-        if (retcode == curve::mds::StatusCode::kOK) {
-            return LIBCURVE_ERROR::OK;
-        } else if (retcode == ::curve::mds::StatusCode::kFileNotExists) {
-            return LIBCURVE_ERROR::NOTEXIST;
-        } else if (curve::mds::StatusCode::kOwnerAuthFail== retcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
 
-        return LIBCURVE_ERROR::FAILED;
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "GetFileInfo: filename = " << filename.c_str()
+                << ", owner = " << uinfo.owner
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
 
     return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t* seq) {
     // 记录当前mds重试次数
     int count = 0;
@@ -378,7 +392,6 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         ::curve::mds::CreateSnapShotRequest request;
         ::curve::mds::CreateSnapShotResponse response;
@@ -386,6 +399,9 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         request.set_filename(filename);
 
         FillUserInfo<::curve::mds::CreateSnapShotRequest>(&request, userinfo);
+
+        LOG(INFO) << "CreateSnapShot: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -434,7 +450,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 }
 
 LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
-                                         UserInfo_t userinfo,
+                                         const UserInfo_t& userinfo,
                                          uint64_t seq) {
     // 记录当前mds重试次数
     int count = 0;
@@ -445,7 +461,6 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         ::curve::mds::DeleteSnapShotRequest request;
         ::curve::mds::DeleteSnapShotResponse response;
@@ -454,6 +469,10 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
         request.set_filename(filename);
 
         FillUserInfo<::curve::mds::DeleteSnapShotRequest>(&request, userinfo);
+
+        LOG(INFO) << "DeleteSnapShot: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner
+                  << ", seqnum = " << seq;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -474,28 +493,25 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
             }
             continue;
         }
-        ::curve::mds::StatusCode stcode = response.statuscode();
 
-        if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            return LIBCURVE_ERROR::AUTHFAIL;
-            LOG(ERROR) << "auth failed!";
-        }
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
 
-        LOG_IF(ERROR, stcode != ::curve::mds::StatusCode::kOK)
-        << "delete snap file failed, errcode = " << stcode;
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "DeleteSnapShot: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", seqnum = " << seq
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
 
-        if (stcode == ::curve::mds::StatusCode::kOK) {
-            return LIBCURVE_ERROR::OK;
-        } else if (stcode == ::curve::mds::StatusCode::kSnapshotFileNotExists) {
-            return LIBCURVE_ERROR::NOTEXIST;
-        }
-        return LIBCURVE_ERROR::FAILED;
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t seq,
                                         FInfo* fi) {
     // 记录当前mds重试次数
@@ -507,7 +523,6 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         ::curve::mds::ListSnapShotFileInfoRequest request;
         ::curve::mds::ListSnapShotFileInfoResponse response;
@@ -517,6 +532,10 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
 
         FillUserInfo<::curve::mds::ListSnapShotFileInfoRequest>(
             &request, userinfo);
+
+        LOG(INFO) << "GetSnapShot: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner
+                  << ", seqnum = " << seq;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -554,18 +573,23 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
             ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
         }
 
-        if (stcode == ::curve::mds::StatusCode::kOK) {
-            return LIBCURVE_ERROR::OK;
-        } else if (stcode == ::curve::mds::StatusCode::kSnapshotFileNotExists) {
-            return LIBCURVE_ERROR::NOTEXIST;
-        }
-        return LIBCURVE_ERROR::FAILED;
+        LIBCURVE_ERROR retcode;
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "GetSnapShot: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", seqnum = " << seq
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         const std::vector<uint64_t>* seq,
                                         std::vector<FInfo*>* snapif) {
     // 记录当前mds重试次数
@@ -577,7 +601,6 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         ::curve::mds::ListSnapShotFileInfoRequest request;
         ::curve::mds::ListSnapShotFileInfoResponse response;
@@ -594,6 +617,9 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         for (unsigned int i = 0; i < (*seq).size(); i++) {
             request.add_seq((*seq)[i]);
         }
+
+        LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -630,19 +656,22 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
             ServiceHelper::ProtoFileInfo2Local(&finfo, (*snapif)[i]);
         }
 
-        if (stcode == ::curve::mds::StatusCode::kOK) {
-            return LIBCURVE_ERROR::OK;
-        } else if (stcode == ::curve::mds::StatusCode::kSnapshotFileNotExists) {
-            return LIBCURVE_ERROR::NOTEXIST;
-        }
+        LIBCURVE_ERROR retcode;
+        MDSStatusCode2LibcurveError(stcode, &retcode);
 
-        return LIBCURVE_ERROR::FAILED;
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "ListSnapShot: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t seq,
                                         uint64_t offset,
                                         SegmentInfo *segInfo) {
@@ -654,7 +683,6 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         ::curve::mds::GetOrAllocateSegmentRequest request;
         ::curve::mds::GetOrAllocateSegmentResponse response;
@@ -666,6 +694,11 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
 
         FillUserInfo<::curve::mds::GetOrAllocateSegmentRequest>(
             &request, userinfo);
+
+        LOG(INFO) << "GetSnapshotSegmentInfo: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner
+                  << ", offset = " << offset
+                  << ", seqnum = " << seq;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -765,23 +798,28 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
             return LIBCURVE_ERROR::OK;
         }
 
-        if (stcode == ::curve::mds::StatusCode::kSnapshotFileNotExists) {
-            return LIBCURVE_ERROR::NOTEXIST;
-        } else if (stcode == ::curve::mds::StatusCode::kSegmentNotAllocated) {
-            return LIBCURVE_ERROR::NOT_ALLOCATE;
-        }
-        return LIBCURVE_ERROR::FAILED;
+        LIBCURVE_ERROR retcode;
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "GetSnapshotSegmentInfo: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", offset = " << offset
+                << ", seqnum = " << seq
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
-                                UserInfo_t userinfo,
+                                const UserInfo_t& userinfo,
                                 const std::string& sessionid,
                                 leaseRefreshResult* resp) {
     brpc::Controller cntl;
     cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-    cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
     curve::mds::CurveFSService_Stub stub(channel_);
     curve::mds::ReFreshSessionRequest request;
@@ -791,6 +829,10 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
     request.set_sessionid(sessionid);
 
     FillUserInfo<::curve::mds::ReFreshSessionRequest>(&request, userinfo);
+
+    LOG(INFO) << "RefreshSession: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner
+                  << ", sessionid = " << sessionid;
 
     {
         ReadLockGuard readGuard(rwlock_);
@@ -833,8 +875,9 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
 }
 
 LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
-                                              UserInfo_t userinfo,
-                                              uint64_t seq) {
+                                              const UserInfo_t& userinfo,
+                                              uint64_t seq,
+                                              FileStatus* filestatus) {
     // 记录当前mds重试次数
     int count = 0;
     // 记录还没重试的mds addr数量
@@ -844,9 +887,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
-        curve::mds::CurveFSService_Stub stub(channel_);
         ::curve::mds::CheckSnapShotStatusRequest request;
         ::curve::mds::CheckSnapShotStatusResponse response;
 
@@ -856,7 +897,15 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
         FillUserInfo<::curve::mds::CheckSnapShotStatusRequest>(
             &request, userinfo);
 
-        stub.CheckSnapShotStatus(&cntl, &request, &response, nullptr);
+        LOG(INFO) << "CheckSnapShotStatus: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner
+                  << ", seqnum = " << seq;
+
+        {
+            ReadLockGuard readGuard(rwlock_);
+            curve::mds::CurveFSService_Stub stub(channel_);
+            stub.CheckSnapShotStatus(&cntl, &request, &response, nullptr);
+        }
 
         if (cntl.Failed()) {
             LOG(ERROR) << "check snap file failed, errcorde = "
@@ -867,31 +916,31 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
                 break;
             }
             continue;
-        } else {
-            ::curve::mds::StatusCode stcode = response.statuscode();
-
-            if (curve::mds::StatusCode::kSnapshotFileDeleteError == stcode) {
-                LOG(ERROR) << "delete error!";
-                ret = LIBCURVE_ERROR::DELETE_ERROR;
-            } else if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-                LOG(ERROR) << "auth failed!";
-                ret = LIBCURVE_ERROR::AUTHFAIL;
-            } else if (curve::mds::StatusCode::kSnapshotDeleting == stcode) {
-                ret = LIBCURVE_ERROR::DELETING;
-            } else if (curve::mds::StatusCode::kSnapshotFileNotExists == stcode) {      // NOLINT
-                LOG(ERROR) << "snapshot file not exist!";
-                ret = LIBCURVE_ERROR::NOTEXIST;
-            } else if (stcode == curve::mds::StatusCode::kOK) {
-                ret = LIBCURVE_ERROR::OK;
-            }
         }
-        return ret;
+
+        if (response.has_filestatus() && filestatus != nullptr) {
+            *filestatus = static_cast<curve::client::FileStatus>(
+                                            response.filestatus());
+        }
+
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "CheckSnapShotStatus: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", seqnum = " << seq
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return ret;
 }
 
-LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& lpid,
-                            const std::vector<CopysetID>& csid,
+LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
+                            const std::vector<CopysetID>& copysetidvec,
                             std::vector<CopysetInfo_t>* cpinfoVec) {
     // 记录当前mds重试次数
     int count = 0;
@@ -901,15 +950,17 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& lpid,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         curve::mds::topology::GetChunkServerListInCopySetsRequest request;
         curve::mds::topology::GetChunkServerListInCopySetsResponse response;
 
-        request.set_logicalpoolid(lpid);
-        for (auto iter : csid) {
-            request.add_copysetid(iter);
+        request.set_logicalpoolid(logicalpooid);
+        for (auto copysetid : copysetidvec) {
+            request.add_copysetid(copysetid);
+            LOG(INFO) << "copyset id = " << copysetid;
         }
+
+        LOG(INFO) << "GetServerList: logicalpooid = " << logicalpooid;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -965,7 +1016,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& lpid,
 }
 
 LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t size,
                                         uint64_t sn,
                                         uint32_t chunksize,
@@ -978,7 +1029,6 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         curve::mds::CreateCloneFileRequest request;
         curve::mds::CreateCloneFileResponse response;
@@ -991,6 +1041,12 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
 
         FillUserInfo<::curve::mds::CreateCloneFileRequest>(
             &request, userinfo);
+
+        LOG(INFO) << "CreateCloneFile: destination = " << destination
+                  << ", owner = " << userinfo.owner.c_str()
+                  << ", seqnum = " << sn
+                  << ", size = " << size
+                  << ", chunksize = " << chunksize;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1017,15 +1073,21 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
             curve::mds::FileInfo finfo = response.fileinfo();
             ServiceHelper::ProtoFileInfo2Local(&finfo, fileinfo);
             return LIBCURVE_ERROR::OK;
-        } else if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        } else if (curve::mds::StatusCode::kFileExists == stcode) {
-            LOG(INFO) << "file already exists!";
-            return LIBCURVE_ERROR::EXISTS;
         }
 
-        return LIBCURVE_ERROR::FAILED;
+        LIBCURVE_ERROR retcode;
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "CreateCloneFile: destination = " << destination
+                << ", owner = " << userinfo.owner.c_str()
+                << ", seqnum = " << sn
+                << ", size = " << size
+                << ", chunksize = " << chunksize
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
@@ -1045,7 +1107,7 @@ LIBCURVE_ERROR MDSClient::CompleteCloneFile(const std::string &destination,
 
 LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
                                             const FileStatus& filestatus,
-                                            UserInfo_t userinfo,
+                                            const UserInfo_t& userinfo,
                                             uint64_t fileID) {
     // 记录当前mds重试次数
     int count = 0;
@@ -1055,7 +1117,6 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         curve::mds::SetCloneFileStatusRequest request;
         curve::mds::SetCloneFileStatusResponse response;
@@ -1068,6 +1129,11 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
 
         FillUserInfo<::curve::mds::SetCloneFileStatusRequest>(
             &request, userinfo);
+
+        LOG(INFO) << "CreateCloneFile: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner.c_str()
+                  << ", filestatus = " << static_cast<int>(filestatus)
+                  << ", fileID = " << fileID;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1089,23 +1155,26 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
             continue;
         }
 
+        LIBCURVE_ERROR retcode;
         curve::mds::StatusCode stcode = response.statuscode();
-        if (stcode == curve::mds::StatusCode::kOK) {
-            return LIBCURVE_ERROR::OK;
-        } else if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        } else if (curve::mds::StatusCode::kFileNotExists == stcode) {
-            return LIBCURVE_ERROR::NOTEXIST;
-        }
-        return LIBCURVE_ERROR::FAILED;
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "CreateCloneFile failed, filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner.c_str()
+                << ", filestatus = " << static_cast<int>(filestatus)
+                << ", fileID = " << fileID
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
 
     return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t offset,
                                         const FInfo_t* fi,
                                         SegmentInfo *segInfo) {
@@ -1117,7 +1186,6 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         curve::mds::GetOrAllocateSegmentRequest request;
         curve::mds::GetOrAllocateSegmentResponse response;
@@ -1133,6 +1201,10 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
 
         FillUserInfo<curve::mds::GetOrAllocateSegmentRequest>(&request,
                                                               userinfo);
+
+        LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
+                  << ", owner = " << userinfo.owner.c_str()
+                  << ", offset = " << offset;
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1240,7 +1312,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
     return LIBCURVE_ERROR::FAILED;
 }
 
-LIBCURVE_ERROR MDSClient::RenameFile(UserInfo_t userinfo,
+LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
                                         const std::string &origin,
                                         const std::string &destination,
                                         uint64_t originId,
@@ -1253,7 +1325,6 @@ LIBCURVE_ERROR MDSClient::RenameFile(UserInfo_t userinfo,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_max_retry(metaServerOpt_.rpcRetryTimes);
 
         curve::mds::RenameFileRequest request;
         curve::mds::RenameFileResponse response;
@@ -1267,6 +1338,12 @@ LIBCURVE_ERROR MDSClient::RenameFile(UserInfo_t userinfo,
         }
 
         FillUserInfo<::curve::mds::RenameFileRequest>(&request, userinfo);
+
+        LOG(INFO) << "RenameFile: origin = " << origin.c_str()
+                  << ", destination = " << destination.c_str()
+                  << ", originId = " << originId
+                  << ", destinationId = " << destinationId
+                  << ", owner = " << userinfo.owner.c_str();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1288,17 +1365,216 @@ LIBCURVE_ERROR MDSClient::RenameFile(UserInfo_t userinfo,
             continue;
         }
 
+        LIBCURVE_ERROR retcode;
         curve::mds::StatusCode stcode = response.statuscode();
-        if (stcode == curve::mds::StatusCode::kOK) {
-            return LIBCURVE_ERROR::OK;
-        } else if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
+        MDSStatusCode2LibcurveError(stcode, &retcode);
 
-        return LIBCURVE_ERROR::FAILED;
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "RenameFile: origin = " << origin.c_str()
+                << ", destination = " << destination.c_str()
+                << ", originId = " << originId
+                << ", destinationId = " << destinationId
+                << ", owner = " << userinfo.owner.c_str()
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
+
+LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
+                                 const UserInfo_t& userinfo,
+                                 uint64_t newsize) {
+    // 记录当前mds重试次数
+    int count = 0;
+    // 记录还没重试的mds addr数量
+    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
+
+    while (count < metaServerOpt_.rpcRetryTimes) {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+
+        curve::mds::ExtendFileRequest request;
+        curve::mds::ExtendFileResponse response;
+
+        request.set_filename(filename);
+        request.set_newsize(newsize);
+
+        FillUserInfo<::curve::mds::ExtendFileRequest>(&request, userinfo);
+
+        LOG(INFO) << "Extend: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner.c_str()
+                  << ", newsize = " << newsize;
+
+        {
+            ReadLockGuard readGuard(rwlock_);
+            curve::mds::CurveFSService_Stub stub(channel_);
+            stub.ExtendFile(&cntl, &request, &response, NULL);
+        }
+
+        if (cntl.Failed()) {
+            LOG(ERROR) << "ExtendFile invoke failed, errcorde = "
+                        << response.statuscode()
+                        << ", error content:"
+                        << cntl.ErrorText()
+                        << ", retry ExtendFile, retry times = "
+                        << count;
+
+            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
+                break;
+            }
+            continue;
+        }
+
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "Extend: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner.c_str()
+                << ", newsize = " << newsize
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
+    }
+    return LIBCURVE_ERROR::FAILED;
+}
+
+LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
+                                     UserInfo_t userinfo) {
+    // 记录当前mds重试次数
+    int count = 0;
+    // 记录还没重试的mds addr数量
+    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
+
+    while (count < metaServerOpt_.rpcRetryTimes) {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+
+        curve::mds::DeleteFileRequest request;
+        curve::mds::DeleteFileResponse response;
+
+        request.set_filename(filename);
+
+        FillUserInfo<::curve::mds::DeleteFileRequest>(&request, userinfo);
+
+        LOG(INFO) << "DeleteFile: filename = " << filename.c_str()
+                  << ", owner = " << userinfo.owner.c_str();
+
+        {
+            ReadLockGuard readGuard(rwlock_);
+            curve::mds::CurveFSService_Stub stub(channel_);
+            stub.DeleteFile(&cntl, &request, &response, NULL);
+        }
+
+        if (cntl.Failed()) {
+            LOG(ERROR) << "DeleteFile invoke failed, errcorde = "
+                        << response.statuscode()
+                        << ", error content:"
+                        << cntl.ErrorText()
+                        << ", retry DeleteFile, retry times = "
+                        << count;
+
+            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
+                break;
+            }
+            continue;
+        }
+
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "DeleteFile: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner.c_str()
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+
+        return retcode;
+    }
+    return LIBCURVE_ERROR::FAILED;
+}
+
+void MDSClient::MDSStatusCode2LibcurveError(const curve::mds::StatusCode& status
+                                            , LIBCURVE_ERROR* errcode) {
+    switch (status) {
+        case ::curve::mds::StatusCode::kOK:
+            *errcode = LIBCURVE_ERROR::OK;
+            break;
+        case ::curve::mds::StatusCode::kFileExists:
+            *errcode = LIBCURVE_ERROR::EXISTS;
+            LOG(WARNING) << "file exists, statuscode = " << status;
+            break;
+        case ::curve::mds::StatusCode::kSnapshotFileNotExists:
+        case ::curve::mds::StatusCode::kFileNotExists:
+        case ::curve::mds::StatusCode::kDirNotExist:
+            *errcode = LIBCURVE_ERROR::NOTEXIST;
+            LOG(WARNING) << "file or dir not exists, statuscode = "
+                         << status;
+            break;
+        case ::curve::mds::StatusCode::kSegmentNotAllocated:
+            *errcode = LIBCURVE_ERROR::NOT_ALLOCATE;
+            LOG(WARNING) << "segment not allocated, statuscode = " << status;
+            break;
+        case ::curve::mds::StatusCode::kShrinkBiggerFile:
+            *errcode = LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE;
+            LOG(WARNING) << "not support shrink bigger file,"
+                         << "statuscode = " << status;
+            break;
+        case ::curve::mds::StatusCode::kNotSupported:
+            LOG(WARNING) << "operation not support, statuscode = " << status;
+            *errcode = LIBCURVE_ERROR::NOT_SUPPORT;
+            break;
+        case ::curve::mds::StatusCode::kOwnerAuthFail:
+            LOG(ERROR) << "auth failed, statuscode = " << status;
+            *errcode = LIBCURVE_ERROR::AUTHFAIL;
+            break;
+        case ::curve::mds::StatusCode::kSnapshotFileDeleteError:
+            LOG(ERROR) << "snapshot file delete error, statuscode = " << status;
+            *errcode = LIBCURVE_ERROR::DELETE_ERROR;
+            break;
+        case ::curve::mds::StatusCode::kFileUnderSnapShot:
+            LOG(WARNING) << "file under snapshot, statuscode = " << status;
+            *errcode = LIBCURVE_ERROR::UNDER_SNAPSHOT;
+            break;
+        case ::curve::mds::StatusCode::kFileNotUnderSnapShot:
+            LOG(WARNING) << "file under snapshot, statuscode = " << status;
+            *errcode = LIBCURVE_ERROR::NOT_UNDERSNAPSHOT;
+            break;
+        case ::curve::mds::StatusCode::kSnapshotDeleting:
+            LOG(WARNING) << "snapshot file deleting, statuscode = " << status;
+            *errcode = LIBCURVE_ERROR::DELETING;
+            break;
+        case ::curve::mds::StatusCode::kDirNotEmpty:
+            LOG(WARNING) << "dir not empty, statuscode = " << status;
+            *errcode = LIBCURVE_ERROR::NOT_EMPTY;
+            break;
+        case ::curve::mds::StatusCode::kFileOccupied:
+            LOG(WARNING) << "file already open in another process!";
+            *errcode = LIBCURVE_ERROR::FILE_OCCUPIED;
+            break;
+        case ::curve::mds::StatusCode::kSessionNotExist:
+            LOG(ERROR) << "session not exists!";
+            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            break;
+        case ::curve::mds::StatusCode::kParaError:
+            LOG(ERROR) << "param not error!";
+            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            break;
+        case ::curve::mds::StatusCode::kStorageError:
+            LOG(ERROR) << "mds side storage error!";
+            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            break;
+        default:
+            LOG(WARNING) << "retcode unknown, statuscode = " << status;
+            *errcode = LIBCURVE_ERROR::UNKNOWN;
+            break;
+    }
+}
+
 }   // namespace client
 }   // namespace curve

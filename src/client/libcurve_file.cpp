@@ -12,28 +12,45 @@
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 #include "src/client/file_instance.h"
 #include "include/curve_compiler_specific.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/service_helper.h"
 
+using curve::client::UserInfo;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
 bool globalclientinited_ = false;
 curve::client::FileClient* globalclient = nullptr;
+
 namespace curve {
 namespace client {
 FileClient::FileClient(): fdcount_(0) {
+    globalMdsClient = nullptr;
     fileserviceMap_.clear();
 }
 
-LIBCURVE_ERROR FileClient::Init(const char* configpath) {
-    if (-1 == clientconfig_.Init(configpath)) {
+int FileClient::Init(const std::string& configpath) {
+    if (-1 == clientconfig_.Init(configpath.c_str())) {
         LOG(ERROR) << "config init failed!";
-        return LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::FAILED;
     }
+
+    if (globalMdsClient == nullptr) {
+        globalMdsClient = new (std::nothrow) MDSClient();
+        if (globalMdsClient == nullptr) {
+            return -LIBCURVE_ERROR::FAILED;
+        }
+
+        if (LIBCURVE_ERROR::OK != globalMdsClient->Initialize(
+            clientconfig_.GetFileServiceOption().metaServerOpt)) {
+            LOG(ERROR) << "Init global mds client failed!";
+            return -LIBCURVE_ERROR::FAILED;
+        }
+    }
+
     google::SetCommandLineOption("minloglevel", std::to_string(
         clientconfig_.GetFileServiceOption().loginfo.loglevel).c_str());
     return LIBCURVE_ERROR::OK;
@@ -46,33 +63,29 @@ void FileClient::UnInit() {
         delete iter.second;
     }
     fileserviceMap_.clear();
-}
 
-LIBCURVE_ERROR FileClient::StatFs(int fd, FileStatInfo* finfo) {
-    ReadLockGuard lk(rwlock_);
-    if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
-        return LIBCURVE_ERROR::FAILED;
+    if (globalMdsClient != nullptr) {
+        globalMdsClient->UnInitialize();
+        delete globalMdsClient;
+        globalMdsClient = nullptr;
     }
-    return fileserviceMap_[fd]->StatFs(finfo);
 }
 
-int FileClient::Open(const std::string& filename,
-                     UserInfo_t userinfo,
-                     size_t size,
-                     bool create) {
+int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
     FileInstance* fileserv = new (std::nothrow) FileInstance();
     if (fileserv == nullptr ||
-        !fileserv->Initialize(userinfo, clientconfig_.GetFileServiceOption())) {
+        !fileserv->Initialize(globalMdsClient,
+                              userinfo,
+                              clientconfig_.GetFileServiceOption())) {
         LOG(ERROR) << "FileInstance initialize failed!";
         delete fileserv;
         return -1;
     }
 
-    LIBCURVE_ERROR ret = fileserv->Open(filename, size, create);
-    if (LIBCURVE_ERROR::FAILED == ret || LIBCURVE_ERROR::AUTHFAIL == ret) {
-        LOG(ERROR) << ErrorNum2ErrorName(ret);
+    int ret = fileserv->Open(filename, userinfo);
+    if (-LIBCURVE_ERROR::FAILED == ret || -LIBCURVE_ERROR::AUTHFAIL == ret) {
         delete fileserv;
-        return -1;
+        return ret;
     }
     int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
     {
@@ -82,75 +95,178 @@ int FileClient::Open(const std::string& filename,
     return fd;
 }
 
-LIBCURVE_ERROR FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
+int FileClient::Create(const std::string& filename,
+                       const UserInfo_t& userinfo,
+                       size_t size) {
+    LIBCURVE_ERROR ret;
+    if (globalMdsClient != nullptr) {
+        ret = globalMdsClient->CreateFile(filename, userinfo, size);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
+int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
     if (CheckAligned(offset, len) == false) {
-        return LIBCURVE_ERROR::NOT_ALIGNED;
+        return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        return LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::FAILED;
     }
     return fileserviceMap_[fd]->Read(buf, offset, len);
 }
 
-LIBCURVE_ERROR FileClient::Write(int fd,
-                                const char* buf,
-                                off_t offset,
-                                size_t len) {
+int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
     if (CheckAligned(offset, len) == false) {
-        return LIBCURVE_ERROR::NOT_ALIGNED;
+        return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        return LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::FAILED;
     }
     return fileserviceMap_[fd]->Write(buf, offset, len);
 }
 
-LIBCURVE_ERROR FileClient::AioRead(int fd, CurveAioContext* aioctx) {
+int FileClient::AioRead(int fd, CurveAioContext* aioctx) {
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
-        return LIBCURVE_ERROR::NOT_ALIGNED;
+        return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        return  LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::FAILED;
     } else {
         fileserviceMap_[fd]->AioRead(aioctx);
     }
     return LIBCURVE_ERROR::OK;
 }
 
-LIBCURVE_ERROR FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
+int FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
-        return LIBCURVE_ERROR::NOT_ALIGNED;
+        return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        return LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::FAILED;
     } else {
         fileserviceMap_[fd]->AioWrite(aioctx);
     }
     return LIBCURVE_ERROR::OK;
 }
 
-void FileClient::Close(int fd) {
+int FileClient::Rename(const UserInfo_t& userinfo,
+                                  const std::string& oldpath,
+                                  const std::string& newpath) {
+    LIBCURVE_ERROR ret;
+    if (globalMdsClient != nullptr) {
+        ret = globalMdsClient->RenameFile(userinfo, oldpath, newpath);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
+int FileClient::Extend(const std::string& filename,
+                                  const UserInfo_t& userinfo,
+                                  uint64_t newsize) {
+    LIBCURVE_ERROR ret;
+    if (globalMdsClient != nullptr) {
+        ret = globalMdsClient->Extend(filename, userinfo, newsize);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
+int FileClient::Unlink(const std::string& filename,
+                       const UserInfo_t& userinfo) {
+    LIBCURVE_ERROR ret;
+    if (globalMdsClient != nullptr) {
+        ret = globalMdsClient->DeleteFile(filename, userinfo);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
+int FileClient::StatFile(const std::string& filename,
+                         const UserInfo_t& userinfo,
+                         FileStatInfo* finfo) {
+    FInfo_t fi;
+    int ret;
+    if (globalMdsClient != nullptr) {
+        ret = globalMdsClient->GetFileInfo(filename, userinfo, &fi);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    if (ret == LIBCURVE_ERROR::OK) {
+        finfo->id       = fi.id;
+        finfo->parentid = fi.parentid;
+        finfo->ctime    = fi.ctime;
+        finfo->length   = fi.length;
+        finfo->filetype = fi.filetype;
+    }
+
+    return -ret;
+}
+
+// TODO(tongguanxgun): mds一侧暂时还没实现list目录接口
+int FileClient::Listdir(const std::string& dirpath,
+                        const UserInfo_t& userinfo,
+                        std::vector<FileStatInfo>* filestatVec) {
+    return LIBCURVE_ERROR::OK;
+}
+
+int FileClient::Mkdir(const std::string& dirpath, const UserInfo_t& userinfo) {
+    LIBCURVE_ERROR ret;
+    if (globalMdsClient != nullptr) {
+        ret = globalMdsClient->CreateFile(dirpath, userinfo, 0, false);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
+int FileClient::Rmdir(const std::string& dirpath, const UserInfo_t& userinfo) {
+    LIBCURVE_ERROR ret;
+    if (globalMdsClient != nullptr) {
+        ret = globalMdsClient->DeleteFile(dirpath, userinfo);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
+int FileClient::Close(int fd) {
     WriteLockGuard lk(rwlock_);
     auto iter = fileserviceMap_.find(fd);
     if (iter == fileserviceMap_.end()) {
-        return;
+        return LIBCURVE_ERROR::FAILED;
     }
-    fileserviceMap_[fd]->Close();
-    fileserviceMap_[fd]->UnInitialize();
-    delete fileserviceMap_[fd];
-    fileserviceMap_.erase(iter);
+    int ret = fileserviceMap_[fd]->Close();
+    if (ret == LIBCURVE_ERROR::OK) {
+        fileserviceMap_[fd]->UnInitialize();
+        delete fileserviceMap_[fd];
+        fileserviceMap_.erase(iter);
+    }
+    return ret;
 }
 
 bool FileClient::CheckAligned(off_t offset, size_t length) {
@@ -163,14 +279,14 @@ bool FileClient::CheckAligned(off_t offset, size_t length) {
 
 
 // 全局初始化与反初始化
-LIBCURVE_ERROR GlobalInit(const char* configpath);
+int GlobalInit(const char* configpath);
 void GlobalUnInit();
 
-LIBCURVE_ERROR Init(const char* path) {
+int Init(const char* path) {
     return GlobalInit(path);
 }
 
-int Open(const char* filename, size_t size, bool create) {
+int Open4Qemu(const char* filename) {
     curve::client::UserInfo_t userinfo;
     std::string realname;
     if (!curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
@@ -179,25 +295,30 @@ int Open(const char* filename, size_t size, bool create) {
         LOG(ERROR) << "get user info from filename failed!";
         return LIBCURVE_ERROR::FAILED;
     }
-    return globalclient->Open(realname, userinfo, size, create);
+    return globalclient->Open(realname, userinfo);
 }
 
-LIBCURVE_ERROR Read(int fd, char* buf, off_t offset, size_t length) {
+int Open(const char* filename, const C_UserInfo_t* userinfo) {
+    return globalclient->Open(filename,
+                              UserInfo(userinfo->owner, userinfo->password));
+}
+
+int Read(int fd, char* buf, off_t offset, size_t length) {
     return globalclient->Read(fd, buf, offset, length);
 }
 
-LIBCURVE_ERROR Write(int fd, const char* buf, off_t offset, size_t length) {
+int Write(int fd, const char* buf, off_t offset, size_t length) {
     return globalclient->Write(fd, buf, offset, length);
 }
 
-LIBCURVE_ERROR AioRead(int fd, CurveAioContext* aioctx) {
+int AioRead(int fd, CurveAioContext* aioctx) {
     DVLOG(9) << "offset: " << aioctx->offset
         << " length: " << aioctx->length
         << " op: " << aioctx->op;
     return globalclient->AioRead(fd, aioctx);
 }
 
-LIBCURVE_ERROR AioWrite(int fd, CurveAioContext* aioctx) {
+int AioWrite(int fd, CurveAioContext* aioctx) {
     DVLOG(9) << "offset: " << aioctx->offset
         << " length: " << aioctx->length
         << " op: " << aioctx->op
@@ -205,20 +326,76 @@ LIBCURVE_ERROR AioWrite(int fd, CurveAioContext* aioctx) {
     return globalclient->AioWrite(fd, aioctx);
 }
 
-void Close(int fd) {
-    globalclient->Close(fd);
+int Create(const char* filename, const C_UserInfo_t* userinfo, size_t size) {
+    return globalclient->Create(filename,
+            UserInfo(userinfo->owner, userinfo->password), size);
 }
 
-LIBCURVE_ERROR StatFs(int fd, FileStatInfo* finfo) {
-    return globalclient->StatFs(fd, finfo);
+int Rename(const C_UserInfo_t* userinfo,
+           const char* oldpath,
+           const char* newpath) {
+    return globalclient->Rename(UserInfo(userinfo->owner, userinfo->password),
+            oldpath, newpath);
+}
+
+int Extend(const char* filename,
+           const C_UserInfo_t* userinfo,
+           uint64_t newsize) {
+    return globalclient->Extend(filename,
+            UserInfo(userinfo->owner, userinfo->password), newsize);
+}
+
+int Unlink(const char* filename, const C_UserInfo_t* userinfo) {
+    return globalclient->Unlink(filename,
+            UserInfo(userinfo->owner, userinfo->password));
+}
+
+// TODO(tongguanxgun): mds一侧暂时还没实现list目录接口
+int Listdir(const char* dirpath, const C_UserInfo_t* userinfo,
+            FileStatInfo** filestatVec) {
+    return globalclient->Listdir(dirpath,
+            UserInfo(userinfo->owner, userinfo->password), nullptr);
+}
+
+int Mkdir(const char* dirpath, const C_UserInfo_t* userinfo) {
+    return globalclient->Mkdir(dirpath,
+            UserInfo(userinfo->owner, userinfo->password));
+}
+
+int Rmdir(const char* dirpath, const C_UserInfo_t* userinfo) {
+    return globalclient->Rmdir(dirpath,
+            UserInfo(userinfo->owner, userinfo->password));
+}
+
+int Close(int fd) {
+    return globalclient->Close(fd);
+}
+
+int StatFile4Qemu(const char* filename, FileStatInfo* finfo) {
+    curve::client::UserInfo_t userinfo;
+    std::string realname;
+    if (!curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
+                                        &realname,
+                                        &userinfo.owner)) {
+        LOG(ERROR) << "get user info from filename failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return globalclient->StatFile(realname, userinfo, finfo);
+}
+
+int StatFile(const char* filename,
+             const C_UserInfo_t* cuserinfo,
+             FileStatInfo* finfo) {
+    curve::client::UserInfo_t userinfo(cuserinfo->owner, cuserinfo->password);
+    return globalclient->StatFile(filename, userinfo, finfo);
 }
 
 void UnInit() {
     GlobalUnInit();
 }
 
-LIBCURVE_ERROR GlobalInit(const char* path) {
-    LIBCURVE_ERROR ret = LIBCURVE_ERROR::OK;
+int GlobalInit(const char* path) {
+    int ret = 0;
     if (globalclientinited_) {
         LOG(INFO) << "global cient already inited!";
         return LIBCURVE_ERROR::OK;
@@ -232,8 +409,8 @@ LIBCURVE_ERROR GlobalInit(const char* path) {
             LOG(ERROR) << "create global client instance fail!";
         }
     }
-    globalclientinited_ = ret == LIBCURVE_ERROR::OK;
-    return ret;
+    globalclientinited_ = ret == 0;
+    return -ret;
 }
 
 void GlobalUnInit() {

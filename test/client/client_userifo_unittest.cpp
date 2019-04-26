@@ -16,6 +16,7 @@
 #include <condition_variable>    // NOLINT
 #include <string>
 
+#include "include/client/libcurve.h"
 #include "src/client/client_common.h"
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/libcurve_file.h"
@@ -25,7 +26,8 @@
 extern std::string metaserver_addr;
 extern std::string configpath;
 
-using curve::client::UserInfo;
+using curve::client::MDSClient;
+using curve::client::UserInfo_t;
 using curve::client::ClientConfig;
 using curve::client::FileClient;
 using curve::client::FileInstance;
@@ -44,20 +46,30 @@ using curve::client::IOManager4Chunk;
 using curve::client::LogicalPoolCopysetIDInfo;
 
 void sessioncallback(CurveAioContext* aioctx) {
-    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, aioctx->err);
+    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
 }
 
 TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     std::string filename = "./1_userinfo_.txt";
 
+    Init(configpath.c_str());
     ClientConfig cc;
     cc.Init(configpath.c_str());
 
+    C_UserInfo_t cuserinfo;
+    memcpy(cuserinfo.owner, "userinfo", 9);
+
+    UserInfo_t userinfo;
+    userinfo.owner = "userinfo";
+    UserInfo_t emptyuserinfo;
+
+    MDSClient mdsclient;
+    mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
+
     FileInstance fileinstance;
-    ASSERT_FALSE(fileinstance.Initialize(UserInfo("", ""),
+    ASSERT_FALSE(fileinstance.Initialize(&mdsclient, emptyuserinfo,
                                         cc.GetFileServiceOption()));
-    UserInfo userinfo("userinfo", "");
-    ASSERT_TRUE(fileinstance.Initialize(userinfo,
+    ASSERT_TRUE(fileinstance.Initialize(&mdsclient, userinfo,
                                         cc.GetFileServiceOption()));
 
     brpc::Server server;
@@ -99,8 +111,8 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     curvefsservice.SetCreateFileFakeReturn(fakeret);
 
     size_t len = 4 * 1024 * 1024ul;
-    LIBCURVE_ERROR ret = fileinstance.Open(filename.c_str(), len, true);
-    ASSERT_EQ(ret, LIBCURVE_ERROR::AUTHFAIL);
+    int ret = Create(filename.c_str(), &cuserinfo, len);
+    ASSERT_EQ(ret, -LIBCURVE_ERROR::AUTHFAIL);
 
     // 2. set refresh response auth failed
     std::mutex mtx;
@@ -127,8 +139,8 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     curvefsservice.SetRefreshSession(refreshfakeret, refresht);
 
     // 3. open the file auth failed
-    LIBCURVE_ERROR openret = fileinstance.Open(filename, 0, false);
-    ASSERT_EQ(openret, LIBCURVE_ERROR::AUTHFAIL);
+    int openret = fileinstance.Open(filename, userinfo);
+    ASSERT_EQ(openret, -LIBCURVE_ERROR::AUTHFAIL);
 
     // 4. open file success
     openresponse.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -136,7 +148,7 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&openresponse));
     curvefsservice.SetOpenFile(openfakeret2);
 
-    openret = fileinstance.Open(filename, 0, false);
+    openret = fileinstance.Open(filename, userinfo);
     ASSERT_EQ(openret, LIBCURVE_ERROR::OK);
 
     // 5. wait for refresh
@@ -150,8 +162,7 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     CurveAioContext aioctx;
     aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
     aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = 0;
-    aioctx.err = LIBCURVE_ERROR::UNKNOWN;
+    aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = sessioncallback;
     aioctx.buf = nullptr;
 
@@ -166,8 +177,8 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     }
 
     char buffer[10];
-    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, fileinstance.Write(buffer, 0, 0));
-    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, fileinstance.Read(buffer, 0, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Write(buffer, 0, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Read(buffer, 0, 0));
 
     // 6. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
@@ -175,9 +186,10 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     FakeReturn* closefileret
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice.SetCloseFile(closefileret);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, fileinstance.Close());
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, fileinstance.Close());
 
     fileinstance.UnInitialize();
+    UnInit();
     server.Stop(0);
     server.Join();
 }
@@ -199,6 +211,9 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
+
+    UserInfo_t emptyuserinfo;
+
     std::string filename = "./1_usertest_.img";
     brpc::Server server;
     uint64_t seq = 1;
@@ -226,8 +241,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     FakeReturn* fakeret
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
-                                                        UserInfo("", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
+                                                        emptyuserinfo,
                                                         &seq));
 
     // set response
@@ -247,8 +262,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret1);
 
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, cl.CreateSnapShot(filename,
-                                                        UserInfo("", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.CreateSnapShot(filename,
+                                                        emptyuserinfo,
                                                         &seq));
 
     // test delete
@@ -259,8 +274,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&delresponse));
 
     curvefsservice.SetDeleteSnapShot(delfakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, cl.DeleteSnapShot(filename,
-                                                        UserInfo("", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.DeleteSnapShot(filename,
+                                                        emptyuserinfo,
                                                         seq));
 
     // test get SegmentInfo
@@ -283,9 +298,9 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 
     SegmentInfo seginfo;
     LogicalPoolCopysetIDInfo lpcsIDInfo;
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
             cl.GetSnapshotSegmentInfo(filename,
-                                      UserInfo("", ""),
+                                      emptyuserinfo,
                                       &lpcsIDInfo, 0, 0, &seginfo));
 
     // test list snapshot
@@ -307,8 +322,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&listresponse));
     curve::client::FInfo_t sinfo;
     curvefsservice.SetListSnapShot(listfakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, cl.GetSnapShot(filename,
-                                                        UserInfo("", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.GetSnapShot(filename,
+                                                        emptyuserinfo,
                                                         seq, &sinfo));
 
     std::vector<uint64_t> seqvec;
@@ -316,8 +331,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     seqvec.push_back(seq);
     curve::client::FInfo_t ffinfo;
     fivec.push_back(&ffinfo);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
-                cl.ListSnapShot(filename, UserInfo("", ""), &seqvec, &fivec));
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
+                cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fivec));
     cl.UnInit();
 
     ASSERT_EQ(0, server.Stop(0));
@@ -347,6 +362,11 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
+
+    UserInfo_t rootuserinfo;
+    rootuserinfo.owner ="root";
+    rootuserinfo.password = "123";
+
     std::string filename = "./1_usertest_.img";
     brpc::Server server;
     uint64_t seq = 1;
@@ -374,8 +394,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     FakeReturn* fakeret
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
-                                                        UserInfo("root", "123"),
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
+                                                        rootuserinfo,
                                                         &seq));
 
     // set response
@@ -395,8 +415,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret1);
 
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, cl.CreateSnapShot(filename,
-                                                        UserInfo("root", "123"),
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.CreateSnapShot(filename,
+                                                        rootuserinfo,
                                                         &seq));
 
     // test delete
@@ -407,8 +427,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&delresponse));
 
     curvefsservice.SetDeleteSnapShot(delfakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, cl.DeleteSnapShot(filename,
-                                                        UserInfo("root", "123"),
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.DeleteSnapShot(filename,
+                                                        rootuserinfo,
                                                         seq));
 
     // test get SegmentInfo
@@ -431,9 +451,9 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
 
     SegmentInfo seginfo;
     LogicalPoolCopysetIDInfo lpcsIDInfo;
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
             cl.GetSnapshotSegmentInfo(filename,
-                                      UserInfo("root", "123"),
+                                      rootuserinfo,
                                       &lpcsIDInfo, 0, 0, &seginfo));
 
     // test list snapshot
@@ -455,8 +475,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&listresponse));
     curve::client::FInfo_t sinfo;
     curvefsservice.SetListSnapShot(listfakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, cl.GetSnapShot(filename,
-                                                        UserInfo("root", "123"),
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.GetSnapShot(filename,
+                                                        rootuserinfo,
                                                         seq, &sinfo));
 
     std::vector<uint64_t> seqvec;
@@ -464,8 +484,8 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     seqvec.push_back(seq);
     curve::client::FInfo_t ffinfo;
     fivec.push_back(&ffinfo);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
-                cl.ListSnapShot(filename, UserInfo("root", "123"),
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
+                cl.ListSnapShot(filename, rootuserinfo,
                                 &seqvec, &fivec));
     cl.UnInit();
 

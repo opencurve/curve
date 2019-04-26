@@ -17,7 +17,7 @@
 
 #include "src/client/libcbd.h"
 
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
@@ -58,7 +58,7 @@ class TestLibcbdLibcurve : public ::testing::Test {
         int64_t t0 = butil::monotonic_time_ms();
         int ret = -1;
         for (;;) {
-            ret = Open(filename, FILESIZE, true);
+            ret = Open4Qemu(filename);
             if (ret == 0) {
                 LOG(INFO) << "Created file for test.";
                 break;
@@ -129,13 +129,13 @@ TEST_F(TestLibcbdLibcurve, ReadWriteTest) {
     ASSERT_EQ(size, FILESIZE);
 
     ret = cbd_lib_pwrite(fd, buf, 0, BUFSIZE);
-    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+    ASSERT_EQ(ret, BUFSIZE);
 
     ret = cbd_lib_sync(fd);
     ASSERT_EQ(ret, 0);
 
     ret = cbd_lib_pread(fd, buf, 0, BUFSIZE);
-    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+    ASSERT_EQ(ret, BUFSIZE);
 
     for (i = 0; i < BUFSIZE; i++) {
         if (buf[i] != 'a') {
@@ -179,7 +179,7 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
 
     aioCtx.op = LIBCURVE_OP_WRITE;
     ret = cbd_lib_aio_pwrite(fd, &aioCtx);
-    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+    ASSERT_EQ(ret, 0);
 
     while (aioCtx.op == LIBCURVE_OP_WRITE) {
         usleep(10 * 1000);
@@ -190,7 +190,7 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
 
     aioCtx.op = LIBCURVE_OP_READ;
     ret = cbd_lib_aio_pread(fd, &aioCtx);
-    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+    ASSERT_EQ(ret, 0);
 
     while (aioCtx.op == LIBCURVE_OP_READ) {
         usleep(10 * 1000);

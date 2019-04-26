@@ -12,7 +12,6 @@
 #include <fcntl.h>
 #include <string>
 #include "src/client/client_config.h"
-#include "include/client/libcurve_qemu.h"
 
 extern std::string configpath;   // NOLINT
 

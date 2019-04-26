@@ -118,11 +118,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
             static int seq = 1;
 
-            if (seq > 1) {
-                ASSERT_STREQ(request->filename().c_str(), "/1");
-            }
-
-           auto resp = static_cast<::curve::mds::ReFreshSessionResponse*>(
+            auto resp = static_cast<::curve::mds::ReFreshSessionResponse*>(
                         fakeRefreshSession_->response_);
 
             if (resp->statuscode() == ::curve::mds::StatusCode::kOK) {

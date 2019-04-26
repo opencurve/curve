@@ -22,13 +22,13 @@
 #include "src/client/timertask_worker.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/libcurve_file.h"
-#include "include/client/libcurve_qemu.h"
 #include "test/client/fake/fakeChunkserver.h"
 
 extern std::string metaserver_addr;
 extern std::string configpath;
 
-using curve::client::UserInfo;
+using curve::client::MDSClient;
+using curve::client::UserInfo_t;
 using curve::client::ClientConfig;
 using curve::client::FileClient;
 using curve::client::FileInstance;
@@ -36,7 +36,7 @@ using curve::client::TimerTask;
 using curve::client::TimerTaskWorker;
 
 void sessioncallback(CurveAioContext* aioctx) {
-    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, aioctx->err);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
 }
 
 TEST(TimerTaskWorkerTest, TimerTaskWorkerRunTaskTest) {
@@ -98,8 +98,13 @@ TEST(ClientSession, LeaseTaskTest) {
     cc.Init(configpath.c_str());
 
     FileInstance fileinstance;
-    UserInfo userinfo("userinfo", "");
-    ASSERT_TRUE(fileinstance.Initialize(userinfo,
+
+    UserInfo_t userinfo;
+    userinfo.owner = "userinfo";
+
+    MDSClient mdsclient;
+    mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
+    ASSERT_TRUE(fileinstance.Initialize(&mdsclient, userinfo,
                                         cc.GetFileServiceOption()));
 
     brpc::Server server;
@@ -159,7 +164,7 @@ TEST(ClientSession, LeaseTaskTest) {
     curvefsservice.SetRefreshSession(refreshfakeret, refresht);
 
     // 3. open the file
-    LIBCURVE_ERROR openret = fileinstance.Open(filename, 0, false);
+    int openret = fileinstance.Open(filename, userinfo);
     ASSERT_EQ(openret, LIBCURVE_ERROR::OK);
 
     // 4. wait for refresh
@@ -206,8 +211,7 @@ TEST(ClientSession, LeaseTaskTest) {
     CurveAioContext aioctx;
     aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
     aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = 0;
-    aioctx.err = LIBCURVE_ERROR::UNKNOWN;
+    aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = sessioncallback;
     aioctx.buf = nullptr;
 
@@ -215,8 +219,8 @@ TEST(ClientSession, LeaseTaskTest) {
     fileinstance.AioWrite(&aioctx);
 
     char buffer[10];
-    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, fileinstance.Write(buffer, 0, 0));
-    ASSERT_EQ(LIBCURVE_ERROR::DISABLEIO, fileinstance.Read(buffer, 0, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Write(buffer, 0, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Read(buffer, 0, 0));
 
     ASSERT_NE(-1, fileinstance.Close());
 
@@ -229,8 +233,12 @@ TEST(ClientSession, AppliedIndexTest) {
     ClientConfig cc;
     cc.Init(configpath.c_str());
     FileInstance fileinstance;
-    UserInfo userinfo("userinfo", "");
-    ASSERT_TRUE(fileinstance.Initialize(userinfo,
+    UserInfo_t userinfo;
+    userinfo.owner = "userinfo";
+
+    MDSClient mdsclient;
+    mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
+    ASSERT_TRUE(fileinstance.Initialize(&mdsclient, userinfo,
                                         cc.GetFileServiceOption()));
 
     // create fake chunkserver service
