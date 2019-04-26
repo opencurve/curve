@@ -19,6 +19,7 @@
 #include "src/snapshotcloneserver/common/thread_pool.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/snapshotcloneserver/common/config.h"
 
 
 using ::curve::common::RWLock;
@@ -31,16 +32,19 @@ namespace snapshotcloneserver {
 class CloneTaskManager {
  public:
     CloneTaskManager()
-        : isStop(true) {}
+        : isStop_(true) {}
 
     ~CloneTaskManager() {
         Stop();
     }
 
 
-    int Init(std::shared_ptr<ThreadPool> pool) {
+    int Init(std::shared_ptr<ThreadPool> pool,
+        const SnapshotCloneServerOptions &option) {
+        cloneTaskManagerScanIntervalMs_ =
+            option.cloneTaskManagerScanIntervalMs;
         threadpool_ = pool;
-        return kErrCodeSnapshotServerSuccess;
+        return kErrCodeSuccess;
     }
 
     int Start();
@@ -49,9 +53,9 @@ class CloneTaskManager {
     void Stop();
 
 
-    int PushTask(std::shared_ptr<CloneTask> task);
+    int PushTask(std::shared_ptr<CloneTaskBase> task);
 
-    std::shared_ptr<CloneTask> GetTask(const TaskIdType &taskId) const;
+    std::shared_ptr<CloneTaskBase> GetTask(const TaskIdType &taskId) const;
 
  private:
     void BackEndThreadFunc();
@@ -62,17 +66,20 @@ class CloneTaskManager {
     std::thread backEndThread;
 
     //  id->克隆任务表
-    std::map<TaskIdType, std::shared_ptr<CloneTask> > cloneTaskMap_;
+    std::map<TaskIdType, std::shared_ptr<CloneTaskBase> > cloneTaskMap_;
     mutable RWLock cloneTaskMapLock_;
 
     // 克隆恢复工作队列，key 为destination, 多个克隆或恢复的目标不能为同一个
-    std::map<std::string, std::shared_ptr<CloneTask> > cloningTasks_;
+    std::map<std::string, std::shared_ptr<CloneTaskBase> > cloningTasks_;
     mutable std::mutex cloningTasksLock_;
 
     std::shared_ptr<ThreadPool> threadpool_;
 
     // 当前任务管理是否停止，用于支持start，stop功能
-    std::atomic_bool isStop;
+    std::atomic_bool isStop_;
+
+    // CloneTaskManager 后台线程扫描间隔
+    uint32_t cloneTaskManagerScanIntervalMs_;
 };
 
 }  // namespace snapshotcloneserver

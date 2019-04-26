@@ -75,9 +75,11 @@ class SnapshotTask : public Task {
       * @param taskInfo 快照任务信息
       */
     SnapshotTask(const TaskIdType &taskId,
-        std::shared_ptr<SnapshotTaskInfo> taskInfo)
+        std::shared_ptr<SnapshotTaskInfo> taskInfo,
+        std::shared_ptr<SnapshotCore> core)
         : Task(taskId),
-          taskInfo_(taskInfo) {}
+          taskInfo_(taskInfo),
+          core_(core) {}
 
     /**
      * @brief 获取快照任务信息对象指针
@@ -91,6 +93,8 @@ class SnapshotTask : public Task {
  protected:
     // 快照任务信息
     std::shared_ptr<SnapshotTaskInfo> taskInfo_;
+    // 快照核心逻辑对象
+    std::shared_ptr<SnapshotCore> core_;
 };
 
 /**
@@ -108,8 +112,7 @@ class SnapshotCreateTask : public SnapshotTask {
     SnapshotCreateTask(const TaskIdType &taskId,
         std::shared_ptr<SnapshotTaskInfo> taskInfo,
         std::shared_ptr<SnapshotCore> core)
-        : SnapshotTask(taskId, taskInfo),
-          core_(core) {}
+        : SnapshotTask(taskId, taskInfo, core) {}
 
     /**
      * @brief 快照执行函数
@@ -117,10 +120,6 @@ class SnapshotCreateTask : public SnapshotTask {
     void Run() override {
         core_->HandleCreateSnapshotTask(taskInfo_);
     }
-
- private:
-    // 快照核心逻辑对象
-    std::shared_ptr<SnapshotCore> core_;
 };
 
 /**
@@ -138,8 +137,7 @@ class SnapshotDeleteTask : public SnapshotTask {
     SnapshotDeleteTask(const TaskIdType &taskId,
         std::shared_ptr<SnapshotTaskInfo> taskInfo,
         std::shared_ptr<SnapshotCore> core)
-        : SnapshotTask(taskId, taskInfo),
-          core_(core) {}
+        : SnapshotTask(taskId, taskInfo, core) {}
 
     /**
      * @brief 快照执行函数
@@ -147,10 +145,6 @@ class SnapshotDeleteTask : public SnapshotTask {
     void Run() override {
         core_->HandleDeleteSnapshotTask(taskInfo_);
     }
-
- private:
-    // 快照核心逻辑对象
-    std::shared_ptr<SnapshotCore> core_;
 };
 
 

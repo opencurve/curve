@@ -16,6 +16,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_task.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/snapshotcloneserver/common/config.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -80,7 +81,7 @@ class SnapshotServiceManager {
      *
      * @return 错误码
      */
-    virtual int Init();
+    virtual int Init(const SnapshotCloneServerOptions &option);
 
     /**
      * @brief 启动服务
