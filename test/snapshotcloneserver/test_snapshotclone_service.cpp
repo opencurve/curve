@@ -70,7 +70,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotSuccess) {
     EXPECT_CALL(*snapshotManager_, CreateSnapshot(_, _, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<3>(uuid),
-                    Return(kErrCodeSnapshotServerSuccess)));
+                    Return(kErrCodeSuccess)));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -99,7 +99,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotSuccess) {
     std::string file = "test";
 
     EXPECT_CALL(*snapshotManager_, DeleteSnapshot(uuid, user, file))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -128,7 +128,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotSuccess) {
     std::string file = "test";
 
     EXPECT_CALL(*snapshotManager_, CancelSnapshot(uuid, user, file))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -159,7 +159,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
     EXPECT_CALL(*snapshotManager_, GetFileSnapshotInfo(file, user, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(info),
-                    Return(kErrCodeSnapshotServerSuccess)));
+                    Return(kErrCodeSuccess)));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -319,7 +319,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotFail) {
     EXPECT_CALL(*snapshotManager_, CreateSnapshot(_, _, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<3>(uuid),
-                    Return(kErrCodeSnapshotInternalError)));
+                    Return(kErrCodeInternalError)));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -348,7 +348,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotFail) {
     std::string file = "test";
 
     EXPECT_CALL(*snapshotManager_, DeleteSnapshot(uuid, user, file))
-        .WillOnce(Return(kErrCodeSnapshotInternalError));
+        .WillOnce(Return(kErrCodeInternalError));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -377,7 +377,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotFail) {
     std::string file = "test";
 
     EXPECT_CALL(*snapshotManager_, CancelSnapshot(uuid, user, file))
-        .WillOnce(Return(kErrCodeSnapshotInternalError));
+        .WillOnce(Return(kErrCodeInternalError));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -408,7 +408,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoFail) {
     EXPECT_CALL(*snapshotManager_, GetFileSnapshotInfo(file, user, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(info),
-                    Return(kErrCodeSnapshotInternalError)));
+                    Return(kErrCodeInternalError)));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -459,7 +459,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
     UUID uuid = "uuid1";
 
     EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -486,7 +486,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
     UUID uuid = "uuid1";
 
     EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -513,7 +513,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
     UUID uuid = "uuid1";
 
     EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -612,7 +612,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
     UUID uuid = "uuid1";
 
     EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _))
-        .WillOnce(Return(kErrCodeSnapshotInternalError));
+        .WillOnce(Return(kErrCodeInternalError));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -639,7 +639,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
     UUID uuid = "uuid1";
 
     EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _))
-        .WillOnce(Return(kErrCodeSnapshotInternalError));
+        .WillOnce(Return(kErrCodeInternalError));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -666,7 +666,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
     UUID uuid = "uuid1";
 
     EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _))
-        .WillOnce(Return(kErrCodeSnapshotInternalError));
+        .WillOnce(Return(kErrCodeInternalError));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -737,6 +737,83 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileInvalidParam) {
     LOG(ERROR) << cntl.response_attachment();
 }
 
+TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksSuccess) {
+    UUID uuid = "uuid1";
+
+    EXPECT_CALL(*cloneManager_, CleanCloneTask(_, _))
+        .WillOnce(Return(kErrCodeSuccess));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test&TaskId=aaa"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksMissingParam) {
+    UUID uuid = "uuid1";
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
+
+TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksFail) {
+    UUID uuid = "uuid1";
+
+    EXPECT_CALL(*cloneManager_, CleanCloneTask(_, _))
+        .WillOnce(Return(kErrCodeInternalError));
+
+    brpc::Channel channel;
+    brpc::ChannelOptions option;
+    option.protocol = "http";
+
+    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test&TaskId=aaa"; //NOLINT
+
+    if (channel.Init(url.c_str(), "", &option) != 0) {
+        FAIL() << "Fail to init channel"
+               << std::endl;
+    }
+
+    brpc::Controller cntl;
+    cntl.http_request().uri() = url.c_str();
+
+    channel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        LOG(ERROR) << cntl.ErrorText();
+    }
+    LOG(ERROR) << cntl.response_attachment();
+}
 }  // namespace snapshotcloneserver
 }  // namespace curve
 

@@ -12,23 +12,23 @@ namespace curve {
 namespace snapshotcloneserver {
 
 int SnapshotTaskManager::Start() {
-    if (isStop.load()) {
+    if (isStop_.load()) {
         int ret = threadpool_->Start();
         if (ret < 0) {
             LOG(ERROR) << "SnapshotTaskManager start thread pool fail"
                        << ", ret = " << ret;
             return ret;
         }
-        isStop.store(false);
-        // isStop标志先置，防止backEndThread先退出
+        isStop_.store(false);
+        // isStop_标志先置，防止backEndThread先退出
         backEndThread =
             std::thread(&SnapshotTaskManager::BackEndThreadFunc, this);
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 void SnapshotTaskManager::Stop() {
-    if (!isStop.exchange(true)) {
+    if (!isStop_.exchange(true)) {
         backEndThread.join();
         // TODO(xuchaojie): to stop all task
         threadpool_->Stop();
@@ -36,8 +36,8 @@ void SnapshotTaskManager::Stop() {
 }
 
 int SnapshotTaskManager::PushTask(std::shared_ptr<SnapshotTask> task) {
-    if (isStop.load()) {
-        return kErrCodeSnapshotServiceIsStop;
+    if (isStop_.load()) {
+        return kErrCodeServiceIsStop;
     }
     // 移除实际已完成的task，防止uuid冲突
     ScanWorkingTask();
@@ -49,14 +49,14 @@ int SnapshotTaskManager::PushTask(std::shared_ptr<SnapshotTask> task) {
         auto ret = taskMap_.emplace(task->GetTaskId(), task);
         if (!ret.second) {
             LOG(ERROR) << "SnapshotTaskManager::PushTask, uuid duplicated.";
-            return kErrCodeSnapshotInternalError;
+            return kErrCodeInternalError;
         }
         waitingTasks_.push_back(task);
     }
 
     // 立即执行task
     ScanWaitingTask();
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 std::shared_ptr<SnapshotTask> SnapshotTaskManager::GetTask(
@@ -77,7 +77,7 @@ int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
         taskInfo->Lock();
         if (!taskInfo->IsFinish()) {
             taskInfo->Cancel();
-            return kErrCodeSnapshotServerSuccess;
+            return kErrCodeSuccess;
         }
         taskInfo->UnLock();
     }
@@ -85,11 +85,11 @@ int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
 }
 
 void SnapshotTaskManager::BackEndThreadFunc() {
-    while (!isStop.load()) {
+    while (!isStop_.load()) {
         ScanWorkingTask();
         ScanWaitingTask();
         std::this_thread::sleep_for(
-            std::chrono::milliseconds(kSnapshotTaskManagerScanIntervalMs));
+            std::chrono::milliseconds(snapshotTaskManagerScanIntervalMs_));
     }
 }
 
