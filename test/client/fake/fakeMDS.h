@@ -119,7 +119,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             static int seq = 1;
 
             if (seq > 1) {
-                ASSERT_STREQ(request->filename().c_str(), "/1_userinfo_");
+                ASSERT_STREQ(request->filename().c_str(), "/1");
             }
 
            auto resp = static_cast<::curve::mds::ReFreshSessionResponse*>(
@@ -135,7 +135,6 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                 info->set_chunksize(4 * 1024 * 1024);
                 info->set_length(4 * 1024 * 1024 * 1024ul);
                 info->set_ctime(12345678);
-                info->set_fullpathname("/1_userinfo_");
 
                 response->set_statuscode(::curve::mds::StatusCode::kOK);
                 response->set_sessionid("1234");
