@@ -123,6 +123,7 @@ LIBCURVE_ERROR FileInstance::Open(std::string fname, size_t size, bool create) {
     if (LIBCURVE_ERROR::OK == ret || LIBCURVE_ERROR::EXISTS == ret) {
         ret = mdsclient_.OpenFile(fname, userinfo_, &finfo_, &lease);
         if (LIBCURVE_ERROR::OK == ret) {
+            finfo_.fullPathName = fname;
             ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                       : LIBCURVE_ERROR::FAILED;
         } else {

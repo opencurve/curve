@@ -280,7 +280,6 @@ TEST_F(MDSClientTest, Openfile) {
     fin->set_ctime(12345678);
     fin->set_seqnum(0);
     fin->set_segmentsize(1 * 1024 * 1024 * 1024ul);
-    fin->set_fullpathname("/1_userinfo_");
 
     openresponse2.set_statuscode(::curve::mds::StatusCode::kOK);
     openresponse2.set_allocated_protosession(se2);
@@ -332,7 +331,6 @@ TEST_F(MDSClientTest, GetFileInfo) {
     info->set_length(4 * 1024 * 1024 * 1024ul);
     info->set_ctime(12345678);
     info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
-    info->set_fullpathname("/1_userinfo_");
 
     response.set_allocated_fileinfo(info);
     response.set_statuscode(::curve::mds::StatusCode::kOK);
