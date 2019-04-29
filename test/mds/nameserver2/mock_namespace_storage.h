@@ -30,10 +30,6 @@ class MockNameServerStorage : public NameServerStorage {
     MOCK_METHOD2(DeleteFile, StoreStatus(InodeID,
                                         const std::string &));
 
-    MOCK_METHOD3(GetRecycleFile, StoreStatus(InodeID id,
-                                              const std::string &filename,
-                                              FileInfo * fileInfo));
-
     MOCK_METHOD2(DeleteRecycleFile, StoreStatus(InodeID id,
                                                 const std::string &filename));
 

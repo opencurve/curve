@@ -57,11 +57,11 @@ static bool StringToUll(const std::string &value, uint64_t *out) {
         *out = std::stoull(value);
         return true;
     } catch (std::invalid_argument &e) {
-        LOG(ERROR) << "decode InodeId string:{" << value << "}, err:"
+        LOG(ERROR) << "decode string:{" << value << "} to number err:"
                    << e.what();
         return false;
     } catch (std::out_of_range &e) {
-        LOG(ERROR) << "decode InodeId string:{" << value << "}, err:"
+        LOG(ERROR) << "decode string:{" << value << "} to number err:"
                    << e.what();
         return false;
     }

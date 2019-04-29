@@ -74,20 +74,6 @@ class NameServerStorage {
                                 const std::string &filename) = 0;
 
     /**
-     * @brief GetRecycleFile 获取指定回收站文件的元数据
-     *
-     * @param[in] id 需要获取信息的文件parent id
-     * @param[in] filename需要获取信息的文件名
-     * @param[out] 从storage中获取的元数据信息
-     *
-     * @return StoreStatus 错误码
-     *
-     */
-    virtual StoreStatus GetRecycleFile(InodeID id,
-                                const std::string &filename,
-                                FileInfo * fileInfo) = 0;
-
-    /**
      * @brief DeleteRecycleFile 删除回收站文件
      *
      * @param[in] id 待删除文件的parent inode id
@@ -253,10 +239,6 @@ class NameServerStorageImp : public NameServerStorage {
 
     StoreStatus DeleteFile(InodeID id,
                             const std::string &filename) override;
-
-    StoreStatus GetRecycleFile(InodeID id,
-                              const std::string &filename,
-                              FileInfo * fileInfo) override;
 
     StoreStatus DeleteRecycleFile(InodeID id,
                               const std::string &filename) override;
