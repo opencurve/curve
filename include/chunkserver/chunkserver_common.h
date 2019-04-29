@@ -40,6 +40,8 @@ using FileSystemAdaptor = braft::FileSystemAdaptor;
 using DirReader = braft::DirReader;
 using PosixFileSystemAdaptor = braft::PosixFileSystemAdaptor;
 
+
+// TODO(lixiaocui): 考虑一下后续的单元测试或者校验要怎么做
 /*
  * IO性能统计复合metric类型
  */

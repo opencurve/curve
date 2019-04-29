@@ -1,179 +1,372 @@
 /*
- * Copyright (C) 2018 NetEase Inc. All rights reserved.
- * Project: Curve
- *
- * History:
- *          2018/08/30  Wenyu Zhou   Initial version
+ * Project: curve
+ * Created Date: Thur May 9th 2019
+ * Author: lixiaocui
+ * Copyright (c) 2018 netease
  */
 
+#include <glog/logging.h>
+
+#include <butil/endpoint.h>
+#include <braft/file_service.h>
+#include <braft/builtin_service_impl.h>
+#include <braft/raft_service.h>
+
 #include "src/chunkserver/chunkserver.h"
-
-#include <gflags/gflags.h>
-#include <dirent.h>
-#include <json2pb/pb_to_json.h>
-#include <json2pb/json_to_pb.h>
-
-#include <string>
-#include <vector>
-
-#include "proto/topology.pb.h"
-#include "include/chunkserver/chunkserver_common.h"
-#include "src/chunkserver/clone_copyer.h"
+#include "src/chunkserver/copyset_service.h"
+#include "src/chunkserver/chunk_service.h"
+#include "src/chunkserver/braft_cli_service.h"
+#include "src/chunkserver/chunkserver_helper.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
-const uint32_t TOKEN_SIZE = 128;
+using ::curve::fs::LocalFileSystem;
+using ::curve::fs::LocalFsFactory;
+using ::curve::fs::FileSystemType;
 
-// TODO(wenyu): add more command line arguments
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
 
 namespace curve {
 namespace chunkserver {
+int ChunkServer::Run(int argc, char** argv) {
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-void ChunkServer::InitCopysetNodeOptions() {
-    copysetNodeOptions_.ip = conf_.GetStringValue("global.ip");
-    copysetNodeOptions_.port = conf_.GetIntValue("global.port");
-    copysetNodeOptions_.snapshotIntervalS =
-        conf_.GetIntValue("copyset.snapshot_interval");
-    copysetNodeOptions_.catchupMargin =
-        conf_.GetIntValue("copyset.catchup_margin");
-    copysetNodeOptions_.chunkDataUri =
-        conf_.GetStringValue("copyset.chunk_data_uri");
-    copysetNodeOptions_.chunkSnapshotUri =
-        conf_.GetStringValue("copyset.chunk_data_uri");
-    copysetNodeOptions_.logUri = conf_.GetStringValue("copyset.raft_log_uri");
-    copysetNodeOptions_.raftMetaUri =
-        conf_.GetStringValue("copyset.raft_meta_uri");
-    copysetNodeOptions_.raftSnapshotUri =
-        conf_.GetStringValue("copyset.raft_snapshot_uri");
-    copysetNodeOptions_.recyclerUri =
-        conf_.GetStringValue("copyset.recycler_uri");
-    copysetNodeOptions_.maxChunkSize =
-        conf_.GetIntValue("global.chunk_size");
-    copysetNodeOptions_.pageSize =
-        conf_.GetIntValue("global.meta_page_size");
-    copysetNodeOptions_.concurrentapply = &concurrentapply_;
-    // TODO(wudemiao): 下面几个参数放在配置文件里面
-    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
-    copysetNodeOptions_.localFileSystem = fs;
-    copysetNodeOptions_.chunkfilePool
-        = std::make_shared<ChunkfilePool>(fs);       //NOLINT
+    // ==========================加载配置项===============================//
+    LOG(INFO) << "Loading Configuration.";
+    std::string confPath = FLAGS_conf.c_str();
+    common::Configuration conf;
+    conf.SetConfigPath(confPath);
+    if (!conf.LoadConfig()) {
+        LOG(ERROR) << "load chunkserver configuration fail, conf path = "
+                   << confPath;
+        return -1;
+    }
+
+    // ============================初始化各模块==========================//
+    LOG(INFO) << "Initializing ChunkServer modules";
+    // 初始化并发持久模块
+    ConcurrentApplyModule concurrentapply;
+    int size = conf.GetIntValue("concurrentapply.size");
+    int qdepth = conf.GetIntValue("concurrentapply.queuedepth");
+    LOG_IF(FATAL, false == concurrentapply.Init(size, qdepth))
+        << "Failed to initialize concurrentapply module!";
+
+    // 初始化本地文件系统
+    std::shared_ptr<LocalFileSystem> fs(
+        LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
+
+    // 初始化chunk文件池
+    ChunkfilePoolOptions chunkFilePoolOptions;
+    InitChunkFilePoolOptions(&conf, &chunkFilePoolOptions);
+    std::shared_ptr<ChunkfilePool> chunkfilePool =
+        std::make_shared<ChunkfilePool>(fs);
+    LOG_IF(FATAL, false == chunkfilePool->Initialize(chunkFilePoolOptions))
+        << "Failed to init chunk file pool";
+
+    // 远端拷贝管理模块选项
+    CopyerOptions copyerOptions;
+    InitCopyerOptions(&conf, &copyerOptions);
+    auto curveClient = std::make_shared<FileClient>();
+    auto s3Adapter = std::make_shared<S3Adapter>();
+    auto copyer = std::make_shared<OriginCopyer>(curveClient, s3Adapter);
+    LOG_IF(FATAL, copyer->Init(copyerOptions) != 0)
+        << "Failed to initialize clone copyer.";
+
+    // 克隆管理模块初始化
+    CloneOptions cloneOptions;
+    InitCloneOptions(&conf, &cloneOptions);
+    uint32_t sliceSize = conf.GetIntValue("clone.slice_size");
+    cloneOptions.core = std::make_shared<CloneCore>(sliceSize, copyer);
+    LOG_IF(FATAL, cloneManager_.Init(cloneOptions) != 0)
+        << "Failed to initialize clone manager.";
+
+    // 初始化注册模块
+    RegisterOptions registerOptions;
+    InitRegisterOptions(&conf, &registerOptions);
+    registerOptions.fs = fs;
+    Register registerMDS(registerOptions);
+    ChunkServerMetadata metadata;
+    // 从本地获取meta
+    std::string metaPath = FsAdaptorUtil::GetPathFromUri(
+        registerOptions.chunserverStoreUri).c_str();
+    if (fs->FileExists(metaPath)) {
+         LOG_IF(FATAL, GetChunkServerMetaFromLocal(
+                            registerOptions.chunserverStoreUri,
+                            registerOptions.chunkserverMetaUri,
+                            registerOptions.fs, &metadata) != 0)
+            << "Failed to register to MDS.";
+    } else {
+        // 如果本地获取不到，向mds注册
+        LOG_IF(FATAL, registerMDS.RegisterToMDS(&metadata) != 0)
+            << "Failed to register to MDS.";
+    }
+
+    // 初始化复制组管理模块
+    CopysetNodeOptions copysetNodeOptions;
+    InitCopysetNodeOptions(&conf, &copysetNodeOptions);
+    copysetNodeOptions.concurrentapply = &concurrentapply;
+    copysetNodeOptions.chunkfilePool = chunkfilePool;
+    copysetNodeOptions.localFileSystem = fs;
+    LOG_IF(FATAL, copysetNodeManager_.Init(copysetNodeOptions) != 0)
+        << "Failed to initialize CopysetNodeManager.";
+    LOG_IF(FATAL, copysetNodeManager_.ReloadCopysets() != 0)
+        << "CopysetNodeManager Failed to reload copyset.";
+
+    // 心跳模块初始化
+    HeartbeatOptions heartbeatOptions;
+    InitHeartbeatOptions(&conf, &heartbeatOptions);
+    heartbeatOptions.copysetNodeManager = &copysetNodeManager_;
+    heartbeatOptions.fs = fs;
+    heartbeatOptions.chunkserverId = metadata.id();
+    heartbeatOptions.chunkserverToken = metadata.token();
+    LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions) != 0)
+        << "Failed to init Heartbeat manager.";
+
+    // =======================启动各模块==================================//
+    LOG(INFO) << "ChunkServer starts.";
+
+    LOG_IF(FATAL, copysetNodeManager_.Run() != 0)
+        << "Failed to start CopysetNodeManager.";
+    LOG_IF(FATAL, heartbeat_.Run() != 0)
+        << "Failed to start heartbeat manager.";
+    LOG_IF(FATAL, cloneManager_.Run() != 0)
+        << "Failed to start clone manager.";
+
+    // ========================添加rpc服务===============================//
+    // TODO(lixiaocui): rpc中各接口添加上延迟metric
+    brpc::Server server;
+
+    // copyset service
+    CopysetServiceImpl copysetService(&copysetNodeManager_);
+    int ret = server.AddService(&copysetService,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add CopysetService";
+
+    // chunk service
+    ChunkServiceOptions chunkServiceOptions;
+    chunkServiceOptions.copysetNodeManager = &copysetNodeManager_;
+    chunkServiceOptions.cloneManager = &cloneManager_;
+    ChunkServiceImpl chunkService(chunkServiceOptions);
+    ret = server.AddService(&chunkService,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add ChunkService";
+
+    // braftclient service
+    BRaftCliServiceImpl braftCliService;
+    ret = server.AddService(&braftCliService,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add BRaftCliService";
+
+    // raft service
+    butil::ip_t ip;
+    if (butil::str2ip(copysetNodeOptions.ip.c_str(), &ip) < 0) {
+        LOG(FATAL) << "Invalid server IP provided: " << copysetNodeOptions.ip;
+        return -1;
+    }
+    butil::EndPoint endPoint = butil::EndPoint(ip, copysetNodeOptions.port);
+    braft::RaftServiceImpl raftService(endPoint);
+    ret = server.AddService(&raftService,
+        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add RaftService";
+
+    // raft stat service
+    braft::RaftStatImpl raftStatService;
+    ret = server.AddService(&raftStatService,
+        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add RaftStatService";
+
+    // braft file service
+    ret = server.AddService(braft::file_service(),
+        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add FileService";
+
+    if (!braft::NodeManager::GetInstance()->server_exists(endPoint)) {
+        braft::NodeManager::GetInstance()->add_address(endPoint);
+    }
+
+    // 启动rpc service
+    LOG(INFO) << "RPC server is going to serve on: "
+              << copysetNodeOptions.ip << ":" << copysetNodeOptions.port;
+    if (server.Start(endPoint, NULL) != 0) {
+        LOG(ERROR) << "Fail to start RPC Server";
+        return -1;
+    }
+
+    toStop_ = false;
+    while (!toStop_ && !brpc::IsAskedToQuit()) {
+        sleep(1);
+    }
+
+    LOG(INFO) << "ChunkServer is going to quit.";
+    LOG_IF(ERROR, heartbeat_.Fini() != 0)
+        << "Failed to shutdown heartbeat manager.";
+    LOG_IF(ERROR, cloneManager_.Fini() != 0)
+        << "Failed to shutdown clone manager.";
+    LOG_IF(ERROR, copyer->Fini() != 0)
+        << "Failed to shutdown clone copyer.";
+    LOG_IF(ERROR, copysetNodeManager_.Fini() != 0)
+        << "Failed to shutdown CopysetNodeManager.";
+    concurrentapply.Stop();
+    return 0;
 }
 
-void ChunkServer::InitChunkFilePoolOptions() {
-    chunkFilePoolOptions_.chunkSize =
-        conf_.GetIntValue("global.chunk_size");
-    chunkFilePoolOptions_.metaPageSize =
-        conf_.GetIntValue("global.meta_page_size");
-    chunkFilePoolOptions_.cpMetaFileSize
-        = conf_.GetIntValue("chunkfilepool.cpmeta_file_size");
-    chunkFilePoolOptions_.getChunkFromPool
-        = conf_.GetBoolValue("chunkfilepool.enable_get_chunk_from_pool");
+void ChunkServer::Stop() {
+    toStop_ = true;
+}
 
-    if (chunkFilePoolOptions_.getChunkFromPool == false) {
+void ChunkServer::InitChunkFilePoolOptions(
+    common::Configuration *conf, ChunkfilePoolOptions *chunkFilePoolOptions) {
+    chunkFilePoolOptions->chunkSize =
+        conf->GetIntValue("global.chunk_size");
+    chunkFilePoolOptions->metaPageSize =
+        conf->GetIntValue("global.meta_page_size");
+    chunkFilePoolOptions->cpMetaFileSize
+        = conf->GetIntValue("chunkfilepool.cpmeta_file_size");
+    chunkFilePoolOptions->getChunkFromPool
+        = conf->GetBoolValue("chunkfilepool.enable_get_chunk_from_pool");
+
+    if (chunkFilePoolOptions->getChunkFromPool == false) {
         std::string chunkFilePoolUri
-            = conf_.GetStringValue("chunkfilepool.chunk_file_pool_dir");
-        ::memcpy(chunkFilePoolOptions_.chunkFilePoolDir,
+            = conf->GetStringValue("chunkfilepool.chunk_file_pool_dir");
+        ::memcpy(chunkFilePoolOptions->chunkFilePoolDir,
                  chunkFilePoolUri.c_str(),
                  chunkFilePoolUri.size());
     } else {
         std::string metaUri
-            = conf_.GetStringValue("chunkfilepool.meta_path");
-        ::memcpy(chunkFilePoolOptions_.metaPath,
+            = conf->GetStringValue("chunkfilepool.meta_path");
+        ::memcpy(chunkFilePoolOptions->metaPath,
                  metaUri.c_str(),
                  metaUri.size());
     }
 }
 
-void ChunkServer::InitHeartbeatOptions() {
-    heartbeatOptions_.copysetNodeManager = &copysetNodeManager_;
-    heartbeatOptions_.chunkserverId = metadata_.id();
-    heartbeatOptions_.chunkserverToken = metadata_.token();
-    heartbeatOptions_.dataUri = conf_.GetStringValue("copyset.chunk_data_uri");
-    heartbeatOptions_.ip = conf_.GetStringValue("global.ip");
-    heartbeatOptions_.port = conf_.GetIntValue("global.port");
-    heartbeatOptions_.mdsIp = conf_.GetStringValue("mds.ip");
-    heartbeatOptions_.mdsPort = conf_.GetIntValue("mds.port");
-    heartbeatOptions_.interval = conf_.GetIntValue("mds.heartbeat_interval");
-    heartbeatOptions_.timeout = conf_.GetIntValue("mds.heartbeat_timeout");
-    heartbeatOptions_.fs = fs_;
+void ChunkServer::InitCopysetNodeOptions(
+    common::Configuration *conf, CopysetNodeOptions *copysetNodeOptions) {
+    copysetNodeOptions->ip = conf->GetStringValue("global.ip");
+    copysetNodeOptions->port = conf->GetIntValue("global.port");
+    if (copysetNodeOptions->port <= 0 || copysetNodeOptions->port >= 65535) {
+        LOG(FATAL) << "Invalid server port provided: "
+                   << copysetNodeOptions->port;
+    }
+    copysetNodeOptions->snapshotIntervalS =
+        conf->GetIntValue("copyset.snapshot_interval");
+    copysetNodeOptions->catchupMargin =
+        conf->GetIntValue("copyset.catchup_margin");
+    copysetNodeOptions->chunkDataUri =
+        conf->GetStringValue("copyset.chunk_data_uri");
+    copysetNodeOptions->chunkSnapshotUri =
+        conf->GetStringValue("copyset.chunk_data_uri");
+    copysetNodeOptions->logUri = conf->GetStringValue("copyset.raft_log_uri");
+    copysetNodeOptions->raftMetaUri =
+        conf->GetStringValue("copyset.raft_meta_uri");
+    copysetNodeOptions->raftSnapshotUri =
+        conf->GetStringValue("copyset.raft_snapshot_uri");
+    copysetNodeOptions->recyclerUri =
+        conf->GetStringValue("copyset.recycler_uri");
+    copysetNodeOptions->maxChunkSize =
+        conf->GetIntValue("global.chunk_size");
+    copysetNodeOptions->pageSize =
+        conf->GetIntValue("global.meta_page_size");
 }
 
-void ChunkServer::InitServiceOptions() {
-    serviceOptions_.ip = conf_.GetStringValue("global.ip");
-    serviceOptions_.port = conf_.GetIntValue("global.port");
-    serviceOptions_.chunkserver = this;
-    serviceOptions_.copysetNodeManager = &copysetNodeManager_;
-    serviceOptions_.cloneManager = &cloneManager_;
+void ChunkServer::InitCopyerOptions(
+    common::Configuration *conf, CopyerOptions *copyerOptions) {
+    copyerOptions->curveUser.owner =
+        conf->GetStringValue("curve.root_username");
+    copyerOptions->curveUser.password =
+        conf->GetStringValue("curve.root_password");
+    copyerOptions->curveConf = conf->GetStringValue("curve.config_path");
+    copyerOptions->s3Conf = conf->GetStringValue("s3.config_path");
 }
 
-void ChunkServer::InitCopyerOptions() {
-    copyerOptions_.curveUser.owner =
-        conf_.GetStringValue("curve.root_username");
-    copyerOptions_.curveUser.password =
-        conf_.GetStringValue("curve.root_password");
-    copyerOptions_.curveConf = conf_.GetStringValue("curve.config_path");
-    copyerOptions_.s3Conf = conf_.GetStringValue("s3.config_path");
-    auto curveClient = std::make_shared<FileClient>();
-    auto s3Adapter = std::make_shared<S3Adapter>();
-    copyer_ = std::make_shared<OriginCopyer>(curveClient, s3Adapter);
+void ChunkServer::InitCloneOptions(
+    common::Configuration *conf, CloneOptions *cloneOptions) {
+    cloneOptions->threadNum = conf->GetIntValue("clone.thread_num");
+    cloneOptions->queueCapacity = conf->GetIntValue("clone.queue_depth");
 }
 
-void ChunkServer::InitCloneOptions() {
-    cloneOptions_.threadNum = conf_.GetIntValue("clone.thread_num");
-    cloneOptions_.queueCapacity = conf_.GetIntValue("clone.queue_depth");
-    uint32_t sliceSize = conf_.GetIntValue("clone.slice_size");
-    cloneOptions_.core = std::make_shared<CloneCore>(sliceSize, copyer_);
+void ChunkServer::InitHeartbeatOptions(
+    common::Configuration *conf, HeartbeatOptions *heartbeatOptions) {
+    heartbeatOptions->dataUri = conf->GetStringValue("copyset.chunk_data_uri");
+    heartbeatOptions->ip = conf->GetStringValue("global.ip");
+    heartbeatOptions->port = conf->GetIntValue("global.port");
+    heartbeatOptions->mdsIp = conf->GetStringValue("mds.ip");
+    heartbeatOptions->mdsPort = conf->GetIntValue("mds.port");
+    heartbeatOptions->interval = conf->GetIntValue("mds.heartbeat_interval");
+    heartbeatOptions->timeout = conf->GetIntValue("mds.heartbeat_timeout");
 }
 
-int ChunkServer::PersistChunkServerMeta() {
+void ChunkServer::InitRegisterOptions(
+    common::Configuration *conf, RegisterOptions *registerOptions) {
+    registerOptions->mdsIp = conf->GetStringValue("mds.ip");
+    registerOptions->mdsPort = conf->GetIntValue("mds.port");
+    if (registerOptions->mdsPort <= 0 || registerOptions->mdsPort >= 65535) {
+        LOG(FATAL) << "Invalid MDS port provided: " << registerOptions->mdsPort;
+    }
+    registerOptions->chunkserverIp = conf->GetStringValue("global.ip");
+    registerOptions->chunkserverPort = conf->GetIntValue("global.port");
+    registerOptions->chunserverStoreUri =
+        conf->GetStringValue("chunkserver.stor_uri");
+    registerOptions->chunkserverMetaUri =
+        conf->GetStringValue("chunkserver.meta_uri");
+    registerOptions->chunkserverDiskType =
+        conf->GetStringValue("chunkserver.disk_type");
+    registerOptions->registerRetries =
+        conf->GetIntValue("mds.register_retries");
+    registerOptions->registerTimeout =
+        conf->GetIntValue("mds.register_timeout");
+}
+
+int ChunkServer::GetChunkServerMetaFromLocal(
+    const std::string &storeUri,
+    const std::string &metaUri,
+    const std::shared_ptr<LocalFileSystem> &fs,
+    ChunkServerMetadata *metadata) {
+    std::string proto =
+        FsAdaptorUtil::GetProtocolFromUri(storeUri);
+    if (proto != "local") {
+        LOG(ERROR) << "Datastore protocal " << proto << " is not supported yet";
+        return -1;
+    }
+    // 从配置文件中获取chunkserver元数据的文件路径
+    proto = FsAdaptorUtil::GetProtocolFromUri(metaUri);
+    if (proto != "local") {
+        LOG(ERROR) << "Chunkserver meta protocal "
+                   << proto << " is not supported yet";
+        return -1;
+    }
+    // 元数据文件已经存在
+    if (fs->FileExists(FsAdaptorUtil::GetPathFromUri(metaUri).c_str())) {
+        // 获取文件内容
+        if (ReadChunkServerMeta(fs, metaUri, metadata) != 0) {
+            LOG(ERROR) << "Fail to read persisted chunkserver meta data";
+            return -1;
+        }
+
+        LOG(INFO) << "Found persisted chunkserver data, skipping registration,"
+                  << " chunkserver id: " << metadata->id()
+                  << ", token: " << metadata->token();
+        return 0;
+    }
+    return -1;
+}
+
+int ChunkServer::ReadChunkServerMeta(const std::shared_ptr<LocalFileSystem> &fs,
+    const std::string &metaUri, ChunkServerMetadata *metadata) {
     int fd;
-    std::string metaFile = FsAdaptorUtil::GetPathFromUri(metaUri_);
+    std::string metaFile =
+        FsAdaptorUtil::GetPathFromUri(metaUri);
 
-    std::string metaStr;
-    std::string err;
-    json2pb::Pb2JsonOptions opt;
-    opt.bytes_to_base64 = true;
-    opt.enum_option = json2pb::OUTPUT_ENUM_BY_NUMBER;
-
-    if (!json2pb::ProtoMessageToJson(metadata_, &metaStr, opt, &err)) {
-        LOG(ERROR) << "Failed to convert chunkserver meta data for persistence,"
-                   << " error: " << err.c_str();
-        return -1;
-    }
-
-    fd = fs_->Open(metaFile.c_str(), O_RDWR | O_CREAT);
-    if (fd < 0) {
-        LOG(ERROR) << "Fail to open chunkserver metadata file for write";
-        return -1;
-    }
-
-    if (fs_->Write(fd, metaStr.c_str(), 0, metaStr.size()) < metaStr.size()) {
-        LOG(ERROR) << "Failed to write chunkserver metadata file";
-        return -1;
-    }
-    if (fs_->Close(fd)) {
-        LOG(ERROR) << "Failed to close chunkserver metadata file";
-        return -1;
-    }
-
-    return 0;
-}
-
-int ChunkServer::ReadChunkServerMeta() {
-    int fd;
-    std::string metaFile = FsAdaptorUtil::GetPathFromUri(metaUri_);
-
-    fd = fs_->Open(metaFile.c_str(), O_RDONLY);
+    fd = fs->Open(metaFile.c_str(), O_RDONLY);
     if (fd < 0) {
         LOG(ERROR) << "Failed to open Chunkserver metadata file " << metaFile;
         return -1;
     }
 
-#define METAFILE_MAX_SIZE  4096
+    #define METAFILE_MAX_SIZE  4096
     uint32_t size;
     char json[METAFILE_MAX_SIZE] = {0};
 
-    size = fs_->Read(fd, json, 0, METAFILE_MAX_SIZE);
+    size = fs->Read(fd, json, 0, METAFILE_MAX_SIZE);
     if (size < 0) {
         LOG(ERROR) << "Failed to read Chunkserver metadata file";
         return -1;
@@ -181,332 +374,19 @@ int ChunkServer::ReadChunkServerMeta() {
         LOG(ERROR) << "Chunkserver metadata file is too large: " << size;
         return -1;
     }
-    if (fs_->Close(fd)) {
+    if (fs->Close(fd)) {
         LOG(ERROR) << "Failed to close chunkserver metadata file";
         return -1;
     }
 
-    std::string jsonStr(json);
-    std::string err;
-    json2pb::Json2PbOptions opt;
-    opt.base64_to_bytes = true;
-
-    if (!json2pb::JsonToProtoMessage(jsonStr, &metadata_, opt, &err)) {
-        LOG(ERROR) << "Failed to convert chunkserver meta data read,"
-                   << " error: " << err.c_str();
+    if (!ChunkServerMetaHelper::DecodeChunkServerMeta(json, metadata)) {
+        LOG(ERROR) << "Failed to decode chunkserver meta: " << json;
         return -1;
     }
 
-    if (!ValidateMetaData()) {
-        LOG(ERROR) << "Failed to validate Chunkserver metadata.";
-        return -1;
-    }
-
-    return 0;
-}
-
-uint32_t ChunkServer::MetadataCrc() {
-    uint32_t crc = 0;
-    uint32_t ver = metadata_.version();
-    uint32_t id = metadata_.id();
-    const char* token = metadata_.token().c_str();
-
-    crc = curve::common::CRC32(crc, reinterpret_cast<char*>(&ver), sizeof(ver));
-    crc = curve::common::CRC32(crc, reinterpret_cast<char*>(&id), sizeof(id));
-    crc = curve::common::CRC32(crc, token, metadata_.token().size());
-
-    return crc;
-}
-
-bool ChunkServer::ValidateMetaData() {
-    if (MetadataCrc() != metadata_.checksum()) {
-        LOG(ERROR) << "ChunkServer persisted metadata CRC dismatch.";
-        return false;
-    } else if (metadata_.version() != CURRENT_METADATA_VERSION) {
-        LOG(ERROR) << "ChunkServer metadata version dismatch, stored: "
-                   << metadata_.version()
-                   << ", expected: " << CURRENT_METADATA_VERSION;
-        return false;
-    }
-
-    return true;
-}
-
-bool ChunkServer::ChunkServerIdPersisted() {
-    std::string metaFile = FsAdaptorUtil::GetPathFromUri(metaUri_);
-
-    if (!fs_->FileExists(metaFile.c_str())) {
-        return false;
-    }
-
-    return true;
-}
-
-int ChunkServer::RegisterToMetaServer() {
-    std::string mdsIpStr = conf_.GetStringValue("mds.ip");
-    int mdsPort = conf_.GetIntValue("mds.port");
-
-    butil::ip_t mdsIp;
-    if (butil::str2ip(mdsIpStr.c_str(), &mdsIp) < 0) {
-        LOG(ERROR) << "Invalid MDS IP provided: " << mdsIpStr;
-        return -1;
-    }
-    if (mdsPort <= 0 || mdsPort >= 65535) {
-        LOG(ERROR) << "Invalid MDS port provided: " << mdsPort;
-        return -1;
-    }
-    mdsEp_ = butil::EndPoint(mdsIp, mdsPort);
-    LOG(INFO) << "MDS address is  " << mdsIpStr << ":" << mdsPort;
-
-    std::string proto;
-
-    storUri_ = conf_.GetStringValue("chunkserver.stor_uri");
-    proto = FsAdaptorUtil::GetProtocolFromUri(storUri_);
-    if (proto != "local") {
-        LOG(ERROR) << "Datastore protocal " << proto << " is not supported yet";
-        return -1;
-    }
-
-    metaUri_ = conf_.GetStringValue("chunkserver.meta_uri");
-    proto = FsAdaptorUtil::GetProtocolFromUri(metaUri_);
-
-    if (ChunkServerIdPersisted()) {
-        if (ReadChunkServerMeta() != 0) {
-            LOG(ERROR) << "Fail to read persisted chunkserver meta data";
-            return -1;
-        }
-
-        LOG(INFO) << "Found persisted chunkserver data, skipping registration,"
-                  << " chunkserver id: " << metadata_.id()
-                  << ", token: " << metadata_.token();
-        return 0;
-    }
-
-    curve::mds::topology::ChunkServerRegistRequest req;
-    curve::mds::topology::ChunkServerRegistResponse resp;
-
-    req.set_disktype(conf_.GetStringValue("chunkserver.disk_type"));
-    req.set_diskpath(storUri_);
-    req.set_hostip(serviceOptions_.ip);
-    req.set_port(serviceOptions_.port);
-
-    LOG(INFO) << "Registering to MDS " << mdsEp_;
-    int retries = conf_.GetIntValue("mds.register_retries");
-    int timeout = conf_.GetIntValue("mds.register_timeout");
-    while (retries >= 0) {
-        brpc::Channel channel;
-        brpc::Controller cntl;
-
-        cntl.set_timeout_ms(timeout);
-
-        if (channel.Init(mdsEp_, NULL) != 0) {
-            LOG(ERROR) << "Fail to init channel to MDS " << mdsEp_;
-        }
-        curve::mds::topology::TopologyService_Stub stub(&channel);
-
-        stub.RegistChunkServer(&cntl, &req, &resp, nullptr);
-
-        if (!cntl.Failed() && resp.statuscode() == 0) {
-            break;
-        } else {
-            LOG(ERROR) << "Fail to register to MDS " << mdsEp_ << ","
-                       << " cntl error: " << cntl.ErrorText() << ","
-                       << " statusCode: " << resp.statuscode() << ","
-                       << " going to sleep and try again.";
-            sleep(1);
-            --retries;
-        }
-    }
-
-    if (retries <= 0) {
-        LOG(ERROR) << "Fail to register to MDS " << mdsEp_
-                   << " for " << conf_.GetIntValue("mds.register_retries")
-                   << " times.";
-        return -1;
-    }
-
-    metadata_.set_version(CURRENT_METADATA_VERSION);
-    metadata_.set_id(resp.chunkserverid());
-    metadata_.set_token(resp.token());
-    metadata_.set_checksum(MetadataCrc());
-
-    LOG(INFO) << "Successfully registered to MDS,"
-              << " chunkserver id: " << metadata_.id() << ","
-              << " token: " << metadata_.token() << ","
-              << " persisting them to local storage.";
-
-    if (PersistChunkServerMeta() < 0) {
-        LOG(ERROR) << "Failed to persist chunkserver meta data";
-        return -1;
-    }
-
-    return 0;
-}
-
-int ChunkServer::ReloadCopysets() {
-    std::string datadir;
-
-    datadir = FsAdaptorUtil::GetPathFromUri(copysetNodeOptions_.chunkDataUri);
-    if (!fs_->DirExists(datadir)) {
-        LOG(INFO) << "Failed to access data directory:  " << datadir
-                   << ", assume it is an uninitialized datastore";
-        return 0;
-    }
-
-    vector<std::string> items;
-    if (fs_->List(datadir, &items) != 0) {
-        LOG(ERROR) << "Failed to get copyset list from data directory "
-                   << datadir;
-        return -1;
-    }
-
-    vector<std::string>::iterator it = items.begin();
-    for (; it != items.end(); ++it) {
-        if (*it == "." || *it == "..") {
-            continue;
-        }
-
-        LOG(INFO) << "Found copyset dir " << *it;
-
-        uint64_t groupId = std::stoul(*it);
-        uint64_t poolId = GetPoolID(groupId);
-        uint64_t copysetId = GetCopysetID(groupId);
-        LOG(INFO) << "Parsed groupid " << groupId
-                  << "as " << ToGroupIdStr(poolId, copysetId);
-
-        braft::Configuration conf;
-        if (!copysetNodeManager_.CreateCopysetNode(poolId, copysetId, conf)) {
-            LOG(ERROR) << "Failed to recreate copyset: <"
-                      << poolId << "," << copysetId << ">";
-        }
-
-        LOG(INFO) << "Created copyset: <" << poolId << "," << copysetId << ">";
-    }
-
-    return 0;
-}
-
-int ChunkServer::InitConfig(const std::string& confPath) {
-    LOG(INFO) << "Loading Configuration.";
-    conf_.SetConfigPath(confPath);
-    // FIXME(wenyu): may also log into syslog
-    if (!conf_.LoadConfig()) {
-        return -1;
-    }
-
-    return ReplaceConfigWithCmdFlags();
-}
-
-int ChunkServer::Init(int argc, char **argv) {
-    LOG(INFO) << "Starting to Initialize ChunkServer.";
-
-    ParseCommandLineFlags(argc, argv);
-
-    LOG_IF(FATAL, InitConfig(FLAGS_conf))
-        << "Failed to open config file: " << conf_.GetConfigPath();
-
-    LOG(INFO) << "Initializing ChunkServer modules";
-
-    InitCopysetNodeOptions();
-    LOG_IF(FATAL, copysetNodeManager_.Init(copysetNodeOptions_) != 0)
-        << "Failed to initialize CopysetNodeManager.";
-
-    fs_ = copysetNodeOptions_.localFileSystem;
-
-    int size = conf_.GetIntValue("concurrentapply.size");
-    int qdepth = conf_.GetIntValue("concurrentapply.queuedepth");
-    LOG_IF(FATAL, false == concurrentapply_.Init(size, qdepth))
-        << "Failed to initialize concurrentapply module!";
-
-    bool ret;
-    InitChunkFilePoolOptions();
-    ret = copysetNodeOptions_.chunkfilePool->Initialize(chunkFilePoolOptions_);
-    LOG_IF(FATAL, false == ret)
-        << "Failed to init chunk file pool";
-
-    InitCopyerOptions();
-    LOG_IF(FATAL, copyer_->Init(copyerOptions_) != 0)
-        << "Failed to initialize clone copyer.";
-
-    InitCloneOptions();
-    LOG_IF(FATAL, cloneManager_.Init(cloneOptions_) != 0)
-        << "Failed to initialize clone manager.";
-
-    InitServiceOptions();
-    LOG_IF(FATAL, serviceManager_.Init(serviceOptions_) != 0)
-        << "Failed to initialize ServiceManager.";
-
-    LOG_IF(FATAL, RegisterToMetaServer() != 0) << "Failed to register to MDS.";
-
-    LOG_IF(FATAL, ReloadCopysets() != 0) << "Failed to recreate copysets.";
-
-    InitHeartbeatOptions();
-    LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions_) != 0)
-        << "Failed to init Heartbeat manager.";
-
-    toStop = false;
-
-    return 0;
-}
-
-int ChunkServer::Fini() {
-    LOG(INFO) << "ChunkServer is going to quit.";
-
-    LOG_IF(ERROR, heartbeat_.Fini() != 0)
-        << "Failed to shutdown heartbeat manager.";
-    LOG_IF(ERROR, cloneManager_.Fini() != 0)
-        << "Failed to shutdown clone manager.";
-    LOG_IF(ERROR, copyer_->Fini() != 0)
-        << "Failed to shutdown clone copyer.";
-    LOG_IF(ERROR, copysetNodeManager_.Fini() != 0)
-        << "Failed to shutdown CopysetNodeManager.";
-    LOG_IF(ERROR, serviceManager_.Fini() != 0)
-        << "Failed to shutdown ServiceManager.";
-    concurrentapply_.Stop();
-
-    return 0;
-}
-
-int ChunkServer::Run() {
-    LOG(INFO) << "ChunkServer starts.";
-
-    LOG_IF(FATAL, serviceManager_.Run() != 0)
-        << "Failed to start ServiceManager.";
-    LOG_IF(FATAL, copysetNodeManager_.Run() != 0)
-        << "Failed to start CopysetNodeManager.";
-    LOG_IF(FATAL, heartbeat_.Run() != 0)
-        << "Failed to start heartbeat manager.";
-    LOG_IF(FATAL, cloneManager_.Run() != 0)
-    << "Failed to start clone manager.";
-
-    // TODO(wenyu): daemonize it
-
-    while (!toStop) {
-        sleep(1);
-    }
-
-    return 0;
-}
-
-int ChunkServer::Stop() {
-    toStop = true;
-
-    return 0;
-}
-
-int ChunkServer::ParseCommandLineFlags(int argc, char **argv) {
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
-
-    return 0;
-}
-
-int ChunkServer::ReplaceConfigWithCmdFlags() {
-    /**
-     * TODO(wenyu): replace config items which provided in commandline flags,
-     * so commandline flags have higher priority
-     */
     return 0;
 }
 
 }  // namespace chunkserver
 }  // namespace curve
+

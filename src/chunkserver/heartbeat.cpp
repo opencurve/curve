@@ -17,21 +17,10 @@
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
-namespace curve {
-namespace chunkserver {
-
 using curve::fs::FileSystemInfo;
 
-static std::atomic<uint64_t>    readCount;
-static std::atomic<uint64_t>    writeCount;
-static std::atomic<uint64_t>    readBytes;
-static std::atomic<uint64_t>    writeBytes;
-
-static uint64_t GetAtomicUint64(void* arg) {
-    std::atomic<uint64_t>* v = (std::atomic<uint64_t> *)arg;
-    return v->load(std::memory_order_acquire);
-}
-
+namespace curve {
+namespace chunkserver {
 TaskStatus Heartbeat::PurgeCopyset(LogicPoolID poolId, CopysetID copysetId) {
     if (!copysetMan_->PurgeCopysetNodeData(poolId, copysetId)) {
         LOG(ERROR) << "Failed to clean copyset "
@@ -62,14 +51,6 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
         LOG(ERROR) << "Invalid Chunkserver IP provided: " << options_.ip;
         return -1;
     }
-    if (options_.mdsPort <= 0 || options_.mdsPort >= 65535) {
-        LOG(ERROR) << "Invalid MDS port provided: " << options_.mdsPort;
-        return -1;
-    }
-    if (options_.port <= 0 || options_.port >= 65535) {
-        LOG(ERROR) << "Invalid Chunkserver port provided: " << options_.port;
-        return -1;
-    }
     mdsEp_ = butil::EndPoint(mdsIp, options_.mdsPort);
     csEp_ = butil::EndPoint(csIp, options_.port);
     LOG(INFO) << "MDS address: " << options_.mdsIp << ":" << options_.mdsPort;
@@ -80,30 +61,7 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     /*
      * 初始化ChunkServer性能metrics
      */
-    std::string prefix = "chunkserver_" + options_.ip +
-                         "_" + std::to_string(options_.port);
-
-    readCnt_ = std::make_shared<bvar::PassiveStatus<uint64_t>>(
-                    prefix, "read_count", GetAtomicUint64, &readCount);
-    writeCnt_ = std::make_shared<bvar::PassiveStatus<uint64_t>>(
-                    prefix, "write_count", GetAtomicUint64, &writeCount);
-    readBytes_ = std::make_shared<bvar::PassiveStatus<uint64_t>>(
-                    prefix, "read_bytes", GetAtomicUint64, &readBytes);
-    writeBytes_ = std::make_shared<bvar::PassiveStatus<uint64_t>>(
-                    prefix, "write_bytes", GetAtomicUint64, &writeBytes);
-
-    readIops_ =
-        std::make_shared<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>>(
-                    prefix, "read_iops", readCnt_.get());
-    writeIops_ =
-        std::make_shared<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>>(
-                    prefix, "write_iops", writeCnt_.get());
-    readBps_ =
-        std::make_shared<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>>(
-                    prefix, "read_bps", readBytes_.get());
-    writeBps_ =
-        std::make_shared<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>>(
-                    prefix, "write_bps", writeBytes_.get());
+    chunkserverMetric.Init(options_.ip, options_.port);
 
     return 0;
 }
@@ -222,10 +180,10 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
 
     curve::mds::heartbeat::ChunkServerStatisticInfo* stats =
         new curve::mds::heartbeat::ChunkServerStatisticInfo();
-    stats->set_readrate(readBps_->get_value(1));
-    stats->set_writerate(writeBps_->get_value(1));
-    stats->set_readiops(readIops_->get_value(1));
-    stats->set_writeiops(writeIops_->get_value(1));
+    stats->set_readrate(chunkserverMetric.readBps->get_value(1));
+    stats->set_writerate(chunkserverMetric.writeBps->get_value(1));
+    stats->set_readiops(chunkserverMetric.readIops->get_value(1));
+    stats->set_writeiops(chunkserverMetric.writeIops->get_value(1));
     req->set_allocated_stats(stats);
 
     size_t cap, avail;

@@ -330,35 +330,6 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());
 }
 
-TEST_F(TestNameServerStorageImp, test_getrecyclefile) {
-    // 1. get file err
-    FileInfo fileinfo;
-    EXPECT_CALL(*client_, Get(_, _))
-        .WillOnce(Return(EtcdErrCode::DeadlineExceeded))
-        .WillOnce(Return(EtcdErrCode::KeyNotExist));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->GetFile(fileinfo.parentid(),
-                                                            fileinfo.filename(),
-                                                            &fileinfo));
-    ASSERT_EQ(StoreStatus::KeyNotExist, storage_->GetFile(fileinfo.parentid(),
-                                                          fileinfo.filename(),
-                                                          &fileinfo));
-
-    // 2. get file ok
-    FileInfo getInfo;
-    std::string encodeFileinfo;
-    GetFileInfoForTest(&fileinfo);
-    ASSERT_TRUE(NameSpaceStorageCodec::EncodeFileInfo(fileinfo,
-                                                      &encodeFileinfo));
-    EXPECT_CALL(*client_, Get(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(encodeFileinfo),
-                  Return(EtcdErrCode::OK)));
-    ASSERT_EQ(StoreStatus::OK, storage_->GetFile(fileinfo.parentid(),
-                                                 fileinfo.filename(),
-                                                 &getInfo));
-    ASSERT_EQ(fileinfo.filename(), getInfo.filename());
-    ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
-}
-
 TEST_F(TestNameServerStorageImp, test_deleterecyclefile) {
     EXPECT_CALL(*client_, Delete(_))
         .WillOnce(Return(EtcdErrCode::OK))

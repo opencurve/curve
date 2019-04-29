@@ -120,19 +120,6 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus GetRecycleFile(InodeID id, const std::string &filename,
-                                                FileInfo * fileInfo) {
-        std::lock_guard<std::mutex> guard(lock_);
-        std::string storeKey =
-            NameSpaceStorageCodec::EncodeRecycleFileStoreKey(id, filename);
-        auto iter = memKvMap_.find(storeKey);
-        if (iter == memKvMap_.end()) {
-            return StoreStatus::KeyNotExist;
-        }
-        fileInfo->ParseFromString(iter->second);
-        return StoreStatus::OK;
-    }
-
     StoreStatus DeleteRecycleFile(InodeID id,
                                    const std::string &filename) {
         std::lock_guard<std::mutex> guard(lock_);

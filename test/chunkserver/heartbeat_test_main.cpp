@@ -15,7 +15,7 @@
 #include "src/chunkserver/heartbeat.h"
 #include "test/chunkserver/heartbeat_test.h"
 
-static char* argv[3][6] = {
+static char* param[3][6] = {
     {
         "bazel-bin/test/chunkserver/chunkserver_test",
         "-bthread_concurrency=18",
@@ -42,27 +42,25 @@ static char* argv[3][6] = {
     },
 };
 
+using ::curve::chunkserver::ChunkServer;
+
 struct ChunkServerProcess {
-    int                                 id;
-    curve::chunkserver::ChunkServer*    chunkserver;
-    bthread_t                           tid;
+    int id;
+    ChunkServer* chunkserver;
+    std::thread csThread;
 };
 
 butil::AtExitManager atExitManager;
 
-static void* RunChunkServer(void *arg) {
-    curve::chunkserver::ChunkServer* chunkserver =
-        reinterpret_cast<curve::chunkserver::ChunkServer *>(arg);
-    chunkserver->Run();
-
+static void* RunChunkServer(
+    ChunkServer *chunkserver, int argc, char** argv) {
+    int ret = chunkserver->Run(argc, argv);
+    LOG_IF(ERROR, ret != 0) << "Failed to run chunkserver process";
     return NULL;
 }
 
-static ChunkServerProcess StartChunkServer(int i) {
-    int ret;
-
-    ChunkServerProcess proc = {0, nullptr, 0};
-
+static ChunkServerProcess StartChunkServer(int i, int argc, char** argv) {
+    ChunkServerProcess proc;
     proc.id = i;
 
     proc.chunkserver = new curve::chunkserver::ChunkServer();
@@ -71,75 +69,13 @@ static ChunkServerProcess StartChunkServer(int i) {
         return proc;
     }
 
-    ret = proc.chunkserver->Init(sizeof(argv[i])/sizeof(char *), argv[i]);
-    if (ret != 0) {
-        LOG(ERROR) << "Failed to initialize chunkserver " << i;
-        return proc;
-    }
-
-    ret = pthread_create(&proc.tid,
-                         NULL,
-                         RunChunkServer,
-                         proc.chunkserver);
-    if (ret != 0) {
-        LOG(ERROR) << "Failed to start chunkserver " << i;
-        return proc;
-    }
-
+    proc.csThread = std::thread(RunChunkServer, proc.chunkserver, argc, argv);
     return proc;
 }
 
-static int StopChunkServer(const ChunkServerProcess& proc) {
-    int ret;
-
-    // ret = proc.chunkserver->Stop();
-    // if (ret != 0) {
-    //     LOG(ERROR) << "Failed to stop chunkserver " << proc.id;
-    //     return ret;
-    // }
-
-    pthread_join(proc.tid, NULL);
-
-    ret = proc.chunkserver->Fini();
-    if (ret != 0) {
-        LOG(ERROR) << "Failed to cleanup chunkserver " << proc.id;
-        return ret;
-    }
-
-    return ret;
-}
-
-static int StopAllChunkServers() {
-    for (int i = 0; i < 3; i++) {
-        butil::ip_t         ip;
-        if (butil::str2ip("127.0.0.1", &ip) != 0) {
-            LOG(ERROR) << "Fail to generate local ip address";
-            return -1;
-        }
-
-        butil::EndPoint     csEp(ip, 8200 + i);
-        brpc::Channel       channel;
-
-        if (channel.Init(csEp, NULL) != 0) {
-            LOG(ERROR) << "Fail to init channel to chunkserver " << csEp;
-            return -1;
-        }
-
-        curve::chunkserver::ChunkServerService_Stub stub(&channel);
-
-        brpc::Controller                            cntl;
-        curve::chunkserver::ChunkServerStopRequest  req;
-        curve::chunkserver::ChunkServerStopResponse resp;
-
-        stub.Stop(&cntl, &req, &resp, nullptr);
-        if (cntl.Failed() && resp.status() == 0) {
-            LOG(ERROR) << "Fail to shutdown chunkserver " << csEp << ","
-                       << " cntl error: " << cntl.ErrorText() << ","
-                       << " operation status: " << resp.status() << ".";
-        }
-    }
-
-    return 0;
+static void StopChunkServer(ChunkServerProcess *proc) {
+    proc->csThread.join();
+    LOG(ERROR) << "stop chunkserver ok.";
 }
 
 int main(int argc, char* argv[]) {
@@ -156,13 +92,11 @@ int main(int argc, char* argv[]) {
     if (pids[0] < 0) {
         LOG(FATAL) << "Failed to create chunkserver process 0";
     } else if (pids[0] == 0) {
-        ChunkServerProcess proc = StartChunkServer(0);
-        LOG_IF(ERROR, proc.tid == 0) << "Failed to start chunkserver process 0";
-
-        ret = StopChunkServer(proc);
-        LOG_IF(ERROR, ret != 0) << "Failed to stop chunkserver process 0";
-
-        return ret;
+        ChunkServerProcess proc =
+            StartChunkServer(0, sizeof(param[0])/sizeof(char *), param[0]);
+        StopChunkServer(&proc);
+        LOG(INFO) << "chunkserver-0 stopped";
+        return 0;
     }
 
     // chunkserver proccess 1
@@ -170,14 +104,11 @@ int main(int argc, char* argv[]) {
     if (pids[1] < 0) {
         LOG(FATAL) << "Failed to create chunkserver process 1";
     } else if (pids[1] == 0) {
-        ChunkServerProcess proc = StartChunkServer(1);
-        LOG_IF(ERROR, proc.tid == 0)
-            << "Failed to create chunkserver process 1";
-
-        ret = StopChunkServer(proc);
-        LOG_IF(ERROR, ret != 0) << "Failed to stop chunkserver process 1";
-
-        return ret;
+        ChunkServerProcess proc =
+            StartChunkServer(1, sizeof(param[1])/sizeof(char *), param[1]);
+        StopChunkServer(&proc);
+        LOG(INFO) << "chunkserver-1 stopped";
+        return 0;
     }
 
     // chunkserver proccess 2
@@ -185,25 +116,20 @@ int main(int argc, char* argv[]) {
     if (pids[2] < 0) {
         LOG(FATAL) << "Failed to create chunkserver process 2";
     } else if (pids[2] == 0) {
-        ChunkServerProcess proc = StartChunkServer(2);
-        LOG_IF(ERROR, proc.tid == 0)
-            << "Failed to create chunkserver process 2";
-
-        ret = StopChunkServer(proc);
-        LOG_IF(ERROR, ret != 0) << "Failed to stop chunkserver process 2";
-
-        return ret;
+        ChunkServerProcess proc =
+            StartChunkServer(2, sizeof(param[2])/sizeof(char *), param[2]);
+        StopChunkServer(&proc);
+        LOG(INFO) << "chunkserver-2 stopped";
+        return 0;
     }
 
     // main test process
     {
         ret = RUN_ALL_TESTS();
+
         LOG(INFO) << "Test finished with code " << ret;
-
-        ret = StopAllChunkServers();
-        LOG(INFO) << "Stopping all chunkservers finished with code " << ret;
-
-        for (int i = 0; i < 3; i ++) {
+        for (int i = 0; i < 3; i++) {
+            kill(pids[i], SIGINT);
             waitpid(pids[i], &ret, 0);
             LOG(INFO) << "Wait chunkserver " << i << " quiting: " << ret;
         }

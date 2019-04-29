@@ -86,6 +86,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
 
     recyclerUri_ = options.recyclerUri;
 
+    // TODO(wudemiao): 放到nodeOptions的init中
     /**
      * Init copyset对应的raft node options
      */
@@ -120,26 +121,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     /*
      * 初始化copyset性能metrics
      */
-    std::string prefix = "copyset_" + std::to_string(logicPoolId_) +
-                         "_" + std::to_string(copysetId_);
+    metric_.Init(logicPoolId_, copysetId_);
 
-    readCounter_ = std::make_shared<bvar::Adder<uint64_t>>(
-                    prefix, "read_count");
-    writeCounter_ = std::make_shared<bvar::Adder<uint64_t>>(
-                    prefix, "write_count");
-    readBytes_ = std::make_shared<bvar::Adder<uint64_t>>(
-                    prefix, "read_bytes");
-    writeBytes_ = std::make_shared<bvar::Adder<uint64_t>>(
-                    prefix, "write_bytes");
-
-    readIops_ = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
-                    prefix, "read_iops", readCounter_.get());
-    writeIops_ = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
-                    prefix, "write_iops", writeCounter_.get());
-    readBps_ = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
-                    prefix, "read_bps", readBytes_.get());
-    writeBps_ = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
-                    prefix, "write_bps", writeBytes_.get());
     return 0;
 }
 
@@ -655,24 +638,24 @@ butil::Status CopysetNode::RemovePeer(const PeerId& peerId) {
 }
 
 void CopysetNode::IncReadMetrics(uint32_t bytes) {
-    *readCounter_ << 1;
-    *readBytes_ << bytes;
+    *(metric_.readCounter) << 1;
+    *(metric_.readBytes) << bytes;
 }
 
 void CopysetNode::IncWriteMetrics(uint32_t bytes) {
-    *writeCounter_ << 1;
-    *writeBytes_ << bytes;
+    *(metric_.writeCounter) << 1;
+    *(metric_.writeBytes) << bytes;
 }
 
 void CopysetNode::GetPerfMetrics(IoPerfMetric* metric) {
-    metric->readCount = readCounter_->get_value();
-    metric->writeCount = writeCounter_->get_value();
-    metric->readBytes = readBytes_->get_value();
-    metric->writeBytes = writeBytes_->get_value();
-    metric->readIops = readIops_->get_value(1);
-    metric->writeIops = writeIops_->get_value(1);
-    metric->readBps = readBps_->get_value(1);
-    metric->writeBps = writeBps_->get_value(1);
+    metric->readCount = metric_.readCounter->get_value();
+    metric->writeCount = metric_.writeCounter->get_value();
+    metric->readBytes = metric_.readBytes->get_value();
+    metric->writeBytes = metric_.writeBytes->get_value();
+    metric->readIops = metric_.readIops->get_value(1);
+    metric->writeIops = metric_.writeIops->get_value(1);
+    metric->readBps = metric_.readBps->get_value(1);
+    metric->writeBps = metric_.writeBps->get_value(1);
 }
 
 void CopysetNode::UpdateAppliedIndex(uint64_t index) {

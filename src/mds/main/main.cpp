@@ -134,7 +134,7 @@ int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
-    //=========================加载配置===============================//
+    // =========================加载配置===============================//
     LOG(INFO) << "load mds configuration.";
 
     std::string confPath = FLAGS_confPath.c_str();
@@ -146,7 +146,7 @@ int curve_main(int argc, char **argv) {
         return -1;
     }
 
-    //========================初始化个配置项==========================//
+    // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
     InitSessionOptions(&conf, &sessionOptions);
 

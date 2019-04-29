@@ -38,6 +38,48 @@ const char RAFT_META_DIR[] = "raft_meta";
 const char RAFT_SNAP_DIR[] = "raft_snapshot";
 const char RAFT_LOG_DIR[]  = "log";
 
+struct CopysetNodeMetric {
+    // 复制组读请求累计数
+    std::shared_ptr<bvar::Adder<uint64_t>> readCounter;
+    // 复制组写请求累计数
+    std::shared_ptr<bvar::Adder<uint64_t>> writeCounter;
+    // 复制组读请求累计字节数
+    std::shared_ptr<bvar::Adder<uint64_t>> readBytes;
+    // 复制组写请求累计字节数
+    std::shared_ptr<bvar::Adder<uint64_t>> writeBytes;
+    // 复制组读请求每秒计数
+    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>> readIops;
+    // 复制组写请求每秒计数
+    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>> writeIops;
+    // 复制组读请求每秒字节数
+    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>> readBps;
+    // 复制组写请求每秒字节数
+    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>> writeBps;
+
+    void Init(LogicPoolID logicPoolId, CopysetID copysetId) {
+        std::string prefix = "copyset_" + std::to_string(logicPoolId) +
+                         "_" + std::to_string(copysetId);
+
+        readCounter = std::make_shared<bvar::Adder<uint64_t>>(
+                    prefix, "read_count");
+        writeCounter = std::make_shared<bvar::Adder<uint64_t>>(
+                    prefix, "write_count");
+        readBytes = std::make_shared<bvar::Adder<uint64_t>>(
+                    prefix, "read_bytes");
+        writeBytes = std::make_shared<bvar::Adder<uint64_t>>(
+                    prefix, "write_bytes");
+
+        readIops = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
+                    prefix, "read_iops", readCounter.get());
+        writeIops = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
+                    prefix, "write_iops", writeCounter.get());
+        readBps = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
+                    prefix, "read_bps", readBytes.get());
+        writeBps = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
+                    prefix, "write_bps", writeBytes.get());
+    }
+};
+
 /**
  * 一个Copyset Node就是一个复制组的副本
  * TODO(wudemiao):后期最好能让单个进程支持多个copyset，方便集成测试
@@ -343,23 +385,9 @@ class CopysetNode : public braft::StateMachine,
     // 复制组当前任期，如果<=0表明不是leader
     std::atomic<int64_t> leaderTerm_;
     // 复制组数据回收站目录
-    std::string         recyclerUri_;
-    // 复制组读请求累计数
-    std::shared_ptr<bvar::Adder<uint64_t>>                   readCounter_;
-    // 复制组写请求累计数
-    std::shared_ptr<bvar::Adder<uint64_t>>                   writeCounter_;
-    // 复制组读请求累计字节数
-    std::shared_ptr<bvar::Adder<uint64_t>>                   readBytes_;
-    // 复制组写请求累计字节数
-    std::shared_ptr<bvar::Adder<uint64_t>>                   writeBytes_;
-    // 复制组读请求每秒计数
-    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>>  readIops_;
-    // 复制组写请求每秒计数
-    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>>  writeIops_;
-    // 复制组读请求每秒字节数
-    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>>  readBps_;
-    // 复制组写请求每秒字节数
-    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>>  writeBps_;
+    std::string recyclerUri_;
+    // 复制组的metric信息
+    CopysetNodeMetric metric_;
 };
 
 }  // namespace chunkserver
