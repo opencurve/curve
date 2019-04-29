@@ -170,6 +170,7 @@ cc_test(
         "chunkserver_test_util.cpp",
         "chunkserver_test_util.h",
         "fake_datastore.h",
+        "chunkserver_helper_test.cpp",
     ],
     copts = ["-std=c++14"],
     deps = [

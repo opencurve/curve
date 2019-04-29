@@ -8,19 +8,3 @@ message ChunkServerMetadata {
     required string token = 3;
     required uint32 checksum = 4;
 };
-
-message ChunkServerStopRequest {
-};
-
-enum CHUNKSERVER_OP_STATUS {
-    CHUNKSERVER_OP_STATUS_SUCCESS = 0;
-    CHUNKSERVER_OP_STATUS_FAILURE_UNKNOWN = 1;
-};
-
-message ChunkServerStopResponse {
-    required CHUNKSERVER_OP_STATUS status = 1;
-};
-
-service ChunkServerService {
-    rpc Stop(ChunkServerStopRequest) returns(ChunkServerStopResponse);
-};

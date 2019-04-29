@@ -29,11 +29,15 @@ butil::AtExitManager atExitManager;
 
 namespace curve {
 namespace chunkserver {
+struct ChunkServerPackage {
+    ChunkServer *chunkserver;
+    int argc;
+    char **argv;
+};
 
 void* run_chunkserver_thread(void *arg) {
-    curve::chunkserver::ChunkServer* chunkserver =
-        reinterpret_cast<curve::chunkserver::ChunkServer *>(arg);
-    chunkserver->Run();
+    ChunkServerPackage *package = reinterpret_cast<ChunkServerPackage *>(arg);
+    package->chunkserver->Run(package->argc, package->argv);
 
     return NULL;
 }
@@ -51,7 +55,7 @@ class ChunkserverTest : public ::testing::Test {
  public:
     void SetUp() {
         std::string filename = "test.img";
-        size_t      filesize =  10uL * 1024 * 1024 * 1024;
+        size_t filesize =  10uL * 1024 * 1024 * 1024;
 
         mds_ = new FakeMDS(filename);
 
@@ -65,51 +69,19 @@ class ChunkserverTest : public ::testing::Test {
     }
 
  private:
-    FakeMDS*                    mds_;
-    int                         fd_;
+    FakeMDS* mds_;
+    int fd_;
 };
-
-TEST_F(ChunkserverTest, LifeCycle) {
-    int ret;
-    char* argv[] = {
-        "bazel-bin/test/chunkserver/chunkserver_test",
-        "-bthread_concurrency=18",
-        "-raft_max_segment_size=8388608",
-        "-raft_sync=true",
-        "-minloglevel=0",
-        "-conf=conf/chunkserver.conf.example",
-    };
-
-    ChunkServer chunkserver;
-    bthread_t tid;
-
-    ret = chunkserver.Init(sizeof(argv)/sizeof(char *), argv);
-    ASSERT_EQ(ret, 0);
-
-    ret = pthread_create(&tid, NULL, run_chunkserver_thread, &chunkserver);
-    ASSERT_EQ(ret, 0);
-
-    ret = chunkserver.Stop();
-    ASSERT_EQ(ret, 0);
-
-    sleep(2);
-
-    ret = chunkserver.Fini();
-    ASSERT_EQ(ret, 0);
-
-    ::system("rm -fr chunkfilepool.meta");
-    ::system("rm -fr chunkfilepool");
-}
 
 TEST(ChunkserverCommonTest, GroupIdTest) {
     LogicPoolID poolId = 10000;
-    CopysetID   copysetId = 8888;
-    GroupNid    groupId0 = 42949672968888;  // (10000 << 32) | 8888;
-    GroupId     groupIdStr0 = "42949672968888";
+    CopysetID copysetId = 8888;
+    GroupNid groupId0 = 42949672968888;  // (10000 << 32) | 8888;
+    GroupId groupIdStr0 = "42949672968888";
     std::string groupIdViewStr0 = "(10000, 8888)";
 
-    GroupNid    groupId = ToGroupNid(poolId, copysetId);
-    GroupId     groupIdStr = ToGroupId(poolId, copysetId);
+    GroupNid groupId = ToGroupNid(poolId, copysetId);
+    GroupId groupIdStr = ToGroupId(poolId, copysetId);
     std::string groupIdViewStr = ToGroupIdStr(poolId, copysetId);
 
     ASSERT_EQ(groupId0, groupId);
@@ -117,30 +89,5 @@ TEST(ChunkserverCommonTest, GroupIdTest) {
     ASSERT_EQ(poolId, GetPoolID(groupId));
     ASSERT_EQ(copysetId, GetCopysetID(groupId));
 }
-
-TEST(ServiceManagerTest, ExceptionTest) {
-    CopysetNodeOptions nodeOptions;
-    nodeOptions.maxChunkSize = 16 * 1024 * 1024;
-
-    CopysetNodeManager::GetInstance().Init(nodeOptions);
-
-    ServiceOptions  opt;
-    opt.copysetNodeManager = &CopysetNodeManager::GetInstance();
-
-    ServiceManager  srvMan;
-
-    opt.ip = "1111.2.3";
-    ASSERT_NE(0, srvMan.Init(opt));
-
-    opt.ip = "127.0.0.1";
-    opt.port = 65536;
-    ASSERT_NE(0, srvMan.Init(opt));
-
-    opt.ip = "8.8.8.8";
-    opt.port = 22;
-    ASSERT_EQ(0, srvMan.Init(opt));
-    ASSERT_NE(0, srvMan.Run());
-}
-
 }  // namespace chunkserver
 }  // namespace curve

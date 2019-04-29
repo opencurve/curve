@@ -44,6 +44,13 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     int Fini();
 
     /**
+     * @brief 加载目录下的所有copyset
+     *
+     * @return 0表示加载成功，非0表示加载失败
+     */
+    int ReloadCopysets();
+
+    /**
      * 创建copyset node，两种情况需要创建copyset node
      *  1.集群初始化，创建copyset
      *  2.恢复的时候add peer

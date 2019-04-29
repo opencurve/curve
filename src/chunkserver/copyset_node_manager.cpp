@@ -12,12 +12,15 @@
 #include <braft/node_manager.h>
 
 #include <vector>
+#include <string>
 #include <utility>
 
+#include "src/common/string_util.h"
 #include "src/chunkserver/chunk_service.h"
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/braft_cli_service.h"
+#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
 namespace curve {
 namespace chunkserver {
@@ -35,6 +38,52 @@ int CopysetNodeManager::Run() {
 }
 
 int CopysetNodeManager::Fini() {
+    return 0;
+}
+
+int CopysetNodeManager::ReloadCopysets() {
+    std::string datadir =
+        FsAdaptorUtil::GetPathFromUri(copysetNodeOptions_.chunkDataUri);
+    if (!copysetNodeOptions_.localFileSystem->DirExists(datadir)) {
+        LOG(INFO) << "Failed to access data directory:  " << datadir
+                   << ", assume it is an uninitialized datastore";
+        return 0;
+    }
+
+    vector<std::string> items;
+    if (copysetNodeOptions_.localFileSystem->List(datadir, &items) != 0) {
+        LOG(ERROR) << "Failed to get copyset list from data directory "
+                   << datadir;
+        return -1;
+    }
+
+    vector<std::string>::iterator it = items.begin();
+    for (; it != items.end(); ++it) {
+        if (*it == "." || *it == "..") {
+            continue;
+        }
+
+        LOG(INFO) << "Found copyset dir " << *it;
+
+        uint64_t groupId;
+        if (false == ::curve::common::StringToUll(*it, &groupId)) {
+            LOG(ERROR) << "parse " << *it << " to graoupId err";
+            return -1;
+        }
+        uint64_t poolId = GetPoolID(groupId);
+        uint64_t copysetId = GetCopysetID(groupId);
+        LOG(INFO) << "Parsed groupid " << groupId
+                  << "as " << ToGroupIdStr(poolId, copysetId);
+
+        braft::Configuration conf;
+        if (!CreateCopysetNode(poolId, copysetId, conf)) {
+            LOG(ERROR) << "Failed to recreate copyset: <"
+                      << poolId << "," << copysetId << ">";
+        }
+
+        LOG(INFO) << "Created copyset: <" << poolId << "," << copysetId << ">";
+    }
+
     return 0;
 }
 
