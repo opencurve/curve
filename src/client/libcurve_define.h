@@ -9,6 +9,8 @@
 #define SRC_CLIENT_LIBCURVE_DEFINE_H_
 #include <stdint.h>
 
+#define IO_ALIGNED_BLOCK_SIZE 4096
+
 enum FileType {
     INODE_DIRECTORY = 0,
     INODE_PAGEFILE = 1,
@@ -28,7 +30,8 @@ enum LIBCURVE_ERROR {
     NOT_UNDERSNAPSHOT   = 8,
     DELETE_ERROR        = 9,
     NOT_ALLOCATE        = 10,
-    UNKNOWN             = 11
+    NOT_ALIGNED         = 11,
+    UNKNOWN             = 100
 };
 
 const char* ErrorNum2ErrorName(LIBCURVE_ERROR err);
