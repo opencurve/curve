@@ -184,6 +184,18 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
 
     char* buffer = new char[8 * 1024];
     memset(buffer, 'a', 8*1024);
+
+    // not aligned test
+    CurveAioContext ctx;
+    ctx.buf = buffer;
+    ctx.offset = 1;
+    ctx.length = 7 * 1024;
+    ctx.cb = writecallbacktest;
+    ASSERT_EQ(LIBCURVE_ERROR::NOT_ALIGNED, AioWrite(1234, &ctx));
+    ASSERT_EQ(LIBCURVE_ERROR::NOT_ALIGNED, AioRead(1234, &ctx));
+    ASSERT_EQ(LIBCURVE_ERROR::NOT_ALIGNED, Write(1234, buffer, 1, 4096));
+    ASSERT_EQ(LIBCURVE_ERROR::NOT_ALIGNED, Read(1234, buffer, 4096 , 123));
+
     CurveAioContext writeaioctx;
     writeaioctx.buf = buffer;
     writeaioctx.offset = 0;
