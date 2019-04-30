@@ -83,6 +83,10 @@ int FileClient::Open(const std::string& filename,
 }
 
 LIBCURVE_ERROR FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
+    if (CheckAligned(offset, len) == false) {
+        return LIBCURVE_ERROR::NOT_ALIGNED;
+    }
+
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
@@ -95,6 +99,10 @@ LIBCURVE_ERROR FileClient::Write(int fd,
                                 const char* buf,
                                 off_t offset,
                                 size_t len) {
+    if (CheckAligned(offset, len) == false) {
+        return LIBCURVE_ERROR::NOT_ALIGNED;
+    }
+
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
@@ -104,6 +112,10 @@ LIBCURVE_ERROR FileClient::Write(int fd,
 }
 
 LIBCURVE_ERROR FileClient::AioRead(int fd, CurveAioContext* aioctx) {
+    if (CheckAligned(aioctx->offset, aioctx->length) == false) {
+        return LIBCURVE_ERROR::NOT_ALIGNED;
+    }
+
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
@@ -115,6 +127,10 @@ LIBCURVE_ERROR FileClient::AioRead(int fd, CurveAioContext* aioctx) {
 }
 
 LIBCURVE_ERROR FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
+    if (CheckAligned(aioctx->offset, aioctx->length) == false) {
+        return LIBCURVE_ERROR::NOT_ALIGNED;
+    }
+
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
@@ -136,6 +152,12 @@ void FileClient::Close(int fd) {
     delete fileserviceMap_[fd];
     fileserviceMap_.erase(iter);
 }
+
+bool FileClient::CheckAligned(off_t offset, size_t length) {
+    return (offset % IO_ALIGNED_BLOCK_SIZE == 0) &&
+           (length % IO_ALIGNED_BLOCK_SIZE == 0);
+}
+
 }   // namespace client
 }   // namespace curve
 
