@@ -170,12 +170,14 @@ class CSChunkFile {
      */
     CSErrorCode Delete();
     /**
-     * 删除chunk文件的快照
+     * 删除此次转储时产生的或者历史遗留的快照
+     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
      * 正常不存在并发，与其他操作互斥，加写锁
-     * @param snapshotSn:表示发出请求时快照文件的版本号
+     * @param correctedSn:chunk需要修正的版本号，本质上是快照后文件的版本号
+     * chunk不存在快照时修正为此参数值
      * @return: 返回错误码
      */
-    CSErrorCode DeleteSnapshot(SequenceNum snapshotSn);
+    CSErrorCode DeleteSnapshotOrCorrectSn(SequenceNum correctedSn);
     /**
      * 调用fsync将snapshot文件在pagecache中的数据刷盘
      */

@@ -116,8 +116,8 @@ int RequestSender::ReadChunkSnapshot(ChunkIDInfo idinfo,
     return 0;
 }
 
-int RequestSender::DeleteChunkSnapshot(ChunkIDInfo idinfo,
-                                       uint64_t sn,
+int RequestSender::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
+                                       uint64_t correctedSn,
                                        ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
@@ -133,9 +133,12 @@ int RequestSender::DeleteChunkSnapshot(ChunkIDInfo idinfo,
     request.set_logicpoolid(idinfo.lpid_);
     request.set_copysetid(idinfo.cpid_);
     request.set_chunkid(idinfo.cid_);
-    request.set_sn(sn);
+    request.set_correctedsn(correctedSn);
     ChunkService_Stub stub(&channel_);
-    stub.DeleteChunkSnapshot(cntl, &request, response, doneGuard.release());
+    stub.DeleteChunkSnapshotOrCorrectSn(cntl,
+                                        &request,
+                                        response,
+                                        doneGuard.release());
     return 0;
 }
 

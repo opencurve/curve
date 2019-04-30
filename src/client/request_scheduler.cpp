@@ -114,8 +114,8 @@ void RequestScheduler::Process() {
                                         guard.release());
                     break;
                 case OpType::DELETE_SNAP:
-                    client_.DeleteChunkSnapshot(req->idinfo_,
-                                        req->seq_,
+                    client_.DeleteChunkSnapshotOrCorrectSn(req->idinfo_,
+                                        req->correctedSeq_,
                                         guard.release());
                     break;
                 case OpType::GET_CHUNK_INFO:
@@ -126,7 +126,7 @@ void RequestScheduler::Process() {
                     client_.CreateCloneChunk(req->idinfo_,
                                         req->location_,
                                         req->seq_,
-                                        req->correntSeq_,
+                                        req->correctedSeq_,
                                         req->chunksize_,
                                         guard.release());
                     break;

@@ -509,10 +509,10 @@ delete_retry:
         LOG(ERROR) << "delete snapshot retried times exceeds";
         return;
     }
-    client_->DeleteChunkSnapshot(reqCtx->idinfo_,
-                                 reqCtx->seq_,
-                                 doneGuard.release(),
-                                 retriedTimes_ + 1);
+    client_->DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
+                                            reqCtx->correctedSeq_,
+                                            doneGuard.release(),
+                                            retriedTimes_ + 1);
 }
 
 void GetChunkInfoClosure::Run() {
@@ -727,7 +727,7 @@ create_retry:
     client_->CreateCloneChunk(reqCtx->idinfo_,
                             reqCtx->location_,
                             reqCtx->seq_,
-                            reqCtx->correntSeq_,
+                            reqCtx->correctedSeq_,
                             reqCtx->chunksize_,
                             doneGuard.release(),
                             retriedTimes_ + 1);

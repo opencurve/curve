@@ -104,7 +104,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotSuccess) {
             Return(true)));
     ChunkResponse response;
     response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-    EXPECT_CALL(chunkService, DeleteChunkSnapshot(_, _, _, _))
+    EXPECT_CALL(chunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
                 Invoke([](RpcController *controller,
                           const ChunkRequest *request,
@@ -113,7 +113,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotSuccess) {
                           brpc::ClosureGuard doneGuard(done);
                     })));
 
-    int ret = client_->DeleteChunkSnapshot(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         csId, logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsSuccess, ret);
 }
@@ -142,7 +142,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotGetChunkServerFail) {
             Return(false)));
 
 
-    int ret = client_->DeleteChunkSnapshot(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         csId, logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }
@@ -170,7 +170,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotChunkServerOFFLINE) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
             Return(true)));
 
-    int ret = client_->DeleteChunkSnapshot(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         csId, logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientCSOffline, ret);
 }
@@ -198,7 +198,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcChannelInitFail) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkserver),
             Return(true)));
 
-    int ret = client_->DeleteChunkSnapshot(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         csId, logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kRpcChannelInitFail, ret);
 }
@@ -227,7 +227,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcCntlFail) {
             Return(true)));
     ChunkResponse response;
     response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-    EXPECT_CALL(chunkService, DeleteChunkSnapshot(_, _, _, _))
+    EXPECT_CALL(chunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))
         .Times(kRpcRetryTime)
         .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                 Invoke([](RpcController *controller,
@@ -239,7 +239,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcCntlFail) {
                                 std::chrono::milliseconds(kRpcTimeoutMs + 1));
                     })));
 
-    int ret = client_->DeleteChunkSnapshot(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         csId, logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kRpcFail, ret);
 }
@@ -268,7 +268,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcReturnFail) {
             Return(true)));
     ChunkResponse response;
     response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
-    EXPECT_CALL(chunkService, DeleteChunkSnapshot(_, _, _, _))
+    EXPECT_CALL(chunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
                 Invoke([](RpcController *controller,
                           const ChunkRequest *request,
@@ -277,7 +277,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcReturnFail) {
                           brpc::ClosureGuard doneGuard(done);
                     })));
 
-    int ret = client_->DeleteChunkSnapshot(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         csId, logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientReturnFail, ret);
 }
@@ -306,7 +306,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotReturnNotLeader) {
             Return(true)));
     ChunkResponse response;
     response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
-    EXPECT_CALL(chunkService, DeleteChunkSnapshot(_, _, _, _))
+    EXPECT_CALL(chunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
                 Invoke([](RpcController *controller,
                           const ChunkRequest *request,
@@ -315,7 +315,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotReturnNotLeader) {
                           brpc::ClosureGuard doneGuard(done);
                     })));
 
-    int ret = client_->DeleteChunkSnapshot(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         csId, logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientNotLeader, ret);
 }

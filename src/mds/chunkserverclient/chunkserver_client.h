@@ -33,21 +33,22 @@ class ChunkServerClient {
     virtual ~ChunkServerClient() {}
 
     /**
-     * @brief 删除快照chunk文件
+     * @brief  删除此次转储时产生的或者历史遗留的快照
+     *         如果转储过程中没有产生快照，则修改chunk的correctedSn
      *
      * @param leaderId leader的ID
      * @param logicalPoolId 逻辑池的ID
      * @param copysetId 复制组的ID
      * @param chunkId chunk文件ID
-     * @param sn 文件版本号
+     * @param correctedSn 快照chunk不存在时需要修正的correctedSn
      *
      * @return 错误码
      */
-    virtual int DeleteChunkSnapshot(ChunkServerIdType leaderId,
+    virtual int DeleteChunkSnapshotOrCorrectSn(ChunkServerIdType leaderId,
         LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
-        uint64_t sn);
+        uint64_t correctedSn);
 
     /**
      * @brief 删除非快照chunk文件

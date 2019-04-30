@@ -39,7 +39,7 @@ message ChunkRequest {
     optional uint32 size = 7;           // for read/write/clone 创建快照请求中表示请求创建的chunk大小
     optional QosRequestParas deltaRho = 8; // for read/write
     optional uint64 sn = 9;             // for write/read snapshot 写请求中表示文件当前版本号，读快照请求中表示请求的chunk的版本号
-    optional uint64 correctedSn = 10;   // for create clone chunk 用于修改chunk的correctedSn
+    optional uint64 correctedSn = 10;   // for CreateCloneChunk/DeleteChunkSnapshotOrCorrectedSn 用于修改chunk的correctedSn
     optional string location = 11;      // for clone chunk
 };
 
@@ -83,7 +83,7 @@ service ChunkService {
     rpc WriteChunk (ChunkRequest) returns (ChunkResponse);
 
     rpc ReadChunkSnapshot (ChunkRequest) returns (ChunkResponse);
-    rpc DeleteChunkSnapshot (ChunkRequest) returns (ChunkResponse);
+    rpc DeleteChunkSnapshotOrCorrectSn (ChunkRequest) returns (ChunkResponse);
 
     rpc GetChunkInfo (GetChunkInfoRequest) returns (GetChunkInfoResponse);
 

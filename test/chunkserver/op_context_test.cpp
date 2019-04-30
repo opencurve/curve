@@ -145,6 +145,7 @@ TEST(ChunkOpContextTest, encode) {
     }
     /* for detele snapshot */
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
+    request.set_correctedsn(sn);
     {
         ChunkOpContext opCtx(cntl, &request, nullptr, nullptr);
 
@@ -158,6 +159,7 @@ TEST(ChunkOpContextTest, encode) {
         ASSERT_EQ(logicPoolId, request.logicpoolid());
         ASSERT_EQ(copysetId, request.copysetid());
         ASSERT_EQ(chunkId, request.chunkid());
+        ASSERT_EQ(sn, request.correctedsn());
     }
     // encode 异常测试，null data
     {
@@ -259,7 +261,7 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
-        request.set_sn(sn);
+        request.set_correctedsn(sn);
         brpc::Controller *cntl = new brpc::Controller();
         ChunkOpContext opCtx(cntl, &request, &response, nullptr);
         dataStore->InjectError();

@@ -38,19 +38,20 @@ class CopysetClient {
     }
 
     /**
-     * @brief 删除Chunk快照文件
+     * @brief 删除此次转储时产生的或者历史遗留的快照
+     *        如果转储过程中没有产生快照，则修改chunk的correctedSn
      *
      * @param logicPoolId 逻辑池id
      * @param copysetId 复制组id
      * @param chunkId Chunk文件id
-     * @param sn 文件版本号
+     * @param correctedSn chunk不存在快照文件时需要修正的版本号
      *
      * @return 错误码
      */
-    int DeleteSnapShotChunk(LogicalPoolID logicalPoolId,
+    int DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
         CopysetID copysetId,
         ChunkID chunkId,
-        uint64_t sn);
+        uint64_t correctedSn);
 
     /**
      * @brief 删除非快照文件的Chunk文件
