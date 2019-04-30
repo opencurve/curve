@@ -101,6 +101,9 @@ class FileClient {
   virtual void UnInit();
 
  private:
+  inline bool CheckAligned(off_t offset, size_t length);
+
+ private:
   RWLock rwlock_;
 
   // 向上返回的文件描述符，对于QEMU来说，一个vdisk对应一个文件描述符
