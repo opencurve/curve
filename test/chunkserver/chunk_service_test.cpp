@@ -382,8 +382,11 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_logicpoolid(logicPoolId);
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
-                request.set_sn(sn);
-                stub.DeleteChunkSnapshot(&cntl, &request, &response, nullptr);
+                request.set_correctedsn(sn);
+                stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
+                                                    &request,
+                                                    &response,
+                                                    nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
@@ -398,8 +401,11 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_logicpoolid(logicPoolId);
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
-                request.set_sn(sn);
-                stub.DeleteChunkSnapshot(&cntl, &request, &response, nullptr);
+                request.set_correctedsn(sn);
+                stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
+                                                    &request,
+                                                    &response,
+                                                    nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                           response.status());
@@ -786,8 +792,11 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId + 1);
         request.set_chunkid(chunkId);
-        request.set_sn(sn);
-        stub.DeleteChunkSnapshot(&cntl, &request, &response, nullptr);
+        request.set_correctedsn(sn);
+        stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
+                                            &request,
+                                            &response,
+                                            nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   response.status());

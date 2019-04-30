@@ -107,15 +107,15 @@ CSErrorCode CSDataStore::DeleteChunk(ChunkID id, SequenceNum sn) {
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSDataStore::DeleteSnapshotChunk(ChunkID id,
-                                             SequenceNum snapshotSn) {
+CSErrorCode CSDataStore::DeleteSnapshotChunkOrCorrectSn(
+    ChunkID id, SequenceNum correctedSn) {
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile != nullptr) {
-        CSErrorCode errorCode = chunkFile->DeleteSnapshot(snapshotSn);
+        CSErrorCode errorCode = chunkFile->DeleteSnapshotOrCorrectSn(correctedSn);  // NOLINT
         if (errorCode != CSErrorCode::Success) {
-            LOG(ERROR) << "Delete snapshot chunk failed."
+            LOG(ERROR) << "Delete snapshot chunk or correct sn failed."
                         << "ChunkID = " << id
-                        << ", SnapshotSn = " << snapshotSn;
+                        << ", correctedSn = " << correctedSn;
             return errorCode;
         }
     }

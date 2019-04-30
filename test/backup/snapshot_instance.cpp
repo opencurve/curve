@@ -112,11 +112,12 @@ int SnapInstance::ReadChunkSnapshot(LogicPoolID lpid,
     return ioctxManager_->ReadSnapChunk(lpid, cpid, chunkid, seq, offset, len, buf);    // NOLINT
 }
 
-int SnapInstance::DeleteChunkSnapshot(LogicPoolID lpid,
-                                                CopysetID cpid,
-                                                ChunkID chunkid,
-                                                uint64_t seq) {
-    return ioctxManager_->DeleteSnapChunk(lpid, cpid, chunkid, seq);
+int SnapInstance::DeleteChunkSnapshotOrCorrectSn(LogicPoolID lpid,
+                                                 CopysetID cpid,
+                                                 ChunkID chunkid,
+                                                 uint64_t correctedSeq) {
+    return ioctxManager_->DeleteSnapChunkOrCorrectSn(
+        lpid, cpid, chunkid, correctedSeq);
 }
 
 int SnapInstance::GetChunkInfo(LogicPoolID lpid,

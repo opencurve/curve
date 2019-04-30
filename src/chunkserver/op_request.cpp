@@ -518,18 +518,18 @@ void ReadSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
 void DeleteSnapshotRequest::OnApply(uint64_t index,
                                     ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
-    CSErrorCode ret = datastore_->DeleteSnapshotChunk(request_->chunkid(),
-                                                      request_->sn());
+    CSErrorCode ret = datastore_->DeleteSnapshotChunkOrCorrectSn(
+        request_->chunkid(), request_->correctedsn());
     if (CSErrorCode::Success == ret) {
         response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         node_->UpdateAppliedIndex(index);
     } else {
         // TODO(wudemiao) 考虑用LOG(FATAL)
-        LOG(ERROR) << "delete snapshot failed: "
+        LOG(ERROR) << "delete snapshot or correct sn failed: "
                    << " logic pool id: " << request_->logicpoolid()
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
-                   << " sn: " << request_->sn()
+                   << " correctedSn: " << request_->correctedsn()
                    << " error: " << strerror(errno)
                    << " data store return: " << ret;
         response_->set_status(
@@ -543,14 +543,14 @@ void DeleteSnapshotRequest::OnApply(uint64_t index,
 void DeleteSnapshotRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
                                            const ChunkRequest &request,
                                            const butil::IOBuf &data) {
-    auto ret = datastore->DeleteSnapshotChunk(request.chunkid(),
-                                              request.sn());
+    auto ret = datastore->DeleteSnapshotChunkOrCorrectSn(
+        request.chunkid(), request.correctedsn());
     if (CSErrorCode::Success != ret) {
-        LOG(WARNING) << "delete snapshot failed: "
+        LOG(WARNING) << "delete snapshot or correct sn failed: "
                      << request.logicpoolid() << ", "
                      << request.copysetid()
                      << " chunkid: " << request.chunkid()
-                     << " sn: " << request.sn()
+                     << " correctedSn: " << request.correctedsn()
                      << " error: " << strerror(errno)
                      << " data store return: " << ret;
     }

@@ -60,8 +60,8 @@ class FakeCSDataStore : public CSDataStore {
         }
     }
 
-    CSErrorCode DeleteSnapshotChunk(ChunkID id,
-                                    SequenceNum snapshotSn) override {
+    CSErrorCode DeleteSnapshotChunkOrCorrectSn(
+        ChunkID id, SequenceNum correctedSn) override {
         CSErrorCode errorCode = HasInjectError();
         if (errorCode != CSErrorCode::Success) {
             return errorCode;

@@ -21,7 +21,7 @@ class MockChunkServerClient : public ChunkServerClient {
  public:
     explicit MockChunkServerClient(std::shared_ptr<Topology> topo)
         : ChunkServerClient(topo) {}
-    MOCK_METHOD5(DeleteChunkSnapshot,
+    MOCK_METHOD5(DeleteChunkSnapshotOrCorrectSn,
         int(ChunkServerIdType csId,
         LogicalPoolID logicalPoolId,
         CopysetID copysetId,
