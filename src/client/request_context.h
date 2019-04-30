@@ -60,7 +60,7 @@ class RequestContext {
     uint32_t            chunksize_;
     std::string         location_;
     // create clone chunk时候用于修改chunk的correctedSn
-    uint64_t            correntSeq_;
+    uint64_t            correctedSeq_;
 };
 }  // namespace client
 }  // namespace curve

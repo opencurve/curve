@@ -43,11 +43,13 @@ class IOManager4Chunk : public IOManager {
                      uint64_t len,
                      void *buf);
    /**
-    * 删除seq版本号的快照数据
+    * 删除此次转储时产生的或者历史遗留的快照
+    * 如果转储过程中没有产生快照，则修改chunk的correctedSn
     * @param:chunkidinfo 目标chunk
-    * @param: seq是快照版本号
+    * @param: correctedSeq是需要修正的版本号
     */
-    int DeleteSnapChunk(const ChunkIDInfo &chunkidinfo, uint64_t seq);
+    int DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &chunkidinfo,
+                                   uint64_t correctedSeq);
    /**
     * 获取chunk的版本信息，chunkInfo是出参
     * @param:chunkidinfo 目标chunk

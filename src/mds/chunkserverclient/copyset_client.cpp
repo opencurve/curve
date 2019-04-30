@@ -19,10 +19,10 @@ using ::curve::mds::topology::ChunkServerIdType;
 namespace curve {
 namespace mds {
 namespace chunkserverclient {
-int CopysetClient::DeleteSnapShotChunk(LogicalPoolID logicalPoolId,
+int CopysetClient::DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
-    uint64_t sn) {
+    uint64_t correctedSn) {
     CopySetInfo copyset;
     if (true != topo_->GetCopySet(
         CopySetKey(logicalPoolId, copysetId),
@@ -33,8 +33,8 @@ int CopysetClient::DeleteSnapShotChunk(LogicalPoolID logicalPoolId,
     ChunkServerIdType leaderId =
         copyset.GetLeader();
 
-    int ret = chunkserverClient_->DeleteChunkSnapshot(
-        leaderId, logicalPoolId, copysetId, chunkId, sn);
+    int ret = chunkserverClient_->DeleteChunkSnapshotOrCorrectSn(
+        leaderId, logicalPoolId, copysetId, chunkId, correctedSn);
     if (kMdsSuccess == ret) {
         return ret;
     }
@@ -56,8 +56,8 @@ int CopysetClient::DeleteSnapShotChunk(LogicalPoolID logicalPoolId,
 
         leaderId = copyset.GetLeader();
 
-        ret = chunkserverClient_->DeleteChunkSnapshot(
-            leaderId, logicalPoolId, copysetId, chunkId, sn);
+        ret = chunkserverClient_->DeleteChunkSnapshotOrCorrectSn(
+            leaderId, logicalPoolId, copysetId, chunkId, correctedSn);
         if (kMdsSuccess == ret) {
             break;
         }

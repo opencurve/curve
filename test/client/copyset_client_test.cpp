@@ -1727,7 +1727,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -1738,10 +1738,11 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .Times(AtLeast(1)).WillOnce(DoAll(SetArgPointee<2>(leaderId1),
                                               SetArgPointee<3>(leaderAdder1),
                                               Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(1)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -1754,7 +1755,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -1764,9 +1765,10 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(3)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(3)
             .WillRepeatedly(Invoke(DeleteChunkSnapshotFunc));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
@@ -1779,7 +1781,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -1790,10 +1792,11 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .Times(3).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                            SetArgPointee<3>(leaderAdder1),
                                            Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(3)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
@@ -1806,7 +1809,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -1825,12 +1828,13 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
                             Return(0)));
         EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _, _)).Times(1)
             .WillOnce(Return(0));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(2)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(ReadChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -1843,7 +1847,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -1862,12 +1866,13 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
                             SetArgPointee<3>(leaderAdder2),
                             Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(2)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -1880,7 +1885,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -1899,12 +1904,13 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
                             SetArgPointee<3>(leaderAdder2),
                             Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(2)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -1917,7 +1923,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -1943,14 +1949,15 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
                             Return(0)));
         EXPECT_CALL(mockMetaCache, UpdateLeader(_, _, _, _)).Times(3)
             .WillRepeatedly(Return(0));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(3)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -1963,7 +1970,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -1996,14 +2003,15 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(leaderId4),
                             SetArgPointee<3>(leaderAdder4),
                             Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(3)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(3)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -2016,7 +2024,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2037,12 +2045,13 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(leaderId2),
                             SetArgPointee<3>(leaderAdder2),
                             Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(2)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(2)
             .WillOnce(DoAll(SetArgPointee<2>(response1),
                             Invoke(DeleteChunkSnapshotFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                   sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -2054,7 +2063,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2071,10 +2080,11 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(leaderId1),
                             SetArgPointee<3>(leaderAdder1),
                             Return(0)));
-        EXPECT_CALL(mockChunkService, DeleteChunkSnapshot(_, _, _, _)).Times(1)
+        EXPECT_CALL(mockChunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))  // NOLINT
+            .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(DeleteChunkSnapshotFunc)));
-        copysetClient.DeleteChunkSnapshot(reqCtx->idinfo_,
+        copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                                           sn, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -2159,7 +2169,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2184,7 +2194,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2211,7 +2221,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2242,7 +2252,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2279,7 +2289,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2316,7 +2326,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2362,7 +2372,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2415,7 +2425,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2453,7 +2463,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2532,7 +2542,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2558,7 +2568,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2582,7 +2592,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2608,7 +2618,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2640,7 +2650,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2676,7 +2686,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2712,7 +2722,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2757,7 +2767,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2809,7 +2819,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
@@ -2846,7 +2856,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->seq_ = sn;
+        reqCtx->correctedSeq_ = sn;
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);

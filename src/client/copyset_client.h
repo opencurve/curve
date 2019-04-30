@@ -105,14 +105,15 @@ class CopysetClient : public Uncopyable {
                   uint16_t retriedTimes = 0);
 
     /**
-     * 删除Chunk快照文件
+     * 删除此次转储时产生的或者历史遗留的快照
+     * 如果转储过程中没有产生快照，则修改chunk的correctedSn
      * @param idinfo为chunk相关的id信息
-     * @param sn:文件版本号
+     * @param correctedSn:需要修正的版本号
      * @param done:上一层异步回调的closure
      * @param retriedTimes:已经重试了几次
      */
-    int DeleteChunkSnapshot(ChunkIDInfo idinfo,
-                  uint64_t sn,
+    int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
+                  uint64_t correctedSn,
                   Closure *done,
                   uint16_t retriedTimes = 0);
 

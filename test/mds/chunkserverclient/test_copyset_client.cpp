@@ -79,7 +79,7 @@ class TestCopysetClient : public ::testing::Test {
     brpc::Server *server_;
 };
 
-TEST_F(TestCopysetClient, TestDeleteSnapShotChunkSuccess) {
+TEST_F(TestCopysetClient, TestDeleteChunkSnapshotOrCorrectSnSuccess) {
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -94,16 +94,16 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkSuccess) {
             Return(true)));
 
 
-    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshot(
+    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshotOrCorrectSn(
             leader, logicalPoolId, copysetId, chunkId, sn))
         .WillOnce(Return(kMdsSuccess));
 
-    int ret = client_->DeleteSnapShotChunk(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsSuccess, ret);
 }
 
-TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRedirectSuccess) {
+TEST_F(TestCopysetClient, TestDeleteChunkSnapshotOrCorrectSnRedirectSuccess) {
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -117,7 +117,7 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRedirectSuccess) {
         .WillOnce(DoAll(SetArgPointee<1>(copyset),
             Return(true)));
 
-    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshot(
+    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshotOrCorrectSn(
             _, logicalPoolId, copysetId, chunkId, sn))
         .WillOnce(Return(kCsClientNotLeader))
         .WillOnce(Return(kMdsSuccess));
@@ -128,12 +128,12 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRedirectSuccess) {
         .WillOnce(DoAll(SetArgPointee<3>(newLeader),
                 Return(kMdsSuccess)));
 
-    int ret = client_->DeleteSnapShotChunk(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsSuccess, ret);
 }
 
-TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRetryTimeOut) {
+TEST_F(TestCopysetClient, TestDeleteChunkSnapshotOrCorrectSnRetryTimeOut) {
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -147,7 +147,7 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRetryTimeOut) {
         .WillOnce(DoAll(SetArgPointee<1>(copyset),
             Return(true)));
 
-    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshot(
+    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshotOrCorrectSn(
             _, logicalPoolId, copysetId, chunkId, sn))
         .WillRepeatedly(Return(kCsClientNotLeader));
 
@@ -155,12 +155,12 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRetryTimeOut) {
         _, logicalPoolId, copysetId, _))
         .WillRepeatedly(Return(kMdsSuccess));
 
-    int ret = client_->DeleteSnapShotChunk(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kCsClientNotLeader, ret);
 }
 
-TEST_F(TestCopysetClient, TestDeleteSnapShotChunkFail) {
+TEST_F(TestCopysetClient, TestDeleteChunkSnapshotOrCorrectSnFail) {
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -174,16 +174,16 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkFail) {
         .WillOnce(DoAll(SetArgPointee<1>(copyset),
             Return(true)));
 
-    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshot(
+    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshotOrCorrectSn(
             _, logicalPoolId, copysetId, chunkId, sn))
         .WillRepeatedly(Return(kMdsFail));
 
-    int ret = client_->DeleteSnapShotChunk(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }
 
-TEST_F(TestCopysetClient, TestDeleteSnapShotChunkGetCopysetFail) {
+TEST_F(TestCopysetClient, TestDeleteChunkSnapshotOrCorrectSnGetCopysetFail) {
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -197,12 +197,12 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkGetCopysetFail) {
         .WillOnce(DoAll(SetArgPointee<1>(copyset),
             Return(false)));
 
-    int ret = client_->DeleteSnapShotChunk(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }
 
-TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRedirectFail) {
+TEST_F(TestCopysetClient, TestDeleteChunkSnapshotOrCorrectSnRedirectFail) {
     ChunkServerIdType leader = 0x01;
     LogicalPoolID logicalPoolId = 0x11;
     CopysetID copysetId = 0x21;
@@ -216,7 +216,7 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRedirectFail) {
         .WillOnce(DoAll(SetArgPointee<1>(copyset),
             Return(true)));
 
-    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshot(
+    EXPECT_CALL(*mockCsClient_, DeleteChunkSnapshotOrCorrectSn(
             _, logicalPoolId, copysetId, chunkId, sn))
         .WillOnce(Return(kCsClientNotLeader));
 
@@ -226,7 +226,7 @@ TEST_F(TestCopysetClient, TestDeleteSnapShotChunkRedirectFail) {
         .WillRepeatedly(DoAll(SetArgPointee<3>(newLeader),
                 Return(kMdsFail)));
 
-    int ret = client_->DeleteSnapShotChunk(
+    int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         logicalPoolId, copysetId, chunkId, sn);
     ASSERT_EQ(kMdsFail, ret);
 }

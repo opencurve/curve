@@ -22,7 +22,8 @@ class MockDataStore : public CSDataStore {
     ~MockDataStore() = default;
     MOCK_METHOD0(Initialize, bool());
     MOCK_METHOD2(DeleteChunk, CSErrorCode(ChunkID, SequenceNum));
-    MOCK_METHOD2(DeleteSnapshotChunk, CSErrorCode(ChunkID, SequenceNum));
+    MOCK_METHOD2(DeleteSnapshotChunkOrCorrectSn, CSErrorCode(ChunkID,
+                                                             SequenceNum));
     MOCK_METHOD5(ReadChunk, CSErrorCode(ChunkID,
                                         SequenceNum,
                                         char*,
