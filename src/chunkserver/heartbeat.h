@@ -98,7 +98,7 @@ class Heartbeat {
     /*
      * 构建心跳消息的Copyset信息项
      */
-    int BuildCopysetInfo(curve::mds::heartbeat::CopysetInfo* info,
+    int BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
                          CopysetNodePtr copyset);
 
     /*
