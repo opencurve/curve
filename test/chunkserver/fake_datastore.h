@@ -32,6 +32,7 @@ class FakeCSDataStore : public CSDataStore {
         chunk_ = new (std::nothrow) char[options.chunkSize];
         ::memset(chunk_, 0, options.chunkSize);
         sn_ = 0;
+        snapDeleteFlag_ = false;
         error_ = CSErrorCode::Success;
     }
     virtual ~FakeCSDataStore() {
@@ -66,10 +67,11 @@ class FakeCSDataStore : public CSDataStore {
         if (errorCode != CSErrorCode::Success) {
             return errorCode;
         }
-        if (chunkIds_.find(id) != chunkIds_.end()) {
-            chunkIds_.erase(id);
+        if (snapDeleteFlag_ == false) {
+            snapDeleteFlag_ = true;
             return CSErrorCode::Success;
         } else {
+            snapDeleteFlag_ = false;
             return CSErrorCode::ChunkNotExistError;
         }
     }
@@ -188,6 +190,7 @@ class FakeCSDataStore : public CSDataStore {
  private:
     char *chunk_;
     std::set<ChunkID> chunkIds_;
+    bool snapDeleteFlag_;
     SequenceNum sn_;
     CSErrorCode error_;
 };
