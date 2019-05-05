@@ -21,6 +21,12 @@
 namespace curve {
 namespace chunkserver {
 
+ChunkServiceImpl::ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions) :
+    chunkServiceOptions_(chunkServiceOptions),
+    copysetNodeManager_(chunkServiceOptions.copysetNodeManager) {
+    maxChunkSize_ = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
+}
+
 void ChunkServiceImpl::DeleteChunk(RpcController *controller,
                                    const ChunkRequest *request,
                                    ChunkResponse *response,
@@ -59,13 +65,12 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
              << " attachement size " << cntl->request_attachment().size();
 
     // 判断request参数是否合法
-    auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
-    if (request->offset() + request->size() > maxSize) {
+    if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         DVLOG(9) << "I/O request, op: " << request->optype()
                  << " offset: " << request->offset()
                  << " size: " << request->size()
-                 << " max size: " << maxSize;
+                 << " max size: " << maxChunkSize_;
         return;
     }
 
@@ -95,12 +100,11 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
     brpc::ClosureGuard doneGuard(done);
 
     // 请求创建的chunk大小和copyset配置的大小不一致
-    auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
-    if (request->size() != maxSize) {
+    if (request->size() != maxChunkSize_) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         DVLOG(9) << "Invalid chunk size: " << request->optype()
                  << " request size: " << request->size()
-                 << " copyset size: " << maxSize;
+                 << " copyset size: " << maxChunkSize_;
         return;
     }
 
@@ -129,13 +133,14 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                  Closure *done) {
     brpc::ClosureGuard doneGuard(done);
 
+    // 判断request参数是否合法
     auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
-    if (request->offset() + request->size() > maxSize) {
+    if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         LOG(ERROR) << "I/O request, op: " << request->optype()
                    << " offset: " << request->offset()
                    << " size: " << request->size()
-                   << " max size: " << maxSize;
+                   << " max size: " << maxChunkSize_;
         return;
     }
 
@@ -165,13 +170,13 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
                                     Closure *done) {
     brpc::ClosureGuard doneGuard(done);
 
-    auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
-    if (request->offset() + request->size() > maxSize) {
+    // 判断request参数是否合法
+    if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         LOG(ERROR) << "I/O request, op: " << request->optype()
                    << " offset: " << request->offset()
                    << " size: " << request->size()
-                   << " max size: " << maxSize;
+                   << " max size: " << maxChunkSize_;
         return;
     }
 
@@ -203,8 +208,7 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
     brpc::ClosureGuard doneGuard(done);
 
     // 判断request参数是否合法
-    auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
-    if (request->offset() + request->size() > maxSize) {
+    if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
         return;
     }
@@ -311,6 +315,26 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
                    << " data store return: " << ret;
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
+}
+
+bool ChunkServiceImpl::CheckRequestOffsetAndLength(uint32_t offset,
+                                                   uint32_t len) {
+    // 检查offset+len是否越界
+    if (offset + len > maxChunkSize_) {
+        return false;
+    }
+
+    // 检查offset是否对齐
+    if (offset % kOpRequestAlignSize != 0) {
+        return false;
+    }
+
+    // 检查len是否对齐
+    if (len % kOpRequestAlignSize != 0) {
+        return false;
+    }
+
+    return true;
 }
 
 }  // namespace chunkserver
