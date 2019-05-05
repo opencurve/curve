@@ -424,9 +424,8 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
 
 StoreStatus NameServerStorageImp::LoadSnapShotFile(
     std::vector<FileInfo> *snapshotFiles) {
-    std::string prefixEnd = "04";
     return ListFileInternal(SNAPSHOTFILEINFOKEYPREFIX,
-                            prefixEnd, snapshotFiles);
+                            SNAPSHOTFILEINFOKEYEND, snapshotFiles);
 }
 
 StoreStatus NameServerStorageImp::LoadRecycleFile(

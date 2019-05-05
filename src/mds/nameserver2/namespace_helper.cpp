@@ -11,10 +11,15 @@ namespace curve {
 namespace mds {
 
 const char FILEINFOKEYPREFIX[] = "01";
+const char FILEINFOKEYEND[] = "02";
 const char SEGMENTINFOKEYPREFIX[] = "02";
+const char SEGMENTINFOKEYEND[] = "03";
 const char SNAPSHOTFILEINFOKEYPREFIX[] = "03";
+const char SNAPSHOTFILEINFOKEYEND[] = "04";
 const char INODESTOREKEY[] = "04";
+const char INODESTOREKEYEND[] = "05";
 const char CHUNKSTOREKEY[] = "05";
+const char CHUNKSTOREKEYEND[] = "06";
 const char RECYCLEFILEINFOKEYPREFIX[] = "06";
 const char RECYCLEFILEINFOKEYEND[] = "07";
 // TODO(hzsunjianliang): if use single prefix for snapshot file?

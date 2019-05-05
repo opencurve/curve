@@ -28,7 +28,7 @@ ChunkServerHeartbeatRequest GetChunkServerHeartbeatRequestForTest() {
     state->set_allocated_errmsg(errMsg);
     request.set_allocated_diskstate(state);
 
-    CopysetInfo info;
+    CopySetInfo info;
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(10);

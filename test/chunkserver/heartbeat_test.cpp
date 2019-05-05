@@ -266,7 +266,7 @@ void HeartbeatTest::CleanPeer(const std::string& peer) {
                 break;
             }
 
-            const curve::mds::heartbeat::CopysetInfo& info =
+            const curve::mds::heartbeat::CopySetInfo& info =
                 req->copysetinfos(i);
 
             std::string peersStr = info.peers(0);
@@ -512,7 +512,7 @@ TEST_F(HeartbeatTest, AddPeer) {
             }
             ASSERT_LT(i, req->copysetinfos_size());
 
-            const curve::mds::heartbeat::CopysetInfo& info =
+            const curve::mds::heartbeat::CopySetInfo& info =
                 req->copysetinfos(i);
 
             std::string peersStr = "";
@@ -618,7 +618,7 @@ TEST_F(HeartbeatTest, TransferLeader) {
             }
             ASSERT_LT(i, req->copysetinfos_size());
 
-            const curve::mds::heartbeat::CopysetInfo& info =
+            const curve::mds::heartbeat::CopySetInfo& info =
                 req->copysetinfos(i);
 
             std::string peersStr = "";
@@ -719,7 +719,7 @@ TEST_F(HeartbeatTest, RemovePeer) {
             }
             ASSERT_LT(i, req->copysetinfos_size());
 
-            const curve::mds::heartbeat::CopysetInfo& info =
+            const curve::mds::heartbeat::CopySetInfo& info =
                 req->copysetinfos(i);
 
             std::string peersStr = "";
@@ -832,7 +832,7 @@ TEST_F(HeartbeatTest, CleanPeer) {
                 break;
             }
 
-            const curve::mds::heartbeat::CopysetInfo& info =
+            const curve::mds::heartbeat::CopySetInfo& info =
                 req->copysetinfos(i);
 
             std::string peersStr = info.peers(0);

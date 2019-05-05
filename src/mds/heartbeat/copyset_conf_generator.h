@@ -42,7 +42,8 @@ class CopysetConfGenerator {
     * @return 有配置变更命令下发为true, 没有则为false
     */
     bool GenCopysetConf(ChunkServerIdType reportId,
-        const CopySetInfo &reportCopySetInfo, CopysetConf *copysetConf);
+        const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
+        CopysetConf *copysetConf);
 
  private:
     /*
@@ -54,7 +55,8 @@ class CopysetConfGenerator {
     * @return true-有新的配置下发， false-没有新配置下发
     */
     bool LeaderGenCopysetConf(
-        const CopySetInfo &copySetInfo, CopysetConf *copysetConf);
+        const ::curve::mds::topology::CopySetInfo &copySetInfo,
+        CopysetConf *copysetConf);
 
     /*
     * @brief FollowerGenCopysetConf 处理follower copyset信息。比较上报的
@@ -69,8 +71,8 @@ class CopysetConfGenerator {
     */
     bool FollowerGenCopysetConf(
         ChunkServerIdType reportId,
-        const CopySetInfo &reportCopySetInfo,
-        const CopySetInfo &recordCopySetInfo,
+        const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
+        const ::curve::mds::topology::CopySetInfo &recordCopySetInfo,
         CopysetConf *copysetConf);
 
     /*

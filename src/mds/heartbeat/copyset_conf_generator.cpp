@@ -14,11 +14,11 @@ namespace mds {
 namespace heartbeat {
 bool CopysetConfGenerator::GenCopysetConf(
     ChunkServerIdType reportId,
-    const CopySetInfo &reportCopySetInfo,
+    const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
     CopysetConf *copysetConf) {
     // topolgy不存在上报的copyset,
     // 发一个空配置指导chunkserver将其删除
-    CopySetInfo recordCopySetInfo;
+    ::curve::mds::topology::CopySetInfo recordCopySetInfo;
     if (!topo_->GetCopySet(
         reportCopySetInfo.GetCopySetKey(), &recordCopySetInfo)) {
         LOG(ERROR) << "heartbeatManager receive copySet(logicalPoolId: "
@@ -40,14 +40,15 @@ bool CopysetConfGenerator::GenCopysetConf(
 }
 
 bool CopysetConfGenerator::LeaderGenCopysetConf(
-    const CopySetInfo &copySetInfo, CopysetConf *copysetConf) {
+    const ::curve::mds::topology::CopySetInfo &copySetInfo,
+    CopysetConf *copysetConf) {
     // 转发给调度模块
     return coordinator_->CopySetHeartbeat(copySetInfo, copysetConf);
 }
 
 bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
-    const CopySetInfo &reportCopySetInfo,
-    const CopySetInfo &recordCopySetInfo,
+    const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
+    const ::curve::mds::topology::CopySetInfo &recordCopySetInfo,
     CopysetConf *copysetConf) {
     // 如果copyset上面没有candidate, 并且MDS的Epoch>非leader副本上报上来的Epoch， //NOLINT
     // 可以根据MDS的配置来删除副本。
