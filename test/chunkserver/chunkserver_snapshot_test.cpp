@@ -231,7 +231,7 @@ TEST_F(ChunkServerSnapshotTest, OneNode) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
 
@@ -266,7 +266,7 @@ TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
 
@@ -321,7 +321,7 @@ TEST_F(ChunkServerSnapshotTest, TwoNodes) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
 
@@ -359,7 +359,7 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
 
@@ -430,7 +430,7 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownLeader) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
 
@@ -491,7 +491,7 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodes) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
 
@@ -532,7 +532,7 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownOnePeer) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
 
@@ -596,7 +596,7 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownLeader) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
 
@@ -673,7 +673,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
     int snapshotTimeoutS = 2;
@@ -810,7 +810,7 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
     int snapshotTimeoutS = 2;
@@ -963,7 +963,7 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     ChunkID kMaxChunkId = 10;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
     int snapshotTimeoutS = 2;
@@ -1139,7 +1139,7 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     ChunkID kMaxChunkId = 10;
-    int length = 8;
+    int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
     int snapshotTimeoutS = 2;
