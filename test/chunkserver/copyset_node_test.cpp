@@ -21,7 +21,9 @@
 #include "src/chunkserver/copyset_node.h"
 #include "test/chunkserver/fake_datastore.h"
 #include "test/fs/mock_local_filesystem.h"
+#include "test/chunkserver/mock_node.h"
 #include "src/chunkserver/conf_epoch_file.h"
+#include "proto/heartbeat.pb.h"
 
 namespace curve {
 namespace chunkserver {
@@ -134,6 +136,7 @@ TEST(CopysetNodeTest, error_test) {
         int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
         FakeClosure closure;
         FakeSnapshotWriter writer;
         std::shared_ptr<MockLocalFileSystem>
@@ -173,6 +176,7 @@ TEST(CopysetNodeTest, error_test) {
         int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
         FakeClosure closure;
         FakeSnapshotWriter writer;
         std::shared_ptr<MockLocalFileSystem>
@@ -212,6 +216,7 @@ TEST(CopysetNodeTest, error_test) {
         int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
         FakeClosure closure;
         FakeSnapshotWriter writer;
         std::shared_ptr<MockLocalFileSystem>
@@ -245,6 +250,7 @@ TEST(CopysetNodeTest, error_test) {
         int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
         FakeClosure closure;
         FakeSnapshotWriter writer;
         std::shared_ptr<MockLocalFileSystem>
@@ -506,6 +512,182 @@ TEST(CopysetNodeTest, error_test) {
         ASSERT_NE(0, copysetNode.LoadConfEpoch(kCurveConfEpochFilename));
         copysetNode.Fini();
         ::system(rmCmd.c_str());
+    }
+}
+
+TEST(CopysetNodeTest, get_conf_change) {
+    std::shared_ptr<LocalFileSystem>
+        fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
+    int port = 9000;
+    const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
+    std::string rmCmd("rm -f ");
+    rmCmd += kCurveConfEpochFilename;
+    CopysetNodeOptions copysetNodeOptions;
+    copysetNodeOptions.ip = "127.0.0.1";
+    copysetNodeOptions.port = port;
+    copysetNodeOptions.snapshotIntervalS = 30;
+    copysetNodeOptions.catchupMargin = 50;
+    copysetNodeOptions.chunkDataUri = "local://.";
+    copysetNodeOptions.chunkSnapshotUri = "local://.";
+    copysetNodeOptions.logUri = "local://.";
+    copysetNodeOptions.raftMetaUri = "local://.";
+    copysetNodeOptions.raftSnapshotUri = "local://.";
+    copysetNodeOptions.maxChunkSize = kMaxChunkSize;
+    copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
+    copysetNodeOptions.concurrentapply->Init(2, 1);
+    copysetNodeOptions.localFileSystem = fs;
+    copysetNodeOptions.chunkfilePool =
+        std::make_shared<ChunkfilePool>(fs);
+
+
+    LogicPoolID logicPoolID = 1;
+    CopysetID copysetID = 1;
+    Configuration conf;
+    Configuration conf1;
+    PeerId peer("127.0.0.1:3200:0");
+    PeerId peer1("127.0.0.1:3201:0");
+    PeerId emptyPeer;
+    conf.add_peer(peer);
+    conf1.add_peer(peer);
+    conf1.add_peer(peer1);
+
+    // 当前没有在做配置变更
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        PeerId alterPeer;
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(Return(false));
+        EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+        EXPECT_EQ(ConfigChangeType::NONE, type);
+    }
+    // 当前正在Add Peer
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        PeerId alterPeer;
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<1>(conf),
+                            Return(true)));
+        EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+        EXPECT_EQ(ConfigChangeType::ADD_PEER, type);
+    }
+    // 当前正在Remove Peer
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        PeerId alterPeer;
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(conf),
+                            Return(true)));
+        EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+        EXPECT_EQ(ConfigChangeType::REMOVE_PEER, type);
+    }
+    // 当前正在Transfer leader
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        PeerId alterPeer;
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<3>(peer),
+                            Return(true)));
+        EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+        EXPECT_EQ(ConfigChangeType::TRANSFER_LEADER, type);
+    }
+    // 异常，braft::node配置变更返回true，但是没有正在进行配置变更的成员
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        PeerId alterPeer;
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(Return(true));
+        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+    }
+    // 异常，正在add peer，但是是add多个成员
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        PeerId alterPeer;
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<1>(conf1),
+                            Return(true)));
+        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+    }
+    // 异常，正在remove peer，但是是remove多个成员
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        PeerId alterPeer;
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(conf1),
+                            Return(true)));
+        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+    }
+    // 异常，正在transfer leader，但是transferee是空
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        PeerId alterPeer;
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<3>(emptyPeer),
+                            Return(true)));
+        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
     }
 }
 

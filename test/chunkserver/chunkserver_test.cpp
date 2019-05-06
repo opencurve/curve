@@ -146,7 +146,14 @@ TEST(ChunkserverCommonTest, GroupIdTest) {
 }
 
 TEST(ServiceManagerTest, ExceptionTest) {
+    CopysetNodeOptions nodeOptions;
+    nodeOptions.maxChunkSize = 16 * 1024 * 1024;
+
+    CopysetNodeManager::GetInstance().Init(nodeOptions);
+
     ServiceOptions  opt;
+    opt.copysetNodeManager = &CopysetNodeManager::GetInstance();
+
     ServiceManager  srvMan;
 
     opt.ip = "1111.2.3";

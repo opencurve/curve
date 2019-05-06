@@ -289,6 +289,8 @@ class CopysetNode : public braft::StateMachine,
 
     void SetConfEpochFile(std::unique_ptr<ConfEpochFile> epochFile);
 
+    void SetCopysetNode(std::shared_ptr<Node> node);
+
     /**
      * better for test
      */

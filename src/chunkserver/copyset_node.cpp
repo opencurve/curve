@@ -555,6 +555,10 @@ void CopysetNode::SetConfEpochFile(std::unique_ptr<ConfEpochFile> epochFile) {
     epochFile_ = std::move(epochFile);
 }
 
+void CopysetNode::SetCopysetNode(std::shared_ptr<Node> node) {
+    raftNode_ = node;
+}
+
 bool CopysetNode::IsLeaderTerm() const {
     if (0 < leaderTerm_.load(std::memory_order_acquire))
         return true;

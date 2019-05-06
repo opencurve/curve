@@ -23,9 +23,7 @@ class CopysetNodeManager;
 
 class ChunkServiceImpl : public ChunkService {
  public:
-    explicit ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions) :
-        chunkServiceOptions_(chunkServiceOptions),
-        copysetNodeManager_(chunkServiceOptions.copysetNodeManager) {}
+    explicit ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions);
     ~ChunkServiceImpl() {}
 
     void DeleteChunk(RpcController *controller,
@@ -69,8 +67,18 @@ class ChunkServiceImpl : public ChunkService {
                       Closure *done);
 
  private:
+    /**
+     * 验证op request的offset和length是否越界和对齐
+     * @param offset[in]: op request' offset
+     * @param len[in]: op request' length
+     * @return true，说明合法，否则返回false
+     */
+    bool CheckRequestOffsetAndLength(uint32_t offset, uint32_t len);
+
+ private:
     ChunkServiceOptions chunkServiceOptions_;
     CopysetNodeManager  *copysetNodeManager_;
+    uint32_t            maxChunkSize_;
 };
 
 }  // namespace chunkserver
