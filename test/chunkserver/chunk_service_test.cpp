@@ -136,6 +136,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
     uint64_t sn = 1;
+    char ch = 'a';
+    char expectData[kOpRequestAlignSize + 1];
+    ::memset(expectData, 'a', kOpRequestAlignSize);
+    expectData[kOpRequestAlignSize] = '\0';
     Configuration conf;
     conf.parse_from(confs);
 
@@ -151,7 +155,6 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         brpc::Channel channel;
         ASSERT_EQ(0, channel.Init(leader.addr, NULL));
         ChunkService_Stub stub(&channel);
-        char ch = 'a';
         /* read with applied index */
         for (int i = 0; i < 25; ++i) {
             uint64_t appliedIndex = 0;
@@ -166,9 +169,9 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
-                cntl.request_attachment().resize(8, ch);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
+                cntl.request_attachment().resize(kOpRequestAlignSize, ch);
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 LOG_IF(INFO, cntl.Failed()) << cntl.ErrorText();
                 ASSERT_FALSE(cntl.Failed());
@@ -188,14 +191,14 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
                 request.set_appliedindex(appliedIndex);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
-                ASSERT_STREQ("aaaaaaaa",
+                ASSERT_STREQ(expectData,
                              cntl.response_attachment().to_string().c_str());
                 appliedIndex = response.appliedindex();
                 ASSERT_EQ(i + 2 + i, appliedIndex);
@@ -211,14 +214,14 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
                 request.set_appliedindex(appliedIndex + 1);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
-                ASSERT_STREQ("aaaaaaaa",
+                ASSERT_STREQ(expectData,
                              cntl.response_attachment().to_string().c_str());
             }
         }
@@ -236,9 +239,9 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
-                cntl.request_attachment().resize(8, ch);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
+                cntl.request_attachment().resize(kOpRequestAlignSize, ch);
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -255,13 +258,13 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
-                ASSERT_STREQ("aaaaaaaa",
+                ASSERT_STREQ(expectData,
                              cntl.response_attachment().to_string().c_str());
             }
             /*  delete */
@@ -307,8 +310,8 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
@@ -325,8 +328,8 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
                 request.set_appliedindex(1);
                 stub.ReadChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
@@ -344,9 +347,9 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
-                cntl.request_attachment().resize(8, ch);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
+                cntl.request_attachment().resize(kOpRequestAlignSize, ch);
                 stub.WriteChunk(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -363,13 +366,13 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 request.set_copysetid(copysetId);
                 request.set_chunkid(chunkId);
                 request.set_sn(sn);
-                request.set_offset(8 * i);
-                request.set_size(8);
+                request.set_offset(kOpRequestAlignSize * i);
+                request.set_size(kOpRequestAlignSize);
                 stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
-                ASSERT_STREQ("aaaaaaaa",
+                ASSERT_STREQ(expectData,
                              cntl.response_attachment().to_string().c_str());
             }
             /*  delete snapshot */
@@ -423,7 +426,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
                 ASSERT_FALSE(cntl.Failed());
                 ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                           response.status());
-                ASSERT_EQ(0, response.chunksn().size());
+                ASSERT_EQ(1, response.chunksn().size());
             }
         }
     }
@@ -435,18 +438,15 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             LOG(ERROR) << "Fail to init channel to " << leader;
         }
         ChunkService_Stub stub(&channel);
-        char ch = 'a';
-        uint32_t requstSize = 32;
-        uint32_t offset = 1345;
-        char writeBuffer[33];
-        char readBuffer[33];
+        uint32_t requstSize = kOpRequestAlignSize;
+        uint32_t offset = 0;
+        char writeBuffer[kOpRequestAlignSize + 1];
+        char readBuffer[kOpRequestAlignSize + 1];
 
         ::memset(writeBuffer, ch, requstSize);
         ::memset(readBuffer, ch, requstSize);
         writeBuffer[requstSize] = '\0';
         readBuffer[requstSize] = '\0';
-        std::cerr << "readBuffer: " << readBuffer << " , len: "
-                  << sizeof(readBuffer) << std::endl;
 
         const uint32_t kMaxChunk = 10;
         for (uint32_t i = 1; i < kMaxChunk + 1; ++i) {
@@ -559,8 +559,8 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
     /* read 一个不存在的 chunk */
     {
         brpc::Channel channel;
-        uint32_t requestSize = 8;
-        uint32_t offset = 8;
+        uint32_t requestSize = kOpRequestAlignSize;
+        uint32_t offset = 0;
         if (channel.Init(leader.addr, NULL) != 0) {
             LOG(ERROR) << "Fail to init channel to " << leader;
         }
@@ -578,7 +578,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_sn(sn);
             request.set_offset(offset);
             request.set_size(requestSize);
-            cntl.request_attachment().resize(requestSize, 'a');
+            cntl.request_attachment().resize(requestSize, ch);
             stub.WriteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
@@ -604,7 +604,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             std::cerr << "read size: " << cntl.response_attachment().size()
                       << std::endl;
             ASSERT_EQ(requestSize, cntl.response_attachment().size());
-            ASSERT_STREQ("aaaaaaaa",
+            ASSERT_STREQ(expectData,
                          cntl.response_attachment().to_string().c_str());
         }
         /* delete chunk */
@@ -661,10 +661,44 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
         request.set_sn(sn);
-
-        request.set_offset(8);
+        request.set_offset(kOpRequestAlignSize);
         request.set_size(kMaxChunkSize);
-        cntl.request_attachment().resize(8, 'a');
+        stub.ReadChunk(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                  response.status());
+    }
+    /* read offset没对齐 */
+    {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeoutMs);
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_sn(sn);
+        request.set_offset(kOpRequestAlignSize - 1);
+        request.set_size(kOpRequestAlignSize);
+        stub.ReadChunk(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                  response.status());
+    }
+    /* read size没对齐 */
+    {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeoutMs);
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_sn(sn);
+        request.set_offset(0);
+        request.set_size(kOpRequestAlignSize - 1);
         stub.ReadChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -682,14 +716,13 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         request.set_copysetid(copysetId + 1);
         request.set_chunkid(chunkId);
         request.set_offset(0);
-        request.set_size(8);
+        request.set_size(kOpRequestAlignSize);
         request.set_sn(sn);
         stub.ReadChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   response.status());
     }
-
     /* read snapshot 溢出 */
     {
         brpc::Controller cntl;
@@ -701,9 +734,46 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
         request.set_sn(sn);
-        request.set_offset(8);
+        request.set_offset(kOpRequestAlignSize);
         request.set_size(kMaxChunkSize);
-        cntl.request_attachment().resize(8, 'a');
+        stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                  response.status());
+    }
+    /* read snapshot offset没对齐 */
+    {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeoutMs);
+        ChunkRequest request;
+        ChunkResponse response;
+        uint64_t chunkId = 1;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP);
+        request.set_logicpoolid(logicPoolId + 1);
+        request.set_copysetid(copysetId + 1);
+        request.set_chunkid(chunkId);
+        request.set_sn(sn);
+        request.set_offset(kOpRequestAlignSize - 1);
+        request.set_size(kOpRequestAlignSize);
+        stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                  response.status());
+    }
+    /* read snapshot size没对齐 */
+    {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeoutMs);
+        ChunkRequest request;
+        ChunkResponse response;
+        uint64_t chunkId = 1;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ_SNAP);
+        request.set_logicpoolid(logicPoolId + 1);
+        request.set_copysetid(copysetId + 1);
+        request.set_chunkid(chunkId);
+        request.set_sn(sn);
+        request.set_offset(0);
+        request.set_size(kOpRequestAlignSize - 1);
         stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -722,7 +792,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         request.set_chunkid(chunkId);
         request.set_sn(sn);
         request.set_offset(0);
-        request.set_size(8);
+        request.set_size(kOpRequestAlignSize);
         stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -739,9 +809,47 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         request.set_copysetid(copysetId);
         request.set_chunkid(chunkId);
         request.set_offset(kMaxChunkSize);
-        request.set_size(8);
+        request.set_size(kOpRequestAlignSize);
         request.set_sn(sn);
-        cntl.request_attachment().resize(8, 'a');
+        cntl.request_attachment().resize(kOpRequestAlignSize, 'a');
+        stub.WriteChunk(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                  response.status());
+    }
+    /* write offset没对齐 */
+    {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeoutMs);
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId + 1);
+        request.set_copysetid(copysetId + 1);
+        request.set_chunkid(chunkId);
+        request.set_sn(sn);
+        request.set_offset(kOpRequestAlignSize - 1);
+        request.set_size(kOpRequestAlignSize);
+        cntl.request_attachment().resize(kOpRequestAlignSize, 'a');
+        stub.WriteChunk(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                  response.status());
+    }
+    /* write size没对齐 */
+    {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeoutMs);
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId + 1);
+        request.set_copysetid(copysetId + 1);
+        request.set_chunkid(chunkId);
+        request.set_sn(sn);
+        request.set_offset(kOpRequestAlignSize);
+        request.set_size(kOpRequestAlignSize - 1);
+        cntl.request_attachment().resize(kOpRequestAlignSize - 1, 'a');
         stub.WriteChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
@@ -758,9 +866,9 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         request.set_copysetid(copysetId + 1);
         request.set_chunkid(chunkId);
         request.set_sn(sn);
-        request.set_offset(8);
-        request.set_size(0);
-        cntl.request_attachment().resize(8, 'a');
+        request.set_offset(0);
+        request.set_size(kOpRequestAlignSize);
+        cntl.request_attachment().resize(kOpRequestAlignSize, 'a');
         stub.WriteChunk(&cntl, &request, &response, nullptr);
         ASSERT_FALSE(cntl.Failed());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
@@ -852,8 +960,8 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_chunkid(chunkId);
             request.set_sn(sn);
             request.set_offset(0);
-            request.set_size(8);
-            cntl.request_attachment().resize(8, 'a');
+            request.set_size(kOpRequestAlignSize);
+            cntl.request_attachment().resize(kOpRequestAlignSize, 'a');
             stub.WriteChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -872,7 +980,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_chunkid(chunkId);
             request.set_sn(sn);
             request.set_offset(0);
-            request.set_size(8);
+            request.set_size(kOpRequestAlignSize);
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
             ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
@@ -891,7 +999,7 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
             request.set_chunkid(chunkId);
             request.set_sn(sn);
             request.set_offset(0);
-            request.set_size(8);
+            request.set_size(kOpRequestAlignSize);
             request.set_appliedindex(1);
             stub.ReadChunk(&cntl, &request, &response, nullptr);
             ASSERT_FALSE(cntl.Failed());
