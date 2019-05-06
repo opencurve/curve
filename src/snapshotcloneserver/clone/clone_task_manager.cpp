@@ -13,32 +13,32 @@ namespace curve {
 namespace snapshotcloneserver {
 
 int CloneTaskManager::Start() {
-    if (isStop.load()) {
+    if (isStop_.load()) {
         int ret = threadpool_->Start();
         if (ret < 0) {
             LOG(ERROR) << "CloneTaskManager start thread pool fail"
                        << ", ret = " << ret;
             return ret;
         }
-        isStop.store(false);
-        // isStop标志先置，防止backEndThread先退出
+        isStop_.store(false);
+        // isStop_标志先置，防止backEndThread先退出
         backEndThread =
             std::thread(&CloneTaskManager::BackEndThreadFunc, this);
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 void CloneTaskManager::Stop() {
-    if (!isStop.exchange(true)) {
+    if (!isStop_.exchange(true)) {
         backEndThread.join();
         // TODO(xuchaojie): to stop all task
         threadpool_->Stop();
     }
 }
 
-int CloneTaskManager::PushTask(std::shared_ptr<CloneTask> task) {
-    if (isStop.load()) {
-        return kErrCodeSnapshotServiceIsStop;
+int CloneTaskManager::PushTask(std::shared_ptr<CloneTaskBase> task) {
+    if (isStop_.load()) {
+        return kErrCodeServiceIsStop;
     }
     ScanWorkingTask();
 
@@ -59,10 +59,10 @@ int CloneTaskManager::PushTask(std::shared_ptr<CloneTask> task) {
     }
     threadpool_->PushTask(task);
     cloneTaskMap_.emplace(task->GetTaskId(), task);
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
-std::shared_ptr<CloneTask> CloneTaskManager::GetTask(
+std::shared_ptr<CloneTaskBase> CloneTaskManager::GetTask(
     const TaskIdType &taskId) const {
     ReadLockGuard taskMapRlock(cloneTaskMapLock_);
     auto it = cloneTaskMap_.find(taskId);
@@ -73,10 +73,10 @@ std::shared_ptr<CloneTask> CloneTaskManager::GetTask(
 }
 
 void CloneTaskManager::BackEndThreadFunc() {
-    while (!isStop.load()) {
+    while (!isStop_.load()) {
         ScanWorkingTask();
         std::this_thread::sleep_for(
-            std::chrono::milliseconds(kCloneTaskManagerScanIntervalMs));
+            std::chrono::milliseconds(cloneTaskManagerScanIntervalMs_));
     }
 }
 

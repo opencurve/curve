@@ -33,26 +33,50 @@ class CloneTaskInfo : public TaskInfo {
     CloneInfo cloneInfo_;
 };
 
-class CloneTask : public Task {
+
+
+class CloneTaskBase : public Task {
  public:
-    CloneTask(const TaskIdType &taskId,
+    CloneTaskBase(const TaskIdType &taskId,
         std::shared_ptr<CloneTaskInfo> taskInfo,
         std::shared_ptr<CloneCore> core)
         : Task(taskId),
           taskInfo_(taskInfo),
           core_(core) {}
 
+
     std::shared_ptr<CloneTaskInfo> GetTaskInfo() const {
         return taskInfo_;
-    }
-
-    void Run() override {
-        core_->HandleCloneOrRecoverTask(taskInfo_);
     }
 
  protected:
     std::shared_ptr<CloneTaskInfo> taskInfo_;
     std::shared_ptr<CloneCore> core_;
+};
+
+class CloneTask : public CloneTaskBase {
+ public:
+    CloneTask(const TaskIdType &taskId,
+        std::shared_ptr<CloneTaskInfo> taskInfo,
+        std::shared_ptr<CloneCore> core)
+        : CloneTaskBase(taskId, taskInfo, core) {}
+
+    void Run() override {
+        core_->HandleCloneOrRecoverTask(taskInfo_);
+    }
+};
+
+
+class CloneCleanTask : public CloneTaskBase {
+ public:
+    CloneCleanTask(const TaskIdType &taskId,
+        std::shared_ptr<CloneTaskInfo> taskInfo,
+        std::shared_ptr<CloneCore> core)
+        : CloneTaskBase(taskId, taskInfo, core) {}
+
+    void Run() override {
+        core_->HandleCleanCloneOrRecoverTask(taskInfo_);
+    }
 };
 
 

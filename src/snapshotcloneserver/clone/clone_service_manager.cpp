@@ -15,10 +15,10 @@
 namespace curve {
 namespace snapshotcloneserver {
 
-int CloneServiceManager::Init() {
+int CloneServiceManager::Init(const SnapshotCloneServerOptions &option) {
     std::shared_ptr<ThreadPool> pool =
-        std::make_shared<ThreadPool>(kClonePoolThreadNum);
-    return cloneTaskMgr_->Init(pool);
+        std::make_shared<ThreadPool>(option.clonePoolThreadNum);
+    return cloneTaskMgr_->Init(pool, option);
 }
 
 int CloneServiceManager::Start() {
@@ -57,7 +57,7 @@ int CloneServiceManager::CloneFile(const UUID &source,
                    << ", ret = " << ret;
         return ret;
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 int CloneServiceManager::RecoverFile(const UUID &source,
@@ -88,7 +88,7 @@ int CloneServiceManager::RecoverFile(const UUID &source,
                    << ", ret = " << ret;
         return ret;
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
@@ -114,7 +114,7 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                 case CloneStatus::cloning:
                 case CloneStatus::recovering: {
                     TaskIdType taskId = cloneInfo.GetTaskId();
-                    std::shared_ptr<CloneTask> task =
+                    std::shared_ptr<CloneTaskBase> task =
                         cloneTaskMgr_->GetTask(taskId);
                     if (task != nullptr) {
                         info->emplace_back(cloneInfo,
@@ -150,7 +150,34 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
             }
         }
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
+}
+
+int CloneServiceManager::CleanCloneTask(const std::string &user,
+    const TaskIdType &taskId) {
+    CloneInfo cloneInfo;
+    int ret = cloneCore_->CleanCloneOrRecoverTaskPre(user, taskId, &cloneInfo);
+    if (kErrCodeTaskExist == ret) {
+        return kErrCodeSuccess;
+    } else if (ret < 0) {
+        LOG(ERROR) << "CleanCloneOrRecoverTaskPre fail"
+                   << ", ret = " << ret
+                   << ", user = " << user
+                   << ", taskid = " << taskId;
+        return ret;
+    }
+    std::shared_ptr<CloneTaskInfo> taskInfo =
+        std::make_shared<CloneTaskInfo>(cloneInfo);
+    std::shared_ptr<CloneCleanTask> task =
+        std::make_shared<CloneCleanTask>(
+            cloneInfo.GetTaskId(), taskInfo, cloneCore_);
+    ret = cloneTaskMgr_->PushTask(task);
+    if (ret < 0) {
+        LOG(ERROR) << "Push Task error, "
+                   << " ret = " << ret;
+        return ret;
+    }
+    return kErrCodeSuccess;
 }
 
 int CloneServiceManager::RecoverCloneTask() {
@@ -169,6 +196,13 @@ int CloneServiceManager::RecoverCloneTask() {
                 std::shared_ptr<CloneTask> task =
                     std::make_shared<CloneTask>(
                         cloneInfo.GetTaskId(), taskInfo, cloneCore_);
+                if (CloneFileType::kSnapshot ==
+                    taskInfo->GetCloneInfo().GetFileType()) {
+                    cloneCore_->GetSnapshotRef()->IncrementSnapshotRef(
+                        taskInfo->GetCloneInfo().GetSrc());
+                } else {
+                    // TODO(xuchaojie): 镜像管理
+                }
                 ret = cloneTaskMgr_->PushTask(task);
                 if (ret < 0) {
                     LOG(ERROR) << "CloneTaskMgr Push Task error"
@@ -181,7 +215,7 @@ int CloneServiceManager::RecoverCloneTask() {
                 break;
         }
     }
-    return kErrCodeSnapshotServerSuccess;
+    return kErrCodeSuccess;
 }
 
 }  // namespace snapshotcloneserver
