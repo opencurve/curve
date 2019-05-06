@@ -17,6 +17,8 @@
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/snapshotcloneserver/common/config.h"
+#include "src/snapshotcloneserver/common/snapshot_reference.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -146,10 +148,16 @@ class SnapshotCoreImpl : public SnapshotCore {
     SnapshotCoreImpl(
         std::shared_ptr<CurveFsClient> client,
         std::shared_ptr<SnapshotCloneMetaStore> metaStore,
-        std::shared_ptr<SnapshotDataStore> dataStore)
+        std::shared_ptr<SnapshotDataStore> dataStore,
+        std::shared_ptr<SnapshotReference> snapshotRef,
+        const SnapshotCloneServerOptions &option)
     : client_(client),
       metaStore_(metaStore),
-      dataStore_(dataStore) {}
+      dataStore_(dataStore),
+      snapshotRef_(snapshotRef),
+      chunkSplitSize_(option.chunkSplitSize),
+      checkSnapshotStatusIntervalMs_(option.checkSnapshotStatusIntervalMs),
+      maxSnapshotLimit_(option.maxSnapshotLimit) {}
 
     // 公有接口定义见SnapshotCore接口注释
     int CreateSnapshotPre(const std::string &file,
@@ -326,6 +334,15 @@ class SnapshotCoreImpl : public SnapshotCore {
     std::shared_ptr<SnapshotCloneMetaStore> metaStore_;
     // data数据存储
     std::shared_ptr<SnapshotDataStore> dataStore_;
+    // 快照引用计数管理模块
+    std::shared_ptr<SnapshotReference> snapshotRef_;
+
+    // 转储chunk分片大小
+    uint64_t chunkSplitSize_;
+    // CheckSnapShotStatus调用间隔
+    uint32_t checkSnapshotStatusIntervalMs_;
+    // 最大快照数
+    uint32_t maxSnapshotLimit_;
 };
 
 }  // namespace snapshotcloneserver

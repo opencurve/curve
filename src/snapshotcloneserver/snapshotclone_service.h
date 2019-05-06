@@ -60,6 +60,7 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
     void HandleCloneAction(brpc::Controller* bcntl);
     void HandleRecoverAction(brpc::Controller* bcntl);
     void HandleGetCloneTasksAction(brpc::Controller* bcntl);
+    void HandleCleanCloneTaskAction(brpc::Controller* bcntl);
 
     bool CheckBoolParamter(
         const std::string *param, bool *valueOut);

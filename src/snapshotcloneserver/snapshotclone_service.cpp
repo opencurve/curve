@@ -63,7 +63,10 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
         HandleGetCloneTasksAction(bcntl);
         return;
     }
-    // TODO(xuchaojie): 需提供运维接口，清理失败的clone任务。
+    if (*action == "CleanCloneTask") {
+        HandleCleanCloneTaskAction(bcntl);
+        return;
+    }
 
     bcntl->http_response().set_status_code(brpc::HTTP_STATUS_BAD_REQUEST);
     butil::IOBufBuilder os;
@@ -512,6 +515,51 @@ std::string SnapshotCloneServiceImpl::BuildErrorMessage(
     mainObj["Error"] = errObj;
     return mainObj.toStyledString();
 }
+
+void SnapshotCloneServiceImpl::HandleCleanCloneTaskAction(
+    brpc::Controller* bcntl) {
+    const std::string *version =
+        bcntl->http_request().uri().GetQuery("Version");
+    const std::string *user =
+        bcntl->http_request().uri().GetQuery("User");
+    const std::string *taskId =
+        bcntl->http_request().uri().GetQuery("TaskId");
+    if ((version == nullptr) ||
+        (user == nullptr) ||
+        (taskId == nullptr)) {
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_BAD_REQUEST);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(kErrCodeInvalidRequest,
+            std::string("BadRequest:\"missing parameter\"."),
+            0);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
+        return;
+    }
+
+    LOG(INFO) << "CleanCloneTask:"
+              << " Version = " << *version
+              << " User = " << *user
+              << " TaskId = " << *taskId;
+
+
+    int ret = cloneManager_->CleanCloneTask(*user, *taskId);
+    if (ret < 0) {
+        bcntl->http_response().set_status_code(
+            brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
+        butil::IOBufBuilder os;
+        std::string msg = BuildErrorMessage(ret,
+            "CleanCloneTask Action internal error",
+            0);
+        os << msg;
+        os.move_to(bcntl->response_attachment());
+        return;
+    }
+    bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
+    return;
+}
+
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

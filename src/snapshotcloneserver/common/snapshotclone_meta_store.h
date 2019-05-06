@@ -25,7 +25,7 @@ enum class CloneStatus {
     done = 0,
     cloning = 1,
     recovering = 2,
-    canceling = 3,
+    cleaning = 3,
     error
 };
 

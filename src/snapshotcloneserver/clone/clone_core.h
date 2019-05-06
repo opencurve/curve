@@ -17,6 +17,7 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
+#include "src/snapshotcloneserver/common/snapshot_reference.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -55,6 +56,32 @@ class CloneCore {
     virtual void HandleCloneOrRecoverTask(
         std::shared_ptr<CloneTaskInfo> task) = 0;
 
+
+
+
+
+    /**
+     * @brief 清理克隆或恢复任务前置
+     *
+     * @param user 用户名
+     * @param taskId 任务Id
+     * @param[out] cloneInfo 克隆或恢复信息
+     *
+     * @return 错误码
+     */
+    virtual int CleanCloneOrRecoverTaskPre(const std::string &user,
+        const TaskIdType &taskId,
+        CloneInfo *cloneInfo) = 0;
+
+
+    /**
+     * @brief 异步处理清理克隆或恢复任务
+     *
+     * @param task 克隆或恢复任务
+     */
+    virtual void HandleCleanCloneOrRecoverTask(
+        std::shared_ptr<CloneTaskInfo> task) = 0;
+
     /**
      * @brief 获取全部克隆/恢复任务列表，用于重启后恢复执行
      *
@@ -74,6 +101,14 @@ class CloneCore {
      * @retVal -1 获取失败
      */
     virtual int GetCloneInfo(TaskIdType taskId, CloneInfo *cloneInfo) = 0;
+
+
+    /**
+     * @brief 获取快照引用管理模块
+     *
+     * @return 快照引用管理模块
+     */
+    virtual std::shared_ptr<SnapshotReference> GetSnapshotRef() = 0;
 };
 
 /**
@@ -101,10 +136,15 @@ class CloneCoreImpl : public CloneCore {
     CloneCoreImpl(
         std::shared_ptr<CurveFsClient> client,
         std::shared_ptr<SnapshotCloneMetaStore> metaStore,
-        std::shared_ptr<SnapshotDataStore> dataStore)
+        std::shared_ptr<SnapshotDataStore> dataStore,
+        std::shared_ptr<SnapshotReference> snapshotRef,
+        const SnapshotCloneServerOptions option)
       : client_(client),
         metaStore_(metaStore),
-        dataStore_(dataStore) {}
+        dataStore_(dataStore),
+        snapshotRef_(snapshotRef),
+        cloneChunkSplitSize_(option.cloneChunkSplitSize),
+        cloneTempDir_(option.cloneTempDir) {}
 
     int CloneOrRecoverPre(const UUID &source,
          const std::string &user,
@@ -115,8 +155,20 @@ class CloneCoreImpl : public CloneCore {
 
     void HandleCloneOrRecoverTask(std::shared_ptr<CloneTaskInfo> task) override;
 
+    int CleanCloneOrRecoverTaskPre(const std::string &user,
+        const TaskIdType &taskId,
+        CloneInfo *cloneInfo) override;
+
+    void HandleCleanCloneOrRecoverTask(
+        std::shared_ptr<CloneTaskInfo> task) override;
+
     int GetCloneInfoList(std::vector<CloneInfo> *taskList) override;
     int GetCloneInfo(TaskIdType taskId, CloneInfo *cloneInfo) override;
+
+
+    std::shared_ptr<SnapshotReference> GetSnapshotRef() {
+        return snapshotRef_;
+    }
 
  private:
     /**
@@ -292,6 +344,20 @@ class CloneCoreImpl : public CloneCore {
      */
     void HandleCloneError(std::shared_ptr<CloneTaskInfo> task);
 
+    /**
+     * @brief 处理清理克隆或恢复任务成功
+     *
+     * @param task 任务信息
+     */
+    void HandleCleanSuccess(std::shared_ptr<CloneTaskInfo> task);
+
+    /**
+     * @brief  处理清理克隆或恢复任务失败
+     *
+     * @param task 任务信息
+     */
+    void HandleCleanError(std::shared_ptr<CloneTaskInfo> task);
+
     bool IsLazy(std::shared_ptr<CloneTaskInfo> task);
     bool IsSnapshot(std::shared_ptr<CloneTaskInfo> task);
     bool IsFile(std::shared_ptr<CloneTaskInfo> task);
@@ -302,6 +368,12 @@ class CloneCoreImpl : public CloneCore {
     std::shared_ptr<CurveFsClient> client_;
     std::shared_ptr<SnapshotCloneMetaStore> metaStore_;
     std::shared_ptr<SnapshotDataStore> dataStore_;
+    std::shared_ptr<SnapshotReference> snapshotRef_;
+
+    // clone chunk分片大小
+    uint64_t cloneChunkSplitSize_;
+    // 克隆临时目录
+    std::string cloneTempDir_;
 };
 
 }  // namespace snapshotcloneserver

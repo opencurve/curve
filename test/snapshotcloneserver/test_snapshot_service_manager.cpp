@@ -33,14 +33,18 @@ class TestSnapshotServiceManager : public ::testing::Test {
     virtual ~TestSnapshotServiceManager() {}
 
     virtual void SetUp() {
+        SnapshotCloneServerOptions serverOption_;
+        serverOption_.snapshotPoolThreadNum = 8;
+        serverOption_.snapshotTaskManagerScanIntervalMs = 1000;
         core_ =
             std::make_shared<MockSnapshotCore>();
-        std::shared_ptr<SnapshotTaskManager> taskMgr_ =
+        std::shared_ptr<SnapshotTaskManager>
+            taskMgr_ =
             std::make_shared<SnapshotTaskManager>();
 
         manager_ = std::make_shared<SnapshotServiceManager>(taskMgr_, core_);
 
-        ASSERT_EQ(0, manager_->Init())
+        ASSERT_EQ(0, manager_->Init(serverOption_))
             << "manager init fail.";
         ASSERT_EQ(0, manager_->Start())
             << "manager start fail.";
@@ -61,7 +65,7 @@ class TestSnapshotServiceManager : public ::testing::Test {
         EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
             .WillOnce(DoAll(
                 SetArgPointee<3>(info),
-                Return(kErrCodeSnapshotServerSuccess)));
+                Return(kErrCodeSuccess)));
 
         CountDownEvent cond1(1);
 
@@ -76,7 +80,7 @@ class TestSnapshotServiceManager : public ::testing::Test {
             user,
             desc,
             &uuid);
-        ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+        ASSERT_EQ(kErrCodeSuccess, ret);
 
         cond1.Wait();
     }
@@ -98,7 +102,7 @@ TEST_F(TestSnapshotServiceManager,
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
             SetArgPointee<3>(info),
-            Return(kErrCodeSnapshotServerSuccess)));
+            Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
 
@@ -113,7 +117,7 @@ TEST_F(TestSnapshotServiceManager,
         user,
         desc,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(uuid, uuidOut);
 
     cond1.Wait();
@@ -131,7 +135,7 @@ TEST_F(TestSnapshotServiceManager,
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
             SetArgPointee<3>(info),
-            Return(kErrCodeSnapshotInternalError)));
+            Return(kErrCodeInternalError)));
 
 
     int ret = manager_->CreateSnapshot(
@@ -139,7 +143,7 @@ TEST_F(TestSnapshotServiceManager,
         user,
         desc,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotInternalError, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager,
@@ -153,7 +157,7 @@ TEST_F(TestSnapshotServiceManager,
     EXPECT_CALL(*core_, CreateSnapshotPre(file1, user1, desc1, _))
         .WillRepeatedly(DoAll(
             SetArgPointee<3>(info),
-            Return(kErrCodeSnapshotServerSuccess)));
+            Return(kErrCodeSuccess)));
 
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
             .WillOnce(Invoke([] (std::shared_ptr<SnapshotTaskInfo> task) {
@@ -164,7 +168,7 @@ TEST_F(TestSnapshotServiceManager,
         user1,
         desc1,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     UUID uuid2;
     ret = manager_->CreateSnapshot(
@@ -173,7 +177,7 @@ TEST_F(TestSnapshotServiceManager,
         desc1,
         &uuid2);
 
-    ASSERT_EQ(kErrCodeSnapshotInternalError, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager,
@@ -199,13 +203,13 @@ TEST_F(TestSnapshotServiceManager,
         .Times(3)
         .WillOnce(DoAll(
             SetArgPointee<3>(info1),
-            Return(kErrCodeSnapshotServerSuccess)))
+            Return(kErrCodeSuccess)))
         .WillOnce(DoAll(
             SetArgPointee<3>(info2),
-            Return(kErrCodeSnapshotServerSuccess)))
+            Return(kErrCodeSuccess)))
         .WillOnce(DoAll(
             SetArgPointee<3>(info3),
-            Return(kErrCodeSnapshotServerSuccess)));
+            Return(kErrCodeSuccess)));
 
     std::condition_variable cv;
     std::mutex m;
@@ -228,21 +232,21 @@ TEST_F(TestSnapshotServiceManager,
         user,
         desc1,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     ret = manager_->CreateSnapshot(
         file2,
         user,
         desc2,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     ret = manager_->CreateSnapshot(
         file3,
         user,
         desc3,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     cv.wait(lk, [&count](){return count == 3;});
 }
@@ -268,13 +272,13 @@ TEST_F(TestSnapshotServiceManager,
         .Times(3)
         .WillOnce(DoAll(
             SetArgPointee<3>(info1),
-            Return(kErrCodeSnapshotServerSuccess)))
+            Return(kErrCodeSuccess)))
         .WillOnce(DoAll(
             SetArgPointee<3>(info2),
-            Return(kErrCodeSnapshotServerSuccess)))
+            Return(kErrCodeSuccess)))
         .WillOnce(DoAll(
             SetArgPointee<3>(info3),
-            Return(kErrCodeSnapshotServerSuccess)));
+            Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(3);
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
@@ -291,21 +295,21 @@ TEST_F(TestSnapshotServiceManager,
         user,
         desc1,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     ret = manager_->CreateSnapshot(
         file1,
         user,
         desc2,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     ret = manager_->CreateSnapshot(
         file1,
         user,
         desc3,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
     cond1.Wait();
 }
 
@@ -318,7 +322,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
     CountDownEvent cond1(1);
 
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
@@ -327,7 +331,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
                 }));
 
     int ret = manager_->DeleteSnapshot(uuid, user, file);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
 }
@@ -339,10 +343,10 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPreFail) {
     UUID uuid = "uuid1";
 
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
-        .WillOnce(Return(kErrCodeSnapshotInternalError));
+        .WillOnce(Return(kErrCodeInternalError));
 
     int ret = manager_->DeleteSnapshot(uuid, user, file);
-    ASSERT_EQ(kErrCodeSnapshotInternalError, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPushTaskFail) {
@@ -354,7 +358,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPushTaskFail) {
     CountDownEvent cond1(1);
 
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
-        .WillRepeatedly(Return(kErrCodeSnapshotServerSuccess));
+        .WillRepeatedly(Return(kErrCodeSuccess));
 
     EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
@@ -362,12 +366,12 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPushTaskFail) {
                 }));
 
     int ret = manager_->DeleteSnapshot(uuid, user, file);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
 
     ret = manager_->DeleteSnapshot(uuid, user, file);
-    ASSERT_EQ(kErrCodeSnapshotInternalError, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager, TestCreateAndDeleteSnapshotSuccess) {
@@ -381,7 +385,7 @@ TEST_F(TestSnapshotServiceManager, TestCreateAndDeleteSnapshotSuccess) {
     CountDownEvent cond1(1);
 
     EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
-        .WillOnce(Return(kErrCodeSnapshotServerSuccess));
+        .WillOnce(Return(kErrCodeSuccess));
 
     EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
@@ -390,7 +394,7 @@ TEST_F(TestSnapshotServiceManager, TestCreateAndDeleteSnapshotSuccess) {
                 }));
 
     int ret = manager_->DeleteSnapshot(uuid, user, file);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
 }
@@ -408,7 +412,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
             SetArgPointee<3>(info),
-            Return(kErrCodeSnapshotServerSuccess)));
+            Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
 
@@ -424,7 +428,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
         user,
         desc,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
 
@@ -456,11 +460,11 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
 
     EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _))
         .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
-                Return(kErrCodeSnapshotServerSuccess)));
+                Return(kErrCodeSuccess)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
     ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(3, fileSnapInfo.size());
 
     for (auto v : fileSnapInfo) {
@@ -499,11 +503,11 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail) {
     std::vector<SnapshotInfo> snapInfo;
     EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _))
         .WillOnce(DoAll(SetArgPointee<1>(snapInfo),
-                Return(kErrCodeSnapshotInternalError)));
+                Return(kErrCodeInternalError)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
     int ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
-    ASSERT_EQ(kErrCodeSnapshotInternalError, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail2) {
@@ -519,11 +523,11 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail2) {
 
     EXPECT_CALL(*core_, GetFileSnapshotInfo(file, _))
         .WillRepeatedly(DoAll(SetArgPointee<1>(snapInfo),
-                Return(kErrCodeSnapshotServerSuccess)));
+                Return(kErrCodeSuccess)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
     int ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 }
 
 TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
@@ -547,7 +551,7 @@ TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
     list.push_back(snap3);
     EXPECT_CALL(*core_, GetSnapshotList(_))
         .WillOnce(DoAll(SetArgPointee<0>(list),
-                    Return(kErrCodeSnapshotServerSuccess)));
+                    Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(2);
 
@@ -564,7 +568,7 @@ TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
                 }));
 
     int ret = manager_->RecoverSnapshotTask();
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
     cond1.Wait();
 }
 
@@ -584,10 +588,10 @@ TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskFail) {
     list.push_back(snap2);
     EXPECT_CALL(*core_, GetSnapshotList(_))
         .WillOnce(DoAll(SetArgPointee<0>(list),
-                    Return(kErrCodeSnapshotInternalError)));
+                    Return(kErrCodeInternalError)));
 
     int ret = manager_->RecoverSnapshotTask();
-    ASSERT_EQ(kErrCodeSnapshotInternalError, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager,
@@ -602,7 +606,7 @@ TEST_F(TestSnapshotServiceManager,
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
             SetArgPointee<3>(info),
-            Return(kErrCodeSnapshotServerSuccess)));
+            Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
     CountDownEvent cond2(1);
@@ -625,14 +629,14 @@ TEST_F(TestSnapshotServiceManager,
         user,
         desc,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(uuid, uuidOut);
 
     ret = manager_->CancelSnapshot(uuidOut,
         user,
         file);
 
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
     cond2.Wait();
@@ -650,7 +654,7 @@ TEST_F(TestSnapshotServiceManager,
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
             SetArgPointee<3>(info),
-            Return(kErrCodeSnapshotServerSuccess)));
+            Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
     CountDownEvent cond2(1);
@@ -668,7 +672,7 @@ TEST_F(TestSnapshotServiceManager,
         user,
         desc,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(uuid, uuidOut);
 
     std::string user2 = "user2";
@@ -677,7 +681,7 @@ TEST_F(TestSnapshotServiceManager,
         file);
     cond2.Signal();
 
-    ASSERT_EQ(kErrCodeSnapshotUserNotMatch, ret);
+    ASSERT_EQ(kErrCodeInvalidUser, ret);
     cond1.Wait();
 }
 
@@ -693,7 +697,7 @@ TEST_F(TestSnapshotServiceManager,
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
         .WillOnce(DoAll(
             SetArgPointee<3>(info),
-            Return(kErrCodeSnapshotServerSuccess)));
+            Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
     CountDownEvent cond2(1);
@@ -711,7 +715,7 @@ TEST_F(TestSnapshotServiceManager,
         user,
         desc,
         &uuid);
-    ASSERT_EQ(kErrCodeSnapshotServerSuccess, ret);
+    ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(uuid, uuidOut);
 
     std::string file2 = "file2";
@@ -720,7 +724,7 @@ TEST_F(TestSnapshotServiceManager,
         file2);
     cond2.Signal();
 
-    ASSERT_EQ(kErrCodeSnapshotFileNameNotMatch, ret);
+    ASSERT_EQ(kErrCodeFileNameNotMatch, ret);
     cond1.Wait();
 }
 
