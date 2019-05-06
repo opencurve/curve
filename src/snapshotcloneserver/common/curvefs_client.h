@@ -290,6 +290,21 @@ class CurveFsClient {
             uint64_t destinationId,
             const std::string &origin,
             const std::string &destination) = 0;
+
+
+    /**
+     * @brief 删除文件
+     *
+     * @param fileName 文件名
+     * @param user 用户名
+     * @param fileId 删除文件的inodeId
+     *
+     * @return 错误码
+     */
+    virtual int DeleteFile(
+            const std::string &fileName,
+            const std::string &user,
+            uint64_t fileId) = 0;
 };
 
 class CurveFsClientImpl : public CurveFsClient {
@@ -383,6 +398,14 @@ class CurveFsClientImpl : public CurveFsClient {
         uint64_t destinationId,
         const std::string &origin,
         const std::string &destination) override;
+
+    int DeleteFile(
+        const std::string &fileName,
+        const std::string &user,
+        uint64_t fileId) override {
+        // TODO(xuchaojie): fix it
+        return -1;
+    }
 
  private:
     ::curve::client::SnapshotClient client_;

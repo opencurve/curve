@@ -208,6 +208,11 @@ class MockCurveFsClient : public CurveFsClient {
             uint64_t destinationId,
             const std::string &origin,
             const std::string &destination));
+
+    MOCK_METHOD3(DeleteFile,
+        int(const std::string &fileName,
+        const std::string &user,
+        uint64_t fileId));
 };
 
 class MockSnapshotServiceManager : public SnapshotServiceManager {
@@ -255,6 +260,10 @@ class MockCloneServiceManager : public CloneServiceManager {
     MOCK_METHOD2(GetCloneTaskInfo,
         int(const std::string &user,
         std::vector<TaskCloneInfo> *info));
+
+    MOCK_METHOD2(CleanCloneTask,
+        int(const std::string &user,
+        const TaskIdType &taskId));
 };
 
 class MockCloneCore : public CloneCore {
@@ -270,11 +279,22 @@ class MockCloneCore : public CloneCore {
     MOCK_METHOD1(HandleCloneOrRecoverTask,
         void(std::shared_ptr<CloneTaskInfo> task));
 
+    MOCK_METHOD3(CleanCloneOrRecoverTaskPre,
+        int(const std::string &user,
+        const TaskIdType &taskId,
+        CloneInfo *cloneInfo));
+
+    MOCK_METHOD1(HandleCleanCloneOrRecoverTask,
+        void(std::shared_ptr<CloneTaskInfo> task));
+
     MOCK_METHOD1(GetCloneInfoList,
         int(std::vector<CloneInfo> *cloneInfos));
 
     MOCK_METHOD2(GetCloneInfo,
         int(TaskIdType taskId, CloneInfo *cloneInfo));
+
+    MOCK_METHOD0(GetSnapshotRef,
+        std::shared_ptr<SnapshotReference>());
 };
 }  // namespace snapshotcloneserver
 }  // namespace curve

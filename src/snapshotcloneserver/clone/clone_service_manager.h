@@ -14,6 +14,7 @@
 #include "src/snapshotcloneserver/clone/clone_task.h"
 #include "src/snapshotcloneserver/clone/clone_task_manager.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/snapshotcloneserver/common/config.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -60,7 +61,7 @@ class CloneServiceManager {
      *
      * @return 错误码
      */
-    virtual int Init();
+    virtual int Init(const SnapshotCloneServerOptions &option);
 
     /**
      * @brief 启动服务
@@ -115,6 +116,19 @@ class CloneServiceManager {
      */
     virtual int GetCloneTaskInfo(const std::string &user,
         std::vector<TaskCloneInfo> *info);
+
+
+
+    /**
+     * @brief 清除失败的clone/Recover任务、状态、文件
+     *
+     * @param user 用户名
+     * @param taskId 任务Id
+     *
+     * @return 错误码
+     */
+    virtual int CleanCloneTask(const std::string &user,
+        const TaskIdType &taskId);
 
     /**
      * @brief 重启后恢复未完成clone和recover任务
