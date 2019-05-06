@@ -27,6 +27,7 @@ cc_test(
         "conf_epoch_file_test.cpp",
         "concurrent_apply_unittest.cpp",
         "mock_local_file_system.h",
+        "mock_node.h",
         "fake_datastore.h",
     ]),
     copts = ["-std=c++14"],
@@ -191,9 +192,9 @@ cc_test(
 cc_test(
     name = "heartbeat_test",
     srcs = [
-        "heartbeat_test_main.cpp",
-        "heartbeat_test.h",
         "heartbeat_test.cpp",
+        "heartbeat_test.h",
+        "heartbeat_test_main.cpp",
     ],
     deps = [
         "//external:braft",
@@ -214,10 +215,10 @@ cc_test(
 cc_library(
     name = "chunkserver_mock",
     srcs = [
-            "mock_copyset_node.h",
-            ],
-    deps = [
-            "//src/chunkserver:chunkserver-test-lib",
-            ],
+        "mock_copyset_node.h",
+    ],
     visibility = ["//visibility:public"],
+    deps = [
+        "//src/chunkserver:chunkserver-test-lib",
+    ],
 )
