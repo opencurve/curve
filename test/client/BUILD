@@ -151,7 +151,7 @@ cc_test(
 )
 
 cc_test(
-    name = "client_timerworker_unittest",
+    name = "client_session_unittest",
     srcs = glob([
         "client_session_unittest.cpp",
         "client_unittest_main.cpp"
