@@ -92,8 +92,7 @@ TEST(TimerTaskWorkerTest, TimerTaskWorkerRunTaskTest) {
 }
 
 TEST(ClientSession, LeaseTaskTest) {
-    std::string filename = "_filename_";
-    std::string fullpathfilename = "/1_userinfo_";
+    std::string filename = "/1";
 
     ClientConfig cc;
     cc.Init(configpath.c_str());
@@ -116,7 +115,6 @@ TEST(ClientSession, LeaseTaskTest) {
     se->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
 
     finfo->set_filename(filename);
-    finfo->set_fullpathname(fullpathfilename);
     openresponse.set_statuscode(::curve::mds::StatusCode::kOK);
     openresponse.set_allocated_protosession(se);
     openresponse.set_allocated_fileinfo(finfo);
@@ -151,7 +149,6 @@ TEST(ClientSession, LeaseTaskTest) {
     info->set_chunksize(4 * 1024 * 1024);
     info->set_length(4 * 1024 * 1024 * 1024ul);
     info->set_ctime(12345678);
-    info->set_fullpathname(fullpathfilename);
 
     ::curve::mds::ReFreshSessionResponse refreshresp;
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);

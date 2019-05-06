@@ -111,7 +111,6 @@ bool FakeMDS::StartService() {
     info->set_length(FLAGS_test_disk_size);
     info->set_ctime(12345678);
     info->set_segmentsize(segment_size);
-    info->set_fullpathname(filename_);
     getfileinforesponse->set_allocated_fileinfo(info);
 
     getfileinforesponse->set_statuscode(::curve::mds::StatusCode::kOK);
@@ -189,7 +188,6 @@ bool FakeMDS::StartService() {
     fin->set_ctime(12345678);
     fin->set_seqnum(FLAGS_seq_num);
     fin->set_segmentsize(segment_size);
-    fin->set_fullpathname(filename_);
 
     openresponse->set_statuscode(::curve::mds::StatusCode::kOK);
     openresponse->set_allocated_protosession(se);

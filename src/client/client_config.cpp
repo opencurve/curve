@@ -53,7 +53,7 @@ int ClientConfig::Init(const char* configpath) {
     fileServiceOption_.metaServerOpt.rpcTimeoutMs
     = conf_.GetIntValue("rpcTimeoutMs", 500);
     fileServiceOption_.metaServerOpt.rpcRetryTimes
-    = conf_.GetIntValue("rpcTimeoutMs", 500);
+    = conf_.GetIntValue("rpcRetryTimes", 3);
 
     return 0;
 }
