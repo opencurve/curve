@@ -15,7 +15,7 @@
 
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/dao/mdsRepo.h"
-
+#include "src/mds/topology/topology_config.h"
 
 namespace curve {
 namespace mds {
@@ -25,11 +25,6 @@ class TopologyStorage {
  public:
     TopologyStorage() {}
     virtual ~TopologyStorage() {}
-
-    virtual bool init(const std::string &dbName,
-            const std::string &user,
-            const std::string &url,
-            const std::string &password) = 0;
 
     virtual bool LoadLogicalPool(
         std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
@@ -77,52 +72,48 @@ class DefaultTopologyStorage : public TopologyStorage {
     explicit DefaultTopologyStorage(
         std::shared_ptr<MdsRepo> repo)
         : repo_(repo) {}
-    virtual ~DefaultTopologyStorage() {}
 
-    virtual bool init(const std::string &dbName,
-            const std::string &user,
-            const std::string &url,
-            const std::string &password);
+    bool init(const TopologyOption &option);
 
-    virtual bool LoadLogicalPool(
+    bool LoadLogicalPool(
         std::unordered_map<PoolIdType, LogicalPool> *logicalPoolMap,
-        PoolIdType *maxLogicalPoolId);
-    virtual bool LoadPhysicalPool(
+        PoolIdType *maxLogicalPoolId) override;
+    bool LoadPhysicalPool(
         std::unordered_map<PoolIdType, PhysicalPool> *physicalPoolMap,
-        PoolIdType *maxPhysicalPoolId);
-    virtual bool LoadZone(
+        PoolIdType *maxPhysicalPoolId) override;
+    bool LoadZone(
         std::unordered_map<ZoneIdType, Zone> *zoneMap,
-        ZoneIdType *maxZoneId);
-    virtual bool LoadServer(
+        ZoneIdType *maxZoneId) override;
+    bool LoadServer(
         std::unordered_map<ServerIdType, Server> *serverMap,
-        ServerIdType *maxServerId);
-    virtual bool LoadChunkServer(
+        ServerIdType *maxServerId) override;
+    bool LoadChunkServer(
         std::unordered_map<ChunkServerIdType, ChunkServer> *chunkServerMap,
-        ChunkServerIdType *maxChunkServerId);
-    virtual bool LoadCopySet(
+        ChunkServerIdType *maxChunkServerId) override;
+    bool LoadCopySet(
         std::map<CopySetKey, CopySetInfo> *copySetMap,
-        std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap);
+        std::map<PoolIdType, CopySetIdType> *copySetIdMaxMap) override;
 
-    virtual bool StorageLogicalPool(const LogicalPool &data);
-    virtual bool StoragePhysicalPool(const PhysicalPool &data);
-    virtual bool StorageZone(const Zone &data);
-    virtual bool StorageServer(const Server &data);
-    virtual bool StorageChunkServer(const ChunkServer &data);
-    virtual bool StorageCopySet(const CopySetInfo &data);
+    bool StorageLogicalPool(const LogicalPool &data) override;
+    bool StoragePhysicalPool(const PhysicalPool &data) override;
+    bool StorageZone(const Zone &data) override;
+    bool StorageServer(const Server &data) override;
+    bool StorageChunkServer(const ChunkServer &data) override;
+    bool StorageCopySet(const CopySetInfo &data) override;
 
-    virtual bool DeleteLogicalPool(PoolIdType id);
-    virtual bool DeletePhysicalPool(PoolIdType id);
-    virtual bool DeleteZone(ZoneIdType id);
-    virtual bool DeleteServer(ServerIdType id);
-    virtual bool DeleteChunkServer(ChunkServerIdType id);
-    virtual bool DeleteCopySet(CopySetKey key);
+    bool DeleteLogicalPool(PoolIdType id) override;
+    bool DeletePhysicalPool(PoolIdType id) override;
+    bool DeleteZone(ZoneIdType id) override;
+    bool DeleteServer(ServerIdType id) override;
+    bool DeleteChunkServer(ChunkServerIdType id) override;
+    bool DeleteCopySet(CopySetKey key) override;
 
-    virtual bool UpdateLogicalPool(const LogicalPool &data);
-    virtual bool UpdatePhysicalPool(const PhysicalPool &data);
-    virtual bool UpdateZone(const Zone &data);
-    virtual bool UpdateServer(const Server &data);
-    virtual bool UpdateChunkServer(const ChunkServer &data);
-    virtual bool UpdateCopySet(const CopySetInfo &data);
+    bool UpdateLogicalPool(const LogicalPool &data) override;
+    bool UpdatePhysicalPool(const PhysicalPool &data) override;
+    bool UpdateZone(const Zone &data) override;
+    bool UpdateServer(const Server &data) override;
+    bool UpdateChunkServer(const ChunkServer &data) override;
+    bool UpdateCopySet(const CopySetInfo &data) override;
 
  private:
     std::shared_ptr<MdsRepo> repo_;

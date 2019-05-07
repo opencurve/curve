@@ -20,9 +20,11 @@
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/common/authenticator.h"
+#include "test/mds/nameserver2/mock_topology.h"
 
 using curve::common::TimeUtility;
 using curve::common::Authenticator;
+using curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
@@ -34,7 +36,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         storage_ =  new FakeNameServerStorage();
         inodeGenerator_ = new FakeInodeIDGenerator(0);
 
-        cleanCore_ = std::make_shared<CleanCore>(storage_);
+        auto topology = std::make_shared<MockTopology>();
+        cleanCore_ = std::make_shared<CleanCore>(storage_, topology);
+
         // new taskmanger for 2 worker thread, and check thread period 2 second
         cleanTaskManager_ = std::make_shared<CleanTaskManager>(2, 2000);
 

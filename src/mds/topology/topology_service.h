@@ -14,7 +14,7 @@
 #include <brpc/server.h>
 
 #include "proto/topology.pb.h"
-#include "src/mds/topology/topology_manager.h"
+#include "src/mds/topology/topology_service_manager.h"
 
 namespace curve {
 namespace mds {
@@ -22,10 +22,6 @@ namespace topology {
 
 class TopologyServiceImpl : public TopologyService {
  public:
-    TopologyServiceImpl() {
-        topology_ = TopologyManager::GetInstance()->GetServiceManager();
-    }
-
     explicit TopologyServiceImpl(
         std::shared_ptr<TopologyServiceManager> topology)
         : topology_(topology) {

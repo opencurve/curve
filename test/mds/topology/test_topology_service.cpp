@@ -39,7 +39,7 @@ class TestTopologyService : public ::testing::Test {
   TestTopologyService() {}
   ~TestTopologyService() {}
   virtual void SetUp() {
-      listenAddr_ = "127.0.0.1:8200";
+      listenAddr_ = "127.0.0.1:8888";
       server_ = new brpc::Server();
 
       std::shared_ptr<TopologyIdGenerator> idGenerator_ =
@@ -83,7 +83,7 @@ class TestTopologyService : public ::testing::Test {
 
 TEST_F(TestTopologyService, test_RegistChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -95,7 +95,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_success) {
     request.set_disktype("1");
     request.set_diskpath("2");
     request.set_hostip("3");
-    request.set_port(8200);
+    request.set_port(8888);
 
     ChunkServerRegistResponse response;
 
@@ -115,7 +115,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_success) {
 
 TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -127,7 +127,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
     request.set_disktype("1");
     request.set_diskpath("2");
     request.set_hostip("3");
-    request.set_port(8200);
+    request.set_port(8888);
 
     ChunkServerRegistResponse response;
 
@@ -147,7 +147,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_ListChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -176,7 +176,7 @@ TEST_F(TestTopologyService, test_ListChunkServer_success) {
 
 TEST_F(TestTopologyService, test_ListChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -205,7 +205,7 @@ TEST_F(TestTopologyService, test_ListChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_GetChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -234,7 +234,7 @@ TEST_F(TestTopologyService, test_GetChunkServer_success) {
 
 TEST_F(TestTopologyService, test_GetChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -263,7 +263,7 @@ TEST_F(TestTopologyService, test_GetChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_DeleteChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -292,7 +292,7 @@ TEST_F(TestTopologyService, test_DeleteChunkServer_success) {
 
 TEST_F(TestTopologyService, test_DeleteChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -321,7 +321,7 @@ TEST_F(TestTopologyService, test_DeleteChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_setChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -351,7 +351,7 @@ TEST_F(TestTopologyService, test_setChunkServer_success) {
 
 TEST_F(TestTopologyService, test_setChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -381,7 +381,7 @@ TEST_F(TestTopologyService, test_setChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_RegistServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -413,7 +413,7 @@ TEST_F(TestTopologyService, test_RegistServer_success) {
 
 TEST_F(TestTopologyService, test_RegistServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -445,7 +445,7 @@ TEST_F(TestTopologyService, test_RegistServer_fail) {
 
 TEST_F(TestTopologyService, test_GetServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -474,7 +474,7 @@ TEST_F(TestTopologyService, test_GetServer_success) {
 
 TEST_F(TestTopologyService, test_GetServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -503,7 +503,7 @@ TEST_F(TestTopologyService, test_GetServer_fail) {
 
 TEST_F(TestTopologyService, test_DeleteServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -532,7 +532,7 @@ TEST_F(TestTopologyService, test_DeleteServer_success) {
 
 TEST_F(TestTopologyService, test_DeleteServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -561,7 +561,7 @@ TEST_F(TestTopologyService, test_DeleteServer_fail) {
 
 TEST_F(TestTopologyService, test_ListZoneServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -590,7 +590,7 @@ TEST_F(TestTopologyService, test_ListZoneServer_success) {
 
 TEST_F(TestTopologyService, test_ListZoneServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -619,7 +619,7 @@ TEST_F(TestTopologyService, test_ListZoneServer_fail) {
 
 TEST_F(TestTopologyService, test_CreateZone_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -648,7 +648,7 @@ TEST_F(TestTopologyService, test_CreateZone_success) {
 
 TEST_F(TestTopologyService, test_CreateZone_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -677,7 +677,7 @@ TEST_F(TestTopologyService, test_CreateZone_fail) {
 
 TEST_F(TestTopologyService, test_DeleteZone_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -706,7 +706,7 @@ TEST_F(TestTopologyService, test_DeleteZone_success) {
 
 TEST_F(TestTopologyService, test_DeleteZone_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -735,7 +735,7 @@ TEST_F(TestTopologyService, test_DeleteZone_fail) {
 
 TEST_F(TestTopologyService, test_GetZone_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -764,7 +764,7 @@ TEST_F(TestTopologyService, test_GetZone_success) {
 
 TEST_F(TestTopologyService, test_GetZone_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -793,7 +793,7 @@ TEST_F(TestTopologyService, test_GetZone_fail) {
 
 TEST_F(TestTopologyService, test_ListPoolZone_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -822,7 +822,7 @@ TEST_F(TestTopologyService, test_ListPoolZone_success) {
 
 TEST_F(TestTopologyService, test_ListPoolZone_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -851,7 +851,7 @@ TEST_F(TestTopologyService, test_ListPoolZone_fail) {
 
 TEST_F(TestTopologyService, test_CreatePhysicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -880,7 +880,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_success) {
 
 TEST_F(TestTopologyService, test_CreatePhysicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -909,7 +909,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_fail) {
 
 TEST_F(TestTopologyService, test_DeletePhysicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -938,7 +938,7 @@ TEST_F(TestTopologyService, test_DeletePhysicalPool_success) {
 
 TEST_F(TestTopologyService, test_DeletePhysicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -967,7 +967,7 @@ TEST_F(TestTopologyService, test_DeletePhysicalPool_fail) {
 
 TEST_F(TestTopologyService, test_GetPhysicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -996,7 +996,7 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_success) {
 
 TEST_F(TestTopologyService, test_GetPhysicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1025,7 +1025,7 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_fail) {
 
 TEST_F(TestTopologyService, test_ListPhysicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1053,7 +1053,7 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_success) {
 
 TEST_F(TestTopologyService, test_ListPhysicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1081,7 +1081,7 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_fail) {
 
 TEST_F(TestTopologyService, test_CreateLogicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1114,7 +1114,7 @@ TEST_F(TestTopologyService, test_CreateLogicalPool_success) {
 
 TEST_F(TestTopologyService, test_CreateLogicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1147,7 +1147,7 @@ TEST_F(TestTopologyService, test_CreateLogicalPool_fail) {
 
 TEST_F(TestTopologyService, test_DeleteLogicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1176,7 +1176,7 @@ TEST_F(TestTopologyService, test_DeleteLogicalPool_success) {
 
 TEST_F(TestTopologyService, test_DeleteLogicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1205,7 +1205,7 @@ TEST_F(TestTopologyService, test_DeleteLogicalPool_fail) {
 
 TEST_F(TestTopologyService, test_GetLogicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1234,7 +1234,7 @@ TEST_F(TestTopologyService, test_GetLogicalPool_success) {
 
 TEST_F(TestTopologyService, test_GetLogicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1263,7 +1263,7 @@ TEST_F(TestTopologyService, test_GetLogicalPool_fail) {
 
 TEST_F(TestTopologyService, test_ListLogicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1292,7 +1292,7 @@ TEST_F(TestTopologyService, test_ListLogicalPool_success) {
 
 TEST_F(TestTopologyService, test_ListLogicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1321,7 +1321,7 @@ TEST_F(TestTopologyService, test_ListLogicalPool_fail) {
 
 TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1350,7 +1350,7 @@ TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
 
 TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8200, NULL) != 0) {
+    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }

@@ -609,7 +609,8 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInLogicalPool(PoolIdType id) const {
     return std::list<ZoneIdType>();
 }
 
-int TopologyImpl::init() {
+int TopologyImpl::init(const TopologyOption &option) {
+    option_ = option;
     WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     WriteLockGuard wlockZone(zoneMutex_);
