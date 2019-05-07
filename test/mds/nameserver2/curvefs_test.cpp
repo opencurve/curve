@@ -340,11 +340,7 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
             Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        EXPECT_CALL(*storage_, DeleteFile(_, _))
+        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -371,11 +367,7 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
             Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        EXPECT_CALL(*storage_, DeleteFile(_, _))
+        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -422,41 +414,11 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
             Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, PutFile(_))
+        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::KInternalError);
-    }
-
-    // test delete pagefile, storage error
-    {
-        FileInfo  fileInfo;
-        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
-        EXPECT_CALL(*storage_, GetFile(_, _, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
-            Return(StoreStatus::OK)));
-
-        std::vector<FileInfo> fileInfoList;
-        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
-            Return(StoreStatus::OK)));
-
-        EXPECT_CALL(*storage_, PutFile(_))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        EXPECT_CALL(*storage_, DeleteFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::InternalError));
-
-        EXPECT_CALL(*storage_, DeleteRecycleFile(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::KInternalError);
+        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kStorageError);
     }
 
     //  test file not exist

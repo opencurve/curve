@@ -73,7 +73,7 @@ class TestNameServerStorageImp : public ::testing::Test {
     std::shared_ptr<NameServerStorageImp> storage_;
 };
 
-TEST_F(TestNameServerStorageImp, test_putFile) {
+TEST_F(TestNameServerStorageImp, test_PutFile) {
     std::string storeKey;
     FileInfo fileinfo;
     GetFileInfoForTest(&fileinfo);
@@ -139,7 +139,7 @@ TEST_F(TestNameServerStorageImp, test_putFile) {
         storage_->PutFile(fileinfo));
 }
 
-TEST_F(TestNameServerStorageImp, test_getfile) {
+TEST_F(TestNameServerStorageImp, test_GetFile) {
     // 1. get file err
     FileInfo fileinfo;
     EXPECT_CALL(*cache_, Get(_, _)).Times(2).WillRepeatedly(Return(false));
@@ -179,7 +179,7 @@ TEST_F(TestNameServerStorageImp, test_getfile) {
     ASSERT_EQ(fileinfo.parentid(), getInfo.parentid());
 }
 
-TEST_F(TestNameServerStorageImp, test_deletefile) {
+TEST_F(TestNameServerStorageImp, test_DeleteFile) {
     EXPECT_CALL(*client_, Delete(_))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
@@ -188,7 +188,7 @@ TEST_F(TestNameServerStorageImp, test_deletefile) {
 }
 
 
-TEST_F(TestNameServerStorageImp, test_deletesnapshotfile) {
+TEST_F(TestNameServerStorageImp, test_DeleteSnapshotFile) {
     EXPECT_CALL(*client_, Delete(_))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
@@ -198,14 +198,82 @@ TEST_F(TestNameServerStorageImp, test_deletesnapshotfile) {
         storage_->DeleteSnapshotFile(1234, ""));
 }
 
-TEST_F(TestNameServerStorageImp, test_renamefile) {
-    EXPECT_CALL(*client_, Txn2(_, _))
+TEST_F(TestNameServerStorageImp, test_RenameFile) {
+    EXPECT_CALL(*client_, TxnN(_))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     ASSERT_EQ(StoreStatus::OK,
         storage_->RenameFile(FileInfo{}, FileInfo{}));
     ASSERT_EQ(StoreStatus::InternalError,
         storage_->RenameFile(FileInfo{}, FileInfo{}));
+}
+
+TEST_F(TestNameServerStorageImp, test_ReplaceFileAndRecycleOldFile) {
+    FileInfo oldFileInfo;
+    GetFileInfoForTest(&oldFileInfo);
+    std::string oldFileInfoKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+        oldFileInfo.parentid(), oldFileInfo.filename());
+
+    FileInfo existFileInfo;
+    GetFileInfoForTest(&existFileInfo);
+    existFileInfo.set_parentid(2<<8);
+    existFileInfo.set_filename("exist.log");
+    std::string existFileInfoKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+        existFileInfo.parentid(), existFileInfo.filename());
+
+    FileInfo newFileInfo;
+    newFileInfo.CopyFrom(oldFileInfo);
+    newFileInfo.set_parentid(existFileInfo.parentid());
+    newFileInfo.set_filename(existFileInfo.filename());
+    std::string newFileInfoKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+        newFileInfo.parentid(), newFileInfo.filename());
+    std::string encodeNewFileInfo;
+    ASSERT_TRUE(newFileInfo.SerializeToString(&encodeNewFileInfo));
+
+    FileInfo recycleFileInfo;
+    recycleFileInfo.CopyFrom(existFileInfo);
+    recycleFileInfo.set_filestatus(FileStatus::kFileDeleting);
+    recycleFileInfo.set_filetype(INODE_RECYCLE_PAGEFILE);
+    std::string recycleFileInfoKey =
+        NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
+        recycleFileInfo.parentid(), recycleFileInfo.filename());
+    std::string encoderecycleFileInfo;
+    ASSERT_TRUE(recycleFileInfo.SerializeToString(&encoderecycleFileInfo));
+
+    EXPECT_CALL(*client_, TxnN(_))
+        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::Aborted));
+    ASSERT_EQ(StoreStatus::OK,
+        storage_->ReplaceFileAndRecycleOldFile(
+            oldFileInfo, newFileInfo, existFileInfo, recycleFileInfo));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->ReplaceFileAndRecycleOldFile(
+            oldFileInfo, newFileInfo, existFileInfo, recycleFileInfo));
+}
+
+TEST_F(TestNameServerStorageImp, test_MoveFileToRecycle) {
+    FileInfo originFileInfo;
+    GetFileInfoForTest(&originFileInfo);
+    std::string originFileInfoKey = NameSpaceStorageCodec::EncodeFileStoreKey(
+        originFileInfo.parentid(), originFileInfo.filename());
+
+    FileInfo recycleFileInfo;
+    recycleFileInfo.CopyFrom(originFileInfo);
+    recycleFileInfo.set_filestatus(FileStatus::kFileDeleting);
+    recycleFileInfo.set_filetype(INODE_RECYCLE_PAGEFILE);
+    std::string recycleFileInfoKey =
+        NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
+        recycleFileInfo.parentid(), recycleFileInfo.filename());
+    std::string encoderecycleFileInfo;
+    ASSERT_TRUE(recycleFileInfo.SerializeToString(&encoderecycleFileInfo));
+
+    EXPECT_CALL(*client_, TxnN(_))
+        .WillOnce(Return(EtcdErrCode::OK))
+        .WillOnce(Return(EtcdErrCode::Aborted));
+    ASSERT_EQ(StoreStatus::OK,
+        storage_->MoveFileToRecycle(originFileInfo, recycleFileInfo));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->MoveFileToRecycle(originFileInfo, recycleFileInfo));
 }
 
 TEST_F(TestNameServerStorageImp, test_ListFile) {
@@ -348,7 +416,7 @@ TEST_F(TestNameServerStorageImp, test_deleteSegment) {
 }
 
 TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
-    EXPECT_CALL(*client_, Txn2(_, _))
+    EXPECT_CALL(*client_, TxnN(_))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Aborted));
     FileInfo fileinfo;

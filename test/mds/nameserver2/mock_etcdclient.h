@@ -25,7 +25,7 @@ class MockEtcdClient : public EtcdClientImp {
     MOCK_METHOD3(List,
         int(std::string, std::string, std::vector<std::string>*));
     MOCK_METHOD1(Delete, int(std::string));
-    MOCK_METHOD2(Txn2, int(Operation, Operation));
+    MOCK_METHOD1(TxnN, int(std::vector<Operation>));
     MOCK_METHOD3(CompareAndSwap, int(std::string, std::string, std::string));
 };
 

@@ -390,16 +390,6 @@ class CurveFS {
                               uint64_t *parentID);
 
     /**
-     *  @brief 删除文件时，把待删除的文件放到回收站
-     *  @param: fileInfo：待删除的文件
-     *  @param[out]: waitDelteFileInfo：生成的待删除文件信息，一方面作为出参
-     *               一方面持久化到回收站
-     *  @return: 是否成功
-     */
-    StatusCode MoveFileToRecycle(const FileInfo &fileInfo,
-                                                FileInfo *waitDelteFileInfo);
-
-    /**
      *  @brief 判断一个目录下是否没有文件
      *  @param: fileInfo：目录的fileInfo
      *  @param: result: 目录下是否是空的，true表示目录为空，false表示目录非空

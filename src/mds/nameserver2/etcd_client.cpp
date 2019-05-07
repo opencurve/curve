@@ -109,12 +109,19 @@ int EtcdClientImp::Delete(std::string key) {
     return errCode;
 }
 
-int EtcdClientImp::Txn2(Operation op1, Operation op2) {
+int EtcdClientImp::TxnN(std::vector<Operation> ops) {
     bool needRetry = false;
     int retry = 0;
     int errCode;
     do {
-        errCode = EtcdClientTxn2(timeout_, op1, op2);
+        if (ops.size() == 2) {
+            errCode = EtcdClientTxn2(timeout_, ops[0], ops[1]);
+        } else if (ops.size() == 3) {
+            errCode = EtcdClientTxn3(timeout_, ops[0], ops[1], ops[2]);
+        } else {
+            LOG(ERROR) << "do not support Txn " << ops.size();
+            return EtcdErrCode::InvalidArgument;
+        }
         needRetry = NeedRetry(errCode);
     } while (needRetry && ++retry <= retryTimes_);
     return errCode;
