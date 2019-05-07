@@ -41,7 +41,6 @@ class MockTopology : public Topology {
  public:
   MockTopology() {}
   ~MockTopology() {}
-  MOCK_METHOD0(init, int());
 
   // allocate id & token
   MOCK_METHOD0(AllocateLogicalPoolId, PoolIdType());

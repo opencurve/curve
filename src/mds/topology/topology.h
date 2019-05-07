@@ -29,15 +29,10 @@ namespace curve {
 namespace mds {
 namespace topology {
 
-struct TopologyOption {
-    uint32_t ChunkServerStateUpdateSec;
-};
-
 class Topology {
  public:
     Topology() {}
     virtual ~Topology() {}
-    virtual int init() = 0;
 
     virtual PoolIdType AllocateLogicalPoolId() = 0;
     virtual PoolIdType AllocatePhysicalPoolId() = 0;
@@ -164,6 +159,7 @@ class Topology {
     virtual std::vector<CopySetKey>
     GetCopySetsInChunkServer(ChunkServerIdType id) const = 0;
 };
+
 class TopologyImpl : public Topology {
  public:
     TopologyImpl(std::shared_ptr<TopologyIdGenerator> idGenerator,
@@ -176,7 +172,7 @@ class TopologyImpl : public Topology {
 
     ~TopologyImpl() {}
 
-    int init();
+    int init(const TopologyOption &option);
 
     PoolIdType AllocateLogicalPoolId() override;
     PoolIdType AllocatePhysicalPoolId() override;

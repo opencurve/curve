@@ -62,10 +62,12 @@ TEST_F(TestTopologyStorage, test_init_success) {
     EXPECT_CALL(*repo_, createAllTables())
         .WillOnce(Return(OperationOK));
 
-    int ret = storage_->init(dbName,
-        user,
-        url,
-        password);
+    TopologyOption option;
+    option.dbName = "curve_mds";
+    option.url = "localhost";
+    option.user = "root";
+    option.password = "aaaa";
+    int ret = storage_->init(option);
 
     ASSERT_TRUE(ret);
 }
@@ -79,10 +81,12 @@ TEST_F(TestTopologyStorage, test_init_connectDbFail) {
     EXPECT_CALL(*repo_, connectDB(_, _, _, _))
         .WillOnce(Return(SqlException));
 
-    int ret = storage_->init(dbName,
-        user,
-        url,
-        password);
+    TopologyOption option;
+    option.dbName = "curve_mds";
+    option.url = "localhost";
+    option.user = "root";
+    option.password = "aaaa";
+    int ret = storage_->init(option);
 
     ASSERT_FALSE(ret);
 }
@@ -99,10 +103,12 @@ TEST_F(TestTopologyStorage, test_init_createDatabaseFail) {
     EXPECT_CALL(*repo_, createDatabase())
         .WillOnce(Return(SqlException));
 
-    int ret = storage_->init(dbName,
-        user,
-        url,
-        password);
+    TopologyOption option;
+    option.dbName = "curve_mds";
+    option.url = "localhost";
+    option.user = "root";
+    option.password = "aaaa";
+    int ret = storage_->init(option);
 
     ASSERT_FALSE(ret);
 }
@@ -122,10 +128,12 @@ TEST_F(TestTopologyStorage, test_init_useDataBaseFail) {
     EXPECT_CALL(*repo_, useDataBase())
         .WillOnce(Return(SqlException));
 
-    int ret = storage_->init(dbName,
-        user,
-        url,
-        password);
+    TopologyOption option;
+    option.dbName = "curve_mds";
+    option.url = "localhost";
+    option.user = "root";
+    option.password = "aaaa";
+    int ret = storage_->init(option);
 
     ASSERT_FALSE(ret);
 }
@@ -148,10 +156,12 @@ TEST_F(TestTopologyStorage, test_init_createAllTablesFail) {
     EXPECT_CALL(*repo_, createAllTables())
         .WillOnce(Return(SqlException));
 
-    int ret = storage_->init(dbName,
-        user,
-        url,
-        password);
+    TopologyOption option;
+    option.dbName = "curve_mds";
+    option.url = "localhost";
+    option.user = "root";
+    option.password = "aaaa";
+    int ret = storage_->init(option);
 
     ASSERT_FALSE(ret);
 }
