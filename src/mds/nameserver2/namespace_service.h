@@ -64,6 +64,11 @@ class NameSpaceService: public CurveFSService {
                        ::curve::mds::ExtendFileResponse* response,
                        ::google::protobuf::Closure* done) override;
 
+    void ChangeOwner(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::ChangeOwnerRequest* request,
+                       ::curve::mds::ChangeOwnerResponse* response,
+                       ::google::protobuf::Closure* done) override;
+
     void CreateSnapShot(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateSnapShotRequest* request,
                        ::curve::mds::CreateSnapShotResponse* response,

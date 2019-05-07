@@ -1088,6 +1088,153 @@ TEST_F(CurveFSTest, testExtendFile) {
     }
 }
 
+TEST_F(CurveFSTest, testChangeOwner) {
+    // test changeOwner ok
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_owner("owner1");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
+                  StatusCode::kOK);
+    }
+
+    // file owner same with newowner
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_owner("owner1");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner1"),
+                  StatusCode::kOK);
+    }
+
+    // file is under snapshot, can not changeOwner
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_owner("owner1");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapshotFileInfos;
+        snapshotFileInfos.push_back(fileInfo1);
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapshotFileInfos),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
+                  StatusCode::kFileUnderSnapShot);
+    }
+
+    // file not exist
+    {
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
+                  StatusCode::kFileNotExists);
+    }
+
+    // storage putfile fail
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo1.set_owner("owner1");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
+                  StatusCode::kStorageError);
+    }
+
+    // changeOwner dir ok
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+        fileInfo1.set_owner("owner1");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*storage_, PutFile(_))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
+                  StatusCode::kOK);
+    }
+
+    // changeOwner dir not empty
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+        fileInfo1.set_owner("owner1");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        fileInfoList.push_back(fileInfo1);
+        EXPECT_CALL(*storage_, ListFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
+                  StatusCode::kDirNotEmpty);
+    }
+
+    // filetype mismatch
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_APPENDECFILE);
+        fileInfo1.set_owner("owner1");
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->ChangeOwner("/file1", "owner2"),
+                  StatusCode::kNotSupported);
+    }
+}
 
 TEST_F(CurveFSTest, testGetOrAllocateSegment) {
     // test normal get exist segment
