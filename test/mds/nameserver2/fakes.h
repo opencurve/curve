@@ -229,6 +229,34 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
+    StoreStatus MoveFileToRecycle(
+    const FileInfo &originFileInfo, const FileInfo &recycleFileInfo) {
+    std::string originFileInfoKey =  NameSpaceStorageCodec::EncodeFileStoreKey(
+        originFileInfo.parentid(), originFileInfo.filename());
+
+    std::string recycleFileInfoKey =
+        NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
+        recycleFileInfo.parentid(), recycleFileInfo.filename());
+
+    std::string encodeRecycleFInfo;
+    if (!NameSpaceStorageCodec::EncodeFileInfo(
+        recycleFileInfo, &encodeRecycleFInfo)) {
+        LOG(ERROR) << "encode recycle file: " << recycleFileInfo.filename()
+                  << " err";
+        return StoreStatus::InternalError;
+    }
+
+    auto iter = memKvMap_.find(originFileInfoKey);
+    if (iter != memKvMap_.end()) {
+        memKvMap_.erase(iter);
+    }
+
+    memKvMap_.insert(
+            std::move(std::pair<std::string, std::string>
+            (recycleFileInfoKey, std::move(encodeRecycleFInfo))));
+    return StoreStatus::OK;
+}
+
     StoreStatus ListFile(InodeID startid,
                          InodeID endid,
                          std::vector<FileInfo> * files) override {

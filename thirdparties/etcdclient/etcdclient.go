@@ -74,6 +74,7 @@ const (
     EtcdList = "List"
     EtcdDelete = "Delete"
     EtcdTxn2 = "Txn2"
+    EtcdTxn3 = "Txn3"
     EtcdCmpAndSwp = "CmpAndSwp"
 )
 
@@ -273,6 +274,24 @@ func EtcdClientTxn2(
 
     _, err = globalClient.Txn(ctx).Then(etcdOps...).Commit()
     return GetErrCode(EtcdTxn2, err)
+}
+
+//export EtcdClientTxn3
+func EtcdClientTxn3(
+    timeout C.int, op1, op2, op3 C.struct_Operation) C.enum_EtcdErrCode {
+    ops := []C.struct_Operation{op1, op2, op3}
+    etcdOps, err := GenOpList(ops)
+    if (err != nil) {
+        fmt.Printf("unknown op types, err: %v", err)
+        return C.TxnUnkownOp
+    }
+
+    ctx, cancel := context.WithTimeout(context.Background(),
+        time.Duration(int(timeout))*time.Millisecond)
+    defer cancel()
+
+    _, err = globalClient.Txn(ctx).Then(etcdOps...).Commit()
+    return GetErrCode(EtcdTxn3, err)
 }
 
 //export EtcdClientCompareAndSwap
