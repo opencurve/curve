@@ -10,16 +10,19 @@
 #include <glog/logging.h>
 #include "src/mds/nameserver2/clean_core.h"
 #include "test/mds/nameserver2/mock_namespace_storage.h"
+#include "test/mds/nameserver2/mock_topology.h"
 
 using ::testing::_;
 using ::testing::Return;
+using curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
 
 TEST(CleanCore, testcleansnapshotfile) {
     auto storage = new MockNameServerStorage();
-    auto cleanCore = new CleanCore(storage);
+    auto topology = std::make_shared<MockTopology>();
+    auto cleanCore = new CleanCore(storage, topology);
 
     {
         // delete ok (no, segment)
@@ -101,7 +104,8 @@ TEST(CleanCore, testcleansnapshotfile) {
 
 TEST(CleanCore, testcleanfile) {
     auto storage = new MockNameServerStorage();
-    auto cleanCore = new CleanCore(storage);
+    auto topology = std::make_shared<MockTopology>();
+    auto cleanCore = new CleanCore(storage, topology);
 
     {
         // delete ok (no, segment)

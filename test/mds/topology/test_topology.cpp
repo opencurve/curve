@@ -209,7 +209,9 @@ TEST_F(TestTopology, test_init_success) {
     EXPECT_CALL(*storage_, DeleteCopySet(_))
         .WillOnce(Return(true));
 
-    int ret = topology_->init();
+    TopologyOption option;
+    option.ChunkServerStateUpdateSec = 600;
+    int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
 
@@ -217,11 +219,9 @@ TEST_F(TestTopology, test_init_loadLogicalPoolFail) {
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(Return(false));
 
-    std::shared_ptr<Configuration> conf_ =
-        std::make_shared<Configuration>();
-    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
-        600);
-    int ret = topology_->init();
+    TopologyOption option;
+    option.ChunkServerStateUpdateSec = 600;
+    int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -233,11 +233,9 @@ TEST_F(TestTopology, test_init_LoadPhysicalPoolFail) {
 
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
 
-    std::shared_ptr<Configuration> conf_ =
-        std::make_shared<Configuration>();
-    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
-        600);
-    int ret = topology_->init();
+    TopologyOption option;
+    option.ChunkServerStateUpdateSec = 600;
+    int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -252,11 +250,9 @@ TEST_F(TestTopology, test_init_LoadZoneFail) {
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
 
-    std::shared_ptr<Configuration> conf_ =
-        std::make_shared<Configuration>();
-    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
-        600);
-    int ret = topology_->init();
+    TopologyOption option;
+    option.ChunkServerStateUpdateSec = 600;
+    int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -274,11 +270,9 @@ TEST_F(TestTopology, test_init_LoadServerFail) {
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initZoneIdGenerator(_));
 
-    std::shared_ptr<Configuration> conf_ =
-        std::make_shared<Configuration>();
-    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
-        600);
-    int ret = topology_->init();
+    TopologyOption option;
+    option.ChunkServerStateUpdateSec = 600;
+    int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -299,11 +293,9 @@ TEST_F(TestTopology, test_init_LoadChunkServerFail) {
     EXPECT_CALL(*idGenerator_, initZoneIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initServerIdGenerator(_));
 
-    std::shared_ptr<Configuration> conf_ =
-        std::make_shared<Configuration>();
-    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
-        600);
-    int ret = topology_->init();
+    TopologyOption option;
+    option.ChunkServerStateUpdateSec = 600;
+    int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -327,11 +319,9 @@ TEST_F(TestTopology, test_init_LoadCopysetFail) {
     EXPECT_CALL(*idGenerator_, initServerIdGenerator(_));
     EXPECT_CALL(*idGenerator_, initChunkServerIdGenerator(_));
 
-    std::shared_ptr<Configuration> conf_ =
-        std::make_shared<Configuration>();
-    conf_->SetIntValue("topology.topology.ChunkServerStateUpdateSec",
-        600);
-    int ret = topology_->init();
+    TopologyOption option;
+    option.ChunkServerStateUpdateSec = 600;
+    int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 

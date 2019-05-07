@@ -9,7 +9,7 @@
 #define SRC_MDS_CHUNKSERVERCLIENT_COPYSET_CLIENT_H_
 
 #include "src/mds/common/mds_define.h"
-#include "src/mds/topology/topology_manager.h"
+#include "src/mds/topology/topology.h"
 
 #include "src/mds/chunkserverclient/chunkserver_client.h"
 
