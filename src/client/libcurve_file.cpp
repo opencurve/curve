@@ -28,7 +28,7 @@ curve::client::FileClient* globalclient = nullptr;
 namespace curve {
 namespace client {
 FileClient::FileClient(): fdcount_(0) {
-    globalMdsClient = nullptr;
+    mdsClient_ = nullptr;
     fileserviceMap_.clear();
 }
 
@@ -38,13 +38,13 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    if (globalMdsClient == nullptr) {
-        globalMdsClient = new (std::nothrow) MDSClient();
-        if (globalMdsClient == nullptr) {
+    if (mdsClient_ == nullptr) {
+        mdsClient_ = new (std::nothrow) MDSClient();
+        if (mdsClient_ == nullptr) {
             return -LIBCURVE_ERROR::FAILED;
         }
 
-        if (LIBCURVE_ERROR::OK != globalMdsClient->Initialize(
+        if (LIBCURVE_ERROR::OK != mdsClient_->Initialize(
             clientconfig_.GetFileServiceOption().metaServerOpt)) {
             LOG(ERROR) << "Init global mds client failed!";
             return -LIBCURVE_ERROR::FAILED;
@@ -64,17 +64,17 @@ void FileClient::UnInit() {
     }
     fileserviceMap_.clear();
 
-    if (globalMdsClient != nullptr) {
-        globalMdsClient->UnInitialize();
-        delete globalMdsClient;
-        globalMdsClient = nullptr;
+    if (mdsClient_ != nullptr) {
+        mdsClient_->UnInitialize();
+        delete mdsClient_;
+        mdsClient_ = nullptr;
     }
 }
 
 int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
     FileInstance* fileserv = new (std::nothrow) FileInstance();
     if (fileserv == nullptr ||
-        !fileserv->Initialize(globalMdsClient,
+        !fileserv->Initialize(mdsClient_,
                               userinfo,
                               clientconfig_.GetFileServiceOption())) {
         LOG(ERROR) << "FileInstance initialize failed!";
@@ -99,8 +99,8 @@ int FileClient::Create(const std::string& filename,
                        const UserInfo_t& userinfo,
                        size_t size) {
     LIBCURVE_ERROR ret;
-    if (globalMdsClient != nullptr) {
-        ret = globalMdsClient->CreateFile(filename, userinfo, size);
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->CreateFile(filename, userinfo, size);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -168,8 +168,8 @@ int FileClient::Rename(const UserInfo_t& userinfo,
                                   const std::string& oldpath,
                                   const std::string& newpath) {
     LIBCURVE_ERROR ret;
-    if (globalMdsClient != nullptr) {
-        ret = globalMdsClient->RenameFile(userinfo, oldpath, newpath);
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->RenameFile(userinfo, oldpath, newpath);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -181,8 +181,8 @@ int FileClient::Extend(const std::string& filename,
                                   const UserInfo_t& userinfo,
                                   uint64_t newsize) {
     LIBCURVE_ERROR ret;
-    if (globalMdsClient != nullptr) {
-        ret = globalMdsClient->Extend(filename, userinfo, newsize);
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->Extend(filename, userinfo, newsize);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -193,8 +193,8 @@ int FileClient::Extend(const std::string& filename,
 int FileClient::Unlink(const std::string& filename,
                        const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
-    if (globalMdsClient != nullptr) {
-        ret = globalMdsClient->DeleteFile(filename, userinfo);
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->DeleteFile(filename, userinfo);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -207,8 +207,8 @@ int FileClient::StatFile(const std::string& filename,
                          FileStatInfo* finfo) {
     FInfo_t fi;
     int ret;
-    if (globalMdsClient != nullptr) {
-        ret = globalMdsClient->GetFileInfo(filename, userinfo, &fi);
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->GetFileInfo(filename, userinfo, &fi);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -234,8 +234,8 @@ int FileClient::Listdir(const std::string& dirpath,
 
 int FileClient::Mkdir(const std::string& dirpath, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
-    if (globalMdsClient != nullptr) {
-        ret = globalMdsClient->CreateFile(dirpath, userinfo, 0, false);
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->CreateFile(dirpath, userinfo, 0, false);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -245,8 +245,8 @@ int FileClient::Mkdir(const std::string& dirpath, const UserInfo_t& userinfo) {
 
 int FileClient::Rmdir(const std::string& dirpath, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
-    if (globalMdsClient != nullptr) {
-        ret = globalMdsClient->DeleteFile(dirpath, userinfo);
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->DeleteFile(dirpath, userinfo);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
