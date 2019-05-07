@@ -18,71 +18,12 @@
 #include <utility>
 
 #include "src/mds/common/mds_define.h"
+#include "src/mds/copyset/copyset_structure.h"
 
 
 namespace curve {
 namespace mds {
 namespace copyset {
-
-
-struct Copyset {
-    std::set<curve::mds::topology::ChunkServerIdType> replicas;
-};
-
-bool operator<(const Copyset& lhs, const Copyset& rhs);
-std::ostream& operator<<(std::ostream& out, const Copyset& rhs);
-
-struct ChunkServerLocation {
-    curve::mds::topology::ZoneIdType zoneId;
-    curve::mds::topology::PoolIdType logicalPoolId;
-};
-
-// ChunkServerInfo represents a chunkserver
-struct ChunkServerInfo {
-    curve::mds::topology::ChunkServerIdType id;
-    ChunkServerLocation location;
-};
-
-// for logging
-std::ostream& operator<<(std::ostream& out, const ChunkServerInfo& rhs);
-
-class ClusterInfo {
- public:
-    ClusterInfo() {}
-    virtual ~ClusterInfo() {}
-
-    ClusterInfo(const ClusterInfo&) = default;
-    ClusterInfo(ClusterInfo&&) = default;
-    ClusterInfo& operator=(const ClusterInfo&) = default;
-    ClusterInfo& operator=(ClusterInfo&&) = default;
-
-    bool GetChunkServerInfo(curve::mds::topology::ChunkServerIdType id,
-        ChunkServerInfo* out) const {
-        for (auto& server : csInfo_) {
-            if (server.id == id) {
-                *out = server;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    void AddChunkServerInfo(const ChunkServerInfo &info) {
-        csInfo_.push_back(info);
-    }
-    std::vector<ChunkServerInfo> GetChunkServerInfo() const {
-        return csInfo_;
-    }
-
-    uint32_t GetClusterSize() const {
-        return csInfo_.size();
-    }
-
- protected:
-    std::vector<ChunkServerInfo> csInfo_;
-};
-
-
 
 class CopysetPolicy {
  public:
@@ -95,31 +36,15 @@ class CopysetPolicy {
         int numCopysets,
         std::vector<Copyset>* out) = 0;
 
-    // new node
-    virtual bool AddNode(const ClusterInfo& cluster,
-        const ChunkServerInfo& node,
+
+    virtual void GetMinCopySetFromScatterWidth(
+        int numChunkServers,
         int scatterWidth,
-        std::vector<Copyset>* out) = 0;
-
-
-    // RemoveNode when node offline, change all copysets cover this node,
-    // replace origin node with a random node
-    virtual bool RemoveNode(const ClusterInfo& cluster,
-        const ChunkServerInfo& node,
-        const std::vector<Copyset>& css,
-        std::vector<std::pair<Copyset, Copyset>>* out) = 0;
-
-    // Get Max permutation num,  make sure the permutation will stop finally
-    virtual int GetMaxPermutationNum(int numCopysets,
-        int num_servers,
-        int num_replicas) = 0;
+        int numReplicas,
+        int *min) = 0;
 };
 
-
 class CopysetPermutationPolicy {
- public:
-    static const uint32_t NUM_ANY = 0;
-
  public:
     CopysetPermutationPolicy()
     : zoneNum_(0),
@@ -165,50 +90,30 @@ class CopysetZoneShufflePolicy : public CopysetPolicy {
 
     // GenCopyset generate some copysets for a cluster
     // return: if succeed return true
-    virtual bool GenCopyset(const ClusterInfo& cluster,
+    bool GenCopyset(const ClusterInfo& cluster,
         int numCopysets,
-        std::vector<Copyset>* out);
+        std::vector<Copyset>* out) override;
 
-    // new node
-    virtual bool AddNode(const ClusterInfo& cluster,
-        const ChunkServerInfo& node,
+    void GetMinCopySetFromScatterWidth(
+        int numChunkServers,
         int scatterWidth,
-        std::vector<Copyset>* out);
+        int numReplicas,
+        int *min) override;
 
-
-    // RemoveNode when node offline, change all copysets cover this node,
-    // replace origin node with a random node
-    virtual bool RemoveNode(const ClusterInfo& cluster,
-        const ChunkServerInfo& node,
-        const std::vector<Copyset>& css,
-        std::vector<std::pair<Copyset, Copyset>>* out);
-
+ private:
     // Get Max permutation num,  make sure the permutation will stop finally
     int GetMaxPermutationNum(int numCopysets,
-        int num_servers,
-        int num_replicas) override;
+        int numChunkServers,
+        int numReplicas);
 
  private:
     std::shared_ptr<CopysetPermutationPolicy> permutationPolicy_;
 };
 
-
-class CopysetPermutationPolicy333 : public CopysetPermutationPolicy {
- public:
-    CopysetPermutationPolicy333()
-        : CopysetPermutationPolicy(3, 3, 3) {}
-
-    ~CopysetPermutationPolicy333() {}
-
-    bool permutation(const std::vector<ChunkServerInfo> &serversIn,
-            std::vector<ChunkServerInfo> *serversOut) override;
-};
-
-
 class CopysetPermutationPolicyN33 : public CopysetPermutationPolicy {
  public:
     CopysetPermutationPolicyN33()
-        : CopysetPermutationPolicy(CopysetPermutationPolicy::NUM_ANY, 3, 3) {}
+        : CopysetPermutationPolicy(CopysetConstrait::NUM_ANY, 3, 3) {}
 
     ~CopysetPermutationPolicyN33() {}
 

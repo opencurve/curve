@@ -257,8 +257,9 @@ message CreateLogicalPoolRequest {
     optional uint32 physicalPoolID = 2;
     optional string physicalPoolName = 3;
     required LogicalPoolType type = 4;
-    optional bytes redundanceAndPlaceMentPolicy = 5;  //json body
-    optional bytes userPolicy = 6;                    //json body
+    required bytes redundanceAndPlaceMentPolicy = 5;  //json body
+    required bytes userPolicy = 6;                    //json body
+    optional uint32 scatterWidth = 7;      //生成copyset依据的scatterWidth平均值
 }
 
 message CreateLogicalPoolResponse {

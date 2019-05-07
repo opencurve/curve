@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2018 NetEase Inc. All rights reserved.
  * Project: Curve
- * 
- * History: 
+ *
+ * History:
  *          2018/08/30  Wenyu Zhou   Initial version
  */
 
@@ -32,6 +32,9 @@ class Configuration {
 
     int GetIntValue(const std::string &key, uint64_t defaultvalue = 0);
     void SetIntValue(const std::string &key, const int value);
+
+    double GetDoubleValue(const std::string &key, double defaultvalue = 0.0);
+    void SetDoubleValue(const std::string &key, const double value);
 
     bool GetBoolValue(const std::string &key, bool defaultvalue = false);
     void SetBoolValue(const std::string &key, const bool value);

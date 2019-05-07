@@ -63,9 +63,10 @@ bool CopysetZoneShufflePolicy::GenCopyset(const ClusterInfo& cluster,
 
     std::vector<ChunkServerInfo> chunkServers = cluster.GetChunkServerInfo();
     uint32_t numReplicas = permutationPolicy_->GetReplicaNum();
+    int copyseyNum = numCopysets;
 
     std::vector<ChunkServerInfo> replicas(numReplicas);
-    int maxNum = GetMaxPermutationNum(numCopysets,
+    int maxNum = GetMaxPermutationNum(copyseyNum,
         chunkServers.size(),
         numReplicas);
 
@@ -87,11 +88,9 @@ bool CopysetZoneShufflePolicy::GenCopyset(const ClusterInfo& cluster,
                 copyset.replicas.insert(replica.id);
             }
             out->emplace_back(copyset);
-            if (--numCopysets == 0) {
-                LOG(INFO) << "Generate copyset success : ";
-                for (Copyset& copyset : *out) {
-                    LOG(INFO) << copyset << "   ";
-                }
+            if (--copyseyNum == 0) {
+                LOG(INFO) << "Generate copyset success"
+                          << ", numCopysets = " << numCopysets;
                 return true;
             }
         }
@@ -99,83 +98,25 @@ bool CopysetZoneShufflePolicy::GenCopyset(const ClusterInfo& cluster,
     return false;
 }
 
-bool CopysetZoneShufflePolicy::AddNode(const ClusterInfo& cluster,
-    const ChunkServerInfo& node,
+void CopysetZoneShufflePolicy::GetMinCopySetFromScatterWidth(
+    int numChunkServers,
     int scatterWidth,
-    std::vector<Copyset>* out) {
-    // TODO(xuchaojie): fix this
-    return true;
+    int numReplicas,
+    int *min) {
+    // scatter-width S 所需的copyset数估算:
+    // 1. 每轮permutation 产生 N/R个copyset
+    // 2. 每次permutation最多增加R-1个scatter-width
+    // 那么至少需要P = S/(R—1) 次permutation，
+    // 至少需要产生(S/(R-1))(N/R)个copyset。
+    // 因此，copyset的下限是(S/(R-1))(N/R)
+    // 其中，N为chunkserver num， R为replica num。
+    *min = scatterWidth * numChunkServers / numReplicas / (numReplicas - 1);
 }
-
-
-bool CopysetZoneShufflePolicy::RemoveNode(const ClusterInfo& cluster,
-    const ChunkServerInfo& node,
-    const std::vector<Copyset>& css,
-    std::vector<std::pair<Copyset, Copyset>>* out) {
-    // TODO(xuchaojie): fix this
-    return true;
-}
-
 
 int CopysetZoneShufflePolicy::GetMaxPermutationNum(int numCopysets,
-    int num_servers,
-    int num_replicas) {
+    int numChunkServers,
+    int numReplicas) {
     return numCopysets;
-}
-
-bool CopysetPermutationPolicy333::permutation(
-    const std::vector<ChunkServerInfo> &serversIn,
-    std::vector<ChunkServerInfo> *serversOut) {
-    std::vector<ChunkServerInfo> chunkServerInZone1,
-                                 chunkServerInZone2,
-                                 chunkServerInZone3;
-    curve::mds::topology::ZoneIdType zid1, zid2, zid3;
-    for (const ChunkServerInfo& sv : serversIn) {
-        if (0 == chunkServerInZone1.size() ||
-            zid1 == sv.location.zoneId) {
-            chunkServerInZone1.push_back(sv);
-            zid1 = sv.location.zoneId;
-        } else if (0 == chunkServerInZone2.size() ||
-            zid2 == sv.location.zoneId) {
-            chunkServerInZone2.push_back(sv);
-            zid2 = sv.location.zoneId;
-        } else if (0 == chunkServerInZone3.size() ||
-            zid3 == sv.location.zoneId) {
-            chunkServerInZone3.push_back(sv);
-            zid3 = sv.location.zoneId;
-        } else {
-            // more than 3 zones, add err log
-            LOG(ERROR) << "[CopysetPermutationPolicy333::permutation]: "
-                       << "error, cluster has more than 3 zones.";
-            return false;
-        }
-    }
-
-    std::random_device rd;
-    std::mt19937 g(rd());
-
-    std::shuffle(chunkServerInZone1.begin(), chunkServerInZone1.end(), g);
-    std::shuffle(chunkServerInZone2.begin(), chunkServerInZone2.end(), g);
-    std::shuffle(chunkServerInZone3.begin(), chunkServerInZone3.end(), g);
-
-    serversOut->clear();
-
-    for (uint32_t i = 0; i < chunkServerInZone1.size() &&
-                i < chunkServerInZone2.size() &&
-                i < chunkServerInZone3.size();
-                i++) {
-        if (i < chunkServerInZone1.size()) {
-           serversOut->push_back(chunkServerInZone1[i]);
-        }
-        if (i < chunkServerInZone2.size()) {
-           serversOut->push_back(chunkServerInZone2[i]);
-        }
-        if (i < chunkServerInZone3.size()) {
-           serversOut->push_back(chunkServerInZone3[i]);
-        }
-    }
-
-    return true;
 }
 
 /**

@@ -147,6 +147,9 @@ int TopologyImpl::RemovePhysicalPool(PoolIdType id) {
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     auto it = physicalPoolMap_.find(id);
     if (it != physicalPoolMap_.end()) {
+        if (it->second.GetZoneList().size() != 0) {
+            return kTopoErrCodeCannotRemoveWhenNotEmpty;
+        }
         if (!storage_->DeletePhysicalPool(id)) {
             return kTopoErrCodeStorgeFail;
         }
@@ -162,6 +165,9 @@ int TopologyImpl::RemoveZone(ZoneIdType id) {
     WriteLockGuard wlockZone(zoneMutex_);
     auto it = zoneMap_.find(id);
     if (it != zoneMap_.end()) {
+        if (it->second.GetServerList().size() != 0) {
+            return kTopoErrCodeCannotRemoveWhenNotEmpty;
+        }
         if (!storage_->DeleteZone(id)) {
             return kTopoErrCodeStorgeFail;
         }
@@ -181,6 +187,9 @@ int TopologyImpl::RemoveServer(ServerIdType id) {
     WriteLockGuard wlockServer(serverMutex_);
     auto it = serverMap_.find(id);
     if (it != serverMap_.end()) {
+        if (it->second.GetChunkServerList().size() != 0) {
+            return kTopoErrCodeCannotRemoveWhenNotEmpty;
+        }
         if (!storage_->DeleteServer(id)) {
             return kTopoErrCodeStorgeFail;
         }
