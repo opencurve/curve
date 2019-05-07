@@ -57,6 +57,18 @@ class ConfigurationTest : public ::testing::Test {
 
         confItem = "test.bool6=yes\n";
         cFile << confItem;
+
+        confItem = "test.double1=3.1415926\n";
+        cFile << confItem;
+
+        confItem = "test.double2=1\n";
+        cFile << confItem;
+
+        confItem = "test.double3=1.0\n";
+        cFile << confItem;
+
+        confItem = "test.double4=0.1\n";
+        cFile << confItem;
     }
 
     void TearDown() {
@@ -179,6 +191,23 @@ TEST_F(ConfigurationTest, GetSetBoolValue) {
 
     conf.SetBoolValue("test.bool1", true);
     ASSERT_EQ(conf.GetBoolValue("test.bool1"), true);
+}
+
+TEST_F(ConfigurationTest, GetSetDoubleValue) {
+    bool ret;
+    Configuration conf;
+
+    conf.SetConfigPath(confFile_);
+    ret = conf.LoadConfig();
+    ASSERT_EQ(ret, true);
+
+    ASSERT_EQ(conf.GetDoubleValue("test.double1"), 3.1415926);
+    ASSERT_EQ(conf.GetDoubleValue("test.double2"), 1);
+    ASSERT_EQ(conf.GetDoubleValue("test.double3"), 1.0);
+    ASSERT_EQ(conf.GetDoubleValue("test.double4"), 0.1);
+
+    conf.SetDoubleValue("test.double1", 100.0);
+    ASSERT_EQ(conf.GetDoubleValue("test.double1"), 100.0);
 }
 
 }  // namespace common

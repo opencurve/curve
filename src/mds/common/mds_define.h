@@ -80,6 +80,8 @@ const int kTopoErrCodeLogicalPoolNotFound = -10;
 const int kTopoErrCodeCopySetNotFound = -11;
 const int kTopoErrCodeGenCopysetErr = -12;
 const int kTopoErrCodeAllocateIdFail = -13;
+const int kTopoErrCodeCannotRemoveWhenNotEmpty = -14;
+const int kTopoErrCodeIpPortDuplicated = -15;
 
 }  // namespace topology
 }  // namespace mds

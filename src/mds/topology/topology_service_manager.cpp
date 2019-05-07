@@ -32,11 +32,23 @@ using ::curve::chunkserver::COPYSET_OP_STATUS;
 
 using ::curve::mds::copyset::ClusterInfo;
 using ::curve::mds::copyset::CopysetPermutationPolicy;
-using curve::mds::copyset::Copyset;
+using ::curve::mds::copyset::Copyset;
+using ::curve::mds::copyset::CopysetConstrait;
 
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
+    // 查重
+    ChunkServerIdType csId =
+        topology_->FindChunkServer(request->hostip(),
+            request->port());
+    if (csId !=
+        static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+        // TODO(xuchaojie): 此处支持换盘还有问题，后续统一修改换盘逻辑
+        response->set_statuscode(kTopoErrCodeIpPortDuplicated);
+        return;
+    }
+
     ServerIdType serverId =
         topology_->FindServerByHostIpPort(request->hostip(), request->port());
     if (serverId ==
@@ -234,13 +246,6 @@ void TopologyServiceManager::RegistServer(const ServerRegistRequest *request,
         return;
     }
 
-    ServerIdType serverId = topology_->AllocateServerId();
-    if (serverId ==
-        static_cast<ServerIdType>(UNINTIALIZE_ID)) {
-        response->set_statuscode(kTopoErrCodeAllocateIdFail);
-        return;
-    }
-
     uint32_t internalPort = 0;
     if (request->has_internalport()) {
         internalPort = request->internalport();
@@ -248,6 +253,26 @@ void TopologyServiceManager::RegistServer(const ServerRegistRequest *request,
     uint32_t externalPort = 0;
     if (request->has_externalport()) {
         externalPort = request->externalport();
+    }
+
+    // 检查ip Port是否重复
+    if (topology_->FindServerByHostIpPort(
+        request->internalip(), internalPort) !=
+        static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+        response->set_statuscode(kTopoErrCodeIpPortDuplicated);
+        return;
+    } else if (topology_->FindServerByHostIpPort(
+        request->externalip(), externalPort) !=
+        static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+        response->set_statuscode(kTopoErrCodeIpPortDuplicated);
+        return;
+    }
+
+    ServerIdType serverId = topology_->AllocateServerId();
+    if (serverId ==
+        static_cast<ServerIdType>(UNINTIALIZE_ID)) {
+        response->set_statuscode(kTopoErrCodeAllocateIdFail);
+        return;
     }
 
     Server server(serverId,
@@ -329,7 +354,37 @@ void TopologyServiceManager::GetServer(const GetServerRequest *request,
 
 void TopologyServiceManager::DeleteServer(const DeleteServerRequest *request,
                                           DeleteServerResponse *response) {
-    int errcode = topology_->RemoveServer(request->serverid());
+    int errcode = kTopoErrCodeSuccess;
+    Server server;
+    if (!topology_->GetServer(request->serverid(), &server)) {
+        response->set_statuscode(kTopoErrCodeServerNotFound);
+        return;
+    }
+    for (auto &csId : server.GetChunkServerList()) {
+        ChunkServer cs;
+        if (!topology_->GetChunkServer(csId, &cs)) {
+            LOG(ERROR) << "topology has encounter an internalError"
+                       << ", chunkServer in server not found"
+                       << ", chunkserverId = " << csId
+                       << ", serverId = " << request->serverid();
+            response->set_statuscode(kTopoErrCodeInternalError);
+            return;
+        } else {
+            if (cs.GetStatus() != ChunkServerStatus::RETIRED) {
+                LOG(ERROR) << "Cannot Remove Server Which"
+                           << "Has ChunkServer Not Retired";
+                response->set_statuscode(kTopoErrCodeCannotRemoveWhenNotEmpty);
+                return;
+            } else  {
+                errcode = topology_->RemoveChunkServer(csId);
+                if (errcode != kTopoErrCodeSuccess) {
+                    response->set_statuscode(errcode);
+                    return;
+                }
+            }
+        }
+    }
+    errcode = topology_->RemoveServer(request->serverid());
     response->set_statuscode(errcode);
 }
 
@@ -642,10 +697,12 @@ void TopologyServiceManager::ListPhysicalPool(
 
 int TopologyServiceManager::CreateCopysetForLogicalPool(
     const LogicalPool &lPool,
+    uint32_t scatterWidth,
     std::vector<CopySetInfo> *copysetInfos) {
     switch (lPool.GetLogicalPoolType()) {
         case LogicalPoolType::PAGEFILE: {
             int errcode = GenCopysetForPageFilePool(lPool,
+                scatterWidth,
                 copysetInfos);
             if (kTopoErrCodeSuccess != errcode) {
                 LOG(ERROR) << "CreateCopysetForLogicalPool fail in : "
@@ -683,6 +740,7 @@ int TopologyServiceManager::CreateCopysetForLogicalPool(
 
 int TopologyServiceManager::GenCopysetForPageFilePool(
     const LogicalPool &lPool,
+    uint32_t scatterWidth,
     std::vector<CopySetInfo> *copysetInfos) {
     ClusterInfo cluster;
     std::list<ChunkServerIdType> csList =
@@ -715,20 +773,23 @@ int TopologyServiceManager::GenCopysetForPageFilePool(
     LogicalPool::RedundanceAndPlaceMentPolicy rap =
         lPool.GetRedundanceAndPlaceMentPolicy();
     PoolIdType logicalPoolId = lPool.GetId();
-    std::shared_ptr<curve::mds::copyset::CopysetPolicy> policy =
-        copysetManager_->GetCopysetPolicy(
-            CopysetPermutationPolicy::NUM_ANY,
-            rap.pageFileRAP.zoneNum,
-            rap.pageFileRAP.replicaNum);
-    if (policy != nullptr) {
-        if (policy->GenCopyset(cluster,
-                               rap.pageFileRAP.copysetNum,
-                               &copysets) != true) {
-            LOG(ERROR) << "GenCopysetForPageFilePool error :"
-                       << " Cluster size = "
+
+    CopysetConstrait constrait;
+    constrait.zoneNum = CopysetConstrait::NUM_ANY;
+    constrait.zoneChoseNum = rap.pageFileRAP.zoneNum;
+    constrait.replicaNum = rap.pageFileRAP.replicaNum;
+    if (copysetManager_->Init(constrait)) {
+        if (!copysetManager_->GenCopyset(cluster,
+            rap.pageFileRAP.copysetNum,
+            scatterWidth,
+            &copysets)) {
+            LOG(ERROR) << "GenCopysetForPageFilePool failed"
+                       << ", Cluster size = "
                        << cluster.GetClusterSize()
-                       << " copysetNum = "
+                       << ", copysetNum = "
                        << rap.pageFileRAP.copysetNum
+                       << ", scatterWidth = "
+                       << scatterWidth
                        << ", logicalPoolid = "
                        << lPool.GetId();
             return kTopoErrCodeGenCopysetErr;
@@ -943,6 +1004,11 @@ void TopologyServiceManager::CreateLogicalPool(
         return;
     }
 
+    uint32_t scatterWidth = 0u;
+    if (request->has_scatterwidth()) {
+        scatterWidth = request->scatterwidth();
+    }
+
     timeval now;
     gettimeofday(&now, NULL);
     uint64_t cTime = now.tv_sec;
@@ -958,7 +1024,8 @@ void TopologyServiceManager::CreateLogicalPool(
     int errcode = topology_->AddLogicalPool(lPool);
     if (kTopoErrCodeSuccess == errcode) {
         std::vector<CopySetInfo> copysetInfos;
-        errcode = CreateCopysetForLogicalPool(lPool, &copysetInfos);
+        errcode =
+            CreateCopysetForLogicalPool(lPool, scatterWidth, &copysetInfos);
         if (kTopoErrCodeSuccess != errcode) {
             if (kTopoErrCodeSuccess ==
                     RemoveErrLogicalPoolAndCopyset(lPool,
@@ -972,10 +1039,35 @@ void TopologyServiceManager::CreateLogicalPool(
                 response->set_statuscode(kTopoErrCodeInternalError);
             }
         } else {
-            LogicalPool poolOut;
-            topology_->GetLogicalPool(lPool.GetId(), &poolOut);
-            poolOut.SetLogicalPoolAvaliableFlag(true);
-            errcode = topology_->UpdateLogicalPool(poolOut);
+            lPool.SetLogicalPoolAvaliableFlag(true);
+            // 更新copysetnum
+            switch (lPool.GetLogicalPoolType()) {
+                case LogicalPoolType::PAGEFILE: {
+                    rap.pageFileRAP.copysetNum =  copysetInfos.size();
+                    lPool.SetRedundanceAndPlaceMentPolicy(rap);
+                    break;
+                }
+                default: {
+                    LOG(ERROR) << "invalid logicalPoolType:"
+                               << lPool.GetLogicalPoolType();
+                    if (kTopoErrCodeSuccess ==
+                            RemoveErrLogicalPoolAndCopyset(lPool,
+                                &copysetInfos)) {
+                        response->set_statuscode(kTopoErrCodeInvalidParam);
+                    } else {
+                        LOG(ERROR) << "[CreateLogicalPool] has counter "
+                                   << "a internalError:"
+                                   << "recover from UpdateLogicalPool fail, "
+                                   << "remove logicalpool and copyset Fail."
+                                   << " logicalpoolid = "
+                                   << lPool.GetId();
+                        response->set_statuscode(kTopoErrCodeInternalError);
+                    }
+                    return;
+                }
+            }
+
+            errcode = topology_->UpdateLogicalPool(lPool);
             if (kTopoErrCodeSuccess == errcode) {
                 response->set_statuscode(kTopoErrCodeSuccess);
                 LogicalPoolInfo *info = new LogicalPoolInfo();
@@ -985,7 +1077,7 @@ void TopologyServiceManager::CreateLogicalPool(
                 info->set_type(request->type());
                 info->set_createtime(cTime);
                 info->set_redundanceandplacementpolicy(
-                    request->redundanceandplacementpolicy());
+                    lPool.GetRedundanceAndPlaceMentPolicyJsonStr());
                 info->set_userpolicy(request->userpolicy());
                 info->set_allocatestatus(AllocateStatus::ALLOW);
                 response->set_allocated_logicalpoolinfo(info);
