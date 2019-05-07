@@ -12,6 +12,7 @@
 #include <string>
 #include <atomic>
 #include <unordered_map>
+#include <vector>
 
 #include "src/common/concurrent/rw_lock.h"
 #include "src/client/config_info.h"
@@ -35,66 +36,131 @@ class FileClient {
    * file对象初始化函数
    * @param: 配置文件路径
    */
-  virtual LIBCURVE_ERROR Init(const char* configpath);
+  virtual int Init(const std::string& configpath);
+
   /**
    * 打开或创建文件
    * @param: filename文件名
-   * @param: userinfo是当前打开或创建时携带的user信息
-   * @param: size文件长度，当create为true的时候以size长度创建文件
-   * @param: create为true，文件不存在就创建
    * @return: 返回文件fd
    */
-  virtual int Open(const std::string& filename,
-                   UserInfo_t userinfo,
-                   size_t size = 0,
-                   bool create = false);
+  virtual int Open(const std::string& filename, const UserInfo_t& userinfo);
+
+  /**
+   * 创建文件
+   * @param: filename文件名
+   * @param: userinfo是当前打开或创建时携带的user信息
+   * @param: size文件长度，当create为true的时候以size长度创建文件
+   * @return: 成功返回0, 失败可能有多种可能
+   *          比如内部错误，或者文件已存在
+   */
+  virtual int Create(const std::string& filename,
+             const UserInfo_t& userinfo,
+             size_t size);
+
   /**
    * 同步模式读
    * @param: fd为当前open返回的文件描述符
    * @param: buf为当前待读取的缓冲区
    * @param：offset文件内的便宜
    * @parma：length为待读取的长度
-   * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+   * @return: 成功返回读取字节数,否则返回小于0的错误码
    */
-  virtual LIBCURVE_ERROR Read(int fd, char* buf, off_t offset, size_t length);
+  virtual int Read(int fd, char* buf, off_t offset, size_t length);
+
   /**
    * 同步模式写
    * @param: fd为当前open返回的文件描述符
    * @param: buf为当前待写入的缓冲区
    * @param：offset文件内的便宜
    * @parma：length为待读取的长度
-   * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+   * @return: 成功返回写入字节数,否则返回小于0的错误码
    */
-  virtual LIBCURVE_ERROR Write(int fd,
-                               const char* buf,
-                               off_t offset,
-                               size_t length);
+  virtual int Write(int fd, const char* buf, off_t offset, size_t length);
+
   /**
    * 异步模式读
    * @param: fd为当前open返回的文件描述符
    * @param: aioctx为异步读写的io上下文，保存基本的io信息
-   * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+   * @return: 成功返回读取字节数,否则返回小于0的错误码
    */
-  virtual LIBCURVE_ERROR AioRead(int fd, CurveAioContext* aioctx);
+  virtual int AioRead(int fd, CurveAioContext* aioctx);
+
   /**
    * 异步模式写
    * @param: fd为当前open返回的文件描述符
    * @param: aioctx为异步读写的io上下文，保存基本的io信息
-   * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+   * @return: 成功返回写入字节数,否则返回小于0的错误码
    */
-  virtual LIBCURVE_ERROR AioWrite(int fd, CurveAioContext* aioctx);
+  virtual int AioWrite(int fd, CurveAioContext* aioctx);
+
+  /**
+   * 重命名文件
+   * @param: userinfo是用户信息
+   * @param: oldpath源路劲
+   * @param: newpath目标路径
+   */
+  virtual int Rename(const UserInfo_t& userinfo,
+                     const std::string& oldpath,
+                     const std::string& newpath);
+
+  /**
+   * 扩展文件
+   * @param: userinfo是用户信息
+   * @param: filename文件名
+   * @param: newsize新的size
+   */
+  virtual int Extend(const std::string& filename,
+                     const UserInfo_t& userinfo,
+                     uint64_t newsize);
+
+  /**
+   * 删除文件
+   * @param: userinfo是用户信息
+   * @param: filename待删除的文件名
+   */
+  virtual int Unlink(const std::string& filename, const UserInfo_t& userinfo);
+
+  /**
+   * 枚举目录内容
+   * @param: userinfo是用户信息
+   * @param: dirpath是目录路径
+   */
+  virtual int Listdir(const std::string& dirpath,
+                      const UserInfo_t& userinfo,
+                      std::vector<FileStatInfo>* filestatVec);
+
+  /**
+   * 创建目录
+   * @param: userinfo是用户信息
+   * @param: dirpath是目录路径
+   */
+  virtual int Mkdir(const std::string& dirpath, const UserInfo_t& userinfo);
+
+  /**
+   * 删除目录
+   * @param: userinfo是用户信息
+   * @param: dirpath是目录路径
+   */
+  virtual int Rmdir(const std::string& dirpath, const UserInfo_t& userinfo);
+
   /**
    * 获取文件信息
-   * @param: fd为当前open返回的文件描述符
+   * @param: filename文件名
+   * @param: userinfo是用户信息
    * @param: finfo是出参，携带当前文件的基础信息
-   * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
+   * @return: 成功返回int::OK,否则返回小于0的错误码
    */
-  virtual LIBCURVE_ERROR StatFs(int fd, FileStatInfo* finfo);
+  virtual int StatFile(const std::string& filename,
+                       const UserInfo_t& userinfo,
+                       FileStatInfo* finfo);
+
   /**
    * close通过fd找到对应的instance进行删除
    * @param: fd为当前open返回的文件描述符
+   * @return: 成功返回int::OK,否则返回小于0的错误码
    */
-  virtual void Close(int fd);
+  virtual int Close(int fd);
+
   /**
    * 析构，回收资源
    */
@@ -114,6 +180,9 @@ class FileClient {
 
   // FileClient配置
   ClientConfig clientconfig_;
+
+  // fileclient对应的全局mdsclient
+  MDSClient* globalMdsClient;
 };
 }   // namespace client
 }   // namespace curve

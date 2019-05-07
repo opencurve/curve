@@ -16,7 +16,7 @@
 #include <condition_variable>  // NOLINT
 #include <mutex>   // NOLINT
 
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
@@ -39,17 +39,21 @@ DECLARE_uint64(test_disk_size);
 void writecallbacktest(CurveAioContext* context) {
     writeflag = true;
     writeinterfacecv.notify_one();
-    LOG(INFO) << "aio call back here, errorcode = " << context->err;
+    LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 void readcallbacktest(CurveAioContext* context) {
     readflag = true;
     interfacecv.notify_one();
-    LOG(INFO) << "aio call back here, errorcode = " << context->err;
+    LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
 TEST(TestLibcurveInterface, InterfaceTest) {
     ASSERT_EQ(0, Init(configpath.c_str()));
     std::string filename = "/1_userinfo_";
+
+    C_UserInfo_t userinfo;
+    memcpy(userinfo.owner, "userinfo", 9);
+    memcpy(userinfo.password, "", 256);
 
     // 设置leaderid
     EndPoint ep;
@@ -65,9 +69,9 @@ TEST(TestLibcurveInterface, InterfaceTest) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     // libcurve file operation
-    int temp = Open(filename.c_str(), FLAGS_test_disk_size, true);
+    int temp = Create(filename.c_str(), &userinfo, FLAGS_test_disk_size);
 
-    int fd = Open(filename.c_str(), 0, false);
+    int fd = Open(filename.c_str(), &userinfo);
 
     ASSERT_NE(fd, -1);
 
@@ -136,8 +140,8 @@ TEST(TestLibcurveInterface, InterfaceTest) {
         memset(buffer + 6 * 1024, 'o', 1024);
         memset(buffer + 7 * 1024, 'p', 1024);
 
-        ASSERT_EQ(LIBCURVE_ERROR::OK, Write(fd, buffer, offset, length));
-        ASSERT_EQ(LIBCURVE_ERROR::OK, Read(fd, readbuffer, offset, length));
+        ASSERT_EQ(length, Write(fd, buffer, offset, length));
+        ASSERT_EQ(length, Read(fd, readbuffer, offset, length));
 
         for (int i = 0; i < 1024; i++) {
             ASSERT_EQ(readbuffer[i], 'i');
@@ -160,15 +164,15 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     off_t off = 10 * 1024 * 1024 * 1024ul;
     uint64_t len = 8 * 1024;
 
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, Write(fd, buffer, off, len));
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, Read(fd, readbuffer, off, len));
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Write(fd, buffer, off, len));
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Read(fd, readbuffer, off, len));
 
     off_t off1 = 1 * 1024 * 1024 * 1024ul - 8 * 1024;
     uint64_t len1 = 8 * 1024;
 
     LOG(ERROR) << "normal read write！";
-    ASSERT_EQ(LIBCURVE_ERROR::OK, Write(fd, buffer, off1, len1));
-    ASSERT_EQ(LIBCURVE_ERROR::OK, Read(fd, readbuffer, off1, len1));
+    ASSERT_EQ(len, Write(fd, buffer, off1, len1));
+    ASSERT_EQ(len, Read(fd, readbuffer, off1, len1));
     Close(fd);
     mds.UnInitialize();
     delete[] buffer;
@@ -180,7 +184,12 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     ASSERT_EQ(0, Init(configpath.c_str()));
     // open not create file
     std::string filename = "/1_userinfo_";
-    ASSERT_EQ(-1, Open(filename.c_str(), 0, false));
+
+    C_UserInfo_t userinfo;
+    memcpy(userinfo.owner, "userinfo", 9);
+    memcpy(userinfo.password, "", 256);
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Open(filename.c_str(), &userinfo));
 
     char* buffer = new char[8 * 1024];
     memset(buffer, 'a', 8*1024);
@@ -191,10 +200,10 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     ctx.offset = 1;
     ctx.length = 7 * 1024;
     ctx.cb = writecallbacktest;
-    ASSERT_EQ(LIBCURVE_ERROR::NOT_ALIGNED, AioWrite(1234, &ctx));
-    ASSERT_EQ(LIBCURVE_ERROR::NOT_ALIGNED, AioRead(1234, &ctx));
-    ASSERT_EQ(LIBCURVE_ERROR::NOT_ALIGNED, Write(1234, buffer, 1, 4096));
-    ASSERT_EQ(LIBCURVE_ERROR::NOT_ALIGNED, Read(1234, buffer, 4096 , 123));
+    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioWrite(1234, &ctx));
+    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, AioRead(1234, &ctx));
+    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Write(1234, buffer, 1, 4096));
+    ASSERT_EQ(-LIBCURVE_ERROR::NOT_ALIGNED, Read(1234, buffer, 4096 , 123));
 
     CurveAioContext writeaioctx;
     writeaioctx.buf = buffer;
@@ -203,7 +212,7 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     writeaioctx.cb = writecallbacktest;
 
     // aiowrite not opened file
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, AioWrite(1234, &writeaioctx));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, AioWrite(1234, &writeaioctx));
 
     // aioread not opened file
     char* readbuffer = new char[8 * 1024];
@@ -212,15 +221,17 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     readaioctx.offset = 0;
     readaioctx.length = 8 * 1024;
     readaioctx.cb = readcallbacktest;
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, AioRead(1234, &readaioctx));
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, AioRead(1234, &readaioctx));
 
     uint64_t offset = 0;
     uint64_t length = 8 * 1024;
 
     // write not opened file
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, Write(1234, buffer, offset, length));
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED,
+                Write(1234, buffer, offset, length));
     // read not opened file
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, Read(1234, readbuffer, offset, length));
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Read(1234,
+                readbuffer, offset, length));
 
     delete[] buffer;
     delete[] readbuffer;

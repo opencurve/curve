@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
     // allocate chunk
     auto allocateChunk = [&](uint64_t chunknum) {
         char* data = new (std::nothrow) char[FLAGS_chunksize + FLAGS_metapagsize];              // NOLINT
-        memset(data, '0', FLAGS_chunksize + FLAGS_metapagsize);
+        memset(data, 0, FLAGS_chunksize + FLAGS_metapagsize);
 
         uint64_t count = 0;
         while (count < chunknum) {

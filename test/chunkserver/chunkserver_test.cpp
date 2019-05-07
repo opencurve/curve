@@ -17,7 +17,6 @@
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/chunkserver.h"
 
-#include "include/client/libcurve_qemu.h"
 #include "test/client/fake/fakeMDS.h"
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
@@ -58,35 +57,9 @@ class ChunkserverTest : public ::testing::Test {
 
         mds_->Initialize();
         mds_->StartService();
-
-        // Wait until MDS is ready or timed out
-        int64_t t0 = butil::monotonic_time_ms();
-        for (;;) {
-            if (Init(confPath) != 0) {
-                LOG(ERROR) << "Failed to initialize LibCurve config file";
-            }
-
-            fd_ = Open(filename.c_str(), filesize, true);
-            if (fd_ >= 0) {
-                LOG(INFO) << "Created file for test.";
-                break;
-            }
-
-            int64_t t1 = butil::monotonic_time_ms();
-            // Set timeout to 10 seconds
-            if (t1 - t0 > 10 * 1000) {
-                LOG(ERROR) << "Timed out retrying of creating file.";
-                break;
-            }
-
-            LOG(INFO) << "Failed to create file, retrying again.";
-            usleep(100 * 1000);
-        }
-        ASSERT_GE(fd_, 0);
     }
 
     void TearDown() {
-        Close(fd_);
         mds_->UnInitialize();
         delete mds_;
     }

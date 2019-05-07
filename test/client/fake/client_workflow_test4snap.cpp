@@ -16,7 +16,7 @@
 
 #include "src/client/client_common.h"
 #include "src/client/libcurve_define.h"
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 #include "src/client/libcurve_snapshot.h"
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
@@ -41,9 +41,9 @@ std::condition_variable interfacecv;
 
 DECLARE_uint64(test_disk_size);
 
+using curve::client::UserInfo_t;
 using curve::client::ChunkServerAddr;
 using curve::client::EndPoint;
-using curve::client::UserInfo;
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;
 using curve::client::SnapshotClient;
@@ -95,8 +95,11 @@ int main(int argc, char ** argv) {
         return -1;
     }
 
+    UserInfo_t userinfo;
+    userinfo.owner = "test";
+
     uint64_t seq = 0;
-    if (-1 == cl.CreateSnapShot(filename, UserInfo("test", ""), &seq)) {
+    if (-1 == cl.CreateSnapShot(filename, userinfo, &seq)) {
         LOG(ERROR) << "create failed!";
         return -1;
     }
@@ -104,7 +107,7 @@ int main(int argc, char ** argv) {
     SegmentInfo seginfo;
     LogicalPoolCopysetIDInfo lpcsIDInfo;
     if (LIBCURVE_ERROR::FAILED == cl.GetSnapshotSegmentInfo(filename,
-                                                        UserInfo("test", ""),
+                                                        userinfo,
                                                         &lpcsIDInfo,
                                                         0, 0,
                                                         &seginfo)) {
@@ -113,7 +116,7 @@ int main(int argc, char ** argv) {
     }
 
     curve::client::FInfo_t sinfo;
-    if (-1 == cl.GetSnapShot(filename, UserInfo("test", ""), seq, &sinfo)) {
+    if (-1 == cl.GetSnapShot(filename, userinfo, seq, &sinfo)) {
         LOG(ERROR) << "ListSnapShot failed!";
         return -1;
     }

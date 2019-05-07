@@ -31,7 +31,7 @@ class SnapshotClient {
    * @param: opt为外围配置选项
    * @return：0为成功，-1为失败
    */
-  LIBCURVE_ERROR Init(ClientConfigOption_t opt);
+  int Init(ClientConfigOption_t opt);
   /**
    * 创建快照
    * @param: userinfo是用户信息
@@ -39,7 +39,7 @@ class SnapshotClient {
    * @param: seq是出参，获取该文件的版本信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR CreateSnapShot(const std::string& filename,
+  int CreateSnapShot(const std::string& filename,
                                 UserInfo_t userinfo,
                                 uint64_t* seq);
   /**
@@ -49,7 +49,7 @@ class SnapshotClient {
    * @param: seq该文件的版本信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR DeleteSnapShot(const std::string& filename,
+  int DeleteSnapShot(const std::string& filename,
                                 UserInfo_t userinfo,
                                 uint64_t seq);
   /**
@@ -60,7 +60,7 @@ class SnapshotClient {
    * @param: snapinfo是出参，保存当前文件的基础信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR GetSnapShot(const std::string& fname,
+  int GetSnapShot(const std::string& fname,
                              UserInfo_t userinfo,
                              uint64_t seq,
                              FInfo* snapinfo);
@@ -72,7 +72,7 @@ class SnapshotClient {
    * @param: snapif是出参，获取多个seq号的文件信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR ListSnapShot(const std::string& filename,
+  int ListSnapShot(const std::string& filename,
                             UserInfo_t userinfo,
                             const std::vector<uint64_t>* seqvec,
                             std::vector<FInfo*>* snapif);
@@ -85,7 +85,7 @@ class SnapshotClient {
    * @param：segInfo是出参，保存当前文件的快照segment信息
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR GetSnapshotSegmentInfo(const std::string& filename,
+  int GetSnapshotSegmentInfo(const std::string& filename,
                             UserInfo_t userinfo,
                             LogicalPoolCopysetIDInfo* lpcsIDInfo,
                             uint64_t seq,
@@ -101,7 +101,7 @@ class SnapshotClient {
    * @param: buf是读取缓冲区
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR ReadChunkSnapshot(ChunkIDInfo cidinfo,
+  int ReadChunkSnapshot(ChunkIDInfo cidinfo,
                           uint64_t seq,
                           uint64_t offset,
                           uint64_t len,
@@ -112,23 +112,24 @@ class SnapshotClient {
    * @param: cidinfo是当前chunk对应的id信息
    * @param: correctedSeq是chunk需要修正的版本
    */
-  LIBCURVE_ERROR DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
+  int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
                                                 uint64_t correctedSeq);
   /**
    * 获取chunk的版本信息，chunkInfo是出参
    * @param: cidinfo是当前chunk对应的id信息
    * @param: chunkInfo是快照的详细信息
    */
-  LIBCURVE_ERROR GetChunkInfo(ChunkIDInfo cidinfo, ChunkInfoDetail *chunkInfo);
+  int GetChunkInfo(ChunkIDInfo cidinfo, ChunkInfoDetail *chunkInfo);
   /**
    * 获取快照状态
    * @param: userinfo是用户信息
    * @param: filenam文件名
    * @param: seq是文件版本号信息
    */
-  LIBCURVE_ERROR CheckSnapShotStatus(const std::string& filename,
+  int CheckSnapShotStatus(const std::string& filename,
                                 UserInfo_t userinfo,
-                                uint64_t seq);
+                                uint64_t seq,
+                                FileStatus* filestatus);
   /**
    * @brief 创建clone文件
    * @detail
@@ -144,7 +145,7 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  LIBCURVE_ERROR CreateCloneFile(const std::string &destination,
+  int CreateCloneFile(const std::string &destination,
                                 UserInfo_t userinfo,
                                 uint64_t size,
                                 uint64_t sn,
@@ -166,7 +167,7 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  LIBCURVE_ERROR CreateCloneChunk(const std::string &location,
+  int CreateCloneChunk(const std::string &location,
                                 const ChunkIDInfo &chunkidinfo,
                                 uint64_t sn,
                                 uint64_t correntSn,
@@ -181,7 +182,7 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  LIBCURVE_ERROR RecoverChunk(const ChunkIDInfo &chunkidinfo,
+  int RecoverChunk(const ChunkIDInfo &chunkidinfo,
                               uint64_t offset,
                               uint64_t len);
 
@@ -193,7 +194,7 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  LIBCURVE_ERROR CompleteCloneMeta(const std::string &destination,
+  int CompleteCloneMeta(const std::string &destination,
                                 UserInfo_t userinfo);
 
   /**
@@ -204,7 +205,7 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  LIBCURVE_ERROR CompleteCloneFile(const std::string &destination,
+  int CompleteCloneFile(const std::string &destination,
                                 UserInfo_t userinfo);
 
   /**
@@ -216,7 +217,7 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  LIBCURVE_ERROR GetFileInfo(const std::string &filename,
+  int GetFileInfo(const std::string &filename,
                                 UserInfo_t userinfo,
                                 FInfo* fileInfo);
 
@@ -229,7 +230,7 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  LIBCURVE_ERROR GetOrAllocateSegmentInfo(bool allocate,
+  int GetOrAllocateSegmentInfo(bool allocate,
                                 uint64_t offset,
                                 const FInfo_t* fi,
                                 UserInfo_t userinfo,
@@ -246,7 +247,7 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  LIBCURVE_ERROR RenameCloneFile(UserInfo_t userinfo,
+  int RenameCloneFile(UserInfo_t userinfo,
                               uint64_t originId,
                               uint64_t destinationId,
                               const std::string &origin,
@@ -267,7 +268,7 @@ class SnapshotClient {
    * @param: csid是逻辑池中的copysetid数据集
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
-  LIBCURVE_ERROR GetServerList(const LogicPoolID& lpid,
+  int GetServerList(const LogicPoolID& lpid,
                             const std::vector<CopysetID>& csid);
 
  private:

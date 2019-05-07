@@ -5,7 +5,11 @@
  * Copyright (c) 2018 NetEase
  */
 
+#include <vector>
+
 #include "src/client/client_config.h"
+#include "src/common/string_util.h"
+#include "src/common/net_common.h"
 
 namespace curve {
 namespace client {
@@ -48,8 +52,16 @@ int ClientConfig::Init(const char* configpath) {
     fileServiceOption_.leaseOpt.refreshTimesPerLease
     = conf_.GetIntValue("refreshTimesPerLease", 4);
 
-    fileServiceOption_.metaServerOpt.metaaddrvec.push_back(conf_.
-                                            GetStringValue("metaserver_addr"));
+    std::vector<std::string> mdsAddr;
+    common::SplitString(conf_.GetStringValue("metaserver_addr"), "@", &mdsAddr);
+    fileServiceOption_.metaServerOpt.metaaddrvec.assign(mdsAddr.begin(),
+                                                        mdsAddr.end());
+    for (auto& addr : fileServiceOption_.metaServerOpt.metaaddrvec) {
+        if (!curve::common::NetCommon::CheckAddressValid(addr)) {
+            LOG(ERROR) << "address valid!";
+            return -1;
+        }
+    }
     fileServiceOption_.metaServerOpt.rpcTimeoutMs
     = conf_.GetIntValue("rpcTimeoutMs", 500);
     fileServiceOption_.metaServerOpt.rpcRetryTimes

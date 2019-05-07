@@ -25,8 +25,8 @@
 extern std::string configpath;
 extern std::string metaserver_addr;
 
+using curve::client::UserInfo_t;
 using curve::client::ChunkIDInfo;
-using curve::client::UserInfo;
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;
 using curve::client::SnapshotClient;
@@ -53,6 +53,10 @@ TEST(SnapInstance, SnapShotTest) {
     opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
+
+    UserInfo_t userinfo;
+    userinfo.owner = "test";
+    UserInfo_t emptyuserinfo;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
@@ -85,8 +89,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* fakeret
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
-                                                        UserInfo("test", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
+                                                        userinfo,
                                                         &seq));
 
     // set sequence
@@ -106,7 +110,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret1);
     ASSERT_EQ(LIBCURVE_ERROR::OK, cl.CreateSnapShot(filename,
-                                                    UserInfo("", ""),
+                                                    emptyuserinfo,
                                                     &seq));
     ASSERT_EQ(2, seq);
 
@@ -117,8 +121,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* fakeret2
      = new FakeReturn(&cntl, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(fakeret2);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
-                                                        UserInfo("test", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.CreateSnapShot(filename,
+                                                        userinfo,
                                                         &seq));
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
@@ -130,8 +134,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* checkfakeret3
      = new FakeReturn(nullptr, static_cast<void*>(&response));
     curvefsservice.SetCreateSnapShot(checkfakeret3);
-    ASSERT_EQ(LIBCURVE_ERROR::UNDER_SNAPSHOT, cl.CreateSnapShot(filename,
-                                                        UserInfo("test", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::UNDER_SNAPSHOT, cl.CreateSnapShot(filename,
+                                                        userinfo,
                                                         &seq));
 
     // test renamefile
@@ -140,14 +144,14 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* renamefakeret
      = new FakeReturn(nullptr, static_cast<void*>(&renameresp));
     curvefsservice.SetRenameFile(renamefakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::OK, cl.RenameCloneFile(UserInfo("test", ""),
+    ASSERT_EQ(LIBCURVE_ERROR::OK, cl.RenameCloneFile(userinfo,
                                                         1, 2, "1", "2"));
 
     renameresp.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
     FakeReturn* renamefakeret1
      = new FakeReturn(nullptr, static_cast<void*>(&renameresp));
     curvefsservice.SetRenameFile(renamefakeret1);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL, cl.RenameCloneFile(UserInfo("test", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, cl.RenameCloneFile(userinfo,
                                                         1, 2, "1", "2"));
     ASSERT_EQ(2, seq);
 
@@ -157,7 +161,7 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* renamefake2
      = new FakeReturn(&renamecntl, static_cast<void*>(&renameresp));
     curvefsservice.SetRenameFile(renamefake2);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.RenameCloneFile(UserInfo("test", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.RenameCloneFile(userinfo,
                                                         1, 2, "1", "2"));
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
@@ -171,7 +175,7 @@ TEST(SnapInstance, SnapShotTest) {
 
     curvefsservice.SetDeleteSnapShot(delfakeret);
     ASSERT_EQ(LIBCURVE_ERROR::OK, cl.DeleteSnapShot(filename,
-                                                    UserInfo("", ""),
+                                                    emptyuserinfo,
                                                     seq));
 
     // snapshot not exist
@@ -181,8 +185,8 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&noexist_resp));
 
     curvefsservice.SetDeleteSnapShot(notexist_fakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST, cl.DeleteSnapShot(filename,
-                                                    UserInfo("", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::NOTEXIST, cl.DeleteSnapShot(filename,
+                                                    emptyuserinfo,
                                                     seq));
 
     // rpc fail
@@ -192,8 +196,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* delfakeret2
      = new FakeReturn(&delcntl, static_cast<void*>(&response));
     curvefsservice.SetDeleteSnapShot(delfakeret2);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED, cl.DeleteSnapShot(filename,
-                                                        UserInfo("test", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, cl.DeleteSnapShot(filename,
+                                                        userinfo,
                                                         seq));
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
@@ -218,9 +222,9 @@ TEST(SnapInstance, SnapShotTest) {
 
     SegmentInfo seginfo;
     LogicalPoolCopysetIDInfo lpcsIDInfo;
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
             cl.GetSnapshotSegmentInfo(filename,
-                                      UserInfo("", ""),
+                                      emptyuserinfo,
                                       &lpcsIDInfo, 0, 0, &seginfo));
 
     // normal segment info
@@ -241,7 +245,7 @@ TEST(SnapInstance, SnapShotTest) {
                 static_cast<void*>(getresponse1));
     curvefsservice.SetGetSnapshotSegmentInfo(getfakeret1);
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-            cl.GetSnapshotSegmentInfo(filename, UserInfo("test", ""),
+            cl.GetSnapshotSegmentInfo(filename, userinfo,
                                      &lpcsIDInfo, 0, 0, &seginfo));
 
     ASSERT_EQ(seginfo.segmentsize, 1*1024*1024*1024ul);
@@ -258,8 +262,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* getfake = new FakeReturn(nullptr,
                                         static_cast<void*>(getresp));
     curvefsservice.SetGetSnapshotSegmentInfo(getfake);
-    ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
-            cl.GetSnapshotSegmentInfo(filename, UserInfo("", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::NOTEXIST,
+            cl.GetSnapshotSegmentInfo(filename, emptyuserinfo,
                                         &lpcsIDInfo, 0, 0, &seginfo));
 
     // rpc fail
@@ -272,8 +276,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* getfakeret2 = new FakeReturn(&getcntl,
                 static_cast<void*>(getresponse2));
     curvefsservice.SetGetSnapshotSegmentInfo(getfakeret2);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            cl.GetSnapshotSegmentInfo(filename, UserInfo("test", ""),
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+            cl.GetSnapshotSegmentInfo(filename, userinfo,
                                         &lpcsIDInfo, 0, 0, &seginfo));
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
@@ -297,7 +301,7 @@ TEST(SnapInstance, SnapShotTest) {
     curve::client::FInfo_t sinfo;
     curvefsservice.SetListSnapShot(listfakeret);
     ASSERT_EQ(LIBCURVE_ERROR::OK, cl.GetSnapShot(filename,
-                                                UserInfo("", ""),
+                                                emptyuserinfo,
                                                 seq, &sinfo));
 
     ASSERT_EQ(sinfo.id, 1);
@@ -315,7 +319,7 @@ TEST(SnapInstance, SnapShotTest) {
     curve::client::FInfo_t ffinfo;
     fivec.push_back(&ffinfo);
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-                cl.ListSnapShot(filename, UserInfo("", ""), &seqvec, &fivec));
+                cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fivec));
 
     ASSERT_EQ(fivec[0]->id, 1);
     ASSERT_EQ(fivec[0]->filename, filename.c_str());
@@ -335,15 +339,15 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* listfakeret2
      = new FakeReturn(&listcntl, static_cast<void*>(listresponse1));
     curvefsservice.SetListSnapShot(listfakeret2);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            cl.GetSnapShot(filename, UserInfo("test", ""), seq, &sinfo));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+            cl.GetSnapShot(filename, userinfo, seq, &sinfo));
 
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
 
     curvefsservice.CleanRetryTimes();
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            cl.ListSnapShot(filename, UserInfo("test", ""), &seqvec, &fivec));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+            cl.ListSnapShot(filename, userinfo, &seqvec, &fivec));
 
     // rpc fail
     ::curve::mds::CheckSnapShotStatusResponse* checkresponse1 =
@@ -353,8 +357,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* checkfakeret
      = new FakeReturn(&checkcntl, static_cast<void*>(checkresponse1));
     curvefsservice.SetCheckSnap(checkfakeret);
-    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+            cl.CheckSnapShotStatus(filename, userinfo, seq, nullptr));
 
     // set return ok
     ::curve::mds::CheckSnapShotStatusResponse* checkresponse2 =
@@ -364,7 +368,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(nullptr, static_cast<void*>(checkresponse2));
     curvefsservice.SetCheckSnap(checkfakeret1);
     ASSERT_EQ(LIBCURVE_ERROR::OK,
-            cl.CheckSnapShotStatus(filename, UserInfo("", ""), seq));
+            cl.CheckSnapShotStatus(filename, emptyuserinfo, seq, nullptr));
 
     // set return kOwnerAuthFail
     ::curve::mds::CheckSnapShotStatusResponse* checkresponse3 =
@@ -373,8 +377,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* checkfakeret2
      = new FakeReturn(nullptr, static_cast<void*>(checkresponse3));
     curvefsservice.SetCheckSnap(checkfakeret2);
-    ASSERT_EQ(LIBCURVE_ERROR::AUTHFAIL,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
+    ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
+            cl.CheckSnapShotStatus(filename, userinfo, seq, nullptr));
 
     // set return kSnapshotDeleting
     ::curve::mds::CheckSnapShotStatusResponse* checkresp6 =
@@ -383,8 +387,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* checkfakeret5
      = new FakeReturn(nullptr, static_cast<void*>(checkresp6));
     curvefsservice.SetCheckSnap(checkfakeret5);
-    ASSERT_EQ(LIBCURVE_ERROR::DELETING,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
+    ASSERT_EQ(-LIBCURVE_ERROR::DELETING,
+            cl.CheckSnapShotStatus(filename, userinfo, seq, nullptr));
 
     // set return kSnapshotFileNotExists
     ::curve::mds::CheckSnapShotStatusResponse* resp7 =
@@ -393,8 +397,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* checkfakeret6
      = new FakeReturn(nullptr, static_cast<void*>(resp7));
     curvefsservice.SetCheckSnap(checkfakeret6);
-    ASSERT_EQ(LIBCURVE_ERROR::NOTEXIST,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
+    ASSERT_EQ(-LIBCURVE_ERROR::NOTEXIST,
+            cl.CheckSnapShotStatus(filename, userinfo, seq, nullptr));
 
     // set return kSnapshotFileDeleteError
     ::curve::mds::CheckSnapShotStatusResponse* resp8 =
@@ -403,8 +407,8 @@ TEST(SnapInstance, SnapShotTest) {
     FakeReturn* checkfakeret7
      = new FakeReturn(nullptr, static_cast<void*>(resp8));
     curvefsservice.SetCheckSnap(checkfakeret7);
-    ASSERT_EQ(LIBCURVE_ERROR::DELETE_ERROR,
-            cl.CheckSnapShotStatus(filename, UserInfo("test", ""), seq));
+    ASSERT_EQ(-LIBCURVE_ERROR::DELETE_ERROR,
+            cl.CheckSnapShotStatus(filename, userinfo, seq, nullptr));
 
     cl.UnInit();
 
