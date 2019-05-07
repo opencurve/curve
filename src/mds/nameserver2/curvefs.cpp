@@ -304,7 +304,7 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, bool deleteForce) {
         if (ret1 != StatusCode::kOK) {
             LOG(ERROR) << "check is directory empty fail, filename = "
                        << filename << ", ret = " << ret1;
-            return ret;
+            return ret1;
         }
         if (!isEmpty) {
             LOG(WARNING) << "delete file, file is directory and not empty"
@@ -324,7 +324,7 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, bool deleteForce) {
                   << ", filename = " << filename;
         return StatusCode::kOK;
     } else if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
-        StatusCode ret = CheckFileCanDeleteOrRename(filename);
+        StatusCode ret = CheckFileCanChange(filename);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "delete file, can not delete file"
                        << ", filename = " << filename
@@ -416,18 +416,18 @@ StatusCode CurveFS::ReadDir(const std::string & dirname,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::CheckFileCanDeleteOrRename(const std::string &fileName) {
+StatusCode CurveFS::CheckFileCanChange(const std::string &fileName) {
     // 检查文件是否有快照
     std::vector<FileInfo> snapshotFileInfos;
     auto ret = ListSnapShotFile(fileName, &snapshotFileInfos);
     if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "CheckFileCanDeleteOrRename, list snapshot file fail"
+        LOG(ERROR) << "CheckFileCanChange, list snapshot file fail"
                     << ", fileName = " << fileName;
         return ret;
     }
 
     if (snapshotFileInfos.size() != 0) {
-        LOG(WARNING) << "CheckFileCanDeleteOrRename, file is under snapshot, "
+        LOG(WARNING) << "CheckFileCanChange, file is under snapshot, "
                      << "cannot delete or rename, fileName = " << fileName;
         return StatusCode::kFileUnderSnapShot;
     }
@@ -436,7 +436,7 @@ StatusCode CurveFS::CheckFileCanDeleteOrRename(const std::string &fileName) {
 
     // 检查文件是否有分配出去的可用session
     if (isFileHasValidSession(fileName)) {
-        LOG(WARNING) << "CheckFileCanDeleteOrRename, file has valid session, "
+        LOG(WARNING) << "CheckFileCanChange, file has valid session, "
                      << "cannot delete or rename, fileName = " << fileName;
         return StatusCode::kFileOccupied;
     }
@@ -485,7 +485,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     }
 
     // 判断oldFileName能否rename，文件是否正在被使用，是否正在快照中，是否正在克隆
-    ret = CheckFileCanDeleteOrRename(oldFileName);
+    ret = CheckFileCanChange(oldFileName);
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "rename fail, can not rename file"
                 << ", oldFileName = " << oldFileName
@@ -525,7 +525,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         }
 
         // 判断newFileName能否rename，是否正在被使用，是否正在快照中，是否正在克隆
-        StatusCode ret = CheckFileCanDeleteOrRename(newFileName);
+        StatusCode ret = CheckFileCanChange(newFileName);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "cannot rename file"
                         << ", newFileName = " << newFileName
@@ -614,6 +614,60 @@ StatusCode CurveFS::ExtendFile(const std::string &filename,
         fileInfo.set_length(newLength);
         return PutFile(fileInfo);
     }
+}
+
+StatusCode CurveFS::ChangeOwner(const std::string &filename,
+                                const std::string &newOwner) {
+    FileInfo  fileInfo;
+    StatusCode ret = GetFileInfo(filename, &fileInfo);
+    if (ret != StatusCode::kOK) {
+        LOG(INFO) << "get source file error, errCode = " << ret;
+        return  ret;
+    }
+
+    if (newOwner == fileInfo.owner()) {
+        LOG(INFO) << "change owner sucess, file owner is same with newOwner, "
+                  << "filename = " << filename
+                  << ", file.owner() = " << fileInfo.owner()
+                  << ", newOwner = " << newOwner;
+        return StatusCode::kOK;
+    }
+
+    // 检查文件能够执行change owner操作，
+    // 目前只支持对INODE_PAGEFILE和INODE_DIRECTORY两种类型进行操作
+    if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
+        // 判断filename能否change owner
+        // 是否正在被使用，是否正在快照中，是否正在克隆
+        ret = CheckFileCanChange(filename);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "cannot changeOwner file"
+                        << ", filename = " << filename
+                        << ", ret = " << ret;
+            return ret;
+        }
+    } else if (fileInfo.filetype() == FileType::INODE_DIRECTORY) {
+        // 目录下如果有还有文件，则不能change owner
+        bool isEmpty = false;
+        ret = isDirectoryEmpty(fileInfo, &isEmpty);
+        if (ret != StatusCode::kOK) {
+            LOG(ERROR) << "check is directory empty fail, filename = "
+                       << filename << ", ret = " << ret;
+            return ret;
+        }
+        if (!isEmpty) {
+            LOG(WARNING) << "ChangeOwner fail, file is directory and not empty"
+                       << ", filename = " << filename;
+            return StatusCode::kDirNotEmpty;
+        }
+    } else {
+        LOG(ERROR) << "file type not support change owner"
+                  << ", filename = " << filename;
+        return StatusCode::kNotSupported;
+    }
+
+    // 修改文件owner
+    fileInfo.set_owner(newOwner);
+    return PutFile(fileInfo);
 }
 
 StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
@@ -1367,6 +1421,36 @@ StatusCode CurveFS::CheckPathOwner(const std::string &filename,
     uint64_t parentID;
     return CheckPathOwnerInternal(filename, owner, signature,
                                     &lastEntry, &parentID);
+}
+
+StatusCode CurveFS::CheckRootOwner(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &signature,
+                              uint64_t date) {
+    if (owner.empty()) {
+        LOG(ERROR) << "file owner is empty, filename = " << filename
+                   << ", owner = " << owner;
+        return StatusCode::kOwnerAuthFail;
+    }
+
+    StatusCode ret = StatusCode::kOwnerAuthFail;
+
+    if (!CheckDate(date)) {
+        LOG(ERROR) << "check date fail, request is staled.";
+        return ret;
+    }
+
+    if (owner != GetRootOwner()) {
+        LOG(ERROR) << "check root owner fail, owner is :" << owner;
+        return ret;
+    }
+
+    // 需要用signature校验root用户身份。
+    ret = CheckSignature(owner, signature, date)
+            ? StatusCode::kOK : StatusCode::kOwnerAuthFail;
+    LOG_IF(ERROR, ret == StatusCode::kOwnerAuthFail)
+            << "check root owner fail, signature auth fail.";
+    return ret;
 }
 
 StatusCode CurveFS::CheckFileOwner(const std::string &filename,

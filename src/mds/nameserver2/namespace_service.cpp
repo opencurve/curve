@@ -392,6 +392,60 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
     return;
 }
 
+void NameSpaceService::ChangeOwner(
+                        ::google::protobuf::RpcController* controller,
+                       const ::curve::mds::ChangeOwnerRequest* request,
+                       ::curve::mds::ChangeOwnerResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", ChangeOwner request path is invalid, filename = "
+                << request->filename()
+                << ", newOwner = " << request->newowner();
+        return;
+    }
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+              << ", ChangeOwner request, filename = " << request->filename()
+              << ", newOwner = " << request->newowner();
+
+    FileWriteLockGuard guard(fileLockManager_, request->filename());
+
+    StatusCode retCode;
+    // ChangeOwner()接口，只允许root用户调用
+    retCode = kCurveFS.CheckRootOwner(request->filename(), request->rootowner(),
+                                      request->signature(), request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->rootowner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    retCode = kCurveFS.ChangeOwner(request->filename(), request->newowner());
+    if (retCode != StatusCode::kOK)  {
+       response->set_statuscode(retCode);
+       LOG(ERROR) << "logid = " << cntl->log_id()
+                  << ", ChangeOwner fail, filename = " << request->filename()
+                  << ", newOwner = " << request->newowner()
+                  << ", statusCode = " << retCode
+                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
+    } else {
+       response->set_statuscode(StatusCode::kOK);
+       LOG(INFO) << "logid = " << cntl->log_id()
+           << ", ChangeOwner ok, filename = " << request->filename()
+           << ", newOwner = " << request->newowner();
+    }
+
+    return;
+}
+
 void NameSpaceService::CreateSnapShot(
                         ::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateSnapShotRequest* request,
