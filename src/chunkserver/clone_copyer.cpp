@@ -16,8 +16,8 @@ OriginCopyer::OriginCopyer(std::shared_ptr<FileClient> curveClient,
     , s3Client_(s3Client) {}
 
 int OriginCopyer::Init(const CopyerOptions& options) {
-    LIBCURVE_ERROR errorCode = curveClient_->Init(options.curveConf.c_str());
-    if (errorCode != LIBCURVE_ERROR::OK) {
+    int errorCode = curveClient_->Init(options.curveConf.c_str());
+    if (errorCode != 0) {
         LOG(ERROR) << "Init curve client failed."
                    << "error code: " << errorCode;
         return -1;
@@ -92,8 +92,8 @@ int OriginCopyer::DownloadFromCurve(const string& fileName,
         }
     }
 
-    LIBCURVE_ERROR ret = curveClient_->Read(fd, buf, off, size);
-    if (ret != LIBCURVE_ERROR::OK) {
+    int ret = curveClient_->Read(fd, buf, off, size);
+    if (ret < 0) {
         LOG(ERROR) << "Read curve file failed."
                    << "file name: " << fileName
                    << " ,error code: " << ret;

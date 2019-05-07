@@ -21,6 +21,8 @@
 #include "include/curve_compiler_specific.h"
 #include "src/client/io_condition_varaiable.h"
 
+#include "proto/chunk.pb.h"
+
 namespace curve {
 namespace client {
 class IOManager;
@@ -171,6 +173,14 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      */
     void FillCommonFields(ChunkIDInfo idinfo, RequestContext* req);
 
+    /**
+     * chunkserver errcode转化为libcurve client的errode
+     * @param: errcode为chunkserver侧的errode
+     * @param[out]: errout为libcurve自己的errode
+     */
+    void ChunkServerErr2LibcurveErr(curve::chunkserver::CHUNK_OP_STATUS errcode,
+                                    LIBCURVE_ERROR* errout);
+
  private:
     // io 类型
     OpType  type_;
@@ -190,7 +200,7 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     CurveAioContext* aioctx_;
 
     // 当前IO的errorcode
-    int errcode_;
+    LIBCURVE_ERROR errcode_;
 
     // 当前IO被拆分成reqcount_个小IO
     std::atomic<uint32_t> reqcount_;

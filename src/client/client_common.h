@@ -146,7 +146,7 @@ typedef struct UserInfo {
         password = pwd;
     }
 
-    bool Valid() {
+    bool Valid() const {
         return owner != "";
     }
 } UserInfo_t;

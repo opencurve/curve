@@ -41,10 +41,7 @@ class IOManager4File : public IOManager {
    * @param: mdsclient透传给底层，在必要的时候与mds通信
    * @return: 成功返回读取真实长度，-1为失败
    */
-  LIBCURVE_ERROR  Read(char* buf,
-                      off_t offset,
-                      size_t length,
-                      MDSClient* mdsclient);
+  int Read(char* buf, off_t offset, size_t length, MDSClient* mdsclient);
   /**
    * 同步模式写
    * @param: mdsclient透传给底层，在必要的时候与mds通信
@@ -53,10 +50,7 @@ class IOManager4File : public IOManager {
    * @parma：length为待读取的长度
    * @return： 成功返回写入真实长度，-1为失败
    */
-  LIBCURVE_ERROR  Write(const char* buf,
-                      off_t offset,
-                      size_t length,
-                      MDSClient* mdsclient);
+  int Write(const char* buf, off_t offset, size_t length, MDSClient* mdsclient);
   /**
    * 异步模式读
    * @param: mdsclient透传给底层，在必要的时候与mds通信

@@ -1,6 +1,6 @@
 cc_library(
     name = "include_client",
-    srcs = ["libcurve_qemu.h"],
+    srcs = ["libcurve.h"],
     linkopts = ([
         "-pthread",
         "-std=c++11",

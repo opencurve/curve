@@ -19,7 +19,6 @@
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/cli.h"
 
-#include "include/client/libcurve_qemu.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "test/client/fake/fakeMDS.h"
 
@@ -165,31 +164,6 @@ class HeartbeatTest : public ::testing::Test {
 
         mds_->Initialize();
         mds_->StartService();
-
-        // Wait until MDS is ready or timed out
-        int64_t t0 = butil::monotonic_time_ms();
-        for (;;) {
-            if (Init(confPath.c_str()) != 0) {
-                LOG(ERROR) << "Failed to initialize LibCurve config file";
-            }
-
-            fd_ = Open(filename.c_str(), filesize, true);
-            if (fd_ >= 0) {
-                LOG(INFO) << "Created file for test.";
-                break;
-            }
-
-            int64_t t1 = butil::monotonic_time_ms();
-            // Set timeout to 10 seconds
-            if (t1 - t0 > 10 * 1000) {
-                LOG(ERROR) << "Timed out retrying of creating file.";
-                break;
-            }
-
-            LOG(INFO) << "Failed to create file, retrying again.";
-            usleep(100 * 1000);
-        }
-        ASSERT_GE(fd_, 0);
     }
 
     void TearDown() {
@@ -204,14 +178,13 @@ class HeartbeatTest : public ::testing::Test {
         RemovePeersData();
 
         ReleaseHeartbeat();
-        Close(fd_);
         mds_->UnInitialize();
         delete mds_;
     }
 
  private:
     FakeMDS*                    mds_;
-    int                         fd_;
+    // int                         fd_;
 
     mutable std::mutex          hbMtx_;
     std::condition_variable     hbCV_;

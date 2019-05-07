@@ -135,6 +135,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
     std::string lastEntry;
 
     // check param
+    // TODO(tom) : paramerror细化
     if (filetype == FileType::INODE_PAGEFILE) {
         if  (length < kMiniFileLength) {
             LOG(ERROR) << "file Length < MinFileLength " << kMiniFileLength
