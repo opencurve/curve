@@ -9,6 +9,7 @@
 #define SRC_MDS_TOPOLOGY_TOPOLOGY_TOKEN_GENERATOR_H_
 
 #include <string>
+#include <ctime>
 
 #include "src/mds/topology/topology_token_generator.h"
 
@@ -27,7 +28,9 @@ class TopologyTokenGenerator {
 
 class DefaultTokenGenerator : public TopologyTokenGenerator {
  public:
-    DefaultTokenGenerator() {}
+    DefaultTokenGenerator() {
+        std::srand(std::time(nullptr));
+    }
     virtual ~DefaultTokenGenerator() {}
     virtual std::string GenToken();
 };

@@ -11,6 +11,7 @@
 #include "test/mds/schedule/common.h"
 
 using ::curve::mds::topology::ChunkServerStatus;
+using ::curve::mds::copyset::CopysetOption;
 
 using ::testing::_;
 using ::testing::Return;
@@ -29,9 +30,11 @@ class TestTopoAdapterImpl : public ::testing::Test {
 
   void SetUp() override {
       mockTopo_ = std::make_shared<MockTopology>();
+      CopysetOption copysetOption;
       mockTopoManager_ = std::make_shared<MockTopologyServiceManager>(
           mockTopo_,
-          std::make_shared<::curve::mds::copyset::CopysetManager>());
+          std::make_shared<::curve::mds::copyset::CopysetManager>(
+          copysetOption));
       topoAdapter_ = std::make_shared<TopoAdapterImpl>(mockTopo_,
                                                        mockTopoManager_);
   }

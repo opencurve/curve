@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2018 NetEase Inc. All rights reserved.
  * Project: Curve
- * 
- * History: 
+ *
+ * History:
  *          2018/08/30  Wenyu Zhou   Initial version
  */
 
@@ -73,6 +73,17 @@ int Configuration::GetIntValue(const std::string &key, uint64_t defaultvalue) {
 }
 
 void Configuration::SetIntValue(const std::string &key, const int value) {
+    SetValue(key, std::to_string(value));
+}
+
+double Configuration::GetDoubleValue(
+    const std::string &key,
+    double defaultvalue) {
+    std::string value = GetValue(key);
+    return (value == "") ? defaultvalue : std::stod(value);
+}
+
+void Configuration::SetDoubleValue(const std::string &key, const double value) {
     SetValue(key, std::to_string(value));
 }
 

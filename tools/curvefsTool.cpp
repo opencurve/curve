@@ -32,8 +32,9 @@ DEFINE_int32(logicalpool_type,
     "logical pool type.");
 
 DEFINE_int32(replica_num, 3, "replica num.");
-DEFINE_int32(copyset_num, 100, "copyset num.");
+DEFINE_int32(copyset_num, 0, "copyset num.");
 DEFINE_int32(zone_num, 3, "zone num.");
+DEFINE_int32(scatterWidth, 0, "scatter width.");
 
 DEFINE_string(cluster_map, "./topo.txt", "cluster topology map.");
 
@@ -68,8 +69,8 @@ class CurvefsTools {
 
     int Init();
 
-    bool HandleCreateLogicalPool();
-    bool HandleBuildCluster();
+    int HandleCreateLogicalPool();
+    int HandleBuildCluster();
 
     static const std::string clusterMapSeprator;
 
@@ -78,23 +79,23 @@ class CurvefsTools {
         std::vector<std::string> *v,
         const std::string& c);
 
-    bool ReadClusterMap();
-    bool ScanCluster();
-    bool CreatePhysicalPool();
-    bool CreateZone();
-    bool CreateServer();
+    int ReadClusterMap();
+    int ScanCluster();
+    int CreatePhysicalPool();
+    int CreateZone();
+    int CreateServer();
 
-    bool ClearPhysicalPool();
-    bool ClearZone();
-    bool ClearServer();
+    int ClearPhysicalPool();
+    int ClearZone();
+    int ClearServer();
 
-    bool ListPhysicalPool(
+    int ListPhysicalPool(
         std::list<PhysicalPoolInfo> *physicalPoolInfos);
 
-    bool AddListPoolZone(PoolIdType poolid,
+    int AddListPoolZone(PoolIdType poolid,
         std::list<ZoneInfo> *zoneInfos);
 
-    bool AddListZoneServer(ZoneIdType zoneid,
+    int AddListZoneServer(ZoneIdType zoneid,
         std::list<ServerInfo> *serverInfos);
 
  private:
@@ -124,9 +125,7 @@ int CurvefsTools::Init() {
     return ret;
 }
 
-bool CurvefsTools::HandleCreateLogicalPool() {
-    bool ret = true;
-
+int CurvefsTools::HandleCreateLogicalPool() {
     TopologyService_Stub stub(&channel_);
 
     brpc::Controller cntl;
@@ -149,6 +148,7 @@ bool CurvefsTools::HandleCreateLogicalPool() {
 
     request.set_redundanceandplacementpolicy(rapString);
     request.set_userpolicy("{\"aaa\":1}");
+    request.set_scatterwidth(FLAGS_scatterWidth);
 
     CreateLogicalPoolResponse response;
     stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
@@ -158,55 +158,63 @@ bool CurvefsTools::HandleCreateLogicalPool() {
                     << response.statuscode()
                     << ", error content:"
                     << cntl.ErrorText();
-        return false;
+        return -1;
     }
     if (response.statuscode() != 0) {
         LOG(ERROR) << "Rpc response fail. "
                    << "Message is :"
                    << response.DebugString();
-        return false;
+        return response.statuscode();
     }
 
+    return 0;
+}
+
+int CurvefsTools::HandleBuildCluster() {
+    int ret = ReadClusterMap();
+    if (ret < 0) {
+        LOG(ERROR) << "read cluster map fail";
+        return ret;
+    }
+    ret = ScanCluster();
+    if (ret < 0) {
+        LOG(ERROR) << "scan cluster fail";
+        return ret;
+    }
+    ret = ClearServer();
+    if (ret < 0) {
+        LOG(ERROR) << "clear server fail.";
+        return ret;
+    }
+    ret = ClearZone();
+    if (ret < 0) {
+        LOG(ERROR) << "clear zone fail.";
+        return ret;
+    }
+    ret = ClearPhysicalPool();
+    if (ret < 0) {
+        LOG(ERROR) << "clear physicalpool fail.";
+        return ret;
+    }
+    ret = CreatePhysicalPool();
+    if (ret < 0) {
+        LOG(ERROR) << "create physicalpool fail.";
+        return ret;
+    }
+    ret = CreateZone();
+    if (ret < 0) {
+        LOG(ERROR) << "create zone fail.";
+        return ret;
+    }
+    ret = CreateServer();
+    if (ret < 0) {
+        LOG(ERROR) << "create server fail.";
+        return ret;
+    }
     return ret;
 }
 
-bool CurvefsTools::HandleBuildCluster() {
-    if (!ReadClusterMap()) {
-        LOG(ERROR) << "read cluster map fail";
-        return false;
-    }
-    if (!ScanCluster()) {
-        LOG(ERROR) << "scan cluster fail";
-        return false;
-    }
-    if (!ClearServer()) {
-        LOG(ERROR) << "clear server fail.";
-        return false;
-    }
-    if (!ClearZone()) {
-        LOG(ERROR) << "clear zone fail.";
-        return false;
-    }
-    if (!ClearPhysicalPool()) {
-        LOG(ERROR) << "clear physicalpool fail.";
-        return false;
-    }
-    if (!CreatePhysicalPool()) {
-        LOG(ERROR) << "create physicalpool fail.";
-        return false;
-    }
-    if (!CreateZone()) {
-        LOG(ERROR) << "create zone fail.";
-        return false;
-    }
-    if (!CreateServer()) {
-        LOG(ERROR) << "create server fail.";
-        return false;
-    }
-    return true;
-}
-
-bool CurvefsTools::ReadClusterMap() {
+int CurvefsTools::ReadClusterMap() {
     std::string clusterMap = FLAGS_cluster_map;
 
     std::ifstream fin;
@@ -246,7 +254,7 @@ bool CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return false;
+                return -1;
             }
 
             while (index < strList.size() && strList[index].empty()) {
@@ -281,7 +289,7 @@ bool CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return false;
+                return -1;
             }
 
             while (index < strList.size() && strList[index].empty()) {
@@ -316,7 +324,7 @@ bool CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return false;
+                return -1;
             }
 
             while (index < strList.size() && strList[index].empty()) {
@@ -335,7 +343,7 @@ bool CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return false;
+                return -1;
             }
 
             while (index < strList.size() && strList[index].empty()) {
@@ -354,7 +362,7 @@ bool CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return false;
+                return -1;
             }
 
             cluster.push_back(info);
@@ -363,12 +371,12 @@ bool CurvefsTools::ReadClusterMap() {
         LOG(ERROR) << "open cluster map file : "
                    << clusterMap
                    << " fail.";
-        return false;
+        return -1;
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::ListPhysicalPool(
+int CurvefsTools::ListPhysicalPool(
     std::list<PhysicalPoolInfo> *physicalPoolInfos) {
     TopologyService_Stub stub(&channel_);
     brpc::Controller listPhysicalPoolCntl;
@@ -386,13 +394,13 @@ bool CurvefsTools::ListPhysicalPool(
                     << listPhysicalPoolResponse.statuscode()
                     << ", error content:"
                     << listPhysicalPoolCntl.ErrorText();
-        return false;
+        return -1;
     }
     if (listPhysicalPoolResponse.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListPhysicalPool Rpc response fail. "
                    << "Message is :"
                    << listPhysicalPoolResponse.DebugString();
-        return false;
+        return listPhysicalPoolResponse.statuscode();
     }
 
     for (int i = 0;
@@ -401,10 +409,10 @@ bool CurvefsTools::ListPhysicalPool(
         physicalPoolInfos->push_back(
             listPhysicalPoolResponse.physicalpoolinfos(i));
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::AddListPoolZone(PoolIdType poolid,
+int CurvefsTools::AddListPoolZone(PoolIdType poolid,
     std::list<ZoneInfo> *zoneInfos) {
     TopologyService_Stub stub(&channel_);
     ListPoolZoneRequest request;
@@ -421,7 +429,7 @@ bool CurvefsTools::AddListPoolZone(PoolIdType poolid,
                    << cntl.ErrorText()
                    << ", physicalpoolid = "
                    << poolid;
-        return false;
+        return -1;
     }
     if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListPoolZone Rpc response fail. "
@@ -429,15 +437,15 @@ bool CurvefsTools::AddListPoolZone(PoolIdType poolid,
                    << response.DebugString()
                    << " , physicalpoolid = "
                    << poolid;
-        return false;
+        return response.statuscode();
     }
     for (int i = 0; i < response.zones_size(); i++) {
         zoneInfos->push_back(response.zones(i));
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
+int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
     std::list<ServerInfo> *serverInfos) {
     TopologyService_Stub stub(&channel_);
     ListZoneServerRequest request;
@@ -454,7 +462,7 @@ bool CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
                    << cntl.ErrorText()
                    << ", zoneid = "
                    << zoneid;
-        return false;
+        return -1;
     }
     if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListZoneServer Rpc response fail. "
@@ -462,15 +470,15 @@ bool CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
                    << response.DebugString()
                    << " , zoneid = "
                    << zoneid;
-        return false;
+        return response.statuscode();
     }
     for (int i = 0; i < response.serverinfo_size(); i++) {
         serverInfos->push_back(response.serverinfo(i));
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::ScanCluster() {
+int CurvefsTools::ScanCluster() {
     // get all phsicalpool and compare
     // 去重
     for (auto server : cluster) {
@@ -488,8 +496,9 @@ bool CurvefsTools::ScanCluster() {
     }
 
     std::list<PhysicalPoolInfo> physicalPoolInfos;
-    if (!ListPhysicalPool(&physicalPoolInfos)) {
-        return false;
+    int ret = ListPhysicalPool(&physicalPoolInfos);
+    if (ret < 0) {
+        return ret;
     }
 
     for (auto it = physicalPoolInfos.begin();
@@ -529,8 +538,9 @@ bool CurvefsTools::ScanCluster() {
 
     std::list<ZoneInfo> zoneInfos;
     for (auto poolid : physicalPoolToDel) {
-        if (!AddListPoolZone(poolid, &zoneInfos)) {
-            return false;
+        ret = AddListPoolZone(poolid, &zoneInfos);
+        if (ret < 0) {
+            return ret;
         }
     }
 
@@ -543,8 +553,9 @@ bool CurvefsTools::ScanCluster() {
             it != physicalPoolInfos.end();
             it++) {
         PoolIdType poolid = it->physicalpoolid();
-        if (!AddListPoolZone(poolid, &zoneInfos)) {
-            return false;
+        ret = AddListPoolZone(poolid, &zoneInfos);
+        if (ret < 0) {
+            return ret;
         }
     }
 
@@ -586,8 +597,9 @@ bool CurvefsTools::ScanCluster() {
 
     std::list<ServerInfo> serverInfos;
     for (auto zoneid : zoneToDel) {
-        if (!AddListZoneServer(zoneid, &serverInfos)) {
-            return false;
+        ret = AddListZoneServer(zoneid, &serverInfos);
+        if (ret < 0) {
+            return ret;
         }
     }
 
@@ -600,8 +612,9 @@ bool CurvefsTools::ScanCluster() {
             it != zoneInfos.end();
             it++) {
         ZoneIdType zoneid = it->zoneid();
-        if (!AddListZoneServer(zoneid, &serverInfos)) {
-            return false;
+        ret = AddListZoneServer(zoneid, &serverInfos);
+        if (ret < 0) {
+            return ret;
         }
     }
 
@@ -622,10 +635,10 @@ bool CurvefsTools::ScanCluster() {
         }
     }
 
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::CreatePhysicalPool() {
+int CurvefsTools::CreatePhysicalPool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : physicalPoolToAdd) {
         brpc::Controller cntl;
@@ -649,7 +662,7 @@ bool CurvefsTools::CreatePhysicalPool() {
                        << cntl.ErrorText()
                        << " , physicalPoolName ="
                        << it.physicalPoolName;
-            return false;
+            return -1;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "CreatePhysicalPool Rpc response fail. "
@@ -657,13 +670,13 @@ bool CurvefsTools::CreatePhysicalPool() {
                        << response.DebugString()
                        << " , physicalPoolName ="
                        << it.physicalPoolName;
-            return false;
+            return response.statuscode();
         }
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::CreateZone() {
+int CurvefsTools::CreateZone() {
     TopologyService_Stub stub(&channel_);
     for (auto it : zoneToAdd) {
         brpc::Controller cntl;
@@ -688,7 +701,7 @@ bool CurvefsTools::CreateZone() {
                        << cntl.ErrorText()
                        << " , zoneName = "
                        << it.zoneName;
-            return false;
+            return -1;
         }
         if (response.statuscode() != 0) {
             LOG(ERROR) << "CreateZone Rpc response fail. "
@@ -696,13 +709,13 @@ bool CurvefsTools::CreateZone() {
                        << response.DebugString()
                        << " , zoneName = "
                        << it.zoneName;
-            return false;
+            return response.statuscode();
         }
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::CreateServer() {
+int CurvefsTools::CreateServer() {
     TopologyService_Stub stub(&channel_);
     for (auto it : serverToAdd) {
         brpc::Controller cntl;
@@ -732,7 +745,7 @@ bool CurvefsTools::CreateServer() {
                        << cntl.ErrorText()
                        << " , serverName = "
                        << it.serverName;
-            return false;
+            return -1;
         }
         if (response.statuscode() != 0) {
             LOG(ERROR) << "RegistServer Rpc response fail. "
@@ -740,13 +753,13 @@ bool CurvefsTools::CreateServer() {
                        << response.DebugString()
                        << " , serverName = "
                        << it.serverName;
-            return false;
+            return response.statuscode();
         }
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::ClearPhysicalPool() {
+int CurvefsTools::ClearPhysicalPool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : physicalPoolToDel) {
         brpc::Controller cntl;
@@ -769,7 +782,7 @@ bool CurvefsTools::ClearPhysicalPool() {
                        << cntl.ErrorText()
                        << " , physicalPoolId = "
                        << it;
-            return false;
+            return -1;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "DeletePhysicalPool Rpc response fail. "
@@ -777,13 +790,13 @@ bool CurvefsTools::ClearPhysicalPool() {
                        << response.DebugString()
                        << " , physicalPoolId = "
                        << it;
-            return false;
+            return response.statuscode();
         }
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::ClearZone() {
+int CurvefsTools::ClearZone() {
     TopologyService_Stub stub(&channel_);
     for (auto it : zoneToDel) {
         brpc::Controller cntl;
@@ -806,7 +819,7 @@ bool CurvefsTools::ClearZone() {
                        << cntl.ErrorText()
                        << " , zoneId = "
                        << it;
-            return false;
+            return -1;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "DeleteZone Rpc response fail. "
@@ -814,13 +827,13 @@ bool CurvefsTools::ClearZone() {
                        << response.DebugString()
                        << " , zoneId = "
                        << it;
-            return false;
+            return response.statuscode();
         }
     }
-    return true;
+    return 0;
 }
 
-bool CurvefsTools::ClearServer() {
+int CurvefsTools::ClearServer() {
     TopologyService_Stub stub(&channel_);
     for (auto it : serverToDel) {
         brpc::Controller cntl;
@@ -843,7 +856,7 @@ bool CurvefsTools::ClearServer() {
                        << cntl.ErrorText()
                        << " , serverId = "
                        << it;
-            return false;
+            return -1;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "DeleteServer Rpc response fail. "
@@ -851,10 +864,10 @@ bool CurvefsTools::ClearServer() {
                        << response.DebugString()
                        << " , serverId = "
                        << it;
-            return false;
+            return response.statuscode();
         }
     }
-    return true;
+    return 0;
 }
 
 void CurvefsTools::SplitString(const std::string& s,
@@ -883,21 +896,24 @@ int main(int argc, char **argv) {
     google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
+    int ret = 0;
     curve::mds::topology::CurvefsTools tools;
     if (tools.Init() < 0) {
         LOG(ERROR) << "curvefsTool init error.";
+        return -1;
     }
 
     std::string operation = FLAGS_op;
     if (operation == "create_logicalpool") {
-        tools.HandleCreateLogicalPool();
+        ret = tools.HandleCreateLogicalPool();
     } else if (operation == "create_physicalpool") {
-        tools.HandleBuildCluster();
+        ret = tools.HandleBuildCluster();
     } else {
         LOG(ERROR) << "undefined op.";
+        ret = -1;
     }
 
-    return 0;
+    return ret;
 }
 
 

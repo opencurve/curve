@@ -108,11 +108,13 @@ class TopologyServiceManager {
 
  private:
     int CreateCopysetForLogicalPool(
-    const LogicalPool &lPool,
-    std::vector<CopySetInfo> *copysetInfos);
+        const LogicalPool &lPool,
+        uint32_t scatterWidth,
+        std::vector<CopySetInfo> *copysetInfos);
 
     int GenCopysetForPageFilePool(
         const LogicalPool &lPool,
+        uint32_t scatterWidth,
         std::vector<CopySetInfo> *copysetInfos);
 
     int CreateCopysetOnChunkServer(

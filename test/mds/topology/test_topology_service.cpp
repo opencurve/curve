@@ -33,6 +33,7 @@ using ::curve::chunkserver::CopysetResponse;
 using ::curve::chunkserver::COPYSET_OP_STATUS;
 
 using ::curve::mds::copyset::CopysetManager;
+using ::curve::mds::copyset::CopysetOption;
 
 class TestTopologyService : public ::testing::Test {
  protected:
@@ -53,11 +54,12 @@ class TestTopologyService : public ::testing::Test {
       std::shared_ptr<TopologyStorage> storage_ =
           std::make_shared<DefaultTopologyStorage>(repo_);
 
-        manager_ = std::make_shared<MockTopologyServiceManager>(
-                std::make_shared<TopologyImpl>(idGenerator_,
+      CopysetOption copysetOption;
+      manager_ = std::make_shared<MockTopologyServiceManager>(
+          std::make_shared<TopologyImpl>(idGenerator_,
                                            tokenGenerator_,
                                            storage_),
-                std::make_shared<CopysetManager>());
+              std::make_shared<CopysetManager>(copysetOption));
 
       TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);
       ASSERT_EQ(0, server_->AddService(topoService,

@@ -110,6 +110,12 @@ class LogicalPool {
       return type_;
   }
 
+
+  void SetRedundanceAndPlaceMentPolicy(
+      const RedundanceAndPlaceMentPolicy &rap) {
+      rap_ = rap;
+  }
+
   bool SetRedundanceAndPlaceMentPolicyByJson(const std::string &jsonStr);
 
   RedundanceAndPlaceMentPolicy GetRedundanceAndPlaceMentPolicy() const {

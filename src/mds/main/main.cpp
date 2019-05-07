@@ -42,6 +42,7 @@ using ::curve::mds::topology::DefaultTopologyStorage;
 using ::curve::mds::topology::TopologyImpl;
 using ::curve::mds::topology::TopologyOption;
 using ::curve::mds::copyset::CopysetManager;
+using ::curve::mds::copyset::CopysetOption;
 using ::curve::mds::heartbeat::HeartbeatServiceImpl;
 using ::curve::mds::heartbeat::HeartbeatOption;
 using ::curve::mds::schedule::TopoAdapterImpl;
@@ -132,6 +133,18 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
         conf->GetIntValue("mds.topology.ChunkServerStateUpdateSec");
 }
 
+void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
+    copysetOption->copysetRetryTimes =
+        conf->GetIntValue("mds.copyset.copysetRetryTimes");
+    copysetOption->scatterWidthVariance =
+        conf->GetDoubleValue("mds.copyset.scatterWidthVariance");
+    copysetOption->scatterWidthStandardDevation =
+        conf->GetDoubleValue("mds.copyset.scatterWidthStandardDevation");
+    copysetOption->scatterWidthRange =
+        conf->GetDoubleValue("mds.copyset.scatterWidthRange");
+    copysetOption->scatterWidthFloatingPercentage =
+        conf->GetDoubleValue("mds.copyset.scatterWidthFloatingPercentage");
+}
 
 int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
@@ -168,6 +181,9 @@ int curve_main(int argc, char **argv) {
 
     TopologyOption topologyOption;
     InitTopologyOption(&conf, &topologyOption);
+
+    CopysetOption copysetOption;
+    InitCopysetOption(&conf, &copysetOption);
 
     // ===========================init curveFs========================//
     // init EtcdClient
@@ -253,7 +269,7 @@ int curve_main(int argc, char **argv) {
 
     // init CopysetManager
     auto copysetManager =
-        std::make_shared<CopysetManager>();
+        std::make_shared<CopysetManager>(copysetOption);
 
     // init TopoAdmin
     auto topologyAdmin =
