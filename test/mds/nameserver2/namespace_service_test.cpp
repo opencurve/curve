@@ -133,7 +133,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
 
     // test CreateFile
-    // create /file1 , /file2, /dir/file3
+    // create /file1(owner1) , /file2(owner2), /dir/file3(owner3)
     CreateFileRequest request;
     CreateFileResponse response;
     brpc::Controller cntl;
@@ -323,6 +323,126 @@ TEST_F(NameSpaceServiceTest, test1) {
             response2.pagefilesegment().SerializeAsString());
     } else {
         ASSERT_TRUE(false);
+    }
+
+    // test change owner
+    {
+        // 当前有文件 /file1(owner1) , /file2(owner2), /dir/file3(owner3)
+        // changeowner success
+        cntl.Reset();
+        ChangeOwnerRequest request;
+        ChangeOwnerResponse response;
+        uint64_t date;
+        std::string str2sig;
+        std::string sig;
+
+        request.set_filename("/file1");
+        request.set_newowner("newowner1");
+        date = TimeUtility::GetTimeofDayUs();
+        str2sig = Authenticator::GetString2Signature(date,
+                                                    authOptions.rootOwner);
+        sig = Authenticator::CalcString2Signature(str2sig,
+                                                    authOptions.rootPassword);
+        request.set_rootowner(authOptions.rootOwner);
+        request.set_signature(sig);
+        request.set_date(date);
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        // changeowner file owner == newowner
+        cntl.Reset();
+        request.set_filename("/file1");
+        request.set_newowner("newowner1");
+        date = TimeUtility::GetTimeofDayUs();
+        str2sig = Authenticator::GetString2Signature(date,
+                                                    authOptions.rootOwner);
+        sig = Authenticator::CalcString2Signature(str2sig,
+                                                    authOptions.rootPassword);
+        request.set_rootowner(authOptions.rootOwner);
+        request.set_signature(sig);
+        request.set_date(date);
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        // changeowner not root
+        cntl.Reset();
+        request.set_filename("/file1");
+        request.set_newowner("owner1");
+        date = TimeUtility::GetTimeofDayUs();
+        str2sig = Authenticator::GetString2Signature(date,
+                                                    authOptions.rootOwner);
+        sig = Authenticator::CalcString2Signature(str2sig,
+                                                    authOptions.rootPassword);
+        request.set_rootowner("newowner1");
+        request.set_signature(sig);
+        request.set_date(date);
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(response.statuscode(), StatusCode::kOwnerAuthFail);
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        // changeowner signature calc mismatch
+        cntl.Reset();
+        request.set_filename("/file1");
+        request.set_newowner("owner1");
+        date = TimeUtility::GetTimeofDayUs();
+        request.set_rootowner(authOptions.rootOwner);
+        request.set_signature("wrongsignature");
+        request.set_date(date);
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(response.statuscode(), StatusCode::kOwnerAuthFail);
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        // changeowner date timeout
+        cntl.Reset();
+        request.set_filename("/file1");
+        request.set_newowner("owner1");
+        date = TimeUtility::GetTimeofDayUs();
+        str2sig = Authenticator::GetString2Signature(date,
+                                                    authOptions.rootOwner);
+        sig = Authenticator::CalcString2Signature(str2sig,
+                                                    authOptions.rootPassword);
+        request.set_rootowner(authOptions.rootOwner);
+        request.set_signature(sig);
+        request.set_date(date + kStaledRequestTimeIntervalUs * 2);
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(response.statuscode(), StatusCode::kOwnerAuthFail);
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        // changeowner back success
+        cntl.Reset();
+        request.set_filename("/file1");
+        request.set_newowner("owner1");
+        date = TimeUtility::GetTimeofDayUs();
+        str2sig = Authenticator::GetString2Signature(date,
+                                                    authOptions.rootOwner);
+        sig = Authenticator::CalcString2Signature(str2sig,
+                                                    authOptions.rootPassword);
+        request.set_rootowner(authOptions.rootOwner);
+        request.set_signature(sig);
+        request.set_date(date);
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+        } else {
+            ASSERT_TRUE(false);
+        }
     }
 
     // test RenameFile

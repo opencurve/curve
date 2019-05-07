@@ -195,6 +195,25 @@ message ExtendFileResponse {
     required StatusCode statusCode = 1;
 }
 
+message ChangeOwnerRequest {
+    // 需要变更owner的文件的fileName
+    required string fileName = 1;
+    // 希望文件owner变更后的新的owner
+    required string newOwner = 2;
+    // ChangerOwner接口只能通过root权限进行调用，需要传入root权限的owner
+    required string rootOwner = 3;
+    // 对root身份进行校验的的signature
+    required string signature = 4;
+    // 用来在mds端重新计算signature
+    required uint64 date = 5;
+}
+
+// 返回ChangeOwner的执行结果，成功返回statusCode::kOK
+// 失败可能返回kFileNotExists、kOwnerAuthFail、kFileOccupied、kStorageError等，可能返回的错误码将来继续补充
+message ChangeOwnerResponse {
+    required StatusCode statusCode = 1;
+}
+
 // create snapshot
 message CreateSnapShotRequest {
     required string     fileName = 1;
@@ -371,6 +390,7 @@ service CurveFSService {
                 returns (GetOrAllocateSegmentResponse);
     rpc     RenameFile(RenameFileRequest) returns (RenameFileResponse);
     rpc     ExtendFile(ExtendFileRequest) returns (ExtendFileResponse);
+    rpc     ChangeOwner(ChangeOwnerRequest) returns (ChangeOwnerResponse);
 
     // snapshot rpcs
     rpc     CreateSnapShot(CreateSnapShotRequest)
