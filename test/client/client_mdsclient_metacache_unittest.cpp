@@ -798,7 +798,6 @@ TEST_F(MDSClientTest, StatFile) {
     info->set_length(4 * 1024 * 1024 * 1024ul);
     info->set_ctime(12345678);
     info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
-    info->set_fullpathname("/1_userinfo_");
 
     response.set_allocated_fileinfo(info);
     response.set_statuscode(::curve::mds::StatusCode::kOK);

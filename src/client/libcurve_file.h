@@ -182,7 +182,7 @@ class FileClient {
   ClientConfig clientconfig_;
 
   // fileclient对应的全局mdsclient
-  MDSClient* globalMdsClient;
+  MDSClient* mdsClient_;
 };
 }   // namespace client
 }   // namespace curve
