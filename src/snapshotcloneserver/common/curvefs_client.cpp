@@ -82,7 +82,8 @@ int CurveFsClientImpl::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
 int CurveFsClientImpl::CheckSnapShotStatus(std::string filename,
                         std::string user,
                         uint64_t seq) {
-    return client_.CheckSnapShotStatus(filename, UserInfo(user, ""), seq);
+    return client_.CheckSnapShotStatus(filename, UserInfo(user, ""),
+                                       seq, nullptr);
 }
 
 int CurveFsClientImpl::GetChunkInfo(

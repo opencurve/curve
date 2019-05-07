@@ -64,9 +64,9 @@ void LeaseExcutor::RefreshLease() {
     }
     leaseRefreshResult response;
     LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.fullPathName,
-                                        userinfo_,
-                                        leasesession_.sessionID,
-                                        &response);
+                                                    userinfo_,
+                                                    leasesession_.sessionID,
+                                                    &response);
     if (LIBCURVE_ERROR::FAILED == ret) {
         LOG(ERROR) << "refresh session rpc failed!";
         IncremRefreshFailed();

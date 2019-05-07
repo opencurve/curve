@@ -13,6 +13,8 @@
 #include "src/client/request_scheduler.h"
 #include "src/client/request_closure.h"
 
+using curve::chunkserver::CHUNK_OP_STATUS;
+
 namespace curve {
 namespace client {
 
@@ -25,7 +27,7 @@ IOTracker::IOTracker(IOManager* iomanager,
     aioctx_     = nullptr;
     data_       = nullptr;
     type_       = OpType::UNKNOWN;
-    errcode_    = 0;
+    errcode_    = LIBCURVE_ERROR::OK;
     offset_     = 0;
     length_     = 0;
     reqlist_.clear();
@@ -44,14 +46,8 @@ void IOTracker::StartRead(CurveAioContext* aioctx,
     aioctx_ = aioctx;
     type_   = OpType::READ;
 
-    int ret = Splitor::IO2ChunkRequests(this,
-                                        mc_,
-                                        &reqlist_,
-                                        data_,
-                                        offset_,
-                                        length_,
-                                        mdsclient,
-                                        fi);
+    int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, data_,
+                                        offset_, length_, mdsclient, fi);
     if (ret == 0) {
         reqcount_.store(reqlist_.size(), std::memory_order_release);
         ret = scheduler_->ScheduleRequest(reqlist_);
@@ -242,7 +238,8 @@ void IOTracker::FillCommonFields(ChunkIDInfo idinfo, RequestContext* req) {
 void IOTracker::HandleResponse(RequestContext* reqctx) {
     int errorcode = reqctx->done_->GetErrorCode();
     if (errorcode != 0) {
-        errcode_ = -1;
+        ChunkServerErr2LibcurveErr(static_cast<CHUNK_OP_STATUS>(errorcode),
+                                   &errcode_);
     }
 
     if (1 == reqcount_.fetch_sub(1, std::memory_order_acq_rel)) {
@@ -257,11 +254,10 @@ int IOTracker::Wait() {
 void IOTracker::Done() {
     DestoryRequestList();
     if (aioctx_ == nullptr) {
-        errcode_ == 0 ? iocv_.Complete(length_) : iocv_.Complete(-1);
+        errcode_ == LIBCURVE_ERROR::OK ? iocv_.Complete(length_)
+                                       : iocv_.Complete(-errcode_);
     } else {
-        aioctx_->err = errcode_ == 0 ? LIBCURVE_ERROR::OK
-                                     : LIBCURVE_ERROR::UNKNOWN;
-        aioctx_->ret = errcode_ == 0 ? length_ : -1;
+        aioctx_->ret = errcode_ == 0 ? length_ : -errcode_;
         aioctx_->cb(aioctx_);
         iomanager_->HandleAsyncIOResponse(this);
     }
@@ -275,8 +271,37 @@ void IOTracker::DestoryRequestList() {
 }
 
 void IOTracker::ReturnOnFail() {
-    errcode_ = -1;
+    errcode_ = LIBCURVE_ERROR::FAILED;
     Done();
+}
+
+void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
+                                            LIBCURVE_ERROR* errout) {
+    switch (errcode) {
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
+            *errout = LIBCURVE_ERROR::OK;
+            break;
+        // chunk或者copyset对于用户来说是透明的，所以直接返回错误
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST:
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST:
+            *errout = LIBCURVE_ERROR::INTERNAL_ERROR;
+            break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CRC_FAIL:
+            *errout = LIBCURVE_ERROR::CRC_ERROR;
+            break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST:
+            *errout = LIBCURVE_ERROR::INVALID_REQUEST;
+            break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_DISK_FAIL:
+            *errout = LIBCURVE_ERROR::DISK_FAIL;
+            break;
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_NOSPACE:
+            *errout = LIBCURVE_ERROR::NO_SPACE;
+            break;
+        default:
+            *errout = LIBCURVE_ERROR::FAILED;
+            break;
+    }
 }
 
 }   // namespace client

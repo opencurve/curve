@@ -46,12 +46,12 @@ void IOManager4File::UnInitialize() {
     scheduler_ = nullptr;
 }
 
-LIBCURVE_ERROR IOManager4File::Read(char* buf,
+int IOManager4File::Read(char* buf,
                         off_t offset,
                         size_t length,
                         MDSClient* mdsclient) {
     if (disableio_.load(std::memory_order_acquire)) {
-        return LIBCURVE_ERROR::DISABLEIO;
+        return -LIBCURVE_ERROR::DISABLEIO;
     }
     if (startWaitInflightIO_.load(std::memory_order_acquire)) {
         WaitInflightIOComeBack();
@@ -62,15 +62,15 @@ LIBCURVE_ERROR IOManager4File::Read(char* buf,
 
     int ret = temp.Wait();
     RefreshInflightIONum();
-    return ret == -1 ? LIBCURVE_ERROR::FAILED : LIBCURVE_ERROR::OK;
+    return ret;
 }
 
-LIBCURVE_ERROR IOManager4File::Write(const char* buf,
+int IOManager4File::Write(const char* buf,
                         off_t offset,
                         size_t length,
                         MDSClient* mdsclient) {
     if (disableio_.load(std::memory_order_acquire)) {
-        return LIBCURVE_ERROR::DISABLEIO;
+        return -LIBCURVE_ERROR::DISABLEIO;
     }
     if (startWaitInflightIO_.load(std::memory_order_acquire)) {
         WaitInflightIOComeBack();
@@ -81,14 +81,13 @@ LIBCURVE_ERROR IOManager4File::Write(const char* buf,
 
     int ret = temp.Wait();
     RefreshInflightIONum();
-    return ret == -1 ? LIBCURVE_ERROR::FAILED : LIBCURVE_ERROR::OK;
+    return ret;
 }
 
 void IOManager4File::AioRead(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
     if (disableio_.load(std::memory_order_acquire)) {
-        aioctx->ret = -1;
-        aioctx->err = LIBCURVE_ERROR::DISABLEIO;
+        aioctx->ret = -LIBCURVE_ERROR::DISABLEIO;
         aioctx->cb(aioctx);
         return;
     }
@@ -112,8 +111,7 @@ void IOManager4File::AioRead(CurveAioContext* aioctx,
 void  IOManager4File::AioWrite(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
     if (disableio_.load(std::memory_order_acquire)) {
-        aioctx->ret = -1;
-        aioctx->err = LIBCURVE_ERROR::DISABLEIO;
+        aioctx->ret = -LIBCURVE_ERROR::DISABLEIO;
         aioctx->cb(aioctx);
         return;
     }

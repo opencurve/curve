@@ -50,14 +50,16 @@ class MDSClient {
      * @param: filename创建文件的文件名
      * @param: userinfo为user信息
      * @param: size文件长度
+     * @param: normalFile表示创建的是普通文件还是目录文件，如果是目录则忽略size
      * @return: 成功返回LIBCURVE_ERROR::OK
      *          文件已存在返回LIBCURVE_ERROR::EXIST
      *          否则返回LIBCURVE_ERROR::FAILED
      *          如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      */
     LIBCURVE_ERROR CreateFile(const std::string& filename,
-                            UserInfo_t userinfo,
-                            size_t size);
+                            const UserInfo_t& userinfo,
+                            size_t size = 0,
+                            bool normalFile = true);
     /**
      * 打开文件
      * @param: filename是文件名
@@ -68,7 +70,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR OpenFile(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             FInfo_t* fi,
                             LeaseSession* lease);
     /**
@@ -92,7 +94,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetOrAllocateSegment(bool allocate,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             uint64_t offset,
                             const FInfo_t* fi,
                             SegmentInfo *segInfo);
@@ -105,8 +107,23 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetFileInfo(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             FInfo_t* fi);
+    /**
+     * 扩展文件
+     * @param: userinfo是用户信息
+     * @param: filename文件名
+     * @param: newsize新的size
+     */
+    LIBCURVE_ERROR Extend(const std::string& filename,
+                          const UserInfo_t& userinfo,
+                          uint64_t newsize);
+    /**
+     * 删除文件
+     * @param: userinfo是用户信息
+     * @param: filename待删除的文件名
+     */
+    LIBCURVE_ERROR DeleteFile(const std::string& filename, UserInfo_t userinfo);
     /**
      * 创建版本号为seq的快照
      * @param: userinfo是用户信息
@@ -116,7 +133,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR CreateSnapShot(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             uint64_t* seq);
     /**
      * 删除版本号为seq的快照
@@ -127,7 +144,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR DeleteSnapShot(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             uint64_t seq);
     /**
      * 获取版本号为seq的snapshot文件信息，snapif是出参
@@ -139,7 +156,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetSnapShot(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             uint64_t seq,
                             FInfo* snapif);
     /**
@@ -152,7 +169,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR ListSnapShot(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             const std::vector<uint64_t>* seq,
                             std::vector<FInfo*>* snapif);
     /**
@@ -166,7 +183,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetSnapshotSegmentInfo(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             uint64_t seq,
                             uint64_t offset,
                             SegmentInfo *segInfo);
@@ -177,8 +194,9 @@ class MDSClient {
      * @param: seq是文件版本号信息
      */
     LIBCURVE_ERROR CheckSnapShotStatus(const std::string& filename,
-                            UserInfo_t userinfo,
-                            uint64_t seq);
+                            const UserInfo_t& userinfo,
+                            uint64_t seq,
+                            FileStatus* filestatus);
 
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
@@ -190,7 +208,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR RefreshSession(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             const std::string& sessionid,
                             leaseRefreshResult* resp);
     /**
@@ -201,7 +219,7 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR CloseFile(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             const std::string& sessionid);
 
     /**
@@ -220,7 +238,7 @@ class MDSClient {
      * @return 错误码
      */
     LIBCURVE_ERROR CreateCloneFile(const std::string &destination,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             uint64_t size,
                             uint64_t sn,
                             uint32_t chunksize,
@@ -260,7 +278,7 @@ class MDSClient {
      */
     LIBCURVE_ERROR SetCloneFileStatus(const std::string &filename,
                                     const FileStatus& filestatus,
-                                    UserInfo_t userinfo,
+                                    const UserInfo_t& userinfo,
                                     uint64_t fileID = 0);
 
     /**
@@ -274,7 +292,7 @@ class MDSClient {
      *
      * @return 错误码
      */
-    LIBCURVE_ERROR RenameFile(UserInfo_t userinfo,
+    LIBCURVE_ERROR RenameFile(const UserInfo_t& userinfo,
                               const std::string &origin,
                               const std::string &destination,
                               uint64_t originId = 0,
@@ -304,6 +322,14 @@ class MDSClient {
     bool UpdateRetryinfoOrChangeServer(int* retrycount, int* mdsAddrleft);
 
     /**
+     * 将mds侧错误码对应到libcurve错误码
+     * @param: statecode为mds一侧错误码
+     * @param[out]: 出参errcode为libcurve一侧的错误码
+     */
+    void MDSStatusCode2LibcurveError(const ::curve::mds::StatusCode& statcode,
+                                     LIBCURVE_ERROR* errcode);
+
+    /**
      * 为不同的request填充user信息
      * @param: request是待填充的变量指针
      */
@@ -313,7 +339,8 @@ class MDSClient {
         request->set_owner(userinfo.owner);
         request->set_date(date);
 
-        if (userinfo.password != "") {
+        if (!userinfo.owner.compare("root") &&
+             userinfo.password.compare("")) {
             std::string str2sig = Authenticator::GetString2Signature(date,
                                                         userinfo.owner);
             std::string sig = Authenticator::CalcString2Signature(str2sig,

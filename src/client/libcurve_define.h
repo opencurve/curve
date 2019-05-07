@@ -19,19 +19,54 @@ enum FileType {
 };
 
 enum LIBCURVE_ERROR {
-    OK                  = 0,
-    EXISTS              = 1,
-    FAILED              = 2,
-    DISABLEIO           = 3,
-    AUTHFAIL            = 4,   // 认证失败
-    DELETING            = 5,
-    NOTEXIST            = 6,
-    UNDER_SNAPSHOT      = 7,
-    NOT_UNDERSNAPSHOT   = 8,
-    DELETE_ERROR        = 9,
-    NOT_ALLOCATE        = 10,
-    NOT_ALIGNED         = 11,
-    UNKNOWN             = 100
+    // 操作成功
+    OK                      = 0,
+    // 文件或者目录已存在
+    EXISTS                  = 1,
+    // 操作失败
+    FAILED                  = 2,
+    // 禁止IO
+    DISABLEIO               = 3,
+    // 认证失败
+    AUTHFAIL                = 4,
+    // 正在删除
+    DELETING                = 5,
+    // 文件不存在
+    NOTEXIST                = 6,
+    // 快照中
+    UNDER_SNAPSHOT          = 7,
+    // 非快照期间
+    NOT_UNDERSNAPSHOT       = 8,
+    // 删除错误
+    DELETE_ERROR            = 9,
+    // segment未分配
+    NOT_ALLOCATE            = 10,
+    // 操作不支持
+    NOT_SUPPORT             = 11,
+    // 目录非空
+    NOT_EMPTY               = 12,
+    // 禁止缩容
+    NO_SHRINK_BIGGER_FILE   = 13,
+    // session不存在
+    SESSION_NOTEXISTS       = 14,
+    // 文件被占用
+    FILE_OCCUPIED           = 15,
+    // 参数错误
+    PARAM_ERROR             = 16,
+    // MDS一侧存储错误
+    INTERNAL_ERROR           = 17,
+    // crc检查错误
+    CRC_ERROR               = 18,
+    // request参数存在问题
+    INVALID_REQUEST         = 19,
+    // 磁盘存在问题
+    DISK_FAIL               = 20,
+    // 空间不足
+    NO_SPACE                = 21,
+    // IO未对齐
+    NOT_ALIGNED             = 22,
+    // 未知错误
+    UNKNOWN                 = 100
 };
 
 const char* ErrorNum2ErrorName(LIBCURVE_ERROR err);
@@ -49,15 +84,25 @@ typedef struct CurveAioContext {
     size_t length;
     int ret;
     LIBCURVE_OP op;
-    LIBCURVE_ERROR err;
     LibCurveAioCallBack cb;
     void* buf;
 } CurveAioContext;
 
 typedef struct FileStatInfo {
+    uint64_t        id;
+    uint64_t        parentid;
     FileType        filetype;
     uint64_t        length;
     uint64_t        ctime;
 } FileStatInfo_t;
+
+// 存储用户信息
+typedef struct C_UserInfo {
+    // 当前执行的owner信息, owner信息需要以'\0'结尾
+    char owner[256];
+    // 当owner="root"的时候，需要提供password作为计算signature的key
+    // password信息需要以'\0'结尾
+    char password[256];
+} C_UserInfo_t;
 
 #endif  // SRC_CLIENT_LIBCURVE_DEFINE_H_

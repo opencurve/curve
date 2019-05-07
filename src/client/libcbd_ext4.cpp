@@ -7,7 +7,7 @@
  */
 
 #include "src/client/libcbd.h"
-#include "include/client/libcurve_qemu.h"
+#include "include/client/libcurve.h"
 
 extern "C" {
 
