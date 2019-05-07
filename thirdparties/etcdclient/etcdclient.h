@@ -17,7 +17,7 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 /* Start of preamble from import "C" comments.  */
 
 
-#line 3 "/home/lixiaocui1/Project/go/src/wrappertoc/Test4/etcdclient.go"
+#line 3 "/home/lixiaocui1/Project/go/src/wrappertoc/Txn4/etcdclient.go"
 
 #include <stdlib.h>
 
@@ -150,6 +150,8 @@ extern struct EtcdClientList_return EtcdClientList(int p0, char* p1, char* p2, i
 extern GoUint32 EtcdClientDelete(int p0, char* p1, int p2);
 
 extern GoUint32 EtcdClientTxn2(int p0, struct Operation p1, struct Operation p2);
+
+extern GoUint32 EtcdClientTxn3(int p0, struct Operation p1, struct Operation p2, struct Operation p3);
 
 extern GoUint32 EtcdClientCompareAndSwap(int p0, char* p1, char* p2, char* p3, int p4, int p5, int p6);
 

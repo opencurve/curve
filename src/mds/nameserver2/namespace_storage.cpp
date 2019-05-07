@@ -113,8 +113,11 @@ StoreStatus NameServerStorageImp::GetRecycleFile(InodeID id,
         return StoreStatus::InternalError;
     }
 
+    int errCode = EtcdErrCode::OK;
     std::string out;
-    int errCode = client_->Get(storeKey, &out);
+    if (!cache_->Get(storeKey, &out)) {
+        errCode = client_->Get(storeKey, &out);
+    }
 
     if (errCode == EtcdErrCode::OK) {
         bool decodeOK = NameSpaceStorageCodec::DecodeFileInfo(out, fileInfo);
@@ -141,6 +144,8 @@ StoreStatus NameServerStorageImp::DeleteRecycleFile(InodeID id,
         return StoreStatus::InternalError;
     }
 
+    // 先删缓存，再删etcd
+    cache_->Remove(storeKey);
     int resCode = client_->Delete(storeKey);
 
     if (resCode != EtcdErrCode::OK) {
@@ -211,16 +216,15 @@ StoreStatus NameServerStorageImp::RenameFile(const FileInfo &oldFInfo,
     // 更新etcd
     Operation op1{
         OpType::OpDelete,
-        const_cast<char*>(oldStoreKey.c_str()),
-        const_cast<char*>(encodeOldFileInfo.c_str()),
-        oldStoreKey.size(), encodeOldFileInfo.size()};
+        const_cast<char*>(oldStoreKey.c_str()), "",
+        oldStoreKey.size(), 0};
     Operation op2{
         OpType::OpPut,
         const_cast<char*>(newStoreKey.c_str()),
         const_cast<char*>(encodeNewFileInfo.c_str()),
          newStoreKey.size(), encodeNewFileInfo.size()};
-
-    int errCode = client_->Txn2(op1, op2);
+    std::vector<Operation> ops{op1, op2};
+    int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "rename file from [" << oldFInfo.id() << ", "
                    << oldFInfo.filename() << "] to [" << newFInfo.id()
@@ -238,8 +242,147 @@ StoreStatus NameServerStorageImp::ReplaceFileAndRecycleOldFile(
                                             const FileInfo &newFInfo,
                                             const FileInfo &conflictFInfo,
                                             const FileInfo &recycleFInfo) {
-    // TODO(hzchenwei7): 待实现，需要小翠帮助。
-    return StoreStatus::OK;
+    std::string oldStoreKey, newStoreKey, conflictStoreKey, recycleStoreKey;
+    auto res = GetStoreKey(oldFInfo.filetype(), oldFInfo.parentid(),
+        oldFInfo.filename(), &oldStoreKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << oldFInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    res = GetStoreKey(newFInfo.filetype(), newFInfo.parentid(),
+        newFInfo.filename(), &newStoreKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << newFInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    res = GetStoreKey(conflictFInfo.filetype(), conflictFInfo.parentid(),
+        conflictFInfo.filename(), &conflictStoreKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << conflictFInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    if (newStoreKey != conflictStoreKey) {
+        LOG(ERROR) << "rename target[" << newFInfo.filename() << "] not exist";
+        return StoreStatus::InternalError;
+    }
+
+    res = GetStoreKey(recycleFInfo.filetype(), recycleFInfo.parentid(),
+        recycleFInfo.filename(), &recycleStoreKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << recycleFInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    std::string encodeRecycleFInfo;
+    std::string encodeNewFInfo;
+    if (!NameSpaceStorageCodec::EncodeFileInfo(
+        recycleFInfo, &encodeRecycleFInfo)) {
+        LOG(ERROR) << "encode recycle file: " << recycleFInfo.filename()
+                  << " err";
+        return StoreStatus::InternalError;
+    }
+
+    if (!NameSpaceStorageCodec::EncodeFileInfo(newFInfo, &encodeNewFInfo)) {
+        LOG(ERROR) << "encode recycle file: " << newFInfo.filename()
+                  << " err";
+        return StoreStatus::InternalError;
+    }
+
+    // 删除缓存中的数据
+    cache_->Remove(conflictStoreKey);
+    cache_->Remove(oldStoreKey);
+
+    // put recycleFInfo; delete oldFInfo; put newFInfo
+    Operation op1{
+        OpType::OpPut,
+        const_cast<char*>(recycleStoreKey.c_str()),
+        const_cast<char*>(encodeRecycleFInfo.c_str()),
+        recycleStoreKey.size(), encodeRecycleFInfo.size()};
+    Operation op2{
+        OpType::OpDelete,
+        const_cast<char*>(oldStoreKey.c_str()), "",
+        oldStoreKey.size(), 0};
+    Operation op3{
+        OpType::OpPut,
+        const_cast<char*>(newStoreKey.c_str()),
+        const_cast<char*>(encodeNewFInfo.c_str()),
+        newStoreKey.size(), encodeNewFInfo.size()};
+
+    std::vector<Operation> ops{op1, op2, op3};
+    int errCode = client_->TxnN(ops);
+    if (errCode != EtcdErrCode::OK) {
+        LOG(ERROR) << "rename file from [" << oldFInfo.filename()
+                   << "] to [" << newFInfo.filename() << "] err: "
+                   << errCode;
+    } else {
+        //更新到缓存
+        cache_->Put(recycleStoreKey, encodeRecycleFInfo);
+        cache_->Put(newStoreKey, encodeNewFInfo);
+    }
+    return getErrorCode(errCode);
+}
+
+StoreStatus NameServerStorageImp::MoveFileToRecycle(
+    const FileInfo &originFileInfo, const FileInfo &recycleFileInfo) {
+    std::string originFileInfoKey;
+    auto res = GetStoreKey(originFileInfo.filetype(), originFileInfo.parentid(),
+        originFileInfo.filename(), &originFileInfoKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << originFileInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    std::string recycleFileInfoKey;
+    res = GetStoreKey(recycleFileInfo.filetype(), recycleFileInfo.parentid(),
+        recycleFileInfo.filename(), &recycleFileInfoKey);
+    if (res != StoreStatus::OK) {
+        LOG(ERROR) << "get store key failed, filename = "
+                   << recycleFileInfo.filename();
+        return StoreStatus::InternalError;
+    }
+
+    std::string encodeRecycleFInfo;
+    if (!NameSpaceStorageCodec::EncodeFileInfo(
+        recycleFileInfo, &encodeRecycleFInfo)) {
+        LOG(ERROR) << "encode recycle file: " << recycleFileInfo.filename()
+                  << " err";
+        return StoreStatus::InternalError;
+    }
+
+    // 删除缓存中的数据
+    cache_->Remove(originFileInfoKey);
+
+    // 从etcd中删除originFileInfo, put recycleFileInfo
+    Operation op1{
+        OpType::OpDelete,
+        const_cast<char*>(originFileInfoKey.c_str()), "",
+        originFileInfoKey.size(), 0};
+    Operation op2{
+        OpType::OpPut,
+        const_cast<char*>(recycleFileInfoKey.c_str()),
+        const_cast<char*>(encodeRecycleFInfo.c_str()),
+        recycleFileInfoKey.size(), encodeRecycleFInfo.size()};
+
+    std::vector<Operation> ops{op1, op2};
+    int errCode = client_->TxnN(ops);
+    if (errCode != EtcdErrCode::OK) {
+        LOG(ERROR) << "move file [" << originFileInfo.filename()
+                   << "] to recycle file ["
+                   << recycleFileInfo.filename() << "] err: "
+                   << errCode;
+    } else {
+        //更新到缓存
+        cache_->Put(recycleFileInfoKey, encodeRecycleFInfo);
+    }
+    return getErrorCode(errCode);
 }
 
 StoreStatus NameServerStorageImp::ListFile(InodeID startid,
@@ -423,7 +566,8 @@ StoreStatus NameServerStorageImp::SnapShotFile(const FileInfo *originFInfo,
         const_cast<char*>(encodeSnapshot.c_str()),
         snapshotFileKey.size(), encodeSnapshot.size()};
 
-    int errCode = client_->Txn2(op1, op2);
+    std::vector<Operation> ops{op1, op2};
+    int errCode = client_->TxnN(ops);
     if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "store snapshot inodeid : " << snapshotFInfo->id()
                    << ", snapshot: " << snapshotFInfo->filename()
@@ -499,7 +643,10 @@ StoreStatus NameServerStorageImp::GetStoreKey(FileType filetype,
         case FileType::INODE_RECYCLE_PAGEFILE:
             *storeKey = NameSpaceStorageCodec::EncodeRecycleFileStoreKey(id,
                                                                     filename);
+            break;
         default:
+            LOG(ERROR) << "filetype: "
+                       << filetype << " of " << filename << " not exist";
             return StoreStatus::InternalError;
     }
     return StoreStatus::OK;

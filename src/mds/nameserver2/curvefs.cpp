@@ -204,40 +204,6 @@ StatusCode CurveFS::GetFileInfo(const std::string & filename,
     }
 }
 
-// TODO(hzchenwei7): MoveFileToRecycle改用事务的方式
-StatusCode CurveFS::MoveFileToRecycle(const FileInfo &fileInfo,
-                                                FileInfo *waitDeleteFileInfo) {
-    waitDeleteFileInfo->CopyFrom(fileInfo);
-    waitDeleteFileInfo->set_filestatus(FileStatus::kFileDeleting);
-    waitDeleteFileInfo->set_filetype(INODE_RECYCLE_PAGEFILE);
-
-    auto ret = storage_->PutFile(*waitDeleteFileInfo);
-    if (ret != StoreStatus::OK) {
-        LOG(ERROR) << "move file to recycle, put recycle file fail, inodeid = "
-                   << waitDeleteFileInfo->id() << ", fileName = "
-                   << waitDeleteFileInfo->filename();
-        return StatusCode::kStorageError;
-    }
-
-    ret = storage_->DeleteFile(fileInfo.parentid(), fileInfo.filename());
-    if (ret != StoreStatus::OK) {
-        LOG(ERROR) << "move file to recycle, delete origin file fail"
-                   << ", inodeid = " << waitDeleteFileInfo->id()
-                   << ", fileName = " << waitDeleteFileInfo->filename();
-        storage_->DeleteRecycleFile(waitDeleteFileInfo->parentid(),
-                                    waitDeleteFileInfo->filename());
-        if (ret != StoreStatus::OK) {
-            LOG(ERROR) << "move file to recycle, delete recycle file fail"
-                       << ", inodeid = " << waitDeleteFileInfo->id()
-                       << ", fileName = " << waitDeleteFileInfo->filename();
-        }
-
-        return StatusCode::kStorageError;
-    }
-
-    return StatusCode::kOK;
-}
-
 StatusCode CurveFS::isDirectoryEmpty(const FileInfo &fileInfo, bool *result) {
     assert(fileInfo.filetype() == FileType::INODE_DIRECTORY);
     std::vector<FileInfo> fileInfoList;
@@ -323,17 +289,22 @@ StatusCode CurveFS::DeleteFile(const std::string & filename) {
         }
 
         // 把文件移到回收站
-        FileInfo toDelteFileInfo;
-        ret = MoveFileToRecycle(fileInfo, &toDelteFileInfo);
-        if (ret != StatusCode::kOK) {
+        FileInfo recycleFileInfo;
+        recycleFileInfo.CopyFrom(fileInfo);
+        recycleFileInfo.set_filestatus(FileStatus::kFileDeleting);
+        recycleFileInfo.set_filetype(INODE_RECYCLE_PAGEFILE);
+
+        StoreStatus ret1 =
+            storage_->MoveFileToRecycle(fileInfo, recycleFileInfo);
+        if (ret1 != StoreStatus::OK) {
             LOG(ERROR) << "delete file, move file to recycle fail"
                        << ", filename = " << filename
-                       << ", ret = " << ret;
-            return StatusCode::KInternalError;
+                       << ", ret = " << ret1;
+            return StatusCode::kStorageError;
         }
 
         // 提交一个删除文件的任务
-        if (!cleanManager_->SubmitDeleteCommonFileJob(toDelteFileInfo)) {
+        if (!cleanManager_->SubmitDeleteCommonFileJob(recycleFileInfo)) {
             LOG(ERROR) << "fileName = " << filename
                     << ", submit delete file job fail.";
             return StatusCode::KInternalError;

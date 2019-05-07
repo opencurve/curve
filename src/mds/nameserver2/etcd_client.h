@@ -62,14 +62,13 @@ class StorageClient {
   virtual int Delete(std::string key) = 0;
 
   /*
-  * @brief List 事务 按传入顺序进行op1 op2的操作
+  * @brief TxnN 事务 按照ops[0] ops[1] ... 的顺序进行操作，目前支持2个和3个操作
   *
-  * @param[in] op1 操作1
-  * @param[in] op2 操作2
+  * @param[in] ops 操作集合
   *
   * @return 错误码
   */
-  virtual int Txn2(Operation op1, Operation op2) = 0;
+  virtual int TxnN(std::vector<Operation> ops) = 0;
 
   /**
    * @brief CompareAndSwap 事务，实现CAS
@@ -113,7 +112,7 @@ class EtcdClientImp : public StorageClient {
 
   int Delete(std::string key) override;
 
-  int Txn2(Operation op1, Operation op2) override;
+  int TxnN(std::vector<Operation> ops) override;
 
   int CompareAndSwap(
       std::string key, std::string preV, std::string target) override;
