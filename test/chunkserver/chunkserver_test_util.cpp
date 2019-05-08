@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 
+#include "src/common/crc32.h"
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
@@ -68,25 +69,17 @@ std::shared_ptr<ChunkfilePool> InitChunkfilePool(std::shared_ptr<LocalFileSystem
     /**
      * 持久化chunkfilepool meta file
      */
-    char persistency[4096] = {0};
-    uint32_t chunksize = chunkfileSize;
-    uint32_t metapagesize = metaPageSize;
-    uint32_t percent = 10;
-    ::memcpy(persistency, &chunksize, sizeof(uint32_t));
-    ::memcpy(persistency + sizeof(uint32_t), &metapagesize, sizeof(uint32_t));
-    ::memcpy(persistency + 2*sizeof(uint32_t), &percent, sizeof(uint32_t));
-    ::memcpy(persistency + 3*sizeof(uint32_t), dirname.c_str(), dirname.size());
+    int ret = curve::chunkserver::ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+                                                fsptr,
+                                                chunkfileSize,
+                                                metaPageSize,
+                                                dirname,
+                                                metaPath);
 
-    int fd = fsptr->Open(metaPath.c_str(), O_RDWR | O_CREAT);
-    if (fd < 0) {
+    if (ret == -1) {
+        LOG(ERROR) << "persist chunkfile pool meta info failed!";
         return nullptr;
     }
-    int ret = fsptr->Write(fd, persistency, 0, 4096);
-    if (ret != 4096) {
-        return nullptr;
-    }
-    fsptr->Close(fd);
-
     return filePoolPtr;
 }
 

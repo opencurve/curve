@@ -33,9 +33,12 @@ using SegmentSizeType   = uint32_t;
 using Status            = butil::Status;
 using EndPoint          = butil::EndPoint;
 
-using kKB               = 1024;
-using kMB               = 1024*kKB;
-using kGB               = 1024*kMB;
+const uint32_t kKB      = 1024;
+const uint32_t kMB      = 1024*kKB;
+const uint32_t kGB      = 1024*kMB;
+
+// maigic number用于chunkfilepool_meta file计算crc
+const char kChunkFilePoolMaigic[3] = "01";
 }  // namespace common
 }  // namespace curve
 

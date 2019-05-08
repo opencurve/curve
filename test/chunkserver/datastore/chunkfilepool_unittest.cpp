@@ -7,10 +7,13 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <json/json.h>
 #include <fcntl.h>
 #include <climits>
 #include <memory>
 
+#include "src/common/crc32.h"
+#include "src/common/curve_define.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 
@@ -19,6 +22,9 @@ using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::chunkserver::ChunkfilePool;
 using curve::chunkserver::ChunkfilePoolOptions;
+using curve::chunkserver::ChunkFilePoolState_t;
+using curve::common::kChunkFilePoolMaigic;
+using curve::chunkserver::ChunkfilePoolHelper;
 
 class CSChunkfilePool_test : public testing::Test {
  public:
@@ -41,34 +47,35 @@ class CSChunkfilePool_test : public testing::Test {
             fsptr->Close(fd);
             count++;
         }
-        // persistency: chunksize, metapagesize, chunkfilepool path, allocate percent                                   // NOLINT
-        char persistency[4096] = {0};
+
         uint32_t chunksize = 4096;
         uint32_t metapagesize = 4096;
-        uint32_t percent = 10;
-        ::memcpy(persistency, &chunksize, sizeof(uint32_t));
-        ::memcpy(persistency + sizeof(uint32_t), &metapagesize, sizeof(uint32_t));      // NOLINT
-        ::memcpy(persistency + 2*sizeof(uint32_t), &percent, sizeof(uint32_t));
-        ::memcpy(persistency + 3*sizeof(uint32_t), dirname.c_str(), dirname.size());    // NOLINT
 
-        int fd = fsptr->Open("./chunkfilepool.meta", O_RDWR | O_CREAT);
+        int ret = ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+                                                    fsptr,
+                                                    chunksize,
+                                                    metapagesize,
+                                                    dirname,
+                                                    "./chunkfilepool.meta");
+
+        if (ret == -1) {
+            LOG(ERROR) << "persist chunkfile pool meta info failed!";
+            return;
+        }
+
+        int fd = fsptr->Open("./chunkfilepool.meta2", O_RDWR | O_CREAT);
         if (fd < 0) {
             return;
         }
-        int ret = fsptr->Write(fd, persistency, 0, 4096);
-        if (ret != 4096) {
-            return;
-        }
-        fsptr->Close(fd);
 
-        fd = fsptr->Open("./chunkfilepool.meta2", O_RDWR | O_CREAT);
-        if (fd < 0) {
-            return;
-        }
-        ret = fsptr->Write(fd, persistency, 0, 2048);
+        char* buffer = new char[2048];
+        memset(buffer, 1, 2048);
+        ret = fsptr->Write(fd, buffer, 0, 2048);
         if (ret != 2048) {
+            delete[] buffer;
             return;
         }
+        delete[] buffer;
         fsptr->Close(fd);
     }
 
@@ -182,6 +189,8 @@ TEST_F(CSChunkfilePool_test, RecycleChunkTest) {
     memcpy(cfop.metaPath, chunkfilepool.c_str(), chunkfilepool.size());
 
     ChunkfilepoolPtr_->Initialize(cfop);
+    ChunkFilePoolState_t currentStat = ChunkfilepoolPtr_->GetState();
+    ASSERT_EQ(2, currentStat.preallocatedChunksLeft);
     ASSERT_EQ(2, ChunkfilepoolPtr_->Size());
     char metapage[4096];
     memset(metapage, '1', 4096);
@@ -189,8 +198,15 @@ TEST_F(CSChunkfilePool_test, RecycleChunkTest) {
     ASSERT_TRUE(fsptr->FileExists("./new1"));
     ASSERT_EQ(1, ChunkfilepoolPtr_->Size());
 
+    currentStat = ChunkfilepoolPtr_->GetState();
+    ASSERT_EQ(1, currentStat.preallocatedChunksLeft);
+
     ChunkfilepoolPtr_->RecycleChunk("./new1");
     ASSERT_EQ(2, ChunkfilepoolPtr_->Size());
+
+    currentStat = ChunkfilepoolPtr_->GetState();
+    ASSERT_EQ(2, currentStat.preallocatedChunksLeft);
+
     ASSERT_FALSE(fsptr->FileExists("./new1"));
     ASSERT_TRUE(fsptr->FileExists("./chunkfilepool/4"));
     ASSERT_EQ(0, fsptr->Delete("./chunkfilepool/4"));
