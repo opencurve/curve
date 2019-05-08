@@ -80,6 +80,57 @@ struct ChunkfilePoolOptions {
     }
 };
 
+typedef struct ChunkFilePoolState {
+    // 预分配的chunk还有多少没有被datastore使用
+    uint64_t    preallocatedChunksLeft;
+    // chunksize
+    uint32_t    chunkSize;
+    // metapage size
+    uint32_t    metaPageSize;
+} ChunkFilePoolState_t;
+
+class ChunkfilePoolHelper {
+ public:
+    static const char* kChunkSize;
+    static const char* kMetaPageSize;
+    static const char* kChunkFilePoolPath;
+    static const char* kCRC;
+    static const uint32_t kPersistSize;
+
+     /**
+     * 持久化chunkfile pool meta信息
+     * @param[in]: 用于持久化的文件系统
+     * @param[in]: chunkSize每个chunk的大小
+     * @param[in]: metaPageSize每个chunkfile的metapage大小
+     * @param[in]: chunkfilepool_path是chunk池的路径
+     * @param[in]: persistPathmeta信息要持久化的路径
+     * @return: 成功0， 否则-1
+     */
+    static int PersistEnCodeMetaInfo(std::shared_ptr<LocalFileSystem> fsptr,
+                               uint32_t chunkSize,
+                               uint32_t metaPageSize,
+                               const std::string& chunkfilepool_path,
+                               const std::string& persistPath);
+
+    /**
+     * 从持久化的meta数据中解析出当前chunk池子的信息
+     * @param[in]: 用于持久化的文件系统
+     * @param[in]: metafile路径
+     * @param[in]: meta文件大小
+     * @param[out]: chunkSize每个chunk的大小
+     * @param[out]: metaPageSize每个chunkfile的metapage大小
+     * @param[out]: chunkfilepool_path是chunk池的路径
+     * @return: 成功0， 否则-1
+     */
+    static int DecodeMetaInfoFromMetaFile(
+                                  std::shared_ptr<LocalFileSystem> fsptr,
+                                  const std::string& metaFilePath,
+                                  uint32_t metaFileSize,
+                                  uint32_t* chunkSize,
+                                  uint32_t* metaPageSize,
+                                  std::string* chunkfilepool_path);
+};
+
 class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
  public:
     // fsptr 本地文件系统.
@@ -106,6 +157,10 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
      * 获取当前chunkfile pool大小
      */
     virtual size_t Size();
+    /**
+     * 获取chunkfilePool的分配状态
+     */
+    virtual ChunkFilePoolState_t GetState();
     /**
      * 析构,释放资源
      */
@@ -148,6 +203,9 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
 
     // chunkfilepool配置选项
     ChunkfilePoolOptions chunkPoolOpt_;
+
+    // chunkfilepool分配状态
+    ChunkFilePoolState_t currentState_;
 };
 }   // namespace chunkserver
 }   // namespace curve

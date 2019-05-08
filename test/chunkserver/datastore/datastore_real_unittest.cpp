@@ -8,9 +8,12 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <json/json.h>
 #include <climits>
 #include <memory>
 
+#include "src/common/crc32.h"
+#include "src/common/curve_define.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/define.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
@@ -21,7 +24,9 @@ using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 
+using curve::common::kChunkFilePoolMaigic;
 using ::testing::UnorderedElementsAre;
+using curve::chunkserver::ChunkfilePoolHelper;
 
 namespace curve {
 namespace chunkserver {
@@ -51,26 +56,22 @@ class DatastoreRealTest : public testing::Test {
         if (dataStore_ == nullptr) {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
-        // persistency: chunksize, metapagesize, chunkfilepool path, allocate percent                                   // NOLINT
-        char persistency[4096] = {0};
+
         uint32_t chunksize = CHUNK_SIZE;
         uint32_t metapagesize = PAGE_SIZE;
-        uint32_t percent = 10;
         std::string dirname = "./chunkfilepool";
-        ::memcpy(persistency, &chunksize, sizeof(uint32_t));
-        ::memcpy(persistency + sizeof(uint32_t), &metapagesize, sizeof(uint32_t));      // NOLINT
-        ::memcpy(persistency + 2*sizeof(uint32_t), &percent, sizeof(uint32_t));
-        ::memcpy(persistency + 3*sizeof(uint32_t), dirname.c_str(), dirname.size());    // NOLINT
 
-        int fd = lfs_->Open("./chunkfilepool.meta", O_RDWR | O_CREAT);
-        if (fd < 0) {
+        int ret = ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+                                                    lfs_,
+                                                    chunksize,
+                                                    metapagesize,
+                                                    dirname,
+                                                    "./chunkfilepool.meta");
+
+        if (ret == -1) {
+            LOG(ERROR) << "persist chunkfile pool meta info failed!";
             return;
         }
-        int ret = lfs_->Write(fd, persistency, 0, 4096);
-        if (ret != 4096) {
-            return;
-        }
-        lfs_->Close(fd);
 
         std::string chunkfilepool = "./chunkfilepool.meta";
         ChunkfilePoolOptions cfop;
