@@ -410,6 +410,18 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::DELETE_ERROR,
             cl.CheckSnapShotStatus(filename, userinfo, seq, nullptr));
 
+    // set response file exist
+    ::curve::mds::DeleteFileResponse deleteresponse;
+    deleteresponse.set_statuscode(::curve::mds::StatusCode::kFileNotExists);
+
+    FakeReturn* fakeretdelete
+     = new FakeReturn(nullptr, static_cast<void*>(&deleteresponse));
+
+    curvefsservice.SetDeleteFile(fakeretdelete);
+
+    int ret = cl.DeleteFile(filename, userinfo, 10);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::NOTEXIST);
+
     cl.UnInit();
 
     ASSERT_EQ(0, server.Stop(0));
