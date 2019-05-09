@@ -284,7 +284,7 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
         // chunk或者copyset对于用户来说是透明的，所以直接返回错误
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST:
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST:
-            *errout = LIBCURVE_ERROR::INTERNAL_ERROR;
+            *errout = LIBCURVE_ERROR::NOTEXIST;
             break;
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_CRC_FAIL:
             *errout = LIBCURVE_ERROR::CRC_ERROR;

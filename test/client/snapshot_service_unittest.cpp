@@ -225,7 +225,7 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
             cl.GetSnapshotSegmentInfo(filename,
                                       emptyuserinfo,
-                                      &lpcsIDInfo, 0, 0, &seginfo));
+                                      0, 0, &seginfo));
 
     // normal segment info
     curve::mds::GetOrAllocateSegmentResponse* getresponse1 =
@@ -246,7 +246,7 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetGetSnapshotSegmentInfo(getfakeret1);
     ASSERT_EQ(LIBCURVE_ERROR::OK,
             cl.GetSnapshotSegmentInfo(filename, userinfo,
-                                     &lpcsIDInfo, 0, 0, &seginfo));
+                                      0, 0, &seginfo));
 
     ASSERT_EQ(seginfo.segmentsize, 1*1024*1024*1024ul);
     ASSERT_EQ(seginfo.chunksize, 4 * 1024 * 1024);
@@ -264,7 +264,7 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetGetSnapshotSegmentInfo(getfake);
     ASSERT_EQ(-LIBCURVE_ERROR::NOTEXIST,
             cl.GetSnapshotSegmentInfo(filename, emptyuserinfo,
-                                        &lpcsIDInfo, 0, 0, &seginfo));
+                                      0, 0, &seginfo));
 
     // rpc fail
     curvefsservice.CleanRetryTimes();
@@ -278,7 +278,7 @@ TEST(SnapInstance, SnapShotTest) {
     curvefsservice.SetGetSnapshotSegmentInfo(getfakeret2);
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
             cl.GetSnapshotSegmentInfo(filename, userinfo,
-                                        &lpcsIDInfo, 0, 0, &seginfo));
+                                      0, 0, &seginfo));
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
     // test list snapshot

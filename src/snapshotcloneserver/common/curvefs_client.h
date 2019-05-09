@@ -123,7 +123,7 @@ class CurveFsClient {
                         uint64_t seq,
                         uint64_t offset,
                         uint64_t len,
-                        void *buf) = 0;
+                        char *buf) = 0;
     /**
      * @brief 删除此次转储时产生的或者历史遗留的快照
      *        如果转储过程中没有产生快照，则修改chunk的correctedSn
@@ -340,7 +340,7 @@ class CurveFsClientImpl : public CurveFsClient {
                         uint64_t seq,
                         uint64_t offset,
                         uint64_t len,
-                        void *buf) override;
+                        char *buf) override;
 
     int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
         uint64_t seq) override;

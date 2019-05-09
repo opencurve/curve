@@ -1511,70 +1511,52 @@ void MDSClient::MDSStatusCode2LibcurveError(const curve::mds::StatusCode& status
             break;
         case ::curve::mds::StatusCode::kFileExists:
             *errcode = LIBCURVE_ERROR::EXISTS;
-            LOG(WARNING) << "file exists, statuscode = " << status;
             break;
         case ::curve::mds::StatusCode::kSnapshotFileNotExists:
         case ::curve::mds::StatusCode::kFileNotExists:
         case ::curve::mds::StatusCode::kDirNotExist:
             *errcode = LIBCURVE_ERROR::NOTEXIST;
-            LOG(WARNING) << "file or dir not exists, statuscode = "
-                         << status;
             break;
         case ::curve::mds::StatusCode::kSegmentNotAllocated:
             *errcode = LIBCURVE_ERROR::NOT_ALLOCATE;
-            LOG(WARNING) << "segment not allocated, statuscode = " << status;
             break;
         case ::curve::mds::StatusCode::kShrinkBiggerFile:
             *errcode = LIBCURVE_ERROR::NO_SHRINK_BIGGER_FILE;
-            LOG(WARNING) << "not support shrink bigger file,"
-                         << "statuscode = " << status;
             break;
         case ::curve::mds::StatusCode::kNotSupported:
-            LOG(WARNING) << "operation not support, statuscode = " << status;
             *errcode = LIBCURVE_ERROR::NOT_SUPPORT;
             break;
         case ::curve::mds::StatusCode::kOwnerAuthFail:
-            LOG(ERROR) << "auth failed, statuscode = " << status;
             *errcode = LIBCURVE_ERROR::AUTHFAIL;
             break;
         case ::curve::mds::StatusCode::kSnapshotFileDeleteError:
-            LOG(ERROR) << "snapshot file delete error, statuscode = " << status;
             *errcode = LIBCURVE_ERROR::DELETE_ERROR;
             break;
         case ::curve::mds::StatusCode::kFileUnderSnapShot:
-            LOG(WARNING) << "file under snapshot, statuscode = " << status;
             *errcode = LIBCURVE_ERROR::UNDER_SNAPSHOT;
             break;
         case ::curve::mds::StatusCode::kFileNotUnderSnapShot:
-            LOG(WARNING) << "file under snapshot, statuscode = " << status;
             *errcode = LIBCURVE_ERROR::NOT_UNDERSNAPSHOT;
             break;
         case ::curve::mds::StatusCode::kSnapshotDeleting:
-            LOG(WARNING) << "snapshot file deleting, statuscode = " << status;
             *errcode = LIBCURVE_ERROR::DELETING;
             break;
         case ::curve::mds::StatusCode::kDirNotEmpty:
-            LOG(WARNING) << "dir not empty, statuscode = " << status;
             *errcode = LIBCURVE_ERROR::NOT_EMPTY;
             break;
         case ::curve::mds::StatusCode::kFileOccupied:
-            LOG(WARNING) << "file already open in another process!";
             *errcode = LIBCURVE_ERROR::FILE_OCCUPIED;
             break;
         case ::curve::mds::StatusCode::kSessionNotExist:
-            LOG(ERROR) << "session not exists!";
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
             break;
         case ::curve::mds::StatusCode::kParaError:
-            LOG(ERROR) << "param not error!";
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
             break;
         case ::curve::mds::StatusCode::kStorageError:
-            LOG(ERROR) << "mds side storage error!";
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
             break;
         default:
-            LOG(WARNING) << "retcode unknown, statuscode = " << status;
             *errcode = LIBCURVE_ERROR::UNKNOWN;
             break;
     }

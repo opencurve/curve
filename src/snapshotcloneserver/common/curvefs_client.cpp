@@ -60,16 +60,15 @@ int CurveFsClientImpl::GetSnapshotSegmentInfo(const std::string &filename,
     uint64_t seq,
     uint64_t offset,
     SegmentInfo *segInfo) {
-    LogicalPoolCopysetIDInfo lpcsIDInfo;
     return client_.GetSnapshotSegmentInfo(
-        filename, UserInfo(user, ""), &lpcsIDInfo, seq, offset, segInfo);
+        filename, UserInfo(user, ""), seq, offset, segInfo);
 }
 
 int CurveFsClientImpl::ReadChunkSnapshot(ChunkIDInfo cidinfo,
                         uint64_t seq,
                         uint64_t offset,
                         uint64_t len,
-                        void *buf) {
+                        char *buf) {
     return client_.ReadChunkSnapshot(
         cidinfo, seq, offset, len, buf);
 }
