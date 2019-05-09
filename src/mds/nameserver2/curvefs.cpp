@@ -277,7 +277,8 @@ bool CurveFS::isFileHasValidSession(const std::string &fileName) {
     return sessionManager_->isFileHasValidSession(fileName);
 }
 
-StatusCode CurveFS::DeleteFile(const std::string & filename, bool deleteForce) {
+StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
+                            bool deleteForce) {
     std::string lastEntry;
     FileInfo parentFileInfo;
     auto ret = WalkPath(filename, &parentFileInfo, &lastEntry);
@@ -295,6 +296,14 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, bool deleteForce) {
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "delete file lookupfile fail, fileName = " << filename;
         return ret;
+    }
+
+    if (fileId != kUnitializedFileID && fileId != fileInfo.id()) {
+        LOG(ERROR) << "delete file, file id missmatch"
+                   << ", fileName = " << filename
+                   << ", fileInfo.id() = " << fileInfo.id()
+                   << ", para fileId = " << fileId;
+        return StatusCode::kFileIdNotMatch;
     }
 
     if (fileInfo.filetype() == FileType::INODE_DIRECTORY) {
@@ -473,7 +482,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
                    << ", newFileName = " << newFileName
                    << ", oldFileInfo.id() = " << oldFileInfo.id()
                    << ", oldFileId = " << oldFileId;
-        return StatusCode::kParaError;
+        return StatusCode::kFileIdNotMatch;
     }
 
     // 目前只支持对INODE_PAGEFILE类型进行rename
@@ -504,14 +513,14 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     FileInfo existNewFileInfo;
     auto ret3 = LookUpFile(parentFileInfo, lastEntry, &existNewFileInfo);
     if (ret3 == StatusCode::kOK) {
-        if (newFileId != kUnitializedFileID &&
-            newFileId != existNewFileInfo.id()) {
+        if (newFileId != kUnitializedFileID
+            && newFileId != existNewFileInfo.id()) {
             LOG(ERROR) << "rename file, newFileId missmatch"
                         << ", oldFileName = " << oldFileName
                         << ", newFileName = " << newFileName
                         << ", newFileInfo.id() = " << existNewFileInfo.id()
                         << ", newFileId = " << newFileId;
-            return StatusCode::kParaError;
+            return StatusCode::kFileIdNotMatch;
         }
 
         // newFileName存在, 能否被覆盖，判断文件类型

@@ -263,7 +263,8 @@ TEST_F(CurveFSTest, testGetFileInfo) {
 
 TEST_F(CurveFSTest, testDeleteFile) {
     // test remove root
-    ASSERT_EQ(curvefs_->DeleteFile("/"), StatusCode::kParaError);
+    ASSERT_EQ(curvefs_->DeleteFile("/", kUnitializedFileID, false),
+                                                StatusCode::kParaError);
 
     // test delete directory ok
     {
@@ -284,7 +285,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/dir1"), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->DeleteFile("/dir1", kUnitializedFileID, false),
+                                                    StatusCode::kOK);
     }
 
     // test delete directory, directory is not empty
@@ -303,7 +305,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
             Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/dir1"), StatusCode::kDirNotEmpty);
+        ASSERT_EQ(curvefs_->DeleteFile("/dir1", kUnitializedFileID, false),
+                                        StatusCode::kDirNotEmpty);
     }
 
     // test delete directory, delete file fail
@@ -325,7 +328,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/dir1"), StatusCode::kStorageError);
+        ASSERT_EQ(curvefs_->DeleteFile("/dir1", kUnitializedFileID, false),
+                                            StatusCode::kStorageError);
     }
 
     // test delete pagefile ok
@@ -347,7 +351,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                                    StatusCode::kOK);
     }
 
     // test delete recyclebin pagefile，cleanManager fail
@@ -387,7 +392,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(1)
         .WillOnce(Return(false));
 
-        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1", true),
+        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1",
+                                        kUnitializedFileID, true),
             StatusCode::KInternalError);
     }
 
@@ -428,7 +434,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(1)
         .WillOnce(Return(true));
 
-        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1", true),
+        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1",
+                                    kUnitializedFileID, true),
             StatusCode::kOK);
     }
 
@@ -467,7 +474,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
             .Times(1)
             .WillOnce(Return(notNullTask));
 
-        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1", true),
+        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1",
+                                            kUnitializedFileID, true),
             StatusCode::kOK);
     }
 
@@ -487,7 +495,7 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
             Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1", true),
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, true),
             StatusCode::kNotSupported);
     }
     // test delete pagefile, file under snapshot
@@ -506,7 +514,7 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
             Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"),
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
                                 StatusCode::kFileUnderSnapShot);
     }
 
@@ -529,7 +537,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kStorageError);
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                     StatusCode::kStorageError);
     }
 
     //  test file not exist
@@ -538,7 +547,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(AtLeast(1))
         .WillOnce(Return(StoreStatus::KeyNotExist));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kFileNotExists);
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                            StatusCode::kFileNotExists);
     }
 
     // delete not support file type
@@ -550,7 +560,8 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
             Return(StoreStatus::OK)));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kNotSupported);
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", kUnitializedFileID, false),
+                                                StatusCode::kNotSupported);
     }
 }
 
