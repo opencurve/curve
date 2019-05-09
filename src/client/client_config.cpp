@@ -21,6 +21,7 @@ int ClientConfig::Init(const char* configpath) {
     }
 
     fileServiceOption_.loginfo.loglevel = conf_.GetIntValue("loglevel", 2);
+    fileServiceOption_.loginfo.logpath = conf_.GetStringValue("logpath");
 
     fileServiceOption_.ioOpt.ioSplitOpt.ioSplitMaxSize
     = conf_.GetIntValue("ioSplitMaxSize", 64);

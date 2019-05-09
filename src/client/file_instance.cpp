@@ -50,10 +50,9 @@ bool FileInstance::Initialize(MDSClient* mdsclient,
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }
+
         leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
-                                                        userinfo_,
-                                                        mdsclient_,
-                                                        &iomanager4file_);
+                                userinfo_, mdsclient_, &iomanager4file_);
         if (CURVE_UNLIKELY(leaseexcutor_ == nullptr)) {
             LOG(ERROR) << "allocate lease excutor failed!";
             break;
@@ -71,7 +70,6 @@ bool FileInstance::Initialize(MDSClient* mdsclient,
 void FileInstance::UnInitialize() {
     iomanager4file_.UnInitialize();
     leaseexcutor_->Stop();
-    mdsclient_->UnInitialize();
 
     delete leaseexcutor_;
     leaseexcutor_ = nullptr;
@@ -101,7 +99,7 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
     if (LIBCURVE_ERROR::OK == ret) {
         finfo_.fullPathName = filename;
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
-                                                    : LIBCURVE_ERROR::FAILED;
+                                                  : LIBCURVE_ERROR::FAILED;
     } else {
         LOG(ERROR) << "Open file failed!";
     }
@@ -110,12 +108,14 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
 }
 
 int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {
-    return -mdsclient_->GetFileInfo(filename, userinfo_, fi);
+    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, userinfo_, fi);
+    return -ret;
 }
 
 int FileInstance::Close() {
-    return -mdsclient_->CloseFile(finfo_.fullPathName, userinfo_,
+    LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName, userinfo_,
                                 leaseexcutor_->GetLeaseSessionID());
+    return -ret;
 }
 }   // namespace client
 }   // namespace curve

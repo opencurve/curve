@@ -53,6 +53,14 @@ int FileClient::Init(const std::string& configpath) {
 
     google::SetCommandLineOption("minloglevel", std::to_string(
         clientconfig_.GetFileServiceOption().loginfo.loglevel).c_str());
+
+    google::SetLogSymlink(google::INFO,
+        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
+    google::SetLogSymlink(google::WARNING,
+        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
+    google::SetLogSymlink(google::ERROR,
+        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
+
     return LIBCURVE_ERROR::OK;
 }
 
@@ -87,7 +95,9 @@ int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
         delete fileserv;
         return ret;
     }
+
     int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
+
     {
         WriteLockGuard lk(rwlock_);
         fileserviceMap_[fd] = fileserv;
@@ -258,7 +268,7 @@ int FileClient::Close(int fd) {
     WriteLockGuard lk(rwlock_);
     auto iter = fileserviceMap_.find(fd);
     if (iter == fileserviceMap_.end()) {
-        return LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::FAILED;
     }
     int ret = fileserviceMap_[fd]->Close();
     if (ret == LIBCURVE_ERROR::OK) {
@@ -293,25 +303,51 @@ int Open4Qemu(const char* filename) {
                                         &realname,
                                         &userinfo.owner)) {
         LOG(ERROR) << "get user info from filename failed!";
-        return LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::FAILED;
     }
+
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Open(realname, userinfo);
 }
 
 int Open(const char* filename, const C_UserInfo_t* userinfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Open(filename,
                               UserInfo(userinfo->owner, userinfo->password));
 }
 
 int Read(int fd, char* buf, off_t offset, size_t length) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Read(fd, buf, offset, length);
 }
 
 int Write(int fd, const char* buf, off_t offset, size_t length) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Write(fd, buf, offset, length);
 }
 
 int AioRead(int fd, CurveAioContext* aioctx) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     DVLOG(9) << "offset: " << aioctx->offset
         << " length: " << aioctx->length
         << " op: " << aioctx->op;
@@ -319,6 +355,11 @@ int AioRead(int fd, CurveAioContext* aioctx) {
 }
 
 int AioWrite(int fd, CurveAioContext* aioctx) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     DVLOG(9) << "offset: " << aioctx->offset
         << " length: " << aioctx->length
         << " op: " << aioctx->op
@@ -327,47 +368,85 @@ int AioWrite(int fd, CurveAioContext* aioctx) {
 }
 
 int Create(const char* filename, const C_UserInfo_t* userinfo, size_t size) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Create(filename,
             UserInfo(userinfo->owner, userinfo->password), size);
 }
 
 int Rename(const C_UserInfo_t* userinfo,
-           const char* oldpath,
-           const char* newpath) {
+           const char* oldpath, const char* newpath) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Rename(UserInfo(userinfo->owner, userinfo->password),
             oldpath, newpath);
 }
 
 int Extend(const char* filename,
-           const C_UserInfo_t* userinfo,
-           uint64_t newsize) {
+           const C_UserInfo_t* userinfo, uint64_t newsize) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Extend(filename,
             UserInfo(userinfo->owner, userinfo->password), newsize);
 }
 
 int Unlink(const char* filename, const C_UserInfo_t* userinfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Unlink(filename,
             UserInfo(userinfo->owner, userinfo->password));
 }
 
 // TODO(tongguanxgun): mds一侧暂时还没实现list目录接口
-int Listdir(const char* dirpath, const C_UserInfo_t* userinfo,
-            FileStatInfo** filestatVec) {
+int Listdir(const char* dirpath,
+            const C_UserInfo_t* userinfo, FileStatInfo** filestatVec) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Listdir(dirpath,
             UserInfo(userinfo->owner, userinfo->password), nullptr);
 }
 
 int Mkdir(const char* dirpath, const C_UserInfo_t* userinfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Mkdir(dirpath,
             UserInfo(userinfo->owner, userinfo->password));
 }
 
 int Rmdir(const char* dirpath, const C_UserInfo_t* userinfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Rmdir(dirpath,
             UserInfo(userinfo->owner, userinfo->password));
 }
 
 int Close(int fd) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->Close(fd);
 }
 
@@ -380,12 +459,22 @@ int StatFile4Qemu(const char* filename, FileStatInfo* finfo) {
         LOG(ERROR) << "get user info from filename failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
+
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     return globalclient->StatFile(realname, userinfo, finfo);
 }
 
 int StatFile(const char* filename,
-             const C_UserInfo_t* cuserinfo,
-             FileStatInfo* finfo) {
+             const C_UserInfo_t* cuserinfo, FileStatInfo* finfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
     curve::client::UserInfo_t userinfo(cuserinfo->owner, cuserinfo->password);
     return globalclient->StatFile(filename, userinfo, finfo);
 }

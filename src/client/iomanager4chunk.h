@@ -41,7 +41,7 @@ class IOManager4Chunk : public IOManager {
                      uint64_t seq,
                      uint64_t offset,
                      uint64_t len,
-                     void *buf);
+                     char *buf);
    /**
     * 删除此次转储时产生的或者历史遗留的快照
     * 如果转储过程中没有产生快照，则修改chunk的correctedSn

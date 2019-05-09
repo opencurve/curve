@@ -39,10 +39,9 @@ int IOManager4Chunk::ReadSnapChunk(const ChunkIDInfo &chunkidinfo,
                                         uint64_t seq,
                                         uint64_t offset,
                                         uint64_t len,
-                                        void *buf) {
+                                        char *buf) {
     IOTracker temp(this, &mc_, scheduler_);
-    temp.ReadSnapChunk(chunkidinfo, seq, offset, len,
-                       static_cast<char*>(buf));
+    temp.ReadSnapChunk(chunkidinfo, seq, offset, len, buf);
     return temp.Wait();
 }
 
