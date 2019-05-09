@@ -77,10 +77,8 @@ int SnapshotClient::ListSnapShot(const std::string& filename,
     return -ret;
 }
 
-int SnapshotClient::GetSnapshotSegmentInfo(
-                                        const std::string& filename,
+int SnapshotClient::GetSnapshotSegmentInfo(const std::string& filename,
                                         const UserInfo_t& userinfo,
-                                        LogicalPoolCopysetIDInfo* lpcsIDInfo,
                                         uint64_t seq,
                                         uint64_t offset,
                                         SegmentInfo *segInfo) {
@@ -92,12 +90,12 @@ int SnapshotClient::GetSnapshotSegmentInfo(
         return -ret;
     }
 
-    *lpcsIDInfo = segInfo->lpcpIDInfo;
     for (auto iter : segInfo->chunkvec) {
         iomanager4chunk_.GetMetaCache()->UpdateChunkInfoByID(iter.cid_, iter);
     }
 
-    return GetServerList(lpcsIDInfo->lpid, lpcsIDInfo->cpidVec);
+    return GetServerList(segInfo->lpcpIDInfo.lpid,
+                         segInfo->lpcpIDInfo.cpidVec);
 }
 
 int SnapshotClient::GetServerList(const LogicPoolID& lpid,
@@ -211,7 +209,7 @@ int SnapshotClient::ReadChunkSnapshot(ChunkIDInfo cidinfo,
                                         uint64_t seq,
                                         uint64_t offset,
                                         uint64_t len,
-                                        void *buf) {
+                                        char *buf) {
     return iomanager4chunk_.ReadSnapChunk(cidinfo, seq, offset, len, buf);
 }
 

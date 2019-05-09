@@ -41,9 +41,11 @@ bool IOManager4File::Initialize(IOOption_t ioOpt) {
 }
 
 void IOManager4File::UnInitialize() {
-    scheduler_->Fini();
-    delete scheduler_;
-    scheduler_ = nullptr;
+    if (scheduler_ != nullptr) {
+        scheduler_->Fini();
+        delete scheduler_;
+        scheduler_ = nullptr;
+    }
 }
 
 int IOManager4File::Read(char* buf,
@@ -97,6 +99,8 @@ void IOManager4File::AioRead(CurveAioContext* aioctx,
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_, scheduler_);
     if (temp == nullptr) {
         LOG(ERROR) << "allocate tracker failed!";
+        aioctx->ret = -LIBCURVE_ERROR::FAILED;
+        aioctx->cb(aioctx);
         return;
     }
     inflightIONum_.fetch_add(1, std::memory_order_release);
@@ -108,7 +112,7 @@ void IOManager4File::AioRead(CurveAioContext* aioctx,
                     &fi_);
 }
 
-void  IOManager4File::AioWrite(CurveAioContext* aioctx,
+void IOManager4File::AioWrite(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
     if (disableio_.load(std::memory_order_acquire)) {
         aioctx->ret = -LIBCURVE_ERROR::DISABLEIO;
@@ -121,6 +125,8 @@ void  IOManager4File::AioWrite(CurveAioContext* aioctx,
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_, scheduler_);
     if (temp == nullptr) {
         LOG(ERROR) << "allocate tracker failed!";
+        aioctx->ret = -LIBCURVE_ERROR::FAILED;
+        aioctx->cb(aioctx);
         return;
     }
     inflightIONum_.fetch_add(1, std::memory_order_release);
@@ -165,7 +171,6 @@ void IOManager4File::RefeshSuccAndResumeIO() {
 }
 
 void IOManager4File::RefreshInflightIONum() {
-    std::unique_lock<std::mutex> lk(mtx_);
     inflightIONum_.fetch_sub(1, std::memory_order_release);
     if (inflightIONum_.load() == 0) {
         inflightcv_.notify_one();

@@ -17,7 +17,8 @@
  * @loglevel: 是log打印等级
  */
 typedef struct LogInfo {
-    int     loglevel;
+    int         loglevel;
+    std::string logpath;
     LogInfo() {
         loglevel = 2;
     }

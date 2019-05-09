@@ -189,6 +189,7 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL, fileinstance.Close());
 
     fileinstance.UnInitialize();
+    mdsclient.UnInitialize();
     UnInit();
     server.Stop(0);
     server.Join();
@@ -301,7 +302,7 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
             cl.GetSnapshotSegmentInfo(filename,
                                       emptyuserinfo,
-                                      &lpcsIDInfo, 0, 0, &seginfo));
+                                      0, 0, &seginfo));
 
     // test list snapshot
     // normal delete test
@@ -454,7 +455,7 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
             cl.GetSnapshotSegmentInfo(filename,
                                       rootuserinfo,
-                                      &lpcsIDInfo, 0, 0, &seginfo));
+                                      0, 0, &seginfo));
 
     // test list snapshot
     // normal delete test
