@@ -332,6 +332,28 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void DeleteFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::DeleteFileRequest* request,
+                    ::curve::mds::DeleteFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakedeletefile_->controller_ != nullptr &&
+             fakedeletefile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        if (request->has_fileid()) {
+            ASSERT_GT(request->fileid(), 0);
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::CloseFileResponse*>(
+                    fakedeletefile_->response_);
+        response->CopyFrom(*resp);
+    }
+
+
     void SetCreateFileFakeReturn(FakeReturn* fakeret) {
         fakeCreateFileret_ = fakeret;
     }
@@ -389,6 +411,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakerenamefile_ = fakeret;
     }
 
+    void SetDeleteFile(FakeReturn* fakeret) {
+        fakedeletefile_ = fakeret;
+    }
+
     void CleanRetryTimes() {
         retrytimes_ = 0;
     }
@@ -416,6 +442,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeclosefile_;
     FakeReturn* fakerenamefile_;
     FakeReturn* fakeRefreshSession_;
+    FakeReturn* fakedeletefile_;
 
     FakeReturn* fakechecksnapshotret_;
     FakeReturn* fakecreatesnapshotret_;

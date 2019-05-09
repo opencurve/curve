@@ -1094,14 +1094,14 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
 
 
 LIBCURVE_ERROR MDSClient::CompleteCloneMeta(const std::string &destination,
-                                        UserInfo_t userinfo) {
+                                        const UserInfo_t& userinfo) {
     return SetCloneFileStatus(destination,
                               FileStatus::CloneMetaInstalled,
                               userinfo);
 }
 
 LIBCURVE_ERROR MDSClient::CompleteCloneFile(const std::string &destination,
-                                        UserInfo_t userinfo) {
+                                        const UserInfo_t& userinfo) {
     return SetCloneFileStatus(destination, FileStatus::Cloned, userinfo);
 }
 
@@ -1444,7 +1444,8 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
 }
 
 LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
-                                     UserInfo_t userinfo) {
+                                     const UserInfo_t& userinfo,
+                                     uint64_t fileid) {
     // 记录当前mds重试次数
     int count = 0;
     // 记录还没重试的mds addr数量
@@ -1458,6 +1459,9 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
         curve::mds::DeleteFileResponse response;
 
         request.set_filename(filename);
+        if (fileid > 0) {
+            request.set_fileid(fileid);
+        }
 
         FillUserInfo<::curve::mds::DeleteFileRequest>(&request, userinfo);
 

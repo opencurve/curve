@@ -46,21 +46,21 @@ void SnapshotClient::UnInit() {
 }
 
 int SnapshotClient::CreateSnapShot(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t* seq) {
     LIBCURVE_ERROR ret = mdsclient_.CreateSnapShot(filename, userinfo, seq);
     return -ret;
 }
 
 int SnapshotClient::DeleteSnapShot(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t seq) {
     LIBCURVE_ERROR ret = mdsclient_.DeleteSnapShot(filename, userinfo, seq);
     return -ret;
 }
 
 int SnapshotClient::GetSnapShot(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t seq,
                                         FInfo* snapinfo) {
     LIBCURVE_ERROR ret = mdsclient_.GetSnapShot(filename, userinfo,
@@ -69,7 +69,7 @@ int SnapshotClient::GetSnapShot(const std::string& filename,
 }
 
 int SnapshotClient::ListSnapShot(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         const std::vector<uint64_t>* seq,
                                         std::vector<FInfo*>* snapif) {
     LIBCURVE_ERROR ret = mdsclient_.ListSnapShot(filename, userinfo,
@@ -79,7 +79,7 @@ int SnapshotClient::ListSnapShot(const std::string& filename,
 
 int SnapshotClient::GetSnapshotSegmentInfo(
                                         const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         LogicalPoolCopysetIDInfo* lpcsIDInfo,
                                         uint64_t seq,
                                         uint64_t offset,
@@ -113,7 +113,7 @@ int SnapshotClient::GetServerList(const LogicPoolID& lpid,
 }
 
 int SnapshotClient::CheckSnapShotStatus(const std::string& filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t seq,
                                         FileStatus* filestatus) {
     LIBCURVE_ERROR ret = mdsclient_.CheckSnapShotStatus(filename, userinfo,
@@ -122,7 +122,7 @@ int SnapshotClient::CheckSnapShotStatus(const std::string& filename,
 }
 
 int SnapshotClient::CreateCloneFile(const std::string &destination,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         uint64_t size,
                                         uint64_t sn,
                                         uint32_t chunksize,
@@ -133,7 +133,7 @@ int SnapshotClient::CreateCloneFile(const std::string &destination,
 }
 
 int SnapshotClient::GetFileInfo(const std::string &filename,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         FInfo* fileInfo) {
     LIBCURVE_ERROR ret = mdsclient_.GetFileInfo(filename, userinfo, fileInfo);
     return -ret;
@@ -142,7 +142,7 @@ int SnapshotClient::GetFileInfo(const std::string &filename,
 int SnapshotClient::GetOrAllocateSegmentInfo(bool allocate,
                                         uint64_t offset,
                                         const FInfo_t* fi,
-                                        UserInfo_t userinfo,
+                                        const UserInfo_t& userinfo,
                                         SegmentInfo *segInfo) {
     int ret = mdsclient_.GetOrAllocateSegment(allocate, userinfo,
                                         offset, fi, segInfo);
@@ -163,7 +163,7 @@ int SnapshotClient::GetOrAllocateSegmentInfo(bool allocate,
     return GetServerList(segInfo->lpcpIDInfo.lpid, segInfo->lpcpIDInfo.cpidVec);
 }
 
-int SnapshotClient::RenameCloneFile(UserInfo_t userinfo,
+int SnapshotClient::RenameCloneFile(const UserInfo_t& userinfo,
                                         uint64_t originId,
                                         uint64_t destinationId,
                                         const std::string &origin,
@@ -174,14 +174,21 @@ int SnapshotClient::RenameCloneFile(UserInfo_t userinfo,
 }
 
 int SnapshotClient::CompleteCloneMeta(const std::string &destination,
-                                        UserInfo_t userinfo) {
+                                        const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret = mdsclient_.CompleteCloneMeta(destination, userinfo);
     return -ret;
 }
 
 int SnapshotClient::CompleteCloneFile(const std::string &destination,
-                                        UserInfo_t userinfo) {
+                                        const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret = mdsclient_.CompleteCloneFile(destination, userinfo);
+    return -ret;
+}
+
+int SnapshotClient::DeleteFile(const std::string& filename,
+                               const UserInfo_t& userinfo,
+                               uint64_t id) {
+    LIBCURVE_ERROR ret = mdsclient_.DeleteFile(filename, userinfo, id);
     return -ret;
 }
 
