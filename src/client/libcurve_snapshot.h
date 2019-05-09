@@ -40,7 +40,7 @@ class SnapshotClient {
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   int CreateSnapShot(const std::string& filename,
-                                UserInfo_t userinfo,
+                                const UserInfo_t& userinfo,
                                 uint64_t* seq);
   /**
    * 删除快照
@@ -50,7 +50,7 @@ class SnapshotClient {
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   int DeleteSnapShot(const std::string& filename,
-                                UserInfo_t userinfo,
+                                const UserInfo_t& userinfo,
                                 uint64_t seq);
   /**
    * 获取快照对应的文件信息
@@ -61,7 +61,7 @@ class SnapshotClient {
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   int GetSnapShot(const std::string& fname,
-                             UserInfo_t userinfo,
+                             const UserInfo_t& userinfo,
                              uint64_t seq,
                              FInfo* snapinfo);
   /**
@@ -73,7 +73,7 @@ class SnapshotClient {
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   int ListSnapShot(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             const std::vector<uint64_t>* seqvec,
                             std::vector<FInfo*>* snapif);
   /**
@@ -86,7 +86,7 @@ class SnapshotClient {
    * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
    */
   int GetSnapshotSegmentInfo(const std::string& filename,
-                            UserInfo_t userinfo,
+                            const UserInfo_t& userinfo,
                             LogicalPoolCopysetIDInfo* lpcsIDInfo,
                             uint64_t seq,
                             uint64_t offset,
@@ -127,7 +127,7 @@ class SnapshotClient {
    * @param: seq是文件版本号信息
    */
   int CheckSnapShotStatus(const std::string& filename,
-                                UserInfo_t userinfo,
+                                const UserInfo_t& userinfo,
                                 uint64_t seq,
                                 FileStatus* filestatus);
   /**
@@ -146,7 +146,7 @@ class SnapshotClient {
    * @return 错误码
    */
   int CreateCloneFile(const std::string &destination,
-                                UserInfo_t userinfo,
+                                const UserInfo_t& userinfo,
                                 uint64_t size,
                                 uint64_t sn,
                                 uint32_t chunksize,
@@ -195,7 +195,7 @@ class SnapshotClient {
    * @return 错误码
    */
   int CompleteCloneMeta(const std::string &destination,
-                                UserInfo_t userinfo);
+                                const UserInfo_t& userinfo);
 
   /**
    * @brief 通知mds完成Clone Chunk
@@ -206,7 +206,7 @@ class SnapshotClient {
    * @return 错误码
    */
   int CompleteCloneFile(const std::string &destination,
-                                UserInfo_t userinfo);
+                                const UserInfo_t& userinfo);
 
   /**
    * @brief 获取文件信息
@@ -218,7 +218,7 @@ class SnapshotClient {
    * @return 错误码
    */
   int GetFileInfo(const std::string &filename,
-                                UserInfo_t userinfo,
+                                const UserInfo_t& userinfo,
                                 FInfo* fileInfo);
 
   /**
@@ -233,7 +233,7 @@ class SnapshotClient {
   int GetOrAllocateSegmentInfo(bool allocate,
                                 uint64_t offset,
                                 const FInfo_t* fi,
-                                UserInfo_t userinfo,
+                                const UserInfo_t& userinfo,
                                 SegmentInfo *segInfo);
 
   /**
@@ -247,11 +247,22 @@ class SnapshotClient {
    *
    * @return 错误码
    */
-  int RenameCloneFile(UserInfo_t userinfo,
+  int RenameCloneFile(const UserInfo_t& userinfo,
                               uint64_t originId,
                               uint64_t destinationId,
                               const std::string &origin,
                               const std::string &destination);
+
+  /**
+   * 删除文件
+   * @param: userinfo是用户信息
+   * @param: filename待删除的文件名
+   * @param: id为文件id，默认值为0，如果用户不指定该值，不会传id到mds
+   */
+  int DeleteFile(const std::string& filename,
+                            const UserInfo_t& userinfo,
+                            uint64_t id = 0);
+
   /**
    * 析构，回收资源
    */

@@ -122,8 +122,11 @@ class MDSClient {
      * 删除文件
      * @param: userinfo是用户信息
      * @param: filename待删除的文件名
+     * @param: id为文件id，默认值为0，如果用户不指定该值，不会传id到mds
      */
-    LIBCURVE_ERROR DeleteFile(const std::string& filename, UserInfo_t userinfo);
+    LIBCURVE_ERROR DeleteFile(const std::string& filename,
+                              const UserInfo_t& userinfo,
+                              uint64_t id = 0);
     /**
      * 创建版本号为seq的快照
      * @param: userinfo是用户信息
@@ -253,7 +256,7 @@ class MDSClient {
      * @return 错误码
      */
     LIBCURVE_ERROR CompleteCloneMeta(const std::string &destination,
-                            UserInfo_t userinfo);
+                            const UserInfo_t& userinfo);
 
     /**
      * @brief 通知mds完成Clone Chunk
@@ -264,7 +267,7 @@ class MDSClient {
      * @return 错误码
      */
     LIBCURVE_ERROR CompleteCloneFile(const std::string &destination,
-                            UserInfo_t userinfo);
+                            const UserInfo_t& userinfo);
 
     /**
      * @brief 通知mds完成Clone Meta
