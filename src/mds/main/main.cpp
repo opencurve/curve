@@ -21,8 +21,11 @@
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/topology/topology_admin.h"
-#include "src/mds/topology/topology_manager.h"
 #include "src/mds/topology/topology_service.h"
+#include "src/mds/topology/topology_id_generator.h"
+#include "src/mds/topology/topology_token_generator.h"
+#include "src/mds/topology/topology_config.h"
+#include "src/mds/copyset/copyset_manager.h"
 #include "src/common/configuration.h"
 #include "src/mds/heartbeat/heartbeat_service.h"
 #include "src/mds/schedule/topoAdapter.h"
@@ -33,7 +36,12 @@ DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 using ::curve::mds::topology::TopologyAdminImpl;
 using ::curve::mds::topology::TopologyAdmin;
 using ::curve::mds::topology::TopologyServiceImpl;
-using ::curve::mds::topology::TopologyManager;
+using ::curve::mds::topology::DefaultIdGenerator;
+using ::curve::mds::topology::DefaultTokenGenerator;
+using ::curve::mds::topology::DefaultTopologyStorage;
+using ::curve::mds::topology::TopologyImpl;
+using ::curve::mds::topology::TopologyOption;
+using ::curve::mds::copyset::CopysetManager;
 using ::curve::mds::heartbeat::HeartbeatServiceImpl;
 using ::curve::mds::heartbeat::HeartbeatOption;
 using ::curve::mds::schedule::TopoAdapterImpl;
@@ -45,11 +53,11 @@ namespace curve {
 namespace mds {
 void InitSessionOptions(Configuration *conf,
                         struct SessionOptions *sessionOptions) {
-    sessionOptions->sessionDbName = conf->GetStringValue("mds.session.DbName");
-    sessionOptions->sessionUser = conf->GetStringValue("mds.session.DbUser");
-    sessionOptions->sessionUrl = conf->GetStringValue("mds.session.DbUrl");
+    sessionOptions->sessionDbName = conf->GetStringValue("mds.DbName");
+    sessionOptions->sessionUser = conf->GetStringValue("mds.DbUser");
+    sessionOptions->sessionUrl = conf->GetStringValue("mds.DbUrl");
     sessionOptions->sessionPassword = conf->GetStringValue(
-        "mds.session.DbPassword");
+        "mds.DbPassword");
     sessionOptions->leaseTime = conf->GetIntValue("mds.session.leaseTime");
     sessionOptions->toleranceTime =
         conf->GetIntValue("mds.session.toleranceTime");
@@ -109,6 +117,19 @@ void InitEtcdConf(Configuration *conf, EtcdConf *etcdConf) {
     etcdConf->DialTimeout = conf->GetIntValue("mds.etcd.dailtimeout");
 }
 
+void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
+    topologyOption->dbName =
+        conf->GetStringValue("mds.DbName");
+    topologyOption->user =
+        conf->GetStringValue("mds.DbUser");
+    topologyOption->url =
+        conf->GetStringValue("mds.DbUrl");
+    topologyOption->password =
+        conf->GetStringValue("mds.DbPassword");
+    topologyOption->ChunkServerStateUpdateSec =
+        conf->GetIntValue("mds.topology.ChunkServerStateUpdateSec");
+}
+
 int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
@@ -140,6 +161,9 @@ int curve_main(int argc, char **argv) {
 
     EtcdConf etcdConf;
     InitEtcdConf(&conf, &etcdConf);
+
+    TopologyOption topologyOption;
+    InitTopologyOption(&conf, &topologyOption);
 
     // ===========================init curveFs========================//
     // init EtcdClient
@@ -182,8 +206,53 @@ int curve_main(int argc, char **argv) {
     // init NameServerStorage
     NameServerStorage *storage = new NameServerStorageImp(client, cache);
 
+    // init topology
+    auto topologyIdGenerator  =
+        std::make_shared<DefaultIdGenerator>();
+    auto topologyTokenGenerator =
+        std::make_shared<DefaultTokenGenerator>();
+
+    auto mdsRepo = std::make_shared<MdsRepo>();
+
+    auto topologyStorage =
+        std::make_shared<DefaultTopologyStorage>(mdsRepo);
+
+    if (!topologyStorage->init(topologyOption)) {
+        LOG(FATAL) << "init topologyStorage fail. dbName = "
+                   << topologyOption.dbName
+                   << " , user = "
+                   << topologyOption.user
+                   << " , url = "
+                   << topologyOption.url
+                   << " , password = "
+                   << topologyOption.password;
+        return -1;
+    }
+
+    auto topology =
+        std::make_shared<TopologyImpl>(topologyIdGenerator,
+                                           topologyTokenGenerator,
+                                           topologyStorage);
+
+    int errorCode = topology->init(topologyOption);
+    if (errorCode < 0) {
+        LOG(FATAL) << "init topology fail. errorCode = "
+                   << errorCode;
+        return errorCode;
+    }
+
+    // init CopysetManager
+    auto copysetManager =
+        std::make_shared<CopysetManager>();
+
     // init TopoAdmin
-    auto topologyAdmin = TopologyManager::GetInstance()->GetTopologyAdmin();
+    auto topologyAdmin =
+          std::make_shared<TopologyAdminImpl>(topology);
+
+    // init TopologyServiceManager
+    auto topologyServiceManager =
+        std::make_shared<TopologyServiceManager>(topology,
+        copysetManager);
 
     // init ChunkSegmentAllocator
     ChunkSegmentAllocator *chunkSegmentAllocate =
@@ -192,7 +261,7 @@ int curve_main(int argc, char **argv) {
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
     // init CleanManager
     auto taskManager = std::make_shared<CleanTaskManager>();
-    auto cleanCore = std::make_shared<CleanCore>(storage);
+    auto cleanCore = std::make_shared<CleanCore>(storage, topology);
 
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
                                                       taskManager, storage);
@@ -214,9 +283,8 @@ int curve_main(int argc, char **argv) {
     }
 
     // =========================init scheduler======================//
-    auto topology = TopologyManager::GetInstance()->GetTopology();
     auto topoAdapter = std::make_shared<TopoAdapterImpl>(
-        topology, TopologyManager::GetInstance()->GetServiceManager());
+        topology, topologyServiceManager);
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
     coordinator->InitScheduler(scheduleOption);
     coordinator->Run();
@@ -247,7 +315,7 @@ int curve_main(int argc, char **argv) {
     }
 
     // add topology service
-    TopologyServiceImpl topologyService;
+    TopologyServiceImpl topologyService(topologyServiceManager);
     if (server.AddService(&topologyService,
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(ERROR) << "add topologyService error";

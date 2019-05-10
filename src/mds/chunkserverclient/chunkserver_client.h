@@ -14,12 +14,11 @@
 #include <string>
 
 #include "src/mds/common/mds_define.h"
-#include "src/mds/topology/topology_manager.h"
+#include "src/mds/topology/topology.h"
 #include "proto/cli.pb.h"
 #include "proto/chunk.pb.h"
 
 using ::curve::mds::topology::Topology;
-using ::curve::mds::topology::TopologyManager;
 using ::curve::mds::topology::ChunkServerIdType;
 
 namespace curve {
