@@ -8,14 +8,12 @@
 #include <gflags/gflags.h>
 #include <brpc/server.h>
 
-#include "src/mds/topology/topology_manager.h"
 #include "src/mds/topology/topology_service.h"
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_token_generator.h"
 #include "src/mds/topology/topology_storge.h"
 #include "src/mds/topology/topology_service_manager.h"
-#include "src/mds/topology/singleton.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/copyset/copyset_manager.h"
 #include "src/mds/topology/topology_admin.h"

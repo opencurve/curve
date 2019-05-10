@@ -9,13 +9,12 @@
 #define SRC_MDS_NAMESERVER2_CLEAN_CORE_H_
 
 #include "src/mds/nameserver2/namespace_storage.h"
-#include "src/mds/topology/topology.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/task_progress.h"
 #include "src/mds/chunkserverclient/copyset_client.h"
+#include "src/mds/topology/topology.h"
 
 using ::curve::mds::chunkserverclient::CopysetClient;
-using ::curve::mds::topology::TopologyManager;
 using ::curve::mds::topology::Topology;
 
 namespace curve {
@@ -23,10 +22,9 @@ namespace mds {
 
 class CleanCore {
  public:
-    explicit CleanCore(NameServerStorage * storage) {
+    explicit CleanCore(NameServerStorage * storage,
+        std::shared_ptr<Topology> topo) {
         storage_ = storage;
-        std::shared_ptr<Topology> topo =
-            TopologyManager::GetInstance()->GetTopology();
         copysetClient_ = std::make_shared<CopysetClient>(topo);
     }
     /**

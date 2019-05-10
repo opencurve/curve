@@ -35,7 +35,7 @@ class TestTopologyServiceManager : public ::testing::Test {
     TestTopologyServiceManager() {}
     virtual ~TestTopologyServiceManager() {}
     virtual void SetUp() {
-        listenAddr_ = "127.0.0.1:8200";
+        listenAddr_ = "127.0.0.1:8888";
         server_ = new brpc::Server();
 
         idGenerator_ = std::make_shared<MockIdGenerator>();
@@ -2001,9 +2001,9 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
     PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
 
     CreateLogicalPoolRequest request;
     request.set_logicalpoolname("logicalpoolName1");
@@ -2060,9 +2060,9 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_ByNameSuccess) {
     PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
 
     CreateLogicalPoolRequest request;
     request.set_logicalpoolname("logicalpoolName1");
@@ -2442,9 +2442,9 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
@@ -2466,7 +2466,7 @@ TEST_F(TestTopologyServiceManager,
     ASSERT_THAT(response.csinfo(0).cslocs(0).chunkserverid(),
         AnyOf(0x41, 0x42, 0x43));
     ASSERT_EQ("127.0.0.1", response.csinfo(0).cslocs(0).hostip());
-    ASSERT_EQ(8200, response.csinfo(0).cslocs(0).port());
+    ASSERT_EQ(8888, response.csinfo(0).cslocs(0).port());
 }
 
 TEST_F(TestTopologyServiceManager,
@@ -2483,9 +2483,9 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
@@ -2516,9 +2516,9 @@ TEST_F(TestTopologyServiceManager,
     PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
     PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
