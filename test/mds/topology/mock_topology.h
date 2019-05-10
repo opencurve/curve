@@ -73,12 +73,6 @@ class MockStorage : public TopologyStorage {
   MockStorage() {}
   ~MockStorage() {}
 
-  MOCK_METHOD4(init, bool(
-      const std::string &dbName,
-      const std::string &user,
-      const std::string &url,
-      const std::string &password));
-
   MOCK_METHOD2(LoadLogicalPool, bool(std::unordered_map<PoolIdType, LogicalPool>
       *logicalPoolMap, PoolIdType * maxLogicalPoolId));
   MOCK_METHOD2(LoadPhysicalPool,
