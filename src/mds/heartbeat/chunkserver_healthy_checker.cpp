@@ -32,17 +32,20 @@ void ChunkserverHealthyChecker::CheckHeartBeatInterval() {
         } else {
             // miss < 若当前时间 - 上次心跳到达时间 < offline, 报警
             if (timePass < milliseconds(option_.offLineTimeOutMs)) {
-                LOG(WARNING) << "heartbeatManager find chunkServer: "
+                LOG_EVERY_N(WARNING, 10)
+                             << "heartbeatManager find chunkServer: "
                              << value.first << " heartbeat miss, "
                              << timePass / milliseconds(1)
                              << " milliseconds from last heartbeat";
             } else {
                 // 若当前时间 - 上次心跳到达时间 > offline, 报警, 设为offline
-                if (value.second.OnlineFlag) {
-                    LOG(ERROR) << "heartbeatManager find chunkServer: "
+                // bug-fix[CLDCFS-904] offline状态应该一直报警
+                LOG_EVERY_N(ERROR, 10)
+                               << "heartbeatManager find chunkServer: "
                                << value.first << " offline, "
                                << timePass / milliseconds(1)
                                << " milliseconds from last heartbeat";
+                if (value.second.OnlineFlag) {
                     needUpdate = true;
                 }
             }

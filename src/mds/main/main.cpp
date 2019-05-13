@@ -107,6 +107,8 @@ void InitHeartbeatOption(Configuration *conf,
         conf->GetIntValue("mds.heartbeat.misstimeout");
     heartbeatOption->offLineTimeOutMs =
         conf->GetIntValue("mds.heartbeat.offlinetimeout");
+    heartbeatOption->cleanFollowerAfterMs =
+        conf->GetIntValue("mds.heartbeat.clean_follower_afterms");
 }
 
 void InitEtcdConf(Configuration *conf, EtcdConf *etcdConf) {
@@ -158,6 +160,7 @@ int curve_main(int argc, char **argv) {
 
     HeartbeatOption heartbeatOption;
     InitHeartbeatOption(&conf, &heartbeatOption);
+    heartbeatOption.mdsStartTime = steady_clock::now();
 
     EtcdConf etcdConf;
     InitEtcdConf(&conf, &etcdConf);

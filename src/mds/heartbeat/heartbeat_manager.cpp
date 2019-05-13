@@ -31,7 +31,8 @@ HeartbeatManager::HeartbeatManager(HeartbeatOption option,
     topoUpdater_ = std::make_shared<TopoUpdater>(topology);
 
     copysetConfGenerator_ =
-        std::make_shared<CopysetConfGenerator>(topology, coordinator);
+        std::make_shared<CopysetConfGenerator>(topology, coordinator,
+            option.mdsStartTime, option.cleanFollowerAfterMs);
 
     isStop_ = true;
     chunkserverHealthyCheckerRunInter_ = option.heartbeatMissTimeOutMs;

@@ -29,6 +29,8 @@ class TestHeartbeatManager : public ::testing::Test {
 
   void SetUp() override {
     HeartbeatOption option;
+    option.cleanFollowerAfterMs = 0;
+    option.mdsStartTime = steady_clock::now();
     topology_ = std::make_shared<MockTopology>();
     coordinator_ = std::make_shared<MockCoordinator>();
     heartbeatManager_ = std::make_shared<HeartbeatManager>(
@@ -537,7 +539,7 @@ TEST_F(TestHeartbeatManager,
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo), Return(true)));
     EXPECT_CALL(*coordinator_, CopySetHeartbeat(_, _))
-        .WillOnce(Return(false));
+        .WillOnce(Return(::curve::mds::topology::UNINTIALIZE_ID));
     EXPECT_CALL(*topology_, UpdateCopySet(_))
         .WillOnce(Return(::curve::mds::topology::kTopoErrCodeInternalError));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
@@ -756,6 +758,8 @@ TEST_F(TestHeartbeatManager, test_patrol_copySetInfo_return_order) {
     res.set_configchangeitem("192.168.10.2:9000:0");
     EXPECT_CALL(*coordinator_, CopySetHeartbeat(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(res), Return(true)));
+    EXPECT_CALL(*topology_, UpdateCopySet(_))
+        .WillOnce(Return(::curve::mds::topology::kTopoErrCodeSuccess));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(1, response.needupdatecopysets_size());
     ASSERT_EQ("192.168.10.2:9000:0",
