@@ -16,8 +16,8 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
     if (!topo_->GetCopySet(
         reportCopySetInfo.GetCopySetKey(), &recordCopySetInfo)) {
         LOG(ERROR) << "topoUpdater receive copySet(logicalPoolId: "
-                   << recordCopySetInfo.GetLogicalPoolId()
-                   << ", copySetId: " << recordCopySetInfo.GetId()
+                   << reportCopySetInfo.GetLogicalPoolId()
+                   << ", copySetId: " << reportCopySetInfo.GetId()
                    << ") information, but can not get info from topology";
         return;
     }

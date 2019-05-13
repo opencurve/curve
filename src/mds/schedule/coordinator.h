@@ -58,9 +58,9 @@ class Coordinator {
      * @param[in] originInfo 心跳传递过来的copySet信息
      * @param[out] newConf   处理过后返还给chunkServer的copyset信息
      *
-     * @return if newConf is assigned return true else return false
+     * @return 如果有新的配置生成，返回candaidate Id，如果没有返回UNINTIALIZE_ID
      */
-    virtual bool CopySetHeartbeat(
+    virtual ChunkServerIdType CopySetHeartbeat(
         const ::curve::mds::topology::CopySetInfo &originInfo,
         ::curve::mds::heartbeat::CopysetConf *newConf);
 
