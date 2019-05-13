@@ -26,8 +26,11 @@ class CopysetConfGenerator {
  public:
     CopysetConfGenerator(
         std::shared_ptr<Topology> topo,
-        std::shared_ptr<Coordinator> coordinator) :
-        topo_(topo), coordinator_(coordinator) {}
+        std::shared_ptr<Coordinator> coordinator,
+        steady_clock::time_point mdsStartTime,
+        uint64_t cleanFollowerAfterMs) :
+        topo_(topo), coordinator_(coordinator), mdsStartTime_(mdsStartTime),
+        cleanFollowerAfterMs_(cleanFollowerAfterMs) {}
 
     ~CopysetConfGenerator() {}
 
@@ -52,9 +55,10 @@ class CopysetConfGenerator {
     * @param[in] copySetInfo 上报的copyset信息
     * @param[out] copysetConf 调度模块生成的新的配置
     *
-    * @return true-有新的配置下发， false-没有新配置下发
+    * @return 返回值::curve::mds::topology::UNINTIALIZE_ID没有配置下发，
+    *         非UNINTIALIZE_ID，有配置下发
     */
-    bool LeaderGenCopysetConf(
+    ChunkServerIdType LeaderGenCopysetConf(
         const ::curve::mds::topology::CopySetInfo &copySetInfo,
         CopysetConf *copysetConf);
 
@@ -87,6 +91,20 @@ class CopysetConfGenerator {
  private:
     std::shared_ptr<Topology> topo_;
     std::shared_ptr<Coordinator> coordinator_;
+
+    // MDS启动后一段时间开启copyset清理功能。较大概率的避免以下情况:
+    // 1. MDS生成一个operator: ABC+D(epoch: 8),并且已经下发到leader上
+    // 2. MDS重启，operator丢失，MDS记录的配置为ABC(epoch: 8)
+    // 3. leader在D上安装快照完成，并回放日志，过期的配置更新到D，比如ABE(epoch: 5) //NOLINT
+    // 4. D上报心跳，心跳中D的配置为ABE(epoch: 5)
+    // 5. MDS记录的epoch比follower上报的大，会下发命令清理D上的copyset
+    //    但此时D已经是复制组的成员了，不应该进行清理
+    // 延迟清理的好处：
+    // 正常情况下，一个心跳内leader会上报candidate, 之后，candidate再上报过期配置 //NOLINT
+    // 也不会被清理了。
+    steady_clock::time_point mdsStartTime_;
+    // mds启动cleanFollowerAfterMs之后，可以清理follower上的数据.
+    uint64_t cleanFollowerAfterMs_;
 };
 }  // namespace heartbeat
 }  // namespace mds

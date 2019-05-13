@@ -754,7 +754,7 @@ TEST_F(HeartbeatTest, RemovePeer) {
     LOG(INFO) << "Removing peer finished successfully";
 }
 
-TEST_F(HeartbeatTest, CleanPeer) {
+TEST_F(HeartbeatTest, CleanPeer_after_Configchange) {
     /*
      * Create test copyset
      */
@@ -782,7 +782,7 @@ TEST_F(HeartbeatTest, CleanPeer) {
         GetHeartbeat(&cntl, &req, &resp, &done);
         brpc::ClosureGuard done_guard(done);
 
-        DVLOG(6) << "Chunkserver ID: " << req->chunkserverid()
+        LOG(INFO) << "Chunkserver ID: " << req->chunkserverid()
                  << ", IP: " << req->ip() << ", port: " << req->port()
                  << ", copyset count: " << req->copysetcount()
                  << ", leader count: " << req->leadercount();
@@ -810,7 +810,7 @@ TEST_F(HeartbeatTest, CleanPeer) {
 
             std::string peersStr = info.peers(0);
 
-            DVLOG(6) << "Copyset " << i << " <" << info.logicalpoolid()
+            LOG(INFO) << "Copyset " << i << " <" << info.logicalpoolid()
                      << ", " << info.copysetid()
                      << ">, epoch: " << info.epoch()
                      << ", leader: " << info.leaderpeer()
@@ -818,7 +818,7 @@ TEST_F(HeartbeatTest, CleanPeer) {
 
             if (info.has_configchangeinfo()) {
                 const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-                DVLOG(6) << "Config change info: peer: " << cxInfo.peer()
+                LOG(INFO) << "Config change info: peer: " << cxInfo.peer()
                          << ", finished: " << cxInfo.finished()
                          << ", errno: " << cxInfo.err().errtype()
                          << ", errmsg: " << cxInfo.err().errmsg();
@@ -843,6 +843,100 @@ TEST_F(HeartbeatTest, CleanPeer) {
         t1 = butil::monotonic_time_ms();
     }
 
+    ASSERT_LE(t1 - t0, 30 * 1000);
+    LOG(INFO) << "Cleaning peer " << peer << " finished successfully";
+}
+
+TEST_F(HeartbeatTest, CleanPeer_not_exist_in_MDS) {
+    // 在chunkserver2上创建一个copyset
+    std::string peer = "127.0.0.1:8202:0";
+
+    CreateCopysetPeers(peer);
+    WaitCopysetReady(peer);
+
+    LOG(INFO) << "Created test copyset for cleaning peer";
+
+    ::google::protobuf::RpcController*  cntl;
+    ::google::protobuf::Closure*        done;
+    const HeartbeatRequest*             req;
+    HeartbeatResponse*                  resp;
+
+    LOG(INFO) << "Cleaning peer " << peer;
+
+    bool taskSent = false;
+    int64_t t0 = butil::monotonic_time_ms();
+    int64_t t1 = butil::monotonic_time_ms();
+    while (t1 - t0 < 30 * 1000) {
+        GetHeartbeat(&cntl, &req, &resp, &done);
+        brpc::ClosureGuard done_guard(done);
+
+        LOG(INFO) << "Chunkserver ID: " << req->chunkserverid()
+                 << ", IP: " << req->ip() << ", port: " << req->port()
+                 << ", copyset count: " << req->copysetcount()
+                 << ", leader count: " << req->leadercount();
+
+        std::string sender = req->ip() + ":" + std::to_string(req->port())
+                             + ":0";
+        if (sender != peer) {
+            continue;
+        }
+        if (req->copysetinfos_size() >= 1) {
+            // 捕获心跳中的request, 判断心跳中是否还上报了该copyset
+            int i = 0;
+            for (; i < req->copysetinfos_size(); i ++) {
+                if ( req->copysetinfos(i).logicalpoolid() == poolId &&
+                     req->copysetinfos(i).copysetid() == copysetId ) {
+                    break;
+                }
+            }
+            // 如果i>request种copyset数量
+            // 说明该copyset已经不存在了，说明copyset已经删除
+            // 标记taskSent为true, 删除成功
+            if (i >= req->copysetinfos_size()) {
+                ASSERT_EQ(true, taskSent);
+                break;
+            }
+
+            const curve::mds::heartbeat::CopySetInfo& info =
+                req->copysetinfos(i);
+
+            std::string peersStr = info.peers(0);
+
+            LOG(INFO) << "Copyset " << i << " <" << info.logicalpoolid()
+                     << ", " << info.copysetid()
+                     << ">, epoch: " << info.epoch()
+                     << ", leader: " << info.leaderpeer()
+                     << ", peers: " << peersStr;
+
+            if (info.has_configchangeinfo()) {
+                const ConfigChangeInfo& cxInfo = info.configchangeinfo();
+                LOG(INFO) << "Config change info: peer: " << cxInfo.peer()
+                         << ", finished: " << cxInfo.finished()
+                         << ", errno: " << cxInfo.err().errtype()
+                         << ", errmsg: " << cxInfo.err().errmsg();
+            }
+
+            {
+                // 设置response为空配置
+                CopysetConf* conf = resp->add_needupdatecopysets();
+
+                conf->set_logicalpoolid(poolId);
+                conf->set_copysetid(copysetId);
+                conf->set_epoch(0);
+
+                taskSent = true;
+                LOG(INFO) << "Answer peer " << sender
+                          << " with cleaning peer response";
+            }
+        } else {
+            // request中没有心跳应该删除成功
+            ASSERT_EQ(true, taskSent);
+            break;
+        }
+        t1 = butil::monotonic_time_ms();
+    }
+
+    // 心跳交互的到删除的时间应该在设置时间之内
     ASSERT_LE(t1 - t0, 30 * 1000);
     LOG(INFO) << "Cleaning peer " << peer << " finished successfully";
 }

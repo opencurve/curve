@@ -44,6 +44,13 @@ struct HeartbeatOption {
     // 把chunkserver的状态置为offline, 并报警。
     // schedule根据chunkserver的状态进行调度。
     uint64_t offLineTimeOutMs;
+
+    // cleanFollowerAfterMs： mds启动cleanFollowerAfterMs时间后
+    // 开启清理chunkserver上copyset的功能
+    uint64_t cleanFollowerAfterMs;
+
+    // mdsStartTime: mds启动时间
+    steady_clock::time_point mdsStartTime;
 };
 
 struct HeartbeatInfo {
