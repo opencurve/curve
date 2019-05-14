@@ -4652,6 +4652,10 @@ SWIGINTERN PyObject *_wrap_Read(PyObject *SWIGUNUSEDPARM(self), PyObject *args) 
   arg4 = static_cast< unsigned long >(val4);
   arg2 = new char[arg4];
   result = (int)Read(arg1,arg2,arg3,arg4);
+  if (result < 0) {
+    delete[] arg2;
+    return result;
+  }
   resultobj = SWIG_Python_AppendOutput(resultobj, SWIG_FromCharPtrAndSize(arg2, arg4));
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
   delete[] arg2;
