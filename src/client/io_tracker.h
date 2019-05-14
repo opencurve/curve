@@ -40,7 +40,8 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      */
     IOTracker(IOManager* iomanager,
               MetaCache* mc,
-              RequestScheduler* scheduler);
+              RequestScheduler* scheduler,
+              ClientMetric_t* clientMetric = nullptr);
     ~IOTracker() = default;
 
     /**
@@ -218,6 +219,12 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     // 对于异步IO，Tracker需要向上层通知当前IO已经处理结束
     // iomanager可以将该tracker释放
     IOManager* iomanager_;
+
+    // 发起时间
+    uint64_t opStartTimePoint_;
+
+    // client端的metric统计信息
+    ClientMetric_t* clientMetric_;
 };
 }   // namespace client
 }   // namespace curve

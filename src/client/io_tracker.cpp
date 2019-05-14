@@ -12,6 +12,7 @@
 #include "src/client/io_tracker.h"
 #include "src/client/request_scheduler.h"
 #include "src/client/request_closure.h"
+#include "src/common/timeutility.h"
 
 using curve::chunkserver::CHUNK_OP_STATUS;
 
@@ -20,10 +21,12 @@ namespace client {
 
 IOTracker::IOTracker(IOManager* iomanager,
                         MetaCache* mc,
-                        RequestScheduler* scheduler):
+                        RequestScheduler* scheduler,
+                        ClientMetric_t* clientMetric):
                         mc_(mc),
                         iomanager_(iomanager),
-                        scheduler_(scheduler) {
+                        scheduler_(scheduler),
+                        clientMetric_(clientMetric) {
     aioctx_     = nullptr;
     data_       = nullptr;
     type_       = OpType::UNKNOWN;
@@ -31,7 +34,8 @@ IOTracker::IOTracker(IOManager* iomanager,
     offset_     = 0;
     length_     = 0;
     reqlist_.clear();
-    reqcount_.store(0, std::memory_order_release);;
+    reqcount_.store(0, std::memory_order_release);
+    opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
 }
 
 void IOTracker::StartRead(CurveAioContext* aioctx,
@@ -252,12 +256,33 @@ int IOTracker::Wait() {
 }
 
 void IOTracker::Done() {
+    if (clientMetric_ != nullptr) {
+        if (errcode_ == LIBCURVE_ERROR::OK) {
+            uint64_t opEndTimePoint = common::TimeUtility::GetTimeofDayUs();
+            if (type_ == OpType::READ) {
+                clientMetric_->readRequestLatency
+                            << (opEndTimePoint - opStartTimePoint_);
+                clientMetric_->readBytesCount << length_;
+            } else if (type_ == OpType::WRITE) {
+                clientMetric_->writeRequestLatency
+                            << (opEndTimePoint - opStartTimePoint_);
+                clientMetric_->writeBytesCount << length_;
+            }
+        } else {
+            if (type_ == OpType::READ) {
+                clientMetric_->readRequestFailCount << 1;
+            } else if (type_ == OpType::WRITE) {
+                clientMetric_->writeRequestFailCount << 1;
+            }
+        }
+    }
+
     DestoryRequestList();
     if (aioctx_ == nullptr) {
         errcode_ == LIBCURVE_ERROR::OK ? iocv_.Complete(length_)
                                        : iocv_.Complete(-errcode_);
     } else {
-        aioctx_->ret = errcode_ == 0 ? length_ : -errcode_;
+        aioctx_->ret = errcode_ == LIBCURVE_ERROR::OK ? length_ : -errcode_;
         aioctx_->cb(aioctx_);
         iomanager_->HandleAsyncIOResponse(this);
     }

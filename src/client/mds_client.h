@@ -10,6 +10,7 @@
 
 #include <brpc/channel.h>
 #include <brpc/controller.h>
+#include <brpc/errno.pb.h>
 
 #include <vector>
 #include <string>
@@ -352,6 +353,16 @@ class MDSClient {
         }
     }
 
+    /**
+     * 如果rpc超时，就记录metric信息
+     * @param: errorcode为brpc返回后，rpc内部的errcode
+     */
+    void RecordMetricInfo(int errcode) {
+         if (errcode == brpc::ERPCTIMEDOUT) {
+            mdsClientMetric_.timeoutTimes << 1;
+         }
+    }
+
  private:
     // 初始化标志，放置重复初始化
     bool            inited_;
@@ -367,6 +378,9 @@ class MDSClient {
 
     // 读写锁，在切换MDS地址的时候需要暂停其他线程的RPC调用
     RWLock rwlock_;
+
+    // client与mds通信的metric统计
+    MDSClientMetric_t mdsClientMetric_;
 };
 }   // namespace client
 }   // namespace curve

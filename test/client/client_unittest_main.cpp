@@ -6,6 +6,7 @@
  */
 
 
+#include <brpc/server.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -52,6 +53,7 @@ int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
+    brpc::StartDummyServerAt(8888/*port*/);
 
     int fd =  open(configpath.c_str(), O_CREAT | O_RDWR);
     int len = write(fd, config.c_str(), config.length());
