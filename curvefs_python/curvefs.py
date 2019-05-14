@@ -171,10 +171,10 @@ class UserInfo_t(_object):
     __swig_getmethods__["owner"] = _curvefs.UserInfo_t_owner_get
     if _newclass:
         owner = _swig_property(_curvefs.UserInfo_t_owner_get, _curvefs.UserInfo_t_owner_set)
-    __swig_setmethods__["passwd"] = _curvefs.UserInfo_t_passwd_set
-    __swig_getmethods__["passwd"] = _curvefs.UserInfo_t_passwd_get
+    __swig_setmethods__["password"] = _curvefs.UserInfo_t_password_set
+    __swig_getmethods__["password"] = _curvefs.UserInfo_t_password_get
     if _newclass:
-        passwd = _swig_property(_curvefs.UserInfo_t_passwd_get, _curvefs.UserInfo_t_passwd_set)
+        password = _swig_property(_curvefs.UserInfo_t_password_get, _curvefs.UserInfo_t_password_set)
 
     def __init__(self):
         this = _curvefs.new_UserInfo_t()
