@@ -96,11 +96,12 @@ std::string LeaseExcutor::GetLeaseSessionID() {
 }
 
 void LeaseExcutor::Stop() {
-    timerTaskWorker_.CancelTimerTask(refreshTask_);
+    if (refreshTask_ != nullptr) {
+        timerTaskWorker_.CancelTimerTask(refreshTask_);
+        delete refreshTask_;
+        refreshTask_ = nullptr;
+    }
     timerTaskWorker_.Stop();
-
-    delete refreshTask_;
-    refreshTask_ = nullptr;
 }
 
 bool LeaseExcutor::LeaseValid() {
