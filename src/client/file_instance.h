@@ -36,11 +36,13 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @param: mdsclient为全局的mds client
      * @param: userinfo为user信息
      * @param: fileservicopt fileclient的配置选项
+     * @param: clientMetric为client端要统计的metric信息
      * @return: 成功返回true、否则返回false
      */
     bool Initialize(MDSClient* mdsclient,
                     const UserInfo_t& userinfo,
-                    FileServiceOption_t fileservicopt);
+                    FileServiceOption_t fileservicopt,
+                    ClientMetric_t* clientMetric);
     /**
      * 打开文件
      * @param: filename为文件名
@@ -68,13 +70,15 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     /**
      * 异步模式读
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * @return: 0为成功，小于0为失败
      */
-    void AioRead(CurveAioContext* aioctx);
+    int AioRead(CurveAioContext* aioctx);
     /**
      * 异步模式写
      * @param: aioctx为异步读写的io上下文，保存基本的io信息
+     * @return: 0为成功，小于0为失败
      */
-    void AioWrite(CurveAioContext* aioctx);
+    int AioWrite(CurveAioContext* aioctx);
 
     int Close();
 
