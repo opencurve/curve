@@ -53,7 +53,7 @@ typedef struct AioContext {
 
 typedef struct UserInfo {
     char owner[256];
-    char passwd[256];
+    char password[256];
 } UserInfo_t;
 
 typedef struct FileInfo {
