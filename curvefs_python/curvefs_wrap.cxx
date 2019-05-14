@@ -4080,7 +4080,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_UserInfo_t_passwd_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_UserInfo_t_password_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   UserInfo *arg1 = (UserInfo *) 0 ;
   char *arg2 ;
@@ -4091,19 +4091,19 @@ SWIGINTERN PyObject *_wrap_UserInfo_t_passwd_set(PyObject *SWIGUNUSEDPARM(self),
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"OO:UserInfo_t_passwd_set",&obj0,&obj1)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:UserInfo_t_password_set",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_UserInfo, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "UserInfo_t_passwd_set" "', argument " "1"" of type '" "UserInfo *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "UserInfo_t_password_set" "', argument " "1"" of type '" "UserInfo *""'"); 
   }
   arg1 = reinterpret_cast< UserInfo * >(argp1);
   res2 = SWIG_AsCharArray(obj1, temp2, 256);
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "UserInfo_t_passwd_set" "', argument " "2"" of type '" "char [256]""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "UserInfo_t_password_set" "', argument " "2"" of type '" "char [256]""'");
   }
   arg2 = reinterpret_cast< char * >(temp2);
-  if (arg2) memcpy(arg1->passwd,arg2,256*sizeof(char));
-  else memset(arg1->passwd,0,256*sizeof(char));
+  if (arg2) memcpy(arg1->password,arg2,256*sizeof(char));
+  else memset(arg1->password,0,256*sizeof(char));
   resultobj = SWIG_Py_Void();
   return resultobj;
 fail:
@@ -4111,7 +4111,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_UserInfo_t_passwd_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_UserInfo_t_password_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   UserInfo *arg1 = (UserInfo *) 0 ;
   void *argp1 = 0 ;
@@ -4119,13 +4119,13 @@ SWIGINTERN PyObject *_wrap_UserInfo_t_passwd_get(PyObject *SWIGUNUSEDPARM(self),
   PyObject * obj0 = 0 ;
   char *result = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"O:UserInfo_t_passwd_get",&obj0)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"O:UserInfo_t_password_get",&obj0)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_UserInfo, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "UserInfo_t_passwd_get" "', argument " "1"" of type '" "UserInfo *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "UserInfo_t_password_get" "', argument " "1"" of type '" "UserInfo *""'"); 
   }
   arg1 = reinterpret_cast< UserInfo * >(argp1);
-  result = (char *)(char *) ((arg1)->passwd);
+  result = (char *)(char *) ((arg1)->password);
   {
     size_t size = SWIG_strnlen(result, 256);
     
@@ -5147,8 +5147,8 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"AioContext_t_swigregister", AioContext_t_swigregister, METH_VARARGS, NULL},
 	 { (char *)"UserInfo_t_owner_set", _wrap_UserInfo_t_owner_set, METH_VARARGS, NULL},
 	 { (char *)"UserInfo_t_owner_get", _wrap_UserInfo_t_owner_get, METH_VARARGS, NULL},
-	 { (char *)"UserInfo_t_passwd_set", _wrap_UserInfo_t_passwd_set, METH_VARARGS, NULL},
-	 { (char *)"UserInfo_t_passwd_get", _wrap_UserInfo_t_passwd_get, METH_VARARGS, NULL},
+	 { (char *)"UserInfo_t_password_set", _wrap_UserInfo_t_password_set, METH_VARARGS, NULL},
+	 { (char *)"UserInfo_t_password_get", _wrap_UserInfo_t_password_get, METH_VARARGS, NULL},
 	 { (char *)"new_UserInfo_t", _wrap_new_UserInfo_t, METH_VARARGS, NULL},
 	 { (char *)"delete_UserInfo_t", _wrap_delete_UserInfo_t, METH_VARARGS, NULL},
 	 { (char *)"UserInfo_t_swigregister", UserInfo_t_swigregister, METH_VARARGS, NULL},
