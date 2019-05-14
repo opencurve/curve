@@ -4654,7 +4654,9 @@ SWIGINTERN PyObject *_wrap_Read(PyObject *SWIGUNUSEDPARM(self), PyObject *args) 
   result = (int)Read(arg1,arg2,arg3,arg4);
   if (result < 0) {
     delete[] arg2;
-    return result;
+    resultobj = SWIG_From_int(static_cast< int >(result));
+    if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+    return resultobj;
   }
   resultobj = SWIG_Python_AppendOutput(resultobj, SWIG_FromCharPtrAndSize(arg2, arg4));
   if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
