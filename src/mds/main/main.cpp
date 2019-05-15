@@ -66,7 +66,7 @@ void InitSessionOptions(Configuration *conf,
 
 void InitAuthOptions(Configuration *conf,
                      struct RootAuthOption *authOptions) {
-    authOptions->rootOwner = conf->GetStringValue("mds.auth.rootOwner");
+    authOptions->rootOwner = ROOTUSERNAME;
     authOptions->rootPassword = conf->GetStringValue("mds.auth.rootPassword");
 }
 
@@ -129,6 +129,7 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
     topologyOption->ChunkServerStateUpdateSec =
         conf->GetIntValue("mds.topology.ChunkServerStateUpdateSec");
 }
+
 
 int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
@@ -205,6 +206,12 @@ int curve_main(int argc, char **argv) {
 
     // init NameServerStorage
     NameServerStorage *storage = new NameServerStorageImp(client, cache);
+
+    // init recyclebindir
+    if (!InitRecycleBinDir(storage))  {
+        LOG(ERROR) << "init recyclebindir error";
+        return -1;
+    }
 
     // init topology
     auto topologyIdGenerator  =
