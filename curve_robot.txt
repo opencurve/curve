@@ -7,7 +7,7 @@ Library           RequestsLibrary
 Library           Process
 Library           SSHLibrary
 Suite Setup       init cluster
-#Suite Teardown    clean env
+Suite Teardown    clean env
 
 
 *** Variables ***
