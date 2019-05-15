@@ -10,7 +10,7 @@
 
 #include <string>
 #include <vector>
-#include "thirdparties/etcdclient/etcdclient.h"
+#include "include/etcdclient/etcdclient.h"
 
 namespace curve {
 namespace mds {
