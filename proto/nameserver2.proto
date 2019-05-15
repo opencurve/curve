@@ -35,9 +35,10 @@ message FileInfo {
     optional    uint64      ctime  = 9;
     optional    uint64      seqNum =  10;
     optional    FileStatus  fileStatus = 11;
+    //用于文件转移到回收站的情况下恢复场景下的使用,
+    //RecycleBin（回收站）目录下使用/其他场景下不使用
+    optional    string      originalFullPathName = 12;
 }
-
-// TODO(hzsunjianliang): add a errorcode msg table
 
 // status code
 enum  StatusCode {
@@ -128,6 +129,7 @@ message DeleteFileRequest {
     optional string     signature = 3;
     required uint64     date = 4;
     optional uint64     fileId = 5;
+    optional bool       forceDelete = 6;
 };
 
 message DeleteFileResponse {

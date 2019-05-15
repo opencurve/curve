@@ -10,13 +10,16 @@
 #include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/session.h"
+#include "src/common/timeutility.h"
+#include "src/mds/common/mds_define.h"
+
+
 #include "test/mds/nameserver2/mock_namespace_storage.h"
 #include "test/mds/nameserver2/mock_inode_id_generator.h"
 #include "test/mds/nameserver2/mock_chunk_allocate.h"
 #include "test/mds/nameserver2/mock_clean_manager.h"
-#include "src/mds/common/mds_define.h"
 #include "test/mds/nameserver2/mock_repo.h"
-#include "src/common/timeutility.h"
+
 
 using ::testing::AtLeast;
 using ::testing::StrEq;
@@ -344,17 +347,134 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
+        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kOK);
+    }
+
+    // test delete recyclebin pagefile，cleanManager fail
+    {
+        FileInfo recycleBindir;
+        recycleBindir.set_parentid(ROOTINODEID);
+        recycleBindir.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo  fileInfo;
+        fileInfo.set_parentid(RECYCLEBININODEID);
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(4)
+        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*mockcleanManager_,
+            GetTask(_))
+            .Times(1)
+            .WillOnce(Return(nullptr));
+
+        EXPECT_CALL(*mockcleanManager_,
+            SubmitDeleteCommonFileJob(_))
+        .Times(1)
+        .WillOnce(Return(false));
+
+        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1", true),
+            StatusCode::KInternalError);
+    }
+
+    // test force delete recyclebin file ok
+    {
+        FileInfo recycleBindir;
+        recycleBindir.set_parentid(ROOTINODEID);
+        recycleBindir.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo  fileInfo;
+        fileInfo.set_parentid(RECYCLEBININODEID);
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(4)
+        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*mockcleanManager_,
+            GetTask(_))
+            .Times(1)
+            .WillOnce(Return(nullptr));
+
         EXPECT_CALL(*mockcleanManager_,
             SubmitDeleteCommonFileJob(_))
         .Times(1)
         .WillOnce(Return(true));
 
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::kOK);
+        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1", true),
+            StatusCode::kOK);
     }
 
-    // test delete pagefile，cleanManager fail
+    // test force delete already deleting
+    {
+        FileInfo recycleBindir;
+        recycleBindir.set_parentid(ROOTINODEID);
+        recycleBindir.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo  fileInfo;
+        fileInfo.set_parentid(RECYCLEBININODEID);
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(4)
+        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(recycleBindir),
+            Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> fileInfoList;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
+            Return(StoreStatus::OK)));
+
+        // mockcleanManager_ = std::make_shared<MockCleanManager>();
+        auto notNullTask =
+            std::make_shared<SnapShotCleanTask>(1, nullptr, fileInfo);
+        EXPECT_CALL(*mockcleanManager_,
+            GetTask(_))
+            .Times(1)
+            .WillOnce(Return(notNullTask));
+
+        ASSERT_EQ(curvefs_->DeleteFile(RECYCLEBINDIR + "/file1", true),
+            StatusCode::kOK);
+    }
+
+     // test force delete file not in recyclebin
     {
         FileInfo  fileInfo;
+        fileInfo.set_parentid(USERSTARTINODEID);
         fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(2)
@@ -367,18 +487,9 @@ TEST_F(CurveFSTest, testDeleteFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfoList),
             Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*storage_, MoveFileToRecycle(_, _))
-        .Times(1)
-        .WillOnce(Return(StoreStatus::OK));
-
-        EXPECT_CALL(*mockcleanManager_,
-            SubmitDeleteCommonFileJob(_))
-        .Times(1)
-        .WillOnce(Return(false));
-
-        ASSERT_EQ(curvefs_->DeleteFile("/file1"), StatusCode::KInternalError);
+        ASSERT_EQ(curvefs_->DeleteFile("/file1", true),
+            StatusCode::kNotSupported);
     }
-
     // test delete pagefile, file under snapshot
     {
         FileInfo  fileInfo;
@@ -667,10 +778,6 @@ TEST_F(CurveFSTest, testRenameFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo3),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*mockcleanManager_, SubmitDeleteCommonFileJob(_))
-        .Times(1)
-        .WillOnce(Return(true));
-
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(3)
         .WillOnce(Return(StoreStatus::KeyNotExist))
@@ -847,10 +954,6 @@ TEST_F(CurveFSTest, testRenameFile) {
         .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
                         Return(StoreStatus::OK)));
 
-        EXPECT_CALL(*mockcleanManager_, SubmitDeleteCommonFileJob(_))
-        .Times(1)
-        .WillOnce(Return(false));
-
         EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
         .Times(2)
         .WillOnce(Return(StoreStatus::KeyNotExist))
@@ -861,7 +964,7 @@ TEST_F(CurveFSTest, testRenameFile) {
         .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->RenameFile("/file1", "/trash/file2", 0, 0),
-                  StatusCode::KInternalError);
+                  StatusCode::kOK);
     }
 }
 
@@ -2488,6 +2591,109 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
         ASSERT_EQ(curvefs_->SetCloneFileStatus("/file1",
             kUnitializedFileID, FileStatus::kFileCloned),
                 StatusCode::kOK);
+    }
+}
+
+TEST_F(CurveFSTest, InitRecycleBinDir) {
+    // test getFile ok
+    {
+        FileInfo fileInfo1, fileInfo2, fileInfo3, fileInfo4, fileInfo5;
+        fileInfo1.set_parentid(ROOTINODEID+1);
+
+        fileInfo2.set_parentid(ROOTINODEID);
+        fileInfo2.set_id(RECYCLEBININODEID+1);
+
+        fileInfo3.set_parentid(ROOTINODEID);
+        fileInfo3.set_id(RECYCLEBININODEID);
+        fileInfo3.set_filename(RECYCLEBINDIRNAME + "aa");
+
+        fileInfo4.set_parentid(ROOTINODEID);
+        fileInfo4.set_id(RECYCLEBININODEID);
+        fileInfo4.set_filename(RECYCLEBINDIRNAME);
+        fileInfo4.set_filetype(FileType::INODE_PAGEFILE);
+
+        fileInfo4.set_parentid(ROOTINODEID);
+        fileInfo4.set_id(RECYCLEBININODEID);
+        fileInfo4.set_filename(RECYCLEBINDIRNAME);
+        fileInfo4.set_filetype(FileType::INODE_DIRECTORY);
+        fileInfo4.set_owner("imanotroot");
+
+        fileInfo5.set_parentid(ROOTINODEID);
+        fileInfo5.set_id(RECYCLEBININODEID);
+        fileInfo5.set_filename(RECYCLEBINDIRNAME);
+        fileInfo5.set_filetype(FileType::INODE_DIRECTORY);
+        fileInfo5.set_owner(ROOTUSERNAME);
+
+        const struct {
+            FileInfo info;
+            bool      ret;
+        } testCases[] = {
+            {fileInfo1, false},
+            {fileInfo2, false},
+            {fileInfo3, false},
+            {fileInfo4, false},
+            {fileInfo5, true},
+        };
+
+        auto mockstorage = new MockNameServerStorage();
+        for (int i = 0; i < sizeof(testCases)/ sizeof(testCases[0]); i++) {
+            EXPECT_CALL(*mockstorage, GetFile(_, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(testCases[i].info),
+                Return(StoreStatus::OK)));
+
+            ASSERT_EQ(InitRecycleBinDir(mockstorage), testCases[i].ret);
+        }
+        delete mockstorage;
+    }
+
+    // test internal error
+    {
+        auto mockstorage = new MockNameServerStorage();
+
+        EXPECT_CALL(*mockstorage, GetFile(_, _, _))
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(InitRecycleBinDir(mockstorage), false);
+
+        delete mockstorage;
+    }
+
+    // test getfile not exist
+    {
+        auto mockstorage = new MockNameServerStorage();
+
+        // putfile error case
+        EXPECT_CALL(*mockstorage, GetFile(_, _, _))
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*mockstorage, PutFile(_))
+            .Times(1)
+            .WillOnce(Return(StoreStatus::InternalError));
+
+        ASSERT_EQ(InitRecycleBinDir(mockstorage), false);
+
+        // putfile ok
+        FileInfo fileInfo5;
+        fileInfo5.set_parentid(ROOTINODEID);
+        fileInfo5.set_id(RECYCLEBININODEID);
+        fileInfo5.set_filename(RECYCLEBINDIRNAME);
+        fileInfo5.set_filetype(FileType::INODE_DIRECTORY);
+        fileInfo5.set_owner(ROOTUSERNAME);
+
+        EXPECT_CALL(*mockstorage, GetFile(_, _, _))
+            .Times(1)
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+
+        EXPECT_CALL(*mockstorage, PutFile(_))
+            .Times(1)
+            .WillOnce(Return(StoreStatus::OK));
+
+        ASSERT_EQ(InitRecycleBinDir(mockstorage), true);
+
+        delete mockstorage;
     }
 }
 

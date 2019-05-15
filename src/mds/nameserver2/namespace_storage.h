@@ -73,6 +73,7 @@ class NameServerStorage {
     virtual StoreStatus DeleteFile(InodeID id,
                                 const std::string &filename) = 0;
 
+    // TODO(lixiaocui) GetRecycleFile DeleteRecycleFile当前用不到，需要删除
     /**
      * @brief GetRecycleFile 获取指定回收站文件的元数据
      *
