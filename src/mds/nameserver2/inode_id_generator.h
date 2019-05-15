@@ -18,7 +18,6 @@
 
 namespace curve {
 namespace mds {
-const uint64_t INODEINITIALIZE = 0;
 const uint64_t INODEBUNDLEALLOCATED = 1000;
 
 class InodeIDGenerator {
@@ -39,7 +38,7 @@ class InodeIdGeneratorImp : public InodeIDGenerator {
  public:
     explicit InodeIdGeneratorImp(std::shared_ptr<StorageClient> client) {
         generator_ = std::make_shared<EtcdIdGenerator>(
-            client, INODESTOREKEY, INODEINITIALIZE, INODEBUNDLEALLOCATED);
+            client, INODESTOREKEY, USERSTARTINODEID, INODEBUNDLEALLOCATED);
     }
     virtual ~InodeIdGeneratorImp() {}
 

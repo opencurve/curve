@@ -18,6 +18,50 @@ using curve::common::TimeUtility;
 namespace curve {
 namespace mds {
 
+
+bool InitRecycleBinDir(NameServerStorage *storage) {
+    FileInfo recyclebinFileInfo;
+
+    StoreStatus ret = storage->GetFile(ROOTINODEID, RECYCLEBINDIR,
+        &recyclebinFileInfo);
+    if (ret == StoreStatus::OK) {
+        if (recyclebinFileInfo.parentid() != ROOTINODEID
+            ||  recyclebinFileInfo.id() != RECYCLEBININODEID
+            ||  recyclebinFileInfo.filename().compare(RECYCLEBINDIRNAME) != 0
+            ||  recyclebinFileInfo.filetype() != FileType::INODE_DIRECTORY
+            ||  recyclebinFileInfo.owner() != ROOTUSERNAME) {
+            LOG(ERROR) << "Recyclebin info error, fileInfo = "
+                << recyclebinFileInfo.DebugString();
+            return false;
+        } else {
+            LOG(INFO) << "Recycle Bin dir exist, Path = " << RECYCLEBINDIR;
+            return true;
+        }
+    } else if ( ret == StoreStatus::KeyNotExist ) {
+        // store the dir
+        recyclebinFileInfo.set_parentid(ROOTINODEID);
+        recyclebinFileInfo.set_id(RECYCLEBININODEID);
+        recyclebinFileInfo.set_filename(RECYCLEBINDIRNAME);
+        recyclebinFileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        recyclebinFileInfo.set_ctime(
+            ::curve::common::TimeUtility::GetTimeofDayUs());
+        recyclebinFileInfo.set_owner(ROOTUSERNAME);
+
+        StoreStatus ret2 = storage->PutFile(recyclebinFileInfo);
+        if ( ret2 != StoreStatus::OK ) {
+            LOG(ERROR) << "RecycleBin dir create error, Path = "
+                << RECYCLEBINDIR;
+            return false;
+        }
+        LOG(INFO) << "RecycleBin dir create ok, Path = " << RECYCLEBINDIR;
+        return true;
+    } else {
+        // internal error
+        LOG(INFO) << "InitRecycleBinDir error ,ret = " << ret;
+        return false;
+    }
+}
+
 bool CurveFS::Init(NameServerStorage* storage,
                 InodeIDGenerator* InodeIDGenerator,
                 ChunkSegmentAllocator* chunkSegAllocator,
@@ -233,7 +277,7 @@ bool CurveFS::isFileHasValidSession(const std::string &fileName) {
     return sessionManager_->isFileHasValidSession(fileName);
 }
 
-StatusCode CurveFS::DeleteFile(const std::string & filename) {
+StatusCode CurveFS::DeleteFile(const std::string & filename, bool deleteForce) {
     std::string lastEntry;
     FileInfo parentFileInfo;
     auto ret = WalkPath(filename, &parentFileInfo, &lastEntry);
@@ -287,33 +331,53 @@ StatusCode CurveFS::DeleteFile(const std::string & filename) {
                        << ", ret = " << ret;
             return ret;
         }
+        if (deleteForce == false) {
+            // 把文件移到回收站
+            FileInfo recycleFileInfo;
+            recycleFileInfo.CopyFrom(fileInfo);
+            recycleFileInfo.set_parentid(RECYCLEBININODEID);
+            recycleFileInfo.set_filename(fileInfo.filename() + "-" +
+                std::to_string(recycleFileInfo.id()));
+            recycleFileInfo.set_originalfullpathname(filename);
 
-        // 把文件移到回收站
-        FileInfo recycleFileInfo;
-        recycleFileInfo.CopyFrom(fileInfo);
-        recycleFileInfo.set_filestatus(FileStatus::kFileDeleting);
-        recycleFileInfo.set_filetype(INODE_RECYCLE_PAGEFILE);
+            StoreStatus ret1 =
+                storage_->MoveFileToRecycle(fileInfo, recycleFileInfo);
+            if (ret1 != StoreStatus::OK) {
+                LOG(ERROR) << "delete file, move file to recycle fail"
+                        << ", filename = " << filename
+                        << ", ret = " << ret1;
+                return StatusCode::kStorageError;
+            }
+            LOG(INFO) << "file delete to recyclebin, fileName =  " << filename;
+            return StatusCode::kOK;
+        } else {
+            // direct removefile is not support
+            if (fileInfo.parentid() != RECYCLEBININODEID) {
+                LOG(WARNING)
+                    << "force delete file not in recyclebin"
+                    << "not support yet, filename = " << filename;
+                return StatusCode::kNotSupported;
+            }
 
-        StoreStatus ret1 =
-            storage_->MoveFileToRecycle(fileInfo, recycleFileInfo);
-        if (ret1 != StoreStatus::OK) {
-            LOG(ERROR) << "delete file, move file to recycle fail"
-                       << ", filename = " << filename
-                       << ", ret = " << ret1;
-            return StatusCode::kStorageError;
-        }
+            // 查看任务是否已经在
+            if ( cleanManager_->GetTask(fileInfo.id()) != nullptr ) {
+                LOG(WARNING) << "filename = " << filename
+                        << ", deleteFile task already submited";
+                return StatusCode::kOK;
+            }
 
-        // 提交一个删除文件的任务
-        if (!cleanManager_->SubmitDeleteCommonFileJob(recycleFileInfo)) {
-            LOG(ERROR) << "fileName = " << filename
-                    << ", submit delete file job fail.";
-            return StatusCode::KInternalError;
-        }
+            // 提交一个删除文件的任务
+            if (!cleanManager_->SubmitDeleteCommonFileJob(fileInfo)) {
+                LOG(ERROR) << "fileName = " << filename
+                        << ", submit delete file job fail.";
+                return StatusCode::KInternalError;
+            }
 
-        LOG(INFO) << "delete file success, file is pagefile"
+            LOG(INFO) << "delete file task submitted, file is pagefile"
                   << ", filename = " << filename;
-        return StatusCode::kOK;
-    } else {
+            return StatusCode::kOK;
+        }
+     } else {
         // 目前deletefile只支持INODE_DIRECTORY，INODE_PAGEFILE类型文件的删除；
         // INODE_SNAPSHOT_PAGEFILE不调用本接口删除；
         // 其他文件类型，系统暂时不支持。
@@ -323,6 +387,9 @@ StatusCode CurveFS::DeleteFile(const std::string & filename) {
         return kNotSupported;
     }
 }
+
+
+// TODO(hzsunjianliang): CheckNormalFileDeleteStatus?
 
 StatusCode CurveFS::ReadDir(const std::string & dirname,
                             std::vector<FileInfo> * files) const {
@@ -377,6 +444,9 @@ StatusCode CurveFS::CheckFileCanDeleteOrRename(const std::string &fileName) {
     return StatusCode::kOK;
 }
 
+
+// TODO(hzchenwei3): oldFileName 改为
+// sourceFileName, newFileName 改为 destFileName)
 StatusCode CurveFS::RenameFile(const std::string & oldFileName,
                                const std::string & newFileName,
                                uint64_t oldFileId, uint64_t newFileId) {
@@ -397,7 +467,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         return ret;
     }
 
-    if (oldFileId != 0 && oldFileId != oldFileInfo.id()) {
+    if (oldFileId != kUnitializedFileID && oldFileId != oldFileInfo.id()) {
         LOG(ERROR) << "rename file, oldFileId missmatch"
                    << ", oldFileName = " << oldFileName
                    << ", newFileName = " << newFileName
@@ -434,7 +504,8 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     FileInfo existNewFileInfo;
     auto ret3 = LookUpFile(parentFileInfo, lastEntry, &existNewFileInfo);
     if (ret3 == StatusCode::kOK) {
-        if (newFileId != 0 && newFileId != existNewFileInfo.id()) {
+        if (newFileId != kUnitializedFileID &&
+            newFileId != existNewFileInfo.id()) {
             LOG(ERROR) << "rename file, newFileId missmatch"
                         << ", oldFileName = " << oldFileName
                         << ", newFileName = " << newFileName
@@ -465,8 +536,10 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         // 需要把existNewFileInfo移到回收站
         FileInfo recycleFileInfo;
         recycleFileInfo.CopyFrom(existNewFileInfo);
-        recycleFileInfo.set_filestatus(FileStatus::kFileDeleting);
-        recycleFileInfo.set_filetype(INODE_RECYCLE_PAGEFILE);
+        recycleFileInfo.set_parentid(RECYCLEBININODEID);
+        recycleFileInfo.set_filename(recycleFileInfo.filename() + "-" +
+                std::to_string(recycleFileInfo.id()));
+        recycleFileInfo.set_originalfullpathname(newFileName);
 
         // 进行rename
         FileInfo newFileInfo;
@@ -486,14 +559,6 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
 
             return StatusCode::kStorageError;
         }
-
-        // 提交一个删除文件的任务
-        if (!cleanManager_->SubmitDeleteCommonFileJob(recycleFileInfo)) {
-            LOG(ERROR) << "rename file, submit delete file job fail, "
-                        << "fileName = " << newFileName;
-            return StatusCode::KInternalError;
-        }
-
         return StatusCode::kOK;
     } else if (ret3 == StatusCode::kFileNotExists) {
         // newFileName不存在, 直接rename
