@@ -198,7 +198,7 @@ def create_libcurve_file(file_name = config.file_name, user_name = config.user_n
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_create(file_name, user_name, size, pass_word)
     if rc != 0:
-        logger.error("create libcurve file fail. rc = %s" %rc)
+        logger.info("create libcurve file fail. rc = %s" %rc)
         return rc
 
         #raise AssertionError
@@ -210,7 +210,7 @@ def create_libcurve_dir(dir_path = config.dir_path, user_name = config.user_name
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_mkdir(dir_path, user_name, pass_word)
     if rc != 0:
-        logger.error("create libcurve dir fail. rc = %s" %rc)
+        logger.info("create libcurve dir fail. rc = %s" %rc)
         return rc
 
         #raise AssertionError
@@ -229,7 +229,7 @@ def extend_libcurve_file(file_name=config.file_name, user_name=config.user_name,
     rc = curvefs.libcurve_extend(file_name, user_name, new_size, pass_word)
 
     if rc != 0:
-        logger.error("extend libcurve file fail. rc = %s" %rc)
+        logger.info("extend libcurve file fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
@@ -241,7 +241,7 @@ def rename_libcurve_file(old_name=config.old_name, new_name=config.new_name, use
     rc = curvefs.libcurve_rename(user_name, old_name, new_name, pass_word)
 
     if rc != 0:
-        logger.error("rename libcurve file fail. rc = %s" %rc)
+        logger.info("rename libcurve file fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
@@ -253,7 +253,7 @@ def statfs_libcurve_file(file_name=config.file_name, user_name=config.user_name,
     rc = curvefs.libcurve_statfs(file_name, user_name, pass_word)
 
     if rc < 0:
-        logger.error("stafs libcurve file fail. rc = %s" %rc)
+        logger.info("stafs libcurve file fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
@@ -264,7 +264,7 @@ def statfs_libcurve_dir(dir_path =config.dir_path, user_name = config.user_name,
     rc = curvefs.libcurve_statfs(dir_path, user_name, pass_word)
 
     if rc < 0:
-        logger.error("stafs libcurve dir fail. rc = %s" %rc)
+        logger.info("stafs libcurve dir fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
@@ -275,7 +275,7 @@ def close_libcurve_file(fd):
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_close(fd)
     if rc != 0:
-        logger.error("close libcurve file fail. rc = %s" %rc)
+        logger.info("close libcurve file fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
@@ -286,7 +286,7 @@ def delete_libcurve_file(file_name = config.file_name, user_name = config.user_n
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_delete(file_name, user_name, pass_word)
     if rc != 0:
-        logger.error("delete libcurve file fail. rc = %s" %rc)
+        #logger.error("delete libcurve file fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
@@ -296,13 +296,11 @@ def delete_libcurve_dir(dir_path = config.dir_path, user_name = config.user_name
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_rmdir(dir_path, user_name, pass_word)
     if rc != 0:
-        logger.error("delete libcurve dir fail. rc = %s" %rc)
+        #logger.error("delete libcurve dir fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
         return rc
-
-
 
 def write_libcurve_file(fd, buf=config.buf, offset=config.offset, length=config.length):
     curvefs = swig_operate.LibCurve()
@@ -311,15 +309,13 @@ def write_libcurve_file(fd, buf=config.buf, offset=config.offset, length=config.
     if rc < 0:
         logger.error("write libcurve file fail. rc = %s" %rc)
         return rc
-        #raise AssertionError
+        raise AssertionError
     else:
         return rc
 
 def read_libcurve_file(fd, buf="", offset=config.offset, length=config.length):
     curvefs = swig_operate.LibCurve()
     content = curvefs.libcurve_read(fd, buf, offset, length)
-    print content
-
     return content
 
 
