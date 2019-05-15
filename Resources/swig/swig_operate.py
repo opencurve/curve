@@ -23,7 +23,7 @@ class LibCurve:
         rc = curvefs.Create(file_path, user_info_t, size)
         if rc != 0:
             print("create file fail! rc=%s" %rc)
-            logger.error("create file fail! rc=%s" % rc)
+            logger.debug("create file fail! rc=%s" % rc)
             return rc
             #raise AssertionError
         else:
@@ -35,7 +35,6 @@ class LibCurve:
         user_info_t.password = pass_word
         fd = curvefs.Open(file_path, user_info_t)
         logger.info("fd=%s" % fd)
-        print("fd=%s" % fd)
         return fd
 
     def libcurve_write(self, fd, buf, offset, length):
@@ -62,7 +61,6 @@ class LibCurve:
         if rc == 0:
             return file_info
         else:
-            print "stat fs fail. rc=%s" % rc
             return rc
             raise AssertionError
 
@@ -72,8 +70,7 @@ class LibCurve:
         user_info_t.password = pass_word
         rc = curvefs.Extend(file_path, user_info_t, new_size)
         if rc != 0:
-            print "extend file fail. rc=%s" %rc
-            logger.error("extend file fail. rc=%s" %rc)
+            logger.info("extend file fail. rc=%s" %rc)
             return rc
             #raise AssertionError
         else:
@@ -82,8 +79,7 @@ class LibCurve:
     def libcurve_close(self, fd):
         rc = curvefs.Close(fd)
         if rc != 0:
-            print "close file fail! rc=%s" % rc
-            logger.error("close file fail! rc=%s" % rc)
+            logger.info("close file fail! rc=%s" % rc)
             return rc
             #raise AssertionError
         else:
@@ -95,8 +91,7 @@ class LibCurve:
         user_info_t.password = pass_word
         rc = curvefs.Rename(user_info_t, old_path, new_path)
         if rc != 0:
-            print "rename file fail! rc=%s" % rc
-            logger.error("rename file fail! rc=%s" % rc)
+            logger.info("rename file fail! rc=%s" % rc)
             return rc
             raise AssertionError
         else:
@@ -108,8 +103,8 @@ class LibCurve:
         user_info_t.password = pass_word
         rc = curvefs.Unlink(filepath, user_info_t)
         if rc != 0:
-            print "delete file fail! rc=%s" % rc
-            logger.error("delete file fail! rc=%s" % rc)
+            #print "delete file fail! rc=%s" % rc
+            logger.info("delete file fail! rc=%s" % rc)
             return rc
             #raise AssertionError
         else:
@@ -121,8 +116,8 @@ class LibCurve:
         user_info_t.password = pass_word
         rc = curvefs.Rmdir(dirpath, user_info_t)
         if rc != 0:
-            print "delete dir fail! rc=%s" % rc
-            logger.error("delete dir fail! rc=%s" % rc)
+            #print "delete dir fail! rc=%s" % rc
+            logger.info("delete dir fail! rc=%s" % rc)
             return rc
             #raise AssertionError
         else:
@@ -134,8 +129,8 @@ class LibCurve:
         user_info_t.password = pass_word
         rc = curvefs.Mkdir(dirpath, user_info_t)
         if rc != 0:
-            print "mkdir fail! rc=%s" % rc
-            logger.error("mkdir fail! rc=%s" % rc)
+            #print "mkdir fail! rc=%s" % rc
+            logger.info("mkdir fail! rc=%s" % rc)
             return rc
             #raise AssertionError
         else:
