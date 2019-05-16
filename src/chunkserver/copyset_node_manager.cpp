@@ -21,6 +21,8 @@
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/braft_cli_service2.h"
+
 
 namespace curve {
 namespace chunkserver {
@@ -75,8 +77,8 @@ int CopysetNodeManager::ReloadCopysets() {
         LOG(INFO) << "Parsed groupid " << groupId
                   << "as " << ToGroupIdStr(poolId, copysetId);
 
-        braft::Configuration conf;
-        if (!CreateCopysetNode(poolId, copysetId, conf)) {
+        std::vector<Peer> peers;
+        if (!CreateCopysetNode(poolId, copysetId, peers)) {
             LOG(ERROR) << "Failed to recreate copyset: <"
                       << poolId << "," << copysetId << ">";
             return -1;
@@ -143,6 +145,46 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
     return false;
 }
 
+bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
+                                           const CopysetID &copysetId,
+                                           const std::vector<Peer> peers) {
+    GroupId groupId = ToGroupId(logicPoolId, copysetId);
+
+    Configuration conf;
+    for (Peer peer : peers) {
+        conf.add_peer(PeerId(peer.address()));
+    }
+
+    /* 加写锁 */
+    WriteLockGuard writeLockGuard(rwLock_);
+    if (copysetNodeMap_.end() == copysetNodeMap_.find(groupId)) {
+        std::shared_ptr<CopysetNode> copysetNode =
+            std::make_shared<CopysetNode>(logicPoolId,
+                                          copysetId,
+                                          conf);
+        CHECK(nullptr != copysetNode) << "new copyset node <"
+                                      << logicPoolId << ","
+                                      << copysetId << "> failed ";
+        if (0 != copysetNode->Init(copysetNodeOptions_)) {
+            LOG(ERROR) << "Copyset (" << logicPoolId << "," << copysetId << ")"
+                       << " init failed";
+            return false;
+        }
+        if (0 != copysetNode->Run()) {
+            copysetNode->Fini();
+            LOG(ERROR) << "copyset (" << logicPoolId << "," << copysetId << ")"
+                       << " run failed";
+            return false;
+        }
+        copysetNodeMap_.insert(std::pair<GroupId, std::shared_ptr<CopysetNode>>(
+            groupId,
+            copysetNode));
+
+        return true;
+    }
+    return false;
+}
+
 int CopysetNodeManager::AddService(brpc::Server *server,
                                    const butil::EndPoint &listenAddress) {
     int ret = 0;
@@ -165,6 +207,11 @@ int CopysetNodeManager::AddService(brpc::Server *server,
         ret = server->AddService(new BRaftCliServiceImpl,
                                  brpc::SERVER_OWNS_SERVICE);
         CHECK(0 == ret) << "Fail to add BRaftCliService";
+
+        ret = server->AddService(new BRaftCliServiceImpl2,
+                                 brpc::SERVER_OWNS_SERVICE);
+        CHECK(0 == ret) << "Fail to add BRaftCliService2";
+
         ret = server->AddService(new CopysetServiceImpl(copysetNodeManager),
                                  brpc::SERVER_OWNS_SERVICE);
         CHECK(0 == ret) << "Fail to add CopysetService";

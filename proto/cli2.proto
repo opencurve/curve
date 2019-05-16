@@ -1,0 +1,59 @@
+syntax="proto2";
+
+import "proto/common.proto";
+
+package curve.chunkserver;
+
+option cc_generic_services = true;
+
+// cli.proto 供老的使用保证
+message AddPeerRequest2 {
+    required uint32 logicPoolId     = 1;    // 逻辑池id
+    required uint32 copysetId       = 2;    // 复制组id
+    required common.Peer leader     = 3;    // leader
+    required common.Peer addPeer    = 4;    // 新增peer
+}
+
+message AddPeerResponse2 {
+    repeated common.Peer oldPeers   = 1;    // 老配置
+    repeated common.Peer newPeers   = 2;    // 新配置
+}
+
+message RemovePeerRequest2 {
+    required uint32 logicPoolId     = 1;
+    required uint32 copysetId       = 2;
+    required common.Peer leader   = 3;
+    required common.Peer removePeer = 4;
+}
+
+message RemovePeerResponse2 {
+    repeated common.Peer oldPeers   = 1;
+    repeated common.Peer newPeers   = 2;
+}
+
+message TransferLeaderRequest2 {
+    required uint32 logicPoolId     = 1;
+    required uint32 copysetId       = 2;
+    required common.Peer leader     = 3;
+    required common.Peer transferee = 4;
+}
+
+message TransferLeaderResponse2 {}
+
+message GetLeaderRequest2 {
+    required uint32 logicPoolId     = 1;
+    required uint32 copysetId       = 2;
+    optional common.Peer peer       = 3;    // 可以不指定peer查leader
+}
+
+message GetLeaderResponse2 {
+    required common.Peer leader     = 1;    // 通过peer判空来判断是否返回leader
+}
+
+// service
+service CliService2 {
+    rpc AddPeer(AddPeerRequest2) returns (AddPeerResponse2);
+    rpc RemovePeer(RemovePeerRequest2) returns (RemovePeerResponse2);
+    rpc GetLeader(GetLeaderRequest2) returns (GetLeaderResponse2);
+    rpc TransferLeader(TransferLeaderRequest2) returns (TransferLeaderResponse2);
+};
