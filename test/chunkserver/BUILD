@@ -95,6 +95,21 @@ cc_test(
     deps = DEPS,
 )
 
+cc_test(
+    name = "braftcliservice2-test",
+    srcs = glob([
+        "braft_cli_service2_test.cpp",
+        "chunkserver_test_util.h",
+        "chunkserver_test_util.cpp",
+        "fake_datastore.h",
+    ]),
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS,
+)
+
 cc_library(
     name = "chunkserver-test-util-lib",
     srcs = glob([
@@ -166,11 +181,11 @@ cc_binary(
 cc_test(
     name = "chunkserver_test",
     srcs = [
+        "chunkserver_helper_test.cpp",
         "chunkserver_test.cpp",
         "chunkserver_test_util.cpp",
         "chunkserver_test_util.h",
         "fake_datastore.h",
-        "chunkserver_helper_test.cpp",
     ],
     copts = ["-std=c++14"],
     deps = [

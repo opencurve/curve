@@ -8,6 +8,8 @@
 #include <brpc/closure_guard.h>
 #include <brpc/controller.h>
 
+#include <vector>
+
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/copyset_node_manager.h"
 
@@ -51,6 +53,10 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
         } else {
             response->set_status(
                 COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+            LOG(ERROR) << "Create copyset "
+                         << ToGroupIdString(logicPoolID, copysetID)
+                         << " failed, response code: "
+                         << COPYSET_OP_STATUS_Name(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN); //NOLINT
         }
     } else {
         response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST);
@@ -60,6 +66,60 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
               << ToGroupIdString(request->logicpoolid(), request->copysetid())
               << ", response code: "
               << COPYSET_OP_STATUS_Name(response->status());
+}
+
+void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
+                                            const CopysetRequest2 *request,
+                                            CopysetResponse2 *response,
+                                            Closure *done) {
+    brpc::ClosureGuard doneGuard(done);
+
+    Copyset copyset;
+    std::vector<Peer> peers;
+
+    LOG(INFO) << "Received create copysets request";
+
+    for (int i = 0; i < request->copysets_size(); ++i) {
+        copyset = request->copysets(i);
+
+        peers.clear();
+        for (int j = 0; j < copyset.peers_size(); ++j) {
+            peers.push_back(copyset.peers(j));
+        }
+
+        if (true == copysetNodeManager_->IsExist(copyset.logicpoolid(),
+                                                 copyset.copysetid())) {
+            response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST);
+            LOG(WARNING) << "Create copyset "
+                         << ToGroupIdString(copyset.logicpoolid(),
+                                            copyset.logicpoolid())
+                         << " failed, response code: "
+                         << COPYSET_OP_STATUS_Name(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST); //NOLINT
+            return;
+        }
+
+        if (false ==
+                copysetNodeManager_->CreateCopysetNode(copyset.logicpoolid(),
+                                                       copyset.copysetid(),
+                                                       peers)) {
+            response->set_status(
+                COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+            LOG(ERROR) << "Create copyset "
+                         << ToGroupIdString(copyset.logicpoolid(),
+                                            copyset.logicpoolid())
+                         << " failed, response code: "
+                         << COPYSET_OP_STATUS_Name(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN); //NOLINT
+            return;
+        }
+
+        LOG(INFO) << "Create copyset "
+                  << ToGroupIdString(copyset.logicpoolid(),
+                                     copyset.logicpoolid())
+                  << " success.";
+    }
+
+    response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+    LOG(INFO) << "Create " << request->copysets().size() << " copysets success";
 }
 
 }  // namespace chunkserver

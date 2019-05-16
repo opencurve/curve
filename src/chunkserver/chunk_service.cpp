@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <cerrno>
+#include <vector>
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"

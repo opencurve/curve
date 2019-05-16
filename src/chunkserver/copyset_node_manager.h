@@ -52,12 +52,20 @@ class CopysetNodeManager : public curve::common::Uncopyable {
 
     /**
      * 创建copyset node，两种情况需要创建copyset node
+     * TODO(wudemiao): 后期替换之后删除掉
      *  1.集群初始化，创建copyset
      *  2.恢复的时候add peer
      */
     bool CreateCopysetNode(const LogicPoolID &logicPoolId,
                            const CopysetID &copysetId,
                            const Configuration &conf);
+
+    /**
+     * 都是创建copyset，目前两个同时存在，后期仅仅保留一个
+     */
+    bool CreateCopysetNode(const LogicPoolID &logicPoolId,
+                           const CopysetID &copysetId,
+                           const std::vector<Peer> peers);
 
     /**
      * 删除copyset node内存实例(停止copyset, 销毁copyset内存实例并从copyset
