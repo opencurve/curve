@@ -520,10 +520,17 @@ int CopysetNode::SaveConfEpoch(const std::string &filePath) {
     return epochFile_->Save(filePath, logicPoolId_, copysetId_, epoch_);
 }
 
-void CopysetNode::ListPeers(std::vector<PeerId>* peers) {
+void CopysetNode::ListPeers(std::vector<Peer>* peers) {
     std::unique_lock<std::mutex> lock_guard(confLock_);
 
-    conf_.list_peers(peers);
+    std::vector<PeerId> tempPeers;
+    conf_.list_peers(&tempPeers);
+
+    for (auto it = tempPeers.begin(); it != tempPeers.end(); ++it) {
+        Peer peer;
+        peer.set_address(it->to_string());
+        peers->push_back(peer);
+    }
 }
 
 void CopysetNode::SetCSDateStore(std::shared_ptr<CSDataStore> datastore) {
@@ -559,8 +566,9 @@ bool CopysetNode::IsLeader() const {
 static void DummyFunc(void* arg, const butil::Status& status) {
 }
 
-butil::Status CopysetNode::TransferLeader(const PeerId& peerId) {
+butil::Status CopysetNode::TransferLeader(const Peer& peer) {
     butil::Status status;
+    PeerId peerId(peer.address());
 
     if (raftNode_->leader_id() == peerId) {
         butil::Status status = butil::Status::OK();
@@ -588,9 +596,14 @@ butil::Status CopysetNode::TransferLeader(const PeerId& peerId) {
     return status;
 }
 
-butil::Status CopysetNode::AddPeer(const PeerId& peerId) {
+butil::Status CopysetNode::AddPeer(const Peer& peer) {
     std::vector<PeerId> peers;
-    ListPeers(&peers);
+    PeerId peerId(peer.address());
+
+    {
+        std::unique_lock<std::mutex> lock_guard(confLock_);
+        conf_.list_peers(&peers);
+    }
 
     for (auto peer : peers) {
         if (peer == peerId) {
@@ -610,9 +623,14 @@ butil::Status CopysetNode::AddPeer(const PeerId& peerId) {
     return butil::Status::OK();
 }
 
-butil::Status CopysetNode::RemovePeer(const PeerId& peerId) {
+butil::Status CopysetNode::RemovePeer(const Peer& peer) {
     std::vector<PeerId> peers;
-    ListPeers(&peers);
+    PeerId peerId(peer.address());
+
+    {
+        std::unique_lock<std::mutex> lock_guard(confLock_);
+        conf_.list_peers(&peers);
+    }
 
     bool peerValid = false;
     for (auto peer : peers) {
@@ -697,7 +715,7 @@ void CopysetNode::Propose(const braft::Task &task) {
 
 int CopysetNode::GetConfChange(ConfigChangeType *type,
                                Configuration *oldConf,
-                               PeerId *alterPeer) {
+                               Peer *alterPeer) {
     Configuration adding, removing;
     PeerId transferee;
     bool ret
@@ -711,19 +729,19 @@ int CopysetNode::GetConfChange(ConfigChangeType *type,
     // 目前仅支持单个成员的配置变更
     if (1 == adding.size()) {
         *type = ConfigChangeType::ADD_PEER;
-        *alterPeer = *adding.begin();
+        alterPeer->set_address(adding.begin()->to_string());
         return 0;
     }
 
     if (1 == removing.size()) {
         *type = ConfigChangeType::REMOVE_PEER;
-        *alterPeer = *removing.begin();
+        alterPeer->set_address(removing.begin()->to_string());
         return 0;
     }
 
     if (!transferee.is_empty()) {
         *type = ConfigChangeType::TRANSFER_LEADER;
-        *alterPeer = transferee;
+        alterPeer->set_address(transferee.to_string());
         return 0;
     }
 

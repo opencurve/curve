@@ -40,8 +40,10 @@ cc_proto_library(
 proto_library(
     name = "chunkserver-protos",
     srcs = glob([
+        "common.proto",
         "chunk.proto",
         "cli.proto",
+        "cli2.proto",
         "copyset.proto",
         "integrity.proto",
         "configuration.proto",
@@ -52,8 +54,8 @@ proto_library(
 
 cc_proto_library(
     name = "snapshotcloneserver_cc_proto",
-    deps = [":snapshotcloneserver_proto"],
     visibility = ["//visibility:public"],
+    deps = [":snapshotcloneserver_proto"],
 )
 
 proto_library(

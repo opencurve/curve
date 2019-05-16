@@ -1,4 +1,7 @@
 syntax="proto2";
+
+import "proto/common.proto";
+
 package curve.chunkserver;
 
 option cc_generic_services = true;
@@ -21,6 +24,22 @@ message CopysetResponse {
     optional string redirect = 2;  // 自己不是 leader，重定向给 leader
 };
 
+message Copyset {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId   = 2;
+    repeated common.Peer peers  = 3;
+}
+
+message CopysetRequest2 {
+    repeated Copyset copysets       = 1;
+};
+
+message CopysetResponse2 {
+    optional COPYSET_OP_STATUS status = 1;
+}
+
 service CopysetService {
     rpc CreateCopysetNode(CopysetRequest) returns (CopysetResponse);
+
+    rpc CreateCopysetNode2(CopysetRequest2) returns (CopysetResponse2);
 };

@@ -150,12 +150,21 @@ int StartChunkserver(const char *ip,
         return -1;
     }
 
+    std::vector<PeerId> peerIds;
+    conf.list_peers(&peerIds);
+    std::vector<Peer> peers;
+    for (PeerId peerId : peerIds) {
+        Peer peer;
+        peer.set_address(peerId.to_string());
+        peers.push_back(peer);
+    }
+
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
     CHECK(CopysetNodeManager::GetInstance().CreateCopysetNode(logicPoolId,
                                                               copysetId,
-                                                              conf));
+                                                              peers));
     auto copysetNode = CopysetNodeManager::GetInstance().GetCopysetNode(
         logicPoolId,
         copysetId);

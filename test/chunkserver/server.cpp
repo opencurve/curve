@@ -28,6 +28,8 @@ using curve::chunkserver::ConcurrentApplyModule;
 using curve::chunkserver::FsAdaptorUtil;
 using curve::chunkserver::LogicPoolID;
 using curve::chunkserver::CopysetID;
+using curve::common::Peer;
+using curve::chunkserver::PeerId;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
@@ -117,13 +119,21 @@ int main(int argc, char *argv[]) {
         LOG(ERROR) << "Fail to parse configuration `" << FLAGS_conf << '\'';
         return -1;
     }
+    std::vector<PeerId> peerIds;
+    conf.list_peers(&peerIds);
+    std::vector<Peer> peers;
+    for (PeerId peerId : peerIds) {
+        Peer peer;
+        peer.set_address(peerId.to_string());
+        peers.push_back(peer);
+    }
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
     CopysetNodeManager::GetInstance().CreateCopysetNode(FLAGS_logic_pool_id,
                                                         FLAGS_copyset_id,
-                                                        conf);
+                                                        peers);
 
     /* Wait until 'CTRL-C' is pressed. then Stop() and Join() the service */
     while (!brpc::IsAskedToQuit()) {

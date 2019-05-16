@@ -16,10 +16,11 @@
 
 #include "src/chunkserver/concurrent_apply.h"
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
-#include "proto/chunk.pb.h"
 #include "src/chunkserver/conf_epoch_file.h"
 #include "src/chunkserver/config_info.h"
 #include "proto/heartbeat.pb.h"
+#include "proto/chunk.pb.h"
+#include "proto/common.pb.h"
 
 
 namespace curve {
@@ -28,6 +29,7 @@ namespace chunkserver {
 using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
 using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curve::common::Peer;
 
 class CopysetNodeManager;
 
@@ -82,7 +84,6 @@ struct CopysetNodeMetric {
 
 /**
  * 一个Copyset Node就是一个复制组的副本
- * TODO(wudemiao):后期最好能让单个进程支持多个copyset，方便集成测试
  */
 class CopysetNode : public braft::StateMachine,
                     public std::enable_shared_from_this<CopysetNode> {
@@ -155,21 +156,21 @@ class CopysetNode : public braft::StateMachine,
      * @param[in] peerId 目标Leader的成员ID
      * @return 心跳任务的引用
      */
-    butil::Status TransferLeader(const PeerId& peerId);
+    butil::Status TransferLeader(const Peer& peer);
 
     /**
      * @brief 复制组添加新成员
      * @param[in] peerId 新成员的ID
      * @return 心跳任务的引用
      */
-    butil::Status AddPeer(const PeerId& peerId);
+    butil::Status AddPeer(const Peer& peer);
 
     /**
      * @brief 复制组删除成员
      * @param[in] peerId 将要删除成员的ID
      * @return 心跳任务的引用
      */
-    butil::Status RemovePeer(const PeerId& peerId);
+    butil::Status RemovePeer(const Peer& peer);
 
     /**
      * 返回copyset的配置版本
@@ -198,7 +199,7 @@ class CopysetNode : public braft::StateMachine,
      */
     virtual int GetConfChange(ConfigChangeType *type,
                               Configuration *oldConf,
-                              PeerId *alterPeer);
+                              Peer *alterPeer);
 
     /**
      * 返回data store指针
@@ -228,7 +229,7 @@ class CopysetNode : public braft::StateMachine,
      * @param peers:返回的成员列表(输出参数)
      * @return
      */
-    void ListPeers(std::vector<PeerId>* peers);
+    void ListPeers(std::vector<Peer>* peers);
 
     /**
      * @brief 增加读请求的IOPS和BPS性能统计计数

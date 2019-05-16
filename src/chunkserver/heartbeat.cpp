@@ -117,11 +117,10 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     info->set_copysetid(copysetId);
     info->set_epoch(copyset->GetConfEpoch());
 
-    std::vector<PeerId> peers;
-
+    std::vector<Peer> peers;
     copyset->ListPeers(&peers);
-    for (PeerId peer : peers) {
-        info->add_peers(peer.to_string().c_str());
+    for (Peer peer : peers) {
+        info->add_peers(peer.address().c_str());
     }
 
     PeerId leader = copyset->GetLeaderId();
@@ -140,7 +139,7 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
 
     ConfigChangeType    type;
     Configuration       conf;
-    PeerId              peer;
+    Peer                peer;
 
     if ((ret = copyset->GetConfChange(&type, &conf, &peer)) != 0) {
         LOG(ERROR) << "Failed to get config change state of copyset "
@@ -151,7 +150,7 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     }
 
     ConfigChangeInfo* confChxInfo = new ConfigChangeInfo();
-    confChxInfo->set_peer(peer.to_string());
+    confChxInfo->set_peer(peer.address());
     confChxInfo->set_finished(false);
     info->set_allocated_configchangeinfo(confChxInfo);
 
@@ -380,21 +379,23 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
             LOG(ERROR) << status.error_str();
             continue;
         }
+        Peer peer;
+        peer.set_address(peerId.to_string());
         switch (conf.type()) {
         case curve::mds::heartbeat::TRANSFER_LEADER:
             LOG(INFO) << "Transfer leader to " << peerId << " on copyset "
                       << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copyset->TransferLeader(peerId);
+            copyset->TransferLeader(peer);
             break;
         case curve::mds::heartbeat::ADD_PEER:
             LOG(INFO) << "Adding peer " << peerId << " to copyset "
                       << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copyset->AddPeer(peerId);
+            copyset->AddPeer(peer);
             break;
         case curve::mds::heartbeat::REMOVE_PEER:
             LOG(INFO) << "Removing peer " << peerId << " from copyset "
                       << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copyset->RemovePeer(peerId);
+            copyset->RemovePeer(peer);
             break;
         default:
             TaskStatus status(EINVAL, "Invalid operation %d against copyset"

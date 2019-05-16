@@ -561,7 +561,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 
         ConfigChangeType type;
         Configuration oldConf;
-        PeerId alterPeer;
+        Peer alterPeer;
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(Return(false));
@@ -578,7 +578,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 
         ConfigChangeType type;
         Configuration oldConf;
-        PeerId alterPeer;
+        Peer alterPeer;
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(conf),
@@ -596,7 +596,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 
         ConfigChangeType type;
         Configuration oldConf;
-        PeerId alterPeer;
+        Peer alterPeer;
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(conf),
@@ -614,7 +614,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 
         ConfigChangeType type;
         Configuration oldConf;
-        PeerId alterPeer;
+        Peer alterPeer;
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(peer),
@@ -632,7 +632,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 
         ConfigChangeType type;
         Configuration oldConf;
-        PeerId alterPeer;
+        Peer alterPeer;
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(Return(true));
@@ -648,7 +648,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 
         ConfigChangeType type;
         Configuration oldConf;
-        PeerId alterPeer;
+        Peer alterPeer;
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(conf1),
@@ -665,7 +665,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 
         ConfigChangeType type;
         Configuration oldConf;
-        PeerId alterPeer;
+        Peer alterPeer;
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(conf1),
@@ -682,7 +682,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 
         ConfigChangeType type;
         Configuration oldConf;
-        PeerId alterPeer;
+        Peer alterPeer;
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(emptyPeer),

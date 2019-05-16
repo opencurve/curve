@@ -28,12 +28,20 @@ class CopysetServiceImpl : public CopysetService {
     ~CopysetServiceImpl() {}
 
     /**
-     * 创建复制组
+     * 创建复制组，一次只能创建一个
      */
     void CreateCopysetNode(RpcController *controller,
                            const CopysetRequest *request,
                            CopysetResponse *response,
                            Closure *done);
+
+    /*
+     * 创建复制组，一次可以创建多个
+     */
+    void CreateCopysetNode2(RpcController *controller,
+                            const CopysetRequest2 *request,
+                            CopysetResponse2 *response,
+                            Closure *done);
 
  private:
     // 复制组管理者
