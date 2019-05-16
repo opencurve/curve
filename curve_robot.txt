@@ -94,6 +94,14 @@ create file with root user and error password
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
+create file with root user and no password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve file with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
 create file with no user
     [Tags]    P0    base    first release
     #[Setup]	init cluster
@@ -144,6 +152,13 @@ create dir with root user and error password
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
+create dir with root user and no password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
 
 create dir with no user
     [Tags]    P0    base    first release
@@ -192,6 +207,17 @@ open file with root user and error password
     [Setup]	file init
     #create libcurve file
     ${rc}   open libcurve file with root user and error password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+open file with root user and no password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   open libcurve file with root user and no password
     ${new_fd}       Convert To Integer    ${rc}
     ${expect_rc}    evaluate    int(-2)
     should be equal      ${rc}       ${expect_rc}
@@ -263,6 +289,16 @@ extend file with root user and error password
     [Setup]	file init
     #create libcurve file
     ${rc}   extend libcurve file with root user and error password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+extend file with root user and no password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   extend libcurve file with root user and no password
     ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     #close libcurve file     ${new_fd}
@@ -356,6 +392,16 @@ rename file with root user and error password
     #close libcurve file     ${new_fd}
     [Teardown]	    file clean      none
 
+rename file with root user and no password
+    [Tags]    P0    base    first release   lzw
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   rename libcurve file with root user and no password
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
 rename file with error user
     [Tags]    P0    base    first release   lzw
     [Setup]	file init
@@ -421,6 +467,17 @@ delete file with root user and error password
     [Setup]	file init
     #create libcurve file
     ${rc}   delete libcurve file with root user and error password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+delete file with root user and no password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   delete libcurve file with root user and no password
     ${new_fd}       Convert To Integer    ${rc}
     ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
@@ -506,6 +563,19 @@ delete dir with root user and error password
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
+delete dir with root user and no password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   delete libcurve dir with root user and no password
+    ${new_fd}       Convert To Integer    ${rc}
+    ${expect_rc}    evaluate    int(-4)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
 delete dir with error user
     [Tags]    P0    base    first release
     #[Setup]	init cluster
@@ -582,6 +652,16 @@ statfs file with root user and error password
     #close libcurve file     ${new_fd}
     [Teardown]	    file clean      none
 
+statfs file with root user and no password
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    #create libcurve file
+    ${rc}   statfs libcurve file with root user and no password
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    #close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
 statfs file with error user
     [Tags]    P0    base    first release
     [Setup]	file init
@@ -649,6 +729,17 @@ statfs dir with root user and error password
     ${expect_rc}    evaluate    int(0)
     should be equal      ${rc}       ${expect_rc}
     ${rc}   statfs libcurve dir with root user and error password
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+statfs dir with root user and no password
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    ${rc}   create libcurve dir with normal user
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${rc}   statfs libcurve dir with root user and no password
     ${expect_rc}    evaluate    int(-2)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
@@ -879,6 +970,15 @@ close not open file test
     ${expect_rc}    evaluate    int(0)
     ${close_file}    evaluate    int(10)
     should be equal      ${rc}       ${expect_rc}
+    ${rc}   close libcurve file    ${close_file}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+close when file is not exsit
+    [Tags]    P0    base    first release
+    ${origin_file}    evaluate     str("/1")
+    ${close_file}    evaluate    int(200)
     ${rc}   close libcurve file    ${close_file}
     ${expect_rc}    evaluate    int(-2)
     should be equal      ${rc}       ${expect_rc}
@@ -1126,6 +1226,27 @@ delete file when file is open
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      ${rc_first}
 
+delete file when file is not exsit
+    [Tags]    P0    base    first release   lzw
+    ${rc}       delete libcurve file
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+delete dir when dir is not exsit
+    [Tags]    P0    base    first release   lzw
+    ${rc}       delete libcurve dir
+    ${expect_rc}    evaluate    int(-6)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
+
+close file when file is not exsit
+    [Tags]    P0    base    first release   lzw
+    ${fd}   evaluate    int(100)
+    ${rc}       close libcurve file     ${fd}
+    ${expect_rc}    evaluate    int(-2)
+    should be equal      ${rc}       ${expect_rc}
+    [Teardown]	    file clean      none
 
 create file less than 10g
     [Tags]    P0    base    first release

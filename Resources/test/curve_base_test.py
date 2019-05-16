@@ -138,6 +138,15 @@ def create_libcurve_file_with_root_user_and_error_password():
     else:
         return rc
 
+def create_libcurve_file_with_root_user_and_no_password():
+    rc = base_operate.create_libcurve_file(config.file_name, config.root_name, config.size, "")
+    if rc != 0:
+        logger.info("create libcurve file with error root password. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
 def create_libcurve_file_with_no_user():
     rc = base_operate.create_libcurve_file(config.file_name, "", config.size, config.root_password)
     logger.info("create libcurve file with no user.")
@@ -192,6 +201,15 @@ def create_libcurve_dir_with_root_user_and_error_password():
     else:
         return rc
 
+def create_libcurve_dir_with_root_user_and_no_password():
+    rc = base_operate.create_libcurve_dir(config.dir_path, config.root_name, "")
+    if rc != 0:
+        logger.info("create libcurve dir with error password fail. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
 def create_libcurve_dir_with_no_user():
     rc = base_operate.create_libcurve_dir(config.dir_path, "", config.root_password)
     logger.info("create libcurve dir with no user.")
@@ -228,6 +246,15 @@ def open_libcurve_file_with_root_user_and_password():
 
 def open_libcurve_file_with_root_user_and_error_password():
     rc = base_operate.open_libcurve_file(config.file_name, config.root_name, config.root_error_password)
+    if rc < 0:
+        logger.info("open libcurve file with error password fail. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
+def open_libcurve_file_with_root_user_and_no_password():
+    rc = base_operate.open_libcurve_file(config.file_name, config.root_name, "")
     if rc < 0:
         logger.info("open libcurve file with error password fail. rc = %s" % rc)
         return rc
@@ -278,6 +305,15 @@ def extend_libcurve_file_with_root_user_and_password():
 
 def extend_libcurve_file_with_root_user_and_error_password():
     rc = base_operate.extend_libcurve_file(config.file_name, config.root_name, config.new_size, config.root_error_password)
+    if rc < 0:
+        logger.info("extend libcurve file fail. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
+def extend_libcurve_file_with_root_user_and_no_password():
+    rc = base_operate.extend_libcurve_file(config.file_name, config.root_name, config.new_size, "")
     if rc < 0:
         logger.info("extend libcurve file fail. rc = %s" % rc)
         return rc
@@ -336,6 +372,15 @@ def rename_libcurve_file_with_root_user_and_error_password():
     else:
         return rc
 
+def rename_libcurve_file_with_root_user_and_no_password():
+    rc = base_operate.rename_libcurve_file(config.old_name, config.new_name, config.root_name, "")
+    if rc < 0:
+        logger.info("rename libcurve file fail. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
 def rename_libcurve_file_with_no_user():
     rc = base_operate.rename_libcurve_file(config.old_name, config.new_name, "")
     logger.info("rename libcurve file with no user.")
@@ -387,6 +432,16 @@ def delete_libcurve_file_with_root_user_and_error_password():
     else:
         return rc
 
+def delete_libcurve_file_with_root_user_and_no_password():
+    rc = base_operate.delete_libcurve_file(config.file_name, config.root_name, "")
+    if rc < 0:
+        logger.info("delete libcurve file fail. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
+
 def delete_libcurve_file_with_no_user():
     rc = base_operate.delete_libcurve_file(config.file_name, "")
     logger.info("delete libcurve file with no user.")
@@ -431,6 +486,15 @@ def delete_libcurve_dir_with_root_user_and_password():
 
 def delete_libcurve_dir_with_root_user_and_error_password():
     rc = base_operate.delete_libcurve_dir(config.dir_path, config.root_name, config.root_error_password)
+    if rc < 0:
+        logger.info("delete libcurve dir fail. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
+def delete_libcurve_dir_with_root_user_and_no_password():
+    rc = base_operate.delete_libcurve_dir(config.dir_path, config.root_name, "")
     if rc < 0:
         logger.info("delete libcurve dir fail. rc = %s" % rc)
         return rc
@@ -489,6 +553,15 @@ def statfs_libcurve_dir_with_root_user_and_error_password():
     else:
         return rc
 
+def statfs_libcurve_dir_with_root_user_and_no_password():
+    rc = base_operate.statfs_libcurve_dir(config.dir_path, config.root_name, "")
+    if rc < 0:
+        logger.info("statfs libcurve dir fail. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
 def statfs_libcurve_dir_with_no_user():
     rc = base_operate.statfs_libcurve_dir(config.dir_path, "")
     logger.info("statfs libcurve dir with no user.")
@@ -503,6 +576,7 @@ def statfs_libcurve_dir_with_error_user_and_root_password():
     rc = base_operate.statfs_libcurve_dir(config.dir_path, "test", config.root_password)
     logger.info("statfs libcurve dir with error user and root password.")
     return rc
+
 
 def statfs_libcurve_file_with_normal_user():
     rc = base_operate.statfs_libcurve_file(config.file_name, config.user_name)
@@ -533,6 +607,15 @@ def statfs_libcurve_file_with_root_user_and_password():
 
 def statfs_libcurve_file_with_root_user_and_error_password():
     rc = base_operate.statfs_libcurve_file(config.file_name, config.root_name, config.root_error_password)
+    if rc < 0:
+        logger.info("statfs libcurve file fail. rc = %s" % rc)
+        return rc
+        #raise AssertionError
+    else:
+        return rc
+
+def statfs_libcurve_file_with_root_user_and_no_password():
+    rc = base_operate.statfs_libcurve_file(config.file_name, config.root_name, "")
     if rc < 0:
         logger.info("statfs libcurve file fail. rc = %s" % rc)
         return rc
