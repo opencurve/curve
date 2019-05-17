@@ -32,12 +32,9 @@ struct RootAuthOption {
     std::string rootPassword;
 };
 
-
-const uint64_t ROOTINODEID = 0;
-const char ROOTFILENAME[] = "/";
-const uint64_t INTERALGARBAGEDIR = 1;
-
 using ::curve::mds::DeleteSnapShotResponse;
+
+bool InitRecycleBinDir(NameServerStorage *storage);
 
 class CurveFS {
  public:
@@ -97,10 +94,13 @@ class CurveFS {
 
     /**
      *  @brief 删除文件
-     *  @param filename：文件名
+     *  @param[in] filename:文件名
+     *  @param[in] deleteForce:是否强制删除，在默认情况下删除进入回收站，
+     *                 root用户可以选择将文件强制删除,当前目录不支持进入回收站
      *  @return 是否成功，成功返回StatusCode::kOK
      */
-    StatusCode DeleteFile(const std::string & filename);
+    StatusCode DeleteFile(const std::string & filename,
+        bool deleteForce = false);
 
     /**
      *  @brief 获取目录下所有文件信息
