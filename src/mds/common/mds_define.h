@@ -9,6 +9,7 @@
 #define SRC_MDS_COMMON_MDS_DEFINE_H_
 
 #include <cstdint>
+#include <string>
 
 // TODO(xuchaojie): 统一MDS中类型定义和错误码定义
 
@@ -101,6 +102,19 @@ const uint64_t DefaultChunkSize = 16 * kMB;
 const uint64_t DefaultSegmentSize = kGB * 1;
 const uint64_t kMiniFileLength = DefaultSegmentSize * 10;
 
+// curve默认root目录&inodeid
+const InodeID ROOTINODEID = 0;
+const char ROOTFILENAME[] = "/";
+
+// curvefs内部垃圾回收站目录&inodeid
+const InodeID RECYCLEBININODEID = 1;
+const std::string RECYCLEBINDIRNAME = "RecycleBin"; //NOLINT
+const std::string RECYCLEBINDIR = "/" + RECYCLEBINDIRNAME;  //NOLINT
+const InodeID USERSTARTINODEID = 2;
+
+// curve root user name
+
+const char ROOTUSERNAME[] = "root";
 
 const SeqNum kStartSeqNum = 1;
 
