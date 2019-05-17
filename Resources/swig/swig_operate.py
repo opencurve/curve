@@ -40,8 +40,7 @@ class LibCurve:
     def libcurve_write(self, fd, buf, offset, length):
         rc = curvefs.Write(fd, buf, offset, length)
         if rc < 0:
-            print("write error, rc=%s" % rc)
-            logger.error("write error, rc=%s" % rc)
+            logger.debug("write error, rc=%s" % rc)
             return rc
             raise AssertionError
         else:
@@ -49,7 +48,7 @@ class LibCurve:
 
     def libcurve_read(self, fd, buf, offset, length):
         content = curvefs.Read(fd, buf, offset, length)
-        print content
+        #logger.debug(content)
         return content
 
     def libcurve_statfs(self, file_name, user_name, pass_word=""):
