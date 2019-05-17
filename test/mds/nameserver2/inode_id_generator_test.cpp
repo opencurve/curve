@@ -12,6 +12,7 @@
 #include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/nameserver2/namespace_helper.h"
 #include "test/mds/nameserver2/mock_etcdclient.h"
+#include "src/mds/common/mds_define.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -41,7 +42,7 @@ class TestInodeIdGenerator : public ::testing::Test {
 };
 
 TEST_F(TestInodeIdGenerator, test_all) {
-    uint64_t alloc1 = INODEINITIALIZE + INODEBUNDLEALLOCATED;
+    uint64_t alloc1 = USERSTARTINODEID + INODEBUNDLEALLOCATED;
     uint64_t alloc2 = alloc1 + INODEBUNDLEALLOCATED;
     std::string strAlloc1 = NameSpaceStorageCodec::EncodeID(alloc1);
     EXPECT_CALL(*client_, Get(INODESTOREKEY, _))
@@ -56,7 +57,7 @@ TEST_F(TestInodeIdGenerator, test_all) {
 
     uint64_t end = 2 * INODEBUNDLEALLOCATED;
     InodeID res;
-    for (int i = INODEINITIALIZE + 1; i <= end; i++) {
+    for (int i = USERSTARTINODEID + 1; i <= end; i++) {
         ASSERT_TRUE(inodeIdGen_->GenInodeID(&res));
         ASSERT_EQ(i, res);
     }

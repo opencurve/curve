@@ -89,7 +89,8 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
     }
 
     LOG(INFO) << "logid = " << cntl->log_id()
-        << ", DeleteFile request, filename = " << request->filename();
+        << ", DeleteFile request, filename = " << request->filename()
+        << " forDeleteFlag = " << request->forcedelete();
 
     FileWriteLockGuard guard(fileLockManager_, request->filename());
 
@@ -109,8 +110,11 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
             << ", statusCode = " << retCode;
         return;
     }
-
-    retCode = kCurveFS.DeleteFile(request->filename());
+    bool forceDeleteFlag = false;
+    if (request->has_forcedelete()) {
+        forceDeleteFlag = request->forcedelete();
+    }
+    retCode = kCurveFS.DeleteFile(request->filename(), forceDeleteFlag);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         LOG(ERROR) << "logid = " << cntl->log_id()
@@ -302,8 +306,8 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
     }
 
     // oldFileID和newFileID如果未传入，使用默认值0，表示不比较file id
-    uint64_t oldFileId = 0;
-    uint64_t newFileId = 0;
+    uint64_t oldFileId = kUnitializedFileID;
+    uint64_t newFileId = kUnitializedFileID;
     if (request->has_oldfileid()) {
         oldFileId = request->oldfileid();
     }
