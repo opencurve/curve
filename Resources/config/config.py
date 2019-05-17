@@ -43,15 +43,16 @@ small_size = 1073741824
 big_size = 5497558138880
 new_size = 21474836480
 buf = "aaaaaaaa"*512
+buf_list = []
 offset = 0
 length = 4096
-
+write_stopped = False
 # mds info
 mds_ip = "127.0.0.1"
 mds_port = 6666
 mds_listen = "-listenAddr=127.0.0.1:6666"
 
-
+#test
 # db info
 db_host = "127.0.0.1"
 db_port = 3306
