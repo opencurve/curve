@@ -1227,21 +1227,21 @@ delete file when file is open
     [Teardown]	    file clean      ${rc_first}
 
 delete file when file is not exsit
-    [Tags]    P0    base    first release   lzw
+    [Tags]    P0    base    first release
     ${rc}       delete libcurve file
     ${expect_rc}    evaluate    int(-6)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
 delete dir when dir is not exsit
-    [Tags]    P0    base    first release   lzw
+    [Tags]    P0    base    first release
     ${rc}       delete libcurve dir
     ${expect_rc}    evaluate    int(-6)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
 close file when file is not exsit
-    [Tags]    P0    base    first release   lzw
+    [Tags]    P0    base    first release
     ${fd}   evaluate    int(100)
     ${rc}       close libcurve file     ${fd}
     ${expect_rc}    evaluate    int(-2)
@@ -1289,7 +1289,7 @@ create dir when parent is not exsit
     [Teardown]	    file clean      none
 
 rename file when dest file is exsit
-    [Tags]    P0    base    first release       lzw1
+    [Tags]    P0    base    first release
     ${origin_dir}    evaluate     str("/lzw")
     ${rc}   create libcurve dir
     ${expect_rc}    evaluate    int(0)
@@ -1316,7 +1316,7 @@ rename file when dest file is exsit
     [Teardown]	    file clean      none
 
 rename file when dest file has data
-    [Tags]    P0    base    first release     lzw1
+    [Tags]    P0    base    first release
     ${origin_dir}    evaluate     str("/lzw")
     ${rc}   create libcurve dir
     ${expect_rc}    evaluate    int(0)
@@ -1350,7 +1350,7 @@ rename file when dest file has data
     [Teardown]	    file clean      none
 
 rename file when dest file is open
-    [Tags]    P0    base    first release     lzw1
+    [Tags]    P0    base    first release
     ${origin_dir}    evaluate     str("/lzw")
     ${rc}   create libcurve dir
     ${expect_rc}    evaluate    int(0)
@@ -1380,7 +1380,7 @@ rename file when dest file is open
     [Teardown]	    file clean      ${new_fd}
 
 rename file when origin file is open
-    [Tags]    P0    base    first release     lzw1
+    [Tags]    P0    base    first release
     ${origin_dir}    evaluate     str("/lzw")
     ${rc}   create libcurve dir
     ${expect_rc}    evaluate    int(0)
@@ -1410,7 +1410,7 @@ rename file when origin file is open
     [Teardown]	    file clean      ${new_fd}
 
 rename file when origin file is not exsit
-    [Tags]    P0    base    first release       lzw1
+    [Tags]    P0    base    first release
     ${origin_dir}    evaluate     str("/lzw")
     ${rc}   create libcurve dir
     ${expect_rc}    evaluate    int(0)
@@ -1423,19 +1423,211 @@ rename file when origin file is not exsit
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
-append file test
-    [Tags]    P0    base    first release   no-need
-    [Setup]	init cluster
+
+overwrite file
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
     create libcurve file
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
-    write libcurve file     ${new_fd}
+    ${expect_buf}    evaluate    str("a"*4096)
+    write libcurve file     ${new_fd}  ${expect_buf}
     ${content}      read libcurve file     ${new_fd}
+    log     ${content}
+    should be equal as strings      ${content}    ${expect_buf}
+    ${new_buf}    evaluate    str("b"*4096)
+    write libcurve file     ${new_fd}  ${new_buf}
+    ${content}      read libcurve file     ${new_fd}
+    log     ${content}
+    should be equal as strings      ${content}    ${new_buf}
+#    close libcurve file     ${new_fd}
+    [Teardown]	    file clean    ${new_fd}
+
+read write append
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    create libcurve file
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${expect_buf}    evaluate    str("a"*4096)
+    write libcurve file     ${new_fd}  ${expect_buf}
+    ${new_buf}    evaluate    str("b"*4096)
+    write libcurve file     ${new_fd}  ${new_buf}   4096  4096
+    ${content}      read libcurve file     ${new_fd}
+    should be equal as strings      ${content}    ${expect_buf}
+    ${buf}   evaluate       str("")
+    ${append_content}      read libcurve file    ${new_fd}   ${buf}   4096  4096
+    should be equal as strings    ${append_content}    ${new_buf}
+    close libcurve file     ${new_fd}
+    [Teardown]	    file clean      none
+
+read write offset > size
+    [Tags]    P0    base    first release
+    #[Setup]	init cluster
+    create libcurve file
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${ret}   write libcurve file error   ${new_fd}   offset=10737418240
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   -2
+    ${buf}   evaluate       str("")
+    ${ret}   read libcurve file    ${new_fd}  ${buf}  offset=10737418240
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   -2
+    close libcurve file     ${new_fd}
+    [Teardown]	    file clean     ${new_fd}
+
+read write offset + lenght > size
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${ret}   write libcurve file error   ${new_fd}   offset=10737414144  length=8192
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   -2
+    ${buf}   evaluate       str("")
+    ${ret}   read libcurve file    ${new_fd}  ${buf}  offset=10737414144   length=8192
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   -2
+#    close libcurve file     ${new_fd}
+    [Teardown]	    file clean     ${new_fd}
+
+read write offset + lenght = size
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${ret}   write libcurve file error   ${new_fd}   offset=10737414144  length=4096
+    ${new_ret}   evaluate       str(${ret})
+    should be equal as strings    ${new_ret}   4096
+    ${buf}   evaluate       str("")
+    ${content}   read libcurve file    ${new_fd}  ${buf}  offset=10737414144   length=4096
     ${default_content}      get buf
     should be equal as strings      ${content}    ${default_content}
-    #append another 4k
-    close libcurve file     ${new_fd}
-    [Teardown]	    clean env
+#    close libcurve file     ${new_fd}
+    [Teardown]	    file clean     ${new_fd}
+
+
+read write with extend file
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    background loop write file   ${new_fd}
+    sleep  3
+    extend libcurve file
+    sleep  3
+    stop write
+    check loop read   ${new_fd}
+#    close libcurve file     ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+read write with close file
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    background loop write file   ${new_fd}
+    sleep  3
+    ${rc}   close libcurve file     ${new_fd}
+    ${expect_rc}    evaluate    int(0)
+    should be equal    ${rc}   ${expect_rc}
+    stop write
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    check loop read   ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize 512
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=512
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    ${rc}    read libcurve file   ${new_fd}   length=512
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+
+read write with create same file
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    background loop write file   ${new_fd}
+    sleep  3
+    ${rc}   create libcurve file
+    ${expect_rc}    evaluate    int(-1)
+    should be equal    ${rc}   ${expect_rc}
+    sleep  3
+    stop write
+    check loop read   ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+read write with delete file
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    background loop write file   ${new_fd}
+    sleep  3
+    ${rc}   delete libcurve file
+    ${expect_rc}    evaluate    int(-15)
+    should be equal    ${rc}   ${expect_rc}
+    sleep   3
+    stop write
+    check loop read   ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize 512
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=512
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    ${rc}    read libcurve file   ${new_fd}   length=512
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize 1k
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=1024
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    ${rc}    read libcurve file   ${new_fd}   length=1024
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+read write iosize not 4k alignment
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${rc}    write libcurve file error   ${new_fd}    length=4095
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    ${rc}    read libcurve file    ${new_fd}    length=4095
+    ${expect_rc}    evaluate    int(-22)
+    should be equal    ${rc}   ${expect_rc}
+    [Teardown]	    file clean      ${new_fd}
+
+read write with different io size
+    [Tags]    P0    base    first release
+    [Setup]	file init
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    loop read write file with different iosize   ${new_fd}
+    [Teardown]	    file clean      ${new_fd}
 
 snapshot test
     [Tags]    P1    base    first release   snapshot    no-need
@@ -1448,15 +1640,17 @@ snapshot test
 
 
 failover demo
-    [Tags]    P100     not-ready        no-need
-    [Setup]	init cluster
-    create default file
+    [Tags]    P100     failover     no-need
+    [Setup]	file init
     background loop write file
     kill one chunkserver
     sleep   2
     start chunkserver
-    loop write file
-    [Teardown]	    clean env
+    ${rc}   wait for process   loop write file      timeout=42 secs
+    Process Should Be Running
+    Should Be Equal	    ${rc}	    ${NONE}
+    terminate all processes
+    [Teardown]	    file clean  ${file_fd}
 
 
 *** Keywords ***
@@ -1513,24 +1707,16 @@ clean env
 	 #cat chunkserver log 		chunkserver.log.1
 	 #cat chunkserver log 		chunkserver.log.2
 
-background loop write file
-     start process   loop write file
-     wait for process   loop write file
-     terminate all processes
-
-loop write file
-     :FOR   ${i}    IN RANGE  1     30
-      \     get every write time
 
 get every write time
      ${time_start}      get time
-     libcurve write 4k
+     ${fd}   open libcurve file
+     ${new_fd}       Convert To Integer    ${fd}
+     set test variable  ${file_fd}      ${new_fd}
+     write libcurve file     ${new_fd}
      ${time_end}        get time
      ${time_spend}        Evaluate    ${time_end}-${time_start}
      should be true     ${time_spend}<${failover_time}
-
-libcurve write 4k
-     log    mock
 
 start snapshot if not start
      ${result}    	check process exsits    snapshot

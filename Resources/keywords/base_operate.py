@@ -8,6 +8,8 @@ from logger import logger
 from lib import db_operator
 from lib import shell_operator
 from swig import swig_operate
+import threading
+import random
 
 #clean_db
 def clean_db():
@@ -156,6 +158,11 @@ def start_etcd():
     #except Exception as e:
         #logger.error("start mds fail.")
         #raise e
+		
+		
+def stop_write():
+    logger.info("set write_stopped = True")
+    config.write_stopped = True
 
 def create_physicalpool(cluster_map, mds_port, op): #need modify
     cmd = config.curvefs_tool + ' -cluster_map=%s' % cluster_map + ' -mds_port=%s' % mds_port + \
@@ -313,6 +320,12 @@ def write_libcurve_file(fd, buf=config.buf, offset=config.offset, length=config.
     else:
         return rc
 
+def write_libcurve_file_error(fd, buf=config.buf, offset=config.offset, length=config.length):
+    curvefs = swig_operate.LibCurve()
+    ret = curvefs.libcurve_write(fd, buf, offset, length)
+    logger.debug("write error,return id is %d"%ret)
+    return ret
+
 def read_libcurve_file(fd, buf="", offset=config.offset, length=config.length):
     curvefs = swig_operate.LibCurve()
     content = curvefs.libcurve_read(fd, buf, offset, length)
@@ -338,6 +351,52 @@ def check_copyset_num(copyset_num):
 def get_buf():
     return config.buf
 
+def loop_write_file(fd, num, offset, length):
+    curvefs = swig_operate.LibCurve()
+    i = 1
+    buf_list = []
+    while i < num + 1:
+        if config.write_stopped == True:
+            break
+        buf_data = random.randint(1,9)
+        buf = str(buf_data)*length
+        logger.debug("begin write buf_data = %d"%buf_data)
+        rc = curvefs.libcurve_write(fd, buf, offset, length)
+        if rc > 0:
+            buf_list.append(buf_data)
+            i += 1
+            offset += length
+    config.buf_list = buf_list
+    config.write_stopped = False
+
+
+def background_loop_write_file(fd,num=10000,offset=config.offset, length=config.length):
+    t = threading.Thread(target=loop_write_file, args=(fd,num,offset,length))
+    t.start()
+
+def check_loop_read(fd, offset=config.offset, length=config.length):
+    curvefs = swig_operate.LibCurve()
+    #logger.debug("buf_list is %s" % config.buf_list)
+    i = 1
+    for data in config.buf_list:
+        buf = str(data)*length
+        content = curvefs.libcurve_read(fd, buf, offset, length)
+        assert buf == content,"buf is %s,content is %s"%(buf,content)
+        logger.debug("read data is content %s"%content)
+        i += 1
+        offset += length
+
+def loop_read_write_file_with_different_iosize(fd,offset=config.offset, length=config.length):
+    curvefs = swig_operate.LibCurve()
+    for i in range(1,10):
+        buf = str(i)*length
+        logger.debug("begin write buf_length = %d"%len(buf))
+        rc = curvefs.libcurve_write(fd, buf, offset, length)
+        assert rc == length
+        content = curvefs.libcurve_read(fd, "", offset, length)
+        assert buf == content,"buf is %s,content is %s"%(buf,content)
+        offset += length
+        length = length*2
 
 
 
