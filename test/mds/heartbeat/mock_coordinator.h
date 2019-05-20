@@ -21,7 +21,8 @@ class MockCoordinator : public ::curve::mds::schedule::Coordinator {
     ~MockCoordinator() {}
 
     MOCK_METHOD2(CopySetHeartbeat,
-                bool(const ::curve::mds::topology::CopySetInfo &originInfo,
+                 ChunkServerIDType(
+                    const ::curve::mds::topology::CopySetInfo &originInfo,
                     ::curve::mds::heartbeat::CopysetConf *newConf));
 };
 }  // namespace heartbeat

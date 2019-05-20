@@ -86,7 +86,7 @@ void Coordinator::Stop() {
     }
 }
 
-bool Coordinator::CopySetHeartbeat(
+ChunkServerIdType Coordinator::CopySetHeartbeat(
     const ::curve::mds::topology::CopySetInfo &originInfo,
     ::curve::mds::heartbeat::CopysetConf *out) {
     CopySetInfo info;
@@ -95,12 +95,12 @@ bool Coordinator::CopySetHeartbeat(
                    << originInfo.GetLogicalPoolId() << ", copySetId:"
                    << originInfo.GetId()
                    << ") from heartbeat topo form to schedule form error";
-        return false;
+        return ::curve::mds::topology::UNINTIALIZE_ID;
     }
 
     Operator op;
     if (!opController_->GetOperatorById(info.id, &op)) {
-        return false;
+        return ::curve::mds::topology::UNINTIALIZE_ID;
     }
 
     LOG(INFO) << "find operator on copySet(logicalPoolId:"
@@ -123,7 +123,7 @@ bool Coordinator::CopySetHeartbeat(
         if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
             LOG(ERROR) << "coordinator can not get chunkServer "
                     << res.configChangeItem << " from topology";
-            return false;
+            return ::curve::mds::topology::UNINTIALIZE_ID;
         }
         std::string candidate = ::curve::mds::topology::BuildPeerId(
             chunkServer.info.ip, chunkServer.info.port, 0);
@@ -134,8 +134,9 @@ bool Coordinator::CopySetHeartbeat(
             out->add_peers(::curve::mds::topology::BuildPeerId(
                 peer.ip, peer.port, 0));
         }
+        return res.configChangeItem;
     }
-    return hasOrder;
+    return ::curve::mds::topology::UNINTIALIZE_ID;
 }
 
 void Coordinator::RunScheduler(const std::shared_ptr<Scheduler> &s) {

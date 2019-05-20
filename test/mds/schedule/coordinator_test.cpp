@@ -15,6 +15,7 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::_;
+using ::curve::mds::topology::UNINTIALIZE_ID;
 
 namespace curve {
 namespace mds {
@@ -57,7 +58,8 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
     ::curve::mds::heartbeat::CopysetConf res;
-    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_TRUE(UNINTIALIZE_ID ==
+        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 
     // 2. test copySet has operator and not execute
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
@@ -70,11 +72,13 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
     Operator opRes;
     ASSERT_TRUE(coordinator->GetOpController()->GetOperatorById(
         info.id, &opRes));
-    ASSERT_TRUE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_FALSE(UNINTIALIZE_ID ==
+        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
     ASSERT_EQ("127.0.0.1:9000:0", res.configchangeitem());
     ASSERT_EQ(ConfigChangeType::ADD_PEER, res.type());
 
-    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_TRUE(UNINTIALIZE_ID ==
+        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 
     // 3. test op executing and not finish
     info.candidatePeerInfo = PeerInfo(4, 1, 1, "", 9000);
@@ -82,19 +86,22 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
     info.configChangeInfo.set_peer("192.168.10.4:9000");
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
-    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_TRUE(UNINTIALIZE_ID ==
+        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 
     // 4. test op success
     info.configChangeInfo.set_finished(true);
     info.peers.emplace_back(PeerInfo(4, 4, 4, "192.10.123.1", 9000));
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
-    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_TRUE(UNINTIALIZE_ID ==
+        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 
     // 5. test transfer copysetInfo err
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
         .WillOnce(Return(false));
-    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_TRUE(UNINTIALIZE_ID ==
+        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 }
 }  // namespace schedule
 }  // namespace mds
