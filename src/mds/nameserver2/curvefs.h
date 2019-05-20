@@ -139,6 +139,14 @@ class CurveFS {
     StatusCode ExtendFile(const std::string &filename,
                           uint64_t newSize);
 
+    /**
+     *  @brief 修改文件owner信息
+     *  @param fileName: 文件名
+               newOwner：希望文件owner变更后的新的owner
+     *  @return 是否成功，成功返回StatusCode::kOK
+     */
+    StatusCode ChangeOwner(const std::string &filename,
+                           const std::string &newOwner);
 
     // segment(chunk) ops
     /**
@@ -345,6 +353,11 @@ class CurveFS {
                               const std::string &signature,
                               uint64_t date);
 
+    StatusCode CheckRootOwner(const std::string &filename,
+                              const std::string &owner,
+                              const std::string &signature,
+                              uint64_t date);
+
  private:
     CurveFS() = default;
 
@@ -411,11 +424,11 @@ class CurveFS {
     bool isFileHasValidSession(const std::string &fileName);
 
     /**
-     *  @brief 判断文件是否能够删除或者rename
+     *  @brief 判断文件是否进行更改，目前删除、rename、changeowner时需要判断
      *  @param: fileName
-     *  @return: kOK文件可以被删除或者rename，否则返回错误码
+     *  @return: 正常返回kOK，否则返回错误码
      */
-    StatusCode CheckFileCanDeleteOrRename(const std::string &fileName);
+    StatusCode CheckFileCanChange(const std::string &fileName);
 
  private:
     FileInfo rootFileInfo_;
