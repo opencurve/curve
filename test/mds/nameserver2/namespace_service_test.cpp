@@ -402,7 +402,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     request4.set_newfileid(100);
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(response4.statuscode(), StatusCode::kParaError);
+        ASSERT_EQ(response4.statuscode(), StatusCode::kFileIdNotMatch);
     } else {
         ASSERT_TRUE(false);
     }
@@ -1037,7 +1037,24 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 4 删除文件/file1成功，查询文件已经删除
+    // 4 如果传入的fileid不匹配，删除文件失败
+    cntl.Reset();
+    DeleteFileRequest request5;
+    DeleteFileResponse response5;
+    request5.set_filename("/file1");
+    request5.set_owner("owner");
+    request5.set_date(TimeUtility::GetTimeofDayUs());
+    request5.set_fileid(100000);
+
+    stub.DeleteFile(&cntl, &request5, &response5, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response5.statuscode(), StatusCode::kFileIdNotMatch);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    // 5 删除文件/file1成功，查询文件已经删除
     cntl.Reset();
     request3.set_filename("/file1");
     request3.set_owner("owner");
@@ -1062,7 +1079,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
-    // 4 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
+    // 6 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
     cntl.Reset();
     request3.set_filename("/dir1/file2");
     request3.set_owner("owner");

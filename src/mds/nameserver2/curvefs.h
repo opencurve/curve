@@ -95,11 +95,13 @@ class CurveFS {
     /**
      *  @brief 删除文件
      *  @param[in] filename:文件名
+     *  @param[in] fileId：文件inodeid，对删除的文件进行inodeid校验，
+     *                 如果传入的fileId为kUnitializedFileID，则不校验
      *  @param[in] deleteForce:是否强制删除，在默认情况下删除进入回收站，
      *                 root用户可以选择将文件强制删除,当前目录不支持进入回收站
      *  @return 是否成功，成功返回StatusCode::kOK
      */
-    StatusCode DeleteFile(const std::string & filename,
+    StatusCode DeleteFile(const std::string & filename, uint64_t fileId,
         bool deleteForce = false);
 
     /**
@@ -115,6 +117,10 @@ class CurveFS {
      *  @brief 重命名文件
      *  @param oldFileName：旧文件名
      *         newFileName：希望重命名的新文件名
+     *         oldFileId：旧文件inodeid，对删除的文件进行inodeid校验，
+     *                    如果传入的fileId为kUnitializedFileID，则不校验
+     *         newFileId：新文件inodeid，对删除的文件进行inodeid校验，
+     *                    如果传入的fileId为kUnitializedFileID，则不校验
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     // TODO(hzsunjianliang): 添加源文件的inode的参数，用于检查
