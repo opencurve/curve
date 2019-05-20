@@ -89,6 +89,8 @@ enum  StatusCode {
     kCloneStatusNotMatch = 128;
     // 文件删除失败
     kCommonFileDeleteError = 129;
+    // 文件id不匹配
+    kFileIdNotMatch = 130;
     // 元数据存储错误
     kStorageError = 501;
     // 内部错误
