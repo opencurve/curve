@@ -313,15 +313,27 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
 
         uint64_t epoch = conf.epoch();
 
-        // Perform validations
         CopysetNodePtr copyset = copysetMan_->GetCopysetNode(
                 conf.logicalpoolid(), conf.copysetid());
+        // chunkserver中不存在需要变更的copyset
         if (copyset == nullptr) {
             TaskStatus status(ENOENT, "Failed to find copyset <%u, %u>",
                               conf.logicalpoolid(), conf.copysetid());
             LOG(ERROR) << status.error_str();
             continue;
         }
+
+        // CLDCFS-1004 bug-fix: mds下发epoch为0, 配置为空的copyset
+        if (0 == epoch && conf.peers().empty()) {
+            LOG(INFO) << "Clean copyset "
+                      << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid())
+                      << "in peer " << csEp_
+                      << ", witch is not exist in mds record";
+            PurgeCopyset(conf.logicalpoolid(), conf.copysetid());
+            continue;
+        }
+
+        // 下发的变更epoch < copyset实际的epoch
         if (epoch < copyset->GetConfEpoch()) {
             TaskStatus status(EINVAL, "Invalid epoch aginast copyset <%u, %u>"
                                       " expected epoch: %lu, recevied: %lu",
@@ -329,11 +341,11 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                               conf.copysetid(),
                               copyset->GetConfEpoch(),
                               epoch);
-            LOG(ERROR) << status.error_str();
+            LOG(WARNING) << status.error_str();
             continue;
         }
 
-        // Determine if to clean peer or not
+        // 该chunkserver不在copyset的配置中
         bool cleanPeer = true;
         for (int j = 0; j < conf.peers_size(); j ++) {
             std::string epStr = std::string(butil::endpoint2str(csEp_).c_str());
@@ -342,9 +354,10 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
                 break;
             }
         }
+
         if (cleanPeer) {
             LOG(INFO) << "Clean peer " << csEp_ << " of copyset "
-                      << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
+                    << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
             PurgeCopyset(conf.logicalpoolid(), conf.copysetid());
             continue;
         }
