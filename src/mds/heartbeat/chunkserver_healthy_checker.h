@@ -102,6 +102,11 @@ class ChunkserverHealthyChecker {
     bool GetHeartBeatInfo(ChunkServerIdType id, HeartbeatInfo *info);
 
  private:
+    void UpdateChunkServerOnlineState(ChunkServerIdType id, bool onlineFlag);
+
+    bool SetChunkServerRetired(ChunkServerIdType id);
+
+ private:
     HeartbeatOption option_;
     std::shared_ptr<Topology> topo_;
 

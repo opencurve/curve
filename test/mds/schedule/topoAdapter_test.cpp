@@ -51,582 +51,298 @@ class TestTopoAdapterImpl : public ::testing::Test {
   std::shared_ptr<TopoAdapterImpl> topoAdapter_;
 };
 
-TEST_F(TestTopoAdapterImpl, no_enough_chunkServers_or_invalid_zone_num) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
-        .WillOnce(Return(std::list<ChunkServerIdType>()))
-        .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4})));
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .WillOnce(Return(false));
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-              topoAdapter_->SelectBestPlacementChunkServer(copySetInfo, 1));
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-              topoAdapter_->SelectBestPlacementChunkServer(copySetInfo, 1));
-}
-
-TEST_F(TestTopoAdapterImpl, test_chunkServer_or_server_not_satisfy) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
-        .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4, 5, 6})));
-
-    // GetChunkServer
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                              Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
-        .Times(3).WillRepeatedly(Return(false));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(4, _)).WillOnce(Return(false));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(5, _)).WillOnce(Return(true));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(6, _)).WillOnce(Return(true));
-
-    // GetServer
-    // called by 4,5
-    EXPECT_CALL(*mockTopo_, GetServer(_, _)).
-        WillOnce(Return(false)).WillOnce(Return(true));
-
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-              topoAdapter_->SelectBestPlacementChunkServer(copySetInfo, 1));
-}
-
-TEST_F(TestTopoAdapterImpl, test_same_zone_or_same_server) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
-        .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4, 5})));
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).
-        WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                       Return(true)));
-
-    // GetChunkSever
-    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
-        .Times(3).WillRepeatedly(Return(false));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(4, _)).WillOnce(Return(true));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(5, _)).WillOnce(Return(true));
-
-    // GetServer
-    Server forServer4(4, "", "", 0, "", 0, 2, 1, "");
-    Server forServer5(2, "", "", 0, "", 0, 4, 1, "");
-    EXPECT_CALL(*mockTopo_, GetServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(forServer4), Return(true)))
-        .WillOnce(DoAll(SetArgPointee<1>(forServer5), Return(true)));
-
-
-    // zone or server not satisfy
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-              topoAdapter_->SelectBestPlacementChunkServer(copySetInfo, 1));
-}
-
-TEST_F(TestTopoAdapterImpl, test_dissatisfy_healthy) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
-        .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4, 5})));
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).
-        WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                       Return(true)));
-
-    // GetChunkSever
-    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
-        .Times(3).WillRepeatedly(Return(false));
-    // chunkServer4-offline
-    ChunkServer chunkServer4(4, "", "", 4, "", 9000, "",
-                             ChunkServerStatus::READWRITE);
-    ChunkServerState state4;
-    chunkServer4.SetOnlineState(OnlineState::OFFLINE);
-    chunkServer4.SetChunkServerState(state4);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(4, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer4), Return(true)));
-
-    // chunkServer5-diskError
-    ChunkServer chunkServer5(5, "", "", 4, "", 9000, "",
-                             ChunkServerStatus::READWRITE);
-    ChunkServerState state5;
-    chunkServer5.SetOnlineState(OnlineState::ONLINE);
-    state5.SetDiskState(DiskState::DISKERROR);
-    chunkServer5.SetChunkServerState(state5);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(5, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer5), Return(true)));
-
-    // GetServer
-    Server forServer4(4, "", "", 0, "", 0, 4, 1, "");
-    EXPECT_CALL(*mockTopo_, GetServer(4, _))
-        .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(forServer4),
-                                       Return(true)));
-
-    // chunkServer offline
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-              topoAdapter_->SelectBestPlacementChunkServer(copySetInfo, 1));
-}
-
-/* logicalPoolID=1
- *               server1    server2    server3    server4    server5    server6
- * copySetId        1          1          1          2(×)       5          6
- *                  4          2          2          3          4
- *                  5          3          3          4          6
- *                                        6          5
- *-----------------------------------------------------------------------------
- * state         offline     online     online     online      online    online
- * factor-origin                                    1.33          1        0.5
- * factor-possible                                  1.67          1        0.67
- * gap                                             -0.33          0       -0.17
- */
-TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
-        .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4, 5, 6})));
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).
-        WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                       Return(true)));
-
-    // GetChunkSever
-    // chunkserver1-3
-    ChunkServer chunkServer1(1, "", "", 1, "", 9000, "",
-                             ChunkServerStatus::READWRITE);
-    ChunkServerState state1;
-    chunkServer1.SetOnlineState(OnlineState::OFFLINE);
-    chunkServer1.SetChunkServerState(state1);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
-        .Times(AtLeast(3))
-        .WillOnce(Return(false))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-
-    ChunkServer chunkServer2(2, "", "", 2, "", 9000, "",
-                             ChunkServerStatus::READWRITE);
-    ChunkServerState state2;
-    chunkServer2.SetOnlineState(OnlineState::ONLINE);
-    chunkServer2.SetChunkServerState(state2);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
-        .Times(5)
-        .WillOnce(Return(false))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer2), Return(true)));
-
-    ChunkServer chunkServer3(3, "", "", 3, "", 9000, "",
-                             ChunkServerStatus::READWRITE);
-    ChunkServerState state3;
-    chunkServer3.SetOnlineState(OnlineState::ONLINE);
-    chunkServer3.SetChunkServerState(state3);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
-        .Times(7)
-        .WillOnce(Return(false))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer3), Return(true)));
-
-    // chunkserver4
-    ChunkServer chunkServer4(4, "", "", 4, "", 9000, "",
-                             ChunkServerStatus::READWRITE);
-    ChunkServerState state4;
-    chunkServer4.SetOnlineState(OnlineState::ONLINE);
-    state4.SetDiskState(DiskState::DISKNORMAL);
-    state4.SetDiskCapacity(100);
-    state4.SetDiskUsed(10);
-    chunkServer4.SetChunkServerState(state4);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(4, _))
-        .Times(3)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer4), Return(true)));
-
-    // chunkServer5
-    ChunkServer chunkServer5(5, "", "", 4, "", 9000, "",
-                             ChunkServerStatus::READWRITE);
-    chunkServer5.SetOnlineState(OnlineState::ONLINE);
-    chunkServer5.SetChunkServerState(state4);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(5, _))
-        .Times(4)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer5), Return(true)));
-
-
-    // chunkServer6
-    ChunkServer chunkServer6(6, "", "", 4, "", 9000, "",
-                             ChunkServerStatus::RETIRED);
-    chunkServer6.SetOnlineState(OnlineState::ONLINE);
-    chunkServer6.SetChunkServerState(state4);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(6, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer6), Return(true)));
-
-
-    // GetServer
-    Server forServer4(4, "", "", 0, "", 0, 4, 1, "");
-    EXPECT_CALL(*mockTopo_, GetServer(4, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(forServer4),
-                              Return(true)));
-
-    CopySetKey key2 = std::pair<PoolIdType, CopySetIdType>(1, 2);
-    CopySetKey key3 = std::pair<PoolIdType, CopySetIdType>(1, 3);
-    CopySetKey key4 = std::pair<PoolIdType, CopySetIdType>(1, 4);
-    CopySetKey key5 = std::pair<PoolIdType, CopySetIdType>(1, 5);
-    CopySetKey key6 = std::pair<PoolIdType, CopySetIdType>(1, 6);
-    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(4, _))
-        .WillOnce(Return(
-            std::vector<::curve::mds::topology::CopySetKey>(
-                {key2, key3, key4, key5})));
-    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(5, _))
-        .WillOnce(Return(
-            std::vector<::curve::mds::topology::CopySetKey>(
-                {key4, key5, key6})));
-    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(6, _))
-        .WillOnce(Return(
-            std::vector<::curve::mds::topology::CopySetKey>({key6})));
-
-    ::curve::mds::topology::CopySetInfo copySetInfo3(1, 3);
-    copySetInfo3.SetCopySetMembers(std::set<ChunkServerIdType>({2, 3, 4}));
-    ::curve::mds::topology::CopySetInfo copySetInfo4(1, 4);
-    copySetInfo4.SetCopySetMembers(std::set<ChunkServerIdType>({1, 4, 5}));
-    ::curve::mds::topology::CopySetInfo copySetInfo5(1, 5);
-    copySetInfo5.SetCopySetMembers(std::set<ChunkServerIdType>({1, 4, 5}));
-    ::curve::mds::topology::CopySetInfo copySetInfo6(1, 6);
-    copySetInfo6.SetCopySetMembers(std::set<ChunkServerIdType>({3, 5, 6}));
-    EXPECT_CALL(*mockTopo_, GetCopySet(key2, _))
-        .WillOnce(Return(false));
-    EXPECT_CALL(*mockTopo_, GetCopySet(key3, _))
-        .WillOnce(DoAll(SetArgPointee<1>(copySetInfo3), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetCopySet(key4, _))
-        .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo4),
-                                       Return(true)));
-    EXPECT_CALL(*mockTopo_, GetCopySet(key5, _))
-        .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo5),
-                                       Return(true)));
-    EXPECT_CALL(*mockTopo_, GetCopySet(key6, _))
-        .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo6),
-                                       Return(true)));
-
-    ASSERT_EQ(5, topoAdapter_->SelectBestPlacementChunkServer(copySetInfo, 1));
-}
-
-TEST_F(TestTopoAdapterImpl, test_selectRedundantReplica_num_not_satisfy) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    // 1. test get standard replicaNum < 0
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .WillOnce(Return(false));
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-
-    // 2. test copySet peer nums = standard replicaNum
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).WillOnce(
-        DoAll(SetArgPointee<1>(GetLogicalPoolForTest()), Return(true)));
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-}
-
-TEST_F(TestTopoAdapterImpl, test_selectRedundantReplica_zoneNum_not_satisfy) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 2, 3, "192.168.10.3", 9000);
-    PeerInfo peer4(4, 2, 4, "192.168.10.4", 9000);
-    copySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
-    // 1. test get standard zoneNum <= 0
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                        Return(true)))
-        .WillOnce(Return(false));
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-
-    // 2. test copySet don not satisfy standard zoneNum
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                                               Return(true)));
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-}
-
-TEST_F(TestTopoAdapterImpl,
-       test_selectRedundantReplica_zoneNum_equal_standard) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
-    PeerInfo peer4(4, 3, 4, "192.168.10.4", 9000);
-    copySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                                               Return(true)));
-    // 1. test can not get chunkServer
-    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _)).WillOnce(Return(false));
-    ASSERT_EQ(::curve::mds::topology::UNINTIALIZE_ID,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-
-    // 2. test one replica is offline
-    ::curve::mds::topology::ChunkServer
-        chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::ChunkServerState chunkServerState;
-    chunkServer3.SetOnlineState(OnlineState::OFFLINE);
-    chunkServer3.SetChunkServerState(chunkServerState);
-    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
-    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer3), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)));
-    ASSERT_EQ(peer3.id,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-
-    // 3. test usd(chunkSever3) < used(chunkServer4)
-    chunkServerState.SetDiskUsed(100);
-    chunkServer3.SetOnlineState(OnlineState::ONLINE);
-    chunkServer3.SetChunkServerState(chunkServerState);
-    ::curve::mds::topology::ChunkServer
-        chunkServer4(4, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    chunkServerState.SetDiskUsed(1000);
-    chunkServer4.SetChunkServerState(chunkServerState);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer3), Return(true)))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer4), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetServer(_, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(server), Return(true)));
-    ASSERT_EQ(peer4.id,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-}
-
-TEST_F(TestTopoAdapterImpl,
-    test_selectRedundantReplia_zoneNum_latgerThan_standard) {
-    auto copySetInfo = GetCopySetInfoForTest();
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
-    PeerInfo peer4(4, 4, 4, "192.168.10.4", 9000);
-    copySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                                               Return(true)));
-    // 1. test one replica is offline
-    ::curve::mds::topology::ChunkServer
-        chunkServer1(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::ChunkServerState chunkServerState;
-    chunkServer1.SetOnlineState(OnlineState::OFFLINE);
-    chunkServer1.SetChunkServerState(chunkServerState);
-    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
-    EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetServer(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)));
-    ASSERT_EQ(peer1.id,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-
-    // 2. test maxUsed(chunkServer2)
-    chunkServerState.SetDiskUsed(100);
-    chunkServer1.SetOnlineState(OnlineState::ONLINE);
-    chunkServer1.SetChunkServerState(chunkServerState);
-    ::curve::mds::topology::ChunkServer
-        chunkServer2(2, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    chunkServerState.SetDiskUsed(1000);
-    chunkServer2.SetOnlineState(OnlineState::ONLINE);
-    chunkServer2.SetChunkServerState(chunkServerState);
-    ::curve::mds::topology::ChunkServer
-        chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    chunkServerState.SetDiskUsed(200);
-    chunkServer3.SetOnlineState(OnlineState::ONLINE);
-    chunkServer3.SetChunkServerState(chunkServerState);
-    ::curve::mds::topology::ChunkServer
-        chunkServer4(4, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    chunkServerState.SetDiskUsed(300);
-    chunkServer4.SetOnlineState(OnlineState::ONLINE);
-    chunkServer4.SetChunkServerState(chunkServerState);
-    EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer2), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer3), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(4, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer4), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetServer(_, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(server), Return(true)));
-    ASSERT_EQ(peer2.id,
-        topoAdapter_->SelectRedundantReplicaToRemove(copySetInfo));
-}
-
-TEST_F(TestTopoAdapterImpl, test_GetCopySetInfo) {
+TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
     CopySetKey key;
     key.first = 1;
-    key.second = 2;
-    ::curve::mds::topology::CopySetInfo csInfo(1, 1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>({1, 2, 3}));
-
-    ::curve::mds::topology::CopySetInfo csInfoWithCandidate(1, 1);
-    csInfoWithCandidate.SetCopySetMembers(
-        std::set<ChunkServerIdType>({1, 2, 3}));
-    csInfoWithCandidate.SetCandidate(4);
-
-    ::curve::mds::topology::ChunkServer
-        chunkServer1(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::ChunkServer
-        chunkServer2(2, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::ChunkServer
-        chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::ChunkServer
-        chunkServer4(4, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-
-    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
-
-    EXPECT_CALL(*mockTopo_, GetCopySet(key, _))
-        .WillOnce(Return(false))
-        .WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)))
-        .WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)))
-        .WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)))
-        .WillOnce(DoAll(SetArgPointee<1>(csInfoWithCandidate), Return(true)))
-        .WillOnce(DoAll(SetArgPointee<1>(csInfoWithCandidate), Return(true)));
-
-    EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)))
-        .WillOnce(Return(false))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer2), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer3), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(4, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer4), Return(true)))
-        .WillOnce(Return(false));
-
-    EXPECT_CALL(*mockTopo_, GetServer(1, _))
-        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)))
-        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)))
-        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)))
-        .WillOnce(Return(false))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(server), Return(true)));
-
+    key.second = 1;
     CopySetInfo info;
-    // can not get
-    ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
-    // get normal
-    ASSERT_TRUE(topoAdapter_->GetCopySetInfo(key, &info));
-    ASSERT_EQ(csInfo.GetId(), info.id.second);
-    ASSERT_EQ(csInfo.GetLeader(), info.leader);
-    ASSERT_EQ(csInfo.GetEpoch(), info.epoch);
-    ASSERT_EQ(csInfo.GetCopySetMembers().size(), info.peers.size());
-    // cannot get chunkServer
-    ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
-    // cannot get Server
-    ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
-    // has candidate,can get server
-    ASSERT_TRUE(topoAdapter_->GetCopySetInfo(key, &info));
-    ASSERT_EQ(csInfoWithCandidate.GetCandidate(), info.candidatePeerInfo.id);
-    // has candidate, can not get server
-    ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
+    auto testcopySetInfo = GetCopySetInfoForTest();
+    auto testTopoCopySet = GetTopoCopySetInfoForTest();
+    auto testTopoChunkServer = GetTopoChunkServerForTest();
+    auto testTopoServer = GetServerForTest();
+    {
+        // 1. test GetCopySetInfo cannot get CopySetInfo
+        EXPECT_CALL(*mockTopo_, GetCopySet(_, _)).WillOnce(Return(false));
+        ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
+    }
+    {
+        // 2. test GetCopySetInfo get success
+        EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[1]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[2]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(4, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[3]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[1]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(3, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[2]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(4, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[3]),
+                            Return(true)));
+        ASSERT_TRUE(topoAdapter_->GetCopySetInfo(key, &info));
+        ASSERT_EQ(testcopySetInfo.id.first, info.id.first);
+        ASSERT_EQ(testcopySetInfo.id.second, info.id.second);
+        ASSERT_EQ(testcopySetInfo.epoch, info.epoch);
+        ASSERT_EQ(testcopySetInfo.leader, info.leader);
+        ASSERT_EQ(testcopySetInfo.peers.size(), info.peers.size());
+        ASSERT_EQ(testcopySetInfo.configChangeInfo.peer().address(),
+            info.configChangeInfo.peer().address());
+    }
+    {
+        // 3. test GetCopySetInfo cannot get Chunkserver
+        EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
+            .WillOnce(Return(false));
+        ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
+    }
+    {
+        // 4. test GetCopySetInfo can not get server
+        EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(1, _))
+            .WillOnce(Return(false));
+        ASSERT_FALSE(topoAdapter_->GetCopySetInfo(key, &info));
+    }
+    {
+        // 5. test GetCopySetInfos fail
+        std::vector<CopySetKey> infos{testcopySetInfo.id};
+        EXPECT_CALL(*mockTopo_, GetCopySetsInCluster(_))
+            .WillOnce(Return(infos));
+        EXPECT_CALL(*mockTopo_, GetCopySet(_, _)).WillOnce(Return(false));
+        ASSERT_EQ(0, topoAdapter_->GetCopySetInfos().size());
+    }
+    {
+        // 6. test GetCopySetInfos sucess
+        testTopoCopySet.ClearCandidate();
+        std::vector<CopySetKey> infos{testcopySetInfo.id};
+        EXPECT_CALL(*mockTopo_, GetCopySetsInCluster(_))
+            .WillOnce(Return(infos));
+        EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[1]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[2]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[1]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(3, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[2]),
+                            Return(true)));
+        auto out = topoAdapter_->GetCopySetInfos();
+        ASSERT_EQ(1, out.size());
+        ASSERT_EQ(testcopySetInfo.id.first, out[0].id.first);
+        ASSERT_EQ(testcopySetInfo.id.second, out[0].id.second);
+        ASSERT_EQ(testcopySetInfo.epoch, out[0].epoch);
+        ASSERT_EQ(testcopySetInfo.leader, out[0].leader);
+        ASSERT_EQ(testcopySetInfo.peers.size(), out[0].peers.size());
+        ASSERT_FALSE(info.configChangeInfo.IsInitialized());
+    }
+    {
+        // 7. test GetCopySetInfosInChunkServer error
+        std::vector<CopySetKey> infos{testcopySetInfo.id};
+        EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(_, _))
+            .WillOnce(Return(infos));
+        EXPECT_CALL(*mockTopo_, GetCopySet(_, _)).WillOnce(Return(false));
+        ASSERT_EQ(0, topoAdapter_->GetCopySetInfosInChunkServer(1).size());
+    }
+    {
+        // 8. test GetCopySetInfosInChunkServer success
+        std::vector<CopySetKey> infos{testcopySetInfo.id};
+        EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(_, _))
+            .WillOnce(Return(infos));
+        EXPECT_CALL(*mockTopo_, GetCopySet(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoCopySet), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[1]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[2]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[1]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(3, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[2]),
+                            Return(true)));
+        auto out = topoAdapter_->GetCopySetInfosInChunkServer(1);
+        ASSERT_EQ(1, out.size());
+        ASSERT_EQ(testcopySetInfo.id.first, out[0].id.first);
+        ASSERT_EQ(testcopySetInfo.id.second, out[0].id.second);
+        ASSERT_EQ(testcopySetInfo.epoch, out[0].epoch);
+        ASSERT_EQ(testcopySetInfo.leader, out[0].leader);
+        ASSERT_EQ(testcopySetInfo.peers.size(), out[0].peers.size());
+        ASSERT_FALSE(info.configChangeInfo.IsInitialized());
+    }
 }
 
-TEST_F(TestTopoAdapterImpl, test_GetCopySetInfos) {
-    auto key1 = std::pair<PoolIdType, CopySetIdType>(1, 1);
-    auto key2 = std::pair<PoolIdType, CopySetIdType>(1, 2);
+TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
+    ChunkServerInfo info;
+    auto testTopoServer = GetServerForTest();
+    auto testTopoChunkServer = GetTopoChunkServerForTest();
+    {
+        // 1. test GetChunkServerInfo fail
+        EXPECT_CALL(*mockTopo_, GetChunkServer(_, _)).WillOnce(Return(false));
+        ASSERT_FALSE(topoAdapter_->GetChunkServerInfo(1, &info));
+    }
+    {
+        // 2. test GetChunkServerInfo success
+        EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]),
+                            Return(true)));
+        ASSERT_TRUE(topoAdapter_->GetChunkServerInfo(1, &info));
+        ASSERT_EQ(1, info.info.id);
+        ASSERT_EQ(testTopoChunkServer[0].GetOnlineState(), info.state);
+        ASSERT_EQ(testTopoChunkServer[0].GetChunkServerState().GetDiskState(),
+            info.diskState);
+    }
+    {
+        // 3. test GetChunkServerInfos fail
+        EXPECT_CALL(*mockTopo_, GetChunkServerInCluster(_))
+            .WillOnce(Return(std::vector<ChunkServerIdType>{1}));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(_, _)).WillOnce(Return(false));
+        ASSERT_FALSE(topoAdapter_->GetChunkServerInfos().size());
+    }
+    {
+        // 4. test GetChunkServerInfos success
+        EXPECT_CALL(*mockTopo_, GetChunkServerInCluster(_))
+            .WillOnce(Return(std::vector<ChunkServerIdType>{1}));
+        EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]),
+                            Return(true)));
 
-    std::vector<CopySetKey> keys({key1, key2});
-    EXPECT_CALL(*mockTopo_, GetCopySetsInCluster(_)).WillOnce(Return(keys));
+        auto res = topoAdapter_->GetChunkServerInfos();
+        ASSERT_EQ(1, res[0].info.id);
+        ASSERT_EQ(testTopoChunkServer[0].GetOnlineState(), res[0].state);
+        ASSERT_EQ(testTopoChunkServer[0].GetChunkServerState().GetDiskState(),
+            res[0].diskState);
+    }
+    {
+        // 5. tests GetChunkServersInPhysicalPool topo get chunkserver error
+        EXPECT_CALL(*mockTopo_, GetChunkServer(_, _)).WillOnce(Return(false));
+        EXPECT_CALL(*mockTopo_, GetChunkServerInPhysicalPool(_, _))
+            .WillOnce(Return(std::list<ChunkServerIdType>{1}));
+        ASSERT_EQ(0, topoAdapter_->GetChunkServersInPhysicalPool(1).size());
+    }
+    {
+        // 6. tests GetChunkServersInPhysicalPool success
+        EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
+            .WillOnce(DoAll(
+                SetArgPointee<1>(testTopoChunkServer[0]), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetChunkServerInPhysicalPool(_, _))
+            .WillOnce(Return(std::list<ChunkServerIdType>{1}));
 
-    ::curve::mds::topology::CopySetInfo csInfo(1, 1);
-    csInfo.SetCopySetMembers(std::set<ChunkServerIdType>({1, 2, 3}));
-
-    ::curve::mds::topology::ChunkServer
-        chunkServer1(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::ChunkServer
-        chunkServer2(2, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::ChunkServer
-        chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
-
-    EXPECT_CALL(*mockTopo_, GetCopySet(key1, _))
-        .WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetCopySet(key2, _)).WillOnce(Return(false));
-
-    EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer2), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer3), Return(true)));
-
-    EXPECT_CALL(*mockTopo_, GetServer(1, _))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(server), Return(true)));
-
-    auto res = topoAdapter_->GetCopySetInfos();
-    ASSERT_EQ(1, res.size());
-    ASSERT_EQ(1, res[0].id.second);
+        auto res = topoAdapter_->GetChunkServersInPhysicalPool(1);
+        ASSERT_EQ(1, res[0].info.id);
+        ASSERT_EQ(testTopoChunkServer[0].GetOnlineState(), res[0].state);
+        ASSERT_EQ(testTopoChunkServer[0].GetChunkServerState().GetDiskState(),
+            res[0].diskState);
+    }
 }
 
-TEST_F(TestTopoAdapterImpl, test_GetChunkSeverInfo) {
-    ::curve::mds::topology::ChunkServer
-        chunkServer(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
+TEST_F(TestTopoAdapterImpl, test_other_functions) {
+    auto testPageFileLogicalPool = GetPageFileLogicalPoolForTest();
+    auto testAppendFileLogicalPool = GetAppendFileLogicalPoolForTest();
+    auto testAppendECFileLogicalPool = GetAppendECFileLogicalPoolForTest();
+    {
+        // 1. test GetStandardZoneNumInLogicalPool
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).WillOnce(Return(false));
+        ASSERT_EQ(0, topoAdapter_->GetStandardZoneNumInLogicalPool(1));
 
-    EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
-        .WillOnce(Return(false))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer), Return(true)));
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+            .WillOnce(DoAll(
+                SetArgPointee<1>(testPageFileLogicalPool), Return(true)));
+        ASSERT_EQ(testPageFileLogicalPool.GetRedundanceAndPlaceMentPolicy().
+            pageFileRAP.zoneNum,
+            topoAdapter_->GetStandardZoneNumInLogicalPool(1));
 
-    EXPECT_CALL(*mockTopo_, GetServer(1, _))
-        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)))
-        .WillOnce(Return(false));
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+            .WillOnce(DoAll(
+                SetArgPointee<1>(testAppendFileLogicalPool), Return(true)));
+        ASSERT_EQ(testAppendFileLogicalPool.GetRedundanceAndPlaceMentPolicy().
+            appendFileRAP.zoneNum,
+            topoAdapter_->GetStandardZoneNumInLogicalPool(1));
 
-    // do not have chunkServer
-    ChunkServerInfo cs;
-    ASSERT_FALSE(topoAdapter_->GetChunkServerInfo(1, &cs));
-    // get chunkServer normal
-    ASSERT_TRUE(topoAdapter_->GetChunkServerInfo(1, &cs));
-    ASSERT_EQ(chunkServer.GetPort(), cs.info.port);
-    // can not get Server
-    ASSERT_FALSE(topoAdapter_->GetChunkServerInfo(1, &cs));
-}
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+            .WillOnce(DoAll(
+                SetArgPointee<1>(testAppendECFileLogicalPool), Return(true)));
+        ASSERT_EQ(0, topoAdapter_->GetStandardZoneNumInLogicalPool(1));
+    }
+    {
+        // 2. test GetStandardReplicaNumInLogicalPool
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).WillOnce(Return(false));
+        ASSERT_EQ(0, topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
 
-TEST_F(TestTopoAdapterImpl, test_GetChunkServerInfos) {
-    EXPECT_CALL(*mockTopo_, GetChunkServerInCluster(_))
-        .WillOnce(Return(std::vector<ChunkServerIdType>({1, 2})));
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+            .WillOnce(DoAll(
+                SetArgPointee<1>(testPageFileLogicalPool), Return(true)));
+        ASSERT_EQ(testPageFileLogicalPool.GetRedundanceAndPlaceMentPolicy().
+            pageFileRAP.replicaNum,
+            topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
 
-    ::curve::mds::topology::ChunkServer
-        chunkServer(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
-    ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+            .WillOnce(DoAll(
+                SetArgPointee<1>(testAppendFileLogicalPool), Return(true)));
+        ASSERT_EQ(testAppendFileLogicalPool.GetRedundanceAndPlaceMentPolicy().
+            appendFileRAP.replicaNum,
+            topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
 
-    EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
-        .WillOnce(DoAll(SetArgPointee<1>(chunkServer), Return(true)));
-    EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
-        .WillOnce(Return(false));
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
+            .WillOnce(DoAll(
+                SetArgPointee<1>(testAppendECFileLogicalPool), Return(true)));
+        ASSERT_EQ(0, topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
+    }
+    {
+        // 3. test CreateCopySetAtChunkServer
+        CopySetKey key;
+        EXPECT_CALL(*mockTopoManager_, CreateCopysetNodeOnChunkServer(_, _))
+            .WillOnce(Return(false));
+        ASSERT_FALSE(topoAdapter_->CreateCopySetAtChunkServer(key, 1));
 
-    EXPECT_CALL(*mockTopo_, GetServer(1, _))
-        .WillOnce(DoAll(SetArgPointee<1>(server), Return(true)));
-
-    auto infos = topoAdapter_->GetChunkServerInfos();
-    ASSERT_EQ(1, infos.size());
-    ASSERT_EQ(1, infos[0].info.id);
-}
-
-TEST_F(TestTopoAdapterImpl, test_GetParam) {
-    ::curve::mds::topology::LogicalPool::RedundanceAndPlaceMentPolicy policy;
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                        Return(true)))
-        .WillOnce(Return(false))
-        .WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
-                        Return(true)))
-        .WillOnce(Return(false));
-    ASSERT_EQ(3, topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
-    ASSERT_EQ(0, topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
-    ASSERT_EQ(3, topoAdapter_->GetStandardZoneNumInLogicalPool(1));
-    ASSERT_EQ(0, topoAdapter_->GetStandardZoneNumInLogicalPool(1));
-
-    policy.appendFileRAP.replicaNum = 4;
-    policy.appendFileRAP.zoneNum = 4;
-    ::curve::mds::topology::LogicalPool::UserPolicy userPolicy;
-    ::curve::mds::topology::LogicalPool logicalPool
-        (1, "", 1, LogicalPoolType::APPENDFILE, policy, userPolicy, 1000, true);
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(logicalPool),
-                                       Return(true)));
-    ASSERT_EQ(4, topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
-    ASSERT_EQ(4, topoAdapter_->GetStandardZoneNumInLogicalPool(1));
-
-    policy.appendECFileRAP.zoneNum = 1;
-    policy.appendECFileRAP.cSegmentNum = 2;
-    policy.appendECFileRAP.dSegmentNum = 3;
-    ::curve::mds::topology::LogicalPool logicalPool2
-        (1, "", 1, LogicalPoolType::APPENDECFILE, policy, userPolicy, 1000,
-         true);
-    EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
-        .Times(2).WillRepeatedly(DoAll(SetArgPointee<1>(logicalPool2),
-                                       Return(true)));
-    ASSERT_EQ(0, topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
-    ASSERT_EQ(0, topoAdapter_->GetStandardZoneNumInLogicalPool(1));
-
-    EXPECT_CALL(*mockTopoManager_, CreateCopysetNodeOnChunkServer(_, _))
-        .WillOnce(Return(true)).WillOnce(Return(false));
-    ASSERT_TRUE(topoAdapter_->CreateCopySetAtChunkServer(
-        std::pair<PoolIdType, ChunkServerIdType>(1, 1), 1));
-    ASSERT_FALSE(topoAdapter_->CreateCopySetAtChunkServer(
-        std::pair<PoolIdType, ChunkServerIdType>(1, 1), 1));
+        EXPECT_CALL(*mockTopoManager_, CreateCopysetNodeOnChunkServer(_, _))
+            .WillOnce(Return(true));
+        ASSERT_TRUE(topoAdapter_->CreateCopySetAtChunkServer(key, 1));
+    }
 }
 
 TEST(TestCopySetInfo, test_copySetInfo_function) {
@@ -643,7 +359,7 @@ TEST(TestCopySetInfo, test_copySetInfo_function) {
     ASSERT_FALSE(test1.statisticsInfo.IsInitialized());
 
     // 1.2 with configChangeInfo
-    testcopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "", 9000);
+    testcopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, 1, "", 9000);
     auto replica = new ::curve::common::Peer();
     replica->set_address("192.168.10.1:9000");
     testcopySetInfo.configChangeInfo.set_allocated_peer(replica);
@@ -695,16 +411,22 @@ TEST(TestCopySetInfo, test_copySetInfo_function) {
 }
 
 TEST(TestChunkServerInfo, test_onlineState) {
-    ChunkServerInfo cs(PeerInfo(1, 1, 1, "", 9000),
+    ChunkServerInfo cs(PeerInfo(1, 1, 1, 1, "", 9000),
                        OnlineState::ONLINE,
+                       DiskState::DISKNORMAL,
                        2,
                        1,
                        2,
                        1,
                        ChunkServerStatisticInfo());
     ASSERT_FALSE(cs.IsOffline());
+    ASSERT_TRUE(cs.IsHealthy());
     cs.state = OnlineState::OFFLINE;
     ASSERT_TRUE(cs.IsOffline());
+    ASSERT_FALSE(cs.IsHealthy());
+    cs.state = OnlineState::ONLINE;
+    cs.diskState = DiskState::DISKERROR;
+    ASSERT_FALSE(cs.IsHealthy());
 }
 }  // namespace schedule
 }  // namespace mds

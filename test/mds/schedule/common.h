@@ -9,6 +9,8 @@
 #ifndef TEST_MDS_SCHEDULE_COMMON_H_
 #define TEST_MDS_SCHEDULE_COMMON_H_
 
+#include <vector>
+#include <map>
 #include <boost/shared_ptr.hpp>
 #include "src/mds/schedule/operatorStep.h"
 #include "src/mds/schedule/topoAdapter.h"
@@ -31,7 +33,14 @@ namespace curve {
 namespace mds {
 namespace schedule {
 ::curve::mds::schedule::CopySetInfo GetCopySetInfoForTest();
-::curve::mds::topology::LogicalPool GetLogicalPoolForTest();
+void GetCopySetInChunkServersForTest(
+    std::map<ChunkServerIDType, std::vector<CopySetInfo>> *out);
+::curve::mds::topology::CopySetInfo GetTopoCopySetInfoForTest();
+std::vector<::curve::mds::topology::ChunkServer> GetTopoChunkServerForTest();
+std::vector<::curve::mds::topology::Server> GetServerForTest();
+::curve::mds::topology::LogicalPool GetPageFileLogicalPoolForTest();
+::curve::mds::topology::LogicalPool GetAppendFileLogicalPoolForTest();
+::curve::mds::topology::LogicalPool GetAppendECFileLogicalPoolForTest();
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

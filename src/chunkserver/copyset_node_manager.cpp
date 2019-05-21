@@ -229,14 +229,26 @@ int CopysetNodeManager::AddService(brpc::Server *server,
 bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
                                            const CopysetID &copysetId) {
     bool ret = false;
-    /* 加写锁 */
-    WriteLockGuard writeLockGuard(rwLock_);
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    auto it = copysetNodeMap_.find(groupId);
-    if (copysetNodeMap_.end() != it) {
-        it->second->Fini();
-        copysetNodeMap_.erase(it);
-        ret = true;
+
+    {
+        // 加读锁
+        ReadLockGuard readLockGuard(rwLock_);
+        auto it = copysetNodeMap_.find(groupId);
+        if (copysetNodeMap_.end() != it) {
+            it->second->Fini();
+            ret = true;
+        }
+    }
+
+    {
+        // 加写锁
+        WriteLockGuard writeLockGuard(rwLock_);
+        auto it = copysetNodeMap_.find(groupId);
+        if (copysetNodeMap_.end() != it) {
+            copysetNodeMap_.erase(it);
+            ret = true;
+        }
     }
 
     return ret;
@@ -244,24 +256,36 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
 
 bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
                                               const CopysetID &copysetId) {
-    /* 加写锁 */
-    WriteLockGuard writeLockGuard(rwLock_);
+    bool ret = false;
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    auto it = copysetNodeMap_.find(groupId);
-    if (copysetNodeMap_.end() != it) {
-        it->second->Fini();
-        if (0 != copysetNodeOptions_.trash->RecycleCopySet(
-                it->second->GetCopysetDir())) {
-            LOG(ERROR) << "Failed to remove copyset <" << logicPoolId
-                       << ", " << copysetId << "> persistently";
-            return false;
+
+    {
+        // 加读锁
+        ReadLockGuard readLockGuard(rwLock_);
+        auto it = copysetNodeMap_.find(groupId);
+        if (copysetNodeMap_.end() != it) {
+            it->second->Fini();
+            ret = true;
         }
-        copysetNodeMap_.erase(it);
-        LOG(INFO) << "Success to remove copyset <" << logicPoolId
-                   << ", " << copysetId << "> to trash";
     }
 
-    return true;
+    {
+        // 加写锁
+        WriteLockGuard writeLockGuard(rwLock_);
+        auto it = copysetNodeMap_.find(groupId);
+        if (copysetNodeMap_.end() != it) {
+            if (0 != copysetNodeOptions_.trash->RecycleCopySet(
+                it->second->GetCopysetDir())) {
+                LOG(ERROR) << "Failed to remove copyset <" << logicPoolId
+                           << ", " << copysetId << "> persistently";
+                ret = false;
+            }
+            copysetNodeMap_.erase(it);
+            ret = true;
+        }
+    }
+
+    return ret;
 }
 
 bool CopysetNodeManager::IsExist(const LogicPoolID &logicPoolId,

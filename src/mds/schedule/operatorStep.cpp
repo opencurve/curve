@@ -82,6 +82,11 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
     return ApplyStatus::OnGoing;
 }
 
+std::string TransferLeader::OperatorStepToString() {
+    return "transfer leader from " + std::to_string(from_) +
+           " to " + std::to_string(to_);
+}
+
 AddPeer::AddPeer(ChunkServerIdType peerID) {
     this->add_ = peerID;
 }
@@ -139,6 +144,10 @@ ApplyStatus AddPeer::Apply(const CopySetInfo &originInfo,
     return ApplyStatus::OnGoing;
 }
 
+std::string AddPeer::OperatorStepToString() {
+    return "add peer " + std::to_string(add_);
+}
+
 RemovePeer::RemovePeer(ChunkServerIdType peerID) {
     this->remove_ = peerID;
 }
@@ -190,6 +199,10 @@ ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
 
     // remove not complete, no instruction to copyset
     return ApplyStatus::OnGoing;
+}
+
+std::string RemovePeer::OperatorStepToString() {
+    return "remove peer " + std::to_string(remove_);
 }
 }  // namespace schedule
 }  // namespace mds

@@ -11,6 +11,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <memory>
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_service_manager.h"
 // #include "src/mds/topology/topology_stat.h"
@@ -46,11 +47,12 @@ struct PeerInfo {
  public:
   PeerInfo() : port(0) {}
   PeerInfo(ChunkServerIdType id, ZoneIdType zoneId, ServerIdType sid,
-           const std::string &ip, uint32_t port);
-
+           PhysicalPoolIDType physicalPoolId, const std::string &ip,
+           uint32_t port);
   ChunkServerIdType id;
   ZoneIdType zoneId;
   ServerIdType serverId;
+  PhysicalPoolIDType physicalPoolId;
   std::string ip;
   uint32_t port;
 };
@@ -98,14 +100,16 @@ struct ChunkServerInfo {
  public:
   ChunkServerInfo() :
     leaderCount(0), diskCapacity(0), diskUsed(0), stateUpdateTime(0) {}
-  ChunkServerInfo(const PeerInfo &info, OnlineState state, uint32_t leaderCount,
-                  uint64_t capacity, uint64_t used, uint64_t time,
-                  const ChunkServerStatisticInfo &statisticInfo);
+  ChunkServerInfo(const PeerInfo &info, OnlineState state, DiskState diskState,
+                  uint32_t leaderCount, uint64_t capacity, uint64_t used,
+                  uint64_t time, const ChunkServerStatisticInfo &statisticInfo);
 
   bool IsOffline();
+  bool IsHealthy();
 
   PeerInfo info;
   OnlineState state;
+  DiskState diskState;
   uint32_t leaderCount;
   uint64_t diskCapacity;
   uint64_t diskUsed;
@@ -114,109 +118,184 @@ struct ChunkServerInfo {
 };
 
 /**
- * @brief TopoAdapter is interface, provide information about topology
+ * @brief TopoAdapter为接口, 提供topology相关信息
  */
 class TopoAdapter {
  public:
-  virtual bool GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) = 0;
+    /**
+     * @brief GetCopySetInfo 获取指定copyset信息
+     *
+     * @param[in] id copysetId
+     * @param[out] copyset信息
+     *
+     * @return false-未获取到指定copyset的信息 true-获取成功
+     */
+    virtual bool GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) = 0;
 
-  virtual std::vector<CopySetInfo> GetCopySetInfos() = 0;
+    /**
+     * @brief GetCopySetInfos 获取所有的copyset信息
+     *
+     * @return copyset信息列表
+     */
+    virtual std::vector<CopySetInfo> GetCopySetInfos() = 0;
 
-  virtual bool GetChunkServerInfo(
-      ChunkServerIdType id, ChunkServerInfo *info) = 0;
+    /**
+     * @brief GetCopySetInfosInChunkServer获取指定chunkserver上的copyset信息
+     *
+     * @param[in] id 指定chunkserverId
+     *
+     * @return 指定chunkserver上copyset列表
+     */
+    virtual std::vector<CopySetInfo> GetCopySetInfosInChunkServer(
+        ChunkServerIdType id) = 0;
 
-  virtual std::vector<ChunkServerInfo> GetChunkServerInfos() = 0;
+    /**
+     * @brief GetChunkServerInfo 获取指定chunkserver信息
+     *
+     * @param[in] id 指定chunkserver id
+     * @param[in] info 指定chunkserver的信息
+     *
+     * @return false-获取失败，true-获取成功
+     */
+    virtual bool GetChunkServerInfo(
+        ChunkServerIdType id, ChunkServerInfo *info) = 0;
 
-  virtual int GetStandardZoneNumInLogicalPool(PoolIdType id) = 0;
+    /**
+     * @brief GetChunkServersInPhysicalPool 获取指定物理池中所有chunkserver
+     *
+     * @param[in] id 指定物理池id
+     *
+     * @return 指定物理池中chunkserver列表
+     */
+    virtual std::vector<ChunkServerInfo> GetChunkServersInPhysicalPool(
+        PhysicalPoolIDType id) = 0;
 
-  virtual int GetStandardReplicaNumInLogicalPool(PoolIdType id) = 0;
+    /**
+     * @brief GetChunkServerInfos 获取所有chunkserver的信息
+     *
+     * @return chunkserver信息列表
+     */
+    virtual std::vector<ChunkServerInfo> GetChunkServerInfos() = 0;
 
-  /**
-   * @brief choose a chunkServer to replace old one
-   */
-  virtual ChunkServerIdType SelectBestPlacementChunkServer(
-      const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer) = 0;
+    /**
+     * @brief GetStandardZoneNumInLogicalPool 获取指定逻辑池中标准zone值
+     *
+     * @return 指定逻辑池中标准zone值
+     */
+    virtual int GetStandardZoneNumInLogicalPool(PoolIdType id) = 0;
 
-  /**
-   * @brief choose a chunkServer to remove
-   * select remove replica according to the following order
-   * 1. zone limit
-   * 2. offline one
-   * 3. max capacity
-   */
-  virtual ChunkServerIdType SelectRedundantReplicaToRemove(
-      const CopySetInfo &copySetInfo) = 0;
+    /**
+     * @brief GetStandardReplicaNumInLogicalPool 获取指定逻辑池中标准副本数量
+     *
+     * @return 指定逻辑池中标准副本数量
+     */
+    virtual int GetStandardReplicaNumInLogicalPool(PoolIdType id) = 0;
 
-  /**
-   * @brief create copySet at add-peer. Raft add-configuration need to the add
-   * one start raft-service first, so before send configuration mds need to tell
-   * the add one to start raft service.
-   */
-  virtual bool CreateCopySetAtChunkServer(
-      CopySetKey id, ChunkServerIdType csID) = 0;
+    /**
+     * @brief CreateCopySetAtChunkServer 在csID上创建copyset.
+     *        raft的add-configuration需要节点上启动raft服务，
+     *        所以在下发配置变更命令之前先要通知chunkserver启动copyset的raft服务
+     *
+     * @param[in] id copyset key
+     * @param[in] 在csID上创建copyset
+     *
+     * @return false-创建失败 true-创建成功
+     */
+    virtual bool CreateCopySetAtChunkServer(
+        CopySetKey id, ChunkServerIdType csID) = 0;
 
-  virtual bool CopySetFromTopoToSchedule(
-      const ::curve::mds::topology::CopySetInfo &origin,
-      ::curve::mds::schedule::CopySetInfo *out) = 0;
+    /**
+     * @brief CopySetFromTopoToSchedule 把topology中copyset转化为schedule中的类型
+     *
+     * @param[in] origin topology中copyset类型
+     * @param[out] out shedule中copyset类型
+     *
+     * @return false-转化失败 true-转化成功
+     */
+    virtual bool CopySetFromTopoToSchedule(
+        const ::curve::mds::topology::CopySetInfo &origin,
+        ::curve::mds::schedule::CopySetInfo *out) = 0;
 
-  virtual bool ChunkServerFromTopoToSchedule(
-      const ::curve::mds::topology::ChunkServer &origin,
-      ::curve::mds::schedule::ChunkServerInfo *out) = 0;
+    /**
+     * @brief ChunkServerFromTopoToSchedule
+     *        把topology中chunkserver转化为schedule中的类型
+     *
+     * @param[in] origin topology中chunkserver类型
+     * @param[out] out shedule中chunkserver类型
+     *
+     * @return false-转化失败 true-转化成功
+     */
+    virtual bool ChunkServerFromTopoToSchedule(
+        const ::curve::mds::topology::ChunkServer &origin,
+        ::curve::mds::schedule::ChunkServerInfo *out) = 0;
+
+    /**
+     * @brief GetChunkServerScatterMap 获取指定chunkserver的scatter-width map
+     *
+     * @param[in] cs 指定chunkserver id
+     * @param[out] out scatter-width map, 其中key表示指定chunkserver上的所有copyset //NOLINT
+     *             其他副本列表，value表示key上包含指定chunkserver上copyset的个数 //NOLINT
+     *  e.g. chunkserver1: copyset1{1,2,3} copyset2{2,3,4} copyset3{4,5,6}
+     *       scatter-width map为:
+     *       {{2, 2}, {3, 2}, {4, 2}, {5, 1}, {6, 1}}
+     *       chunkserver2上有copyset1和copyset2
+     *       chunkserver3上有copyset1和copyset2
+     *       chunkserver4上有copyset2和copyset3
+     *       依次类推
+     */
+    virtual void GetChunkServerScatterMap(const ChunkServerIDType &cs,
+        std::map<ChunkServerIdType, int> *out) = 0;
 };
 
 // adapter实现
 class TopoAdapterImpl : public TopoAdapter {
  public:
-  TopoAdapterImpl() = default;
-  explicit TopoAdapterImpl(std::shared_ptr<Topology> topo,
-                           std::shared_ptr<TopologyServiceManager> manager);
+    TopoAdapterImpl() = default;
+    explicit TopoAdapterImpl(std::shared_ptr<Topology> topo,
+                            std::shared_ptr<TopologyServiceManager> manager);
 
-  bool GetCopySetInfo(
-      const CopySetKey &id, CopySetInfo *info) override;
+    bool GetCopySetInfo(
+        const CopySetKey &id, CopySetInfo *info) override;
 
-  std::vector<CopySetInfo> GetCopySetInfos() override;
+    std::vector<CopySetInfo> GetCopySetInfos() override;
 
-  bool GetChunkServerInfo(
-      ChunkServerIdType id, ChunkServerInfo *info) override;
+    std::vector<CopySetInfo> GetCopySetInfosInChunkServer(
+        ChunkServerIdType id) override;
 
-  std::vector<ChunkServerInfo> GetChunkServerInfos() override;
+    bool GetChunkServerInfo(
+        ChunkServerIdType id, ChunkServerInfo *info) override;
 
-  int GetStandardZoneNumInLogicalPool(PoolIdType id) override;
+    std::vector<ChunkServerInfo> GetChunkServerInfos() override;
 
-  int GetStandardReplicaNumInLogicalPool(PoolIdType id) override;
+    std::vector<ChunkServerInfo> GetChunkServersInPhysicalPool(
+        PhysicalPoolIDType id) override;
 
-  ChunkServerIdType SelectBestPlacementChunkServer(
-      const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer) override;
+    int GetStandardZoneNumInLogicalPool(PoolIdType id) override;
 
-  ChunkServerIdType SelectRedundantReplicaToRemove(
-      const CopySetInfo &copySetInfo) override;
+    int GetStandardReplicaNumInLogicalPool(PoolIdType id) override;
 
-  bool CreateCopySetAtChunkServer(
-      CopySetKey id, ChunkServerIdType csID) override;
+    bool CreateCopySetAtChunkServer(
+        CopySetKey id, ChunkServerIdType csID) override;
 
-  bool CopySetFromTopoToSchedule(
-      const ::curve::mds::topology::CopySetInfo &origin,
-      ::curve::mds::schedule::CopySetInfo *out) override;
+    bool CopySetFromTopoToSchedule(
+        const ::curve::mds::topology::CopySetInfo &origin,
+        ::curve::mds::schedule::CopySetInfo *out) override;
 
-  bool ChunkServerFromTopoToSchedule(
-      const ::curve::mds::topology::ChunkServer &origin,
-      ::curve::mds::schedule::ChunkServerInfo *out) override;
+    bool ChunkServerFromTopoToSchedule(
+        const ::curve::mds::topology::ChunkServer &origin,
+        ::curve::mds::schedule::ChunkServerInfo *out) override;
 
- private:
-  bool IsChunkServerHealthy(const ChunkServer &cs);
-  // TODO(lixiaocui): consider capacity later
-  // bool IsChunkServerCapacitySaturated(const ChunkServer &cs);
-
-  int GetChunkServerScatterMap(const ChunkServer &cs,
-                               std::map<ChunkServerIdType, bool> *out);
-
-  bool GetPeerInfo(ChunkServerIdType id, PeerInfo *peerInfo);
+    void GetChunkServerScatterMap(const ChunkServerIDType &cs,
+        std::map<ChunkServerIdType, int> *out) override;
 
  private:
-  std::shared_ptr<Topology> topo_;
-  std::shared_ptr<TopologyServiceManager> topoServiceManager_;
-  // TODO(lixiaocui): 把topologyStat加进来
-  // std::shared_ptr<TopologyStatImpl> topoStat_;
+    bool GetPeerInfo(ChunkServerIdType id, PeerInfo *peerInfo);
+
+ private:
+    std::shared_ptr<Topology> topo_;
+    std::shared_ptr<TopologyServiceManager> topoServiceManager_;
+    // TODO(lixiaocui): 把topologyStat加进来
+    // std::shared_ptr<TopologyStatImpl> topoStat_;
 };
 }  // namespace schedule
 }  // namespace mds

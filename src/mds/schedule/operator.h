@@ -11,6 +11,7 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/schedule/operatorStep.h"
 #include "src/mds/topology/topology_item.h"

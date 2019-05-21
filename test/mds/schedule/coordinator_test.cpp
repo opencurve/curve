@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include "src/mds/schedule/coordinator.h"
+#include "src/mds/common/mds_define.h"
 #include "test/mds/schedule/mock_topoAdapter.h"
 #include "test/mds/schedule/common.h"
 
@@ -15,6 +16,7 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::_;
+
 using ::curve::mds::topology::UNINTIALIZE_ID;
 
 namespace curve {
@@ -50,9 +52,9 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
     testOperator.timeLimit = std::chrono::seconds(100);
 
     auto info = GetCopySetInfoForTest();
-    PeerInfo peer(4, 1, 1, "127.0.0.1", 9000);
-    ChunkServerInfo csInfo(peer, OnlineState::ONLINE, 1, 10, 1, 0,
-        ChunkServerStatisticInfo{});
+    PeerInfo peer(4, 1, 1, 1, "127.0.0.1", 9000);
+    ChunkServerInfo csInfo(peer, OnlineState::ONLINE, DiskState::DISKNORMAL,
+                           1, 10, 1, 0, ChunkServerStatisticInfo{});
 
     // 1. test copySet do not have operator
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
@@ -77,11 +79,10 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
     ASSERT_EQ("127.0.0.1:9000:0", res.configchangeitem().address());
     ASSERT_EQ(ConfigChangeType::ADD_PEER, res.type());
 
-    ASSERT_TRUE(UNINTIALIZE_ID ==
-        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 
     // 3. test op executing and not finish
-    info.candidatePeerInfo = PeerInfo(4, 1, 1, "", 9000);
+    info.candidatePeerInfo = PeerInfo(4, 1, 1, 1, "", 9000);
     info.configChangeInfo.set_finished(false);
     info.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
     auto replica = new ::curve::common::Peer();
@@ -90,22 +91,19 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
     info.configChangeInfo.set_allocated_peer(replica);
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
-    ASSERT_TRUE(UNINTIALIZE_ID ==
-        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 
     // 4. test op success
     info.configChangeInfo.set_finished(true);
-    info.peers.emplace_back(PeerInfo(4, 4, 4, "192.10.123.1", 9000));
+    info.peers.emplace_back(PeerInfo(4, 4, 4, 1, "192.10.123.1", 9000));
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
-    ASSERT_TRUE(UNINTIALIZE_ID ==
-        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 
     // 5. test transfer copysetInfo err
     EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
         .WillOnce(Return(false));
-    ASSERT_TRUE(UNINTIALIZE_ID ==
-        coordinator->CopySetHeartbeat(testCopySetInfo, &res));
+    ASSERT_FALSE(coordinator->CopySetHeartbeat(testCopySetInfo, &res));
 }
 }  // namespace schedule
 }  // namespace mds

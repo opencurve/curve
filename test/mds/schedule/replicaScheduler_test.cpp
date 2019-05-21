@@ -27,7 +27,7 @@ class TestReplicaSchedule : public ::testing::Test {
       opController_ = std::make_shared<OperatorController>(2);
       topoAdapter_ = std::make_shared<MockTopoAdapter>();
       replicaScheduler_ = std::make_shared<ReplicaScheduler>(
-          opController_, 1, 10, 100, 1000);
+          opController_, 1, 10, 100, 1000, 0.2, 90, topoAdapter_);
   }
 
   void TearDown() override {
@@ -57,7 +57,7 @@ TEST_F(TestReplicaSchedule, test_copySet_already_has_operator) {
 
 TEST_F(TestReplicaSchedule, test_copySet_has_configChangeInfo) {
     auto testCopySetInfo = GetCopySetInfoForTest();
-    testCopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "", 9000);
+    testCopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, 1, "", 9000);
     auto replica = new ::curve::common::Peer();
     replica->set_id(1);
     replica->set_address("192.10.10.1:9000");
@@ -80,31 +80,56 @@ TEST_F(TestReplicaSchedule, test_copySet_has_standard_replica) {
 
 TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectNone) {
     auto testCopySetInfo = GetCopySetInfoForTest();
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
     testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2});
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .WillOnce(Return(3));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    EXPECT_CALL(*topoAdapter_, SelectBestPlacementChunkServer(_, _))
-        .WillOnce(Return(::curve::mds::topology::UNINTIALIZE_ID));
-
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServersInPhysicalPool(_))
+            .WillOnce(Return(std::vector<ChunkServerInfo>{}));
     ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
     auto testCopySetInfo = GetCopySetInfoForTest();
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
+    ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
+                        DiskState::DISKNORMAL,
+                        2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
+                        DiskState::DISKNORMAL,
+                        2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
+                        DiskState::DISKNORMAL,
+                        2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
     testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2});
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .WillOnce(Return(3));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    EXPECT_CALL(*topoAdapter_, SelectBestPlacementChunkServer(_, _))
-        .WillOnce(Return(3));
 
+    std::vector<ChunkServerInfo> chunkserverList(
+        {csInfo1, csInfo2, csInfo3});
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServersInPhysicalPool(_))
+        .WillOnce(Return(chunkserverList));
+    EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
+        .WillOnce(Return(3));
+    std::map<ChunkServerIdType, int> map1{{2, 1}};
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(1, _))
+        .WillOnce(SetArgPointee<1>(map1));
+    std::map<ChunkServerIdType, int> map2{{1, 1}};
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(2, _))
+        .WillOnce(SetArgPointee<1>(map2));
+    std::map<ChunkServerIdType, int> map3;
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(3, _))
+        .WillOnce(SetArgPointee<1>(map3));
+    EXPECT_CALL(*topoAdapter_, CreateCopySetAtChunkServer(_, _))
+        .WillOnce(Return(true));
     ASSERT_EQ(1, replicaScheduler_->Schedule(topoAdapter_));
     Operator op;
     ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
@@ -116,36 +141,109 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
     ASSERT_EQ(3, res->GetTargetPeer());
 }
 
-TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectNone) {
+TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_createErr) {
     auto testCopySetInfo = GetCopySetInfoForTest();
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
-    PeerInfo peer4(4, 4, 4, "192.168.10.4", 9000);
-    testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
+    ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
+                        DiskState::DISKNORMAL,
+                        2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
+                        DiskState::DISKNORMAL,
+                        2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
+                        DiskState::DISKNORMAL,
+                        2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2});
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .WillOnce(Return(3));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    EXPECT_CALL(*topoAdapter_, SelectRedundantReplicaToRemove(_))
-        .WillOnce(Return(::curve::mds::topology::UNINTIALIZE_ID));
+
+    std::vector<ChunkServerInfo> chunkserverList(
+        {csInfo1, csInfo2, csInfo3});
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServersInPhysicalPool(_))
+        .WillOnce(Return(chunkserverList));
+    EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
+        .WillOnce(Return(3));
+    std::map<ChunkServerIdType, int> map1{{2, 1}};
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(1, _))
+        .WillOnce(SetArgPointee<1>(map1));
+    std::map<ChunkServerIdType, int> map2{{1, 1}};
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(2, _))
+        .WillOnce(SetArgPointee<1>(map2));
+    std::map<ChunkServerIdType, int> map3;
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(3, _))
+        .WillOnce(SetArgPointee<1>(map3));
+    EXPECT_CALL(*topoAdapter_, CreateCopySetAtChunkServer(_, _))
+        .WillOnce(Return(false));
+    ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
+}
+
+TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectNone) {
+    auto testCopySetInfo = GetCopySetInfoForTest();
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
+    PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
+    testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
+    EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
+        .WillOnce(Return(3)).WillOnce(Return(0));
+    EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
+        .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
 
     ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectCorrect) {
     auto testCopySetInfo = GetCopySetInfoForTest();
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
-    PeerInfo peer4(4, 4, 4, "192.168.10.4", 9000);
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
+    PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
     testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
+    ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
+                            DiskState::DISKNORMAL,
+                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
+                            DiskState::DISKNORMAL,
+                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
+                            DiskState::DISKNORMAL,
+                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo4(testCopySetInfo.peers[3], OnlineState::ONLINE,
+                            DiskState::DISKNORMAL,
+                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
-        .WillOnce(Return(3));
+        .Times(2).WillRepeatedly(Return(3));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    EXPECT_CALL(*topoAdapter_, SelectRedundantReplicaToRemove(_))
-        .WillOnce(Return(4));
+    EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
+        .WillOnce(Return(3));
+    EXPECT_CALL(*topoAdapter_, GetCopySetInfosInChunkServer(_))
+        .Times(4)
+        .WillRepeatedly(Return(std::vector<CopySetInfo>{testCopySetInfo}));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
+        .WillOnce(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(2, _))
+        .WillOnce(DoAll(SetArgPointee<1>(csInfo2), Return(true)));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(3, _))
+        .WillOnce(DoAll(SetArgPointee<1>(csInfo3), Return(true)));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(4, _))
+        .WillOnce(DoAll(SetArgPointee<1>(csInfo4), Return(true)));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(1, _))
+        .WillRepeatedly(SetArgPointee<1>(
+            std::map<ChunkServerIdType, int>{{2, 1}, {3, 1}, {4, 1}}));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(2, _))
+        .WillRepeatedly(SetArgPointee<1>(
+            std::map<ChunkServerIdType, int>{{1, 1}, {3, 1}, {4, 1}}));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(3, _))
+        .WillRepeatedly(SetArgPointee<1>(
+            std::map<ChunkServerIdType, int>{{1, 1}, {2, 1}, {4, 1}}));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerScatterMap(4, _))
+        .WillRepeatedly(SetArgPointee<1>(
+            std::map<ChunkServerIdType, int>{{2, 1}, {3, 1}, {1, 1}}));
 
     ASSERT_EQ(1, replicaScheduler_->Schedule(topoAdapter_));
     Operator op;
