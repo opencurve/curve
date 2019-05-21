@@ -64,7 +64,7 @@ cc_test(
 cc_binary(
     name = "curve_format",
     srcs = [
-        "curve_format.cpp",
+        "curve_format_main.cpp",
     ],
     deps = [
         "//external:braft",
@@ -79,5 +79,6 @@ cc_binary(
         "//src/chunkserver:chunkserver-lib",
         "//src/common:curve_common",
         "//src/fs:lfs",
+        "//external:json"
     ],
 )
