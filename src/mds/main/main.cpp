@@ -82,6 +82,7 @@ void InitScheduleOption(Configuration *conf,
         conf->GetBoolValue("mds.enable.recover.scheduler");
     scheduleOption->enableReplicaScheduler =
         conf->GetBoolValue("mds.replica.replica.scheduler");
+
     scheduleOption->copysetSchedulerIntervalSec =
         conf->GetIntValue("mds.copyset.scheduler.intervalSec");
     scheduleOption->leaderSchedulerIntervalSec =
@@ -99,6 +100,13 @@ void InitScheduleOption(Configuration *conf,
         conf->GetIntValue("mds.scheduler.add.limitSec");
     scheduleOption->removePeerTimeLimitSec =
         conf->GetIntValue("mds.scheduler.remove.limitSec");
+
+    scheduleOption->copysetNumRangePercent =
+        conf->GetDoubleValue("mds.scheduler.copysetNumRangePercent");
+    scheduleOption->scatterWithRangePerent =
+        conf->GetDoubleValue("mds.schduler.scatterWidthRangePerent");
+    scheduleOption->minScatterWidth =
+        conf->GetIntValue("mds.scheduler.minScatterWidth");
 }
 
 void InitHeartbeatOption(Configuration *conf,

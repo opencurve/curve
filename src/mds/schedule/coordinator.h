@@ -11,6 +11,7 @@
 
 #include <vector>
 #include <map>
+#include <memory>
 #include <thread>  //NOLINT
 #include <boost/shared_ptr.hpp>
 #include "src/mds/dao/mdsRepo.h"
@@ -25,25 +26,43 @@ using ::curve::mds::heartbeat::ConfigChangeType;
 namespace curve {
 namespace mds {
 namespace schedule {
-// TODO(chaojie-schedule): needTopoTocontain
 struct ScheduleOption {
  public:
+    // copyset均衡的开关
     bool enableCopysetScheduler;
+    // leader均衡开关
     bool enableLeaderScheduler;
+    // recover开关
     bool enableRecoverScheduler;
+    // replica开关
     bool enableReplicaScheduler;
 
-    // scheduler calculate interval
+    // copyset均衡计算的时间间隔
     int64_t copysetSchedulerIntervalSec;
+    // leader均衡计算时间间隔
     int64_t leaderSchedulerIntervalSec;
+    // recover计算时间间隔
     int64_t recoverSchedulerIntervalSec;
+    // replica均衡时间间隔
     int64_t replicaSchedulerIntervalSec;
 
-    // para
+    // 单个chunkserver上面可以同时进行配置变更的copyset数量
     int operatorConcurrent;
+    // leader变更时间限制, 大于该时间mds认为超时，移除相关operator
     int transferLeaderTimeLimitSec;
+    // 增加节点时间限制, 大于该时间mds认为超时，移除相关operator
     int addPeerTimeLimitSec;
+    // 移除节点时间限制, 大于该时间mds认为超时，移除相关operator
     int removePeerTimeLimitSec;
+
+    // 供copysetScheduler使用, [chunkserver上copyset数量的极差]不能超过
+    // [chunkserver上copyset数量均值] * copysetNumRangePercent
+    float copysetNumRangePercent;
+    // 配置变更需要尽量使得chunkserver的scatter-with不超过
+    // minScatterWith * (1 + scatterWidthRangePerent)
+    float scatterWithRangePerent;
+    // chunkserver要达到的最小scatterwidth
+    float minScatterWidth;
 };
 
 class Coordinator {

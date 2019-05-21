@@ -10,6 +10,8 @@
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorFactory.h"
 
+using ::curve::mds::topology::UNINTIALIZE_ID;
+
 namespace curve {
 namespace mds {
 namespace schedule {
@@ -17,7 +19,7 @@ int RecoverScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
     LOG(INFO) << "recoverScheduler begin.";
     int oneRoundGenOp = 0;
     for (auto copysetInfo : topo->GetCopySetInfos()) {
-        // skip the copyset if there is already a pending operator
+        // 跳过正在做配置变更的copyset
         Operator op;
         if (opController_->GetOperatorById(copysetInfo.id, &op)) {
             continue;
@@ -30,7 +32,8 @@ int RecoverScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
             continue;
         }
 
-        // check offline and fix peer
+        std::vector<ChunkServerIdType> offlinelists;
+        // 检查offline的副本
         for (auto peer : copysetInfo.peers) {
             ChunkServerInfo csInfo;
             if (!topo->GetChunkServerInfo(peer.id, &csInfo)) {
@@ -42,25 +45,44 @@ int RecoverScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
             if (!csInfo.IsOffline()) {
                 continue;
             } else {
+                offlinelists.emplace_back(peer.id);
                 LOG(ERROR) << "recoverSchdeuler find chunkServer "
                            << peer.id << " offline, please check";
             }
+        }
 
-            Operator fixRes;
-            if (!FixOfflinePeer(topo, copysetInfo, peer.id, &fixRes)) {
-                LOG(ERROR) << "recoverScheduler can not find a healthy"
-                              " chunkServer to fix offline one "
-                           << peer.id;
-            } else if (opController_->AddOperator(fixRes)) {
-                LOG(INFO) << "recoverScheduler generate operator:"
-                          << fixRes.OpToString() << "for copySet("
-                          << copysetInfo.id.first << ", copySetId:"
-                          << copysetInfo.id.second << ")";
-                oneRoundGenOp++;
-            } else {
-                LOG(ERROR) << "recover scheduler add operator "
-                           << fixRes.OpToString() << " fail";
-            }
+        // 如果所有的copyset副本都是online状态，不做处理
+        if (offlinelists.size() == 0) {
+            continue;
+        }
+
+        // 如果超过半数的副本挂掉，报警
+        int deadBound =
+            copysetInfo.peers.size() - (copysetInfo.peers.size()/2 + 1);
+        if (offlinelists.size() > deadBound) {
+            LOG(ERROR) << "recoverSchdeuler find copyset(logicalPoolId:"
+                       << copysetInfo.id.first
+                       << ", copySetId:" << copysetInfo.id.second
+                       << ") has " << offlinelists.size()
+                       << " replica offline, cannot repair, please check";
+            continue;
+        }
+
+        // 修复其中一个挂掉的副本
+        Operator fixRes;
+        if (!FixOfflinePeer(topo, copysetInfo, offlinelists[0], &fixRes)) {
+            LOG(ERROR) << "recoverScheduler can not find a healthy"
+                          " chunkServer to fix offline one "
+                       << offlinelists[0];
+        } else if (opController_->AddOperator(fixRes)) {
+            LOG(INFO) << "recoverScheduler generate operator:"
+                        << fixRes.OpToString() << "for copySet("
+                        << copysetInfo.id.first << ", copySetId:"
+                        << copysetInfo.id.second << ")";
+            oneRoundGenOp++;
+        } else {
+            LOG(ERROR) << "recover scheduler add operator "
+                       << fixRes.OpToString() << " fail";
         }
     }
     LOG(INFO) << "recoverScheduler generate " << oneRoundGenOp
@@ -97,8 +119,8 @@ bool RecoverScheduler::FixOfflinePeer(const std::shared_ptr<TopoAdapter> &topo,
     }
 
     // select peers to add
-    auto csId = topo->SelectBestPlacementChunkServer(info, peerId);
-    if (csId == ::curve::mds::topology::UNINTIALIZE_ID) {
+    auto csId = SelectBestPlacementChunkServer(info, peerId);
+    if (csId == UNINTIALIZE_ID) {
         LOG(ERROR) << "recoverScheduler can not select chunkServer to "
                       "repair copySet(logicalPoolId: "
                    << info.id.first << ",copySetId: " << info.id.second

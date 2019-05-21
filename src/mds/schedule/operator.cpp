@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include <string>
+#include <memory>
 #include "src/mds/schedule/operator.h"
 
 namespace curve {
@@ -56,7 +57,8 @@ std::string Operator::OpToString() {
     return "[startEpoch: " + std::to_string(startEpoch)
         + ", copysetID: (" + std::to_string(copsetID.first) + ","
         + std::to_string(copsetID.second) + "), priority: "
-        + std::to_string(priority) + "]";
+        + std::to_string(priority) + ", step: "
+        + step->OperatorStepToString() + "]";
 }
 }  // namespace schedule
 }  // namespace mds

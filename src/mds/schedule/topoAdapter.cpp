@@ -9,6 +9,7 @@
 #include <cfloat>
 #include <string>
 #include <map>
+#include <memory>
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/common/mds_define.h"
 #include "proto/topology.pb.h"
@@ -23,11 +24,13 @@ namespace schedule {
 PeerInfo::PeerInfo(ChunkServerIdType id,
                    ZoneIdType zoneId,
                    ServerIdType sid,
+                   PhysicalPoolIDType physicalPoolId,
                    const std::string &ip,
                    uint32_t port) {
     this->id = id;
     this->zoneId = zoneId;
     this->serverId = sid;
+    this->physicalPoolId = physicalPoolId;
     this->ip = ip;
     this->port = port;
 }
@@ -87,6 +90,7 @@ bool CopySetInfo::ContainPeer(ChunkServerIdType id) const {
 
 ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  OnlineState state,
+                                 DiskState diskState,
                                  uint32_t leaderCount,
                                  uint64_t capacity,
                                  uint64_t used,
@@ -95,6 +99,7 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  &statisticInfo) {
     this->info = info;
     this->state = state;
+    this->diskState = diskState;
     this->leaderCount = leaderCount,
     this->diskCapacity = capacity;
     this->diskUsed = used;
@@ -104,6 +109,10 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
 
 bool ChunkServerInfo::IsOffline() {
     return state == OnlineState::OFFLINE;
+}
+
+bool ChunkServerInfo::IsHealthy() {
+    return state == OnlineState::ONLINE && diskState == DiskState::DISKNORMAL;
 }
 
 TopoAdapterImpl::TopoAdapterImpl(
@@ -123,6 +132,20 @@ bool TopoAdapterImpl::GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) {
     return CopySetFromTopoToSchedule(csInfo, info);
 }
 
+std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfosInChunkServer(
+    ChunkServerIdType id) {
+    std::vector<CopySetKey> keys = topo_->GetCopySetsInChunkServer(id);
+
+    std::vector<CopySetInfo> out;
+    for (auto key : keys) {
+        CopySetInfo info;
+        if (GetCopySetInfo(key, &info)) {
+            out.emplace_back(info);
+        }
+    }
+    return out;
+}
+
 std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfos() {
     std::vector<CopySetInfo> infos;
     for (auto copySetKey : topo_->GetCopySetsInCluster()) {
@@ -131,8 +154,6 @@ std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfos() {
             infos.push_back(copySetInfo);
         }
     }
-
-    DVLOG(6) << "topoAdapter get " << infos.size() << " copySets in cluster";
     return infos;
 }
 
@@ -159,9 +180,22 @@ std::vector<ChunkServerInfo> TopoAdapterImpl::GetChunkServerInfos() {
             infos.push_back(info);
         }
     }
+    return infos;
+}
 
-    DVLOG(6) << "topoAdapter get " << infos.size()
-             << " chunkServers in cluster";
+std::vector<ChunkServerInfo> TopoAdapterImpl::GetChunkServersInPhysicalPool(
+    PhysicalPoolIDType id) {
+    std::vector<ChunkServerInfo> infos;
+    auto ids = topo_->GetChunkServerInPhysicalPool(id,
+        [](const ChunkServer &chunkserver) {
+            return chunkserver.GetStatus() != ChunkServerStatus::RETIRED;
+        });
+    for (auto id : ids) {
+        ChunkServerInfo out;
+        if (GetChunkServerInfo(id, &out)) {
+            infos.emplace_back(out);
+        }
+    }
     return infos;
 }
 
@@ -208,7 +242,7 @@ bool TopoAdapterImpl::GetPeerInfo(ChunkServerIdType id, PeerInfo *peerInfo) {
         (canGetServer = topo_->GetServer(cs.GetServerId(), &server))) {
         *peerInfo = PeerInfo(
             cs.GetId(), server.GetZoneId(), server.GetId(),
-            cs.GetHostIp(), cs.GetPort());
+            server.GetPhysicalPoolId(), cs.GetHostIp(), cs.GetPort());
     } else {
         LOG(ERROR) << "topoAdapter can not find chunkServer("
                    << id << ", res:" << canGetChunkServer
@@ -257,6 +291,7 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
     ::curve::mds::topology::Server server;
     if (topo_->GetServer(origin.GetServerId(), &server)) {
         out->info = PeerInfo{origin.GetId(), server.GetZoneId(), server.GetId(),
+                             server.GetPhysicalPoolId(),
                              origin.GetHostIp(), origin.GetPort()};
     } else {
         LOG(ERROR) << "can not get server:" << origin.GetId()
@@ -266,6 +301,7 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
         return false;
     }
     out->state = origin.GetOnlineState();
+    out->diskState = origin.GetChunkServerState().GetDiskState();
     out->diskCapacity = origin.GetChunkServerState().GetDiskCapacity();
     out->diskUsed = origin.GetChunkServerState().GetDiskUsed();
     out->stateUpdateTime = origin.GetLastStateUpdateTime();
@@ -273,7 +309,6 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
     // TODO(lixiaocui): out->statisticInfo
 }
 
-// TODO(chaojie-schedule): Topology需要增加创建copyset的接口
 bool TopoAdapterImpl::CreateCopySetAtChunkServer(CopySetKey id,
                                                  ChunkServerIdType csID) {
     ::curve::mds::topology::CopySetInfo info(id.first, id.second);
@@ -282,259 +317,11 @@ bool TopoAdapterImpl::CreateCopySetAtChunkServer(CopySetKey id,
     return topoServiceManager_->CreateCopysetNodeOnChunkServer(csID, infos);
 }
 
-ChunkServerIdType TopoAdapterImpl::SelectBestPlacementChunkServer(
-    const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer) {
-    // chunkservers in same logical pool
-    auto chunkServersId
-        = topo_->GetChunkServerInLogicalPool(copySetInfo.id.first,
-            [] (const ChunkServer &cs) {
-                return cs.GetStatus() != ChunkServerStatus::RETIRED;});
-
-    DVLOG(6) << "selectBestPlacementChunkServer get " << chunkServersId.size()
-             << " chunkServers in logical pool " << copySetInfo.id.first;
-
-    if (chunkServersId.size() <= copySetInfo.peers.size()) {
-        return ::curve::mds::topology::UNINTIALIZE_ID;
-    }
-
-    // zone limit and server limit
-    std::map<ZoneIdType, bool> excludeZones;
-    std::map<ServerIdType, bool> excludeServers;
-    for (auto &peer : copySetInfo.peers) {
-        if (peer.id == oldPeer) {
-            continue;
-        }
-        excludeZones[peer.zoneId] = true;
-        excludeServers[peer.serverId] = true;
-    }
-
-    int standardZoneNum = 0;
-    if ((standardZoneNum =
-             GetStandardZoneNumInLogicalPool(copySetInfo.id.first)) <= 0) {
-        LOG(WARNING) << "topoAdapter find logicalPool " << copySetInfo.id.first
-                     << " standard zone num: " << standardZoneNum
-                     << " invalid";
-        return ::curve::mds::topology::UNINTIALIZE_ID;
-    }
-    if (excludeZones.size() > standardZoneNum) {
-        excludeZones.clear();
-    }
-
-    // candidates satisfy limit of logicalPool,zone,server and other condition
-    std::map<ChunkServerIdType, float> candidates;
-    for (auto &csId : chunkServersId) {
-        ChunkServer chunkServer;
-        Server server;
-
-        // topo do not contain chunkServerInfo
-        if (!topo_->GetChunkServer(csId, &chunkServer)) {
-            LOG(WARNING) << "topoAdapter find can not get chunkServer " << csId
-                         << " from topology" << std::endl;
-            continue;
-        }
-        // topo do not contain serverInfo
-        if (!topo_->GetServer(chunkServer.GetServerId(), &server)) {
-            LOG(WARNING) << "topoAdapter find can not get Server "
-                         << chunkServer.GetServerId()
-                         << " from topology" << std::endl;
-            continue;
-        }
-        // dissatisfy zone and server limit
-        if (excludeZones.find(server.GetZoneId()) != excludeZones.end() ||
-            excludeServers.find(server.GetId()) != excludeServers.end()) {
-            continue;
-        }
-        // dissatisfy healthy or capacity limit
-        if (!IsChunkServerHealthy(chunkServer)) {
-            // TODO(lixiaocui): consider capacity
-            //  || !IsChunkServerCapacitySaturated(chunkServer)) {
-            LOG(WARNING) << "topoAdapter find chunkServer "
-                         << chunkServer.GetId()
-                         << " abnormal, diskState： "
-                         << chunkServer.GetChunkServerState().GetDiskState()
-                         << ", onlineState: "
-                         << chunkServer.GetOnlineState()
-                         << ", capacity： "
-                         << chunkServer.GetChunkServerState().GetDiskCapacity()
-                         << ", used: "
-                         << chunkServer.GetChunkServerState().GetDiskUsed();
-            continue;
-        }
-
-        // calculate scatter width factor in current cluster and after transfer
-        std::map<ChunkServerIdType, bool> scatterMap;
-        int copySetNum = GetChunkServerScatterMap(chunkServer, &scatterMap);
-        float originFactor, possibleFactor;
-        if (scatterMap.empty()) {
-            candidates[csId] = FLT_MAX;
-            continue;
-        } else {
-            originFactor = static_cast<float>(copySetNum)
-                / static_cast<float>(scatterMap.size());
-        }
-
-        for (auto &peer : copySetInfo.peers) {
-            if (peer.id == csId) {
-                continue;
-            }
-            ChunkServer csTmp;
-            if (!topo_->GetChunkServer(peer.id, &csTmp) ||
-                csTmp.GetOnlineState()
-                    == OnlineState::OFFLINE) {
-                continue;
-            }
-            scatterMap[peer.id] = true;
-        }
-        possibleFactor = static_cast<float>(copySetNum + 1)
-            / static_cast<float>(scatterMap.size());
-
-        candidates[csId] = originFactor - possibleFactor;
-    }
-
-    if (candidates.empty()) {
-        return ::curve::mds::topology::UNINTIALIZE_ID;
-    }
-
-    // return max gap-factor
-    float maxGap;
-    bool first = true;
-    ChunkServerIdType target;
-    for (auto &candidate : candidates) {
-        if (first) {
-            target = candidate.first;
-            maxGap = candidate.second;
-            first = false;
-            continue;
-        }
-
-        if (candidate.second > maxGap) {
-            target = candidate.first;
-            maxGap = candidate.second;
-        }
-    }
-
-    return target;
-}
-
-ChunkServerIdType TopoAdapterImpl::SelectRedundantReplicaToRemove(
-    const CopySetInfo &copySetInfo) {
-    // 如果副本数量不大于标准副本数量，不应该进行移除，报警
-    int standardReplicaNum =
-        GetStandardReplicaNumInLogicalPool(copySetInfo.id.first);
-    if (standardReplicaNum <= 0) {
-        LOG(WARNING) << "topoAdapter get standard replicaNum "
-                     << standardReplicaNum << " in logicalPool,"
-                     " replicaNum must >=0, please check";
-        return ::curve::mds::topology::UNINTIALIZE_ID;
-    }
-    if (copySetInfo.peers.size() <= standardReplicaNum) {
-        LOG(WARNING) << "topoAdapter cannot select redundent replica for"
-                     << " copySet(" << copySetInfo.id.first << ", "
-                     << copySetInfo.id.second << ") beacuse replicaNum "
-                     << copySetInfo.peers.size()
-                     << " not bigger than standard num "
-                     << standardReplicaNum;
-        return ::curve::mds::topology::UNINTIALIZE_ID;
-    }
-
-    // 判断zone条件是否满足
-    std::map<ZoneIdType, std::vector<ChunkServerIdType>> zoneList;
-    int standardZoneNum = GetStandardZoneNumInLogicalPool(copySetInfo.id.first);
-    if (standardZoneNum <= 0) {
-        LOG(WARNING) << "topoAdapter get standard zoneNum "
-                     << standardZoneNum << " in logicalPool "
-                     << copySetInfo.id.first
-                     << ", zoneNum must >=0, please check";
-        return ::curve::mds::topology::UNINTIALIZE_ID;
-    }
-    for (auto &peer : copySetInfo.peers) {
-        auto item = zoneList.find(peer.zoneId);
-        if (item == zoneList.end()) {
-            zoneList.emplace(std::make_pair(peer.zoneId,
-                std::vector<ChunkServerIdType>({peer.id})));
-        } else {
-            item->second.emplace_back(peer.id);
-        }
-    }
-
-    // 1. 不满足标准zone数量，报警
-    if (zoneList.size() < standardZoneNum) {
-        LOG(ERROR) << "topoAdapter find copySet(" << copySetInfo.id.first
-                   << ", " << copySetInfo.id.second << ") replicas distribute"
-                   << " in " << zoneList.size() << " zones, less than standard"
-                   << "zoneNum " << standardZoneNum << ", please check";
-        return ::curve::mds::topology::UNINTIALIZE_ID;
-    }
-
-    // 2. 大于等于标准zone数量
-    // 2.1 等于标准zone数量
-    // 为了满足zone条件的限制, 应该要从zone下包含多个ps中选取
-    // 如replica的副本是 A(zone1) B(zone2) C(zone3) D(zone3) E(zone2)
-    // 那么移除的副本应该从BCDE中选择
-    // 2.2 大于标准zone数量
-    // 无论移除哪个后都一定会满足zone条件限制。因此优先移除状态不是online的，然后考虑
-    // chunkserver的使用容量的大小优先移除使用量大的
-    // 如replica副本是 A(zone1) B(zone2) C(zone3) D(zone4) E(zone4)
-    // 可以随意从ABCDE中移除一个
-    std::vector<ChunkServerIdType> candidateChunkServer;
-    for (auto item : zoneList) {
-        if (item.second.size() == 1) {
-            if (zoneList.size() == standardZoneNum) {
-                continue;
-            }
-        }
-
-        for (auto csId : item.second) {
-            candidateChunkServer.emplace_back(csId);
-        }
-    }
-
-    // 优先移除offline状态的副本，然后移除磁盘使用量较多的
-    uint64_t maxUsed = -1;
-    ChunkServerIdType re = -1;
-    for (auto csId : candidateChunkServer) {
-        ChunkServerInfo csInfo;
-        if (!GetChunkServerInfo(csId, &csInfo)) {
-            LOG(ERROR) << "topoAdapter cannot get chunkserver "
-                       << csId << " witch is a replica of copySet("
-                       << copySetInfo.id.first << ","
-                       << copySetInfo.id.second << ")";
-            return ::curve::mds::topology::UNINTIALIZE_ID;
-        }
-
-        if (csInfo.state != OnlineState::ONLINE) {
-            LOG(ERROR) << "topoAdapter find chunkServer " << csId
-                       << " offline, please check!";
-            return csId;
-        }
-
-        if (maxUsed == -1 || csInfo.diskUsed > maxUsed) {
-            maxUsed = csInfo.diskUsed;
-            re = csId;
-        }
-    }
-    return re;
-}
-
-bool TopoAdapterImpl::IsChunkServerHealthy(const ChunkServer &cs) {
-    return cs.GetOnlineState() == OnlineState::ONLINE &&
-        cs.GetChunkServerState().GetDiskState() == DiskState::DISKNORMAL;
-}
-
-// TODO(lixiaocui): consider capacity
-// bool TopoAdapterImpl::IsChunkServerCapacitySaturated(
-// const ChunkServer &cs) {
-//    auto csState = cs.GetChunkServerState();
-//    return csState.GetDiskCapacity() - csState.GetDiskUsed()
-//                                          > GetCopySetSize();
-// }
-
-int TopoAdapterImpl::GetChunkServerScatterMap(
-    const ChunkServer &cs,
-    std::map<ChunkServerIdType, bool> *out) {
+void TopoAdapterImpl::GetChunkServerScatterMap(
+    const ChunkServerIDType &cs, std::map<ChunkServerIdType, int> *out) {
     assert(out != nullptr);
 
-    auto copySetsInCS = topo_->GetCopySetsInChunkServer(cs.GetId());
+    std::vector<CopySetKey> copySetsInCS = topo_->GetCopySetsInChunkServer(cs);
     for (auto key : copySetsInCS) {
         ::curve::mds::topology::CopySetInfo copySetInfo;
         if (!topo_->GetCopySet(key, &copySetInfo)) {
@@ -544,9 +331,9 @@ int TopoAdapterImpl::GetChunkServerScatterMap(
             continue;
         }
 
-        for (auto peerId : copySetInfo.GetCopySetMembers()) {
+        for (ChunkServerIdType peerId : copySetInfo.GetCopySetMembers()) {
             ::curve::mds::topology::ChunkServer chunkServer;
-            if (peerId == cs.GetId()) {
+            if (peerId == cs) {
                 continue;
             }
 
@@ -556,15 +343,19 @@ int TopoAdapterImpl::GetChunkServerScatterMap(
 
             if (chunkServer.GetOnlineState()
                 == OnlineState::OFFLINE) {
-                LOG(ERROR) << "topoAdapter find chunkServer "
+                LOG_EVERY_N(ERROR, 1000) << "topoAdapter find chunkServer "
                            << chunkServer.GetId()
                            << " is offline, please check" << std::endl;
                 continue;
             }
-            (*out)[peerId] = true;
+
+            if (out->find(peerId) == out->end()) {
+                (*out)[peerId] = 1;
+            } else {
+                (*out)[peerId]++;
+            }
         }
     }
-    return static_cast<int>(copySetsInCS.size());
 }
 }  // namespace schedule
 }  // namespace mds

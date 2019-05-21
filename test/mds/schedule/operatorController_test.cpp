@@ -97,11 +97,11 @@ TEST(OperatorControllerTest, OperatorControllerTest_ApplyOp_Test) {
 
     // 3. test apply operator finished
     testOperator.createTime = steady_clock::now();
-    originCopySetinfo.peers.emplace_back(PeerInfo(5, 1, 1, "", 9000));
+    originCopySetinfo.peers.emplace_back(PeerInfo(5, 1, 1, 1, "", 9000));
     ASSERT_FALSE(opController->ApplyOperator(originCopySetinfo, &copySetConf));
 
     // 4. test apply operator failed
-    originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, "", 9000);
+    originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, 1, "", 9000);
     originCopySetinfo.configChangeInfo.set_finished(false);
     auto replica = new ::curve::common::Peer();
     replica->set_id(5);
@@ -121,7 +121,7 @@ TEST(OperatorControllerTest, OperatorControllerTest_ApplyOp_Test) {
     originCopySetinfo.configChangeInfo.set_finished(true);
     originCopySetinfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
     originCopySetinfo.peers.emplace_back(
-        PeerInfo(5, 4, 4, "192.168.10.1", 9000));
+        PeerInfo(5, 4, 4, 1, "192.168.10.1", 9000));
     ASSERT_FALSE(opController->ApplyOperator(originCopySetinfo, &copySetConf));
     ASSERT_FALSE(opController->GetOperatorById(originCopySetinfo.id, &op));
 
@@ -133,7 +133,7 @@ TEST(OperatorControllerTest, OperatorControllerTest_ApplyOp_Test) {
     ASSERT_EQ(5, copySetConf.configChangeItem);
 
     // 7. test apply operator not finished
-    originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, "", 9000);
+    originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, 1, "", 9000);
     originCopySetinfo.configChangeInfo.set_finished(false);
     originCopySetinfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
     auto replica1 = new ::curve::common::Peer();

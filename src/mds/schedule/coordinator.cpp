@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include <string>
+#include <memory>
 #include <thread>  //NOLINT
 #include "src/mds/schedule/coordinator.h"
 #include "src/mds/topology/topology_item.h"
@@ -33,7 +34,9 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                               conf.leaderSchedulerIntervalSec,
                                               conf.transferLeaderTimeLimitSec,
                                               conf.removePeerTimeLimitSec,
-                                              conf.addPeerTimeLimitSec);
+                                              conf.addPeerTimeLimitSec,
+                                              conf.scatterWithRangePerent,
+                                              conf.minScatterWidth, topo_);
         LOG(INFO) << "run leader scheduler ok!";
     }
 
@@ -43,7 +46,10 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.copysetSchedulerIntervalSec,
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
-                                               conf.addPeerTimeLimitSec);
+                                               conf.addPeerTimeLimitSec,
+                                               conf.copysetNumRangePercent,
+                                               conf.scatterWithRangePerent,
+                                               conf.minScatterWidth, topo_);
         LOG(INFO) << "run copySet scheduler ok!";
     }
 
@@ -53,7 +59,9 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.recoverSchedulerIntervalSec,
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
-                                               conf.addPeerTimeLimitSec);
+                                               conf.addPeerTimeLimitSec,
+                                               conf.scatterWithRangePerent,
+                                               conf.minScatterWidth, topo_);
         LOG(INFO) << "run recover scheduler ok!";
     }
 
@@ -63,7 +71,9 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.replicaSchedulerIntervalSec,
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
-                                               conf.addPeerTimeLimitSec);
+                                               conf.addPeerTimeLimitSec,
+                                               conf.scatterWithRangePerent,
+                                               conf.minScatterWidth, topo_);
         LOG(INFO) << "run replica scheduler ok!";
     }
 }
