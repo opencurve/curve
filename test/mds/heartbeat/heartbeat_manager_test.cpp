@@ -95,8 +95,11 @@ TEST_F(TestHeartbeatManager, test_getChunkserverIdByPeerStr) {
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(10);
-    info.set_leaderpeer("192.168.10.1:9000");
-    info.add_peers("192.168.10.1:9000");
+    auto replica = info.add_peers();
+    replica->set_address("192.168.10.1:9000");
+    auto leader = new ::curve::common::Peer();
+    leader->set_address("192.168.10.1:9000");
+    info.set_allocated_leaderpeer(leader);
     auto addInfos = request.add_copysetinfos();
     *addInfos = info;
     ::curve::mds::topology::ChunkServer chunkServer(
@@ -154,13 +157,26 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(10);
-    info.set_leaderpeer("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
     auto candidate = new ConfigChangeInfo;
-    candidate->set_peer("192.168.10.4:9000:0");
-    candidate->set_finished(true);
+    for (int i = 1; i <= 4; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        if (i == 1) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            info.set_allocated_leaderpeer(replica);
+        }
+
+        if (i == 4) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            candidate->set_allocated_peer(replica);
+            candidate->set_finished(true);
+            candidate->set_type(ConfigChangeType::ADD_PEER);
+            continue;
+        }
+        auto replica = info.add_peers();
+        replica->set_address(ip);
+    }
     info.set_allocated_configchangeinfo(candidate);
     auto addInfo = request.add_copysetinfos();
     *addInfo = info;
@@ -184,13 +200,18 @@ TEST_F(TestHeartbeatManager, test_follower_reqEpoch_notSmallerThan_mdsRecord) {
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(2);
-    info.set_leaderpeer("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
+    for (int i = 1; i <= 3; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        auto replica = info.add_peers();
+        replica->set_address(ip);
+        if (i == 2) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            info.set_allocated_leaderpeer(replica);
+        }
+    }
     auto addInfos = request.add_copysetinfos();
     *addInfos = info;
-
     ::curve::mds::topology::ChunkServer chunkServer1(
         1, "hello", "", 1, "192.168.10.1", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
@@ -229,10 +250,16 @@ TEST_F(TestHeartbeatManager,
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
-    info.set_leaderpeer("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
+    for (int i = 1; i <= 3; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        auto replica = info.add_peers();
+        replica->set_address(ip);
+        if (i == 2) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            info.set_allocated_leaderpeer(replica);
+        }
+    }
     auto addInfos = request.add_copysetinfos();
     *addInfos = info;
 
@@ -276,10 +303,16 @@ TEST_F(TestHeartbeatManager,
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
-    info.set_leaderpeer("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
+    for (int i = 1; i <= 3; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        auto replica = info.add_peers();
+        replica->set_address(ip);
+        if (i == 2) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            info.set_allocated_leaderpeer(replica);
+        }
+    }
     auto addInfos = request.add_copysetinfos();
     *addInfos = info;
 
@@ -326,10 +359,16 @@ TEST_F(TestHeartbeatManager,
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
-    info.set_leaderpeer("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
+    for (int i = 1; i <= 3; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        auto replica = info.add_peers();
+        replica->set_address(ip);
+        if (i == 2) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            info.set_allocated_leaderpeer(replica);
+        }
+    }
     auto addInfos = request.add_copysetinfos();
     *addInfos = info;
 
@@ -377,10 +416,16 @@ TEST_F(TestHeartbeatManager,
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
-    info.set_leaderpeer("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
+    for (int i = 1; i <= 3; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        auto replica = info.add_peers();
+        replica->set_address(ip);
+        if (i == 2) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            info.set_allocated_leaderpeer(replica);
+        }
+    }
     auto addInfos = request.add_copysetinfos();
     *addInfos = info;
 
@@ -440,10 +485,16 @@ TEST_F(TestHeartbeatManager,
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(1);
-    info.set_leaderpeer("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
+    for (int i = 1; i <= 3; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        auto replica = info.add_peers();
+        replica->set_address(ip);
+        if (i == 2) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            info.set_allocated_leaderpeer(replica);
+        }
+    }
     auto addInfos = request.add_copysetinfos();
     *addInfos = info;
 
@@ -633,13 +684,25 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
     info.set_logicalpoolid(1);
     info.set_copysetid(1);
     info.set_epoch(10);
-    info.set_leaderpeer("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
     auto candidate = new ConfigChangeInfo;
-    candidate->set_peer("192.168.10.4:9000:0");
-    candidate->set_finished(false);
+    for (int i = 1; i <= 4; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        if (i == 1) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            info.set_allocated_leaderpeer(replica);
+        }
+        if (i == 4) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            candidate->set_allocated_peer(replica);
+            candidate->set_finished(false);
+            candidate->set_type(ConfigChangeType::ADD_PEER);
+            continue;
+        }
+        auto replica = info.add_peers();
+        replica->set_address(ip);
+    }
     info.set_allocated_configchangeinfo(candidate);
     auto addInfo = request.add_copysetinfos();
     *addInfo = info;
@@ -747,15 +810,21 @@ TEST_F(TestHeartbeatManager, test_patrol_copySetInfo_return_order) {
     EXPECT_CALL(*topology_, GetCopySet(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(copySetInfo), Return(true)))
         .WillOnce(Return(false));
-    ::curve::mds::heartbeat::CopysetConf res;
+    ::curve::mds::heartbeat::CopySetConf res;
     res.set_logicalpoolid(1);
     res.set_copysetid(1);
     res.set_epoch(10);
-    res.add_peers("192.168.10.1:9000:0");
-    res.add_peers("192.168.10.2:9000:0");
-    res.add_peers("192.168.10.3:9000:0");
+    for (int i = 1; i <= 3; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        auto replica = res.add_peers();
+        replica->set_address(ip);
+        if (i == 2) {
+            auto replica = new ::curve::common::Peer();
+            replica->set_address(ip);
+            res.set_allocated_configchangeitem(replica);
+        }
+    }
     res.set_type(TRANSFER_LEADER);
-    res.set_configchangeitem("192.168.10.2:9000:0");
     EXPECT_CALL(*coordinator_, CopySetHeartbeat(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(res), Return(true)));
     EXPECT_CALL(*topology_, UpdateCopySet(_))
@@ -763,7 +832,7 @@ TEST_F(TestHeartbeatManager, test_patrol_copySetInfo_return_order) {
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(1, response.needupdatecopysets_size());
     ASSERT_EQ("192.168.10.2:9000:0",
-              response.needupdatecopysets(0).configchangeitem());
+              response.needupdatecopysets(0).configchangeitem().address());
     ASSERT_EQ(TRANSFER_LEADER, response.needupdatecopysets(0).type());
     ASSERT_EQ(3, response.needupdatecopysets(0).peers_size());
 }

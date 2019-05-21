@@ -8,6 +8,7 @@
 #ifndef TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
 #define TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVERCLIENT_H_
 
+#include <memory>
 #include "src/mds/chunkserverclient/chunkserver_client.h"
 
 

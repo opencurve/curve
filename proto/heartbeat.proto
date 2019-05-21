@@ -6,6 +6,7 @@
  */
 
 syntax = "proto2";
+import "proto/common.proto";
 package curve.mds.heartbeat;
 
 option cc_generic_services = true;
@@ -14,24 +15,25 @@ message CopySetInfo {
     required uint32 logicalPoolId = 1;
     required uint32 copysetId = 2;
     // copyset replicas, IP:PORT:ID, e.g. 127.0.0.1:8200:0
-    repeated string peers = 3;
+    repeated common.Peer peers = 3;
     // epoch, 用来标记配置变更，每变更一次，epoch会增加
     required uint64 epoch = 4;
     // 该复制组的leader
-    required string leaderPeer = 5;
+    required common.Peer leaderPeer = 5;
     // 配置变更相关信息
     optional ConfigChangeInfo configChangeInfo = 6;
     // copyset的性能信息
     optional CopysetStatistics stats = 7;
 };
 
-// TODO(合并)： add information of peerID
 message ConfigChangeInfo {
-    required string peer = 1;
+    required common.Peer peer = 1;
+    // 配置变更的类型
+    required ConfigChangeType type = 2;
     // 配置变更是否成功
-    required bool finished = 2;
+    required bool finished = 3;
     // 变更的error信息
-    optional CandidateError err = 3;
+    optional CandidateError err = 4;
 };
 
 message CandidateError {
@@ -46,7 +48,6 @@ message CopysetStatistics {
     required uint32 writeIOPS = 4;
 }
 
-// TODO(zhouwenyu): 如何更好定义
 message DiskState {
     required uint32 errType = 1;
     required string errMsg = 2;
@@ -62,10 +63,10 @@ message ChunkServerStatisticInfo {
 message ChunkServerHeartbeatRequest {
     required uint32 chunkServerID = 1;
     required string token = 2;
-    required DiskState diskState = 3;
-    required uint64 diskCapacity = 4;
-    required string ip = 5;
-    required uint32 port = 6;
+    required string ip = 3;
+    required uint32 port = 4;
+    required DiskState diskState = 5;
+    required uint64 diskCapacity = 6;
     required uint64 diskUsed = 7;
     // 返回该chunk上所有copyset的信息
     repeated CopySetInfo copysetInfos = 8;
@@ -77,7 +78,6 @@ message ChunkServerHeartbeatRequest {
     required ChunkServerStatisticInfo stats = 11;
 };
 
-// TODO(合并): ConfigchangeInfo-ConfigChangeType
 enum ConfigChangeType {
     // 配置变更命令： leader转换
     TRANSFER_LEADER = 1;
@@ -89,18 +89,18 @@ enum ConfigChangeType {
     NONE = 4;
 };
 
-message CopysetConf {
+message CopySetConf {
     required uint32 logicalPoolId = 1;
     required uint32 copysetId = 2;
-    repeated string peers = 3;
+    repeated common.Peer peers = 3;
     required uint64 epoch = 4;
     optional ConfigChangeType type = 5;
-    optional string configchangeItem = 6;
+    optional common.Peer configchangeItem = 6;
 };
 
 message ChunkServerHeartbeatResponse {
     // 返回需要进行变更的copyset的信息
-    repeated CopysetConf needUpdateCopysets = 1;
+    repeated CopySetConf needUpdateCopysets = 1;
 };
 
 service HeartbeatService {

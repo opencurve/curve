@@ -44,9 +44,7 @@ static char* confPath[3] = {
 int RmDirData(std::string uri) {
     char cmd[1024] = "";
     std::string dir = FsAdaptorUtil::GetPathFromUri(uri);
-
     CHECK(dir != "") << "rmdir got empty dir string, halting immediately.";
-
     snprintf(cmd, sizeof(cmd) - 1, "rm -rf %s/*", dir.c_str());
 
     DVLOG(6) << "executing command: " << cmd;
@@ -69,7 +67,7 @@ int RemovePeersData(bool rmChunkServerMeta) {
     common::Configuration conf;
     for (int i = 0; i < 3; i ++) {
         conf.SetConfigPath(confPath[i]);
-        conf.LoadConfig();
+        CHECK(conf.LoadConfig()) << "load conf err";
 
         if (RmDirData(conf.GetStringValue("copyset.chunk_data_uri"))) {
             LOG(ERROR) << "Failed to remove node " << i
@@ -232,17 +230,18 @@ void HeartbeatTest::CleanPeer(const std::string& peer) {
             const curve::mds::heartbeat::CopySetInfo& info =
                 req->copysetinfos(i);
 
-            std::string peersStr = info.peers(0);
+            std::string peersStr = info.peers(0).address();
 
             DVLOG(6) << "Copyset " << i << " <" << info.logicalpoolid()
                      << ", " << info.copysetid()
                      << ">, epoch: " << info.epoch()
-                     << ", leader: " << info.leaderpeer()
+                     << ", leader: " << info.leaderpeer().address()
                      << ", peers: " << peersStr;
 
             if (info.has_configchangeinfo()) {
                 const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-                DVLOG(6) << "Config change info: peer: " << cxInfo.peer()
+                DVLOG(6) << "Config change info: peer: "
+                         << cxInfo.peer().address()
                          << ", finished: " << cxInfo.finished()
                          << ", errno: " << cxInfo.err().errtype()
                          << ", errmsg: " << cxInfo.err().errmsg();
@@ -250,7 +249,7 @@ void HeartbeatTest::CleanPeer(const std::string& peer) {
 
             {
                 // answer with cleaning peer response
-                CopysetConf* conf = resp->add_needupdatecopysets();
+                CopySetConf* conf = resp->add_needupdatecopysets();
 
                 conf->set_logicalpoolid(poolId);
                 conf->set_copysetid(copysetId);
@@ -337,7 +336,7 @@ void HeartbeatTest::WaitCopysetReady(const std::string& confStr) {
             break;
         }
         int64_t t1 = butil::monotonic_time_ms();
-        ASSERT_LT(t1 - t0, 10 * 1000);
+        ASSERT_LT(t1 - t0, 15 * 1000);
     }
 }
 
@@ -480,24 +479,25 @@ TEST_F(HeartbeatTest, TransferLeader) {
 
             std::string peersStr = "";
             for (int j = 0; j < info.peers_size(); j ++) {
-                peersStr += info.peers(j) + ",";
+                peersStr += info.peers(j).address() + ",";
             }
 
             DVLOG(6) << "Copyset " << i << " <" << info.logicalpoolid()
                      << ", " << info.copysetid()
                      << ">, epoch: " << info.epoch()
-                     << ", leader: " << info.leaderpeer()
+                     << ", leader: " << info.leaderpeer().address()
                      << ", peers: " << peersStr;
 
             if (info.has_configchangeinfo()) {
                 const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-                DVLOG(6) << "Config change info: peer: " << cxInfo.peer()
+                DVLOG(6) << "Config change info: peer: "
+                         << cxInfo.peer().address()
                          << ", finished: " << cxInfo.finished()
                          << ", errno: " << cxInfo.err().errtype()
                          << ", errmsg: " << cxInfo.err().errmsg();
             }
 
-            if (info.leaderpeer() == destPeers[dest]) {
+            if (info.leaderpeer().address() == destPeers[dest]) {
                 ++dest;
                 if (dest >= 3) {
                     break;
@@ -509,18 +509,22 @@ TEST_F(HeartbeatTest, TransferLeader) {
             std::string sender = req->ip() + ":" + std::to_string(req->port())
                                  + ":0";
 
-            if (info.leaderpeer() == sender) {
+            if (info.leaderpeer().address() == sender) {
                 // answer with adding peer response
-                CopysetConf* conf = resp->add_needupdatecopysets();
+                CopySetConf* conf = resp->add_needupdatecopysets();
 
                 conf->set_logicalpoolid(poolId);
                 conf->set_copysetid(copysetId);
                 for (int j = 0; j < info.peers_size(); j ++) {
-                    conf->add_peers(info.peers(j));
+                    auto replica = conf->add_peers();
+                    replica->set_address(info.peers(j).address());
                 }
+
+                auto replica = new ::curve::common::Peer();
+                replica->set_address(destPeers[dest]);
                 conf->set_epoch(info.epoch());
                 conf->set_type(curve::mds::heartbeat::TRANSFER_LEADER);
-                conf->set_configchangeitem(destPeers[dest]);
+                conf->set_allocated_configchangeitem(replica);
 
                 LOG(INFO) << "Answer peer " << sender
                           << " with transfering leader to " << destPeers[dest];
@@ -531,6 +535,9 @@ TEST_F(HeartbeatTest, TransferLeader) {
     ASSERT_LE(t1 - t0, 60 * 1000);
 
     LOG(INFO) << "Transfering leader finished successfully";
+    CleanPeer("127.0.0.1:8200:0");
+    CleanPeer("127.0.0.1:8201:0");
+    CleanPeer("127.0.0.1:8202:0");
 }
 
 TEST_F(HeartbeatTest, RemovePeer) {
@@ -581,18 +588,19 @@ TEST_F(HeartbeatTest, RemovePeer) {
 
             std::string peersStr = "";
             for (int j = 0; j < info.peers_size(); j ++) {
-                peersStr += info.peers(j) + ",";
+                peersStr += info.peers(j).address() + ",";
             }
 
             DVLOG(6) << "Copyset " << i << " <" << info.logicalpoolid()
                      << ", " << info.copysetid()
                      << ">, epoch: " << info.epoch()
-                     << ", leader: " << info.leaderpeer()
+                     << ", leader: " << info.leaderpeer().address()
                      << ", peers: " << peersStr;
 
             if (info.has_configchangeinfo()) {
                 const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-                DVLOG(6) << "Config change info: peer: " << cxInfo.peer()
+                DVLOG(6) << "Config change info: peer: "
+                         << cxInfo.peer().address()
                          << ", finished: " << cxInfo.finished()
                          << ", errno: " << cxInfo.err().errtype()
                          << ", errmsg: " << cxInfo.err().errmsg();
@@ -606,7 +614,7 @@ TEST_F(HeartbeatTest, RemovePeer) {
 
             bool taskFinished = true;
             for (int j = 0; j < info.peers_size(); j ++) {
-                if (info.peers(j) == destPeer) {
+                if (info.peers(j).address() == destPeer) {
                     taskFinished = false;
                 }
             }
@@ -614,18 +622,21 @@ TEST_F(HeartbeatTest, RemovePeer) {
                 break;
             }
 
-            if (info.leaderpeer() == sender) {
+            if (info.leaderpeer().address() == sender) {
                 // answer with removing peer response
-                CopysetConf* conf = resp->add_needupdatecopysets();
+                CopySetConf* conf = resp->add_needupdatecopysets();
 
                 conf->set_logicalpoolid(poolId);
                 conf->set_copysetid(copysetId);
                 for (int j = 0; j < info.peers_size(); j ++) {
-                    conf->add_peers(info.peers(j));
+                    auto replica = conf->add_peers();
+                    replica->set_address(info.peers(j).address());
                 }
+                auto replica = new ::curve::common::Peer();
+                replica->set_address(destPeer);
                 conf->set_epoch(info.epoch());
                 conf->set_type(curve::mds::heartbeat::REMOVE_PEER);
-                conf->set_configchangeitem(destPeer);
+                conf->set_allocated_configchangeitem(replica);
 
                 LOG(INFO) << "Answer peer " << sender
                           << " with removing peer response";
@@ -636,6 +647,9 @@ TEST_F(HeartbeatTest, RemovePeer) {
     ASSERT_LE(t1 - t0, 30 * 1000);
 
     LOG(INFO) << "Removing peer finished successfully";
+    CleanPeer("127.0.0.1:8200:0");
+    CleanPeer("127.0.0.1:8201:0");
+    CleanPeer("127.0.0.1:8202:0");
 }
 
 TEST_F(HeartbeatTest, CleanPeer_after_Configchange) {
@@ -692,17 +706,18 @@ TEST_F(HeartbeatTest, CleanPeer_after_Configchange) {
             const curve::mds::heartbeat::CopySetInfo& info =
                 req->copysetinfos(i);
 
-            std::string peersStr = info.peers(0);
+            std::string peersStr = info.peers(0).address();
 
             LOG(INFO) << "Copyset " << i << " <" << info.logicalpoolid()
                      << ", " << info.copysetid()
                      << ">, epoch: " << info.epoch()
-                     << ", leader: " << info.leaderpeer()
+                     << ", leader: " << info.leaderpeer().address()
                      << ", peers: " << peersStr;
 
             if (info.has_configchangeinfo()) {
                 const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-                LOG(INFO) << "Config change info: peer: " << cxInfo.peer()
+                LOG(INFO) << "Config change info: peer: "
+                         << cxInfo.peer().address()
                          << ", finished: " << cxInfo.finished()
                          << ", errno: " << cxInfo.err().errtype()
                          << ", errmsg: " << cxInfo.err().errmsg();
@@ -710,7 +725,7 @@ TEST_F(HeartbeatTest, CleanPeer_after_Configchange) {
 
             {
                 // answer with cleaning peer response
-                CopysetConf* conf = resp->add_needupdatecopysets();
+                CopySetConf* conf = resp->add_needupdatecopysets();
 
                 conf->set_logicalpoolid(poolId);
                 conf->set_copysetid(copysetId);
@@ -729,6 +744,9 @@ TEST_F(HeartbeatTest, CleanPeer_after_Configchange) {
 
     ASSERT_LE(t1 - t0, 30 * 1000);
     LOG(INFO) << "Cleaning peer " << peer << " finished successfully";
+    CleanPeer("127.0.0.1:8200:0");
+    CleanPeer("127.0.0.1:8201:0");
+    CleanPeer("127.0.0.1:8202:0");
 }
 
 TEST_F(HeartbeatTest, CleanPeer_not_exist_in_MDS) {
@@ -784,17 +802,18 @@ TEST_F(HeartbeatTest, CleanPeer_not_exist_in_MDS) {
             const curve::mds::heartbeat::CopySetInfo& info =
                 req->copysetinfos(i);
 
-            std::string peersStr = info.peers(0);
+            std::string peersStr = info.peers(0).address();
 
             LOG(INFO) << "Copyset " << i << " <" << info.logicalpoolid()
                      << ", " << info.copysetid()
                      << ">, epoch: " << info.epoch()
-                     << ", leader: " << info.leaderpeer()
+                     << ", leader: " << info.leaderpeer().address()
                      << ", peers: " << peersStr;
 
             if (info.has_configchangeinfo()) {
                 const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-                LOG(INFO) << "Config change info: peer: " << cxInfo.peer()
+                LOG(INFO) << "Config change info: peer: "
+                         << cxInfo.peer().address()
                          << ", finished: " << cxInfo.finished()
                          << ", errno: " << cxInfo.err().errtype()
                          << ", errmsg: " << cxInfo.err().errmsg();
@@ -802,7 +821,7 @@ TEST_F(HeartbeatTest, CleanPeer_not_exist_in_MDS) {
 
             {
                 // 设置response为空配置
-                CopysetConf* conf = resp->add_needupdatecopysets();
+                CopySetConf* conf = resp->add_needupdatecopysets();
 
                 conf->set_logicalpoolid(poolId);
                 conf->set_copysetid(copysetId);
@@ -823,22 +842,9 @@ TEST_F(HeartbeatTest, CleanPeer_not_exist_in_MDS) {
     // 心跳交互的到删除的时间应该在设置时间之内
     ASSERT_LE(t1 - t0, 30 * 1000);
     LOG(INFO) << "Cleaning peer " << peer << " finished successfully";
-}
-
-TEST_F(HeartbeatTest, CleanPeer_after_configchange) {
-    std::string endpoints =
-        "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
-    std::string peers[3] = {
-        "127.0.0.1:8200:0",
-        "127.0.0.1:8201:0",
-        "127.0.0.1:8202:0",
-    };
-    CreateCopysetPeers(endpoints);
-    WaitCopysetReady(endpoints);
-
-    for (int i = 0; i < 3; i ++) {
-        CleanPeer(peers[i]);
-    }
+    CleanPeer("127.0.0.1:8200:0");
+    CleanPeer("127.0.0.1:8201:0");
+    CleanPeer("127.0.0.1:8202:0");
 }
 
 TEST_F(HeartbeatTest, AddPeer) {
@@ -890,18 +896,19 @@ TEST_F(HeartbeatTest, AddPeer) {
 
             std::string peersStr = "";
             for (int j = 0; j < info.peers_size(); j ++) {
-                peersStr += info.peers(j) + ",";
+                peersStr += info.peers(j).address() + ",";
             }
 
             DVLOG(6) << "Copyset " << i << " <" << info.logicalpoolid()
                      << ", " << info.copysetid()
                      << ">, epoch: " << info.epoch()
-                     << ", leader: " << info.leaderpeer()
+                     << ", leader: " << info.leaderpeer().address()
                      << ", peers: " << peersStr;
 
             if (info.has_configchangeinfo()) {
                 const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-                DVLOG(6) << "Config change info: peer: " << cxInfo.peer()
+                DVLOG(6) << "Config change info: peer: "
+                         << cxInfo.peer().address()
                          << ", finished: " << cxInfo.finished()
                          << ", errno: " << cxInfo.err().errtype()
                          << ", errmsg: " << cxInfo.err().errmsg();
@@ -915,7 +922,7 @@ TEST_F(HeartbeatTest, AddPeer) {
 
             bool taskFinished = false;
             for (int j = 0; j < info.peers_size(); j ++) {
-                if (info.peers(j) == newPeer) {
+                if (info.peers(j).address() == newPeer) {
                     taskFinished = true;
                 }
             }
@@ -923,18 +930,20 @@ TEST_F(HeartbeatTest, AddPeer) {
                 break;
             }
 
-            if (info.leaderpeer() == sender) {
+            if (info.leaderpeer().address() == sender) {
                 // answer with adding peer response
-                CopysetConf* conf = resp->add_needupdatecopysets();
-
+                CopySetConf* conf = resp->add_needupdatecopysets();
                 conf->set_logicalpoolid(poolId);
                 conf->set_copysetid(copysetId);
                 for (int j = 0; j < info.peers_size(); j ++) {
-                    conf->add_peers(info.peers(j));
+                    auto replica = conf->add_peers();
+                    replica->set_address(info.peers(j).address());
                 }
+                auto replica = new ::curve::common::Peer();
+                replica->set_address(newPeer);
                 conf->set_epoch(info.epoch());
                 conf->set_type(curve::mds::heartbeat::ADD_PEER);
-                conf->set_configchangeitem(newPeer);
+                conf->set_allocated_configchangeitem(replica);
 
                 LOG(INFO) << "Answer peer " << sender
                           << " with adding peer response";

@@ -52,7 +52,6 @@ static int RunChunkServer(int i, int argc, char** argv) {
 int main(int argc, char* argv[]) {
     int ret;
     pid_t pids[3];
-
     testing::InitGoogleTest(&argc, argv);
 
     LOG_IF(ERROR, 0 != curve::chunkserver::RemovePeersData(true))
@@ -91,6 +90,7 @@ int main(int argc, char* argv[]) {
         }
         waitpid(pid, &ret, 0);
         LOG(INFO) << "Run all test end... Return code: " << ret;
+        LOG_IF(FATAL, ret != 0) << "Run all test faild";
 
         LOG(INFO) << "Stop all chunkserver";
         for (int i = 0; i < 3; i++) {

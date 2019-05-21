@@ -47,8 +47,7 @@ int CopysetNodeManager::ReloadCopysets() {
     std::string datadir =
         FsAdaptorUtil::GetPathFromUri(copysetNodeOptions_.chunkDataUri);
     if (!copysetNodeOptions_.localFileSystem->DirExists(datadir)) {
-        LOG(INFO) << "Failed to access data directory:  " << datadir
-                   << ", assume it is an uninitialized datastore";
+        LOG(INFO) << datadir << " not exist. copysets was never created";
         return 0;
     }
 

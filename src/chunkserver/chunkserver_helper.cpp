@@ -14,6 +14,8 @@
 
 namespace curve {
 namespace chunkserver {
+const uint64_t DefaultMagic = 0x6225929368674118;
+
 bool ChunkServerMetaHelper::EncodeChunkServerMeta(
     const ChunkServerMetadata &meta, std::string *out) {
     if (!out->empty()) {
@@ -64,10 +66,13 @@ uint32_t ChunkServerMetaHelper::MetadataCrc(
     uint32_t ver = meta.version();
     uint32_t id = meta.id();
     const char* token = meta.token().c_str();
+    uint64_t magic = DefaultMagic;
 
     crc = curve::common::CRC32(crc, reinterpret_cast<char*>(&ver), sizeof(ver));
     crc = curve::common::CRC32(crc, reinterpret_cast<char*>(&id), sizeof(id));
     crc = curve::common::CRC32(crc, token, meta.token().size());
+    crc = curve::common::CRC32(crc, reinterpret_cast<char*>(&magic),
+        sizeof(magic));
 
     return crc;
 }

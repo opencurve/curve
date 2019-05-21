@@ -17,7 +17,7 @@ namespace heartbeat {
 bool CopysetConfGenerator::GenCopysetConf(
     ChunkServerIdType reportId,
     const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
-    CopysetConf *copysetConf) {
+    ::curve::mds::heartbeat::CopySetConf *copysetConf) {
     // topolgy不存在上报的copyset,
     // 发一个空配置指导chunkserver将其删除
     ::curve::mds::topology::CopySetInfo recordCopySetInfo;
@@ -64,7 +64,7 @@ bool CopysetConfGenerator::GenCopysetConf(
 
 ChunkServerIdType CopysetConfGenerator::LeaderGenCopysetConf(
     const ::curve::mds::topology::CopySetInfo &copySetInfo,
-    CopysetConf *copysetConf) {
+    ::curve::mds::heartbeat::CopySetConf *copysetConf) {
     // 转发给调度模块
     return coordinator_->CopySetHeartbeat(copySetInfo, copysetConf);
 }
@@ -72,7 +72,7 @@ ChunkServerIdType CopysetConfGenerator::LeaderGenCopysetConf(
 bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
     const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
     const ::curve::mds::topology::CopySetInfo &recordCopySetInfo,
-    CopysetConf *copysetConf) {
+    ::curve::mds::heartbeat::CopySetConf *copysetConf) {
     // 如果copyset上面没有candidate, 并且MDS的Epoch>=非leader副本上报上来的Epoch， //NOLINT
     // 可以根据MDS的配置来删除副本
 
@@ -103,7 +103,7 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
             return false;
         } else {
             LOG(WARNING) << "report chunkserver: " << reportId
-                         << " is not a member or candidate of copyset("
+                         << " is not a replica or candidate of copyset("
                          << recordCopySetInfo.GetLogicalPoolId()
                          << "," << recordCopySetInfo.GetId() << ")";
         }
@@ -118,7 +118,11 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
             if (candidate.empty()) {
                 return false;
             }
-            copysetConf->set_configchangeitem(candidate);
+            auto replica = new ::curve::common::Peer();
+            replica->set_id(recordCopySetInfo.GetCandidate());
+            replica->set_address(candidate);
+            // replica不需要析构，内存由proto接管负责释放
+            copysetConf->set_allocated_configchangeitem(replica);
         }
 
         for (auto peer : recordCopySetInfo.GetCopySetMembers()) {
@@ -126,7 +130,9 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
             if (addPeer.empty()) {
                 return false;
             }
-            copysetConf->add_peers(addPeer);
+            auto replica = copysetConf->add_peers();
+            replica->set_id(peer);
+            replica->set_address(addPeer);
         }
         return true;
     }

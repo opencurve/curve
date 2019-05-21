@@ -113,7 +113,7 @@ TEST(CleanCore, testcleanfile) {
         .WillRepeatedly(Return(StoreStatus::KeyNotExist));
 
 
-        EXPECT_CALL(*storage, DeleteRecycleFile(_, _))
+        EXPECT_CALL(*storage, DeleteFile(_, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -134,7 +134,7 @@ TEST(CleanCore, testcleanfile) {
         .WillRepeatedly(Return(StoreStatus::KeyNotExist));
 
 
-        EXPECT_CALL(*storage, DeleteRecycleFile(_, _))
+        EXPECT_CALL(*storage, DeleteFile(_, _))
         .WillOnce(Return(StoreStatus::InternalError));
 
         FileInfo cleanFile;

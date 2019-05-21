@@ -295,7 +295,7 @@ void ChunkServer::InitCloneOptions(
 
 void ChunkServer::InitHeartbeatOptions(
     common::Configuration *conf, HeartbeatOptions *heartbeatOptions) {
-    heartbeatOptions->dataUri = conf->GetStringValue("copyset.chunk_data_uri");
+    heartbeatOptions->storeUri = conf->GetStringValue("chunkserver.stor_uri");
     heartbeatOptions->ip = conf->GetStringValue("global.ip");
     heartbeatOptions->port = conf->GetIntValue("global.port");
     heartbeatOptions->mdsIp = conf->GetStringValue("mds.ip");

@@ -45,7 +45,12 @@ TEST(OperatorStepTest, OperatorStepTest_TransferLeader_Test) {
     candidateError->set_errtype(1);
     testCopySetInfo.candidatePeerInfo = PeerInfo(2, 1, 1, "", 9000);
     testCopySetInfo.configChangeInfo.set_finished(false);
-    testCopySetInfo.configChangeInfo.set_peer("192.10.124:9000");
+    testCopySetInfo.configChangeInfo.set_type(
+        ConfigChangeType::TRANSFER_LEADER);
+    auto replica = new ::curve::common::Peer();
+    replica->set_id(4);
+    replica->set_address("192.10.12.4:9000:0");
+    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
     testCopySetInfo.configChangeInfo.set_allocated_err(candidateError);
     ASSERT_EQ(ApplyStatus::Failed,
               transferLeader->Apply(testCopySetInfo, &copySetConf));
@@ -54,14 +59,20 @@ TEST(OperatorStepTest, OperatorStepTest_TransferLeader_Test) {
     testCopySetInfo.leader = 1;
     testCopySetInfo.candidatePeerInfo = PeerInfo(2, 1, 1, "", 9000);
     testCopySetInfo.configChangeInfo.set_finished(false);
-    testCopySetInfo.configChangeInfo.set_peer("192.10.125:9000");
+    replica = new ::curve::common::Peer();
+    replica->set_id(5);
+    replica->set_address("192.10.12.5:9000:0");
+    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
     testCopySetInfo.configChangeInfo.release_err();
     ASSERT_EQ(ApplyStatus::OnGoing,
               transferLeader->Apply(testCopySetInfo, &copySetConf));
 
     // 6. transfer leader report not complete and candidate not match
     testCopySetInfo.candidatePeerInfo = PeerInfo(3, 1, 1, "", 9000);
-    testCopySetInfo.configChangeInfo.set_peer("192.10.126:9000");
+    replica = new ::curve::common::Peer();
+    replica->set_id(6);
+    replica->set_address("192.10.12.6:9000");
+    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
     ASSERT_EQ(ApplyStatus::Failed,
               transferLeader->Apply(testCopySetInfo, &copySetConf));
 }
@@ -87,7 +98,11 @@ TEST(OperatorSepTest, OperatorSepTest_AddPeer_Test) {
     // 3. add peer fail
     testCopySetInfo = originCopySetInfo;
     testCopySetInfo.candidatePeerInfo = PeerInfo(4, 1, 1, "", 9000);
-    testCopySetInfo.configChangeInfo.set_peer("192.168.10.4:9000");
+    auto replica = new ::curve::common::Peer();
+    replica->set_id(4);
+    replica->set_address("192.10.12.4:9000:0");
+    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
+    testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
     testCopySetInfo.configChangeInfo.set_finished(false);
     std::string *errMsg = new std::string("add peer failed");
     CandidateError *candidateError = new CandidateError();
@@ -106,7 +121,10 @@ TEST(OperatorSepTest, OperatorSepTest_AddPeer_Test) {
     // 5. config change item do not match
     testCopySetInfo.configChangeInfo.set_finished(true);
     testCopySetInfo.candidatePeerInfo = PeerInfo(5, 1, 1, "", 9000);
-    testCopySetInfo.configChangeInfo.set_peer("192.10.125:9000");
+    replica = new ::curve::common::Peer();
+    replica->set_id(5);
+    replica->set_address("192.10.12.5:9000:0");
+    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
     ASSERT_EQ(ApplyStatus::Failed,
               addPeer->Apply(testCopySetInfo, &copySetConf));
 }
@@ -133,7 +151,11 @@ TEST(OperatorStepTest, OperatorStepTest_RemovePeer_Test) {
     // 3. remove peer failed
     testCopySetInfo = originCopySetInfo;
     testCopySetInfo.candidatePeerInfo = PeerInfo(3, 1, 1, "", 9000);
-    testCopySetInfo.configChangeInfo.set_peer("192.10.124:9000");
+    auto replica = new ::curve::common::Peer();
+    replica->set_id(4);
+    replica->set_address("192.10.12.4:9000:0");
+    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
+    testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::REMOVE_PEER);
     std::string *errMsg = new std::string("remove peer err");
     CandidateError *candidateError = new CandidateError();
     candidateError->set_errtype(2);
@@ -152,7 +174,10 @@ TEST(OperatorStepTest, OperatorStepTest_RemovePeer_Test) {
 
     // 5. config change item do not match
     testCopySetInfo.candidatePeerInfo = PeerInfo(10, 1, 1, "", 9000);
-    testCopySetInfo.configChangeInfo.set_peer("192.168.10:9000");
+    replica = new ::curve::common::Peer();
+    replica->set_id(9);
+    replica->set_address("192.168.10.1:9000:0");
+    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
     testCopySetInfo.configChangeInfo.set_finished(true);
     ASSERT_EQ(ApplyStatus::Failed,
               removePeer->Apply(testCopySetInfo, &copySetConf));

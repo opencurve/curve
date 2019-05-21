@@ -330,14 +330,6 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
     ASSERT_EQ(fileinfo.seqnum(), listRes[0].seqnum());
 }
 
-TEST_F(TestNameServerStorageImp, test_deleterecyclefile) {
-    EXPECT_CALL(*client_, Delete(_))
-        .WillOnce(Return(EtcdErrCode::OK))
-        .WillOnce(Return(EtcdErrCode::DeadlineExceeded));
-    ASSERT_EQ(StoreStatus::OK, storage_->DeleteFile(1234, ""));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteFile(1234, ""));
-}
-
 TEST_F(TestNameServerStorageImp, test_putsegment) {
     PageFileSegment segment;
     EXPECT_CALL(*client_, Put(_, _))
