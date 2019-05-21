@@ -36,7 +36,6 @@ cc_binary(
         "//src/common:curve_common",
         "//include/client:include_client",
         "//proto:nameserver2_cc_proto",
-        "//proto:heartbeat_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client"
     ],
@@ -66,7 +65,7 @@ cc_library(
         "//src/common:curve_common",
         "//include/client:include_client",
         "//proto:nameserver2_cc_proto",
-        "//proto:heartbeat_cc_proto",
+        #"//proto:heartbeat_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client"
     ],
@@ -91,7 +90,6 @@ cc_binary(
         "//external:protobuf",
         "//src/common:curve_common",
         "//include/client:include_client",
-        "//proto:heartbeat_cc_proto",
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client"
@@ -116,7 +114,6 @@ cc_binary(
         "//external:protobuf",
         "//src/common:curve_common",
         "//include/client:include_client",
-        "//proto:heartbeat_cc_proto",
         "//proto:nameserver2_cc_proto",
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client"

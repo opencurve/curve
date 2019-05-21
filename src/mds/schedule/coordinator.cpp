@@ -88,7 +88,7 @@ void Coordinator::Stop() {
 
 ChunkServerIdType Coordinator::CopySetHeartbeat(
     const ::curve::mds::topology::CopySetInfo &originInfo,
-    ::curve::mds::heartbeat::CopysetConf *out) {
+    ::curve::mds::heartbeat::CopySetConf *out) {
     CopySetInfo info;
     if (!topo_->CopySetFromTopoToSchedule(originInfo, &info)) {
         LOG(ERROR) << "coordinator cannot convert copySet(logicalPoolId:"
@@ -125,13 +125,17 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
                     << res.configChangeItem << " from topology";
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
-        std::string candidate = ::curve::mds::topology::BuildPeerId(
-            chunkServer.info.ip, chunkServer.info.port, 0);
-        out->set_configchangeitem(candidate);
+        auto replica = new ::curve::common::Peer();
+        replica->set_id(res.configChangeItem);
+        replica->set_address(::curve::mds::topology::BuildPeerId(
+            chunkServer.info.ip, chunkServer.info.port, 0));
+        out->set_allocated_configchangeitem(replica);
 
         // set 副本
         for (auto peer : res.peers) {
-            out->add_peers(::curve::mds::topology::BuildPeerId(
+            auto replica = out->add_peers();
+            replica->set_id(peer.id);
+            replica->set_address(::curve::mds::topology::BuildPeerId(
                 peer.ip, peer.port, 0));
         }
         return res.configChangeItem;

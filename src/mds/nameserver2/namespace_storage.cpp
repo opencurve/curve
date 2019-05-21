@@ -105,26 +105,6 @@ StoreStatus NameServerStorageImp::DeleteFile(InodeID id,
     return getErrorCode(resCode);
 }
 
-StoreStatus NameServerStorageImp::DeleteRecycleFile(InodeID id,
-                            const std::string &filename) {
-    std::string storeKey;
-    if (GetStoreKey(FileType::INODE_RECYCLE_PAGEFILE, id, filename, &storeKey)
-        != StoreStatus::OK) {
-        LOG(ERROR) << "get store key failed,filename = " << filename;
-        return StoreStatus::InternalError;
-    }
-
-    // 先删缓存，再删etcd
-    cache_->Remove(storeKey);
-    int resCode = client_->Delete(storeKey);
-
-    if (resCode != EtcdErrCode::OK) {
-        LOG(ERROR) << "delete file of key: [" << std::hex << storeKey
-                   << "] err: " << resCode;
-    }
-    return getErrorCode(resCode);
-}
-
 StoreStatus NameServerStorageImp::DeleteSnapshotFile(InodeID id,
                                                 const std::string &filename) {
     std::string storeKey;
@@ -558,12 +538,6 @@ StoreStatus NameServerStorageImp::LoadSnapShotFile(
     std::vector<FileInfo> *snapshotFiles) {
     return ListFileInternal(SNAPSHOTFILEINFOKEYPREFIX,
                             SNAPSHOTFILEINFOKEYEND, snapshotFiles);
-}
-
-StoreStatus NameServerStorageImp::LoadRecycleFile(
-    std::vector<FileInfo> *recycleFiles) {
-    return ListFileInternal(RECYCLEFILEINFOKEYPREFIX,
-                            RECYCLEFILEINFOKEYEND, recycleFiles);
 }
 
 StoreStatus NameServerStorageImp::getErrorCode(int errCode) {

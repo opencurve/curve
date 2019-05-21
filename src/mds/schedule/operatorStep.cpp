@@ -35,7 +35,7 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
                    << ",copySetId: " << originInfo.id.second
                    << ") apply transfer leader from "
                    << this->from_ << " to " << this->to_
-                   << "failed, current leader is " << originInfo.leader;
+                   << " failed, current leader is " << originInfo.leader;
         return ApplyStatus::Failed;
     }
 
@@ -47,6 +47,7 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
         newConf->peers = originInfo.peers;
         newConf->type = ConfigChangeType::TRANSFER_LEADER;
         newConf->configChangeItem = this->to_;
+        LOG(ERROR) << originInfo.configChangeInfo.InitializationErrorString();
         return ApplyStatus::Ordered;
     }
 

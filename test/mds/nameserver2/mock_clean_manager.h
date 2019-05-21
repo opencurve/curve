@@ -10,6 +10,7 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 

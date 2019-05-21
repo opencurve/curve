@@ -21,17 +21,6 @@ proto_library(
 )
 
 cc_proto_library(
-    name = "heartbeat_cc_proto",
-    visibility = ["//visibility:public"],
-    deps = [":heartbeat_proto"],
-)
-
-proto_library(
-    name = "heartbeat_proto",
-    srcs = ["heartbeat.proto"],
-)
-
-cc_proto_library(
     name = "chunkserver-cc-protos",
     visibility = ["//visibility:public"],
     deps = [":chunkserver-protos"],
@@ -40,6 +29,7 @@ cc_proto_library(
 proto_library(
     name = "chunkserver-protos",
     srcs = glob([
+        "heartbeat.proto",
         "common.proto",
         "chunk.proto",
         "cli.proto",

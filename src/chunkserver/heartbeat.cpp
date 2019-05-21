@@ -39,7 +39,7 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     toStop_.store(false, std::memory_order_release);
     options_ = options;
 
-    dataDirPath_ = FsAdaptorUtil::GetPathFromUri(options_.dataUri);
+    storePath_ = FsAdaptorUtil::GetPathFromUri(options_.storeUri);
 
     butil::ip_t mdsIp;
     butil::ip_t csIp;
@@ -94,7 +94,7 @@ int Heartbeat::GetFileSystemSpaces(size_t* capacity, size_t* avail) {
     int ret;
     struct FileSystemInfo info;
 
-    ret = options_.fs->Statfs(dataDirPath_, &info);
+    ret = options_.fs->Statfs(storePath_, &info);
     if (ret != 0) {
         LOG(ERROR) << "Failed to get file system space information, "
                    << " error message: " << strerror(errno);
@@ -120,12 +120,14 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     std::vector<Peer> peers;
     copyset->ListPeers(&peers);
     for (Peer peer : peers) {
-        info->add_peers(peer.address().c_str());
+        auto replica = info->add_peers();
+        replica->set_address(peer.address().c_str());
     }
 
     PeerId leader = copyset->GetLeaderId();
-    info->set_leaderpeer(leader.to_string());
-
+    auto replica = new ::curve::common::Peer();
+    replica->set_address(leader.to_string());
+    info->set_allocated_leaderpeer(replica);
     IoPerfMetric metric;
     copyset->GetPerfMetrics(&metric);
 
@@ -137,9 +139,9 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     stats->set_writeiops(metric.writeIops);
     info->set_allocated_stats(stats);
 
-    ConfigChangeType    type;
-    Configuration       conf;
-    Peer                peer;
+    ConfigChangeType type;
+    Configuration conf;
+    Peer peer;
 
     if ((ret = copyset->GetConfChange(&type, &conf, &peer)) != 0) {
         LOG(ERROR) << "Failed to get config change state of copyset "
@@ -150,7 +152,14 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     }
 
     ConfigChangeInfo* confChxInfo = new ConfigChangeInfo();
-    confChxInfo->set_peer(peer.address());
+    replica = new(std::nothrow) ::curve::common::Peer();
+    if (replica == nullptr) {
+        LOG(ERROR) << "apply memory error";
+        return -1;
+    }
+    replica->set_address(peer.address());
+    confChxInfo->set_allocated_peer(replica);
+    confChxInfo->set_type(type);
     confChxInfo->set_finished(false);
     info->set_allocated_configchangeinfo(confChxInfo);
 
@@ -189,7 +198,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     ret = GetFileSystemSpaces(&cap, &avail);
     if (ret != 0) {
         LOG(ERROR) << "Failed to get file system space information for path "
-                   << dataDirPath_;
+                   << storePath_;
         return -1;
     }
     req->set_diskcapacity(cap);
@@ -232,18 +241,18 @@ void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
 
         std::string peersStr = "";
         for (int j = 0; j < info.peers_size(); j ++) {
-            peersStr += info.peers(j) + ",";
+            peersStr += info.peers(j).address() + ",";
         }
 
         DVLOG(6) << "Copyset " << i << " "
                  << ToGroupIdStr(info.logicalpoolid(), info.copysetid())
                  << ", epoch: " << info.epoch()
-                 << ", leader: " << info.leaderpeer()
+                 << ", leader: " << info.leaderpeer().address()
                  << ", peers: " << peersStr;
 
         if (info.has_configchangeinfo()) {
             const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-            DVLOG(6) << "Config change info: peer: " << cxInfo.peer()
+            DVLOG(6) << "Config change info: peer: " << cxInfo.peer().address()
                      << ", finished: " << cxInfo.finished()
                      << ", errno: " << cxInfo.err().errtype()
                      << ", errmsg: " << cxInfo.err().errmsg();
@@ -256,15 +265,15 @@ void Heartbeat::DumpHeartbeatResponse(const HeartbeatResponse& response) {
     if (count > 0) {
         DVLOG(6) << "Received " << count << " config change commands:";
         for (int i = 0; i < count; i ++) {
-            CopysetConf conf = response.needupdatecopysets(i);
+            CopySetConf conf = response.needupdatecopysets(i);
 
             int type = (conf.has_type()) ? conf.type() : 0;
             std::string item = (conf.has_configchangeitem()) ?
-                conf.configchangeitem() : "";
+                conf.configchangeitem().address() : "";
 
             std::string peersStr = "";
             for (int j = 0; j < conf.peers_size(); j ++) {
-                peersStr += conf.peers(j);
+                peersStr += conf.peers(j).address();
             }
 
             DVLOG(6) << "Config change " << i << ": "
@@ -307,7 +316,7 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
 int Heartbeat::ExecTask(const HeartbeatResponse& response) {
     int count = response.needupdatecopysets_size();
     for (int i = 0; i < count; i ++) {
-        CopysetConf conf = response.needupdatecopysets(i);
+        CopySetConf conf = response.needupdatecopysets(i);
         GroupNid groupId = ToGroupNid(conf.logicalpoolid(), conf.copysetid());
 
         uint64_t epoch = conf.epoch();
@@ -348,7 +357,7 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
         bool cleanPeer = true;
         for (int j = 0; j < conf.peers_size(); j ++) {
             std::string epStr = std::string(butil::endpoint2str(csEp_).c_str());
-            if (conf.peers(j).find(epStr) != std::string::npos) {
+            if (conf.peers(j).address().find(epStr) != std::string::npos) {
                 cleanPeer = false;
                 break;
             }
@@ -370,7 +379,7 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
             continue;
         }
         PeerId peerId;
-        std::string peerStr = conf.configchangeitem();
+        std::string peerStr = conf.configchangeitem().address();
         if (peerId.parse(peerStr) != 0) {
             TaskStatus status(EINVAL, "Failed to parse peerId against copyset"
                                       "<%u, %u>, received peerId %s",

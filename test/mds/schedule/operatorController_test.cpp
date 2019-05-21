@@ -103,7 +103,10 @@ TEST(OperatorControllerTest, OperatorControllerTest_ApplyOp_Test) {
     // 4. test apply operator failed
     originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, "", 9000);
     originCopySetinfo.configChangeInfo.set_finished(false);
-    originCopySetinfo.configChangeInfo.set_peer("192.168.10.5:9000");
+    auto replica = new ::curve::common::Peer();
+    replica->set_id(5);
+    replica->set_address("192.168.10.5:9000:0");
+    originCopySetinfo.configChangeInfo.set_allocated_peer(replica);
     std::string *errMsg = new std::string("execute operator err");
     CandidateError *candidateError = new CandidateError();
     candidateError->set_allocated_errmsg(errMsg);
@@ -116,6 +119,7 @@ TEST(OperatorControllerTest, OperatorControllerTest_ApplyOp_Test) {
     ASSERT_TRUE(opController->AddOperator(testOperator));
     originCopySetinfo.configChangeInfo.release_err();
     originCopySetinfo.configChangeInfo.set_finished(true);
+    originCopySetinfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
     originCopySetinfo.peers.emplace_back(
         PeerInfo(5, 4, 4, "192.168.10.1", 9000));
     ASSERT_FALSE(opController->ApplyOperator(originCopySetinfo, &copySetConf));
@@ -131,9 +135,12 @@ TEST(OperatorControllerTest, OperatorControllerTest_ApplyOp_Test) {
     // 7. test apply operator not finished
     originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, "", 9000);
     originCopySetinfo.configChangeInfo.set_finished(false);
-    originCopySetinfo.configChangeInfo.set_peer("192.168.10.5");
+    originCopySetinfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
+    auto replica1 = new ::curve::common::Peer();
+    replica1->set_id(5);
+    replica1->set_address("192.168.10.5:9000:0");
+    originCopySetinfo.configChangeInfo.set_allocated_peer(replica1);
     ASSERT_FALSE(opController->ApplyOperator(originCopySetinfo, &copySetConf));
-
     originCopySetinfo.configChangeInfo.Clear();
 }
 }  // namespace schedule

@@ -62,7 +62,7 @@ class Coordinator {
      */
     virtual ChunkServerIdType CopySetHeartbeat(
         const ::curve::mds::topology::CopySetInfo &originInfo,
-        ::curve::mds::heartbeat::CopysetConf *newConf);
+        ::curve::mds::heartbeat::CopySetConf *newConf);
 
     /**
      * @brief 根据配置初始化scheduler

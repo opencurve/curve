@@ -46,7 +46,7 @@ class CopysetConfGenerator {
     */
     bool GenCopysetConf(ChunkServerIdType reportId,
         const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
-        CopysetConf *copysetConf);
+        ::curve::mds::heartbeat::CopySetConf *copysetConf);
 
  private:
     /*
@@ -60,7 +60,7 @@ class CopysetConfGenerator {
     */
     ChunkServerIdType LeaderGenCopysetConf(
         const ::curve::mds::topology::CopySetInfo &copySetInfo,
-        CopysetConf *copysetConf);
+        ::curve::mds::heartbeat::CopySetConf *copysetConf);
 
     /*
     * @brief FollowerGenCopysetConf 处理follower copyset信息。比较上报的
@@ -77,7 +77,7 @@ class CopysetConfGenerator {
         ChunkServerIdType reportId,
         const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
         const ::curve::mds::topology::CopySetInfo &recordCopySetInfo,
-        CopysetConf *copysetConf);
+        ::curve::mds::heartbeat::CopySetConf *copysetConf);
 
     /*
     * @brief BuildPeerByChunkserverId 根据csId生成ip:port:id形式的string

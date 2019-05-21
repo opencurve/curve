@@ -17,8 +17,6 @@ using curve::common::TimeUtility;
 
 namespace curve {
 namespace mds {
-
-
 bool InitRecycleBinDir(NameServerStorage *storage) {
     FileInfo recyclebinFileInfo;
 

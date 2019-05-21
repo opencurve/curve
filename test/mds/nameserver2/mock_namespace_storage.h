@@ -30,9 +30,6 @@ class MockNameServerStorage : public NameServerStorage {
     MOCK_METHOD2(DeleteFile, StoreStatus(InodeID,
                                         const std::string &));
 
-    MOCK_METHOD2(DeleteRecycleFile, StoreStatus(InodeID id,
-                                                const std::string &filename));
-
     MOCK_METHOD2(DeleteSnapshotFile, StoreStatus(InodeID,
                                         const std::string &));
 
@@ -69,9 +66,6 @@ class MockNameServerStorage : public NameServerStorage {
                                     const FileInfo *));
     MOCK_METHOD1(LoadSnapShotFile,
         StoreStatus(std::vector<FileInfo> *snapShotFiles));
-
-    MOCK_METHOD1(LoadRecycleFile,
-        StoreStatus(std::vector<FileInfo> *recycleFiles));
 };
 
 }  // namespace mds

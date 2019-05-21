@@ -28,7 +28,7 @@ namespace chunkserver {
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
 using ConfigChangeInfo  = curve::mds::heartbeat::ConfigChangeInfo;
-using CopysetConf       = curve::mds::heartbeat::CopysetConf;
+using CopySetConf       = curve::mds::heartbeat::CopySetConf;
 using CandidateError    = curve::mds::heartbeat::CandidateError;
 using TaskStatus        = butil::Status;
 using CopysetNodePtr    = std::shared_ptr<CopysetNode>;
@@ -49,7 +49,7 @@ static uint64_t GetAtomicUint64(void* arg) {
 struct HeartbeatOptions {
     ChunkServerID           chunkserverId;
     std::string             chunkserverToken;
-    std::string             dataUri;
+    std::string             storeUri;
     std::string             mdsIp;
     std::string             ip;
     uint16_t                mdsPort;
@@ -207,8 +207,8 @@ class Heartbeat {
     // Copyset管理模块
     CopysetNodeManager* copysetMan_;
 
-    // ChunkServer数据目录
-    std::string dataDirPath_;
+    // ChunkServer目录
+    std::string storePath_;
 
     // 心跳选项
     HeartbeatOptions options_;

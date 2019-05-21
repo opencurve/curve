@@ -14,7 +14,6 @@ cc_library(
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
-        "//proto:heartbeat_cc_proto",
         "//proto:topology_cc_proto",
         "//src/common:curve_common",
         "//src/mds/topology",
