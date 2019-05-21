@@ -32,5 +32,6 @@ cc_test(
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//test/fs:fs_mock",
         "//test/chunkserver/datastore:datastore_mock",
+        "//external:json"
     ],
 )
