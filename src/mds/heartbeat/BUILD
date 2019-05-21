@@ -14,7 +14,7 @@ cc_library(
         "//external:brpc",
         "//external:gflags",
         "//external:glog",
-        "//proto:heartbeat_cc_proto",
+        "//proto:chunkserver-cc-protos",
         "//proto:topology_cc_proto",
         "//src/common:curve_common",
         "//src/common/concurrent:curve_concurrent",

@@ -135,7 +135,7 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
     }
 
     // delete the storage
-    StoreStatus ret =  storage_->DeleteRecycleFile(commonFile.parentid(),
+    StoreStatus ret =  storage_->DeleteFile(commonFile.parentid(),
                                                    commonFile.filename());
     if (ret != StoreStatus::OK) {
         LOG(INFO) << "delete common file error, retCode = " << ret;

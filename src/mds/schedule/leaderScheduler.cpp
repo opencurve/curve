@@ -42,8 +42,8 @@ int LeaderScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
     }
 
     LOG(INFO) << "leaderScheduler select two chunkserver, (id:" << maxId
-              << ", leaderCount:" << maxLeaderCount << "), (id:" << minId
-              << ", leaderCount:" << minLeaderCount << ")";
+              << ", maxLeaderCount:" << maxLeaderCount << "), (id:" << minId
+              << ", minleaderCount:" << minLeaderCount << ")";
 
     // leader (最大值-最小值 <= 1) 的时候无需进行transfer
     if (maxLeaderCount >= 0 &&

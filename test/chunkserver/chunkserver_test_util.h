@@ -15,6 +15,7 @@
 #include <vector>
 #include <set>
 #include <memory>
+#include <unordered_map>
 
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 #include "include/chunkserver/chunkserver_common.h"

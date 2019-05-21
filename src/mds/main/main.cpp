@@ -213,6 +213,12 @@ int curve_main(int argc, char **argv) {
                   << conf.GetIntValue("mds.etcd.retry.times");
         return -1;
     } else {
+        std::string out;
+        res = client->Get("test", &out);
+        if (res != EtcdErrCode::OK && res != EtcdErrCode::KeyNotExist) {
+            LOG(ERROR) << "Run mds err. Check if etcd is running.";
+            return -1;
+        }
         LOG(INFO) << "init etcd client ok! "
                   << "etcdaddr: " << etcdConf.Endpoints
                   << ", etcdaddr len: " << etcdConf.len

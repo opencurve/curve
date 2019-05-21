@@ -17,6 +17,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "proto/topology.pb.h"
 #include "src/mds/topology/topology_service_manager.h"

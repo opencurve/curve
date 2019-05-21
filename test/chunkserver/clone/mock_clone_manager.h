@@ -10,6 +10,7 @@
 
 #include <gmock/gmock.h>
 #include <string>
+#include <memory>
 
 #include "src/chunkserver/clone_manager.h"
 

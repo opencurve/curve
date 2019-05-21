@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <utility>
 #include "src/client/client_common.h"
 #include "test/client/fake/mockMDS.h"
 #include "test/client/fake/fakeChunkserver.h"

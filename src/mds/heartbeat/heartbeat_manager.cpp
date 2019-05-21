@@ -96,10 +96,10 @@ void HeartbeatManager::ChunkServerHeartbeat(
         }
 
         // 把上报的copyset的信息转发到CopysetConfGenerator模块处理
-        CopysetConf conf;
+        CopySetConf conf;
         if (copysetConfGenerator_->GenCopysetConf(
                 request.chunkserverid(), reportCopySetInfo, &conf)) {
-            CopysetConf *res = response->add_needupdatecopysets();
+            CopySetConf *res = response->add_needupdatecopysets();
             *res = conf;
         }
 
@@ -115,9 +115,9 @@ bool HeartbeatManager::CheckRequest(
     ChunkServer chunkServer;
     // 所有的字段是否都初始化
     if (!request.IsInitialized()) {
-        LOG(ERROR) << "heartbeatManager receive heartbeat from chunkServer: "
-                   << request.chunkserverid()
-                   << " but not all required field is initialized";
+        LOG(ERROR) << "heartbeatManager receive heartbeat from unknown"
+                   " chunkServer not all required field is initialized: "
+                   << request.InitializationErrorString();
         return false;
     }
 
@@ -170,14 +170,14 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
     std::set<ChunkServerIdType> peers;
     ChunkServerIdType leader;
     for (auto value : info.peers()) {
-        ChunkServerIdType res = GetChunkserverIdByPeerStr(value);
+        ChunkServerIdType res = GetChunkserverIdByPeerStr(value.address());
         if (UNINTIALIZE_ID == res) {
             LOG(ERROR) << "heartbeat manager can not get chunkServerInfo"
-                       " according to report ipPort: " << value;
+                       " according to report ipPort: " << value.address();
             return false;
         }
 
-        if (value == info.leaderpeer()) {
+        if (value.address() == info.leaderpeer().address()) {
             leader = res;
         }
         peers.emplace(res);
@@ -190,11 +190,11 @@ bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(
     // 设置配置变更信息
     if (info.configchangeinfo().IsInitialized()) {
         ChunkServerIdType res =
-            GetChunkserverIdByPeerStr(info.configchangeinfo().peer());
+            GetChunkserverIdByPeerStr(info.configchangeinfo().peer().address());
         if (res == UNINTIALIZE_ID) {
             LOG(ERROR) << "heartbeat manager can not get chunkServerInfo"
                        "according to report candidate ipPort: "
-                       << info.configchangeinfo().peer();
+                       << info.configchangeinfo().peer().address();
             return false;
         }
         topoCopysetInfo.SetCandidate(res);

@@ -9,6 +9,7 @@
 #define TEST_CHUNKSERVER_MOCK_COPYSET_NODE_H_
 
 #include <gmock/gmock.h>
+#include <memory>
 
 #include "src/chunkserver/copyset_node.h"
 

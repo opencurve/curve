@@ -73,18 +73,6 @@ class NameServerStorage {
     virtual StoreStatus DeleteFile(InodeID id,
                                 const std::string &filename) = 0;
 
-    // TODO(lixiaocui) GetRecycleFile DeleteRecycleFile当前用不到，需要删除
-    /**
-     * @brief DeleteRecycleFile 删除回收站文件
-     *
-     * @param[in] id 待删除文件的parent inode id
-     * @param[in] filename 待删除文件的name
-     *
-     * @return StoreStatus 错误码
-     */
-    virtual StoreStatus DeleteRecycleFile(InodeID id,
-                                const std::string &filename) = 0;
-
     /**
      * @brief DeleteSnapshotFile 删除快照文件
      *
@@ -214,16 +202,6 @@ class NameServerStorage {
      */
     virtual StoreStatus LoadSnapShotFile(
                                     std::vector<FileInfo> *snapShotFiles) = 0;
-
-    /**
-     * @brief LoadRecycleFile 加载所有recycleFile元信息
-     *
-     * @param[out] recycleFile 待删除文件元信息列表
-     *
-     * @retrun StoreStatus 错误码
-     */
-    virtual StoreStatus LoadRecycleFile(
-                                    std::vector<FileInfo> *recycleFiles) = 0;
 };
 
 class NameServerStorageImp : public NameServerStorage {
@@ -240,9 +218,6 @@ class NameServerStorageImp : public NameServerStorage {
 
     StoreStatus DeleteFile(InodeID id,
                             const std::string &filename) override;
-
-    StoreStatus DeleteRecycleFile(InodeID id,
-                              const std::string &filename) override;
 
     StoreStatus DeleteSnapshotFile(InodeID id,
                          const std::string &filename) override;
@@ -280,8 +255,6 @@ class NameServerStorageImp : public NameServerStorage {
                             const FileInfo * snapshotFileInfo) override;
 
     StoreStatus LoadSnapShotFile(std::vector<FileInfo> *snapShotFiles) override;
-
-  StoreStatus LoadRecycleFile(std::vector<FileInfo> *recycleFiles) override;
 
  private:
     StoreStatus ListFileInternal(const std::string& startStoreKey,

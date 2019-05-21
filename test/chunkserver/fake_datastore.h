@@ -8,6 +8,7 @@
 #ifndef TEST_CHUNKSERVER_FAKE_DATASTORE_H_
 #define TEST_CHUNKSERVER_FAKE_DATASTORE_H_
 
+#include <memory>
 #include <string>
 #include <set>
 #include <vector>

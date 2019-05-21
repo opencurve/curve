@@ -4,7 +4,7 @@
  * Author: lixiaocui
  * Copyright (c) 2018 netease
  */
-
+#include <glog/logging.h>
 #include <string>
 #include "test/mds/heartbeat/common.h"
 
@@ -28,16 +28,20 @@ ChunkServerHeartbeatRequest GetChunkServerHeartbeatRequestForTest() {
     state->set_allocated_errmsg(errMsg);
     request.set_allocated_diskstate(state);
 
-    CopySetInfo info;
-    info.set_logicalpoolid(1);
-    info.set_copysetid(1);
-    info.set_epoch(10);
-    info.set_leaderpeer("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.1:9000:0");
-    info.add_peers("192.168.10.2:9000:0");
-    info.add_peers("192.168.10.3:9000:0");
-    auto addInfo = request.add_copysetinfos();
-    *addInfo = info;
+    auto info = request.add_copysetinfos();
+    info->set_logicalpoolid(1);
+    info->set_copysetid(1);
+    info->set_epoch(10);
+    for (int i = 1; i <= 3; i++) {
+        std::string ip = "192.168.10." + std::to_string(i) + ":9000:0";
+        auto peer = info->add_peers();
+        peer->set_address(ip);
+        if (i == 1) {
+            auto peer = new ::curve::common::Peer();
+            peer->set_address(ip);
+            info->set_allocated_leaderpeer(peer);
+        }
+    }
 
     auto *stats = new ChunkServerStatisticInfo();
     stats->set_readiops(1);
