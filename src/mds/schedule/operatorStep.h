@@ -17,10 +17,10 @@ namespace curve {
 namespace mds {
 namespace schedule {
 enum ApplyStatus {
-  Finished,
-  Failed,
-  Ordered,
-  OnGoing
+    Finished,
+    Failed,
+    Ordered,
+    OnGoing
 };
 
 /**
@@ -29,73 +29,80 @@ enum ApplyStatus {
  */
 class OperatorStep {
  public:
-  /**
-   * @brief execute OperatorStep
-   */
-  virtual ApplyStatus Apply(const CopySetInfo &originInfo,
-                            CopySetConf *newConf) = 0;
+    /**
+     * @brief execute OperatorStep
+     */
+    virtual ApplyStatus Apply(const CopySetInfo &originInfo,
+                                CopySetConf *newConf) = 0;
+    virtual std::string OperatorStepToString() = 0;
 };
 
 class TransferLeader : public OperatorStep {
  public:
-  TransferLeader(ChunkServerIdType from, ChunkServerIdType to);
+    TransferLeader(ChunkServerIdType from, ChunkServerIdType to);
 
-  /**
-   * @brief 可能的场景如下：
-   * 1. to_已经是leader,变更成功
-   * 2. 上报的信息没有configchangeItem, 下发变更命令
-   * 3. 上报的信息有configchangeItem, 但是和目的leader不匹配, 说明有正在执行的operator,可能由于
-   * mds重启丢掉了, 此时应该直接让新的operator失败并移除
-   * 4. 上报配置变更失败, transferleader失败并移除
-   * 5. 正在配置变更过程中, 不做任何操作
-   */
-  ApplyStatus Apply(const CopySetInfo &originInfo,
-                    CopySetConf *newConf) override;
+    /**
+     * @brief 可能的场景如下：
+     * 1. to_已经是leader,变更成功
+     * 2. 上报的信息没有configchangeItem, 下发变更命令
+     * 3. 上报的信息有configchangeItem, 但是和目的leader不匹配, 说明有正在执行的operator,可能由于 //NOLINT
+     * mds重启丢掉了, 此时应该直接让新的operator失败并移除
+     * 4. 上报配置变更失败, transferleader失败并移除
+     * 5. 正在配置变更过程中, 不做任何操作
+     */
+    ApplyStatus Apply(const CopySetInfo &originInfo,
+                        CopySetConf *newConf) override;
+
+    std::string OperatorStepToString() override;
 
  private:
-  ChunkServerIdType from_;
-  ChunkServerIdType to_;
+    ChunkServerIdType from_;
+    ChunkServerIdType to_;
 };
 
 class AddPeer : public OperatorStep {
  public:
-  explicit AddPeer(ChunkServerIdType peerID);
+    explicit AddPeer(ChunkServerIdType peerID);
 
-  /**
-   * @brief
-   * 1. add_已经是replica中的一个,变更成功
-   * 2. 上报的信息没有configchangeItem, 下发变更命令
-   * 3. 上报的信息有configchangeItem, 但是和add_不匹配, 说明有正在执行的operator,可能由于
-   * mds重启丢掉了, 此时应该直接让新的operator失败并移除
-   * 4. 上报配置变更失败, addPeer失败并移除
-   * 5. 正在配置变更过程中, 不做任何操作
-   */
-  ApplyStatus Apply(const CopySetInfo &originInfo,
-                    CopySetConf *newConf) override;
-  ChunkServerIdType GetTargetPeer() const;
+    /**
+     * @brief
+     * 1. add_已经是replica中的一个,变更成功
+     * 2. 上报的信息没有configchangeItem, 下发变更命令
+     * 3. 上报的信息有configchangeItem, 但是和add_不匹配, 说明有正在执行的operator,可能由于 //NOLINT
+     * mds重启丢掉了, 此时应该直接让新的operator失败并移除
+     * 4. 上报配置变更失败, addPeer失败并移除
+     * 5. 正在配置变更过程中, 不做任何操作
+     */
+    ApplyStatus Apply(const CopySetInfo &originInfo,
+                        CopySetConf *newConf) override;
+
+    ChunkServerIdType GetTargetPeer() const;
+    std::string OperatorStepToString() override;
 
  private:
-  ChunkServerIdType add_;
+    ChunkServerIdType add_;
 };
 
 class RemovePeer : public OperatorStep {
  public:
-  explicit RemovePeer(ChunkServerIdType peerID);
+    explicit RemovePeer(ChunkServerIdType peerID);
 
-  /**
-   * @brief
-   * 1. remove_已经不是replica中的一个,变更成功
-   * 2. 上报的信息没有configchangeItem, 下发变更命令
-   * 3. 上报的信息有candidate, 但是和remove_不匹配, 说明有正在执行的operator,可能由于
-   * mds重启丢掉了, 此时应该直接让新的operator失败并移除
-   * 4. 上报配置变更失败, removePeer失败并移除
-   * 5. 正在配置变更过程中, 不做任何操作
-   */
-  ApplyStatus Apply(const CopySetInfo &originInfo,
-                    CopySetConf *newConf) override;
+    /**
+     * @brief
+     * 1. remove_已经不是replica中的一个,变更成功
+     * 2. 上报的信息没有configchangeItem, 下发变更命令
+     * 3. 上报的信息有candidate, 但是和remove_不匹配, 说明有正在执行的operator,可能由于
+     * mds重启丢掉了, 此时应该直接让新的operator失败并移除
+     * 4. 上报配置变更失败, removePeer失败并移除
+     * 5. 正在配置变更过程中, 不做任何操作
+     */
+    ApplyStatus Apply(const CopySetInfo &originInfo,
+                        CopySetConf *newConf) override;
+
+    std::string OperatorStepToString() override;
 
  private:
-  ChunkServerIdType remove_;
+    ChunkServerIdType remove_;
 };
 }  // namespace schedule
 }  // namespace mds

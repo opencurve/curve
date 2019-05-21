@@ -27,7 +27,7 @@ class TestLeaderSchedule : public ::testing::Test {
       opController_ = std::make_shared<OperatorController>(2);
       topoAdapter_ = std::make_shared<MockTopoAdapter>();
       leaderScheduler_ = std::make_shared<LeaderScheduler>(
-          opController_, 1, 10, 100, 1000);
+          opController_, 1, 10, 100, 1000, 0.2, 90, topoAdapter_);
   }
 
   void TearDown() override {
@@ -49,15 +49,19 @@ TEST_F(TestLeaderSchedule, test_no_chunkserverInfos) {
 }
 
 TEST_F(TestLeaderSchedule, test_has_chunkServer_offline) {
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(peer1, offlineState, 0, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo2(peer2, onlineState, 2, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo3(peer3, onlineState, 0, 100, 10, 10000, statInfo);
+    auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
+    ChunkServerInfo csInfo1(
+        peer1, offlineState, diskState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo2(
+        peer2, onlineState, diskState, 2, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo3(
+        peer3, onlineState, diskState, 0, 100, 10, 10000, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -83,17 +87,20 @@ TEST_F(TestLeaderSchedule, test_has_chunkServer_offline) {
 }
 
 TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
+    auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(peer1, onlineState, 0, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo2(peer2, onlineState, 2, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo3(peer3, onlineState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo1(
+        peer1, onlineState, diskState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo2(
+        peer2, onlineState, diskState, 2, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo3(
+        peer3, onlineState, diskState, 0, 100, 10, 10000, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
-
     PoolIdType poolId = 1;
     CopySetIdType copysetId = 1;
     CopySetKey copySetKey;
@@ -104,7 +111,7 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
     CopySetInfo copySet1(copySetKey, epoch, leader,
         std::vector<PeerInfo>({peer1, peer2, peer3}),
         ConfigChangeInfo{}, CopysetStatistics{});
-    copySet1.candidatePeerInfo = PeerInfo(1, 1, 1, "192.168.10.1", 9000);
+    copySet1.candidatePeerInfo = PeerInfo(1, 1, 1, 1, "192.168.10.1", 9000);
     auto replica = new ::curve::common::Peer();
     replica->set_id(1);
     replica->set_address("192.10.10.1:9000");
@@ -121,15 +128,19 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
 }
 
 TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
+    auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(peer1, onlineState, 0, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo2(peer2, onlineState, 2, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo3(peer3, onlineState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo1(
+        peer1, onlineState, diskState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo2(
+        peer2, onlineState, diskState, 2, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo3(
+        peer3, onlineState, diskState, 0, 100, 10, 10000, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -155,15 +166,19 @@ TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
 }
 
 TEST_F(TestLeaderSchedule, test_no_need_tranferLeaderOut) {
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
+    auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(peer1, onlineState, 0, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo2(peer2, onlineState, 1, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo3(peer3, onlineState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo1(
+        peer1, onlineState, diskState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo2(
+        peer2, onlineState, diskState, 1, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo3(
+        peer3, onlineState, diskState, 0, 100, 10, 10000, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -184,15 +199,19 @@ TEST_F(TestLeaderSchedule, test_no_need_tranferLeaderOut) {
 }
 
 TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
+    auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(peer1, onlineState, 0, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo2(peer2, onlineState, 2, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo3(peer3, onlineState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo1(
+        peer1, onlineState, diskState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo2(
+        peer2, onlineState, diskState, 2, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo3(
+        peer3, onlineState, diskState, 0, 100, 10, 10000, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -228,17 +247,22 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
 }
 
 TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
-    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
-    PeerInfo peer4(3, 4, 4, "192.168.10.4", 9000);
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
+    PeerInfo peer4(3, 4, 4, 1, "192.168.10.4", 9000);
     auto onlineState = ::curve::mds::topology::OnlineState::ONLINE;
     auto offlineState = ::curve::mds::topology::OnlineState::OFFLINE;
+    auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
-    ChunkServerInfo csInfo1(peer1, onlineState, 0, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo2(peer2, onlineState, 3, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo3(peer3, onlineState, 1, 100, 10, 10000, statInfo);
-    ChunkServerInfo csInfo4(peer4, onlineState, 1, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo1(
+        peer1, onlineState, diskState, 0, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo2(
+        peer2, onlineState, diskState, 3, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo3(
+        peer3, onlineState, diskState, 1, 100, 10, 10000, statInfo);
+    ChunkServerInfo csInfo4(
+        peer4, onlineState, diskState, 1, 100, 10, 10000, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3, csInfo4});
 
     PoolIdType poolId = 1;

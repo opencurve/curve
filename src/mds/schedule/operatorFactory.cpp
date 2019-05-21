@@ -6,6 +6,7 @@
  */
 
 #include <cstdint>
+#include <memory>
 #include "src/mds/schedule/operatorFactory.h"
 
 using ::std::chrono::steady_clock;

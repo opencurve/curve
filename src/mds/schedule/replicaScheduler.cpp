@@ -9,33 +9,35 @@
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorFactory.h"
 
+using ::curve::mds::topology::UNINTIALIZE_ID;
+
 namespace curve {
 namespace mds {
 namespace schedule {
 int ReplicaScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
     LOG(INFO) << "replicaScheduelr begin.";
     int oneRoundGenOp = 0;
-    for (auto copysetInfo : topo->GetCopySetInfos()) {
+    for (auto info : topo->GetCopySetInfos()) {
         // 如果copyset上面已经有operator,跳过
         Operator op;
-        if (opController_->GetOperatorById(copysetInfo.id, &op)) {
+        if (opController_->GetOperatorById(info.id, &op)) {
             continue;
         }
 
         // 如果copyset有配置变更的信息(增加副本，减少副本，leader变更)，跳过
         // 这种情况发生在mds重启的时候, operator不做持久化会丢失，
         // 实际正在进行配置变更
-        if (copysetInfo.configChangeInfo.IsInitialized()) {
-            LOG(WARNING) << "copySet(" << copysetInfo.id.first
-                         << "," << copysetInfo.id.second
+        if (info.configChangeInfo.IsInitialized()) {
+            LOG(WARNING) << "copySet(" << info.id.first
+                         << "," << info.id.second
                          << ") configchangeInfo has been initialized but "
                          "operator lost";
             continue;
         }
 
         int standardReplicaNum =
-            topo->GetStandardReplicaNumInLogicalPool(copysetInfo.id.first);
-        int copysetReplicaNum = copysetInfo.peers.size();
+            topo->GetStandardReplicaNumInLogicalPool(info.id.first);
+        int copysetReplicaNum = info.peers.size();
 
         if (copysetReplicaNum == standardReplicaNum) {
             // 副本数量等于标准值
@@ -43,58 +45,73 @@ int ReplicaScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
         } else if (copysetReplicaNum < standardReplicaNum) {
             // 副本数量小于标准值， 一次增加一个副本
             LOG(ERROR) << "replicaScheduler find copyset("
-                       << copysetInfo.id.first << "," << copysetInfo.id.second
+                       << info.id.first << "," << info.id.second
                        << ") replicaNum:" << copysetReplicaNum
                        << " smaller than standardReplicaNum:"
                        << standardReplicaNum;
 
             ChunkServerIdType csId =
-                    topo->SelectBestPlacementChunkServer(copysetInfo, -1);
-            if (csId == ::curve::mds::topology::UNINTIALIZE_ID) {
+                SelectBestPlacementChunkServer(info, UNINTIALIZE_ID);
+            // 未能找到合适的目标节点
+            if (csId == UNINTIALIZE_ID) {
                 LOG(ERROR) << "replicaScheduler can not select chunkServer"
                              "to repair copySet(logicalPoolId: "
-                           << copysetInfo.id.first << ",copySetId: "
-                           << copysetInfo.id.second << "), witch only has "
+                           << info.id.first << ",copySetId: "
+                           << info.id.second << "), witch only has "
                            << copysetReplicaNum << " but statandard is "
                            << standardReplicaNum;
                 continue;
+            // 有合适的目标节点
+            } else {
+                // 在目标节点上创建copyset
+                if (!topo->CreateCopySetAtChunkServer(info.id, csId)) {
+                    LOG(ERROR) << "replicaScheduler create copySet"
+                               "(logicalPoolId: " << info.id.first
+                               << ",copySetId: " << info.id.second
+                               << ") on chunkServer: " << csId << " error";
+                    continue;
+                }
+                LOG(ERROR) << "replicaScheduler create copySet(logicalPoolId: "
+                           << info.id.first << ",copySetId: " << info.id.second
+                           << ") on chunkServer: " << csId << " success";
             }
 
             Operator op = operatorFactory.CreateAddPeerOperator(
-                    copysetInfo, csId, OperatorPriority::HighPriority);
+                    info, csId, OperatorPriority::HighPriority);
             op.timeLimit = std::chrono::seconds(GetAddPeerTimeLimitSec());
-            if (opController_->AddOperator(op)) {
+            if (!opController_->AddOperator(op)) {
                 LOG(WARNING) << "replicaScheduler find copyset("
-                             << copysetInfo.id.first << ","
-                             << copysetInfo.id.second
+                             << info.id.first << ","
+                             << info.id.second
                              << ") replicaNum:" << copysetReplicaNum
                              << " smaller than standardReplicaNum:"
-                             << standardReplicaNum << "but cannot apply"
+                             << standardReplicaNum << " but cannot apply"
                              "operator right now";
-                oneRoundGenOp += 1;
+                continue;
             }
+            oneRoundGenOp += 1;
         } else {
             // 副本数量大于标准值， 一次移除一个副本
             LOG(ERROR) << "replicaScheduler find copyset("
-                       << copysetInfo.id.first << "," << copysetInfo.id.second
+                       << info.id.first << "," << info.id.second
                        << ") replicaNum:" << copysetReplicaNum
                        << " larger than standardReplicaNum:"
                        << standardReplicaNum;
 
             ChunkServerIdType csId =
-                    topo->SelectRedundantReplicaToRemove(copysetInfo);
-            if (csId == ::curve::mds::topology::UNINTIALIZE_ID) {
+                SelectRedundantReplicaToRemove(info);
+            if (csId == UNINTIALIZE_ID) {
                 LOG(WARNING) << "replicaScheduler can not select redundent "
                              "replica to remove on copySet(logicalPoolId: "
-                             << copysetInfo.id.first << ",copySetId: "
-                             << copysetInfo.id.second << "), witch has "
+                             << info.id.first << ",copySetId: "
+                             << info.id.second << "), witch has "
                              << copysetReplicaNum << " but standard is "
                              << standardReplicaNum;
                 continue;
             }
 
             Operator op = operatorFactory.CreateRemovePeerOperator(
-                    copysetInfo, csId, OperatorPriority::HighPriority);
+                    info, csId, OperatorPriority::HighPriority);
             op.timeLimit = std::chrono::seconds(GetRemovePeerTimeLimitSec());
             if (opController_->AddOperator(op)) {
                 oneRoundGenOp += 1;

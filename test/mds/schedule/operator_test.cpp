@@ -29,7 +29,7 @@ TEST(OperatorTest, OperatorTest_Apply_Test) {
     // 1. order remove peer
     auto originCopySetInfo = GetCopySetInfoForTest();
     originCopySetInfo.peers.emplace_back(
-        PeerInfo(4, 3, 4, "192.168.10.4", 9000));
+        PeerInfo(4, 3, 4, 1, "192.168.10.4", 9000));
     CopySetConf copySetConf;
     auto applyStatus = testOperator.Apply(originCopySetInfo, &copySetConf);
     ASSERT_EQ(ApplyStatus::Ordered, applyStatus);
@@ -37,7 +37,7 @@ TEST(OperatorTest, OperatorTest_Apply_Test) {
     ASSERT_EQ(ConfigChangeType::REMOVE_PEER, copySetConf.type);
 
     // 2. finish remove peer
-    originCopySetInfo.candidatePeerInfo = PeerInfo(3, 1, 1, "", 9000);
+    originCopySetInfo.candidatePeerInfo = PeerInfo(3, 1, 1, 1, "", 9000);
     originCopySetInfo.peers.erase(originCopySetInfo.peers.end() - 2);
     auto replica = new ::curve::common::Peer();
     replica->set_id(1);
@@ -54,7 +54,7 @@ TEST(OperatorTest, OperatorTest_Apply_Test) {
     CandidateError *candidateErr = new CandidateError();
     candidateErr->set_allocated_errmsg(errMsg);
     candidateErr->set_errtype(2);
-    originCopySetInfo.candidatePeerInfo = PeerInfo(3, 1, 1, "", 9000);
+    originCopySetInfo.candidatePeerInfo = PeerInfo(3, 1, 1, 1, "", 9000);
     originCopySetInfo.configChangeInfo.set_finished(false);
     replica = new ::curve::common::Peer();
     replica->set_id(1);
