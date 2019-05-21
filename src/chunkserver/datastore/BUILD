@@ -16,6 +16,7 @@ cc_library(
         "//include:include-common",
         "//include/chunkserver:include-chunkserver",
         "//src/fs:lfs",
-        "//src/common:curve_common"
+        "//src/common:curve_common",
+        "//external:json"
     ],
 )
