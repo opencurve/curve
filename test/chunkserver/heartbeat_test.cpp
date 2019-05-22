@@ -153,6 +153,7 @@ class HeartbeatTest : public ::testing::Test {
                                   ::google::protobuf::Closure* done);
 
     void SetUp() {
+        RemovePeersData();
         size_t      filesize =  10uL * 1024 * 1024 * 1024;
         std::string filename = "test.img";
         std::string confPath = "conf/client.conf";
@@ -167,16 +168,6 @@ class HeartbeatTest : public ::testing::Test {
     }
 
     void TearDown() {
-        std::string peers[3] = {
-            "127.0.0.1:8200:0",
-            "127.0.0.1:8201:0",
-            "127.0.0.1:8202:0",
-        };
-        for (int i = 0; i < 3; i ++) {
-            CleanPeer(peers[i]);
-        }
-        RemovePeersData();
-
         ReleaseHeartbeat();
         mds_->UnInitialize();
         delete mds_;
@@ -184,7 +175,6 @@ class HeartbeatTest : public ::testing::Test {
 
  private:
     FakeMDS*                    mds_;
-    // int                         fd_;
 
     mutable std::mutex          hbMtx_;
     std::condition_variable     hbCV_;
@@ -439,112 +429,6 @@ void HeartbeatTest::HeartbeatCallback(::google::protobuf::RpcController* cntl,
         activeTest_->SetHeartbeatInfo(cntl, request, response, done);
         activeTest_->GetCV().notify_all();
     }
-}
-
-TEST_F(HeartbeatTest, AddPeer) {
-    /*
-     * Create test copyset
-     */
-    std::string oldPeers = "127.0.0.1:8200:0,127.0.0.1:8201:0";
-    std::string newPeer = "127.0.0.1:8202:0";
-
-    CreateCopysetPeers(oldPeers);
-    CreateCopysetPeers(newPeer);
-
-    WaitCopysetReady(oldPeers);
-    WaitCopysetReady(newPeer);
-
-    LOG(INFO) << "Created test copyset for adding peer";
-
-    /*
-     * Fetch heartbeat request and answer it with adding peer response
-     */
-    ::google::protobuf::RpcController*  cntl;
-    ::google::protobuf::Closure*        done;
-    const HeartbeatRequest*             req;
-    HeartbeatResponse*                  resp;
-
-    int64_t t0 = butil::monotonic_time_ms();
-    int64_t t1 = butil::monotonic_time_ms();
-    while (t1 - t0 < 30 * 1000) {
-        GetHeartbeat(&cntl, &req, &resp, &done);
-        brpc::ClosureGuard done_guard(done);
-
-        DVLOG(6) << "Chunkserver ID: " << req->chunkserverid()
-                 << ", IP: " << req->ip() << ", port: " << req->port()
-                 << ", copyset count: " << req->copysetcount()
-                 << ", leader count: " << req->leadercount();
-        if (req->copysetinfos_size() >= 1) {
-            int i = 0;
-
-            for (; i < req->copysetinfos_size(); i ++) {
-                if ( req->copysetinfos(i).logicalpoolid() == poolId &&
-                     req->copysetinfos(i).copysetid() == copysetId ) {
-                    break;
-                }
-            }
-            ASSERT_LT(i, req->copysetinfos_size());
-
-            const curve::mds::heartbeat::CopySetInfo& info =
-                req->copysetinfos(i);
-
-            std::string peersStr = "";
-            for (int j = 0; j < info.peers_size(); j ++) {
-                peersStr += info.peers(j) + ",";
-            }
-
-            DVLOG(6) << "Copyset " << i << " <" << info.logicalpoolid()
-                     << ", " << info.copysetid()
-                     << ">, epoch: " << info.epoch()
-                     << ", leader: " << info.leaderpeer()
-                     << ", peers: " << peersStr;
-
-            if (info.has_configchangeinfo()) {
-                const ConfigChangeInfo& cxInfo = info.configchangeinfo();
-                DVLOG(6) << "Config change info: peer: " << cxInfo.peer()
-                         << ", finished: " << cxInfo.finished()
-                         << ", errno: " << cxInfo.err().errtype()
-                         << ", errmsg: " << cxInfo.err().errmsg();
-            }
-
-            std::string sender = req->ip() + ":" + std::to_string(req->port())
-                                 + ":0";
-            if (sender == newPeer) {
-                continue;
-            }
-
-            bool taskFinished = false;
-            for (int j = 0; j < info.peers_size(); j ++) {
-                if (info.peers(j) == newPeer) {
-                    taskFinished = true;
-                }
-            }
-            if (taskFinished) {
-                break;
-            }
-
-            if (info.leaderpeer() == sender) {
-                // answer with adding peer response
-                CopysetConf* conf = resp->add_needupdatecopysets();
-
-                conf->set_logicalpoolid(poolId);
-                conf->set_copysetid(copysetId);
-                for (int j = 0; j < info.peers_size(); j ++) {
-                    conf->add_peers(info.peers(j));
-                }
-                conf->set_epoch(info.epoch());
-                conf->set_type(curve::mds::heartbeat::ADD_PEER);
-                conf->set_configchangeitem(newPeer);
-
-                LOG(INFO) << "Answer peer " << sender
-                          << " with adding peer response";
-            }
-        }
-        t1 = butil::monotonic_time_ms();
-    }
-    ASSERT_LE(t1 - t0, 30 * 1000);
-
-    LOG(INFO) << "Adding peer finished successfully";
 }
 
 TEST_F(HeartbeatTest, TransferLeader) {
@@ -939,6 +823,128 @@ TEST_F(HeartbeatTest, CleanPeer_not_exist_in_MDS) {
     // 心跳交互的到删除的时间应该在设置时间之内
     ASSERT_LE(t1 - t0, 30 * 1000);
     LOG(INFO) << "Cleaning peer " << peer << " finished successfully";
+}
+
+TEST_F(HeartbeatTest, CleanPeer_after_configchange) {
+    std::string endpoints =
+        "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
+    std::string peers[3] = {
+        "127.0.0.1:8200:0",
+        "127.0.0.1:8201:0",
+        "127.0.0.1:8202:0",
+    };
+    CreateCopysetPeers(endpoints);
+    WaitCopysetReady(endpoints);
+
+    for (int i = 0; i < 3; i ++) {
+        CleanPeer(peers[i]);
+    }
+}
+
+TEST_F(HeartbeatTest, AddPeer) {
+    /*
+     * Create test copyset
+     */
+    std::string oldPeers = "127.0.0.1:8200:0,127.0.0.1:8201:0";
+    std::string newPeer = "127.0.0.1:8202:0";
+
+    CreateCopysetPeers(oldPeers);
+    CreateCopysetPeers(newPeer);
+
+    WaitCopysetReady(oldPeers);
+    WaitCopysetReady(newPeer);
+
+    LOG(INFO) << "Created test copyset for adding peer";
+
+    /*
+     * Fetch heartbeat request and answer it with adding peer response
+     */
+    ::google::protobuf::RpcController*  cntl;
+    ::google::protobuf::Closure*        done;
+    const HeartbeatRequest*             req;
+    HeartbeatResponse*                  resp;
+
+    int64_t t0 = butil::monotonic_time_ms();
+    int64_t t1 = butil::monotonic_time_ms();
+    while (t1 - t0 < 30 * 1000) {
+        GetHeartbeat(&cntl, &req, &resp, &done);
+        brpc::ClosureGuard done_guard(done);
+
+        DVLOG(6) << "Chunkserver ID: " << req->chunkserverid()
+                 << ", IP: " << req->ip() << ", port: " << req->port()
+                 << ", copyset count: " << req->copysetcount()
+                 << ", leader count: " << req->leadercount();
+        if (req->copysetinfos_size() >= 1) {
+            int i = 0;
+
+            for (; i < req->copysetinfos_size(); i ++) {
+                if ( req->copysetinfos(i).logicalpoolid() == poolId &&
+                     req->copysetinfos(i).copysetid() == copysetId ) {
+                    break;
+                }
+            }
+            ASSERT_LT(i, req->copysetinfos_size());
+
+            const curve::mds::heartbeat::CopySetInfo& info =
+                req->copysetinfos(i);
+
+            std::string peersStr = "";
+            for (int j = 0; j < info.peers_size(); j ++) {
+                peersStr += info.peers(j) + ",";
+            }
+
+            DVLOG(6) << "Copyset " << i << " <" << info.logicalpoolid()
+                     << ", " << info.copysetid()
+                     << ">, epoch: " << info.epoch()
+                     << ", leader: " << info.leaderpeer()
+                     << ", peers: " << peersStr;
+
+            if (info.has_configchangeinfo()) {
+                const ConfigChangeInfo& cxInfo = info.configchangeinfo();
+                DVLOG(6) << "Config change info: peer: " << cxInfo.peer()
+                         << ", finished: " << cxInfo.finished()
+                         << ", errno: " << cxInfo.err().errtype()
+                         << ", errmsg: " << cxInfo.err().errmsg();
+            }
+
+            std::string sender = req->ip() + ":" + std::to_string(req->port())
+                                 + ":0";
+            if (sender == newPeer) {
+                continue;
+            }
+
+            bool taskFinished = false;
+            for (int j = 0; j < info.peers_size(); j ++) {
+                if (info.peers(j) == newPeer) {
+                    taskFinished = true;
+                }
+            }
+            if (taskFinished) {
+                break;
+            }
+
+            if (info.leaderpeer() == sender) {
+                // answer with adding peer response
+                CopysetConf* conf = resp->add_needupdatecopysets();
+
+                conf->set_logicalpoolid(poolId);
+                conf->set_copysetid(copysetId);
+                for (int j = 0; j < info.peers_size(); j ++) {
+                    conf->add_peers(info.peers(j));
+                }
+                conf->set_epoch(info.epoch());
+                conf->set_type(curve::mds::heartbeat::ADD_PEER);
+                conf->set_configchangeitem(newPeer);
+
+                LOG(INFO) << "Answer peer " << sender
+                          << " with adding peer response";
+            }
+        }
+        t1 = butil::monotonic_time_ms();
+    }
+    ASSERT_LE(t1 - t0, 30 * 1000);
+
+    LOG(INFO) << "Adding peer finished successfully";
 }
 
 }  // namespace chunkserver
