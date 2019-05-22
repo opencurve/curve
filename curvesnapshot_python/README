@@ -1,0 +1,18 @@
+1.编译整个工程
+2.在curve目录下执行 ./curvesnapshot_python/config.sh
+3.编译curvesnapshot库
+4.拷贝生成libcurvesnapshot动态库到动态库可以搜索的路径
+5.接口封装在curvesnapshot.py中，可以通过import curvesnapshot使用
+
+eg：
+
+编译整个工程：
+bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true --define=libunwind=true
+
+在curve目录下执行配置脚本
+sh ./curvesnapshot_python/config.sh
+
+编译curvesnapshot库（需要增加一个linkopt选项，指定curvesnapshot_python/tmplib路径）：
+bazel build curvesnapshot_python:curvesnapshot   --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true --define=libunwind=true --linkopt -L/home/hzzhaojianming/curve/curvefs_python/tmplib
+
+编译成功，拷贝libcurvesnapshot.so并重命名为_curvesnapshot.so
