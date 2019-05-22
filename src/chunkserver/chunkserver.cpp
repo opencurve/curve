@@ -87,15 +87,17 @@ int ChunkServer::Run(int argc, char** argv) {
     ChunkServerMetadata metadata;
     // 从本地获取meta
     std::string metaPath = FsAdaptorUtil::GetPathFromUri(
-        registerOptions.chunserverStoreUri).c_str();
+        registerOptions.chunkserverMetaUri).c_str();
     if (fs->FileExists(metaPath)) {
-         LOG_IF(FATAL, GetChunkServerMetaFromLocal(
+        LOG_IF(FATAL, GetChunkServerMetaFromLocal(
                             registerOptions.chunserverStoreUri,
                             registerOptions.chunkserverMetaUri,
                             registerOptions.fs, &metadata) != 0)
             << "Failed to register to MDS.";
     } else {
         // 如果本地获取不到，向mds注册
+        LOG(INFO) << "meta file "
+                  << metaPath << " do not exist, register to mds";
         LOG_IF(FATAL, registerMDS.RegisterToMDS(&metadata) != 0)
             << "Failed to register to MDS.";
     }
@@ -106,10 +108,20 @@ int ChunkServer::Run(int argc, char** argv) {
     copysetNodeOptions.concurrentapply = &concurrentapply;
     copysetNodeOptions.chunkfilePool = chunkfilePool;
     copysetNodeOptions.localFileSystem = fs;
+    butil::ip_t ip;
+    if (butil::str2ip(copysetNodeOptions.ip.c_str(), &ip) < 0) {
+        LOG(FATAL) << "Invalid server IP provided: " << copysetNodeOptions.ip;
+        return -1;
+    }
+    butil::EndPoint endPoint = butil::EndPoint(ip, copysetNodeOptions.port);
+    if (!braft::NodeManager::GetInstance()->server_exists(endPoint)) {
+        braft::NodeManager::GetInstance()->add_address(endPoint);
+    }
     LOG_IF(FATAL, copysetNodeManager_.Init(copysetNodeOptions) != 0)
         << "Failed to initialize CopysetNodeManager.";
     LOG_IF(FATAL, copysetNodeManager_.ReloadCopysets() != 0)
         << "CopysetNodeManager Failed to reload copyset.";
+
 
     // 心跳模块初始化
     HeartbeatOptions heartbeatOptions;
@@ -157,12 +169,6 @@ int ChunkServer::Run(int argc, char** argv) {
     CHECK(0 == ret) << "Fail to add BRaftCliService";
 
     // raft service
-    butil::ip_t ip;
-    if (butil::str2ip(copysetNodeOptions.ip.c_str(), &ip) < 0) {
-        LOG(FATAL) << "Invalid server IP provided: " << copysetNodeOptions.ip;
-        return -1;
-    }
-    butil::EndPoint endPoint = butil::EndPoint(ip, copysetNodeOptions.port);
     braft::RaftServiceImpl raftService(endPoint);
     ret = server.AddService(&raftService,
         brpc::SERVER_DOESNT_OWN_SERVICE);
@@ -179,9 +185,6 @@ int ChunkServer::Run(int argc, char** argv) {
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add FileService";
 
-    if (!braft::NodeManager::GetInstance()->server_exists(endPoint)) {
-        braft::NodeManager::GetInstance()->add_address(endPoint);
-    }
 
     // 启动rpc service
     LOG(INFO) << "RPC server is going to serve on: "

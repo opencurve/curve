@@ -79,6 +79,7 @@ int CopysetNodeManager::ReloadCopysets() {
         if (!CreateCopysetNode(poolId, copysetId, conf)) {
             LOG(ERROR) << "Failed to recreate copyset: <"
                       << poolId << "," << copysetId << ">";
+            return -1;
         }
 
         LOG(INFO) << "Created copyset: <" << poolId << "," << copysetId << ">";
