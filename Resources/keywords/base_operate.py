@@ -10,6 +10,7 @@ from lib import shell_operator
 from swig import swig_operate
 import threading
 import random
+import time
 
 #clean_db
 def clean_db():
@@ -373,6 +374,17 @@ def loop_write_file(fd, num, offset, length):
 def background_loop_write_file(fd,num=10000,offset=config.offset, length=config.length):
     t = threading.Thread(target=loop_write_file, args=(fd,num,offset,length))
     t.start()
+    return t
+def check_write_isalive(t):
+    rc = t.is_alive()
+    logger.debug("thread is %s"%t)
+    logger.debug("rc is %s"%rc)
+    assert rc == True
+
+def wait_thread(t):
+    time.sleep(1)
+    t.join()
+
 
 def check_loop_read(fd, offset=config.offset, length=config.length):
     curvefs = swig_operate.LibCurve()
