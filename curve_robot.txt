@@ -1735,8 +1735,10 @@ start etcd with sleep
 	 Sleep		2s
 
 start services
-     start mds if not started
+	 start etcd if not start
+         start mds if not started
 	 check mds should be exsits
+	 create physical pool should success
 	 start chunkserver
 	 Sleep		2s
 	 check chunkserver should be exsits
@@ -1744,7 +1746,7 @@ start services
 	 #check snapshot server should be exsits
 	 start etcd if not start
 	 check etcd should be exsits
-	 create physical pool should success
+	 #create physical pool should success
 	 sleep  3
 	 create logicalpool with sleep
 
