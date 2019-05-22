@@ -1513,11 +1513,13 @@ read write with extend file
     [Setup]	file init
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
-    background loop write file   ${new_fd}
+    ${thread}   background loop write file   ${new_fd}
     sleep  3
+    check write isalive    ${thread}
     extend libcurve file
     sleep  3
     stop write
+    wait thread  ${thread}
     check loop read   ${new_fd}
 #    close libcurve file     ${new_fd}
     [Teardown]	    file clean      ${new_fd}
@@ -1527,14 +1529,16 @@ read write with close file
     [Setup]	file init
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
-    background loop write file   ${new_fd}
+    ${thread}   background loop write file   ${new_fd}
     sleep  3
+    check write isalive    ${thread}
     ${rc}   close libcurve file     ${new_fd}
     ${expect_rc}    evaluate    int(0)
     should be equal    ${rc}   ${expect_rc}
     stop write
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
+    wait thread  ${thread}
     check loop read   ${new_fd}
     [Teardown]	    file clean      ${new_fd}
 
@@ -1557,13 +1561,15 @@ read write with create same file
     [Setup]	file init
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
-    background loop write file   ${new_fd}
+    ${thread}   background loop write file   ${new_fd}
     sleep  3
+    check write isalive    ${thread}
     ${rc}   create libcurve file
     ${expect_rc}    evaluate    int(-1)
     should be equal    ${rc}   ${expect_rc}
     sleep  3
     stop write
+    wait thread  ${thread}
     check loop read   ${new_fd}
     [Teardown]	    file clean      ${new_fd}
 
@@ -1572,13 +1578,15 @@ read write with delete file
     [Setup]	file init
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
-    background loop write file   ${new_fd}
+    ${thread}   background loop write file   ${new_fd}
     sleep  3
+    check write isalive    ${thread}
     ${rc}   delete libcurve file
     ${expect_rc}    evaluate    int(-15)
     should be equal    ${rc}   ${expect_rc}
     sleep   3
     stop write
+    wait thread  ${thread}
     check loop read   ${new_fd}
     [Teardown]	    file clean      ${new_fd}
 
