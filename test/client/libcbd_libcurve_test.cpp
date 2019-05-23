@@ -27,6 +27,7 @@ using curve::client::EndPoint;
 
 #define BUFSIZE     4 * 1024
 #define FILESIZE    10uL * 1024 * 1024 * 1024
+#define NEWSIZE     20uL * 1024 * 1024 * 1024
 
 #define filename    "1_userinfo_test.img"
 
@@ -106,6 +107,23 @@ TEST(TestLibcbd, InitTest) {
     ASSERT_EQ(ret, 0);
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, 0);
+}
+
+TEST_F(TestLibcbdLibcurve, ExtendTest) {
+    int ret;
+    CurveOptions opt;
+
+    memset(&opt, 0, sizeof(opt));
+
+    // testing with conf specified
+    opt.conf = "./client.conf";
+    ret = cbd_lib_init(&opt);
+    ASSERT_EQ(ret, 0);
+    ret = cbd_lib_resize(filename, NEWSIZE);
+    ASSERT_EQ(ret, 0);
+
+    ret = cbd_lib_fini();
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 }
 
 TEST_F(TestLibcbdLibcurve, ReadWriteTest) {

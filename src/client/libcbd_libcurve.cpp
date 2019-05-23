@@ -77,4 +77,8 @@ int64_t cbd_libcurve_filesize(const char* filename) {
     return info.length;
 }
 
+int cbd_libcurve_resize(const char* filename, int64_t size) {
+    return Extend4Qemu(filename, size);
+}
+
 }  // extern "C"
