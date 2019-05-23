@@ -23,24 +23,58 @@ extern "C" {
 #define CURVE_INODE_APPENDECFILE 3
 
 #define CURVE_ERROR_OK  0
+// 文件或者目录已存在
 #define CURVE_ERROR_EXISTS 1
+// 操作失败
 #define CURVE_ERROR_FAILED 2
+// 禁止IO
 #define CURVE_ERROR_DISABLEIO 3
-#define CURVE_ERROR_AUTHFAIL 4   // 认证失败
+// 认证失败
+#define CURVE_ERROR_AUTHFAIL 4
+// 正在删除
 #define CURVE_ERROR_DELETING 5
+// 文件不存在
 #define CURVE_ERROR_NOTEXIST 6
+// 快照中
 #define CURVE_ERROR_UNDER_SNAPSHOT 7
+// 非快照期间
 #define CURVE_ERROR_NOT_UNDERSNAPSHOT 8
+// 删除错误
 #define CURVE_ERROR_DELETE_ERROR 9
-#define CURVE_ERROR_UNKNOWN 10
-
+// segment未分配
+#define CURVE_ERROR_NOT_ALLOCATE 10
+// 操作不支持
+#define CURVE_ERROR_NOT_SUPPORT 11
+// 目录非空
+#define CURVE_ERROR_NOT_EMPTY 12
+// 禁止缩容
+#define CURVE_ERROR_NO_SHRINK_BIGGER_FILE 13
+// session不存在
+#define CURVE_ERROR_SESSION_NOTEXISTS 14
+// 文件被占用
+#define CURVE_ERROR_FILE_OCCUPIED 15
+// 参数错误
+#define CURVE_ERROR_PARAM_ERROR 16
+// MDS一侧存储错误
+#define CURVE_ERROR_INTERNAL_ERROR 17
+// crc检查错误
+#define CURVE_ERROR_CRC_ERROR 18
+// request参数存在问题
+#define CURVE_ERROR_INVALID_REQUEST 19
+// 磁盘存在问题
+#define CURVE_ERROR_DISK_FAIL 20
+// 空间不足
+#define CURVE_ERROR_NO_SPACE 21
+// IO未对齐
+#define CURVE_ERROR_NOT_ALIGNED 22
+// 未知错误
+#define CURVE_ERROR_UNKNOWN 100
 
 #define CURVE_OP_READ 0
 #define CURVE_OP_WRITE 1
 
 
 typedef void (*AioCallBack)(struct AioContext* context);
-
 typedef struct AioContext {
     unsigned long offset;  //NOLINT
     unsigned long length;  //NOLINT
