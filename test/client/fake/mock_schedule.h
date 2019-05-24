@@ -26,13 +26,13 @@ using ::testing::Invoke;
 class Schedule {
  public:
     int ScheduleRequest(
-                const std::list<curve::client::RequestContext*>& reqlist);
+                const std::list<curve::client::RequestContext*> reqlist);
 };
 
 class MockRequestScheduler : public curve::client::RequestScheduler {
  public:
     using REQ = std::list<curve::client::RequestContext*>;
-    MOCK_METHOD1(ScheduleRequest, int(const REQ &));
+    MOCK_METHOD1(ScheduleRequest, int(const REQ));
 
     void DelegateToFake() {
         ON_CALL(*this, ScheduleRequest(_))

@@ -62,7 +62,7 @@ class RequestScheduler : public Uncopyable {
      * @param requests:请求列表
      * @return 0成功，-1失败
      */
-    virtual int ScheduleRequest(const std::list<RequestContext *> &requests);
+    virtual int ScheduleRequest(const std::list<RequestContext *> requests);
 
     /**
      * 将request push到Scheduler处理

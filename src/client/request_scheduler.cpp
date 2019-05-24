@@ -55,7 +55,7 @@ int RequestScheduler::Fini() {
     return 0;
 }
 
-int RequestScheduler::ScheduleRequest(const std::list<RequestContext *> &requests) {   //NOLINT
+int RequestScheduler::ScheduleRequest(const std::list<RequestContext *> requests) {   //NOLINT
     if (running_.load(std::memory_order_acquire)) {
         /* TODO(wudemiao): 后期考虑 qos */
         for (auto it : requests) {
