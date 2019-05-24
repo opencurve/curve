@@ -6,6 +6,7 @@ Library			  Collections
 Library           RequestsLibrary
 Library           Process
 Library           SSHLibrary
+Library           Resources/keywords/mythread.py
 Suite Setup       init cluster
 Suite Teardown    clean env
 
@@ -1525,11 +1526,11 @@ read write with extend file
     [Teardown]	    file clean      ${new_fd}
 
 read write with close file
-    [Tags]    P0    base    first release
+    [Tags]    P0    base    first release 
     [Setup]	file init
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
-    ${thread}   background loop write file   ${new_fd}
+    ${thread}   background loop write file noassert   ${new_fd}
     sleep  3
     check write isalive    ${thread}
     ${rc}   close libcurve file     ${new_fd}
@@ -1636,6 +1637,46 @@ read write with different io size
     ${new_fd}       Convert To Integer    ${fd}
     loop read write file with different iosize   ${new_fd}
     [Teardown]	    file clean      ${new_fd}
+
+
+mult thread to create delete dir
+    [Tags]    P0    base    first release
+#    [Setup]	file clean
+    ${num}   evaluate   int(100)
+    sleep   3
+    mult thread    create_libcurve_dir    ${num}
+    mult thread    delete_libcurve_dir   ${num}
+    [Teardown]	    file clean      none
+
+mult thread to create delete file
+    [Tags]    P0    base    first release
+#    [Setup]	file init
+    ${num}   evaluate   int(100)
+    mult thread   create_libcurve_file    ${num}
+    mult thread   statfs_libcurve_file   ${num}
+    mult thread   delete_libcurve_file   ${num}
+    [Teardown]	    file clean     none
+
+mult thread to open close file
+    [Tags]    P0    base    first release
+#    [Setup]	file init
+    ${num}   evaluate   int(100)
+    mult thread   create_libcurve_file    ${num}
+    mult thread   statfs_libcurve_file   ${num}
+    ${results}    mult thread   open_libcurve_file   ${num}
+    mult thread close file   ${results}  ${num}
+    mult thread   delete_libcurve_file   ${num}
+    [Teardown]	    file clean     none
+
+create delete multilevel dir
+    [Tags]    P0    base    first release
+    ${num}   evaluate   int(100)
+    create multi dir  ${num}
+    delete multi dir  ${num}
+    [Teardown]	    file clean     none
+
+
+
 
 snapshot test
     [Tags]    P1    base    first release   snapshot    no-need
