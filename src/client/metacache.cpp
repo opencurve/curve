@@ -93,7 +93,8 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
     ChunkServerAddr  leaderaddr;
     int ret = ServiceHelper::GetLeader(logicPoolId, copysetId,
                                       toupdateCopyset->csinfos_, &leaderaddr,
-                                      toupdateCopyset->GetCurrentLeaderIndex());
+                                      toupdateCopyset->GetCurrentLeaderIndex(),
+                                      metacacheopt_.getLeaderTimeOutMs);
 
     if (ret == -1) {
         LOG(ERROR) << "get leader failed!";

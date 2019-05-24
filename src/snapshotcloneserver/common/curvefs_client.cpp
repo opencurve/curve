@@ -23,7 +23,7 @@ int CurveFsClientImpl::Init(const CurveClientOptions &options) {
         = options.requestRetryIntervalUs;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = options.getLeaderRetry;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = options.enableApplyIndexRead;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = options.ioSplitSize;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = options.ioSplitSize;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = options.loglevel;
 

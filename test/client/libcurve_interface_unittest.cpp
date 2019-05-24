@@ -212,7 +212,7 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     writeaioctx.cb = writecallbacktest;
 
     // aiowrite not opened file
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, AioWrite(1234, &writeaioctx));
+    ASSERT_EQ(-LIBCURVE_ERROR::BAD_FD, AioWrite(1234, &writeaioctx));
 
     // aioread not opened file
     char* readbuffer = new char[8 * 1024];
@@ -221,16 +221,16 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     readaioctx.offset = 0;
     readaioctx.length = 8 * 1024;
     readaioctx.cb = readcallbacktest;
-    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, AioRead(1234, &readaioctx));
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::BAD_FD, AioRead(1234, &readaioctx));
 
     uint64_t offset = 0;
     uint64_t length = 8 * 1024;
 
     // write not opened file
-    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED,
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::BAD_FD,
                 Write(1234, buffer, offset, length));
     // read not opened file
-    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Read(1234,
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::BAD_FD, Read(1234,
                 readbuffer, offset, length));
 
     delete[] buffer;

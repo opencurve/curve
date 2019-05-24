@@ -93,7 +93,7 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
             return -1;
     }
 
-    auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSize;
+    auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSizeKB;
 
     uint64_t len = 0;
     uint64_t off = 0;
@@ -139,7 +139,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                             MDSClient* mdsclient,
                             const FInfo_t* fileinfo,
                             ChunkIndex chunkidx) {
-    auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSize;
+    auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSizeKB;
 
     ChunkIDInfo_t chinfo;
     SegmentInfo segInfo;
