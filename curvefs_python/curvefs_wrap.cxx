@@ -5965,7 +5965,21 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "CURVE_ERROR_UNDER_SNAPSHOT",SWIG_From_int(static_cast< int >(7)));
   SWIG_Python_SetConstant(d, "CURVE_ERROR_NOT_UNDERSNAPSHOT",SWIG_From_int(static_cast< int >(8)));
   SWIG_Python_SetConstant(d, "CURVE_ERROR_DELETE_ERROR",SWIG_From_int(static_cast< int >(9)));
-  SWIG_Python_SetConstant(d, "CURVE_ERROR_UNKNOWN",SWIG_From_int(static_cast< int >(10)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_NOT_ALLOCATE",SWIG_From_int(static_cast< int >(10)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_NOT_SUPPORT",SWIG_From_int(static_cast< int >(11)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_NOT_EMPTY",SWIG_From_int(static_cast< int >(12)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_NO_SHRINK_BIGGER_FILE",SWIG_From_int(static_cast< int >(13)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_SESSION_NOTEXISTS",SWIG_From_int(static_cast< int >(14)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_FILE_OCCUPIED",SWIG_From_int(static_cast< int >(15)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_PARAM_ERROR",SWIG_From_int(static_cast< int >(16)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_INTERNAL_ERROR",SWIG_From_int(static_cast< int >(17)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_CRC_ERROR",SWIG_From_int(static_cast< int >(18)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_INVALID_REQUEST",SWIG_From_int(static_cast< int >(19)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_DISK_FAIL",SWIG_From_int(static_cast< int >(20)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_NO_SPACE",SWIG_From_int(static_cast< int >(21)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_NOT_ALIGNED",SWIG_From_int(static_cast< int >(22)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_UNKNOWN",SWIG_From_int(static_cast< int >(100)));
+
   SWIG_Python_SetConstant(d, "CURVE_OP_READ",SWIG_From_int(static_cast< int >(0)));
   SWIG_Python_SetConstant(d, "CURVE_OP_WRITE",SWIG_From_int(static_cast< int >(1)));
 #if PY_VERSION_HEX >= 0x03000000
