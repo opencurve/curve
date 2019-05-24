@@ -64,7 +64,7 @@ int main(int argc, char ** argv) {
     "opRetryIntervalUs=200000\n"\
     "opMaxRetry=3\n"\
     "pre_allocate_context_num=1024\n"\
-    "ioSplitMaxSize=64\n"\
+    "ioSplitMaxSizeKB=64\n"\
     "enableAppliedIndexRead=1\n"\
     "loglevel=0";
 
