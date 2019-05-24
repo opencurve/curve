@@ -50,7 +50,7 @@ TEST(SnapInstance, SnapShotTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
@@ -446,7 +446,7 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
@@ -492,7 +492,7 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
@@ -527,7 +527,7 @@ TEST(SnapInstance, GetChunkInfoTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
@@ -561,7 +561,7 @@ TEST(SnapInstance, RecoverChunkTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
@@ -594,7 +594,7 @@ TEST(SnapInstance, CreateCloneChunkTest) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 

@@ -42,8 +42,9 @@ std::string config = "metaserver_addr=127.0.0.1:8000@127.0.0.1:8000\n"   // NOLI
 "threadpoolSize=2\n"\
 "opRetryIntervalUs=200000\n"\
 "opMaxRetry=3\n"\
+"rpcRetryTimes=3\n"\
 "pre_allocate_context_num=1024\n"\
-"ioSplitMaxSize=64\n"\
+"ioSplitMaxSizeKB=64\n"\
 "enableAppliedIndexRead=1\n"\
 "loglevel=0";
 using curve::client::FileClient;

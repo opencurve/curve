@@ -363,6 +363,13 @@ class MDSClient {
          }
     }
 
+    /**
+     * 递增controller id并返回
+     */
+    inline uint64_t GetLogId() {
+       return cntlID_.fetch_add(1);
+    }
+
  private:
     // 初始化标志，放置重复初始化
     bool            inited_;
@@ -381,6 +388,10 @@ class MDSClient {
 
     // client与mds通信的metric统计
     MDSClientMetric_t mdsClientMetric_;
+
+    // controller id，用于trace整个rpc IO链路
+    // 这里直接用uint64即可，在可预测的范围内，不会溢出
+    std::atomic<uint64_t> cntlID_;
 };
 }   // namespace client
 }   // namespace curve

@@ -21,7 +21,7 @@ using curve::common::WriteLockGuard;
 // TODO(tongguangxun) :为rpc添加uuid作为requestid
 namespace curve {
 namespace client {
-MDSClient::MDSClient() {
+MDSClient::MDSClient() : cntlID_(0) {
     inited_   = false;
     channel_  = nullptr;
 }
@@ -140,9 +140,11 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
 
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         LOG(INFO) << "OpenFile: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner;
+                  << ", owner = " << userinfo.owner
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -155,7 +157,8 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
             LOG(ERROR) << "open file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
-                        << cntl.ErrorText();
+                        << cntl.ErrorText()
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -186,7 +189,8 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
                 << "OpenFile: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         if (!infoComplete) {
             LOG(ERROR) << "mds response has no file info!";
@@ -210,6 +214,7 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::CreateFileRequest request;
         curve::mds::CreateFileResponse response;
@@ -225,7 +230,8 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
 
         LOG(INFO) << "CreateFile: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner
-                  << ", is nomalfile: " << normalFile;
+                  << ", is nomalfile: " << normalFile
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -241,7 +247,8 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry CreateFile, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -258,7 +265,8 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
                 << ", owner = " << userinfo.owner
                 << ", is nomalfile: " << normalFile
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -276,6 +284,7 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::CloseFileRequest request;
         curve::mds::CloseFileResponse response;
@@ -286,7 +295,8 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
 
         LOG(INFO) << "CloseFile: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner
-                  << ", sessionid = " << sessionid;
+                  << ", sessionid = " << sessionid
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -302,7 +312,8 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry CloseFile, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -319,7 +330,8 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
                 << ", owner = " << userinfo.owner
                 << ", sessionid = " << sessionid
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -337,6 +349,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::GetFileInfoRequest request;
         curve::mds::GetFileInfoResponse response;
@@ -345,7 +358,8 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
         FillUserInfo<curve::mds::GetFileInfoRequest>(&request, uinfo);
 
         LOG(INFO) << "GetFileInfo: filename = " << filename.c_str()
-                  << ", owner = " << uinfo.owner;
+                  << ", owner = " << uinfo.owner
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -359,7 +373,8 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
             LOG(ERROR)  << "get file info failed, error content:"
                         << cntl.ErrorText()
                         << ", retry GetFileInfo, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -371,8 +386,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
             curve::mds::FileInfo finfo = response.fileinfo();
             ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
         } else {
-            LOG(ERROR) << "response has no file info, try again!";
-            break;
+            LOG(ERROR) << "response has no file info!";
         }
 
         LIBCURVE_ERROR retcode;
@@ -383,7 +397,8 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
                 << "GetFileInfo: filename = " << filename.c_str()
                 << ", owner = " << uinfo.owner
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -402,6 +417,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         ::curve::mds::CreateSnapShotRequest request;
         ::curve::mds::CreateSnapShotResponse response;
@@ -411,7 +427,8 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         FillUserInfo<::curve::mds::CreateSnapShotRequest>(&request, userinfo);
 
         LOG(INFO) << "CreateSnapShot: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner;
+                  << ", owner = " << userinfo.owner
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -427,7 +444,8 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry CreateSnapShot, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -473,6 +491,7 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         ::curve::mds::DeleteSnapShotRequest request;
         ::curve::mds::DeleteSnapShotResponse response;
@@ -484,7 +503,8 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
 
         LOG(INFO) << "DeleteSnapShot: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner
-                  << ", seqnum = " << seq;
+                  << ", seqnum = " << seq
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -500,7 +520,8 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry DeleteSnapShot, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -517,7 +538,8 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
                 << ", owner = " << userinfo.owner
                 << ", seqnum = " << seq
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -537,6 +559,7 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         ::curve::mds::ListSnapShotFileInfoRequest request;
         ::curve::mds::ListSnapShotFileInfoResponse response;
@@ -549,7 +572,8 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
 
         LOG(INFO) << "GetSnapShot: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner
-                  << ", seqnum = " << seq;
+                  << ", seqnum = " << seq
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -565,7 +589,8 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry GetSnapShot, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -597,7 +622,8 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
                 << ", owner = " << userinfo.owner
                 << ", seqnum = " << seq
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -617,6 +643,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         ::curve::mds::ListSnapShotFileInfoRequest request;
         ::curve::mds::ListSnapShotFileInfoResponse response;
@@ -635,7 +662,8 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         }
 
         LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner;
+                  << ", owner = " << userinfo.owner
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -651,7 +679,8 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry ListSnapShot, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -701,6 +730,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         ::curve::mds::GetOrAllocateSegmentRequest request;
         ::curve::mds::GetOrAllocateSegmentResponse response;
@@ -840,6 +870,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                                 leaseRefreshResult* resp) {
     brpc::Controller cntl;
     cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
     curve::mds::CurveFSService_Stub stub(channel_);
     curve::mds::ReFreshSessionRequest request;
@@ -924,6 +955,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         ::curve::mds::CheckSnapShotStatusRequest request;
         ::curve::mds::CheckSnapShotStatusResponse response;
@@ -989,6 +1021,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::topology::GetChunkServerListInCopySetsRequest request;
         curve::mds::topology::GetChunkServerListInCopySetsResponse response;
@@ -1070,6 +1103,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::CreateCloneFileRequest request;
         curve::mds::CreateCloneFileResponse response;
@@ -1128,7 +1162,8 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
                 << ", size = " << size
                 << ", chunksize = " << chunksize
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -1160,6 +1195,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::SetCloneFileStatusRequest request;
         curve::mds::SetCloneFileStatusResponse response;
@@ -1176,7 +1212,8 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         LOG(INFO) << "CreateCloneFile: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner.c_str()
                   << ", filestatus = " << static_cast<int>(filestatus)
-                  << ", fileID = " << fileID;
+                  << ", fileID = " << fileID
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1192,7 +1229,8 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry SetCloneFileStatus, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -1210,7 +1248,8 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -1231,6 +1270,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::GetOrAllocateSegmentRequest request;
         curve::mds::GetOrAllocateSegmentResponse response;
@@ -1249,7 +1289,8 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
 
         LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
                   << ", owner = " << userinfo.owner.c_str()
-                  << ", offset = " << offset;
+                  << ", offset = " << offset
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1372,6 +1413,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::RenameFileRequest request;
         curve::mds::RenameFileResponse response;
@@ -1390,7 +1432,8 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
                   << ", destination = " << destination.c_str()
                   << ", originId = " << originId
                   << ", destinationId = " << destinationId
-                  << ", owner = " << userinfo.owner.c_str();
+                  << ", owner = " << userinfo.owner.c_str()
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1406,7 +1449,8 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry RenameFile, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -1425,7 +1469,8 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
                 << ", destinationId = " << destinationId
                 << ", owner = " << userinfo.owner.c_str()
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -1443,6 +1488,7 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::ExtendFileRequest request;
         curve::mds::ExtendFileResponse response;
@@ -1454,7 +1500,8 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
 
         LOG(INFO) << "Extend: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner.c_str()
-                  << ", newsize = " << newsize;
+                  << ", newsize = " << newsize
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1470,7 +1517,8 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry ExtendFile, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -1487,7 +1535,8 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
                 << ", owner = " << userinfo.owner.c_str()
                 << ", newsize = " << newsize
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }
@@ -1505,6 +1554,7 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
         cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
 
         curve::mds::DeleteFileRequest request;
         curve::mds::DeleteFileResponse response;
@@ -1517,7 +1567,8 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
         FillUserInfo<::curve::mds::DeleteFileRequest>(&request, userinfo);
 
         LOG(INFO) << "DeleteFile: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner.c_str();
+                  << ", owner = " << userinfo.owner.c_str()
+                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
@@ -1533,7 +1584,8 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
                         << ", error content:"
                         << cntl.ErrorText()
                         << ", retry DeleteFile, retry times = "
-                        << count;
+                        << count
+                        << ", log id = " << cntl.log_id();
 
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
                 break;
@@ -1549,7 +1601,8 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
                 << "DeleteFile: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner.c_str()
                 << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode);
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
 
         return retcode;
     }

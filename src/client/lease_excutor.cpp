@@ -60,7 +60,7 @@ bool LeaseExcutor::Start(FInfo_t fi, LeaseSession_t  lease) {
 void LeaseExcutor::RefreshLease() {
     if (!LeaseValid()) {
         LOG(INFO) << "lease not valid!";
-        iomanager_->LeaseTimeoutDisableIO();
+        iomanager_->LeaseTimeoutBlockIO();
     }
     leaseRefreshResult response;
     LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.fullPathName,
@@ -72,7 +72,7 @@ void LeaseExcutor::RefreshLease() {
         IncremRefreshFailed();
         return;
     } else if (LIBCURVE_ERROR::AUTHFAIL == ret) {
-        iomanager_->LeaseTimeoutDisableIO();
+        iomanager_->LeaseTimeoutBlockIO();
         return;
     }
 
@@ -82,7 +82,7 @@ void LeaseExcutor::RefreshLease() {
         isleaseAvaliable_.store(true);
         iomanager_->RefeshSuccAndResumeIO();
     } else if (response.status == leaseRefreshResult::Status::NOT_EXIST) {
-        iomanager_->LeaseTimeoutDisableIO();
+        iomanager_->LeaseTimeoutBlockIO();
         refreshTask_->SetDeleteSelf();
         isleaseAvaliable_.store(false);
     } else {
@@ -113,7 +113,7 @@ void LeaseExcutor::IncremRefreshFailed() {
     failedrefreshcount_.fetch_add(1);
     if (failedrefreshcount_.load() >= leaseoption_.refreshTimesPerLease) {
         isleaseAvaliable_.store(false);
-        iomanager_->LeaseTimeoutDisableIO();
+        iomanager_->LeaseTimeoutBlockIO();
     }
 }
 
@@ -123,7 +123,6 @@ void LeaseExcutor::CheckNeedUpdateVersion(uint64_t newversion) {
     if (newversion > finfo_.seqnum) {
         finfo_.seqnum = newversion;
         iomanager_->UpdataFileInfo(finfo_);
-        iomanager_->StartWaitInflightIO();
     }
 }
 

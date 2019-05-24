@@ -32,6 +32,14 @@ int Schedule::ScheduleRequest(
         std::vector<datastruct> datavec;
         LOG(ERROR) << size;
 
+        fiu_do_on("client_request_schedule_sleep",
+                  auto func = [&] () {
+                    LOG(INFO) << "start sleep! " << sleeptimeMS << " ms";
+                    std::this_thread::sleep_for(
+                    std::chrono::milliseconds(sleeptimeMS));
+                  };
+                  func(););
+
         for (auto iter : reqlist) {
             auto req = iter->done_->GetReqCtx();
             if (iter->optype_ == curve::client::OpType::READ_SNAP) {
@@ -49,13 +57,13 @@ int Schedule::ScheduleRequest(
                 memset(const_cast<char*>(iter->data_),
                         fakedate[processed%10],
                         iter->rawlength_);
-                LOG(ERROR)  << "request split"
-                            << ", off = " << iter->offset_
-                            << ", len = " << iter->rawlength_
-                            << ", seqnum = " << iter->seq_
-                            << ", chunkindex = " << iter->idinfo_.cid_
-                            << ", content = " << fakedate[processed%10]
-                            << ", address = " << &(iter->data_);
+                // LOG(ERROR)  << "request split"
+                //            << ", off = " << iter->offset_
+                //            << ", len = " << iter->rawlength_
+                //            << ", seqnum = " << iter->seq_
+                //            << ", chunkindex = " << iter->idinfo_.cid_
+                //            << ", content = " << fakedate[processed%10]
+                //            << ", address = " << &(iter->data_);
             }
 
             if (iter->optype_ == curve::client::OpType::WRITE) {
