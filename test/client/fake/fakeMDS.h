@@ -353,6 +353,27 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void ExtendFile(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ExtendFileRequest* request,
+                    ::curve::mds::ExtendFileResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeextendfile_->controller_ != nullptr &&
+             fakeextendfile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::ExtendFileResponse*>(
+                    fakeextendfile_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void SetExtendFile(FakeReturn* fakeret) {
+        fakeextendfile_ = fakeret;
+    }
+
 
     void SetCreateFileFakeReturn(FakeReturn* fakeret) {
         fakeCreateFileret_ = fakeret;
@@ -443,6 +464,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakerenamefile_;
     FakeReturn* fakeRefreshSession_;
     FakeReturn* fakedeletefile_;
+    FakeReturn* fakeextendfile_;
 
     FakeReturn* fakechecksnapshotret_;
     FakeReturn* fakecreatesnapshotret_;

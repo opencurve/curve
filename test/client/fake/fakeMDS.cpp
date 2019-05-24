@@ -267,12 +267,23 @@ bool FakeMDS::StartService() {
      = new FakeReturn(nullptr, static_cast<void*>(closeresp));
     fakecurvefsservice_.SetCloseFile(closefileret);
 
+    /**
+     * set fake extend file response
+     */
+    ::curve::mds::ExtendFileResponse* extendfileresponse =
+    new ::curve::mds::ExtendFileResponse;
+    extendfileresponse->set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakeExtendRet
+     = new FakeReturn(nullptr, static_cast<void*>(extendfileresponse));
+
+    fakecurvefsservice_.SetExtendFile(fakeExtendRet);
 
     return true;
 }
 
 bool FakeMDS::CreateCopysetNode(bool enablecli) {
-    /** 
+    /**
      * set Create Copyset in target chunkserver
      */
     if (FLAGS_fake_chunkserver) {

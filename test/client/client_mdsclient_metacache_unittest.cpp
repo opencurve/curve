@@ -66,11 +66,15 @@ class MDSClientTest : public ::testing::Test {
         mdsclient_.Initialize(metaopt);
         userinfo.owner = "test";
         fileClient_.Init(configpath.c_str());
+        if (Init(configpath.c_str()) != 0) {
+            LOG(FATAL) << "Fail to init config";
+        }
     }
 
     void TearDown() {
         mdsclient_.UnInitialize();
         fileClient_.UnInit();
+        UnInit();
     }
 
     FileClient          fileClient_;
@@ -174,6 +178,11 @@ TEST_F(MDSClientTest, MkDir) {
 
     LOG(INFO) << "now create file!";
     int ret = fileClient_.Mkdir(dirpath.c_str(), userinfo);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
+
+    C_UserInfo_t cuserinfo;
+    memcpy(cuserinfo.owner, "test", 5);
+    ret = Mkdir(dirpath.c_str(), &cuserinfo);
     ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
 
     // set response file exist
@@ -396,6 +405,11 @@ TEST_F(MDSClientTest, Renamefile) {
     int ret = fileClient_.Rename(userinfo, filename1, filename2);
     ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
 
+    C_UserInfo_t cuserinfo;
+    memcpy(cuserinfo.owner, "test", 5);
+    ret = Rename(&cuserinfo, filename1.c_str(), filename2.c_str());
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
+
     // set rename file ok
     ::curve::mds::RenameFileResponse response1;
     response1.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -494,6 +508,11 @@ TEST_F(MDSClientTest, Extendfile) {
     curvefsservice.SetExtendFile(fakeret);
 
     int ret = fileClient_.Extend(filename1, userinfo, newsize);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
+
+    C_UserInfo_t cuserinfo;
+    memcpy(cuserinfo.owner, "test", 5);
+    ret = Extend(filename1.c_str(), &cuserinfo, newsize);
     ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::EXISTS);
 
     // set extend file ok
@@ -701,6 +720,11 @@ TEST_F(MDSClientTest, Rmdir) {
     curvefsservice.SetDeleteFile(fakeret);
 
     int ret = fileClient_.Rmdir(filename1, userinfo);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::NOTEXIST);
+
+    C_UserInfo_t cuserinfo;
+    memcpy(cuserinfo.owner, "test", 5);
+    ret = Rmdir(filename1.c_str(), &cuserinfo);
     ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::NOTEXIST);
 
     // set extend file ok

@@ -314,6 +314,28 @@ int Open4Qemu(const char* filename) {
     return globalclient->Open(realname, userinfo);
 }
 
+int Extend4Qemu(const char* filename, int64_t newsize) {
+    curve::client::UserInfo_t userinfo;
+    std::string realname;
+    if (!curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
+                                        &realname,
+                                        &userinfo.owner)) {
+        LOG(ERROR) << "get user info from filename failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    if (newsize <= 0) {
+        LOG(ERROR) << "File size is wrong, " << newsize;
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->Extend(realname, userinfo,
+            static_cast<uint64_t>(newsize));
+}
+
 int Open(const char* filename, const C_UserInfo_t* userinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
