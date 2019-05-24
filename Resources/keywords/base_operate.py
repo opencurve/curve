@@ -8,9 +8,14 @@ from logger import logger
 from lib import db_operator
 from lib import shell_operator
 from swig import swig_operate
+from multiprocessing import Pool
+from curvefs_python import curvefs
 import threading
 import random
 import time
+import Queue
+import types
+import mythread
 
 #clean_db
 def clean_db():
@@ -363,6 +368,27 @@ def loop_write_file(fd, num, offset, length):
         buf = str(buf_data)*length
         logger.debug("begin write buf_data = %d"%buf_data)
         rc = curvefs.libcurve_write(fd, buf, offset, length)
+        logger.debug("rc is %d" % rc)
+        if rc > 0:
+            buf_list.append(buf_data)
+            i += 1
+            offset += length
+        else:
+            raise AssertionError
+    config.buf_list = buf_list
+    config.write_stopped = False
+def loop_write_file_noassert(fd, num, offset, length):
+    curvefs = swig_operate.LibCurve()
+    i = 1
+    buf_list = []
+    while i < num + 1:
+        if config.write_stopped == True:
+            break
+        buf_data = random.randint(1,9)
+        buf = str(buf_data)*length
+        logger.debug("begin write buf_data = %d"%buf_data)
+        rc = curvefs.libcurve_write(fd, buf, offset, length)
+        logger.debug("rc is %d" % rc)
         if rc > 0:
             buf_list.append(buf_data)
             i += 1
@@ -371,10 +397,17 @@ def loop_write_file(fd, num, offset, length):
     config.write_stopped = False
 
 
-def background_loop_write_file(fd,num=10000,offset=config.offset, length=config.length):
-    t = threading.Thread(target=loop_write_file, args=(fd,num,offset,length))
+def background_loop_write_file_noassert(fd,num=10000,offset=config.offset, length=config.length):
+    t = threading.Thread(target=loop_write_file_noassert, args=(fd,num,offset,length))
     t.start()
     return t
+
+def background_loop_write_file(fd,num=10000,offset=config.offset, length=config.length):
+    t = mythread.runThread(loop_write_file,fd,num,offset,length)
+    t.start()
+    return t
+
+
 def check_write_isalive(t):
     rc = t.is_alive()
     logger.debug("thread is %s"%t)
@@ -384,7 +417,6 @@ def check_write_isalive(t):
 def wait_thread(t):
     time.sleep(1)
     t.join()
-
 
 def check_loop_read(fd, offset=config.offset, length=config.length):
     curvefs = swig_operate.LibCurve()
@@ -410,15 +442,81 @@ def loop_read_write_file_with_different_iosize(fd,offset=config.offset, length=c
         offset += length
         length = length*2
 
+def mult_process(func,num):
+    pool = Pool(processes = num)
+    results = []
+    for  i in  xrange(num):
+        results.append(pool.apply_async(globals().get(func),args=("/"+str(i),)))
+        logger.debug("%s %s"%(func,str(i)))
+    pool.close()
+    pool.join()
+    for result in results:
+        logger.debug("get is %d"%(result.get()))
+        assert result.get() == 0
+
+
+def mult_thread(func,num):
+#    pool = Pool(processes = num)
+    thread = []
+    results = []
+    for  i in  xrange(num):
+#        results.append(pool.apply_async(globals().get(func),args=("/"+str(i),)))
+        filename = "/" + str(i)
+        t = mythread.runThread(globals().get(func),filename)
+        thread.append(t)
+        logger.debug("%s %s"%(func,str(i)))
+    for t in thread:
+        t.start()
+    if str(func) == "statfs_libcurve_file":
+        for t in thread:
+            assert (t.get_result()).length == 10737418240, "file length is %d"%(t.get_result().length)
+    elif str(func) == "open_libcurve_file":
+        for t in thread:
+            results.append(t.get_result())
+            assert t.get_result() != None, "open file fd is %d"%t.get_result()
+        return results
+    else:
+        for t in thread:
+            logger.debug("get result is %d"%t.get_result())
+            assert t.get_result() == 0
 
 
 
+def mult_thread_close_file(fd,num):
+#    pool = Pool(processes = num)
+    thread = []
+    for  i in  fd:
+#        results.append(pool.apply_async(globals().get(func),args=("/"+str(i),)))
+        t = mythread.runThread(close_libcurve_file,i)
+        thread.append(t)
+        logger.debug("%s %s"%(close_libcurve_file,i))
+    for t in thread:
+        t.start()
+    for t in thread:
+        logger.debug("get result is %d"%t.get_result())
+        assert t.get_result() == 0
 
 
+def create_multi_dir(depth,user_name=config.user_name, pass_word=config.pass_word):
+    curvefs = swig_operate.LibCurve()
+    pre_path = ""
+    for i in range(depth):
+        dir_path = pre_path + "/" + str(i)
+        rc = curvefs.libcurve_mkdir(dir_path, user_name, pass_word)
+        logger.debug("create dir dir_path %s"%dir_path)
+        assert rc == 0,"crate dir %s fail ,rc is %d"%(dir_path,rc)
+        pre_path = dir_path
 
-
-
-
-
-
+def delete_multi_dir(depth,user_name=config.user_name, pass_word=config.pass_word):
+    curvefs = swig_operate.LibCurve()
+    last_path = ""
+    for i in range(depth):
+        last_path = last_path + "/" + str(i)
+    dir_path = last_path
+    for i in range(depth):
+        rc = curvefs.libcurve_rmdir(dir_path, user_name, pass_word)
+        logger.debug("rm dir dir_path %s" % dir_path)
+        assert rc == 0, "rm dir %s fail ,rc is %d" % (dir_path, rc)
+        dir_path = last_path.rsplit("/", 1)[0]
+        last_path = dir_path
 
