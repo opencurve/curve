@@ -110,6 +110,16 @@ int Rename(const C_UserInfo_t* userinfo, const char* oldpath, const char* newpat
 int Extend(const char* filename, const C_UserInfo_t* userinfo, uint64_t newsize);     // NOLINT
 
 /**
+ * 扩展文件,Qemu场景在线扩容
+ * @param: filename文件名
+ * @param: newsize新的size
+ * @return: 成功返回 0,
+ *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ */
+int Extend4Qemu(const char* filename, int64_t newsize);     // NOLINT
+
+
+/**
  * 删除文件
  * @param: userinfo是用户信息
  * @param: filename待删除的文件名
