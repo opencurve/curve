@@ -307,7 +307,7 @@ int TopologyImpl::UpdateChunkServerState(const ChunkServerState &state,
         ChunkServer cs = it->second;
         cs.SetChunkServerState(state);
         cs.SetLastStateUpdateTime(currentTime);
-        if ((currentTime - lastTime) >= kChunkServerStateUpdateFreq) {
+        if ((currentTime - lastTime) >= option_.ChunkServerStateUpdateSec) {
             if (!storage_->UpdateChunkServer(cs)) {
                 return kTopoErrCodeStorgeFail;
             }

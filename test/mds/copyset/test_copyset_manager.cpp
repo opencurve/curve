@@ -78,6 +78,64 @@ TEST(TestCopysetManager, GenCopysetByScatterWidthSuccess) {
         0, 4, &out));
 }
 
+TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
+    CopysetOption option;
+    option.copysetRetryTimes = 10;
+    option.scatterWidthFloatingPercentage = 20;
+    CopysetManager manager(option);
+
+    CopysetConstrait constrait;
+    constrait.zoneNum = 3;
+    constrait.zoneChoseNum = 3;
+    constrait.replicaNum = 3;
+
+    ASSERT_TRUE(manager.Init(constrait));
+
+    {
+        // 180个chunkserver，3个zone，6000个copyset
+        TestCluster cluster;
+        cluster.SetMassiveCluster(180, 3);
+
+        std::vector<Copyset> out;
+        ASSERT_TRUE(manager.GenCopyset(cluster,
+            6000, 0, &out));
+        ASSERT_EQ(6000, out.size());
+    }
+
+    {
+        // 180个chunkserver，3个zone，9000个copyset
+        TestCluster cluster;
+        cluster.SetMassiveCluster(180, 3);
+
+        std::vector<Copyset> out;
+        ASSERT_TRUE(manager.GenCopyset(cluster,
+            9000, 0, &out));
+        ASSERT_EQ(9000, out.size());
+    }
+
+    {
+        // 240个chunkserver 3个zone， 9000个copyset
+        TestCluster cluster;
+        cluster.SetMassiveCluster(240, 3);
+
+        std::vector<Copyset> out;
+        ASSERT_TRUE(manager.GenCopyset(cluster,
+            9000, 0, &out));
+        ASSERT_EQ(9000, out.size());
+    }
+
+    {
+        // 240个chunkserver 3个zone， 12000个copyset
+        TestCluster cluster;
+        cluster.SetMassiveCluster(240, 3);
+
+        std::vector<Copyset> out;
+        ASSERT_TRUE(manager.GenCopyset(cluster,
+            12000, 0, &out));
+        ASSERT_EQ(12000, out.size());
+    }
+}
+
 }  // namespace copyset
 }  // namespace mds
 }  // namespace curve

@@ -89,10 +89,7 @@ class TestCluster : public ClusterInfo {
         });
     }
 
-    void SetMassiveCluster() {
-        constexpr int Node = 180;
-        constexpr int Zone = 3;
-
+    void SetMassiveCluster(int Node = 180, int Zone = 3) {
         std::vector<ChunkServerInfo> servers;
         for (int i = 0; i < Node; i++) {
             ChunkServerInfo server{
