@@ -21,11 +21,6 @@ namespace mds {
 namespace topology {
 
 
-struct ToplogyServiceManagerOption {
-    uint32_t CreateCopysetRpcTimeoutMs;
-    uint32_t CreateCopysetRpcRetryTime;
-};
-
 class TopologyServiceManager {
  public:
   TopologyServiceManager(
@@ -35,6 +30,10 @@ class TopologyServiceManager {
         copysetManager_(copysetManager) {}
 
   virtual ~TopologyServiceManager() {}
+
+  virtual void Init(const TopologyOption &option) {
+      option_ = option;
+  }
 
   virtual void RegistChunkServer(const ChunkServerRegistRequest *request,
                                  ChunkServerRegistResponse *response);
@@ -126,8 +125,9 @@ class TopologyServiceManager {
  private:
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
-    ToplogyServiceManagerOption option_;
+    TopologyOption option_;
 };
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
