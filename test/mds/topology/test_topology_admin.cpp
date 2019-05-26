@@ -15,6 +15,7 @@
 #include "src/mds/common/mds_define.h"
 #include "test/mds/topology/mock_topology.h"
 #include "proto/nameserver2.pb.h"
+#include "src/common/timeutility.h"
 
 namespace curve {
 namespace mds {
@@ -213,6 +214,83 @@ TEST_F(TestTopoloyAdmin,
 
     ASSERT_FALSE(ret);
 }
+
+TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
+    // 2000个copyset分配100000次，每次分配64个chunk
+    std::vector<CopySetIdType> copySetIds;
+    std::map<CopySetIdType, int> copySetMap;
+    for (int i = 0; i < 2000; i++) {
+        copySetIds.push_back(i);
+        copySetMap.emplace(i, 0);
+    }
+
+    for (int i = 0; i < 100000; i++) {
+        int chunkNumber = 64;
+        std::vector<CopysetIdInfo> infos;
+        bool ret =
+            AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
+            copySetIds,
+            1,
+            chunkNumber,
+            &infos);
+        ASSERT_TRUE(ret);
+        ASSERT_EQ(chunkNumber, infos.size());
+        for (int j = 0; j < chunkNumber; j++) {
+            copySetMap[infos[j].copySetId]++;
+        }
+    }
+    int minCount = copySetMap[0];
+    int maxCount = copySetMap[0];
+    for (auto &pair : copySetMap) {
+        if (pair.second > maxCount) {
+            maxCount = pair.second;
+        }
+        if (pair.second < minCount) {
+            minCount = pair.second;
+        }
+    }
+    int avg = 100000 * 64 / 2000;
+    double minPercent = static_cast<double>(avg - minCount) / avg;
+    double maxPercent = static_cast<double>(maxCount - avg) / avg;
+    LOG(INFO) << "AllocateChunkRandomInSingleLogicalPool poc"
+              <<", minCount = " << minCount
+              <<", maxCount = " << maxCount
+              << ", avg = " << avg
+              << ", minPercent = " << minPercent
+              << ", maxPercent = " << maxPercent;
+
+    ASSERT_TRUE(minPercent < 0.1);
+    ASSERT_TRUE(maxPercent < 0.1);
+}
+
+TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolTps) {
+    // 2000个copyset分配100000次，每次分配64个chunk
+    std::vector<CopySetIdType> copySetIds;
+    for (int i = 0; i < 2000; i++) {
+        copySetIds.push_back(i);
+    }
+
+
+    uint64_t startime = curve::common::TimeUtility::GetTimeofDayUs();
+    for (int i = 0; i < 100000; i++) {
+        int chunkNumber = 64;
+        std::vector<CopysetIdInfo> infos;
+        AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
+        copySetIds,
+        1,
+        chunkNumber,
+        &infos);
+    }
+    uint64_t stoptime = curve::common::TimeUtility::GetTimeofDayUs();
+
+    double usetime = stoptime - startime;
+    double tps = 1000000.0 * 100000.0/usetime;
+
+    std::cout << "TestAllocateChunkRandomInSingleLogicalPool, TPS = "
+              << tps
+              << " * 64 chunk per second.";
+}
+
 
 
 }  // namespace topology
