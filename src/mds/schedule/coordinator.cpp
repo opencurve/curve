@@ -30,7 +30,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
     if (conf.enableLeaderScheduler) {
         schedulerController_[SchedulerType::LeaderSchedulerType] =
             std::make_shared<LeaderScheduler>(opController_,
-                                              conf.leaderSchedulerInterval,
+                                              conf.leaderSchedulerIntervalSec,
                                               conf.transferLeaderTimeLimitSec,
                                               conf.removePeerTimeLimitSec,
                                               conf.addPeerTimeLimitSec);
@@ -40,7 +40,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
     if (conf.enableCopysetScheduler) {
         schedulerController_[SchedulerType::CopySetSchedulerType] =
             std::make_shared<CopySetScheduler>(opController_,
-                                               conf.copysetSchedulerInterval,
+                                               conf.copysetSchedulerIntervalSec,
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec);
@@ -50,7 +50,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
     if (conf.enableRecoverScheduler) {
         schedulerController_[SchedulerType::RecoverSchedulerType] =
             std::make_shared<RecoverScheduler>(opController_,
-                                               conf.recoverSchedulerInterval,
+                                               conf.recoverSchedulerIntervalSec,
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec);
@@ -60,7 +60,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
     if (conf.enableReplicaScheduler) {
         schedulerController_[SchedulerType::ReplicaSchedulerType] =
             std::make_shared<ReplicaScheduler>(opController_,
-                                               conf.replicaSchedulerInterval,
+                                               conf.replicaSchedulerIntervalSec,
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec);

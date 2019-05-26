@@ -28,10 +28,10 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
     scheduleOption.enableLeaderScheduler = true;
     scheduleOption.enableRecoverScheduler = true;
     scheduleOption.enableReplicaScheduler = true;
-    scheduleOption.copysetSchedulerInterval = 10;
-    scheduleOption.leaderSchedulerInterval = 10;
-    scheduleOption.recoverSchedulerInterval = 10;
-    scheduleOption.replicaSchedulerInterval = 10;
+    scheduleOption.copysetSchedulerIntervalSec = 10;
+    scheduleOption.leaderSchedulerIntervalSec = 10;
+    scheduleOption.recoverSchedulerIntervalSec = 10;
+    scheduleOption.replicaSchedulerIntervalSec = 10;
     scheduleOption.operatorConcurrent = 2;
     scheduleOption.transferLeaderTimeLimitSec = 1;
     scheduleOption.addPeerTimeLimitSec = 1;

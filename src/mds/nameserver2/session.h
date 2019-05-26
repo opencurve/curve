@@ -33,11 +33,11 @@ struct SessionOptions {
     // session使用的数据库的信息，DB password
     std::string sessionPassword;
     // session过期时间，单位us
-    uint32_t leaseTime;
+    uint32_t leaseTimeUs;
     // 能够容忍的client和mds之间的时钟不同步的时间，单位us
-    uint32_t toleranceTime;
+    uint32_t toleranceTimeUs;
     // session后台扫描线程扫描间隔时间，单位us
-    uint32_t intevalTime;
+    uint32_t intevalTimeUs;
 };
 
 /**
