@@ -131,6 +131,12 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
         conf->GetStringValue("mds.DbPassword");
     topologyOption->ChunkServerStateUpdateSec =
         conf->GetIntValue("mds.topology.ChunkServerStateUpdateSec");
+    topologyOption->CreateCopysetRpcTimeoutMs =
+        conf->GetIntValue("mds.topology.CreateCopysetRpcTimeoutMs");
+    topologyOption->CreateCopysetRpcRetryTimes =
+        conf->GetIntValue("mds.topology.CreateCopysetRpcRetryTimes");
+    topologyOption->CreateCopysetRpcRetrySleepTimeMs =
+        conf->GetIntValue("mds.topology.CreateCopysetRpcRetrySleepTimeMs");
 }
 
 void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
@@ -279,6 +285,7 @@ int curve_main(int argc, char **argv) {
     auto topologyServiceManager =
         std::make_shared<TopologyServiceManager>(topology,
         copysetManager);
+    topologyServiceManager->Init(topologyOption);
 
     // init ChunkSegmentAllocator
     ChunkSegmentAllocator *chunkSegmentAllocate =

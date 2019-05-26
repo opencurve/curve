@@ -20,6 +20,15 @@ struct TopologyOption {
     std::string url;
     std::string password;
     uint32_t ChunkServerStateUpdateSec;
+    uint32_t CreateCopysetRpcTimeoutMs;
+    uint32_t CreateCopysetRpcRetryTimes;
+    uint32_t CreateCopysetRpcRetrySleepTimeMs;
+
+    TopologyOption()
+        : ChunkServerStateUpdateSec(60),
+          CreateCopysetRpcTimeoutMs(500),
+          CreateCopysetRpcRetryTimes(3),
+          CreateCopysetRpcRetrySleepTimeMs(500) {}
 };
 
 
