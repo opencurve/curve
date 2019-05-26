@@ -857,8 +857,6 @@ bool TopologyServiceManager::CreateCopysetAtChunkServer(
 
     // 调用chunkserver接口创建copyset
     brpc::Controller cntl;
-    // TODO(xuchaojie): 添加配置模块，使用配置参数
-    cntl.set_timeout_ms(1000);
 
     CopysetRequest chunkServerRequest;
     chunkServerRequest.set_logicpoolid(cs.GetLogicalPoolId());
@@ -877,9 +875,6 @@ bool TopologyServiceManager::CreateCopysetAtChunkServer(
 
     CopysetResponse chunkSeverResponse;
 
-    // TODO(xuchaojie): 添加配置模块，使用配置参数
-    const int retryTime = 3;
-    const int retrySleepTimeMs = 500;
     int retry = 0;
 
     do {
@@ -889,6 +884,7 @@ bool TopologyServiceManager::CreateCopysetAtChunkServer(
                   << ". [CopysetRequest] "
                   << chunkServerRequest.DebugString();
         cntl.Reset();
+        cntl.set_timeout_ms(option_.CreateCopysetRpcTimeoutMs);
         stub.CreateCopysetNode(&cntl,
             &chunkServerRequest,
             &chunkSeverResponse,
@@ -897,13 +893,15 @@ bool TopologyServiceManager::CreateCopysetAtChunkServer(
             LOG(ERROR) << "Received CopysetResponse error, "
                        << "cntl.errorText = "
                        << cntl.ErrorText()
-                       << ", retry, time = "
+                       << ", retry = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(retrySleepTimeMs));
+                std::chrono::milliseconds(
+                    option_.CreateCopysetRpcRetrySleepTimeMs));
         }
         retry++;
-    }while(cntl.Failed() && retry < retryTime);
+    }while(cntl.Failed() &&
+        retry < option_.CreateCopysetRpcRetryTimes);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Received CopysetResponse error, retry fail,"
