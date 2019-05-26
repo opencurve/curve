@@ -11,9 +11,11 @@
 #include <google/protobuf/stubs/callback.h>
 #include <brpc/controller.h>
 #include <bthread/bthread.h>
+#include <brpc/errno.pb.h>
 
 #include "proto/chunk.pb.h"
 #include "src/client/client_config.h"
+#include "src/client/client_common.h"
 
 namespace curve {
 namespace client {
@@ -48,6 +50,7 @@ class ClientClosure : public Closure {
 
  protected:
     static FailureRequestOption_t  failReqOpt_;
+    static ChunkserverClientMetric_t chunkserverClientMetric_;
 
     // 已经重试了几次
     uint16_t                 retriedTimes_;

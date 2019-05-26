@@ -34,7 +34,8 @@ FileInstance::FileInstance() {
 
 bool FileInstance::Initialize(MDSClient* mdsclient,
                               const UserInfo_t& userinfo,
-                              FileServiceOption_t fileservicopt) {
+                              FileServiceOption_t fileservicopt,
+                              ClientMetric_t* clientMetric) {
     fileopt_ = fileservicopt;
     bool ret = false;
     do {
@@ -43,10 +44,20 @@ bool FileInstance::Initialize(MDSClient* mdsclient,
             break;
         }
 
+        if (clientMetric == nullptr) {
+            LOG(ERROR) << "metric pointer is null!";
+            return false;
+        }
+
+        if (mdsclient == nullptr) {
+            LOG(ERROR) << "mdsclient pointer is null!";
+            return false;
+        }
+
         userinfo_ = userinfo;
         mdsclient_ = mdsclient;
 
-        if (!iomanager4file_.Initialize(fileopt_.ioOpt)) {
+        if (!iomanager4file_.Initialize(fileopt_.ioOpt, clientMetric)) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }
@@ -69,10 +80,11 @@ bool FileInstance::Initialize(MDSClient* mdsclient,
 
 void FileInstance::UnInitialize() {
     iomanager4file_.UnInitialize();
-    leaseexcutor_->Stop();
-
-    delete leaseexcutor_;
-    leaseexcutor_ = nullptr;
+    if (leaseexcutor_ != nullptr) {
+        leaseexcutor_->Stop();
+        delete leaseexcutor_;
+        leaseexcutor_ = nullptr;
+    }
 }
 
 int FileInstance::Read(char* buf, off_t offset, size_t length) {
@@ -83,12 +95,12 @@ int FileInstance::Write(const char* buf, off_t offset, size_t len) {
     return iomanager4file_.Write(buf, offset, len, mdsclient_);
 }
 
-void FileInstance::AioRead(CurveAioContext* aioctx) {
-    iomanager4file_.AioRead(aioctx, mdsclient_);
+int FileInstance::AioRead(CurveAioContext* aioctx) {
+    return iomanager4file_.AioRead(aioctx, mdsclient_);
 }
 
-void FileInstance::AioWrite(CurveAioContext* aioctx) {
-    iomanager4file_.AioWrite(aioctx, mdsclient_);
+int FileInstance::AioWrite(CurveAioContext* aioctx) {
+    return iomanager4file_.AioWrite(aioctx, mdsclient_);
 }
 
 int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
