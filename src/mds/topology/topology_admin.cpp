@@ -57,7 +57,6 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
         return false;
     }
 
-    std::srand(std::time(nullptr));
     int randomIndex = std::rand() % logicalPools.size();
 
     PoolIdType logicalPoolChosenId = logicalPools[randomIndex];

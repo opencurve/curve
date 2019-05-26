@@ -40,7 +40,9 @@ class TopologyAdmin {
 class TopologyAdminImpl : public TopologyAdmin {
  public:
     explicit TopologyAdminImpl(std::shared_ptr<Topology> topology)
-    : topology_(topology) {}
+    : topology_(topology) {
+        std::srand(std::time(nullptr));
+    }
     ~TopologyAdminImpl() {}
 
 
