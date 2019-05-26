@@ -30,9 +30,9 @@ class SessionTest: public ::testing::Test {
         sessionOptions_.sessionUser = "root";
         sessionOptions_.sessionUrl = "localhost";
         sessionOptions_.sessionPassword = "qwer";
-        sessionOptions_.leaseTime = 100000;
-        sessionOptions_.toleranceTime = 0;
-        sessionOptions_.intevalTime = 50000;
+        sessionOptions_.leaseTimeUs = 100000;
+        sessionOptions_.toleranceTimeUs = 0;
+        sessionOptions_.intevalTimeUs = 50000;
     }
 
     void TearDown() override {
@@ -233,7 +233,7 @@ TEST_F(SessionTest, testLoadSession) {
         sessionManager_.Start();
 
         SessionRepoItem sessionRepo("/file1", "sessionID2",
-                        sessionOptions_.leaseTime, SessionStatus::kSessionOK,
+                        sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
@@ -297,13 +297,13 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         .WillOnce(Return(repo::OperationOK));
 
         // 等session过期，再次open，open成功
-        usleep(sessionOptions_.leaseTime);
+        usleep(sessionOptions_.leaseTimeUs);
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
                                                     &protoSession),
                     StatusCode::kOK);
 
         SessionRepoItem sessionRepo("/file1", "sessionID1",
-                        sessionOptions_.leaseTime, SessionStatus::kSessionOK,
+                        sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
@@ -363,7 +363,7 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
                     StatusCode::kOK);
 
         SessionRepoItem sessionRepo("/file1", "sessionID1",
-                        sessionOptions_.leaseTime, SessionStatus::kSessionOK,
+                        sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
@@ -419,7 +419,7 @@ TEST_F(SessionTest, insert_session_test) {
                     StatusCode::kFileOccupied);
 
         // 等session过期，再open file, 返回新的session
-        usleep(sessionOptions_.leaseTime);
+        usleep(sessionOptions_.leaseTimeUs);
         ProtoSession protoSession3;
 
         EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
@@ -437,7 +437,7 @@ TEST_F(SessionTest, insert_session_test) {
 
 
         SessionRepoItem sessionRepo("/file1", "sessionid",
-                        sessionOptions_.leaseTime, SessionStatus::kSessionOK,
+                        sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
                                     111, "127.0.0.1");
         EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
             .Times(1)
@@ -485,7 +485,7 @@ TEST_F(SessionTest, insert_session_test) {
                     StatusCode::kOK);
 
         // 等session过期
-        usleep(sessionOptions_.leaseTime);
+        usleep(sessionOptions_.leaseTimeUs);
 
         ProtoSession protoSession2;
         // 再open file, 从数据库中删除旧session失败
@@ -553,14 +553,14 @@ TEST_F(SessionTest, refresh_session_test) {
                 StatusCode::kOK);
 
     // 等session过期
-    usleep(sessionOptions_.leaseTime);
+    usleep(sessionOptions_.leaseTimeUs);
 
     ASSERT_EQ(sessionManager_.UpdateSession("/file1", protoSession1.sessionid(),
                                         "test_signature", "127.0.0.1"),
                 StatusCode::kOK);
 
     SessionRepoItem sessionRepo("/file1", "sessionid",
-                    sessionOptions_.leaseTime, SessionStatus::kSessionOK,
+                    sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)
@@ -594,18 +594,18 @@ TEST_F(SessionTest, fast_exit_test) {
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
-    sessionOptions_.intevalTime = 5000000;
+    sessionOptions_.intevalTimeUs = 5000000;
     ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
 
     uint64_t startTime = TimeUtility::GetTimeofDayUs();
     sessionManager_.Start();
 
     // 等session过期
-    usleep(sessionOptions_.leaseTime);
+    usleep(sessionOptions_.leaseTimeUs);
 
     sessionManager_.Stop();
     uint64_t endTime = TimeUtility::GetTimeofDayUs();
-    ASSERT_LT(endTime, startTime + sessionOptions_.intevalTime);
+    ASSERT_LT(endTime, startTime + sessionOptions_.intevalTimeUs);
 }
 }  // namespace mds
 }  // namespace curve

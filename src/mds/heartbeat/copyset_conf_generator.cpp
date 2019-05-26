@@ -92,9 +92,9 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
         steady_clock::duration timePass = steady_clock::now() - mdsStartTime_;
         if (steady_clock::now() - mdsStartTime_ <
                 milliseconds(cleanFollowerAfterMs_)) {
-            LOG(INFO) << "begin to clean follower copyset after "
-                      << cleanFollowerAfterMs_ / 1000
-                      << " seconds of mds start";
+            LOG_FIRST_N(INFO, 1) << "begin to clean follower copyset after "
+                                 << cleanFollowerAfterMs_ / 1000
+                                 << " seconds of mds start";
             return false;
         }
         // 判断该chunkserver是否在配置组中或者是candidate

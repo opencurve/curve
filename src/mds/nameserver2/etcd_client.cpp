@@ -50,8 +50,10 @@ int EtcdClientImp::Get(std::string key, std::string *out) {
         if (res.r0 == EtcdErrCode::OK) {
             *out = std::string(res.r1, res.r1 + res.r2);
             free(res.r1);
+        } else if (res.r0 == EtcdErrCode::KeyNotExist) {
+            LOG(INFO) << "file[" << std::hex << key << "] not exist";
         } else {
-            LOG(ERROR) << "get file[" << key << "] err: " << res.r0;
+            LOG(ERROR) << "get file[" << std::hex << key << "] err: " << res.r0;
         }
     } while (needRetry && ++retry <= retryTimes_);
 
@@ -73,8 +75,8 @@ int EtcdClientImp::List(std::string startKey, std::string endKey,
         errCode = res.r0;
         needRetry = NeedRetry(errCode);
         if (res.r0 != EtcdErrCode::OK) {
-            LOG(ERROR) << "list file of [start:" << startKey
-                    << ", end:" << endKey << "] err:" << res.r0;
+            LOG(ERROR) << "list file of [start:" << std::hex << startKey
+                    << ", end:" << std::hex << endKey << "] err:" << res.r0;
         } else {
             for (int i = 0; i < res.r2; i++) {
                 EtcdClientGetMultiObject_return objRes =

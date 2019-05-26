@@ -63,7 +63,8 @@ void HeartbeatManager::Stop() {
 void HeartbeatManager::ChunkServerHealthyChecker() {
     while (!isStop_) {
         std::this_thread::
-        sleep_for(std::chrono::seconds(chunkserverHealthyCheckerRunInter_));
+        sleep_for(
+            std::chrono::milliseconds(chunkserverHealthyCheckerRunInter_));
         healthyChecker_->CheckHeartBeatInterval();
     }
 }

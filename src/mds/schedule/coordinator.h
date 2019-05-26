@@ -34,10 +34,10 @@ struct ScheduleOption {
     bool enableReplicaScheduler;
 
     // scheduler calculate interval
-    int64_t copysetSchedulerInterval;
-    int64_t leaderSchedulerInterval;
-    int64_t recoverSchedulerInterval;
-    int64_t replicaSchedulerInterval;
+    int64_t copysetSchedulerIntervalSec;
+    int64_t leaderSchedulerIntervalSec;
+    int64_t recoverSchedulerIntervalSec;
+    int64_t replicaSchedulerIntervalSec;
 
     // para
     int operatorConcurrent;
