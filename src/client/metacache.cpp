@@ -66,6 +66,8 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
 
     int ret = 0;
     if (refresh) {
+        LOG(INFO) << "refresh leader, LogicPoolID = " << logicPoolId
+                  << ", CopysetID = " << copysetId;
         uint32_t retry = 0;
         while (retry++ < metacacheopt_.getLeaderRetry) {
             bthread_usleep(metacacheopt_.retryIntervalUs);
