@@ -1073,7 +1073,7 @@ rename root file test
     ${origin_file}    evaluate     str("/1")
     ${new_file}     evaluate    str("/2")
     ${rc}   rename libcurve file    ${origin_file}      ${new_file}
-    ${expect_rc}    evaluate    int(-4)
+    ${expect_rc}    evaluate    int(0)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -1123,7 +1123,7 @@ rename root dir test
     ${new_dir}     evaluate    str("/2")
     ${expect_rc}    evaluate    int(0)
     ${rc}   rename libcurve file    ${origin_dir}      ${new_dir}
-    ${expect_rc}    evaluate    int(-4)
+    ${expect_rc}    evaluate    int(-11)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -1205,7 +1205,7 @@ rename file when file is open
     should be equal      ${rc}       ${expect_rc}
     ${rc_first}   open libcurve file    ${origin_file}
     ${rc}       rename libcurve file
-    ${expect_rc}    evaluate    int(-4)
+    ${expect_rc}    evaluate    int(-15)
     should be equal      ${rc}       ${expect_rc}
     ${rc}       close libcurve file     ${rc_first}
     ${expect_rc}    evaluate    int(0)
@@ -1871,14 +1871,14 @@ create default file
      start services
      create logicalpool with sleep
      open_libcurve_file
-	 
+
 create physical pool should success
 	 create physicalpool		${cluster_map}		${mds_port}		${physical_op}
 
 start mds if not started
      ${result}    	check process exsits    mds
 	 Run Keyword If		'${result}' != 0    start mds with sleep
-	 
+
 check mds should be exsits
 	 ${result}	    check process exsits    mds
 	 Should Be Equal	'${result}' 		'0'
@@ -1925,8 +1925,8 @@ stop etcd if started
 	 Run Keyword If    '${result}' == '0'		kill etcd
 	 sleep  2
 	 check etcd should not be exsits
-	 
-check mds should not be exsits	 
+
+check mds should not be exsits
 	 ${result}	    check process exsits    mds
 	 Should Not Be Equal	'${result}' 		'0'
 
@@ -1938,7 +1938,7 @@ check snapshot server should be exsits
 	 ${result}	    check process exsits    snapshot
 	 Should Be Equal	'${result}' 		'0'
 
-check chunkserver should not be exsits	 
+check chunkserver should not be exsits
 	 ${result}	    check process exsits    chunk
 	 Should Not Be Equal	'${result}' 		'0'
 
@@ -1950,14 +1950,14 @@ check etcd should be exsits
 	 ${result}	    check process exsits    etcd
 	 Should Be Equal	'${result}' 		'0'
 
-check chunkserver should be exsits	 
+check chunkserver should be exsits
 	 ${result}	    check process exsits    chunk
-	 Should Be Equal	'${result}' 		'0'	 
-	 
+	 Should Be Equal	'${result}' 		'0'
+
 start mds with sleep
      start mds
 	 Sleep		2s
-	
+
 
 
 
