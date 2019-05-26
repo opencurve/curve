@@ -137,7 +137,7 @@ TEST_F(MDSClientTest, Createfile) {
     curvefsservice.SetFakeReturn(fakeret2);
     curvefsservice.CleanRetryTimes();
 
-    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED,
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
              fileClient_.Create(filename.c_str(),
                                 userinfo, len));
     ASSERT_EQ(6, curvefsservice.GetRetryTimes());

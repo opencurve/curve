@@ -250,7 +250,7 @@ skip_write_io:
             }
 
 skip_read_io:
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     };
 

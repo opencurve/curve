@@ -49,6 +49,7 @@ using curve::client::MetaCache;
 using curve::client::RequestContext;
 using curve::client::IOManager4File;
 using curve::client::LogicalPoolCopysetIDInfo_t;
+using curve::client::ClientMetric_t;
 
 bool ioreadflag = false;
 std::mutex readmtx;
@@ -94,7 +95,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         userinfo.password = "12345";
 
         mdsclient_.Initialize(fopt.metaServerOpt);
-        fileinstance_->Initialize(&mdsclient_, userinfo, fopt);
+        fileinstance_->Initialize(&mdsclient_, userinfo, fopt, &clientMetric);
         InsertMetaCache();
     }
 
@@ -221,6 +222,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
 
     UserInfo_t userinfo;
     MDSClient mdsclient_;
+    ClientMetric_t clientMetric;
     FileServiceOption_t fopt;
     curve::client::ClientConfig cc;
     FileInstance*    fileinstance_;
@@ -580,7 +582,9 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     rootuserinfo.owner = "userinfo";
     rootuserinfo.password = "12345";
 
-    ASSERT_TRUE(fileserv->Initialize(&mdsclient_, userinfo, fopt));
+    ClientMetric_t clientMetric;
+    ASSERT_TRUE(fileserv->Initialize(&mdsclient_, userinfo,
+                                     fopt, &clientMetric));
 
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();

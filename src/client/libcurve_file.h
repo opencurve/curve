@@ -183,6 +183,9 @@ class FileClient {
 
   // fileclient对应的全局mdsclient
   MDSClient* mdsClient_;
+
+  // client metric统计信息
+  ClientMetric_t clientMetric_;
 };
 }   // namespace client
 }   // namespace curve

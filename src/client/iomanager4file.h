@@ -29,9 +29,10 @@ class IOManager4File : public IOManager {
   /**
    * 初始化函数
    * @param: ioopt为当前iomanager的配置信息
+   * @param: clientMetric为client端要统计的metric信息
    * @return: 成功true,失败false
    */
-  bool Initialize(IOOption_t ioOpt);
+  bool Initialize(IOOption_t ioOpt, ClientMetric_t* clientMetric);
 
   /**
    * 同步模式读
@@ -55,17 +56,17 @@ class IOManager4File : public IOManager {
    * 异步模式读
    * @param: mdsclient透传给底层，在必要的时候与mds通信
    * @param: aioctx为异步读写的io上下文，保存基本的io信息
-   * @return： 0为成功，-1为失败
+   * @return： 0为成功，小于0为失败
    */
-  void AioRead(CurveAioContext* aioctx,
+  int AioRead(CurveAioContext* aioctx,
                       MDSClient* mdsclient);
   /**
    * 异步模式写
    * @param: mdsclient透传给底层，在必要的时候与mds通信
    * @param: aioctx为异步读写的io上下文，保存基本的io信息
-   * @return： 0为成功，-1为失败
+   * @return： 0为成功，小于0为失败
    */
-  void AioWrite(CurveAioContext* aioctx,
+  int AioWrite(CurveAioContext* aioctx,
                       MDSClient* mdsclient);
 
   /**
@@ -158,6 +159,9 @@ class IOManager4File : public IOManager {
 
   // IO最后由schedule模块向chunkserver端分发，scheduler由IOManager创建和释放
   RequestScheduler*     scheduler_;
+
+  // client端metric统计信息
+  ClientMetric_t* clientMetric_;
 };
 }   // namespace client
 }   // namespace curve

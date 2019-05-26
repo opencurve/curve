@@ -44,6 +44,7 @@ using curve::client::CopysetInfo_t;
 using curve::client::MetaCache;
 using curve::client::IOManager4Chunk;
 using curve::client::LogicalPoolCopysetIDInfo;
+using curve::client::ClientMetric_t;
 
 void sessioncallback(CurveAioContext* aioctx) {
     ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
@@ -66,11 +67,13 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     MDSClient mdsclient;
     mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
 
+    ClientMetric_t clientMetric;
     FileInstance fileinstance;
     ASSERT_FALSE(fileinstance.Initialize(&mdsclient, emptyuserinfo,
-                                        cc.GetFileServiceOption()));
+                                        cc.GetFileServiceOption(), nullptr));
     ASSERT_TRUE(fileinstance.Initialize(&mdsclient, userinfo,
-                                        cc.GetFileServiceOption()));
+                                        cc.GetFileServiceOption(),
+                                        &clientMetric));
 
     brpc::Server server;
     FakeMDSCurveFSService curvefsservice;

@@ -5,6 +5,7 @@
  * Copyright (c)￼ 2018 netease
  */
 
+#include <brpc/server.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
@@ -84,14 +85,16 @@ int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
     if (fileserv == nullptr ||
         !fileserv->Initialize(mdsClient_,
                               userinfo,
-                              clientconfig_.GetFileServiceOption())) {
+                              clientconfig_.GetFileServiceOption(),
+                              &clientMetric_)) {
         LOG(ERROR) << "FileInstance initialize failed!";
         delete fileserv;
         return -1;
     }
 
     int ret = fileserv->Open(filename, userinfo);
-    if (-LIBCURVE_ERROR::FAILED == ret || -LIBCURVE_ERROR::AUTHFAIL == ret) {
+    if (ret != LIBCURVE_ERROR::OK) {
+        fileserv->UnInitialize();
         delete fileserv;
         return ret;
     }
@@ -120,58 +123,88 @@ int FileClient::Create(const std::string& filename,
 
 int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
     if (CheckAligned(offset, len) == false) {
+        clientMetric_.readRequestFailCount << 1;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
+        clientMetric_.readRequestFailCount << 1;
         return -LIBCURVE_ERROR::FAILED;
     }
-    return fileserviceMap_[fd]->Read(buf, offset, len);
+
+    clientMetric_.readRequestCount << 1;
+    int ret = fileserviceMap_[fd]->Read(buf, offset, len);
+    if (ret < 0) {
+        clientMetric_.readRequestFailCount << 1;
+    }
+    return ret;
 }
 
 int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
     if (CheckAligned(offset, len) == false) {
+        clientMetric_.writeRequestFailCount << 1;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
+        clientMetric_.writeRequestFailCount << 1;
         return -LIBCURVE_ERROR::FAILED;
     }
-    return fileserviceMap_[fd]->Write(buf, offset, len);
+
+    clientMetric_.writeRequestCount << 1;
+    int ret = fileserviceMap_[fd]->Write(buf, offset, len);
+    if (ret < 0) {
+        clientMetric_.writeRequestFailCount << 1;
+    }
+    return ret;
 }
 
 int FileClient::AioRead(int fd, CurveAioContext* aioctx) {
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
+        clientMetric_.readRequestFailCount << 1;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
+    int ret = -LIBCURVE_ERROR::FAILED;
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        return -LIBCURVE_ERROR::FAILED;
+        ret = -LIBCURVE_ERROR::FAILED;
     } else {
-        fileserviceMap_[fd]->AioRead(aioctx);
+        ret = fileserviceMap_[fd]->AioRead(aioctx);
     }
-    return LIBCURVE_ERROR::OK;
+
+    if (ret < 0) {
+        clientMetric_.readRequestFailCount << 1;
+    }
+    clientMetric_.readRequestCount << 1;
+    return ret;
 }
 
 int FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
+        clientMetric_.writeRequestFailCount << 1;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
+    int ret = -LIBCURVE_ERROR::FAILED;
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        return -LIBCURVE_ERROR::FAILED;
+        ret = -LIBCURVE_ERROR::FAILED;
     } else {
-        fileserviceMap_[fd]->AioWrite(aioctx);
+        ret = fileserviceMap_[fd]->AioWrite(aioctx);
     }
-    return LIBCURVE_ERROR::OK;
+
+    if (ret < 0) {
+        clientMetric_.writeRequestFailCount << 1;
+    }
+    clientMetric_.writeRequestCount << 1;
+    return ret;
 }
 
 int FileClient::Rename(const UserInfo_t& userinfo,
