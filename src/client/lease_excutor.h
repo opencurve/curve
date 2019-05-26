@@ -72,15 +72,16 @@ class LeaseExcutor {
      */
     void Stop();
 
+    /**
+     * 当前lease如果续约失败则通知iomanagerdisable io
+     */
+    bool LeaseValid();
+
  private:
     /**
      * 续约任务执行者
      */
     void RefreshLease();
-    /**
-     * 当前lease如果续约失败则通知iomanagerdisable io
-     */
-    bool LeaseValid();
 
     /**
      *  一个lease期间会续约rfreshTimesPerLease次，每次续约失败就递增

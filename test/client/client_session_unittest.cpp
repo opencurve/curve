@@ -175,7 +175,10 @@ TEST(ClientSession, LeaseTaskTest) {
         }
     }
 
+    auto iomanager = fileinstance.GetIOManager4File();
+
     // 5. set refresh failed
+    // 当lease续约失败的时候，会将IO停住，这时候设置LeaseValid为false
     refreshresp.set_statuscode(::curve::mds::StatusCode::KInternalError);
     FakeReturn* refreshfakeretnotexits
      = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
@@ -188,14 +191,53 @@ TEST(ClientSession, LeaseTaskTest) {
         }
     }
 
-    // 6. set fake close return
+    curve::client::LeaseExcutor* lease = fileinstance.GetLeaseExcutor();
+    ASSERT_FALSE(lease->LeaseValid());
+    ASSERT_TRUE(iomanager->IsDisableIO());
+
+    // 6. set refresh success
+    // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
+    // 这时候IO被恢复了。
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretOK
+     = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice.SetRefreshSession(refreshfakeretOK, refresht);
+
+    for (int i = 0; i < 2; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+    ASSERT_TRUE(lease->LeaseValid());
+    ASSERT_FALSE(iomanager->IsDisableIO());
+
+    // 7. set refresh failed
+    // 续约失败，IO都是直接返回-LIBCURVE_ERROR::DISABLEIO
+    refreshresp.set_statuscode(::curve::mds::StatusCode::KInternalError);
+    FakeReturn* refreshfakeretfail
+     = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice.SetRefreshSession(refreshfakeretfail, refresht);
+
+    for (int i = 0; i < 5; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+
+    char buf[10];
+    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Write(buf, 0, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Read(buf, 0, 0));
+
+    // 8. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* closefileret
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice.SetCloseFile(closefileret);
 
-    // 7. set refresh ret = kSessionNotExist
+    // 9. set refresh ret = kSessionNotExist
     refreshresp.set_statuscode(::curve::mds::StatusCode::kSessionNotExist);
     FakeReturn* refreshSessionNotExist
      = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));

@@ -79,6 +79,7 @@ void LeaseExcutor::RefreshLease() {
     if (response.status == leaseRefreshResult::Status::OK) {
         CheckNeedUpdateVersion(response.finfo.seqnum);
         failedrefreshcount_.store(0);
+        isleaseAvaliable_.store(true);
         iomanager_->RefeshSuccAndResumeIO();
     } else if (response.status == leaseRefreshResult::Status::NOT_EXIST) {
         iomanager_->LeaseTimeoutDisableIO();
