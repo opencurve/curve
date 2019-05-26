@@ -830,7 +830,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
 
     FillUserInfo<::curve::mds::ReFreshSessionRequest>(&request, userinfo);
 
-    LOG(INFO) << "RefreshSession: filename = " << filename.c_str()
+    LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner
                   << ", sessionid = " << sessionid;
 
@@ -847,16 +847,31 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
     }
 
     curve::mds::StatusCode stcode = response.statuscode();
+
+    if (stcode != curve::mds::StatusCode::kOK) {
+        LOG(ERROR) << "RefreshSession NOT OK: filename = "
+                    << filename.c_str()
+                    << ", owner = "
+                    << userinfo.owner
+                    << ", sessionid = "
+                    << sessionid
+                    << ", status code = "
+                    << curve::mds::StatusCode_Name(stcode);
+    }
+
     if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
         resp->status = leaseRefreshResult::Status::FAILED;
-        LOG(ERROR) << "auth failed!";
         return LIBCURVE_ERROR::AUTHFAIL;
     }
 
-    LOG_IF(ERROR, stcode == curve::mds::StatusCode::kSessionNotExist)
-    << "session not exist";
-    LOG_IF(ERROR, stcode == curve::mds::StatusCode::kFileNotExists)
-    << "file not exist";
+    LOG_EVERY_N(INFO, 10) << "RefreshSession returned: filename = "
+                          << filename.c_str()
+                          << ", owner = "
+                          << userinfo.owner
+                          << ", sessionid = "
+                          << sessionid
+                          << ", status code = "
+                          << curve::mds::StatusCode_Name(stcode);
 
     if (stcode == curve::mds::StatusCode::kSessionNotExist
         || stcode == curve::mds::StatusCode::kFileNotExists) {

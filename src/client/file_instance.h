@@ -82,6 +82,13 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     IOManager4File* GetIOManager4File() {return &iomanager4file_;}
 
+    /**
+     * 获取lease, 测试代码使用
+     */
+    LeaseExcutor* GetLeaseExcutor() {
+       return leaseexcutor_;
+    }
+
  private:
     int GetFileInfo(const std::string& filename, FInfo_t* fi);
 

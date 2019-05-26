@@ -83,6 +83,12 @@ class IOManager4File : public IOManager {
   void SetRequestScheduler(RequestScheduler* scheduler) {
     scheduler_ = scheduler;
   }
+  /**
+   * 获取当前disableio的状态，测试代码使用
+   */
+  bool IsDisableIO() {
+    return disableio_.load();
+  }
 
  private:
   friend class LeaseExcutor;
