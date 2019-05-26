@@ -246,6 +246,49 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
+    // 创建其他类型文件，返回kNotSupported
+    cntl.Reset();
+    request.set_filename("/file4");
+    request.set_owner("owner4");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_APPENDFILE);
+    request.set_filelength(fileLength);
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kNotSupported);
+    } else {
+        FAIL();
+    }
+
+    cntl.Reset();
+    request.set_filename("/file4");
+    request.set_owner("owner4");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_APPENDECFILE);
+    request.set_filelength(fileLength);
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kNotSupported);
+    } else {
+        FAIL();
+    }
+
+    cntl.Reset();
+    request.set_filename("/file4");
+    request.set_owner("owner4");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_SNAPSHOT_PAGEFILE);
+    request.set_filelength(fileLength);
+    cntl.set_log_id(3);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kNotSupported);
+    } else {
+        FAIL();
+    }
+
     // test GetFileInfo
     cntl.Reset();
     GetFileInfoRequest request1;
@@ -457,18 +500,6 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     cntl.Reset();
     request4.set_oldfilename("/dir/file3");
-    request4.set_newfilename("/file4");
-    request4.set_owner("owner3");
-    request4.set_date(TimeUtility::GetTimeofDayUs());
-    stub.RenameFile(&cntl, &request4, &response4, NULL);
-    if (!cntl.Failed()) {
-        ASSERT_EQ(response4.statuscode(), StatusCode::kOwnerAuthFail);
-    } else {
-        ASSERT_TRUE(false);
-    }
-
-    cntl.Reset();
-    request4.set_oldfilename("/dir/file3");
     request4.set_newfilename("/dir/file4");
     request4.set_owner("owner3");
     request4.set_date(TimeUtility::GetTimeofDayUs());
@@ -506,6 +537,30 @@ TEST_F(NameSpaceServiceTest, test1) {
     request4.set_date(date);
     request4.set_signature(sig);
 
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request4.set_oldfilename("/file4");
+    request4.set_newfilename("/dir/file3");
+    request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request4.set_oldfilename("/dir/file3");
+    request4.set_newfilename("/file4");
+    request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
     stub.RenameFile(&cntl, &request4, &response4, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response4.statuscode(), StatusCode::kOK);
@@ -1263,6 +1318,18 @@ TEST_F(NameSpaceServiceTest, isPathValid) {
     ASSERT_EQ(isPathValid("/a//b"), false);
     ASSERT_EQ(isPathValid("//a/b"), false);
     ASSERT_EQ(isPathValid("/a/b/"), false);
+    ASSERT_EQ(IsRenamePathValid("/a/b", "/a"), false);
+    ASSERT_EQ(IsRenamePathValid("/a", "/a/b"), false);
+    ASSERT_EQ(IsRenamePathValid("/a", "/a"), true);
+    ASSERT_EQ(IsRenamePathValid("/", "/a"), false);
+    ASSERT_EQ(IsRenamePathValid("/a", "/"), false);
+    ASSERT_EQ(IsRenamePathValid("/a/b", "/"), false);
+    ASSERT_EQ(IsRenamePathValid("/", "/a/b"), false);
+    ASSERT_EQ(IsRenamePathValid("/", "/"), false);
+    ASSERT_EQ(IsRenamePathValid("/a", "/c"), true);
+    ASSERT_EQ(IsRenamePathValid("/a/b", "/a/c"), true);
+    ASSERT_EQ(IsRenamePathValid("/a/b", "/c"), true);
+    ASSERT_EQ(IsRenamePathValid("/c", "/a/b"), true);
 }
 
 TEST_F(NameSpaceServiceTest, clonetest) {
