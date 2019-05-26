@@ -16,7 +16,6 @@ namespace curve {
 namespace mds {
 namespace topology {
 
-// TODO(xuchaojie): 优化token设计
 std::string DefaultTokenGenerator::GenToken() {
     std::string ret = "";
     for (int i = 0; i < 8; i++) {

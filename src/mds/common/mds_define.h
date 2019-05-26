@@ -62,9 +62,6 @@ typedef uint64_t ChunkIdType;
 
 const uint32_t UNINTIALIZE_ID = 0u;
 
-// TODO(xuchaojie): 修改为从配置文件读取的数据
-const uint64_t kChunkServerStateUpdateFreq = 600;
-
 // topology Error Code
 const int kTopoErrCodeSuccess = 0;
 const int kTopoErrCodeInternalError = -1;
