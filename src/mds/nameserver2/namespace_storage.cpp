@@ -71,13 +71,15 @@ StoreStatus NameServerStorageImp::GetFile(InodeID parentid,
         if (decodeOK) {
             return StoreStatus::OK;
         } else {
-            LOG(ERROR) << "decode info of key[" << storeKey << "] err"
-                       << ", fileinfo: " << fileInfo->DebugString();
+            LOG(ERROR) << "decode info of key[" << std::hex << storeKey
+                       << "] err" << ", fileinfo: " << fileInfo->DebugString();
             return StoreStatus::InternalError;
         }
+    } else if (errCode == EtcdErrCode::KeyNotExist) {
+        LOG(INFO) << "file info of key[" << std::hex << storeKey << "not exist";
     } else {
-        LOG(ERROR) << "get file info of key[" << storeKey << "] err: "
-                   << errCode;
+        LOG(ERROR) << "get file info of key[" << std::hex << storeKey
+                   << "] err: " << errCode;
     }
 
     return getErrorCode(errCode);
@@ -97,8 +99,8 @@ StoreStatus NameServerStorageImp::DeleteFile(InodeID id,
     int resCode = client_->Delete(storeKey);
 
     if (resCode != EtcdErrCode::OK) {
-        LOG(ERROR) << "delete file of key: [" << storeKey << "] err: "
-                   << resCode;
+        LOG(ERROR) << "delete file of key: [" << std::hex << storeKey
+                   << "] err: " << resCode;
     }
     return getErrorCode(resCode);
 }
@@ -117,8 +119,8 @@ StoreStatus NameServerStorageImp::DeleteRecycleFile(InodeID id,
     int resCode = client_->Delete(storeKey);
 
     if (resCode != EtcdErrCode::OK) {
-        LOG(ERROR) << "delete file of key: [" << storeKey << "] err: "
-                   << resCode;
+        LOG(ERROR) << "delete file of key: [" << std::hex << storeKey
+                   << "] err: " << resCode;
     }
     return getErrorCode(resCode);
 }
@@ -128,7 +130,7 @@ StoreStatus NameServerStorageImp::DeleteSnapshotFile(InodeID id,
     std::string storeKey;
     if (GetStoreKey(FileType::INODE_SNAPSHOT_PAGEFILE,
                     id, filename, &storeKey) != StoreStatus::OK) {
-        LOG(ERROR) << "get store key failed,filename = " << filename;
+        LOG(ERROR) << "get store key failed, filename = " << filename;
         return StoreStatus::InternalError;
     }
 
@@ -137,8 +139,8 @@ StoreStatus NameServerStorageImp::DeleteSnapshotFile(InodeID id,
     int resCode = client_->Delete(storeKey);
 
     if (resCode != EtcdErrCode::OK) {
-        LOG(ERROR) << "delete file of key: [" << storeKey << "] err: "
-                   << resCode;
+        LOG(ERROR) << "delete file of key: [" << std::hex << storeKey
+                   << "] err: " << resCode;
     }
     return getErrorCode(resCode);
 }
@@ -405,7 +407,7 @@ StoreStatus NameServerStorageImp::ListFileInternal(
         startStoreKey, endStoreKey, &out);
 
     if (errCode != EtcdErrCode::OK) {
-        LOG(ERROR) << "list file of [start:" << startStoreKey
+        LOG(ERROR) << "list file of [start:" << std::hex << startStoreKey
                    << ", end:" << endStoreKey << "] err:" << errCode;
         return getErrorCode(errCode);
     }
@@ -417,8 +419,9 @@ StoreStatus NameServerStorageImp::ListFileInternal(
         if (decodeOK) {
             files->emplace_back(fileInfo);
         } else {
-            LOG(ERROR) << "decode one fileInfo in [start:" << startStoreKey
-                       << ", end:" << endStoreKey << ") err";
+            LOG(ERROR) << "decode one fileInfo in [start:" << std::hex
+                       << startStoreKey << ", end:" << std::hex
+                       << endStoreKey << ") err";
             return StoreStatus::InternalError;
         }
     }
@@ -461,11 +464,13 @@ StoreStatus NameServerStorageImp::GetSegment(InodeID id,
         if (decodeOK) {
             return StoreStatus::OK;
         } else {
-            LOG(ERROR) << "decode segment[" << storeKey <<"] err";
+            LOG(ERROR) << "decode segment[" << std::hex << storeKey
+                       <<"] err";
             return StoreStatus::InternalError;
         }
     } else {
-        LOG(ERROR) << "get segment[" << storeKey <<"] err: " << errCode;
+        LOG(ERROR) << "get segment[" << std::hex << storeKey
+                   << "] err: " << errCode;
     }
     return getErrorCode(errCode);
 }
@@ -479,7 +484,7 @@ StoreStatus NameServerStorageImp::DeleteSegment(InodeID id, uint64_t off) {
     cache_->Remove(storeKey);
     if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "delete segment of storeKey["
-                   <<storeKey << "] err:" << errCode;
+                   << std::hex << storeKey << "] err:" << errCode;
     }
     return getErrorCode(errCode);
 }

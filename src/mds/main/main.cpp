@@ -59,10 +59,11 @@ void InitSessionOptions(Configuration *conf,
     sessionOptions->sessionUrl = conf->GetStringValue("mds.DbUrl");
     sessionOptions->sessionPassword = conf->GetStringValue(
         "mds.DbPassword");
-    sessionOptions->leaseTime = conf->GetIntValue("mds.session.leaseTime");
-    sessionOptions->toleranceTime =
-        conf->GetIntValue("mds.session.toleranceTime");
-    sessionOptions->intevalTime = conf->GetIntValue("mds.session.intevalTime");
+    sessionOptions->leaseTimeUs = conf->GetIntValue("mds.session.leaseTimeUs");
+    sessionOptions->toleranceTimeUs =
+        conf->GetIntValue("mds.session.toleranceTimeUs");
+    sessionOptions->intevalTimeUs =
+        conf->GetIntValue("mds.session.intevalTimeUs");
 }
 
 void InitAuthOptions(Configuration *conf,
@@ -81,35 +82,35 @@ void InitScheduleOption(Configuration *conf,
         conf->GetBoolValue("mds.enable.recover.scheduler");
     scheduleOption->enableReplicaScheduler =
         conf->GetBoolValue("mds.replica.replica.scheduler");
-    scheduleOption->copysetSchedulerInterval =
-        conf->GetIntValue("mds.copyset.scheduler.interval");
-    scheduleOption->leaderSchedulerInterval =
-        conf->GetIntValue("mds.leader.scheduler.interval");
-    scheduleOption->recoverSchedulerInterval =
-        conf->GetIntValue("mds.recover.scheduler.interval");
-    scheduleOption->replicaSchedulerInterval =
-        conf->GetIntValue("mds.replica.scheduler.interval");
+    scheduleOption->copysetSchedulerIntervalSec =
+        conf->GetIntValue("mds.copyset.scheduler.intervalSec");
+    scheduleOption->leaderSchedulerIntervalSec =
+        conf->GetIntValue("mds.leader.scheduler.intervalSec");
+    scheduleOption->recoverSchedulerIntervalSec =
+        conf->GetIntValue("mds.recover.scheduler.intervalSec");
+    scheduleOption->replicaSchedulerIntervalSec =
+        conf->GetIntValue("mds.replica.scheduler.intervalSec");
 
     scheduleOption->operatorConcurrent =
         conf->GetIntValue("mds.schduler.operator.concurrent");
     scheduleOption->transferLeaderTimeLimitSec =
-        conf->GetIntValue("mds.schduler.transfer.limit");
+        conf->GetIntValue("mds.schduler.transfer.limitSec");
     scheduleOption->addPeerTimeLimitSec =
-        conf->GetIntValue("mds.scheduler.add.limit");
+        conf->GetIntValue("mds.scheduler.add.limitSec");
     scheduleOption->removePeerTimeLimitSec =
-        conf->GetIntValue("mds.scheduler.remove.limit");
+        conf->GetIntValue("mds.scheduler.remove.limitSec");
 }
 
 void InitHeartbeatOption(Configuration *conf,
     HeartbeatOption *heartbeatOption) {
     heartbeatOption->heartbeatIntervalMs =
-        conf->GetIntValue("mds.heartbeat.interval");
+        conf->GetIntValue("mds.heartbeat.intervalMs");
     heartbeatOption->heartbeatMissTimeOutMs =
-        conf->GetIntValue("mds.heartbeat.misstimeout");
+        conf->GetIntValue("mds.heartbeat.misstimeoutMs");
     heartbeatOption->offLineTimeOutMs =
-        conf->GetIntValue("mds.heartbeat.offlinetimeout");
+        conf->GetIntValue("mds.heartbeat.offlinetimeoutMs");
     heartbeatOption->cleanFollowerAfterMs =
-        conf->GetIntValue("mds.heartbeat.clean_follower_afterms");
+        conf->GetIntValue("mds.heartbeat.clean_follower_afterMs");
 }
 
 void InitEtcdConf(Configuration *conf, EtcdConf *etcdConf) {
@@ -117,7 +118,7 @@ void InitEtcdConf(Configuration *conf, EtcdConf *etcdConf) {
     etcdConf->Endpoints = new char[endpoint.size()];
     std::memcpy(etcdConf->Endpoints, endpoint.c_str(), endpoint.size());
     etcdConf->len = endpoint.size();
-    etcdConf->DialTimeout = conf->GetIntValue("mds.etcd.dailtimeout");
+    etcdConf->DialTimeout = conf->GetIntValue("mds.etcd.dailtimeoutMs");
 }
 
 void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
@@ -196,7 +197,7 @@ int curve_main(int argc, char **argv) {
     auto client = std::make_shared<EtcdClientImp>();
     auto res = client->Init(
                 etcdConf,
-                conf.GetIntValue("mds.etcd.operation.timeout"),
+                conf.GetIntValue("mds.etcd.operation.timeoutMs"),
                 conf.GetIntValue("mds.etcd.retry.times"));
     if (res != EtcdErrCode::OK) {
         LOG(ERROR) << "init etcd client err! "
@@ -204,7 +205,7 @@ int curve_main(int argc, char **argv) {
                   << ", etcdaddr len: " << etcdConf.len
                   << ", etcdtimeout: " << etcdConf.DialTimeout
                   << ", operation timeout: "
-                  << conf.GetIntValue("mds.etcd.operation.timeout")
+                  << conf.GetIntValue("mds.etcd.operation.timeoutMs")
                   << ", etcd retrytimes: "
                   << conf.GetIntValue("mds.etcd.retry.times");
         return -1;
@@ -214,7 +215,7 @@ int curve_main(int argc, char **argv) {
                   << ", etcdaddr len: " << etcdConf.len
                   << ", etcdtimeout: " << etcdConf.DialTimeout
                   << ", operation timeout: "
-                  << conf.GetIntValue("mds.etcd.operation.timeout")
+                  << conf.GetIntValue("mds.etcd.operation.timeouMs")
                   << ", etcd retrytimes: "
                   << conf.GetIntValue("mds.etcd.retry.times");
     }

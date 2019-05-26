@@ -52,9 +52,9 @@ class CurveFSTest: public ::testing::Test {
         sessionOptions_.sessionUser = "";
         sessionOptions_.sessionUrl = "";
         sessionOptions_.sessionPassword = "";
-        sessionOptions_.leaseTime = 5000000;
-        sessionOptions_.toleranceTime = 500000;
-        sessionOptions_.intevalTime = 100000;
+        sessionOptions_.leaseTimeUs = 5000000;
+        sessionOptions_.toleranceTimeUs = 500000;
+        sessionOptions_.intevalTimeUs = 100000;
 
         authOptions_.rootOwner = "root";
         authOptions_.rootPassword = "root_password";
@@ -2246,7 +2246,7 @@ TEST_F(CurveFSTest, testOpenFile) {
     }
 
     SessionRepoItem sessionRepo("/file1", "sessionid",
-                    sessionOptions_.leaseTime, SessionStatus::kSessionOK,
+                    sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)
@@ -2367,7 +2367,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
     }
 
     SessionRepoItem sessionRepo("/file1", "sessionid",
-                    sessionOptions_.leaseTime, SessionStatus::kSessionOK,
+                    sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
                                 111, "127.0.0.1");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)

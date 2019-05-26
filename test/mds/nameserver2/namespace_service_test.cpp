@@ -62,9 +62,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         sessionOptions.sessionUser = "";
         sessionOptions.sessionUrl = "";
         sessionOptions.sessionPassword = "";
-        sessionOptions.leaseTime = 5000000;
-        sessionOptions.toleranceTime = 500000;
-        sessionOptions.intevalTime = 100000;
+        sessionOptions.leaseTimeUs = 5000000;
+        sessionOptions.toleranceTimeUs = 500000;
+        sessionOptions.intevalTimeUs = 100000;
 
         authOptions.rootOwner = "root";
         authOptions.rootPassword = "root_password";

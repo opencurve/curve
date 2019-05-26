@@ -452,9 +452,9 @@ bool SessionManager::Init(const struct SessionOptions &sessionOptions) {
     }
     LOG(INFO) << "load session from repo sucess.";
 
-    leaseTime_ = sessionOptions.leaseTime;
-    toleranceTime_ = sessionOptions.toleranceTime;
-    intevalTime_ = sessionOptions.intevalTime;
+    leaseTime_ = sessionOptions.leaseTimeUs;
+    toleranceTime_ = sessionOptions.toleranceTimeUs;
+    intevalTime_ = sessionOptions.intevalTimeUs;
     LOG(INFO) << "load configuration, leaseTime_ = " << leaseTime_
               << ", toleranceTime_ = " << toleranceTime_
               << ", intevalTime_ = " << intevalTime_;
