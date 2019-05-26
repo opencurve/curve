@@ -45,12 +45,14 @@ class TestTopologyServiceManager : public ::testing::Test {
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                tokenGenerator_,
                                                storage_);
+        TopologyOption topologyOption;
         CopysetOption copysetOption;
         copysetManager_ =
             std::make_shared<curve::mds::copyset::CopysetManager>(
                 copysetOption);
         serviceManager_ = std::make_shared<TopologyServiceManager>(topology_,
              copysetManager_);
+        serviceManager_->Init(topologyOption);
     }
 
     virtual void TearDown() {

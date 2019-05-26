@@ -129,7 +129,7 @@ int CurvefsTools::HandleCreateLogicalPool() {
     TopologyService_Stub stub(&channel_);
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(10000);
+    cntl.set_timeout_ms(60000);
     cntl.set_log_id(1);
 
     CreateLogicalPoolRequest request;
