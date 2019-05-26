@@ -25,6 +25,8 @@
 namespace curve {
 namespace client {
 FailureRequestOption_t  ClientClosure::failReqOpt_;
+ChunkserverClientMetric_t ClientClosure::chunkserverClientMetric_;
+
 void WriteChunkClosure::Run() {
     std::unique_ptr<WriteChunkClosure> selfGuard(this);
     std::unique_ptr<brpc::Controller> cntlGuard(cntl_);
@@ -61,6 +63,8 @@ void WriteChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto write_retry;
     }
@@ -90,6 +94,7 @@ void WriteChunkClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
+                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto write_retry;
             }
         }
@@ -99,6 +104,8 @@ void WriteChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto write_retry;
     }
@@ -110,6 +117,8 @@ void WriteChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto write_retry;
     }
@@ -141,6 +150,8 @@ write_retry:
         LOG(ERROR) << "retried times exceeds";
         return;
     }
+    chunkserverClientMetric_.retryCount << 1;
+    chunkserverClientMetric_.retryBytes << reqCtx->rawlength_;
     client_->WriteChunk(reqCtx->idinfo_,
                         reqCtx->seq_,
                         reqCtx->data_,
@@ -181,6 +192,8 @@ void ReadChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto read_retry;
     }
@@ -209,6 +222,7 @@ void ReadChunkClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
+                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto read_retry;
             }
         }
@@ -218,6 +232,8 @@ void ReadChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto read_retry;
@@ -230,6 +246,8 @@ void ReadChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto read_retry;
     }
@@ -269,6 +287,8 @@ read_retry:
         LOG(ERROR) << "retried times exceeds";
         return;
     }
+
+    chunkserverClientMetric_.retryCount << 1;
     client_->ReadChunk(reqCtx->idinfo_,
                        reqCtx->seq_,
                        reqCtx->offset_,
@@ -309,6 +329,8 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto read_retry;
     }
@@ -333,6 +355,7 @@ void ReadChunkSnapClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
+                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto read_retry;
             }
         }
@@ -342,6 +365,8 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto read_retry;
@@ -354,6 +379,8 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto read_retry;
     }
@@ -400,6 +427,8 @@ read_retry:
         LOG(ERROR) << "read snapshot retried times exceeds";
         return;
     }
+
+    chunkserverClientMetric_.retryCount << 1;
     client_->ReadChunkSnapshot(reqCtx->idinfo_,
                                reqCtx->seq_,
                                reqCtx->offset_,
@@ -439,6 +468,8 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto delete_retry;
     }
@@ -460,6 +491,7 @@ void DeleteChunkSnapClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
+                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto delete_retry;
             }
         }
@@ -469,6 +501,8 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto delete_retry;
@@ -481,6 +515,8 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto delete_retry;
     }
@@ -509,6 +545,8 @@ delete_retry:
         LOG(ERROR) << "delete snapshot retried times exceeds";
         return;
     }
+
+    chunkserverClientMetric_.retryCount << 1;
     client_->DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                                             reqCtx->correctedSeq_,
                                             doneGuard.release(),
@@ -546,6 +584,8 @@ void GetChunkInfoClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto get_retry;
     }
@@ -571,6 +611,7 @@ void GetChunkInfoClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
+                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto get_retry;
             }
         }
@@ -580,6 +621,8 @@ void GetChunkInfoClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto get_retry;
@@ -592,6 +635,8 @@ void GetChunkInfoClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto get_retry;
     }
@@ -618,6 +663,8 @@ get_retry:
         LOG(ERROR) << "get chunk info retried times exceeds";
         return;
     }
+
+    chunkserverClientMetric_.retryCount << 1;
     client_->GetChunkInfo(reqCtx->idinfo_,
                           doneGuard.release(),
                           retriedTimes_ + 1);
@@ -654,6 +701,8 @@ void CreateCloneChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto create_retry;
     }
@@ -675,6 +724,7 @@ void CreateCloneChunkClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
+                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto create_retry;
             }
         }
@@ -684,6 +734,8 @@ void CreateCloneChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto create_retry;
@@ -696,6 +748,8 @@ void CreateCloneChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto create_retry;
     }
@@ -724,6 +778,8 @@ create_retry:
         LOG(ERROR) << "create clone retried times exceeds";
         return;
     }
+
+    chunkserverClientMetric_.retryCount << 1;
     client_->CreateCloneChunk(reqCtx->idinfo_,
                             reqCtx->location_,
                             reqCtx->seq_,
@@ -764,6 +820,8 @@ void RecoverChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto recover_retry;
     }
@@ -785,6 +843,7 @@ void RecoverChunkClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
+                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto recover_retry;
             }
         }
@@ -794,6 +853,8 @@ void RecoverChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto recover_retry;
@@ -806,6 +867,8 @@ void RecoverChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        } else {
+            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto recover_retry;
     }
@@ -834,6 +897,7 @@ recover_retry:
         LOG(ERROR) << "recover chunk retried times exceeds";
         return;
     }
+    chunkserverClientMetric_.retryCount << 1;
     client_->RecoverChunk(reqCtx->idinfo_,
                         reqCtx->offset_,
                         reqCtx->rawlength_,

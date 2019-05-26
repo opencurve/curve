@@ -10,6 +10,7 @@
 
 #include <butil/endpoint.h>
 #include <butil/status.h>
+#include <bvar/bvar.h>
 
 #include <unistd.h>
 #include <string>
@@ -197,6 +198,117 @@ struct ChunkServerAddr {
     }
 };
 
+extern uint64_t GetAtomicUint64(void* arg);
+
+typedef struct ClientMetric {
+    const std::string prefix = "curve client";
+    // 读请求累计
+    bvar::Adder<uint64_t>   readRequestCount;
+    // 写请求累计
+    bvar::Adder<uint64_t>   writeRequestCount;
+    // 失败的读请求累计
+    bvar::Adder<uint64_t>   readRequestFailCount;
+    // 失败的写请求累计
+    bvar::Adder<uint64_t>   writeRequestFailCount;
+    // 读请求每秒计数
+    bvar::PerSecond<bvar::Adder<uint64_t>>  readQps;
+    // 写请求每秒计数
+    bvar::PerSecond<bvar::Adder<uint64_t>>  writeQps;
+    // 读请求每秒计数
+    bvar::PerSecond<bvar::Adder<uint64_t>>  readFailQps;
+    // 写请求每秒计数
+    bvar::PerSecond<bvar::Adder<uint64_t>>  writeFailQps;
+
+    // 读请求累计字节计数
+    bvar::Adder<uint64_t>   readBytesCount;
+    // 写请求累计字节计数
+    bvar::Adder<uint64_t>   writeBytesCount;
+    // 读请求每秒累计字节计数
+    bvar::PerSecond<bvar::Adder<uint64_t>> readBps;
+    // 写请求每秒累计字节计数
+    bvar::PerSecond<bvar::Adder<uint64_t>> writeBps;
+
+    // 读请求平均时延
+    bvar::LatencyRecorder   readRequestLatency;
+    // 写请求平均时延
+    bvar::LatencyRecorder   writeRequestLatency;
+
+    ClientMetric() :
+          readRequestCount(prefix, "read_request_count")
+        , writeRequestCount(prefix, "write_request_count")
+        , readRequestFailCount(prefix, "read_fail_request_count")
+        , writeRequestFailCount(prefix, "write_fail_request_count")
+        , readQps(prefix, "read_qps", &readRequestCount)
+        , writeQps(prefix, "write_qps", &writeRequestCount)
+        , readFailQps(prefix, "read_fail_qps", &readRequestFailCount)
+        , writeFailQps(prefix, "write_fail_qps", &writeRequestFailCount)
+        , readBytesCount(prefix, "read_bytes_count")
+        , writeBytesCount(prefix, "write_bytes_count")
+        , readBps(prefix, "read_bps", &readBytesCount)
+        , writeBps(prefix, "write_bps", &writeBytesCount)
+        , readRequestLatency("curve_client_read_latency")
+        , writeRequestLatency("curve_client_write_latency") {}
+} ClientMetric_t;
+
+typedef struct MDSClientMetric {
+    const std::string prefix = "libcurve mds client";
+    std::atomic<uint64_t>    timeoutCount;
+    std::atomic<uint64_t>    mdsServerChangeCount;
+
+    // 与mds通信超时次数
+    bvar::Adder<uint64_t>                   timeoutTimes;
+    // 单位时间内与mds通信超时次数
+    bvar::PerSecond<bvar::Adder<uint64_t>>  timeoutTimes_60s;
+    // 切换mds server总次数
+    bvar::Adder<uint64_t>                   mdsServerChangeTimes;
+    // 单位时间内切换mds server次数
+    bvar::PerSecond<bvar::Adder<uint64_t>>  mdsServerChanges_5m;
+
+    MDSClientMetric() : timeoutTimes(prefix, "mds_server_timeout_times")
+                      , timeoutTimes_60s(prefix,
+                             "mds_server_timeout_times_60s",
+                             &timeoutTimes,
+                             60)
+                      , mdsServerChangeTimes(prefix, "mds_server_change_times")
+                      , mdsServerChanges_5m(prefix,
+                             "mds_server_change_times_5m",
+                             &mdsServerChangeTimes,
+                             300) {}
+} MDSClientMetric_t;
+
+typedef struct ChunkserverClientMetric {
+    const std::string prefix = "libcurve chunkserver client";
+
+    // change leader总次数
+    bvar::Adder<uint64_t>                   leaderChangeTimes;
+    // 1分钟内leader变更次数
+    bvar::PerSecond<bvar::Adder<uint64_t>>  leaderChanges_60s;
+    // 超时引起的带宽占用Bytes
+    bvar::Adder<uint64_t>                   retryBytes;
+    // 超时引起的带宽占用bps
+    bvar::PerSecond<bvar::Adder<uint64_t>>  retryBytesBps;
+    // 与chunkserver通信超时次数统计
+    bvar::Adder<uint64_t>                   retryCount;
+    // 1分钟内与chunkserver通信超时次数统计
+    bvar::PerSecond<bvar::Adder<uint64_t>>  retryCount_60s;
+
+    ChunkserverClientMetric() :
+           leaderChangeTimes(prefix, "leader_change_times")
+         , leaderChanges_60s(prefix,
+                             "leader_change_times_60s",
+                             &leaderChangeTimes,
+                             60)
+         , retryBytes(prefix, "retry_bytes")
+         , retryBytesBps(prefix,
+                             "retry_bytes_bps",
+                             &retryBytes,
+                             1)
+         , retryCount(prefix, "retry_count")
+         , retryCount_60s(prefix,
+                             "retry_count_bps",
+                             &retryCount,
+                             60) {}
+} ChunkserverClientMetric_t;
 }   // namespace client
 }   // namespace curve
 

@@ -21,11 +21,18 @@ namespace client {
 IOManager4File::IOManager4File():
                     disableio_(false),
                     startWaitInflightIO_(false),
-                    inflightIONum_(0) {
+                    inflightIONum_(0),
+                    scheduler_(nullptr) {
 }
 
-bool IOManager4File::Initialize(IOOption_t ioOpt) {
+bool IOManager4File::Initialize(IOOption_t ioOpt,
+                                ClientMetric_t* clientMetric) {
     ioopt_ = ioOpt;
+    if (clientMetric == nullptr) {
+        LOG(ERROR) << "metric pointer is null!";
+        return false;
+    }
+    clientMetric_ = clientMetric;
     mc_.Init(ioopt_.metaCacheOpt);
     Splitor::Init(ioopt_.ioSplitOpt);
 
@@ -58,7 +65,7 @@ int IOManager4File::Read(char* buf,
     if (startWaitInflightIO_.load(std::memory_order_acquire)) {
         WaitInflightIOComeBack();
     }
-    IOTracker temp(this, &mc_, scheduler_);
+    IOTracker temp(this, &mc_, scheduler_, clientMetric_);
     inflightIONum_.fetch_add(1, std::memory_order_release);
     temp.StartRead(nullptr, buf, offset, length, mdsclient, &fi_);
 
@@ -77,7 +84,7 @@ int IOManager4File::Write(const char* buf,
     if (startWaitInflightIO_.load(std::memory_order_acquire)) {
         WaitInflightIOComeBack();
     }
-    IOTracker temp(this, &mc_, scheduler_);
+    IOTracker temp(this, &mc_, scheduler_, clientMetric_);
     inflightIONum_.fetch_add(1, std::memory_order_release);
     temp.StartWrite(nullptr, buf, offset, length, mdsclient, &fi_);
 
@@ -86,22 +93,19 @@ int IOManager4File::Write(const char* buf,
     return ret;
 }
 
-void IOManager4File::AioRead(CurveAioContext* aioctx,
+int IOManager4File::AioRead(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
     if (disableio_.load(std::memory_order_acquire)) {
-        aioctx->ret = -LIBCURVE_ERROR::DISABLEIO;
-        aioctx->cb(aioctx);
-        return;
+        return -LIBCURVE_ERROR::DISABLEIO;
     }
     if (startWaitInflightIO_.load(std::memory_order_acquire)) {
         WaitInflightIOComeBack();
     }
-    IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_, scheduler_);
+    IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
+                                                   scheduler_, clientMetric_);
     if (temp == nullptr) {
         LOG(ERROR) << "allocate tracker failed!";
-        aioctx->ret = -LIBCURVE_ERROR::FAILED;
-        aioctx->cb(aioctx);
-        return;
+        return -LIBCURVE_ERROR::FAILED;
     }
     inflightIONum_.fetch_add(1, std::memory_order_release);
     temp->StartRead(aioctx,
@@ -110,24 +114,22 @@ void IOManager4File::AioRead(CurveAioContext* aioctx,
                     aioctx->length,
                     mdsclient,
                     &fi_);
+    return LIBCURVE_ERROR::OK;
 }
 
-void IOManager4File::AioWrite(CurveAioContext* aioctx,
+int IOManager4File::AioWrite(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
     if (disableio_.load(std::memory_order_acquire)) {
-        aioctx->ret = -LIBCURVE_ERROR::DISABLEIO;
-        aioctx->cb(aioctx);
-        return;
+        return -LIBCURVE_ERROR::DISABLEIO;
     }
     if (startWaitInflightIO_.load(std::memory_order_acquire)) {
         WaitInflightIOComeBack();
     }
-    IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_, scheduler_);
+    IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
+                                                   scheduler_, clientMetric_);
     if (temp == nullptr) {
         LOG(ERROR) << "allocate tracker failed!";
-        aioctx->ret = -LIBCURVE_ERROR::FAILED;
-        aioctx->cb(aioctx);
-        return;
+        return -LIBCURVE_ERROR::FAILED;
     }
     inflightIONum_.fetch_add(1, std::memory_order_release);
     temp->StartWrite(aioctx,
@@ -136,6 +138,7 @@ void IOManager4File::AioWrite(CurveAioContext* aioctx,
                     aioctx->length,
                     mdsclient,
                     &fi_);
+    return LIBCURVE_ERROR::OK;
 }
 
 void IOManager4File::UpdataFileInfo(const FInfo_t& fi) {

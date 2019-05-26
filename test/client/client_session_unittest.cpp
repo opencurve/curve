@@ -34,6 +34,7 @@ using curve::client::FileClient;
 using curve::client::FileInstance;
 using curve::client::TimerTask;
 using curve::client::TimerTaskWorker;
+using curve::client::ClientMetric_t;
 
 void sessioncallback(CurveAioContext* aioctx) {
     ASSERT_EQ(-1 * LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
@@ -102,10 +103,12 @@ TEST(ClientSession, LeaseTaskTest) {
     UserInfo_t userinfo;
     userinfo.owner = "userinfo";
 
+    ClientMetric_t clientMetric;
     MDSClient mdsclient;
     mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
     ASSERT_TRUE(fileinstance.Initialize(&mdsclient, userinfo,
-                                        cc.GetFileServiceOption()));
+                                        cc.GetFileServiceOption(),
+                                        &clientMetric));
 
     brpc::Server server;
     FakeMDSCurveFSService curvefsservice;
@@ -278,10 +281,12 @@ TEST(ClientSession, AppliedIndexTest) {
     UserInfo_t userinfo;
     userinfo.owner = "userinfo";
 
+    ClientMetric_t clientMetric;
     MDSClient mdsclient;
     mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
     ASSERT_TRUE(fileinstance.Initialize(&mdsclient, userinfo,
-                                        cc.GetFileServiceOption()));
+                                        cc.GetFileServiceOption(),
+                                        &clientMetric));
 
     // create fake chunkserver service
     FakeChunkServerService fakechunkservice;
