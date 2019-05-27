@@ -128,6 +128,12 @@ class CopysetNode : public braft::StateMachine,
     CopysetID GetCopysetId() const;
 
     /**
+     * 返回复制组数据目录
+     * @return
+     */
+    std::string GetCopysetDir() const;
+
+    /**
      * 返回当前副本是否在leader任期
      * @return
      */
@@ -224,12 +230,6 @@ class CopysetNode : public braft::StateMachine,
      * @param task
      */
     virtual void Propose(const braft::Task &task);
-
-    /**
-     * 删除复制组持久化数据
-     * @return
-     */
-    int RemoveCopysetData();
 
     /**
      * 获取复制组成员
@@ -386,6 +386,8 @@ class CopysetNode : public braft::StateMachine,
     std::string chunkDataApath_;
     // chunk file的相对目录
     std::string chunkDataRpath_;
+    // copyset绝对路径
+    std::string copysetDirPath_;
     // 文件系统适配器
     std::shared_ptr<LocalFileSystem> fs_;
     // Chunk持久化操作接口

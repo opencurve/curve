@@ -186,6 +186,9 @@ cc_test(
         "chunkserver_test_util.cpp",
         "chunkserver_test_util.h",
         "fake_datastore.h",
+        "trash_test.cpp",
+        "mock_local_file_system.h",
+        "mock_chunkfile_pool.h"
     ],
     copts = ["-std=c++14"],
     deps = [

@@ -86,3 +86,9 @@ chunkfilepool.chunk_file_pool_dir=./0/
 #chunkfilepool.meta_path=./chunkfilepool.meta
 chunkfilepool.cpmeta_file_size=4096
 chunkfilepool.retry_times=5
+
+#
+# trash settings
+#
+trash.expire_afterSec=86400
+trash.scan_periodSec=3600
