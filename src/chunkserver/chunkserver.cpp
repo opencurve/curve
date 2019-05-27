@@ -12,6 +12,8 @@
 #include <braft/builtin_service_impl.h>
 #include <braft/raft_service.h>
 
+#include <memory>
+
 #include "src/chunkserver/chunkserver.h"
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/chunk_service.h"
@@ -108,12 +110,22 @@ int ChunkServer::Run(int argc, char** argv) {
             << "Failed to register to MDS.";
     }
 
+    // trash模块初始化
+    TrashOptions trashOptions;
+    InitTrashOptions(&conf, &trashOptions);
+    trashOptions.localFileSystem = fs;
+    trashOptions.chunkfilePool = chunkfilePool;
+    trash_ = std::make_shared<Trash>();
+    LOG_IF(FATAL, trash_->Init(trashOptions) != 0)
+        << "Failed to init Trash";
+
     // 初始化复制组管理模块
     CopysetNodeOptions copysetNodeOptions;
     InitCopysetNodeOptions(&conf, &copysetNodeOptions);
     copysetNodeOptions.concurrentapply = &concurrentapply;
     copysetNodeOptions.chunkfilePool = chunkfilePool;
     copysetNodeOptions.localFileSystem = fs;
+    copysetNodeOptions.trash = trash_;
     butil::ip_t ip;
     if (butil::str2ip(copysetNodeOptions.ip.c_str(), &ip) < 0) {
         LOG(FATAL) << "Invalid server IP provided: " << copysetNodeOptions.ip;
@@ -127,7 +139,6 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to initialize CopysetNodeManager.";
     LOG_IF(FATAL, copysetNodeManager_.ReloadCopysets() != 0)
         << "CopysetNodeManager Failed to reload copyset.";
-
 
     // 心跳模块初始化
     HeartbeatOptions heartbeatOptions;
@@ -148,6 +159,8 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to start heartbeat manager.";
     LOG_IF(FATAL, cloneManager_.Run() != 0)
         << "Failed to start clone manager.";
+    LOG_IF(FATAL, trash_->Run() != 0)
+        << "Failed to start trash.";
 
     // ========================添加rpc服务===============================//
     // TODO(lixiaocui): rpc中各接口添加上延迟metric
@@ -214,6 +227,8 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to shutdown clone copyer.";
     LOG_IF(ERROR, copysetNodeManager_.Fini() != 0)
         << "Failed to shutdown CopysetNodeManager.";
+    LOG_IF(ERROR, trash_->Fini() != 0)
+        << "Failed to shutdown trash.";
     concurrentapply.Stop();
     return 0;
 }
@@ -323,6 +338,15 @@ void ChunkServer::InitRegisterOptions(
         conf->GetIntValue("mds.register_retries");
     registerOptions->registerTimeout =
         conf->GetIntValue("mds.register_timeout");
+}
+
+void ChunkServer::InitTrashOptions(
+    common::Configuration *conf, TrashOptions *trashOptions) {
+    trashOptions->trashPath = conf->GetStringValue("copyset.recycler_uri");
+    trashOptions->expiredAfterSec =
+        conf->GetIntValue("trash.expire_afterSec", 86400);
+    trashOptions->scanPeriodSec =
+        conf->GetIntValue("trash.scan_periodSec", 3600);
 }
 
 int ChunkServer::GetChunkServerMetaFromLocal(

@@ -244,23 +244,24 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
 
 bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
                                               const CopysetID &copysetId) {
-    bool ret = false;
     /* 加写锁 */
     WriteLockGuard writeLockGuard(rwLock_);
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
     auto it = copysetNodeMap_.find(groupId);
     if (copysetNodeMap_.end() != it) {
         it->second->Fini();
-        if (0 != it->second->RemoveCopysetData()) {
+        if (0 != copysetNodeOptions_.trash->RecycleCopySet(
+                it->second->GetCopysetDir())) {
             LOG(ERROR) << "Failed to remove copyset <" << logicPoolId
                        << ", " << copysetId << "> persistently";
-            ret = false;
+            return false;
         }
         copysetNodeMap_.erase(it);
-        ret = true;
+        LOG(INFO) << "Success to remove copyset <" << logicPoolId
+                   << ", " << copysetId << "> to trash";
     }
 
-    return ret;
+    return true;
 }
 
 bool CopysetNodeManager::IsExist(const LogicPoolID &logicPoolId,
