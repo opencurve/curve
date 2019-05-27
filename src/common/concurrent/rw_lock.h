@@ -10,6 +10,7 @@
 
 #include <pthread.h>
 #include <assert.h>
+#include <glog/logging.h>
 
 #include "src/common/uncopyable.h"
 
@@ -27,7 +28,8 @@ class RWLock : public Uncopyable {
     }
 
     void WRLock() {
-        pthread_rwlock_wrlock(&rwlock_);
+        int ret = pthread_rwlock_wrlock(&rwlock_);
+        CHECK(0 == ret) << "wlock failed: " << ret << ", " << strerror(ret);
     }
 
     int TryWRLock() {
@@ -35,7 +37,8 @@ class RWLock : public Uncopyable {
     }
 
     void RDLock() {
-        pthread_rwlock_rdlock(&rwlock_);
+        int ret = pthread_rwlock_rdlock(&rwlock_);
+        CHECK(0 == ret) << "rlock failed: " << ret << ", " << strerror(ret);
     }
 
     int TryRDLock() {
