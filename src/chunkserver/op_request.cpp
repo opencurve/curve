@@ -73,6 +73,13 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
     }
     task.data = &log;
     task.done = new ChunkClosure(shared_from_this());
+    /**
+     * 由于apply是异步的，有可能某个节点在term1是leader，apply了一条log，
+     * 但是中间发生了主从切换，在很短的时间内这个节点又变为term3的leader，
+     * 之前apply的日志才开始进行处理，这种情况下要实现严格意义上的复制状态
+     * 机，需要解决这种ABA问题，可以在apply的时候设置leader当时的term
+     */
+    task.expected_term = node_->LeaderTerm();
 
     node_->Propose(task);
 
