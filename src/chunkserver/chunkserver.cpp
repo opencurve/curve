@@ -251,7 +251,7 @@ void ChunkServer::InitCopysetNodeOptions(
                    << copysetNodeOptions->port;
     }
     copysetNodeOptions->snapshotIntervalS =
-        conf->GetIntValue("copyset.snapshot_interval");
+        conf->GetIntValue("copyset.snapshot_interval_s");
     copysetNodeOptions->catchupMargin =
         conf->GetIntValue("copyset.catchup_margin");
     copysetNodeOptions->chunkDataUri =

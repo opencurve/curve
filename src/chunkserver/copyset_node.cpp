@@ -733,6 +733,9 @@ int CopysetNode::GetConfChange(ConfigChangeType *type,
      */
     return -1;
 }
+uint64_t CopysetNode::LeaderTerm() const {
+    return leaderTerm_.load(std::memory_order_acquire);
+}
 
 }  // namespace chunkserver
 }  // namespace curve
