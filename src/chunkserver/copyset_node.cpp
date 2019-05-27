@@ -51,9 +51,8 @@ CopysetNode::~CopysetNode() {
 int CopysetNode::Init(const CopysetNodeOptions &options) {
     std::string groupId = ToGroupId(logicPoolId_, copysetId_);
 
-    std::string chunkDataDir;
     std::string protocol = FsAdaptorUtil::ParserUri(options.chunkDataUri,
-                                                    &chunkDataDir);
+                                                    &copysetDirPath_);
     if (protocol.empty()) {
         // TODO(wudemiao): 增加必要的错误码并返回
         LOG(ERROR) << "not support chunk data uri's protocol"
@@ -65,7 +64,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
      * Init copyset node关于chunk server的配置，
      * 这两个的初始化必须在raftNode_.init之前
      */
-    chunkDataApath_.append(chunkDataDir).append("/").append(groupId);
+    chunkDataApath_.append(copysetDirPath_).append("/").append(groupId);
+    copysetDirPath_.append("/").append(groupId);
     fs_ = options.localFileSystem;
     CHECK(nullptr != fs_) << "local file sytem is null";
     epochFile_ = std::make_unique<ConfEpochFile>(fs_);
@@ -148,93 +148,6 @@ void CopysetNode::Fini() {
         // 等待所有的正在处理的task结束
         raftNode_->join();
     }
-}
-
-int CopysetNode::RemoveCopysetData() {
-    int ret;
-    std::string srcDir;
-    std::string destDir;
-    std::string recyclerDir;
-    std::string groupId = ToGroupId(logicPoolId_, copysetId_);
-
-    /*
-     * TODO(wenyu) 目前仅把copyset移动到回收站目录，后续添加异步工作线程把
-     * chunk回收到chunk文件池并把其他copyset数据删掉
-     */
-    recyclerDir = FsAdaptorUtil::GetPathFromUri(recyclerUri_);
-    if (!fs_->DirExists(recyclerDir.c_str())) {
-        LOG(INFO) << "Copyset recyler directory " << recyclerDir
-                  << " does not exist, creating it";
-        if (0 != (ret = fs_->Mkdir(recyclerDir.c_str()))) {
-            LOG(ERROR) << "Failed to create copyset recyler directory: "
-                       << recyclerDir << "error: " << strerror(errno);
-            return errno;
-        }
-    }
-    recyclerDir.append("/").append(groupId);
-    if (!fs_->DirExists(recyclerDir.c_str())) {
-        if (0 != (ret = fs_->Mkdir(recyclerDir.c_str()))) {
-            LOG(ERROR) << "Failed to create copyset recyler directory: "
-                       << recyclerDir << "error: " << strerror(errno);
-            return errno;
-        }
-    }
-
-    srcDir = chunkDataApath_;
-    destDir = recyclerDir;
-    destDir.append("/").append(RAFT_DATA_DIR);
-    if (0 != (ret = rename(srcDir.c_str(), destDir.c_str()))) {
-        LOG(ERROR) << "Failed to move data directory " << srcDir
-                   << " to recycler, error: " << strerror(errno);
-        return errno;
-    } else if (rmdir(srcDir.substr(0, srcDir.size() - sizeof(RAFT_DATA_DIR))
-                           .c_str())) {
-        LOG(WARNING) << "Removing copyset data directory failed, "
-                     << "probably it is shared, ignoring.";
-    }
-
-    destDir = recyclerDir;
-    destDir.append("/").append(RAFT_LOG_DIR);
-    srcDir = FsAdaptorUtil::GetPathFromUri(nodeOptions_.log_uri);
-    if (0 != (ret = rename(srcDir.c_str(), destDir.c_str()))) {
-        LOG(ERROR) << "Failed to move log directory " << srcDir
-                   << " to recycler, error: " << strerror(errno);
-        return errno;
-    } else if (rmdir(srcDir.substr(0, srcDir.size() - sizeof(RAFT_LOG_DIR))
-                           .c_str())) {
-        LOG(WARNING) << "Removing copyset log directory failed, "
-                     << "probably it is shared, ignoring.";
-    }
-
-    destDir = recyclerDir;
-    destDir.append("/").append(RAFT_META_DIR);
-    srcDir = FsAdaptorUtil::GetPathFromUri(nodeOptions_.raft_meta_uri);
-    if (0 != (ret = rename(srcDir.c_str(), destDir.c_str()))) {
-        LOG(ERROR) << "Failed to move raft meta directory " << srcDir
-                   << " to recycler, error: " << strerror(errno);
-        return errno;
-    } else if (rmdir(srcDir.substr(0, srcDir.size() - sizeof(RAFT_META_DIR))
-                           .c_str())) {
-        LOG(WARNING) << "Removing copyset raft meta directory failed, "
-                     << "probably it is shared, ignoring.";
-    }
-
-    destDir = recyclerDir;
-    destDir.append("/").append(RAFT_SNAP_DIR);
-    srcDir = FsAdaptorUtil::GetPathFromUri(nodeOptions_.snapshot_uri);
-    if (0 != (ret = rename(srcDir.c_str(), destDir.c_str()))) {
-        LOG(ERROR) << "Failed to move raft snapshot directory " << srcDir
-                   << " to recycler, error: " << strerror(errno);
-        return errno;
-    } else if (rmdir(srcDir.substr(0, srcDir.size() - sizeof(RAFT_SNAP_DIR))
-                           .c_str())) {
-        LOG(WARNING) << "Removing copyset snapshot directory failed, "
-                     << "probably it is shared, ignoring.";
-    }
-
-    LOG(INFO) << "Moved all data of copyset <" << logicPoolId_ << ", "
-              << copysetId_ << "> to recyler directory: " << recyclerDir;
-    return 0;
 }
 
 void CopysetNode::on_apply(::braft::Iterator &iter) {
@@ -489,6 +402,10 @@ LogicPoolID CopysetNode::GetLogicPoolId() const {
 
 CopysetID CopysetNode::GetCopysetId() const {
     return copysetId_;
+}
+
+std::string CopysetNode::GetCopysetDir() const {
+    return copysetDirPath_;
 }
 
 uint64_t CopysetNode::GetConfEpoch() const {

@@ -9,11 +9,13 @@
 #define SRC_CHUNKSERVER_CHUNKSERVER_H_
 
 #include <string>
+#include <memory>
 #include "src/common/configuration.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/clone_manager.h"
 #include "src/chunkserver/register.h"
+#include "src/chunkserver/trash.h"
 
 namespace curve {
 namespace chunkserver {
@@ -53,6 +55,9 @@ class ChunkServer {
     void InitRegisterOptions(common::Configuration *conf,
         RegisterOptions *registerOptions);
 
+    void InitTrashOptions(common::Configuration *conf,
+        TrashOptions *trashOptions);
+
     int GetChunkServerMetaFromLocal(const std::string &storeUri,
         const std::string &metaUri,
         const std::shared_ptr<LocalFileSystem> &fs,
@@ -65,10 +70,17 @@ class ChunkServer {
     // false-停止运行
     volatile bool toStop_;
 
-    // chunkserver包含的模块
+    // copysetNodeManager_ 管理chunkserver上所有copysetNode
     CopysetNodeManager copysetNodeManager_;
+
+    // cloneManager_ 管理克隆任务
     CloneManager cloneManager_;
+
+    // heartbeat_ 负责向mds定期发送心跳，并下发心跳中任务
     Heartbeat heartbeat_;
+
+    // trash_ 定期回收垃圾站中的物理空间
+    std::shared_ptr<Trash> trash_;
 };
 
 }  // namespace chunkserver
