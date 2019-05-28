@@ -8,12 +8,13 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "src/mds/heartbeat/chunkserver_healthy_checker.h"
-#include "test/mds/heartbeat/mock_topology.h"
+#include "test/mds/mock/mock_topology.h"
 
 using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::_;
+using ::curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
@@ -41,13 +42,7 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
     ASSERT_TRUE(info.OnlineFlag);
     ASSERT_FALSE(checker->GetHeartBeatInfo(4, &info));
 
-    ::curve::mds::topology::ChunkServer chunkServer(
-        1, "", "", 1, "", 9000, "",
-        ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology, GetChunkServer(_, _))
-        .Times(2)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(chunkServer), Return(true)));
-    EXPECT_CALL(*topology, UpdateChunkServerState(_, _))
+    EXPECT_CALL(*topology, UpdateOnlineState(_, _))
         .Times(2).WillRepeatedly(Return(true));
     checker->CheckHeartBeatInterval();
     ASSERT_TRUE(checker->GetHeartBeatInfo(1, &info));

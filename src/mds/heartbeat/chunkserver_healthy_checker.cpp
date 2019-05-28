@@ -56,20 +56,17 @@ void ChunkserverHealthyChecker::CheckHeartBeatInterval() {
         // 更新到topology模块
         if (needUpdate) {
             value.second.OnlineFlag = !value.second.OnlineFlag;
-            ::curve::mds::topology::ChunkServer chunkServer;
-            topo_->GetChunkServer(value.first, &chunkServer);
-            ChunkServerState state = chunkServer.GetChunkServerState();
-
+            int updateErrCode = ::curve::mds::topology::kTopoErrCodeSuccess;
             if (value.second.OnlineFlag) {
-                state.SetOnlineState(OnlineState::ONLINE);
+                updateErrCode =
+                    topo_->UpdateOnlineState(OnlineState::ONLINE, value.first);
             } else {
-                state.SetOnlineState(OnlineState::OFFLINE);
+                updateErrCode =
+                    topo_->UpdateOnlineState(OnlineState::OFFLINE, value.first);
             }
 
-            int updateErrCode =
-                topo_->UpdateChunkServerState(state, value.first);
             if (::curve::mds::topology::kTopoErrCodeSuccess != updateErrCode) {
-                LOG(ERROR) << "heartbeatManager update chunkserver state get "
+                LOG(ERROR) << "heartbeatManager update chunkserver get "
                            "error code: " << updateErrCode;
             }
         }
