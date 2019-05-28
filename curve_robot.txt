@@ -1526,16 +1526,17 @@ read write with extend file
     [Teardown]	    file clean      ${new_fd}
 
 read write with close file
-    [Tags]    P0    base    first release 
+    [Tags]    P0    base    first release
     [Setup]	file init
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
     ${thread}   background loop write file noassert   ${new_fd}
-    sleep  3
+    sleep  1
     check write isalive    ${thread}
     ${rc}   close libcurve file     ${new_fd}
     ${expect_rc}    evaluate    int(0)
     should be equal    ${rc}   ${expect_rc}
+    check write isalive    ${thread}
     stop write
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
@@ -1675,8 +1676,30 @@ create delete multilevel dir
     delete multi dir  ${num}
     [Teardown]	    file clean     none
 
+create max file
+    [Tags]    P0    base    first release
+    ${origin_dir}    evaluate     str("/cyh")
+    ${rc}   create libcurve dir   ${origin_dir}
+    ${expect_rc}    evaluate    int(0)
+    should be equal      ${rc}       ${expect_rc}
+    ${num}   evaluate   int(10000)
+    mult thread   create_libcurve_file   ${num}  ${origin_dir}
+    mult thread   statfs_libcurve_file   ${num}  ${origin_dir}
+    mult thread   delete_libcurve_file   ${num}  ${origin_dir}
+    [Teardown]	    file clean     none
 
-
+random combination thrasher
+    [Tags]    P0    base    first release
+    create libcurve file with normal user
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${thread}   background loop write file   ${new_fd}
+    check write isalive    ${thread}
+    thrasher   ${new_fd}
+    stop write
+    wait thread  ${thread}
+    check loop read   ${new_fd}
+    [Teardown]	    file clean     ${new_fd}
 
 snapshot test
     [Tags]    P1    base    first release   snapshot    no-need
