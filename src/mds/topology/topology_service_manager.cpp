@@ -39,13 +39,18 @@ using ::curve::mds::copyset::CopysetConstrait;
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
-    // 查重
-    ChunkServerIdType csId =
-        topology_->FindChunkServer(request->hostip(),
-            request->port());
-    if (csId !=
-        static_cast<ServerIdType>(UNINTIALIZE_ID)) {
-        // TODO(xuchaojie): 此处支持换盘还有问题，后续统一修改换盘逻辑
+    std::string hostIp = request->hostip();
+    uint32_t port = request->port();
+    // 需要为Retired或offline情况才能换盘，否则视为ipPort重复的chunkserver
+    std::vector<ChunkServerIdType> list =
+        topology_->GetChunkServerInCluster(
+            [&hostIp, &port](const ChunkServer &cs){
+                return (cs.GetStatus() != ChunkServerStatus::RETIRED) &&
+                       (cs.GetOnlineState() != OnlineState::OFFLINE) &&
+                       (cs.GetHostIp() == hostIp) &&
+                       (cs.GetPort() == port);
+            });
+    if (list.size() != 0) {
         response->set_statuscode(kTopoErrCodeIpPortDuplicated);
         return;
     }
@@ -76,9 +81,7 @@ void TopologyServiceManager::RegistChunkServer(
         request->hostip(),
         request->port(),
         request->diskpath());
-    ChunkServerState state;
-    state.SetOnlineState(ONLINE);
-    chunkserver.SetChunkServerState(state);
+    chunkserver.SetOnlineState(ONLINE);
 
     int errcode = topology_->AddChunkServer(chunkserver);
     if (errcode == kTopoErrCodeSuccess) {
@@ -125,10 +128,10 @@ void TopologyServiceManager::ListChunkServer(
             csInfo->set_hostip(server.GetInternalHostIp());
             csInfo->set_port(cs.GetPort());
             csInfo->set_status(cs.GetStatus());
+            csInfo->set_onlinestate(cs.GetOnlineState());
 
             ChunkServerState st = cs.GetChunkServerState();
             csInfo->set_diskstatus(st.GetDiskState());
-            csInfo->set_onlinestate(st.GetOnlineState());
             csInfo->set_mountpoint(cs.GetMountPoint());
             csInfo->set_diskcapacity(st.GetDiskCapacity());
             csInfo->set_diskused(st.GetDiskUsed());
@@ -154,7 +157,7 @@ void TopologyServiceManager::GetChunkServer(
             return;
         }
     } else if (request->has_hostip() && request->has_port()) {
-        if (!topology_->GetChunkServer(request->hostip(),
+        if (!topology_->GetChunkServerNotRetired(request->hostip(),
                                        request->port(), &cs)) {
             response->set_statuscode(kTopoErrCodeChunkServerNotFound);
             return;
@@ -172,10 +175,10 @@ void TopologyServiceManager::GetChunkServer(
     csInfo->set_hostip(cs.GetHostIp());
     csInfo->set_port(cs.GetPort());
     csInfo->set_status(cs.GetStatus());
+    csInfo->set_onlinestate(cs.GetOnlineState());
 
     ChunkServerState st = cs.GetChunkServerState();
     csInfo->set_diskstatus(st.GetDiskState());
-    csInfo->set_onlinestate(st.GetOnlineState());
     csInfo->set_mountpoint(cs.GetMountPoint());
     csInfo->set_diskcapacity(st.GetDiskCapacity());
     csInfo->set_diskused(st.GetDiskUsed());
@@ -676,7 +679,7 @@ void TopologyServiceManager::ListPhysicalPool(
     const ListPhysicalPoolRequest *request,
     ListPhysicalPoolResponse *response) {
     response->set_statuscode(kTopoErrCodeSuccess);
-    std::list<PoolIdType> poolList = topology_->GetPhysicalPoolInCluster();
+    auto poolList = topology_->GetPhysicalPoolInCluster();
     for (PoolIdType id : poolList) {
         PhysicalPool pool;
         if (topology_->GetPhysicalPool(id, &pool)) {
@@ -745,7 +748,9 @@ int TopologyServiceManager::GenCopysetForPageFilePool(
     std::vector<CopySetInfo> *copysetInfos) {
     ClusterInfo cluster;
     std::list<ChunkServerIdType> csList =
-        topology_->GetChunkServerInLogicalPool(lPool.GetId());
+        topology_->GetChunkServerInLogicalPool(lPool.GetId(),
+            [] (const ChunkServer &cs) {
+                return cs.GetStatus() != ChunkServerStatus::RETIRED;});
 
     for (ChunkServerIdType id : csList) {
         ChunkServer cs;

@@ -8,7 +8,8 @@ cc_test(
             "@com_google_googletest//:gtest",
             "//external:brpc",
             "//src/common:curve_common",
-            "//src/mds/topology:topology"
+            "//src/mds/topology:topology",
+            "//test/mds/mock:common_mock",
     ],
 )
 
@@ -19,7 +20,7 @@ cc_library(
     hdrs = ["fakes.h"],
     deps = [
         "//src/mds/topology:topology",
-         "//src/mds/nameserver2:nameserver2",
+        "//src/mds/nameserver2:nameserver2",
     ],
     visibility = ["//visibility:public"],
 )

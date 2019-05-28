@@ -11,6 +11,7 @@ cc_test(
     deps = [
         "//external:gtest",
         "//src/mds/chunkserverclient:chunkserverclient",
+        "//test/mds/mock:common_mock",
         "@com_google_googletest//:gtest_main",
     ],
 )

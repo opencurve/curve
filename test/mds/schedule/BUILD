@@ -16,6 +16,7 @@ cc_test(
         "//external:glog",
         "//src/mds/schedule",
         "//src/mds/topology",
+        "//test/mds/mock:common_mock",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
     ],

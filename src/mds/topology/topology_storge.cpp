@@ -224,10 +224,10 @@ bool DefaultTopologyStorage::LoadChunkServer(
                        rp.internalHostIP,
                        rp.port,
                        rp.mountPoint,
-                       static_cast<ChunkServerStatus>(rp.rwstatus));
+                       static_cast<ChunkServerStatus>(rp.rwstatus),
+                       OnlineState::ONLINE);
         ChunkServerState csState;
         csState.SetDiskState(static_cast<DiskState>(rp.diskState));
-        csState.SetOnlineState(OnlineState::ONLINE);
         csState.SetDiskCapacity(rp.capacity);
         csState.SetDiskUsed(rp.used);
         cs.SetChunkServerState(csState);
@@ -360,7 +360,7 @@ bool DefaultTopologyStorage::StorageChunkServer(const ChunkServer &data) {
                        data.GetServerId(),
                        data.GetStatus(),
                        csState.GetDiskState(),
-                       csState.GetOnlineState(),
+                       data.GetOnlineState(),
                        data.GetMountPoint(),
                        csState.GetDiskCapacity(),
                        csState.GetDiskUsed());
@@ -516,7 +516,7 @@ bool DefaultTopologyStorage::UpdateChunkServer(const ChunkServer &data) {
                        data.GetServerId(),
                        data.GetStatus(),
                        csState.GetDiskState(),
-                       csState.GetOnlineState(),
+                       data.GetOnlineState(),
                        data.GetMountPoint(),
                        csState.GetDiskCapacity(),
                        csState.GetDiskUsed());
