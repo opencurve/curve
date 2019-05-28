@@ -359,7 +359,6 @@ class ChunkServerState {
  public:
   ChunkServerState()
       : diskState_(DISKNORMAL),
-        onlineState_(OFFLINE),
         diskCapacity_(0),
         diskUsed_(0) {}
 
@@ -368,12 +367,6 @@ class ChunkServerState {
   }
   DiskState GetDiskState() const {
       return diskState_;
-  }
-  void SetOnlineState(OnlineState state) {
-      onlineState_ = state;
-  }
-  OnlineState GetOnlineState() const {
-      return onlineState_;
   }
 
   void SetDiskCapacity(uint64_t capacity) {
@@ -391,7 +384,6 @@ class ChunkServerState {
 
  private:
   DiskState diskState_;  // 磁盘状态，DistError、DiskNormal；
-  OnlineState onlineState_;  // 0:online、1: offline
 
   uint64_t diskCapacity_;
   uint64_t diskUsed_;
@@ -408,6 +400,7 @@ class ChunkServer {
         port_(0),
         mountPoint_(""),
         status_(READWRITE),
+        onlineState_(OFFLINE),
         lastStateUpdateTime_(0) {}
 
   ChunkServer(ChunkServerIdType id,
@@ -417,7 +410,8 @@ class ChunkServer {
               const std::string &hostIp,
               uint32_t port,
               const std::string &diskPath,
-              ChunkServerStatus status = READWRITE)
+              ChunkServerStatus status = READWRITE,
+              OnlineState onlineState = OnlineState::OFFLINE)
       : id_(id),
         token_(token),
         diskType_(diskType),
@@ -426,6 +420,7 @@ class ChunkServer {
         port_(port),
         mountPoint_(diskPath),
         status_(status),
+        onlineState_(onlineState),
         lastStateUpdateTime_(0) {}
 
   ChunkServerIdType GetId() const {
@@ -474,6 +469,13 @@ class ChunkServer {
       return status_;
   }
 
+  void SetOnlineState(OnlineState state) {
+      onlineState_ = state;
+  }
+  OnlineState GetOnlineState() const {
+      return onlineState_;
+  }
+
   void SetChunkServerState(const ChunkServerState &state) {
       state_ = state;
   }
@@ -498,6 +500,7 @@ class ChunkServer {
   std::string mountPoint_;  // mnt/ssd1
 
   ChunkServerStatus status_;
+  OnlineState onlineState_;  // 0:online、1: offline
 
   ChunkServerState state_;
   uint64_t lastStateUpdateTime_;

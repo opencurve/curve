@@ -294,6 +294,22 @@ int TopologyImpl::UpdateChunkServer(const ChunkServer &data) {
     }
 }
 
+int TopologyImpl::UpdateOnlineState(const OnlineState &onlineState,
+                                    ChunkServerIdType id) {
+    WriteLockGuard wlockChunkServer(chunkServerMutex_);
+    auto it = chunkServerMap_.find(id);
+    if (it != chunkServerMap_.end()) {
+        // 先更新内存，若数据库更新失败，mds能继续工作
+        it->second.SetOnlineState(onlineState);
+        if (!storage_->UpdateChunkServer(it->second)) {
+            return kTopoErrCodeStorgeFail;
+        }
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodeChunkServerNotFound;
+    }
+}
+
 // 更新内存，定期持久化数据
 int TopologyImpl::UpdateChunkServerState(const ChunkServerState &state,
                                          ChunkServerIdType id) {
@@ -307,12 +323,13 @@ int TopologyImpl::UpdateChunkServerState(const ChunkServerState &state,
         ChunkServer cs = it->second;
         cs.SetChunkServerState(state);
         cs.SetLastStateUpdateTime(currentTime);
+        // 心跳数据，可先更新内存，若数据库更新失败，也可保持内存中数据最新
+        it->second = cs;
         if ((currentTime - lastTime) >= option_.ChunkServerStateUpdateSec) {
             if (!storage_->UpdateChunkServer(cs)) {
                 return kTopoErrCodeStorgeFail;
             }
         }
-        it->second = cs;
         return kTopoErrCodeSuccess;
     } else {
         return kTopoErrCodeChunkServerNotFound;
@@ -399,14 +416,16 @@ ServerIdType TopologyImpl::FindServerByHostIpPort(
     return static_cast<ServerIdType>(UNINTIALIZE_ID);
 }
 
-ChunkServerIdType TopologyImpl::FindChunkServer(const std::string &hostIp,
-                                                uint32_t port) const {
+ChunkServerIdType TopologyImpl::FindChunkServerNotRetired(
+    const std::string &hostIp,
+    uint32_t port) const {
     ServerIdType serverId = FindServerByHostIpPort(hostIp, port);
     ReadLockGuard rlockChunkServer(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
          it != chunkServerMap_.end();
          it++) {
-        if ((it->second.GetServerId() == serverId) &&
+        if ((it->second.GetStatus() != ChunkServerStatus::RETIRED) &&
+            (it->second.GetServerId() == serverId) &&
             (it->second.GetPort() == port)) {
             return it->first;
         }
@@ -471,121 +490,154 @@ bool TopologyImpl::GetChunkServer(ChunkServerIdType chunkserverId,
 ////////////////////////////////////////////////////////////////////////////////
 // getList
 
-std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInCluster() const {
-    std::list<ChunkServerIdType> ret;
+std::vector<ChunkServerIdType> TopologyImpl::GetChunkServerInCluster(
+    ChunkServerFilter filter) const {
+    std::vector<ChunkServerIdType> ret;
     ReadLockGuard rlockChunkServer(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
          it != chunkServerMap_.end();
          it++) {
-        ret.push_back(it->first);
+        if (filter(it->second)) {
+            ret.push_back(it->first);
+        }
     }
     return ret;
 }
 
-std::list<ServerIdType> TopologyImpl::GetServerInCluster() const {
-    std::list<ServerIdType> ret;
+std::vector<ServerIdType> TopologyImpl::GetServerInCluster(
+    ServerFilter filter) const {
+    std::vector<ServerIdType> ret;
     ReadLockGuard rlockServer(serverMutex_);
     for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
-        ret.push_back(it->first);
+        if (filter(it->second)) {
+            ret.push_back(it->first);
+        }
     }
     return ret;
 }
 
-std::list<ZoneIdType> TopologyImpl::GetZoneInCluster() const {
-    std::list<ZoneIdType> ret;
+std::vector<ZoneIdType> TopologyImpl::GetZoneInCluster(
+    ZoneFilter filter) const {
+    std::vector<ZoneIdType> ret;
     ReadLockGuard rlockZone(zoneMutex_);
     for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
-        ret.push_back(it->first);
+        if (filter(it->second)) {
+            ret.push_back(it->first);
+        }
     }
     return ret;
 }
 
-std::list<PoolIdType> TopologyImpl::GetPhysicalPoolInCluster() const {
-    std::list<PoolIdType> ret;
+std::vector<PoolIdType> TopologyImpl::GetPhysicalPoolInCluster(
+    PhysicalPoolFilter filter) const {
+    std::vector<PoolIdType> ret;
     ReadLockGuard rlockPhysicalPool(physicalPoolMutex_);
     for (auto it = physicalPoolMap_.begin();
          it != physicalPoolMap_.end();
          it++) {
-        ret.push_back(it->first);
+        if (filter(it->second)) {
+            ret.push_back(it->first);
+        }
     }
     return ret;
 }
 
-std::list<PoolIdType> TopologyImpl::GetLogicalPoolInCluster() const {
-    std::list<PoolIdType> ret;
+std::vector<PoolIdType> TopologyImpl::GetLogicalPoolInCluster(
+    LogicalPoolFilter filter) const {
+    std::vector<PoolIdType> ret;
     ReadLockGuard rlockLogicalPool(logicalPoolMutex_);
     for (auto it = logicalPoolMap_.begin();
          it != logicalPoolMap_.end();
          it++) {
-        ret.push_back(it->first);
+        if (filter(it->second)) {
+            ret.push_back(it->first);
+        }
     }
     return ret;
 }
 
 std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInServer(
-    ServerIdType id) const {
-    Server server;
-    if (GetServer(id, &server)) {
-        return server.GetChunkServerList();
+    ServerIdType id,
+    ChunkServerFilter filter) const {
+    std::list<ChunkServerIdType> ret;
+    ReadLockGuard rlockChunkServer(chunkServerMutex_);
+    for (auto it = chunkServerMap_.begin();
+         it != chunkServerMap_.end();
+         it++) {
+        if (filter(it->second) && it->second.GetServerId() == id) {
+            ret.push_back(it->first);
+        }
     }
-    return std::list<ChunkServerIdType>();
+    return ret;
 }
 
 std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInZone(
-    ZoneIdType id) const {
+    ZoneIdType id,
+    ChunkServerFilter filter) const {
     std::list<ChunkServerIdType> ret;
     std::list<ServerIdType> serverList = GetServerInZone(id);
     for (ServerIdType s : serverList) {
-        std::list<ChunkServerIdType> temp = GetChunkServerInServer(s);
+        std::list<ChunkServerIdType> temp = GetChunkServerInServer(s, filter);
         ret.splice(ret.begin(), temp);
     }
     return ret;
 }
 
 std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInPhysicalPool(
-    PoolIdType id) const {
+    PoolIdType id,
+    ChunkServerFilter filter) const {
     std::list<ChunkServerIdType> ret;
     std::list<ServerIdType> serverList = GetServerInPhysicalPool(id);
     for (ServerIdType s : serverList) {
-        std::list<ChunkServerIdType> temp = GetChunkServerInServer(s);
+        std::list<ChunkServerIdType> temp = GetChunkServerInServer(s, filter);
         ret.splice(ret.begin(), temp);
     }
     return ret;
 }
 
-std::list<ServerIdType> TopologyImpl::GetServerInZone(ZoneIdType id) const {
-    Zone zone;
-    if (GetZone(id, &zone)) {
-        return zone.GetServerList();
+std::list<ServerIdType> TopologyImpl::GetServerInZone(ZoneIdType id,
+    ServerFilter filter) const {
+    std::list<ServerIdType> ret;
+    ReadLockGuard rlockServer(serverMutex_);
+    for (auto it = serverMap_.begin(); it != serverMap_.end(); it++) {
+        if (filter(it->second) && it->second.GetZoneId() == id) {
+            ret.push_back(it->first);
+        }
     }
-    return std::list<ServerIdType>();
+    return ret;
 }
 
 std::list<ServerIdType> TopologyImpl::GetServerInPhysicalPool(
-    PoolIdType id) const {
+    PoolIdType id,
+    ServerFilter filter) const {
     std::list<ServerIdType> ret;
     std::list<ZoneIdType> zoneList = GetZoneInPhysicalPool(id);
     for (ZoneIdType z : zoneList) {
-        std::list<ServerIdType> temp = GetServerInZone(z);
+        std::list<ServerIdType> temp = GetServerInZone(z, filter);
         ret.splice(ret.begin(), temp);
     }
     return ret;
 }
 
-std::list<ZoneIdType> TopologyImpl::GetZoneInPhysicalPool(PoolIdType id) const {
-    PhysicalPool pool;
-    if (GetPhysicalPool(id, &pool)) {
-        return pool.GetZoneList();
+std::list<ZoneIdType> TopologyImpl::GetZoneInPhysicalPool(PoolIdType id,
+    ZoneFilter filter) const {
+    std::list<ZoneIdType> ret;
+    ReadLockGuard rlockZone(zoneMutex_);
+    for (auto it = zoneMap_.begin(); it != zoneMap_.end(); it++) {
+        if (filter(it->second) && it->second.GetPhysicalPoolId() == id) {
+            ret.push_back(it->first);
+        }
     }
-    return std::list<ZoneIdType>();
+    return ret;
 }
 
 std::list<PoolIdType> TopologyImpl::GetLogicalPoolInPhysicalPool(
-    PoolIdType id) const {
+    PoolIdType id,
+    LogicalPoolFilter filter) const {
     std::list<PoolIdType> ret;
     ReadLockGuard rlockLogicalPool(logicalPoolMutex_);
     for (auto it = logicalPoolMap_.begin(); it != logicalPoolMap_.end(); it++) {
-        if (it->second.GetPhysicalPoolId() == id) {
+        if (filter(it->second) && it->second.GetPhysicalPoolId() == id) {
             ret.push_back(it->first);
         }
     }
@@ -593,27 +645,30 @@ std::list<PoolIdType> TopologyImpl::GetLogicalPoolInPhysicalPool(
 }
 
 std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInLogicalPool(
-    PoolIdType id) const {
+    PoolIdType id,
+    ChunkServerFilter filter) const {
     LogicalPool lPool;
     if (GetLogicalPool(id, &lPool)) {
-        return GetChunkServerInPhysicalPool(lPool.GetPhysicalPoolId());
+        return GetChunkServerInPhysicalPool(lPool.GetPhysicalPoolId(), filter);
     }
     return std::list<ChunkServerIdType>();
 }
 
 std::list<ServerIdType> TopologyImpl::GetServerInLogicalPool(
-    PoolIdType id) const {
+    PoolIdType id,
+    ServerFilter filter) const {
     LogicalPool lPool;
     if (GetLogicalPool(id, &lPool)) {
-        return GetServerInPhysicalPool(lPool.GetPhysicalPoolId());
+        return GetServerInPhysicalPool(lPool.GetPhysicalPoolId(), filter);
     }
     return std::list<ServerIdType>();
 }
 
-std::list<ZoneIdType> TopologyImpl::GetZoneInLogicalPool(PoolIdType id) const {
+std::list<ZoneIdType> TopologyImpl::GetZoneInLogicalPool(PoolIdType id,
+    ZoneFilter filter) const {
     LogicalPool lPool;
     if (GetLogicalPool(id, &lPool)) {
-        return GetZoneInPhysicalPool(lPool.GetPhysicalPoolId());
+        return GetZoneInPhysicalPool(lPool.GetPhysicalPoolId(), filter);
     }
     return std::list<ZoneIdType>();
 }
@@ -789,37 +844,43 @@ bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
 }
 
 std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
-    PoolIdType logicalPoolId) const {
+    PoolIdType logicalPoolId,
+    CopySetFilter filter) const {
     std::vector<CopySetIdType> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto it : copySetMap_) {
-        if (it.first.first == logicalPoolId) {
+        if (filter(it.second) && it.first.first == logicalPoolId) {
             ret.push_back(it.first.second);
         }
     }
     return ret;
 }
 
-std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster() const {
+std::vector<CopySetKey> TopologyImpl::GetCopySetsInCluster(
+    CopySetFilter filter) const {
     std::vector<CopySetKey> ret;
     ReadLockGuard rlockCopySet(copySetMutex_);
     for (auto it : copySetMap_) {
-        ret.push_back(it.first);
-    }
-    return ret;
-}
-
-std::vector<CopySetKey> TopologyImpl::GetCopySetsInChunkServer(
-    ChunkServerIdType id) const {
-    std::vector<CopySetKey> ret;
-    ReadLockGuard rlockCopySet(copySetMutex_);
-    for (auto it : copySetMap_) {
-        if (it.second.GetCopySetMembers().count(id) > 0) {
+        if (filter(it.second)) {
             ret.push_back(it.first);
         }
     }
     return ret;
 }
+
+std::vector<CopySetKey> TopologyImpl::GetCopySetsInChunkServer(
+    ChunkServerIdType id,
+    CopySetFilter filter) const {
+    std::vector<CopySetKey> ret;
+    ReadLockGuard rlockCopySet(copySetMutex_);
+    for (auto it : copySetMap_) {
+        if (filter(it.second) && it.second.GetCopySetMembers().count(id) > 0) {
+            ret.push_back(it.first);
+        }
+    }
+    return ret;
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

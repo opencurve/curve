@@ -10,7 +10,7 @@
 #include "src/mds/heartbeat/heartbeat_manager.h"
 #include "src/mds/heartbeat/chunkserver_healthy_checker.h"
 #include "test/mds/heartbeat/mock_coordinator.h"
-#include "test/mds/heartbeat/mock_topology.h"
+#include "test/mds/mock/mock_topology.h"
 #include "test/mds/heartbeat/mock_topoAdapter.h"
 #include "test/mds/heartbeat/common.h"
 
@@ -18,6 +18,7 @@ using ::testing::Return;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::_;
+using ::curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
@@ -114,7 +115,7 @@ TEST_F(TestHeartbeatManager, test_getChunkserverIdByPeerStr) {
     request = GetChunkServerHeartbeatRequestForTest();
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.1", 9000, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", 9000, _))
         .WillOnce(Return(false));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(0, response.needupdatecopysets_size());
@@ -136,7 +137,7 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
     // 1. can not get peers
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(Return(false));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
@@ -145,7 +146,7 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
     // 2. can not get leader
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(false)));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
@@ -182,7 +183,7 @@ TEST_F(TestHeartbeatManager, test_heartbeatCopySetInfo_to_topologyOne) {
     *addInfo = info;
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)))
@@ -220,14 +221,14 @@ TEST_F(TestHeartbeatManager, test_follower_reqEpoch_notSmallerThan_mdsRecord) {
     ::curve::mds::topology::ChunkServer leaderChunkServer(
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.2", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.1", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
         3, "hello", "", 1, "192.168.10.1", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.3", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.3", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
     ::curve::mds::topology::CopySetInfo recordCopySetInfo(1, 1);
     recordCopySetInfo.SetEpoch(1);
@@ -271,14 +272,14 @@ TEST_F(TestHeartbeatManager,
     ::curve::mds::topology::ChunkServer leaderChunkServer(
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.2", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.1", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
         3, "hello", "", 1, "192.168.10.1", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.3", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.3", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
     ::curve::mds::topology::CopySetInfo recordCopySetInfo(1, 1);
     recordCopySetInfo.SetEpoch(2);
@@ -324,15 +325,15 @@ TEST_F(TestHeartbeatManager,
     ::curve::mds::topology::ChunkServer leaderChunkServer(
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.2", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer),
                                  Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.1", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
         3, "hello", "", 1, "192.168.10.1", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.3", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.3", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
     ::curve::mds::topology::CopySetInfo recordCopySetInfo(1, 1);
     recordCopySetInfo.SetEpoch(2);
@@ -380,15 +381,15 @@ TEST_F(TestHeartbeatManager,
     ::curve::mds::topology::ChunkServer leaderChunkServer(
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.2", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer),
                                  Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.1", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
         3, "hello", "", 1, "192.168.10.1", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.3", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.3", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
     ::curve::mds::topology::CopySetInfo recordCopySetInfo(1, 1);
     recordCopySetInfo.SetEpoch(2);
@@ -437,15 +438,15 @@ TEST_F(TestHeartbeatManager,
     ::curve::mds::topology::ChunkServer leaderChunkServer(
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.2", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer),
                                  Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.1", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
         3, "hello", "", 1, "192.168.10.1", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.3", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.3", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
     ::curve::mds::topology::CopySetInfo recordCopySetInfo(1, 1);
     recordCopySetInfo.SetEpoch(2);
@@ -506,14 +507,14 @@ TEST_F(TestHeartbeatManager,
     ::curve::mds::topology::ChunkServer leaderChunkServer(
         2, "hello", "", 1, "192.168.10.2", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.2", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.2", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(leaderChunkServer), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.1", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.1", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)));
     ::curve::mds::topology::ChunkServer chunkServer3(
         3, "hello", "", 1, "192.168.10.1", 9000, "",
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
-    EXPECT_CALL(*topology_, GetChunkServer("192.168.10.3", _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.3", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
     ::curve::mds::topology::CopySetInfo recordCopySetInfo(1, 1);
     recordCopySetInfo.SetEpoch(2);
@@ -550,7 +551,7 @@ TEST_F(TestHeartbeatManager, test_chunkServer_heartbeat_get_copySetInfo_err) {
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
@@ -580,7 +581,7 @@ TEST_F(TestHeartbeatManager,
     // update fail
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
@@ -613,7 +614,7 @@ TEST_F(TestHeartbeatManager, test_handle_copySetInfo_bigger_epoch) {
     // update fail
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
@@ -644,7 +645,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
     // 1. topo record and report copySet do not have candidate
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
@@ -660,7 +661,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
     // 2. topo record candidate but copySet do not have one, update fail
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
@@ -708,7 +709,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
     *addInfo = info;
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)))
@@ -726,7 +727,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
     copySetInfo.SetCandidate(4);
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)))
@@ -741,7 +742,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
     // 5. topo record copySet candidate not same as report one, update fail
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)))
@@ -772,7 +773,7 @@ TEST_F(TestHeartbeatManager, test_patrol_copySetInfo_no_order) {
 
     EXPECT_CALL(*topology_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
@@ -801,7 +802,7 @@ TEST_F(TestHeartbeatManager, test_patrol_copySetInfo_return_order) {
 
     EXPECT_CALL(*topology_, GetChunkServer(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
-    EXPECT_CALL(*topology_, GetChunkServer(_, _, _))
+    EXPECT_CALL(*topology_, GetChunkServerNotRetired(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer1), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));

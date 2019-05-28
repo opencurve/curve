@@ -53,7 +53,9 @@ class HeartbeatManager {
         std::shared_ptr<Topology> topology,
         std::shared_ptr<Coordinator> coordinator);
 
-    ~HeartbeatManager() {}
+    ~HeartbeatManager() {
+        Stop();
+    }
 
     /*
     * @brief Init 用于mds初始化心跳模块, 把所有chunkserver注册到chunkserver健康
