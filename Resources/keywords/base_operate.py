@@ -455,13 +455,23 @@ def mult_process(func,num):
         assert result.get() == 0
 
 
-def mult_thread(func,num):
+def mult_thread(func,num,pre_path="/"):
 #    pool = Pool(processes = num)
     thread = []
     results = []
+    if pre_path != "/":
+        path = pre_path + "/"
+        curvefs = swig_operate.LibCurve()
+        rc = curvefs.libcurve_statfs(pre_path, user_name=config.user_name, pass_word=config.pass_word)
+        logger.debug("path is %s" % path)
+        parentid = rc.id
+    else:
+        path = pre_path
+        parentid = 0
     for  i in  xrange(num):
 #        results.append(pool.apply_async(globals().get(func),args=("/"+str(i),)))
-        filename = "/" + str(i)
+        filename = path + str(i)
+        logger.debug("filename is %s"%filename)
         t = mythread.runThread(globals().get(func),filename)
         thread.append(t)
         logger.debug("%s %s"%(func,str(i)))
@@ -469,7 +479,10 @@ def mult_thread(func,num):
         t.start()
     if str(func) == "statfs_libcurve_file":
         for t in thread:
-            assert (t.get_result()).length == 10737418240, "file length is %d"%(t.get_result().length)
+            result = t.get_result()
+            assert result.length == 10737418240, "file length is %d"%(result.length)
+            assert result.parentid == parentid, "file parentid is %d,pre id is %d"%(result.parentid,parentid)
+            assert result.filetype == 1, "file filetype is %d" % (result.filetype)
     elif str(func) == "open_libcurve_file":
         for t in thread:
             results.append(t.get_result())
@@ -519,4 +532,34 @@ def delete_multi_dir(depth,user_name=config.user_name, pass_word=config.pass_wor
         assert rc == 0, "rm dir %s fail ,rc is %d" % (dir_path, rc)
         dir_path = last_path.rsplit("/", 1)[0]
         last_path = dir_path
+
+def test():
+    logger.info("pass,need to add later")
+
+
+def thrasher(fd):
+    actions = []
+    actions.append((extend_libcurve_file,1.0,))
+    actions.append((test,0.5,))
+    curvefs = swig_operate.LibCurve()
+#    actions.append((create_libcurve_file,1.0,))
+    for i in range(1, 10):
+        total = sum([y for (x, y) in actions])
+        logger.debug("total %s" %(total))
+        val = random.uniform(0, total)
+        logger.debug("val is %s" % (val))
+        for (action, prob) in actions:
+            logger.info("running time %s " % (i))
+            if val < prob:
+                if  action == extend_libcurve_file:
+                    new_size = 10737418240 * i
+                    logger.debug("running action %s" % (action))
+                    rc = action(new_size=new_size)
+                    assert rc == 0
+                    rc = curvefs.libcurve_statfs(file_name=config.file_name, user_name=config.user_name, \
+                                                 pass_word=config.pass_word)
+                    assert rc.length == new_size,"get file length is %d"%rc.length
+                else:
+                    action()
+            val -= prob
 
