@@ -1,0 +1,12 @@
+Package: curve-sdk
+Version: 1.0
+Section:
+Priority: optional
+Depends: libunwind8
+Suggests:
+Architecture:amd64
+Installed-Size:
+Maintainer: curve-dev
+Provides:
+Description: curve sdk for cinder and qemu
+
