@@ -40,6 +40,9 @@ bool CopysetValidation::Validate(
     //检查方差
     if (option_.scatterWidthVariance != 0 &&
         variance > option_.scatterWidthVariance) {
+        LOG(ERROR) << "Validate copyset failed in scatterWidthVariance = "
+                   << option_.scatterWidthVariance
+                   << ", actual = " << variance;
         return false;
     }
 
@@ -48,6 +51,10 @@ bool CopysetValidation::Validate(
         double standardDevation =
             StatisticsTools::CalcStandardDevation(variance);
         if (standardDevation > option_.scatterWidthStandardDevation) {
+            LOG(ERROR) << "Validate copyset failed in "
+                       << "scatterWidthStandardDevation = "
+                       << option_.scatterWidthStandardDevation
+                       << ", actual = " << standardDevation;
             return false;
         }
     }
@@ -64,6 +71,10 @@ bool CopysetValidation::Validate(
     // 检查极差
     if ((option_.scatterWidthRange != 0) &&
         (range > option_.scatterWidthRange)) {
+        LOG(ERROR) << "Validate copyset failed in "
+                   << "scatterWidthRange = "
+                   << option_.scatterWidthRange
+                   << ", actual = " << range;
         return false;
     }
     // 检查偏离百分比
@@ -72,6 +83,12 @@ bool CopysetValidation::Validate(
         double maxPercent = (maxValue - average) * 100 / average;
         if ((minPercent > option_.scatterWidthFloatingPercentage) ||
             (maxPercent > option_.scatterWidthFloatingPercentage)) {
+            LOG(ERROR) << "Validate copyset failed in "
+                       << "scatterWidthFloatingPercentage = "
+                       << option_.scatterWidthFloatingPercentage
+                       << ", actual minValue = " << minValue
+                       << ", maxValue = " << maxValue
+                       << ", average = " << average;
             return false;
         }
     }
