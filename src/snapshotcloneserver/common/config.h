@@ -30,7 +30,7 @@ struct CurveClientOptions {
   uint32_t getLeaderRetry;
   // opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
   uint32_t enableApplyIndexRead;
-  // opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+  // opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
   uint32_t ioSplitSize;
   // opt.loginfo.loglevel = 0;
   uint32_t loglevel;

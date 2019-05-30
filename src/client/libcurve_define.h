@@ -65,6 +65,8 @@ enum LIBCURVE_ERROR {
     NO_SPACE                = 21,
     // IO未对齐
     NOT_ALIGNED             = 22,
+    // 文件正在被关闭，fd不可用
+    BAD_FD                  = 23,
     // 未知错误
     UNKNOWN                 = 100
 };

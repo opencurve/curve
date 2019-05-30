@@ -21,6 +21,7 @@
 
 namespace curve {
 namespace client {
+class FlightIOGuard;
 class IOManager4File : public IOManager {
  public:
   IOManager4File();
@@ -84,20 +85,22 @@ class IOManager4File : public IOManager {
   void SetRequestScheduler(RequestScheduler* scheduler) {
     scheduler_ = scheduler;
   }
+
   /**
-   * 获取当前disableio的状态，测试代码使用
+   * 获取inflight IO数量，测试代码使用
    */
-  bool IsDisableIO() {
-    return disableio_.load();
+  uint64_t GetInflightIONum() {
+    return inflightIONum_.load();
   }
 
  private:
   friend class LeaseExcutor;
+  friend class FlightIOGuard;
   /**
    * lease相关接口，当leaseexcutor续约失败的时候，调用LeaseTimeoutDisableIO
    * 将新下发的IO全部失败返回
    */
-  void LeaseTimeoutDisableIO();
+  void LeaseTimeoutBlockIO();
 
   /**
    * 当lease又续约成功的时候，leaseexcutor调用该接口恢复IO
@@ -107,7 +110,7 @@ class IOManager4File : public IOManager {
   /**
    * 当lesaeexcutor发现版本变更，调用该接口开始等待inflight回来，这段期间IO是hang的
    */
-  void StartWaitInflightIO();
+  void BlockIO();
 
   /**
    * lease excutor在检查到版本更新的时候，需要通知iomanager更新文件版本信息
@@ -124,35 +127,79 @@ class IOManager4File : public IOManager {
   void HandleAsyncIOResponse(IOTracker* iotracker) override;
 
   /**
-   * 更新inflight计数
-   */
-  void RefreshInflightIONum();
-  /**
    * 调用该接口等待inflight回来，这段期间IO是hang的
    */
-  void WaitInflightIOComeBack();
+  void WaitInflightIOAllComeBack();
+  /**
+   * 递增inflight io
+   */
+  inline void IncremInflightIONum() {
+    inflightIONum_.fetch_add(1, std::memory_order_release);
+  }
+  /**
+   * 递减inflight IO
+   */
+  inline void DecremInflightIONum() {
+    inflightIONum_.fetch_sub(1, std::memory_order_release);
+  }
+  /**
+   * 检查inflight io是否超过maxinflight
+   */
+  inline bool CheckInflightIOOverFlow() {
+    return inflightIONum_.load() >= ioopt_.inflightOpt.maxInFlightIONum;
+  }
+  /**
+   * 一旦超过最大限制的inflight数量，就要等待inflight io回来才能继续
+   */
+  inline void WaitForInflightIOComeBack() {
+    std::unique_lock<std::mutex> lk(inflightIOComeBackmtx_);
+    inflightIOComeBackcv_.wait(lk, [this]() {
+        return inflightIONum_.load(std::memory_order_acquire)
+               < ioopt_.inflightOpt.maxInFlightIONum;
+    });
+  }
+
+  /**
+   * 获取token，查看现在是否能下发IO
+   */
+  void GetInflightIOToken();
+
+  /**
+   * 更新inflight计数并唤醒正在block的IO
+   */
+  void ReleaseInflightIOToken();
 
  private:
   // 当前文件的信息
   FInfo_t fi_;
 
-  // 此锁与inflightcv_条件变量配合使用，在版本变更的时候来hang IO
-  std::mutex  mtx_;
+  // 此锁与inflightIOAllComeBackcv_条件变量配合使用
+  // 在版本变更的时候等待所有inflight io全部回来
+  std::mutex  inflightIOAllComeBackmtx_;
+  // 条件变量，用于唤醒和hang IO
+  std::condition_variable inflightIOAllComeBackcv_;
+
+  // 此锁与inflightIOComeBackcv_条件变量配合使用
+  // 在inflight IO超出最大限制时，等待inflight IO回来
+  // 并不需要等到所有的inflight IO都会来
+  std::mutex  inflightIOComeBackmtx_;
+  // 条件变量，用于唤醒和hang IO
+  std::condition_variable inflightIOComeBackcv_;
+
+  // 此锁与LeaseRefreshcv_条件变量配合使用
+  // 在leasee续约失败的时候，所有新下发的IO被阻塞直到续约成功
+  std::mutex    leaseRefreshmtx_;
+  // 条件变量，用于唤醒和hang IO
+  std::condition_variable leaseRefreshcv_;
 
   // 每个IOManager都有其IO配置，保存在iooption里
   IOOption_t  ioopt_;
 
-  // lease续约失败时候，置位disableio_
-  std::atomic<bool> disableio_;
-
   // 版本变更的时候置位waitinflightio_
-  std::atomic<bool> startWaitInflightIO_;
+  std::atomic<bool> blockIO_;
 
   // inflightio_记录当前inflight的IO数量
   std::atomic<uint64_t> inflightIONum_;
-
-  // 条件变量，用于唤醒和hang IO
-  std::condition_variable inflightcv_;
 
   // metacache存储当前文件的所有元数据信息
   MetaCache mc_;
@@ -163,6 +210,22 @@ class IOManager4File : public IOManager {
   // client端metric统计信息
   ClientMetric_t* clientMetric_;
 };
+
+class FlightIOGuard {
+ public:
+  explicit FlightIOGuard(IOManager4File* iomana) {
+    iomanager = iomana;
+    iomanager->GetInflightIOToken();
+  }
+
+  ~FlightIOGuard() {
+    iomanager->ReleaseInflightIOToken();
+  }
+
+ private:
+  IOManager4File* iomanager;
+};
+
 }   // namespace client
 }   // namespace curve
 #endif  // SRC_CLIENT_IOMANAGER4FILE_H_

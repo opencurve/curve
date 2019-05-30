@@ -9,11 +9,14 @@
 #define TEST_CLIENT_FAKE_MOCK_SCHEDULE_H_
 
 #include <gmock/gmock.h>
+#include <fiu.h>
 
 #include <set>
 #include <atomic>
 #include <list>
 #include <string>
+#include <thread>    // NOLINT
+#include <chrono>    // NOLINT
 
 #include "src/client/request_context.h"
 #include "src/client/request_closure.h"
@@ -22,6 +25,8 @@
 
 using ::testing::_;
 using ::testing::Invoke;
+
+extern uint16_t sleeptimeMS;
 
 class Schedule {
  public:
