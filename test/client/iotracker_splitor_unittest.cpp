@@ -10,6 +10,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <brpc/server.h>
+#include <fiu-control.h>
 
 #include <string>
 #include <thread>   //NOLINT
@@ -30,12 +31,14 @@
 #include "src/client/client_config.h"
 #include "src/client/mds_client.h"
 #include "src/client/metacache_struct.h"
+#include "test/client/fake/fakeMDS.h"
 
 extern std::string metaserver_addr;
 extern uint32_t chunk_size;
 extern std::string configpath;
 
 extern char* writebuffer;
+uint16_t sleeptimeMS = 500;
 
 using curve::client::UserInfo_t;
 using curve::client::CopysetInfo_t;
@@ -73,22 +76,24 @@ void writecallback(CurveAioContext* context) {
 class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
+        fiu_init(0);
         fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
         fopt.metaServerOpt.rpcTimeoutMs = 500;
         fopt.metaServerOpt.rpcRetryTimes = 3;
         fopt.loginfo.loglevel = 0;
-        fopt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+        fopt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
         fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-        fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 500;
+        fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 1000;
         fopt.ioOpt.ioSenderOpt.rpcRetryTimes = 3;
         fopt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-        fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;  // NOLINT
+        fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
         fopt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
         fopt.ioOpt.metaCacheOpt.retryIntervalUs = 500;
         fopt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
         fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
         fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
         fopt.leaseOpt.refreshTimesPerLease = 4;
+        fopt.ioOpt.inflightOpt.maxInFlightIONum = 1;
 
         fileinstance_ = new FileInstance();
         userinfo.owner = "userinfo";
@@ -102,8 +107,8 @@ class IOTrackerSplitorTest : public ::testing::Test {
     void TearDown() {
         server.Stop(0);
         server.Join();
-        mdsclient_.UnInitialize();
         fileinstance_->UnInitialize();
+        mdsclient_.UnInitialize();
         delete fileinstance_;
     }
 
@@ -123,7 +128,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         }
 
         /**
-         * set openfile response
+         * 1. set openfile response
          */
         ::curve::mds::OpenFileResponse* openresponse =
         new ::curve::mds::OpenFileResponse();
@@ -152,6 +157,9 @@ class IOTrackerSplitorTest : public ::testing::Test {
         // open will set the finfo for file instance
         fileinstance_->Open("1_userinfo_.txt", userinfo);
 
+        /**
+         * 2. 设置GetOrAllocateSegmentresponse
+         */
         curve::mds::GetOrAllocateSegmentResponse* response =
             new curve::mds::GetOrAllocateSegmentResponse();
         curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
@@ -174,8 +182,31 @@ class IOTrackerSplitorTest : public ::testing::Test {
         }
         FakeReturn* fakeret = new FakeReturn(nullptr,
                     static_cast<void*>(response));
-        curvefsservice.SetFakeReturn(fakeret);
+        curvefsservice.SetGetOrAllocateSegmentFakeReturn(fakeret);
 
+        // 3. set refresh response
+        curve::mds::FileInfo * info = new curve::mds::FileInfo;
+        info->set_filename("1_userinfo_.txt");
+        info->set_seqnum(2);
+        info->set_id(1);
+        info->set_parentid(0);
+        info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+        info->set_chunksize(4 * 1024 * 1024);
+        info->set_length(4 * 1024 * 1024 * 1024ul);
+        info->set_ctime(12345678);
+
+        ::curve::mds::ReFreshSessionResponse* refreshresp =
+            new ::curve::mds::ReFreshSessionResponse;
+        refreshresp->set_statuscode(::curve::mds::StatusCode::kOK);
+        refreshresp->set_sessionid("1234");
+        refreshresp->set_allocated_fileinfo(info);
+        FakeReturn* refreshfakeret
+        = new FakeReturn(nullptr, static_cast<void*>(refreshresp));
+        curvefsservice.SetRefreshSession(refreshfakeret, nullptr);
+
+        /**
+         * 4. 设置topology返回值
+         */
         ::curve::mds::topology::GetChunkServerListInCopySetsResponse* response_1
         = new ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
         response_1->set_statuscode(0);
@@ -227,39 +258,29 @@ class IOTrackerSplitorTest : public ::testing::Test {
     curve::client::ClientConfig cc;
     FileInstance*    fileinstance_;
     brpc::Server server;
-    FakeCurveFSService curvefsservice;
+    FakeMDSCurveFSService curvefsservice;
     FakeTopologyService topologyservice;
 };
 
 TEST_F(IOTrackerSplitorTest, AsyncStartRead) {
-    MockRequestScheduler mockschuler;
-    mockschuler.DelegateToFake();
+    MockRequestScheduler* mockschuler = new MockRequestScheduler;
+    mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
+    iomana->SetRequestScheduler(mockschuler);
 
-    IOTracker* iotracker =
-    new (std::nothrow) IOTracker(iomana, mc, &mockschuler);
-
-    ASSERT_NE(nullptr, iotracker);
     CurveAioContext aioctx;
     aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
     aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
     aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = readcallback;
     aioctx.buf = new char[aioctx.length];
+    aioctx.op = LIBCURVE_OP::LIBCURVE_OP_READ;
 
-    FInfo_t fi;
-    fi.chunksize = 4 * 1024 * 1024;
-    fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     ioreadflag = false;
     char* data = static_cast<char*>(aioctx.buf);
-    iotracker->StartRead(&aioctx,
-                        data,
-                        aioctx.offset,
-                        aioctx.length,
-                        &mdsclient_,
-                        &fi);
+    iomana->AioRead(&aioctx, &mdsclient_);
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
@@ -277,22 +298,20 @@ TEST_F(IOTrackerSplitorTest, AsyncStartRead) {
 }
 
 TEST_F(IOTrackerSplitorTest, AsyncStartWrite) {
-    MockRequestScheduler mockschuler;
-    mockschuler.DelegateToFake();
+    MockRequestScheduler* mockschuler = new MockRequestScheduler;
+    mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
+    iomana->SetRequestScheduler(mockschuler);
 
-    IOTracker* iotracker =
-    new (std::nothrow) IOTracker(iomana, mc, &mockschuler);
-
-    ASSERT_NE(nullptr, iotracker);
     CurveAioContext aioctx;
     aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
     aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
     aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = writecallback;
     aioctx.buf = new char[aioctx.length];
+    aioctx.op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
 
     char* data = static_cast<char*>(aioctx.buf);
 
@@ -303,12 +322,7 @@ TEST_F(IOTrackerSplitorTest, AsyncStartWrite) {
     fi.chunksize = 4 * 1024 * 1024;
     fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     iowriteflag = false;
-    iotracker->StartWrite(&aioctx,
-                        data,
-                        aioctx.offset,
-                        aioctx.length,
-                        &mdsclient_,
-                        &fi);
+    iomana->AioWrite(&aioctx, &mdsclient_);
 
     {
         std::unique_lock<std::mutex> lk(writemtx);
@@ -326,43 +340,24 @@ TEST_F(IOTrackerSplitorTest, AsyncStartWrite) {
 }
 
 TEST_F(IOTrackerSplitorTest, StartRead) {
-    MockRequestScheduler mockschuler;
-    mockschuler.DelegateToFake();
+    MockRequestScheduler* mockschuler = new MockRequestScheduler;
+    mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
+    iomana->SetRequestScheduler(mockschuler);
 
-    IOTracker* iotracker =
-    new (std::nothrow) IOTracker(iomana, mc, &mockschuler);
-
-    ASSERT_NE(nullptr, iotracker);
     uint64_t offset = 4 * 1024 * 1024 - 4 * 1024;
     uint64_t length = 4 * 1024 * 1024 + 8 * 1024;
     char* data = new char[length];
 
-    auto waitfunc = [&]() {
-        uint32_t retlen = iotracker->Wait();
-        ASSERT_EQ(length, retlen);
-    };
-    FInfo_t fi;
-    fi.chunksize = 4 * 1024 * 1024;
-    fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     auto threadfunc = [&]() {
-        iotracker->StartRead(nullptr,
-                            data,
-                            offset,
-                            length,
-                            &mdsclient_,
-                            &fi);
+        iomana->Read(data, offset, length, &mdsclient_);
     };
-    std::thread waitthread(waitfunc);
     std::thread process(threadfunc);
 
     if (process.joinable()) {
         process.join();
-    }
-    if (waitthread.joinable()) {
-        waitthread.join();
     }
 
     ASSERT_EQ('a', data[0]);
@@ -376,16 +371,13 @@ TEST_F(IOTrackerSplitorTest, StartRead) {
 }
 
 TEST_F(IOTrackerSplitorTest, StartWrite) {
-    MockRequestScheduler mockschuler;
-    mockschuler.DelegateToFake();
+    MockRequestScheduler* mockschuler = new MockRequestScheduler;
+    mockschuler->DelegateToFake();
 
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
+    iomana->SetRequestScheduler(mockschuler);
 
-    IOTracker* iotracker =
-    new (std::nothrow) IOTracker(iomana, mc, &mockschuler);
-
-    ASSERT_NE(nullptr, iotracker);
     uint64_t offset = 4 * 1024 * 1024 - 4 * 1024;
     uint64_t length = 4 * 1024 * 1024 + 8 * 1024;
     char* buf = new char[length];
@@ -394,29 +386,13 @@ TEST_F(IOTrackerSplitorTest, StartWrite) {
     memset(buf + 4 * 1024, 'b', chunk_size);
     memset(buf + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
-    auto waitfunc = [&]() {
-        uint32_t retlen = iotracker->Wait();
-        ASSERT_EQ(length, retlen);
-    };
-    FInfo_t fi;
-    fi.chunksize = 4 * 1024 * 1024;
-    fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     auto threadfunc = [&]() {
-        iotracker->StartWrite(nullptr,
-                            buf,
-                            offset,
-                            length,
-                            &mdsclient_,
-                            &fi);
+        iomana->Write(buf, offset, length, &mdsclient_);
     };
     std::thread process(threadfunc);
-    std::thread waitthread(waitfunc);
 
     if (process.joinable()) {
         process.join();
-    }
-    if (waitthread.joinable()) {
-        waitthread.join();
     }
 
     ASSERT_EQ('a', writebuffer[0]);
@@ -441,6 +417,8 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartRead) {
     aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = readcallback;
     aioctx.buf = new char[aioctx.length];
+    aioctx.op = LIBCURVE_OP::LIBCURVE_OP_READ;
+
     ioreadflag = false;
     char* data = static_cast<char*>(aioctx.buf);
     ioctxmana->AioRead(&aioctx, &mdsclient_);
@@ -455,6 +433,30 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartRead) {
     ASSERT_EQ('e', data[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('f', data[4 * 1024 + chunk_size]);
     ASSERT_EQ('f', data[aioctx.length - 1]);
+
+    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
+
+    int reqcount = 32;
+    auto threadFunc1 = [&]() {
+        while (reqcount > 0) {
+            fileinstance_->AioRead(&aioctx);
+            reqcount--;
+        }
+    };
+
+    auto threadFunc2 = [&]() {
+        while (reqcount > 0) {
+            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
+            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
+        }
+    };
+
+    std::thread t3(threadFunc2);
+    std::thread t1(threadFunc1);
+    std::thread t2(threadFunc1);
+    t1.join();
+    t2.join();
+    t3.join();
 
     delete[] data;
 }
@@ -473,6 +475,7 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
     aioctx.ret = LIBCURVE_ERROR::OK;
     aioctx.cb = writecallback;
     aioctx.buf = new char[aioctx.length];
+    aioctx.op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
 
     char* data = static_cast<char*>(aioctx.buf);
 
@@ -494,6 +497,30 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
     ASSERT_EQ('b', writebuffer[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('c', writebuffer[4 * 1024 + chunk_size]);
     ASSERT_EQ('c', writebuffer[aioctx.length - 1]);
+
+    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
+
+    int reqcount = 32;
+    auto threadFunc1 = [&]() {
+        while (reqcount > 0) {
+            fileinstance_->AioWrite(&aioctx);
+            reqcount--;
+        }
+    };
+
+    auto threadFunc2 = [&]() {
+        while (reqcount > 0) {
+            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
+            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
+        }
+    };
+
+    std::thread t1(threadFunc1);
+    std::thread t2(threadFunc1);
+    std::thread t3(threadFunc2);
+    t1.join();
+    t2.join();
+    t3.join();
 
     delete[] data;
 }
@@ -528,6 +555,30 @@ TEST_F(IOTrackerSplitorTest, ManagerStartRead) {
     ASSERT_EQ('e', data[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('f', data[4 * 1024 + chunk_size]);
     ASSERT_EQ('f', data[length - 1]);
+
+    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
+
+    int reqcount = 32;
+    auto threadFunc1 = [&]() {
+        while (reqcount > 0) {
+            ioctxmana->Read(data, offset, length, &mdsclient_);
+            reqcount--;
+        }
+    };
+
+    auto threadFunc2 = [&]() {
+        while (reqcount > 0) {
+            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
+            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
+        }
+    };
+
+    std::thread t1(threadFunc1);
+    std::thread t2(threadFunc1);
+    std::thread t3(threadFunc2);
+    t1.join();
+    t2.join();
+    t3.join();
 
     delete[] data;
 }
@@ -566,6 +617,30 @@ TEST_F(IOTrackerSplitorTest, ManagerStartWrite) {
     ASSERT_EQ('b', writebuffer[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('c', writebuffer[4 * 1024 + chunk_size]);
     ASSERT_EQ('c', writebuffer[length - 1]);
+
+    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
+
+    int reqcount = 32;
+    auto threadFunc1 = [&]() {
+        while (reqcount > 0) {
+            ioctxmana->Write(buf, offset, length, &mdsclient_);
+            reqcount--;
+        }
+    };
+
+    auto threadFunc2 = [&]() {
+        while (reqcount > 0) {
+            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
+            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
+        }
+    };
+
+    std::thread t1(threadFunc1);
+    std::thread t2(threadFunc1);
+    std::thread t3(threadFunc2);
+    t1.join();
+    t2.join();
+    t3.join();
 
     delete[] buf;
 }

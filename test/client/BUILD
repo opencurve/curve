@@ -98,7 +98,8 @@ cc_test(
                 ]
     ),
     copts = COPTS,
-    defines = ["UNIT_TEST"],
+    defines = ["UNIT_TEST", "FIU_ENABLE"],
+    linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",

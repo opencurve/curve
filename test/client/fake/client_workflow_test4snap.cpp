@@ -86,7 +86,7 @@ int main(int argc, char ** argv) {
     opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSize = 64;
+    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
     opt.loginfo.loglevel = 0;
 
     SnapshotClient cl;

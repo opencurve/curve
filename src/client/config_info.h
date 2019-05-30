@@ -15,6 +15,7 @@
 /**
  * log的基本配置信息
  * @loglevel: 是log打印等级
+ * @path: log打印位置
  */
 typedef struct LogInfo {
     int         loglevel;
@@ -23,6 +24,13 @@ typedef struct LogInfo {
         loglevel = 2;
     }
 } LogInfo_t;
+
+/**
+ * in flight IO控制信息
+ */
+typedef struct InFlightIOCntlInfo {
+    uint64_t    maxInFlightIONum;
+} InFlightIOCntlInfo_t;
 
 /**
  * mds client的基本配置
@@ -108,20 +116,22 @@ typedef struct RequestScheduleOption {
 typedef struct MetaCacheOption {
     uint32_t getLeaderRetry;
     uint32_t retryIntervalUs;
+    uint32_t getLeaderTimeOutMs;
     MetaCacheOption() {
         getLeaderRetry = 3;
-        retryIntervalUs = 200;
+        retryIntervalUs = 500;
+        getLeaderTimeOutMs = 1000;
     }
 } MetaCacheOption_t;
 
 /**
  * IO 拆分模块配置信息
- * @ioSplitMaxSize: 拆分后一个request的最大大小
+ * @ioSplitMaxSizeKB: 拆分后一个request的最大大小
  */
 typedef struct IOSplitOPtion {
-    uint64_t  ioSplitMaxSize;
+    uint64_t  ioSplitMaxSizeKB;
     IOSplitOPtion() {
-        ioSplitMaxSize = 64;
+        ioSplitMaxSizeKB = 64;
     }
 } IOSplitOPtion_t;
 
@@ -132,6 +142,7 @@ typedef struct IOOption {
     IOSplitOPtion_t  ioSplitOpt;
     IOSenderOption_t ioSenderOpt;
     MetaCacheOption_t   metaCacheOpt;
+    InFlightIOCntlInfo_t    inflightOpt;
     RequestScheduleOption_t reqSchdulerOpt;
 } IOOption_t;
 

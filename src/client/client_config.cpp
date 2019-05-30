@@ -23,18 +23,20 @@ int ClientConfig::Init(const char* configpath) {
     fileServiceOption_.loginfo.loglevel = conf_.GetIntValue("loglevel", 2);
     fileServiceOption_.loginfo.logpath = conf_.GetStringValue("logpath");
 
-    fileServiceOption_.ioOpt.ioSplitOpt.ioSplitMaxSize
-    = conf_.GetIntValue("ioSplitMaxSize", 64);
+    fileServiceOption_.ioOpt.ioSplitOpt.ioSplitMaxSizeKB
+    = conf_.GetIntValue("ioSplitMaxSizeKB", 64);
 
     fileServiceOption_.ioOpt.ioSenderOpt.enableAppliedIndexRead
     = conf_.GetIntValue("enableAppliedIndexRead", 1);
     fileServiceOption_.ioOpt.ioSenderOpt.rpcTimeoutMs
     = conf_.GetIntValue("rpcTimeoutMs", 500);
+    // 如果外部不设置超时重试次数，就一直重试
     fileServiceOption_.ioOpt.ioSenderOpt.rpcRetryTimes
-    = conf_.GetIntValue("rpcRetryTimes", 3);
+    = conf_.GetIntValue("rpcRetryTimes", -1);
 
     fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry
-    = conf_.GetIntValue("opMaxRetry", 3);
+    // 如果外部不设置超时重试次数，就一直重试
+    = conf_.GetIntValue("opMaxRetry", -1);
     fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs   // NOLINT
     = conf_.GetIntValue("opRetryIntervalUs", 500);
 
@@ -42,6 +44,8 @@ int ClientConfig::Init(const char* configpath) {
     = conf_.GetIntValue("getLeaderRetry", 3);
     fileServiceOption_.ioOpt.metaCacheOpt.retryIntervalUs
     = conf_.GetIntValue("retryIntervalUs", 500);
+    fileServiceOption_.ioOpt.metaCacheOpt.getLeaderTimeOutMs
+    = conf_.GetIntValue("getLeaderTimeOutMs", 500);
 
     fileServiceOption_.ioOpt.reqSchdulerOpt.queueCapacity
     = conf_.GetIntValue("queueCapacity", 4096);
@@ -66,8 +70,10 @@ int ClientConfig::Init(const char* configpath) {
     fileServiceOption_.metaServerOpt.rpcTimeoutMs
     = conf_.GetIntValue("rpcTimeoutMs", 500);
     fileServiceOption_.metaServerOpt.rpcRetryTimes
-    = conf_.GetIntValue("rpcRetryTimes", 3);
+    = conf_.GetIntValue("rpcRetryTimes", -1);
 
+    fileServiceOption_.ioOpt.inflightOpt.maxInFlightIONum
+    = conf_.GetIntValue("maxInFlightIONum", 4096);
     return 0;
 }
 

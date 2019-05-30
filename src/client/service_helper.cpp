@@ -55,7 +55,8 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
                             const CopysetID &copysetId,
                             const std::vector<CopysetPeerInfo_t> &conf,
                             ChunkServerAddr *leaderId,
-                            int16_t currentleaderIndex) {
+                            int16_t currentleaderIndex,
+                            uint32_t rpcTimeOutMs) {
     if (conf.empty()) {
         LOG(ERROR) << "Empty group configuration";
         return -1;
@@ -80,6 +81,7 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
         curve::chunkserver::GetLeaderRequest request;
         curve::chunkserver::GetLeaderResponse response;
         brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeOutMs);
 
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);

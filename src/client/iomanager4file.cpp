@@ -19,8 +19,7 @@
 namespace curve {
 namespace client {
 IOManager4File::IOManager4File():
-                    disableio_(false),
-                    startWaitInflightIO_(false),
+                    blockIO_(false),
                     inflightIONum_(0),
                     scheduler_(nullptr) {
 }
@@ -48,6 +47,9 @@ bool IOManager4File::Initialize(IOOption_t ioOpt,
 }
 
 void IOManager4File::UnInitialize() {
+    // 然后需要等到所有inflight的IO全部返回才能析构scheduler
+    WaitInflightIOAllComeBack();
+
     if (scheduler_ != nullptr) {
         scheduler_->Fini();
         delete scheduler_;
@@ -55,59 +57,79 @@ void IOManager4File::UnInitialize() {
     }
 }
 
+void IOManager4File::GetInflightIOToken() {
+    // lease续约失败的时候需要阻塞IO直到续约成功
+    if (blockIO_.load(std::memory_order_acquire)) {
+        std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
+        leaseRefreshcv_.wait(lk, [&]()->bool{
+            return !blockIO_.load();
+        });
+    }
+    // 当inflight IO超过限制的时候要等到其他inflight IO回来才能继续发送
+    // 因为rpc内部需要同一链路上目前允许的最大的未发送的数据量为8MB，因此
+    // 不能无限制的向下发送异步IO.
+    if (CheckInflightIOOverFlow()) {
+        WaitForInflightIOComeBack();
+    }
+
+    IncremInflightIONum();
+}
+
+void IOManager4File::ReleaseInflightIOToken() {
+    DecremInflightIONum();
+    if (inflightIONum_.load() == 0) {
+        inflightIOAllComeBackcv_.notify_all();
+    }
+    // 一旦有inflight IO回来就唤醒被block的IO
+    inflightIOComeBackcv_.notify_one();
+}
+
 int IOManager4File::Read(char* buf,
                         off_t offset,
                         size_t length,
                         MDSClient* mdsclient) {
-    if (disableio_.load(std::memory_order_acquire)) {
-        return -LIBCURVE_ERROR::DISABLEIO;
-    }
-    if (startWaitInflightIO_.load(std::memory_order_acquire)) {
-        WaitInflightIOComeBack();
-    }
+    FlightIOGuard guard(this);
+
     IOTracker temp(this, &mc_, scheduler_, clientMetric_);
-    inflightIONum_.fetch_add(1, std::memory_order_release);
     temp.StartRead(nullptr, buf, offset, length, mdsclient, &fi_);
 
-    int ret = temp.Wait();
-    RefreshInflightIONum();
-    return ret;
+    return temp.Wait();
 }
 
 int IOManager4File::Write(const char* buf,
                         off_t offset,
                         size_t length,
                         MDSClient* mdsclient) {
-    if (disableio_.load(std::memory_order_acquire)) {
-        return -LIBCURVE_ERROR::DISABLEIO;
-    }
-    if (startWaitInflightIO_.load(std::memory_order_acquire)) {
-        WaitInflightIOComeBack();
-    }
+    FlightIOGuard guard(this);
+
     IOTracker temp(this, &mc_, scheduler_, clientMetric_);
-    inflightIONum_.fetch_add(1, std::memory_order_release);
     temp.StartWrite(nullptr, buf, offset, length, mdsclient, &fi_);
 
-    int ret = temp.Wait();
-    RefreshInflightIONum();
-    return ret;
+    return temp.Wait();
 }
 
+/**
+ * CheckInflightIOOverFlow会检查当前未返回的io数量是否超过我们限制的最大未返回IO数量
+ * 但是真正的inflight IO数量与上层并发调用aio read write的线程数有关。
+ * 假设我们设置的maxinflight=100，上层有三个线程在同时调用aioread，如果这个时候
+ * inflight io数量为99，那么并发状况下这3个线程在CheckInflightIOOverFlow都会通过
+ * 然后向下并发执行IncremInflightIONum，这个时候真正的inflight IO为102，下一个IO
+ * 下发的时候需要等到inflight IO数量小于100才能继续，也就是等至少3个IO回来才能继续下发。
+ * 这个误差是可以接受的，他与qemu一侧并发度有关，误差有上限。
+ * 如果想要精确控制inflight IO数量，就需要在每个接口处加锁，让原本可以并发的逻辑变成了
+ * 串行，这样得不偿失。因此我们这里选择容忍一定误差范围。
+ */
 int IOManager4File::AioRead(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
-    if (disableio_.load(std::memory_order_acquire)) {
-        return -LIBCURVE_ERROR::DISABLEIO;
-    }
-    if (startWaitInflightIO_.load(std::memory_order_acquire)) {
-        WaitInflightIOComeBack();
-    }
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
                                                    scheduler_, clientMetric_);
     if (temp == nullptr) {
         LOG(ERROR) << "allocate tracker failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
-    inflightIONum_.fetch_add(1, std::memory_order_release);
+
+    GetInflightIOToken();
+
     temp->StartRead(aioctx,
                     static_cast<char*>(aioctx->buf),
                     aioctx->offset,
@@ -119,19 +141,15 @@ int IOManager4File::AioRead(CurveAioContext* aioctx,
 
 int IOManager4File::AioWrite(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
-    if (disableio_.load(std::memory_order_acquire)) {
-        return -LIBCURVE_ERROR::DISABLEIO;
-    }
-    if (startWaitInflightIO_.load(std::memory_order_acquire)) {
-        WaitInflightIOComeBack();
-    }
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
                                                    scheduler_, clientMetric_);
     if (temp == nullptr) {
         LOG(ERROR) << "allocate tracker failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
-    inflightIONum_.fetch_add(1, std::memory_order_release);
+
+    GetInflightIOToken();
+
     temp->StartWrite(aioctx,
                     static_cast<const char*>(aioctx->buf),
                     aioctx->offset,
@@ -146,38 +164,27 @@ void IOManager4File::UpdataFileInfo(const FInfo_t& fi) {
 }
 
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {
-    RefreshInflightIONum();
+    ReleaseInflightIOToken();
     delete iotracker;
 }
 
-void IOManager4File::StartWaitInflightIO() {
-    startWaitInflightIO_.store(true, std::memory_order_release);
-}
-
-void IOManager4File::WaitInflightIOComeBack() {
-    LOG(INFO) << "Snapshot version changed, wait inflight I/O to complete,"
-              << "count = " << startWaitInflightIO_;
-    std::unique_lock<std::mutex> lk(mtx_);
-    inflightcv_.wait(lk, [this]() {
+void IOManager4File::WaitInflightIOAllComeBack() {
+    LOG(INFO) << "wait inflight I/O to complete, count = " << inflightIONum_;
+    std::unique_lock<std::mutex> lk(inflightIOAllComeBackmtx_);
+    inflightIOAllComeBackcv_.wait(lk, [this]() {
         return inflightIONum_.load(std::memory_order_acquire) == 0;
     });
-    startWaitInflightIO_.store(false, std::memory_order_release);
     LOG(INFO) << "inflight I/O ALL come back.";
 }
 
-void IOManager4File::LeaseTimeoutDisableIO() {
-    disableio_.store(true, std::memory_order_release);
+void IOManager4File::LeaseTimeoutBlockIO() {
+    blockIO_.store(true, std::memory_order_release);
 }
 
 void IOManager4File::RefeshSuccAndResumeIO() {
-    disableio_.store(false, std::memory_order_release);
+    blockIO_.store(false, std::memory_order_release);
+    leaseRefreshcv_.notify_all();
 }
 
-void IOManager4File::RefreshInflightIONum() {
-    inflightIONum_.fetch_sub(1, std::memory_order_release);
-    if (inflightIONum_.load() == 0) {
-        inflightcv_.notify_one();
-    }
-}
 }   // namespace client
 }   // namespace curve

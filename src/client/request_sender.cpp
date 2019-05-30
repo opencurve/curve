@@ -35,7 +35,6 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
-    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -68,7 +67,6 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
              << " buf: " << *(unsigned int *)buf;
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
-    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -97,7 +95,6 @@ int RequestSender::ReadChunkSnapshot(ChunkIDInfo idinfo,
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
-    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -123,7 +120,6 @@ int RequestSender::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
-    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -148,7 +144,6 @@ int RequestSender::GetChunkInfo(ChunkIDInfo idinfo,
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
-    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     GetChunkInfoResponse *response = new GetChunkInfoResponse();
     done->SetResponse(response);
@@ -172,7 +167,6 @@ int RequestSender::CreateCloneChunk(ChunkIDInfo idinfo,
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
-    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -200,7 +194,6 @@ int RequestSender::RecoverChunk(ChunkIDInfo idinfo,
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
-    cntl->set_max_retry(iosenderopt_.rpcRetryTimes);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
