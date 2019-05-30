@@ -273,7 +273,9 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
 bool TopoAdapterImpl::CreateCopySetAtChunkServer(CopySetKey id,
                                                  ChunkServerIdType csID) {
     ::curve::mds::topology::CopySetInfo info(id.first, id.second);
-    return topoServiceManager_->CreateCopysetAtChunkServer(info, csID);
+    std::vector<::curve::mds::topology::CopySetInfo> infos;
+    infos.push_back(info);
+    return topoServiceManager_->CreateCopysetNodeOnChunkServer(csID, infos);
 }
 
 ChunkServerIdType TopoAdapterImpl::SelectBestPlacementChunkServer(
