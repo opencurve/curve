@@ -21,6 +21,8 @@ enum CHUNK_OP_TYPE {
     CHUNK_OP_READ = 1;              // 读 chunk
     CHUNK_OP_WRITE = 2;             // 写 chunk
     CHUNK_OP_READ_SNAP = 3;         // read chunk snapshot
+    // TODO(wudemiao): 后期替换成CHUNK_OP_DELETE_SNAP_OR_CORRECT_SN，
+    // 保证和chunkserver的接口一致
     CHUNK_OP_DELETE_SNAP = 4;       // delete chunk snapshot
     CHUNK_OP_CREATE_CLONE = 5;      // 创建clone chunk
     CHUNK_OP_RECOVER = 6;           // 恢复clone chunk

@@ -21,6 +21,9 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
 
+    LOG(INFO) << "Received create copyset request: "
+              << ToGroupIdString(request->logicpoolid(), request->copysetid());
+
     // 解析request中的peers
     Configuration conf;
     for (int i = 0; i < request->peerid_size(); ++i) {
@@ -52,6 +55,11 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
     } else {
         response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST);
     }
+
+    LOG(INFO) << "Accomplish create copyset "
+              << ToGroupIdString(request->logicpoolid(), request->copysetid())
+              << ", response code: "
+              << COPYSET_OP_STATUS_Name(response->status());
 }
 
 }  // namespace chunkserver
