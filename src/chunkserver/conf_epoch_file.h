@@ -22,6 +22,7 @@ using curve::fs::LocalFsFactory;
 
 /**
  * 配置版本序列化和反序列化的工具类
+ * TODO(wudemiao): 后期替换采用json编码
  */
 class ConfEpochFile {
  public:

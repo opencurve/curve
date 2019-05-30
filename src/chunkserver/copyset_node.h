@@ -133,6 +133,12 @@ class CopysetNode : public braft::StateMachine,
     virtual bool IsLeaderTerm() const;
 
     /**
+     * 返回当前的任期
+     * @return 当前的任期
+     */
+    virtual uint64_t LeaderTerm() const;
+
+    /**
      * 返回leader id
      * @return
      */

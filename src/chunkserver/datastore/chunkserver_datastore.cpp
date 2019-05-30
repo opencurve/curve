@@ -282,8 +282,8 @@ CSErrorCode CSDataStore::GetChunkInfo(ChunkID id,
                                       CSChunkInfo* chunkInfo) {
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile == nullptr) {
-        LOG(ERROR) << "Get ChunkInfo failed, Chunk not exists."
-                   << "ChunkID = " << id;
+        LOG(INFO) << "Get ChunkInfo failed, Chunk not exists."
+                  << "ChunkID = " << id;
         return CSErrorCode::ChunkNotExistError;
     }
     chunkFile->GetInfo(chunkInfo);
