@@ -13,6 +13,7 @@
 #include <ctime>
 #include <vector>
 #include <list>
+#include <random>
 
 
 namespace curve {
@@ -70,16 +71,11 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
                    << " logicalPoolId = " << logicalPoolChosenId;
         return false;
     }
-
-    infos->clear();
-    for (uint32_t i = 0; i < chunkNumber; i++) {
-        int randomCopySetIndex = std::rand() % copySetIds.size();
-        CopysetIdInfo idInfo;
-        idInfo.logicalPoolId = logicalPoolChosenId;
-        idInfo.copySetId = copySetIds[randomCopySetIndex];
-        infos->push_back(idInfo);
-    }
-    return true;
+    return AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
+        copySetIds,
+        logicalPoolChosenId,
+        chunkNumber,
+        infos);
 }
 
 // TODO(xuchaojie): 后续增加多种chunk分配策略
@@ -99,6 +95,27 @@ void TopologyAdminImpl::FilterLogicalPool(LogicalPoolFilter filter,
             }
         }
     }
+}
+
+bool AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
+    std::vector<CopySetIdType> copySetIds,
+    PoolIdType logicalPoolId,
+    uint32_t chunkNumber,
+    std::vector<CopysetIdInfo> *infos) {
+    infos->clear();
+
+    std::random_device rd;  // 将用于为随机数引擎获得种子
+    std::mt19937 gen(rd());  // 以播种标准 mersenne_twister_engine
+    std::uniform_int_distribution<> dis(0, copySetIds.size() - 1);
+
+    for (uint32_t i = 0; i < chunkNumber; i++) {
+        int randomCopySetIndex = dis(gen);
+        CopysetIdInfo idInfo;
+        idInfo.logicalPoolId = logicalPoolId;
+        idInfo.copySetId = copySetIds[randomCopySetIndex];
+        infos->push_back(idInfo);
+    }
+    return true;
 }
 
 }  // namespace topology
