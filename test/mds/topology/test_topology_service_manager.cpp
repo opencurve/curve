@@ -27,7 +27,7 @@ using ::testing::SetArgPointee;
 using ::testing::Invoke;
 
 using ::curve::chunkserver::MockCopysetServiceImpl;
-using ::curve::chunkserver::CopysetResponse;
+using ::curve::chunkserver::CopysetResponse2;
 using ::curve::chunkserver::COPYSET_OP_STATUS;
 using ::curve::mds::copyset::CopysetOption;
 
@@ -1983,8 +1983,8 @@ TEST_F(TestTopologyServiceManager, test_listPhysicalPool_success) {
 }
 
 static void CreateCopysetNodeFunc(::google::protobuf::RpcController *controller,
-                           const ::curve::chunkserver::CopysetRequest *request,
-                           ::curve::chunkserver::CopysetResponse *response,
+                           const ::curve::chunkserver::CopysetRequest2 *request,
+                           ::curve::chunkserver::CopysetResponse2 *response,
                            google::protobuf::Closure *done) {
     /* return response */
     brpc::ClosureGuard doneGuard(done);
@@ -2030,10 +2030,10 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
     EXPECT_CALL(*storage_, StorageCopySet(_))
         .WillRepeatedly(Return(true));
 
-    CopysetResponse chunkserverResponse;
+    CopysetResponse2 chunkserverResponse;
     chunkserverResponse.set_status(
         COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    EXPECT_CALL(mockCopySetService, CreateCopysetNode(_, _, _, _))
+    EXPECT_CALL(mockCopySetService, CreateCopysetNode2(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(chunkserverResponse),
             Invoke(CreateCopysetNodeFunc)));
 
@@ -2089,10 +2089,10 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_ByNameSuccess) {
     EXPECT_CALL(*storage_, StorageCopySet(_))
         .WillRepeatedly(Return(true));
 
-    CopysetResponse chunkserverResponse;
+    CopysetResponse2 chunkserverResponse;
     chunkserverResponse.set_status(
         COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    EXPECT_CALL(mockCopySetService, CreateCopysetNode(_, _, _, _))
+    EXPECT_CALL(mockCopySetService, CreateCopysetNode2(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(chunkserverResponse),
             Invoke(CreateCopysetNodeFunc)));
 

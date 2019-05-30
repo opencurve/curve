@@ -414,10 +414,10 @@ namespace chunkserver {
 
 class MockCopysetServiceImpl : public CopysetService {
  public:
-  MOCK_METHOD4(CreateCopysetNode, void(::google::protobuf::RpcController
+  MOCK_METHOD4(CreateCopysetNode2, void(::google::protobuf::RpcController
       *controller,
-      const ::curve::chunkserver::CopysetRequest *request,
-      ::curve::chunkserver::CopysetResponse *response,
+      const ::curve::chunkserver::CopysetRequest2 *request,
+      ::curve::chunkserver::CopysetResponse2 *response,
       google::protobuf::Closure *done));
 };
 

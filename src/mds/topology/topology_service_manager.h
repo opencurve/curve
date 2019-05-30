@@ -23,108 +23,159 @@ namespace topology {
 
 class TopologyServiceManager {
  public:
-  TopologyServiceManager(
-      std::shared_ptr<Topology> topology,
-      std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager)
-      : topology_(topology),
-        copysetManager_(copysetManager) {}
+    TopologyServiceManager(
+        std::shared_ptr<Topology> topology,
+        std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager)
+        : topology_(topology),
+          copysetManager_(copysetManager) {}
 
-  virtual ~TopologyServiceManager() {}
+    virtual ~TopologyServiceManager() {}
 
-  virtual void Init(const TopologyOption &option) {
-      option_ = option;
-  }
+    virtual void Init(const TopologyOption &option) {
+        option_ = option;
+    }
 
-  virtual void RegistChunkServer(const ChunkServerRegistRequest *request,
-                                 ChunkServerRegistResponse *response);
+    virtual void RegistChunkServer(const ChunkServerRegistRequest *request,
+                                   ChunkServerRegistResponse *response);
 
-  virtual void ListChunkServer(const ListChunkServerRequest *request,
-                               ListChunkServerResponse *response);
+    virtual void ListChunkServer(const ListChunkServerRequest *request,
+                                 ListChunkServerResponse *response);
 
-  virtual void GetChunkServer(const GetChunkServerInfoRequest *request,
-                              GetChunkServerInfoResponse *response);
+    virtual void GetChunkServer(const GetChunkServerInfoRequest *request,
+                                GetChunkServerInfoResponse *response);
 
-  virtual void DeleteChunkServer(const DeleteChunkServerRequest *request,
-                                 DeleteChunkServerResponse *response);
+    virtual void DeleteChunkServer(const DeleteChunkServerRequest *request,
+                                   DeleteChunkServerResponse *response);
 
-  virtual void SetChunkServer(const SetChunkServerStatusRequest *request,
-                              SetChunkServerStatusResponse *response);
+    virtual void SetChunkServer(const SetChunkServerStatusRequest *request,
+                                SetChunkServerStatusResponse *response);
 
-  virtual void RegistServer(const ServerRegistRequest *request,
-                            ServerRegistResponse *response);
+    virtual void RegistServer(const ServerRegistRequest *request,
+                              ServerRegistResponse *response);
 
-  virtual void GetServer(const GetServerRequest *request,
-                         GetServerResponse *response);
+    virtual void GetServer(const GetServerRequest *request,
+                           GetServerResponse *response);
 
-  virtual void DeleteServer(const DeleteServerRequest *request,
-                            DeleteServerResponse *response);
+    virtual void DeleteServer(const DeleteServerRequest *request,
+                              DeleteServerResponse *response);
 
-  virtual void ListZoneServer(const ListZoneServerRequest *request,
-                              ListZoneServerResponse *response);
+    virtual void ListZoneServer(const ListZoneServerRequest *request,
+                                ListZoneServerResponse *response);
 
-  virtual void CreateZone(const ZoneRequest *request,
-                          ZoneResponse *response);
+    virtual void CreateZone(const ZoneRequest *request,
+                            ZoneResponse *response);
 
-  virtual void DeleteZone(const ZoneRequest *request,
-                          ZoneResponse *response);
+    virtual void DeleteZone(const ZoneRequest *request,
+                            ZoneResponse *response);
 
-  virtual void GetZone(const ZoneRequest *request,
-                       ZoneResponse *response);
+    virtual void GetZone(const ZoneRequest *request,
+                         ZoneResponse *response);
 
-  virtual void ListPoolZone(const ListPoolZoneRequest *request,
-                            ListPoolZoneResponse *response);
+    virtual void ListPoolZone(const ListPoolZoneRequest *request,
+                              ListPoolZoneResponse *response);
 
-  virtual void CreatePhysicalPool(const PhysicalPoolRequest *request,
-                                  PhysicalPoolResponse *response);
+    virtual void CreatePhysicalPool(const PhysicalPoolRequest *request,
+                                    PhysicalPoolResponse *response);
 
-  virtual void DeletePhysicalPool(const PhysicalPoolRequest *request,
-                                  PhysicalPoolResponse *response);
+    virtual void DeletePhysicalPool(const PhysicalPoolRequest *request,
+                                    PhysicalPoolResponse *response);
 
-  virtual void GetPhysicalPool(const PhysicalPoolRequest *request,
-                               PhysicalPoolResponse *response);
+    virtual void GetPhysicalPool(const PhysicalPoolRequest *request,
+                                 PhysicalPoolResponse *response);
 
-  virtual void ListPhysicalPool(const ListPhysicalPoolRequest *request,
-                                ListPhysicalPoolResponse *response);
+    virtual void ListPhysicalPool(const ListPhysicalPoolRequest *request,
+                                  ListPhysicalPoolResponse *response);
 
-  virtual void CreateLogicalPool(const CreateLogicalPoolRequest *request,
-                                 CreateLogicalPoolResponse *response);
+    virtual void CreateLogicalPool(const CreateLogicalPoolRequest *request,
+                                   CreateLogicalPoolResponse *response);
 
-  virtual void DeleteLogicalPool(const DeleteLogicalPoolRequest *request,
-                                 DeleteLogicalPoolResponse *response);
+    virtual void DeleteLogicalPool(const DeleteLogicalPoolRequest *request,
+                                   DeleteLogicalPoolResponse *response);
 
-  virtual void GetLogicalPool(const GetLogicalPoolRequest *request,
-                              GetLogicalPoolResponse *response);
+    virtual void GetLogicalPool(const GetLogicalPoolRequest *request,
+                                GetLogicalPoolResponse *response);
 
-  virtual void ListLogicalPool(const ListLogicalPoolRequest *request,
-                               ListLogicalPoolResponse *response);
+    virtual void ListLogicalPool(const ListLogicalPoolRequest *request,
+                                 ListLogicalPoolResponse *response);
 
-  virtual void GetChunkServerListInCopySets(
-      const GetChunkServerListInCopySetsRequest *request,
-      GetChunkServerListInCopySetsResponse *response);
+    virtual void GetChunkServerListInCopySets(
+        const GetChunkServerListInCopySetsRequest *request,
+        GetChunkServerListInCopySetsResponse *response);
 
-  virtual bool CreateCopysetAtChunkServer(
-      const CopySetInfo &info, ChunkServerIdType id);
+    /**
+     * @brief 调用rpc接口在chunkserver上创建copysetnode
+     *
+     * @param id 目标chunkserver
+     * @param copysetInfos 需在该chunkserver上创建的copyset列表
+     *
+     * @return 错误码
+     */
+    virtual bool CreateCopysetNodeOnChunkServer(
+        ChunkServerIdType id,
+        const std::vector<CopySetInfo> &copysetInfos);
 
  private:
+    /**
+    * @brief 为logicalpool创建copyset
+    *
+    * @param lPool 逻辑池
+    * @param scatterWidth scatterWidth
+    * @param[out] copysetInfos 创建的copyset信息
+    *
+    * @return 错误码
+    */
     int CreateCopysetForLogicalPool(
         const LogicalPool &lPool,
         uint32_t scatterWidth,
         std::vector<CopySetInfo> *copysetInfos);
 
+    /**
+    * @brief 为PageFilePool创建copyset
+    *
+    * @param lPool 逻辑池
+    * @param scatterWidth scatterWidth
+    * @param[out] copysetInfos 创建的copyset信息
+    *
+    * @return 错误码
+    */
     int GenCopysetForPageFilePool(
         const LogicalPool &lPool,
         uint32_t scatterWidth,
         std::vector<CopySetInfo> *copysetInfos);
 
-    int CreateCopysetOnChunkServer(
-        const std::vector<CopySetInfo> *copysetInfos);
+    /**
+     * @brief 在copyset列表中的所有copyset为其在chunkserver上创建copysetnode
+     *
+     * @param copysetInfos copyset列表
+     *
+     * @return 错误码
+     */
+    int CreateCopysetNodeOnChunkServer(
+        const std::vector<CopySetInfo> &copysetInfos);
 
+    /**
+     * @brief 移除logicalpool及其相关copyset
+     *
+     * @param pool 逻辑池
+     * @param copysetInfos copyset列表
+     *
+     * @return 错误码
+     */
     int RemoveErrLogicalPoolAndCopyset(const LogicalPool &pool,
         const std::vector<CopySetInfo> *copysetInfos);
 
  private:
+    /**
+     * @brief 拓扑模块
+     */
     std::shared_ptr<Topology> topology_;
+    /**
+     * @brief copyset管理模块
+     */
     std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
+    /**
+     * @brief 拓扑配置项
+     */
     TopologyOption option_;
 };
 

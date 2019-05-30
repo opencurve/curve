@@ -39,8 +39,8 @@ using ::curve::chunkserver::CHUNK_OP_STATUS;
 using ::curve::chunkserver::CHUNK_OP_STATUS_FAILURE_UNKNOWN;
 using ::curve::chunkserver::CHUNK_OP_STATUS_REDIRECTED;
 
-using ::curve::chunkserver::GetLeaderRequest;
-using ::curve::chunkserver::GetLeaderResponse;
+using ::curve::chunkserver::GetLeaderRequest2;
+using ::curve::chunkserver::GetLeaderResponse2;
 
 using ::google::protobuf::RpcController;
 using ::google::protobuf::Closure;
@@ -346,13 +346,16 @@ TEST_F(TestChunkServerClient, TestGetLeaderSuccess) {
     uint32_t leaderPort = 8888;
     std::string leaderPeer = leaderIp + ":" + std::to_string(leaderPort) + ":0";
     ChunkServerIdType leaderReturn = 0x02;
-    GetLeaderResponse response;
-    response.set_leader_id(leaderPeer);
-    EXPECT_CALL(mockCliService, get_leader(_, _, _, _))
+    GetLeaderResponse2 response;
+    ::curve::common::Peer *peer = new ::curve::common::Peer();
+    peer->set_id(leaderReturn);
+    peer->set_address(leaderPeer);
+    response.set_allocated_leader(peer);
+    EXPECT_CALL(mockCliService, GetLeader(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
                 Invoke([](RpcController *controller,
-                          const GetLeaderRequest *request,
-                          GetLeaderResponse *response,
+                          const GetLeaderRequest2 *request,
+                          GetLeaderResponse2 *response,
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                     })));
@@ -472,14 +475,17 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcCntlFail) {
     uint32_t leaderPort = 8888;
     std::string leaderPeer = leaderIp + ":" + std::to_string(leaderPort) + ":0";
     ChunkServerIdType leaderReturn = 0x02;
-    GetLeaderResponse response;
-    response.set_leader_id(leaderPeer);
-    EXPECT_CALL(mockCliService, get_leader(_, _, _, _))
+    GetLeaderResponse2 response;
+    ::curve::common::Peer *peer = new ::curve::common::Peer();
+    peer->set_id(leaderReturn);
+    peer->set_address(leaderPeer);
+    response.set_allocated_leader(peer);
+    EXPECT_CALL(mockCliService, GetLeader(_, _, _, _))
         .Times(kRpcRetryTime)
         .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                 Invoke([](RpcController *controller,
-                          const GetLeaderRequest *request,
-                          GetLeaderResponse *response,
+                          const GetLeaderRequest2 *request,
+                          GetLeaderResponse2 *response,
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                           std::this_thread::sleep_for(
@@ -514,13 +520,17 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcReturnLeaderPeerInvalid) {
             Return(true)));
 
     std::string leaderPeer = "abcde";
-    GetLeaderResponse response;
-    response.set_leader_id(leaderPeer);
-    EXPECT_CALL(mockCliService, get_leader(_, _, _, _))
+    ChunkServerIdType leaderReturn = 0x02;
+    GetLeaderResponse2 response;
+    ::curve::common::Peer *peer = new ::curve::common::Peer();
+    peer->set_id(leaderReturn);
+    peer->set_address(leaderPeer);
+    response.set_allocated_leader(peer);
+    EXPECT_CALL(mockCliService, GetLeader(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
                 Invoke([](RpcController *controller,
-                          const GetLeaderRequest *request,
-                          GetLeaderResponse *response,
+                          const GetLeaderRequest2 *request,
+                          GetLeaderResponse2 *response,
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                     })));
@@ -556,13 +566,16 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcReturnLeaderPeerNotExist) {
     uint32_t leaderPort = 8888;
     std::string leaderPeer = leaderIp + ":" + std::to_string(leaderPort) + ":0";
     ChunkServerIdType leaderReturn = 0x02;
-    GetLeaderResponse response;
-    response.set_leader_id(leaderPeer);
-    EXPECT_CALL(mockCliService, get_leader(_, _, _, _))
+    GetLeaderResponse2 response;
+    ::curve::common::Peer *peer = new ::curve::common::Peer();
+    peer->set_id(leaderReturn);
+    peer->set_address(leaderPeer);
+    response.set_allocated_leader(peer);
+    EXPECT_CALL(mockCliService, GetLeader(_, _, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response),
                 Invoke([](RpcController *controller,
-                          const GetLeaderRequest *request,
-                          GetLeaderResponse *response,
+                          const GetLeaderRequest2 *request,
+                          GetLeaderResponse2 *response,
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                     })));

@@ -615,7 +615,7 @@ TEST_F(TestTopoAdapterImpl, test_GetParam) {
     ASSERT_EQ(0, topoAdapter_->GetStandardReplicaNumInLogicalPool(1));
     ASSERT_EQ(0, topoAdapter_->GetStandardZoneNumInLogicalPool(1));
 
-    EXPECT_CALL(*mockTopoManager_, CreateCopysetAtChunkServer(_, _))
+    EXPECT_CALL(*mockTopoManager_, CreateCopysetNodeOnChunkServer(_, _))
         .WillOnce(Return(true)).WillOnce(Return(false));
     ASSERT_TRUE(topoAdapter_->CreateCopySetAtChunkServer(
         std::pair<PoolIdType, ChunkServerIdType>(1, 1), 1));
