@@ -22,6 +22,9 @@ RequestScheduler::~RequestScheduler() {
 int RequestScheduler::Init(RequestScheduleOption_t reqSchdulerOpt,
                            MetaCache *metaCache) {
     reqschopt_ = reqSchdulerOpt;
+    // 调度队列的深度会影响client端整体吞吐，这个队列存放的是异步IO任务。
+    // 队列深度与maxInFlightIONum数量有关系，其深度应该大于等于maxInFlightIONum
+    // 因为如果小于maxInFlightIONum，client端的整体pipeline效果就会受到影响。
     if (0 != queue_.Init(reqschopt_.queueCapacity)) {
         return -1;
     }

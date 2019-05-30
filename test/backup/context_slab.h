@@ -60,7 +60,7 @@ class IOTrackerSlab {
     virtual void Recyle(IOTracker* torecyle);
     virtual bool PreAllocateInternal();
 
-    inline void WaitInflightIOComeBack() {
+    inline void WaitInflightIOAllComeBack() {
        waitinflightio_.store(true, std::memory_order_relaxed);
     }
 

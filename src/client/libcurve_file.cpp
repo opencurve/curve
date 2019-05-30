@@ -55,11 +55,11 @@ int FileClient::Init(const std::string& configpath) {
     google::SetCommandLineOption("minloglevel", std::to_string(
         clientconfig_.GetFileServiceOption().loginfo.loglevel).c_str());
 
-    google::SetLogSymlink(google::INFO,
+    google::SetLogDestination(google::INFO,
         clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
-    google::SetLogSymlink(google::WARNING,
+    google::SetLogDestination(google::WARNING,
         clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
-    google::SetLogSymlink(google::ERROR,
+    google::SetLogDestination(google::ERROR,
         clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
 
     return LIBCURVE_ERROR::OK;
@@ -131,7 +131,7 @@ int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
         clientMetric_.readRequestFailCount << 1;
-        return -LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::BAD_FD;
     }
 
     clientMetric_.readRequestCount << 1;
@@ -152,7 +152,7 @@ int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
         clientMetric_.writeRequestFailCount << 1;
-        return -LIBCURVE_ERROR::FAILED;
+        return -LIBCURVE_ERROR::BAD_FD;
     }
 
     clientMetric_.writeRequestCount << 1;
@@ -173,7 +173,7 @@ int FileClient::AioRead(int fd, CurveAioContext* aioctx) {
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        ret = -LIBCURVE_ERROR::FAILED;
+        ret = -LIBCURVE_ERROR::BAD_FD;
     } else {
         ret = fileserviceMap_[fd]->AioRead(aioctx);
     }
@@ -195,7 +195,7 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        ret = -LIBCURVE_ERROR::FAILED;
+        ret = -LIBCURVE_ERROR::BAD_FD;
     } else {
         ret = fileserviceMap_[fd]->AioWrite(aioctx);
     }

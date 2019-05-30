@@ -648,7 +648,7 @@ statfs file with root user and error password
     [Setup]	file init
     #create libcurve file
     ${rc}   statfs libcurve file with root user and error password
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     #close libcurve file     ${new_fd}
     [Teardown]	    file clean      none
@@ -658,7 +658,7 @@ statfs file with root user and no password
     [Setup]	file init
     #create libcurve file
     ${rc}   statfs libcurve file with root user and no password
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     #close libcurve file     ${new_fd}
     [Teardown]	    file clean      none
@@ -669,7 +669,7 @@ statfs file with error user
     #create libcurve file
     ${rc}   statfs libcurve file with error user
     ${new_fd}       Convert To Integer    ${rc}
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -679,7 +679,7 @@ statfs file with error user and root password
     #create libcurve file
     ${rc}   statfs libcurve file with error user and root password
     ${new_fd}       Convert To Integer    ${rc}
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -689,7 +689,7 @@ statfs file with no user
     #create libcurve file
     ${rc}   statfs libcurve file with no user
     ${new_fd}       Convert To Integer    ${rc}
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -730,7 +730,7 @@ statfs dir with root user and error password
     ${expect_rc}    evaluate    int(0)
     should be equal      ${rc}       ${expect_rc}
     ${rc}   statfs libcurve dir with root user and error password
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -741,7 +741,7 @@ statfs dir with root user and no password
     ${expect_rc}    evaluate    int(0)
     should be equal      ${rc}       ${expect_rc}
     ${rc}   statfs libcurve dir with root user and no password
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -753,7 +753,7 @@ statfs dir with error user
     ${expect_rc}    evaluate    int(0)
     should be equal      ${rc}       ${expect_rc}
     ${rc}   statfs libcurve dir with error user
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -765,7 +765,7 @@ statfs dir with error user and root password
     ${expect_rc}    evaluate    int(0)
     should be equal      ${rc}       ${expect_rc}
     ${rc}   statfs libcurve dir with error user and root password
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
@@ -777,7 +777,7 @@ statfs dir with no user
     ${expect_rc}    evaluate    int(0)
     should be equal      ${rc}       ${expect_rc}
     ${rc}   statfs libcurve dir with no user
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-4)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      none
 
