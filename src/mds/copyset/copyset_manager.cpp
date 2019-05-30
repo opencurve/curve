@@ -53,6 +53,10 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
             if (validator_->ValidateScatterWidth(scatterWidth, *out)) {
                 return true;
             } else {
+                LOG(ERROR) << "GenCopyset ValidateScatterWidth failed, "
+                           << "numCopysets not enough, "
+                           << "numCopysets = " << numCopysets
+                           << " , scatterWidth = " << scatterWidth;
                 return false;
             }
         } else {
@@ -78,6 +82,9 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
                     numCopysets++;
                 }
             } else {
+                LOG(ERROR) << "GenCopyset by scatterWidth failed, "
+                           << "scatterWidth can not reach, scatterWidth = "
+                           << scatterWidth;
                 return false;
             }
         }
@@ -92,13 +99,18 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
     while (retry < option_.copysetRetryTimes) {
         out->clear();
         if (!policy_->GenCopyset(cluster, numCopysets, out)) {
+            LOG(ERROR) << "GenCopyset policy failed.";
             return false;
         }
         if (validator_->Validate(*out)) {
             return true;
         }
+        LOG(ERROR) << "Validate copyset metric failed, retry = "
+                   << retry;
         retry++;
     }
+    LOG(ERROR) << "GenCopyset retry times exceed, times = "
+               << option_.copysetRetryTimes;
     return false;
 }
 

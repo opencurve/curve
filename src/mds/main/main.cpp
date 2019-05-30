@@ -131,26 +131,27 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
     topologyOption->password =
         conf->GetStringValue("mds.DbPassword");
     topologyOption->ChunkServerStateUpdateSec =
-        conf->GetIntValue("mds.topology.ChunkServerStateUpdateSec");
+        conf->GetIntValue("mds.topology.ChunkServerStateUpdateSec", 60);
     topologyOption->CreateCopysetRpcTimeoutMs =
-        conf->GetIntValue("mds.topology.CreateCopysetRpcTimeoutMs");
+        conf->GetIntValue("mds.topology.CreateCopysetRpcTimeoutMs", 2000);
     topologyOption->CreateCopysetRpcRetryTimes =
-        conf->GetIntValue("mds.topology.CreateCopysetRpcRetryTimes");
+        conf->GetIntValue("mds.topology.CreateCopysetRpcRetryTimes", 3);
     topologyOption->CreateCopysetRpcRetrySleepTimeMs =
-        conf->GetIntValue("mds.topology.CreateCopysetRpcRetrySleepTimeMs");
+        conf->GetIntValue("mds.topology.CreateCopysetRpcRetrySleepTimeMs",
+            1000);
 }
 
 void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
     copysetOption->copysetRetryTimes =
-        conf->GetIntValue("mds.copyset.copysetRetryTimes");
+        conf->GetIntValue("mds.copyset.copysetRetryTimes", 10);
     copysetOption->scatterWidthVariance =
-        conf->GetDoubleValue("mds.copyset.scatterWidthVariance");
+        conf->GetDoubleValue("mds.copyset.scatterWidthVariance", 0);
     copysetOption->scatterWidthStandardDevation =
-        conf->GetDoubleValue("mds.copyset.scatterWidthStandardDevation");
+        conf->GetDoubleValue("mds.copyset.scatterWidthStandardDevation", 0);
     copysetOption->scatterWidthRange =
-        conf->GetDoubleValue("mds.copyset.scatterWidthRange");
+        conf->GetDoubleValue("mds.copyset.scatterWidthRange", 0);
     copysetOption->scatterWidthFloatingPercentage =
-        conf->GetDoubleValue("mds.copyset.scatterWidthFloatingPercentage");
+        conf->GetDoubleValue("mds.copyset.scatterWidthFloatingPercentage", 0);
 }
 
 int curve_main(int argc, char **argv) {
