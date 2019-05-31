@@ -31,6 +31,7 @@ void ChunkClosure::Run() {
     if (status().ok()) {
         return;
     }
+
     request_->RedirectChunkRequest();
 }
 
