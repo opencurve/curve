@@ -20,6 +20,7 @@
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
 using ::curve::fs::LocalFileSystem;
+using ::curve::fs::LocalFileSystemOption;
 using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
 
@@ -53,6 +54,11 @@ int ChunkServer::Run(int argc, char** argv) {
     // 初始化本地文件系统
     std::shared_ptr<LocalFileSystem> fs(
         LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
+    LocalFileSystemOption lfsOption;
+    lfsOption.enableRenameat2 = conf.GetBoolValue("fs.enable_renameat2");
+    LOG_IF(FATAL, 0 != fs->Init(lfsOption))
+        << "Failed to initialize local filesystem module!";
+
 
     // 初始化chunk文件池
     ChunkfilePoolOptions chunkFilePoolOptions;

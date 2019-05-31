@@ -109,17 +109,6 @@ class CSSnapshot {
      * @return: 返回位图表
      */
     std::shared_ptr<const Bitmap> GetPageStatus() const;
-    /**
-     * 判断当前快照文件是否已经损坏
-     * @return: 损坏返回true，未损坏返回false
-     */
-    bool IsDamaged() const;
-    /**
-     * 标坏当前快照，并将damaged标记，写到pagecache
-     * 如果需要刷盘，调用Sync接口
-     * @return: 返回错误码
-     */
-    CSErrorCode SetDamaged();
 
  private:
     /**

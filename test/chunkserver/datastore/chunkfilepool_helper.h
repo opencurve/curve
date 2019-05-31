@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <climits>
 #include <memory>
+#include <string>
 
 #include "src/fs/local_filesystem.h"
 
@@ -19,6 +20,8 @@ using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 
-void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr, uint32_t num);
+void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr,
+                   uint32_t num,
+                   std::string poolDir);
 
 #endif  // TEST_CHUNKSERVER_DATASTORE_CHUNKFILEPOOL_HELPER_H_

@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <sys/utsname.h>
 #include "src/fs/wrap_posix.h"
 
 #define DIR_PATH "wraptest"
@@ -44,21 +45,24 @@ TEST_F(PosixWrapperTest, BasicTest) {
     ASSERT_EQ(0, wrapper.closedir(dirp));
     ASSERT_EQ(0, wrapper.remove(FILE_PATH2));
     ASSERT_EQ(0, wrapper.remove(DIR_PATH));
+
+    struct utsname kernel_info;
+    ASSERT_EQ(0, wrapper.uname(&kernel_info));
 }
 
-TEST_F(PosixWrapperTest, RenameTest) {
+TEST_F(PosixWrapperTest, Renameat2Test) {
     PosixWrapper wrapper;
     ASSERT_EQ(0, wrapper.mkdir(DIR_PATH, 0755));
     int fd = wrapper.open(FILE_PATH1, O_CREAT|O_RDWR, 0644);
     ASSERT_GE(fd, 0);
     ASSERT_EQ(0, wrapper.close(fd));
-    ASSERT_EQ(0, wrapper.rename(FILE_PATH1, FILE_PATH2, RENAME_NOREPLACE));
+    ASSERT_EQ(0, wrapper.renameat2(FILE_PATH1, FILE_PATH2, RENAME_NOREPLACE));
 
     wrapper.open(FILE_PATH1, O_CREAT|O_RDWR, 0644);
     ASSERT_GE(fd, 0);
     ASSERT_EQ(0, wrapper.close(fd));
-    ASSERT_EQ(-1, wrapper.rename(FILE_PATH1, FILE_PATH2, RENAME_NOREPLACE));
-    ASSERT_EQ(0, wrapper.rename(FILE_PATH1, FILE_PATH2));
+    ASSERT_EQ(-1, wrapper.renameat2(FILE_PATH1, FILE_PATH2, RENAME_NOREPLACE));
+    ASSERT_EQ(0, wrapper.renameat2(FILE_PATH1, FILE_PATH2));
 
     ASSERT_EQ(0, wrapper.remove(FILE_PATH2));
     ASSERT_EQ(0, wrapper.remove(DIR_PATH));

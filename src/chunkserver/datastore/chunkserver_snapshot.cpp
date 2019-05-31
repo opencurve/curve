@@ -32,15 +32,6 @@ void SnapshotMetaPage::encode(char* buf) {
 CSErrorCode SnapshotMetaPage::decode(const char* buf) {
     size_t len = 0;
     memcpy(&version, buf, sizeof(version));
-    // TODO(yyk) 判断版本兼容性，当前简单处理，后续详细实现
-    if (version != FORMAT_VERSION) {
-        LOG(ERROR) << "File format version incompatible."
-                    << "file version: "
-                    << static_cast<uint32_t>(version)
-                    << ", format version: "
-                    << static_cast<uint32_t>(FORMAT_VERSION);
-        return CSErrorCode::IncompatibleError;
-    }
     len += sizeof(version);
     memcpy(&damaged, buf + len, sizeof(damaged));
     len += sizeof(damaged);
@@ -59,6 +50,16 @@ CSErrorCode SnapshotMetaPage::decode(const char* buf) {
     if (crc != recordCrc) {
         LOG(ERROR) << "Checking Crc32 failed.";
         return CSErrorCode::CrcCheckError;
+    }
+
+    // TODO(yyk) 判断版本兼容性，当前简单处理，后续详细实现
+    if (version != FORMAT_VERSION) {
+        LOG(ERROR) << "File format version incompatible."
+                    << "file version: "
+                    << static_cast<uint32_t>(version)
+                    << ", format version: "
+                    << static_cast<uint32_t>(FORMAT_VERSION);
+        return CSErrorCode::IncompatibleError;
     }
     return CSErrorCode::Success;
 }
@@ -178,19 +179,6 @@ SequenceNum CSSnapshot::GetSn() const {
 
 std::shared_ptr<const Bitmap> CSSnapshot::GetPageStatus() const {
     return metaPage_.bitmap;
-}
-
-bool CSSnapshot::IsDamaged() const {
-    return metaPage_.damaged;
-}
-
-CSErrorCode CSSnapshot::SetDamaged() {
-    SnapshotMetaPage tempMeta = metaPage_;
-    tempMeta.damaged = true;
-    CSErrorCode errorCode = updateMetaPage(&tempMeta);
-    if (errorCode == CSErrorCode::Success)
-        metaPage_.damaged = tempMeta.damaged;
-    return errorCode;
 }
 
 CSErrorCode CSSnapshot::Write(const char * buf, off_t offset, size_t length) {

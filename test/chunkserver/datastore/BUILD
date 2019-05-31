@@ -10,15 +10,26 @@ cc_library(
     visibility = ["//visibility:public"],
 )
 
+cc_library(
+    name = "chunkfilepool_helper",
+    srcs = [
+            "chunkfilepool_helper.cpp",
+            "chunkfilepool_helper.h",
+            ],
+    deps = [
+            "@com_google_googletest//:gtest",
+            "//src/chunkserver/datastore:chunkserver_datastore",
+            ],
+    copts = ["-std=c++14"],
+    visibility = ["//visibility:public"],
+)
+
 cc_test(
     name = "curve_datastore_unittest",
     srcs = [
         "chunkfilepool_unittest.cpp",
-        "datastore_real_unittest.cpp",
         "datastore_mock_unittest.cpp",
         "datastore_unittest_main.cpp",
-        "chunkfilepool_helper.cpp",
-        "chunkfilepool_helper.h",
     ],
     includes = ([]),
     copts = ["-std=c++14"],
@@ -32,6 +43,7 @@ cc_test(
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//test/fs:fs_mock",
         "//test/chunkserver/datastore:datastore_mock",
-        "//external:json"
+        "//external:json",
+        "//test/chunkserver/datastore:chunkfilepool_helper",
     ],
 )
