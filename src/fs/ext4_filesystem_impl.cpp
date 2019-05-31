@@ -7,11 +7,15 @@
 
 #include <glog/logging.h>
 #include <sys/vfs.h>
+#include <sys/utsname.h>
+#include <linux/version.h>
 #include <dirent.h>
 
 #include "src/common/string_util.h"
 #include "src/fs/ext4_filesystem_impl.h"
 #include "src/fs/wrap_posix.h"
+
+#define MIN_KERNEL_VERSION KERNEL_VERSION(3, 15, 0)
 
 namespace curve {
 namespace fs {
@@ -21,7 +25,8 @@ std::mutex Ext4FileSystemImpl::mutex_;
 
 Ext4FileSystemImpl::Ext4FileSystemImpl(
     std::shared_ptr<PosixWrapper> posixWrapper)
-    : posixWrapper_(posixWrapper) {
+    : posixWrapper_(posixWrapper)
+    , enableRenameat2_(false) {
     CHECK(posixWrapper_ != nullptr) << "PosixWrapper is null";
 }
 
@@ -45,8 +50,58 @@ void Ext4FileSystemImpl::SetPosixWrapper(std::shared_ptr<PosixWrapper> wrapper) 
     posixWrapper_ = wrapper;
 }
 
-int Ext4FileSystemImpl::Init() {
-    // ext4实现无需初始化
+bool Ext4FileSystemImpl::CheckKernelVersion() {
+    struct utsname kernel_info;
+    int ret = 0;
+
+    ret = posixWrapper_->uname(&kernel_info);
+    if (ret != 0) {
+         LOG(ERROR) << "Get kernel info failed.";
+         return false;
+    }
+
+    LOG(INFO) << "Kernel version: " << kernel_info.release;
+    LOG(INFO) << "System version: " << kernel_info.version;
+    LOG(INFO) << "Machine: " << kernel_info.machine;
+
+    // 通过uname获取的版本字符串格式可能为a.b.c-xxx
+    // a为主版本号，b为此版本号，c为修正号
+    vector<string> elements;
+    ::curve::common::SplitString(kernel_info.release, "-", &elements);
+    if (elements.size() == 0) {
+        LOG(ERROR) << "parse kenel version failed.";
+        return false;
+    }
+
+    vector<string> numbers;
+    ::curve::common::SplitString(elements[0], ".", &numbers);
+    // 有些系统可能版本格式前面部分是a.b.c.d，但是a.b.c是不变的
+    if (numbers.size() < 3) {
+        LOG(ERROR) << "parse kenel version failed.";
+        return false;
+    }
+
+    int major = std::stoi(numbers[0]);
+    int minor = std::stoi(numbers[1]);
+    int revision = std::stoi(numbers[2]);
+    LOG(INFO) << "major: " << major
+              << ", minor: " << minor
+              << ", revision: " << revision;
+
+    // 内核版本必须大于3.15,用于支持renameat2
+    if (KERNEL_VERSION(major, minor, revision) < MIN_KERNEL_VERSION) {
+        LOG(ERROR) << "Kernel older than 3.15 is not supported.";
+        return false;
+    }
+    return true;
+}
+
+int Ext4FileSystemImpl::Init(const LocalFileSystemOption& option) {
+    enableRenameat2_ = option.enableRenameat2;
+    if (enableRenameat2_) {
+        if (!CheckKernelVersion())
+            return -1;
+    }
     return 0;
 }
 
@@ -156,7 +211,12 @@ bool Ext4FileSystemImpl::FileExists(const string& filePath) {
 int Ext4FileSystemImpl::DoRename(const string& oldPath,
                                  const string& newPath,
                                  unsigned int flags) {
-    int rc = posixWrapper_->rename(oldPath.c_str(), newPath.c_str(), flags);
+    int rc = 0;
+    if (enableRenameat2_) {
+        rc = posixWrapper_->renameat2(oldPath.c_str(), newPath.c_str(), flags);
+    } else {
+        rc = posixWrapper_->rename(oldPath.c_str(), newPath.c_str());
+    }
     if (rc < 0) {
         LOG(ERROR) << "rename failed: " << strerror(errno)
                    << ". old path: " << oldPath

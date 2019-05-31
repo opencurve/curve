@@ -35,8 +35,13 @@ int PosixWrapper::stat(const char *pathname, struct stat *buf) {
 }
 
 int PosixWrapper::rename(const char *oldpath,
-                         const char *newpath,
-                         unsigned int flags) {
+                         const char *newpath) {
+    return ::rename(oldpath, newpath);
+}
+
+int PosixWrapper::renameat2(const char *oldpath,
+                            const char *newpath,
+                            unsigned int flags) {
     /*   RENAME_NOREPLACE requires support from the underlying filesystem.
      *   Support for various filesystems was added as follows:
      *   ext4 (Linux 3.15);
@@ -90,6 +95,10 @@ int PosixWrapper::fsync(int fd) {
 
 int PosixWrapper::statfs(const char *path, struct statfs *buf) {
     return ::statfs(path, buf);
+}
+
+int PosixWrapper::uname(struct utsname *buf) {
+    return ::uname(buf);
 }
 
 }  // namespace fs

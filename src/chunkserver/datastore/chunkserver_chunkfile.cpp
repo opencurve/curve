@@ -72,15 +72,6 @@ void ChunkFileMetaPage::encode(char* buf) {
 CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
     size_t len = 0;
     memcpy(&version, buf, sizeof(version));
-    // TODO(yyk) 判断版本兼容性，当前简单处理，后续详细实现
-    if (version != FORMAT_VERSION) {
-        LOG(ERROR) << "File format version incompatible."
-                    << "file version: "
-                    << static_cast<uint32_t>(version)
-                    << ", format version: "
-                    << static_cast<uint32_t>(FORMAT_VERSION);
-        return CSErrorCode::IncompatibleError;
-    }
     len += sizeof(version);
     memcpy(&sn, buf + len, sizeof(sn));
     len += sizeof(sn);
@@ -106,6 +97,16 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
     if (crc != recordCrc) {
         LOG(ERROR) << "Checking Crc32 failed.";
         return CSErrorCode::CrcCheckError;  // 需定义crc校验失败的错误码
+    }
+
+    // TODO(yyk) 判断版本兼容性，当前简单处理，后续详细实现
+    if (version != FORMAT_VERSION) {
+        LOG(ERROR) << "File format version incompatible."
+                    << "file version: "
+                    << static_cast<uint32_t>(version)
+                    << ", format version: "
+                    << static_cast<uint32_t>(FORMAT_VERSION);
+        return CSErrorCode::IncompatibleError;
     }
     return CSErrorCode::Success;
 }
@@ -227,13 +228,14 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
                                size_t length,
                                uint32_t* cost) {
     WriteLockGuard writeGuard(rwLock_);
-    if (offset + length > size_) {
-        LOG(ERROR) << "Write chunk out of range."
+    if (!CheckOffsetAndLength(offset, length)) {
+        LOG(ERROR) << "Write chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
+                   << ", page size: " << pageSize_
                    << ", chunk size: " << size_;
-        return CSErrorCode::OutOfRangeError;
+        return CSErrorCode::InvalidArgError;
     }
     // 用户快照以后会保证之前的请求全部到达或者超时以后才会下发新的请求
     // 因此此处只可能是日志恢复的请求，且一定已经执行，此处可返回错误码
@@ -249,14 +251,25 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
     if (needCreateSnapshot(sn)) {
         // 存在历史快照未被删掉
         if (snapshot_ != nullptr) {
-            LOG(WARNING) << "Exists old snapshot."
-                         << "ChunkID: " << chunkId_
-                         << ",request sn: " << sn
-                         << ",chunk sn: " << metaPage_.sn
-                         << ",old snapshot sn: "
-                         << snapshot_->GetSn();
+            LOG(ERROR) << "Exists old snapshot."
+                       << "ChunkID: " << chunkId_
+                       << ",request sn: " << sn
+                       << ",chunk sn: " << metaPage_.sn
+                       << ",old snapshot sn: "
+                       << snapshot_->GetSn();
             return CSErrorCode::SnapshotConflictError;
         }
+
+        // clone chunk不允许创建快照
+        if (isCloneChunk()) {
+            LOG(ERROR) << "Clone chunk can't create snapshot."
+                       << "ChunkID: " << chunkId_
+                       << ",request sn: " << sn
+                       << ",chunk sn: " << metaPage_.sn;
+            return CSErrorCode::StatusConflictError;
+        }
+
+        // 创建快照
         ChunkOptions options;
         options.id = chunkId_;
         options.sn = metaPage_.sn;
@@ -325,13 +338,14 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
 
 CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
     WriteLockGuard writeGuard(rwLock_);
-    if (offset + length > size_) {
-        LOG(ERROR) << "Paste chunk out of range."
+    if (!CheckOffsetAndLength(offset, length)) {
+        LOG(ERROR) << "Paste chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
+                   << ", page size: " << pageSize_
                    << ", chunk size: " << size_;
-        return CSErrorCode::OutOfRangeError;
+        return CSErrorCode::InvalidArgError;
     }
     // 如果不是clone chunk直接返回成功
     if (!isCloneChunk()) {
@@ -380,14 +394,33 @@ CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
 
 CSErrorCode CSChunkFile::Read(char * buf, off_t offset, size_t length) {
     ReadLockGuard readGuard(rwLock_);
-    if (offset + length > size_) {
-        LOG(ERROR) << "Read chunk out of range."
+    if (!CheckOffsetAndLength(offset, length)) {
+        LOG(ERROR) << "Read chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
+                   << ", page size: " << pageSize_
                    << ", chunk size: " << size_;
-        return CSErrorCode::OutOfRangeError;
+        return CSErrorCode::InvalidArgError;
     }
+
+    // 如果是 clonechunk ,要保证读取区域已经被写过，否则返回错误
+    if (isCloneChunk()) {
+        // 上面下来的请求必须是pagesize对齐的
+        // 请求paste区域的起始page索引号
+        uint32_t beginIndex = offset / pageSize_;
+        // 请求paste区域的最后一个page索引号
+        uint32_t endIndex = (offset + length - 1) / pageSize_;
+        if (metaPage_.bitmap->NextClearBit(beginIndex, endIndex)
+            != Bitmap::NO_POS) {
+            LOG(ERROR) << "Read chunk file failed, has page never written."
+                       << "ChunkID: " << chunkId_
+                       << ", offset: " << offset
+                       << ", length: " << length;
+            return CSErrorCode::PageNerverWrittenError;
+        }
+    }
+
     int rc = readData(buf, offset, length);
     if (rc < 0) {
         LOG(ERROR) << "Read chunk file failed."
@@ -403,13 +436,14 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
                                             off_t offset,
                                             size_t length)  {
     ReadLockGuard readGuard(rwLock_);
-    if (offset + length > size_) {
-        LOG(ERROR) << "Read snapshot out of range."
+    if (!CheckOffsetAndLength(offset, length)) {
+        LOG(ERROR) << "Read specified chunk failed, invalid offset or length."
                    << "ChunkID: " << chunkId_
                    << ", offset: " << offset
                    << ", length: " << length
+                   << ", page size: " << pageSize_
                    << ", chunk size: " << size_;
-        return CSErrorCode::OutOfRangeError;
+        return CSErrorCode::InvalidArgError;
     }
     // 版本为当前chunk的版本，则读当前chunk文件
     if (sn == metaPage_.sn) {
@@ -472,14 +506,35 @@ CSErrorCode CSChunkFile::ReadSpecifiedChunk(SequenceNum sn,
     return CSErrorCode::Success;
 }
 
-CSErrorCode CSChunkFile::Delete()  {
+CSErrorCode CSChunkFile::Delete(SequenceNum sn)  {
     WriteLockGuard writeGuard(rwLock_);
-    if (snapshot_ != nullptr) {
-        LOG(ERROR) << "Delete chunk failed, has snapshot. "
+    // 如果 sn 小于当前chunk的版本号，不允许删除
+    if (sn < metaPage_.sn) {
+        LOG(ERROR) << "Delete chunk failed, backward request."
                    << "ChunkID: " << chunkId_
+                   << ", request sn: " << sn
                    << ", chunk sn: " << metaPage_.sn;
-        return CSErrorCode::SnapshotExistError;
+        return CSErrorCode::BackwardRequestError;
     }
+
+    // 如果存在快照，就先删除快照，正常是不会出现这种调用的
+    // Delete语义就是将chunk删除，不管存不存在快照
+    if (snapshot_ != nullptr) {
+        CSErrorCode errorCode = snapshot_->Delete();
+        if (errorCode != CSErrorCode::Success) {
+            LOG(ERROR) << "Delete snapshot failed."
+                       << "ChunkID: " << chunkId_
+                       << ",snapshot sn: " << snapshot_->GetSn();
+            return errorCode;
+        }
+        LOG(INFO) << "Snapshot deleted."
+                  << "ChunkID: " << chunkId_
+                  << ", snapshot sn: " << snapshot_->GetSn()
+                  << ", chunk sn: " << metaPage_.sn;
+        delete snapshot_;
+        snapshot_ = nullptr;
+    }
+
     if (fd_ >= 0) {
         lfs_->Close(fd_);
         fd_ = -1;
@@ -487,11 +542,34 @@ CSErrorCode CSChunkFile::Delete()  {
     int ret = chunkfilePool_->RecycleChunk(path());
     if (ret < 0)
         return CSErrorCode::InternalError;
+
+    LOG(INFO) << "Chunk deleted."
+              << "ChunkID: " << chunkId_
+              << ", request sn: " << sn
+              << ", chunk sn: " << metaPage_.sn;
     return CSErrorCode::Success;
 }
 
 CSErrorCode CSChunkFile::DeleteSnapshotOrCorrectSn(SequenceNum correctedSn)  {
     WriteLockGuard writeGuard(rwLock_);
+
+    // 如果是clone chunk， 理论上不应该会调这个接口，返回错误
+    if (isCloneChunk()) {
+        LOG(ERROR) << "Delete snapshot failed, this is a clone chunk."
+                   << "ChunkID: " << chunkId_;
+        return CSErrorCode::StatusConflictError;
+    }
+
+    // 如果correctedSn小于当前chunk的sn或者correctedSn
+    // 那么该请求要么是游离请求，要么是已经执行过了然后日志恢复时重放了
+    if (correctedSn < metaPage_.sn || correctedSn < metaPage_.correctedSn) {
+        LOG(ERROR) << "Backward delete snapshot request."
+                   << "ChunkID: " << chunkId_
+                   << ", correctedSn: " << correctedSn
+                   << ", chunk.sn: " << metaPage_.sn
+                   << ", chunk.correctedSn: " << metaPage_.correctedSn;
+        return CSErrorCode::BackwardRequestError;
+    }
 
     /*
      * 如果快照存在时需要根据correctedSn与当前sn_的大小判断是否可以删除快照
@@ -591,16 +669,18 @@ bool CSChunkFile::needCow(SequenceNum sn) {
     // 这种情况说明当前chunk已经转储成功了，无需再做cow
     if (nullptr == snapshot_ || sn == metaPage_.correctedSn)
         return false;
-    // 如果快照文件已损坏，也不需要再做cow
-    if (snapshot_->IsDamaged())
-        return false;
-    // 此时，当前chunk一定存在快照文件，且sn等于chunk的sn,大于快照的sn
+    // 前面的逻辑保证了这里的sn一定是等于metaPage.sn的
+    // 因为sn<metaPage_.sn时，请求会被拒绝
+    // sn>metaPage_.sn时，前面会先更新metaPage.sn为sn
+    // 又因为snapSn正常情况下是小与metaPage_.sn，所以snapSn也应当小于sn
+    // 有一种情况会出现sn==snap.sn，就是DataStore重启恢复历史日志
+    // 重启前有一个请求产生了快照文件，但是还没更新metapage时就重启了
+    // 重启后又回放了先前的一个操作，这个操作的sn等于当前chunk的sn
     if (sn != metaPage_.sn || sn <= snapshot_->GetSn()) {
-        snapshot_->SetDamaged();
-        LOG(ERROR) << "Can not process the sequence num."
-                   << "request sn: " << sn
-                   << ",chunk sn:" << metaPage_.sn
-                   << ",snapshot sn: " << snapshot_->GetSn();
+        LOG(WARNING) << "May be a log repaly opt after an unexpected restart."
+                     << "Request sn: " << sn
+                     << ", chunk sn: " << metaPage_.sn
+                     << ", snapshot sn: " << snapshot_->GetSn();
         return false;
     }
     return true;

@@ -13,6 +13,7 @@
 #include <sys/vfs.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include <dirent.h>
 #include <linux/fs.h>
 #include <string>
@@ -31,8 +32,10 @@ class PosixWrapper {
     virtual int mkdir(const char *pathname, mode_t mode);
     virtual int stat(const char *pathname, struct stat *buf);
     virtual int rename(const char *oldpath,
-                       const char *newpath,
-                       unsigned int flags = 0);
+                       const char *newpath);
+    virtual int renameat2(const char *oldpath,
+                          const char *newpath,
+                          unsigned int flags = 0);
     virtual DIR *opendir(const char *name);
     virtual struct dirent *readdir(DIR *dirp);
     virtual int closedir(DIR *dirp);
@@ -45,6 +48,7 @@ class PosixWrapper {
     virtual int fallocate(int fd, int mode, off_t offset, off_t len);
     virtual int fsync(int fd);
     virtual int statfs(const char *path, struct statfs *buf);
+    virtual int uname(struct utsname *buf);
 };
 
 }  // namespace fs

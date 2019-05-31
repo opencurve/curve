@@ -59,6 +59,16 @@ Bitmap& Bitmap::operator = (const Bitmap& bitmap) {
     return *this;
 }
 
+bool Bitmap::operator == (const Bitmap& bitmap) const {
+    if (bits_ != bitmap.Size())
+        return false;
+    return 0 == memcmp(bitmap_, bitmap.GetBitmap(), unitCount());
+}
+
+bool Bitmap::operator != (const Bitmap& bitmap) const {
+    return !(*this == bitmap);
+}
+
 void Bitmap::Set() {
     memset(bitmap_, 0xff, unitCount());
 }
