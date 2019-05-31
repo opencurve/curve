@@ -87,10 +87,11 @@ int ChunkOpRequest::Propose(const ChunkRequest *request,
 }
 
 void ChunkOpRequest::RedirectChunkRequest() {
-    PeerId leader = node_->GetLeaderId();
-    if (!leader.is_empty()) {
-        response_->set_redirect(leader.to_string());
-    }
+    // Fix bthread deadlock issue: CLDCFS-1120
+//    PeerId leader = node_->GetLeaderId();
+//    if (!leader.is_empty()) {
+//        response_->set_redirect(leader.to_string());
+//    }
     response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
 }
 
