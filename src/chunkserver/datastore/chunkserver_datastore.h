@@ -81,7 +81,7 @@ class CSDataStore {
     CSDataStore() {}
 
     CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
-                std::shared_ptr<ChunkfilePool> ChunkfilePool,
+                std::shared_ptr<ChunkfilePool> chunkfilePool,
                 const DataStoreOptions& options);
     virtual ~CSDataStore();
     /**
@@ -93,7 +93,7 @@ class CSDataStore {
     /**
      * 删除当前chunk文件
      * @param id：要删除的chunk的id
-     * @param sn：用于记录trace，实际逻辑处理用不到，表示当前用户文件的版本号
+     * @param sn：用于记录trace，如果sn<chunk的sn，则不允许删除
      * @return：返回错误码
      */
     virtual CSErrorCode DeleteChunk(ChunkID id, SequenceNum sn);

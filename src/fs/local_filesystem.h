@@ -27,6 +27,11 @@ using std::string;
 namespace curve {
 namespace fs {
 
+struct LocalFileSystemOption {
+    bool enableRenameat2;
+    LocalFileSystemOption() : enableRenameat2(false) {}
+};
+
 class LocalFileSystem {
  public:
      LocalFileSystem() {}
@@ -37,8 +42,9 @@ class LocalFileSystem {
      * 如果文件系统还未格式化，首先会格式化，
      * 然后挂载文件系统，
      * 已经格式化或者已经挂载的文件系统不会重复格式化或挂载
+     * @param option：初始化参数
      */
-    virtual int Init() = 0;
+    virtual int Init(const LocalFileSystemOption& option) = 0;
 
     /**
      * 获取文件或目录所在的文件系统状态信息
@@ -176,7 +182,7 @@ class LocalFileSystem {
  private:
     virtual int DoRename(const string& oldPath,
                          const string& newPath,
-                         unsigned int flags) {}
+                         unsigned int flags) { return -1; }
 };
 
 

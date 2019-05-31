@@ -18,12 +18,12 @@ namespace curve {
 namespace chunkserver {
 
 CSDataStore::CSDataStore(std::shared_ptr<LocalFileSystem> lfs,
-                         std::shared_ptr<ChunkfilePool> ChunkfilePool,
+                         std::shared_ptr<ChunkfilePool> chunkfilePool,
                          const DataStoreOptions& options)
     : chunkSize_(options.chunkSize),
       pageSize_(options.pageSize),
       baseDir_(options.baseDir),
-      chunkfilePool_(ChunkfilePool),
+      chunkfilePool_(chunkfilePool),
       lfs_(lfs) {
     CHECK(!baseDir_.empty()) << "Create datastore failed";
     CHECK(lfs_ != nullptr) << "Create datastore failed";
@@ -96,7 +96,7 @@ bool CSDataStore::Initialize() {
 CSErrorCode CSDataStore::DeleteChunk(ChunkID id, SequenceNum sn) {
     auto chunkFile = metaCache_.Get(id);
     if (chunkFile != nullptr) {
-        CSErrorCode errorCode = chunkFile->Delete();
+        CSErrorCode errorCode = chunkFile->Delete(sn);
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Delete chunk file failed."
                         << "ChunkID = " << id;
@@ -165,6 +165,12 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
                                     off_t offset,
                                     size_t length,
                                     uint32_t* cost) {
+    // 请求版本号不允许为0，snapsn=0时会当做快照不存在的判断依据
+    if (sn == kInvalidSeq) {
+        LOG(ERROR) << "Sequence num should not be zero."
+                   << "ChunkID = " << id;
+        return CSErrorCode::InvalidArgError;
+    }
     auto chunkFile = metaCache_.Get(id);
     // 如果chunk文件不存在，则先创建chunk文件
     if (chunkFile == nullptr) {
@@ -207,10 +213,16 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
                                           SequenceNum correctedSn,
                                           ChunkSizeType size,
                                           const string& location) {
-    if (size != chunkSize_) {
-        LOG(ERROR) << "Invalid chunk size."
-                   << "size in arg = " << size
-                   << ", size should eaqual to" << chunkSize_;
+    // 检查参数的合法性
+    if (size != chunkSize_
+        || sn == 0
+        || location.empty()) {
+        LOG(ERROR) << "Invalid arguments."
+                   << "ChunkID = " << id
+                   << ", sn = " << sn
+                   << ", correctedSn = " << correctedSn
+                   << ", size = " << size
+                   << ", location = " << location;
         return CSErrorCode::InvalidArgError;
     }
     auto chunkFile = metaCache_.Get(id);
@@ -248,7 +260,7 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
         || info.correctedSn != correctedSn) {
         LOG(ERROR) << "Conflict chunk already exists."
                    << "sn in arg = " << sn
-                   << "correctedSn in arg = " << correctedSn
+                   << ", correctedSn in arg = " << correctedSn
                    << ", location in arg = " << location
                    << ", sn in chunk = " << info.curSn
                    << ", location in chunk = " << info.location

@@ -59,6 +59,11 @@ curve.config_path=conf/client.conf
 s3.config_path=conf/s3.conf
 
 #
+# Local FileSystem settings
+#
+fs.enable_renameat2=true
+
+#
 # Storage engine settings
 #
 storeng.sync_write=false
