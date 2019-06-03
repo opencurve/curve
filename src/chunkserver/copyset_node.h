@@ -202,6 +202,13 @@ class CopysetNode : public braft::StateMachine,
                               Peer *alterPeer);
 
     /**
+     * @brief: 获取copyset node的状态值，用于比较多个副本的数据一致性
+     * @param hash[out]: copyset node状态值
+     * @return 0成功，-1失败
+     */
+    virtual int GetHash(std::string *hash);
+
+    /**
      * 返回data store指针
      * @return
      */
