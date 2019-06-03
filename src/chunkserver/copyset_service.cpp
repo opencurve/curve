@@ -9,6 +9,7 @@
 #include <brpc/controller.h>
 
 #include <vector>
+#include <string>
 
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/copyset_node_manager.h"
@@ -53,10 +54,6 @@ void CopysetServiceImpl::CreateCopysetNode(RpcController *controller,
         } else {
             response->set_status(
                 COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
-            LOG(ERROR) << "Create copyset "
-                         << ToGroupIdString(logicPoolID, copysetID)
-                         << " failed, response code: "
-                         << COPYSET_OP_STATUS_Name(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN); //NOLINT
         }
     } else {
         response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST);
@@ -99,16 +96,16 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
         }
 
         if (false ==
-                copysetNodeManager_->CreateCopysetNode(copyset.logicpoolid(),
-                                                       copyset.copysetid(),
-                                                       peers)) {
+            copysetNodeManager_->CreateCopysetNode(copyset.logicpoolid(),
+                                                   copyset.copysetid(),
+                                                   peers)) {
             response->set_status(
                 COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
             LOG(ERROR) << "Create copyset "
-                         << ToGroupIdString(copyset.logicpoolid(),
-                                            copyset.logicpoolid())
-                         << " failed, response code: "
-                         << COPYSET_OP_STATUS_Name(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN); //NOLINT
+                       << ToGroupIdString(copyset.logicpoolid(),
+                                          copyset.logicpoolid())
+                       << " failed, response code: "
+                       << COPYSET_OP_STATUS_Name(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN); //NOLINT
             return;
         }
 
@@ -120,6 +117,41 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
 
     response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     LOG(INFO) << "Create " << request->copysets().size() << " copysets success";
+}
+
+void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
+                                        const CopysetStatusRequest *request,
+                                        CopysetStatusResponse *response,
+                                        Closure *done) {
+    brpc::ClosureGuard doneGuard(done);
+
+    LOG(INFO) << "Received GetCopysetStatus request: "
+              << ToGroupIdString(request->logicpoolid(), request->copysetid());
+
+    // 判断copyset是否存在
+    auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
+                                                       request->copysetid());
+    if (nullptr == nodePtr) {
+        response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);    // NOLINT
+        LOG(ERROR) << "GetCopysetStatus failed, copyset node is not found: "
+                   << ToGroupIdString(request->logicpoolid(),
+                                      request->copysetid());
+        return;
+    }
+
+    std::string hash;
+    if (0 == nodePtr->GetHash(&hash)) {
+        response->set_hash(hash);
+        response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+        LOG(INFO) << "GetCopysetStatus success: "
+                  <<  ToGroupIdString(request->logicpoolid(),
+                                      request->copysetid());
+        return;
+    }
+
+    response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+    LOG(ERROR) << "GetCopysetStatus with unknown failure: "
+               << ToGroupIdString(request->logicpoolid(), request->copysetid());
 }
 
 }  // namespace chunkserver

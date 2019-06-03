@@ -293,6 +293,56 @@ TEST_F(CopysetServiceTest, basic2) {
                   COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
     }
 
+    // get status
+    {
+        // 创建一个copyset
+        {
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(3000);
+            CopysetRequest2 request;
+            CopysetResponse2 response;
+
+            Copyset *copyset;
+            copyset = request.add_copysets();
+            copyset->set_logicpoolid(logicPoolId);
+            copyset->set_copysetid(copysetId + 3);
+            Peer *peer1 = copyset->add_peers();
+            peer1->set_address("127.0.0.1:9200:0");
+            Peer *peer2 = copyset->add_peers();
+            peer2->set_address("127.0.0.1:9201:0");
+            Peer *peer3 = copyset->add_peers();
+            peer3->set_address("127.0.0.1:9202:0");
+
+            stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
+            if (cntl.Failed()) {
+                std::cout << cntl.ErrorText() << std::endl;
+            }
+            ASSERT_EQ(response.status(),
+                      COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+        }
+
+        {
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(3000);
+            CopysetStatusRequest request;
+            CopysetStatusResponse response;
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId + 3);
+            Peer *peer = new Peer();
+            request.set_allocated_peer(peer);
+            peer->set_address("127.0.0.1:9200:0");
+
+            stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
+            if (cntl.Failed()) {
+                std::cout << cntl.ErrorText() << std::endl;
+            }
+
+            ASSERT_EQ(response.status(),
+                      COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+            ASSERT_EQ(response.hash(), "0");
+        }
+    }
+
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());
 }

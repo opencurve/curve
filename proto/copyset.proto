@@ -14,9 +14,10 @@ message CopysetRequest {
 };
 
 enum COPYSET_OP_STATUS {
-    COPYSET_OP_STATUS_SUCCESS = 0;
-    COPYSET_OP_STATUS_EXIST = 1;  // copyset node 已经存在
-    COPYSET_OP_STATUS_FAILURE_UNKNOWN = 2;
+    COPYSET_OP_STATUS_SUCCESS           = 0;
+    COPYSET_OP_STATUS_EXIST             = 1;  // copyset node 已经存在
+    COPYSET_OP_STATUS_COPYSET_NOTEXIST  = 2;
+    COPYSET_OP_STATUS_FAILURE_UNKNOWN   = 3;
 };
 
 message CopysetResponse {
@@ -38,8 +39,23 @@ message CopysetResponse2 {
     optional COPYSET_OP_STATUS status = 1;
 }
 
-service CopysetService {
-    rpc CreateCopysetNode(CopysetRequest) returns (CopysetResponse);
+message CopysetStatusRequest {
+    optional uint32 logicPoolId = 1;
+    optional uint32 copysetId   = 2;
+    optional common.Peer peer  = 3;
+}
 
-    rpc CreateCopysetNode2(CopysetRequest2) returns (CopysetResponse2);
+// hash并不一定是hash value，所以是字符串类型，可以用json
+// 包裹，这样可以任意的扩展
+message CopysetStatusResponse {
+    optional COPYSET_OP_STATUS status = 1;
+    optional string hash = 2;
+}
+
+service CopysetService {
+    rpc CreateCopysetNode (CopysetRequest) returns (CopysetResponse);
+
+    rpc CreateCopysetNode2 (CopysetRequest2) returns (CopysetResponse2);
+
+    rpc GetCopysetStatus (CopysetStatusRequest) returns (CopysetStatusResponse);
 };
