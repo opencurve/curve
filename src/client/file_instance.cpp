@@ -32,21 +32,16 @@ FileInstance::FileInstance() {
     finfo_.segmentsize = 1 * 1024 * 1024 * 1024ul;
 }
 
-bool FileInstance::Initialize(MDSClient* mdsclient,
+bool FileInstance::Initialize(const std::string& filename,
+                              MDSClient* mdsclient,
                               const UserInfo_t& userinfo,
-                              FileServiceOption_t fileservicopt,
-                              ClientMetric_t* clientMetric) {
+                              FileServiceOption_t fileservicopt) {
     fileopt_ = fileservicopt;
     bool ret = false;
     do {
         if (!userinfo.Valid()) {
             LOG(ERROR) << "userinfo not valid!";
             break;
-        }
-
-        if (clientMetric == nullptr) {
-            LOG(ERROR) << "metric pointer is null!";
-            return false;
         }
 
         if (mdsclient == nullptr) {
@@ -57,9 +52,7 @@ bool FileInstance::Initialize(MDSClient* mdsclient,
         userinfo_ = userinfo;
         mdsclient_ = mdsclient;
 
-        if (!iomanager4file_.Initialize(fileopt_.ioOpt,
-                                        clientMetric,
-                                        mdsclient_)) {
+        if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt, mdsclient_)) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }

@@ -19,7 +19,7 @@ namespace client {
 RequestScheduler::~RequestScheduler() {
 }
 
-int RequestScheduler::Init(RequestScheduleOption_t reqSchdulerOpt,
+int RequestScheduler::Init(const RequestScheduleOption_t& reqSchdulerOpt,
                            MetaCache *metaCache) {
     reqschopt_ = reqSchdulerOpt;
     // 调度队列的深度会影响client端整体吞吐，这个队列存放的是异步IO任务。
@@ -35,6 +35,8 @@ int RequestScheduler::Init(RequestScheduleOption_t reqSchdulerOpt,
     if (0 != client_.Init(metaCache, reqschopt_.ioSenderOpt)) {
         return -1;
     }
+    confMetric_.queueCapacity.set_value(reqschopt_.queueCapacity);
+    confMetric_.threadpoolSize.set_value(reqschopt_.threadpoolSize);
     return 0;
 }
 

@@ -22,15 +22,13 @@
 #include "src/client/libcurve_define.h"
 #include "src/client/metacache_struct.h"
 #include "src/common/concurrent/rw_lock.h"
-#include "src/common/timeutility.h"
-#include "src/common/authenticator.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/client/mds_client_base.h"
+#include "src/client/client_metric.h"
 
 using curve::common::RWLock;
 using curve::common::ReadLockGuard;
 using curve::common::Authenticator;
-
-extern const char* kRootUserName;
 
 namespace curve {
 namespace client {
@@ -43,11 +41,10 @@ class MDSClient {
     ~MDSClient() = default;
     /**
      * 初始化函数
-     * @param: userinfo为user信息
-     * @param: metaaddr为mdsclient的配置信息
+     * @param: metaopt为mdsclient的配置信息
      * @return: 成功返回LIBCURVE_ERROR::OK,否则返回LIBCURVE_ERROR::FAILED
      */
-    LIBCURVE_ERROR Initialize(MetaServerOption_t metaaddr);
+    LIBCURVE_ERROR Initialize(const MetaServerOption_t& metaopt);
     /**
      * 创建文件
      * @param: filename创建文件的文件名
@@ -200,6 +197,7 @@ class MDSClient {
      * @param: filenam文件名
      * @param: userinfo是用户信息
      * @param: seq是文件版本号信息
+     * @param[out]: filestatus为快照状态
      */
     LIBCURVE_ERROR CheckSnapShotStatus(const std::string& filename,
                             const UserInfo_t& userinfo,
@@ -333,6 +331,11 @@ class MDSClient {
      */
     void UnInitialize();
 
+    // 测试使用
+    MDSClientMetric_t* GetMetric() {
+       return &mdsClientMetric_;
+    }
+
  private:
     /**
      * 切换MDS链接
@@ -360,43 +363,6 @@ class MDSClient {
     void MDSStatusCode2LibcurveError(const ::curve::mds::StatusCode& statcode,
                                      LIBCURVE_ERROR* errcode);
 
-    /**
-     * 为不同的request填充user信息
-     * @param: request是待填充的变量指针
-     */
-    template <class T>
-    void FillUserInfo(T* request, const UserInfo_t& userinfo) {
-        uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
-        request->set_owner(userinfo.owner);
-        request->set_date(date);
-
-        if (!userinfo.owner.compare(kRootUserName) &&
-             userinfo.password.compare("")) {
-            std::string str2sig = Authenticator::GetString2Signature(date,
-                                                        userinfo.owner);
-            std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                         userinfo.password);
-            request->set_signature(sig);
-        }
-    }
-
-    /**
-     * 如果rpc超时，就记录metric信息
-     * @param: errorcode为brpc返回后，rpc内部的errcode
-     */
-    void RecordMetricInfo(int errcode) {
-         if (errcode == brpc::ERPCTIMEDOUT) {
-            mdsClientMetric_.timeoutTimes << 1;
-         }
-    }
-
-    /**
-     * 递增controller id并返回
-     */
-    inline uint64_t GetLogId() {
-       return cntlID_.fetch_add(1);
-    }
-
  private:
     // 初始化标志，放置重复初始化
     bool            inited_;
@@ -416,9 +382,9 @@ class MDSClient {
     // client与mds通信的metric统计
     MDSClientMetric_t mdsClientMetric_;
 
-    // controller id，用于trace整个rpc IO链路
-    // 这里直接用uint64即可，在可预测的范围内，不会溢出
-    std::atomic<uint64_t> cntlID_;
+    // MDSClientBase是真正的rpc发送逻辑
+    // MDSClient是在RPC上层的一些业务逻辑封装，比如metric，或者重试逻辑
+    MDSClientBase mdsClientBase_;
 };
 }   // namespace client
 }   // namespace curve

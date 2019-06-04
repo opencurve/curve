@@ -20,6 +20,9 @@ namespace client {
 IOSplitOPtion_t Splitor::iosplitopt_;
 void Splitor::Init(IOSplitOPtion_t ioSplitOpt) {
     iosplitopt_ = ioSplitOpt;
+    confMetric_.ioSplitMaxSizeKB.set_value(
+                iosplitopt_.ioSplitMaxSizeKB);
+    LOG(INFO) << "io splitor init success!";
 }
 int Splitor::IO2ChunkRequests(IOTracker* iotracker,
                               MetaCache* mc,

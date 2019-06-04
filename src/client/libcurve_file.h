@@ -117,7 +117,7 @@ class FileClient {
    * 删除文件
    * @param: userinfo是用户信息
    * @param: filename待删除的文件名
-   * @param: deleteforce是否强制删除而不放入垃圾回收站
+   * @param: deleteforce=true只能用于从回收站删除,false为放入垃圾箱
    */
   virtual int Unlink(const std::string& filename,
                      const UserInfo_t& userinfo,
@@ -199,8 +199,8 @@ class FileClient {
   // fileclient对应的全局mdsclient
   MDSClient* mdsClient_;
 
-  // client metric统计信息
-  ClientMetric_t clientMetric_;
+  // 是否初始化成功
+  bool  inited_;
 };
 }   // namespace client
 }   // namespace curve

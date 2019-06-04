@@ -20,7 +20,7 @@ namespace curve {
 namespace client {
 
 int CopysetClient::Init(MetaCache *metaCache,
-                        IOSenderOption_t ioSenderOpt) {
+                        const IOSenderOption_t& ioSenderOpt) {
     if (nullptr == metaCache) {
         return -1;
     }

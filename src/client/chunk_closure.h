@@ -16,6 +16,7 @@
 #include "proto/chunk.pb.h"
 #include "src/client/client_config.h"
 #include "src/client/client_common.h"
+#include "src/client/client_metric.h"
 
 namespace curve {
 namespace client {
@@ -44,14 +45,21 @@ class ClientClosure : public Closure {
     virtual void SetResponse(Message* response) = 0;
     virtual void SetRetriedTimes(uint16_t retriedTimes) = 0;
 
-    static void SetFailureRequestOption(FailureRequestOption_t failRequestOpt) {
+    static void SetFailureRequestOption(
+            const FailureRequestOption_t& failRequestOpt) {
         failReqOpt_ = failRequestOpt;
+
+        confMetric_.opMaxRetry.set_value(failReqOpt_.opMaxRetry);
+        confMetric_.opRetryIntervalUs.set_value(
+                    failReqOpt_.opRetryIntervalUs);
+    }
+
+    Closure* GetClosure() {
+        return done_;
     }
 
  protected:
     static FailureRequestOption_t  failReqOpt_;
-    static ChunkserverClientMetric_t chunkserverClientMetric_;
-
     // 已经重试了几次
     uint16_t                 retriedTimes_;
     brpc::Controller*        cntl_;

@@ -34,6 +34,19 @@ MetaCache::~MetaCache() {
 void MetaCache::Init(MetaCacheOption_t metaCacheOpt, MDSClient* mdsclient) {
     mdsclient_ = mdsclient;
     metacacheopt_ = metaCacheOpt;
+    confMetric_.getLeaderRetry.set_value(
+                metacacheopt_.getLeaderRetry);
+    confMetric_.getLeaderTimeOutMs.set_value(
+                metacacheopt_.getLeaderTimeOutMs);
+    confMetric_.getLeaderRetryIntervalUs.set_value(
+                metacacheopt_.retryIntervalUs);
+    LOG(INFO) << "metacache init success!"
+              << ", get leader retry times = "
+              << metacacheopt_.getLeaderRetry
+              << ", get leader retry interval us = "
+              << metacacheopt_.retryIntervalUs
+              << ", get leader rpc time out ms = "
+              << metacacheopt_.getLeaderTimeOutMs;
 }
 
 MetaCacheErrorType MetaCache::GetChunkInfoByIndex(ChunkIndex chunkidx, ChunkIDInfo_t* chunxinfo ) {  // NOLINT
@@ -50,7 +63,8 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                         CopysetID copysetId,
                         ChunkServerID* serverId,
                         EndPoint* serverAddr,
-                        bool refresh) {
+                        bool refresh,
+                        FileMetric_t* fm) {
     std::string mapkey = LogicPoolCopysetID2Str(logicPoolId, copysetId);
 
     CopysetInfo_t targetInfo;
@@ -72,7 +86,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
         uint32_t retry = 0;
         while (retry++ < metacacheopt_.getLeaderRetry) {
             bthread_usleep(metacacheopt_.retryIntervalUs);
-            ret = UpdateLeaderInternal(logicPoolId, copysetId, &targetInfo);
+            ret = UpdateLeaderInternal(logicPoolId, copysetId, &targetInfo, fm);
             if (ret != -1) {
                 UpdateCopysetInfo(logicPoolId, copysetId, targetInfo);
                 break;
@@ -103,14 +117,16 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
 
 int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                     CopysetID copysetId,
-                                    CopysetInfo* toupdateCopyset) {
+                                    CopysetInfo* toupdateCopyset,
+                                    FileMetric_t* fm) {
     ChunkServerID csid = 0;
     ChunkServerAddr  leaderaddr;
     int ret = ServiceHelper::GetLeader(logicPoolId, copysetId,
                                       toupdateCopyset->csinfos_, &leaderaddr,
                                       toupdateCopyset->GetCurrentLeaderIndex(),
                                       metacacheopt_.getLeaderTimeOutMs,
-                                      &csid);
+                                      &csid,
+                                      fm);
 
     if (ret == -1) {
         LOG(ERROR) << "get leader failed!";

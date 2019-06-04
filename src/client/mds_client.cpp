@@ -18,15 +18,14 @@ using curve::common::TimeUtility;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
-const char* kRootUserName = "root";
 namespace curve {
 namespace client {
-MDSClient::MDSClient() : cntlID_(0) {
+MDSClient::MDSClient() {
     inited_   = false;
     channel_  = nullptr;
 }
 
-LIBCURVE_ERROR MDSClient::Initialize(MetaServerOption_t metaServerOpt) {
+LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption_t& metaServerOpt) {
     if (inited_) {
         LOG(INFO) << "MDSClient already started!";
         return LIBCURVE_ERROR::OK;
@@ -34,6 +33,20 @@ LIBCURVE_ERROR MDSClient::Initialize(MetaServerOption_t metaServerOpt) {
 
     lastWorkingMDSAddrIndex_ = -1;
     metaServerOpt_ = metaServerOpt;
+
+    int rc = mdsClientBase_.Init(metaServerOpt_);
+    if (rc !=0) {
+        LOG(ERROR) << "mds client rpc base init failed!";
+        return LIBCURVE_ERROR::FAILED;
+    }
+
+    confMetric_.rpcRetryTimes.set_value(metaServerOpt_.rpcRetryTimes);
+    confMetric_.rpcTimeoutMs.set_value(metaServerOpt_.rpcTimeoutMs);
+    std::string metaserverAddr;
+    for (auto addr : metaServerOpt_.metaaddrvec) {
+        metaserverAddr.append(addr).append("@");
+    }
+    confMetric_.metaserverAddr.set_value(metaserverAddr);
 
     for (auto addr : metaServerOpt_.metaaddrvec) {
         lastWorkingMDSAddrIndex_++;
@@ -43,7 +56,7 @@ LIBCURVE_ERROR MDSClient::Initialize(MetaServerOption_t metaServerOpt) {
             LOG(ERROR) << "Init channel failed!";
             continue;
         }
-
+        mdsClientMetric_.metaserverAddr = addr;
         inited_ = true;
         return LIBCURVE_ERROR::OK;
     }
@@ -91,6 +104,8 @@ bool MDSClient::ChangeMDServer(int* mdsAddrleft) {
             createRet = true;
 
             mdsClientMetric_.mdsServerChangeTimes << 1;
+            mdsClientMetric_.metaserverAddr = metaServerOpt_.
+                                                metaaddrvec[nextMDSAddrIndex];
             break;
         }
 
@@ -132,28 +147,22 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
     while (count < metaServerOpt_.rpcRetryTimes) {
         bool infoComplete = false;
 
-        curve::mds::OpenFileRequest request;
-        curve::mds::OpenFileResponse response;
-        request.set_filename(filename);
-
-        FillUserInfo<curve::mds::OpenFileRequest>(&request, userinfo);
-
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
+        curve::mds::OpenFileResponse response;
 
-        LOG(INFO) << "OpenFile: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.openFile.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.openFile.latency);
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.OpenFile(&cntl, &request, &response, nullptr);
+            mdsClientBase_.OpenFile(filename,
+                                    userinfo,
+                                    &response,
+                                    &cntl,
+                                    channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
+            mdsClientMetric_.openFile.eps.count << 1;
             LOG(ERROR) << "open file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -213,35 +222,24 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::CreateFileRequest request;
         curve::mds::CreateFileResponse response;
-        request.set_filename(filename);
-        if (normalFile) {
-            request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-            request.set_filelength(size);
-        } else {
-            request.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
-        }
 
-        FillUserInfo<curve::mds::CreateFileRequest>(&request, userinfo);
-
-        LOG(INFO) << "CreateFile: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", is nomalfile: " << normalFile
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.createFile.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.createFile.latency);
             ReadLockGuard readGuard(rwlock_);
             curve::mds::CurveFSService_Stub stub(channel_);
-            stub.CreateFile(&cntl, &request, &response, NULL);
+            mdsClientBase_.CreateFile(filename,
+                                      userinfo,
+                                      size,
+                                      normalFile,
+                                      &response,
+                                      &cntl,
+                                      channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.createFile.eps.count << 1;
             LOG(ERROR) << "Create file or directory failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -283,30 +281,22 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::CloseFileRequest request;
         curve::mds::CloseFileResponse response;
-        request.set_filename(filename);
-        request.set_sessionid(sessionid);
 
-        FillUserInfo<curve::mds::CloseFileRequest>(&request, userinfo);
-
-        LOG(INFO) << "CloseFile: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", sessionid = " << sessionid
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.closeFile.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.closeFile.latency);
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.CloseFile(&cntl, &request, &response, nullptr);
+            mdsClientBase_.CloseFile(filename,
+                                    userinfo,
+                                    sessionid,
+                                    &response,
+                                    &cntl,
+                                    channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.closeFile.eps.count << 1;
             LOG(ERROR) << "close file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -348,28 +338,21 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::GetFileInfoRequest request;
         curve::mds::GetFileInfoResponse response;
-        request.set_filename(filename);
 
-        FillUserInfo<curve::mds::GetFileInfoRequest>(&request, uinfo);
-
-        LOG(INFO) << "GetFileInfo: filename = " << filename.c_str()
-                  << ", owner = " << uinfo.owner
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.getFile.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.getFile.latency);
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.GetFileInfo(&cntl, &request, &response, nullptr);
+            mdsClientBase_.GetFileInfo(filename,
+                                       uinfo,
+                                       &response,
+                                       &cntl,
+                                       channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.getFile.eps.count << 1;
             LOG(ERROR)  << "get file info failed, error content:"
                         << cntl.ErrorText()
                         << ", retry GetFileInfo, retry times = "
@@ -416,29 +399,17 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        ::curve::mds::CreateSnapShotRequest request;
         ::curve::mds::CreateSnapShotResponse response;
-
-        request.set_filename(filename);
-
-        FillUserInfo<::curve::mds::CreateSnapShotRequest>(&request, userinfo);
-
-        LOG(INFO) << "CreateSnapShot: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", log id = " << cntl.log_id();
-
         {
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.CreateSnapShot(&cntl, &request, &response, nullptr);
+            mdsClientBase_.CreateSnapShot(filename,
+                                          userinfo,
+                                          &response,
+                                          &cntl,
+                                          channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
             LOG(ERROR) << "create snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -494,31 +465,19 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        ::curve::mds::DeleteSnapShotRequest request;
         ::curve::mds::DeleteSnapShotResponse response;
-
-        request.set_seq(seq);
-        request.set_filename(filename);
-
-        FillUserInfo<::curve::mds::DeleteSnapShotRequest>(&request, userinfo);
-
-        LOG(INFO) << "DeleteSnapShot: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", seqnum = " << seq
-                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.DeleteSnapShot(&cntl, &request, &response, nullptr);
+            mdsClientBase_.DeleteSnapShot(filename,
+                                          userinfo,
+                                          seq,
+                                          &response,
+                                          &cntl,
+                                          channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
             LOG(ERROR) << "delete snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -559,35 +518,25 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
+    std::vector<uint64_t> seqVec;
+    seqVec.push_back(seq);
+
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        ::curve::mds::ListSnapShotFileInfoRequest request;
         ::curve::mds::ListSnapShotFileInfoResponse response;
-
-        request.set_filename(filename);
-        request.add_seq(seq);
-
-        FillUserInfo<::curve::mds::ListSnapShotFileInfoRequest>(
-            &request, userinfo);
-
-        LOG(INFO) << "GetSnapShot: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", seqnum = " << seq
-                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.ListSnapShot(&cntl, &request, &response, nullptr);
+            mdsClientBase_.ListSnapShot(filename,
+                                        userinfo,
+                                        &seqVec,
+                                        &response,
+                                        &cntl,
+                                        channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
             LOG(ERROR) << "list snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -646,38 +595,23 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        ::curve::mds::ListSnapShotFileInfoRequest request;
         ::curve::mds::ListSnapShotFileInfoResponse response;
-
-        request.set_filename(filename);
-
-        FillUserInfo<::curve::mds::ListSnapShotFileInfoRequest>(
-            &request, userinfo);
-
         if ((*seq).size() > (*snapif).size()) {
             LOG(ERROR) << "resource not enough!";
             return LIBCURVE_ERROR::FAILED;
         }
-        for (unsigned int i = 0; i < (*seq).size(); i++) {
-            request.add_seq((*seq)[i]);
-        }
-
-        LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.ListSnapShot(&cntl, &request, &response, nullptr);
+            mdsClientBase_.ListSnapShot(filename,
+                                        userinfo,
+                                        seq,
+                                        &response,
+                                        &cntl,
+                                        channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
             LOG(ERROR) << "list snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -733,34 +667,20 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        ::curve::mds::GetOrAllocateSegmentRequest request;
         ::curve::mds::GetOrAllocateSegmentResponse response;
-
-        request.set_filename(filename);
-        request.set_offset(offset);
-        request.set_allocateifnotexist(false);
-        request.set_seqnum(seq);
-
-        FillUserInfo<::curve::mds::GetOrAllocateSegmentRequest>(
-            &request, userinfo);
-
-        LOG(INFO) << "GetSnapshotSegmentInfo: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", offset = " << offset
-                  << ", seqnum = " << seq;
 
         {
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.GetSnapShotFileSegment(&cntl, &request, &response, nullptr);
+            mdsClientBase_.GetSnapshotSegmentInfo(filename,
+                                                  userinfo,
+                                                  seq,
+                                                  offset,
+                                                  &response,
+                                                  &cntl,
+                                                  channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
             LOG(ERROR) << "get snap file segment info failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -873,31 +793,22 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                                 const std::string& sessionid,
                                 leaseRefreshResult* resp) {
     brpc::Controller cntl;
-    cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-    curve::mds::CurveFSService_Stub stub(channel_);
-    curve::mds::ReFreshSessionRequest request;
     curve::mds::ReFreshSessionResponse response;
 
-    request.set_filename(filename);
-    request.set_sessionid(sessionid);
-
-    FillUserInfo<::curve::mds::ReFreshSessionRequest>(&request, userinfo);
-
-    LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", sessionid = " << sessionid;
-
+    mdsClientMetric_.refreshSession.qps.count << 1;
     {
+        LatencyGuard lg(&mdsClientMetric_.refreshSession.latency);
         ReadLockGuard readGuard(rwlock_);
-        curve::mds::CurveFSService_Stub stub(channel_);
-        stub.RefreshSession(&cntl, &request, &response, nullptr);
+        mdsClientBase_.RefreshSession(filename,
+                                     userinfo,
+                                     sessionid,
+                                     &response,
+                                     &cntl,
+                                     channel_);
     }
 
     if (cntl.Failed()) {
-        RecordMetricInfo(cntl.ErrorCode());
-
+        mdsClientMetric_.refreshSession.eps.count << 1;
         LOG(ERROR) << "Fail to send ReFreshSessionRequest, "
                     << cntl.ErrorText();
         return LIBCURVE_ERROR::FAILED;
@@ -958,31 +869,19 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        ::curve::mds::CheckSnapShotStatusRequest request;
         ::curve::mds::CheckSnapShotStatusResponse response;
-
-        request.set_seq(seq);
-        request.set_filename(filename);
-
-        FillUserInfo<::curve::mds::CheckSnapShotStatusRequest>(
-            &request, userinfo);
-
-        LOG(INFO) << "CheckSnapShotStatus: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner
-                  << ", seqnum = " << seq;
 
         {
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.CheckSnapShotStatus(&cntl, &request, &response, nullptr);
+            mdsClientBase_.CheckSnapShotStatus(filename,
+                                               userinfo,
+                                               seq,
+                                               &response,
+                                               &cntl,
+                                               channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
             LOG(ERROR) << "check snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -1024,29 +923,21 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::topology::GetChunkServerListInCopySetsRequest request;
         curve::mds::topology::GetChunkServerListInCopySetsResponse response;
 
-        request.set_logicalpoolid(logicalpooid);
-        for (auto copysetid : copysetidvec) {
-            request.add_copysetid(copysetid);
-            LOG(INFO) << "copyset id = " << copysetid;
-        }
-
-        LOG(INFO) << "GetServerList: logicalpooid = " << logicalpooid;
-
+        mdsClientMetric_.getServerList.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.getServerList.latency);   // NOLINT
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::topology::TopologyService_Stub stub(channel_);
-            stub.GetChunkServerListInCopySets(&cntl, &request, &response, nullptr);     // NOLINT
+            mdsClientBase_.GetServerList(logicalpooid,
+                                        copysetidvec,
+                                        &response,
+                                        &cntl,
+                                        channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.getServerList.eps.count << 1;
             LOG(ERROR)  << "get server list from mds failed, status code = "
                         << response.statuscode()
                         << ", error content:"
@@ -1114,36 +1005,21 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::CreateCloneFileRequest request;
         curve::mds::CreateCloneFileResponse response;
-
-        request.set_filename(destination);
-        request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-        request.set_filelength(size);
-        request.set_chunksize(chunksize);
-        request.set_seq(sn);
-
-        FillUserInfo<::curve::mds::CreateCloneFileRequest>(
-            &request, userinfo);
-
-        LOG(INFO) << "CreateCloneFile: destination = " << destination
-                  << ", owner = " << userinfo.owner.c_str()
-                  << ", seqnum = " << sn
-                  << ", size = " << size
-                  << ", chunksize = " << chunksize;
 
         {
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.CreateCloneFile(&cntl, &request, &response, NULL);
+            mdsClientBase_.CreateCloneFile(destination,
+                                           userinfo,
+                                           size,
+                                           sn,
+                                           chunksize,
+                                           &response,
+                                           &cntl,
+                                           channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
             LOG(ERROR) << "Create clone file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -1206,36 +1082,20 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::SetCloneFileStatusRequest request;
         curve::mds::SetCloneFileStatusResponse response;
-
-        request.set_filename(filename);
-        request.set_filestatus(static_cast<curve::mds::FileStatus>(filestatus));
-        if (fileID > 0) {
-            request.set_fileid(fileID);
-        }
-
-        FillUserInfo<::curve::mds::SetCloneFileStatusRequest>(
-            &request, userinfo);
-
-        LOG(INFO) << "CreateCloneFile: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner.c_str()
-                  << ", filestatus = " << static_cast<int>(filestatus)
-                  << ", fileID = " << fileID
-                  << ", log id = " << cntl.log_id();
 
         {
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.SetCloneFileStatus(&cntl, &request, &response, NULL);
+            mdsClientBase_.SetCloneFileStatus(filename,
+                                              filestatus,
+                                              userinfo,
+                                              fileID,
+                                              &response,
+                                              &cntl,
+                                              channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
             LOG(ERROR) << "SetCloneFileStatus invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -1281,45 +1141,27 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::GetOrAllocateSegmentRequest request;
         curve::mds::GetOrAllocateSegmentResponse response;
 
-        // convert the user offset to seg  offset
-        uint64_t segmentsize = fi->segmentsize;
-        uint64_t chunksize = fi->chunksize;
-        uint64_t seg_offset = (offset / segmentsize) * segmentsize;
-
-        request.set_filename(fi->fullPathName);
-        request.set_offset(seg_offset);
-        request.set_allocateifnotexist(allocate);
-
-        FillUserInfo<curve::mds::GetOrAllocateSegmentRequest>(&request,
-                                                              userinfo);
-
-        LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
-                  << ", owner = " << userinfo.owner.c_str()
-                  << ", offset = " << offset
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.getOrAllocateSegment.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.getOrAllocateSegment.latency);    // NOLINT
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.GetOrAllocateSegment(&cntl, &request, &response, NULL);
+            mdsClientBase_.GetOrAllocateSegment(allocate,
+                                                userinfo,
+                                                offset,
+                                                fi,
+                                                &response,
+                                                &cntl,
+                                                channel_);
         }
 
-        DVLOG(9) << "Get segment at offset: " << seg_offset
-                << "Response status: " << response.statuscode();
-
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.getOrAllocateSegment.eps.count << 1;
             LOG(ERROR)  << "allocate segment failed, error code = "
                         << response.statuscode()
                         << ", error content:" << cntl.ErrorText()
-                        << ", segment offset:" << seg_offset
+                        << ", offset:" << offset
                         << ", retry allocate, retry times = "
                         << count;
 
@@ -1424,38 +1266,24 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::RenameFileRequest request;
         curve::mds::RenameFileResponse response;
 
-        request.set_oldfilename(origin);
-        request.set_newfilename(destination);
-
-        if (originId > 0 && destinationId > 0) {
-            request.set_oldfileid(originId);
-            request.set_newfileid(destinationId);
-        }
-
-        FillUserInfo<::curve::mds::RenameFileRequest>(&request, userinfo);
-
-        LOG(INFO) << "RenameFile: origin = " << origin.c_str()
-                  << ", destination = " << destination.c_str()
-                  << ", originId = " << originId
-                  << ", destinationId = " << destinationId
-                  << ", owner = " << userinfo.owner.c_str()
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.renameFile.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.renameFile.latency);
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.RenameFile(&cntl, &request, &response, NULL);
+            mdsClientBase_.RenameFile(userinfo,
+                                      origin,
+                                      destination,
+                                      originId,
+                                      destinationId,
+                                      &response,
+                                      &cntl,
+                                      channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.renameFile.eps.count << 1;
             LOG(ERROR) << "RenameFile invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -1499,31 +1327,22 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::ExtendFileRequest request;
         curve::mds::ExtendFileResponse response;
 
-        request.set_filename(filename);
-        request.set_newsize(newsize);
-
-        FillUserInfo<::curve::mds::ExtendFileRequest>(&request, userinfo);
-
-        LOG(INFO) << "Extend: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner.c_str()
-                  << ", newsize = " << newsize
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.extendFile.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.extendFile.latency);
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.ExtendFile(&cntl, &request, &response, NULL);
+            mdsClientBase_.Extend(filename,
+                                userinfo,
+                                newsize,
+                                &response,
+                                &cntl,
+                                channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.extendFile.eps.count << 1;
             LOG(ERROR) << "ExtendFile invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -1566,34 +1385,23 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::DeleteFileRequest request;
         curve::mds::DeleteFileResponse response;
 
-        request.set_filename(filename);
-        if (fileid > 0) {
-            request.set_fileid(fileid);
-        }
-
-        request.set_forcedelete(deleteforce);
-
-        FillUserInfo<::curve::mds::DeleteFileRequest>(&request, userinfo);
-
-        LOG(INFO) << "DeleteFile: filename = " << filename.c_str()
-                  << ", owner = " << userinfo.owner.c_str()
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.deleteFile.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.deleteFile.latency);
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.DeleteFile(&cntl, &request, &response, NULL);
+            mdsClientBase_.DeleteFile(filename,
+                                      userinfo,
+                                      deleteforce,
+                                      fileid,
+                                      &response,
+                                      &cntl,
+                                      channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.deleteFile.eps.count << 1;
             LOG(ERROR) << "DeleteFile invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -1634,45 +1442,22 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::ChangeOwnerRequest request;
         curve::mds::ChangeOwnerResponse response;
 
-        request.set_filename(filename);
-        request.set_newowner(newOwner);
-
-        uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
-        request.set_rootowner(userinfo.owner);
-        request.set_date(date);
-
-        if (!userinfo.owner.compare(kRootUserName) &&
-             userinfo.password.compare("")) {
-            std::string str2sig = Authenticator::GetString2Signature(date,
-                                                        userinfo.owner);
-            std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                         userinfo.password);
-            request.set_signature(sig);
-        } else {
-            LOG(WARNING) << "change owner need root user!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
-
-        LOG(INFO) << "ChangeOwner: filename = " << filename.c_str()
-                  << ", operator owner = " << userinfo.owner.c_str()
-                  << ", new owner = " << newOwner.c_str()
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.changeOwner.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.changeOwner.latency);
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.ChangeOwner(&cntl, &request, &response, NULL);
+            mdsClientBase_.ChangeOwner(filename,
+                                       newOwner,
+                                       userinfo,
+                                       &response,
+                                       &cntl,
+                                       channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.changeOwner.eps.count << 1;
             LOG(ERROR) << "ChangeOwner invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
@@ -1714,29 +1499,21 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
 
     while (count < metaServerOpt_.rpcRetryTimes) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-        cntl.set_log_id(GetLogId());
-
-        curve::mds::ListDirRequest request;
         curve::mds::ListDirResponse response;
 
-        request.set_filename(dirpath);
-
-        FillUserInfo<::curve::mds::ListDirRequest>(&request, userinfo);
-
-        LOG(INFO) << "Listdir: filename = " << dirpath.c_str()
-                  << ", owner = " << userinfo.owner.c_str()
-                  << ", log id = " << cntl.log_id();
-
+        mdsClientMetric_.listDir.qps.count << 1;
         {
+            LatencyGuard lg(&mdsClientMetric_.listDir.latency);
             ReadLockGuard readGuard(rwlock_);
-            curve::mds::CurveFSService_Stub stub(channel_);
-            stub.ListDir(&cntl, &request, &response, NULL);
+            mdsClientBase_.Listdir(dirpath,
+                                   userinfo,
+                                   &response,
+                                   &cntl,
+                                   channel_);
         }
 
         if (cntl.Failed()) {
-            RecordMetricInfo(cntl.ErrorCode());
-
+            mdsClientMetric_.listDir.eps.count << 1;
             LOG(ERROR) << "Listdir invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"

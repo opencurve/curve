@@ -7,6 +7,8 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
+
 #include "src/client/splitor.h"
 #include "src/client/iomanager.h"
 #include "src/client/io_tracker.h"
@@ -22,11 +24,11 @@ namespace client {
 IOTracker::IOTracker(IOManager* iomanager,
                         MetaCache* mc,
                         RequestScheduler* scheduler,
-                        ClientMetric_t* clientMetric):
+                        FileMetric_t* clientMetric):
                         mc_(mc),
                         iomanager_(iomanager),
                         scheduler_(scheduler),
-                        clientMetric_(clientMetric) {
+                        fileMetric_(clientMetric) {
     aioctx_     = nullptr;
     data_       = nullptr;
     type_       = OpType::UNKNOWN;
@@ -50,10 +52,16 @@ void IOTracker::StartRead(CurveAioContext* aioctx,
     aioctx_ = aioctx;
     type_   = OpType::READ;
 
+    DVLOG(9)  << "read op, offset = " << offset
+              << ", length = " << length;
+
     int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, data_,
                                         offset_, length_, mdsclient, fi);
     if (ret == 0) {
         reqcount_.store(reqlist_.size(), std::memory_order_release);
+        std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
+            r->done_->SetFileMetric(fileMetric_);
+        });
         ret = scheduler_->ScheduleRequest(reqlist_);
     }
 
@@ -75,13 +83,15 @@ void IOTracker::StartWrite(CurveAioContext* aioctx,
     aioctx_ = aioctx;
     type_   = OpType::WRITE;
 
-    DVLOG(9) << "offset: " << aioctx->offset << " length: " << aioctx->length
-             << " op: " << aioctx->op << " buf: " << *(unsigned int*)buf;
-
+    DVLOG(9) << "write op, offset = " << offset
+             << ", length = " << length;
     int ret = Splitor::IO2ChunkRequests(this, mc_, &reqlist_, data_, offset_,
                                         length_, mdsclient, fi);
     if (ret == 0) {
         reqcount_.store(reqlist_.size(), std::memory_order_release);
+        std::for_each(reqlist_.begin(), reqlist_.end(), [&](RequestContext* r) {
+            r->done_->SetFileMetric(fileMetric_);
+        });
         ret = scheduler_->ScheduleRequest(reqlist_);
     }
 
@@ -256,25 +266,11 @@ int IOTracker::Wait() {
 }
 
 void IOTracker::Done() {
-    if (clientMetric_ != nullptr) {
-        if (errcode_ == LIBCURVE_ERROR::OK) {
-            uint64_t opEndTimePoint = common::TimeUtility::GetTimeofDayUs();
-            if (type_ == OpType::READ) {
-                clientMetric_->readRequestLatency
-                            << (opEndTimePoint - opStartTimePoint_);
-                clientMetric_->readBytesCount << length_;
-            } else if (type_ == OpType::WRITE) {
-                clientMetric_->writeRequestLatency
-                            << (opEndTimePoint - opStartTimePoint_);
-                clientMetric_->writeBytesCount << length_;
-            }
-        } else {
-            if (type_ == OpType::READ) {
-                clientMetric_->readRequestFailCount << 1;
-            } else if (type_ == OpType::WRITE) {
-                clientMetric_->writeRequestFailCount << 1;
-            }
-        }
+    if (errcode_ == LIBCURVE_ERROR::OK) {
+        uint64_t duration = TimeUtility::GetTimeofDayUs() - opStartTimePoint_;
+        MetricHelper::UserLatencyRecord(fileMetric_, duration, type_);
+    } else {
+        MetricHelper::IncremUserEPSCount(fileMetric_, type_);
     }
 
     DestoryRequestList();
@@ -282,6 +278,7 @@ void IOTracker::Done() {
         errcode_ == LIBCURVE_ERROR::OK ? iocv_.Complete(length_)
                                        : iocv_.Complete(-errcode_);
     } else {
+        MetricHelper::IncremInflightIO(fileMetric_, -1);
         aioctx_->ret = errcode_ == LIBCURVE_ERROR::OK ? length_ : -errcode_;
         aioctx_->cb(aioctx_);
         iomanager_->HandleAsyncIOResponse(this);

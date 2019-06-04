@@ -39,7 +39,6 @@ std::string configpath = "./test/client/testConfig/client.conf";   // NOLINT
 using curve::client::FileClient;
 
 int main(int argc, char ** argv) {
-    google::InitGoogleLogging(argv[0]);
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
