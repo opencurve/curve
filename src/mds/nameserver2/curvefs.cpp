@@ -178,6 +178,13 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
     FileInfo parentFileInfo;
     std::string lastEntry;
 
+    if (filetype != FileType::INODE_PAGEFILE
+            && filetype !=  FileType::INODE_DIRECTORY) {
+        LOG(ERROR) << "CreateFile not support create file type : " << filetype
+                   << ", fileName = " << fileName;
+        return StatusCode::kNotSupported;
+    }
+
     // check param
     // TODO(tom) : paramerror细化
     if (filetype == FileType::INODE_PAGEFILE) {
@@ -1383,7 +1390,7 @@ StatusCode CurveFS::CheckDestinationOwner(const std::string &filename,
 
     std::string lastEntry;
     uint64_t parentID;
-
+    // 先校验各级目录的owner
     ret = CheckPathOwnerInternal(filename, owner, signature,
                                  &lastEntry, &parentID);
 
@@ -1391,12 +1398,20 @@ StatusCode CurveFS::CheckDestinationOwner(const std::string &filename,
         return ret;
     }
 
-    // 非root用户不允许rename文件到根目录下
-    if (parentID == rootFileInfo_.id() && owner != GetRootOwner()) {
-        return StatusCode::kOwnerAuthFail;
-    }
+    // 如果文件存在，校验文件的Owner，如果文件不存在，返回kOK
+    FileInfo  fileInfo;
+    auto ret1 = storage_->GetFile(parentID, lastEntry, &fileInfo);
 
-    return StatusCode::kOK;
+    if (ret1 == StoreStatus::OK) {
+        if (fileInfo.owner() != owner) {
+            return StatusCode::kOwnerAuthFail;
+        }
+        return StatusCode::kOK;
+    } else if  (ret1 == StoreStatus::KeyNotExist) {
+        return StatusCode::kOK;
+    } else {
+        return StatusCode::kStorageError;
+    }
 }
 
 StatusCode CurveFS::CheckPathOwner(const std::string &filename,

@@ -24,7 +24,20 @@ namespace mds {
  *  @return true表示合法，false表示不合法
  */
 // isPathValid先放这里，目前就这里用
-bool isPathValid(std::string path);
+bool isPathValid(const std::string path);
+
+/**
+ *  @brief 判断一个rename的路径是否是合法的，判断规则：
+ *         1、不允许对根目录rename或者rename到根目录
+ *         2、一个路径不能包含另一个路径，
+ *         比如不能rename /a 到 /a/b，或者rename /a/b 到 /a
+ *  @param oldFileName 用来判断的路径，路径应该是从根目录开始的全路径
+ *         newFileName 用来判断的路径，路径应该是从根目录开始的全路径
+ *  @return true表示合法，false表示不合法
+ */
+// IsRenamePathValid先放这里，目前就这里用
+bool IsRenamePathValid(const std::string& oldFileName,
+                       const std::string& newFileName);
 
 class NameSpaceService: public CurveFSService {
  public:
