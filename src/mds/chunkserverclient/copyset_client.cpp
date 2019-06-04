@@ -131,7 +131,6 @@ int CopysetClient::UpdateLeader(CopySetInfo *copyset) {
     }
     if (success) {
         copyset->SetLeader(leader);
-        // TODO(xuchaojie): update topo copyset, 这里需要同步, 防止更新成旧的copyset。 NOLINT
         ret = kMdsSuccess;
     }
     return ret;

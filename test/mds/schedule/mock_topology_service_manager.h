@@ -12,6 +12,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
+#include <vector>
+
 #include "src/mds/topology/topology_service_manager.h"
 
 using ::curve::mds::topology::TopologyServiceManager;
@@ -29,9 +31,9 @@ class MockTopologyServiceManager : public TopologyServiceManager {
 
   ~MockTopologyServiceManager() {}
 
-  MOCK_METHOD2(CreateCopysetAtChunkServer,
-               bool(const ::curve::mds::topology::CopySetInfo &info,
-                   ChunkServerIdType id));
+  MOCK_METHOD2(CreateCopysetNodeOnChunkServer,
+               bool(ChunkServerIdType id,
+               const std::vector<::curve::mds::topology::CopySetInfo>  &infos));
 };
 
 }  // namespace schedule

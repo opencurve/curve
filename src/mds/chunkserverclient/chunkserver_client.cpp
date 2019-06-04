@@ -22,9 +22,9 @@ using ::curve::chunkserver::ChunkResponse;
 using ::curve::chunkserver::CHUNK_OP_TYPE;
 using ::curve::chunkserver::CHUNK_OP_STATUS;
 
-using ::curve::chunkserver::CliService_Stub;
-using ::curve::chunkserver::GetLeaderRequest;
-using ::curve::chunkserver::GetLeaderResponse;
+using ::curve::chunkserver::CliService2_Stub;
+using ::curve::chunkserver::GetLeaderRequest2;
+using ::curve::chunkserver::GetLeaderResponse2;
 
 
 
@@ -252,8 +252,6 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     std::string ip = chunkServer.GetHostIp();
     int port = chunkServer.GetPort();
 
-    std::string peerId = ip + ":" + std::to_string(port);
-
     brpc::Channel channel;
     if (channel.Init(ip.c_str(), port, NULL) != 0) {
         LOG(ERROR) << "Fail to init channel to ip: "
@@ -263,26 +261,25 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
         return kRpcChannelInitFail;
     }
 
-    CliService_Stub stub(&channel);
+    CliService2_Stub stub(&channel);
 
     brpc::Controller cntl;
     cntl.set_timeout_ms(kRpcTimeoutMs);
 
-    GetLeaderRequest request;
+    GetLeaderRequest2 request;
     request.set_logicpoolid(logicalPoolId);
     request.set_copysetid(copysetId);
-    request.set_peer_id(peerId);
 
-    GetLeaderResponse response;
+    GetLeaderResponse2 response;
     uint32_t retry = 0;
     do {
-        LOG(INFO) << "Send get_leader[log_id=" << cntl.log_id()
+        LOG(INFO) << "Send GetLeader[log_id=" << cntl.log_id()
                   << "] from " << cntl.local_side()
                   << " to " << cntl.remote_side()
                   << ". [GetLeaderRequest] "
                   << request.DebugString();
         cntl.Reset();
-        stub.get_leader(&cntl,
+        stub.GetLeader(&cntl,
             &request,
             &response,
             nullptr);
@@ -311,7 +308,8 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
                   << ". [GetLeaderResponse] "
                   << response.DebugString();
 
-        std::string leaderPeer = response.leader_id();
+        // TODO(xuchaojie) : 后续支持新的协议之后可直接使用id
+        std::string leaderPeer = response.leader().address();
         std::string leaderIp;
         uint32_t leaderPort;
         if (SplitPeerId(leaderPeer, &leaderIp, &leaderPort)) {
