@@ -80,5 +80,10 @@ int ClientConfig::Init(const char* configpath) {
 FileServiceOption_t ClientConfig::GetFileServiceOption() {
     return fileServiceOption_;
 }
+
+uint16_t ClientConfig::GetDummyserverStartPort() {
+    return conf_.GetIntValue("dummyServerStartPort", 9000);
+}
+
 }   // namespace client
 }   // namespace curve

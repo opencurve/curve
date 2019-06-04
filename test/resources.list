@@ -15,6 +15,12 @@ Used port list:
     9121: mds 接口测试
     9122: mds 接口测试
     9123: mds 接口测试
+    9130: metric测试
+    9131: metric测试
+    9132: metric测试
+    9140: metric测试
+    9141: metric测试
+    9142: metric测试
 
 # mds & snapshotcloneserver
 
@@ -31,4 +37,5 @@ Used port list:
     chunk-snapshot-test:    9050 9051 9052
     heartbeat_test:         9300
     chunkserver_test:       9301
+    cli-test2:              9310 9311 9312
     metric_test:            9401

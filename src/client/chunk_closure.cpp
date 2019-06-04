@@ -26,7 +26,6 @@
 namespace curve {
 namespace client {
 FailureRequestOption_t  ClientClosure::failReqOpt_;
-ChunkserverClientMetric_t ClientClosure::chunkserverClientMetric_;
 
 void WriteChunkClosure::Run() {
     std::unique_ptr<WriteChunkClosure> selfGuard(this);
@@ -36,6 +35,7 @@ void WriteChunkClosure::Run() {
 
     MetaCache *metaCache = client_->GetMetaCache();
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
+    FileMetric_t* fm = reqDone->GetMetric();
     RequestContext *reqCtx = reqDone->GetReqCtx();
     LogicPoolID logicPoolId = reqCtx->idinfo_.lpid_;
     CopysetID copysetId = reqCtx->idinfo_.cpid_;
@@ -45,9 +45,16 @@ void WriteChunkClosure::Run() {
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
+    uint64_t duration = TimeUtility::GetTimeofDayUs() - reqDone->GetStartTime();
+    MetricHelper::LatencyRecord(fm, duration, OpType::WRITE);
+
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
+        if (status == brpc::ERPCTIMEDOUT) {
+            MetricHelper::IncremTimeOutRPCCount(fm, OpType::WRITE);
+        }
+
         LOG(ERROR) << "write failed, error code: " << cntl_->ErrorCode()
                    << ", error: " << cntl_->ErrorText();
         /* It will be invoked in brpc's bthread, so */
@@ -62,10 +69,9 @@ void WriteChunkClosure::Run() {
                                        copysetId,
                                        &leaderId,
                                        &leaderAddr,
-                                       true)) {
+                                       true,
+                                       fm)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto write_retry;
     }
@@ -95,7 +101,6 @@ void WriteChunkClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
-                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto write_retry;
             }
         }
@@ -103,10 +108,9 @@ void WriteChunkClosure::Run() {
                                        copysetId,
                                        &leaderId,
                                        &leaderAddr,
-                                       true)) {
+                                       true,
+                                       fm)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto write_retry;
     }
@@ -116,10 +120,9 @@ void WriteChunkClosure::Run() {
                                        copysetId,
                                        &leaderId,
                                        &leaderAddr,
-                                       true)) {
+                                       true,
+                                       fm)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto write_retry;
     }
@@ -143,6 +146,7 @@ void WriteChunkClosure::Run() {
     goto write_retry;
 
 write_retry:
+    MetricHelper::IncremFailRPCCount(fm, OpType::WRITE);
     if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
         metaCache->UpdateAppliedIndex(logicPoolId,
@@ -151,8 +155,7 @@ write_retry:
         LOG(ERROR) << "retried times exceeds";
         return;
     }
-    chunkserverClientMetric_.retryCount << 1;
-    chunkserverClientMetric_.retryBytes << reqCtx->rawlength_;
+
     client_->WriteChunk(reqCtx->idinfo_,
                         reqCtx->seq_,
                         reqCtx->writeBuffer_,
@@ -170,6 +173,7 @@ void ReadChunkClosure::Run() {
 
     MetaCache *metaCache = client_->GetMetaCache();
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
+    FileMetric_t* fm = reqDone->GetMetric();
     RequestContext *reqCtx = reqDone->GetReqCtx();
     LogicPoolID logicPoolId = reqCtx->idinfo_.lpid_;
     CopysetID copysetId = reqCtx->idinfo_.cpid_;
@@ -179,9 +183,16 @@ void ReadChunkClosure::Run() {
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
+    uint64_t duration = TimeUtility::GetTimeofDayUs() - reqDone->GetStartTime();
+    MetricHelper::LatencyRecord(fm, duration, OpType::READ);
+
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试*/
         status = cntl_->ErrorCode();
+        if (status == brpc::ERPCTIMEDOUT) {
+            MetricHelper::IncremTimeOutRPCCount(fm, OpType::READ);
+        }
+
         LOG(ERROR) << "read failed, error: " << cntl_->ErrorText();
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
@@ -191,10 +202,9 @@ void ReadChunkClosure::Run() {
                                        copysetId,
                                        &leaderId,
                                        &leaderAddr,
-                                       true)) {
+                                       true,
+                                       fm)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto read_retry;
     }
@@ -223,7 +233,6 @@ void ReadChunkClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
-                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto read_retry;
             }
         }
@@ -231,12 +240,10 @@ void ReadChunkClosure::Run() {
                                        copysetId,
                                        &leaderId,
                                        &leaderAddr,
-                                       true)) {
+                                       true,
+                                       fm)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
-
         goto read_retry;
     }
     /* 2.2.Copyset不存在大概率都是配置变更了 */
@@ -245,10 +252,9 @@ void ReadChunkClosure::Run() {
                                        copysetId,
                                        &leaderId,
                                        &leaderAddr,
-                                       true)) {
+                                       true,
+                                       fm)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto read_retry;
     }
@@ -283,13 +289,14 @@ void ReadChunkClosure::Run() {
     goto read_retry;
 
 read_retry:
+    MetricHelper::IncremFailRPCCount(fm, OpType::READ);
+
     if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
         LOG(ERROR) << "retried times exceeds";
         return;
     }
 
-    chunkserverClientMetric_.retryCount << 1;
     client_->ReadChunk(reqCtx->idinfo_,
                        reqCtx->seq_,
                        reqCtx->offset_,
@@ -330,8 +337,6 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto read_retry;
     }
@@ -356,7 +361,6 @@ void ReadChunkSnapClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
-                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto read_retry;
             }
         }
@@ -366,8 +370,6 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto read_retry;
@@ -380,8 +382,6 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto read_retry;
     }
@@ -429,7 +429,6 @@ read_retry:
         return;
     }
 
-    chunkserverClientMetric_.retryCount << 1;
     client_->ReadChunkSnapshot(reqCtx->idinfo_,
                                reqCtx->seq_,
                                reqCtx->offset_,
@@ -469,8 +468,6 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto delete_retry;
     }
@@ -492,7 +489,6 @@ void DeleteChunkSnapClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
-                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto delete_retry;
             }
         }
@@ -502,10 +498,7 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
-
         goto delete_retry;
     }
     /* 2.2.Copyset不存在大概率都是配置变更了 */
@@ -516,8 +509,6 @@ void DeleteChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto delete_retry;
     }
@@ -547,7 +538,6 @@ delete_retry:
         return;
     }
 
-    chunkserverClientMetric_.retryCount << 1;
     client_->DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
                                             reqCtx->correctedSeq_,
                                             doneGuard.release(),
@@ -585,8 +575,6 @@ void GetChunkInfoClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto get_retry;
     }
@@ -612,7 +600,6 @@ void GetChunkInfoClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
-                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto get_retry;
             }
         }
@@ -622,8 +609,6 @@ void GetChunkInfoClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto get_retry;
@@ -636,8 +621,6 @@ void GetChunkInfoClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto get_retry;
     }
@@ -665,7 +648,6 @@ get_retry:
         return;
     }
 
-    chunkserverClientMetric_.retryCount << 1;
     client_->GetChunkInfo(reqCtx->idinfo_,
                           doneGuard.release(),
                           retriedTimes_ + 1);
@@ -702,8 +684,6 @@ void CreateCloneChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto create_retry;
     }
@@ -725,7 +705,6 @@ void CreateCloneChunkClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
-                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto create_retry;
             }
         }
@@ -735,8 +714,6 @@ void CreateCloneChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto create_retry;
@@ -749,8 +726,6 @@ void CreateCloneChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto create_retry;
     }
@@ -780,7 +755,6 @@ create_retry:
         return;
     }
 
-    chunkserverClientMetric_.retryCount << 1;
     client_->CreateCloneChunk(reqCtx->idinfo_,
                             reqCtx->location_,
                             reqCtx->seq_,
@@ -821,8 +795,6 @@ void RecoverChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto recover_retry;
     }
@@ -844,7 +816,6 @@ void RecoverChunkClosure::Run() {
                                         copysetId,
                                         &leaderId,
                                         leader.addr);
-                chunkserverClientMetric_.leaderChangeTimes << 1;
                 goto recover_retry;
             }
         }
@@ -854,8 +825,6 @@ void RecoverChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
 
         goto recover_retry;
@@ -868,8 +837,6 @@ void RecoverChunkClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        } else {
-            chunkserverClientMetric_.leaderChangeTimes << 1;
         }
         goto recover_retry;
     }
@@ -898,7 +865,6 @@ recover_retry:
         LOG(ERROR) << "recover chunk retried times exceeds";
         return;
     }
-    chunkserverClientMetric_.retryCount << 1;
     client_->RecoverChunk(reqCtx->idinfo_,
                         reqCtx->offset_,
                         reqCtx->rawlength_,

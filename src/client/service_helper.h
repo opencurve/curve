@@ -17,6 +17,7 @@
 #include "proto/cli2.pb.h"
 #include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
+#include "src/client/client_metric.h"
 #include "src/client/metacache_struct.h"
 
 namespace curve {
@@ -40,6 +41,7 @@ class ServiceHelper {
      *         需要跳过这个index，以提高查找leader的效率
      * @param: rpcTimeoutMs超时时间，默认500ms
      * @param[out]: csid在变更
+     * @param: fm是用于metric的记录
      * @return: 成功返回0，否则返回-1
      */
     static int GetLeader(const LogicPoolID &logicPoolId,
@@ -48,7 +50,8 @@ class ServiceHelper {
                         ChunkServerAddr *leaderId,
                         int16_t currentleaderIndex,
                         uint32_t rpcTimeoutMs = 500,
-                        ChunkServerID* csid = nullptr);
+                        ChunkServerID* csid = nullptr,
+                        FileMetric_t* fm = nullptr);
     /**
      * 从文件名中获取user信息.
      * 用户的user信息需要夹在文件名中，比如文件名为temp,用户名为user,

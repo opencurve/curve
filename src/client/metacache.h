@@ -19,6 +19,7 @@
 #include "src/client/metacache_struct.h"
 #include "src/client/service_helper.h"
 #include "src/client/mds_client.h"
+#include "src/client/client_metric.h"
 
 using curve::common::RWLock;
 
@@ -82,13 +83,15 @@ class MetaCache {
      * @param: serverAddr为serverid对应的ip信息
      * @param: refresh，如果get不到的时候，外围设置refresh为true，
      *         然后向chunkserver端拉取最新的
+     * @param: fm用于统计metric
      * @param: 成功返回0， 否则返回-1
      */
     virtual int GetLeader(LogicPoolID logicPoolId,
                                 CopysetID copysetId,
                                 ChunkServerID* serverId,
                                 butil::EndPoint* serverAddr,
-                                bool refresh = false);
+                                bool refresh = false,
+                                FileMetric_t* fm = nullptr);
     /**
      * 更新某个copyset的leader信息
      * @param: lpid逻辑池id
@@ -179,7 +182,8 @@ class MetaCache {
      */
     int UpdateLeaderInternal(LogicPoolID logicPoolId,
                              CopysetID copysetId,
-                             CopysetInfo* toupdateCopyset);
+                             CopysetInfo* toupdateCopyset,
+                             FileMetric_t* fm = nullptr);
 
  private:
     MDSClient*          mdsclient_;
