@@ -1701,6 +1701,13 @@ random combination thrasher
     check loop read   ${new_fd}
     [Teardown]	    file clean     ${new_fd}
 
+analysis copyset scatterwith
+    [Tags]    P0    base    first release
+    get copyset table
+    mv copyset table
+    get copyset scatterwith
+    [Teardown]	    rm copyset table
+
 snapshot test
     [Tags]    P1    base    first release   snapshot    no-need
     [Setup]	init cluster
