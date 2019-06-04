@@ -15,7 +15,7 @@
 
 #include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology.h"
-#include "proto/cli.pb.h"
+#include "proto/cli2.pb.h"
 #include "proto/chunk.pb.h"
 
 using ::curve::mds::topology::Topology;

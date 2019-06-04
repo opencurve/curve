@@ -8,7 +8,7 @@
 #ifndef TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVER_H_
 #define TEST_MDS_CHUNKSERVERCLIENT_MOCK_CHUNKSERVER_H_
 
-#include "proto/cli.pb.h"
+#include "proto/cli2.pb.h"
 #include "proto/chunk.pb.h"
 
 namespace curve {
@@ -32,12 +32,12 @@ class MockChunkService : public ChunkService {
         Closure *done));
 };
 
-class MockCliService : public CliService {
+class MockCliService : public CliService2 {
  public:
-    MOCK_METHOD4(get_leader,
+    MOCK_METHOD4(GetLeader,
         void(RpcController *controller,
-        const GetLeaderRequest *request,
-        GetLeaderResponse *response,
+        const GetLeaderRequest2 *request,
+        GetLeaderResponse2 *response,
         Closure *done));
 };
 

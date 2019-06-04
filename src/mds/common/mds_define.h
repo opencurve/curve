@@ -79,6 +79,8 @@ const int kTopoErrCodeGenCopysetErr = -12;
 const int kTopoErrCodeAllocateIdFail = -13;
 const int kTopoErrCodeCannotRemoveWhenNotEmpty = -14;
 const int kTopoErrCodeIpPortDuplicated = -15;
+const int kTopoErrCodeNameDuplicated = -16;
+const int kTopoErrCodeCreateCopysetNodeOnChunkServerFail = -17;
 
 }  // namespace topology
 }  // namespace mds

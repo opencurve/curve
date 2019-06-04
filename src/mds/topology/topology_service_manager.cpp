@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <set>
 #include <string>
 #include <list>
 #include <vector>
@@ -26,8 +27,8 @@ namespace mds {
 namespace topology {
 
 using ::curve::chunkserver::CopysetService_Stub;
-using ::curve::chunkserver::CopysetRequest;
-using ::curve::chunkserver::CopysetResponse;
+using ::curve::chunkserver::CopysetRequest2;
+using ::curve::chunkserver::CopysetResponse2;
 using ::curve::chunkserver::COPYSET_OP_STATUS;
 
 using ::curve::mds::copyset::ClusterInfo;
@@ -709,10 +710,10 @@ int TopologyServiceManager::CreateCopysetForLogicalPool(
                            << "GenCopysetForPageFilePool.";
                 return errcode;
             }
-            errcode = CreateCopysetOnChunkServer(copysetInfos);
+            errcode = CreateCopysetNodeOnChunkServer(*copysetInfos);
             if (kTopoErrCodeSuccess != errcode) {
                 LOG(ERROR) << "CreateCopysetForLogicalPool fail in : "
-                           << "CreateCopysetOnChunkServer.";
+                           << "CreateCopysetNodeOnChunkServer.";
                 return errcode;
             }
             break;
@@ -823,22 +824,33 @@ int TopologyServiceManager::GenCopysetForPageFilePool(
     return kTopoErrCodeSuccess;
 }
 
-int TopologyServiceManager::CreateCopysetOnChunkServer(
-    const std::vector<CopySetInfo> *copysetInfos) {
-    for (const CopySetInfo &cs : *copysetInfos) {
-        for (ChunkServerIdType csId : cs.GetCopySetMembers()) {
-            if (!CreateCopysetAtChunkServer(cs, csId)) {
-                return kTopoErrCodeGenCopysetErr;
+int TopologyServiceManager::CreateCopysetNodeOnChunkServer(
+    const std::vector<CopySetInfo> &copysetInfos) {
+    std::set<ChunkServerIdType> chunkserverToSend;
+    for (auto &cs : copysetInfos) {
+        for (auto &csId : cs.GetCopySetMembers()) {
+            chunkserverToSend.insert(csId);
+        }
+    }
+    for (auto &csId : chunkserverToSend) {
+        std::vector<CopySetInfo> infos;
+        for (auto &cs : copysetInfos) {
+            if (cs.GetCopySetMembers().count(csId) != 0) {
+                infos.push_back(cs);
             }
+        }
+        if (!CreateCopysetNodeOnChunkServer(csId, infos)) {
+            return kTopoErrCodeCreateCopysetNodeOnChunkServerFail;
         }
     }
     return kTopoErrCodeSuccess;
 }
 
-bool TopologyServiceManager::CreateCopysetAtChunkServer(
-    const CopySetInfo &cs, ChunkServerIdType csId) {
+bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
+    ChunkServerIdType id,
+    const std::vector<CopySetInfo> &copysetInfos) {
     ChunkServer chunkServer;
-    if (true != topology_->GetChunkServer(csId, &chunkServer)) {
+    if (true != topology_->GetChunkServer(id, &chunkServer)) {
         return false;
     }
 
@@ -858,36 +870,45 @@ bool TopologyServiceManager::CreateCopysetAtChunkServer(
     // 调用chunkserver接口创建copyset
     brpc::Controller cntl;
 
-    CopysetRequest chunkServerRequest;
-    chunkServerRequest.set_logicpoolid(cs.GetLogicalPoolId());
-    chunkServerRequest.set_copysetid(cs.GetId());
+    CopysetRequest2 copysetRequest;
+    for (auto &cs : copysetInfos) {
+        ::curve::chunkserver::Copyset *copyset =
+            copysetRequest.add_copysets();
+        copyset->set_logicpoolid(cs.GetLogicalPoolId());
+        copyset->set_copysetid(cs.GetId());
 
-    for (ChunkServerIdType id : cs.GetCopySetMembers()) {
-            ChunkServer chunkserverInfo;
-            if (true != topology_->GetChunkServer(id, &chunkserverInfo)) {
-                return false;
-            }
-            std::string ipStr = chunkserverInfo.GetHostIp();
-            std::string portStr =
-                std::to_string(chunkserverInfo.GetPort());
-            chunkServerRequest.add_peerid(ipStr + ":" + portStr);
+        for (ChunkServerIdType id : cs.GetCopySetMembers()) {
+                ChunkServer chunkserverInfo;
+                if (true != topology_->GetChunkServer(id, &chunkserverInfo)) {
+                    return false;
+                }
+
+                std::string address =
+                    BuildPeerId(chunkserverInfo.GetHostIp(),
+                    chunkserverInfo.GetPort());
+
+                ::curve::common::Peer *peer = copyset->add_peers();
+                peer->set_id(id);
+                peer->set_address(address);
+        }
     }
 
-    CopysetResponse chunkSeverResponse;
+    CopysetResponse2 copysetResponse;
 
-    int retry = 0;
+    uint32_t retry = 0;
 
     do {
         LOG(INFO) << "Send CopysetRequest[log_id=" << cntl.log_id()
                   << "] from " << cntl.local_side()
                   << " to " << cntl.remote_side()
                   << ". [CopysetRequest] "
-                  << chunkServerRequest.DebugString();
+                  << copysetRequest.DebugString();
         cntl.Reset();
-        cntl.set_timeout_ms(option_.CreateCopysetRpcTimeoutMs);
-        stub.CreateCopysetNode(&cntl,
-            &chunkServerRequest,
-            &chunkSeverResponse,
+        cntl.set_timeout_ms(option_.CreateCopysetRpcTimeoutMs *
+            copysetInfos.size());
+        stub.CreateCopysetNode2(&cntl,
+            &copysetRequest,
+            &copysetResponse,
             nullptr);
         if (cntl.Failed()) {
             LOG(ERROR) << "Received CopysetResponse error, "
@@ -909,16 +930,16 @@ bool TopologyServiceManager::CreateCopysetAtChunkServer(
                    << cntl.ErrorText() << std::endl;
         return false;
     } else {
-        if ((chunkSeverResponse.status() !=
+        if ((copysetResponse.status() !=
                 COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) &&
-           (chunkSeverResponse.status() !=
+           (copysetResponse.status() !=
                 COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST)) {
             LOG(ERROR) << "Received CopysetResponse[log_id="
                       << cntl.log_id()
                       << "] from " << cntl.remote_side()
                       << " to " << cntl.local_side()
                       << ". [CopysetResponse] "
-                      << chunkSeverResponse.DebugString();
+                      << copysetResponse.DebugString();
             return false;
         } else {
             LOG(INFO) << "Received CopysetResponse[log_id="
@@ -926,7 +947,7 @@ bool TopologyServiceManager::CreateCopysetAtChunkServer(
                       << "] from " << cntl.remote_side()
                       << " to " << cntl.local_side()
                       << ". [CopysetResponse] "
-                      << chunkSeverResponse.DebugString();
+                      << copysetResponse.DebugString();
         }
     }
     return true;
