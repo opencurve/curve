@@ -10,6 +10,7 @@
 #include <string>
 #include "src/mds/nameserver2/curvefs.h"
 #include "src/mds/nameserver2/file_lock.h"
+#include "src/common/string_util.h"
 
 namespace curve {
 namespace mds {
@@ -264,13 +265,16 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
+    // IsRenamePathValid判断rename的路径能够加锁。不能对这种情况进行rename，
+    // rename /a/b -> /b或者/a/b -> /a，一个路径不能包含另一个路径。
     if (!isPathValid(request->oldfilename())
-        || !isPathValid(request->newfilename())) {
+        || !isPathValid(request->newfilename())
+        || !IsRenamePathValid(request->oldfilename(), request->newfilename())) {
         response->set_statuscode(StatusCode::kParaError);
         LOG(ERROR) << "logid = " << cntl->log_id()
-        << ", RenameFile request path is invalid, oldfilename = "
-        << request->oldfilename()
-        << ", newfilename = " << request->newfilename();
+                    << ", RenameFile request path is invalid, oldfilename = "
+                    << request->oldfilename()
+                    << ", newfilename = " << request->newfilename();
         return;
     }
 
@@ -1017,7 +1021,7 @@ void NameSpaceService::RefreshSession(
     return;
 }
 
-bool isPathValid(std::string path) {
+bool isPathValid(const std::string path) {
     if (path.empty() || path[0] != '/') {
         return false;
     }
@@ -1041,6 +1045,35 @@ bool isPathValid(std::string path) {
     // 将来如果有path有其他限制，可以在此处继续添加
 
     return true;
+}
+
+bool IsRenamePathValid(const std::string& oldFileName,
+                       const std::string& newFileName) {
+    std::vector<std::string> oldFilePaths;
+    ::curve::common::SplitString(oldFileName, "/", &oldFilePaths);
+
+    std::vector<std::string> newFilePaths;
+    ::curve::common::SplitString(newFileName, "/", &newFilePaths);
+
+    // 不允许对根目录rename或者rename到根目录
+    if (oldFilePaths.size() == 0 || newFilePaths.size() == 0) {
+        return false;
+    }
+
+    if (oldFileName == newFileName) {
+        return true;
+    }
+
+    // 不允许一个fileName包含另一个fileName
+    uint32_t minSize = oldFilePaths.size() > newFilePaths.size()
+                        ? newFilePaths.size() : oldFilePaths.size();
+    for (uint32_t i = 0; i < minSize; i++) {
+        if (oldFilePaths[i] != newFilePaths[i]) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void NameSpaceService::CreateCloneFile(
