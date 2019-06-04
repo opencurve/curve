@@ -27,7 +27,7 @@ DEFINE_bool(create_copysets, false, "create copysets on chunkserver");
 
 int main(int argc, char ** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
-    google::InitGoogleLogging(argv[0]);
+    // google::InitGoogleLogging(argv[0]);
     /*** init mds service ***/
     std::string filename = "./1_userinfo_";
     FakeMDS mds(filename);

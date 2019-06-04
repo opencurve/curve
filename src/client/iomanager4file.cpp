@@ -24,17 +24,22 @@ IOManager4File::IOManager4File():
                     scheduler_(nullptr) {
 }
 
-bool IOManager4File::Initialize(IOOption_t ioOpt,
-                                ClientMetric_t* clientMetric,
+bool IOManager4File::Initialize(const std::string& filename,
+                                const IOOption_t& ioOpt,
                                 MDSClient* mdsclient) {
     ioopt_ = ioOpt;
-    if (clientMetric == nullptr) {
-        LOG(ERROR) << "metric pointer is null!";
-        return false;
-    }
-    clientMetric_ = clientMetric;
+
     mc_.Init(ioopt_.metaCacheOpt, mdsclient);
     Splitor::Init(ioopt_.ioSplitOpt);
+
+    confMetric_.maxInFlightIONum.set_value(
+                ioopt_.inflightOpt.maxInFlightIONum);
+
+    fileMetric_ = new (std::nothrow) FileMetric(filename);
+    if (fileMetric_ == nullptr) {
+        LOG(ERROR) << "allocate client metric failed!";
+        return false;
+    }
 
     scheduler_ = new (std::nothrow) RequestScheduler();
     if (scheduler_ == nullptr ||
@@ -44,6 +49,7 @@ bool IOManager4File::Initialize(IOOption_t ioOpt,
     }
     scheduler_->Run();
 
+    LOG(INFO) << "iomanager init success!";
     return true;
 }
 
@@ -55,6 +61,11 @@ void IOManager4File::UnInitialize() {
         scheduler_->Fini();
         delete scheduler_;
         scheduler_ = nullptr;
+    }
+
+    if (fileMetric_ != nullptr) {
+        delete fileMetric_;
+        fileMetric_ = nullptr;
     }
 }
 
@@ -89,24 +100,30 @@ int IOManager4File::Read(char* buf,
                         off_t offset,
                         size_t length,
                         MDSClient* mdsclient) {
+    MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
     FlightIOGuard guard(this);
 
-    IOTracker temp(this, &mc_, scheduler_, clientMetric_);
+    IOTracker temp(this, &mc_, scheduler_, fileMetric_);
     temp.StartRead(nullptr, buf, offset, length, mdsclient, &fi_);
 
-    return temp.Wait();
+    int rc = temp.Wait();
+    MetricHelper::IncremUserQPSCount(fileMetric_, length, OpType::READ);
+    return rc;
 }
 
 int IOManager4File::Write(const char* buf,
                         off_t offset,
                         size_t length,
                         MDSClient* mdsclient) {
+    MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
     FlightIOGuard guard(this);
 
-    IOTracker temp(this, &mc_, scheduler_, clientMetric_);
+    IOTracker temp(this, &mc_, scheduler_, fileMetric_);
     temp.StartWrite(nullptr, buf, offset, length, mdsclient, &fi_);
 
-    return temp.Wait();
+    int rc = temp.Wait();
+    MetricHelper::IncremUserQPSCount(fileMetric_, length, OpType::WRITE);
+    return rc;
 }
 
 /**
@@ -122,14 +139,16 @@ int IOManager4File::Write(const char* buf,
  */
 int IOManager4File::AioRead(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
+    MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
-                                                   scheduler_, clientMetric_);
+                                                   scheduler_, fileMetric_);
     if (temp == nullptr) {
         LOG(ERROR) << "allocate tracker failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
 
     GetInflightIOToken();
+    MetricHelper::IncremInflightIO(fileMetric_, 1);
 
     temp->StartRead(aioctx,
                     static_cast<char*>(aioctx->buf),
@@ -137,19 +156,22 @@ int IOManager4File::AioRead(CurveAioContext* aioctx,
                     aioctx->length,
                     mdsclient,
                     &fi_);
+    MetricHelper::IncremUserQPSCount(fileMetric_, aioctx->length, OpType::READ);
     return LIBCURVE_ERROR::OK;
 }
 
 int IOManager4File::AioWrite(CurveAioContext* aioctx,
                             MDSClient* mdsclient) {
+    MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
-                                                   scheduler_, clientMetric_);
+                                                   scheduler_, fileMetric_);
     if (temp == nullptr) {
         LOG(ERROR) << "allocate tracker failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
 
     GetInflightIOToken();
+    MetricHelper::IncremInflightIO(fileMetric_, 1);
 
     temp->StartWrite(aioctx,
                     static_cast<const char*>(aioctx->buf),
@@ -157,6 +179,9 @@ int IOManager4File::AioWrite(CurveAioContext* aioctx,
                     aioctx->length,
                     mdsclient,
                     &fi_);
+    MetricHelper::IncremUserQPSCount(fileMetric_,
+                                     aioctx->length,
+                                     OpType::WRITE);
     return LIBCURVE_ERROR::OK;
 }
 

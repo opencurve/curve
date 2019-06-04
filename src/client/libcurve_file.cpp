@@ -9,6 +9,7 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <thread>   // NOLINT
 #include <mutex>    // NOLINT
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
@@ -29,11 +30,17 @@ curve::client::FileClient* globalclient = nullptr;
 namespace curve {
 namespace client {
 FileClient::FileClient(): fdcount_(0) {
+    inited_ = false;
     mdsClient_ = nullptr;
     fileserviceMap_.clear();
 }
 
 int FileClient::Init(const std::string& configpath) {
+    if (inited_) {
+        LOG(WARNING) << "already inited!";
+        return 0;
+    }
+
     if (-1 == clientconfig_.Init(configpath.c_str())) {
         LOG(ERROR) << "config init failed!";
         return -LIBCURVE_ERROR::FAILED;
@@ -52,20 +59,35 @@ int FileClient::Init(const std::string& configpath) {
         }
     }
 
-    google::SetCommandLineOption("minloglevel", std::to_string(
-        clientconfig_.GetFileServiceOption().loginfo.loglevel).c_str());
+    // 在一个进程里只允许启动一次
+    uint16_t dummyServerStartPort = clientconfig_.GetDummyserverStartPort();
+    static std::once_flag flag;
+    std::call_once(flag, [&](){
+        // 启动dummy server
+        int rc = -1;
+        while (rc < 0) {
+            rc = brpc::StartDummyServerAt(dummyServerStartPort);
+            dummyServerStartPort++;
+        }
+    });
 
     google::SetLogDestination(google::INFO,
         clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
-    google::SetLogDestination(google::WARNING,
-        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
-    google::SetLogDestination(google::ERROR,
-        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
 
+    FLAGS_minloglevel = clientconfig_.GetFileServiceOption().loginfo.loglevel;
+
+    std::string processname("libcurve");
+    google::InitGoogleLogging(processname.c_str());
+
+    inited_ = true;
     return LIBCURVE_ERROR::OK;
 }
 
 void FileClient::UnInit() {
+    if (!inited_) {
+        LOG(WARNING) << "not inited!";
+        return;
+    }
     WriteLockGuard lk(rwlock_);
     for (auto iter : fileserviceMap_) {
         iter.second->UnInitialize();
@@ -78,15 +100,17 @@ void FileClient::UnInit() {
         delete mdsClient_;
         mdsClient_ = nullptr;
     }
+    google::ShutdownGoogleLogging();
+    inited_ = false;
 }
 
 int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
     FileInstance* fileserv = new (std::nothrow) FileInstance();
     if (fileserv == nullptr ||
-        !fileserv->Initialize(mdsClient_,
+        !fileserv->Initialize(filename,
+                              mdsClient_,
                               userinfo,
-                              clientconfig_.GetFileServiceOption(),
-                              &clientMetric_)) {
+                              clientconfig_.GetFileServiceOption())) {
         LOG(ERROR) << "FileInstance initialize failed!";
         delete fileserv;
         return -1;
@@ -122,50 +146,50 @@ int FileClient::Create(const std::string& filename,
 }
 
 int FileClient::Read(int fd, char* buf, off_t offset, size_t len) {
+    // 长度为0，直接返回，不做任何操作
+    if (len == 0) {
+        return -LIBCURVE_ERROR::OK;
+    }
+
     if (CheckAligned(offset, len) == false) {
-        clientMetric_.readRequestFailCount << 1;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        clientMetric_.readRequestFailCount << 1;
         return -LIBCURVE_ERROR::BAD_FD;
     }
 
-    clientMetric_.readRequestCount << 1;
-    int ret = fileserviceMap_[fd]->Read(buf, offset, len);
-    if (ret < 0) {
-        clientMetric_.readRequestFailCount << 1;
-    }
-    return ret;
+    return fileserviceMap_[fd]->Read(buf, offset, len);
 }
 
 int FileClient::Write(int fd, const char* buf, off_t offset, size_t len) {
+    // 长度为0，直接返回，不做任何操作
+    if (len == 0) {
+        return -LIBCURVE_ERROR::OK;
+    }
+
     if (CheckAligned(offset, len) == false) {
-        clientMetric_.writeRequestFailCount << 1;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
     ReadLockGuard lk(rwlock_);
     if (CURVE_UNLIKELY(fileserviceMap_.find(fd) == fileserviceMap_.end())) {
         LOG(ERROR) << "invalid fd!";
-        clientMetric_.writeRequestFailCount << 1;
         return -LIBCURVE_ERROR::BAD_FD;
     }
 
-    clientMetric_.writeRequestCount << 1;
-    int ret = fileserviceMap_[fd]->Write(buf, offset, len);
-    if (ret < 0) {
-        clientMetric_.writeRequestFailCount << 1;
-    }
-    return ret;
+    return fileserviceMap_[fd]->Write(buf, offset, len);
 }
 
 int FileClient::AioRead(int fd, CurveAioContext* aioctx) {
+    // 长度为0，直接返回，不做任何操作
+    if (aioctx->length == 0) {
+        return -LIBCURVE_ERROR::OK;
+    }
+
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
-        clientMetric_.readRequestFailCount << 1;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -178,16 +202,16 @@ int FileClient::AioRead(int fd, CurveAioContext* aioctx) {
         ret = fileserviceMap_[fd]->AioRead(aioctx);
     }
 
-    if (ret < 0) {
-        clientMetric_.readRequestFailCount << 1;
-    }
-    clientMetric_.readRequestCount << 1;
     return ret;
 }
 
 int FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
+    // 长度为0，直接返回，不做任何操作
+    if (aioctx->length == 0) {
+        return -LIBCURVE_ERROR::OK;
+    }
+
     if (CheckAligned(aioctx->offset, aioctx->length) == false) {
-        clientMetric_.writeRequestFailCount << 1;
         return -LIBCURVE_ERROR::NOT_ALIGNED;
     }
 
@@ -200,10 +224,6 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
         ret = fileserviceMap_[fd]->AioWrite(aioctx);
     }
 
-    if (ret < 0) {
-        clientMetric_.writeRequestFailCount << 1;
-    }
-    clientMetric_.writeRequestCount << 1;
     return ret;
 }
 
@@ -321,13 +341,17 @@ int FileClient::Close(int fd) {
     WriteLockGuard lk(rwlock_);
     auto iter = fileserviceMap_.find(fd);
     if (iter == fileserviceMap_.end()) {
+        LOG(ERROR) << "can not find " << fd;
         return -LIBCURVE_ERROR::FAILED;
     }
     int ret = fileserviceMap_[fd]->Close();
     if (ret == LIBCURVE_ERROR::OK) {
         fileserviceMap_[fd]->UnInitialize();
+        LOG(ERROR) << "uninitialize " << fd;
         delete fileserviceMap_[fd];
         fileserviceMap_.erase(iter);
+    } else {
+        LOG(ERROR) << "close failed " << fd;
     }
     return ret;
 }
