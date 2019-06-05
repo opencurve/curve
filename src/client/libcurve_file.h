@@ -117,8 +117,11 @@ class FileClient {
    * 删除文件
    * @param: userinfo是用户信息
    * @param: filename待删除的文件名
+   * @param: deleteforce是否强制删除而不放入垃圾回收站
    */
-  virtual int Unlink(const std::string& filename, const UserInfo_t& userinfo);
+  virtual int Unlink(const std::string& filename,
+                     const UserInfo_t& userinfo,
+                     bool deleteforce = false);
 
   /**
    * 枚举目录内容

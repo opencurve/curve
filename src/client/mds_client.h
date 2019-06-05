@@ -123,10 +123,12 @@ class MDSClient {
      * 删除文件
      * @param: userinfo是用户信息
      * @param: filename待删除的文件名
+     * @param: deleteforce是否强制删除而不放入垃圾回收站
      * @param: id为文件id，默认值为0，如果用户不指定该值，不会传id到mds
      */
     LIBCURVE_ERROR DeleteFile(const std::string& filename,
                               const UserInfo_t& userinfo,
+                              bool deleteforce = false,
                               uint64_t id = 0);
     /**
      * 创建版本号为seq的快照

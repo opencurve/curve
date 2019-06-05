@@ -234,10 +234,11 @@ int FileClient::Extend(const std::string& filename,
 }
 
 int FileClient::Unlink(const std::string& filename,
-                       const UserInfo_t& userinfo) {
+                       const UserInfo_t& userinfo,
+                       bool deleteforce) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
-        ret = mdsClient_->DeleteFile(filename, userinfo);
+        ret = mdsClient_->DeleteFile(filename, userinfo, deleteforce);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -462,6 +463,17 @@ int Unlink(const char* filename, const C_UserInfo_t* userinfo) {
 
     return globalclient->Unlink(filename,
             UserInfo(userinfo->owner, userinfo->password));
+}
+
+int DeleteForce(const char* filename, const C_UserInfo_t* userinfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    return globalclient->Unlink(filename,
+            UserInfo(userinfo->owner, userinfo->password),
+            true);
 }
 
 // TODO(tongguanxgun): mds一侧暂时还没实现list目录接口
