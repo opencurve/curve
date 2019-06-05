@@ -1669,6 +1669,9 @@ void MDSClient::MDSStatusCode2LibcurveError(const curve::mds::StatusCode& status
         case ::curve::mds::StatusCode::kStorageError:
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
             break;
+        case ::curve::mds::StatusCode::kFileLengthNotSupported:
+            *errcode = LIBCURVE_ERROR::LENGTH_NOT_SUPPORT;
+            break;
         default:
             *errcode = LIBCURVE_ERROR::UNKNOWN;
             break;

@@ -98,10 +98,12 @@ typedef  uint64_t SeqNum;
 const uint64_t kKB = 1024;
 const uint64_t kMB = 1024*kKB;
 const uint64_t kGB = 1024*kMB;
+const uint64_t kTB = 1024*kGB;
 
 const uint64_t DefaultChunkSize = 16 * kMB;
 const uint64_t DefaultSegmentSize = kGB * 1;
 const uint64_t kMiniFileLength = DefaultSegmentSize * 10;
+const uint64_t kMaxFileLength = 4 * kTB;
 
 // curve默认root目录&inodeid
 const InodeID ROOTINODEID = 0;
