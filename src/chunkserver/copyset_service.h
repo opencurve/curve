@@ -43,6 +43,11 @@ class CopysetServiceImpl : public CopysetService {
                             CopysetResponse2 *response,
                             Closure *done);
 
+    void GetCopysetStatus(RpcController *controller,
+                          const CopysetStatusRequest *request,
+                          CopysetStatusResponse *response,
+                          Closure *done);
+
  private:
     // 复制组管理者
     CopysetNodeManager* copysetNodeManager_;
