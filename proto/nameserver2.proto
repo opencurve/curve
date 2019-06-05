@@ -92,6 +92,8 @@ enum  StatusCode {
     kFileIdNotMatch = 130;
     // 文件在删除中
     kFileUnderDeleting = 131;
+    // 文件长度不符合要求
+    kFileLengthNotSupported = 132;
     // 元数据存储错误
     kStorageError = 501;
     // 内部错误
