@@ -65,10 +65,10 @@ snap_db_name = "curve_snapshot"
 cs_0 = curve_workspace + "0"
 cs_1 = curve_workspace + "1"
 cs_2 = curve_workspace + "2"
-
+cs_num = 3
 # chunkserver log dir
 cs_log = "deploy/local/chunkserver/log/"
-
+mysql_log = "/var/log/mysql/mysql.log"
 
 # topology info
 cluster_map = "./tools/topo_example.txt"
