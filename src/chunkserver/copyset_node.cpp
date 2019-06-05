@@ -20,9 +20,12 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/define.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/common/crc32.h"
 
 namespace curve {
 namespace chunkserver {
+
+using curve::fs::FileSystemInfo;
 
 const char *kCurveConfEpochFilename = "conf.epoch";
 
@@ -753,6 +756,60 @@ int CopysetNode::GetConfChange(ConfigChangeType *type,
 }
 uint64_t CopysetNode::LeaderTerm() const {
     return leaderTerm_.load(std::memory_order_acquire);
+}
+
+int CopysetNode::GetHash(std::string *hash) {
+    int ret = 0;
+    int fd  = 0;
+    int len = 0;
+    uint32_t crc32c = 0;
+    std::vector<std::string> files;
+
+    ret = fs_->List(chunkDataApath_, &files);
+    if (0 != ret) {
+        return -1;
+    }
+
+    for (std::string file : files) {
+        // 过滤掉conf.epoch文件
+        if (std::string::npos != file.find(kCurveConfEpochFilename)) {
+            continue;
+        }
+
+        std::string filename = chunkDataApath_;
+        filename += "/";
+        filename += file;
+        fd = fs_->Open(filename.c_str(), O_RDONLY);
+        if (0 >= fd) {
+            return -1;
+        }
+
+        struct stat fileInfo;
+        ret = fs_->Fstat(fd, &fileInfo);
+        if (0 != ret) {
+            return -1;
+        }
+
+        len = fileInfo.st_size;
+        char *buff = new (std::nothrow) char[len];
+        if (nullptr == buff) {
+            return -1;
+        }
+
+        ret = fs_->Read(fd, buff, 0, len);
+        if (ret != len) {
+            delete[] buff;
+            return -1;
+        }
+
+        crc32c = curve::common::CRC32(crc32c, buff, len);
+
+        delete[] buff;
+    }
+
+    *hash = std::to_string(crc32c);
+
+    return 0;
 }
 
 }  // namespace chunkserver
