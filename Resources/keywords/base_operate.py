@@ -47,6 +47,77 @@ def drop_mds_table():
         logger.error("drop db fail.")
         raise
 
+def get_copyset_table():
+    try:
+        cmd = "select copySetID,chunkServerIDList  from curve_copyset  INTO OUTFILE " + '"'+config.mysql_log +'"'+ \
+              " fields terminated by '|' lines terminated by '|'; "
+        conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+        db_operator.exec_sql(conn, cmd)
+        logger.debug("get table %s" %cmd)
+        rc = os.path.isfile(config.mysql_log)
+        assert rc == True,"exec %s"%cmd
+    except Exception:
+        logger.error("get copyset table fail.cmd is %s"%cmd)
+        raise
+
+def mv_copyset_table():
+    grep_cmd = "mv %s %s"%(config.mysql_log,config.curve_workspace)
+    try:
+        pid = shell_operator.run_exec2(grep_cmd)
+    except Exception:
+        logger.error("exec %s error" %grep_cmd)
+        raise
+
+def rm_copyset_table():
+    grep_cmd = "rm mysql.log"
+    try:
+        pid = shell_operator.run_exec2(grep_cmd)
+    except Exception:
+        logger.error("exec %s error" %grep_cmd)
+        raise
+
+def get_copyset_scatterwith():
+    cmd1 = 'sed -i "s/\\t//g" mysql.log'
+    cmd2 = 'sed -i ":label;N;s/\\n//;b label" mysql.log'
+    try:
+        shell_operator.run_exec2(cmd1)
+        shell_operator.run_exec2(cmd2)
+    except Exception:
+        logger.error("exec %s %s error"%(cmd1,cmd2))
+        raise
+    copyset_list = {}
+    try:
+        row = open("mysql.log").read()
+    except Exception:
+        logger.error("open mysql.log fail")
+        raise
+    row = row.split('|')
+    for i in range(0, len(row)):
+        if i % 2 != 0:
+            copyset_list[(i + 1) / 2] = eval(row[i])
+    logger.info("copset length is %d" % len(copyset_list))
+    assert len(copyset_list) == config.copyset_num
+    cs_list = []
+    for key, value in copyset_list.items():
+        cs = value
+        for i in range(len(cs)):
+            cs_list.append(cs[i])
+    # print cs_list
+    cs_list = list(set(cs_list))
+#    logger.info("chunkserver list is %s"%cs_list)
+    for cs in cs_list:
+        cs_copyset_num = 0
+        scatterwith = []
+        for key, value in copyset_list.items():
+            if cs in value:
+                cs_copyset_num += 1
+                for i in range(len(value)):
+                    scatterwith.append(value[i])
+        scatterwith = list(set(scatterwith))
+        assert cs_copyset_num == (config.copyset_num*3/config.cs_num)
+        logger.info("chunkserver %d copyset_num is %d \t,scatterwith is %d %s"%(cs,cs_copyset_num,len(scatterwith),scatterwith))
+#        print "chunkserver %d ,scatterwith is %d" % (cs, len(scatterwith))
+
 def drop_snap_clone_table():
     try:
         cmd_list = ["DROP TABLE snapshot;", "DROP TABLE clone;"]
@@ -175,7 +246,7 @@ def create_physicalpool(cluster_map, mds_port, op): #need modify
           ' -op=%s' % op
     ret_code = shell_operator.run_exec(cmd)
     if ret_code != 0:
-        logger.error("create physicalpool failed. ret_code")
+        logger.error("create physicalpool failed. ret_code is %d"%ret_code)
         raise AssertionError()
     else:
         return  ret_code
@@ -187,7 +258,7 @@ def create_logicalpool(copyset_num, mds_port, physicalpool_name, op):
     ret_code = shell_operator.run_exec(cmd)
     print ret_code, cmd
     if ret_code != 0:
-        logger.error("create logicalpool failed. ret_code")
+        logger.error("create logicalpool failed. ret_code is %d"%ret_code)
         raise AssertionError()
     else:
         return ret_code
