@@ -476,7 +476,7 @@ TEST_F(TestTopologyStorage, test_LoadChunkServer_success) {
     ASSERT_EQ(DISKNORMAL,
         chunkServerMap[0x41].GetChunkServerState().GetDiskState());
     ASSERT_EQ(ONLINE,
-        chunkServerMap[0x41].GetChunkServerState().GetOnlineState());
+        chunkServerMap[0x41].GetOnlineState());
     ASSERT_EQ(100,
         chunkServerMap[0x41].GetChunkServerState().GetDiskCapacity());
     ASSERT_EQ(99,

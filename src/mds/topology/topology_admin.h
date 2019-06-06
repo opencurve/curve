@@ -61,13 +61,6 @@ class TopologyAdminImpl : public TopologyAdmin {
         uint32_t chunkNumber,
         std::vector<CopysetIdInfo> *infos) override;
 
-
- private:
-    using LogicalPoolFilter = std::function<bool (const LogicalPool &)>;
-    void FilterLogicalPool(LogicalPoolFilter filter,
-        std::vector<PoolIdType> *logicalPoolIdsOut);
-
-
  private:
     std::shared_ptr<Topology> topology_;
 };

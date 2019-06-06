@@ -42,7 +42,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     if (true != topology_->GetChunkServer(leaderId, &chunkServer)) {
         return kMdsFail;
     }
-    if (chunkServer.GetChunkServerState().GetOnlineState() != ONLINE) {
+    if (chunkServer.GetOnlineState() != ONLINE) {
         return kCsClientCSOffline;
     }
 
@@ -144,7 +144,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     if (true != topology_->GetChunkServer(leaderId, &chunkServer)) {
         return kMdsFail;
     }
-    if (chunkServer.GetChunkServerState().GetOnlineState() != ONLINE) {
+    if (chunkServer.GetOnlineState() != ONLINE) {
         return kCsClientCSOffline;
     }
 
@@ -245,7 +245,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
         return kMdsFail;
     }
 
-    if (chunkServer.GetChunkServerState().GetOnlineState() != ONLINE) {
+    if (chunkServer.GetOnlineState() != ONLINE) {
         return kCsClientCSOffline;
     }
 
@@ -313,7 +313,8 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
         std::string leaderIp;
         uint32_t leaderPort;
         if (SplitPeerId(leaderPeer, &leaderIp, &leaderPort)) {
-            *leader = topology_->FindChunkServer(leaderIp, leaderPort);
+            *leader = topology_->FindChunkServerNotRetired(
+                leaderIp, leaderPort);
             if (UNINTIALIZE_ID == *leader) {
                 LOG(ERROR) << "GetLeader failed on FindChunkServer,"
                            << "leaderIp = " << leaderIp

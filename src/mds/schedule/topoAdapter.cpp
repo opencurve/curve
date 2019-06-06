@@ -15,6 +15,7 @@
 
 using ::curve::mds::heartbeat::CandidateError;
 using ::curve::mds::topology::LogicalPoolType;
+using ::curve::mds::topology::ChunkServerStatus;
 
 namespace curve {
 namespace mds {
@@ -149,7 +150,10 @@ bool TopoAdapterImpl::GetChunkServerInfo(ChunkServerIdType id,
 
 std::vector<ChunkServerInfo> TopoAdapterImpl::GetChunkServerInfos() {
     std::vector<ChunkServerInfo> infos;
-    for (auto chunkServerId : topo_->GetChunkServerInCluster()) {
+    for (auto chunkServerId : topo_->GetChunkServerInCluster(
+        [] (const ChunkServer &cs) {
+            return cs.GetStatus() != ChunkServerStatus::RETIRED;
+        })) {
         ChunkServerInfo info;
         if (GetChunkServerInfo(chunkServerId, &info)) {
             infos.push_back(info);
@@ -261,7 +265,7 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
 
         return false;
     }
-    out->state = origin.GetChunkServerState().GetOnlineState();
+    out->state = origin.GetOnlineState();
     out->diskCapacity = origin.GetChunkServerState().GetDiskCapacity();
     out->diskUsed = origin.GetChunkServerState().GetDiskUsed();
     out->stateUpdateTime = origin.GetLastStateUpdateTime();
@@ -282,7 +286,9 @@ ChunkServerIdType TopoAdapterImpl::SelectBestPlacementChunkServer(
     const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer) {
     // chunkservers in same logical pool
     auto chunkServersId
-        = topo_->GetChunkServerInLogicalPool(copySetInfo.id.first);
+        = topo_->GetChunkServerInLogicalPool(copySetInfo.id.first,
+            [] (const ChunkServer &cs) {
+                return cs.GetStatus() != ChunkServerStatus::RETIRED;});
 
     DVLOG(6) << "selectBestPlacementChunkServer get " << chunkServersId.size()
              << " chunkServers in logical pool " << copySetInfo.id.first;
@@ -345,9 +351,9 @@ ChunkServerIdType TopoAdapterImpl::SelectBestPlacementChunkServer(
             LOG(WARNING) << "topoAdapter find chunkServer "
                          << chunkServer.GetId()
                          << " abnormal, diskState： "
-                         << chunkServer.GetChunkServerState().GetOnlineState()
+                         << chunkServer.GetChunkServerState().GetDiskState()
                          << ", onlineState: "
-                         << chunkServer.GetChunkServerState().GetOnlineState()
+                         << chunkServer.GetOnlineState()
                          << ", capacity： "
                          << chunkServer.GetChunkServerState().GetDiskCapacity()
                          << ", used: "
@@ -373,7 +379,7 @@ ChunkServerIdType TopoAdapterImpl::SelectBestPlacementChunkServer(
             }
             ChunkServer csTmp;
             if (!topo_->GetChunkServer(peer.id, &csTmp) ||
-                csTmp.GetChunkServerState().GetOnlineState()
+                csTmp.GetOnlineState()
                     == OnlineState::OFFLINE) {
                 continue;
             }
@@ -511,7 +517,7 @@ ChunkServerIdType TopoAdapterImpl::SelectRedundantReplicaToRemove(
 }
 
 bool TopoAdapterImpl::IsChunkServerHealthy(const ChunkServer &cs) {
-    return cs.GetChunkServerState().GetOnlineState() == OnlineState::ONLINE &&
+    return cs.GetOnlineState() == OnlineState::ONLINE &&
         cs.GetChunkServerState().GetDiskState() == DiskState::DISKNORMAL;
 }
 
@@ -548,7 +554,7 @@ int TopoAdapterImpl::GetChunkServerScatterMap(
                 continue;
             }
 
-            if (chunkServer.GetChunkServerState().GetOnlineState()
+            if (chunkServer.GetOnlineState()
                 == OnlineState::OFFLINE) {
                 LOG(ERROR) << "topoAdapter find chunkServer "
                            << chunkServer.GetId()

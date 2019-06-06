@@ -1322,7 +1322,6 @@ TEST_F(TestTopology, UpdateChunkServerState_success) {
 
     ChunkServerState csState;
     csState.SetDiskState(DISKERROR);
-    csState.SetOnlineState(OFFLINE);
     csState.SetDiskCapacity(100);
 
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
@@ -1337,7 +1336,6 @@ TEST_F(TestTopology, UpdateChunkServerState_ChunkServerNotFound) {
 
     ChunkServerState csState;
     csState.SetDiskState(DISKERROR);
-    csState.SetOnlineState(OFFLINE);
     csState.SetDiskCapacity(100);
 
     int ret = topology_->UpdateChunkServerState(csState,  csId);
@@ -1360,7 +1358,6 @@ TEST_F(TestTopology, UpdateChunkServerState_StorageFail) {
 
     ChunkServerState csState;
     csState.SetDiskState(DISKERROR);
-    csState.SetOnlineState(OFFLINE);
     csState.SetDiskCapacity(100);
 
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
@@ -1507,7 +1504,7 @@ TEST_F(TestTopology, FindSeverByHostIp_ServerNotFound) {
                                         ret);
 }
 
-TEST_F(TestTopology, FindChunkServer_success) {
+TEST_F(TestTopology, FindChunkServerNotRetired_success) {
     ServerIdType serverId = 0x31;
     std::string hostName = "host1";
     std::string internalHostIp = "ip1";
@@ -1530,11 +1527,12 @@ TEST_F(TestTopology, FindChunkServer_success) {
             "/",
             port);
 
-    ChunkServerIdType ret = topology_->FindChunkServer(internalHostIp, port);
+    ChunkServerIdType ret = topology_->FindChunkServerNotRetired(
+            internalHostIp, port);
     ASSERT_EQ(csId, ret);
 }
 
-TEST_F(TestTopology, FindChunkServer_ChunkServerNotFound) {
+TEST_F(TestTopology, FindChunkServerNotRetired_ChunkServerNotFound) {
     ServerIdType serverId = 0x31;
     std::string hostName = "host1";
     std::string internalHostIp = "ip1";
@@ -1557,7 +1555,7 @@ TEST_F(TestTopology, FindChunkServer_ChunkServerNotFound) {
             "/",
             port);
 
-    ChunkServerIdType ret = topology_->FindChunkServer("ip3", port);
+    ChunkServerIdType ret = topology_->FindChunkServerNotRetired("ip3", port);
     ASSERT_EQ(static_cast<ChunkServerIdType>(
               UNINTIALIZE_ID), ret);
 }
@@ -1678,7 +1676,7 @@ TEST_F(TestTopology, GetChunkServerInCluster_success) {
     PrepareAddChunkServer(csId);
     PrepareAddChunkServer(csId2);
 
-    std::list<ChunkServerIdType> csList = topology_->GetChunkServerInCluster();
+    auto csList = topology_->GetChunkServerInCluster();
     ASSERT_THAT(csList, Contains(csId));
     ASSERT_THAT(csList, Contains(csId2));
 }
@@ -1694,7 +1692,7 @@ TEST_F(TestTopology, GetServerInCluster_success) {
     PrepareAddServer(serverId);
     PrepareAddServer(serverId2);
 
-    std::list<ServerIdType> serverList = topology_->GetServerInCluster();
+    auto serverList = topology_->GetServerInCluster();
     ASSERT_THAT(serverList, Contains(serverId));
     ASSERT_THAT(serverList, Contains(serverId2));
 }
@@ -1708,7 +1706,7 @@ TEST_F(TestTopology, GetZoneInCluster_success) {
     PrepareAddZone(zoneId);
     PrepareAddZone(zoneId2);
 
-    std::list<ZoneIdType> zoneList = topology_->GetZoneInCluster();
+    auto zoneList = topology_->GetZoneInCluster();
     ASSERT_THAT(zoneList, Contains(zoneId));
     ASSERT_THAT(zoneList, Contains(zoneId2));
 }
@@ -1720,7 +1718,7 @@ TEST_F(TestTopology, GetPhysicalPoolInCluster_success) {
     PrepareAddPhysicalPool(physicalPoolId);
     PrepareAddPhysicalPool(physicalPoolId2);
 
-    std::list<PoolIdType> poolList = topology_->GetPhysicalPoolInCluster();
+    auto poolList = topology_->GetPhysicalPoolInCluster();
     ASSERT_THAT(poolList, Contains(physicalPoolId));
     ASSERT_THAT(poolList, Contains(physicalPoolId2));
 }
@@ -1734,7 +1732,7 @@ TEST_F(TestTopology, GetLogicalPoolInCluster_success) {
     PrepareAddLogicalPool(logicalPoolId, "name", physicalPoolId);
     PrepareAddLogicalPool(logicalPoolId2, "name2", physicalPoolId);
 
-    std::list<PoolIdType> poolList = topology_->GetLogicalPoolInCluster();
+    auto poolList = topology_->GetLogicalPoolInCluster();
     ASSERT_THAT(poolList, Contains(logicalPoolId));
     ASSERT_THAT(poolList, Contains(logicalPoolId2));
 }

@@ -51,7 +51,7 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
             return pool.GetLogicalPoolType() == poolType;
         };
 
-    FilterLogicalPool(logicalPoolFilter, &logicalPools);
+    logicalPools = topology_->GetLogicalPoolInCluster(logicalPoolFilter);
     if (0 == logicalPools.size()) {
         LOG(ERROR) << "[AllocateChunkRandomInSingleLogicalPool]:"
                    << " Does not have any logicalPool needed.";
@@ -79,23 +79,6 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
 }
 
 // TODO(xuchaojie): 后续增加多种chunk分配策略
-
-void TopologyAdminImpl::FilterLogicalPool(LogicalPoolFilter filter,
-    std::vector<PoolIdType> *logicalPoolIdsOut) {
-    logicalPoolIdsOut->clear();
-
-    std::list<PoolIdType> logicalPoolList =
-        topology_->GetLogicalPoolInCluster();
-
-    for (PoolIdType id : logicalPoolList) {
-        LogicalPool pool;
-        if (topology_->GetLogicalPool(id, &pool)) {
-            if (filter(pool)) {
-                logicalPoolIdsOut->push_back(id);
-            }
-        }
-    }
-}
 
 bool AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
     std::vector<CopySetIdType> copySetIds,
