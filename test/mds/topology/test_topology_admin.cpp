@@ -215,6 +215,124 @@ TEST_F(TestTopoloyAdmin,
     ASSERT_FALSE(ret);
 }
 
+TEST_F(TestTopoloyAdmin,
+    Test_AllocateChunkRoundRobinInSingleLogicalPool_success) {
+    std::vector<CopysetIdInfo> infos;
+
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddZone(0x22, "zone2", physicalPoolId);
+    PrepareAddZone(0x23, "zone3", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
+        PAGEFILE);
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(0x51, logicalPoolId, replicas);
+    PrepareAddCopySet(0x52, logicalPoolId, replicas);
+    PrepareAddCopySet(0x53, logicalPoolId, replicas);
+    PrepareAddCopySet(0x54, logicalPoolId, replicas);
+    PrepareAddCopySet(0x55, logicalPoolId, replicas);
+
+
+    bool ret =
+        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            3,
+            &infos);
+
+    ASSERT_TRUE(ret);
+
+    ASSERT_EQ(3, infos.size());
+    ASSERT_EQ(logicalPoolId, infos[0].logicalPoolId);
+    ASSERT_EQ(logicalPoolId, infos[1].logicalPoolId);
+    ASSERT_EQ(logicalPoolId, infos[2].logicalPoolId);
+
+    // second time
+    std::vector<CopysetIdInfo> infos2;
+    ret =
+        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            3,
+            &infos2);
+
+    ASSERT_TRUE(ret);
+
+    ASSERT_EQ(3, infos2.size());
+    ASSERT_EQ(logicalPoolId, infos2[0].logicalPoolId);
+    ASSERT_EQ(logicalPoolId, infos2[1].logicalPoolId);
+    ASSERT_EQ(logicalPoolId, infos2[2].logicalPoolId);
+
+    if (0x51 == infos[0].copySetId) {
+        ASSERT_EQ(0x52, infos[1].copySetId);
+        ASSERT_EQ(0x53, infos[2].copySetId);
+        ASSERT_EQ(0x54, infos2[0].copySetId);
+        ASSERT_EQ(0x55, infos2[1].copySetId);
+        ASSERT_EQ(0x51, infos2[2].copySetId);
+    } else if (0x52 == infos[0].copySetId) {
+        ASSERT_EQ(0x53, infos[1].copySetId);
+        ASSERT_EQ(0x54, infos[2].copySetId);
+        ASSERT_EQ(0x55, infos2[0].copySetId);
+        ASSERT_EQ(0x51, infos2[1].copySetId);
+        ASSERT_EQ(0x52, infos2[2].copySetId);
+    } else if (0x53 == infos[0].copySetId) {
+        ASSERT_EQ(0x54, infos[1].copySetId);
+        ASSERT_EQ(0x55, infos[2].copySetId);
+        ASSERT_EQ(0x51, infos2[0].copySetId);
+        ASSERT_EQ(0x52, infos2[1].copySetId);
+        ASSERT_EQ(0x53, infos2[2].copySetId);
+    } else if (0x54 == infos[0].copySetId) {
+        ASSERT_EQ(0x55, infos[1].copySetId);
+        ASSERT_EQ(0x51, infos[2].copySetId);
+        ASSERT_EQ(0x52, infos2[0].copySetId);
+        ASSERT_EQ(0x53, infos2[1].copySetId);
+        ASSERT_EQ(0x54, infos2[2].copySetId);
+    } else if (0x55 == infos[0].copySetId) {
+        ASSERT_EQ(0x51, infos[1].copySetId);
+        ASSERT_EQ(0x52, infos[2].copySetId);
+        ASSERT_EQ(0x53, infos2[0].copySetId);
+        ASSERT_EQ(0x54, infos2[1].copySetId);
+        ASSERT_EQ(0x55, infos2[2].copySetId);
+    } else {
+        FAIL();
+    }
+}
+
+TEST_F(TestTopoloyAdmin,
+    Test_AllocateChunkRoundRobinInSingleLogicalPool_logicalPoolNotFound) {
+    std::vector<CopysetIdInfo> infos;
+    bool ret =
+        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            1,
+            &infos);
+
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestTopoloyAdmin,
+    Test_AllocateChunkRoundRobinInSingleLogicalPool_copysetEmpty) {
+    std::vector<CopysetIdInfo> infos;
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddLogicalPool(logicalPoolId);
+    bool ret =
+        testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
+            1,
+            &infos);
+
+    ASSERT_FALSE(ret);
+}
+
 TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolPoc) {
     // 2000个copyset分配100000次，每次分配64个chunk
     std::vector<CopySetIdType> copySetIds;
@@ -291,6 +409,109 @@ TEST(TestAllocateChunkPolicy, TestAllocateChunkRandomInSingleLogicalPoolTps) {
               << " * 64 chunk per second.";
 }
 
+TEST(TestAllocateChunkPolicy,
+    TestAllocateChunkRoundRobinInSingleLogicalPoolSuccess) {
+    std::vector<CopySetIdType> copySetIds;
+    std::map<CopySetIdType, int> copySetMap;
+    for (int i = 0; i < 20; i++) {
+        copySetIds.push_back(i);
+    }
+    uint32_t nextIndex = 15;
+    int chunkNumber = 10;
+    std::vector<CopysetIdInfo> infos;
+    bool ret =
+        AllocateChunkPolicy::AllocateChunkRoundRobinInSingleLogicalPool(
+        copySetIds,
+        1,
+        &nextIndex,
+        chunkNumber,
+        &infos);
+    ASSERT_TRUE(ret);
+    ASSERT_EQ(5, nextIndex);
+    ASSERT_EQ(chunkNumber, infos.size());
+    ASSERT_EQ(15, infos[0].copySetId);
+    ASSERT_EQ(16, infos[1].copySetId);
+    ASSERT_EQ(17, infos[2].copySetId);
+    ASSERT_EQ(18, infos[3].copySetId);
+    ASSERT_EQ(19, infos[4].copySetId);
+    ASSERT_EQ(0, infos[5].copySetId);
+    ASSERT_EQ(1, infos[6].copySetId);
+    ASSERT_EQ(2, infos[7].copySetId);
+    ASSERT_EQ(3, infos[8].copySetId);
+    ASSERT_EQ(4, infos[9].copySetId);
+}
+
+TEST(TestAllocateChunkPolicy,
+    TestAllocateChunkRoundRobinInSingleLogicalPoolEmpty) {
+    std::vector<CopySetIdType> copySetIds;
+    std::map<CopySetIdType, int> copySetMap;
+    uint32_t nextIndex = 15;
+    int chunkNumber = 10;
+    std::vector<CopysetIdInfo> infos;
+    bool ret =
+        AllocateChunkPolicy::AllocateChunkRoundRobinInSingleLogicalPool(
+        copySetIds,
+        1,
+        &nextIndex,
+        chunkNumber,
+        &infos);
+    ASSERT_FALSE(ret);
+    ASSERT_EQ(15, nextIndex);
+    ASSERT_EQ(0, infos.size());
+}
+
+TEST(TestAllocateChunkPolicy,
+    TestChooseSingleLogicalPoolByWeightPoc) {
+    std::map<PoolIdType, double> poolWeightMap;
+    std::map<PoolIdType, int> poolMap;
+    for (int i = 0; i < 5; i++) {
+        poolWeightMap.emplace(i, i);
+        poolMap.emplace(i, 0);
+    }
+
+    for (int i = 0; i < 100000; i++) {
+        PoolIdType pid;
+        AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
+            poolWeightMap, &pid);
+        poolMap[pid]++;
+    }
+
+    ASSERT_EQ(0, poolMap[0]);
+    ASSERT_TRUE(poolMap[0] < poolMap[1]);
+    ASSERT_TRUE(poolMap[1] < poolMap[2]);
+    ASSERT_TRUE(poolMap[2] < poolMap[3]);
+    ASSERT_TRUE(poolMap[3] < poolMap[4]);
+    // 5个池大概分布因该是0, 10000，20000，30000，40000
+    LOG(INFO) << "pool0 : " << poolMap[0] << std::endl
+              << "pool1 : " << poolMap[1] << std::endl
+              << "pool2 : " << poolMap[2] << std::endl
+              << "pool3 : " << poolMap[3] << std::endl
+              << "pool4 : " << poolMap[4] << std::endl;
+}
+
+TEST(TestAllocateChunkPolicy,
+    TestChooseSingleLogicalPoolByWeightPoc2) {
+    std::map<PoolIdType, double> poolMap;
+    poolMap[0] = 100000;
+    poolMap[1] = 90000;
+    poolMap[2] = 80000;
+    poolMap[3] = 70000;
+    poolMap[4] = 60000;
+
+    for (int i = 0; i < 100000; i++) {
+        PoolIdType pid;
+        AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
+            poolMap, &pid);
+        poolMap[pid] -= 1;
+    }
+
+    // 测试是否能逐渐拉平pool之间差距
+    LOG(INFO) << "pool0 : " << poolMap[0] << std::endl
+              << "pool1 : " << poolMap[1] << std::endl
+              << "pool2 : " << poolMap[2] << std::endl
+              << "pool3 : " << poolMap[3] << std::endl
+              << "pool4 : " << poolMap[4] << std::endl;
+}
 
 
 }  // namespace topology

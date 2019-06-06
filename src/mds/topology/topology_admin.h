@@ -11,6 +11,7 @@
 #include <vector>
 #include <memory>
 #include <functional>
+#include <map>
 
 #include "src/mds/topology/topology.h"
 #include "proto/nameserver2.pb.h"
@@ -34,13 +35,16 @@ class TopologyAdmin {
         ::curve::mds::FileType fileType,
         uint32_t chunkNumer,
         std::vector<CopysetIdInfo> *infos) = 0;
+    virtual bool AllocateChunkRoundRobinInSingleLogicalPool(
+        ::curve::mds::FileType fileType,
+        uint32_t chunkNumer,
+        std::vector<CopysetIdInfo> *infos) = 0;
 };
-
 
 class TopologyAdminImpl : public TopologyAdmin {
  public:
     explicit TopologyAdminImpl(std::shared_ptr<Topology> topology)
-    : topology_(topology) {
+        : topology_(topology) {
         std::srand(std::time(nullptr));
     }
     ~TopologyAdminImpl() {}
@@ -60,6 +64,34 @@ class TopologyAdminImpl : public TopologyAdmin {
         curve::mds::FileType fileType,
         uint32_t chunkNumber,
         std::vector<CopysetIdInfo> *infos) override;
+
+    /**
+     * @brief 在单个逻辑池中以RoundRobin分配若干个chunk
+     *
+     * @param fileType 文件类型
+     * @param chunkNumber 分配chunk数
+     * @param infos 分配到的copyset列表
+     *
+     * @retval true 分配成功
+     * @retval false 分配失败
+     */
+    bool AllocateChunkRoundRobinInSingleLogicalPool(
+        curve::mds::FileType fileType,
+        uint32_t chunkNumber,
+        std::vector<CopysetIdInfo> *infos) override;
+
+ private:
+    /**
+     * @brief 从集群中选择一个逻辑池
+     *
+     * @param fileType 文件类型
+     * @param[out] poolOut 选择的逻辑池
+     *
+     * @retval true 分配成功
+     * @retval false 分配失败
+     */
+    bool ChooseSingleLogicalPool(curve::mds::FileType fileType,
+        PoolIdType *poolOut);
 
  private:
     std::shared_ptr<Topology> topology_;
@@ -87,6 +119,30 @@ class AllocateChunkPolicy {
         PoolIdType logicalPoolId,
         uint32_t chunkNumber,
         std::vector<CopysetIdInfo> *infos);
+
+
+    /**
+     * @brief 在单个逻辑池中使用RoundRobin的方式分配若干个chunk
+     *
+     * @param copySetIds 指定逻辑池内的copysetId列表
+     * @param logicalPoolId 逻辑池Id
+     * @param[in][out] nextIndex 分配起始位置,分配完毕后返回下一个位置
+     * @param chunkNumber 分配chunk数
+     * @param infos 分配到的copyset列表
+     *
+     * @retval true 分配成功
+     * @retval false 分配失败
+     */
+    static bool AllocateChunkRoundRobinInSingleLogicalPool(
+        std::vector<CopySetIdType> copySetIds,
+        PoolIdType logicalPoolId,
+        uint32_t *nextIndex,
+        uint32_t chunkNumber,
+        std::vector<CopysetIdInfo> *infos);
+
+    static bool ChooseSingleLogicalPoolByWeight(
+        const std::map<PoolIdType, double> &poolWeightMap,
+        PoolIdType *poolIdOut);
 };
 
 

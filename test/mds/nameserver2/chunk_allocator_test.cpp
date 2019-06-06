@@ -55,12 +55,13 @@ TEST_F(ChunkAllocatorTest, testcase1) {
     ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
         DefaultSegmentSize, DefaultChunkSize - 1, 0, &segment), false);
 
-    // test  topologyAdmin_ AllocateChunkRandomInSingleLogicalPool return false
+    // test  topologyAdmin_AllocateChunkRoundRobinInSingleLogicalPool
+    // return false
     {
         PageFileSegment segment;
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRandomInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
             .Times(1)
             .WillOnce(Return(false));
 
@@ -74,7 +75,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         std::vector<CopysetIdInfo> copysetInfos;
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRandomInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
             Return(true)));
@@ -94,7 +95,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRandomInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
             Return(true)));
@@ -118,7 +119,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRandomInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
             Return(true)));
@@ -145,7 +146,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRandomInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
             Return(true)));
@@ -169,7 +170,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRandomInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
             Return(true)));
