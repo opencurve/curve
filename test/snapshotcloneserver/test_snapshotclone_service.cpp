@@ -33,7 +33,6 @@ class TestSnapshotCloneServiceImpl : public ::testing::Test {
     ~TestSnapshotCloneServiceImpl() {}
 
     virtual void SetUp() {
-        listenAddr_ = "127.0.0.1:5555";
         server_ = new brpc::Server();
 
         snapshotManager_ = std::make_shared<MockSnapshotServiceManager>();
@@ -45,7 +44,8 @@ class TestSnapshotCloneServiceImpl : public ::testing::Test {
         ASSERT_EQ(0, server_->AddService(snapService,
                 brpc::SERVER_OWNS_SERVICE));
 
-        ASSERT_EQ(0, server_->Start(listenAddr_.c_str(), nullptr));
+        ASSERT_EQ(0, server_->Start("127.0.0.1", {8900, 8999}, nullptr));
+        listenAddr_ = server_->listen_address();
     }
 
     virtual void TearDown() {
@@ -60,7 +60,7 @@ class TestSnapshotCloneServiceImpl : public ::testing::Test {
  protected:
     std::shared_ptr<MockSnapshotServiceManager> snapshotManager_;
     std::shared_ptr<MockCloneServiceManager> cloneManager_;
-    std::string listenAddr_;
+    butil::EndPoint listenAddr_;
     brpc::Server *server_;
 };
 
@@ -76,7 +76,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -105,7 +107,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -134,7 +138,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -165,7 +171,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -192,7 +200,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestActionIsNull) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Version=1&User=test&File=test&Limit=10"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Version=1&User=test&File=test&Limit=10"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -216,7 +226,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&Name=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&Name=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -242,7 +254,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -269,7 +283,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -296,7 +312,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&Limit=10"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&Limit=10"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -325,7 +343,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotFail) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CreateSnapshot&Version=1&User=test&File=test&Name=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -354,7 +374,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestDeleteSnapShotFail) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=DeleteSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -383,7 +405,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCancelSnapShotFail) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CancelSnapshot&Version=1&User=test&File=test&UUID=uuid1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -414,7 +438,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoFail) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=GetFileSnapshotInfo&Version=1&User=test&File=test&Limit=10"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -438,7 +464,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotBadRequest) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=xxx&Version=1&User=test&File=test&Name=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=xxx&Version=1&User=test&File=test&Name=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -465,7 +493,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -492,7 +522,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -519,7 +551,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=GetCloneTasks&Version=1&User=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=GetCloneTasks&Version=1&User=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -543,7 +577,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -567,7 +603,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -591,7 +629,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=GetCloneTasks&User=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=GetCloneTasks&User=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -618,7 +658,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -645,7 +687,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -672,7 +716,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=GetCloneTasks&Version=1&User=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=GetCloneTasks&Version=1&User=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -696,7 +742,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileInvalidParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=tru"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=tru"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -720,7 +768,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileInvalidParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=fal"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=fal"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -747,7 +797,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksSuccess) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test&TaskId=aaa"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test&TaskId=aaa"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -771,7 +823,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksMissingParam) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -798,7 +852,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCleanCloneTasksFail) {
     brpc::ChannelOptions option;
     option.protocol = "http";
 
-    std::string url = "http://127.0.0.1:5555/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test&TaskId=aaa"; //NOLINT
+    std::string url = std::string("http://127.0.0.1:")
+                    + std::to_string(listenAddr_.port)
+                    + "/SnapshotCloneService?Action=CleanCloneTask&Version=1&User=test&TaskId=aaa"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
