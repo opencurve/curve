@@ -29,6 +29,13 @@ namespace curve {
 namespace mds {
 namespace topology {
 
+using ChunkServerFilter = std::function<bool(const ChunkServer&)>;
+using ServerFilter = std::function<bool (const Server&)>;
+using ZoneFilter = std::function<bool (const Zone&)>;
+using PhysicalPoolFilter = std::function<bool (const PhysicalPool&)>;
+using LogicalPoolFilter = std::function<bool(const LogicalPool&)>;
+using CopySetFilter = std::function<bool (const CopySetInfo&)>;
+
 class Topology {
  public:
     Topology() {}
@@ -63,6 +70,8 @@ class Topology {
     virtual int UpdateServer(const Server &data) = 0;
     // 更新内存并持久化全部数据
     virtual int UpdateChunkServer(const ChunkServer &data) = 0;
+    virtual int UpdateOnlineState(const OnlineState &onlineState,
+                                  ChunkServerIdType id) = 0;
     // 更新内存，定期持久化数据
     virtual int UpdateChunkServerState(const ChunkServerState &state,
                                        ChunkServerIdType id) = 0;
@@ -81,8 +90,9 @@ class Topology {
         const std::string &hostName) const = 0;
     virtual ServerIdType FindServerByHostIpPort(
         const std::string &hostIp, uint32_t port) const = 0;
-    virtual ChunkServerIdType FindChunkServer(const std::string &hostIp,
-                                              uint32_t port) const = 0;
+    virtual ChunkServerIdType FindChunkServerNotRetired(
+        const std::string &hostIp,
+        uint32_t port) const = 0;
 
     virtual bool GetLogicalPool(PoolIdType poolId,
                                 LogicalPool *out) const = 0;
@@ -119,45 +129,91 @@ class Topology {
                                    uint32_t port,
                                    Server *out) const = 0;
 
-    virtual bool GetChunkServer(const std::string &hostIp,
+    virtual bool GetChunkServerNotRetired(const std::string &hostIp,
                                 uint32_t port,
                                 ChunkServer *out) const = 0;
 
-    virtual std::list<ChunkServerIdType> GetChunkServerInCluster() const = 0;
-    virtual std::list<ServerIdType> GetServerInCluster() const = 0;
-    virtual std::list<ZoneIdType> GetZoneInCluster() const = 0;
-    virtual std::list<PoolIdType> GetPhysicalPoolInCluster() const = 0;
-    virtual std::list<PoolIdType> GetLogicalPoolInCluster() const = 0;
 
+    virtual std::vector<ChunkServerIdType> GetChunkServerInCluster(
+        ChunkServerFilter filter = [](const ChunkServer&) {
+            return true;}) const = 0;
+
+    virtual std::vector<ServerIdType> GetServerInCluster(
+        ServerFilter filter = [](const Server&) {
+            return true;}) const = 0;
+
+    virtual std::vector<ZoneIdType> GetZoneInCluster(
+        ZoneFilter filter = [](const Zone&) {
+            return true;}) const = 0;
+
+    virtual std::vector<PoolIdType> GetPhysicalPoolInCluster(
+        PhysicalPoolFilter filter = [](const PhysicalPool&) {
+            return true;}) const = 0;
+
+    virtual std::vector<PoolIdType> GetLogicalPoolInCluster(
+        LogicalPoolFilter filter = [](const LogicalPool&) {
+            return true;}) const = 0;
+
+    virtual std::vector<CopySetKey> GetCopySetsInCluster(
+        CopySetFilter filter = [](const CopySetInfo&) {
+            return true;}) const = 0;
+
+    // get chunkserver list
     virtual std::list<ChunkServerIdType> GetChunkServerInServer(
-        ServerIdType id) const = 0;
+        ServerIdType id,
+        ChunkServerFilter filter = [](const ChunkServer&) {
+            return true;}) const = 0;
     virtual std::list<ChunkServerIdType> GetChunkServerInZone(
-        ZoneIdType id) const = 0;
+        ZoneIdType id,
+        ChunkServerFilter filter = [](const ChunkServer&) {
+            return true;}) const = 0;
     virtual std::list<ChunkServerIdType> GetChunkServerInPhysicalPool(
-        PoolIdType id) const = 0;
-
-    virtual std::list<ServerIdType> GetServerInZone(ZoneIdType id) const = 0;
-    virtual std::list<ServerIdType> GetServerInPhysicalPool(
-        PoolIdType id) const = 0;
-
-    virtual std::list<ZoneIdType> GetZoneInPhysicalPool(
-        PoolIdType id) const = 0;
-    virtual std::list<PoolIdType> GetLogicalPoolInPhysicalPool(
-        PoolIdType id) const = 0;
-
+        PoolIdType id,
+        ChunkServerFilter filter = [](const ChunkServer&) {
+            return true;}) const = 0;
     virtual std::list<ChunkServerIdType> GetChunkServerInLogicalPool(
-        PoolIdType id) const = 0;
+        PoolIdType id,
+        ChunkServerFilter filter = [](const ChunkServer&) {
+            return true;}) const = 0;
+
+    // get server list
+    virtual std::list<ServerIdType> GetServerInZone(ZoneIdType id,
+            ServerFilter filter = [](const Server&) {
+                return true;}) const = 0;
+    virtual std::list<ServerIdType> GetServerInPhysicalPool(
+        PoolIdType id,
+        ServerFilter filter = [](const Server&) {
+            return true;}) const = 0;
     virtual std::list<ServerIdType> GetServerInLogicalPool(
-        PoolIdType id) const = 0;
-    virtual std::list<ZoneIdType> GetZoneInLogicalPool(PoolIdType id) const = 0;
+        PoolIdType id,
+        ServerFilter filter = [](const Server&) {
+            return true;}) const = 0;
 
+    // get zone list
+    virtual std::list<ZoneIdType> GetZoneInPhysicalPool(
+        PoolIdType id,
+        ZoneFilter filter = [](const Zone&) {
+            return true;}) const = 0;
+    virtual std::list<ZoneIdType> GetZoneInLogicalPool(
+        PoolIdType id,
+        ZoneFilter filter = [](const Zone&) {
+            return true;}) const = 0;
+
+    // get logicalpool list
+    virtual std::list<PoolIdType> GetLogicalPoolInPhysicalPool(
+        PoolIdType id,
+        LogicalPoolFilter filter = [](const LogicalPool&) {
+            return true;}) const = 0;
+
+    // get copyset list
     virtual std::vector<CopySetIdType> GetCopySetsInLogicalPool(
-        PoolIdType logicalPoolId) const = 0;
-
-    virtual std::vector<CopySetKey> GetCopySetsInCluster() const = 0;
-
+        PoolIdType logicalPoolId,
+        CopySetFilter filter = [](const CopySetInfo&) {
+            return true;}) const = 0;
     virtual std::vector<CopySetKey>
-    GetCopySetsInChunkServer(ChunkServerIdType id) const = 0;
+        GetCopySetsInChunkServer(ChunkServerIdType id,
+        CopySetFilter filter = [](const CopySetInfo&) {
+            return true;}) const = 0;
 };
 
 class TopologyImpl : public Topology {
@@ -203,6 +259,8 @@ class TopologyImpl : public Topology {
     int UpdateServer(const Server &data) override;
     // 更新内存并持久化全部数据
     int UpdateChunkServer(const ChunkServer &data) override;
+    int UpdateOnlineState(const OnlineState &onlineState,
+                          ChunkServerIdType id) override;
     // 更新内存，定期持久化数据
     int UpdateChunkServerState(const ChunkServerState &state,
                                ChunkServerIdType id) override;
@@ -220,7 +278,7 @@ class TopologyImpl : public Topology {
         const std::string &hostName) const override;
     ServerIdType FindServerByHostIpPort(
         const std::string &hostIp, uint32_t port) const override;
-    ChunkServerIdType FindChunkServer(const std::string &hostIp,
+    ChunkServerIdType FindChunkServerNotRetired(const std::string &hostIp,
                                       uint32_t port) const override;
 
     bool GetLogicalPool(PoolIdType poolId, LogicalPool *out) const override;
@@ -261,46 +319,93 @@ class TopologyImpl : public Topology {
                            Server *out) const override {
         return GetServer(FindServerByHostIpPort(hostIp, port), out);
     }
-    bool GetChunkServer(const std::string &hostIp,
+    bool GetChunkServerNotRetired(const std::string &hostIp,
                         uint32_t port,
                         ChunkServer *out) const override {
-        return GetChunkServer(FindChunkServer(hostIp, port), out);
+        return GetChunkServer(FindChunkServerNotRetired(hostIp, port), out);
     }
 
-    std::list<ChunkServerIdType> GetChunkServerInCluster() const override;
-    std::list<ServerIdType> GetServerInCluster() const override;
-    std::list<ZoneIdType> GetZoneInCluster() const override;
-    std::list<PoolIdType> GetPhysicalPoolInCluster() const override;
-    std::list<PoolIdType> GetLogicalPoolInCluster() const override;
+    std::vector<ChunkServerIdType> GetChunkServerInCluster(
+        ChunkServerFilter filter = [](const ChunkServer&) {
+            return true;}) const override;
 
-    std::list<ChunkServerIdType>
-        GetChunkServerInServer(ServerIdType id) const override;
-    std::list<ChunkServerIdType>
-        GetChunkServerInZone(ZoneIdType id) const override;
-    std::list<ChunkServerIdType>
-        GetChunkServerInPhysicalPool(PoolIdType id) const override;
-    std::list<ServerIdType>
-        GetServerInZone(ZoneIdType id) const override;
-    std::list<ServerIdType>
-        GetServerInPhysicalPool(PoolIdType id) const override;
+    std::vector<ServerIdType> GetServerInCluster(
+        ServerFilter filter = [](const Server&) {
+            return true;}) const override;
 
+    std::vector<ZoneIdType> GetZoneInCluster(
+        ZoneFilter filter = [](const Zone&) {
+            return true;}) const override;
+
+    std::vector<PoolIdType> GetPhysicalPoolInCluster(
+        PhysicalPoolFilter filter = [](const PhysicalPool&) {
+            return true;}) const override;
+
+    std::vector<PoolIdType> GetLogicalPoolInCluster(
+        LogicalPoolFilter filter = [](const LogicalPool&) {
+            return true;}) const override;
+
+    std::vector<CopySetKey> GetCopySetsInCluster(
+        CopySetFilter filter = [](const CopySetInfo&) {
+            return true;}) const override;
+
+    // get chunksever list
+    std::list<ChunkServerIdType>
+        GetChunkServerInServer(ServerIdType id,
+            ChunkServerFilter filter = [](const ChunkServer&) {
+                return true;}) const override;
+    std::list<ChunkServerIdType>
+        GetChunkServerInZone(ZoneIdType id,
+            ChunkServerFilter filter = [](const ChunkServer&) {
+                return true;}) const override;
+    std::list<ChunkServerIdType>
+        GetChunkServerInPhysicalPool(PoolIdType id,
+            ChunkServerFilter filter = [](const ChunkServer&) {
+                return true;}) const override;
+    std::list<ChunkServerIdType>
+        GetChunkServerInLogicalPool(PoolIdType id,
+            ChunkServerFilter filter = [](const ChunkServer&) {
+                return true;}) const override;
+
+    // get server list
+    std::list<ServerIdType>
+        GetServerInZone(ZoneIdType id,
+            ServerFilter filter = [](const Server&) {
+                return true;}) const override;
+    std::list<ServerIdType>
+        GetServerInPhysicalPool(PoolIdType id,
+            ServerFilter filter = [](const Server&) {
+                return true;}) const override;
+    std::list<ServerIdType>
+        GetServerInLogicalPool(PoolIdType id,
+            ServerFilter filter = [](const Server&) {
+                return true;}) const override;
+
+    // get zone list
     std::list<ZoneIdType>
-        GetZoneInPhysicalPool(PoolIdType id) const override;
+        GetZoneInPhysicalPool(PoolIdType id,
+            ZoneFilter filter = [](const Zone&) {
+                return true;}) const override;
+    std::list<ZoneIdType>
+        GetZoneInLogicalPool(PoolIdType id,
+            ZoneFilter filter = [](const Zone&) {
+                return true;}) const override;
+
+    // get logicalpool list
     std::list<PoolIdType>
-        GetLogicalPoolInPhysicalPool(PoolIdType id) const override;
+        GetLogicalPoolInPhysicalPool(PoolIdType id,
+            LogicalPoolFilter filter = [](const LogicalPool&) {
+                return true;}) const override;
 
-    std::list<ChunkServerIdType> GetChunkServerInLogicalPool(
-        PoolIdType id) const override;
-    std::list<ServerIdType>
-        GetServerInLogicalPool(PoolIdType id) const override;
-    std::list<ZoneIdType>
-        GetZoneInLogicalPool(PoolIdType id) const override;
-
+    // get copyset list
     std::vector<CopySetIdType> GetCopySetsInLogicalPool(
-        PoolIdType logicalPoolId) const override;
-    std::vector<CopySetKey> GetCopySetsInCluster() const override;
+        PoolIdType logicalPoolId,
+        CopySetFilter filter = [](const CopySetInfo&) {
+            return true;}) const override;
     std::vector<CopySetKey> GetCopySetsInChunkServer(
-        ChunkServerIdType id) const override;
+        ChunkServerIdType id,
+        CopySetFilter filter = [](const CopySetInfo&) {
+            return true;}) const override;
 
  private:
     int CleanInvalidLogicalPoolAndCopyset();

@@ -18,7 +18,7 @@
 #include "proto/cli.pb.h"
 #include "proto/chunk.pb.h"
 #include "src/mds/chunkserverclient/chunkserver_client.h"
-#include "test/mds/chunkserverclient/mock_topology.h"
+#include "test/mds/mock/mock_topology.h"
 #include "test/mds/chunkserverclient/mock_chunkserver.h"
 
 
@@ -96,7 +96,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotSuccess) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -134,7 +134,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotGetChunkServerFail) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -163,7 +163,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotChunkServerOFFLINE) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(OFFLINE);
+    chunkserver.SetOnlineState(OFFLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -191,7 +191,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcChannelInitFail) {
         csId, "", "", 0x101, "", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -219,7 +219,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcCntlFail) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -260,7 +260,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcReturnFail) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -298,7 +298,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotReturnNotLeader) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -335,7 +335,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderSuccess) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -359,7 +359,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderSuccess) {
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                     })));
-    EXPECT_CALL(*topo_, FindChunkServer(leaderIp, leaderPort))
+    EXPECT_CALL(*topo_, FindChunkServerNotRetired(leaderIp, leaderPort))
         .WillOnce(Return(leaderReturn));
 
     int ret = client_->GetLeader(
@@ -383,7 +383,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderGetChunkServerFail) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -410,7 +410,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderChunkServerOFFLINE) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(OFFLINE);
+    chunkserver.SetOnlineState(OFFLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -437,7 +437,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcChannelInitFail) {
         csId, "", "", 0x101, "", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -464,7 +464,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcCntlFail) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -512,7 +512,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcReturnLeaderPeerInvalid) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -555,7 +555,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcReturnLeaderPeerNotExist) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -579,7 +579,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcReturnLeaderPeerNotExist) {
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                     })));
-    EXPECT_CALL(*topo_, FindChunkServer(leaderIp, leaderPort))
+    EXPECT_CALL(*topo_, FindChunkServerNotRetired(leaderIp, leaderPort))
         .WillOnce(Return(UNINTIALIZE_ID));
 
     int ret = client_->GetLeader(
@@ -603,7 +603,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSuccess) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -641,7 +641,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkGetChunkServerFail) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -670,7 +670,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkChunkServerOFFLINE) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(OFFLINE);
+    chunkserver.SetOnlineState(OFFLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -698,7 +698,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcChannelInitFail) {
         csId, "", "", 0x101, "", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -726,7 +726,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcCntlFail) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -767,7 +767,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcReturnFail) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))
@@ -805,7 +805,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkReturnNotLeader) {
         csId, "", "", 0x101, "127.0.0.1", 8888, "", READWRITE);
     ChunkServerState csState;
     csState.SetDiskState(DISKNORMAL);
-    csState.SetOnlineState(ONLINE);
+    chunkserver.SetOnlineState(ONLINE);
     chunkserver.SetChunkServerState(csState);
 
     EXPECT_CALL(*topo_, GetChunkServer(csId, _))

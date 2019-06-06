@@ -20,7 +20,7 @@
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/common/authenticator.h"
-#include "test/mds/nameserver2/mock_topology.h"
+#include "test/mds/mock/mock_topology.h"
 
 using curve::common::TimeUtility;
 using curve::common::Authenticator;
