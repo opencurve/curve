@@ -6,12 +6,13 @@
  */
 
 #include <gtest/gtest.h>
-#include "test/mds/schedule/mock_topology.h"
+#include "test/mds/mock/mock_topology.h"
 #include "test/mds/schedule/mock_topology_service_manager.h"
 #include "test/mds/schedule/common.h"
 
 using ::curve::mds::topology::ChunkServerStatus;
 using ::curve::mds::copyset::CopysetOption;
+using ::curve::mds::topology::MockTopology;
 
 using ::testing::_;
 using ::testing::Return;
@@ -52,7 +53,7 @@ class TestTopoAdapterImpl : public ::testing::Test {
 
 TEST_F(TestTopoAdapterImpl, no_enough_chunkServers_or_invalid_zone_num) {
     auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_))
+    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
         .WillOnce(Return(std::list<ChunkServerIdType>()))
         .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4})));
     EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _))
@@ -65,7 +66,7 @@ TEST_F(TestTopoAdapterImpl, no_enough_chunkServers_or_invalid_zone_num) {
 
 TEST_F(TestTopoAdapterImpl, test_chunkServer_or_server_not_satisfy) {
     auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_))
+    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
         .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4, 5, 6})));
 
     // GetChunkServer
@@ -89,7 +90,7 @@ TEST_F(TestTopoAdapterImpl, test_chunkServer_or_server_not_satisfy) {
 
 TEST_F(TestTopoAdapterImpl, test_same_zone_or_same_server) {
     auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_))
+    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
         .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4, 5})));
     EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).
         WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
@@ -116,7 +117,7 @@ TEST_F(TestTopoAdapterImpl, test_same_zone_or_same_server) {
 
 TEST_F(TestTopoAdapterImpl, test_dissatisfy_healthy) {
     auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_))
+    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
         .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4, 5})));
     EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).
         WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
@@ -129,7 +130,7 @@ TEST_F(TestTopoAdapterImpl, test_dissatisfy_healthy) {
     ChunkServer chunkServer4(4, "", "", 4, "", 9000, "",
                              ChunkServerStatus::READWRITE);
     ChunkServerState state4;
-    state4.SetOnlineState(OnlineState::OFFLINE);
+    chunkServer4.SetOnlineState(OnlineState::OFFLINE);
     chunkServer4.SetChunkServerState(state4);
     EXPECT_CALL(*mockTopo_, GetChunkServer(4, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer4), Return(true)));
@@ -138,7 +139,7 @@ TEST_F(TestTopoAdapterImpl, test_dissatisfy_healthy) {
     ChunkServer chunkServer5(5, "", "", 4, "", 9000, "",
                              ChunkServerStatus::READWRITE);
     ChunkServerState state5;
-    state5.SetOnlineState(OnlineState::ONLINE);
+    chunkServer5.SetOnlineState(OnlineState::ONLINE);
     state5.SetDiskState(DiskState::DISKERROR);
     chunkServer5.SetChunkServerState(state5);
     EXPECT_CALL(*mockTopo_, GetChunkServer(5, _))
@@ -169,7 +170,7 @@ TEST_F(TestTopoAdapterImpl, test_dissatisfy_healthy) {
  */
 TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     auto copySetInfo = GetCopySetInfoForTest();
-    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_))
+    EXPECT_CALL(*mockTopo_, GetChunkServerInLogicalPool(_, _))
         .WillOnce(Return(std::list<ChunkServerIdType>({1, 2, 3, 4, 5, 6})));
     EXPECT_CALL(*mockTopo_, GetLogicalPool(_, _)).
         WillOnce(DoAll(SetArgPointee<1>(GetLogicalPoolForTest()),
@@ -180,7 +181,7 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     ChunkServer chunkServer1(1, "", "", 1, "", 9000, "",
                              ChunkServerStatus::READWRITE);
     ChunkServerState state1;
-    state1.SetOnlineState(OnlineState::OFFLINE);
+    chunkServer1.SetOnlineState(OnlineState::OFFLINE);
     chunkServer1.SetChunkServerState(state1);
     EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
         .Times(AtLeast(3))
@@ -190,7 +191,7 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     ChunkServer chunkServer2(2, "", "", 2, "", 9000, "",
                              ChunkServerStatus::READWRITE);
     ChunkServerState state2;
-    state2.SetOnlineState(OnlineState::ONLINE);
+    chunkServer2.SetOnlineState(OnlineState::ONLINE);
     chunkServer2.SetChunkServerState(state2);
     EXPECT_CALL(*mockTopo_, GetChunkServer(2, _))
         .Times(5)
@@ -200,7 +201,7 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     ChunkServer chunkServer3(3, "", "", 3, "", 9000, "",
                              ChunkServerStatus::READWRITE);
     ChunkServerState state3;
-    state3.SetOnlineState(OnlineState::ONLINE);
+    chunkServer3.SetOnlineState(OnlineState::ONLINE);
     chunkServer3.SetChunkServerState(state3);
     EXPECT_CALL(*mockTopo_, GetChunkServer(3, _))
         .Times(7)
@@ -211,7 +212,7 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     ChunkServer chunkServer4(4, "", "", 4, "", 9000, "",
                              ChunkServerStatus::READWRITE);
     ChunkServerState state4;
-    state4.SetOnlineState(OnlineState::ONLINE);
+    chunkServer4.SetOnlineState(OnlineState::ONLINE);
     state4.SetDiskState(DiskState::DISKNORMAL);
     state4.SetDiskCapacity(100);
     state4.SetDiskUsed(10);
@@ -223,6 +224,7 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     // chunkServer5
     ChunkServer chunkServer5(5, "", "", 4, "", 9000, "",
                              ChunkServerStatus::READWRITE);
+    chunkServer5.SetOnlineState(OnlineState::ONLINE);
     chunkServer5.SetChunkServerState(state4);
     EXPECT_CALL(*mockTopo_, GetChunkServer(5, _))
         .Times(4)
@@ -232,6 +234,7 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     // chunkServer6
     ChunkServer chunkServer6(6, "", "", 4, "", 9000, "",
                              ChunkServerStatus::RETIRED);
+    chunkServer6.SetOnlineState(OnlineState::ONLINE);
     chunkServer6.SetChunkServerState(state4);
     EXPECT_CALL(*mockTopo_, GetChunkServer(6, _))
         .Times(2)
@@ -249,15 +252,15 @@ TEST_F(TestTopoAdapterImpl, test_choose_chunkServer_normal) {
     CopySetKey key4 = std::pair<PoolIdType, CopySetIdType>(1, 4);
     CopySetKey key5 = std::pair<PoolIdType, CopySetIdType>(1, 5);
     CopySetKey key6 = std::pair<PoolIdType, CopySetIdType>(1, 6);
-    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(4))
+    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(4, _))
         .WillOnce(Return(
             std::vector<::curve::mds::topology::CopySetKey>(
                 {key2, key3, key4, key5})));
-    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(5))
+    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(5, _))
         .WillOnce(Return(
             std::vector<::curve::mds::topology::CopySetKey>(
                 {key4, key5, key6})));
-    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(6))
+    EXPECT_CALL(*mockTopo_, GetCopySetsInChunkServer(6, _))
         .WillOnce(Return(
             std::vector<::curve::mds::topology::CopySetKey>({key6})));
 
@@ -345,7 +348,7 @@ TEST_F(TestTopoAdapterImpl,
     ::curve::mds::topology::ChunkServer
         chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
     ::curve::mds::topology::ChunkServerState chunkServerState;
-    chunkServerState.SetOnlineState(OnlineState::OFFLINE);
+    chunkServer3.SetOnlineState(OnlineState::OFFLINE);
     chunkServer3.SetChunkServerState(chunkServerState);
     ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
     EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
@@ -357,7 +360,7 @@ TEST_F(TestTopoAdapterImpl,
 
     // 3. test usd(chunkSever3) < used(chunkServer4)
     chunkServerState.SetDiskUsed(100);
-    chunkServerState.SetOnlineState(OnlineState::ONLINE);
+    chunkServer3.SetOnlineState(OnlineState::ONLINE);
     chunkServer3.SetChunkServerState(chunkServerState);
     ::curve::mds::topology::ChunkServer
         chunkServer4(4, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
@@ -387,7 +390,7 @@ TEST_F(TestTopoAdapterImpl,
     ::curve::mds::topology::ChunkServer
         chunkServer1(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
     ::curve::mds::topology::ChunkServerState chunkServerState;
-    chunkServerState.SetOnlineState(OnlineState::OFFLINE);
+    chunkServer1.SetOnlineState(OnlineState::OFFLINE);
     chunkServer1.SetChunkServerState(chunkServerState);
     ::curve::mds::topology::Server server(1, "", "", 0, "", 0, 1, 1, "");
     EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
@@ -399,19 +402,22 @@ TEST_F(TestTopoAdapterImpl,
 
     // 2. test maxUsed(chunkServer2)
     chunkServerState.SetDiskUsed(100);
-    chunkServerState.SetOnlineState(OnlineState::ONLINE);
+    chunkServer1.SetOnlineState(OnlineState::ONLINE);
     chunkServer1.SetChunkServerState(chunkServerState);
     ::curve::mds::topology::ChunkServer
         chunkServer2(2, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
     chunkServerState.SetDiskUsed(1000);
+    chunkServer2.SetOnlineState(OnlineState::ONLINE);
     chunkServer2.SetChunkServerState(chunkServerState);
     ::curve::mds::topology::ChunkServer
         chunkServer3(3, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
     chunkServerState.SetDiskUsed(200);
+    chunkServer3.SetOnlineState(OnlineState::ONLINE);
     chunkServer3.SetChunkServerState(chunkServerState);
     ::curve::mds::topology::ChunkServer
         chunkServer4(4, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);
     chunkServerState.SetDiskUsed(300);
+    chunkServer4.SetOnlineState(OnlineState::ONLINE);
     chunkServer4.SetChunkServerState(chunkServerState);
     EXPECT_CALL(*mockTopo_, GetChunkServer(1, _))
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer1), Return(true)));
@@ -502,7 +508,7 @@ TEST_F(TestTopoAdapterImpl, test_GetCopySetInfos) {
     auto key2 = std::pair<PoolIdType, CopySetIdType>(1, 2);
 
     std::vector<CopySetKey> keys({key1, key2});
-    EXPECT_CALL(*mockTopo_, GetCopySetsInCluster()).WillOnce(Return(keys));
+    EXPECT_CALL(*mockTopo_, GetCopySetsInCluster(_)).WillOnce(Return(keys));
 
     ::curve::mds::topology::CopySetInfo csInfo(1, 1);
     csInfo.SetCopySetMembers(std::set<ChunkServerIdType>({1, 2, 3}));
@@ -558,8 +564,8 @@ TEST_F(TestTopoAdapterImpl, test_GetChunkSeverInfo) {
 }
 
 TEST_F(TestTopoAdapterImpl, test_GetChunkServerInfos) {
-    EXPECT_CALL(*mockTopo_, GetChunkServerInCluster())
-        .WillOnce(Return(std::list<ChunkServerIdType>({1, 2})));
+    EXPECT_CALL(*mockTopo_, GetChunkServerInCluster(_))
+        .WillOnce(Return(std::vector<ChunkServerIdType>({1, 2})));
 
     ::curve::mds::topology::ChunkServer
         chunkServer(1, "", "", 1, "", 9000, "", ChunkServerStatus::READWRITE);

@@ -17,6 +17,7 @@ using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::CopySetIdType;
 using ::curve::mds::topology::ChunkServerState;
 using ::curve::mds::topology::UNINTIALIZE_ID;
+using ::curve::mds::topology::ChunkServerStatus;
 
 namespace curve {
 namespace mds {
@@ -39,7 +40,10 @@ HeartbeatManager::HeartbeatManager(HeartbeatOption option,
 }
 
 void HeartbeatManager::Init() {
-    for (auto value : topology_->GetChunkServerInCluster()) {
+    for (auto value : topology_->GetChunkServerInCluster(
+        [] (const ChunkServer &cs) {
+           return cs.GetStatus() != ChunkServerStatus::RETIRED;
+        })) {
         healthyChecker_->UpdateLastReceivedHeartbeatTime(
             value, steady_clock::now());
     }
@@ -216,7 +220,7 @@ ChunkServerIdType HeartbeatManager::GetChunkserverIdByPeerStr(
 
     // 根据ip:port获取chunkserverId
     ChunkServer chunkServer;
-    if (topology_->GetChunkServer(ip, port, &chunkServer)) {
+    if (topology_->GetChunkServerNotRetired(ip, port, &chunkServer)) {
         return chunkServer.GetId();
     }
 

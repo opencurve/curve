@@ -10,7 +10,7 @@
 #include <glog/logging.h>
 #include "src/mds/nameserver2/clean_core.h"
 #include "test/mds/nameserver2/mock_namespace_storage.h"
-#include "test/mds/nameserver2/mock_topology.h"
+#include "test/mds/mock/mock_topology.h"
 
 using ::testing::_;
 using ::testing::Return;
