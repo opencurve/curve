@@ -114,7 +114,6 @@ class NameSpaceServiceTest : public ::testing::Test {
 
 TEST_F(NameSpaceServiceTest, test1) {
     brpc::Server server;
-    std::string listenAddr = "0.0.0.0:9761";
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
@@ -123,11 +122,11 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start(listenAddr.c_str(), &option), 0);
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
 
     // init client
     brpc::Channel channel;
-    ASSERT_EQ(channel.Init(listenAddr.c_str(), nullptr), 0);
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
 
     CurveFSService_Stub stub(&channel);
 
@@ -805,7 +804,6 @@ TEST_F(NameSpaceServiceTest, test1) {
 
 TEST_F(NameSpaceServiceTest, snapshottests) {
     brpc::Server server;
-    std::string listenAddr = "0.0.0.0:9761";
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
@@ -814,11 +812,11 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start(listenAddr.c_str(), &option), 0);
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
 
     // init client
     brpc::Channel channel;
-    ASSERT_EQ(channel.Init(listenAddr.c_str(), nullptr), 0);
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
 
     CurveFSService_Stub stub(&channel);
 
@@ -972,7 +970,6 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
 
 TEST_F(NameSpaceServiceTest, deletefiletests) {
     brpc::Server server;
-    std::string listenAddr = "0.0.0.0:9761";
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
@@ -981,11 +978,11 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start(listenAddr.c_str(), &option), 0);
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
 
     // init client
     brpc::Channel channel;
-    ASSERT_EQ(channel.Init(listenAddr.c_str(), nullptr), 0);
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
 
     CurveFSService_Stub stub(&channel);
 
@@ -1334,7 +1331,6 @@ TEST_F(NameSpaceServiceTest, isPathValid) {
 
 TEST_F(NameSpaceServiceTest, clonetest) {
     brpc::Server server;
-    std::string listenAddr = "0.0.0.0:9761";
 
     // start server
     NameSpaceService namespaceService(new FileLockManager(8));
@@ -1343,11 +1339,11 @@ TEST_F(NameSpaceServiceTest, clonetest) {
 
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start(listenAddr.c_str(), &option), 0);
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
 
     // init client
     brpc::Channel channel;
-    ASSERT_EQ(channel.Init(listenAddr.c_str(), nullptr), 0);
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
 
     CurveFSService_Stub stub(&channel);
 

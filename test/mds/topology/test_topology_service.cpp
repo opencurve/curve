@@ -37,55 +37,55 @@ using ::curve::mds::copyset::CopysetOption;
 
 class TestTopologyService : public ::testing::Test {
  protected:
-  TestTopologyService() {}
-  ~TestTopologyService() {}
-  virtual void SetUp() {
-      listenAddr_ = "127.0.0.1:8888";
-      server_ = new brpc::Server();
+    TestTopologyService() {}
+    ~TestTopologyService() {}
+    virtual void SetUp() {
+        server_ = new brpc::Server();
 
-      std::shared_ptr<TopologyIdGenerator> idGenerator_ =
-          std::make_shared<DefaultIdGenerator>();
-      std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
-          std::make_shared<DefaultTokenGenerator>();
+        std::shared_ptr<TopologyIdGenerator> idGenerator_ =
+            std::make_shared<DefaultIdGenerator>();
+        std::shared_ptr<TopologyTokenGenerator> tokenGenerator_ =
+            std::make_shared<DefaultTokenGenerator>();
 
-      std::shared_ptr<MdsRepo> repo_ =
-          std::make_shared<MdsRepo>();
+        std::shared_ptr<MdsRepo> repo_ =
+            std::make_shared<MdsRepo>();
 
-      std::shared_ptr<TopologyStorage> storage_ =
-          std::make_shared<DefaultTopologyStorage>(repo_);
+        std::shared_ptr<TopologyStorage> storage_ =
+            std::make_shared<DefaultTopologyStorage>(repo_);
 
-      CopysetOption copysetOption;
-      manager_ = std::make_shared<MockTopologyServiceManager>(
-          std::make_shared<TopologyImpl>(idGenerator_,
-                                           tokenGenerator_,
-                                           storage_),
-              std::make_shared<CopysetManager>(copysetOption));
+        CopysetOption copysetOption;
+        manager_ = std::make_shared<MockTopologyServiceManager>(
+                       std::make_shared<TopologyImpl>(idGenerator_,
+                               tokenGenerator_,
+                               storage_),
+                       std::make_shared<CopysetManager>(copysetOption));
 
-      TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);
-      ASSERT_EQ(0, server_->AddService(topoService,
-                                       brpc::SERVER_OWNS_SERVICE));
+        TopologyServiceImpl *topoService = new TopologyServiceImpl(manager_);
+        ASSERT_EQ(0, server_->AddService(topoService,
+                                         brpc::SERVER_OWNS_SERVICE));
 
-      ASSERT_EQ(0, server_->Start(listenAddr_.c_str(), nullptr));
-  }
+        ASSERT_EQ(0, server_->Start("127.0.0.1", {8900, 8999}, nullptr));
+        listenAddr_ = server_->listen_address();
+    }
 
-  virtual void TearDown() {
-      manager_ = nullptr;
+    virtual void TearDown() {
+        manager_ = nullptr;
 
-      server_->Stop(0);
-      server_->Join();
-      delete server_;
-      server_ = nullptr;
-  }
+        server_->Stop(0);
+        server_->Join();
+        delete server_;
+        server_ = nullptr;
+    }
 
  protected:
-  std::shared_ptr<MockTopologyServiceManager> manager_;
-  std::string listenAddr_;
-  brpc::Server *server_;
+    std::shared_ptr<MockTopologyServiceManager> manager_;
+    butil::EndPoint listenAddr_;
+    brpc::Server *server_;
 };
 
 TEST_F(TestTopologyService, test_RegistChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -104,7 +104,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_success) {
     ChunkServerRegistResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, RegistChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.RegistChunkServer(&cntl, &request, &response, nullptr);
 
@@ -117,7 +117,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_success) {
 
 TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -136,7 +136,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
     ChunkServerRegistResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, RegistChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.RegistChunkServer(&cntl, &request, &response, nullptr);
 
@@ -149,7 +149,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_ListChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -165,7 +165,7 @@ TEST_F(TestTopologyService, test_ListChunkServer_success) {
     ListChunkServerResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, ListChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListChunkServer(&cntl, &request, &response, nullptr);
 
@@ -178,7 +178,7 @@ TEST_F(TestTopologyService, test_ListChunkServer_success) {
 
 TEST_F(TestTopologyService, test_ListChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -194,7 +194,7 @@ TEST_F(TestTopologyService, test_ListChunkServer_fail) {
     ListChunkServerResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, ListChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListChunkServer(&cntl, &request, &response, nullptr);
 
@@ -207,7 +207,7 @@ TEST_F(TestTopologyService, test_ListChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_GetChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -223,7 +223,7 @@ TEST_F(TestTopologyService, test_GetChunkServer_success) {
     GetChunkServerInfoResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, GetChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetChunkServer(&cntl, &request, &response, nullptr);
 
@@ -236,7 +236,7 @@ TEST_F(TestTopologyService, test_GetChunkServer_success) {
 
 TEST_F(TestTopologyService, test_GetChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -252,7 +252,7 @@ TEST_F(TestTopologyService, test_GetChunkServer_fail) {
     GetChunkServerInfoResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, GetChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetChunkServer(&cntl, &request, &response, nullptr);
 
@@ -265,7 +265,7 @@ TEST_F(TestTopologyService, test_GetChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_DeleteChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -281,7 +281,7 @@ TEST_F(TestTopologyService, test_DeleteChunkServer_success) {
     DeleteChunkServerResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, DeleteChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeleteChunkServer(&cntl, &request, &response, nullptr);
 
@@ -294,7 +294,7 @@ TEST_F(TestTopologyService, test_DeleteChunkServer_success) {
 
 TEST_F(TestTopologyService, test_DeleteChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -310,7 +310,7 @@ TEST_F(TestTopologyService, test_DeleteChunkServer_fail) {
     DeleteChunkServerResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, DeleteChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeleteChunkServer(&cntl, &request, &response, nullptr);
 
@@ -323,7 +323,7 @@ TEST_F(TestTopologyService, test_DeleteChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_setChunkServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -340,7 +340,7 @@ TEST_F(TestTopologyService, test_setChunkServer_success) {
     SetChunkServerStatusResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, SetChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.SetChunkServer(&cntl, &request, &response, nullptr);
 
@@ -353,7 +353,7 @@ TEST_F(TestTopologyService, test_setChunkServer_success) {
 
 TEST_F(TestTopologyService, test_setChunkServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -370,7 +370,7 @@ TEST_F(TestTopologyService, test_setChunkServer_fail) {
     SetChunkServerStatusResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, SetChunkServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.SetChunkServer(&cntl, &request, &response, nullptr);
 
@@ -383,7 +383,7 @@ TEST_F(TestTopologyService, test_setChunkServer_fail) {
 
 TEST_F(TestTopologyService, test_RegistServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -402,7 +402,7 @@ TEST_F(TestTopologyService, test_RegistServer_success) {
     ServerRegistResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, RegistServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.RegistServer(&cntl, &request, &response, nullptr);
 
@@ -415,7 +415,7 @@ TEST_F(TestTopologyService, test_RegistServer_success) {
 
 TEST_F(TestTopologyService, test_RegistServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -434,7 +434,7 @@ TEST_F(TestTopologyService, test_RegistServer_fail) {
     ServerRegistResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, RegistServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.RegistServer(&cntl, &request, &response, nullptr);
 
@@ -447,7 +447,7 @@ TEST_F(TestTopologyService, test_RegistServer_fail) {
 
 TEST_F(TestTopologyService, test_GetServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -463,7 +463,7 @@ TEST_F(TestTopologyService, test_GetServer_success) {
     GetServerResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, GetServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetServer(&cntl, &request, &response, nullptr);
 
@@ -476,7 +476,7 @@ TEST_F(TestTopologyService, test_GetServer_success) {
 
 TEST_F(TestTopologyService, test_GetServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -492,7 +492,7 @@ TEST_F(TestTopologyService, test_GetServer_fail) {
     GetServerResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, GetServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetServer(&cntl, &request, &response, nullptr);
 
@@ -505,7 +505,7 @@ TEST_F(TestTopologyService, test_GetServer_fail) {
 
 TEST_F(TestTopologyService, test_DeleteServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -521,7 +521,7 @@ TEST_F(TestTopologyService, test_DeleteServer_success) {
     DeleteServerResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, DeleteServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeleteServer(&cntl, &request, &response, nullptr);
 
@@ -534,7 +534,7 @@ TEST_F(TestTopologyService, test_DeleteServer_success) {
 
 TEST_F(TestTopologyService, test_DeleteServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -550,7 +550,7 @@ TEST_F(TestTopologyService, test_DeleteServer_fail) {
     DeleteServerResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, DeleteServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeleteServer(&cntl, &request, &response, nullptr);
 
@@ -563,7 +563,7 @@ TEST_F(TestTopologyService, test_DeleteServer_fail) {
 
 TEST_F(TestTopologyService, test_ListZoneServer_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -579,7 +579,7 @@ TEST_F(TestTopologyService, test_ListZoneServer_success) {
     ListZoneServerResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, ListZoneServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListZoneServer(&cntl, &request, &response, nullptr);
 
@@ -592,7 +592,7 @@ TEST_F(TestTopologyService, test_ListZoneServer_success) {
 
 TEST_F(TestTopologyService, test_ListZoneServer_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -608,7 +608,7 @@ TEST_F(TestTopologyService, test_ListZoneServer_fail) {
     ListZoneServerResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, ListZoneServer(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListZoneServer(&cntl, &request, &response, nullptr);
 
@@ -621,7 +621,7 @@ TEST_F(TestTopologyService, test_ListZoneServer_fail) {
 
 TEST_F(TestTopologyService, test_CreateZone_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -637,7 +637,7 @@ TEST_F(TestTopologyService, test_CreateZone_success) {
     ZoneResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, CreateZone(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.CreateZone(&cntl, &request, &response, nullptr);
 
@@ -650,7 +650,7 @@ TEST_F(TestTopologyService, test_CreateZone_success) {
 
 TEST_F(TestTopologyService, test_CreateZone_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -666,7 +666,7 @@ TEST_F(TestTopologyService, test_CreateZone_fail) {
     ZoneResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, CreateZone(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.CreateZone(&cntl, &request, &response, nullptr);
 
@@ -679,7 +679,7 @@ TEST_F(TestTopologyService, test_CreateZone_fail) {
 
 TEST_F(TestTopologyService, test_DeleteZone_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -695,7 +695,7 @@ TEST_F(TestTopologyService, test_DeleteZone_success) {
     ZoneResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, DeleteZone(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeleteZone(&cntl, &request, &response, nullptr);
 
@@ -708,7 +708,7 @@ TEST_F(TestTopologyService, test_DeleteZone_success) {
 
 TEST_F(TestTopologyService, test_DeleteZone_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -724,7 +724,7 @@ TEST_F(TestTopologyService, test_DeleteZone_fail) {
     ZoneResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, DeleteZone(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeleteZone(&cntl, &request, &response, nullptr);
 
@@ -737,7 +737,7 @@ TEST_F(TestTopologyService, test_DeleteZone_fail) {
 
 TEST_F(TestTopologyService, test_GetZone_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -753,7 +753,7 @@ TEST_F(TestTopologyService, test_GetZone_success) {
     ZoneResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, GetZone(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetZone(&cntl, &request, &response, nullptr);
 
@@ -766,7 +766,7 @@ TEST_F(TestTopologyService, test_GetZone_success) {
 
 TEST_F(TestTopologyService, test_GetZone_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -782,7 +782,7 @@ TEST_F(TestTopologyService, test_GetZone_fail) {
     ZoneResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, GetZone(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetZone(&cntl, &request, &response, nullptr);
 
@@ -795,7 +795,7 @@ TEST_F(TestTopologyService, test_GetZone_fail) {
 
 TEST_F(TestTopologyService, test_ListPoolZone_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -811,7 +811,7 @@ TEST_F(TestTopologyService, test_ListPoolZone_success) {
     ListPoolZoneResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, ListPoolZone(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListPoolZone(&cntl, &request, &response, nullptr);
 
@@ -824,7 +824,7 @@ TEST_F(TestTopologyService, test_ListPoolZone_success) {
 
 TEST_F(TestTopologyService, test_ListPoolZone_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -840,7 +840,7 @@ TEST_F(TestTopologyService, test_ListPoolZone_fail) {
     ListPoolZoneResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, ListPoolZone(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListPoolZone(&cntl, &request, &response, nullptr);
 
@@ -853,7 +853,7 @@ TEST_F(TestTopologyService, test_ListPoolZone_fail) {
 
 TEST_F(TestTopologyService, test_CreatePhysicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -869,7 +869,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_success) {
     PhysicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, CreatePhysicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.CreatePhysicalPool(&cntl, &request, &response, nullptr);
 
@@ -882,7 +882,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_success) {
 
 TEST_F(TestTopologyService, test_CreatePhysicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -898,7 +898,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_fail) {
     PhysicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, CreatePhysicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.CreatePhysicalPool(&cntl, &request, &response, nullptr);
 
@@ -911,7 +911,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_fail) {
 
 TEST_F(TestTopologyService, test_DeletePhysicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -927,7 +927,7 @@ TEST_F(TestTopologyService, test_DeletePhysicalPool_success) {
     PhysicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, DeletePhysicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeletePhysicalPool(&cntl, &request, &response, nullptr);
 
@@ -940,7 +940,7 @@ TEST_F(TestTopologyService, test_DeletePhysicalPool_success) {
 
 TEST_F(TestTopologyService, test_DeletePhysicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -956,7 +956,7 @@ TEST_F(TestTopologyService, test_DeletePhysicalPool_fail) {
     PhysicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, DeletePhysicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeletePhysicalPool(&cntl, &request, &response, nullptr);
 
@@ -969,7 +969,7 @@ TEST_F(TestTopologyService, test_DeletePhysicalPool_fail) {
 
 TEST_F(TestTopologyService, test_GetPhysicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -985,7 +985,7 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_success) {
     PhysicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, GetPhysicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetPhysicalPool(&cntl, &request, &response, nullptr);
 
@@ -998,7 +998,7 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_success) {
 
 TEST_F(TestTopologyService, test_GetPhysicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1014,7 +1014,7 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_fail) {
     PhysicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, GetPhysicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetPhysicalPool(&cntl, &request, &response, nullptr);
 
@@ -1027,7 +1027,7 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_fail) {
 
 TEST_F(TestTopologyService, test_ListPhysicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1042,7 +1042,7 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_success) {
     ListPhysicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, ListPhysicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListPhysicalPool(&cntl, &request, &response, nullptr);
 
@@ -1055,7 +1055,7 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_success) {
 
 TEST_F(TestTopologyService, test_ListPhysicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1070,7 +1070,7 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_fail) {
     ListPhysicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, ListPhysicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListPhysicalPool(&cntl, &request, &response, nullptr);
 
@@ -1083,7 +1083,7 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_fail) {
 
 TEST_F(TestTopologyService, test_CreateLogicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1103,7 +1103,7 @@ TEST_F(TestTopologyService, test_CreateLogicalPool_success) {
     CreateLogicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, CreateLogicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
 
@@ -1116,7 +1116,7 @@ TEST_F(TestTopologyService, test_CreateLogicalPool_success) {
 
 TEST_F(TestTopologyService, test_CreateLogicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1136,7 +1136,7 @@ TEST_F(TestTopologyService, test_CreateLogicalPool_fail) {
     CreateLogicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, CreateLogicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
 
@@ -1149,7 +1149,7 @@ TEST_F(TestTopologyService, test_CreateLogicalPool_fail) {
 
 TEST_F(TestTopologyService, test_DeleteLogicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1165,7 +1165,7 @@ TEST_F(TestTopologyService, test_DeleteLogicalPool_success) {
     DeleteLogicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, DeleteLogicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeleteLogicalPool(&cntl, &request, &response, nullptr);
 
@@ -1178,7 +1178,7 @@ TEST_F(TestTopologyService, test_DeleteLogicalPool_success) {
 
 TEST_F(TestTopologyService, test_DeleteLogicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1194,7 +1194,7 @@ TEST_F(TestTopologyService, test_DeleteLogicalPool_fail) {
     DeleteLogicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, DeleteLogicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.DeleteLogicalPool(&cntl, &request, &response, nullptr);
 
@@ -1207,7 +1207,7 @@ TEST_F(TestTopologyService, test_DeleteLogicalPool_fail) {
 
 TEST_F(TestTopologyService, test_GetLogicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1223,7 +1223,7 @@ TEST_F(TestTopologyService, test_GetLogicalPool_success) {
     GetLogicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, GetLogicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetLogicalPool(&cntl, &request, &response, nullptr);
 
@@ -1236,7 +1236,7 @@ TEST_F(TestTopologyService, test_GetLogicalPool_success) {
 
 TEST_F(TestTopologyService, test_GetLogicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1252,7 +1252,7 @@ TEST_F(TestTopologyService, test_GetLogicalPool_fail) {
     GetLogicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, GetLogicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetLogicalPool(&cntl, &request, &response, nullptr);
 
@@ -1265,7 +1265,7 @@ TEST_F(TestTopologyService, test_GetLogicalPool_fail) {
 
 TEST_F(TestTopologyService, test_ListLogicalPool_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1281,7 +1281,7 @@ TEST_F(TestTopologyService, test_ListLogicalPool_success) {
     ListLogicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, ListLogicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListLogicalPool(&cntl, &request, &response, nullptr);
 
@@ -1294,7 +1294,7 @@ TEST_F(TestTopologyService, test_ListLogicalPool_success) {
 
 TEST_F(TestTopologyService, test_ListLogicalPool_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1310,7 +1310,7 @@ TEST_F(TestTopologyService, test_ListLogicalPool_fail) {
     ListLogicalPoolResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, ListLogicalPool(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.ListLogicalPool(&cntl, &request, &response, nullptr);
 
@@ -1323,7 +1323,7 @@ TEST_F(TestTopologyService, test_ListLogicalPool_fail) {
 
 TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1339,7 +1339,7 @@ TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
     GetChunkServerListInCopySetsResponse reps;
     reps.set_statuscode(kTopoErrCodeSuccess);
     EXPECT_CALL(*manager_, GetChunkServerListInCopySets(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetChunkServerListInCopySets(&cntl, &request, &response, nullptr);
 
@@ -1352,7 +1352,7 @@ TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
 
 TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_fail) {
     brpc::Channel channel;
-    if (channel.Init("127.0.0.1", 8888, NULL) != 0) {
+    if (channel.Init(listenAddr_, NULL) != 0) {
         FAIL() << "Fail to init channel "
                << std::endl;
     }
@@ -1368,7 +1368,7 @@ TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_fail) {
     GetChunkServerListInCopySetsResponse reps;
     reps.set_statuscode(kTopoErrCodeInvalidParam);
     EXPECT_CALL(*manager_, GetChunkServerListInCopySets(_, _))
-        .WillRepeatedly(SetArgPointee<1>(reps));
+    .WillRepeatedly(SetArgPointee<1>(reps));
 
     stub.GetChunkServerListInCopySets(&cntl, &request, &response, nullptr);
 
