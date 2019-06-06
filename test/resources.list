@@ -1,0 +1,16 @@
+Used port list:
+
+# client
+
+# mds & snapshotcloneserver
+
+    use port : 8900~8999
+
+# chunkserver
+
+    braftcliservice-test:   9000 9001 9002
+    braftcliservice2-test:  9010 9011 9012
+    chunk-test:             9020 9021 9022
+    cli-test:               9030 9031 9032
+    chunk-test1:            9040 9041 9042
+    chunk-snapshot-test:    9050 9051 9052

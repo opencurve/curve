@@ -36,7 +36,6 @@ class TestTopologyServiceManager : public ::testing::Test {
     TestTopologyServiceManager() {}
     virtual ~TestTopologyServiceManager() {}
     virtual void SetUp() {
-        listenAddr_ = "127.0.0.1:8888";
         server_ = new brpc::Server();
 
         idGenerator_ = std::make_shared<MockIdGenerator>();
@@ -53,6 +52,15 @@ class TestTopologyServiceManager : public ::testing::Test {
         serviceManager_ = std::make_shared<TopologyServiceManager>(topology_,
              copysetManager_);
         serviceManager_->Init(topologyOption);
+
+        mockCopySetService =
+            new MockCopysetServiceImpl();
+        ASSERT_EQ(server_->AddService(mockCopySetService,
+                                      brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+        ASSERT_EQ(0, server_->Start("127.0.0.1", {8900, 8999}, nullptr));
+
+        listenAddr_ = server_->listen_address();
     }
 
     virtual void TearDown() {
@@ -67,6 +75,8 @@ class TestTopologyServiceManager : public ::testing::Test {
         server_->Join();
         delete server_;
         server_ = nullptr;
+        delete mockCopySetService;
+        mockCopySetService = nullptr;
     }
 
  protected:
@@ -185,8 +195,9 @@ class TestTopologyServiceManager : public ::testing::Test {
     std::shared_ptr<curve::mds::copyset::CopysetManager> copysetManager_;
     std::shared_ptr<TopologyServiceManager> serviceManager_;
 
-    std::string listenAddr_;
+    butil::EndPoint listenAddr_;
     brpc::Server *server_;
+    MockCopysetServiceImpl *mockCopySetService;
 };
 
 
@@ -1992,11 +2003,6 @@ static void CreateCopysetNodeFunc(::google::protobuf::RpcController *controller,
 
 
 TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
-    MockCopysetServiceImpl mockCopySetService;
-    ASSERT_EQ(server_->AddService(&mockCopySetService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
-    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
-
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId);
@@ -2006,9 +2012,10 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
     PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
+    uint32_t port = listenAddr_.port;
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", port);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", port);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", port);
 
     CreateLogicalPoolRequest request;
     request.set_logicalpoolname("logicalpoolName1");
@@ -2033,7 +2040,7 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
     CopysetResponse2 chunkserverResponse;
     chunkserverResponse.set_status(
         COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    EXPECT_CALL(mockCopySetService, CreateCopysetNode2(_, _, _, _))
+    EXPECT_CALL(*mockCopySetService, CreateCopysetNode2(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(chunkserverResponse),
             Invoke(CreateCopysetNodeFunc)));
 
@@ -2051,11 +2058,6 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_Success) {
 }
 
 TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_ByNameSuccess) {
-    MockCopysetServiceImpl mockCopySetService;
-    ASSERT_EQ(server_->AddService(&mockCopySetService,
-                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
-    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
-
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     PrepareAddPhysicalPool(physicalPoolId, "pPool1");
@@ -2065,9 +2067,10 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_ByNameSuccess) {
     PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
     PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
     PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
+    uint32_t port = listenAddr_.port;
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", port);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", port);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", port);
 
     CreateLogicalPoolRequest request;
     request.set_logicalpoolname("logicalpoolName1");
@@ -2092,7 +2095,7 @@ TEST_F(TestTopologyServiceManager, test_CreateLogicalPool_ByNameSuccess) {
     CopysetResponse2 chunkserverResponse;
     chunkserverResponse.set_status(
         COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    EXPECT_CALL(mockCopySetService, CreateCopysetNode2(_, _, _, _))
+    EXPECT_CALL(*mockCopySetService, CreateCopysetNode2(_, _, _, _))
         .WillRepeatedly(DoAll(SetArgPointee<2>(chunkserverResponse),
             Invoke(CreateCopysetNodeFunc)));
 
