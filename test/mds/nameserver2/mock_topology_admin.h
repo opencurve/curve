@@ -25,6 +25,9 @@ class  MOCKTopologyAdmin1: public TopologyAdmin {
     ~MOCKTopologyAdmin1() {}
     MOCK_METHOD3(AllocateChunkRandomInSingleLogicalPool,
         bool(FileType, uint32_t, std::vector<CopysetIdInfo> *));
+
+    MOCK_METHOD3(AllocateChunkRoundRobinInSingleLogicalPool,
+        bool(FileType, uint32_t, std::vector<CopysetIdInfo> *));
 };
 
 }  // namespace mds
