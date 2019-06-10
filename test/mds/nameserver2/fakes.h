@@ -184,7 +184,7 @@ class FakeNameServerStorage : public NameServerStorage {
                                                   conflictFInfo.parentid(),
                                                   conflictFInfo.filename());
         std::string recyclestoreKey =
-                            NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
+                            NameSpaceStorageCodec::EncodeFileStoreKey(
                                                   recycleFInfo.parentid(),
                                                   recycleFInfo.filename());
 
@@ -214,31 +214,40 @@ class FakeNameServerStorage : public NameServerStorage {
 
     StoreStatus MoveFileToRecycle(
     const FileInfo &originFileInfo, const FileInfo &recycleFileInfo) {
-    std::string originFileInfoKey =  NameSpaceStorageCodec::EncodeFileStoreKey(
-        originFileInfo.parentid(), originFileInfo.filename());
+        std::string originFileInfoKey =
+            NameSpaceStorageCodec::EncodeFileStoreKey(
+            originFileInfo.parentid(), originFileInfo.filename());
 
-    std::string recycleFileInfoKey =
-        NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
-        recycleFileInfo.parentid(), recycleFileInfo.filename());
+        std::string recycleFileInfoKey =
+            NameSpaceStorageCodec::EncodeFileStoreKey(
+            recycleFileInfo.parentid(), recycleFileInfo.filename());
 
-    std::string encodeRecycleFInfo;
-    if (!NameSpaceStorageCodec::EncodeFileInfo(
-        recycleFileInfo, &encodeRecycleFInfo)) {
-        LOG(ERROR) << "encode recycle file: " << recycleFileInfo.filename()
-                  << " err";
-        return StoreStatus::InternalError;
+        std::string encodeRecycleFInfo;
+        if (!NameSpaceStorageCodec::EncodeFileInfo(
+            recycleFileInfo, &encodeRecycleFInfo)) {
+            LOG(ERROR) << "encode recycle file: " << recycleFileInfo.filename()
+                    << " err";
+            return StoreStatus::InternalError;
+        }
+
+        auto iter = memKvMap_.find(originFileInfoKey);
+        if (iter != memKvMap_.end()) {
+            memKvMap_.erase(iter);
+        }
+
+        auto iter1 = memKvMap_.find(recycleFileInfoKey);
+        if (iter1 != memKvMap_.end()) {
+            memKvMap_.erase(iter1);
+        }
+
+        memKvMap_.insert(
+                std::move(std::pair<std::string, std::string>
+                (recycleFileInfoKey, std::move(encodeRecycleFInfo))));
+
+        FileInfo  validFile;
+        validFile.ParseFromString(memKvMap_.find(recycleFileInfoKey)->second);
+        return StoreStatus::OK;
     }
-
-    auto iter = memKvMap_.find(originFileInfoKey);
-    if (iter != memKvMap_.end()) {
-        memKvMap_.erase(iter);
-    }
-
-    memKvMap_.insert(
-            std::move(std::pair<std::string, std::string>
-            (recycleFileInfoKey, std::move(encodeRecycleFInfo))));
-    return StoreStatus::OK;
-}
 
     StoreStatus ListFile(InodeID startid,
                          InodeID endid,

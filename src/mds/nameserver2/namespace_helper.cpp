@@ -20,8 +20,6 @@ const char INODESTOREKEY[] = "04";
 const char INODESTOREKEYEND[] = "05";
 const char CHUNKSTOREKEY[] = "05";
 const char CHUNKSTOREKEYEND[] = "06";
-const char RECYCLEFILEINFOKEYPREFIX[] = "06";
-const char RECYCLEFILEINFOKEYEND[] = "07";
 // TODO(hzsunjianliang): if use single prefix for snapshot file?
 const int PREFIX_LENGTH = 2;
 const int SEGMENTKEYLEN = 18;
@@ -43,17 +41,6 @@ std::string NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(uint64_t parentID,
     storeKey.resize(PREFIX_LENGTH + sizeof(parentID) + fileName.length());
 
     memcpy(&(storeKey[0]), SNAPSHOTFILEINFOKEYPREFIX, PREFIX_LENGTH);
-    ::curve::common::EncodeBigEndian(&(storeKey[2]), parentID);
-    memcpy(&(storeKey[10]), fileName.data(), fileName.length());
-    return storeKey;
-}
-
-std::string NameSpaceStorageCodec::EncodeRecycleFileStoreKey(uint64_t parentID,
-                                                const std::string &fileName) {
-    std::string storeKey;
-    storeKey.resize(PREFIX_LENGTH + sizeof(parentID) + fileName.length());
-
-    memcpy(&(storeKey[0]), RECYCLEFILEINFOKEYPREFIX, PREFIX_LENGTH);
     ::curve::common::EncodeBigEndian(&(storeKey[2]), parentID);
     memcpy(&(storeKey[10]), fileName.data(), fileName.length());
     return storeKey;

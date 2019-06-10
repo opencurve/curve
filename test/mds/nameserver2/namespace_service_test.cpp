@@ -68,6 +68,9 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         authOptions.rootOwner = "root";
         authOptions.rootPassword = "root_password";
+
+        InitRecycleBinDir(storage_);
+
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         cleanManager_,
                         sessionManager_, sessionOptions, authOptions);
@@ -286,6 +289,54 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_EQ(response.statuscode(), StatusCode::kNotSupported);
     } else {
         FAIL();
+    }
+
+    // test ListDir
+    {
+        ListDirRequest listRequest;
+        ListDirResponse listResponse;
+        cntl.Reset();
+        listRequest.set_filename("/dir");
+        listRequest.set_owner("owner3");
+        listRequest.set_date(TimeUtility::GetTimeofDayUs());
+        stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+            ASSERT_EQ(listResponse.fileinfo_size(), 1);
+            FileInfo fileInfo = listResponse.fileinfo(0);
+            ASSERT_EQ(fileInfo.filename(), "file3");
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        cntl.Reset();
+        listRequest.set_filename("/dir2");
+        listRequest.set_owner("owner");
+        listRequest.set_date(TimeUtility::GetTimeofDayUs());
+        stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(listResponse.statuscode(), StatusCode::kFileNotExists);
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        cntl.Reset();
+        uint64_t date = TimeUtility::GetTimeofDayUs();
+        std::string str2sig = Authenticator::GetString2Signature(date,
+                                                authOptions.rootOwner);
+        std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                authOptions.rootPassword);
+        listRequest.set_signature(sig);
+        listRequest.set_filename("/");
+        listRequest.set_owner(authOptions.rootOwner);
+        listRequest.set_date(date);
+        stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+            ASSERT_EQ(listResponse.fileinfo_size(), 4);
+         } else {
+            ASSERT_TRUE(false);
+        }
     }
 
     // test GetFileInfo
@@ -1251,6 +1302,30 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
+    // 查询垃圾箱
+    ListDirRequest listRequest;
+    ListDirResponse listResponse;
+    cntl.Reset();
+    uint64_t date = TimeUtility::GetTimeofDayUs();
+    std::string str2sig = Authenticator::GetString2Signature(date,
+                                            authOptions.rootOwner);
+    std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                            authOptions.rootPassword);
+    listRequest.set_signature(sig);
+    listRequest.set_filename(RECYCLEBINDIR);
+    listRequest.set_owner(authOptions.rootOwner);
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(listResponse.fileinfo_size(), 1);
+        FileInfo file = listResponse.fileinfo(0);
+        ASSERT_EQ(file.filename(), "file1-1");
+        ASSERT_EQ(file.filestatus(), FileStatus::kFileCreated);
+        } else {
+        ASSERT_TRUE(false);
+    }
+
     // 6 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
     cntl.Reset();
     request3.set_filename("/dir1/file2");
@@ -1297,6 +1372,92 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     if (!cntl.Failed()) {
         ASSERT_EQ(response1.statuscode(), StatusCode::kFileNotExists);
     } else {
+        ASSERT_TRUE(false);
+    }
+
+    // 查询垃圾箱
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    str2sig = Authenticator::GetString2Signature(date,
+                                            authOptions.rootOwner);
+    sig = Authenticator::CalcString2Signature(str2sig,
+                                            authOptions.rootPassword);
+    listRequest.set_signature(sig);
+    listRequest.set_filename(RECYCLEBINDIR);
+    listRequest.set_owner(authOptions.rootOwner);
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        FileInfo file = listResponse.fileinfo(0);
+        ASSERT_EQ(file.filename(), "file1-1");
+        ASSERT_EQ(listResponse.fileinfo(0).filestatus(),
+                                        FileStatus::kFileCreated);
+        ASSERT_EQ(listResponse.fileinfo(1).filestatus(),
+                                        FileStatus::kFileCreated);
+        ASSERT_EQ(listResponse.fileinfo_size(), 2);
+        } else {
+        ASSERT_TRUE(false);
+    }
+
+    // 从垃圾箱真正删除文件
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    str2sig = Authenticator::GetString2Signature(date,
+                                            authOptions.rootOwner);
+    sig = Authenticator::CalcString2Signature(str2sig,
+                                            authOptions.rootPassword);
+    request3.set_signature(sig);
+    request3.set_owner(authOptions.rootOwner);
+    request3.set_date(date);
+    request3.set_filename(RECYCLEBINDIR + "/" + "file1-1");
+    request3.set_forcedelete(true);
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    str2sig = Authenticator::GetString2Signature(date,
+                                            authOptions.rootOwner);
+    sig = Authenticator::CalcString2Signature(str2sig,
+                                            authOptions.rootPassword);
+    request3.set_signature(sig);
+    request3.set_owner(authOptions.rootOwner);
+    request3.set_date(date);
+    request3.set_filename(RECYCLEBINDIR + "/" + "file2-3");
+    request3.set_forcedelete(true);
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kOK);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
+    sleep(1);
+
+    cntl.Reset();
+    date = TimeUtility::GetTimeofDayUs();
+    str2sig = Authenticator::GetString2Signature(date,
+                                            authOptions.rootOwner);
+    sig = Authenticator::CalcString2Signature(str2sig,
+                                            authOptions.rootPassword);
+    listRequest.set_signature(sig);
+    listRequest.set_filename(RECYCLEBINDIR);
+    listRequest.set_owner(authOptions.rootOwner);
+    listRequest.set_date(date);
+    stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(listResponse.fileinfo_size(), 0);
+        } else {
         ASSERT_TRUE(false);
     }
 

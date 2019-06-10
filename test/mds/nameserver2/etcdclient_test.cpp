@@ -206,24 +206,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_EQ(EtcdErrCode::OK, client_->Get("04", &out));
     ASSERT_EQ("200", out);
 
-    // 8. rename file: rename file7 ~ file8, file8已经存在
-    // 把已经存在的file8标记为recycle
-    FileInfo recycleFileInfo8;
-    recycleFileInfo8.CopyFrom(fileInfo8);
-    recycleFileInfo8.set_filestatus(FileStatus::kFileDeleting);
-    recycleFileInfo8.set_filetype(INODE_RECYCLE_PAGEFILE);
-    std::string encoderecycleFileInfo8Key =
-            NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
-                recycleFileInfo8.parentid(), recycleFileInfo8.filename());
-    std::string encoderecycleFileInfo8;
-    ASSERT_TRUE(recycleFileInfo8.SerializeToString(&encoderecycleFileInfo8));
-    Operation op7{
-        OpType::OpPut,
-        const_cast<char*>(encoderecycleFileInfo8Key.c_str()),
-        const_cast<char*>(encoderecycleFileInfo8.c_str()),
-        encoderecycleFileInfo8Key.size(), encoderecycleFileInfo8.size()};
-
-    // 把file7 rename到 file8
+    // 8. rename file: rename file7 ~ file8
     Operation op8{
         OpType::OpDelete,
         const_cast<char*>(keyMap[7].c_str()), "",
@@ -243,7 +226,6 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
         const_cast<char*>(encodeNewFileInfo7.c_str()),
         encodeNewFileInfo7Key.size(), encodeNewFileInfo7.size()};
     ops.clear();
-    ops.emplace_back(op7);
     ops.emplace_back(op8);
     ops.emplace_back(op9);
     ASSERT_EQ(EtcdErrCode::OK, client_->TxnN(ops));
@@ -255,13 +237,9 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
     ASSERT_EQ(newFileInfo7.filename(), fileinfo.filename());
     ASSERT_EQ(newFileInfo7.filetype(), fileinfo.filetype());
-    // 成功获取recycle状态的file8
-    ASSERT_EQ(EtcdErrCode::OK, client_->Get(encoderecycleFileInfo8Key, &out));
-    ASSERT_TRUE(NameSpaceStorageCodec::DecodeFileInfo(out, &fileinfo));
-    ASSERT_EQ(FileStatus::kFileDeleting, fileinfo.filestatus());
-    ASSERT_EQ(FileType::INODE_RECYCLE_PAGEFILE, fileinfo.filetype());
 
     // 9. test more Txn err
+    ops.emplace_back(op8);
     ops.emplace_back(op9);
     ASSERT_EQ(EtcdErrCode::InvalidArgument, client_->TxnN(ops));
 

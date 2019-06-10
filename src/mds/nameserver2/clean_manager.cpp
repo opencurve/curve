@@ -60,6 +60,20 @@ bool CleanManager::RecoverCleanTasks(void) {
         }
     }
 
+    std::vector<FileInfo> commonFiles;
+    StoreStatus ret1 = storage_->ListFile(RECYCLEBININODEID,
+                        RECYCLEBININODEID + 1, &commonFiles);
+    if (ret1 != StoreStatus::OK) {
+        LOG(ERROR) << "Load recylce bin file error, ret = " << ret1;
+        return false;
+    }
+
+    for (auto & file : commonFiles) {
+        if (file.filestatus() == FileStatus::kFileDeleting) {
+            SubmitDeleteCommonFileJob(file);
+        }
+    }
+
     return true;
 }
 

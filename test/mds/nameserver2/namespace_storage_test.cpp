@@ -233,9 +233,9 @@ TEST_F(TestNameServerStorageImp, test_ReplaceFileAndRecycleOldFile) {
     FileInfo recycleFileInfo;
     recycleFileInfo.CopyFrom(existFileInfo);
     recycleFileInfo.set_filestatus(FileStatus::kFileDeleting);
-    recycleFileInfo.set_filetype(INODE_RECYCLE_PAGEFILE);
+    recycleFileInfo.set_filetype(INODE_PAGEFILE);
     std::string recycleFileInfoKey =
-        NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
+        NameSpaceStorageCodec::EncodeFileStoreKey(
         recycleFileInfo.parentid(), recycleFileInfo.filename());
     std::string encoderecycleFileInfo;
     ASSERT_TRUE(recycleFileInfo.SerializeToString(&encoderecycleFileInfo));
@@ -260,9 +260,9 @@ TEST_F(TestNameServerStorageImp, test_MoveFileToRecycle) {
     FileInfo recycleFileInfo;
     recycleFileInfo.CopyFrom(originFileInfo);
     recycleFileInfo.set_filestatus(FileStatus::kFileDeleting);
-    recycleFileInfo.set_filetype(INODE_RECYCLE_PAGEFILE);
+    recycleFileInfo.set_filetype(INODE_PAGEFILE);
     std::string recycleFileInfoKey =
-        NameSpaceStorageCodec::EncodeRecycleFileStoreKey(
+        NameSpaceStorageCodec::EncodeFileStoreKey(
         recycleFileInfo.parentid(), recycleFileInfo.filename());
     std::string encoderecycleFileInfo;
     ASSERT_TRUE(recycleFileInfo.SerializeToString(&encoderecycleFileInfo));
