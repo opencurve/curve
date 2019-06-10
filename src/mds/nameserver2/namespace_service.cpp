@@ -456,6 +456,65 @@ void NameSpaceService::ChangeOwner(
     return;
 }
 
+void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::ListDirRequest* request,
+                       ::curve::mds::ListDirResponse* response,
+                       ::google::protobuf::Closure* done) {
+    brpc::ClosureGuard doneGuard(done);
+    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+    if (!isPathValid(request->filename())) {
+        response->set_statuscode(StatusCode::kParaError);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", ListDir request path is invalid, filename = "
+            << request->filename();
+        return;
+    }
+
+    LOG(INFO) << "logid = " << cntl->log_id()
+        << ", ListDir request, filename = " << request->filename();
+
+    FileReadLockGuard guard(fileLockManager_, request->filename());
+
+    std::string signature;
+    if (request->has_signature()) {
+        signature = request->signature();
+    }
+
+    StatusCode retCode;
+    retCode = kCurveFS.CheckFileOwner(request->filename(), request->owner(),
+                                      signature, request->date());
+    if (retCode != StatusCode::kOK) {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", CheckFileOwner fail, filename = " <<  request->filename()
+            << ", owner = " << request->owner()
+            << ", statusCode = " << retCode;
+        return;
+    }
+
+    std::vector<FileInfo> fileInfoList;
+    retCode = kCurveFS.ReadDir(request->filename(), &fileInfoList);
+    if (retCode != StatusCode::kOK)  {
+        response->set_statuscode(retCode);
+        LOG(ERROR) << "logid = " << cntl->log_id()
+            << ", ListDir fail, filename = " <<  request->filename()
+            << ", statusCode = " << retCode
+            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        return;
+    } else {
+        response->set_statuscode(StatusCode::kOK);
+        for (auto iter = fileInfoList.begin();
+                                iter != fileInfoList.end(); ++iter) {
+            FileInfo *fileinfo = response->add_fileinfo();
+            fileinfo->CopyFrom(*iter);
+        }
+        LOG(INFO) << "logid = " << cntl->log_id()
+            << ", ListDir ok, filename = " << request->filename();
+    }
+    return;
+}
+
 void NameSpaceService::CreateSnapShot(
                         ::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateSnapShotRequest* request,
