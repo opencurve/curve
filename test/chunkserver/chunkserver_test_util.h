@@ -103,9 +103,14 @@ class TestCluster {
      * 启动一个 Peer
      * @param peerId
      * @param empty 初始化配置是否为空
+     * @param: get_chunk_from_pool是否从chunkfilepool获取chunk
+     * @param: create_chunkfilepool是否创建chunkfilepool，重启的情况下不需要
      * @return 0：成功，-1 失败
      */
-    int StartPeer(const PeerId &peerId, const bool empty = false);
+    int StartPeer(const PeerId &peerId,
+                  const bool empty = false,
+                  bool get_chunk_from_pool = false,
+                  bool create_chunkfilepool = true);
     /**
      * 关闭一个 peer，使用 SIGINT
      * @param peerId
@@ -149,7 +154,9 @@ class TestCluster {
     int SetCatchupMargin(int catchupMargin);
 
     static int StartPeerNode(CopysetNodeOptions options,
-                              const Configuration conf);
+                              const Configuration conf,
+                              bool from_chunkfile_pool = false,
+                              bool create_chunkfilepool = true);
 
  public:
     /**

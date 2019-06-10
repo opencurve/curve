@@ -231,7 +231,10 @@ TestCluster::TestCluster(const std::string &clusterName,
     }
 }
 
-int TestCluster::StartPeer(const PeerId &peerId, const bool empty) {
+int TestCluster::StartPeer(const PeerId &peerId,
+                           const bool empty,
+                           bool get_chunk_from_pool,
+                           bool create_chunkfilepool) {
     LOG(INFO) << "going start peer: " << peerId.to_string();
     auto it = peersMap_.find(peerId.to_string());
     if (it != peersMap_.end()) {
@@ -274,7 +277,8 @@ int TestCluster::StartPeer(const PeerId &peerId, const bool empty) {
         return -1;
     } else if (0 == pid) {
         /* 在子进程起一个 ChunkServer */
-        StartPeerNode(peer->options, peer->conf);
+        StartPeerNode(peer->options, peer->conf,
+                      get_chunk_from_pool, create_chunkfilepool);
         exit(0);
     }
 
@@ -409,7 +413,9 @@ int TestCluster::SetElectionTimeoutMs(int electionTimeoutMs) {
 }
 
 int TestCluster::StartPeerNode(CopysetNodeOptions options,
-                               const Configuration conf) {
+                               const Configuration conf,
+                               bool enable_getchunk_from_pool,
+                               bool create_chunkfilepool) {
     /**
      * 用于注释，说明 cmd format
      */
@@ -425,6 +431,8 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
         -logic_pool_id=%d
         -copyset_id=%d
         -raft_sync=true
+        -enable_getchunk_from_pool=false
+        -create_chunkfilepool=true
     )";
 
     std::string confStr;
@@ -461,6 +469,14 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
     butil::string_printf(&catchup_margin,
                          "-catchup_margin=%d",
                          options.catchupMargin);
+    std::string getchunk_from_pool;
+    butil::string_printf(&getchunk_from_pool,
+                         "-enable_getchunk_from_pool=%d",
+                         enable_getchunk_from_pool);
+    std::string create_pool;
+    butil::string_printf(&create_pool,
+                         "-create_chunkfilepool=%d",
+                         create_chunkfilepool);
     std::string logic_pool_id;
     butil::string_printf(&logic_pool_id, "-logic_pool_id=%d", logicPoolID_);
     std::string copyset_id;
@@ -479,6 +495,8 @@ int TestCluster::StartPeerNode(CopysetNodeOptions options,
         const_cast<char *>(catchup_margin.c_str()),
         const_cast<char *>(logic_pool_id.c_str()),
         const_cast<char *>(copyset_id.c_str()),
+        const_cast<char *>(getchunk_from_pool.c_str()),
+        const_cast<char *>(create_pool.c_str()),
         NULL
     };
 
