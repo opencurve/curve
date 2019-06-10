@@ -11,7 +11,6 @@ enum FileType {
     INODE_APPENDFILE = 2;
     INODE_APPENDECFILE = 3;
     INODE_SNAPSHOT_PAGEFILE = 4;
-    INODE_RECYCLE_PAGEFILE = 5;
 };
 
 enum FileStatus {
@@ -91,6 +90,8 @@ enum  StatusCode {
     kCommonFileDeleteError = 129;
     // 文件id不匹配
     kFileIdNotMatch = 130;
+    // 文件在删除中
+    kFileUnderDeleting = 131;
     // 元数据存储错误
     kStorageError = 501;
     // 内部错误
@@ -214,6 +215,18 @@ message ChangeOwnerRequest {
 // 失败可能返回kFileNotExists、kOwnerAuthFail、kFileOccupied、kStorageError等，可能返回的错误码将来继续补充
 message ChangeOwnerResponse {
     required StatusCode statusCode = 1;
+}
+
+message ListDirRequest {
+    required string     fileName = 1;
+    required string     owner = 2;
+    optional string     signature = 3;
+    required uint64     date = 4;
+}
+
+message ListDirResponse {
+    required StatusCode statusCode = 1;
+    repeated FileInfo fileInfo = 2;
 }
 
 // create snapshot
@@ -393,6 +406,7 @@ service CurveFSService {
     rpc     RenameFile(RenameFileRequest) returns (RenameFileResponse);
     rpc     ExtendFile(ExtendFileRequest) returns (ExtendFileResponse);
     rpc     ChangeOwner(ChangeOwnerRequest) returns (ChangeOwnerResponse);
+    rpc     ListDir(ListDirRequest) returns (ListDirResponse);
 
     // snapshot rpcs
     rpc     CreateSnapShot(CreateSnapShotRequest)

@@ -362,7 +362,8 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                         << ", ret = " << ret1;
                 return StatusCode::kStorageError;
             }
-            LOG(INFO) << "file delete to recyclebin, fileName =  " << filename;
+            LOG(INFO) << "file delete to recyclebin, fileName = " << filename
+                      << ", recycle filename = " << recycleFileInfo.filename();
             return StatusCode::kOK;
         } else {
             // direct removefile is not support
@@ -373,11 +374,31 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                 return StatusCode::kNotSupported;
             }
 
+            if (fileInfo.filestatus() == FileStatus::kFileDeleting) {
+                LOG(INFO) << "file is underdeleting, filename = " << filename;
+                return StatusCode::kFileUnderDeleting;
+            }
+
+            if (fileInfo.filestatus() != FileStatus::kFileCreated) {
+                LOG(ERROR) << "delete file, file status error, filename = "
+                           << filename
+                           << ", status = " << fileInfo.filestatus();
+                return StatusCode:: KInternalError;
+            }
+
             // 查看任务是否已经在
             if ( cleanManager_->GetTask(fileInfo.id()) != nullptr ) {
                 LOG(WARNING) << "filename = " << filename
                         << ", deleteFile task already submited";
                 return StatusCode::kOK;
+            }
+
+            fileInfo.set_filestatus(FileStatus::kFileDeleting);
+            auto ret = PutFile(fileInfo);
+            if (ret != StatusCode::kOK) {
+                LOG(ERROR) << "delete file put deleting file fail, filename = "
+                           << filename << ", retCode = " << ret;
+                return StatusCode::KInternalError;
             }
 
             // 提交一个删除文件的任务
