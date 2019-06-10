@@ -339,14 +339,14 @@ void ChunkServer::InitCopysetNodeOptions(
                    << copysetNodeOptions->port;
     }
 
+    LOG_IF(FATAL, !conf->GetIntValue("copyset.election_timeout_ms",
+        &copysetNodeOptions->electionTimeoutMs));
     LOG_IF(FATAL, !conf->GetIntValue("copyset.snapshot_interval_s",
         &copysetNodeOptions->snapshotIntervalS));
     LOG_IF(FATAL, !conf->GetIntValue("copyset.catchup_margin",
         &copysetNodeOptions->catchupMargin));
     LOG_IF(FATAL, !conf->GetStringValue("copyset.chunk_data_uri",
         &copysetNodeOptions->chunkDataUri));
-    LOG_IF(FATAL, !conf->GetStringValue("copyset.chunk_data_uri",
-        &copysetNodeOptions->chunkSnapshotUri));
     LOG_IF(FATAL, !conf->GetStringValue("copyset.raft_log_uri",
         &copysetNodeOptions->logUri));
     LOG_IF(FATAL, !conf->GetStringValue("copyset.raft_meta_uri",
