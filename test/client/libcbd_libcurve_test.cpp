@@ -47,7 +47,7 @@ class TestLibcbdLibcurve : public ::testing::Test {
 
         // 设置leaderid
         EndPoint ep;
-        butil::str2endpoint("127.0.0.1", 8200, &ep);
+        butil::str2endpoint("127.0.0.1", 9106, &ep);
         braft::PeerId pd(ep);
 
         /*** init mds service ***/
@@ -102,7 +102,7 @@ TEST(TestLibcbd, InitTest) {
     ASSERT_EQ(ret, 0);
 
     // testing with conf specified
-    opt.conf = "./client.conf";
+    opt.conf = const_cast<char*>(configpath.c_str());
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, 0);
     ret = cbd_lib_fini();
@@ -116,7 +116,7 @@ TEST_F(TestLibcbdLibcurve, ExtendTest) {
     memset(&opt, 0, sizeof(opt));
 
     // testing with conf specified
-    opt.conf = "./client.conf";
+    opt.conf = const_cast<char*>(configpath.c_str());
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, 0);
     ret = cbd_lib_resize(filename, NEWSIZE);
@@ -136,7 +136,7 @@ TEST_F(TestLibcbdLibcurve, ReadWriteTest) {
     memset(&opt, 0, sizeof(opt));
     memset(buf, 'a', BUFSIZE);
 
-    opt.conf = "./client.conf";
+    opt.conf = const_cast<char*>(configpath.c_str());
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
@@ -185,7 +185,7 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
     memset(&opt, 0, sizeof(opt));
     memset(buf, 'a', BUFSIZE);
 
-    opt.conf = "./client.conf";
+    opt.conf = const_cast<char*>(configpath.c_str());
     ret = cbd_lib_init(&opt);
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 
