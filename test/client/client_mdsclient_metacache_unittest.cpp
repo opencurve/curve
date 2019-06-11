@@ -57,9 +57,9 @@ using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 class MDSClientTest : public ::testing::Test {
  public:
     void SetUp() {
-        metaopt.metaaddrvec.push_back("127.0.0.1:8000");
+        metaopt.metaaddrvec.push_back("127.0.0.1:9104");
 
-        metaopt.metaaddrvec.push_back("127.0.0.1:8000");
+        metaopt.metaaddrvec.push_back("127.0.0.1:9104");
         metaopt.rpcTimeoutMs = 500;
         metaopt.rpcRetryTimes = 5;
         metaopt.retryIntervalUs = 200;

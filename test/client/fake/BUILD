@@ -97,26 +97,27 @@ cc_binary(
     copts = COPTS
 )
 
-cc_binary(
-    name = "curve_client_workflow4snap",
-    srcs = glob(["*.cpp", 
-                "*.h"],
-                exclude = ["client_workflow_test.cpp",
-                "mds_workflow_test.cpp"],),
-    deps = [
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:brpc",
-        "//external:braft",
-        "//external:protobuf",
-        "//src/common:curve_common",
-        "//include/client:include_client",
-        "//proto:nameserver2_cc_proto",
-        "//proto:chunkserver-cc-protos",
-        "//src/client:curve_client"
-    ],
-    copts = COPTS
-)
+#CI不需要跑snap workflow
+#cc_binary(
+#    name = "curve_client_workflow4snap",
+#    srcs = glob(["*.cpp", 
+#                "*.h"],
+#                exclude = ["client_workflow_test.cpp",
+#                "mds_workflow_test.cpp"],),
+#    deps = [
+#        "@com_google_googletest//:gtest",
+#        "@com_google_googletest//:gtest_main",
+#        "//external:gflags",
+#        "//external:glog",
+#        "//external:leveldb",
+#        "//external:brpc",
+#        "//external:braft",
+#        "//external:protobuf",
+#        "//src/common:curve_common",
+#        "//include/client:include_client",
+#        "//proto:nameserver2_cc_proto",
+#        "//proto:chunkserver-cc-protos",
+#        "//src/client:curve_client"
+#    ],
+#    copts = COPTS
+#)
