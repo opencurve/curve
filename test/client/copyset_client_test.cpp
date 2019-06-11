@@ -40,7 +40,7 @@ using curve::client::MetaCache;
 class CopysetClientTest : public testing::Test {
  protected:
     virtual void SetUp() {
-        listenAddr_ = "127.0.0.1:8200";
+        listenAddr_ = "127.0.0.1:9109";
         server_ = new brpc::Server();
     }
 
@@ -171,19 +171,19 @@ TEST_F(CopysetClientTest, normal_test) {
 
     ChunkServerID leaderId1 = 10000;
     butil::EndPoint leaderAdder1;
-    std::string leaderStr1 = "127.0.0.1:8200";
+    std::string leaderStr1 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
     ChunkServerID leaderId2 = 10001;
     butil::EndPoint leaderAdder2;
-    std::string leaderStr2 = "127.0.0.1:8200";
+    std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
     ChunkServerID leaderId3 = 10002;
     butil::EndPoint leaderAdder3;
-    std::string leaderStr3 = "127.0.0.1:8200";
+    std::string leaderStr3 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
     ChunkServerID leaderId4 = 10003;
     butil::EndPoint leaderAdder4;
-    std::string leaderStr4 = "127.0.0.1:8200";
+    std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
     // write success
@@ -412,19 +412,19 @@ TEST_F(CopysetClientTest, write_error_test) {
 
     ChunkServerID leaderId1 = 10000;
     butil::EndPoint leaderAdder1;
-    std::string leaderStr1 = "127.0.0.1:8200";
+    std::string leaderStr1 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
     ChunkServerID leaderId2 = 10001;
     butil::EndPoint leaderAdder2;
-    std::string leaderStr2 = "127.0.0.1:8200";
+    std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
     ChunkServerID leaderId3 = 10002;
     butil::EndPoint leaderAdder3;
-    std::string leaderStr3 = "127.0.0.1:8200";
+    std::string leaderStr3 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
     ChunkServerID leaderId4 = 10003;
     butil::EndPoint leaderAdder4;
-    std::string leaderStr4 = "127.0.0.1:8200";
+    std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
     /* 非法参数 */
@@ -813,19 +813,19 @@ TEST_F(CopysetClientTest, read_error_test) {
 
     ChunkServerID leaderId1 = 10000;
     butil::EndPoint leaderAdder1;
-    std::string leaderStr1 = "127.0.0.1:8200";
+    std::string leaderStr1 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
     ChunkServerID leaderId2 = 10001;
     butil::EndPoint leaderAdder2;
-    std::string leaderStr2 = "127.0.0.1:8200";
+    std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
     ChunkServerID leaderId3 = 10002;
     butil::EndPoint leaderAdder3;
-    std::string leaderStr3 = "127.0.0.1:8200";
+    std::string leaderStr3 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
     ChunkServerID leaderId4 = 10003;
     butil::EndPoint leaderAdder4;
-    std::string leaderStr4 = "127.0.0.1:8200";
+    std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
     /* 非法参数 */
@@ -1241,19 +1241,19 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
     ChunkServerID leaderId1 = 10000;
     butil::EndPoint leaderAdder1;
-    std::string leaderStr1 = "127.0.0.1:8200";
+    std::string leaderStr1 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
     ChunkServerID leaderId2 = 10001;
     butil::EndPoint leaderAdder2;
-    std::string leaderStr2 = "127.0.0.1:8200";
+    std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
     ChunkServerID leaderId3 = 10002;
     butil::EndPoint leaderAdder3;
-    std::string leaderStr3 = "127.0.0.1:8200";
+    std::string leaderStr3 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
     ChunkServerID leaderId4 = 10003;
     butil::EndPoint leaderAdder4;
-    std::string leaderStr4 = "127.0.0.1:8200";
+    std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
     /* 非法参数 */
@@ -1705,19 +1705,19 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
     ChunkServerID leaderId1 = 10000;
     butil::EndPoint leaderAdder1;
-    std::string leaderStr1 = "127.0.0.1:8200";
+    std::string leaderStr1 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
     ChunkServerID leaderId2 = 10001;
     butil::EndPoint leaderAdder2;
-    std::string leaderStr2 = "127.0.0.1:8200";
+    std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
     ChunkServerID leaderId3 = 10002;
     butil::EndPoint leaderAdder3;
-    std::string leaderStr3 = "127.0.0.1:8200";
+    std::string leaderStr3 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
     ChunkServerID leaderId4 = 10003;
     butil::EndPoint leaderAdder4;
-    std::string leaderStr4 = "127.0.0.1:8200";
+    std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
     /* 非法参数 */
@@ -2120,19 +2120,19 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
     ChunkServerID leaderId1 = 10000;
     butil::EndPoint leaderAdder1;
-    std::string leaderStr1 = "127.0.0.1:8200";
+    std::string leaderStr1 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
     ChunkServerID leaderId2 = 10001;
     butil::EndPoint leaderAdder2;
-    std::string leaderStr2 = "127.0.0.1:8200";
+    std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
     ChunkServerID leaderId3 = 10002;
     butil::EndPoint leaderAdder3;
-    std::string leaderStr3 = "127.0.0.1:8200";
+    std::string leaderStr3 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
     ChunkServerID leaderId4 = 10003;
     butil::EndPoint leaderAdder4;
-    std::string leaderStr4 = "127.0.0.1:8200";
+    std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
     /* 非法参数 */
@@ -2520,19 +2520,19 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
     ChunkServerID leaderId1 = 10000;
     butil::EndPoint leaderAdder1;
-    std::string leaderStr1 = "127.0.0.1:8200";
+    std::string leaderStr1 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
     ChunkServerID leaderId2 = 10001;
     butil::EndPoint leaderAdder2;
-    std::string leaderStr2 = "127.0.0.1:8200";
+    std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
     ChunkServerID leaderId3 = 10002;
     butil::EndPoint leaderAdder3;
-    std::string leaderStr3 = "127.0.0.1:8200";
+    std::string leaderStr3 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
     ChunkServerID leaderId4 = 10003;
     butil::EndPoint leaderAdder4;
-    std::string leaderStr4 = "127.0.0.1:8200";
+    std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
     /* 非法参数 */
@@ -2911,19 +2911,19 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
     ChunkServerID leaderId1 = 10000;
     butil::EndPoint leaderAdder1;
-    std::string leaderStr1 = "127.0.0.1:8200";
+    std::string leaderStr1 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
     ChunkServerID leaderId2 = 10001;
     butil::EndPoint leaderAdder2;
-    std::string leaderStr2 = "127.0.0.1:8200";
+    std::string leaderStr2 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
     ChunkServerID leaderId3 = 10002;
     butil::EndPoint leaderAdder3;
-    std::string leaderStr3 = "127.0.0.1:8200";
+    std::string leaderStr3 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
     ChunkServerID leaderId4 = 10003;
     butil::EndPoint leaderAdder4;
-    std::string leaderStr4 = "127.0.0.1:8200";
+    std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
     /* 非法参数 */
