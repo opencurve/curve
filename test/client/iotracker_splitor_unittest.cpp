@@ -77,7 +77,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
  public:
     void SetUp() {
         fiu_init(0);
-        fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+        fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
         fopt.metaServerOpt.rpcTimeoutMs = 500;
         fopt.metaServerOpt.rpcRetryTimes = 3;
         fopt.loginfo.loglevel = 0;
@@ -219,7 +219,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
                 auto cslocs = csinfo->add_cslocs();
                 cslocs->set_chunkserverid(chunkserveridc++);
                 cslocs->set_hostip("127.0.0.1");
-                cslocs->set_port(8000);
+                cslocs->set_port(9104);
             }
         }
         FakeReturn* faktopologyeret = new FakeReturn(nullptr,

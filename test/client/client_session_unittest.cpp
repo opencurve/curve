@@ -6,9 +6,15 @@
  */
 
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <brpc/server.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 #include <mutex>    // NOLINT
 #include <atomic>
@@ -80,7 +86,7 @@ TEST(TimerTaskWorkerTest, TimerTaskWorkerRunTaskTest) {
     ASSERT_NE(1, testnum2.load());
 
     cv.wait(lk, [&testnum1, &testnum2]()->bool{
-        return testnum2.load() == 2;
+        return testnum2.load() >= 2;
     });
 
     ASSERT_TRUE(timerworker.CancelTimerTask(&task2));
@@ -302,7 +308,7 @@ TEST(ClientSession, AppliedIndexTest) {
 
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start("127.0.0.1:5555", &options), 0);
+    ASSERT_EQ(server.Start("127.0.0.1:9102", &options), 0);
 
     // fill metacache
     curve::client::MetaCache* mc
@@ -311,7 +317,7 @@ TEST(ClientSession, AppliedIndexTest) {
     mc->UpdateChunkInfoByIndex(0, chunkinfo);
     curve::client::CopysetInfo cpinfo;
     curve::client::EndPoint ep;
-    butil::str2endpoint("127.0.0.1", 5555, &ep);
+    butil::str2endpoint("127.0.0.1", 9102, &ep);
 
     braft::PeerId pd(ep);
     curve::client::CopysetPeerInfo
@@ -403,4 +409,37 @@ TEST(ClientSession, AppliedIndexTest) {
     delete readret3;
     delete readret2;
     delete readret;
+}
+
+std::string metaserver_addr = "127.0.0.1:9101";     // NOLINT
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
+uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
+std::string configpath = "./client_2.conf";   // NOLINT
+std::string config = "metaserver_addr=127.0.0.1:9101@127.0.0.1:9101\n"   // NOLINT
+"getLeaderRetry=3\n"\
+"queueCapacity=4096\n"\
+"threadpoolSize=2\n"\
+"opRetryIntervalUs=200000\n"\
+"opMaxRetry=3\n"\
+"rpcRetryTimes=3\n"\
+"pre_allocate_context_num=1024\n"\
+"ioSplitMaxSizeKB=64\n"\
+"enableAppliedIndexRead=1\n"\
+"loglevel=0";
+
+int main(int argc, char ** argv) {
+    google::InitGoogleLogging(argv[0]);
+    ::testing::InitGoogleTest(&argc, argv);
+    ::testing::InitGoogleMock(&argc, argv);
+    google::ParseCommandLineFlags(&argc, &argv, false);
+
+    int fd =  open(configpath.c_str(), O_CREAT | O_RDWR);
+    int len = write(fd, config.c_str(), config.length());
+    close(fd);
+
+    int ret = RUN_ALL_TESTS();
+
+    unlink(configpath.c_str());
+
+    return ret;
 }

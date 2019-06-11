@@ -25,7 +25,7 @@ using curve::client::EndPoint;
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:6666";   // NOLINT
+std::string metaserver_addr = "127.0.0.1:9105";   // NOLINT
 
 DECLARE_uint64(test_disk_size);
 DEFINE_uint32(io_time, 5, "Duration for I/O test");
@@ -55,9 +55,9 @@ void readcallbacktest(CurveAioContext* context) {
 int main(int argc, char ** argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
-    std::string configpath = "./client.conf";   // NOLINT
+    std::string configpath = "./client_4.conf";   // NOLINT
     std::string config = ""\
-    "metaserver_addr=127.0.0.1:6666\n" \
+    "metaserver_addr=127.0.0.1:9105\n" \
     "getLeaderRetry=3\n"\
     "queueCapacity=4096\n"\
     "threadpoolSize=2\n"\
@@ -88,7 +88,7 @@ int main(int argc, char ** argv) {
         if (FLAGS_create_copysets) {
             // 设置leaderid
             EndPoint ep;
-            butil::str2endpoint("127.0.0.1", 8200, &ep);
+            butil::str2endpoint("127.0.0.1", 9106, &ep);
             PeerId pd(ep);
             mds.StartCliService(pd);
             mds.CreateCopysetNode(true);

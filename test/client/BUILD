@@ -20,81 +20,12 @@ COPTS = [
 ]
 
 cc_test(
-    name = "client_copyset_test",
-    srcs = glob([
-        "client_unittest_main.cpp",
-        "copyset_client_test.cpp",
-        "mock_chunkservice.h",
-        "mock_meta_cache.h",
-        "mock_request_context.h",
-        "request_scheduler_test.cpp",
-        "request_sender_manager_test.cpp",
-        "request_sender_test.cpp",
-    ]),
-    copts = COPTS,
-    defines = ["UNIT_TEST"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//include/client:include_client",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//proto:topology_cc_proto",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
-        "//test/client/fake:fake_lib",
-        "//src/common/concurrent:curve_concurrent",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "client_userinfo_unittest",
-    srcs = glob([
-        "*.h",
-        "client_unittest_main.cpp",
-        "client_userifo_unittest.cpp"],
-    ),
-    copts = COPTS,
-    defines = ["UNIT_TEST"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//include/client:include_client",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//proto:topology_cc_proto",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
-        "//test/client/fake:fake_lib",
-        "//src/common/concurrent:curve_concurrent",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
     name = "client_test_unittest",
     srcs = glob([
         "*.h",
         "*.cpp"],
         exclude = ["client_session_unittest.cpp",
                 "snapshot_service_unittest.cpp",
-                "libcbd_libcurve_test.cpp",
-                "copyset_client_test.cpp",
-                "request_scheduler_test.cpp",
-                "client_userifo_unittest.cpp"
                 ]
     ),
     copts = COPTS,
@@ -122,40 +53,9 @@ cc_test(
 )
 
 cc_test(
-    name = "client_libcurve_test_unittest",
-    srcs = glob([
-        "*.h",
-        "client_unittest_main.cpp",
-        "libcbd_libcurve_test.cpp"],
-    ),
-    copts = COPTS,
-    defines = ["UNIT_TEST"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//include/client:include_client",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//proto:topology_cc_proto",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
-        "//test/client/fake:fake_lib",
-        "//src/common/concurrent:curve_concurrent",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
     name = "client_session_unittest",
     srcs = glob([
-        "client_session_unittest.cpp",
-        "client_unittest_main.cpp"
+        "client_session_unittest.cpp"
     ]),
     copts = COPTS,
     defines = ["UNIT_TEST"],
@@ -184,10 +84,7 @@ cc_test(
     name = "client_snapshot_test_unittest",
     srcs = glob([
         "*.h",
-        "snapshot_service_unittest.cpp",
-        "client_unittest_main.cpp",],
-        exclude = ["client_session_unittest.cpp",
-                "libcbd_libcurve_test"]
+        "snapshot_service_unittest.cpp"]
     ),
     copts = COPTS,
     defines = ["UNIT_TEST"],
