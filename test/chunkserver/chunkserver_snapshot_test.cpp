@@ -27,10 +27,10 @@ using curve::fs::FileSystemType;
 class ChunkServerSnapshotTest : public testing::Test {
  protected:
     virtual void SetUp() {
-        ASSERT_EQ(0, peer1.parse("127.0.0.1:9101:0"));
-        ASSERT_EQ(0, peer2.parse("127.0.0.1:9102:0"));
-        ASSERT_EQ(0, peer3.parse("127.0.0.1:9103:0"));
-        ASSERT_EQ(0, peer4.parse("127.0.0.1:9104:0"));
+        ASSERT_EQ(0, peer1.parse("127.0.0.1:9051:0"));
+        ASSERT_EQ(0, peer2.parse("127.0.0.1:9052:0"));
+        ASSERT_EQ(0, peer3.parse("127.0.0.1:9053:0"));
+        ASSERT_EQ(0, peer4.parse("127.0.0.1:9054:0"));
         Exec(TestCluster::RemoveCopysetDirCmd(peer1).c_str());
         Exec(TestCluster::RemoveCopysetDirCmd(peer2).c_str());
         Exec(TestCluster::RemoveCopysetDirCmd(peer3).c_str());

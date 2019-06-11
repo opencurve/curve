@@ -54,7 +54,7 @@ TEST_F(CopysetServiceTest, basic) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100002;
     std::string ip = "127.0.0.1";
-    uint32_t port = 9200;
+    uint32_t port = 9040;
     std::string copysetDir = "local://./data";
 
     brpc::Server server;
@@ -84,7 +84,7 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeManager->Init(copysetNodeOptions);
 
     brpc::Channel channel;
-    PeerId peerId("127.0.0.1:9200:0");
+    PeerId peerId("127.0.0.1:9040:0");
     if (channel.Init(peerId.addr, NULL) != 0) {
         LOG(FATAL) << "Fail to init channel to " << peerId.addr;
     }
@@ -99,9 +99,9 @@ TEST_F(CopysetServiceTest, basic) {
         CopysetResponse response;
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
-        request.add_peerid("127.0.0.1:9200:0");
-        request.add_peerid("127.0.0.1:9201:0");
-        request.add_peerid("127.0.0.1:9202:0");
+        request.add_peerid("127.0.0.1:9040:0");
+        request.add_peerid("127.0.0.1:9041:0");
+        request.add_peerid("127.0.0.1:9042:0");
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
             std::cout << cntl.ErrorText() << std::endl;
@@ -119,9 +119,9 @@ TEST_F(CopysetServiceTest, basic) {
         CopysetResponse response;
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
-        request.add_peerid("127.0.0.1:9200:0");
-        request.add_peerid("127.0.0.1:9201:0");
-        request.add_peerid("127.0.0.1:9202:0");
+        request.add_peerid("127.0.0.1:9040:0");
+        request.add_peerid("127.0.0.1:9041:0");
+        request.add_peerid("127.0.0.1:9042:0");
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
             std::cout << cntl.ErrorText() << std::endl;
@@ -140,8 +140,8 @@ TEST_F(CopysetServiceTest, basic) {
         request.set_logicpoolid(logicPoolId + 1);
         request.set_copysetid(copysetId + 1);
         request.add_peerid("127.0.0.1");
-        request.add_peerid("127.0.0.1:9201:0");
-        request.add_peerid("127.0.0.1:9202:0");
+        request.add_peerid("127.0.0.1:9041:0");
+        request.add_peerid("127.0.0.1:9042:0");
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
             std::cout << cntl.ErrorText() << std::endl;
@@ -159,7 +159,7 @@ TEST_F(CopysetServiceTest, basic2) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100003;
     std::string ip = "127.0.0.1";
-    uint32_t port = 9200;
+    uint32_t port = 9040;
     std::string copysetDir = "local://./data";
 
     brpc::Server server;
@@ -189,7 +189,7 @@ TEST_F(CopysetServiceTest, basic2) {
     copysetNodeManager->Init(copysetNodeOptions);
 
     brpc::Channel channel;
-    PeerId peerId("127.0.0.1:9200:0");
+    PeerId peerId("127.0.0.1:9040:0");
     if (channel.Init(peerId.addr, NULL) != 0) {
         LOG(FATAL) << "Fail to init channel to " << peerId.addr;
     }
@@ -209,11 +209,11 @@ TEST_F(CopysetServiceTest, basic2) {
         copyset->set_logicpoolid(logicPoolId);
         copyset->set_copysetid(copysetId);
         Peer *peer1 = copyset->add_peers();
-        peer1->set_address("127.0.0.1:9200:0");
+        peer1->set_address("127.0.0.1:9040:0");
         Peer *peer2 = copyset->add_peers();
-        peer2->set_address("127.0.0.1:9201:0");
+        peer2->set_address("127.0.0.1:9041:0");
         Peer *peer3 = copyset->add_peers();
-        peer3->set_address("127.0.0.1:9202:0");
+        peer3->set_address("127.0.0.1:9042:0");
 
         stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
@@ -235,11 +235,11 @@ TEST_F(CopysetServiceTest, basic2) {
         copyset->set_logicpoolid(logicPoolId);
         copyset->set_copysetid(copysetId);
         Peer *peer1 = copyset->add_peers();
-        peer1->set_address("127.0.0.1:9200:0");
+        peer1->set_address("127.0.0.1:9040:0");
         Peer *peer2 = copyset->add_peers();
-        peer2->set_address("127.0.0.1:9201:0");
+        peer2->set_address("127.0.0.1:9041:0");
         Peer *peer3 = copyset->add_peers();
-        peer3->set_address("127.0.0.1:9202:0");
+        peer3->set_address("127.0.0.1:9042:0");
 
         stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
@@ -264,11 +264,11 @@ TEST_F(CopysetServiceTest, basic2) {
             copyset->set_logicpoolid(logicPoolId);
             copyset->set_copysetid(copysetId + 1);
             Peer *peer1 = copyset->add_peers();
-            peer1->set_address("127.0.0.1:9200:0");
+            peer1->set_address("127.0.0.1:9040:0");
             Peer *peer2 = copyset->add_peers();
-            peer2->set_address("127.0.0.1:9201:0");
+            peer2->set_address("127.0.0.1:9041:0");
             Peer *peer3 = copyset->add_peers();
-            peer3->set_address("127.0.0.1:9202:0");
+            peer3->set_address("127.0.0.1:9042:0");
         }
 
         // 准备第2个copyset
@@ -278,11 +278,11 @@ TEST_F(CopysetServiceTest, basic2) {
             copyset->set_logicpoolid(logicPoolId);
             copyset->set_copysetid(copysetId + 2);
             Peer *peer1 = copyset->add_peers();
-            peer1->set_address("127.0.0.1:9200:0");
+            peer1->set_address("127.0.0.1:9040:0");
             Peer *peer2 = copyset->add_peers();
-            peer2->set_address("127.0.0.1:9201:0");
+            peer2->set_address("127.0.0.1:9041:0");
             Peer *peer3 = copyset->add_peers();
-            peer3->set_address("127.0.0.1:9202:0");
+            peer3->set_address("127.0.0.1:9042:0");
         }
 
         stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
@@ -307,11 +307,11 @@ TEST_F(CopysetServiceTest, basic2) {
             copyset->set_logicpoolid(logicPoolId);
             copyset->set_copysetid(copysetId + 3);
             Peer *peer1 = copyset->add_peers();
-            peer1->set_address("127.0.0.1:9200:0");
+            peer1->set_address("127.0.0.1:9040:0");
             Peer *peer2 = copyset->add_peers();
-            peer2->set_address("127.0.0.1:9201:0");
+            peer2->set_address("127.0.0.1:9041:0");
             Peer *peer3 = copyset->add_peers();
-            peer3->set_address("127.0.0.1:9202:0");
+            peer3->set_address("127.0.0.1:9042:0");
 
             stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
             if (cntl.Failed()) {
@@ -330,7 +330,7 @@ TEST_F(CopysetServiceTest, basic2) {
             request.set_copysetid(copysetId + 3);
             Peer *peer = new Peer();
             request.set_allocated_peer(peer);
-            peer->set_address("127.0.0.1:9200:0");
+            peer->set_address("127.0.0.1:9040:0");
 
             stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
             if (cntl.Failed()) {

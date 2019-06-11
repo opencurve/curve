@@ -23,7 +23,7 @@ TEST(RequestSenderManagerTest, basic_test) {
         new RequestSenderManager());
     ChunkServerID leaderId = 123456789;
     butil::EndPoint leaderAddr;
-    std::string leaderStr = "127.0.0.1:8200";
+    std::string leaderStr = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr.c_str(), &leaderAddr);
 
     for (int i = leaderId; i <= leaderId + 10000; ++i) {
