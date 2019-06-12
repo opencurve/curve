@@ -59,11 +59,6 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
 
     copysetMan_ = options.copysetNodeManager;
 
-    /*
-     * 初始化ChunkServer性能metrics
-     */
-    chunkserverMetric.Init(options_.ip, options_.port);
-
     return 0;
 }
 
@@ -129,16 +124,26 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     auto replica = new ::curve::common::Peer();
     replica->set_address(leader.to_string());
     info->set_allocated_leaderpeer(replica);
-    IoPerfMetric metric;
-    copyset->GetPerfMetrics(&metric);
 
     curve::mds::heartbeat::CopysetStatistics* stats =
         new curve::mds::heartbeat::CopysetStatistics();
-    stats->set_readrate(metric.readBps);
-    stats->set_writerate(metric.writeBps);
-    stats->set_readiops(metric.readIops);
-    stats->set_writeiops(metric.writeIops);
-    info->set_allocated_stats(stats);
+    CopysetMetricPtr copysetMetric =
+        ChunkServerMetric::GetInstance()->GetCopysetMetric(poolId, copysetId);
+    if (copysetMetric != nullptr) {
+        IOMetricPtr readMetric = copysetMetric->GetReadMetric();
+        IOMetricPtr writeMetric = copysetMetric->GetWriteMetric();
+        if (readMetric != nullptr && writeMetric != nullptr) {
+            stats->set_readrate(readMetric->bps_.get_value(1));
+            stats->set_writerate(writeMetric->bps_.get_value(1));
+            stats->set_readiops(readMetric->iops_.get_value(1));
+            stats->set_writeiops(writeMetric->iops_.get_value(1));
+            info->set_allocated_stats(stats);
+        } else {
+            LOG(ERROR) << "Failed to get copyset io metric."
+                       << "logic pool id: " << poolId
+                       << ", copyset id: " << copysetId;
+        }
+    }
 
     ConfigChangeType type;
     Configuration conf;
@@ -185,15 +190,21 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     diskState->set_errmsg("");
     req->set_allocated_diskstate(diskState);
 
-    UpdateChunkserverPerfMetric();
-
     curve::mds::heartbeat::ChunkServerStatisticInfo* stats =
         new curve::mds::heartbeat::ChunkServerStatisticInfo();
-    stats->set_readrate(chunkserverMetric.readBps->get_value(1));
-    stats->set_writerate(chunkserverMetric.writeBps->get_value(1));
-    stats->set_readiops(chunkserverMetric.readIops->get_value(1));
-    stats->set_writeiops(chunkserverMetric.writeIops->get_value(1));
-    req->set_allocated_stats(stats);
+    IOMetricPtr readMetric =
+        ChunkServerMetric::GetInstance()->GetReadMetric();
+    IOMetricPtr writeMetric =
+        ChunkServerMetric::GetInstance()->GetWriteMetric();
+    if (readMetric != nullptr && writeMetric != nullptr) {
+        stats->set_readrate(readMetric->bps_.get_value(1));
+        stats->set_writerate(writeMetric->bps_.get_value(1));
+        stats->set_readiops(readMetric->iops_.get_value(1));
+        stats->set_writeiops(writeMetric->iops_.get_value(1));
+        req->set_allocated_stats(stats);
+    } else {
+        LOG(ERROR) << "Failed to get chunkserver io metric.";
+    }
 
     size_t cap, avail;
     ret = GetFileSystemSpaces(&cap, &avail);
@@ -471,28 +482,6 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
     }
 
     LOG(INFO) << "Heartbeat worker thread stopped.";
-}
-
-void Heartbeat::UpdateChunkserverPerfMetric() {
-    std::vector<CopysetNodePtr> copysets;
-    CopysetNodeManager* copysetMan = options_.copysetNodeManager;
-    copysetMan->GetAllCopysetNodes(&copysets);
-
-    IoPerfMetric metricChunkserver = {0};
-    IoPerfMetric metricCopyset = {0};
-    for (CopysetNodePtr copyset : copysets) {
-        copyset->GetPerfMetrics(&metricCopyset);
-
-        metricChunkserver.readCount += metricCopyset.readCount;
-        metricChunkserver.writeCount += metricCopyset.writeCount;
-        metricChunkserver.readBytes += metricCopyset.readBytes;
-        metricChunkserver.writeBytes += metricCopyset.writeBytes;
-    }
-
-    readCount.store(metricChunkserver.readCount, std::memory_order_release);
-    writeCount.store(metricChunkserver.writeCount, std::memory_order_release);
-    readBytes.store(metricChunkserver.readBytes, std::memory_order_release);
-    writeBytes.store(metricChunkserver.writeBytes, std::memory_order_release);
 }
 
 }  // namespace chunkserver

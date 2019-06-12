@@ -317,8 +317,9 @@ void ReadChunkRequest::OnApply(uint64_t index,
             ReadChunk();
     } while (false);
 
-    if (response_->status() == CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS)
+    if (response_->status() == CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS) {
         node_->UpdateAppliedIndex(index);
+    }
 
     brpc::ClosureGuard doneGuard(done);
     auto maxIndex =

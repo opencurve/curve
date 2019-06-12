@@ -23,6 +23,7 @@ class Configuration {
     bool LoadConfig();
     bool SaveConfig();
     std::string DumpConfig();
+    std::map<std::string, std::string> ListConfig() const;
 
     void SetConfigPath(const std::string &path);
     std::string GetConfigPath();

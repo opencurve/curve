@@ -34,11 +34,6 @@ using CandidateError    = curve::mds::heartbeat::CandidateError;
 using TaskStatus        = butil::Status;
 using CopysetNodePtr    = std::shared_ptr<CopysetNode>;
 
-static std::atomic<uint64_t> readCount;
-static std::atomic<uint64_t> writeCount;
-static std::atomic<uint64_t> readBytes;
-static std::atomic<uint64_t> writeBytes;
-
 static uint64_t GetAtomicUint64(void* arg) {
     std::atomic<uint64_t>* v = (std::atomic<uint64_t> *)arg;
     return v->load(std::memory_order_acquire);
@@ -60,51 +55,6 @@ struct HeartbeatOptions {
     CopysetNodeManager*     copysetNodeManager;
 
     std::shared_ptr<LocalFileSystem> fs;
-};
-
-struct ChunkServerMetric {
-    // ChunkServer读请求累计数
-    std::shared_ptr<bvar::PassiveStatus<uint64_t>> readCnt;
-    // ChunkServer写请求累计数
-    std::shared_ptr<bvar::PassiveStatus<uint64_t>> writeCnt;
-    // ChunkServer读请求累计字节数
-    std::shared_ptr<bvar::PassiveStatus<uint64_t>> readBytes;
-    // ChunkServer写请求累计字节数
-    std::shared_ptr<bvar::PassiveStatus<uint64_t>> writeBytes;
-    // ChunkServer读请求每秒计数
-    std::shared_ptr<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>> readIops;
-    // ChunkServer写请求每秒计数
-    std::shared_ptr<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>> writeIops;
-    // ChunkServer读请求每秒字节数
-    std::shared_ptr<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>> readBps;
-    // ChunkServer写请求每秒字节数
-    std::shared_ptr<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>> writeBps;
-
-    void Init(std::string ip, uint16_t port) {
-        std::string prefix = "chunkserver_" + ip + "_" + std::to_string(port);
-
-        readCnt = std::make_shared<bvar::PassiveStatus<uint64_t>>(
-                    prefix, "read_count", GetAtomicUint64, &readCount);
-        writeCnt = std::make_shared<bvar::PassiveStatus<uint64_t>>(
-                    prefix, "write_count", GetAtomicUint64, &writeCount);
-        readBytes = std::make_shared<bvar::PassiveStatus<uint64_t>>(
-                        prefix, "read_bytes", GetAtomicUint64, &readBytes);
-        writeBytes = std::make_shared<bvar::PassiveStatus<uint64_t>>(
-                        prefix, "write_bytes", GetAtomicUint64, &writeBytes);
-
-        readIops =
-            std::make_shared<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>>(
-                        prefix, "read_iops", readCnt.get());
-        writeIops =
-            std::make_shared<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>>(
-                        prefix, "write_iops", writeCnt.get());
-        readBps =
-            std::make_shared<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>>(
-                        prefix, "read_bps", readBytes.get());
-        writeBps =
-            std::make_shared<bvar::PerSecond<bvar::PassiveStatus<uint64_t>>>(
-                        prefix, "write_bps", writeBytes.get());
-    }
 };
 
 /**
@@ -193,11 +143,6 @@ class Heartbeat {
      */
     TaskStatus PurgeCopyset(LogicPoolID poolId, CopysetID copysetId);
 
-    /*
-     * 更新ChunkServer性能复合metric
-     */
-    void UpdateChunkserverPerfMetric();
-
  private:
     // 心跳线程
     std::unique_ptr<std::thread> hbThread_;
@@ -219,9 +164,6 @@ class Heartbeat {
 
     // ChunkServer本身的地址
     butil::EndPoint csEp_;
-
-    // chunkserver metric统计, 由各copyset聚合而成
-    ChunkServerMetric chunkserverMetric;
 };
 
 }  // namespace chunkserver

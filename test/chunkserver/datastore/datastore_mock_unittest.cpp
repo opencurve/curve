@@ -3709,6 +3709,26 @@ TEST_F(CSDataStore_test, GetHashErrorTest2) {
                                       0,
                                       4096,
                                       &hash));
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+/*
+ * 获取datastore状态测试
+ */
+TEST_F(CSDataStore_test, GetStatusTest) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    DataStoreStatus status;
+    status = dataStore->GetStatus();
+    ASSERT_EQ(2, status.chunkFileCount);
+    ASSERT_EQ(1, status.snapshotCount);
 
     EXPECT_CALL(*lfs_, Close(1))
         .Times(1);
