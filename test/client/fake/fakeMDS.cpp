@@ -27,7 +27,7 @@ DEFINE_uint32(copyset_num, 32, "copyset num in one chunkserver");
 DEFINE_uint64(seq_num, 1, "seqnum");
 // raft::Configuration format to reuse raft parse functions
 DEFINE_string(chunkserver_list,
-             "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
+             "127.0.0.1:9106:0,127.0.0.1:9107:0,127.0.0.1:9108:0",
             "chunkserver address");
 
 using curve::chunkserver::COPYSET_OP_STATUS;

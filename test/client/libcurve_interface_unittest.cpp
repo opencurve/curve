@@ -57,7 +57,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
 
     // 设置leaderid
     EndPoint ep;
-    butil::str2endpoint("127.0.0.1", 8200, &ep);
+    butil::str2endpoint("127.0.0.1", 9106, &ep);
     PeerId pd(ep);
 
     // init mds service
