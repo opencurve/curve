@@ -28,7 +28,6 @@ Used port list:
 
 
 # mds & snapshotcloneserver
-
     use port : 8900~8999, 8888
     use port(xuchaojie) : 8900~8999
     use port(lixiaocui) : 6879, 2221, 2222, 3333,2001~2004, 3333, 3500
