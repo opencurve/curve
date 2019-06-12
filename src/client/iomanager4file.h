@@ -31,9 +31,12 @@ class IOManager4File : public IOManager {
    * 初始化函数
    * @param: ioopt为当前iomanager的配置信息
    * @param: clientMetric为client端要统计的metric信息
+   * @param: mdsclient向下透传给metacache
    * @return: 成功true,失败false
    */
-  bool Initialize(IOOption_t ioOpt, ClientMetric_t* clientMetric);
+  bool Initialize(IOOption_t ioOpt,
+                  ClientMetric_t* clientMetric,
+                  MDSClient* mdsclient);
 
   /**
    * 同步模式读

@@ -25,14 +25,15 @@ IOManager4File::IOManager4File():
 }
 
 bool IOManager4File::Initialize(IOOption_t ioOpt,
-                                ClientMetric_t* clientMetric) {
+                                ClientMetric_t* clientMetric,
+                                MDSClient* mdsclient) {
     ioopt_ = ioOpt;
     if (clientMetric == nullptr) {
         LOG(ERROR) << "metric pointer is null!";
         return false;
     }
     clientMetric_ = clientMetric;
-    mc_.Init(ioopt_.metaCacheOpt);
+    mc_.Init(ioopt_.metaCacheOpt, mdsclient);
     Splitor::Init(ioopt_.ioSplitOpt);
 
     scheduler_ = new (std::nothrow) RequestScheduler();
