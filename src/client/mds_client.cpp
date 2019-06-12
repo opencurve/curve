@@ -1062,7 +1062,8 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
 
         int csinfonum = response.csinfo_size();
         for (int i = 0; i < csinfonum; i++) {
-            curve::mds::topology::CopySetServerInfo info = response.csinfo(i);\
+            std::string copyset_peer;
+            curve::mds::topology::CopySetServerInfo info = response.csinfo(i);
             CopysetInfo_t copysetseverl;
             copysetseverl.cpid_ = info.copysetid();
 
@@ -1081,7 +1082,14 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
                 csinfo.csaddr_ = pd;
 
                 copysetseverl.AddCopysetPeerInfo(csinfo);
+
+                copyset_peer.append(hostip)
+                            .append(":")
+                            .append(std::to_string(port))
+                            .append(", ");
             }
+            LOG(INFO) << "copyset id : " << copysetseverl.cpid_
+                      << ", peer info : " << copyset_peer.c_str();
             cpinfoVec->push_back(copysetseverl);
         }
 

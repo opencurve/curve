@@ -57,7 +57,9 @@ bool FileInstance::Initialize(MDSClient* mdsclient,
         userinfo_ = userinfo;
         mdsclient_ = mdsclient;
 
-        if (!iomanager4file_.Initialize(fileopt_.ioOpt, clientMetric)) {
+        if (!iomanager4file_.Initialize(fileopt_.ioOpt,
+                                        clientMetric,
+                                        mdsclient_)) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }
