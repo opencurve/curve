@@ -35,7 +35,6 @@ PeerCluster::PeerCluster(const std::string &clusterName,
     clusterName_(clusterName),
     snapshotIntervalS_(1),
     electionTimeoutMs_(1000),
-    catchupMargin_(10),
     params_(params),
     paramsIndexs_(paramsIndexs) {
     logicPoolID_ = logicPoolID;
@@ -67,22 +66,7 @@ int PeerCluster::StartPeer(const Peer &peer,
     }
     peerNode->conf = conf;
 
-    CopysetNodeOptions options;
     PeerId peerId(peer.address());
-    options.ip = butil::ip2str(peerId.addr.ip).c_str();
-    options.port = peerId.addr.port;
-    std::string copysetdir = CopysetDirWithProtocol(peer);
-    options.chunkDataUri = copysetdir;
-    options.chunkSnapshotUri = copysetdir;
-    options.logUri = copysetdir;
-    options.raftMetaUri = copysetdir;
-    options.raftSnapshotUri = copysetdir;
-
-    options.snapshotIntervalS = snapshotIntervalS_;
-    options.electionTimeoutMs = electionTimeoutMs_;
-    options.catchupMargin = catchupMargin_;
-
-    peerNode->options = options;
 
     pid_t pid = ::fork();
     if (0 > pid) {
@@ -90,10 +74,7 @@ int PeerCluster::StartPeer(const Peer &peer,
         return -1;
     } else if (0 == pid) {
         /* 在子进程起一个 ChunkServer */
-        StartPeerNode(peerNode->options,
-                      peerNode->conf,
-                      id,
-                      params_[paramsIndexs_[id]]);
+        StartPeerNode(id, params_[paramsIndexs_[id]]);
         exit(0);
     }
     LOG(INFO) << "start peer success, peer id = " << pid;
@@ -245,20 +226,12 @@ int PeerCluster::SetsnapshotIntervalS(int snapshotIntervalS) {
     return 0;
 }
 
-int PeerCluster::SetCatchupMargin(int catchupMargin) {
-    catchupMargin_ = catchupMargin;
-    return 0;
-}
-
 int PeerCluster::SetElectionTimeoutMs(int electionTimeoutMs) {
     electionTimeoutMs_ = electionTimeoutMs;
     return 0;
 }
 
-int PeerCluster::StartPeerNode(CopysetNodeOptions options,
-                               const Configuration conf,
-                               int id,
-                               char *arg[]) {
+int PeerCluster::StartPeerNode(int id, char *arg[]) {
     struct RegisterOptions opt;
     opt.chunkserverMetaUri = "local://./" + std::to_string(id) +
                              "/chunkserver.dat";
@@ -322,21 +295,21 @@ const std::string PeerCluster::RemoveCopysetLogDirCmd(const Peer &peer,
 }
 
 int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
-                                CopysetID copysetID,
-                                Peer peer,
-                                std::vector<Peer> peers) {
+                               CopysetID copysetID,
+                               Peer peer,
+                               const std::vector<Peer>& peers) {
     LOG(INFO) << "PeerCluster begin create copyset: "
               << ToGroupIdString(logicPoolID, copysetID);
 
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 5; ++i) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(3000);
+        cntl.set_timeout_ms(5000);
 
         CopysetRequest request;
         CopysetResponse response;
         request.set_logicpoolid(logicPoolID);
         request.set_copysetid(copysetID);
-        for (Peer peer : peers) {
+        for (auto& peer : peers) {
             request.add_peerid(peer.address());
         }
 
@@ -348,8 +321,10 @@ int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
         CopysetService_Stub stub(&channel);
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
-            std::cout << "failed create copsyet, "
-                      << cntl.ErrorText() << std::endl;
+            LOG(ERROR) << "failed create copsyet, "
+                       << cntl.ErrorText() << std::endl;
+            ::usleep(1000 * 1000);
+            continue;
         }
 
         if (response.status() == COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS
@@ -360,7 +335,7 @@ int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
             return 0;
         }
 
-        ::usleep(200 * 1000);
+        ::usleep(1000 * 1000);
     }
 
     return -1;
@@ -371,10 +346,10 @@ int PeerCluster::PeerToId(const Peer &peer) {
     return peerId.addr.port;
 }
 
-int PeerCluster::GetFollwerPeers(std::vector<Peer> peers,
+int PeerCluster::GetFollwerPeers(const std::vector<Peer>& peers,
                                  Peer leader,
                                  std::vector<Peer> *followers) {
-    for (Peer peer : peers) {
+    for (auto& peer : peers) {
         if (leader.address() != peer.address()) {
             followers->push_back(peer);
         }
@@ -648,7 +623,7 @@ void ReadVerifyNotAvailable(Peer leaderPeer,
                             int length,
                             char fillCh,
                             int loop) {
-    LOG(INFO) << "Read verify available: " << fillCh;
+    LOG(INFO) << "Read verify not available: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
     uint64_t sn = 1;

@@ -36,7 +36,11 @@
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
-DEFINE_string(mdsAddr, "127.0.0.1.6666", "mds listen addr");
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
+DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
+DEFINE_string(mdsDbName, "curve_mds", "mds db name");
+DEFINE_int32(sessionInterSec, 5, "mds session expired second");
+DEFINE_int32(updateToRepoSec, 5, "interval of update data in mds to repo");
 
 using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
@@ -225,6 +229,27 @@ void LoadConfigFromCmdline(Configuration *conf) {
                          << ", will log to /tmp";
         }
     }
+
+    if (GetCommandLineFlagInfo("etcdAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.etcd.endpoint", FLAGS_etcdAddr);
+    }
+
+    // 设置dbname
+    if (GetCommandLineFlagInfo("mdsDbName", &info) && !info.is_default) {
+        conf->SetStringValue("mds.DbName", FLAGS_mdsDbName);
+    }
+
+    // 设置mds和etcd之间session的过期时间
+    if (GetCommandLineFlagInfo("sessionInterSec", &info) && !info.is_default) {
+        conf->SetIntValue(
+            "mds.leader.sessionInterSec", FLAGS_sessionInterSec);
+    }
+
+    // 设置mds将内存中topology的数据持久化到repo中的时间
+    if (GetCommandLineFlagInfo("updateToRepoSec", &info) && !info.is_default) {
+        conf->SetIntValue(
+            "mds.topology.TopologyUpdateToRepoSec", FLAGS_updateToRepoSec);
+    }
 }
 
 int curve_main(int argc, char **argv) {
@@ -247,6 +272,9 @@ int curve_main(int argc, char **argv) {
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
 
+    // 打印参数
+    conf.PrintConfig();
+
     // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
     InitSessionOptions(&conf, &sessionOptions);
@@ -262,7 +290,6 @@ int curve_main(int argc, char **argv) {
 
     HeartbeatOption heartbeatOption;
     InitHeartbeatOption(&conf, &heartbeatOption);
-    heartbeatOption.mdsStartTime = steady_clock::now();
 
     EtcdConf etcdConf;
     InitEtcdConf(&conf, &etcdConf);
@@ -493,6 +520,7 @@ int curve_main(int argc, char **argv) {
     coordinator->Run();
 
     // =======================init heartbeat manager================//
+    heartbeatOption.mdsStartTime = steady_clock::now();
     auto heartbeatManager = std::make_shared<HeartbeatManager>(
         heartbeatOption, topology, topologyStat, coordinator);
     heartbeatManager->Init();
@@ -536,14 +564,11 @@ int curve_main(int argc, char **argv) {
 
     // 在退出之前把自己的节点删除
     leaderElection->LeaderResign();
+    LOG(INFO) << "resign success";
 
     kCurveFS.Uninit();
-    if (!cleanManger->Stop()) {
-        LOG(ERROR) << "stop cleanManager fail.";
-        return -1;
-    }
 
-    segmentAllocStatistic->Stop();
+    cleanManger->Stop();
 
     google::ShutdownGoogleLogging();
 

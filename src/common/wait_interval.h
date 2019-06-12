@@ -8,6 +8,8 @@
 #ifndef  SRC_COMMON_WAIT_INTERVAL_H_
 #define  SRC_COMMON_WAIT_INTERVAL_H_
 
+#include "src/common/interruptible_sleeper.h"
+
 namespace curve {
 namespace common {
 class  WaitInterval {
@@ -24,11 +26,18 @@ class  WaitInterval {
      */
     void WaitForNextExcution();
 
+    /**
+     * StopWait 退出sleep等待
+     */
+    void StopWait();
+
  private:
     // 最近一次的执行时间
     uint64_t lastSend_;
     // 任务的执行周期
     uint64_t intevalMs_;
+
+    InterruptibleSleeper sleeper_;
 };
 
 }  // namespace common
