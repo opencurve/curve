@@ -66,18 +66,17 @@ void HeartbeatManager::Run() {
 void HeartbeatManager::Stop() {
     if (!isStop_.exchange(true)) {
         LOG(INFO) << "stop heartbeatManager...";
+        sleeper_.interrupt();
         backEndThread_.join();
-        LOG(INFO) << "stop heartbeatManager ok!";
+        LOG(INFO) << "stop heartbeatManager ok.";
     } else {
         LOG(INFO) << "heartbeatManager not running.";
     }
 }
 
 void HeartbeatManager::ChunkServerHealthyChecker() {
-    while (!isStop_) {
-        std::this_thread::
-        sleep_for(
-            std::chrono::milliseconds(chunkserverHealthyCheckerRunInter_));
+    while (sleeper_.wait_for(
+        std::chrono::milliseconds(chunkserverHealthyCheckerRunInter_))) {
         healthyChecker_->CheckHeartBeatInterval();
     }
 }
@@ -164,9 +163,12 @@ void HeartbeatManager::UpdateChunkServerStatistics(
 void HeartbeatManager::ChunkServerHeartbeat(
     const ChunkServerHeartbeatRequest &request,
     ChunkServerHeartbeatResponse *response) {
+    response->set_statuscode(HeartbeatStatusCode::hbOK);
     // 检查request的合法性
-    if (!CheckRequest(request)) {
+    HeartbeatStatusCode ret = CheckRequest(request);
+    if (ret != HeartbeatStatusCode::hbOK) {
         LOG(ERROR) << "heartbeatManager get error request";
+        response->set_statuscode(ret);
         return;
     }
 
@@ -183,7 +185,10 @@ void HeartbeatManager::ChunkServerHeartbeat(
     UpdateChunkServerDiskStatus(request);
 
     UpdateChunkServerStatistics(request);
-
+    // request里面没有copyset信息
+    if (request.copysetinfos_size() == 0) {
+        response->set_statuscode(HeartbeatStatusCode::hbRequestNoCopyset);
+    }
     // 处理心跳中的copyset
     for (auto &value : request.copysetinfos()) {
         // 逻辑池不可用时，不处理该逻辑池的copyset信息
@@ -201,6 +206,8 @@ void HeartbeatManager::ChunkServerHeartbeat(
                        << value.logicalpoolid() << ", copySetId: "
                        << value.copysetid()
                        << ") information, but can not transfer to topology one";
+            response->set_statuscode(
+                            HeartbeatStatusCode::hbAnalyseCopysetError);
             continue;
         }
 
@@ -221,7 +228,7 @@ void HeartbeatManager::ChunkServerHeartbeat(
     }
 }
 
-bool HeartbeatManager::CheckRequest(
+HeartbeatStatusCode HeartbeatManager::CheckRequest(
     const ChunkServerHeartbeatRequest &request) {
     ChunkServer chunkServer;
     // 所有的字段是否都初始化
@@ -229,21 +236,22 @@ bool HeartbeatManager::CheckRequest(
         LOG(ERROR) << "heartbeatManager receive heartbeat from unknown"
                    " chunkServer not all required field is initialized: "
                    << request.InitializationErrorString();
-        return false;
+        return HeartbeatStatusCode::hbParamUnInitialized;
     }
 
     if (!topology_->GetChunkServer(request.chunkserverid(), &chunkServer)) {
         LOG(ERROR) << "heartbeatManager receive heartbeat from chunkServer: "
                    << request.chunkserverid()
-                   << "but topology do not contain this one";
-        return false;
+                   << ", ip:"<< request.ip() << ", port:" << request.port()
+                   << ", but topology do not contain this one";
+        return HeartbeatStatusCode::hbChunkserverUnknown;
     }
 
     if (chunkServer.GetStatus() == ChunkServerStatus::RETIRED) {
         LOG(ERROR) << "heartbeatManager receive heartbeat from"
                    << "retired chunkserver: " << chunkServer.GetId()
                    << ", reject.";
-        return false;
+        return HeartbeatStatusCode::hbChunkserverRetired;
     }
 
     // TODO(lixiaocui): 这种情况具体如何处理
@@ -261,7 +269,7 @@ bool HeartbeatManager::CheckRequest(
                    << " do not consistent with topo record ip:"
                    << chunkServer.GetHostIp() << ", record port:"
                    << chunkServer.GetPort();
-        return false;
+        return HeartbeatStatusCode::hbChunkserverIpPortNotMatch;
     }
 
     // chunkserver上报的token和mds记录的不匹配
@@ -271,9 +279,9 @@ bool HeartbeatManager::CheckRequest(
                    << request.token()
                    << " do not consistent with topo record token:"
                    << chunkServer.GetToken();
-        return false;
+        return HeartbeatStatusCode::hbChunkserverTokenNotMatch;
     }
-    return true;
+    return HeartbeatStatusCode::hbOK;
 }
 
 bool HeartbeatManager::FromHeartbeatCopySetInfoToTopologyOne(

@@ -31,8 +31,8 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId,
                      "Fail to get leader of copyset node %s",
                      ToGroupIdString(logicPoolId, copysetId).c_str());
     leaderId->reset();
-    for (Configuration::const_iterator
-             iter = conf.begin(); iter != conf.end(); ++iter) {
+    Configuration::const_iterator iter = conf.begin();
+    for (; iter != conf.end(); ++iter) {
         brpc::Channel channel;
         if (channel.Init(iter->addr, NULL) != 0) {
             return butil::Status(-1, "Fail to init channel to %s",
@@ -60,6 +60,8 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId,
     if (leaderId->is_empty()) {
         return st;
     }
+    LOG(INFO) << "Get leader from " << iter->to_string().c_str()
+              << " success, leader is " << *leaderId;
     return butil::Status::OK();
 }
 

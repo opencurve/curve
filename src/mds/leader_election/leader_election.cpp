@@ -56,6 +56,7 @@ int LeaderElection::ObserveLeader() {
     fiu_return_on("src/mds/leaderElection/observeLeader", -1);
 
     // 退出当前进程
+    LeaderResign();
     CHECK(false) << leaderName_ << " Observer encounter error, mds exit";
 }
 }  // namespace mds
