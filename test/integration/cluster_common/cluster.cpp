@@ -57,7 +57,7 @@ void CurveCluster::StopCluster() {
 
     for (auto it = etcdPidMap_.begin(); it != etcdPidMap_.end();) {
         LOG(INFO) << "begin to stop etcd" << it->first << " " << it->second;
-        int res = kill(it->second, SIGTERM);
+        int res = kill(it->second, SIGKILL);
         waitpid(it->second, &waitStatus, 0);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(etcdClientIpPort_[it->first], 10000, false));
@@ -223,14 +223,15 @@ void CurveCluster::StopEtcd(int id) {
     LOG(INFO) << "stop etcd " << etcdClientIpPort_[id] << " begin...";
 
     if (etcdPidMap_.find(id) != etcdPidMap_.end()) {
-        int res = kill(etcdPidMap_[id], SIGTERM);
+        int res = kill(etcdPidMap_[id], SIGKILL);
         int waitStatus;
         waitpid(etcdPidMap_[id], &waitStatus, 0);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(etcdClientIpPort_[id], 10000, false));
         ASSERT_EQ(0, ProbePort(etcdPeersIpPort_[id], 10000, false));
+        LOG(INFO) << "stop etcd " << etcdClientIpPort_[id]
+                  << ", " << etcdPidMap_[id] << " success";
         etcdPidMap_.erase(id);
-        LOG(INFO) << "stop etcd " << etcdClientIpPort_[id] << " success";
     } else {
         LOG(INFO) << "etcd " << id << " not exist";
     }
@@ -244,7 +245,7 @@ void CurveCluster::StopAllEtcd() {
     int waitStatus;
     for (auto it = etcdPidMap_.begin(); it != etcdPidMap_.end();) {
         LOG(INFO) << "begin to stop etcd" << it->first << " " << it->second;
-        int res = kill(it->second, SIGTERM);
+        int res = kill(it->second, SIGKILL);
         waitpid(it->second, &waitStatus, 0);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(etcdClientIpPort_[it->first], 10000, false));
