@@ -1207,10 +1207,12 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     brpc::Server chunkserver1;
     brpc::Server chunkserver2;
     brpc::Server chunkserver3;
+    brpc::Server chunkserver4;
 
     FakeCliService cliservice1;
     FakeCliService cliservice2;
     FakeCliService cliservice3;
+    FakeCliService cliservice4;
 
     if (chunkserver1.AddService(&cliservice1,
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
@@ -1223,6 +1225,11 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     }
 
     if (chunkserver3.AddService(&cliservice3,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    if (chunkserver4.AddService(&cliservice4,
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
         LOG(FATAL) << "Fail to add service";
     }
@@ -1241,13 +1248,15 @@ TEST_F(MDSClientTest, GetLeaderTest) {
         LOG(ERROR) << "Fail to start Server";
     }
 
-    curve::client::EndPoint ep1, ep2, ep3;
+    curve::client::EndPoint ep1, ep2, ep3, ep4;
     butil::str2endpoint("127.0.0.1", 7000, &ep1);
     curve::client::ChunkServerAddr pd1(ep1);
     butil::str2endpoint("127.0.0.1", 7001, &ep2);
     curve::client::ChunkServerAddr pd2(ep2);
     butil::str2endpoint("127.0.0.1", 7002, &ep3);
     curve::client::ChunkServerAddr pd3(ep3);
+    butil::str2endpoint("127.0.0.1", 7003, &ep4);
+    curve::client::ChunkServerAddr pd4(ep4);
 
     std::vector<CopysetPeerInfo> cfg;
     cfg.push_back(CopysetPeerInfo(1, pd1));
@@ -1255,6 +1264,8 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cfg.push_back(CopysetPeerInfo(3, pd3));
 
     curve::client::MetaCache mc;
+    MetaCacheOption mcOpt;
+    mc.Init(mcOpt, &mdsclient_);
     curve::client::CopysetInfo_t cslist;
 
     curve::client::CopysetPeerInfo peerinfo_1;
@@ -1348,12 +1359,115 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     ASSERT_EQ(ckid, 3);
     ASSERT_EQ(ep3, leaderep);
 
+    // 测试拉取新leader失败，需要到mds重新fetch新的serverlist
+    // 当前新leader是3，尝试再刷新leader，这个时候会从1， 2获取leader
+    // 但是这时候leader找不到了，于是就会触发向mds重新拉取最新的server list
+    brpc::Controller controller11;
+    controller11.SetFailed(-1, "error");
+    response1.set_leader_id(pd3.ToString());
+    FakeReturn fakeret111(&controller11, static_cast<void*>(&response1));
+    cliservice1.SetFakeReturn(&fakeret111);
+
+    brpc::Controller controller22;
+    controller22.SetFailed(-1, "error");
+    response2.set_leader_id(pd2.ToString());
+    FakeReturn fakeret222(&controller22, static_cast<void*>(&response2));
+    cliservice2.SetFakeReturn(&fakeret222);
+
+    brpc::Controller controller33;
+    controller33.SetFailed(-1, "error");
+    response3.set_leader_id(pd3.ToString());
+    FakeReturn fakeret333(&controller33, static_cast<void*>(&response3));
+    cliservice3.SetFakeReturn(&fakeret333);
+
+    // 创建一个topology service
+    brpc::Server server;
+    FakeTopologyService topologyservice;
+    if (server.AddService(&topologyservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+    if (server.Start(metaserver_addr.c_str(), &options) != 0) {
+        LOG(ERROR) << "Fail to start Server";
+    }
+
+    ::curve::mds::topology::GetChunkServerListInCopySetsResponse response_1;
+    response_1.set_statuscode(0);
+    uint32_t chunkserveridc = 1;
+
+    ::curve::mds::topology::ChunkServerLocation* cslocs;
+    ::curve::mds::topology::CopySetServerInfo* csinfo;
+    csinfo = response_1.add_csinfo();
+    csinfo->set_copysetid(1234);
+    for (int i = 0; i < 4; i++) {
+        cslocs = csinfo->add_cslocs();
+        cslocs->set_chunkserverid(chunkserveridc++);
+        cslocs->set_hostip("127.0.0.1");
+        cslocs->set_port(7000 + i);
+    }
+
+    FakeReturn* faktopologyeret = new FakeReturn(nullptr,
+        static_cast<void*>(&response_1));
+    topologyservice.SetFakeReturn(faktopologyeret);
+
+    cliservice1.CleanInvokeTimes();
+    cliservice2.CleanInvokeTimes();
+    cliservice3.CleanInvokeTimes();
+
+    // 向当前集群中拉取leader，然后会从mds一侧获取新server list
+    ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
+
+    ASSERT_EQ(1, cliservice1.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice2.GetInvokeTimes());
+    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
+
+    // 获取新新的leader，这时候会从1，2，4这三个server拉取新leader，并成功获取新leader
+    // 先将server4启动
+    if (chunkserver4.Start("127.0.0.1:7003", &options) != 0) {
+        LOG(ERROR) << "Fail to start Server";
+    }
+    brpc::Controller controller44;
+    curve::chunkserver::GetLeaderResponse response4;
+    response4.set_leader_id(pd4.ToString());
+    FakeReturn fakeret444(nullptr, static_cast<void*>(&response4));
+    cliservice4.SetFakeReturn(&fakeret444);
+
+    // 清空被凋次数
+    cliservice1.CleanInvokeTimes();
+    cliservice2.CleanInvokeTimes();
+    cliservice3.CleanInvokeTimes();
+    cliservice4.CleanInvokeTimes();
+    ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
+    ASSERT_EQ(leaderep, ep4);
+
+    ASSERT_EQ(1, cliservice1.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice2.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice3.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice4.GetInvokeTimes());
+
+    // 直接获取新的leader信息
+    cliservice1.CleanInvokeTimes();
+    cliservice2.CleanInvokeTimes();
+    cliservice3.CleanInvokeTimes();
+    cliservice4.CleanInvokeTimes();
+    ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, false));
+    ASSERT_EQ(leaderep, ep4);
+
+    ASSERT_EQ(0, cliservice1.GetInvokeTimes());
+    ASSERT_EQ(0, cliservice2.GetInvokeTimes());
+    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
+    ASSERT_EQ(0, cliservice4.GetInvokeTimes());
+
     chunkserver1.Stop(0);
     chunkserver1.Join();
     chunkserver2.Stop(0);
     chunkserver2.Join();
     chunkserver3.Stop(0);
     chunkserver3.Join();
+    chunkserver4.Stop(0);
+    chunkserver4.Join();
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
 }
 
 
