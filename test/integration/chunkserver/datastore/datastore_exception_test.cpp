@@ -300,7 +300,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest5) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    //读数据校验
+    // 读数据校验
     char readbuf[2 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(1,  // id
                                       fileSn,
@@ -383,7 +383,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest6) {
                                        length,
                                        nullptr);
     ASSERT_EQ(errorCode, CSErrorCode::Success);
-    //读数据校验
+    // 读数据校验
     char readbuf[2 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(1,  // id
                                       fileSn,
@@ -1062,7 +1062,7 @@ TEST_F(ExceptionTestSuit, ExceptionTest12) {
     ASSERT_EQ(0, info.bitmap->NextSetBit(0));
     ASSERT_EQ(1, info.bitmap->NextClearBit(0));
 
-    //读数据校验
+    // 读数据校验
     char readbuf[2 * PAGE_SIZE];
     errorCode = dataStore_->ReadChunk(1,  // id
                                       sn,

@@ -40,6 +40,8 @@ DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
 DEFINE_string(chunkFilePoolMetaPath,
     "./chunkfilepool.meta", "chunk file pool meta path");
 DEFINE_string(logPath, "./0/chunkserver.log-", "log file path");
+DEFINE_string(mdsListenAddr, "127.0.0.1:6666", "mds listen addr");
+DEFINE_bool(enableChunkfilepool, true, "enable chunkfilepool");
 
 namespace curve {
 namespace chunkserver {
@@ -61,6 +63,8 @@ int ChunkServer::Run(int argc, char** argv) {
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
 
+    // 打印参数
+    conf.PrintConfig();
 
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
@@ -199,8 +203,9 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to init Heartbeat manager.";
 
     // 监控部分模块的metric指标
+    metric->MonitorTrash(trash_.get());
     metric->MonitorChunkFilePool(chunkfilePool.get());
-    metric->UpdateConfigMetric(conf);
+    metric->UpdateConfigMetric(&conf);
 
     // =======================启动各模块==================================//
     LOG(INFO) << "ChunkServer starts.";
@@ -535,6 +540,16 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
             LOG(WARNING) << "no chunkserver.common.logDir in " << FLAGS_conf
                          << ", will log to /tmp";
         }
+    }
+
+    if (GetCommandLineFlagInfo("mdsListenAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);
+    }
+
+    if (GetCommandLineFlagInfo("enableChunkfilepool", &info) &&
+        !info.is_default) {
+        conf->SetBoolValue("chunkfilepool.enable_get_chunk_from_pool",
+            FLAGS_enableChunkfilepool);
     }
 }
 

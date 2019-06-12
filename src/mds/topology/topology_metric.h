@@ -18,6 +18,9 @@
 
 #include "src/mds/topology/topology_stat.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
+#include "src/common/interruptible_sleeper.h"
+
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -321,6 +324,8 @@ class TopologyMetricService {
      * @brief 是否停止后台线程的标准位
      */
     curve::common::Atomic<bool> isStop_;
+
+    InterruptibleSleeper sleeper_;
 
     /**
      * @brief 拓扑配置项

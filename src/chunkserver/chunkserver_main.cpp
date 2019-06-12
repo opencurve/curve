@@ -10,7 +10,6 @@
 int main(int argc, char* argv[]) {
     butil::AtExitManager atExitManager;
     ::curve::chunkserver::ChunkServer chunkserver;
-
     LOG(INFO) << "ChunkServer starting.";
     // 这里不能用fork创建守护进程,bvar会存在一些问题
     // https://github.com/apache/incubator-brpc/issues/697
