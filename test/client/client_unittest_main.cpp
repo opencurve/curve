@@ -32,11 +32,11 @@
 #include "src/client/libcurve_file.h"
 #include "include/client/libcurve.h"
 
-std::string metaserver_addr = "127.0.0.1:8000";     // NOLINT
+std::string metaserver_addr = "127.0.0.1:9104";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./client.conf";   // NOLINT
-std::string config = "metaserver_addr=127.0.0.1:8000@127.0.0.1:8000\n"   // NOLINT
+std::string configpath = "./client_1.conf";   // NOLINT
+std::string config = "metaserver_addr=127.0.0.1:9104@127.0.0.1:9104\n"   // NOLINT
 "getLeaderRetry=3\n"\
 "queueCapacity=4096\n"\
 "threadpoolSize=2\n"\
@@ -54,7 +54,6 @@ int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
-    brpc::StartDummyServerAt(8888/*port*/);
 
     int fd =  open(configpath.c_str(), O_CREAT | O_RDWR);
     int len = write(fd, config.c_str(), config.length());
