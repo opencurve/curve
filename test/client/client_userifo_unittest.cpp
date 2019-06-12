@@ -46,10 +46,11 @@ using curve::client::IOManager4Chunk;
 using curve::client::LogicalPoolCopysetIDInfo;
 using curve::client::ClientMetric_t;
 
+/*
 void sessioncallback(CurveAioContext* aioctx) {
     ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
 }
-
+*/
 TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     std::string filename = "./1_userinfo_.txt";
 
@@ -202,7 +203,7 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     ClientConfigOption_t opt;
     opt.metaServerOpt.rpcTimeoutMs = 500;
     opt.metaServerOpt.rpcRetryTimes = 3;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
     opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
@@ -353,7 +354,7 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     ClientConfigOption_t opt;
     opt.metaServerOpt.rpcTimeoutMs = 500;
     opt.metaServerOpt.rpcRetryTimes = 3;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
     opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;

@@ -8,6 +8,10 @@
 #include <gtest/gtest.h>
 #include <brpc/server.h>
 #include <brpc/controller.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <chrono>   // NOLINT
 #include <thread>   // NOLINT
@@ -43,7 +47,7 @@ TEST(SnapInstance, SnapShotTest) {
     ClientConfigOption_t opt;
     opt.metaServerOpt.rpcTimeoutMs = 500;
     opt.metaServerOpt.rpcRetryTimes = 3;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
@@ -439,7 +443,7 @@ TEST(SnapInstance, SnapShotTest) {
 
 TEST(SnapInstance, ReadChunkSnapshotTest) {
     ClientConfigOption_t opt;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
@@ -485,7 +489,7 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
 
 TEST(SnapInstance, DeleteChunkSnapshotTest) {
     ClientConfigOption_t opt;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
@@ -520,7 +524,7 @@ TEST(SnapInstance, DeleteChunkSnapshotTest) {
 
 TEST(SnapInstance, GetChunkInfoTest) {
     ClientConfigOption_t opt;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
@@ -554,7 +558,7 @@ TEST(SnapInstance, GetChunkInfoTest) {
 
 TEST(SnapInstance, RecoverChunkTest) {
     ClientConfigOption_t opt;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
@@ -587,7 +591,7 @@ TEST(SnapInstance, RecoverChunkTest) {
 
 TEST(SnapInstance, CreateCloneChunkTest) {
     ClientConfigOption_t opt;
-    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:8000");
+    opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9103");
     opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
@@ -619,4 +623,39 @@ TEST(SnapInstance, CreateCloneChunkTest) {
                                             1024));
 
     cl.UnInit();
+}
+
+
+std::string metaserver_addr = "127.0.0.1:9103";     // NOLINT
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
+uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
+std::string configpath = "./client_3.conf";   // NOLINT
+std::string config = "metaserver_addr=127.0.0.1:9103@127.0.0.1:9103\n"   // NOLINT
+"getLeaderRetry=3\n"\
+"queueCapacity=4096\n"\
+"threadpoolSize=2\n"\
+"opRetryIntervalUs=200000\n"\
+"opMaxRetry=3\n"\
+"rpcRetryTimes=3\n"\
+"pre_allocate_context_num=1024\n"\
+"ioSplitMaxSizeKB=64\n"\
+"enableAppliedIndexRead=1\n"\
+"loglevel=0";
+
+int main(int argc, char ** argv) {
+    google::InitGoogleLogging(argv[0]);
+    ::testing::InitGoogleTest(&argc, argv);
+    ::testing::InitGoogleMock(&argc, argv);
+    google::ParseCommandLineFlags(&argc, &argv, false);
+    brpc::StartDummyServerAt(8888/*port*/);
+
+    int fd =  open(configpath.c_str(), O_CREAT | O_RDWR);
+    int len = write(fd, config.c_str(), config.length());
+    close(fd);
+
+    int ret = RUN_ALL_TESTS();
+
+    unlink(configpath.c_str());
+
+    return ret;
 }
