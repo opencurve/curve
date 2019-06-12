@@ -50,6 +50,10 @@ CopysetNode::CopysetNode(const LogicPoolID &logicPoolId,
 }
 
 CopysetNode::~CopysetNode() {
+    // 移除 copyset的metric
+    ChunkServerMetric::GetInstance()->RemoveCopysetMetric(logicPoolId_,
+                                                          copysetId_);
+    metric_ = nullptr;
 }
 
 int CopysetNode::Init(const CopysetNodeOptions &options) {
@@ -142,7 +146,20 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     /*
      * 初始化copyset性能metrics
      */
-    metric_.Init(logicPoolId_, copysetId_);
+    int ret = ChunkServerMetric::GetInstance()->CreateCopysetMetric(
+        logicPoolId_, copysetId_);
+    if (ret != 0) {
+        LOG(ERROR) << "create copyset metric failed, "
+                   << "logicPool id : " <<  logicPoolId_
+                   << ", copyset id : " << copysetId_;
+        return -1;
+    }
+    metric_ = ChunkServerMetric::GetInstance()->GetCopysetMetric(
+        logicPoolId_, copysetId_);
+    if (metric_ != nullptr) {
+        // TODO(yyk) 后续考虑添加datastore层面的io metric
+        metric_->MonitorDataStore(dataStore_.get());
+    }
 
     return 0;
 }
@@ -199,13 +216,6 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
                                   iter.index(),
                                   doneGuard.release());
             concurrentapply_->Push(opRequest->ChunkId(), task);
-
-            CHUNK_OP_TYPE opType = opRequest->OpType();
-            if (opType == CHUNK_OP_READ || opType == CHUNK_OP_READ_SNAP) {
-                IncReadMetrics(opRequest->RequestSize());
-            } else if (opType == CHUNK_OP_WRITE) {
-                IncWriteMetrics(opRequest->RequestSize());
-            }
         } else {
             // 获取log entry
             butil::IOBuf log = iter.data();
@@ -602,27 +612,6 @@ butil::Status CopysetNode::RemovePeer(const Peer& peer) {
     raftNode_->remove_peer(peerId, removePeerDone);
 
     return butil::Status::OK();
-}
-
-void CopysetNode::IncReadMetrics(uint32_t bytes) {
-    *(metric_.readCounter) << 1;
-    *(metric_.readBytes) << bytes;
-}
-
-void CopysetNode::IncWriteMetrics(uint32_t bytes) {
-    *(metric_.writeCounter) << 1;
-    *(metric_.writeBytes) << bytes;
-}
-
-void CopysetNode::GetPerfMetrics(IoPerfMetric* metric) {
-    metric->readCount = metric_.readCounter->get_value();
-    metric->writeCount = metric_.writeCounter->get_value();
-    metric->readBytes = metric_.readBytes->get_value();
-    metric->writeBytes = metric_.writeBytes->get_value();
-    metric->readIops = metric_.readIops->get_value(1);
-    metric->writeIops = metric_.writeIops->get_value(1);
-    metric->readBps = metric_.readBps->get_value(1);
-    metric->writeBps = metric_.writeBps->get_value(1);
 }
 
 void CopysetNode::UpdateAppliedIndex(uint64_t index) {

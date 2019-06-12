@@ -16,6 +16,7 @@
 #include "src/chunkserver/clone_manager.h"
 #include "src/chunkserver/register.h"
 #include "src/chunkserver/trash.h"
+#include "src/chunkserver/chunkserver_metrics.h"
 
 namespace curve {
 namespace chunkserver {
@@ -57,6 +58,9 @@ class ChunkServer {
 
     void InitTrashOptions(common::Configuration *conf,
         TrashOptions *trashOptions);
+
+    void InitMetricOptions(common::Configuration *conf,
+        ChunkServerMetricOptions *metricOptions);
 
     void LoadConfigFromCmdline(common::Configuration *conf);
 

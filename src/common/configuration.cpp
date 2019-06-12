@@ -50,6 +50,11 @@ std::string Configuration::DumpConfig() {
     return "";
 }
 
+
+std::map<std::string, std::string> Configuration::ListConfig() const {
+    return config_;
+}
+
 void Configuration::SetConfigPath(const std::string &path) {
     confFile_ = path;
 }
