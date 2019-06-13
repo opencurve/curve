@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include <algorithm>
+#include <random>
 #include <memory>
 #include <utility>
 #include "src/mds/schedule/scheduler_helper.h"
@@ -139,11 +140,16 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
 void SchedulerHelper::SortDistribute(
     const std::map<ChunkServerIDType, std::vector<CopySetInfo>> &distribute,
     std::vector<std::pair<ChunkServerIDType, std::vector<CopySetInfo>>> *desc) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+
     for (auto item : distribute) {
+        std::shuffle(item.second.begin(), item.second.end(), g);
         desc->emplace_back(
             std::pair<ChunkServerIDType, std::vector<CopySetInfo>>(
                 item.first, item.second));
     }
+    std::shuffle(desc->begin(), desc->end(), g);
 
     std::sort(desc->begin(), desc->end(),
         [](const std::pair<ChunkServerIDType, std::vector<CopySetInfo>> &c1,
@@ -152,8 +158,57 @@ void SchedulerHelper::SortDistribute(
     });
 }
 
+void SchedulerHelper::SortChunkServerByCopySetNumAsc(
+    std::vector<ChunkServerInfo> *chunkserverList,
+    const std::shared_ptr<TopoAdapter> &topo) {
+    std::vector<CopySetInfo> copysetList = topo->GetCopySetInfos();
+    // 统计chunkserver上copyset的数量
+    std::map<ChunkServerIdType, int> copysetNumInCs;
+    for (auto copyset : copysetList) {
+        for (auto peer : copyset.peers) {
+            if (copysetNumInCs.find(peer.id) == copysetNumInCs.end()) {
+                copysetNumInCs[peer.id] = 1;
+            } else {
+                copysetNumInCs[peer.id] += 1;
+            }
+        }
+    }
+
+    // map转换成vector
+    std::vector<std::pair<ChunkServerInfo, int>> transfer;
+    for (auto &csInfo : *chunkserverList) {
+        int num = 0;
+        if (copysetNumInCs.find(csInfo.info.id) != copysetNumInCs.end()) {
+            num = copysetNumInCs[csInfo.info.id];
+        }
+        std::pair<ChunkServerInfo, int> item{csInfo, num};
+        transfer.emplace_back(item);
+    }
+
+    // chunkserverlist随机排列
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(transfer.begin(), transfer.end(), g);
+
+    // 排序
+    std::sort(transfer.begin(), transfer.end(),
+        [](const std::pair<ChunkServerInfo, int> &c1,
+           const std::pair<ChunkServerInfo, int> &c2){
+            return c1.second < c2.second;});
+
+    // 放到chunkserverList中
+    chunkserverList->clear();
+    for (auto item : transfer) {
+        chunkserverList->emplace_back(item.first);
+    }
+}
+
 void SchedulerHelper::SortScatterWitAffected(
     std::vector<std::pair<ChunkServerIdType, int>> *candidates) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(candidates->begin(), candidates->end(), g);
+
     std::sort(candidates->begin(), candidates->end(),
         [](const std::pair<ChunkServerIdType, int> &c1,
            const std::pair<ChunkServerIdType, int> &c2) {

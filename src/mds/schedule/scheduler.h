@@ -44,7 +44,8 @@ class Scheduler {
      */
     Scheduler(int transTimeLimitSec, int removeTimeLimitSec, int addTimeLimtSec,
         float scatterWidthRangePerent, float minScatterWdith,
-        const std::shared_ptr<TopoAdapter> &topo);
+        const std::shared_ptr<TopoAdapter> &topo,
+        const std::shared_ptr<OperatorController> &opController);
     /**
      * @brief scheduler根据集群的状况产生operator
      *
@@ -111,6 +112,8 @@ class Scheduler {
 
  private:
     std::shared_ptr<TopoAdapter> topo_;
+    // operator管理模块
+    std::shared_ptr<OperatorController> opController_;
 
     // transfer leader的最大预计时间，超过需要报警
     int transTimeSec_;
@@ -148,7 +151,7 @@ class CopySetScheduler : public Scheduler {
                     float minScatterWith,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWithRangePerent, minScatterWith, topo) {
+            scatterWithRangePerent, minScatterWith, topo, opController) {
         this->opController_ = opController;
         this->runInterval_ = interSec;
         this->copysetNumRangePercent_ = copysetNumRangePercent;
@@ -250,7 +253,7 @@ class LeaderScheduler : public Scheduler {
                     float minScatterWdith,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWidthRangePerent, minScatterWdith, topo) {
+            scatterWidthRangePerent, minScatterWdith, topo, opController) {
         this->opController_ = opController;
         this->runInterval_ = interSec;
     }
@@ -330,7 +333,7 @@ class RecoverScheduler : public Scheduler {
                     float minScatterWith,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWithRangePerent, minScatterWith, topo) {
+            scatterWithRangePerent, minScatterWith, topo, opController) {
         this->opController_ = opController;
         this->runInterval_ = interSec;
     }
@@ -399,7 +402,7 @@ class ReplicaScheduler : public Scheduler {
                    float minScatterWidth,
                    const std::shared_ptr<TopoAdapter> &topo)
       : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-        scatterWidthRangePerent, minScatterWidth, topo) {
+        scatterWidthRangePerent, minScatterWidth, topo, opController) {
     this->opController_ = opController;
     this->runInterval_ = interSec;
     }

@@ -122,6 +122,16 @@ class SchedulerHelper {
      */
     static void SortScatterWitAffected(
         std::vector<std::pair<ChunkServerIdType, int>> *candidates);
+
+    /**
+     * @brief SortChunkServerByCopySetNumAsc 将chunkserver按照所有copyset的数量升序排列 //NOLINT
+     *
+     * @param[in/out] chunkserverList 对list中的chunkserver进行排序
+     * @param[in] topo 获取拓扑信息
+     */
+    static void SortChunkServerByCopySetNumAsc(
+        std::vector<ChunkServerInfo> *chunkserverList,
+        const std::shared_ptr<TopoAdapter> &topo);
 };
 }  // namespace schedule
 }  // namespace mds
