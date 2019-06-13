@@ -430,6 +430,54 @@ TEST_F(TestSchedulerHelper,
     ASSERT_EQ(0, affected);
 }
 
+
+TEST_F(TestSchedulerHelper, test_SortChunkServerByCopySetNumAsc) {
+    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
+    PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
+    ChunkServerInfo info1(peer1, OnlineState::ONLINE, DiskState::DISKNORMAL,
+        10, 10, 10, 123456, ChunkServerStatisticInfo{});
+    ChunkServerInfo info2(peer2, OnlineState::ONLINE, DiskState::DISKNORMAL,
+        10, 10, 10, 123456, ChunkServerStatisticInfo{});
+    ChunkServerInfo info3(peer3, OnlineState::ONLINE, DiskState::DISKNORMAL,
+        10, 10, 10, 123456, ChunkServerStatisticInfo{});
+    std::vector<ChunkServerInfo> chunkserverList{info1, info2, info3};
+
+    // {1,2,3}
+    CopySetInfo copyset1(CopySetKey{1, 1}, 1, 1,
+        std::vector<PeerInfo>{peer1, peer2, peer3},
+        ConfigChangeInfo{}, CopysetStatistics{});
+    // {1,3,4}
+    CopySetInfo copyset2(CopySetKey{1, 2}, 1, 1,
+        std::vector<PeerInfo>{peer1, peer3, peer4},
+        ConfigChangeInfo{}, CopysetStatistics{});
+    // {1,2,3}
+    CopySetInfo copyset3(CopySetKey{1, 3}, 1, 1,
+        std::vector<PeerInfo>{peer1, peer2, peer3},
+        ConfigChangeInfo{}, CopysetStatistics{});
+    // {1,2,4}
+    CopySetInfo copyset4(CopySetKey{1, 4}, 1, 1,
+        std::vector<PeerInfo>{peer1, peer2, peer4},
+        ConfigChangeInfo{}, CopysetStatistics{});
+    // {1,3,4}
+    CopySetInfo copyset5(CopySetKey{1, 5}, 1, 1,
+        std::vector<PeerInfo>{peer1, peer3, peer4},
+        ConfigChangeInfo{}, CopysetStatistics{});
+    std::vector<CopySetInfo> copysetList{
+        copyset1, copyset2, copyset3, copyset4, copyset5};
+
+    // chunkserver-1: 5, chunkserver-2: 3 chunkserver-3: 4
+    EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
+        .WillOnce(Return(copysetList));
+    SchedulerHelper::SortChunkServerByCopySetNumAsc(
+        &chunkserverList, topoAdapter_);
+
+    ASSERT_EQ(info2.info.id, chunkserverList[0].info.id);
+    ASSERT_EQ(info3.info.id, chunkserverList[1].info.id);
+    ASSERT_EQ(info1.info.id, chunkserverList[2].info.id);
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

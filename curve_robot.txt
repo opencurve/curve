@@ -1963,7 +1963,7 @@ check chunkserver should be exsits
 
 start mds with sleep
      start mds
-	 Sleep		2s
+	 Sleep		5s
 
 
 

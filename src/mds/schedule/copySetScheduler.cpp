@@ -208,6 +208,11 @@ bool CopySetScheduler::CopySetMigration(
                 continue;
             }
 
+            // 超过concurrent的不考虑
+            if (opController_->ChunkServerExceed(info.id.first)) {
+                continue;
+            }
+
             // 该copyset +target,-source之后的各replica的scatter-with是否符合条件 //NOLINT
             if (!SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
                     topo, target, possibleSource, info,

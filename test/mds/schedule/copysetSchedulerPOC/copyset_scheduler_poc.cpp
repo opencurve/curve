@@ -875,7 +875,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
     // 均值：100, 方差：1, 标准差： 1, 最大值： 101, 最小值：91
 }
 
-TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_3) { //NOLINT
+TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLINT
     // 测试一个chunkserver offline恢复过程中，接连有5个chunkserver offline
     // 回迁的情况
 
@@ -938,6 +938,13 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_3) 
     } while (removeOne > 0);
     PrintScatterWithInCluster();
     PrintCopySetNumInCluster();
+
+    for (auto choose : idlist) {
+        ASSERT_TRUE(GetChunkServerScatterwith(choose) <=
+            minScatterwidth_ * (1 + scatterwidthPercent_));
+        ASSERT_TRUE(GetChunkServerScatterwith(choose) >= minScatterwidth_);
+    }
+
     // ============================结果====================================
     // ========================迁移后的状态=================================
     // ###print scatter-with in cluster###
