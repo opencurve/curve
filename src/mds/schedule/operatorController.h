@@ -44,6 +44,15 @@ class OperatorController {
   bool ApplyOperator(const CopySetInfo &originInfo,
                      CopySetConf *newConf);
 
+  /**
+   * @brief ChunkServerExceed chunksevrer上的operator是否达到设置的并发度
+   *
+   * @param[in] id 指定chunkserver id
+   *
+   * @return false-未达到上限 true-已达到并发度
+   */
+  bool ChunkServerExceed(ChunkServerIdType id);
+
  private:
   /**
    * @brief update influence about replace operator

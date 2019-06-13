@@ -85,6 +85,14 @@ bool OperatorController::GetOperatorById(const CopySetKey &id, Operator *op) {
     return true;
 }
 
+bool OperatorController::ChunkServerExceed(ChunkServerIdType id) {
+    std::lock_guard<std::mutex> guard(mutex_);
+    if (opInfluence_.find(id) == opInfluence_.end()) {
+        return false;
+    }
+    return opInfluence_[id] >= operatorConcurrent_;
+}
+
 bool OperatorController::ApplyOperator(const CopySetInfo &originInfo,
                                        CopySetConf *newConf) {
     assert(newConf != nullptr);

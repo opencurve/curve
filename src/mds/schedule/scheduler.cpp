@@ -20,13 +20,15 @@ namespace mds {
 namespace schedule {
 Scheduler::Scheduler(int trans, int remove, int add,
     float scatterWidthRangePerent, float minScatterWidth,
-    const std::shared_ptr<TopoAdapter> &topo) {
+    const std::shared_ptr<TopoAdapter> &topo,
+    const std::shared_ptr<OperatorController> &opController) {
     this->transTimeSec_ = trans;
     this->removeTimeSec_ = remove;
     this->addTimeSec_ = add;
     this->scatterWidthRangePerent_ = scatterWidthRangePerent;
     this->minScatterWidth_ = minScatterWidth;
     this->topo_ = topo;
+    this->opController_ = opController;
 }
 
 int Scheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
@@ -124,6 +126,8 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
     }
 
     std::vector<std::pair<ChunkServerIdType, int>> candidates;
+    // chunkserver需要根据copyset的数量排序
+    SchedulerHelper::SortChunkServerByCopySetNumAsc(&chunkServers, topo_);
     for (auto &cs : chunkServers) {
         // 不满足zone或者server的限制
         if (excludeZones.find(cs.info.zoneId) != excludeZones.end() ||
@@ -139,6 +143,11 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
                          << ", onlineState: " << cs.state
                          << ", capacity： " << cs.diskCapacity
                          << ", used: " << cs.diskUsed;
+            continue;
+        }
+
+        // 超过concurrent的不考虑
+        if (opController_->ChunkServerExceed(cs.info.id)) {
             continue;
         }
 
