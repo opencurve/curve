@@ -455,16 +455,6 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         ::curve::mds::StatusCode stcode = response.statuscode();
 
-        if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        } else if (curve::mds::StatusCode::kFileUnderSnapShot == stcode) {
-            return LIBCURVE_ERROR::UNDER_SNAPSHOT;
-        }
-
-        LOG_IF(ERROR, stcode != ::curve::mds::StatusCode::kOK)
-        << "cretae snap file failed, errcode = " << stcode;
-
         if (stcode == ::curve::mds::StatusCode::kOK &&
             response.has_snapshotfileinfo()) {
             FInfo_t* fi = new (std::nothrow) FInfo_t;
@@ -473,8 +463,22 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
             *seq = fi->seqnum;
             delete fi;
             return LIBCURVE_ERROR::OK;
+        } else if (!response.has_snapshotfileinfo()) {
+            LOG(ERROR) << "mds side response has no snapshot file info!";
+            return LIBCURVE_ERROR::FAILED;
         }
-        return LIBCURVE_ERROR::FAILED;
+
+        LIBCURVE_ERROR retcode;
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "CreateSnapShot: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
+
+        return retcode;
     }
     return LIBCURVE_ERROR::FAILED;
 }
