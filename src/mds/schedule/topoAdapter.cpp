@@ -94,7 +94,6 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  uint32_t leaderCount,
                                  uint64_t capacity,
                                  uint64_t used,
-                                 uint64_t time,
                                  const ChunkServerStatisticInfo
                                  &statisticInfo) {
     this->info = info;
@@ -103,7 +102,6 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
     this->leaderCount = leaderCount,
     this->diskCapacity = capacity;
     this->diskUsed = used;
-    this->stateUpdateTime = time;
     this->statisticInfo = statisticInfo;
 }
 
@@ -304,7 +302,6 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
     out->diskState = origin.GetChunkServerState().GetDiskState();
     out->diskCapacity = origin.GetChunkServerState().GetDiskCapacity();
     out->diskUsed = origin.GetChunkServerState().GetDiskUsed();
-    out->stateUpdateTime = origin.GetLastStateUpdateTime();
     return true;
     // TODO(lixiaocui): out->statisticInfo
 }
