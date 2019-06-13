@@ -417,7 +417,6 @@ TEST(TestChunkServerInfo, test_onlineState) {
                        2,
                        1,
                        2,
-                       1,
                        ChunkServerStatisticInfo());
     ASSERT_FALSE(cs.IsOffline());
     ASSERT_TRUE(cs.IsHealthy());

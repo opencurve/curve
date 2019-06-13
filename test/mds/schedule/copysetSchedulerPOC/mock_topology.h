@@ -148,6 +148,8 @@ class MockStorage : public TopologyStorage {
         const ChunkServer &data));
     MOCK_METHOD1(UpdateCopySet, bool(
         const ::curve::mds::topology::CopySetInfo &data));
+    MOCK_METHOD1(UpdateCopySetPeriodically, bool(
+        const ::curve::mds::topology::CopySetInfo &data));
 
     MOCK_METHOD1(SetAutoCommit, bool(const bool &autoCommit));
     MOCK_METHOD0(Commit, bool());

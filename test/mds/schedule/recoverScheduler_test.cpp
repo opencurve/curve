@@ -97,19 +97,19 @@ TEST_F(TestRecoverSheduler, test_server_has_more_offline_chunkserver) {
         .WillRepeatedly(Return(std::vector<CopySetInfo>({testCopySetInfo})));
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::OFFLINE,
                             DiskState::DISKNORMAL,
-                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
                             DiskState::DISKNORMAL,
-                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
                             DiskState::DISKNORMAL,
-                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, ChunkServerStatisticInfo{});
     PeerInfo peer4(4, 1, 1, 1, "192.168.10.1", 9001);
     PeerInfo peer5(5, 1, 1, 1, "192.168.10.1", 9002);
     ChunkServerInfo csInfo4(peer4, OnlineState::OFFLINE, DiskState::DISKNORMAL,
-            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+            2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo5(peer5, OnlineState::OFFLINE, DiskState::DISKNORMAL,
-            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+            2, 100, 100, ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
         .WillOnce(Return(std::vector<ChunkServerInfo>{
             csInfo1, csInfo2, csInfo3, csInfo4, csInfo5}));
@@ -131,17 +131,17 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
         .WillRepeatedly(Return(std::vector<ChunkServerInfo>{}));
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
                             DiskState::DISKNORMAL,
-                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
                             DiskState::DISKNORMAL,
-                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
                             DiskState::DISKNORMAL,
-                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, ChunkServerStatisticInfo{});
     PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
     ChunkServerInfo csInfo4(peer4, OnlineState::ONLINE,
                             DiskState::DISKNORMAL,
-                            2, 100, 100, 1234, ChunkServerStatisticInfo{});
+                            2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerIdType id1 = 1;
     ChunkServerIdType id2 = 2;
     ChunkServerIdType id3 = 3;

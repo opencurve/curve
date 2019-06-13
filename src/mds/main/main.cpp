@@ -157,6 +157,8 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
     LOG_IF(FATAL, !conf->GetUInt32Value(
         "mds.topology.CreateCopysetRpcRetrySleepTimeMs",
         &topologyOption->CreateCopysetRpcRetrySleepTimeMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.topology.CopySetUpdateSec",
+        &topologyOption->CopySetUpdateSec));
 }
 
 void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
