@@ -9,6 +9,7 @@
 #define CURVESNAPSHOT_PYTHON_LIBCURVESNAPSHOT_H_
 
 #include <unistd.h>
+#include <vector>
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +36,7 @@ typedef struct FileInfo {
     type_uInt64_t      ctime;
 } FileInfo_t;
 
-enum class CFileStatus {
+enum CFileStatus {
     Created = 0,
     Deleting,
     Cloning,
@@ -59,7 +60,7 @@ typedef struct CChunkIDInfo {
 // 保存每个chunk对应的版本信息
 typedef struct CChunkInfoDetail {
     type_uInt64_t snSize;
-    type_uInt64_t chunkSn[1024];
+    std::vector<int> chunkSn;
 } CChunkInfoDetail_t;
 
 
@@ -67,7 +68,7 @@ typedef struct CChunkInfoDetail {
 typedef struct CLogicalPoolCopysetIDInfo {
     type_uInt32_t lpid;
     type_uInt32_t cpidVecSize;
-    type_uInt32_t cpidVec[1024];
+    std::vector<int> cpidVec;
 } LogicalPoolCopysetIDInfo_t;
 
 // 保存每个segment的基本信息
@@ -76,7 +77,7 @@ typedef struct CSegmentInfo {
     type_uInt32_t chunksize;
     type_uInt64_t startoffset;
     type_uInt32_t chunkVecSize;
-    CChunkIDInfo chunkvec[1024];
+    std::vector<CChunkIDInfo_t> chunkvec;
     CLogicalPoolCopysetIDInfo lpcpIDInfo;
 } CSegmentInfo_t;
 
@@ -89,10 +90,9 @@ typedef struct CFInfo {
     type_uInt64_t        length;
     type_uInt64_t        ctime;
     type_uInt64_t        seqnum;
-    char            owner[256];
-    char            filename[256];
-    char            fullPathName[256];
-    CFileStatus      filestatus;
+    char                owner[256];
+    char                filename[256];
+    CFileStatus         filestatus;
 } CFInfo_t;
 
 int Init(const char* path);

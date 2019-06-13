@@ -108,10 +108,15 @@ int GetSnapShot(const char* filename, const CUserInfo_t userinfo,
     snapinfo->length.value = fileinfo.length;
     snapinfo->ctime.value = fileinfo.ctime;
     snapinfo->seqnum.value = fileinfo.seqnum;
-    memcpy(snapinfo->owner, &fileinfo.owner, 256);
-    memcpy(snapinfo->filename, &fileinfo.filename, 256);
-    memcpy(snapinfo->fullPathName, &fileinfo.fullPathName, 256);
+    memset(snapinfo->owner, 0, 256);
+    memset(snapinfo->filename, 0, 256);
+    memcpy(snapinfo->owner, fileinfo.owner.c_str(), 256);
+    memcpy(snapinfo->filename, fileinfo.filename.c_str(), 256);
     snapinfo->filestatus = static_cast<CFileStatus>(fileinfo.filestatus);
+    LOG(INFO) << "origin owner = " << fileinfo.owner;
+    LOG(INFO) << "origin filename = " << fileinfo.filename;
+    LOG(INFO) << "owner = " << snapinfo->owner;
+    LOG(INFO) << "filename = " << snapinfo->filename;
     return ret;
 }
 
@@ -136,12 +141,14 @@ int GetSnapshotSegmentInfo(const char* filename,
     segInfo->startoffset.value = seg.startoffset;
     segInfo->chunkVecSize.value = seg.chunkvec.size();
     for (int i = 0; i < seg.chunkvec.size(); i++) {
-        ChunkIDInfo2LocalInfo(&segInfo->chunkvec[i], seg.chunkvec[i]);
+        CChunkIDInfo_t tempIDInfo;
+        ChunkIDInfo2LocalInfo(&tempIDInfo, seg.chunkvec[i]);
+        segInfo->chunkvec.push_back(tempIDInfo);
     }
     segInfo->lpcpIDInfo.lpid.value = seg.lpcpIDInfo.lpid;
     segInfo->lpcpIDInfo.cpidVecSize.value = seg.lpcpIDInfo.cpidVec.size();
     for (int i = 0; i < seg.lpcpIDInfo.cpidVec.size(); i++) {
-        segInfo->lpcpIDInfo.cpidVec[i].value = seg.lpcpIDInfo.cpidVec[i];
+        segInfo->lpcpIDInfo.cpidVec.push_back(seg.lpcpIDInfo.cpidVec[i]);
     }
     return 0;
 }
@@ -192,7 +199,7 @@ int GetChunkInfo(CChunkIDInfo cidinfo, CChunkInfoDetail *chunkInfo) {
     int ret = globalSnapshotclient->GetChunkInfo(idinfo, &cinfodetail);
     chunkInfo->snSize.value = cinfodetail.chunkSn.size();
     for (int i = 0; i < cinfodetail.chunkSn.size(); i++) {
-        chunkInfo->chunkSn[i].value = cinfodetail.chunkSn[i];
+        chunkInfo->chunkSn.push_back(cinfodetail.chunkSn[i]);
     }
     return ret;
 }
