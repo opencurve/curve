@@ -91,6 +91,13 @@ void HeartbeatManager::ChunkServerHeartbeat(
 
     // 处理心跳中的copyset
     for (auto &value : request.copysetinfos()) {
+        // 逻辑池不可用时，不处理该逻辑池的copyset信息
+        ::curve::mds::topology::LogicalPool lPool;
+        if (topology_->GetLogicalPool(value.logicalpoolid(), &lPool)) {
+            if (lPool.GetLogicalPoolAvaliableFlag() != true) {
+                continue;
+            }
+        }
         // heartbeat中copysetInfo格式转化为topology的格式
         ::curve::mds::topology::CopySetInfo reportCopySetInfo;
         if (!FromHeartbeatCopySetInfoToTopologyOne(value,

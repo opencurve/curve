@@ -66,11 +66,11 @@ bool TopologyAdminImpl::AllocateChunkRoundRobinInSingleLogicalPool(
         return false;
     }
 
-    static std::map<PoolIdType, uint32_t> nextIndexMap;
-
     uint32_t nextIndex = 0;
-    auto it = nextIndexMap.find(logicalPoolChosenId);
-    if (it != nextIndexMap.end()) {
+
+    ::curve::common::LockGuard guard(nextIndexMapLock_);
+    auto it = nextIndexMap_.find(logicalPoolChosenId);
+    if (it != nextIndexMap_.end()) {
         nextIndex = it->second;
     } else {
         // TODO(xuchaojie): 后续可以使用剩余容量最大的作为起始。
@@ -78,7 +78,7 @@ bool TopologyAdminImpl::AllocateChunkRoundRobinInSingleLogicalPool(
         std::mt19937 gen(rd());  // 以播种标准 mersenne_twister_engine
         std::uniform_int_distribution<> dis(0, copySetIds.size() - 1);
         nextIndex = dis(gen);
-        nextIndexMap.emplace(logicalPoolChosenId, nextIndex);
+        nextIndexMap_.emplace(logicalPoolChosenId, nextIndex);
     }
 
     ret = AllocateChunkPolicy::AllocateChunkRoundRobinInSingleLogicalPool(
@@ -88,7 +88,7 @@ bool TopologyAdminImpl::AllocateChunkRoundRobinInSingleLogicalPool(
                chunkNumber,
                infos);
     if (ret) {
-        nextIndexMap[logicalPoolChosenId] = nextIndex;
+        nextIndexMap_[logicalPoolChosenId] = nextIndex;
     }
     return ret;
 }

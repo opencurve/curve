@@ -92,6 +92,9 @@ class MockTopology : public Topology {
     MOCK_METHOD1(UpdateCopySet,
         int(const ::curve::mds::topology::CopySetInfo &data));
 
+    MOCK_METHOD1(UpdateCopySetPeriodically,
+        int(const ::curve::mds::topology::CopySetInfo &data));
+
     // find
     MOCK_CONST_METHOD2(FindLogicalPool,
         PoolIdType(const std::string &logicalPoolName,

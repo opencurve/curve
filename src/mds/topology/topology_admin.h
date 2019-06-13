@@ -15,7 +15,7 @@
 
 #include "src/mds/topology/topology.h"
 #include "proto/nameserver2.pb.h"
-
+#include "src/common/concurrent/concurrent.h"
 
 namespace curve {
 namespace mds {
@@ -95,6 +95,15 @@ class TopologyAdminImpl : public TopologyAdmin {
 
  private:
     std::shared_ptr<Topology> topology_;
+
+    /**
+     * @brief RoundRobin各逻辑池起始点map
+     */
+    std::map<PoolIdType, uint32_t> nextIndexMap_;
+    /**
+     * @brief 保护上述map的锁
+     */
+    ::curve::common::Mutex nextIndexMapLock_;
 };
 
 /**

@@ -7,7 +7,7 @@
 #include "src/mds/topology/topology.h"
 
 #include <glog/logging.h>
-#include <sys/time.h>
+#include <chrono>  //NOLINT
 
 namespace curve {
 namespace mds {
@@ -316,17 +316,15 @@ int TopologyImpl::UpdateChunkServerState(const ChunkServerState &state,
     WriteLockGuard wlockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
-        timeval now;
-        gettimeofday(&now, NULL);
-        uint64_t currentTime = now.tv_sec;
-        uint64_t lastTime = it->second.GetLastStateUpdateTime();
-        ChunkServer cs = it->second;
-        cs.SetChunkServerState(state);
-        cs.SetLastStateUpdateTime(currentTime);
+        auto now = std::chrono::steady_clock::now();
+        auto duration =  now - it->second.GetLastStateUpdateTime();
+        auto durationSec =
+            std::chrono::duration_cast<std::chrono::seconds>(duration).count();
         // 心跳数据，可先更新内存，若数据库更新失败，也可保持内存中数据最新
-        it->second = cs;
-        if ((currentTime - lastTime) >= option_.ChunkServerStateUpdateSec) {
-            if (!storage_->UpdateChunkServer(cs)) {
+        it->second.SetChunkServerState(state);
+        if (durationSec >= option_.ChunkServerStateUpdateSec) {
+            it->second.SetLastStateUpdateTime(now);
+            if (!storage_->UpdateChunkServer(it->second)) {
                 return kTopoErrCodeStorgeFail;
             }
         }
@@ -781,7 +779,7 @@ CopySetIdType TopologyImpl::AllocateCopySetId(PoolIdType logicalPoolId) {
 
 int TopologyImpl::AddCopySet(const CopySetInfo &data) {
     ReadLockGuard rlockLogicalPool(logicalPoolMutex_);
-    WriteLockGuard wlockCopySet(copySetMutex_);
+    WriteLockGuard wlockCopySetMap(copySetMutex_);
     auto it = logicalPoolMap_.find(data.GetLogicalPoolId());
     if (it != logicalPoolMap_.end()) {
         CopySetKey key(data.GetLogicalPoolId(), data.GetId());
@@ -800,7 +798,7 @@ int TopologyImpl::AddCopySet(const CopySetInfo &data) {
 }
 
 int TopologyImpl::RemoveCopySet(CopySetKey key) {
-    WriteLockGuard wlockCopySet(copySetMutex_);
+    WriteLockGuard wlockCopySetMap(copySetMutex_);
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
         if (!storage_->DeleteCopySet(key)) {
@@ -817,10 +815,11 @@ int TopologyImpl::RemoveCopySet(CopySetKey key) {
 // 这样数据库copyset的信息不一定是最新的，需要mds提供一个copyset的查询接口，外部需要获得
 // copyset信息的时候有从mds拿的入口
 int TopologyImpl::UpdateCopySet(const CopySetInfo &data) {
-    WriteLockGuard wlockCopySet(copySetMutex_);
+    ReadLockGuard rlockCopySetMap(copySetMutex_);
     CopySetKey key(data.GetLogicalPoolId(), data.GetId());
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
+        WriteLockGuard wlockCopySet(it->second.GetRWLockRef());
         if (!storage_->UpdateCopySet(data)) {
             LOG(WARNING) << "update copyset{" << data.GetLogicalPoolId()
                          << "," << data.GetId() << "} to repo fail";
@@ -828,14 +827,45 @@ int TopologyImpl::UpdateCopySet(const CopySetInfo &data) {
         it->second = data;
         return kTopoErrCodeSuccess;
     } else {
+        LOG(WARNING) << "UpdateCopySet can not find copyset, "
+                     << "logicalPoolId = " << data.GetLogicalPoolId()
+                     << ", copysetId = " << data.GetId();
+        return kTopoErrCodeCopySetNotFound;
+    }
+}
+
+int TopologyImpl::UpdateCopySetPeriodically(const CopySetInfo &data) {
+    ReadLockGuard rlockCopySetMap(copySetMutex_);
+    CopySetKey key(data.GetLogicalPoolId(), data.GetId());
+    auto it = copySetMap_.find(key);
+    if (it != copySetMap_.end()) {
+        auto now = std::chrono::steady_clock::now();
+        auto duration =  now - it->second.GetLastStateUpdateTime();
+        auto durationSec =
+            std::chrono::duration_cast<std::chrono::seconds>(duration).count();
+        WriteLockGuard wlockCopySet(it->second.GetRWLockRef());
+        if (durationSec >= option_.CopySetUpdateSec) {
+            data.SetLastStateUpdateTime(now);
+            if (!storage_->UpdateCopySet(data)) {
+                LOG(WARNING) << "update copyset{" << data.GetLogicalPoolId()
+                             << "," << data.GetId() << "} to repo fail";
+            }
+        }
+        it->second = data;
+        return kTopoErrCodeSuccess;
+    } else {
+        LOG(WARNING) << "UpdateCopySetPeriodically can not find copyset, "
+                     << "logicalPoolId = " << data.GetLogicalPoolId()
+                     << ", copysetId = " << data.GetId();
         return kTopoErrCodeCopySetNotFound;
     }
 }
 
 bool TopologyImpl::GetCopySet(CopySetKey key, CopySetInfo *out) const {
-    ReadLockGuard rlockCopySet(copySetMutex_);
+    ReadLockGuard rlockCopySetMap(copySetMutex_);
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
+        ReadLockGuard rlockCopySet(it->second.GetRWLockRef());
         *out = it->second;
         return true;
     } else {

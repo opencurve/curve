@@ -22,6 +22,8 @@
 #include "brpc/server.h"
 #include "proto/copyset.pb.h"
 
+#include "src/common/concurrent/concurrent.h"
+
 namespace curve {
 namespace mds {
 namespace topology {
@@ -39,6 +41,8 @@ using ::curve::mds::copyset::CopysetConstrait;
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
+    // TODO(xuchaojie): 替换为namelock锁住ip和端口
+    ::curve::common::LockGuard lock(registCsMutex);
     std::string hostIp = request->hostip();
     uint32_t port = request->port();
     // 需要为Retired或offline情况才能换盘，否则视为ipPort重复的chunkserver
@@ -50,8 +54,21 @@ void TopologyServiceManager::RegistChunkServer(
                        (cs.GetHostIp() == hostIp) &&
                        (cs.GetPort() == port);
             });
-    if (list.size() != 0) {
-        response->set_statuscode(kTopoErrCodeIpPortDuplicated);
+    if (1 == list.size()) {
+        // 处理重复的注册报文，保证接口的幂等性
+        ChunkServer cs;
+        topology_->GetChunkServer(list[0], &cs);
+        response->set_statuscode(kTopoErrCodeSuccess);
+        response->set_chunkserverid(cs.GetId());
+        response->set_token(cs.GetToken());
+        LOG(WARNING) << "Received duplicated registChunkServer message, "
+                      << "hostip = " << hostIp
+                      << ", port = " << port;
+        return;
+    } else if (list.size() > 1) {
+        response->set_statuscode(kTopoErrCodeInternalError);
+        LOG(ERROR) << "Topology has counter an internal error: "
+            "Found chunkServer data ipPort duplicated.";
         return;
     }
 
@@ -903,11 +920,6 @@ bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
     uint32_t retry = 0;
 
     do {
-        LOG(INFO) << "Send CopysetRequest[log_id=" << cntl.log_id()
-                  << "] from " << cntl.local_side()
-                  << " to " << cntl.remote_side()
-                  << ". [CopysetRequest] "
-                  << copysetRequest.DebugString();
         cntl.Reset();
         cntl.set_timeout_ms(option_.CreateCopysetRpcTimeoutMs *
             copysetInfos.size());
@@ -915,6 +927,12 @@ bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
             &copysetRequest,
             &copysetResponse,
             nullptr);
+        LOG(INFO) << "Send CopysetRequest[log_id=" << cntl.log_id()
+                  << "] from " << cntl.local_side()
+                  << " to " << cntl.remote_side()
+                  << ". [CopysetRequest] : "
+                  << " copysetRequest.copysets_size() = "
+                  << copysetRequest.copysets_size();
         if (cntl.Failed()) {
             LOG(ERROR) << "Received CopysetResponse error, "
                        << "cntl.errorText = "

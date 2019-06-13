@@ -78,6 +78,17 @@ class Topology {
                                        ChunkServerIdType id) = 0;
     virtual int UpdateCopySet(const CopySetInfo &data) = 0;
 
+    /**
+     * @brief 更新内存并定期持久化copyset信息
+     * @detail
+     *    用于更新epoch，leader等心跳周期性上报的copyset数据
+     *
+     * @param data copyset数据
+     *
+     * @return 错误码
+     */
+    virtual int UpdateCopySetPeriodically(const CopySetInfo &data) = 0;
+
     virtual PoolIdType
         FindLogicalPool(const std::string &logicalPoolName,
                         const std::string &physicalPoolName) const = 0;
@@ -266,6 +277,7 @@ class TopologyImpl : public Topology {
     int UpdateChunkServerState(const ChunkServerState &state,
                                ChunkServerIdType id) override;
     int UpdateCopySet(const CopySetInfo &data) override;
+    int UpdateCopySetPeriodically(const CopySetInfo &data) override;
 
     PoolIdType FindLogicalPool(const std::string &logicalPoolName,
         const std::string &physicalPoolName) const override;
