@@ -10,6 +10,7 @@
 #include <glog/logging.h>
 #include <brpc/controller.h>
 #include <brpc/server.h>
+#include <fiu-control.h>
 
 #include <string>
 #include <thread>   //NOLINT
@@ -670,6 +671,13 @@ TEST_F(MDSClientTest, Deletefile) {
     curvefsservice.SetDeleteFile(fakeret5);
     ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
               fileClient_.Unlink(filename1, userinfo));
+
+    // 设置delete force
+    fiu_init(0);
+    fiu_enable("test/client/fake/mockMDS/forceDeleteFile", 1, nullptr, 0);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::NOT_SUPPORT,
+              fileClient_.Unlink(filename1, userinfo, true));
+    fiu_disable("test/client/fake/mockMDS/forceDeleteFile");
 
     // 设置rpc失败，触发重试
     brpc::Controller cntl;
