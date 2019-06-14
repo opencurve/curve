@@ -8,6 +8,7 @@
 #define TEST_CLIENT_FAKE_MOCKMDS_H_
 
 #include <glog/logging.h>
+#include <fiu.h>
 
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
@@ -187,6 +188,12 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
 
         auto resp = static_cast<::curve::mds::CloseFileResponse*>(
                     fakedeletefile_->response_);
+
+        if (request->forcedelete()) {
+            LOG(INFO) << "force delete file!";
+            fiu_do_on("test/client/fake/mockMDS/forceDeleteFile",
+            resp->set_statuscode(curve::mds::StatusCode::kNotSupported));
+        }
         response->CopyFrom(*resp);
     }
 

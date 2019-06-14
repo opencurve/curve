@@ -129,6 +129,16 @@ int Extend4Qemu(const char* filename, int64_t newsize);     // NOLINT
 int Unlink(const char* filename, const C_UserInfo_t* userinfo);
 
 /**
+ * 强制删除文件, unlink删除文件在mds一侧并不是真正的删除，
+ * 而是放到了垃圾回收站，当使用DeleteForce接口删除的时候是直接删除
+ * @param: userinfo是用户信息
+ * @param: filename待删除的文件名
+ * @return: 成功返回 0,
+ *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ */
+int DeleteForce(const char* filename, const C_UserInfo_t* userinfo);
+
+/**
  * 枚举目录内容
  * @param: userinfo是用户信息
  * @param: dirpath是目录路径

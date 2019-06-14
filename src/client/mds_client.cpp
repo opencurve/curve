@@ -1545,6 +1545,7 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
 
 LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
                                      const UserInfo_t& userinfo,
+                                     bool deleteforce,
                                      uint64_t fileid) {
     // 记录当前mds重试次数
     int count = 0;
@@ -1563,6 +1564,8 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
         if (fileid > 0) {
             request.set_fileid(fileid);
         }
+
+        request.set_forcedelete(deleteforce);
 
         FillUserInfo<::curve::mds::DeleteFileRequest>(&request, userinfo);
 
