@@ -131,9 +131,8 @@ void HeartbeatManager::UpdateChunkServerStatistics(
                     topology_->FindChunkServerNotRetired(
                     leaderIp, leaderPort);
                 if (UNINTIALIZE_ID == cstat.leader) {
-                    LOG(ERROR) << "hearbeat failed on FindChunkServer,"
-                               << "leaderIp = " << leaderIp
-                               << "leaderPort = " << leaderPort;
+                    LOG(INFO) << "hearbeat receive chunkserver "
+                              << "which dose not have leader.";
                 }
             } else {
                 LOG(ERROR) << "hearbeat failed on SplitPeerId, "
