@@ -590,8 +590,6 @@ TEST_F(TestTopologyServiceManager, test_SetChunkServer_Success) {
 
     SetChunkServerStatusResponse response;
 
-    EXPECT_CALL(*storage_, UpdateChunkServer(_))
-        .WillOnce(Return(true));
     serviceManager_->SetChunkServer(&request, &response);
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());

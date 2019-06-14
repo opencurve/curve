@@ -306,13 +306,8 @@ int TopologyImpl::UpdateChunkServerRwState(const ChunkServerStatus &rwState,
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
         WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
-        ChunkServer temp = it->second;
-        temp.SetStatus(rwState);
-        if (!storage_->UpdateChunkServer(temp)) {
-            return kTopoErrCodeStorgeFail;
-        }
         it->second.SetStatus(rwState);
-        it->second.SetDirtyFlag(false);
+        it->second.SetDirtyFlag(true);
         return kTopoErrCodeSuccess;
     } else {
         return kTopoErrCodeChunkServerNotFound;
@@ -941,56 +936,70 @@ void TopologyImpl::BackEndFunc() {
 }
 
 void TopologyImpl::FlushCopySetToStorage() {
-    ReadLockGuard rlockCopySetMap(copySetMutex_);
-    for (auto &c : copySetMap_) {
-        WriteLockGuard wlockCopySet(c.second.GetRWLockRef());
-        if (c.second.GetDirtyFlag()) {
-            if (!storage_->UpdateCopySet(c.second)) {
-                LOG(WARNING) << "update copyset{" << c.second.GetLogicalPoolId()
-                             << "," << c.second.GetId() << "} to repo fail";
-            } else {
+    std::vector<CopySetInfo> toUpdate;
+    {
+        ReadLockGuard rlockCopySetMap(copySetMutex_);
+        for (auto &c : copySetMap_) {
+            // 只更新DirtyFlag，加读锁就可以了
+            ReadLockGuard rlockCopySet(c.second.GetRWLockRef());
+            if (c.second.GetDirtyFlag()) {
                 c.second.SetDirtyFlag(false);
-                LOG(INFO) << "update copyset to repo success, "
-                          << "logicalPoolId = " << c.second.GetLogicalPoolId()
-                          << ", copysetId = " << c.second.GetId()
-                          << ", leader = " << c.second.GetLeader()
-                          << ", epoch = " << c.second.GetEpoch()
-                          << ", copyset members = "
-                          << c.second.GetCopySetMembersStr()
-                          << ", candidate = " << c.second.GetCandidate();
+                toUpdate.push_back(c.second);
             }
+        }
+    }
+    for (auto &v : toUpdate) {
+        if (!storage_->UpdateCopySet(v)) {
+            LOG(WARNING) << "update copyset{" << v.GetLogicalPoolId()
+                         << "," << v.GetId() << "} to repo fail";
+        } else {
+            LOG(INFO) << "update copyset to repo success, "
+                      << "logicalPoolId = " << v.GetLogicalPoolId()
+                      << ", copysetId = " << v.GetId()
+                      << ", leader = " << v.GetLeader()
+                      << ", epoch = " << v.GetEpoch()
+                      << ", copyset members = "
+                      << v.GetCopySetMembersStr()
+                      << ", candidate = " << v.GetCandidate();
         }
     }
 }
 
 void TopologyImpl::FlushChunkServerToStorage() {
-    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
-    for (auto &c : chunkServerMap_) {
-        if (c.second.GetDirtyFlag()) {
-            WriteLockGuard wlockChunkServer(c.second.GetRWLockRef());
-            if (!storage_->UpdateChunkServer(c.second)) {
-                LOG(WARNING) << "update chunkserver to repo fail"
-                             << ", chunkserverid = " << c.first;
-            } else {
+    std::vector<ChunkServer> toUpdate;
+    {
+        ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
+        for (auto &c : chunkServerMap_) {
+            // 只更新DirtyFlag，加读锁就可以了
+            ReadLockGuard rlockChunkServer(c.second.GetRWLockRef());
+            if (c.second.GetDirtyFlag()) {
                 c.second.SetDirtyFlag(false);
-                LOG(INFO) << "update chunkserver to repo success, "
-                          << "chunkserverId = " << c.first
-                          << ", token = " << c.second.GetToken()
-                          << ", diskType = " << c.second.GetDiskType()
-                          << ", serverId = " << c.second.GetServerId()
-                          << ", hostIp = "
-                          << c.second.GetHostIp()
-                          << ", port = " << c.second.GetPort()
-                          << ", mountPoint = " << c.second.GetMountPoint()
-                          << ", rwStatus = " << c.second.GetStatus()
-                          << ", onlineState = " << c.second.GetOnlineState()
-                          << ", diskState = "
-                          << c.second.GetChunkServerState().GetDiskState()
-                          << ", diskCapacity = "
-                          << c.second.GetChunkServerState().GetDiskCapacity()
-                          << ", diskUsed = "
-                          << c.second.GetChunkServerState().GetDiskUsed();
+                toUpdate.push_back(c.second);
             }
+        }
+    }
+    for (auto &v : toUpdate) {
+        if (!storage_->UpdateChunkServer(v)) {
+            LOG(WARNING) << "update chunkserver to repo fail"
+                         << ", chunkserverid = " << v.GetId();
+        } else {
+            LOG(INFO) << "update chunkserver to repo success, "
+                      << "chunkserverId = " << v.GetId()
+                      << ", token = " << v.GetToken()
+                      << ", diskType = " << v.GetDiskType()
+                      << ", serverId = " << v.GetServerId()
+                      << ", hostIp = "
+                      << v.GetHostIp()
+                      << ", port = " << v.GetPort()
+                      << ", mountPoint = " << v.GetMountPoint()
+                      << ", rwStatus = " << v.GetStatus()
+                      << ", onlineState = " << v.GetOnlineState()
+                      << ", diskState = "
+                      << v.GetChunkServerState().GetDiskState()
+                      << ", diskCapacity = "
+                      << v.GetChunkServerState().GetDiskCapacity()
+                      << ", diskUsed = "
+                      << v.GetChunkServerState().GetDiskUsed();
         }
     }
 }

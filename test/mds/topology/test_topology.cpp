@@ -1298,7 +1298,6 @@ TEST_F(TestTopology, UpdateChunkServerTopo_StorageFail) {
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
-
 TEST_F(TestTopology, UpdateChunkServerDiskStatus_success) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
@@ -1337,6 +1336,43 @@ TEST_F(TestTopology, UpdateChunkServerDiskStatus_ChunkServerNotFound) {
     csState.SetDiskCapacity(100);
 
     int ret = topology_->UpdateChunkServerDiskStatus(csState,  csId);
+    ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
+}
+
+TEST_F(TestTopology, UpdateChunkServerRwState_success) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    ChunkServerIdType csId = 0x41;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId);
+    PrepareAddChunkServer(csId,
+            "token",
+            "ssd",
+            serverId,
+            "/");
+
+    ChunkServerStatus rwState;
+    rwState = ChunkServerStatus::PENDDING;
+    int ret = topology_->UpdateChunkServerRwState(rwState,  csId);
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+
+    // 只刷一次
+    EXPECT_CALL(*storage_, UpdateChunkServer(_))
+        .WillOnce(Return(true));
+    topology_->Run();
+    // sleep 等待刷数据库
+    sleep(5);
+    topology_->Stop();
+}
+
+TEST_F(TestTopology, UpdateChunkServerRwState_ChunkServerNotFound) {
+    ChunkServerIdType csId = 0x41;
+
+    ChunkServerStatus rwState;
+    rwState = ChunkServerStatus::PENDDING;
+    int ret = topology_->UpdateChunkServerRwState(rwState,  csId);
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
 }
 
