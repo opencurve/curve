@@ -23,7 +23,7 @@ DEFINE_int32(mds_port, 8000, "mds port");
 
 DEFINE_string(op,
     "",
-    "operation: create_logicalpool, create_physicalpool");
+    "operation: create_logicalpool, create_physicalpool, set_chunkserver");
 
 DEFINE_string(name, "defaultLogicalPool", "logical pool name.");
 DEFINE_string(physicalpool_name, "pool1", "physicalPool name.");
@@ -37,6 +37,13 @@ DEFINE_int32(zone_num, 3, "zone num.");
 DEFINE_int32(scatterWidth, 0, "scatter width.");
 
 DEFINE_string(cluster_map, "./topo.txt", "cluster topology map.");
+
+DEFINE_int32(chunkserver_id, -1, "chunkserver id for set chunkserver status.");
+DEFINE_string(chunkserver_status, "readwrite",
+    "chunkserver status: readwrite, pendding, retired.");
+
+const uint32_t rpcTimeOutMs = 2000u;
+const uint32_t createLogicalPoolRpcTimeOutMs = 30000u;
 
 namespace curve {
 namespace mds {
@@ -71,6 +78,7 @@ class CurvefsTools {
 
     int HandleCreateLogicalPool();
     int HandleBuildCluster();
+    int SetChunkServer();
 
     static const std::string clusterMapSeprator;
 
@@ -129,7 +137,7 @@ int CurvefsTools::HandleCreateLogicalPool() {
     TopologyService_Stub stub(&channel_);
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(60000);
+    cntl.set_timeout_ms(createLogicalPoolRpcTimeOutMs);
     cntl.set_log_id(1);
 
     CreateLogicalPoolRequest request;
@@ -380,7 +388,7 @@ int CurvefsTools::ListPhysicalPool(
     std::list<PhysicalPoolInfo> *physicalPoolInfos) {
     TopologyService_Stub stub(&channel_);
     brpc::Controller listPhysicalPoolCntl;
-    listPhysicalPoolCntl.set_timeout_ms(1000);
+    listPhysicalPoolCntl.set_timeout_ms(rpcTimeOutMs);
     listPhysicalPoolCntl.set_log_id(1);
     ListPhysicalPoolRequest listPhysicalPoolRequest;
     ListPhysicalPoolResponse listPhysicalPoolResponse;
@@ -418,7 +426,7 @@ int CurvefsTools::AddListPoolZone(PoolIdType poolid,
     ListPoolZoneRequest request;
     ListPoolZoneResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(10000);
+    cntl.set_timeout_ms(rpcTimeOutMs);
     cntl.set_log_id(1);
     request.set_physicalpoolid(poolid);
     stub.ListPoolZone(&cntl, &request, &response, nullptr);
@@ -451,7 +459,7 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
     ListZoneServerRequest request;
     ListZoneServerResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(10000);
+    cntl.set_timeout_ms(rpcTimeOutMs);
     cntl.set_log_id(1);
     request.set_zoneid(zoneid);
     stub.ListZoneServer(&cntl, &request, &response, nullptr);
@@ -642,7 +650,7 @@ int CurvefsTools::CreatePhysicalPool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : physicalPoolToAdd) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(1000);
+        cntl.set_timeout_ms(rpcTimeOutMs);
         cntl.set_log_id(1);
 
         PhysicalPoolRequest request;
@@ -680,7 +688,7 @@ int CurvefsTools::CreateZone() {
     TopologyService_Stub stub(&channel_);
     for (auto it : zoneToAdd) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(1000);
+        cntl.set_timeout_ms(rpcTimeOutMs);
         cntl.set_log_id(1);
 
         ZoneRequest request;
@@ -719,7 +727,7 @@ int CurvefsTools::CreateServer() {
     TopologyService_Stub stub(&channel_);
     for (auto it : serverToAdd) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(1000);
+        cntl.set_timeout_ms(rpcTimeOutMs);
         cntl.set_log_id(1);
 
         ServerRegistRequest request;
@@ -763,7 +771,7 @@ int CurvefsTools::ClearPhysicalPool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : physicalPoolToDel) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(1000);
+        cntl.set_timeout_ms(rpcTimeOutMs);
         cntl.set_log_id(1);
 
         PhysicalPoolRequest request;
@@ -800,7 +808,7 @@ int CurvefsTools::ClearZone() {
     TopologyService_Stub stub(&channel_);
     for (auto it : zoneToDel) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(1000);
+        cntl.set_timeout_ms(rpcTimeOutMs);
         cntl.set_log_id(1);
 
         ZoneRequest request;
@@ -837,7 +845,7 @@ int CurvefsTools::ClearServer() {
     TopologyService_Stub stub(&channel_);
     for (auto it : serverToDel) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(1000);
+        cntl.set_timeout_ms(rpcTimeOutMs);
         cntl.set_log_id(1);
 
         DeleteServerRequest request;
@@ -886,6 +894,46 @@ void CurvefsTools::SplitString(const std::string& s,
     v->push_back(s.substr(pos1));
 }
 
+int CurvefsTools::SetChunkServer() {
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(rpcTimeOutMs);
+    cntl.set_log_id(1);
+    SetChunkServerStatusRequest request;
+    request.set_chunkserverid(FLAGS_chunkserver_id);
+    if (FLAGS_chunkserver_status == "retired") {
+        request.set_chunkserverstatus(ChunkServerStatus::RETIRED);
+    } else if (FLAGS_chunkserver_status == "pendding") {
+        request.set_chunkserverstatus(ChunkServerStatus::PENDDING);
+    } else if (FLAGS_chunkserver_status == "readwrite") {
+        request.set_chunkserverstatus(ChunkServerStatus::READWRITE);
+    } else {
+        LOG(ERROR) << "SetChunkServer param error, unknown chunkserver status";
+        return -1;
+    }
+
+    SetChunkServerStatusResponse response;
+    TopologyService_Stub stub(&channel_);
+    stub.SetChunkServer(&cntl, &request, &response, nullptr);
+
+    LOG(INFO) << "SetChunkServerStatusRequest, send request: "
+              << request.DebugString();
+
+    if (cntl.Failed()) {
+        LOG(ERROR) << "SetChunkServerStatusRequest, errcorde = "
+                   << response.statuscode()
+                   << ", error content:"
+                   << cntl.ErrorText();
+        return -1;
+    }
+    if (response.statuscode() != kTopoErrCodeSuccess) {
+        LOG(ERROR) << "SetChunkServerStatusRequest Rpc response fail. "
+                   << "Message is :"
+                   << response.DebugString();
+        return response.statuscode();
+    }
+    return 0;
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
@@ -908,6 +956,8 @@ int main(int argc, char **argv) {
         ret = tools.HandleCreateLogicalPool();
     } else if (operation == "create_physicalpool") {
         ret = tools.HandleBuildCluster();
+    } else if (operation == "set_chunkserver") {
+        ret = tools.SetChunkServer();
     } else {
         LOG(ERROR) << "undefined op.";
         ret = -1;
