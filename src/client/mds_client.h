@@ -30,6 +30,8 @@ using curve::common::RWLock;
 using curve::common::ReadLockGuard;
 using curve::common::Authenticator;
 
+extern const char* kRootUserName;
+
 namespace curve {
 namespace client {
 class MetaCache;
@@ -303,6 +305,29 @@ class MDSClient {
                               const std::string &destination,
                               uint64_t originId = 0,
                               uint64_t destinationId = 0);
+
+     /**
+      * 变更owner
+      * @param: filename待变更的文件名
+      * @param: newOwner新的owner信息
+      * @param: userinfo执行此操作的user信息，只有root用户才能执行变更
+      * @return: 成功返回0，
+      *          否则返回LIBCURVE_ERROR::FAILED,LIBCURVE_ERROR::AUTHFAILED等
+      */
+    LIBCURVE_ERROR ChangeOwner(const std::string& filename,
+                              const std::string& newOwner,
+                              const UserInfo_t& userinfo);
+
+     /**
+      * 枚举目录内容
+      * @param: userinfo是用户信息
+      * @param: dirpath是目录路径
+      * @param[out]: filestatVec当前文件夹内的文件信息
+      */
+    LIBCURVE_ERROR Listdir(const std::string& dirpath,
+                              const UserInfo_t& userinfo,
+                              std::vector<FileStatInfo>* filestatVec);
+
     /**
      * 析构，回收资源
      */
@@ -345,7 +370,7 @@ class MDSClient {
         request->set_owner(userinfo.owner);
         request->set_date(date);
 
-        if (!userinfo.owner.compare("root") &&
+        if (!userinfo.owner.compare(kRootUserName) &&
              userinfo.password.compare("")) {
             std::string str2sig = Authenticator::GetString2Signature(date,
                                                         userinfo.owner);

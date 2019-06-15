@@ -269,11 +269,17 @@ int FileClient::StatFile(const std::string& filename,
     return -ret;
 }
 
-// TODO(tongguanxgun): mds一侧暂时还没实现list目录接口
 int FileClient::Listdir(const std::string& dirpath,
                         const UserInfo_t& userinfo,
                         std::vector<FileStatInfo>* filestatVec) {
-    return LIBCURVE_ERROR::OK;
+    LIBCURVE_ERROR ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->Listdir(dirpath, userinfo, filestatVec);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
 }
 
 int FileClient::Mkdir(const std::string& dirpath, const UserInfo_t& userinfo) {
@@ -291,6 +297,19 @@ int FileClient::Rmdir(const std::string& dirpath, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->DeleteFile(dirpath, userinfo);
+    } else {
+        LOG(ERROR) << "global mds client not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+    return -ret;
+}
+
+int FileClient::ChangeOwner(const std::string& filename,
+                            const std::string& newOwner,
+                            const UserInfo_t& userinfo) {
+    LIBCURVE_ERROR ret;
+    if (mdsClient_ != nullptr) {
+        ret = mdsClient_->ChangeOwner(filename, newOwner, userinfo);
     } else {
         LOG(ERROR) << "global mds client not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -476,16 +495,64 @@ int DeleteForce(const char* filename, const C_UserInfo_t* userinfo) {
             true);
 }
 
-// TODO(tongguanxgun): mds一侧暂时还没实现list目录接口
-int Listdir(const char* dirpath,
-            const C_UserInfo_t* userinfo, FileStatInfo** filestatVec) {
+DirInfo_t* OpenDir(const char* dirpath, const C_UserInfo_t* userinfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return nullptr;
+    }
+
+    DirInfo_t* dirinfo = new (std::nothrow) DirInfo_t;
+    dirinfo->dirpath = const_cast<char*>(dirpath);
+    dirinfo->userinfo = const_cast<C_UserInfo_t*>(userinfo);
+
+    return dirinfo;
+}
+
+int Listdir(DirInfo_t* dirinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    return globalclient->Listdir(dirpath,
-            UserInfo(userinfo->owner, userinfo->password), nullptr);
+    if (dirinfo == nullptr) {
+        LOG(ERROR) << "dir not opened!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    std::vector<FileStatInfo> fileStat;
+    int ret = globalclient->Listdir(dirinfo->dirpath,
+             UserInfo(dirinfo->userinfo->owner, dirinfo->userinfo->password),
+             &fileStat);
+
+    dirinfo->dirSize = fileStat.size();
+    dirinfo->fileStat = new (std::nothrow) FileStatInfo_t[dirinfo->dirSize];
+
+    if (dirinfo->fileStat == nullptr) {
+        LOG(ERROR) << "allocate FileStatInfo memory failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    for (int i = 0; i < dirinfo->dirSize; i++) {
+        dirinfo->fileStat[i].id = fileStat[i].id;
+        dirinfo->fileStat[i].parentid = fileStat[i].parentid;
+        dirinfo->fileStat[i].filetype = fileStat[i].filetype;
+        dirinfo->fileStat[i].length = fileStat[i].length;
+        dirinfo->fileStat[i].ctime = fileStat[i].ctime;
+        memset(dirinfo->fileStat[i].owner, 0, NAME_MAX_SIZE);
+        memcpy(dirinfo->fileStat[i].owner, fileStat[i].owner, NAME_MAX_SIZE);
+    }
+
+    return ret;
+}
+
+void CloseDir(DirInfo_t* dirinfo) {
+    if (dirinfo != nullptr) {
+        if (dirinfo->fileStat != nullptr) {
+            delete[] dirinfo->fileStat;
+        }
+        delete dirinfo;
+        LOG(INFO) << "close dir";
+    }
 }
 
 int Mkdir(const char* dirpath, const C_UserInfo_t* userinfo) {
@@ -544,6 +611,18 @@ int StatFile(const char* filename,
 
     curve::client::UserInfo_t userinfo(cuserinfo->owner, cuserinfo->password);
     return globalclient->StatFile(filename, userinfo, finfo);
+}
+
+int ChangeOwner(const char* filename,
+                const char* newOwner,
+                const C_UserInfo_t* cuserinfo) {
+    if (globalclient == nullptr) {
+        LOG(ERROR) << "not inited!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    curve::client::UserInfo_t userinfo(cuserinfo->owner, cuserinfo->password);
+    return globalclient->ChangeOwner(filename, newOwner, userinfo);
 }
 
 void UnInit() {

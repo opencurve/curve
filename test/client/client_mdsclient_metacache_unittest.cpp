@@ -1701,3 +1701,242 @@ TEST_F(MDSClientTest, CompleteCloneFile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, mdsclient_.CompleteCloneFile("destination",
                                                             userinfo));
 }
+
+TEST_F(MDSClientTest, ChangeOwner) {
+    std::string filename1 = "/1_userinfo_";
+    UserInfo_t          userinfo;
+    userinfo.owner = "root";
+    userinfo.password = "rootpwd";
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+
+    // set response file not exist
+    ::curve::mds::ChangeOwnerResponse response;
+    response.set_statuscode(::curve::mds::StatusCode::kFileNotExists);
+
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&response));
+
+    curvefsservice.SetChangeOwner(fakeret);
+
+    int ret = fileClient_.ChangeOwner(filename1, "newowner", userinfo);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::NOTEXIST);
+
+    // set extend file ok
+    ::curve::mds::ChangeOwnerResponse response1;
+    response1.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&response1));
+
+    curvefsservice.SetChangeOwner(fakeret1);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileClient_.ChangeOwner(filename1,
+                                                          "newowner",
+                                                          userinfo));
+
+    // set file dir not exists
+    ::curve::mds::ChangeOwnerResponse response2;
+    response2.set_statuscode(::curve::mds::StatusCode::kDirNotExist);
+
+    FakeReturn* fakeret3
+     = new FakeReturn(nullptr, static_cast<void*>(&response2));
+
+    curvefsservice.SetChangeOwner(fakeret3);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::NOTEXIST,
+              fileClient_.ChangeOwner(filename1, "newowner", userinfo));
+
+    // set file auth fail
+    ::curve::mds::ChangeOwnerResponse response3;
+    response3.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
+
+    FakeReturn* fakeret4
+     = new FakeReturn(nullptr, static_cast<void*>(&response3));
+
+    curvefsservice.SetChangeOwner(fakeret4);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::AUTHFAIL,
+              fileClient_.ChangeOwner(filename1, "newowner", userinfo));
+
+    // set file mds storage error
+    ::curve::mds::ChangeOwnerResponse response4;
+    response4.set_statuscode(::curve::mds::StatusCode::kStorageError);
+
+    FakeReturn* fakeret5
+     = new FakeReturn(nullptr, static_cast<void*>(&response4));
+
+    curvefsservice.SetChangeOwner(fakeret5);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
+              fileClient_.ChangeOwner(filename1, "newowner", userinfo));
+
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret2
+     = new FakeReturn(&cntl, static_cast<void*>(&response));
+
+    curvefsservice.SetChangeOwner(fakeret2);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, fileClient_.ChangeOwner(filename1,
+                                                                   "newowner",
+                                                                    userinfo));
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
+
+    LOG(INFO) << "create file done!";
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+    delete fakeret;
+    delete fakeret2;
+}
+
+TEST_F(MDSClientTest, ListDir) {
+    std::string filename1 = "/1_userinfo_";
+
+    brpc::Server server;
+
+    FakeCurveFSService curvefsservice;
+
+    if (server.AddService(&curvefsservice,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+        LOG(FATAL) << "Fail to add service";
+    }
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+
+    // set response file not exist
+    ::curve::mds::ListDirResponse response;
+    response.set_statuscode(::curve::mds::StatusCode::kFileNotExists);
+
+    FakeReturn* fakeret
+     = new FakeReturn(nullptr, static_cast<void*>(&response));
+
+    curvefsservice.SetListDir(fakeret);
+
+    int arrsize;
+    std::vector<FileStatInfo> filestatVec;
+    int ret = fileClient_.Listdir(filename1, userinfo, &filestatVec);
+    ASSERT_EQ(ret, -1 * LIBCURVE_ERROR::NOTEXIST);
+
+    // set extend file ok
+    ::curve::mds::ListDirResponse response1;
+    response1.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    for (int i = 0; i < 5; i++) {
+        auto fin = response1.add_fileinfo();
+        fin->set_filename("_filename_");
+        fin->set_id(i);
+        fin->set_parentid(i);
+        fin->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+        fin->set_chunksize(4 * 1024 * 1024);
+        fin->set_length(i * 1024 * 1024 * 1024ul);
+        fin->set_ctime(12345678);
+        fin->set_seqnum(i);
+        fin->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+        fin->set_owner("test");
+    }
+
+    FakeReturn* fakeret1
+     = new FakeReturn(nullptr, static_cast<void*>(&response1));
+
+    curvefsservice.SetListDir(fakeret1);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileClient_.Listdir(filename1,
+                                                      userinfo,
+                                                      &filestatVec));
+    int arraysize = 0;
+    C_UserInfo_t cuserinfo;
+    memcpy(cuserinfo.owner, "test", 5);
+    FileStatInfo* filestat = new FileStatInfo[5];
+    DirInfo_t* dir = OpenDir(filename1.c_str(), &cuserinfo);
+    ASSERT_NE(dir, nullptr);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, Listdir(dir));
+    for (int i = 0; i < 5; i++) {
+        ASSERT_EQ(dir->fileStat[i].id, i);
+        ASSERT_EQ(dir->fileStat[i].parentid, i);
+        ASSERT_EQ(dir->fileStat[i].ctime, 12345678);
+        ASSERT_EQ(dir->fileStat[i].length, i * 1024 * 1024 * 1024ul);
+        ASSERT_EQ(dir->fileStat[i].filetype,
+                  curve::mds::FileType::INODE_PAGEFILE);
+        ASSERT_EQ(0, strcmp(dir->fileStat[i].owner, "test"));
+    }
+
+    CloseDir(dir);
+
+    for (int i = 0; i < 5; i++) {
+        ASSERT_EQ(filestatVec[i].id, i);
+        ASSERT_EQ(filestatVec[i].parentid, i);
+        ASSERT_EQ(filestatVec[i].ctime, 12345678);
+        ASSERT_EQ(filestatVec[i].length, i * 1024 * 1024 * 1024ul);
+        ASSERT_EQ(filestatVec[i].filetype,
+                  curve::mds::FileType::INODE_PAGEFILE);
+        ASSERT_EQ(0, strcmp(filestatVec[i].owner, "test"));
+    }
+    delete[] filestat;
+
+    // set file dir not exists
+    ::curve::mds::ListDirResponse response2;
+    response2.set_statuscode(::curve::mds::StatusCode::kDirNotExist);
+
+    FakeReturn* fakeret3
+     = new FakeReturn(nullptr, static_cast<void*>(&response2));
+
+    curvefsservice.SetListDir(fakeret3);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::NOTEXIST,
+              fileClient_.Listdir(filename1, userinfo, &filestatVec));
+
+    // set file auth fail
+    ::curve::mds::ListDirResponse response3;
+    response3.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
+
+    FakeReturn* fakeret4
+     = new FakeReturn(nullptr, static_cast<void*>(&response3));
+
+    curvefsservice.SetListDir(fakeret4);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::AUTHFAIL,
+              fileClient_.Listdir(filename1, userinfo, &filestatVec));
+
+    // set file mds storage error
+    ::curve::mds::ListDirResponse response4;
+    response4.set_statuscode(::curve::mds::StatusCode::kStorageError);
+
+    FakeReturn* fakeret5
+     = new FakeReturn(nullptr, static_cast<void*>(&response4));
+
+    curvefsservice.SetListDir(fakeret5);
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::INTERNAL_ERROR,
+              fileClient_.Listdir(filename1, userinfo, &filestatVec));
+
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret2
+     = new FakeReturn(&cntl, static_cast<void*>(&response));
+
+    curvefsservice.SetListDir(fakeret2);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED,
+                    fileClient_.Listdir(filename1, userinfo, &filestatVec));
+    ASSERT_EQ(6, curvefsservice.GetRetryTimes());
+
+    LOG(INFO) << "create file done!";
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+    delete fakeret;
+    delete fakeret2;
+}
