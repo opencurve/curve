@@ -53,8 +53,8 @@ butil::AtExitManager atExitManager;
 
 TEST_F(CliTest, basic) {
     const char *ip = "127.0.0.1";
-    int port = 8200;
-    const char *confs = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
+    int port = 9030;
+    const char *confs = "127.0.0.1:9030:0,127.0.0.1:9031:0,127.0.0.1:9032:0";
     int snapshotInterval = 600;
 
     /**
@@ -158,7 +158,7 @@ TEST_F(CliTest, basic) {
 
     /* remove peer */
     {
-        PeerId peerId("127.0.0.1:8202:0");
+        PeerId peerId("127.0.0.1:9032:0");
         butil::Status st = curve::chunkserver::RemovePeer(logicPoolId,
                                                           copysetId,
                                                           conf,
@@ -182,8 +182,8 @@ TEST_F(CliTest, basic) {
     /*  add peer */
     {
         Configuration conf;
-        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0");
-        PeerId peerId("127.0.0.1:8202:0");
+        conf.parse_from("127.0.0.1:9030:0,127.0.0.1:9031:0");
+        PeerId peerId("127.0.0.1:9032:0");
         butil::Status st = curve::chunkserver::AddPeer(logicPoolId,
                                                        copysetId,
                                                        conf,
@@ -196,8 +196,8 @@ TEST_F(CliTest, basic) {
     /* 重复 add 同一个 peer */
     {
         Configuration conf;
-        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0");
-        PeerId peerId("127.0.0.1:8202:0");
+        conf.parse_from("127.0.0.1:9030:0,127.0.0.1:9031:0");
+        PeerId peerId("127.0.0.1:9032:0");
         butil::Status st = curve::chunkserver::AddPeer(logicPoolId,
                                                        copysetId,
                                                        conf,
@@ -210,10 +210,10 @@ TEST_F(CliTest, basic) {
     /*  transfer leader */
     {
         Configuration conf;
-        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
-        PeerId peer1("127.0.0.1:8200:0");
-        PeerId peer2("127.0.0.1:8201:0");
-        PeerId peer3("127.0.0.1:8202:0");
+        conf.parse_from("127.0.0.1:9030:0,127.0.0.1:9031:0,127.0.0.1:9032:0");
+        PeerId peer1("127.0.0.1:9030:0");
+        PeerId peer2("127.0.0.1:9031:0");
+        PeerId peer3("127.0.0.1:9032:0");
         {
             LOG(INFO) << "start transfer leader";
             butil::Status st = curve::chunkserver::TransferLeader(logicPoolId,
@@ -324,9 +324,9 @@ TEST_F(CliTest, basic) {
     /* add peer - 不存在的 peer */
     {
         Configuration conf;
-        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8200:2");
+        conf.parse_from("127.0.0.1:9030:0,127.0.0.1:9031:0,127.0.0.1:9030:2");
         /* 添加一个根本不存在的节点 */
-        PeerId peerId("127.0.0.1:8209:2");
+        PeerId peerId("127.0.0.1:9039:2");
         butil::Status status = curve::chunkserver::AddPeer(logicPoolId,
                                                            copysetId,
                                                            conf,
@@ -339,8 +339,8 @@ TEST_F(CliTest, basic) {
     /* transfer leader - 不存在的 peer */
     {
         Configuration conf;
-        conf.parse_from("127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0");
-        PeerId peer1("127.0.0.1:8209:0");
+        conf.parse_from("127.0.0.1:9030:0,127.0.0.1:9031:0,127.0.0.1:9032:0");
+        PeerId peer1("127.0.0.1:9039:0");
         {
             butil::Status
                 status = curve::chunkserver::TransferLeader(logicPoolId,

@@ -18,15 +18,15 @@
 static char* param[3][2] = {
     {
         "-minloglevel=2",
-        "-conf=deploy/local/chunkserver/conf/chunkserver.conf.0",
+        "-conf=test/chunkserver/chunkserver.conf.0",
     },
     {
         "-minloglevel=2",
-        "-conf=deploy/local/chunkserver/conf/chunkserver.conf.1",
+        "-conf=test/chunkserver/chunkserver.conf.1",
     },
     {
         "-minloglevel=2",
-        "-conf=deploy/local/chunkserver/conf/chunkserver.conf.2",
+        "-conf=test/chunkserver/chunkserver.conf.2",
     },
 };
 

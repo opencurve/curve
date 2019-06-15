@@ -24,7 +24,7 @@
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:6666";   // NOLINT
+std::string metaserver_addr = "127.0.0.1:9300";   // NOLINT
 
 namespace curve {
 namespace chunkserver {
@@ -36,9 +36,9 @@ const CopysetID     copysetId = 888;
 // #define DVLOG(level) LOG(INFO)
 
 static char* confPath[3] = {
-    "deploy/local/chunkserver/conf/chunkserver.conf.0",
-    "deploy/local/chunkserver/conf/chunkserver.conf.1",
-    "deploy/local/chunkserver/conf/chunkserver.conf.2",
+    "test/chunkserver/chunkserver.conf.0",
+    "test/chunkserver/chunkserver.conf.1",
+    "test/chunkserver/chunkserver.conf.2",
 };
 
 int RmDirData(std::string uri) {

@@ -54,12 +54,12 @@ butil::AtExitManager atExitManager;
 
 TEST_F(BraftCliServiceTest, basic) {
     const char *ip = "127.0.0.1";
-    int port = 8200;
-    const char *confs = "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0";
+    int port = 9010;
+    const char *confs = "127.0.0.1:9010:0,127.0.0.1:9011:0,127.0.0.1:9012:0";
     int snapshotInterval = 600;
-    PeerId peer1("127.0.0.1:8200:0");
-    PeerId peer2("127.0.0.1:8201:0");
-    PeerId peer3("127.0.0.1:8202:0");
+    PeerId peer1("127.0.0.1:9010:0");
+    PeerId peer2("127.0.0.1:9011:0");
+    PeerId peer3("127.0.0.1:9012:0");
 
     /* default election timeout */
     int electionTimeoutMs = 3000;
@@ -195,10 +195,8 @@ TEST_F(BraftCliServiceTest, basic) {
         ASSERT_EQ(EINVAL, cntl.ErrorCode());
         LOG(INFO) << "add peer: " << cntl.ErrorText();
     }
-    /* add peer - 发送给不是 leader 的 peer */
+    /* add peer - 发送给不是leader的peer */
     {
-        PeerId peer1("127.0.0.1:8200:0");
-        PeerId peer2("127.0.0.1:8201:0");
         PeerId leaderId;
         LOG(INFO) << "true leader is: " << leader.to_string();
         if (0
@@ -270,8 +268,6 @@ TEST_F(BraftCliServiceTest, basic) {
     }
     /* remove peer - 发送给不是 leader 的 peer */
     {
-        PeerId peer1("127.0.0.1:8200:0");
-        PeerId peer2("127.0.0.1:8201:0");
         PeerId leaderId;
         LOG(INFO) << "true leader is: " << leader.to_string();
         if (0
