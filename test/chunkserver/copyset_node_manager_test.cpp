@@ -93,7 +93,7 @@ TEST(CopysetNodeManager, basic) {
 
     /* normal test */
     {
-        int port = 9000;
+        int port = 9043;
         CopysetNodeOptions copysetNodeOptions;
         copysetNodeOptions.ip = "127.0.0.1";
         copysetNodeOptions.port = port;

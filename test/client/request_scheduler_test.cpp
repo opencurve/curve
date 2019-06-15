@@ -33,7 +33,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
     opt.ioSenderOpt.enableAppliedIndexRead = 1;
 
     brpc::Server server;
-    std::string listenAddr = "127.0.0.1:8200";
+    std::string listenAddr = "127.0.0.1:9109";
     FakeChunkServiceImpl fakeChunkService;
     ASSERT_EQ(server.AddService(&fakeChunkService,
                                 brpc::SERVER_DOESNT_OWN_SERVICE), 0);

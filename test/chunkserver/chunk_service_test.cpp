@@ -21,27 +21,38 @@
 #include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
 #include "test/chunkserver/chunkserver_test_util.h"
+#include "src/common/uuid.h"
 
 namespace curve {
 namespace chunkserver {
 
+using curve::common::UUIDGenerator;
+
 class ChunkserverTest : public testing::Test {
  protected:
     virtual void SetUp() {
-        Exec("mkdir 0");
-        Exec("mkdir 1");
-        Exec("mkdir 2");
+        UUIDGenerator uuidGenerator;
+        dir1 = uuidGenerator.GenerateUUID();
+        dir2 = uuidGenerator.GenerateUUID();
+        dir3 = uuidGenerator.GenerateUUID();
+        Exec(("mkdir " + dir1).c_str());
+        Exec(("mkdir " + dir2).c_str());
+        Exec(("mkdir " + dir3).c_str());
     }
     virtual void TearDown() {
-        Exec("rm -fr 0");
-        Exec("rm -fr 1");
-        Exec("rm -fr 2");
+        Exec(("rm -fr " + dir1).c_str());
+        Exec(("rm -fr " + dir2).c_str());
+        Exec(("rm -fr " + dir3).c_str());
     }
 
  public:
     pid_t pid1;
     pid_t pid2;
     pid_t pid3;
+
+    std::string dir1;
+    std::string dir2;
+    std::string dir3;
 };
 
 butil::AtExitManager atExitManager;
@@ -49,8 +60,8 @@ butil::AtExitManager atExitManager;
 
 TEST_F(ChunkserverTest, normal_read_write_test) {
     const char *ip = "127.0.0.1";
-    int port = 8300;
-    const char *confs = "127.0.0.1:8300:0,127.0.0.1:8301:0,127.0.0.1:8302:0";
+    int port = 9020;
+    const char *confs = "127.0.0.1:9020:0,127.0.0.1:9021:0,127.0.0.1:9022:0";
     int rpcTimeoutMs = 3000;
     int snapshotInterval = 600;
 
@@ -66,10 +77,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         std::cerr << "fork chunkserver 1 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
-        const char *copysetdir = "local://./0";
+        std::string copysetdir = "local://./" + dir1;
         StartChunkserver(ip,
                          port + 0,
-                         copysetdir,
+                         copysetdir.c_str(),
                          confs,
                          snapshotInterval,
                          electionTimeoutMs);
@@ -81,10 +92,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         std::cerr << "fork chunkserver 2 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
-        const char *copysetdir = "local://./1";
+        std::string copysetdir = "local://./" + dir2;
         StartChunkserver(ip,
                          port + 1,
-                         copysetdir,
+                         copysetdir.c_str(),
                          confs,
                          snapshotInterval,
                          electionTimeoutMs);
@@ -96,10 +107,10 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         std::cerr << "fork chunkserver 3 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
-        const char *copysetdir = "local://./2";
+        std::string copysetdir = "local://./" + dir3;
         StartChunkserver(ip,
                          port + 2,
-                         copysetdir,
+                         copysetdir.c_str(),
                          confs,
                          snapshotInterval,
                          electionTimeoutMs);
@@ -928,9 +939,9 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         PeerId peer1;
         PeerId peer2;
         PeerId peer3;
-        ASSERT_EQ(0, peer1.parse("127.0.0.1:8300:0"));
-        ASSERT_EQ(0, peer2.parse("127.0.0.1:8301:0"));
-        ASSERT_EQ(0, peer3.parse("127.0.0.1:8302:0"));
+        ASSERT_EQ(0, peer1.parse("127.0.0.1:9020:0"));
+        ASSERT_EQ(0, peer2.parse("127.0.0.1:9021:0"));
+        ASSERT_EQ(0, peer3.parse("127.0.0.1:9022:0"));
 
         brpc::Channel channel;
         if (leader.addr.port != peer1.addr.port) {
