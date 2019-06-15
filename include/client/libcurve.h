@@ -139,16 +139,26 @@ int Unlink(const char* filename, const C_UserInfo_t* userinfo);
 int DeleteForce(const char* filename, const C_UserInfo_t* userinfo);
 
 /**
- * 枚举目录内容
+ * 在获取目录内容之前先打开文件夹
  * @param: userinfo是用户信息
  * @param: dirpath是目录路径
- * @param[out]: filestatVec为文件夹内的文件信息
+ * @return: 成功返回一个非空的DirInfo_t指针，否则返回一个空指针
+ */
+DirInfo_t* OpenDir(const char* dirpath, const C_UserInfo_t* userinfo);
+
+/**
+ * 枚举目录内容, 用户OpenDir成功之后才能list
+ * @param[in][out]: dirinfo为OpenDir返回的指针, 内部会将mds返回的信息放入次结构中
  * @return: 成功返回 0,
  *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
  */
-int Listdir(const char* dirpath,
-            const C_UserInfo_t* userinfo,
-            FileStatInfo** filestatVec);
+int Listdir(DirInfo_t* dirinfo);
+
+/**
+ * 关闭打开的文件夹
+ * @param: dirinfo为opendir返回的dir信息
+ */
+void CloseDir(DirInfo_t* dirinfo);
 
 /**
  * 创建目录
@@ -188,6 +198,18 @@ int StatFile(const char* filename,
  *          否则可能返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
  */
 int StatFile4Qemu(const char* filename, FileStatInfo* finfo);
+
+/**
+ * 变更owner
+ * @param: filename待变更的文件名
+ * @param: newOwner新的owner信息
+ * @param: userinfo执行此操作的user信息，只有root用户才能执行变更
+ * @return: 成功返回0，
+ *          否则返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+ */
+int ChangeOwner(const char* filename,
+                const char* newOwner,
+                const C_UserInfo_t* userinfo);
 
 /**
  * close通过fd找到对应的instance进行删除
