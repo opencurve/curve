@@ -2,6 +2,15 @@ Used port list:
 
 # client
 
+    9101: session service 测试
+    9102: applyindex service 测试
+    9103: snapshot service 测试
+    9104: client端其他测试
+    9105: client workflow测试mds占用
+    9106: client workflow测试chunkserver占用
+    9107: client workflow测试chunkserver占用
+    9108: client workflow测试chunkserver占用
+
 # mds & snapshotcloneserver
 
     use port : 8900~8999
@@ -12,5 +21,7 @@ Used port list:
     braftcliservice2-test:  9010 9011 9012
     chunk-test:             9020 9021 9022
     cli-test:               9030 9031 9032
-    chunk-test1:            9040 9041 9042
+    chunk-test1:            9040 9041 9042 9043 9044
     chunk-snapshot-test:    9050 9051 9052
+    heartbeat_test:         9300
+    chunkserver_test:       9301

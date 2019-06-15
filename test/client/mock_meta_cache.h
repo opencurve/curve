@@ -31,7 +31,7 @@ class FakeMetaCache : public MetaCache {
                   butil::EndPoint *serverAddr,
                   bool refresh = false) {
         *serverId = 10000;
-        butil::str2endpoint("127.0.0.1:8200", serverAddr);
+        butil::str2endpoint("127.0.0.1:9109", serverAddr);
         return 0;
     }
     int UpdateLeader(LogicPoolID logicPoolId,

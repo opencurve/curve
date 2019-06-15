@@ -96,7 +96,7 @@ class FakeClosure : public braft::Closure {
 TEST(CopysetNodeTest, error_test) {
     std::shared_ptr<LocalFileSystem>
         fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
-    int port = 9000;
+    int port = 9044;
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
@@ -518,7 +518,7 @@ TEST(CopysetNodeTest, error_test) {
 TEST(CopysetNodeTest, get_conf_change) {
     std::shared_ptr<LocalFileSystem>
         fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
-    int port = 9000;
+    int port = 9044;
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
@@ -694,7 +694,7 @@ TEST(CopysetNodeTest, get_conf_change) {
 TEST(CopysetNodeTest, get_hash) {
     std::shared_ptr<LocalFileSystem>
         fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
-    int port = 9000;
+    int port = 9044;
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;

@@ -44,6 +44,9 @@ cc_test(
         "fake_datastore.h",
     ]),
     copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
     deps = DEPS,
 )
 
@@ -186,9 +189,9 @@ cc_test(
         "chunkserver_test_util.cpp",
         "chunkserver_test_util.h",
         "fake_datastore.h",
-        "trash_test.cpp",
+        "mock_chunkfile_pool.h",
         "mock_local_file_system.h",
-        "mock_chunkfile_pool.h"
+        "trash_test.cpp",
     ],
     copts = ["-std=c++14"],
     deps = [
