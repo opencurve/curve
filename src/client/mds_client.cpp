@@ -18,7 +18,7 @@ using curve::common::TimeUtility;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
-// TODO(tongguangxun) :为rpc添加uuid作为requestid
+const char* kRootUserName = "root";
 namespace curve {
 namespace client {
 MDSClient::MDSClient() : cntlID_(0) {
@@ -1610,6 +1610,165 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
                 << ", errocde = " << retcode
                 << ", error message = " << curve::mds::StatusCode_Name(stcode)
                 << ", log id = " << cntl.log_id();
+
+        return retcode;
+    }
+    return LIBCURVE_ERROR::FAILED;
+}
+
+LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
+                                        const std::string& newOwner,
+                                        const UserInfo_t& userinfo) {
+    // 记录当前mds重试次数
+    int count = 0;
+    // 记录还没重试的mds addr数量
+    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
+
+    while (count < metaServerOpt_.rpcRetryTimes) {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
+
+        curve::mds::ChangeOwnerRequest request;
+        curve::mds::ChangeOwnerResponse response;
+
+        request.set_filename(filename);
+        request.set_newowner(newOwner);
+
+        uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
+        request.set_rootowner(userinfo.owner);
+        request.set_date(date);
+
+        if (!userinfo.owner.compare(kRootUserName) &&
+             userinfo.password.compare("")) {
+            std::string str2sig = Authenticator::GetString2Signature(date,
+                                                        userinfo.owner);
+            std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                         userinfo.password);
+            request.set_signature(sig);
+        } else {
+            LOG(WARNING) << "change owner need root user!";
+            return LIBCURVE_ERROR::AUTHFAIL;
+        }
+
+        LOG(INFO) << "ChangeOwner: filename = " << filename.c_str()
+                  << ", operator owner = " << userinfo.owner.c_str()
+                  << ", new owner = " << newOwner.c_str()
+                  << ", log id = " << cntl.log_id();
+
+        {
+            ReadLockGuard readGuard(rwlock_);
+            curve::mds::CurveFSService_Stub stub(channel_);
+            stub.ChangeOwner(&cntl, &request, &response, NULL);
+        }
+
+        if (cntl.Failed()) {
+            RecordMetricInfo(cntl.ErrorCode());
+
+            LOG(ERROR) << "ChangeOwner invoke failed, errcorde = "
+                        << response.statuscode()
+                        << ", error content:"
+                        << cntl.ErrorText()
+                        << ", retry ChangeOwner, retry times = "
+                        << count
+                        << ", log id = " << cntl.log_id();
+
+            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
+                break;
+            }
+            continue;
+        }
+
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "ChangeOwner: filename = " << filename.c_str()
+                << ", owner = " << userinfo.owner.c_str()
+                << ", new owner = " << newOwner.c_str()
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
+
+        return retcode;
+    }
+    return LIBCURVE_ERROR::FAILED;
+}
+
+LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
+                        const UserInfo_t& userinfo,
+                        std::vector<FileStatInfo>* filestatVec) {
+    // 记录当前mds重试次数
+    int count = 0;
+    // 记录还没重试的mds addr数量
+    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
+
+    while (count < metaServerOpt_.rpcRetryTimes) {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+        cntl.set_log_id(GetLogId());
+
+        curve::mds::ListDirRequest request;
+        curve::mds::ListDirResponse response;
+
+        request.set_filename(dirpath);
+
+        FillUserInfo<::curve::mds::ListDirRequest>(&request, userinfo);
+
+        LOG(INFO) << "Listdir: filename = " << dirpath.c_str()
+                  << ", owner = " << userinfo.owner.c_str()
+                  << ", log id = " << cntl.log_id();
+
+        {
+            ReadLockGuard readGuard(rwlock_);
+            curve::mds::CurveFSService_Stub stub(channel_);
+            stub.ListDir(&cntl, &request, &response, NULL);
+        }
+
+        if (cntl.Failed()) {
+            RecordMetricInfo(cntl.ErrorCode());
+
+            LOG(ERROR) << "Listdir invoke failed, errcorde = "
+                        << response.statuscode()
+                        << ", error content:"
+                        << cntl.ErrorText()
+                        << ", retry Listdir, retry times = "
+                        << count
+                        << ", log id = " << cntl.log_id();
+
+            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
+                break;
+            }
+            continue;
+        }
+
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "Listdir: filename = " << dirpath.c_str()
+                << ", owner = " << userinfo.owner.c_str()
+                << ", errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
+
+        if (retcode == LIBCURVE_ERROR::OK) {
+            int fileinfoNum = response.fileinfo_size();
+            for (int i = 0; i < fileinfoNum; i++) {
+                curve::mds::FileInfo finfo = response.fileinfo(i);
+                FileStatInfo_t filestat;
+                filestat.id = finfo.id();
+                filestat.length = finfo.length();
+                filestat.parentid = finfo.parentid();
+                filestat.filetype = static_cast<FileType>(finfo.filetype());
+                filestat.ctime = finfo.ctime();
+                memset(filestat.owner, 0, NAME_MAX_SIZE);
+                memcpy(filestat.owner, finfo.owner().c_str(), NAME_MAX_SIZE);
+                filestatVec->push_back(filestat);
+            }
+        }
 
         return retcode;
     }

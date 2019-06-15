@@ -10,6 +10,8 @@
 #include <stdint.h>
 
 #define IO_ALIGNED_BLOCK_SIZE 4096
+#define PATH_MAX_SIZE         4096
+#define NAME_MAX_SIZE         256
 
 enum FileType {
     INODE_DIRECTORY = 0,
@@ -98,15 +100,28 @@ typedef struct FileStatInfo {
     FileType        filetype;
     uint64_t        length;
     uint64_t        ctime;
+    char            owner[NAME_MAX_SIZE];
 } FileStatInfo_t;
 
 // 存储用户信息
 typedef struct C_UserInfo {
     // 当前执行的owner信息, owner信息需要以'\0'结尾
-    char owner[256];
+    char owner[NAME_MAX_SIZE];
     // 当owner="root"的时候，需要提供password作为计算signature的key
     // password信息需要以'\0'结尾
-    char password[256];
+    char password[NAME_MAX_SIZE];
 } C_UserInfo_t;
+
+typedef struct DirInfo {
+    // 当前listdir的目录路径
+    char*            dirpath;
+    // 当前listdir操作的用户信息
+    C_UserInfo_t*    userinfo;
+    // 当前dir大小，也就是文件数量
+    uint64_t         dirSize;
+    // 当前dir的内的文件信息内容，是一个数组
+    // fileStat是这个数组的头，数组大小为dirSize
+    FileStatInfo_t*  fileStat;
+} DirInfo_t;
 
 #endif  // SRC_CLIENT_LIBCURVE_DEFINE_H_

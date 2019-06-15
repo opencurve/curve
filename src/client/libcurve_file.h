@@ -127,6 +127,7 @@ class FileClient {
    * 枚举目录内容
    * @param: userinfo是用户信息
    * @param: dirpath是目录路径
+   * @param[out]: filestatVec当前文件夹内的文件信息
    */
   virtual int Listdir(const std::string& dirpath,
                       const UserInfo_t& userinfo,
@@ -157,6 +158,17 @@ class FileClient {
                        const UserInfo_t& userinfo,
                        FileStatInfo* finfo);
 
+  /**
+   * 变更owner
+   * @param: filename待变更的文件名
+   * @param: newOwner新的owner信息
+   * @param: userinfo执行此操作的user信息，只有root用户才能执行变更
+   * @return: 成功返回0，
+   *          否则返回-LIBCURVE_ERROR::FAILED,-LIBCURVE_ERROR::AUTHFAILED等
+   */
+  virtual int ChangeOwner(const std::string& filename,
+                      const std::string& newOwner,
+                      const UserInfo_t& userinfo);
   /**
    * close通过fd找到对应的instance进行删除
    * @param: fd为当前open返回的文件描述符

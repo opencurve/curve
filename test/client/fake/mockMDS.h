@@ -197,6 +197,41 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void ChangeOwner(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ChangeOwnerRequest* request,
+                    ::curve::mds::ChangeOwnerResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeChangeOwner_->controller_ != nullptr &&
+             fakeChangeOwner_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::ChangeOwnerResponse*>(
+                    fakeChangeOwner_->response_);
+
+        response->CopyFrom(*resp);
+    }
+
+    void ListDir(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ListDirRequest* request,
+                    ::curve::mds::ListDirResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeListDir_->controller_ != nullptr &&
+             fakeListDir_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::ListDirResponse*>(
+                    fakeListDir_->response_);
+
+        response->CopyFrom(*resp);
+    }
 
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
@@ -226,6 +261,14 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         fakedeletefile_ = fakeret;
     }
 
+    void SetChangeOwner(FakeReturn* fakeret) {
+        fakeChangeOwner_ = fakeret;
+    }
+
+    void SetListDir(FakeReturn* fakeret) {
+        fakeListDir_ = fakeret;
+    }
+
     void CleanRetryTimes() {
         retrytimes_ = 0;
     }
@@ -242,6 +285,8 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakerenamefile_;
     FakeReturn* fakeextendfile_;
     FakeReturn* fakedeletefile_;
+    FakeReturn* fakeChangeOwner_;
+    FakeReturn* fakeListDir_;
 };
 
 class FakeTopologyService : public curve::mds::topology::TopologyService {
