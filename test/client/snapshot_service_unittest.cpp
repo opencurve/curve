@@ -26,7 +26,6 @@
 #include "src/client/client_common.h"
 #include "src/client/libcurve_define.h"
 
-extern std::string configpath;
 extern std::string metaserver_addr;
 
 using curve::client::UserInfo_t;
@@ -629,18 +628,6 @@ TEST(SnapInstance, CreateCloneChunkTest) {
 std::string metaserver_addr = "127.0.0.1:9103";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./client_3.conf";   // NOLINT
-std::string config = "metaserver_addr=127.0.0.1:9103@127.0.0.1:9103\n"   // NOLINT
-"getLeaderRetry=3\n"\
-"queueCapacity=4096\n"\
-"threadpoolSize=2\n"\
-"opRetryIntervalUs=200000\n"\
-"opMaxRetry=3\n"\
-"rpcRetryTimes=3\n"\
-"pre_allocate_context_num=1024\n"\
-"ioSplitMaxSizeKB=64\n"\
-"enableAppliedIndexRead=1\n"\
-"loglevel=0";
 
 int main(int argc, char ** argv) {
     google::InitGoogleLogging(argv[0]);
@@ -649,13 +636,6 @@ int main(int argc, char ** argv) {
     google::ParseCommandLineFlags(&argc, &argv, false);
     brpc::StartDummyServerAt(8888/*port*/);
 
-    int fd =  open(configpath.c_str(), O_CREAT | O_RDWR);
-    int len = write(fd, config.c_str(), config.length());
-    close(fd);
-
     int ret = RUN_ALL_TESTS();
-
-    unlink(configpath.c_str());
-
     return ret;
 }
