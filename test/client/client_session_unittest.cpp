@@ -414,18 +414,7 @@ TEST(ClientSession, AppliedIndexTest) {
 std::string metaserver_addr = "127.0.0.1:9101";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./client_2.conf";   // NOLINT
-std::string config = "metaserver_addr=127.0.0.1:9101@127.0.0.1:9101\n"   // NOLINT
-"getLeaderRetry=3\n"\
-"queueCapacity=4096\n"\
-"threadpoolSize=2\n"\
-"opRetryIntervalUs=200000\n"\
-"opMaxRetry=3\n"\
-"rpcRetryTimes=3\n"\
-"pre_allocate_context_num=1024\n"\
-"ioSplitMaxSizeKB=64\n"\
-"enableAppliedIndexRead=1\n"\
-"loglevel=0";
+std::string configpath = "./test/client/testConfig/client_session.conf";   // NOLINT
 
 int main(int argc, char ** argv) {
     google::InitGoogleLogging(argv[0]);
@@ -433,13 +422,6 @@ int main(int argc, char ** argv) {
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
-    int fd =  open(configpath.c_str(), O_CREAT | O_RDWR);
-    int len = write(fd, config.c_str(), config.length());
-    close(fd);
-
     int ret = RUN_ALL_TESTS();
-
-    unlink(configpath.c_str());
-
     return ret;
 }
