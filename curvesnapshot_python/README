@@ -12,7 +12,10 @@ bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glo
 在curve目录下执行配置脚本
 sh ./curvesnapshot_python/config.sh
 
+设置链接动态库路径
+export LD_LIBRARY_PATH=/yourpath/curvesnapshot_python/tmplib
+
 编译curvesnapshot库（需要增加一个linkopt选项，指定curvesnapshot_python/tmplib路径）：
-bazel build curvesnapshot_python:curvesnapshot   --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true --define=libunwind=true --linkopt -L/home/hzzhaojianming/curve/curvefs_python/tmplib
+bazel build curvesnapshot_python:curvesnapshot   --copt -DGFLAGS_NS=google --copt -Wno-error=format-security --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true --define=libunwind=true --linkopt -L/home/hzzhaojianming/curve/curvesnapshot_python/tmplib
 
 编译成功，拷贝libcurvesnapshot.so并重命名为_curvesnapshot.so
