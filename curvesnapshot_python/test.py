@@ -22,6 +22,8 @@ print ret
 finfo = curvesnapshot.CFInfo_t()
 ret = curvesnapshot.GetSnapShot("/test", user, seq, finfo)
 print ret
+print finfo.owner
+print finfo.filename
 
 offset = curvesnapshot.type_uInt64_t()
 offset.value = 0
@@ -30,6 +32,11 @@ seginfo = curvesnapshot.CSegmentInfo_t();
 ret = curvesnapshot.GetSnapshotSegmentInfo("/test", user, seq, offset, seginfo)
 print ret
 print seginfo.chunksize.value
+print seginfo.chunkVecSize.value
+for i in range(0, seginfo.chunkVecSize.value):
+    print seginfo.chunkvec[i].lpid_.value
+    print seginfo.chunkvec[i].cpid_.value
+    print seginfo.chunkvec[i].cid_.value
 
 idinfo = curvesnapshot.CChunkIDInfo_t()
 idinfo.cid_.value = 1
