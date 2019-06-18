@@ -55,33 +55,6 @@ TEST(NameSpaceHelperTest, test_EncodeSnapShotFileStoreKey) {
     ASSERT_EQ(static_cast<int>(str[9]), 8);
 }
 
-TEST(NameSpaceHelperTest, test_EncodeRecycleFileStoreKey) {
-    std::string filename = "foo.txt";
-    uint64_t parentID = 8;
-    std::string str =
-        NameSpaceStorageCodec::EncodeRecycleFileStoreKey(parentID, filename);
-
-    ASSERT_EQ(str.size(), 17);
-    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), RECYCLEFILEINFOKEYPREFIX);
-    ASSERT_EQ(str.substr(10, filename.length()), filename);
-    for (int i = 2;  i != 9; i++) {
-        ASSERT_EQ(static_cast<int>(str[i]), 0);
-    }
-    ASSERT_EQ(static_cast<int>(str[9]), 8);
-
-    parentID = 8 << 8;
-    str = NameSpaceStorageCodec::EncodeRecycleFileStoreKey(parentID, filename);
-
-    ASSERT_EQ(str.size(), 17);
-    ASSERT_EQ(str.substr(0, PREFIX_LENGTH), RECYCLEFILEINFOKEYPREFIX);
-    ASSERT_EQ(str.substr(10, filename.length()), filename);
-    for (int i = 2;  i != 8; i++) {
-        ASSERT_EQ(static_cast<int>(str[i]), 0);
-    }
-    ASSERT_EQ(static_cast<int>(str[8]), 8);
-    ASSERT_EQ(static_cast<int>(str[9]), 0);
-}
-
 TEST(NameSpaceHelperTest, test_EncodeSegmentStoreKey) {
     uint64_t inodeID = 8;
     offset_t offset = 3 << 16;

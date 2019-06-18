@@ -587,10 +587,6 @@ StoreStatus NameServerStorageImp::GetStoreKey(FileType filetype,
             *storeKey =
                 NameSpaceStorageCodec::EncodeSnapShotFileStoreKey(id, filename);
             break;
-        case FileType::INODE_RECYCLE_PAGEFILE:
-            *storeKey = NameSpaceStorageCodec::EncodeRecycleFileStoreKey(id,
-                                                                    filename);
-            break;
         default:
             LOG(ERROR) << "filetype: "
                        << filetype << " of " << filename << " not exist";
