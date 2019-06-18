@@ -109,6 +109,7 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     nodeOptions_.snapshot_uri.append("/").append(groupId)
         .append("/").append(RAFT_SNAP_DIR);
     nodeOptions_.usercode_in_pthread = options.usercodeInPthread;
+    nodeOptions_.snapshot_throttle = options.snapshotThrottle;
 
     /* 初始化 peer id */
     butil::ip_t ip;

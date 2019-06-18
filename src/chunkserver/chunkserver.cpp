@@ -126,6 +126,23 @@ int ChunkServer::Run(int argc, char** argv) {
     copysetNodeOptions.chunkfilePool = chunkfilePool;
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.trash = trash_;
+
+    // install snapshot的带宽限制
+    int64_t snapshotThroughputBytes
+        = conf.GetIntValue("chunkserver.snapshot_throttle_throughput_bytes");
+    /**
+     * checkCycles是为了更精细的进行带宽控制，以snapshotThroughputBytes=100MB，
+     * checkCycles=10为例，它可以保证每1/10秒的带宽是10MB，且不累积，例如第1个
+     * 1/10秒的带宽是10MB，但是就过期了，在第2个1/10秒依然只能用10MB的带宽，而
+     * 不是20MB的带宽
+     */
+    int64_t checkCycles
+        = conf.GetIntValue("chunkserver.snapshot_throttle_check_cycles");
+    scoped_refptr<SnapshotThrottle> snapshotThrottle
+        = new ThroughputSnapshotThrottle(snapshotThroughputBytes, checkCycles);
+    snapshotThrottle_ = snapshotThrottle;
+    copysetNodeOptions.snapshotThrottle = &snapshotThrottle_;
+
     butil::ip_t ip;
     if (butil::str2ip(copysetNodeOptions.ip.c_str(), &ip) < 0) {
         LOG(FATAL) << "Invalid server IP provided: " << copysetNodeOptions.ip;

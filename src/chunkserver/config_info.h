@@ -14,6 +14,7 @@
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/trash.h"
 #include "src/chunkserver/inflight_throttle.h"
+#include "include/chunkserver/chunkserver_common.h"
 
 namespace curve {
 namespace chunkserver {
@@ -82,6 +83,9 @@ struct CopysetNodeOptions {
     // 通知copysetManager将copyset目录移动至回收站
     // 一段时间后实际回收物理空间
     std::shared_ptr<Trash> trash;
+
+    // snapshot流控
+    scoped_refptr<SnapshotThrottle> *snapshotThrottle;
 
     CopysetNodeOptions();
 };
