@@ -420,9 +420,14 @@ bool ChunkfilePool::ScanInternal() {
         int ret = fsptr_->Fstat(fd, &info);
 
         if (ret < 0 || info.st_size != chunklen) {
-            LOG(ERROR) << "file size illegal, " << filepath.c_str();
+            LOG(ERROR) << "file size illegal, " << filepath.c_str()
+                       << ", standard size = " << chunklen
+                       << ", current size = " << info.st_size;
+            fsptr_->Close(fd);
             return false;
         }
+
+        fsptr_->Close(fd);
 
         uint64_t filenum = atoll(iter.c_str());
         if (filenum != 0) {

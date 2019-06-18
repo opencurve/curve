@@ -99,6 +99,20 @@ class CSChunkfilePool_test : public testing::Test {
     std::shared_ptr<LocalFileSystem>  fsptr;
 };
 
+bool CheckFileOpenOrNot(const std::string& filename) {
+    std::string syscmd;
+    syscmd.append("lsof ").append(filename);
+    FILE * fp;
+    char buffer[4096];
+    memset(buffer, 0, 4096);
+    fp = popen(syscmd.c_str(), "r");
+    fgets(buffer, sizeof(buffer), fp);
+    pclose(fp);
+
+    std::string out(buffer, 4096);
+    return out.find("No such file or directory") != out.npos;
+}
+
 TEST_F(CSChunkfilePool_test, InitializeTest) {
     std::string chunkfilepool = "./chunkfilepool.meta";
 
@@ -107,9 +121,13 @@ TEST_F(CSChunkfilePool_test, InitializeTest) {
     cfop.metaPageSize = 4096;
     memcpy(cfop.metaPath, chunkfilepool.c_str(), chunkfilepool.size());
 
-    // test meta content wrong
+    // initialize
     ASSERT_TRUE(ChunkfilepoolPtr_->Initialize(cfop));
     ASSERT_EQ(2, ChunkfilepoolPtr_->Size());
+    // 初始化阶段会扫描chunkfilepool内的所有文件，在扫描结束之后需要关闭这些文件
+    // 防止过多的文件描述符被占用
+    ASSERT_FALSE(CheckFileOpenOrNot("./chunkfilepool/1"));
+    ASSERT_FALSE(CheckFileOpenOrNot("./chunkfilepool/2"));
     cfop.chunkSize = 8192;
     cfop.metaPageSize = 4096;
     // test meta content wrong
