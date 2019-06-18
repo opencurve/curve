@@ -194,6 +194,15 @@ class TopoAdapter {
     virtual int GetStandardZoneNumInLogicalPool(PoolIdType id) = 0;
 
     /**
+     * @brief GetMinScatterWidthInLogicalPool 获取指定逻辑池中最小scatter-width
+     *
+     * @ param[in] id 逻辑池id
+     *
+     * @return 指定逻辑池中标准副本数量
+     */
+    virtual int GetMinScatterWidthInLogicalPool(PoolIdType id) = 0;
+
+    /**
      * @brief GetStandardReplicaNumInLogicalPool 获取指定逻辑池中标准副本数量
      *
      * @return 指定逻辑池中标准副本数量
@@ -282,6 +291,8 @@ class TopoAdapterImpl : public TopoAdapter {
     int GetStandardZoneNumInLogicalPool(PoolIdType id) override;
 
     int GetStandardReplicaNumInLogicalPool(PoolIdType id) override;
+
+    int GetMinScatterWidthInLogicalPool(PoolIdType id) override;
 
     bool CreateCopySetAtChunkServer(
         CopySetKey id, ChunkServerIdType csID) override;

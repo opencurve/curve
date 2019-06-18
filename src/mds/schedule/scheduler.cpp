@@ -131,9 +131,16 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
         int source = UNINTIALIZE_ID;
         int target = cs.info.id;
         int affected = 0;
+        int minScatterWidth =
+            topo_->GetMinScatterWidthInLogicalPool(copySetInfo.id.first);
+        if (minScatterWidth <= 0) {
+            LOG(ERROR) << "minScatterWith in logical pool "
+                      << copySetInfo.id.first << " is not initialized";
+            return UNINTIALIZE_ID;
+        }
         if (SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
                 copySetInfo, source, target, oldPeer, topo_,
-                minScatterWidth_, scatterWidthRangePerent_, &affected)) {
+                minScatterWidth, scatterWidthRangePerent_, &affected)) {
             LOG(INFO) << "SelectBestPlacementChunkServer select " << target
                       << " for " << copySetInfo.CopySetInfoStr()
                       << " to replace " << oldPeerInfo.info.id
@@ -297,9 +304,16 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         ChunkServerIDType target = UNINTIALIZE_ID;
         ChunkServerIdType ignore = UNINTIALIZE_ID;
         int affected = 0;
+        int minScatterWidth
+            = topo_->GetMinScatterWidthInLogicalPool(copySetInfo.id.first);
+        if (minScatterWidth <= 0) {
+            LOG(ERROR) << "minScatterWith in logical pool "
+                       << copySetInfo.id.first << " is not initialized";
+            return UNINTIALIZE_ID;
+        }
         if (SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
                 copySetInfo, source, target, ignore, topo_,
-                minScatterWidth_, scatterWidthRangePerent_, &affected)) {
+                minScatterWidth, scatterWidthRangePerent_, &affected)) {
             return source;
         } else {
             candidates.emplace_back(

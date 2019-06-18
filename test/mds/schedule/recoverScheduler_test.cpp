@@ -35,7 +35,7 @@ class TestRecoverSheduler : public ::testing::Test {
       int64_t runInterval = 1;
       recoverScheduler_ =
           std::make_shared<RecoverScheduler>(opController_, runInterval,
-            10, 100, 1000, 0.2, 90, 3, topoAdapter_);
+            10, 100, 1000, 0.2, 3, topoAdapter_);
   }
   void TearDown() override {
       opController_ = nullptr;
@@ -185,6 +185,8 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     ChunkServerIdType id3 = 3;
     ChunkServerIdType id4 = 4;
     Operator op;
+    EXPECT_CALL(*topoAdapter_, GetMinScatterWidthInLogicalPool(_))
+            .WillRepeatedly(Return(90));
     {
         // 1. 所有chunkserveronline
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(id1, _))
