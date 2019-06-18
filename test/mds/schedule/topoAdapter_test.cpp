@@ -425,6 +425,18 @@ TEST_F(TestTopoAdapterImpl, test_other_functions) {
             .WillOnce(Return(true));
         ASSERT_TRUE(topoAdapter_->CreateCopySetAtChunkServer(key, 1));
     }
+    {
+        // 4. test GetMinScatterWidthInLogicalPool
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(1, _))
+            .WillOnce(Return(false));
+        ASSERT_EQ(0, topoAdapter_->GetMinScatterWidthInLogicalPool(1));
+
+        ::curve::mds::topology::LogicalPool lpool;
+        lpool.SetScatterWidth(90);
+        EXPECT_CALL(*mockTopo_, GetLogicalPool(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
+        ASSERT_EQ(90, topoAdapter_->GetMinScatterWidthInLogicalPool(1));
+    }
 }
 
 TEST(TestCopySetInfo, test_copySetInfo_function) {

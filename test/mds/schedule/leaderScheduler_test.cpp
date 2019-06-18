@@ -27,7 +27,7 @@ class TestLeaderSchedule : public ::testing::Test {
       opController_ = std::make_shared<OperatorController>(2);
       topoAdapter_ = std::make_shared<MockTopoAdapter>();
       leaderScheduler_ = std::make_shared<LeaderScheduler>(
-          opController_, 1, 10, 100, 1000, 0.2, 90, topoAdapter_);
+          opController_, 1, 10, 100, 1000, 0.2, topoAdapter_);
   }
 
   void TearDown() override {

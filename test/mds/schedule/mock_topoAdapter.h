@@ -39,6 +39,8 @@ class MockTopoAdapter : public TopoAdapter {
 
     MOCK_METHOD1(GetStandardReplicaNumInLogicalPool, int(PoolIdType id));
 
+    MOCK_METHOD1(GetMinScatterWidthInLogicalPool, int(PoolIdType id));
+
     MOCK_METHOD2(CreateCopySetAtChunkServer,
                 bool(CopySetKey id, ChunkServerIdType csID));
 
