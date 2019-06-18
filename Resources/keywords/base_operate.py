@@ -468,12 +468,12 @@ def loop_write_file_noassert(fd, num, offset, length):
     config.write_stopped = False
 
 
-def background_loop_write_file_noassert(fd,num=10000,offset=config.offset, length=config.length):
+def background_loop_write_file_noassert(fd,num=1000000,offset=config.offset, length=config.length):
     t = threading.Thread(target=loop_write_file_noassert, args=(fd,num,offset,length))
     t.start()
     return t
 
-def background_loop_write_file(fd,num=10000,offset=config.offset, length=config.length):
+def background_loop_write_file(fd,num=1000000,offset=config.offset, length=config.length):
     t = mythread.runThread(loop_write_file,fd,num,offset,length)
     t.start()
     return t
