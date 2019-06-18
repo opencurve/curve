@@ -40,6 +40,7 @@ DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
 DEFINE_string(chunkFilePoolMetaPath,
     "./chunkfilepool.meta", "chunk file pool meta path");
 DEFINE_string(logPath, "./0/chunkserver.log-", "log file path");
+DEFINE_string(mdsListenAddr, "127.0.0.1:6666", "mds listen addr");
 
 namespace curve {
 namespace chunkserver {
@@ -521,6 +522,10 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
     } else {
         LOG(FATAL)
         << "chunkFilePoolMetaPath must be set when run chunkserver in command.";
+    }
+
+    if (GetCommandLineFlagInfo("mdsListenAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);
     }
 }
 
