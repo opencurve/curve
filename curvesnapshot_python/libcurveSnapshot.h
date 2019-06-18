@@ -178,7 +178,7 @@ int GetChunkInfo(CChunkIDInfo cidinfo, CChunkInfoDetail *chunkInfo);
 int CheckSnapShotStatus(const char* filename,
                             const CUserInfo_t userinfo,
                             type_uInt64_t seq,
-                            CFileStatus* filestatus);
+                            type_uInt32_t* filestatus);
 
 /**
  * @brief lazy 创建clone chunk

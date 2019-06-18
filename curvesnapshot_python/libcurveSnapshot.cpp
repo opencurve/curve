@@ -150,7 +150,7 @@ int GetSnapshotSegmentInfo(const char* filename,
     for (int i = 0; i < seg.lpcpIDInfo.cpidVec.size(); i++) {
         segInfo->lpcpIDInfo.cpidVec.push_back(seg.lpcpIDInfo.cpidVec[i]);
     }
-    return 0;
+    return ret;
 }
 
 int ReadChunkSnapshot(CChunkIDInfo cidinfo,
@@ -208,7 +208,7 @@ int GetChunkInfo(CChunkIDInfo cidinfo, CChunkInfoDetail *chunkInfo) {
 int CheckSnapShotStatus(const char* filename,
                             const CUserInfo_t userinfo,
                             type_uInt64_t seq,
-                            CFileStatus* filestatus) {
+                            type_uInt32_t* filestatus) {
     if (globalSnapshotclient == nullptr) {
         LOG(ERROR) << "not init!";
         return -LIBCURVE_ERROR::FAILED;
@@ -219,7 +219,7 @@ int CheckSnapShotStatus(const char* filename,
                                 UserInfo(userinfo.owner, userinfo.password),
                                 seq.value,
                                 &fs);
-    *filestatus = static_cast<CFileStatus>(fs);
+    filestatus->value = static_cast<uint32_t>(fs);
     return ret;
 }
 
