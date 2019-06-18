@@ -13,6 +13,7 @@
 
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/trash.h"
+#include "src/chunkserver/inflight_throttle.h"
 
 namespace curve {
 namespace chunkserver {
@@ -91,6 +92,7 @@ struct CopysetNodeOptions {
 struct ChunkServiceOptions {
     CopysetNodeManager *copysetNodeManager;
     CloneManager *cloneManager;
+    std::shared_ptr<InflightThrottle> inflightThrottle;
 };
 
 }  // namespace chunkserver
