@@ -187,8 +187,14 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
 int CopysetNodeManager::AddService(brpc::Server *server,
                                    const butil::EndPoint &listenAddress) {
     int ret = 0;
+    uint64_t maxInflight = 100;
+    std::shared_ptr<InflightThrottle> inflightThrottle
+        = std::make_shared<InflightThrottle>(maxInflight);
+    CHECK(nullptr != inflightThrottle) << "new inflight throttle failed";
     CopysetNodeManager *copysetNodeManager = this;
-    ChunkServiceOptions chunkServiceOptions = ChunkServiceOptions{this};
+    ChunkServiceOptions chunkServiceOptions;
+    chunkServiceOptions.copysetNodeManager = copysetNodeManager;
+    chunkServiceOptions.inflightThrottle = inflightThrottle;
 
     do {
         if (nullptr == server) {

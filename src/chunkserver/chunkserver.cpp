@@ -172,10 +172,17 @@ int ChunkServer::Run(int argc, char** argv) {
                         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add CopysetService";
 
+    // inflight throttle
+    uint64_t maxInflight = conf.GetIntValue("copyset.max_inflight_requests");
+    std::shared_ptr<InflightThrottle> inflightThrottle
+        = std::make_shared<InflightThrottle>(maxInflight);
+    CHECK(nullptr != inflightThrottle) << "new inflight throttle failed";
+
     // chunk service
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = &copysetNodeManager_;
     chunkServiceOptions.cloneManager = &cloneManager_;
+    chunkServiceOptions.inflightThrottle = inflightThrottle;
     ChunkServiceImpl chunkService(chunkServiceOptions);
     ret = server.AddService(&chunkService,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
