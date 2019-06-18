@@ -5,6 +5,7 @@
 > Copyright (c) 2018 netease
  ************************************************************************/
 
+#include <memory>
 #include <list>
 
 #include "src/mds/dao/mdsRepo.h"

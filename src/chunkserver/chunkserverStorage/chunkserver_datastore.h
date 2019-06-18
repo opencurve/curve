@@ -9,6 +9,7 @@
 #define SRC_CHUNKSERVER_CHUNKSERVERSTORAGE_CHUNKSERVER_DATASTORE_H_
 
 #include <string>
+#include <memory>
 #include <unordered_map>
 
 #include "include/curve_compiler_specific.h"

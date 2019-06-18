@@ -8,10 +8,10 @@
 #ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
 #define SRC_MDS_TOPOLOGY_TOPOLOGY_SERVICE_H_
 
-
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <brpc/server.h>
+#include <memory>
 
 #include "proto/topology.pb.h"
 #include "src/mds/topology/topology_service_manager.h"

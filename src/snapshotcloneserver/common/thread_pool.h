@@ -8,6 +8,7 @@
 #ifndef SRC_SNAPSHOTCLONESERVER_COMMON_THREAD_POOL_H_
 #define SRC_SNAPSHOTCLONESERVER_COMMON_THREAD_POOL_H_
 
+#include <memory>
 #include "src/common/concurrent/task_thread_pool.h"
 #include "src/snapshotcloneserver/common/task.h"
 

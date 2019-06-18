@@ -9,6 +9,7 @@
 #define SRC_MDS_HEARTBEAT_COPYSET_CONF_GENERATOR_H_
 
 #include <string>
+#include <memory>
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/schedule/coordinator.h"

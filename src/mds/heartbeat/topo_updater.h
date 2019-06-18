@@ -8,6 +8,7 @@
 #ifndef SRC_MDS_HEARTBEAT_TOPO_UPDATER_H_
 #define SRC_MDS_HEARTBEAT_TOPO_UPDATER_H_
 
+#include <memory>
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/topology/topology.h"
 

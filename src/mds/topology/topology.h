@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <string>
 #include <list>
+#include <memory>
 #include <vector>
 #include <map>
 

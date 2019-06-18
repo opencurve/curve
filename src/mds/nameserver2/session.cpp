@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 #include <brpc/controller.h>
 #include <vector>
+#include <memory>
 #include <utility>
 #include <chrono>   // NOLINT
 #include "src/common/timeutility.h"

@@ -10,6 +10,7 @@
 #include <glog/logging.h>
 
 #include <string>
+#include <memory>
 #include <vector>
 
 namespace curve {

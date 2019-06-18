@@ -8,6 +8,7 @@
 #ifndef SRC_MDS_CHUNKSERVERCLIENT_COPYSET_CLIENT_H_
 #define SRC_MDS_CHUNKSERVERCLIENT_COPYSET_CLIENT_H_
 
+#include <memory>
 #include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology.h"
 

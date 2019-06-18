@@ -9,7 +9,7 @@
 #define SRC_MDS_NAMESERVER2_ETCD_ID_GENERATOR_H_
 
 #include <string>
-
+#include <memory>
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/etcd_client.h"
 #include "src/common/concurrent/concurrent.h"

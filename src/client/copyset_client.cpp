@@ -9,7 +9,7 @@
 
 #include <glog/logging.h>
 #include <unistd.h>
-
+#include <memory>
 #include <utility>
 
 #include "src/client/request_sender.h"

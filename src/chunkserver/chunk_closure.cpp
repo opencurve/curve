@@ -6,6 +6,7 @@
  */
 
 #include "src/chunkserver/chunk_closure.h"
+#include <memory>
 
 namespace curve {
 namespace chunkserver {

@@ -12,6 +12,7 @@
 #include "src/mds/nameserver2/file_lock.h"
 #include <string.h>
 #include <glog/logging.h>
+#include <utility>
 #include "src/common/hash.h"
 #include "src/common/string_util.h"
 
