@@ -12,6 +12,10 @@ user.owner = "gt"
 
 seq = curvesnapshot.type_uInt64_t()
 
+filestatus = curvesnapshot.type_uInt32_t()
+curvesnapshot.CheckSnapShotStatus("/test", user, seq, filestatus)
+print filestatus.value
+
 ret = curvesnapshot.CreateSnapShot("/test", user, seq)
 print ret
 
