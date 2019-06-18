@@ -55,6 +55,7 @@ enum CHUNK_OP_STATUS {
     CHUNK_OP_STATUS_COPYSET_NOTEXIST = 6;   // copyset 不存在
     CHUNK_OP_STATUS_CHUNK_NOTEXIST = 7;     // chunk或其快照文件不存在
     CHUNK_OP_STATUS_FAILURE_UNKNOWN = 8;    // 其他错误
+    CHUNK_OP_STATUS_OVERLOAD = 9;           // 过载，表示服务端有过多请求未处理返回
 };
 
 message ChunkResponse {

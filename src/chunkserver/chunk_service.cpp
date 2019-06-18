@@ -18,13 +18,15 @@
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/op_request.h"
+#include "src/chunkserver/inflight_closure.h"
 
 namespace curve {
 namespace chunkserver {
 
 ChunkServiceImpl::ChunkServiceImpl(ChunkServiceOptions chunkServiceOptions) :
     chunkServiceOptions_(chunkServiceOptions),
-    copysetNodeManager_(chunkServiceOptions.copysetNodeManager) {
+    copysetNodeManager_(chunkServiceOptions.copysetNodeManager),
+    inflightThrottle_(chunkServiceOptions.inflightThrottle) {
     maxChunkSize_ = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
 }
 
@@ -32,7 +34,19 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
                                    const ChunkRequest *request,
                                    ChunkResponse *response,
                                    Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
+    InflightClosure *inflightDone =
+        new (std::nothrow) InflightClosure(inflightThrottle_, done);
+    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+
+    brpc::ClosureGuard doneGuard(inflightDone);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "DeleteChunk: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
 
     // 判断copyset是否存在
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
@@ -57,7 +71,20 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
                                   const ChunkRequest *request,
                                   ChunkResponse *response,
                                   Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
+    InflightClosure *inflightDone =
+        new (std::nothrow) InflightClosure(inflightThrottle_, done);
+    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+
+    brpc::ClosureGuard doneGuard(inflightDone);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "WriteChunk: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
+
     brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
     DVLOG(9) << "Get write I/O request, op: " << request->optype()
              << " offset: " << request->offset()
@@ -98,7 +125,19 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
                                         const ChunkRequest *request,
                                         ChunkResponse *response,
                                         Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
+    InflightClosure *inflightDone =
+        new (std::nothrow) InflightClosure(inflightThrottle_, done);
+    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+
+    brpc::ClosureGuard doneGuard(inflightDone);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "CreateCloneChunk: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
 
     // 请求创建的chunk大小和copyset配置的大小不一致
     if (request->size() != maxChunkSize_) {
@@ -132,7 +171,19 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                  const ChunkRequest *request,
                                  ChunkResponse *response,
                                  Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
+    InflightClosure *inflightDone =
+        new (std::nothrow) InflightClosure(inflightThrottle_, done);
+    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+
+    brpc::ClosureGuard doneGuard(inflightDone);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "ReadChunk: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
 
     // 判断request参数是否合法
     auto maxSize = copysetNodeManager_->GetCopysetNodeOptions().maxChunkSize;
@@ -169,7 +220,19 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
                                     const ChunkRequest *request,
                                     ChunkResponse *response,
                                     Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
+    InflightClosure *inflightDone =
+        new (std::nothrow) InflightClosure(inflightThrottle_, done);
+    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+
+    brpc::ClosureGuard doneGuard(inflightDone);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "RecoverChunk: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
 
     // 判断request参数是否合法
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
@@ -206,7 +269,19 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
                                          const ChunkRequest *request,
                                          ChunkResponse *response,
                                          Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
+    InflightClosure *inflightDone =
+        new (std::nothrow) InflightClosure(inflightThrottle_, done);
+    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+
+    brpc::ClosureGuard doneGuard(inflightDone);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "ReadChunkSnapshot: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
 
     // 判断request参数是否合法
     if (!CheckRequestOffsetAndLength(request->offset(), request->size())) {
@@ -238,7 +313,19 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
     const ChunkRequest *request,
     ChunkResponse *response,
     Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
+    InflightClosure *inflightDone =
+        new (std::nothrow) InflightClosure(inflightThrottle_, done);
+    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+
+    brpc::ClosureGuard doneGuard(inflightDone);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "DeleteChunkSnapshotOrCorrectSn: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
 
     if (false == request->has_correctedsn()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -276,7 +363,19 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
                                     const GetChunkInfoRequest *request,
                                     GetChunkInfoResponse *response,
                                     Closure *done) {
-    brpc::ClosureGuard doneGuard(done);
+    InflightClosure *inflightDone =
+        new (std::nothrow) InflightClosure(inflightThrottle_, done);
+    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+
+    brpc::ClosureGuard doneGuard(inflightDone);
+
+    if (inflightThrottle_->IsOverLoad()) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        LOG_EVERY_N(WARNING, 100)
+            << "GetChunkInfo: "
+            << "too many inflight requests to process in chunkserver";
+        return;
+    }
 
     // 判断copyset是否存在
     auto nodePtr =
