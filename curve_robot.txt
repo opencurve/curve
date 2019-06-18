@@ -12,7 +12,7 @@ Suite Teardown    clean env
 
 
 *** Variables ***
-${curve_workspace}		/root/workspace/curve/curve_multijob
+${curve_workspace}		/var/lib/jenkins/workspace/curve/curve_multijob
 ${chunkserver_start_script}		./deploy/local/chunkserver/start_chunkservers_locally.sh
 ${chunkserver_stop_script}		./deploy/local/chunkserver/stop_chunkservers_locally.sh
 ${mds_start}		${curve_workspace}/bazel-bin/src/mds/main/curvemds
@@ -1515,7 +1515,7 @@ read write with extend file
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
     ${thread}   background loop write file   ${new_fd}
-    sleep  3
+    sleep  1
     check write isalive    ${thread}
     extend libcurve file
     sleep  3
@@ -1564,7 +1564,7 @@ read write with create same file
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
     ${thread}   background loop write file   ${new_fd}
-    sleep  3
+    sleep  1
     check write isalive    ${thread}
     ${rc}   create libcurve file
     ${expect_rc}    evaluate    int(-1)
@@ -1581,7 +1581,7 @@ read write with delete file
     ${fd}   open libcurve file
     ${new_fd}       Convert To Integer    ${fd}
     ${thread}   background loop write file   ${new_fd}
-    sleep  3
+    sleep  1
     check write isalive    ${thread}
     ${rc}   delete libcurve file
     ${expect_rc}    evaluate    int(-15)

@@ -5,7 +5,7 @@
 基本配置信息,若配置新的环境，需要更改此文件
 '''
 #curve info
-curve_workspace = "/root/workspace/curve/curve_multijob/"
+curve_workspace = "/var/lib/jenkins/workspace/curve/curve_multijob/"
 chunkserver_start_script = "./deploy/local/chunkserver/start_chunkservers_locally.sh"
 chunkserver_stop_script = "./deploy/local/chunkserver/stop_chunkservers_locally.sh"
 mds_start = curve_workspace + "bazel-bin/src/mds/main/curvemds"
