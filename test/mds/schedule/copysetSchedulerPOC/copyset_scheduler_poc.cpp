@@ -190,6 +190,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
 
         LogicalPool pool(0, "logicalpool-0", 1, LogicalPoolType::PAGEFILE,
             rap, LogicalPool::UserPolicy{}, 0, true);
+        pool.SetScatterWidth(90);
         *out = pool;
         return true;
     }
@@ -492,13 +493,13 @@ class CopysetSchedulerPOC : public testing::Test {
 
         recoverScheduler_ = std::make_shared<RecoverScheduler>(
             opController_, 1000, 10, 100, 1000,
-            scatterwidthPercent_, minScatterwidth_, 8, topoAdapter_);
+            scatterwidthPercent_, 8, topoAdapter_);
     }
 
     void BuildCopySetScheduler(int opConcurrent) {
         copySetScheduler_ = std::make_shared<CopySetScheduler>(
             opController_, 1000, 10, 100, 1000, copysetNumPercent_,
-            scatterwidthPercent_, minScatterwidth_, topoAdapter_);
+            scatterwidthPercent_, topoAdapter_);
     }
 
     void ApplyOperatorsInOpController(int choose) {

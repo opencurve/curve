@@ -233,10 +233,18 @@ bool CopySetScheduler::CopySetMigration(
                 continue;
             }
 
+            // scatter-width在topology中还未设置
+            int minScatterWidth =
+                topo_->GetMinScatterWidthInLogicalPool(info.id.first);
+            if (minScatterWidth <= 0) {
+                LOG(WARNING) << "minScatterWith in logical pool "
+                             << info.id.first << " is not initialized";
+                continue;
+            }
             // 该copyset +target,-source之后的各replica的scatter-with是否符合条件 //NOLINT
             if (!SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
                     topo_, *target, possibleSource, info,
-                    minScatterWidth_, scatterWidthRangePerent_)) {
+                    minScatterWidth, scatterWidthRangePerent_)) {
                 continue;
             }
 

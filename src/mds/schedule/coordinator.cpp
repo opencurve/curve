@@ -36,7 +36,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                               conf.removePeerTimeLimitSec,
                                               conf.addPeerTimeLimitSec,
                                               conf.scatterWithRangePerent,
-                                              conf.minScatterWidth, topo_);
+                                              topo_);
         LOG(INFO) << "init leader scheduler ok!";
     }
 
@@ -49,7 +49,6 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.addPeerTimeLimitSec,
                                                conf.copysetNumRangePercent,
                                                conf.scatterWithRangePerent,
-                                               conf.minScatterWidth,
                                                topo_);
         LOG(INFO) << "init copySet scheduler ok!";
     }
@@ -62,7 +61,6 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
                                                conf.scatterWithRangePerent,
-                                               conf.minScatterWidth,
                                                conf.chunkserverFailureTolerance,
                                                topo_);
         LOG(INFO) << "init recover scheduler ok!";
@@ -76,7 +74,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
                                                conf.scatterWithRangePerent,
-                                               conf.minScatterWidth, topo_);
+                                               topo_);
         LOG(INFO) << "init replica scheduler ok!";
     }
 }
