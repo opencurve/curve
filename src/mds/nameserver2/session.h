@@ -11,6 +11,8 @@
 #include <map>
 #include <list>
 #include <string>
+#include <unordered_map>
+#include <memory>
 #include <thread> //NOLINT
 #include "proto/nameserver2.pb.h"
 #include "src/common/concurrent/concurrent.h"

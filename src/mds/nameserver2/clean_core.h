@@ -8,6 +8,7 @@
 #ifndef SRC_MDS_NAMESERVER2_CLEAN_CORE_H_
 #define SRC_MDS_NAMESERVER2_CLEAN_CORE_H_
 
+#include <memory>
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/task_progress.h"

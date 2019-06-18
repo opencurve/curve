@@ -8,6 +8,7 @@
 #ifndef SRC_MDS_NAMESERVER2_CLEAN_MANAGER_H_
 #define SRC_MDS_NAMESERVER2_CLEAN_MANAGER_H_
 
+#include <memory>
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/mds/nameserver2/clean_core.h"

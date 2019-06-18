@@ -7,6 +7,7 @@
 
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store_s3.h"
 #include <utility>
+#include <memory>
 #include <glog/logging.h>    //NOLINT
 #include <aws/core/utils/memory/stl/AWSString.h>  //NOLINT
 #include <aws/core/utils/memory/stl/AWSMap.h>  //NOLINT

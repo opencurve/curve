@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include <memory.h>
+#include <utility>
 #include "src/common/bitmap.h"
 
 namespace curve {

@@ -7,6 +7,8 @@
 #include <fcntl.h>
 #include <cstring>
 #include <iostream>
+#include <memory>
+#include <utility>
 #include <list>
 
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"

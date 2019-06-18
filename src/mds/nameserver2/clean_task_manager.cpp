@@ -4,6 +4,8 @@
  * Author: hzsunjianliang
  * Copyright (c) 2018 netease
  */
+#include <utility>
+#include <memory>
 #include "src/mds/nameserver2/clean_task_manager.h"
 
 namespace curve {

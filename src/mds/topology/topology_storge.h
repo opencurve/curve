@@ -11,6 +11,7 @@
 #include <list>
 #include <unordered_map>
 #include <string>
+#include <memory>
 #include <map>
 
 #include "src/mds/topology/topology_item.h"

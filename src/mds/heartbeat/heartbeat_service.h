@@ -9,7 +9,7 @@
 #define SRC_MDS_HEARTBEAT_HEARTBEAT_SERVICE_H_
 
 #include <brpc/server.h>
-#include <boost/shared_ptr.hpp>
+#include <memory>
 
 #include "src/mds/heartbeat/heartbeat_manager.h"
 #include "proto/heartbeat.pb.h"

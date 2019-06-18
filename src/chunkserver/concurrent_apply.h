@@ -14,6 +14,7 @@
 #include <mutex>    // NOLINT
 #include <thread>    // NOLINT
 #include <unordered_map>
+#include <utility>
 #include <condition_variable>    // NOLINT
 
 #include "src/common/concurrent/task_queue.h"

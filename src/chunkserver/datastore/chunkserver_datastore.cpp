@@ -10,6 +10,7 @@
 #include <cstring>
 #include <iostream>
 #include <list>
+#include <memory>
 
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/filename_operator.h"

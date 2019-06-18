@@ -12,6 +12,7 @@
 #include <braft/configuration.h>
 
 #include <string>
+#include <memory>
 
 #include "src/client/client_common.h"
 #include "src/client/request_sender.h"

@@ -9,6 +9,7 @@
 #define SRC_CHUNKSERVER_DATASTORE_DEFINE_H_
 
 #include <string>
+#include <memory>
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/common/bitmap.h"

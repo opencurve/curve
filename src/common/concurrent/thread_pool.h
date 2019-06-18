@@ -13,6 +13,7 @@
 #include <vector>
 #include <mutex>    //NOLINT
 #include <atomic>
+#include <memory>
 
 #include "src/common/uncopyable.h"
 

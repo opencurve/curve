@@ -12,6 +12,7 @@
 #include <braft/closure_helper.h>
 
 #include <vector>
+#include <memory>
 
 #include "src/fs/fs_common.h"
 #include "src/chunkserver/heartbeat.h"

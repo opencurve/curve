@@ -9,6 +9,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "src/snapshotcloneserver/clone/clone_core.h"
 #include "src/snapshotcloneserver/clone/clone_task.h"

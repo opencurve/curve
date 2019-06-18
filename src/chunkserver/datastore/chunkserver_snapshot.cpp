@@ -5,6 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
+#include <memory>
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/chunkserver_snapshot.h"
 

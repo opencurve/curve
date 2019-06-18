@@ -10,6 +10,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "src/mds/topology/topology.h"
 #include "src/mds/copyset/copyset_manager.h"

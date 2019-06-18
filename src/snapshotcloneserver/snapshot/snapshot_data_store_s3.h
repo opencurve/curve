@@ -12,6 +12,7 @@
 #include <vector>
 #include <list>
 #include <string>
+#include <memory>
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 #include "src/common/s3_adapter.h"
 

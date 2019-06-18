@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 #include "include/curve_compiler_specific.h"
 #include "include/chunkserver/chunkserver_common.h"

@@ -5,8 +5,9 @@
  * Copyright (c) 2018 netease
  */
 
-#include <glog/logging.h>
 #include "src/mds/nameserver2/curvefs.h"
+#include <glog/logging.h>
+#include <memory>
 #include "src/common/string_util.h"
 #include "src/common/encode.h"
 #include "src/common/timeutility.h"

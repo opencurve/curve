@@ -5,6 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
+#include <memory>
 #include <vector>
 #include "src/mds/nameserver2/clean_manager.h"
 

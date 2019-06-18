@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 #include <thread>  //NOLINT
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"

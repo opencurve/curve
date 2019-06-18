@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <vector>
+#include <memory>
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/nameserver2/chunk_id_generator.h"

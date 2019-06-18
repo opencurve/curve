@@ -17,6 +17,8 @@
 #include <thread>               //NOLINT
 #include <climits>
 #include <iostream>
+#include <memory>
+#include <utility>
 
 #include "src/common/uncopyable.h"
 
