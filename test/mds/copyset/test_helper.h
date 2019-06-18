@@ -9,6 +9,7 @@
 #define TEST_MDS_COPYSET_TEST_HELPER_H_
 
 #include <vector>
+#include <utility>
 
 #include "src/mds/copyset/copyset_policy.h"
 #include "src/mds/copyset/copyset_manager.h"

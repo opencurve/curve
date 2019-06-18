@@ -8,7 +8,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 
 #include <glog/logging.h>
-
+#include <utility>
 #include <algorithm>
 
 #include "src/snapshotcloneserver/common/define.h"

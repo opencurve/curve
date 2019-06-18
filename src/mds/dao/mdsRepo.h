@@ -12,6 +12,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "src/repo/repo.h"
 

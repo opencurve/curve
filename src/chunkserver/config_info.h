@@ -9,6 +9,7 @@
 #define SRC_CHUNKSERVER_CONFIG_INFO_H_
 
 #include <string>
+#include <memory>
 
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/trash.h"

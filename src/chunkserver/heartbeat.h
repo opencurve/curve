@@ -16,6 +16,7 @@
 #include <vector>
 #include <string>
 #include <atomic>
+#include <memory>
 #include <thread>  //NOLINT
 
 #include "include/chunkserver/chunkserver_common.h"

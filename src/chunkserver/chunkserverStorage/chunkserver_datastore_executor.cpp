@@ -6,6 +6,7 @@
  */
 #include <fcntl.h>
 #include <gflags/gflags.h>
+#include <memory>
 
 #include "src/chunkserver/chunkserverStorage/chunkserver_datastore_executor.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_storage.h"

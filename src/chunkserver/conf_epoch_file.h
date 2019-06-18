@@ -9,6 +9,7 @@
 #define SRC_CHUNKSERVER_CONF_EPOCH_FILE_H_
 
 #include <string>
+#include <memory>
 
 #include "src/fs/local_filesystem.h"
 #include "src/fs/fs_common.h"

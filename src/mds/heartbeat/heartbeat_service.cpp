@@ -5,6 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
+#include <memory>
 #include "src/mds/heartbeat/heartbeat_service.h"
 
 namespace curve {

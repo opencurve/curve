@@ -13,6 +13,7 @@
 #include <set>
 #include <atomic>
 #include <functional>
+#include <memory>
 
 #include "include/curve_compiler_specific.h"
 #include "include/chunkserver/chunkserver_common.h"

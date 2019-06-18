@@ -9,6 +9,7 @@
 
 #include <string>
 #include <atomic>
+#include <memory>
 #include <functional>
 
 #include "include/curve_compiler_specific.h"

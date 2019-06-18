@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <climits>
+#include <memory>
 
 #include "src/chunkserver/concurrent_apply.h"
 #include "src/chunkserver/datastore/chunkserver_datastore.h"

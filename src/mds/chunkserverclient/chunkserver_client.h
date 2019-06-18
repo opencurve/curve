@@ -11,6 +11,7 @@
 #include <brpc/channel.h>
 #include <butil/endpoint.h>
 
+#include <memory>
 #include <string>
 
 #include "src/mds/common/mds_define.h"

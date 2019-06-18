@@ -12,6 +12,7 @@
 #include <queue>        // NOLINT
 #include <mutex>        // NOLINT
 #include <functional>   // NOLINT
+#include <utility>
 
 namespace curve {
 namespace common {

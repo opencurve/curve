@@ -6,6 +6,7 @@
  */
 #include <fcntl.h>
 #include <algorithm>
+#include <memory>
 
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/chunkserver_chunkfile.h"

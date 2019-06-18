@@ -11,7 +11,8 @@
 #include <brpc/controller.h>
 #include <butil/sys_byteorder.h>
 #include <braft/closure_helper.h>
-
+#include <utility>
+#include <memory>
 #include <cassert>
 
 #include "src/chunkserver/chunk_closure.h"

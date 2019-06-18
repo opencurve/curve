@@ -9,6 +9,7 @@
 #define SRC_CHUNKSERVER_CHUNK_CLOSURE_H_
 
 #include <brpc/closure_guard.h>
+#include <memory>
 
 #include "src/chunkserver/op_request.h"
 
