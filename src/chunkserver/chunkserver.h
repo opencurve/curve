@@ -81,6 +81,9 @@ class ChunkServer {
 
     // trash_ 定期回收垃圾站中的物理空间
     std::shared_ptr<Trash> trash_;
+
+    // install snapshot流控
+    scoped_refptr<SnapshotThrottle> snapshotThrottle_;
 };
 
 }  // namespace chunkserver
