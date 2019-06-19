@@ -27,6 +27,14 @@ using ::curve::fs::LocalFsFactory;
 using ::curve::fs::FileSystemType;
 
 DEFINE_string(conf, "ChunkServer.conf", "Path of configuration file");
+DEFINE_string(chunkServerIp, "127.0.0.1", "chunkserver ip");
+DEFINE_int32(chunkServerPort, 8200, "chunkserver port");
+DEFINE_string(chunkServerStoreUri, "local://./0/", "chunkserver store uri");
+DEFINE_string(chunkServerMetaUri,
+    "local://./0/chunkserver.dat", "chunnkserver meata uri");
+DEFINE_string(copySetUri, "local://./0/copysets", "copyset data uri");
+DEFINE_string(recycleUri, "local://./0/recycler" , "recycle uri");
+DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
 
 namespace curve {
 namespace chunkserver {
@@ -35,21 +43,24 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // ==========================加载配置项===============================//
     LOG(INFO) << "Loading Configuration.";
-    std::string confPath = FLAGS_conf.c_str();
     common::Configuration conf;
-    conf.SetConfigPath(confPath);
-    if (!conf.LoadConfig()) {
-        LOG(ERROR) << "load chunkserver configuration fail, conf path = "
-                   << confPath;
-        return -1;
-    }
+    conf.SetConfigPath(FLAGS_conf.c_str());
+
+    // 在从配置文件获取
+    LOG_IF(FATAL, !conf.LoadConfig())
+        << "load chunkserver configuration fail, conf path = "
+        << conf.GetConfigPath();
+    // 命令行可以覆盖配置文件中的参数
+    LoadConfigFromCmdline(&conf);
 
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
     // 初始化并发持久模块
     ConcurrentApplyModule concurrentapply;
-    int size = conf.GetIntValue("concurrentapply.size");
-    int qdepth = conf.GetIntValue("concurrentapply.queuedepth");
+    int size;
+    LOG_IF(FATAL, !conf.GetIntValue("concurrentapply.size", &size));
+    int qdepth;
+    LOG_IF(FATAL, !conf.GetIntValue("concurrentapply.queuedepth", &qdepth));
     LOG_IF(FATAL, false == concurrentapply.Init(size, qdepth))
         << "Failed to initialize concurrentapply module!";
 
@@ -57,7 +68,8 @@ int ChunkServer::Run(int argc, char** argv) {
     std::shared_ptr<LocalFileSystem> fs(
         LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     LocalFileSystemOption lfsOption;
-    lfsOption.enableRenameat2 = conf.GetBoolValue("fs.enable_renameat2");
+    LOG_IF(FATAL, !conf.GetBoolValue(
+        "fs.enable_renameat2", &lfsOption.enableRenameat2));
     LOG_IF(FATAL, 0 != fs->Init(lfsOption))
         << "Failed to initialize local filesystem module!";
 
@@ -82,7 +94,8 @@ int ChunkServer::Run(int argc, char** argv) {
     // 克隆管理模块初始化
     CloneOptions cloneOptions;
     InitCloneOptions(&conf, &cloneOptions);
-    uint32_t sliceSize = conf.GetIntValue("clone.slice_size");
+    uint32_t sliceSize;
+    LOG_IF(FATAL, !conf.GetUInt32Value("clone.slice_size", &sliceSize));
     cloneOptions.core = std::make_shared<CloneCore>(sliceSize, copyer);
     LOG_IF(FATAL, cloneManager_.Init(cloneOptions) != 0)
         << "Failed to initialize clone manager.";
@@ -239,114 +252,171 @@ void ChunkServer::Stop() {
 
 void ChunkServer::InitChunkFilePoolOptions(
     common::Configuration *conf, ChunkfilePoolOptions *chunkFilePoolOptions) {
-    chunkFilePoolOptions->chunkSize =
-        conf->GetIntValue("global.chunk_size");
-    chunkFilePoolOptions->metaPageSize =
-        conf->GetIntValue("global.meta_page_size");
-    chunkFilePoolOptions->cpMetaFileSize
-        = conf->GetIntValue("chunkfilepool.cpmeta_file_size");
-    chunkFilePoolOptions->getChunkFromPool
-        = conf->GetBoolValue("chunkfilepool.enable_get_chunk_from_pool");
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.chunk_size",
+        &chunkFilePoolOptions->chunkSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
+        &chunkFilePoolOptions->metaPageSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("chunkfilepool.cpmeta_file_size",
+        &chunkFilePoolOptions->cpMetaFileSize));
+    LOG_IF(FATAL, !conf->GetBoolValue(
+        "chunkfilepool.enable_get_chunk_from_pool",
+        &chunkFilePoolOptions->getChunkFromPool));
 
     if (chunkFilePoolOptions->getChunkFromPool == false) {
-        std::string chunkFilePoolUri
-            = conf->GetStringValue("chunkfilepool.chunk_file_pool_dir");
+        std::string chunkFilePoolUri;
+        LOG_IF(FATAL, !conf->GetStringValue(
+            "chunkfilepool.chunk_file_pool_dir", &chunkFilePoolUri));
         ::memcpy(chunkFilePoolOptions->chunkFilePoolDir,
                  chunkFilePoolUri.c_str(),
                  chunkFilePoolUri.size());
     } else {
-        std::string metaUri
-            = conf->GetStringValue("chunkfilepool.meta_path");
-        ::memcpy(chunkFilePoolOptions->metaPath,
-                 metaUri.c_str(),
-                 metaUri.size());
+        std::string metaUri;
+        LOG_IF(FATAL, !conf->GetStringValue(
+            "chunkfilepool.meta_path", &metaUri));
+        ::memcpy(
+            chunkFilePoolOptions->metaPath, metaUri.c_str(), metaUri.size());
     }
 }
 
 void ChunkServer::InitCopysetNodeOptions(
     common::Configuration *conf, CopysetNodeOptions *copysetNodeOptions) {
-    copysetNodeOptions->ip = conf->GetStringValue("global.ip");
-    copysetNodeOptions->port = conf->GetIntValue("global.port");
+    LOG_IF(FATAL, !conf->GetStringValue("global.ip", &copysetNodeOptions->ip));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "global.port", &copysetNodeOptions->port));
     if (copysetNodeOptions->port <= 0 || copysetNodeOptions->port >= 65535) {
         LOG(FATAL) << "Invalid server port provided: "
                    << copysetNodeOptions->port;
     }
-    copysetNodeOptions->snapshotIntervalS =
-        conf->GetIntValue("copyset.snapshot_interval_s");
-    copysetNodeOptions->catchupMargin =
-        conf->GetIntValue("copyset.catchup_margin");
-    copysetNodeOptions->chunkDataUri =
-        conf->GetStringValue("copyset.chunk_data_uri");
-    copysetNodeOptions->chunkSnapshotUri =
-        conf->GetStringValue("copyset.chunk_data_uri");
-    copysetNodeOptions->logUri = conf->GetStringValue("copyset.raft_log_uri");
-    copysetNodeOptions->raftMetaUri =
-        conf->GetStringValue("copyset.raft_meta_uri");
-    copysetNodeOptions->raftSnapshotUri =
-        conf->GetStringValue("copyset.raft_snapshot_uri");
-    copysetNodeOptions->recyclerUri =
-        conf->GetStringValue("copyset.recycler_uri");
-    copysetNodeOptions->maxChunkSize =
-        conf->GetIntValue("global.chunk_size");
-    copysetNodeOptions->pageSize =
-        conf->GetIntValue("global.meta_page_size");
+
+    LOG_IF(FATAL, !conf->GetIntValue("copyset.snapshot_interval_s",
+        &copysetNodeOptions->snapshotIntervalS));
+    LOG_IF(FATAL, !conf->GetIntValue("copyset.catchup_margin",
+        &copysetNodeOptions->catchupMargin));
+    LOG_IF(FATAL, !conf->GetStringValue("copyset.chunk_data_uri",
+        &copysetNodeOptions->chunkDataUri));
+    LOG_IF(FATAL, !conf->GetStringValue("copyset.chunk_data_uri",
+        &copysetNodeOptions->chunkSnapshotUri));
+    LOG_IF(FATAL, !conf->GetStringValue("copyset.raft_log_uri",
+        &copysetNodeOptions->logUri));
+    LOG_IF(FATAL, !conf->GetStringValue("copyset.raft_meta_uri",
+        &copysetNodeOptions->raftMetaUri));
+    LOG_IF(FATAL, !conf->GetStringValue("copyset.raft_snapshot_uri",
+        &copysetNodeOptions->raftSnapshotUri));
+    LOG_IF(FATAL, !conf->GetStringValue("copyset.recycler_uri",
+        &copysetNodeOptions->recyclerUri));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.chunk_size",
+        &copysetNodeOptions->maxChunkSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.meta_page_size",
+        &copysetNodeOptions->pageSize));
 }
 
 void ChunkServer::InitCopyerOptions(
     common::Configuration *conf, CopyerOptions *copyerOptions) {
-    copyerOptions->curveUser.owner =
-        conf->GetStringValue("curve.root_username");
-    copyerOptions->curveUser.password =
-        conf->GetStringValue("curve.root_password");
-    copyerOptions->curveConf = conf->GetStringValue("curve.config_path");
-    copyerOptions->s3Conf = conf->GetStringValue("s3.config_path");
+    LOG_IF(FATAL, !conf->GetStringValue("curve.root_username",
+        &copyerOptions->curveUser.owner));
+    LOG_IF(FATAL, !conf->GetStringValue("curve.root_password",
+        &copyerOptions->curveUser.password));
+    LOG_IF(FATAL, !conf->GetStringValue("curve.config_path",
+        &copyerOptions->curveConf));
+    LOG_IF(FATAL,
+        !conf->GetStringValue("s3.config_path", &copyerOptions->s3Conf));
 }
 
 void ChunkServer::InitCloneOptions(
     common::Configuration *conf, CloneOptions *cloneOptions) {
-    cloneOptions->threadNum = conf->GetIntValue("clone.thread_num");
-    cloneOptions->queueCapacity = conf->GetIntValue("clone.queue_depth");
+    LOG_IF(FATAL, !conf->GetUInt32Value("clone.thread_num",
+        &cloneOptions->threadNum));
+    LOG_IF(FATAL, !conf->GetUInt32Value("clone.queue_depth",
+        &cloneOptions->queueCapacity));
 }
 
 void ChunkServer::InitHeartbeatOptions(
     common::Configuration *conf, HeartbeatOptions *heartbeatOptions) {
-    heartbeatOptions->storeUri = conf->GetStringValue("chunkserver.stor_uri");
-    heartbeatOptions->ip = conf->GetStringValue("global.ip");
-    heartbeatOptions->port = conf->GetIntValue("global.port");
-    heartbeatOptions->mdsIp = conf->GetStringValue("mds.ip");
-    heartbeatOptions->mdsPort = conf->GetIntValue("mds.port");
-    heartbeatOptions->interval = conf->GetIntValue("mds.heartbeat_interval");
-    heartbeatOptions->timeout = conf->GetIntValue("mds.heartbeat_timeout");
+    LOG_IF(FATAL, !conf->GetStringValue("chunkserver.stor_uri",
+        &heartbeatOptions->storeUri));
+    LOG_IF(FATAL, !conf->GetStringValue("global.ip", &heartbeatOptions->ip));
+    LOG_IF(FATAL, !conf->GetUInt32Value("global.port",
+        &heartbeatOptions->port));
+    LOG_IF(FATAL, !conf->GetStringValue("mds.ip", &heartbeatOptions->mdsIp));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.port",
+        &heartbeatOptions->mdsPort));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.heartbeat_interval",
+        &heartbeatOptions->interval));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.heartbeat_timeout",
+        &heartbeatOptions->timeout));
 }
 
 void ChunkServer::InitRegisterOptions(
     common::Configuration *conf, RegisterOptions *registerOptions) {
-    registerOptions->mdsIp = conf->GetStringValue("mds.ip");
-    registerOptions->mdsPort = conf->GetIntValue("mds.port");
+    LOG_IF(FATAL, !conf->GetStringValue("mds.ip", &registerOptions->mdsIp));
+    LOG_IF(FATAL, !conf->GetIntValue("mds.port", &registerOptions->mdsPort));
     if (registerOptions->mdsPort <= 0 || registerOptions->mdsPort >= 65535) {
         LOG(FATAL) << "Invalid MDS port provided: " << registerOptions->mdsPort;
     }
-    registerOptions->chunkserverIp = conf->GetStringValue("global.ip");
-    registerOptions->chunkserverPort = conf->GetIntValue("global.port");
-    registerOptions->chunserverStoreUri =
-        conf->GetStringValue("chunkserver.stor_uri");
-    registerOptions->chunkserverMetaUri =
-        conf->GetStringValue("chunkserver.meta_uri");
-    registerOptions->chunkserverDiskType =
-        conf->GetStringValue("chunkserver.disk_type");
-    registerOptions->registerRetries =
-        conf->GetIntValue("mds.register_retries");
-    registerOptions->registerTimeout =
-        conf->GetIntValue("mds.register_timeout");
+    LOG_IF(FATAL, !conf->GetStringValue("global.ip",
+        &registerOptions->chunkserverIp));
+    LOG_IF(FATAL, !conf->GetIntValue("global.port",
+        &registerOptions->chunkserverPort));
+    LOG_IF(FATAL, !conf->GetStringValue("chunkserver.stor_uri",
+        &registerOptions->chunserverStoreUri));
+    LOG_IF(FATAL, !conf->GetStringValue("chunkserver.meta_uri",
+        &registerOptions->chunkserverMetaUri));
+    LOG_IF(FATAL, !conf->GetStringValue("chunkserver.disk_type",
+        &registerOptions->chunkserverDiskType));
+    LOG_IF(FATAL, !conf->GetIntValue("mds.register_retries",
+        &registerOptions->registerRetries));
+    LOG_IF(FATAL, !conf->GetIntValue("mds.register_timeout",
+        &registerOptions->registerTimeout));
 }
 
 void ChunkServer::InitTrashOptions(
     common::Configuration *conf, TrashOptions *trashOptions) {
-    trashOptions->trashPath = conf->GetStringValue("copyset.recycler_uri");
-    trashOptions->expiredAfterSec =
-        conf->GetIntValue("trash.expire_afterSec", 86400);
-    trashOptions->scanPeriodSec =
-        conf->GetIntValue("trash.scan_periodSec", 3600);
+    LOG_IF(FATAL, !conf->GetStringValue(
+        "copyset.recycler_uri", &trashOptions->trashPath));
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "trash.expire_afterSec", &trashOptions->expiredAfterSec));
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "trash.scan_periodSec", &trashOptions->scanPeriodSec));
+}
+
+void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
+    // 如果命令行有设置, 命令行覆盖配置文件中的字段
+    google::CommandLineFlagInfo info;
+    if (GetCommandLineFlagInfo("chunkServerIp", &info) && !info.is_default) {
+        conf->SetStringValue("global.ip", FLAGS_chunkServerIp);
+    }
+
+    if (GetCommandLineFlagInfo("chunkServerPort", &info) && !info.is_default) {
+        conf->SetIntValue("global.port", FLAGS_chunkServerPort);
+    }
+
+    if (GetCommandLineFlagInfo("chunkServerStoreUri", &info) &&
+        !info.is_default) {
+        conf->SetStringValue("chunkserver.stor_uri", FLAGS_chunkServerStoreUri);
+    }
+
+    if (GetCommandLineFlagInfo("chunkServerMetaUri", &info) &&
+        !info.is_default) {
+        conf->SetStringValue("chunkserver.meta_uri", FLAGS_chunkServerMetaUri);
+    }
+
+    if (GetCommandLineFlagInfo("copySetUri", &info) && !info.is_default) {
+        conf->SetStringValue("copyset.chunk_data_uri", FLAGS_copySetUri);
+        conf->SetStringValue("copyset.raft_log_uri", FLAGS_copySetUri);
+        conf->SetStringValue("copyset.raft_snapshot_uri", FLAGS_copySetUri);
+        conf->SetStringValue("copyset.raft_meta_uri", FLAGS_copySetUri);
+    }
+
+    if (GetCommandLineFlagInfo("recycleUri", &info) &&
+        !info.is_default) {
+        conf->SetStringValue("copyset.recycler_uri", FLAGS_recycleUri);
+    }
+
+    if (GetCommandLineFlagInfo("chunkFilePoolDir", &info) &&
+        !info.is_default) {
+        conf->SetStringValue(
+            "chunkfilepool.chunk_file_pool_dir", FLAGS_chunkFilePoolDir);
+    }
 }
 
 int ChunkServer::GetChunkServerMetaFromLocal(

@@ -38,22 +38,22 @@ struct ScheduleOption {
     bool enableReplicaScheduler;
 
     // copyset均衡计算的时间间隔
-    int64_t copysetSchedulerIntervalSec;
+    uint32_t copysetSchedulerIntervalSec;
     // leader均衡计算时间间隔
-    int64_t leaderSchedulerIntervalSec;
+    uint32_t leaderSchedulerIntervalSec;
     // recover计算时间间隔
-    int64_t recoverSchedulerIntervalSec;
+    uint32_t recoverSchedulerIntervalSec;
     // replica均衡时间间隔
-    int64_t replicaSchedulerIntervalSec;
+    uint32_t replicaSchedulerIntervalSec;
 
     // 单个chunkserver上面可以同时进行配置变更的copyset数量
-    int operatorConcurrent;
+    uint32_t operatorConcurrent;
     // leader变更时间限制, 大于该时间mds认为超时，移除相关operator
-    int transferLeaderTimeLimitSec;
+    uint32_t transferLeaderTimeLimitSec;
     // 增加节点时间限制, 大于该时间mds认为超时，移除相关operator
-    int addPeerTimeLimitSec;
+    uint32_t addPeerTimeLimitSec;
     // 移除节点时间限制, 大于该时间mds认为超时，移除相关operator
-    int removePeerTimeLimitSec;
+    uint32_t removePeerTimeLimitSec;
 
     // 供copysetScheduler使用, [chunkserver上copyset数量的极差]不能超过
     // [chunkserver上copyset数量均值] * copysetNumRangePercent

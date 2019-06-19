@@ -69,33 +69,45 @@ int RemovePeersData(bool rmChunkServerMeta) {
         conf.SetConfigPath(confPath[i]);
         CHECK(conf.LoadConfig()) << "load conf err";
 
-        if (RmDirData(conf.GetStringValue("copyset.chunk_data_uri"))) {
+        std::string res;
+        LOG_IF(FATAL, !conf.GetStringValue("copyset.chunk_data_uri", &res));
+        if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
                        << " data dir: " << strerror(errno);
             return -1;
         }
-        if (RmDirData(conf.GetStringValue("copyset.raft_log_uri"))) {
+
+        LOG_IF(FATAL, !conf.GetStringValue("copyset.raft_log_uri", &res));
+        if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
                        << " log dir: " << strerror(errno);
             return -1;
         }
-        if (RmDirData(conf.GetStringValue("copyset.raft_meta_uri"))) {
+
+        LOG_IF(FATAL, !conf.GetStringValue("copyset.raft_log_uri", &res));
+        if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
                        << " raft meta dir: " << strerror(errno);
             return -1;
         }
-        if (RmDirData(conf.GetStringValue("copyset.raft_snapshot_uri"))) {
+
+        LOG_IF(FATAL, !conf.GetStringValue("copyset.raft_snapshot_uri", &res));
+        if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
                        << " raft snapshot dir: " << strerror(errno);
             return -1;
         }
-        if (RmDirData(conf.GetStringValue("copyset.recycler_uri"))) {
+
+        LOG_IF(FATAL, !conf.GetStringValue("copyset.recycler_uri", &res));
+        if (RmDirData(res)) {
             LOG(ERROR) << "Failed to remove node " << i
                        << " raft recycler dir: " << strerror(errno);
             return -1;
         }
+
+        LOG_IF(FATAL, !conf.GetStringValue("chunkserver.meta_uri", &res));
         if (rmChunkServerMeta) {
-            if (RmFile(conf.GetStringValue("chunkserver.meta_uri"))) {
+            if (RmFile(res)) {
                 LOG(ERROR) << "Failed to remove node " << i
                            << " chunkserver meta file: " << strerror(errno);
                 return -1;
