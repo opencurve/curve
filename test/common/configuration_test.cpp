@@ -137,6 +137,11 @@ TEST_F(ConfigurationTest, GetSetValue) {
 
     conf.SetValue("test.str1", "teststring2");
     ASSERT_EQ(conf.GetValue("test.str1"), "teststring2");
+    std::string out;
+    ASSERT_FALSE(conf.GetValue("no.exist", &out));
+    conf.SetValue("put.in", "put.in");
+    ASSERT_TRUE(conf.GetValue("put.in", &out));
+    ASSERT_EQ("put.in", out);
 }
 
 TEST_F(ConfigurationTest, GetSetStringValue) {
@@ -154,6 +159,12 @@ TEST_F(ConfigurationTest, GetSetStringValue) {
 
     conf.SetStringValue("test.str1", "teststring2");
     ASSERT_EQ(conf.GetStringValue("test.str1"), "teststring2");
+
+    std::string out;
+    ASSERT_FALSE(conf.GetStringValue("no.exist", &out));
+    conf.SetStringValue("put.in", "put.in");
+    ASSERT_TRUE(conf.GetStringValue("put.in", &out));
+    ASSERT_EQ("put.in", out);
 }
 
 TEST_F(ConfigurationTest, GetSetIntValue) {
@@ -171,6 +182,24 @@ TEST_F(ConfigurationTest, GetSetIntValue) {
 
     conf.SetIntValue("test.int1", 123);
     ASSERT_EQ(conf.GetIntValue("test.int1"), 123);
+
+    int out;
+    ASSERT_FALSE(conf.GetIntValue("no.exist", &out));
+    conf.SetIntValue("no.exist", 1);
+    ASSERT_TRUE(conf.GetIntValue("no.exist", &out));
+    ASSERT_EQ(1, out);
+
+    uint32_t outu32;
+    ASSERT_FALSE(conf.GetUInt32Value("no.exist.u32", &outu32));
+    conf.SetIntValue("no.exist.u32", 2);
+    ASSERT_TRUE(conf.GetUInt32Value("no.exist.u32", &outu32));
+    ASSERT_EQ(2, outu32);
+
+    uint64_t outu64;
+    ASSERT_FALSE(conf.GetUInt64Value("no.exist.u64", &outu64));
+    conf.SetIntValue("no.exist.u64", 3);
+    ASSERT_TRUE(conf.GetUInt64Value("no.exist.u64", &outu64));
+    ASSERT_EQ(3, outu64);
 }
 
 TEST_F(ConfigurationTest, GetSetBoolValue) {
@@ -191,9 +220,15 @@ TEST_F(ConfigurationTest, GetSetBoolValue) {
 
     conf.SetBoolValue("test.bool1", true);
     ASSERT_EQ(conf.GetBoolValue("test.bool1"), true);
+
+    bool out;
+    ASSERT_FALSE(conf.GetBoolValue("no.exist", &out));
+    conf.SetIntValue("no.exist", false);
+    ASSERT_TRUE(conf.GetBoolValue("no.exist", &out));
+    ASSERT_FALSE(out);
 }
 
-TEST_F(ConfigurationTest, GetSetDoubleValue) {
+TEST_F(ConfigurationTest, GetSetDoubleAndFloatValue) {
     bool ret;
     Configuration conf;
 
@@ -205,9 +240,20 @@ TEST_F(ConfigurationTest, GetSetDoubleValue) {
     ASSERT_EQ(conf.GetDoubleValue("test.double2"), 1);
     ASSERT_EQ(conf.GetDoubleValue("test.double3"), 1.0);
     ASSERT_EQ(conf.GetDoubleValue("test.double4"), 0.1);
+    ASSERT_EQ(conf.GetFloatValue("test.double4"), 0.1f);
 
     conf.SetDoubleValue("test.double1", 100.0);
     ASSERT_EQ(conf.GetDoubleValue("test.double1"), 100.0);
+
+    double out;
+    float outf;
+    ASSERT_FALSE(conf.GetDoubleValue("no.exist", &out));
+    ASSERT_FALSE(conf.GetFloatValue("no.exist", &outf));
+    conf.SetDoubleValue("no.exist", 0.009);
+    ASSERT_TRUE(conf.GetDoubleValue("no.exist", &out));
+    ASSERT_TRUE(conf.GetFloatValue("no.exist", &outf));
+    ASSERT_EQ(0.009, out);
+    ASSERT_EQ(0.009f, outf);
 }
 
 }  // namespace common

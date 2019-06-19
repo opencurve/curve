@@ -53,8 +53,8 @@ struct HeartbeatOptions {
     std::string             storeUri;
     std::string             mdsIp;
     std::string             ip;
-    uint16_t                mdsPort;
-    uint16_t                port;
+    uint32_t                mdsPort;
+    uint32_t                port;
     uint32_t                interval;
     uint32_t                timeout;
     CopysetNodeManager*     copysetNodeManager;
