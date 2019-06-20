@@ -25,24 +25,6 @@ namespace topology {
 using ::curve::repo::OperationOK;
 
 bool DefaultTopologyStorage::init(const TopologyOption &option) {
-    if (repo_->connectDB(
-            option.dbName,
-            option.user,
-            option.url,
-            option.password,
-            option.poolSize) != OperationOK) {
-        LOG(ERROR) << "[DefaultTopologyStorage::init]: connectDB fail.";
-        return false;
-    } else if (repo_->createDatabase() != OperationOK) {
-        LOG(ERROR) << "[DefaultTopologyStorage::init]: createDatabase fail.";
-        return false;
-    } else if (repo_->useDataBase() != OperationOK) {
-        LOG(ERROR) << "[DefaultTopologyStorage::init]: useDataBase fail.";
-        return false;
-    } else if (repo_->createAllTables() != OperationOK) {
-        LOG(ERROR) << "[DefaultTopologyStorage::init]: createAllTables fail.";
-        return false;
-    }
     return true;
 }
 

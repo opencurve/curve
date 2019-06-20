@@ -26,14 +26,6 @@ namespace curve {
 namespace mds {
 
 struct SessionOptions {
-    // session使用的数据库的信息，DB name
-    std::string sessionDbName;
-    // session使用的数据库的信息，DB user
-    std::string sessionUser;
-    // session使用的数据库的信息，DB url
-    std::string sessionUrl;
-    // session使用的数据库的信息，DB password
-    std::string sessionPassword;
     // session过期时间，单位us
     uint32_t leaseTimeUs;
     // 能够容忍的client和mds之间的时钟不同步的时间，单位us
@@ -168,11 +160,6 @@ class SessionManager {
     // 启动mds时调用，从数据库中加载session信息到内存，返回调用是否成功
     bool LoadSession();
 
-    bool InitRepo(const std::string &dbName,
-                                  const std::string &user,
-                                  const std::string &url,
-                                  const std::string &password,
-                                  uint32_t poolSize);
     /**
      *  @brief 后台扫描线程周期扫描任务，更新过期session状态，删除要删除的session
      *  @param
