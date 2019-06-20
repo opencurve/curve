@@ -1318,7 +1318,7 @@ StatusCode CurveFS::SetCloneFileStatus(const std::string &filename,
             LOG(WARNING) << "SetCloneFileStatus, filename = " << filename
                 << "fileID not Matched, src fileID = " << fileID
                 << ", stored fileID = " << fileInfo.id();
-            return StatusCode::kFileNotExists;
+            return StatusCode::kFileIdNotMatch;
         }
 
         switch (fileInfo.filestatus()) {

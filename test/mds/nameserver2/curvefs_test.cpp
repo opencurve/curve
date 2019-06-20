@@ -48,10 +48,6 @@ class CurveFSTest: public ::testing::Test {
         sessionManager_ = new SessionManager(mockRepo_);
 
         // session repo已经mock，数据库相关参数不需要
-        sessionOptions_.sessionDbName = "";
-        sessionOptions_.sessionUser = "";
-        sessionOptions_.sessionUrl = "";
-        sessionOptions_.sessionPassword = "";
         sessionOptions_.leaseTimeUs = 5000000;
         sessionOptions_.toleranceTimeUs = 500000;
         sessionOptions_.intevalTimeUs = 100000;
@@ -60,22 +56,6 @@ class CurveFSTest: public ::testing::Test {
         authOptions_.rootPassword = "root_password";
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -2706,7 +2686,7 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
 
         ASSERT_EQ(curvefs_->SetCloneFileStatus("/dir1",
             10, FileStatus::kFileCloned),
-                StatusCode::kFileNotExists);
+                StatusCode::kFileIdNotMatch);
     }
     {
         // test filestatus not ok

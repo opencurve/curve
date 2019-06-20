@@ -54,14 +54,6 @@ namespace curve {
 namespace mds {
 void InitSessionOptions(Configuration *conf,
                         struct SessionOptions *sessionOptions) {
-    LOG_IF(FATAL,
-        !conf->GetStringValue("mds.DbName", &sessionOptions->sessionDbName));
-    LOG_IF(FATAL,
-        !conf->GetStringValue("mds.DbUser", &sessionOptions->sessionUser));
-    LOG_IF(FATAL,
-        !conf->GetStringValue("mds.DbUrl", &sessionOptions->sessionUrl));
-    LOG_IF(FATAL, !conf->GetStringValue(
-        "mds.DbPassword", &sessionOptions->sessionPassword));
     LOG_IF(FATAL, !conf->GetUInt32Value(
         "mds.session.leaseTimeUs", &sessionOptions->leaseTimeUs));
     LOG_IF(FATAL, !conf->GetUInt32Value(
@@ -138,13 +130,6 @@ void InitEtcdConf(Configuration *conf, EtcdConf *etcdConf) {
 }
 
 void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
-    LOG_IF(FATAL, !conf->GetStringValue("mds.DbName", &topologyOption->dbName));
-    LOG_IF(FATAL, !conf->GetStringValue("mds.DbUser", &topologyOption->user));
-    LOG_IF(FATAL, !conf->GetStringValue("mds.DbUrl", &topologyOption->url));
-    LOG_IF(FATAL,
-        !conf->GetStringValue("mds.DbPassword", &topologyOption->password));
-    LOG_IF(FATAL,
-        !conf->GetUInt32Value("mds.DbPoolSize", &topologyOption->poolSize));
     LOG_IF(FATAL, !conf->GetUInt32Value(
         "mds.topology.ChunkServerStateUpdateSec",
         &topologyOption->ChunkServerStateUpdateSec));
@@ -265,20 +250,45 @@ int curve_main(int argc, char **argv) {
     auto topologyTokenGenerator =
         std::make_shared<DefaultTokenGenerator>();
 
+    std::string dbName;
+    std::string dbUser;
+    std::string dbUrl;
+    std::string dbPassword;
+    int dbPoolSize;
+    LOG_IF(FATAL, !conf.GetStringValue("mds.DbName", &dbName));
+    LOG_IF(FATAL, !conf.GetStringValue("mds.DbUser", &dbUser));
+    LOG_IF(FATAL, !conf.GetStringValue("mds.DbUrl", &dbUrl));
+    LOG_IF(FATAL, !conf.GetStringValue("mds.DbPassword", &dbPassword));
+    LOG_IF(FATAL, !conf.GetIntValue("mds.DbPoolSize", &dbPoolSize));
+
+    // init mdsRepo
     auto mdsRepo = std::make_shared<MdsRepo>();
+    if (mdsRepo->connectDB(dbName, dbUser, dbUrl, dbPassword, dbPoolSize)
+                                                    != OperationOK) {
+        LOG(ERROR) << "connectDB fail";
+        return -1;
+    }
+
+    if (mdsRepo->createDatabase() != OperationOK) {
+        LOG(ERROR) << "createDatabase fail";
+        return -1;
+    }
+
+    if (mdsRepo->useDataBase() != OperationOK) {
+        LOG(ERROR) << "useDataBase fail";
+        return -1;
+    }
+
+    if (mdsRepo->createAllTables() != OperationOK) {
+        LOG(ERROR) << "createAllTables fail";
+        return -1;
+    }
 
     auto topologyStorage =
         std::make_shared<DefaultTopologyStorage>(mdsRepo);
 
     LOG_IF(FATAL, !topologyStorage->init(topologyOption))
-        << "init topologyStorage fail. dbName = "
-        << topologyOption.dbName
-        << " , user = "
-        << topologyOption.user
-        << " , url = "
-        << topologyOption.url
-        << " , password = "
-        << topologyOption.password;
+        << "init topologyStorage fail.";
 
     auto topology =
         std::make_shared<TopologyImpl>(topologyIdGenerator,
@@ -313,8 +323,7 @@ int curve_main(int argc, char **argv) {
                                                       taskManager, storage);
 
     // init SessionManager
-    SessionManager *sessionManager =
-        new SessionManager(std::make_shared<MdsRepo>());
+    SessionManager *sessionManager = new SessionManager(mdsRepo);
     LOG_IF(FATAL, !kCurveFS.Init(storage, inodeIdGenerator.get(),
                   chunkSegmentAllocate, cleanManger,
                   sessionManager, sessionOptions, authOptions))

@@ -15,11 +15,6 @@ namespace mds {
 namespace topology {
 
 struct TopologyOption {
-    std::string dbName;
-    std::string user;
-    std::string url;
-    std::string password;
-    uint32_t poolSize;
     uint32_t ChunkServerStateUpdateSec;
     uint32_t CopySetUpdateSec;
     uint32_t CreateCopysetRpcTimeoutMs;

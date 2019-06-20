@@ -414,41 +414,8 @@ SessionManager::SessionManager(std::shared_ptr<MdsRepo> repo) {
     repo_ = repo;
 }
 
-bool SessionManager::InitRepo(const std::string &dbName,
-                                  const std::string &user,
-                                  const std::string &url,
-                                  const std::string &password,
-                                  uint32_t poolSize) {
-    if (repo_->connectDB(dbName, user, url,
-                         password, poolSize) != repo::OperationOK) {
-        LOG(ERROR) << "connectDB fail.";
-        return false;
-    } else if (repo_->createDatabase() != repo::OperationOK) {
-        LOG(ERROR) << "createDatabase fail.";
-        return false;
-    } else if (repo_->useDataBase() != repo::OperationOK) {
-        LOG(ERROR) << "useDataBase fail.";
-        return false;
-    } else if (repo_->createAllTables() != repo::OperationOK) {
-        LOG(ERROR) << "createAllTables fail.";
-        return false;
-    }
-    return true;
-}
-
 bool SessionManager::Init(const struct SessionOptions &sessionOptions) {
     LOG(INFO) << "init SessionManager start.";
-
-    std::string sessionDbName = sessionOptions.sessionDbName;
-    std::string sessionUser = sessionOptions.sessionUser;
-    std::string sessionUrl = sessionOptions.sessionUrl;
-    std::string sessionPassword = sessionOptions.sessionPassword;
-    if (!InitRepo(sessionDbName, sessionUser,
-          sessionUrl, sessionPassword, 16)) {
-        LOG(ERROR) << "init repo fail.";
-        return false;
-    }
-    LOG(INFO) << "init repo sucess.";
 
     if (!LoadSession()) {
         LOG(ERROR) << "load session from repo fail.";
