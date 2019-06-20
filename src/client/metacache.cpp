@@ -104,18 +104,19 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
 int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                     CopysetID copysetId,
                                     CopysetInfo* toupdateCopyset) {
+    ChunkServerID csid = 0;
     ChunkServerAddr  leaderaddr;
     int ret = ServiceHelper::GetLeader(logicPoolId, copysetId,
                                       toupdateCopyset->csinfos_, &leaderaddr,
                                       toupdateCopyset->GetCurrentLeaderIndex(),
-                                      metacacheopt_.getLeaderTimeOutMs);
+                                      metacacheopt_.getLeaderTimeOutMs,
+                                      &csid);
 
     if (ret == -1) {
         LOG(ERROR) << "get leader failed!";
         return -1;
     }
-    toupdateCopyset->ChangeLeaderID(leaderaddr);
-    return 0;
+    return toupdateCopyset->UpdateLeaderInfo(csid, leaderaddr);
 }
 
 CopysetInfo_t MetaCache::GetServerList(LogicPoolID logicPoolId,
