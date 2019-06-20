@@ -110,7 +110,10 @@ class CurveFSTest: public ::testing::Test {
 TEST_F(CurveFSTest, testCreateFile1) {
     // test parm error
     ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
-                                   kMiniFileLength-1), StatusCode::kParaError);
+                    kMiniFileLength - 1), StatusCode::kFileLengthNotSupported);
+
+    ASSERT_EQ(curvefs_->CreateFile("/file1", "owner1", FileType::INODE_PAGEFILE,
+                    kMaxFileLength + 1), StatusCode::kFileLengthNotSupported);
 
     ASSERT_EQ(curvefs_->CreateFile("/", "", FileType::INODE_DIRECTORY, 0),
               StatusCode::kFileExists);
@@ -1055,6 +1058,27 @@ TEST_F(CurveFSTest, testExtendFile) {
 
         ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
                                        2 * kMiniFileLength), StatusCode::kOK);
+    }
+
+    // test size over maxsize
+    {
+        FileInfo fileInfo1;
+        fileInfo1.set_filetype(FileType::INODE_DIRECTORY);
+
+        FileInfo fileInfo2;
+        fileInfo2.set_filetype(FileType::INODE_PAGEFILE);
+        fileInfo2.set_length(kMiniFileLength);
+        fileInfo2.set_segmentsize(DefaultSegmentSize);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(2)
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo1),
+                        Return(StoreStatus::OK)))
+        .WillOnce(DoAll(SetArgPointee<2>(fileInfo2),
+                        Return(StoreStatus::OK)));
+
+        ASSERT_EQ(curvefs_->ExtendFile("/user1/file1",
+                    2 * kMaxFileLength), StatusCode::kFileLengthNotSupported);
     }
 
     // file not exist
@@ -2203,6 +2227,7 @@ TEST_F(CurveFSTest, testOpenFile) {
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
@@ -2211,10 +2236,24 @@ TEST_F(CurveFSTest, testOpenFile) {
                   StatusCode::kFileNotExists);
     }
 
+    // open目录
+    {
+        ProtoSession protoSession;
+        FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_DIRECTORY);
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
+                                     &protoSession, &fileInfo),
+                  StatusCode::kNotSupported);
+    }
+
     // 插入session失败
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
@@ -2232,6 +2271,7 @@ TEST_F(CurveFSTest, testOpenFile) {
     {
         ProtoSession protoSession;
         FileInfo  fileInfo;
+        fileInfo.set_filetype(FileType::INODE_PAGEFILE);
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
@@ -2257,6 +2297,7 @@ TEST_F(CurveFSTest, testOpenFile) {
 TEST_F(CurveFSTest, testCloseFile) {
     ProtoSession protoSession;
     FileInfo  fileInfo;
+    fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
     // 先插入session
     EXPECT_CALL(*storage_, GetFile(_, _, _))
@@ -2313,6 +2354,7 @@ TEST_F(CurveFSTest, testCloseFile) {
 TEST_F(CurveFSTest, testRefreshSession) {
     ProtoSession protoSession;
     FileInfo  fileInfo;
+    fileInfo.set_filetype(FileType::INODE_PAGEFILE);
 
     // 先插入session
     EXPECT_CALL(*storage_, GetFile(_, _, _))

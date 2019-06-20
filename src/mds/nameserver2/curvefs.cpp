@@ -185,12 +185,18 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
     }
 
     // check param
-    // TODO(tom) : paramerror细化
     if (filetype == FileType::INODE_PAGEFILE) {
         if  (length < kMiniFileLength) {
             LOG(ERROR) << "file Length < MinFileLength " << kMiniFileLength
                        << ", length = " << length;
-            return StatusCode::kParaError;
+            return StatusCode::kFileLengthNotSupported;
+        }
+
+        if (length > kMaxFileLength) {
+            LOG(ERROR) << "CreateFile file length > maxFileLength, fileName = "
+                       << fileName << ", length = " << length
+                       << ", maxFileLength = " << kMaxFileLength;
+            return StatusCode::kFileLengthNotSupported;
         }
     }
 
@@ -627,6 +633,13 @@ StatusCode CurveFS::ExtendFile(const std::string &filename,
     if (fileInfo.filetype() != FileType::INODE_PAGEFILE) {
         LOG(INFO) << "Only INODE_PAGEFILE support extent";
         return StatusCode::kNotSupported;
+    }
+
+    if (newLength > kMaxFileLength) {
+        LOG(ERROR) << "ExtendFile newLength > maxFileLength, fileName = "
+                       << filename << ", newLength = " << newLength
+                       << ", maxFileLength = " << kMaxFileLength;
+            return StatusCode::kFileLengthNotSupported;
     }
 
     if (newLength < fileInfo.length()) {
@@ -1086,6 +1099,13 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
                    << ", errCode = " << ret
                    << ", errName = " << StatusCode_Name(ret);
         return ret;
+    }
+
+    if (fileInfo->filetype() != FileType::INODE_PAGEFILE) {
+        LOG(ERROR) << "OpenFile file type not support, fileName = " << fileName
+                   << ", clientIP = " << clientIP
+                   << ", filetype = " << fileInfo->filetype();
+        return StatusCode::kNotSupported;
     }
 
     ret = sessionManager_->InsertSession(fileName, clientIP, protoSession);
