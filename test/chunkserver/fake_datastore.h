@@ -35,6 +35,7 @@ class FakeCSDataStore : public CSDataStore {
         sn_ = 0;
         snapDeleteFlag_ = false;
         error_ = CSErrorCode::Success;
+        chunkSize_ = options.chunkSize;
     }
     virtual ~FakeCSDataStore() {
         delete chunk_;
@@ -173,6 +174,20 @@ class FakeCSDataStore : public CSDataStore {
         }
     }
 
+    CSErrorCode GetChunkHash(ChunkID id,
+                             off_t offset,
+                             size_t length,
+                             std::string *hash) {
+        uint32_t crc32c = 0;
+        if (chunkIds_.find(id) != chunkIds_.end()) {
+            crc32c = curve::common::CRC32(chunk_ + offset, length);
+            *hash = std::to_string(crc32c);
+            return CSErrorCode::Success;
+        } else {
+            return CSErrorCode::ChunkNotExistError;
+        }
+    }
+
     void InjectError(CSErrorCode errorCode = CSErrorCode::InternalError) {
         error_ = errorCode;
     }
@@ -194,6 +209,7 @@ class FakeCSDataStore : public CSDataStore {
     bool snapDeleteFlag_;
     SequenceNum sn_;
     CSErrorCode error_;
+    uint32_t chunkSize_;
 };
 
 class FakeChunkfilePool : public ChunkfilePool {
