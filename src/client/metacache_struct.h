@@ -49,6 +49,10 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
         this->csaddr_ = other.csaddr_;
         return *this;
     }
+
+    bool operator==(const CopysetPeerInfo& other) {
+        return csaddr_ == other.csaddr_;
+    }
 } CopysetPeerInfo_t;
 
 // copyset的基本信息，包含peer信息、leader信息、appliedindex信息
@@ -107,23 +111,6 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     }
 
     /**
-     * 更改当前copyset的leader
-     * @param: leaderaddr为新的leader
-     */
-    void ChangeLeaderID(const ChunkServerAddr& leaderaddr) {
-        spinlock_.Lock();
-        uint16_t tempindex = 0;
-        for (auto iter : csinfos_) {
-            if (iter.csaddr_ == leaderaddr) {
-                break;
-            }
-            tempindex++;
-        }
-        leaderindex_ = tempindex;
-        spinlock_.UnLock();
-    }
-
-    /**
      * 获取当前leader的索引
      */
     int16_t GetCurrentLeaderIndex() {
@@ -170,6 +157,38 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         }
         spinlock_.UnLock();
         return -1;
+    }
+
+    /**
+     * 如果leader的addr变更了，那么要变更chunkserverid到addr的映射
+     * @param: id为新leader的id，如果该id在copyset中则更新其addr，
+     *          如果不在就插入到copyset
+     * @param: addr为新的leader的地址信息
+     */
+    int UpdateLeaderInfo(ChunkServerID id, const ChunkServerAddr& addr) {
+        spinlock_.Lock();
+        bool exists = false;
+        uint16_t tempindex = 0;
+        for (auto iter : csinfos_) {
+            if (iter.csaddr_ == addr) {
+                exists = true;
+                break;
+            }
+            tempindex++;
+        }
+
+        // 新的addr不在当前copyset内，如果其id合法，那么将其插入copyset
+        if (!exists && id) {
+            csinfos_.push_back(CopysetPeerInfo(id, addr));
+        } else if (exists == false) {
+            LOG(WARNING) << addr.ToString() << " not in current copyset and "
+                         << "its chunkserverid is not valid " << id;
+            spinlock_.UnLock();
+            return -1;
+        }
+        leaderindex_ = tempindex;
+        spinlock_.UnLock();
+        return 0;
     }
 
     /**
