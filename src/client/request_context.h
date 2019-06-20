@@ -42,7 +42,10 @@ class RequestContext {
     off_t               offset_;
     OpType              optype_;
     size_t              rawlength_;
-    mutable const char* data_;
+
+    // 当前IO的数据，读请求时数据在readbuffer，写请求在writebuffer
+    char*               readBuffer_;
+    const char*         writeBuffer_;
 
     // 因为RPC都是异步发送，因此在一个Request结束时，RPC回调调用当前的done
     // 来告知当前的request结束了
