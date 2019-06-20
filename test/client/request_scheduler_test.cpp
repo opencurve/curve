@@ -80,7 +80,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-        reqCtx->data_ = writebuff;
+        reqCtx->writeBuffer_ = writebuff;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -96,7 +96,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         RequestContext *reqCtx = new FakeRequestContext();
         reqCtx->optype_ = OpType::WRITE;
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
-        reqCtx->data_ = writebuff;
+        reqCtx->writeBuffer_ = writebuff;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -131,7 +131,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         reqCtx->seq_ = sn;
 
-        reqCtx->data_ = writebuff1;
+        reqCtx->writeBuffer_ = writebuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
@@ -151,7 +151,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
 
         memset(readbuff1, '0', 16);
-        reqCtx->data_ = readbuff1;
+        reqCtx->readBuffer_ = readbuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
@@ -163,7 +163,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
-        ASSERT_STREQ(reqCtx->data_, cmpbuff1);
+        ASSERT_STREQ(reqCtx->readBuffer_, cmpbuff1);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
     {
@@ -175,7 +175,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->seq_ = sn;
         ::memset(writebuff1, 'a', 8);
         ::memset(writebuff1 + 8, '\0', 8);
-        reqCtx->data_ = writebuff1;
+        reqCtx->writeBuffer_ = writebuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
@@ -196,7 +196,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         reqCtx->seq_ = sn;
         memset(readbuff1, '0', 16);
-        reqCtx->data_ = readbuff1;
+        reqCtx->readBuffer_ = readbuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
@@ -208,22 +208,22 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
-        ASSERT_EQ(reqCtx->data_[0], 'a');
-        ASSERT_EQ(reqCtx->data_[1], 'a');
-        ASSERT_EQ(reqCtx->data_[2], 'a');
-        ASSERT_EQ(reqCtx->data_[3], 'a');
-        ASSERT_EQ(reqCtx->data_[4], 'a');
-        ASSERT_EQ(reqCtx->data_[5], 'a');
-        ASSERT_EQ(reqCtx->data_[6], 'a');
-        ASSERT_EQ(reqCtx->data_[7], 'a');
-        ASSERT_EQ(reqCtx->data_[8], '\0');
-        ASSERT_EQ(reqCtx->data_[9], '\0');
-        ASSERT_EQ(reqCtx->data_[10], '\0');
-        ASSERT_EQ(reqCtx->data_[11], '\0');
-        ASSERT_EQ(reqCtx->data_[12], '\0');
-        ASSERT_EQ(reqCtx->data_[13], '\0');
-        ASSERT_EQ(reqCtx->data_[14], '\0');
-        ASSERT_EQ(reqCtx->data_[15], '\0');
+        ASSERT_EQ(reqCtx->readBuffer_[0], 'a');
+        ASSERT_EQ(reqCtx->readBuffer_[1], 'a');
+        ASSERT_EQ(reqCtx->readBuffer_[2], 'a');
+        ASSERT_EQ(reqCtx->readBuffer_[3], 'a');
+        ASSERT_EQ(reqCtx->readBuffer_[4], 'a');
+        ASSERT_EQ(reqCtx->readBuffer_[5], 'a');
+        ASSERT_EQ(reqCtx->readBuffer_[6], 'a');
+        ASSERT_EQ(reqCtx->readBuffer_[7], 'a');
+        ASSERT_EQ(reqCtx->readBuffer_[8], '\0');
+        ASSERT_EQ(reqCtx->readBuffer_[9], '\0');
+        ASSERT_EQ(reqCtx->readBuffer_[10], '\0');
+        ASSERT_EQ(reqCtx->readBuffer_[11], '\0');
+        ASSERT_EQ(reqCtx->readBuffer_[12], '\0');
+        ASSERT_EQ(reqCtx->readBuffer_[13], '\0');
+        ASSERT_EQ(reqCtx->readBuffer_[14], '\0');
+        ASSERT_EQ(reqCtx->readBuffer_[15], '\0');
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
 
@@ -238,7 +238,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->seq_ = sn;
 
         ::memset(writebuff1, 'a', 16);
-        reqCtx->data_ = writebuff1;
+        reqCtx->writeBuffer_ = writebuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
@@ -260,7 +260,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         reqCtx->seq_ = sn;
         memset(readbuff1, '0', 16);
-        reqCtx->data_ = readbuff1;
+        reqCtx->readBuffer_ = readbuff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len1;
 
@@ -272,7 +272,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
-        ASSERT_STREQ(reqCtx->data_, cmpbuff1);
+        ASSERT_STREQ(reqCtx->readBuffer_, cmpbuff1);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
     // 3. 在 delete snapshot
@@ -398,7 +398,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = writebuff;
+        reqCtx->writeBuffer_ = writebuff;
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
 
@@ -420,7 +420,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         reqCtx->seq_ = sn;
         memset(readbuff, '0', 8);
-        reqCtx->data_ = readbuff;
+        reqCtx->readBuffer_ = readbuff;
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
 
@@ -432,7 +432,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtxs.push_back(reqCtx);
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtxs));
         cond.Wait();
-        ASSERT_STREQ(reqCtx->data_, cmpbuff);
+        ASSERT_STREQ(reqCtx->readBuffer_, cmpbuff);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
     {
@@ -442,7 +442,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
 
         memset(readbuff, '0', 8);
-        reqCtx->data_ = readbuff;
+        reqCtx->readBuffer_ = readbuff;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -466,7 +466,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
             reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
             reqCtx->seq_ = sn;
-            reqCtx->data_ = writebuff;
+            reqCtx->writeBuffer_ = writebuff;
             reqCtx->offset_ = offset + i;
             reqCtx->rawlength_ = len;
 
@@ -495,7 +495,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         reqCtx->seq_ = sn;
         memset(readbuff, '0', 8);
-        reqCtx->data_ = readbuff;
+        reqCtx->readBuffer_ = readbuff;
         reqCtx->offset_ = offset + i;
         reqCtx->rawlength_ = len;
         curve::common::CountDownEvent cond(1);
@@ -503,7 +503,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->done_ = reqDone;
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtx));
         cond.Wait();
-        ASSERT_STREQ(reqCtx->data_, cmpbuff);
+        ASSERT_STREQ(reqCtx->readBuffer_, cmpbuff);
         ASSERT_EQ(0, reqDone->GetErrorCode());
     }
 

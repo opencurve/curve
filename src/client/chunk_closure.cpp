@@ -155,7 +155,7 @@ write_retry:
     chunkserverClientMetric_.retryBytes << reqCtx->rawlength_;
     client_->WriteChunk(reqCtx->idinfo_,
                         reqCtx->seq_,
-                        reqCtx->data_,
+                        reqCtx->writeBuffer_,
                         reqCtx->offset_,
                         reqCtx->rawlength_,
                         doneGuard.release(),
@@ -203,7 +203,7 @@ void ReadChunkClosure::Run() {
     status = response_->status();
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS == status) {
         reqDone->SetFailed(0);
-        ::memcpy(const_cast<void *>(reinterpret_cast<const void *>(reqCtx->data_)),  //NOLINT
+        ::memcpy(reqCtx->readBuffer_,
                  cntl_->response_attachment().to_string().c_str(),
                  cntl_->response_attachment().size());
 
@@ -265,7 +265,7 @@ void ReadChunkClosure::Run() {
     /* 2.4.chunk not exist */
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST == status) {
         reqDone->SetFailed(0);
-        ::memset(const_cast<void *>(reinterpret_cast<const void *>(reqCtx->data_)),  //NOLINT
+        ::memset(reqCtx->readBuffer_,
                  0,
                  reqCtx->rawlength_);
         metaCache->UpdateAppliedIndex(logicPoolId,
@@ -340,7 +340,7 @@ void ReadChunkSnapClosure::Run() {
     status = response_->status();
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS == status) {
         reqDone->SetFailed(0);
-        ::memcpy(const_cast<void *>(reinterpret_cast<const void *>(reqCtx->data_)),  //NOLINT
+        ::memcpy(reqCtx->readBuffer_,
                  cntl_->response_attachment().to_string().c_str(),
                  cntl_->response_attachment().size());
         return;
