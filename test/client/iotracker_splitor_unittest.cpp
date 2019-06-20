@@ -772,8 +772,8 @@ TEST_F(IOTrackerSplitorTest, largeIOTest) {
     reqlist.pop_front();
 
     for (int i = 0; i < 64 * 1024; i++) {
-        ASSERT_EQ(97, (char)(*(first->data_ + i)));
-        ASSERT_EQ(98, (char)(*(second->data_ + i)));
+        ASSERT_EQ(97, (char)(*(first->readBuffer_ + i)));
+        ASSERT_EQ(98, (char)(*(second->readBuffer_ + i)));
     }
 
     ASSERT_EQ(1, first->idinfo_.cid_);

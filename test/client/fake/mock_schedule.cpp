@@ -43,7 +43,7 @@ int Schedule::ScheduleRequest(
         for (auto iter : reqlist) {
             auto req = iter->done_->GetReqCtx();
             if (iter->optype_ == curve::client::OpType::READ_SNAP) {
-                memset(const_cast<char*>(iter->data_),
+                memset(iter->readBuffer_,
                         fakedate[processed%10],
                         iter->rawlength_);
             }
@@ -54,7 +54,7 @@ int Schedule::ScheduleRequest(
             }
 
             if (iter->optype_ == curve::client::OpType::READ) {
-                memset(const_cast<char*>(iter->data_),
+                memset(iter->readBuffer_,
                         fakedate[processed%10],
                         iter->rawlength_);
                 // LOG(ERROR)  << "request split"
@@ -63,14 +63,14 @@ int Schedule::ScheduleRequest(
                 //            << ", seqnum = " << iter->seq_
                 //            << ", chunkindex = " << iter->idinfo_.cid_
                 //            << ", content = " << fakedate[processed%10]
-                //            << ", address = " << &(iter->data_);
+                //            << ", address = " << &(iter->readBuffer_);
             }
 
             if (iter->optype_ == curve::client::OpType::WRITE) {
                 type = curve::client::OpType::WRITE;
                 datastruct datas;
                 datas.length = iter->rawlength_;
-                datas.data = const_cast<char*>(iter->data_);
+                datas.data = const_cast<char*>(iter->writeBuffer_);
                 totallength += iter->rawlength_;
                 datavec.push_back(datas);
             }
