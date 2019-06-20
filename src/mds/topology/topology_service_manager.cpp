@@ -220,8 +220,8 @@ void TopologyServiceManager::SetChunkServer(
         response->set_statuscode(kTopoErrCodeChunkServerNotFound);
         return;
     } else {
-        chunkserver.SetStatus(request->chunkserverstatus());
-        int errcode = topology_->UpdateChunkServer(chunkserver);
+        int errcode = topology_->UpdateChunkServerRwState(
+            request->chunkserverstatus(), request->chunkserverid());
         response->set_statuscode(errcode);
     }
 }
@@ -718,7 +718,7 @@ void TopologyServiceManager::ListPhysicalPool(
 
 int TopologyServiceManager::CreateCopysetForLogicalPool(
     const LogicalPool &lPool,
-    uint32_t scatterWidth,
+    uint32_t *scatterWidth,
     std::vector<CopySetInfo> *copysetInfos) {
     switch (lPool.GetLogicalPoolType()) {
         case LogicalPoolType::PAGEFILE: {
@@ -761,7 +761,7 @@ int TopologyServiceManager::CreateCopysetForLogicalPool(
 
 int TopologyServiceManager::GenCopysetForPageFilePool(
     const LogicalPool &lPool,
-    uint32_t scatterWidth,
+    uint32_t *scatterWidth,
     std::vector<CopySetInfo> *copysetInfos) {
     ClusterInfo cluster;
     std::list<ChunkServerIdType> csList =
@@ -812,7 +812,7 @@ int TopologyServiceManager::GenCopysetForPageFilePool(
                        << ", copysetNum = "
                        << rap.pageFileRAP.copysetNum
                        << ", scatterWidth = "
-                       << scatterWidth
+                       << *scatterWidth
                        << ", logicalPoolid = "
                        << lPool.GetId();
             return kTopoErrCodeGenCopysetErr;
@@ -921,8 +921,7 @@ bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
 
     do {
         cntl.Reset();
-        cntl.set_timeout_ms(option_.CreateCopysetRpcTimeoutMs *
-            copysetInfos.size());
+        cntl.set_timeout_ms(option_.CreateCopysetRpcTimeoutMs);
         stub.CreateCopysetNode2(&cntl,
             &copysetRequest,
             &copysetResponse,
@@ -1067,7 +1066,7 @@ void TopologyServiceManager::CreateLogicalPool(
     if (kTopoErrCodeSuccess == errcode) {
         std::vector<CopySetInfo> copysetInfos;
         errcode =
-            CreateCopysetForLogicalPool(lPool, scatterWidth, &copysetInfos);
+            CreateCopysetForLogicalPool(lPool, &scatterWidth, &copysetInfos);
         if (kTopoErrCodeSuccess != errcode) {
             if (kTopoErrCodeSuccess ==
                     RemoveErrLogicalPoolAndCopyset(lPool,
@@ -1082,6 +1081,7 @@ void TopologyServiceManager::CreateLogicalPool(
             }
         } else {
             lPool.SetLogicalPoolAvaliableFlag(true);
+            lPool.SetScatterWidth(scatterWidth);
             // 更新copysetnum
             switch (lPool.GetLogicalPoolType()) {
                 case LogicalPoolType::PAGEFILE: {

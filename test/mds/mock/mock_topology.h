@@ -15,6 +15,7 @@
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/common/mds_define.h"
+#include "src/mds/topology/topology_stat.h"
 
 using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::ZoneIdType;
@@ -38,6 +39,7 @@ using ::curve::mds::topology::ZoneFilter;
 using ::curve::mds::topology::PhysicalPoolFilter;
 using ::curve::mds::topology::LogicalPoolFilter;
 using ::curve::mds::topology::CopySetFilter;
+using ::curve::mds::topology::TopologyStat;
 
 namespace curve {
 namespace mds {
@@ -82,18 +84,26 @@ class MockTopology : public Topology {
     MOCK_METHOD1(UpdatePhysicalPool, int(const PhysicalPool &data));
     MOCK_METHOD1(UpdateZone, int(const Zone &data));
     MOCK_METHOD1(UpdateServer, int(const Server &data));
-    // 更新内存并持久化全部数据
-    MOCK_METHOD1(UpdateChunkServer, int(const ChunkServer &data));
-    MOCK_METHOD2(UpdateOnlineState, int(const OnlineState &onlineState,
+
+    MOCK_METHOD1(UpdateChunkServerTopo, int(const ChunkServer &data));
+
+    MOCK_METHOD2(UpdateChunkServerRwState, int(const ChunkServerStatus &rwState,
                                   ChunkServerIdType id));
-    // 更新内存，定期持久化数据
-    MOCK_METHOD2(UpdateChunkServerState, int(const ChunkServerState &state,
+
+    MOCK_METHOD2(UpdateChunkServerOnlineState, int(
+        const OnlineState &onlineState,
+        ChunkServerIdType id));
+
+    MOCK_METHOD2(UpdateChunkServerDiskStatus, int(const ChunkServerState &state,
                                            ChunkServerIdType id));
     MOCK_METHOD1(UpdateCopySet,
         int(const ::curve::mds::topology::CopySetInfo &data));
 
-    MOCK_METHOD1(UpdateCopySetPeriodically,
+    MOCK_METHOD1(UpdateCopySetTopo,
         int(const ::curve::mds::topology::CopySetInfo &data));
+
+    MOCK_METHOD3(UpdateCopySetAllocInfo,
+        int(CopySetKey key, uint32_t allocChunkNum, uint64_t allocSize));
 
     // find
     MOCK_CONST_METHOD2(FindLogicalPool,
@@ -206,11 +216,27 @@ class MockTopology : public Topology {
         std::vector<CopySetIdType>(PoolIdType logicalPoolId,
             CopySetFilter filter));
 
+    MOCK_CONST_METHOD2(GetCopySetInfosInLogicalPool,
+        std::vector<CopySetInfo>(
+        PoolIdType logicalPoolId,
+        CopySetFilter filter));
+
     MOCK_CONST_METHOD2(GetCopySetsInChunkServer,
         std::vector<CopySetKey>(ChunkServerIdType id,
             CopySetFilter filter));
 };
 
+class MockTopologyStat : public TopologyStat {
+ public:
+    MockTopologyStat() {}
+    MOCK_METHOD2(UpdateChunkServerStat,
+        void(ChunkServerIdType csId,
+        const ChunkServerStat &stat));
+
+    MOCK_METHOD2(GetChunkServerStat,
+        bool(ChunkServerIdType csId,
+        ChunkServerStat *stat));
+};
 
 }  // namespace topology
 }  // namespace mds

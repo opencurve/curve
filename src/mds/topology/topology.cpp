@@ -279,55 +279,69 @@ int TopologyImpl::UpdateServer(const Server &data) {
     }
 }
 
-// 更新内存并持久化全部数据
-int TopologyImpl::UpdateChunkServer(const ChunkServer &data) {
-    WriteLockGuard wlockChunkServer(chunkServerMutex_);
+int TopologyImpl::UpdateChunkServerTopo(const ChunkServer &data) {
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     auto it = chunkServerMap_.find(data.GetId());
     if (it != chunkServerMap_.end()) {
-        if (!storage_->UpdateChunkServer(data)) {
+        WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+        ChunkServer temp = it->second;
+        temp.SetServerId(data.GetServerId());
+        temp.SetHostIp(data.GetHostIp());
+        temp.SetPort(data.GetPort());
+        temp.SetMountPoint(data.GetMountPoint());
+        if (!storage_->UpdateChunkServer(temp)) {
             return kTopoErrCodeStorgeFail;
         }
-        it->second = data;
+        it->second = temp;
+        it->second.SetDirtyFlag(false);
         return kTopoErrCodeSuccess;
     } else {
         return kTopoErrCodeChunkServerNotFound;
     }
 }
 
-int TopologyImpl::UpdateOnlineState(const OnlineState &onlineState,
+int TopologyImpl::UpdateChunkServerRwState(const ChunkServerStatus &rwState,
+                              ChunkServerIdType id) {
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
+    auto it = chunkServerMap_.find(id);
+    if (it != chunkServerMap_.end()) {
+        WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+        ChunkServer temp = it->second;
+        temp.SetStatus(rwState);
+        if (!storage_->UpdateChunkServer(temp)) {
+            return kTopoErrCodeStorgeFail;
+        }
+        it->second.SetStatus(rwState);
+        it->second.SetDirtyFlag(false);
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodeChunkServerNotFound;
+    }
+}
+
+int TopologyImpl::UpdateChunkServerOnlineState(const OnlineState &onlineState,
                                     ChunkServerIdType id) {
-    WriteLockGuard wlockChunkServer(chunkServerMutex_);
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
-        // 先更新内存，若数据库更新失败，mds能继续工作
+        WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
         it->second.SetOnlineState(onlineState);
-        if (!storage_->UpdateChunkServer(it->second)) {
-            return kTopoErrCodeStorgeFail;
-        }
+        it->second.SetDirtyFlag(true);
         return kTopoErrCodeSuccess;
     } else {
         return kTopoErrCodeChunkServerNotFound;
     }
 }
 
-// 更新内存，定期持久化数据
-int TopologyImpl::UpdateChunkServerState(const ChunkServerState &state,
-                                         ChunkServerIdType id) {
-    WriteLockGuard wlockChunkServer(chunkServerMutex_);
+int TopologyImpl::UpdateChunkServerDiskStatus(const ChunkServerState &state,
+                                   ChunkServerIdType id) {
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
-        auto now = std::chrono::steady_clock::now();
-        auto duration =  now - it->second.GetLastStateUpdateTime();
-        auto durationSec =
-            std::chrono::duration_cast<std::chrono::seconds>(duration).count();
-        // 心跳数据，可先更新内存，若数据库更新失败，也可保持内存中数据最新
+        WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+        // 心跳数据，只更新内存，后台定期刷入数据库
         it->second.SetChunkServerState(state);
-        if (durationSec >= option_.ChunkServerStateUpdateSec) {
-            it->second.SetLastStateUpdateTime(now);
-            if (!storage_->UpdateChunkServer(it->second)) {
-                return kTopoErrCodeStorgeFail;
-            }
-        }
+        it->second.SetDirtyFlag(true);
         return kTopoErrCodeSuccess;
     } else {
         return kTopoErrCodeChunkServerNotFound;
@@ -418,10 +432,11 @@ ChunkServerIdType TopologyImpl::FindChunkServerNotRetired(
     const std::string &hostIp,
     uint32_t port) const {
     ServerIdType serverId = FindServerByHostIpPort(hostIp, port);
-    ReadLockGuard rlockChunkServer(chunkServerMutex_);
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
          it != chunkServerMap_.end();
          it++) {
+        ReadLockGuard rlockChunkServer(it->second.GetRWLockRef());
         if ((it->second.GetStatus() != ChunkServerStatus::RETIRED) &&
             (it->second.GetServerId() == serverId) &&
             (it->second.GetPort() == port)) {
@@ -473,9 +488,10 @@ bool TopologyImpl::GetServer(ServerIdType serverId, Server *out) const {
 
 bool TopologyImpl::GetChunkServer(ChunkServerIdType chunkserverId,
                                   ChunkServer *out) const {
-    ReadLockGuard rlockChunkServer(chunkServerMutex_);
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     auto it = chunkServerMap_.find(chunkserverId);
     if (it != chunkServerMap_.end()) {
+        ReadLockGuard rlockChunkServer(it->second.GetRWLockRef());
         *out = it->second;
         return true;
     }
@@ -491,10 +507,11 @@ bool TopologyImpl::GetChunkServer(ChunkServerIdType chunkserverId,
 std::vector<ChunkServerIdType> TopologyImpl::GetChunkServerInCluster(
     ChunkServerFilter filter) const {
     std::vector<ChunkServerIdType> ret;
-    ReadLockGuard rlockChunkServer(chunkServerMutex_);
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
          it != chunkServerMap_.end();
          it++) {
+        ReadLockGuard rlockChunkServer(it->second.GetRWLockRef());
         if (filter(it->second)) {
             ret.push_back(it->first);
         }
@@ -558,10 +575,11 @@ std::list<ChunkServerIdType> TopologyImpl::GetChunkServerInServer(
     ServerIdType id,
     ChunkServerFilter filter) const {
     std::list<ChunkServerIdType> ret;
-    ReadLockGuard rlockChunkServer(chunkServerMutex_);
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
     for (auto it = chunkServerMap_.begin();
          it != chunkServerMap_.end();
          it++) {
+        ReadLockGuard rlockChunkServer(it->second.GetRWLockRef());
         if (filter(it->second) && it->second.GetServerId() == id) {
             ret.push_back(it->first);
         }
@@ -811,40 +829,24 @@ int TopologyImpl::RemoveCopySet(CopySetKey key) {
     }
 }
 
-// 更新内存和数据库，如果更新数据库失败，打印WARNING
-// 这样数据库copyset的信息不一定是最新的，需要mds提供一个copyset的查询接口，外部需要获得
-// copyset信息的时候有从mds拿的入口
-int TopologyImpl::UpdateCopySet(const CopySetInfo &data) {
+int TopologyImpl::UpdateCopySetTopo(const CopySetInfo &data) {
     ReadLockGuard rlockCopySetMap(copySetMutex_);
     CopySetKey key(data.GetLogicalPoolId(), data.GetId());
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
         WriteLockGuard wlockCopySet(it->second.GetRWLockRef());
-        if (!storage_->UpdateCopySet(data)) {
-            LOG(WARNING) << "update copyset{" << data.GetLogicalPoolId()
-                         << "," << data.GetId() << "} to repo fail";
+        it->second.SetLeader(data.GetLeader());
+        it->second.SetEpoch(data.GetEpoch());
+        it->second.SetCopySetMembers(data.GetCopySetMembers());
+        if (data.HasCandidate()) {
+            it->second.SetCandidate(data.GetCandidate());
+        } else {
+            it->second.ClearCandidate();
         }
-        it->second = data;
-        return kTopoErrCodeSuccess;
-    } else {
-        LOG(WARNING) << "UpdateCopySet can not find copyset, "
-                     << "logicalPoolId = " << data.GetLogicalPoolId()
-                     << ", copysetId = " << data.GetId();
-        return kTopoErrCodeCopySetNotFound;
-    }
-}
-
-int TopologyImpl::UpdateCopySetPeriodically(const CopySetInfo &data) {
-    ReadLockGuard rlockCopySetMap(copySetMutex_);
-    CopySetKey key(data.GetLogicalPoolId(), data.GetId());
-    auto it = copySetMap_.find(key);
-    if (it != copySetMap_.end()) {
-        WriteLockGuard wlockCopySet(it->second.GetRWLockRef());
-        it->second = data;
         it->second.SetDirtyFlag(true);
         return kTopoErrCodeSuccess;
     } else {
-        LOG(WARNING) << "UpdateCopySetPeriodically can not find copyset, "
+        LOG(WARNING) << "UpdateCopySetTopo can not find copyset, "
                      << "logicalPoolId = " << data.GetLogicalPoolId()
                      << ", copysetId = " << data.GetId();
         return kTopoErrCodeCopySetNotFound;
@@ -871,6 +873,19 @@ std::vector<CopySetIdType> TopologyImpl::GetCopySetsInLogicalPool(
     for (auto it : copySetMap_) {
         if (filter(it.second) && it.first.first == logicalPoolId) {
             ret.push_back(it.first.second);
+        }
+    }
+    return ret;
+}
+
+std::vector<CopySetInfo> TopologyImpl::GetCopySetInfosInLogicalPool(
+    PoolIdType logicalPoolId,
+    CopySetFilter filter) const {
+    std::vector<CopySetInfo> ret;
+    ReadLockGuard rlockCopySet(copySetMutex_);
+    for (auto it : copySetMap_) {
+        if (filter(it.second) && it.first.first == logicalPoolId) {
+            ret.push_back(it.second);
         }
     }
     return ret;
@@ -919,8 +934,9 @@ int TopologyImpl::Stop() {
 void TopologyImpl::BackEndFunc() {
      while (!isStop_.load()) {
         FlushCopySetToStorage();
+        FlushChunkServerToStorage();
         std::this_thread::sleep_for(
-            std::chrono::milliseconds(option_.CopySetUpdateSec));
+            std::chrono::seconds(option_.TopologyUpdateToRepoSec));
     }
 }
 
@@ -942,6 +958,38 @@ void TopologyImpl::FlushCopySetToStorage() {
                           << ", copyset members = "
                           << c.second.GetCopySetMembersStr()
                           << ", candidate = " << c.second.GetCandidate();
+            }
+        }
+    }
+}
+
+void TopologyImpl::FlushChunkServerToStorage() {
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
+    for (auto &c : chunkServerMap_) {
+        if (c.second.GetDirtyFlag()) {
+            WriteLockGuard wlockChunkServer(c.second.GetRWLockRef());
+            if (!storage_->UpdateChunkServer(c.second)) {
+                LOG(WARNING) << "update chunkserver to repo fail"
+                             << ", chunkserverid = " << c.first;
+            } else {
+                c.second.SetDirtyFlag(false);
+                LOG(INFO) << "update chunkserver to repo success, "
+                          << "chunkserverId = " << c.first
+                          << ", token = " << c.second.GetToken()
+                          << ", diskType = " << c.second.GetDiskType()
+                          << ", serverId = " << c.second.GetServerId()
+                          << ", hostIp = "
+                          << c.second.GetHostIp()
+                          << ", port = " << c.second.GetPort()
+                          << ", mountPoint = " << c.second.GetMountPoint()
+                          << ", rwStatus = " << c.second.GetStatus()
+                          << ", onlineState = " << c.second.GetOnlineState()
+                          << ", diskState = "
+                          << c.second.GetChunkServerState().GetDiskState()
+                          << ", diskCapacity = "
+                          << c.second.GetChunkServerState().GetDiskCapacity()
+                          << ", diskUsed = "
+                          << c.second.GetChunkServerState().GetDiskUsed();
             }
         }
     }
