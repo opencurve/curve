@@ -11,6 +11,11 @@ Used port list:
     9107: client workflow测试chunkserver占用
     9108: client workflow测试chunkserver占用
 
+    9120: mds 接口测试
+    9121: mds 接口测试
+    9122: mds 接口测试
+    9123: mds 接口测试
+
 # mds & snapshotcloneserver
 
     use port : 8900~8999

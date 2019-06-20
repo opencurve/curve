@@ -12,7 +12,7 @@
 
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
-#include "proto/cli.pb.h"
+#include "proto/cli2.pb.h"
 
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
@@ -330,14 +330,14 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
     FakeReturn* fakeret_;
 };
 
-class FakeCliService : public curve::chunkserver::CliService {
+class FakeCliService : public curve::chunkserver::CliService2 {
  public:
     FakeCliService() {
         invoketimes_ = 0;
     }
-    void get_leader(::google::protobuf::RpcController* controller,
-                    const curve::chunkserver::GetLeaderRequest* request,
-                    curve::chunkserver::GetLeaderResponse* response,
+    void GetLeader(::google::protobuf::RpcController* controller,
+                    const curve::chunkserver::GetLeaderRequest2* request,
+                    curve::chunkserver::GetLeaderResponse2* response,
                     ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
         if (fakeret_->controller_ != nullptr
@@ -345,7 +345,7 @@ class FakeCliService : public curve::chunkserver::CliService {
             controller->SetFailed("failed");
         }
 
-        auto resp = static_cast<curve::chunkserver::GetLeaderResponse*>(
+        auto resp = static_cast<curve::chunkserver::GetLeaderResponse2*>(
             fakeret_->response_);
         response->CopyFrom(*resp);
 

@@ -14,7 +14,7 @@
 #include <glog/logging.h>
 #include <thread>   // NOLINT
 #include "proto/chunk.pb.h"
-#include "proto/cli.pb.h"
+#include "proto/cli2.pb.h"
 #include "src/client/client_common.h"
 
 using braft::PeerId;
@@ -140,14 +140,16 @@ class FakeChunkService : public ChunkService {
     char chunk_[8192];
 };
 
-class CliServiceFake : public curve::chunkserver::CliService {
+class CliServiceFake : public curve::chunkserver::CliService2 {
  public:
-    void get_leader(::google::protobuf::RpcController* controller,
-                    const curve::chunkserver::GetLeaderRequest* request,
-                    curve::chunkserver::GetLeaderResponse* response,
+    void GetLeader(::google::protobuf::RpcController* controller,
+                    const curve::chunkserver::GetLeaderRequest2* request,
+                    curve::chunkserver::GetLeaderResponse2* response,
                     ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
-        response->set_leader_id(leaderid_.to_string());
+        curve::common::Peer *peer = new curve::common::Peer();
+        peer->set_address(leaderid_.to_string());
+        response->set_allocated_leader(peer);
     }
 
     void SetPeerID(PeerId peerid) {
