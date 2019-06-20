@@ -3005,13 +3005,13 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 /* -------- TYPES TABLE (BEGIN) -------- */
 
 #define SWIGTYPE_p_AioContext swig_types[0]
-#define SWIGTYPE_p_FileInfo swig_types[1]
-#define SWIGTYPE_p_UserInfo swig_types[2]
-#define SWIGTYPE_p_char swig_types[3]
-#define SWIGTYPE_p_f_p_AioContext__void swig_types[4]
-#define SWIGTYPE_p_int swig_types[5]
-#define SWIGTYPE_p_long_long swig_types[6]
-#define SWIGTYPE_p_p_FileInfo swig_types[7]
+#define SWIGTYPE_p_DirInfos swig_types[1]
+#define SWIGTYPE_p_FileInfo swig_types[2]
+#define SWIGTYPE_p_UserInfo swig_types[3]
+#define SWIGTYPE_p_char swig_types[4]
+#define SWIGTYPE_p_f_p_AioContext__void swig_types[5]
+#define SWIGTYPE_p_int swig_types[6]
+#define SWIGTYPE_p_long_long swig_types[7]
 #define SWIGTYPE_p_short swig_types[8]
 #define SWIGTYPE_p_signed_char swig_types[9]
 #define SWIGTYPE_p_unsigned_char swig_types[10]
@@ -3596,6 +3596,13 @@ SWIG_From_unsigned_SS_long_SS_long  (unsigned long long value)
 
 
 
+SWIGINTERNINLINE PyObject * 
+SWIG_FromCharPtr(const char *cptr)
+{ 
+  return SWIG_FromCharPtrAndSize(cptr, (cptr ? strlen(cptr) : 0));
+}
+
+
 SWIGINTERNINLINE int
 SWIG_AsVal_size_t (PyObject * obj, size_t *val)
 {
@@ -3820,58 +3827,6 @@ SWIGINTERN PyObject *_wrap_AioContext_t_op_get(PyObject *SWIGUNUSEDPARM(self), P
   }
   arg1 = reinterpret_cast< AioContext * >(argp1);
   result = (int) ((arg1)->op);
-  resultobj = SWIG_From_int(static_cast< int >(result));
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_AioContext_t_err_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  AioContext *arg1 = (AioContext *) 0 ;
-  int arg2 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int val2 ;
-  int ecode2 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  
-  if (!PyArg_ParseTuple(args,(char *)"OO:AioContext_t_err_set",&obj0,&obj1)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_AioContext, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "AioContext_t_err_set" "', argument " "1"" of type '" "AioContext *""'"); 
-  }
-  arg1 = reinterpret_cast< AioContext * >(argp1);
-  ecode2 = SWIG_AsVal_int(obj1, &val2);
-  if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "AioContext_t_err_set" "', argument " "2"" of type '" "int""'");
-  } 
-  arg2 = static_cast< int >(val2);
-  if (arg1) (arg1)->err = arg2;
-  resultobj = SWIG_Py_Void();
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_AioContext_t_err_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  AioContext *arg1 = (AioContext *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject * obj0 = 0 ;
-  int result;
-  
-  if (!PyArg_ParseTuple(args,(char *)"O:AioContext_t_err_get",&obj0)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_AioContext, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "AioContext_t_err_get" "', argument " "1"" of type '" "AioContext *""'"); 
-  }
-  arg1 = reinterpret_cast< AioContext * >(argp1);
-  result = (int) ((arg1)->err);
   resultobj = SWIG_From_int(static_cast< int >(result));
   return resultobj;
 fail:
@@ -4440,6 +4395,124 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_FileInfo_t_filename_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  char *arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  char temp2[256] ;
+  int res2 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo_t_filename_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_filename_set" "', argument " "1"" of type '" "FileInfo *""'"); 
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  res2 = SWIG_AsCharArray(obj1, temp2, 256);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "FileInfo_t_filename_set" "', argument " "2"" of type '" "char [256]""'");
+  }
+  arg2 = reinterpret_cast< char * >(temp2);
+  if (arg2) memcpy(arg1->filename,arg2,256*sizeof(char));
+  else memset(arg1->filename,0,256*sizeof(char));
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_FileInfo_t_filename_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  char *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_filename_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_filename_get" "', argument " "1"" of type '" "FileInfo *""'"); 
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  result = (char *)(char *) ((arg1)->filename);
+  {
+    size_t size = SWIG_strnlen(result, 256);
+    
+    
+    
+    resultobj = SWIG_FromCharPtrAndSize(result, size);
+  }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_FileInfo_t_owner_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  char *arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  char temp2[256] ;
+  int res2 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:FileInfo_t_owner_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_owner_set" "', argument " "1"" of type '" "FileInfo *""'"); 
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  res2 = SWIG_AsCharArray(obj1, temp2, 256);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "FileInfo_t_owner_set" "', argument " "2"" of type '" "char [256]""'");
+  }
+  arg2 = reinterpret_cast< char * >(temp2);
+  if (arg2) memcpy(arg1->owner,arg2,256*sizeof(char));
+  else memset(arg1->owner,0,256*sizeof(char));
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_FileInfo_t_owner_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  FileInfo *arg1 = (FileInfo *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  char *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:FileInfo_t_owner_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_FileInfo, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "FileInfo_t_owner_get" "', argument " "1"" of type '" "FileInfo *""'"); 
+  }
+  arg1 = reinterpret_cast< FileInfo * >(argp1);
+  result = (char *)(char *) ((arg1)->owner);
+  {
+    size_t size = SWIG_strnlen(result, 256);
+    
+    
+    
+    resultobj = SWIG_FromCharPtrAndSize(result, size);
+  }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_new_FileInfo_t(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   FileInfo *result = 0 ;
@@ -4478,6 +4551,264 @@ SWIGINTERN PyObject *FileInfo_t_swigregister(PyObject *SWIGUNUSEDPARM(self), PyO
   PyObject *obj;
   if (!PyArg_ParseTuple(args,(char*)"O:swigregister", &obj)) return NULL;
   SWIG_TypeNewClientData(SWIGTYPE_p_FileInfo, SWIG_NewClientData(obj));
+  return SWIG_Py_Void();
+}
+
+SWIGINTERN PyObject *_wrap_DirInfos_t_dirpath_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  char *arg2 = (char *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:DirInfos_t_dirpath_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DirInfos_t_dirpath_set" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "DirInfos_t_dirpath_set" "', argument " "2"" of type '" "char *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  if (arg1->dirpath) delete[] arg1->dirpath;
+  if (arg2) {
+    size_t size = strlen(reinterpret_cast< const char * >(arg2)) + 1;
+    arg1->dirpath = (char *)reinterpret_cast< char* >(memcpy((new char[size]), reinterpret_cast< const char * >(arg2), sizeof(char)*(size)));
+  } else {
+    arg1->dirpath = 0;
+  }
+  resultobj = SWIG_Py_Void();
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_DirInfos_t_dirpath_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  char *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:DirInfos_t_dirpath_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DirInfos_t_dirpath_get" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  result = (char *) ((arg1)->dirpath);
+  resultobj = SWIG_FromCharPtr((const char *)result);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_DirInfos_t_userinfo_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  UserInfo_t *arg2 = (UserInfo_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:DirInfos_t_userinfo_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DirInfos_t_userinfo_set" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_UserInfo, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "DirInfos_t_userinfo_set" "', argument " "2"" of type '" "UserInfo_t *""'"); 
+  }
+  arg2 = reinterpret_cast< UserInfo_t * >(argp2);
+  if (arg1) (arg1)->userinfo = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_DirInfos_t_userinfo_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  UserInfo_t *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:DirInfos_t_userinfo_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DirInfos_t_userinfo_get" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  result = (UserInfo_t *) ((arg1)->userinfo);
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_UserInfo, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_DirInfos_t_dirsize_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  uint64_t arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  unsigned long long val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:DirInfos_t_dirsize_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DirInfos_t_dirsize_set" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  ecode2 = SWIG_AsVal_unsigned_SS_long_SS_long(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "DirInfos_t_dirsize_set" "', argument " "2"" of type '" "uint64_t""'");
+  } 
+  arg2 = static_cast< uint64_t >(val2);
+  if (arg1) (arg1)->dirsize = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_DirInfos_t_dirsize_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  uint64_t result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:DirInfos_t_dirsize_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DirInfos_t_dirsize_get" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  result = (uint64_t) ((arg1)->dirsize);
+  resultobj = SWIG_From_unsigned_SS_long_SS_long(static_cast< unsigned long long >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_DirInfos_t_fileinfo_set(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  FileInfo_t *arg2 = (FileInfo_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:DirInfos_t_fileinfo_set",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DirInfos_t_fileinfo_set" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_FileInfo, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "DirInfos_t_fileinfo_set" "', argument " "2"" of type '" "FileInfo_t *""'"); 
+  }
+  arg2 = reinterpret_cast< FileInfo_t * >(argp2);
+  if (arg1) (arg1)->fileinfo = arg2;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_DirInfos_t_fileinfo_get(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  FileInfo_t *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:DirInfos_t_fileinfo_get",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DirInfos_t_fileinfo_get" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  result = (FileInfo_t *) ((arg1)->fileinfo);
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_FileInfo, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_DirInfos_t(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)":new_DirInfos_t")) SWIG_fail;
+  result = (DirInfos *)new DirInfos();
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_DirInfos, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_delete_DirInfos_t(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos *arg1 = (DirInfos *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:delete_DirInfos_t",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_DirInfos_t" "', argument " "1"" of type '" "DirInfos *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos * >(argp1);
+  delete arg1;
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *DirInfos_t_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *obj;
+  if (!PyArg_ParseTuple(args,(char*)"O:swigregister", &obj)) return NULL;
+  SWIG_TypeNewClientData(SWIGTYPE_p_DirInfos, SWIG_NewClientData(obj));
   return SWIG_Py_Void();
 }
 
@@ -4860,6 +5191,52 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_ChangeOwner(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  char *arg1 = (char *) 0 ;
+  char *arg2 = (char *) 0 ;
+  UserInfo_t *arg3 = (UserInfo_t *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  int result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OOO:ChangeOwner",&obj0,&obj1,&obj2)) SWIG_fail;
+  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ChangeOwner" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = reinterpret_cast< char * >(buf1);
+  res2 = SWIG_AsCharPtrAndSize(obj1, &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ChangeOwner" "', argument " "2"" of type '" "char const *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_UserInfo, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ChangeOwner" "', argument " "3"" of type '" "UserInfo_t *""'"); 
+  }
+  arg3 = reinterpret_cast< UserInfo_t * >(argp3);
+  result = (int)ChangeOwner((char const *)arg1,(char const *)arg2,arg3);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return resultobj;
+fail:
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Close(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   int arg1 ;
@@ -5005,24 +5382,111 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Listdir(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_DeleteForce(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
   UserInfo_t *arg2 = (UserInfo_t *) 0 ;
-  FileInfo_t **arg3 = (FileInfo_t **) 0 ;
   int res1 ;
   char *buf1 = 0 ;
   int alloc1 = 0 ;
   void *argp2 = 0 ;
   int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
-  PyObject * obj2 = 0 ;
   int result;
   
-  if (!PyArg_ParseTuple(args,(char *)"OOO:Listdir",&obj0,&obj1,&obj2)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OO:DeleteForce",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DeleteForce" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = reinterpret_cast< char * >(buf1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_UserInfo, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "DeleteForce" "', argument " "2"" of type '" "UserInfo_t *""'"); 
+  }
+  arg2 = reinterpret_cast< UserInfo_t * >(argp2);
+  result = (int)DeleteForce((char const *)arg1,arg2);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  return resultobj;
+fail:
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_OpenDir(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  char *arg1 = (char *) 0 ;
+  UserInfo_t *arg2 = (UserInfo_t *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  DirInfos_t *result = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:OpenDir",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "OpenDir" "', argument " "1"" of type '" "char const *""'");
+  }
+  arg1 = reinterpret_cast< char * >(buf1);
+  res2 = SWIG_ConvertPtr(obj1, &argp2,SWIGTYPE_p_UserInfo, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "OpenDir" "', argument " "2"" of type '" "UserInfo_t *""'"); 
+  }
+  arg2 = reinterpret_cast< UserInfo_t * >(argp2);
+  result = (DirInfos_t *)OpenDir((char const *)arg1,arg2);
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  return resultobj;
+fail:
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_CloseDir(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  DirInfos_t *arg1 = (DirInfos_t *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:CloseDir",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_DirInfos, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CloseDir" "', argument " "1"" of type '" "DirInfos_t *""'"); 
+  }
+  arg1 = reinterpret_cast< DirInfos_t * >(argp1);
+  CloseDir(arg1);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Listdir(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  //===============================================================================
+  PyObject *resultobj = 0;
+  char *arg1 = (char *) 0 ;
+  UserInfo_t *arg2 = (UserInfo_t *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  int result;
+  PyObject * list = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:Listdir",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Listdir" "', argument " "1"" of type '" "char const *""'");
@@ -5033,17 +5497,25 @@ SWIGINTERN PyObject *_wrap_Listdir(PyObject *SWIGUNUSEDPARM(self), PyObject *arg
     SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Listdir" "', argument " "2"" of type '" "UserInfo_t *""'"); 
   }
   arg2 = reinterpret_cast< UserInfo_t * >(argp2);
-  res3 = SWIG_ConvertPtr(obj2, &argp3,SWIGTYPE_p_p_FileInfo, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Listdir" "', argument " "3"" of type '" "FileInfo_t **""'"); 
+  DirInfos_t * dirinfo;
+  if ((dirinfo = OpenDir(arg1, arg2)) == nullptr) {
+      SWIG_exception_fail(-1, "OpenDir failed"); 
   }
-  arg3 = reinterpret_cast< FileInfo_t ** >(argp3);
-  result = (int)Listdir((char const *)arg1,arg2,arg3);
-  resultobj = SWIG_From_int(static_cast< int >(result));
-  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
-  return resultobj;
+  if (Listdir(dirinfo) < 0) {
+      SWIG_exception_fail(-1, "Listdir failed"); 
+  }
+  if ((list = PyList_New(0)) == nullptr) {
+      SWIG_exception_fail(-1, "memory alloc failed"); 
+  }
+  for (uint32_t i = 0; i < dirinfo->dirsize; i++) {
+    if (PyList_Append(list, PyBytes_FromString(dirinfo->fileinfo[i].filename)) != 0) {
+        Py_CLEAR(list);
+        SWIG_exception_fail(-1, "PyList append failed"); 
+    }
+  }
+  CloseDir(dirinfo);
+  return list;
 fail:
-  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
   return NULL;
 }
 
@@ -5138,8 +5610,6 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"AioContext_t_ret_get", _wrap_AioContext_t_ret_get, METH_VARARGS, NULL},
 	 { (char *)"AioContext_t_op_set", _wrap_AioContext_t_op_set, METH_VARARGS, NULL},
 	 { (char *)"AioContext_t_op_get", _wrap_AioContext_t_op_get, METH_VARARGS, NULL},
-	 { (char *)"AioContext_t_err_set", _wrap_AioContext_t_err_set, METH_VARARGS, NULL},
-	 { (char *)"AioContext_t_err_get", _wrap_AioContext_t_err_get, METH_VARARGS, NULL},
 	 { (char *)"AioContext_t_cb_set", _wrap_AioContext_t_cb_set, METH_VARARGS, NULL},
 	 { (char *)"AioContext_t_cb_get", _wrap_AioContext_t_cb_get, METH_VARARGS, NULL},
 	 { (char *)"AioContext_t_buf_set", _wrap_AioContext_t_buf_set, METH_VARARGS, NULL},
@@ -5164,9 +5634,24 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"FileInfo_t_length_get", _wrap_FileInfo_t_length_get, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_ctime_set", _wrap_FileInfo_t_ctime_set, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_ctime_get", _wrap_FileInfo_t_ctime_get, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_filename_set", _wrap_FileInfo_t_filename_set, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_filename_get", _wrap_FileInfo_t_filename_get, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_owner_set", _wrap_FileInfo_t_owner_set, METH_VARARGS, NULL},
+	 { (char *)"FileInfo_t_owner_get", _wrap_FileInfo_t_owner_get, METH_VARARGS, NULL},
 	 { (char *)"new_FileInfo_t", _wrap_new_FileInfo_t, METH_VARARGS, NULL},
 	 { (char *)"delete_FileInfo_t", _wrap_delete_FileInfo_t, METH_VARARGS, NULL},
 	 { (char *)"FileInfo_t_swigregister", FileInfo_t_swigregister, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_dirpath_set", _wrap_DirInfos_t_dirpath_set, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_dirpath_get", _wrap_DirInfos_t_dirpath_get, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_userinfo_set", _wrap_DirInfos_t_userinfo_set, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_userinfo_get", _wrap_DirInfos_t_userinfo_get, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_dirsize_set", _wrap_DirInfos_t_dirsize_set, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_dirsize_get", _wrap_DirInfos_t_dirsize_get, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_fileinfo_set", _wrap_DirInfos_t_fileinfo_set, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_fileinfo_get", _wrap_DirInfos_t_fileinfo_get, METH_VARARGS, NULL},
+	 { (char *)"new_DirInfos_t", _wrap_new_DirInfos_t, METH_VARARGS, NULL},
+	 { (char *)"delete_DirInfos_t", _wrap_delete_DirInfos_t, METH_VARARGS, NULL},
+	 { (char *)"DirInfos_t_swigregister", DirInfos_t_swigregister, METH_VARARGS, NULL},
 	 { (char *)"Init", _wrap_Init, METH_VARARGS, NULL},
 	 { (char *)"Open4Qemu", _wrap_Open4Qemu, METH_VARARGS, NULL},
 	 { (char *)"Open", _wrap_Open, METH_VARARGS, NULL},
@@ -5177,10 +5662,14 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"AioWrite", _wrap_AioWrite, METH_VARARGS, NULL},
 	 { (char *)"StatFile4Qemu", _wrap_StatFile4Qemu, METH_VARARGS, NULL},
 	 { (char *)"StatFile", _wrap_StatFile, METH_VARARGS, NULL},
+	 { (char *)"ChangeOwner", _wrap_ChangeOwner, METH_VARARGS, NULL},
 	 { (char *)"Close", _wrap_Close, METH_VARARGS, NULL},
 	 { (char *)"Rename", _wrap_Rename, METH_VARARGS, NULL},
 	 { (char *)"Extend", _wrap_Extend, METH_VARARGS, NULL},
 	 { (char *)"Unlink", _wrap_Unlink, METH_VARARGS, NULL},
+	 { (char *)"DeleteForce", _wrap_DeleteForce, METH_VARARGS, NULL},
+	 { (char *)"OpenDir", _wrap_OpenDir, METH_VARARGS, NULL},
+	 { (char *)"CloseDir", _wrap_CloseDir, METH_VARARGS, NULL},
 	 { (char *)"Listdir", _wrap_Listdir, METH_VARARGS, NULL},
 	 { (char *)"Mkdir", _wrap_Mkdir, METH_VARARGS, NULL},
 	 { (char *)"Rmdir", _wrap_Rmdir, METH_VARARGS, NULL},
@@ -5192,13 +5681,13 @@ static PyMethodDef SwigMethods[] = {
 /* -------- TYPE CONVERSION AND EQUIVALENCE RULES (BEGIN) -------- */
 
 static swig_type_info _swigt__p_AioContext = {"_p_AioContext", "AioContext *|AioContext_t *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_DirInfos = {"_p_DirInfos", "DirInfos_t *|DirInfos *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_FileInfo = {"_p_FileInfo", "FileInfo *|FileInfo_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_UserInfo = {"_p_UserInfo", "UserInfo *|UserInfo_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_f_p_AioContext__void = {"_p_f_p_AioContext__void", "AioCallBack|void (*)(AioContext *)", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_int = {"_p_int", "intptr_t *|int *|int_least32_t *|int_fast32_t *|int32_t *|int_fast16_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_long_long = {"_p_long_long", "int_least64_t *|int_fast64_t *|int64_t *|long long *|intmax_t *", 0, 0, (void*)0, 0};
-static swig_type_info _swigt__p_p_FileInfo = {"_p_p_FileInfo", "FileInfo **|FileInfo_t **", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_short = {"_p_short", "short *|int_least16_t *|int16_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_signed_char = {"_p_signed_char", "signed char *|int_least8_t *|int_fast8_t *|int8_t *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_unsigned_char = {"_p_unsigned_char", "unsigned char *|uint_least8_t *|uint_fast8_t *|uint8_t *", 0, 0, (void*)0, 0};
@@ -5209,13 +5698,13 @@ static swig_type_info _swigt__p_void = {"_p_void", "void *", 0, 0, (void*)0, 0};
 
 static swig_type_info *swig_type_initial[] = {
   &_swigt__p_AioContext,
+  &_swigt__p_DirInfos,
   &_swigt__p_FileInfo,
   &_swigt__p_UserInfo,
   &_swigt__p_char,
   &_swigt__p_f_p_AioContext__void,
   &_swigt__p_int,
   &_swigt__p_long_long,
-  &_swigt__p_p_FileInfo,
   &_swigt__p_short,
   &_swigt__p_signed_char,
   &_swigt__p_unsigned_char,
@@ -5226,13 +5715,13 @@ static swig_type_info *swig_type_initial[] = {
 };
 
 static swig_cast_info _swigc__p_AioContext[] = {  {&_swigt__p_AioContext, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_DirInfos[] = {  {&_swigt__p_DirInfos, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_FileInfo[] = {  {&_swigt__p_FileInfo, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_UserInfo[] = {  {&_swigt__p_UserInfo, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_f_p_AioContext__void[] = {  {&_swigt__p_f_p_AioContext__void, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_int[] = {  {&_swigt__p_int, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_long_long[] = {  {&_swigt__p_long_long, 0, 0, 0},{0, 0, 0, 0}};
-static swig_cast_info _swigc__p_p_FileInfo[] = {  {&_swigt__p_p_FileInfo, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_short[] = {  {&_swigt__p_short, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_signed_char[] = {  {&_swigt__p_signed_char, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_unsigned_char[] = {  {&_swigt__p_unsigned_char, 0, 0, 0},{0, 0, 0, 0}};
@@ -5243,13 +5732,13 @@ static swig_cast_info _swigc__p_void[] = {  {&_swigt__p_void, 0, 0, 0},{0, 0, 0,
 
 static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_AioContext,
+  _swigc__p_DirInfos,
   _swigc__p_FileInfo,
   _swigc__p_UserInfo,
   _swigc__p_char,
   _swigc__p_f_p_AioContext__void,
   _swigc__p_int,
   _swigc__p_long_long,
-  _swigc__p_p_FileInfo,
   _swigc__p_short,
   _swigc__p_signed_char,
   _swigc__p_unsigned_char,
@@ -5978,8 +6467,9 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "CURVE_ERROR_DISK_FAIL",SWIG_From_int(static_cast< int >(20)));
   SWIG_Python_SetConstant(d, "CURVE_ERROR_NO_SPACE",SWIG_From_int(static_cast< int >(21)));
   SWIG_Python_SetConstant(d, "CURVE_ERROR_NOT_ALIGNED",SWIG_From_int(static_cast< int >(22)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_BAD_FD",SWIG_From_int(static_cast< int >(23)));
+  SWIG_Python_SetConstant(d, "CURVE_ERROR_LENGTH_NOT_SUPPORT",SWIG_From_int(static_cast< int >(24)));
   SWIG_Python_SetConstant(d, "CURVE_ERROR_UNKNOWN",SWIG_From_int(static_cast< int >(100)));
-
   SWIG_Python_SetConstant(d, "CURVE_OP_READ",SWIG_From_int(static_cast< int >(0)));
   SWIG_Python_SetConstant(d, "CURVE_OP_WRITE",SWIG_From_int(static_cast< int >(1)));
 #if PY_VERSION_HEX >= 0x03000000
