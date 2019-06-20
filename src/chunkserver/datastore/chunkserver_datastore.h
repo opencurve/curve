@@ -188,6 +188,17 @@ class CSDataStore {
     virtual CSErrorCode GetChunkInfo(ChunkID id,
                                      CSChunkInfo* chunkInfo);
 
+    /**
+     * 获取Chunk的hash值
+     * @param id[in]: chunk id
+     * @param hash[out]: chunk hash值
+     * @return: 返回错误码
+     */
+    virtual CSErrorCode GetChunkHash(ChunkID id,
+                                     off_t offset,
+                                     size_t length,
+                                     std::string* hash);
+
  private:
     CSErrorCode loadChunkFile(ChunkID id);
 
