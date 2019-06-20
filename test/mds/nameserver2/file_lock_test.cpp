@@ -4,6 +4,7 @@
  * Author: hzchenwei7
  * Copyright (c) 2018 netease
  */
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <thread>  // NOLINT
@@ -152,5 +153,19 @@ TEST_F(FileWriteLockGuardTest, LockUnlockTest) {
 
     ASSERT_EQ(flm.GetLockEntryNum(), 0);
 }
+
+// 以下这种情况，跑测试的时候会出现Segmentation fault，是锁的实现机制的问题
+// 要避免这样使用锁，已在代码里进行规避，以下注释的测试保留，提醒使用者注意
+/*
+TEST_F(FileWriteLockGuardTest, LockUnlockTest1) {
+    {
+        FileWriteLockGuard guard(&flm, "/", "/a");
+    }
+
+    {
+        FileWriteLockGuard guard(&flm, "/a", "/");
+    }
+}
+*/
 }  // namespace mds
 }  // namespace curve

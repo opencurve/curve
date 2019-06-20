@@ -26,10 +26,6 @@ class SessionTest: public ::testing::Test {
  protected:
     void SetUp() override {
         mockRepo_ = std::make_shared<MockRepo>();
-        sessionOptions_.sessionDbName = "curve_mds_repo_test";
-        sessionOptions_.sessionUser = "root";
-        sessionOptions_.sessionUrl = "localhost";
-        sessionOptions_.sessionPassword = "qwer";
         sessionOptions_.leaseTimeUs = 100000;
         sessionOptions_.toleranceTimeUs = 0;
         sessionOptions_.intevalTimeUs = 50000;
@@ -43,77 +39,6 @@ class SessionTest: public ::testing::Test {
     struct SessionOptions sessionOptions_;
 };
 
-TEST_F(SessionTest, testRepoInit) {
-    // connectDB失败
-    {
-        SessionManager sessionManager_(mockRepo_);
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::SqlException));
-
-        ASSERT_EQ(sessionManager_.Init(sessionOptions_), false);
-    }
-
-    // createDatabase失败
-    {
-        SessionManager sessionManager_(mockRepo_);
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::SqlException));
-
-        ASSERT_EQ(sessionManager_.Init(sessionOptions_), false);
-    }
-
-    // useDataBase失败
-    {
-        SessionManager sessionManager_(mockRepo_);
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::SqlException));
-
-        ASSERT_EQ(sessionManager_.Init(sessionOptions_), false);
-    }
-
-    // createAllTables失败
-    {
-        SessionManager sessionManager_(mockRepo_);
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
-        .Times(1)
-        .WillOnce(Return(repo::SqlException));
-
-        ASSERT_EQ(sessionManager_.Init(sessionOptions_), false);
-    }
-}
-
-
 TEST_F(SessionTest, testLoadSession) {
     // LoadSession失败
     {
@@ -122,22 +47,6 @@ TEST_F(SessionTest, testLoadSession) {
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(Return(repo::SqlException));
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
 
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), false);
         sessionManager_.Start();
@@ -162,22 +71,6 @@ TEST_F(SessionTest, testLoadSession) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
 
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), false);
         sessionManager_.Start();
@@ -206,22 +99,6 @@ TEST_F(SessionTest, testLoadSession) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
 
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
 
@@ -261,22 +138,6 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
 
         // init时候，从数据库加载session,session未过期
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
@@ -328,22 +189,6 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         .WillOnce(DoAll(SetArgPointee<0>(sessionList),
                             Return(repo::OperationOK)));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
 
         sessionManager_.Start();
@@ -379,22 +224,6 @@ TEST_F(SessionTest, insert_session_test) {
         SessionManager sessionManager_(mockRepo_);
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
@@ -454,22 +283,6 @@ TEST_F(SessionTest, insert_session_test) {
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
-        EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createDatabase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, useDataBase())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
-        EXPECT_CALL(*mockRepo_, createAllTables())
-        .Times(1)
-        .WillOnce(Return(repo::OperationOK));
-
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
         sessionManager_.Start();
 
@@ -522,22 +335,6 @@ TEST_F(SessionTest, refresh_session_test) {
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
-    EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
-    EXPECT_CALL(*mockRepo_, createDatabase())
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
-    EXPECT_CALL(*mockRepo_, useDataBase())
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
-    EXPECT_CALL(*mockRepo_, createAllTables())
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
     ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
     sessionManager_.Start();
 
@@ -575,22 +372,6 @@ TEST_F(SessionTest, fast_exit_test) {
     SessionManager sessionManager_(mockRepo_);
 
     EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
-    EXPECT_CALL(*mockRepo_, connectDB(_, _, _, _, _))
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
-    EXPECT_CALL(*mockRepo_, createDatabase())
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
-    EXPECT_CALL(*mockRepo_, useDataBase())
-    .Times(1)
-    .WillOnce(Return(repo::OperationOK));
-
-    EXPECT_CALL(*mockRepo_, createAllTables())
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 

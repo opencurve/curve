@@ -57,11 +57,6 @@ class NameSpaceServiceTest : public ::testing::Test {
         sessionManager_ =
                new SessionManager(std::make_shared<FakeRepoInterface>());
 
-        // session repo已经fake，数据库相关参数不需要
-        sessionOptions.sessionDbName = "";
-        sessionOptions.sessionUser = "";
-        sessionOptions.sessionUrl = "";
-        sessionOptions.sessionPassword = "";
         sessionOptions.leaseTimeUs = 5000000;
         sessionOptions.toleranceTimeUs = 500000;
         sessionOptions.intevalTimeUs = 100000;
@@ -141,6 +136,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     brpc::Controller cntl;
     uint64_t fileLength = kMiniFileLength;
 
+    // 创建file1,owner1
     request.set_filename("/file1");
     request.set_owner("owner1");
     request.set_date(TimeUtility::GetTimeofDayUs());
@@ -241,6 +237,22 @@ TEST_F(NameSpaceServiceTest, test1) {
     request.set_filelength(fileLength);
 
     cntl.set_log_id(2);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kFileExists);
+    } else {
+        FAIL();
+    }
+
+    // 如果创建一个已经存在的目录，会创建失败kFileExists
+    cntl.Reset();
+    request.set_filename("/dir");
+    request.set_owner("owner3");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_DIRECTORY);
+    request.set_filelength(0);
+
+    cntl.set_log_id(3);  // set by user
     stub.CreateFile(&cntl, &request, &response, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response.statuscode(), StatusCode::kFileExists);
@@ -799,7 +811,6 @@ TEST_F(NameSpaceServiceTest, test1) {
     request15.set_date(TimeUtility::GetTimeofDayUs());
     request15.set_sessionid(response10.protosession().sessionid());
     request15.set_date(common::TimeUtility::GetTimeofDayUs());
-    request15.set_signature("todo,signature");
 
     stub.RefreshSession(&cntl, &request15, &response15, NULL);
     if (!cntl.Failed()) {
@@ -818,7 +829,6 @@ TEST_F(NameSpaceServiceTest, test1) {
     request16.set_date(TimeUtility::GetTimeofDayUs());
     request16.set_sessionid("test_session");
     request16.set_date(common::TimeUtility::GetTimeofDayUs());
-    request16.set_signature("todo,signature");
 
     stub.RefreshSession(&cntl, &request16, &response16, NULL);
     if (!cntl.Failed()) {
@@ -836,7 +846,6 @@ TEST_F(NameSpaceServiceTest, test1) {
     request18.set_date(TimeUtility::GetTimeofDayUs());
     request18.set_sessionid(response10.protosession().sessionid());
     request18.set_date(common::TimeUtility::GetTimeofDayUs());
-    request18.set_signature("todo,signature");
 
     stub.RefreshSession(&cntl, &request18, &response18, NULL);
     if (!cntl.Failed()) {
@@ -1565,7 +1574,7 @@ TEST_F(NameSpaceServiceTest, clonetest) {
     stub.GetFileInfo(&cntl, &getRequest, &getResponse, NULL);
     if (!cntl.Failed()) {
         FileInfo fileInfo = getResponse.fileinfo();
-        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(getResponse.statuscode(), StatusCode::kOK);
         ASSERT_EQ(fileInfo.filename(), "clonefile1");
         ASSERT_EQ(fileInfo.filetype(), FileType::INODE_PAGEFILE);
         ASSERT_EQ(fileInfo.owner(), "tom");
@@ -1589,7 +1598,7 @@ TEST_F(NameSpaceServiceTest, clonetest) {
 
     stub.SetCloneFileStatus(&cntl, &setRequest, &setResponse, NULL);
     if (!cntl.Failed()) {
-        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+        ASSERT_EQ(setResponse.statuscode(), StatusCode::kOK);
     } else {
         FAIL();
     }
