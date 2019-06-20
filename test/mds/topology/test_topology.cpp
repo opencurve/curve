@@ -210,7 +210,6 @@ TEST_F(TestTopology, test_init_success) {
         .WillOnce(Return(true));
 
     TopologyOption option;
-    option.ChunkServerStateUpdateSec = 600;
     int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
@@ -220,7 +219,6 @@ TEST_F(TestTopology, test_init_loadLogicalPoolFail) {
         .WillOnce(Return(false));
 
     TopologyOption option;
-    option.ChunkServerStateUpdateSec = 600;
     int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -234,7 +232,6 @@ TEST_F(TestTopology, test_init_LoadPhysicalPoolFail) {
     EXPECT_CALL(*idGenerator_, initLogicalPoolIdGenerator(_));
 
     TopologyOption option;
-    option.ChunkServerStateUpdateSec = 600;
     int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -251,7 +248,6 @@ TEST_F(TestTopology, test_init_LoadZoneFail) {
     EXPECT_CALL(*idGenerator_, initPhysicalPoolIdGenerator(_));
 
     TopologyOption option;
-    option.ChunkServerStateUpdateSec = 600;
     int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -271,7 +267,6 @@ TEST_F(TestTopology, test_init_LoadServerFail) {
     EXPECT_CALL(*idGenerator_, initZoneIdGenerator(_));
 
     TopologyOption option;
-    option.ChunkServerStateUpdateSec = 600;
     int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -294,7 +289,6 @@ TEST_F(TestTopology, test_init_LoadChunkServerFail) {
     EXPECT_CALL(*idGenerator_, initServerIdGenerator(_));
 
     TopologyOption option;
-    option.ChunkServerStateUpdateSec = 600;
     int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -320,7 +314,6 @@ TEST_F(TestTopology, test_init_LoadCopysetFail) {
     EXPECT_CALL(*idGenerator_, initChunkServerIdGenerator(_));
 
     TopologyOption option;
-    option.ChunkServerStateUpdateSec = 600;
     int ret = topology_->init(option);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
@@ -1195,7 +1188,7 @@ TEST_F(TestTopology, UpdateServer_StorageFail) {
 }
 
 
-TEST_F(TestTopology, UpdateChunkServer_success) {
+TEST_F(TestTopology, UpdateChunkServerTopo_success) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     ServerIdType serverId = 0x31;
@@ -1221,11 +1214,11 @@ TEST_F(TestTopology, UpdateChunkServer_success) {
 
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
         .WillOnce(Return(true));
-    int ret = topology_->UpdateChunkServer(newCs);
+    int ret = topology_->UpdateChunkServerTopo(newCs);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
 
-TEST_F(TestTopology, UpdateChunkServer_UpdateServerSuccess) {
+TEST_F(TestTopology, UpdateChunkServerTopo_UpdateServerSuccess) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     ServerIdType serverId = 0x31;
@@ -1255,11 +1248,11 @@ TEST_F(TestTopology, UpdateChunkServer_UpdateServerSuccess) {
 
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
         .WillOnce(Return(true));
-    int ret = topology_->UpdateChunkServer(newCs);
+    int ret = topology_->UpdateChunkServerTopo(newCs);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
 
-TEST_F(TestTopology, UpdateChunkServer_ChunkServerNotFound) {
+TEST_F(TestTopology, UpdateChunkServerTopo_ChunkServerNotFound) {
     ServerIdType serverId = 0x31;
     ChunkServerIdType csId = 0x41;
 
@@ -1271,11 +1264,11 @@ TEST_F(TestTopology, UpdateChunkServer_ChunkServerNotFound) {
             100,
             "/abc");
 
-    int ret = topology_->UpdateChunkServer(newCs);
+    int ret = topology_->UpdateChunkServerTopo(newCs);
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
 }
 
-TEST_F(TestTopology, UpdateChunkServer_StorageFail) {
+TEST_F(TestTopology, UpdateChunkServerTopo_StorageFail) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     ServerIdType serverId = 0x31;
@@ -1301,12 +1294,12 @@ TEST_F(TestTopology, UpdateChunkServer_StorageFail) {
 
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
         .WillOnce(Return(false));
-    int ret = topology_->UpdateChunkServer(newCs);
+    int ret = topology_->UpdateChunkServerTopo(newCs);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
 
-TEST_F(TestTopology, UpdateChunkServerState_success) {
+TEST_F(TestTopology, UpdateChunkServerDiskStatus_success) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     ServerIdType serverId = 0x31;
@@ -1324,49 +1317,28 @@ TEST_F(TestTopology, UpdateChunkServerState_success) {
     csState.SetDiskState(DISKERROR);
     csState.SetDiskCapacity(100);
 
+    int ret = topology_->UpdateChunkServerDiskStatus(csState,  csId);
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+
+    // 只刷一次
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
         .WillOnce(Return(true));
-
-    int ret = topology_->UpdateChunkServerState(csState,  csId);
-    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+    topology_->Run();
+    // sleep 等待刷数据库
+    sleep(5);
+    topology_->Stop();
 }
 
-TEST_F(TestTopology, UpdateChunkServerState_ChunkServerNotFound) {
+TEST_F(TestTopology, UpdateChunkServerDiskStatus_ChunkServerNotFound) {
     ChunkServerIdType csId = 0x41;
 
     ChunkServerState csState;
     csState.SetDiskState(DISKERROR);
     csState.SetDiskCapacity(100);
 
-    int ret = topology_->UpdateChunkServerState(csState,  csId);
+    int ret = topology_->UpdateChunkServerDiskStatus(csState,  csId);
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
 }
-
-TEST_F(TestTopology, UpdateChunkServerState_StorageFail) {
-    PoolIdType physicalPoolId = 0x11;
-    ZoneIdType zoneId = 0x21;
-    ServerIdType serverId = 0x31;
-    ChunkServerIdType csId = 0x41;
-    PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddZone(zoneId);
-    PrepareAddServer(serverId);
-    PrepareAddChunkServer(csId,
-            "token",
-            "ssd",
-            serverId,
-            "/");
-
-    ChunkServerState csState;
-    csState.SetDiskState(DISKERROR);
-    csState.SetDiskCapacity(100);
-
-    EXPECT_CALL(*storage_, UpdateChunkServer(_))
-        .WillOnce(Return(false));
-
-    int ret = topology_->UpdateChunkServerState(csState,  csId);
-    ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
-}
-
 
 TEST_F(TestTopology, FindLogicalPool_success) {
     PoolIdType logicalPoolId = 0x01;
@@ -2184,7 +2156,7 @@ TEST_F(TestTopology, RemoveCopySet_CopySetNotFound) {
     ASSERT_EQ(kTopoErrCodeCopySetNotFound, ret);
 }
 
-TEST_F(TestTopology, UpdateCopySet_success) {
+TEST_F(TestTopology, UpdateCopySetTopo_success) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     CopySetIdType copysetId = 0x51;
@@ -2217,56 +2189,21 @@ TEST_F(TestTopology, UpdateCopySet_success) {
 
     CopySetInfo csInfo(logicalPoolId, copysetId);
     csInfo.SetCopySetMembers(replicas2);
+
+    int ret = topology_->UpdateCopySetTopo(csInfo);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+
+    // 只刷一次
     EXPECT_CALL(*storage_, UpdateCopySet(_))
         .WillOnce(Return(true));
-
-    int ret = topology_->UpdateCopySet(csInfo);
-
-    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+    topology_->Run();
+    // sleep 等待刷数据库
+    sleep(5);
+    topology_->Stop();
 }
 
-TEST_F(TestTopology, UpdateCopySet_StorageFail) {
-    PoolIdType logicalPoolId = 0x01;
-    PoolIdType physicalPoolId = 0x11;
-    CopySetIdType copysetId = 0x51;
-
-    PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddZone(0x21, "zone1", physicalPoolId);
-    PrepareAddZone(0x22, "zone2", physicalPoolId);
-    PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x44, "token3", "nvme", 0x33, "127.0.0.1", 8200);
-    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
-    std::set<ChunkServerIdType> replicas;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x43);
-    PrepareAddCopySet(copysetId, logicalPoolId, replicas);
-
-    std::set<ChunkServerIdType> replicas2;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x44);
-
-    CopySetInfo csInfo(logicalPoolId, copysetId);
-    csInfo.SetCopySetMembers(replicas2);
-    EXPECT_CALL(*storage_, UpdateCopySet(_))
-        .WillOnce(Return(false));
-
-    int ret = topology_->UpdateCopySet(csInfo);
-
-    ASSERT_EQ(kTopoErrCodeSuccess, ret);
-}
-
-TEST_F(TestTopology, UpdateCopySet_CopySetNotFound) {
+TEST_F(TestTopology, UpdateCopySetTopo_CopySetNotFound) {
     PoolIdType logicalPoolId = 0x01;
     PoolIdType physicalPoolId = 0x11;
     CopySetIdType copysetId = 0x51;
@@ -2300,85 +2237,7 @@ TEST_F(TestTopology, UpdateCopySet_CopySetNotFound) {
     CopySetInfo csInfo(logicalPoolId, ++copysetId);
     csInfo.SetCopySetMembers(replicas2);
 
-    int ret = topology_->UpdateCopySet(csInfo);
-
-    ASSERT_EQ(kTopoErrCodeCopySetNotFound, ret);
-}
-
-TEST_F(TestTopology, UpdateCopySetPeriodically_success) {
-    PoolIdType logicalPoolId = 0x01;
-    PoolIdType physicalPoolId = 0x11;
-    CopySetIdType copysetId = 0x51;
-
-    PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddZone(0x21, "zone1", physicalPoolId);
-    PrepareAddZone(0x22, "zone2", physicalPoolId);
-    PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x44, "token3", "nvme", 0x33, "127.0.0.1", 8200);
-    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
-    std::set<ChunkServerIdType> replicas;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x43);
-    PrepareAddCopySet(copysetId, logicalPoolId, replicas);
-
-    std::set<ChunkServerIdType> replicas2;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x44);
-
-    CopySetInfo csInfo(logicalPoolId, copysetId);
-    csInfo.SetCopySetMembers(replicas2);
-
-    int ret = topology_->UpdateCopySetPeriodically(csInfo);
-
-    ASSERT_EQ(kTopoErrCodeSuccess, ret);
-}
-
-TEST_F(TestTopology, UpdateCopySetPeriodically_CopySetNotFound) {
-    PoolIdType logicalPoolId = 0x01;
-    PoolIdType physicalPoolId = 0x11;
-    CopySetIdType copysetId = 0x51;
-
-    PrepareAddPhysicalPool(physicalPoolId);
-    PrepareAddZone(0x21, "zone1", physicalPoolId);
-    PrepareAddZone(0x22, "zone2", physicalPoolId);
-    PrepareAddZone(0x23, "zone3", physicalPoolId);
-    PrepareAddServer(
-        0x31, "server1", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x21, 0x11);
-    PrepareAddServer(
-        0x32, "server2", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x22, 0x11);
-    PrepareAddServer(
-        0x33, "server3", "127.0.0.1" , 0, "127.0.0.1" , 0, 0x23, 0x11);
-    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8200);
-    PrepareAddChunkServer(0x44, "token3", "nvme", 0x33, "127.0.0.1", 8200);
-    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
-    std::set<ChunkServerIdType> replicas;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x43);
-    PrepareAddCopySet(copysetId, logicalPoolId, replicas);
-
-    std::set<ChunkServerIdType> replicas2;
-    replicas.insert(0x41);
-    replicas.insert(0x42);
-    replicas.insert(0x44);
-
-    CopySetInfo csInfo(logicalPoolId, ++copysetId);
-    csInfo.SetCopySetMembers(replicas2);
-
-    int ret = topology_->UpdateCopySetPeriodically(csInfo);
+    int ret = topology_->UpdateCopySetTopo(csInfo);
 
     ASSERT_EQ(kTopoErrCodeCopySetNotFound, ret);
 }
@@ -2538,6 +2397,10 @@ TEST_F(TestTopology, GetCopySetsInChunkServer_success) {
     topology_->GetCopySetsInChunkServer(0x41);
     ASSERT_EQ(1, csList.size());
 }
+
+
+
+
 
 }  // namespace topology
 }  // namespace mds

@@ -23,10 +23,17 @@ namespace topology {
 bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
     curve::mds::FileType fileType,
     uint32_t chunkNumber,
+    ChunkSizeType chunkSize,
     std::vector<CopysetIdInfo> *infos) {
+    if (fileType != INODE_PAGEFILE) {
+        LOG(ERROR) << "Invalid FileType, fileType = "
+                   << fileType;
+        return false;
+    }
     PoolIdType logicalPoolChosenId = 0;
     bool ret = ChooseSingleLogicalPool(fileType, &logicalPoolChosenId);
     if (!ret) {
+        LOG(ERROR) << "ChooseSingleLogicalPool fail, ret =  " << ret;
         return false;
     }
 
@@ -39,20 +46,28 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
                    << " logicalPoolId = " << logicalPoolChosenId;
         return false;
     }
-    return AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
+    ret = AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
                copySetIds,
                logicalPoolChosenId,
                chunkNumber,
                infos);
+    return ret;
 }
 
 bool TopologyAdminImpl::AllocateChunkRoundRobinInSingleLogicalPool(
     curve::mds::FileType fileType,
     uint32_t chunkNumber,
+    ChunkSizeType chunkSize,
     std::vector<CopysetIdInfo> *infos) {
+    if (fileType != INODE_PAGEFILE) {
+        LOG(ERROR) << "Invalid FileType, fileType = "
+                   << fileType;
+        return false;
+    }
     PoolIdType logicalPoolChosenId = 0;
     bool ret = ChooseSingleLogicalPool(fileType, &logicalPoolChosenId);
     if (!ret) {
+        LOG(ERROR) << "ChooseSingleLogicalPool fail, ret =  " << ret;
         return false;
     }
 
@@ -113,7 +128,8 @@ bool TopologyAdminImpl::ChooseSingleLogicalPool(curve::mds::FileType fileType,
     // TODO(xuchaojie): 还需过滤容量不足的pool
     auto logicalPoolFilter =
     [poolType] (const LogicalPool &pool) {
-        return pool.GetLogicalPoolType() == poolType;
+        return pool.GetLogicalPoolAvaliableFlag() &&
+            pool.GetLogicalPoolType() == poolType;
     };
 
     logicalPools = topology_->GetLogicalPoolInCluster(logicalPoolFilter);

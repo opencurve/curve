@@ -10,6 +10,7 @@
 #include <set>
 #include "src/mds/heartbeat/heartbeat_manager.h"
 #include "src/common/string_util.h"
+#include "src/mds/topology/topology_stat.h"
 
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::CopySetKey;
@@ -18,14 +19,19 @@ using ::curve::mds::topology::CopySetIdType;
 using ::curve::mds::topology::ChunkServerState;
 using ::curve::mds::topology::UNINTIALIZE_ID;
 using ::curve::mds::topology::ChunkServerStatus;
+using ::curve::mds::topology::ChunkServerStat;
+using ::curve::mds::topology::CopysetStat;
+using ::curve::mds::topology::SplitPeerId;
 
 namespace curve {
 namespace mds {
 namespace heartbeat {
 HeartbeatManager::HeartbeatManager(HeartbeatOption option,
     std::shared_ptr<Topology> topology,
+    std::shared_ptr<TopologyStat> topologyStat,
     std::shared_ptr<Coordinator> coordinator)
-    : topology_(topology) {
+    : topology_(topology),
+      topologyStat_(topologyStat) {
     healthyChecker_ =
         std::make_shared<ChunkserverHealthyChecker>(option, topology);
 
@@ -76,7 +82,84 @@ void HeartbeatManager::ChunkServerHealthyChecker() {
     }
 }
 
-// TODO(lixiaocui): 状态更新到topologyStat
+void HeartbeatManager::UpdateChunkServerState(
+    const ChunkServerHeartbeatRequest &request) {
+    // 更新ChunkServerState数据
+    ChunkServerState state;
+    if (request.diskstate().errtype() != 0) {
+        state.SetDiskState(curve::mds::topology::DISKERROR);
+        LOG(ERROR) << "heartbeat report disk error, "
+                   << "errortype = " << request.diskstate().errtype()
+                   << "errmsg = " << request.diskstate().errmsg();
+    } else {
+        state.SetDiskState(curve::mds::topology::DISKNORMAL);
+    }
+    state.SetDiskCapacity(request.diskcapacity());
+    state.SetDiskUsed(request.diskused());
+    int ret = topology_->UpdateChunkServerDiskStatus(state,
+        request.chunkserverid());
+    if (ret != curve::mds::topology::kTopoErrCodeSuccess) {
+        LOG(ERROR) << "heartbeat UpdateDiskStatus get an error, ret ="
+                   << ret;
+    }
+}
+
+void HeartbeatManager::UpdateChunkServerStat(
+    const ChunkServerHeartbeatRequest &request) {
+    ChunkServerStat stat;
+    stat.leaderCount = request.leadercount();
+    stat.copysetCount = request.copysetcount();
+    // 更新到topologyStat
+    if (request.has_stats()) {
+        stat.readRate = request.stats().readrate();
+        stat.writeRate = request.stats().writerate();
+        stat.readIOPS = request.stats().readiops();
+        stat.writeIOPS = request.stats().writeiops();
+
+        for (int i = 0; i < request.copysetinfos_size(); i++) {
+            CopysetStat cstat;
+            cstat.logicalPoolId = request.copysetinfos(i).logicalpoolid();
+            cstat.copysetId = request.copysetinfos(i).copysetid();
+
+            // TODO(xuchaojie) : 后续支持新的协议之后可直接使用id
+            std::string leaderPeer =
+                request.copysetinfos(i).leaderpeer().address();
+            std::string leaderIp;
+            uint32_t leaderPort;
+            if (SplitPeerId(leaderPeer, &leaderIp, &leaderPort)) {
+                cstat.leader =
+                    topology_->FindChunkServerNotRetired(
+                    leaderIp, leaderPort);
+                if (UNINTIALIZE_ID == cstat.leader) {
+                    LOG(ERROR) << "hearbeat failed on FindChunkServer,"
+                               << "leaderIp = " << leaderIp
+                               << "leaderPort = " << leaderPort;
+                }
+            } else {
+                LOG(ERROR) << "hearbeat failed on SplitPeerId, "
+                           << "peerId string = " << leaderPeer;
+            }
+            if (request.copysetinfos(i).has_stats()) {
+                cstat.readRate = request.copysetinfos(i).stats().readrate();
+                cstat.writeRate = request.copysetinfos(i).stats().writerate();
+                cstat.readIOPS = request.copysetinfos(i).stats().readiops();
+                cstat.writeIOPS = request.copysetinfos(i).stats().writeiops();
+            } else {
+                LOG(ERROR) << "hearbeat manager receive request "
+                           << "copyset {" << cstat.logicalPoolId
+                           << ", " << cstat.copysetId << "} "
+                           << "do not have CopysetStatistics";
+            }
+            stat.copysetStats.push_back(cstat);
+        }
+
+    } else {
+        LOG(ERROR) << "hearbeat manager receive request "
+                   << "do not have ChunkServerStatisticInfo";
+    }
+    topologyStat_->UpdateChunkServerStat(request.chunkserverid(), stat);
+}
+
 void HeartbeatManager::ChunkServerHeartbeat(
     const ChunkServerHeartbeatRequest &request,
     ChunkServerHeartbeatResponse *response) {
@@ -88,6 +171,10 @@ void HeartbeatManager::ChunkServerHeartbeat(
     // 将心跳上报时间点pass到chunkserver健康检查模块
     healthyChecker_->UpdateLastReceivedHeartbeatTime(request.chunkserverid(),
                                     steady_clock::now());
+
+    UpdateChunkServerState(request);
+
+    UpdateChunkServerStat(request);
 
     // 处理心跳中的copyset
     for (auto &value : request.copysetinfos()) {

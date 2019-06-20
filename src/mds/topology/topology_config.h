@@ -15,20 +15,19 @@ namespace mds {
 namespace topology {
 
 struct TopologyOption {
-    uint32_t ChunkServerStateUpdateSec;
-    uint32_t CopySetUpdateSec;
+    uint32_t TopologyUpdateToRepoSec;
     uint32_t CreateCopysetRpcTimeoutMs;
     uint32_t CreateCopysetRpcRetryTimes;
     uint32_t CreateCopysetRpcRetrySleepTimeMs;
+    uint32_t UpdateMetricIntervalSec;
 
     TopologyOption()
-        : ChunkServerStateUpdateSec(0),
-          CopySetUpdateSec(0),
+        : TopologyUpdateToRepoSec(0),
           CreateCopysetRpcTimeoutMs(500),
           CreateCopysetRpcRetryTimes(3),
-          CreateCopysetRpcRetrySleepTimeMs(500) {}
+          CreateCopysetRpcRetrySleepTimeMs(500),
+          UpdateMetricIntervalSec(0) {}
 };
-
 
 }  // namespace topology
 }  // namespace mds

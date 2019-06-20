@@ -24,6 +24,7 @@
 #include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_service.h"
+#include "src/mds/topology/topology_stat.h"
 
 #include "proto/copyset.pb.h"
 
@@ -250,6 +251,18 @@ class MockTopologyServiceImpl : public TopologyService {
             const PhysicalPoolRequest* request,
             PhysicalPoolResponse* response,
             google::protobuf::Closure* done));
+};
+
+class MockTopologyStat : public TopologyStat {
+ public:
+    MockTopologyStat() {}
+    MOCK_METHOD2(UpdateChunkServerStat,
+        void(ChunkServerIdType csId,
+        const ChunkServerStat &stat));
+
+    MOCK_METHOD2(GetChunkServerStat,
+        bool(ChunkServerIdType csId,
+        ChunkServerStat *stat));
 };
 
 class MockRepo : public MdsRepo {

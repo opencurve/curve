@@ -32,31 +32,34 @@ bool CopysetManager::Init(const CopysetConstrait &constrait) {
 
 bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
     int numCopysets,
-    int scatterWidth,
+    uint32_t *scatterWidth,
     std::vector<Copyset>* out) {
     if (nullptr == policy_) {
         return false;
     }
 
-    if (0 == numCopysets && 0 == scatterWidth) {
+    if (0 == numCopysets && 0 == *scatterWidth) {
         return false;
     }
 
     int numChunkServers = cluster.GetClusterSize();
-    if (scatterWidth >= (numChunkServers - 1)) {
+    if (*scatterWidth >= (numChunkServers - 1)) {
         // scatterWidth大于上限不可能达到
         return false;
     }
 
+    uint32_t targetScatterWidth = *scatterWidth;
+
     if (numCopysets != 0) {
         if (GenCopyset(cluster, numCopysets, out)) {
-            if (validator_->ValidateScatterWidth(scatterWidth, *out)) {
+            if (validator_->ValidateScatterWidth(targetScatterWidth,
+                scatterWidth, *out)) {
                 return true;
             } else {
                 LOG(ERROR) << "GenCopyset ValidateScatterWidth failed, "
                            << "numCopysets not enough, "
                            << "numCopysets = " << numCopysets
-                           << " , scatterWidth = " << scatterWidth;
+                           << " , scatterWidth = " << targetScatterWidth;
                 return false;
             }
         } else {
@@ -65,7 +68,7 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
     } else {
         policy_->GetMinCopySetFromScatterWidth(
             numChunkServers,
-            scatterWidth,
+            targetScatterWidth,
             constrait_.replicaNum,
             &numCopysets);
         // 设置while循环上限防止死循环,
@@ -73,10 +76,11 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
         // 假设最多能容忍每10次permutation产生1个scatter-width,
         // 那么需要P=10S次permutation， 产生10SN/R个copyset。
         int maxRetryNum =
-            10 * scatterWidth * numChunkServers / constrait_.replicaNum;
+            10 * targetScatterWidth * numChunkServers / constrait_.replicaNum;
         while (numCopysets <= maxRetryNum) {
             if (GenCopyset(cluster, numCopysets, out)) {
-                if (validator_->ValidateScatterWidth(scatterWidth, *out)) {
+                if (validator_->ValidateScatterWidth(targetScatterWidth,
+                    scatterWidth, *out)) {
                     return true;
                 } else {
                     numCopysets++;
@@ -84,7 +88,7 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
             } else {
                 LOG(ERROR) << "GenCopyset by scatterWidth failed, "
                            << "scatterWidth can not reach, scatterWidth = "
-                           << scatterWidth;
+                           << targetScatterWidth;
                 return false;
             }
         }
