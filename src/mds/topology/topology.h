@@ -70,25 +70,66 @@ class Topology {
     virtual int UpdatePhysicalPool(const PhysicalPool &data) = 0;
     virtual int UpdateZone(const Zone &data) = 0;
     virtual int UpdateServer(const Server &data) = 0;
-    // 更新内存并持久化全部数据
-    virtual int UpdateChunkServer(const ChunkServer &data) = 0;
-    virtual int UpdateOnlineState(const OnlineState &onlineState,
-                                  ChunkServerIdType id) = 0;
-    // 更新内存，定期持久化数据
-    virtual int UpdateChunkServerState(const ChunkServerState &state,
-                                       ChunkServerIdType id) = 0;
-    virtual int UpdateCopySet(const CopySetInfo &data) = 0;
+    /**
+     * @brief 更新chunkserver Topo信息
+     * - 仅更新topo部分数据
+     * - 先更新数据库，再更新内存，若更新数据库失败，则更新失败
+     *
+     * @param data chunkserver数据
+     *
+     * @return 错误码
+     *
+     */
+    virtual int UpdateChunkServerTopo(const ChunkServer &data) = 0;
 
     /**
-     * @brief 更新内存并定期持久化copyset信息
+     * @brief 更新chunkserver 读写状态
+     * - 仅更新读写状态
+     * - 先更新数据库，再更新内存，若更新数据库失败，则更新失败
+     *
+     * @param rwState 读写或retired状态
+     * @param id chunkserverid
+     *
+     * @return 错误码
+     */
+    virtual int UpdateChunkServerRwState(const ChunkServerStatus &rwState,
+                                  ChunkServerIdType id) = 0;
+    /**
+     * @brief 更新chunkserver online状态
+     * - 仅更新online/offline状态
+     * - 仅更新内存，后台定期刷入数据库
+     *
+     * @param onlineState online/offline状态
+     * @param id chunkseverid
+     *
+     * @return 错误码
+     */
+    virtual int UpdateChunkServerOnlineState(const OnlineState &onlineState,
+                                  ChunkServerIdType id) = 0;
+    /**
+     * @brief 更新chunkserver 磁盘状态
+     * - 仅更新disk state
+     * - 仅更新内存，后台定期刷入数据库
+     *
+     * @param state 磁盘状态
+     * @param id chunkserverid
+     *
+     * @return 错误码
+     */
+    virtual int UpdateChunkServerDiskStatus(const ChunkServerState &state,
+                                       ChunkServerIdType id) = 0;
+
+    /**
+     * @brief 更新copyset 拓扑信息
      * @detail
-     *    用于更新epoch，leader等心跳周期性上报的copyset数据
+     * - 用于更新epoch，leader等心跳周期性上报的copyset数据
+     * - 仅更新内存，后台定期刷入数据库
      *
      * @param data copyset数据
      *
      * @return 错误码
      */
-    virtual int UpdateCopySetPeriodically(const CopySetInfo &data) = 0;
+    virtual int UpdateCopySetTopo(const CopySetInfo &data) = 0;
 
     virtual PoolIdType
         FindLogicalPool(const std::string &logicalPoolName,
@@ -223,6 +264,12 @@ class Topology {
         PoolIdType logicalPoolId,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const = 0;
+
+    virtual std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
+        PoolIdType logicalPoolId,
+        CopySetFilter filter = [](const CopySetInfo&) {
+            return true;}) const = 0;
+
     virtual std::vector<CopySetKey>
         GetCopySetsInChunkServer(ChunkServerIdType id,
         CopySetFilter filter = [](const CopySetInfo&) {
@@ -276,15 +323,16 @@ class TopologyImpl : public Topology {
     int UpdatePhysicalPool(const PhysicalPool &data) override;
     int UpdateZone(const Zone &data) override;
     int UpdateServer(const Server &data) override;
-    // 更新内存并持久化全部数据
-    int UpdateChunkServer(const ChunkServer &data) override;
-    int UpdateOnlineState(const OnlineState &onlineState,
+
+    int UpdateChunkServerTopo(const ChunkServer &data) override;
+    int UpdateChunkServerRwState(const ChunkServerStatus &rwState,
+                                  ChunkServerIdType id) override;
+    int UpdateChunkServerOnlineState(const OnlineState &onlineState,
                           ChunkServerIdType id) override;
-    // 更新内存，定期持久化数据
-    int UpdateChunkServerState(const ChunkServerState &state,
-                               ChunkServerIdType id) override;
-    int UpdateCopySet(const CopySetInfo &data) override;
-    int UpdateCopySetPeriodically(const CopySetInfo &data) override;
+    int UpdateChunkServerDiskStatus(const ChunkServerState &state,
+                         ChunkServerIdType id) override;
+
+    int UpdateCopySetTopo(const CopySetInfo &data) override;
 
     PoolIdType FindLogicalPool(const std::string &logicalPoolName,
         const std::string &physicalPoolName) const override;
@@ -422,6 +470,12 @@ class TopologyImpl : public Topology {
         PoolIdType logicalPoolId,
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
+
+    std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
+        PoolIdType logicalPoolId,
+        CopySetFilter filter = [](const CopySetInfo&) {
+            return true;}) const override;
+
     std::vector<CopySetKey> GetCopySetsInChunkServer(
         ChunkServerIdType id,
         CopySetFilter filter = [](const CopySetInfo&) {
@@ -433,6 +487,8 @@ class TopologyImpl : public Topology {
     void BackEndFunc();
 
     void FlushCopySetToStorage();
+
+    void FlushChunkServerToStorage();
 
  private:
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap_;

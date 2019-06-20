@@ -19,6 +19,7 @@ using ::testing::SetArgPointee;
 using ::testing::DoAll;
 using ::testing::_;
 using ::curve::mds::topology::MockTopology;
+using ::curve::mds::topology::MockTopologyStat;
 
 namespace curve {
 namespace mds {
@@ -34,14 +35,16 @@ class TestHeartbeatManager : public ::testing::Test {
     option.mdsStartTime = steady_clock::now();
     topology_ = std::make_shared<MockTopology>();
     coordinator_ = std::make_shared<MockCoordinator>();
+    topologyStat_ = std::make_shared<MockTopologyStat>();
     heartbeatManager_ = std::make_shared<HeartbeatManager>(
-        option, topology_, coordinator_);
+        option, topology_, topologyStat_, coordinator_);
   }
 
   void TearDown() override {}
 
  protected:
   std::shared_ptr<MockTopology> topology_;
+  std::shared_ptr<MockTopologyStat> topologyStat_;
   std::shared_ptr<MockCoordinator> coordinator_;
   std::shared_ptr<HeartbeatManager> heartbeatManager_;
 };
@@ -605,7 +608,7 @@ TEST_F(TestHeartbeatManager,
         .WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo), Return(true)));
     EXPECT_CALL(*coordinator_, CopySetHeartbeat(_, _, _))
         .WillOnce(Return(::curve::mds::topology::UNINTIALIZE_ID));
-    EXPECT_CALL(*topology_, UpdateCopySetPeriodically(_))
+    EXPECT_CALL(*topology_, UpdateCopySetTopo(_))
         .WillOnce(Return(::curve::mds::topology::kTopoErrCodeInternalError));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(0, response.needupdatecopysets_size());
@@ -687,7 +690,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
         .WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo), Return(true)));
     EXPECT_CALL(*coordinator_, CopySetHeartbeat(_, _, _))
         .WillOnce(Return(false));
-    EXPECT_CALL(*topology_, UpdateCopySetPeriodically(_))
+    EXPECT_CALL(*topology_, UpdateCopySetTopo(_))
         .WillOnce(Return(::curve::mds::topology::kTopoErrCodeInternalError));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(0, response.needupdatecopysets_size());
@@ -731,7 +734,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer2), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer4), Return(true)));
-    EXPECT_CALL(*topology_, UpdateCopySetPeriodically(_))
+    EXPECT_CALL(*topology_, UpdateCopySetTopo(_))
         .WillOnce(Return(::curve::mds::topology::kTopoErrCodeInternalError));
     EXPECT_CALL(*topology_, GetCopySet(_, _))
         .Times(2)
@@ -772,7 +775,7 @@ TEST_F(TestHeartbeatManager, test_handle_copysetInfo_equal_epoch) {
         .WillRepeatedly(DoAll(SetArgPointee<1>(copySetInfo), Return(true)));
     EXPECT_CALL(*coordinator_, CopySetHeartbeat(_, _, _))
         .WillOnce(Return(false));
-    EXPECT_CALL(*topology_, UpdateCopySetPeriodically(_))
+    EXPECT_CALL(*topology_, UpdateCopySetTopo(_))
         .WillOnce(Return(::curve::mds::topology::kTopoErrCodeSuccess));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(0, response.needupdatecopysets_size());
@@ -849,7 +852,7 @@ TEST_F(TestHeartbeatManager, test_patrol_copySetInfo_return_order) {
     res.set_type(TRANSFER_LEADER);
     EXPECT_CALL(*coordinator_, CopySetHeartbeat(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(res), Return(true)));
-    EXPECT_CALL(*topology_, UpdateCopySetPeriodically(_))
+    EXPECT_CALL(*topology_, UpdateCopySetTopo(_))
         .WillOnce(Return(::curve::mds::topology::kTopoErrCodeSuccess));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(1, response.needupdatecopysets_size());

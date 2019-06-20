@@ -23,11 +23,13 @@ class  MOCKTopologyAdmin1: public TopologyAdmin {
      using CopysetIdInfo = ::curve::mds::topology::CopysetIdInfo;
 
     ~MOCKTopologyAdmin1() {}
-    MOCK_METHOD3(AllocateChunkRandomInSingleLogicalPool,
-        bool(FileType, uint32_t, std::vector<CopysetIdInfo> *));
+    MOCK_METHOD4(AllocateChunkRandomInSingleLogicalPool,
+        bool(FileType, uint32_t,
+            ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
 
-    MOCK_METHOD3(AllocateChunkRoundRobinInSingleLogicalPool,
-        bool(FileType, uint32_t, std::vector<CopysetIdInfo> *));
+    MOCK_METHOD4(AllocateChunkRoundRobinInSingleLogicalPool,
+        bool(FileType, uint32_t,
+            ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
 };
 
 }  // namespace mds

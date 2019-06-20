@@ -121,28 +121,30 @@ class TopologyServiceManager {
     * @brief 为logicalpool创建copyset
     *
     * @param lPool 逻辑池
-    * @param scatterWidth scatterWidth
+    * @param[in][out] scatterWidth 入参为目标scatterWidth,
+    *   出参返回实际scatterWidth
     * @param[out] copysetInfos 创建的copyset信息
     *
     * @return 错误码
     */
     int CreateCopysetForLogicalPool(
         const LogicalPool &lPool,
-        uint32_t scatterWidth,
+        uint32_t *scatterWidth,
         std::vector<CopySetInfo> *copysetInfos);
 
     /**
     * @brief 为PageFilePool创建copyset
     *
     * @param lPool 逻辑池
-    * @param scatterWidth scatterWidth
+    * @param[in][out] scatterWidth 入参为目标scatterWidth,
+    *   出参返回实际scatterWidth
     * @param[out] copysetInfos 创建的copyset信息
     *
     * @return 错误码
     */
     int GenCopysetForPageFilePool(
         const LogicalPool &lPool,
-        uint32_t scatterWidth,
+        uint32_t *scatterWidth,
         std::vector<CopySetInfo> *copysetInfos);
 
     /**

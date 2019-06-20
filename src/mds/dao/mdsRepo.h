@@ -137,6 +137,7 @@ struct LogicalPoolRepoItem : public RepoItem {
   std::string logicalPoolName;
   uint16_t physicalPoolID;
   uint8_t type;
+  uint32_t initialScatterWidth;
   int64_t createTime;
   uint8_t status;
   std::string redundanceAndPlacementPolicy;
@@ -152,6 +153,7 @@ struct LogicalPoolRepoItem : public RepoItem {
                   const std::string &logicalName,
                   uint16_t physicalID,
                   uint8_t type,
+                  uint32_t initialScatterWidth,
                   int64_t createTime,
                   uint8_t status,
                   const std::string &reduancePolicy,
@@ -196,6 +198,8 @@ struct CopySetRepoItem : public RepoItem {
   uint32_t copySetID;
   uint16_t logicalPoolID;
   uint64_t epoch;
+  uint32_t allocChunkNum;
+  uint64_t allocSize;
   std::string chunkServerIDList;
 
  public:

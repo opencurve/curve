@@ -23,7 +23,7 @@ using ::curve::mds::topology::ChunkServerIdType;
 
 bool CopysetValidation::Validate(
     const std::vector<Copyset> &copysets) const {
-    std::map<ChunkServerIdType, int> scatterWidthMap;
+    std::map<ChunkServerIdType, uint32_t> scatterWidthMap;
     CalcScatterWidth(copysets, &scatterWidthMap);
     std::vector<double> scatterWidthVec;
     for (auto &pair : scatterWidthMap) {
@@ -95,15 +95,17 @@ bool CopysetValidation::Validate(
     return true;
 }
 
-bool CopysetValidation::ValidateScatterWidth(int scatterWidth,
+bool CopysetValidation::ValidateScatterWidth(uint32_t scatterWidth,
+    uint32_t *scatterWidthOut,
     const std::vector<Copyset> &copysets) const {
-    std::map<ChunkServerIdType, int> scatterWidthMap;
+    std::map<ChunkServerIdType, uint32_t> scatterWidthMap;
     CalcScatterWidth(copysets, &scatterWidthMap);
     std::vector<double> scatterWidthVec;
     for (auto &pair : scatterWidthMap) {
         scatterWidthVec.push_back(pair.second);
     }
     double average = StatisticsTools::CalcAverage(scatterWidthVec);
+    *scatterWidthOut = std::round(average);
     if (average < scatterWidth) {
         LOG(ERROR) << "ValidateScatterWidth failed"
                    << ", scatterWidth = " << scatterWidth
@@ -114,7 +116,7 @@ bool CopysetValidation::ValidateScatterWidth(int scatterWidth,
 }
 
 void CopysetValidation::CalcScatterWidth(const std::vector<Copyset> &copysets,
-    std::map<ChunkServerIdType, int> *scatterWidthMap) const {
+    std::map<ChunkServerIdType, uint32_t> *scatterWidthMap) const {
     for (auto cs : copysets) {
         for (auto csId : cs.replicas) {
             scatterWidthMap->emplace(csId, 0);
@@ -128,7 +130,8 @@ void CopysetValidation::CalcScatterWidth(const std::vector<Copyset> &copysets,
                 collector.insert(cs.replicas.begin(), cs.replicas.end());
             }
         }
-        pair.second = collector.size();
+        // scatterWidth -1 是为了除去自身
+        pair.second = collector.size() - 1;
     }
 }
 
