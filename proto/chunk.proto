@@ -80,6 +80,19 @@ message GetChunkInfoResponse {
     repeated uint64 chunkSn = 3;        // chunk 版本号 和 snapshot 版本号
 };
 
+message GetChunkHashRequest {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId   = 2;
+    required uint64 chunkId     = 3;
+    required uint32 offset      = 4;
+    required uint32 length      = 5;
+};
+
+message GetChunkHashResponse {
+    required CHUNK_OP_STATUS status = 1;
+    optional string hash = 2;   // 能标志chunk数据状态的hash值，一般是crc32c
+};
+
 service ChunkService {
     rpc DeleteChunk (ChunkRequest) returns (ChunkResponse);
     rpc ReadChunk (ChunkRequest) returns (ChunkResponse);
@@ -89,6 +102,7 @@ service ChunkService {
     rpc DeleteChunkSnapshotOrCorrectSn (ChunkRequest) returns (ChunkResponse);
 
     rpc GetChunkInfo (GetChunkInfoRequest) returns (GetChunkInfoResponse);
+    rpc GetChunkHash (GetChunkHashRequest) returns (GetChunkHashResponse);
 
     rpc CreateCloneChunk (ChunkRequest) returns (ChunkResponse);
     rpc RecoverChunk (ChunkRequest) returns (ChunkResponse);
