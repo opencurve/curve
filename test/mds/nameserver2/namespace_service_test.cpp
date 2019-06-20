@@ -1246,6 +1246,30 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
+    while (1) {
+        cntl.Reset();
+        CheckSnapShotStatusRequest checkRequest;
+        CheckSnapShotStatusResponse checkResponse;
+        checkRequest.set_filename("/file1");
+        checkRequest.set_owner("owner");
+        checkRequest.set_date(TimeUtility::GetTimeofDayUs());
+        checkRequest.set_seq(1);
+        stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
+        if (!cntl.Failed()) {
+            if (checkResponse.statuscode() ==
+                                    StatusCode::kSnapshotFileNotExists) {
+                break;
+            } else {
+                ASSERT_EQ(checkResponse.statuscode(), StatusCode::kOK);
+                sleep(1);
+            }
+        } else {
+            ASSERT_TRUE(false);
+            break;
+        }
+    }
+
+
     // 3 如果目录下有文件，那么删除目录返回kDirNotEmpty
     cntl.Reset();
     request3.set_filename("/dir1");

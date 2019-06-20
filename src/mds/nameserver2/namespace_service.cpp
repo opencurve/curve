@@ -1015,7 +1015,7 @@ void NameSpaceService::RefreshSession(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
+    DVLOG(6) << "logid = " << cntl->log_id()
         << ", RefreshSession request, filename = " << request->filename()
         << ", sessionid = " << request->sessionid()
         << ", date = " << request->date()
@@ -1068,7 +1068,7 @@ void NameSpaceService::RefreshSession(
         response->set_sessionid(request->sessionid());
         response->set_allocated_fileinfo(fileInfo);
         response->set_statuscode(StatusCode::kOK);
-        LOG(INFO) << "logid = " << cntl->log_id()
+        DVLOG(6) << "logid = " << cntl->log_id()
             << ", RefreshSession ok, filename = " << request->filename()
             << ", sessionid = " << request->sessionid()
             << ", date = " << request->date()

@@ -1254,7 +1254,7 @@ create file less than 10g
     #[Setup]	file init
     ${rc}       create libcurve file less than 10g with normal user
     ${new_fd}       Convert To Integer    ${rc}
-    ${expect_rc}    evaluate    int(-17)
+    ${expect_rc}    evaluate    int(-24)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      ${new_fd}
 
