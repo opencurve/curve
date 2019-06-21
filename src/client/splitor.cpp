@@ -108,7 +108,12 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
             return -1;
         }
         newreqNode->seq_         = seq;
-        newreqNode->data_        = data + off;
+        if (iotracker->Optype() == OpType::WRITE) {
+            newreqNode->writeBuffer_ = data + off;
+        } else {
+            newreqNode->readBuffer_  = const_cast<char*>(data + off);
+        }
+        // newreqNode->data_        = data + off;
         newreqNode->offset_      = tempoff;
         newreqNode->rawlength_   = len;
         newreqNode->optype_      = iotracker->Optype();
@@ -200,7 +205,12 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                 return false;
             }
             newreqNode->seq_          = fileinfo->seqnum;
-            newreqNode->data_         = buf;
+            if (iotracker->Optype() == OpType::WRITE) {
+                newreqNode->writeBuffer_ = buf;
+            } else {
+                newreqNode->readBuffer_  = const_cast<char*>(buf);
+            }
+            // newreqNode->data_         = buf;
             newreqNode->offset_       = off;
             newreqNode->rawlength_    = len;
             newreqNode->optype_       = iotracker->Optype();
