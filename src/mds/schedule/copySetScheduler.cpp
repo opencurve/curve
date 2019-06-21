@@ -16,11 +16,11 @@ using ::curve::mds::topology::UNINTIALIZE_ID;
 namespace curve {
 namespace mds {
 namespace schedule {
-int CopySetScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
+int CopySetScheduler::Schedule() {
     // 1. 获取集群中copyset 和 chunkserver列表
     //    统计每个online状态chunkserver上的copyset
-    auto copysetList = topo->GetCopySetInfos();
-    auto chunkserverList = topo->GetChunkServerInfos();
+    auto copysetList = topo_->GetCopySetInfos();
+    auto chunkserverList = topo_->GetChunkServerInfos();
     std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
     CopySetDistributionInOnlineChunkServer(
         copysetList, chunkserverList, &distribute);
@@ -53,7 +53,7 @@ int CopySetScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
 
     Operator op;
     // 选出copyset、source和target
-    if (CopySetMigration(topo, distribute, &op, &rmOne)) {
+    if (CopySetMigration(distribute, &op, &rmOne)) {
         if (!opController_->AddOperator(op)) {
             LOG(INFO) << "copysetSchduler add op " << op.OpToString()
                       << " fail, copyset has already has operator";
@@ -173,7 +173,6 @@ void CopySetScheduler::CopySetDistributionInOnlineChunkServer(
   done
 */
 bool CopySetScheduler::CopySetMigration(
-    const std::shared_ptr<TopoAdapter> &topo,
     const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
     Operator *op, ChunkServerIdType *rmOne) {
     if (distribute.size() <= 1) {
@@ -204,7 +203,7 @@ bool CopySetScheduler::CopySetMigration(
 
             // copyset的replica不是标准数量，不考虑
             if (info.peers.size() !=
-                topo->GetStandardReplicaNumInLogicalPool(info.id.first)) {
+                topo_->GetStandardReplicaNumInLogicalPool(info.id.first)) {
                 continue;
             }
 
@@ -215,7 +214,7 @@ bool CopySetScheduler::CopySetMigration(
 
             // 该copyset +target,-source之后的各replica的scatter-with是否符合条件 //NOLINT
             if (!SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
-                    topo, target, possibleSource, info,
+                    topo_, target, possibleSource, info,
                     minScatterWidth_, scatterWidthRangePerent_)) {
                 continue;
             }
@@ -234,7 +233,7 @@ bool CopySetScheduler::CopySetMigration(
         *op = operatorFactory.CreateAddPeerOperator(
             choose, target, OperatorPriority::NormalPriority);
         op->timeLimit =
-            std::chrono::seconds(GetAddPeerTimeLimitSec());
+            std::chrono::seconds(addTimeSec_);
         LOG(INFO) << "copyset scheduler gen " << op->OpToString();
         *rmOne = source;
         return true;

@@ -13,6 +13,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <set>
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/schedule/operator.h"
 #include "src/mds/schedule/operatorController.h"
@@ -40,19 +41,26 @@ class Scheduler {
      * @param[in] scatterWithRangePerent scatter-width不能超过
      *            (1 + scatterWithRangePerent) * minScatterWdith
      * @param[in] minScatterWdith 最小scatter-width
+     * @param[in] opController operator管理模块
      * @param[in] topo 提供拓扑逻辑信息
      */
     Scheduler(int transTimeLimitSec, int removeTimeLimitSec, int addTimeLimtSec,
         float scatterWidthRangePerent, float minScatterWdith,
         const std::shared_ptr<TopoAdapter> &topo,
-        const std::shared_ptr<OperatorController> &opController);
+        const std::shared_ptr<OperatorController> &opController) {
+        this->transTimeSec_ = transTimeLimitSec;
+        this->removeTimeSec_ = removeTimeLimitSec;
+        this->addTimeSec_ = addTimeLimtSec;
+        this->scatterWidthRangePerent_ = scatterWidthRangePerent;
+        this->minScatterWidth_ = minScatterWdith;
+        this->topo_ = topo;
+        this->opController_ = opController;
+    }
     /**
      * @brief scheduler根据集群的状况产生operator
      *
-     * @param[in] topo 获取集群信息
      */
-    virtual int Schedule(
-        const std::shared_ptr<TopoAdapter> &topo);
+    virtual int Schedule();
 
     /**
      * @brief operator产生的时间间隔，单位是秒
@@ -60,27 +68,6 @@ class Scheduler {
     virtual int64_t GetRunningInterval();
 
  protected:
-    /**
-     * @brief GetTransferLeaderTimeLimitSec 获取leader变更超时时间
-     *
-     * @return 超时时间
-     */
-    int GetTransferLeaderTimeLimitSec();
-
-    /**
-     * @brief GetAddPeerTimeLimitSec 获取增加一个节点的超时时间
-     *
-     * @return 超时时间
-     */
-    int GetAddPeerTimeLimitSec();
-
-    /**
-     * @brief GetRemovePeerTimeLimitSec 获取减少一个节点的超时时间
-     *
-     * @return 超时时间
-     */
-    int GetRemovePeerTimeLimitSec();
-
     /**
      * @brief SelectBestPlacementChunkServer 从集群中选择一个健康的chunkserver
      *        替换copySetInfo中的oldPeer
@@ -110,7 +97,6 @@ class Scheduler {
     // scatter-with的最小值
     float minScatterWidth_;
 
- private:
     std::shared_ptr<TopoAdapter> topo_;
     // operator管理模块
     std::shared_ptr<OperatorController> opController_;
@@ -152,7 +138,6 @@ class CopySetScheduler : public Scheduler {
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
             scatterWithRangePerent, minScatterWith, topo, opController) {
-        this->opController_ = opController;
         this->runInterval_ = interSec;
         this->copysetNumRangePercent_ = copysetNumRangePercent;
     }
@@ -160,11 +145,9 @@ class CopySetScheduler : public Scheduler {
     /**
      * @brief Schedule根据集群的状况产生operator
      *
-     * @param[in] topo 获取集群信息
-     *
      * @return 需要增加的chunkserverId, 这个返回值是为了POC进行处理
      */
-    int Schedule(const std::shared_ptr<TopoAdapter> &topo) override;
+    int Schedule() override;
 
     /**
      *  @brief 获取CopySetScheduler的运行间隔
@@ -203,7 +186,6 @@ class CopySetScheduler : public Scheduler {
      * @brief CopySetMigration
      *        根据当前topo中copyset的分布选择一个copyset, 确定source和target
      *
-     * @param[in] topo 拓扑逻辑
      * @param[in] chunkserverlist topo中所有chunkserver, 作为参数是为了避免重复获取
      * @param[in] distribute 每个chunkserver上的copyset
      * @param[out] op 生成的operator
@@ -212,14 +194,10 @@ class CopySetScheduler : public Scheduler {
      * @return true-生成operator false-未生成operator
      */
     bool CopySetMigration(
-        const std::shared_ptr<TopoAdapter> &topo,
         const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
         Operator *op, ChunkServerIdType *removeOne);
 
  private:
-    // operator管理模块
-    std::shared_ptr<OperatorController> opController_;
-
     // CopySetScheduler运行时间间隔
     int64_t runInterval_;
 
@@ -254,18 +232,15 @@ class LeaderScheduler : public Scheduler {
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
             scatterWidthRangePerent, minScatterWdith, topo, opController) {
-        this->opController_ = opController;
         this->runInterval_ = interSec;
     }
 
     /**
      * @brief Schedule根据集群的状况产生operator
      *
-     * @param[in] topo 获取集群信息
-     *
      * @return 产生operator的个数
      */
-    int Schedule(const std::shared_ptr<TopoAdapter> &topo) override;
+    int Schedule() override;
 
     /**
      * @brief 获取LeaderScheduler的运行间隔
@@ -280,41 +255,32 @@ class LeaderScheduler : public Scheduler {
      *        上迁移出去
      *
      * @param[in] source leader需要迁移出去的chunkserverID
-     * @param[in] topo 用于获取集群信息
      * @param[out] op 生成的operator
      *
      * @return 是否成功生成operator, -1为没有生成
      */
-    int transferLeaderOut(ChunkServerIdType source,
-                            const std::shared_ptr<TopoAdapter> &topo,
-                            Operator *op);
+    int transferLeaderOut(ChunkServerIdType source, Operator *op);
 
     /**
      * @brief 在target上随机选择一个follower copyset, 把leader迁移到该chunserver上
      *
      * @param[in] target 需要将该leader迁移到该chunkserverID
-     * @param[in] topo 用于获取集群信息
      * @param[out] op 生成的operator
      *
      * @return 是否成功生成operator, -1为没有生成
      */
-    int transferLeaderIn(ChunkServerIdType target,
-                        const std::shared_ptr<TopoAdapter> &topo,
-                        Operator *op);
+    int transferLeaderIn(ChunkServerIdType target, Operator *op);
 
     /*
     * @brief copySetHealthy检查copySet三个副本是否都在线
     *
     * @param[in] csInfo copyset的信息
-    * @param[in] topo 用于获取copyset上三个副本的状态
     *
     * @return false为三个副本至少有一个不在线， true为三个副本均为online状态
     */
-    bool copySetHealthy(
-        const CopySetInfo &csInfo, const std::shared_ptr<TopoAdapter> &topo);
+    bool copySetHealthy(const CopySetInfo &csInfo);
 
  private:
-    std::shared_ptr<OperatorController> opController_;
     int64_t runInterval_;
 
     // transferLeaderout的重试次数
@@ -331,21 +297,21 @@ class RecoverScheduler : public Scheduler {
                     int addTimeLimitSec,
                     float scatterWithRangePerent,
                     float minScatterWith,
+                    int chunkserverFailureTolerance,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
             scatterWithRangePerent, minScatterWith, topo, opController) {
         this->opController_ = opController;
         this->runInterval_ = interSec;
+        this->chunkserverFailureTolerance_ = chunkserverFailureTolerance;
     }
 
     /**
      * @brief 修复topology中offline的副本
      *
-     * @param[in] topo 获取集群状态
-     *
      * @return 生成的operator的数量
      */
-    int Schedule(const std::shared_ptr<TopoAdapter> &topo) override;
+    int Schedule() override;
 
     /**
      * @brief scheduler运行的时间间隔
@@ -358,23 +324,27 @@ class RecoverScheduler : public Scheduler {
     /**
      * @brief 修复指定副本
      *
-     * @param[in] topo 用于获取集群状态
      * @param[in] info 待修复的copyset
      * @param[in] peerId 待修复的副本
      * @param[out] 生成的operator
      *
      * @return 是否生成了operator
      */
-    bool FixOfflinePeer(const std::shared_ptr<TopoAdapter> &topo,
-                        const CopySetInfo &info,
-                        ChunkServerIdType peerId,
-                        Operator *op);
+    bool FixOfflinePeer(
+        const CopySetInfo &info, ChunkServerIdType peerId, Operator *op);
+
+    /**
+     * @brief 统计server上有哪些offline超过一定数量的chunkserver集合
+     *
+     * @param[out] excludes server上offlinechunkserver超过一定数量的chunkserver集合//NOLINT
+     */
+    void CalculateExcludesChunkServer(std::set<ChunkServerIdType> *excludes);
 
  private:
-    // operator管理模块
-    std::shared_ptr<OperatorController> opController_;
     // RecoverScheduler运行间隔
     int64_t runInterval_;
+    // 一个Server上超过offlineExceed_个chunkserver挂掉,不恢复
+    int32_t chunkserverFailureTolerance_;
 };
 
 // 根据配置检查copyset的副本数量, 副本数量不符合标准值时进行删除或增加
@@ -411,11 +381,9 @@ class ReplicaScheduler : public Scheduler {
      * @brief Schedule检查copyset的副本数量是否符合标准值, 如果不符合, 生成operator //NOLINT
      *        调整副本数量
      *
-     * @param[in] topo 获取集群状态
-     *
      * @return 生成的operator的数量
      */
-    int Schedule(const std::shared_ptr<TopoAdapter> &topo) override;
+    int Schedule() override;
 
     /**
      * @brief scheduler运行的时间间隔
@@ -425,8 +393,6 @@ class ReplicaScheduler : public Scheduler {
     int64_t GetRunningInterval() override;
 
  private:
-    // operator管理模块
-    std::shared_ptr<OperatorController> opController_;
     // replicaScheduler运行间隔
     int64_t runInterval_;
 };

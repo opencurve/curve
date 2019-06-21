@@ -47,7 +47,7 @@ void HeartbeatManager::Init() {
         healthyChecker_->UpdateLastReceivedHeartbeatTime(
             value, steady_clock::now());
     }
-    LOG(INFO) << "init heartbeat ok!";
+    LOG(INFO) << "init heartbeatManager ok!";
 }
 
 void HeartbeatManager::Run() {
@@ -59,8 +59,11 @@ void HeartbeatManager::Run() {
 
 void HeartbeatManager::Stop() {
     if (!isStop_.exchange(true)) {
-        LOG(INFO) << "stop heartbeat manager";
+        LOG(INFO) << "stop heartbeatManager...";
         backEndThread_.join();
+        LOG(INFO) << "stop heartbeatManager ok!";
+    } else {
+        LOG(INFO) << "heartbeatManager not running.";
     }
 }
 
@@ -79,9 +82,9 @@ void HeartbeatManager::ChunkServerHeartbeat(
     ChunkServerHeartbeatResponse *response) {
     // 检查request的合法性
     if (!CheckRequest(request)) {
+        LOG(ERROR) << "heartbeatManager get error request";
         return;
     }
-
     // 将心跳上报时间点pass到chunkserver健康检查模块
     healthyChecker_->UpdateLastReceivedHeartbeatTime(request.chunkserverid(),
                                     steady_clock::now());
@@ -101,8 +104,10 @@ void HeartbeatManager::ChunkServerHeartbeat(
 
         // 把上报的copyset的信息转发到CopysetConfGenerator模块处理
         CopySetConf conf;
+        ConfigChangeInfo configChInfo;
         if (copysetConfGenerator_->GenCopysetConf(
-                request.chunkserverid(), reportCopySetInfo, &conf)) {
+                request.chunkserverid(), reportCopySetInfo,
+                value.configchangeinfo(), &conf)) {
             CopySetConf *res = response->add_needupdatecopysets();
             *res = conf;
         }

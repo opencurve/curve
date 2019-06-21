@@ -19,6 +19,7 @@ using ::curve::mds::topology::CopySetInfo;
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::Topology;
 using ::curve::mds::schedule::Coordinator;
+using ::curve::mds::heartbeat::ConfigChangeInfo;
 
 namespace curve {
 namespace mds {
@@ -41,12 +42,14 @@ class CopysetConfGenerator {
     *
     * @param[in] reportId 上报心跳的chunkserverId
     * @param[in] reportCopySetInfo 心跳上报的copyset信息
+    * @param[in] configChInfo 心跳上报的配置变更相关信息
     * @param[out] copysetConf 下发的配置变更命令
     *
     * @return 有配置变更命令下发为true, 没有则为false
     */
     bool GenCopysetConf(ChunkServerIdType reportId,
         const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
+        const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
         ::curve::mds::heartbeat::CopySetConf *copysetConf);
 
  private:
@@ -54,6 +57,7 @@ class CopysetConfGenerator {
     * @brief LeaderGenCopysetConf 处理leader copyset信息，主要步骤是转发到调度模块
     *
     * @param[in] copySetInfo 上报的copyset信息
+    * @param[in] configChInfo 心跳上报的配置变更相关信息
     * @param[out] copysetConf 调度模块生成的新的配置
     *
     * @return 返回值::curve::mds::topology::UNINTIALIZE_ID没有配置下发，
@@ -61,6 +65,7 @@ class CopysetConfGenerator {
     */
     ChunkServerIdType LeaderGenCopysetConf(
         const ::curve::mds::topology::CopySetInfo &copySetInfo,
+        const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
         ::curve::mds::heartbeat::CopySetConf *copysetConf);
 
     /*

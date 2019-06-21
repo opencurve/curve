@@ -17,64 +17,85 @@ TEST(OperatorStepTest, OperatorStepTest_TransferLeader_Test) {
     std::shared_ptr<OperatorStep> transferLeader
         = std::make_shared<TransferLeader>(1, 2);
 
-    ApplyStatus applyStatus;
-
-    // 1. transfer leader haven't started
-    CopySetConf copySetConf;
-    applyStatus = transferLeader->Apply(originCopySetInfo, &copySetConf);
-    ASSERT_EQ(ApplyStatus::Ordered, applyStatus);
-    ASSERT_EQ(ConfigChangeType::TRANSFER_LEADER, copySetConf.type);
-    ASSERT_EQ(2, copySetConf.configChangeItem);
-
-    // 2. transfer leader complete
     auto testCopySetInfo = originCopySetInfo;
-    testCopySetInfo.leader = 2;
-    ASSERT_EQ(ApplyStatus::Finished,
-              transferLeader->Apply(testCopySetInfo, &copySetConf));
+    ApplyStatus applyStatus;
+    CopySetConf copySetConf;
 
-    // 3. report leader is not record old/target leader in operator
-    testCopySetInfo.leader = 3;
-    ASSERT_EQ(ApplyStatus::Failed,
-              transferLeader->Apply(testCopySetInfo, &copySetConf));
+    {
+        // 1. transfer leader haven't started
+        applyStatus = transferLeader->Apply(originCopySetInfo, &copySetConf);
+        ASSERT_EQ(ApplyStatus::Ordered, applyStatus);
+        ASSERT_EQ(ConfigChangeType::TRANSFER_LEADER, copySetConf.type);
+        ASSERT_EQ(2, copySetConf.configChangeItem);
+    }
 
-    // 4. transfer leader fail
-    testCopySetInfo.leader = 1;
-    CandidateError *candidateError = new CandidateError();
-    std::string *errMsg = new std::string("transfer leader err");
-    candidateError->set_allocated_errmsg(errMsg);
-    candidateError->set_errtype(1);
-    testCopySetInfo.candidatePeerInfo = PeerInfo(2, 1, 1, 1, "", 9000);
-    testCopySetInfo.configChangeInfo.set_finished(false);
-    testCopySetInfo.configChangeInfo.set_type(
-        ConfigChangeType::TRANSFER_LEADER);
-    auto replica = new ::curve::common::Peer();
-    replica->set_id(4);
-    replica->set_address("192.10.12.4:9000:0");
-    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
-    testCopySetInfo.configChangeInfo.set_allocated_err(candidateError);
-    ASSERT_EQ(ApplyStatus::Failed,
-              transferLeader->Apply(testCopySetInfo, &copySetConf));
+    {
+        // 2. transfer leader complete
+        testCopySetInfo.leader = 2;
+        ASSERT_EQ(ApplyStatus::Finished,
+                transferLeader->Apply(testCopySetInfo, &copySetConf));
+    }
 
-    // 5. transfer leader report not complete
-    testCopySetInfo.leader = 1;
-    testCopySetInfo.candidatePeerInfo = PeerInfo(2, 1, 1, 1, "", 9000);
-    testCopySetInfo.configChangeInfo.set_finished(false);
-    replica = new ::curve::common::Peer();
-    replica->set_id(5);
-    replica->set_address("192.10.12.5:9000:0");
-    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
-    testCopySetInfo.configChangeInfo.release_err();
-    ASSERT_EQ(ApplyStatus::OnGoing,
-              transferLeader->Apply(testCopySetInfo, &copySetConf));
+    {
+        // 3. report leader is not record old/target leader in operator
+        testCopySetInfo.leader = 3;
+        ASSERT_EQ(ApplyStatus::Failed,
+                transferLeader->Apply(testCopySetInfo, &copySetConf));
+    }
 
-    // 6. transfer leader report not complete and candidate not match
-    testCopySetInfo.candidatePeerInfo = PeerInfo(3, 1, 1, 1, "", 9000);
-    replica = new ::curve::common::Peer();
-    replica->set_id(6);
-    replica->set_address("192.10.12.6:9000");
-    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
-    ASSERT_EQ(ApplyStatus::Failed,
-              transferLeader->Apply(testCopySetInfo, &copySetConf));
+    {
+        // 4. transfer leader fail
+        testCopySetInfo.leader = 1;
+        CandidateError *candidateError = new CandidateError();
+        std::string *errMsg = new std::string("transfer leader err");
+        candidateError->set_allocated_errmsg(errMsg);
+        candidateError->set_errtype(1);
+        testCopySetInfo.candidatePeerInfo = PeerInfo(2, 1, 1, 1, "", 9000);
+        testCopySetInfo.configChangeInfo.set_finished(false);
+        testCopySetInfo.configChangeInfo.set_type(
+            ConfigChangeType::TRANSFER_LEADER);
+        auto replica = new ::curve::common::Peer();
+        replica->set_id(4);
+        replica->set_address("192.10.12.4:9000:0");
+        testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
+        testCopySetInfo.configChangeInfo.set_allocated_err(candidateError);
+        ASSERT_EQ(ApplyStatus::Failed,
+                transferLeader->Apply(testCopySetInfo, &copySetConf));
+    }
+
+    {
+        // 5. transfer leader report not complete
+        testCopySetInfo.leader = 1;
+        testCopySetInfo.candidatePeerInfo = PeerInfo(2, 1, 1, 1, "", 9000);
+        testCopySetInfo.configChangeInfo.set_finished(false);
+        auto replica = new ::curve::common::Peer();
+        replica->set_id(5);
+        replica->set_address("192.10.12.5:9000:0");
+        testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
+        testCopySetInfo.configChangeInfo.release_err();
+        ASSERT_EQ(ApplyStatus::OnGoing,
+                transferLeader->Apply(testCopySetInfo, &copySetConf));
+    }
+
+    {
+        // 6. tarnfer leader type not complete
+        testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
+        ASSERT_EQ(ApplyStatus::Failed,
+                transferLeader->Apply(testCopySetInfo, &copySetConf));
+    }
+
+    {
+        // 7. transfer leader report not complete and candidate not match
+        testCopySetInfo.candidatePeerInfo = PeerInfo(3, 1, 1, 1, "", 9000);
+        auto replica = new ::curve::common::Peer();
+        replica->set_id(6);
+        replica->set_address("192.10.12.6:9000");
+        testCopySetInfo.configChangeInfo.set_type(
+            ConfigChangeType::TRANSFER_LEADER);
+        testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
+        ASSERT_EQ(ApplyStatus::Failed,
+                transferLeader->Apply(testCopySetInfo, &copySetConf));
+    }
 }
 
 TEST(OperatorSepTest, OperatorSepTest_AddPeer_Test) {
@@ -118,7 +139,13 @@ TEST(OperatorSepTest, OperatorSepTest_AddPeer_Test) {
     ASSERT_EQ(ApplyStatus::OnGoing,
               addPeer->Apply(testCopySetInfo, &copySetConf));
 
-    // 5. config change item do not match
+    // 5. add peer type not complete
+    testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::REMOVE_PEER);
+    ASSERT_EQ(ApplyStatus::Failed,
+                addPeer->Apply(testCopySetInfo, &copySetConf));
+
+    // 6. config change item do not match
+    testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
     testCopySetInfo.configChangeInfo.set_finished(true);
     testCopySetInfo.candidatePeerInfo = PeerInfo(5, 1, 1, 1, "", 9000);
     replica = new ::curve::common::Peer();
@@ -172,6 +199,11 @@ TEST(OperatorStepTest, OperatorStepTest_RemovePeer_Test) {
     ASSERT_EQ(ApplyStatus::OnGoing,
               removePeer->Apply(testCopySetInfo, &copySetConf));
 
+    // 5. remove peer type not complete
+    testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
+    ASSERT_EQ(ApplyStatus::Failed,
+                removePeer->Apply(testCopySetInfo, &copySetConf));
+
     // 5. config change item do not match
     testCopySetInfo.candidatePeerInfo = PeerInfo(10, 1, 1, 1, "", 9000);
     replica = new ::curve::common::Peer();
@@ -179,6 +211,7 @@ TEST(OperatorStepTest, OperatorStepTest_RemovePeer_Test) {
     replica->set_address("192.168.10.1:9000:0");
     testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
     testCopySetInfo.configChangeInfo.set_finished(true);
+    testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::REMOVE_PEER);
     ASSERT_EQ(ApplyStatus::Failed,
               removePeer->Apply(testCopySetInfo, &copySetConf));
 }
