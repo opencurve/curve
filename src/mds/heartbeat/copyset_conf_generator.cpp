@@ -8,8 +8,10 @@
 #include <glog/logging.h>
 #include <string>
 #include "src/mds/heartbeat/copyset_conf_generator.h"
+#include "proto/heartbeat.pb.h"
 
 using std::chrono::milliseconds;
+using ::curve::mds::heartbeat::ConfigChangeInfo;
 
 namespace curve {
 namespace mds {
@@ -17,6 +19,7 @@ namespace heartbeat {
 bool CopysetConfGenerator::GenCopysetConf(
     ChunkServerIdType reportId,
     const ::curve::mds::topology::CopySetInfo &reportCopySetInfo,
+    const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
     // topolgy不存在上报的copyset,
     // 发一个空配置指导chunkserver将其删除
@@ -35,7 +38,7 @@ bool CopysetConfGenerator::GenCopysetConf(
 
     if (reportCopySetInfo.GetLeader() == reportId) {
         ChunkServerIdType candidate =
-            LeaderGenCopysetConf(reportCopySetInfo, copysetConf);
+            LeaderGenCopysetConf(reportCopySetInfo, configChInfo, copysetConf);
         // 有配置下发，把candidate及时更新到topology中
         if (candidate != ::curve::mds::topology::UNINTIALIZE_ID) {
             auto newCopySetInfo = reportCopySetInfo;
@@ -64,9 +67,11 @@ bool CopysetConfGenerator::GenCopysetConf(
 
 ChunkServerIdType CopysetConfGenerator::LeaderGenCopysetConf(
     const ::curve::mds::topology::CopySetInfo &copySetInfo,
+    const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *copysetConf) {
     // 转发给调度模块
-    return coordinator_->CopySetHeartbeat(copySetInfo, copysetConf);
+    return coordinator_->CopySetHeartbeat(
+        copySetInfo, configChInfo, copysetConf);
 }
 
 bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,

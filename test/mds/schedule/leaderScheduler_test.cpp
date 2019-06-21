@@ -45,7 +45,7 @@ class TestLeaderSchedule : public ::testing::Test {
 TEST_F(TestLeaderSchedule, test_no_chunkserverInfos) {
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
         .WillOnce(Return(std::vector<ChunkServerInfo>()));
-    ASSERT_EQ(0, leaderScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, leaderScheduler_->Schedule());
 }
 
 TEST_F(TestLeaderSchedule, test_has_chunkServer_offline) {
@@ -83,7 +83,7 @@ TEST_F(TestLeaderSchedule, test_has_chunkServer_offline) {
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
         .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
 
-    ASSERT_EQ(0, leaderScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, leaderScheduler_->Schedule());
 }
 
 TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
@@ -124,7 +124,7 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillRepeatedly(Return(copySetInfos));
 
-    ASSERT_EQ(0, leaderScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, leaderScheduler_->Schedule());
 }
 
 TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
@@ -162,7 +162,7 @@ TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
         .WillRepeatedly(Return(false));
 
-    ASSERT_EQ(0, leaderScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, leaderScheduler_->Schedule());
 }
 
 TEST_F(TestLeaderSchedule, test_no_need_tranferLeaderOut) {
@@ -195,7 +195,7 @@ TEST_F(TestLeaderSchedule, test_no_need_tranferLeaderOut) {
 
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
         .WillOnce(Return(csInfos));
-    ASSERT_EQ(0, leaderScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, leaderScheduler_->Schedule());
 }
 
 TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
@@ -237,7 +237,7 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(3, _))
         .WillOnce(DoAll(SetArgPointee<1>(csInfo3), Return(true)));
 
-    ASSERT_EQ(1, leaderScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(1, leaderScheduler_->Schedule());
     Operator op;
     ASSERT_TRUE(opController_->GetOperatorById(copySet1.id, &op));
     ASSERT_EQ(OperatorPriority::NormalPriority, op.priority);
@@ -307,7 +307,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo2), Return(true)));
 
-    ASSERT_EQ(1, leaderScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(1, leaderScheduler_->Schedule());
     Operator op;
     ASSERT_TRUE(opController_->GetOperatorById(copySet2.id, &op));
     ASSERT_EQ(OperatorPriority::NormalPriority, op.priority);

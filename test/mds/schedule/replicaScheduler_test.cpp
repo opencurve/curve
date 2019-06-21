@@ -52,7 +52,7 @@ TEST_F(TestReplicaSchedule, test_copySet_already_has_operator) {
     Operator testOperator(1, copySetKey, OperatorPriority::HighPriority,
         steady_clock::now(), std::make_shared<AddPeer>(1));
     ASSERT_TRUE(opController_->AddOperator(testOperator));
-    ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, replicaScheduler_->Schedule());
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_configChangeInfo) {
@@ -65,7 +65,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_configChangeInfo) {
     testCopySetInfo.configChangeInfo.set_finished(false);
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, replicaScheduler_->Schedule());
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_standard_replica) {
@@ -75,7 +75,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_standard_replica) {
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
 
-    ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, replicaScheduler_->Schedule());
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectNone) {
@@ -90,7 +90,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectNone) {
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*topoAdapter_, GetChunkServersInPhysicalPool(_))
             .WillOnce(Return(std::vector<ChunkServerInfo>{}));
-    ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, replicaScheduler_->Schedule());
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_conExceed) {
@@ -127,7 +127,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_conExceed) {
         steady_clock::now(), std::make_shared<AddPeer>(3));
     ASSERT_TRUE(opController_->AddOperator(testOperator1));
     ASSERT_TRUE(opController_->AddOperator(testOperator2));
-    ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, replicaScheduler_->Schedule());
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
@@ -168,7 +168,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
         .WillOnce(SetArgPointee<1>(map3));
     EXPECT_CALL(*topoAdapter_, CreateCopySetAtChunkServer(_, _))
         .WillOnce(Return(true));
-    ASSERT_EQ(1, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(1, replicaScheduler_->Schedule());
     Operator op;
     ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
     ASSERT_EQ(testCopySetInfo.id, op.copsetID);
@@ -217,7 +217,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_createErr) {
         .WillOnce(SetArgPointee<1>(map3));
     EXPECT_CALL(*topoAdapter_, CreateCopySetAtChunkServer(_, _))
         .WillOnce(Return(false));
-    ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, replicaScheduler_->Schedule());
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectNone) {
@@ -232,7 +232,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectNone) {
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
 
-    ASSERT_EQ(0, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(0, replicaScheduler_->Schedule());
 }
 
 TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectCorrect) {
@@ -284,7 +284,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectCorrect) {
         .WillRepeatedly(SetArgPointee<1>(
             std::map<ChunkServerIdType, int>{{2, 1}, {3, 1}, {1, 1}}));
 
-    ASSERT_EQ(1, replicaScheduler_->Schedule(topoAdapter_));
+    ASSERT_EQ(1, replicaScheduler_->Schedule());
     Operator op;
     ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
     ASSERT_EQ(testCopySetInfo.id, op.copsetID);

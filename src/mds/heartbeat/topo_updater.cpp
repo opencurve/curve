@@ -34,7 +34,7 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
     // mds epoch落后，需要更新.
     bool needUpdate = false;
     if (recordCopySetInfo.GetEpoch() < reportCopySetInfo.GetEpoch()) {
-        LOG(INFO) << "topoUpdater find report CopySet(logicalPoolId"
+        LOG(INFO) << "topoUpdater find report CopySet(logicalPoolId: "
                   << reportCopySetInfo.GetLogicalPoolId()
                   << ", copySetId: " << reportCopySetInfo.GetId()
                   << ") epoch:" << reportCopySetInfo.GetEpoch()
@@ -43,6 +43,28 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
         needUpdate = true;
     } else if (recordCopySetInfo.GetEpoch() == reportCopySetInfo.GetEpoch()) {
         // 上报的epoch和记录的epoch相等.
+
+        // report中leader和topology记录的leader不一致
+        if (reportCopySetInfo.GetLeader() != recordCopySetInfo.GetLeader()) {
+            needUpdate = true;
+        }
+
+        // report中memberlist 和 record的不一致, 这种情况应该报警
+        // 这种情况不应该存在，chunkserver端总是返回已经apply的配置
+        // 因此，member list不一样的情况epoch一定不同
+        if (reportCopySetInfo.GetCopySetMembers() !=
+            recordCopySetInfo.GetCopySetMembers()) {
+            LOG(ERROR) << "topoUpdater find report copySet(logicalPoolId: "
+                       << reportCopySetInfo.GetLogicalPoolId()
+                       << ", copySetId: " << reportCopySetInfo.GetId()
+                       << ") member list: "
+                       << reportCopySetInfo.GetCopySetMembersStr()
+                       << " is not same as record one: "
+                       << recordCopySetInfo.GetCopySetMembersStr()
+                       << ", but epoch is same: "
+                       << recordCopySetInfo.GetEpoch();
+            return;
+        }
 
         // report的信息中不含有变更项
         if (!reportCopySetInfo.HasCandidate()) {
@@ -77,7 +99,7 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
         // leader上的epoch应该永远大于等于mds记录的epoch
         LOG(ERROR) << "topoUpdater find copySet(logicalPoolId: "
                    << reportCopySetInfo.GetCandidate()
-                   << "copySetId: " << reportCopySetInfo.GetId()
+                   << ", copySetId: " << reportCopySetInfo.GetId()
                    << "), record epoch:" << recordCopySetInfo.GetEpoch()
                    << " bigger than report epoch:"
                    << reportCopySetInfo.GetEpoch();

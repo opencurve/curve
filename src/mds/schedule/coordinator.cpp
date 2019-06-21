@@ -49,7 +49,8 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.addPeerTimeLimitSec,
                                                conf.copysetNumRangePercent,
                                                conf.scatterWithRangePerent,
-                                               conf.minScatterWidth, topo_);
+                                               conf.minScatterWidth,
+                                               topo_);
         LOG(INFO) << "run copySet scheduler ok!";
     }
 
@@ -61,7 +62,9 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
                                                conf.scatterWithRangePerent,
-                                               conf.minScatterWidth, topo_);
+                                               conf.minScatterWidth,
+                                               conf.chunkserverFailureTolerance,
+                                               topo_);
         LOG(INFO) << "run recover scheduler ok!";
     }
 
@@ -98,6 +101,7 @@ void Coordinator::Stop() {
 
 ChunkServerIdType Coordinator::CopySetHeartbeat(
     const ::curve::mds::topology::CopySetInfo &originInfo,
+    const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *out) {
     CopySetInfo info;
     if (!topo_->CopySetFromTopoToSchedule(originInfo, &info)) {
@@ -107,6 +111,7 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
                    << ") from heartbeat topo form to schedule form error";
         return ::curve::mds::topology::UNINTIALIZE_ID;
     }
+    info.configChangeInfo = configChInfo;
 
     Operator op;
     if (!opController_->GetOperatorById(info.id, &op)) {
@@ -115,7 +120,8 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
 
     LOG(INFO) << "find operator on copySet(logicalPoolId:"
               << info.id.first
-              << ", copySetId:" << info.id.second << ")";
+              << ", copySetId:" << info.id.second << "), operator: "
+              << op.OpToString();
 
     // 根据leader上报的copyset信息更新operator的状态
     // 如果有新的配置要下发，返回为true
@@ -158,7 +164,7 @@ void Coordinator::RunScheduler(const std::shared_ptr<Scheduler> &s) {
         std::this_thread::
         sleep_for(std::chrono::seconds(s->GetRunningInterval()));
 
-        s->Schedule(topo_);
+        s->Schedule();
     }
 }
 

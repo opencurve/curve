@@ -20,10 +20,10 @@ class MockCoordinator : public ::curve::mds::schedule::Coordinator {
     MockCoordinator() {}
     ~MockCoordinator() {}
 
-    MOCK_METHOD2(CopySetHeartbeat,
-                 ChunkServerIDType(
-                    const ::curve::mds::topology::CopySetInfo &originInfo,
-                    ::curve::mds::heartbeat::CopySetConf *newConf));
+    MOCK_METHOD3(CopySetHeartbeat, ChunkServerIDType(
+                const ::curve::mds::topology::CopySetInfo &originInfo,
+                const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
+                ::curve::mds::heartbeat::CopySetConf *newConf));
 };
 }  // namespace heartbeat
 }  // namespace mds
