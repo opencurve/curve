@@ -111,6 +111,8 @@ void InitScheduleOption(
         &scheduleOption->scatterWithRangePerent));
     LOG_IF(FATAL, !conf->GetFloatValue("mds.scheduler.minScatterWidth",
          &scheduleOption->minScatterWidth));
+    LOG_IF(FATAL, !conf->GetIntValue("mds.chunkserver.failure.tolerance",
+        &scheduleOption->chunkserverFailureTolerance));
 }
 
 void InitHeartbeatOption(

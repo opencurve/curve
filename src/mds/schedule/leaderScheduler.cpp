@@ -14,7 +14,7 @@
 namespace curve {
 namespace mds {
 namespace schedule {
-int LeaderScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
+int LeaderScheduler::Schedule() {
     LOG(INFO) << "leaderScheduler begin.";
     int oneRoundGenOp = 0;
 
@@ -23,7 +23,7 @@ int LeaderScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
     int maxId = -1;
     int minLeaderCount = -1;
     int minId = -1;
-    for (auto csInfo : topo->GetChunkServerInfos()) {
+    for (auto csInfo : topo_->GetChunkServerInfos()) {
         if (csInfo.IsOffline()) {
             LOG(ERROR) << "leaderScheduler find chunkServer:" << csInfo.info.id
                        << " is offline, please check!";
@@ -56,7 +56,7 @@ int LeaderScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
     // 将它的leader transfer到其他副本上
     if (maxId > 0) {
         Operator transferLeaderOutOp;
-        if (transferLeaderOut(maxId, topo, &transferLeaderOutOp) >= 0) {
+        if (transferLeaderOut(maxId, &transferLeaderOutOp) >= 0) {
             if (opController_->AddOperator(transferLeaderOutOp)) {
                 oneRoundGenOp += 1;
                 return oneRoundGenOp;
@@ -68,7 +68,7 @@ int LeaderScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
     // 将它的leader tansfer到该chunkserver上
     if (minId > 0) {
         Operator transferLeaderInOp;
-        if (transferLeaderIn(minId, topo, &transferLeaderInOp) >= 0) {
+        if (transferLeaderIn(minId, &transferLeaderInOp) >= 0) {
             if (opController_->AddOperator(transferLeaderInOp)) {
                 oneRoundGenOp += 1;
                 return oneRoundGenOp;
@@ -79,13 +79,10 @@ int LeaderScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
     return oneRoundGenOp;
 }
 
-int LeaderScheduler::transferLeaderOut(
-    ChunkServerIdType source,
-    const std::shared_ptr<TopoAdapter> &topo,
-    Operator *op) {
+int LeaderScheduler::transferLeaderOut(ChunkServerIdType source, Operator *op) {
     // 找出该chunkserver上所有的leaderCopyset作为备选
     std::vector<CopySetInfo> candidateInfos;
-    for (auto &cInfo : topo->GetCopySetInfos()) {
+    for (auto &cInfo : topo_->GetCopySetInfos()) {
         // 跳过follower copyset
         if (cInfo.leader != source) {
            continue;
@@ -117,7 +114,7 @@ int LeaderScheduler::transferLeaderOut(
         int targetLeaderCount = -1;
         for (auto peerInfo : selectedCopySet.peers) {
             ChunkServerInfo csInfo;
-            if (!topo->GetChunkServerInfo(peerInfo.id, &csInfo)) {
+            if (!topo_->GetChunkServerInfo(peerInfo.id, &csInfo)) {
                 LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
                         << peerInfo.id;
                 return -1;
@@ -145,7 +142,7 @@ int LeaderScheduler::transferLeaderOut(
             *op = operatorFactory.CreateTransferLeaderOperator(
             selectedCopySet, targetId, OperatorPriority::NormalPriority);
             op->timeLimit =
-                std::chrono::seconds(GetTransferLeaderTimeLimitSec());
+                std::chrono::seconds(transTimeSec_);
             return 0;
         }
     }
@@ -153,13 +150,10 @@ int LeaderScheduler::transferLeaderOut(
     return -1;
 }
 
-int LeaderScheduler::transferLeaderIn(
-    ChunkServerIdType target,
-    const std::shared_ptr<TopoAdapter> &topo,
-    Operator *op) {
+int LeaderScheduler::transferLeaderIn(ChunkServerIdType target, Operator *op) {
     // 从target中选择一个follower copyset, 把它的leader迁移到target上
     std::vector<CopySetInfo> candidateInfos;
-    for (auto &cInfo : topo->GetCopySetInfos()) {
+    for (auto &cInfo : topo_->GetCopySetInfos()) {
         // 跳过leader copyset
         if (cInfo.leader == target || !cInfo.ContainPeer(target)) {
             continue;
@@ -174,7 +168,7 @@ int LeaderScheduler::transferLeaderIn(
         }
 
         // 有副本不在线也要跳过
-        if (copySetHealthy(cInfo, topo)) {
+        if (copySetHealthy(cInfo)) {
             candidateInfos.emplace_back(cInfo);
         }
     }
@@ -189,16 +183,15 @@ int LeaderScheduler::transferLeaderIn(
     // 把leader tansfer到target上
     *op = operatorFactory.CreateTransferLeaderOperator(
         selectedCopySet, target, OperatorPriority::NormalPriority);
-    op->timeLimit = std::chrono::seconds(GetTransferLeaderTimeLimitSec());
+    op->timeLimit = std::chrono::seconds(transTimeSec_);
     return 0;
 }
 
-bool LeaderScheduler::copySetHealthy(
-      const CopySetInfo &cInfo, const std::shared_ptr<TopoAdapter> &topo) {
+bool LeaderScheduler::copySetHealthy(const CopySetInfo &cInfo) {
     bool healthy = true;
     for (auto peer : cInfo.peers) {
         ChunkServerInfo csInfo;
-        if (!topo->GetChunkServerInfo(peer.id, &csInfo)) {
+        if (!topo_->GetChunkServerInfo(peer.id, &csInfo)) {
             LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
                         << peer.id;
             healthy = false;

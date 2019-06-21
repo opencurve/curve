@@ -63,6 +63,8 @@ struct ScheduleOption {
     float scatterWithRangePerent;
     // chunkserver要达到的最小scatterwidth
     float minScatterWidth;
+    // 一个Server上超过offlineExceed_个chunkserver挂掉,不恢复
+    int32_t chunkserverFailureTolerance;
 };
 
 class Coordinator {
@@ -81,6 +83,7 @@ class Coordinator {
      */
     virtual ChunkServerIdType CopySetHeartbeat(
         const ::curve::mds::topology::CopySetInfo &originInfo,
+        const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
         ::curve::mds::heartbeat::CopySetConf *newConf);
 
     /**
