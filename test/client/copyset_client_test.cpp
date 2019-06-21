@@ -193,7 +193,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = i * 8;
         reqCtx->rawlength_ = len;
 
@@ -221,7 +221,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -252,7 +252,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -288,7 +288,7 @@ TEST_F(CopysetClientTest, normal_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = i * 8;
         reqCtx->rawlength_ = len;
 
@@ -316,7 +316,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -347,7 +347,7 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = offset;
         reqCtx->rawlength_ = len;
 
@@ -434,7 +434,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -463,7 +463,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -490,7 +490,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -519,7 +519,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -558,7 +558,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -598,7 +598,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -638,7 +638,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -686,7 +686,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -741,7 +741,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->writeBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -835,7 +835,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -864,7 +864,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -918,7 +918,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -947,7 +947,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -986,7 +986,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1026,7 +1026,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1066,7 +1066,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1114,7 +1114,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1169,7 +1169,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
 
 
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1264,7 +1264,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1294,7 +1294,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1351,7 +1351,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1381,7 +1381,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1421,7 +1421,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1461,7 +1461,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1501,7 +1501,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1550,7 +1550,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1606,7 +1606,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
@@ -1647,7 +1647,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
 
         reqCtx->seq_ = sn;
-        reqCtx->data_ = buff1;
+        reqCtx->readBuffer_ = buff1;
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 

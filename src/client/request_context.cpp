@@ -15,7 +15,8 @@ namespace curve {
 namespace client {
 
 RequestContext::RequestContext() {
-    data_ = nullptr;
+    readBuffer_ = nullptr;
+    writeBuffer_ = nullptr;
     chunkinfodetail_ = nullptr;
 
     seq_        = 0;
