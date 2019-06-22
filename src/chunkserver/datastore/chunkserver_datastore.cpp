@@ -303,6 +303,19 @@ CSErrorCode CSDataStore::GetChunkInfo(ChunkID id,
     return CSErrorCode::Success;
 }
 
+CSErrorCode CSDataStore::GetChunkHash(ChunkID id,
+                                      off_t offset,
+                                      size_t length,
+                                      std::string* hash) {
+    auto chunkFile = metaCache_.Get(id);
+    if (chunkFile == nullptr) {
+        LOG(INFO) << "Get ChunkHash failed, Chunk not exists."
+                  << "ChunkID = " << id;
+        return CSErrorCode::ChunkNotExistError;
+    }
+    return chunkFile->GetHash(offset, length, hash);
+}
+
 CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
     // 如果chunk文件还未加载，则加载到metaCache当中
     if (metaCache_.Get(id) == nullptr) {

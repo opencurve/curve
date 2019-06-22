@@ -3663,6 +3663,61 @@ TEST_F(CSDataStore_test, PasteChunkErrorTest1) {
         .Times(1);
 }
 
+/*
+ * chunk不存在
+ */
+TEST_F(CSDataStore_test, GetHashErrorTest1) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 3;
+    std::string hash;
+
+    // test chunk not exists
+    EXPECT_EQ(CSErrorCode::ChunkNotExistError,
+              dataStore->GetChunkHash(id,
+                                      0,
+                                      4096,
+                                      &hash));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
+/*
+ * read报错
+ */
+TEST_F(CSDataStore_test, GetHashErrorTest2) {
+    // initialize
+    FakeEnv();
+    EXPECT_TRUE(dataStore->Initialize());
+
+    ChunkID id = 1;
+    std::string hash;
+    off_t offset = 0;
+    size_t length = PAGE_SIZE + CHUNK_SIZE;
+    // test read chunk failed
+    EXPECT_CALL(*lfs_, Read(1, NotNull(), 0, 4096))
+        .WillOnce(Return(-UT_ERRNO));
+    EXPECT_EQ(CSErrorCode::InternalError,
+              dataStore->GetChunkHash(id,
+                                      0,
+                                      4096,
+                                      &hash));
+
+    EXPECT_CALL(*lfs_, Close(1))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(2))
+        .Times(1);
+    EXPECT_CALL(*lfs_, Close(3))
+        .Times(1);
+}
+
 }  // namespace chunkserver
 }  // namespace curve
 
