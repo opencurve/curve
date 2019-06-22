@@ -1986,6 +1986,7 @@ TEST_F(MDSClientTest, ListDir) {
         ASSERT_EQ(dir->fileStat[i].filetype,
                   curve::mds::FileType::INODE_PAGEFILE);
         ASSERT_EQ(0, strcmp(dir->fileStat[i].owner, "test"));
+        ASSERT_EQ(0, strcmp(dir->fileStat[i].filename, "_filename_"));
     }
 
     CloseDir(dir);
@@ -1998,6 +1999,7 @@ TEST_F(MDSClientTest, ListDir) {
         ASSERT_EQ(filestatVec[i].filetype,
                   curve::mds::FileType::INODE_PAGEFILE);
         ASSERT_EQ(0, strcmp(filestatVec[i].owner, "test"));
+        ASSERT_EQ(0, strcmp(filestatVec[i].filename, "_filename_"));
     }
     delete[] filestat;
 
