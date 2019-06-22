@@ -27,6 +27,9 @@ char* confPath = "conf/client.conf";
 
 butil::AtExitManager atExitManager;
 
+DEFINE_string(chunkservertest, "testdefault", "default value of test");
+
+
 namespace curve {
 namespace chunkserver {
 struct ChunkServerPackage {
@@ -88,6 +91,29 @@ TEST(ChunkserverCommonTest, GroupIdTest) {
     ASSERT_EQ(groupIdStr0, groupIdStr);
     ASSERT_EQ(poolId, GetPoolID(groupId));
     ASSERT_EQ(copysetId, GetCopysetID(groupId));
+}
+
+TEST(ChunkServerGflagTest, test_load_gflag) {
+    int argc = 1;
+    char *argvv[] = {""};
+    char **argv = argvv;
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    google::CommandLineFlagInfo info;
+    ASSERT_TRUE(GetCommandLineFlagInfo("chunkservertest", &info));
+    ASSERT_TRUE(info.is_default);
+    ASSERT_EQ("testdefault", FLAGS_chunkservertest);
+    ASSERT_FALSE(
+        GetCommandLineFlagInfo("chunkservertest", &info) && !info.is_default);
+
+    char *argvj[] = {"", "-chunkservertest=test1"};
+    argv = argvj;
+    argc = 2;
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+    ASSERT_TRUE(GetCommandLineFlagInfo("chunkservertest", &info));
+    ASSERT_FALSE(info.is_default);
+    ASSERT_EQ("test1", FLAGS_chunkservertest);
+    ASSERT_TRUE(
+        GetCommandLineFlagInfo("chunkservertest", &info) && !info.is_default);
 }
 }  // namespace chunkserver
 }  // namespace curve
