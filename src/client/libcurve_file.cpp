@@ -540,6 +540,9 @@ int Listdir(DirInfo_t* dirinfo) {
         dirinfo->fileStat[i].ctime = fileStat[i].ctime;
         memset(dirinfo->fileStat[i].owner, 0, NAME_MAX_SIZE);
         memcpy(dirinfo->fileStat[i].owner, fileStat[i].owner, NAME_MAX_SIZE);
+        memset(dirinfo->fileStat[i].filename, 0, NAME_MAX_SIZE);
+        memcpy(dirinfo->fileStat[i].filename, fileStat[i].filename,
+                NAME_MAX_SIZE);
     }
 
     return ret;

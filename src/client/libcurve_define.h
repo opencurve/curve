@@ -100,6 +100,7 @@ typedef struct FileStatInfo {
     FileType        filetype;
     uint64_t        length;
     uint64_t        ctime;
+    char            filename[NAME_MAX_SIZE];
     char            owner[NAME_MAX_SIZE];
 } FileStatInfo_t;
 
