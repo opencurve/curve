@@ -1774,6 +1774,9 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
                 filestat.ctime = finfo.ctime();
                 memset(filestat.owner, 0, NAME_MAX_SIZE);
                 memcpy(filestat.owner, finfo.owner().c_str(), NAME_MAX_SIZE);
+                memset(filestat.filename, 0, NAME_MAX_SIZE);
+                memcpy(filestat.filename, finfo.filename().c_str(),
+                       NAME_MAX_SIZE);
                 filestatVec->push_back(filestat);
             }
         }
