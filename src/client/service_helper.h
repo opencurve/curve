@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <vector>
 #include <string>
-#include "proto/cli.pb.h"
+#include "proto/cli2.pb.h"
 #include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
 #include "src/client/metacache_struct.h"
@@ -39,6 +39,7 @@ class ServiceHelper {
      * @param: currentleaderIndex是当前集群中使用的索引信息，在重新找leader时，
      *         需要跳过这个index，以提高查找leader的效率
      * @param: rpcTimeoutMs超时时间，默认500ms
+     * @param[out]: csid在变更
      * @return: 成功返回0，否则返回-1
      */
     static int GetLeader(const LogicPoolID &logicPoolId,
@@ -46,7 +47,8 @@ class ServiceHelper {
                         const std::vector<CopysetPeerInfo_t> &conf,
                         ChunkServerAddr *leaderId,
                         int16_t currentleaderIndex,
-                        uint32_t rpcTimeoutMs = 500);
+                        uint32_t rpcTimeoutMs = 500,
+                        ChunkServerID* csid = nullptr);
     /**
      * 从文件名中获取user信息.
      * 用户的user信息需要夹在文件名中，比如文件名为temp,用户名为user,
