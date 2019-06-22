@@ -30,7 +30,7 @@ int SnapshotClient::Init(ClientConfigOption_t clientopt) {
             break;
         }
 
-        if (!iomanager4chunk_.Initialize(clientopt.ioOpt)) {
+        if (!iomanager4chunk_.Initialize(clientopt.ioOpt, &mdsclient_)) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }
