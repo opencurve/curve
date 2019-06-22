@@ -14,10 +14,10 @@ using ::curve::mds::topology::UNINTIALIZE_ID;
 namespace curve {
 namespace mds {
 namespace schedule {
-int ReplicaScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
+int ReplicaScheduler::Schedule() {
     LOG(INFO) << "replicaScheduelr begin.";
     int oneRoundGenOp = 0;
-    for (auto info : topo->GetCopySetInfos()) {
+    for (auto info : topo_->GetCopySetInfos()) {
         // 如果copyset上面已经有operator,跳过
         Operator op;
         if (opController_->GetOperatorById(info.id, &op)) {
@@ -36,7 +36,7 @@ int ReplicaScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
         }
 
         int standardReplicaNum =
-            topo->GetStandardReplicaNumInLogicalPool(info.id.first);
+            topo_->GetStandardReplicaNumInLogicalPool(info.id.first);
         int copysetReplicaNum = info.peers.size();
 
         if (copysetReplicaNum == standardReplicaNum) {
@@ -64,7 +64,7 @@ int ReplicaScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
             // 有合适的目标节点
             } else {
                 // 在目标节点上创建copyset
-                if (!topo->CreateCopySetAtChunkServer(info.id, csId)) {
+                if (!topo_->CreateCopySetAtChunkServer(info.id, csId)) {
                     LOG(ERROR) << "replicaScheduler create copySet"
                                "(logicalPoolId: " << info.id.first
                                << ",copySetId: " << info.id.second
@@ -78,7 +78,7 @@ int ReplicaScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
 
             Operator op = operatorFactory.CreateAddPeerOperator(
                     info, csId, OperatorPriority::HighPriority);
-            op.timeLimit = std::chrono::seconds(GetAddPeerTimeLimitSec());
+            op.timeLimit = std::chrono::seconds(addTimeSec_);
             if (!opController_->AddOperator(op)) {
                 LOG(WARNING) << "replicaScheduler find copyset("
                              << info.id.first << ","
@@ -112,7 +112,7 @@ int ReplicaScheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
 
             Operator op = operatorFactory.CreateRemovePeerOperator(
                     info, csId, OperatorPriority::HighPriority);
-            op.timeLimit = std::chrono::seconds(GetRemovePeerTimeLimitSec());
+            op.timeLimit = std::chrono::seconds(removeTimeSec_);
             if (opController_->AddOperator(op)) {
                 oneRoundGenOp += 1;
             }
