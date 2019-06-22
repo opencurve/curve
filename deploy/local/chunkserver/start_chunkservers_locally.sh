@@ -17,6 +17,6 @@ ${curveformt}/curve_format -chunkfilepool_dir=./0/chunkfilepool/ -chunkfilepool_
 ${curveformt}/curve_format -chunkfilepool_dir=./1/chunkfilepool/ -chunkfilepool_metapath=./1/chunkfilepool.meta -filesystem_path=./1/ -allocateByPercent=false -preallocateNum=16
 ${curveformt}/curve_format -chunkfilepool_dir=./2/chunkfilepool/ -chunkfilepool_metapath=./2/chunkfilepool.meta -filesystem_path=./2/ -allocateByPercent=false -preallocateNum=16
 
-${bin}/chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_sync=true -minloglevel=1 -v 19 -conf=${conf}/chunkserver.conf.0 2>${loghome}/0/chunkserver.err &
-${bin}/chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_sync=true -minloglevel=1 -v 19 -conf=${conf}/chunkserver.conf.1 2>${loghome}/1/chunkserver.err &
-${bin}/chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_sync=true -minloglevel=1 -v 19 -conf=${conf}/chunkserver.conf.2 2>${loghome}/2/chunkserver.err &
+${bin}/chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_max_install_snapshot_tasks_num=5 -raft_sync=true -minloglevel=1 -v 19 -conf=${conf}/chunkserver.conf.0 2>${loghome}/0/chunkserver.err &
+${bin}/chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_max_install_snapshot_tasks_num=5 -raft_sync=true -minloglevel=1 -v 19 -conf=${conf}/chunkserver.conf.1 2>${loghome}/1/chunkserver.err &
+${bin}/chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_max_install_snapshot_tasks_num=5 -raft_sync=true -minloglevel=1 -v 19 -conf=${conf}/chunkserver.conf.2 2>${loghome}/2/chunkserver.err &
