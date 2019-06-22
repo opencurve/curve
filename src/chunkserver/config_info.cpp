@@ -30,7 +30,8 @@ CopysetNodeOptions::CopysetNodeOptions()
       pageSize(4096),
       concurrentapply(nullptr),
       chunkfilePool(nullptr),
-      localFileSystem(nullptr) {
+      localFileSystem(nullptr),
+      snapshotThrottle(nullptr) {
 }
 
 }  // namespace chunkserver

@@ -9,6 +9,8 @@
 #define INCLUDE_CHUNKSERVER_CHUNKSERVER_COMMON_H_
 
 #include <braft/configuration.h>
+#include <braft/raft.h>
+#include <braft/snapshot_throttle.h>
 #include <braft/file_system_adaptor.h>
 
 #include <cstdint>
@@ -39,6 +41,8 @@ using NodeOptions = braft::NodeOptions;
 using FileSystemAdaptor = braft::FileSystemAdaptor;
 using DirReader = braft::DirReader;
 using PosixFileSystemAdaptor = braft::PosixFileSystemAdaptor;
+using SnapshotThrottle = braft::SnapshotThrottle;
+using ThroughputSnapshotThrottle = braft::ThroughputSnapshotThrottle;
 
 
 // TODO(lixiaocui): 考虑一下后续的单元测试或者校验要怎么做
