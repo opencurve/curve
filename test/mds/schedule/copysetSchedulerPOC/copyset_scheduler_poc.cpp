@@ -492,7 +492,7 @@ class CopysetSchedulerPOC : public testing::Test {
 
         recoverScheduler_ = std::make_shared<RecoverScheduler>(
             opController_, 1000, 10, 100, 1000,
-            scatterwidthPercent_, minScatterwidth_, topoAdapter_);
+            scatterwidthPercent_, minScatterwidth_, 8, topoAdapter_);
     }
 
     void BuildCopySetScheduler(int opConcurrent) {
@@ -588,7 +588,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_1) {
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
-        recoverScheduler_->Schedule(topoAdapter_);
+        recoverScheduler_->Schedule();
         // update copyset to topology
         ApplyOperatorsInOpController(choose);
     } while (topo_->GetCopySetsInChunkServer(choose).size() > 0);
@@ -630,7 +630,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_2) {
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
-        recoverScheduler_->Schedule(topoAdapter_);
+        recoverScheduler_->Schedule();
 
         if (choose2 == 0) {
             choose2 = RandomOfflineOneChunkServer();
@@ -682,7 +682,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_3) {
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
-        recoverScheduler_->Schedule(topoAdapter_);
+        recoverScheduler_->Schedule();
 
         for (int i = 1; i < 6; i++) {
             if (origin[i] == 0) {
@@ -736,7 +736,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_4) {
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
-        recoverScheduler_->Schedule(topoAdapter_);
+        recoverScheduler_->Schedule();
 
         for (int i = 1; i < 20; i++) {
             if (origin[i] == 0) {
@@ -764,7 +764,7 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
     BuilRecoverScheduler(1);
     ChunkServerIdType choose = RandomOfflineOneChunkServer();
     do {
-        recoverScheduler_->Schedule(topoAdapter_);
+        recoverScheduler_->Schedule();
         // update copyset to topology
         ApplyOperatorsInOpController(choose);
     } while (topo_->GetCopySetsInChunkServer(choose).size() > 0);
@@ -794,7 +794,7 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
     BuildCopySetScheduler(1);
     int removeOne = 0;
     do {
-        removeOne = copySetScheduler_->Schedule(topoAdapter_);
+        removeOne = copySetScheduler_->Schedule();
         ApplyOperatorsInOpController(removeOne);
     } while (removeOne > 0);
     PrintScatterWithInCluster();
@@ -824,7 +824,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
     choose1 = RandomOfflineOneChunkServer();
     idlist.emplace_back(choose1);
     do {
-        recoverScheduler_->Schedule(topoAdapter_);
+        recoverScheduler_->Schedule();
 
         if (choose2 == 0) {
             choose2 = RandomOfflineOneChunkServer();
@@ -862,7 +862,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
     BuildCopySetScheduler(1);
     int removeOne = 0;
     do {
-        removeOne = copySetScheduler_->Schedule(topoAdapter_);
+        removeOne = copySetScheduler_->Schedule();
         ApplyOperatorsInOpController(removeOne);
     } while (removeOne > 0);
     PrintScatterWithInCluster();
@@ -892,7 +892,7 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
-        recoverScheduler_->Schedule(topoAdapter_);
+        recoverScheduler_->Schedule();
 
         for (int i = 1; i < 6; i++) {
             if (origin[i] == 0) {
@@ -931,7 +931,7 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
     BuildCopySetScheduler(1);
     int removeOne = 0;
     do {
-        removeOne = copySetScheduler_->Schedule(topoAdapter_);
+        removeOne = copySetScheduler_->Schedule();
         if (removeOne > 0) {
             ApplyOperatorsInOpController(removeOne);
         }
