@@ -56,7 +56,8 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
                             const std::vector<CopysetPeerInfo_t> &conf,
                             ChunkServerAddr *leaderId,
                             int16_t currentleaderIndex,
-                            uint32_t rpcTimeOutMs) {
+                            uint32_t rpcTimeOutMs,
+                            ChunkServerID* csid) {
     if (conf.empty()) {
         LOG(ERROR) << "Empty group configuration";
         return -1;
@@ -77,25 +78,41 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
                         << iter->csaddr_.ToString().c_str();
             return -1;
         }
-        curve::chunkserver::CliService_Stub stub(&channel);
-        curve::chunkserver::GetLeaderRequest request;
-        curve::chunkserver::GetLeaderResponse response;
+        curve::chunkserver::CliService2_Stub stub(&channel);
+        curve::chunkserver::GetLeaderRequest2 request;
+        curve::chunkserver::GetLeaderResponse2 response;
+        curve::common::Peer* peer = new (std::nothrow) curve::common::Peer;
+        if (peer == nullptr) {
+            LOG(ERROR) << "allocate peer failed!";
+            return -1;
+        }
+
+        peer->set_id(iter->chunkserverid_);
+        peer->set_address(iter->csaddr_.ToString());
+
         brpc::Controller cntl;
         cntl.set_timeout_ms(rpcTimeOutMs);
 
         request.set_logicpoolid(logicPoolId);
         request.set_copysetid(copysetId);
-        request.set_peer_id(iter->csaddr_.ToString());
+        request.set_allocated_peer(peer);
 
-        stub.get_leader(&cntl, &request, &response, NULL);
+        stub.GetLeader(&cntl, &request, &response, NULL);
 
         if (cntl.Failed()) {
             LOG(ERROR) << "GetLeader failed, "
                        << cntl.ErrorText();
             continue;
         }
-        leaderId->Parse(response.leader_id());
-        return leaderId->IsEmpty() ? -1 : 0;
+
+        if (response.leader().has_id()) {
+            *csid = response.leader().id();
+        }
+
+        if (response.leader().has_address()) {
+            leaderId->Parse(response.leader().address());
+            return leaderId->IsEmpty() ? -1 : 0;
+        }
     }
 
     return -1;

@@ -18,6 +18,7 @@
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/chunk_service.h"
 #include "src/chunkserver/braft_cli_service.h"
+#include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
@@ -223,6 +224,12 @@ int ChunkServer::Run(int argc, char** argv) {
     ret = server.AddService(&braftCliService,
                         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add BRaftCliService";
+
+    // braftclient service
+    BRaftCliServiceImpl2 braftCliService2;
+    ret = server.AddService(&braftCliService2,
+                        brpc::SERVER_DOESNT_OWN_SERVICE);
+    CHECK(0 == ret) << "Fail to add BRaftCliService2";
 
     // raft service
     braft::RaftServiceImpl raftService(endPoint);
