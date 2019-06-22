@@ -4,7 +4,9 @@
 #global.logfile=/root/data/log/0/chunkserver.log
 global.ip=127.0.0.1
 global.port=8200
+# chunk大小，一般16MB
 global.chunk_size=16777216
+# chunk 元数据页大小，一般4KB
 global.meta_page_size=4096
 
 #
@@ -12,17 +14,31 @@ global.meta_page_size=4096
 #
 mds.ip=127.0.0.1
 mds.port=6666
+# 向mds注册的最大重试次数
 mds.register_retries=100
+# 向mds注册的rpc超时时间，一般1000ms
 mds.register_timeout=1000
-mds.heartbeat_interval=1
+# 向mds发送心跳的间隔，一般10s
+mds.heartbeat_interval=10
+# 向mds发送心跳的rpc超时间，一般1000ms
 mds.heartbeat_timeout=5000
 
 #
 # Chunkserver settings
 #
+# chunkserver主目录
 chunkserver.stor_uri=local://./0/
+# chunkserver元数据文件
 chunkserver.meta_uri=local://./0/chunkserver.dat
+# disk类型
 chunkserver.disk_type=nvme
+# raft内部install snapshot带宽上限，一般80MB
+chunkserver.snapshot_throttle_throughput_bytes=41943040
+# check cycles是为了更精细的进行带宽控制，以snapshotThroughputBytes=100MB，
+# check cycles=10为例，它可以保证每1/10秒的带宽是10MB，且不累积，例如第1个
+# 1/10秒的带宽是10MB，但是就过期了，在第2个1/10秒依然只能用10MB的带宽，而
+# 不是20MB的带宽
+chunkserver.snapshot_throttle_check_cycles=4
 
 #
 # Testing purpose settings
@@ -35,33 +51,51 @@ test.testcopyset_conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0
 #
 # Copyset settings
 #
+# 是否检查任期，一般检查
 copyset.check_term=true
+# 是否关闭raft配置变更的服务，一般不关闭
 copyset.disable_cli=false
 copyset.log_applied_task=false
+# raft选举超时时间，一般是5000ms
 copyset.election_timeout_ms=5000
+# raft打快照间隔，一般是600s
 copyset.snapshot_interval_s=600
+# 当落后节点落后日志条目超过catchup_margin，会通过install snapshot恢复
 copyset.catchup_margin=20000
+# copyset chunk数据目录
 copyset.chunk_data_uri=local://./0/copysets
+# raft wal log目录
 copyset.raft_log_uri=local://./0/copysets
+# raft元数据目录
 copyset.raft_meta_uri=local://./0/copysets
+# raft snapshot目录
 copyset.raft_snapshot_uri=local://./0/copysets
+# copyset回收目录
 copyset.recycler_uri=local://./0/recycler
 copyset.max_inflight_requests=5000
 
 #
 # Clone settings
 #
+# 克隆的分片大小，一般1MB
 clone.slice_size=1048576
+# 克隆的线程数量
 clone.thread_num=10
+# 克隆的队列深度
 clone.queue_depth=100
+# curve用户名
 curve.root_username=root
+# curve密码
 curve.root_password=
+# client配置文件
 curve.config_path=conf/client.conf
+# s3配置文件
 s3.config_path=conf/s3.conf
 
 #
 # Local FileSystem settings
 #
+# 是否开启使用renameat2，ext4内核3.15以后开始支持
 fs.enable_renameat2=true
 
 #
@@ -76,20 +110,29 @@ storeng.sync_write=false
 #
 # Concurrent apply module
 #
+# 并发模块的并发度，一般是10
 concurrentapply.size=10
+# 并发模块线程的队列深度
 concurrentapply.queuedepth=1
 
 #
 # Chunkfile pool
 #
+# 是否开启从chunkfilepool获取chunk，一般是true
 chunkfilepool.enable_get_chunk_from_pool=false
+# chunkfilepool目录
 chunkfilepool.chunk_file_pool_dir=./0/
+# chunkfilepool meta文件路径
 #chunkfilepool.meta_path=./chunkfilepool.meta
+# chunkfilepool meta文件大小
 chunkfilepool.cpmeta_file_size=4096
+# chunkfilepool get chunk最大重试次数
 chunkfilepool.retry_times=5
 
 #
 # trash settings
 #
+# chunkserver回收数据彻底删除的过期时间
 trash.expire_afterSec=86400
+# chunkserver检查回收数据过期时间的周期
 trash.scan_periodSec=3600
