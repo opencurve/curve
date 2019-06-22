@@ -58,6 +58,8 @@ class ChunkServer {
     void InitTrashOptions(common::Configuration *conf,
         TrashOptions *trashOptions);
 
+    void LoadConfigFromCmdline(common::Configuration *conf);
+
     int GetChunkServerMetaFromLocal(const std::string &storeUri,
         const std::string &metaUri,
         const std::shared_ptr<LocalFileSystem> &fs,
