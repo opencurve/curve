@@ -10,6 +10,7 @@
 
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/datastore/chunkserver_chunkfile.h"
+#include "src/common/crc32.h"
 
 namespace curve {
 namespace chunkserver {
@@ -641,6 +642,34 @@ void CSChunkFile::GetInfo(CSChunkInfo* info)  {
                                                 metaPage_.bitmap->GetBitmap());
     else
         info->bitmap = nullptr;
+}
+
+CSErrorCode CSChunkFile::GetHash(off_t offset,
+                                 size_t length,
+                                 std::string* hash)  {
+    ReadLockGuard readGuard(rwLock_);
+    uint32_t crc32c = 0;
+
+    char *buf = new(std::nothrow) char[length];
+    if (nullptr == buf) {
+        return CSErrorCode::InternalError;
+    }
+
+    int rc = lfs_->Read(fd_, buf, offset, length);
+    if (rc < 0) {
+        LOG(ERROR) << "Read chunk file failed."
+                   << "ChunkID: " << chunkId_
+                   << ",chunk sn: " << metaPage_.sn;
+        delete[] buf;
+        return CSErrorCode::InternalError;
+    }
+
+    crc32c = curve::common::CRC32(crc32c, buf, length);
+    *hash = std::to_string(crc32c);
+
+    delete[] buf;
+
+    return CSErrorCode::Success;
 }
 
 bool CSChunkFile::needCreateSnapshot(SequenceNum sn) {

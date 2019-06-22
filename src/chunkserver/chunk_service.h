@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <memory>
+#include <string>
 
 #include "proto/chunk.pb.h"
 #include "src/chunkserver/config_info.h"
@@ -65,6 +66,11 @@ class ChunkServiceImpl : public ChunkService {
     void GetChunkInfo(RpcController *controller,
                       const GetChunkInfoRequest *request,
                       GetChunkInfoResponse *response,
+                      Closure *done);
+
+    void GetChunkHash(RpcController *controller,
+                      const GetChunkHashRequest *request,
+                      GetChunkHashResponse *response,
                       Closure *done);
 
  private:

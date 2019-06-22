@@ -425,6 +425,65 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
     }
 }
 
+void ChunkServiceImpl::GetChunkHash(RpcController *controller,
+                                    const GetChunkHashRequest *request,
+                                    GetChunkHashResponse *response,
+                                    Closure *done) {
+    brpc::ClosureGuard doneGuard(done);
+
+    // 判断request参数是否合法
+    if (!CheckRequestOffsetAndLength(request->offset(), request->length())) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
+        LOG(ERROR) << "GetChunkHash illegal parameter:"
+                   << " logic pool id: " << request->logicpoolid()
+                   << " copyset id: " << request->copysetid()
+                   << " chunk id: " << request->chunkid() << ", "
+                   << " offset: " << request->offset()
+                   << " length: " << request->length()
+                   << " max size: " << maxChunkSize_;
+        return;
+    }
+
+    // 判断copyset是否存在
+    auto nodePtr =
+        copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
+                                            request->copysetid());
+    if (nullptr == nodePtr) {
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
+        LOG(ERROR) << "GetChunkHash failed, copyset node is not found: "
+                   << request->logicpoolid() << "," << request->copysetid();
+        return;
+    }
+
+    CSErrorCode ret;
+    std::string hash;
+
+    ret = nodePtr->GetDataStore()->GetChunkHash(request->chunkid(),
+                                                request->offset(),
+                                                request->length(),
+                                                &hash);
+
+    if (CSErrorCode::Success == ret) {
+        // 1.成功
+        response->set_hash(hash);
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    } else if (CSErrorCode::ChunkNotExistError == ret) {
+        // 2.chunk文件不存在，返回0的hash值
+        response->set_hash("0");
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    } else {
+        // 3.其他错误
+        LOG(ERROR) << "get chunk hash failed, "
+                   << " logic pool id: " << request->logicpoolid()
+                   << " copyset id: " << request->copysetid()
+                   << " chunk id: " << request->chunkid() << ", "
+                   << " errno: " << errno << ", "
+                   << " error message: " << strerror(errno)
+                   << " data store return: " << ret;
+        response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
+    }
+}
+
 bool ChunkServiceImpl::CheckRequestOffsetAndLength(uint32_t offset,
                                                    uint32_t len) {
     // 检查offset+len是否越界
