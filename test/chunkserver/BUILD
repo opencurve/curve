@@ -25,6 +25,7 @@ cc_test(
         "copyset_node_test.cpp",
         "mock_local_file_system.h",
         "conf_epoch_file_test.cpp",
+        "inflight_throttle_test.cpp",
         "concurrent_apply_unittest.cpp",
         "mock_local_file_system.h",
         "mock_node.h",
@@ -38,6 +39,22 @@ cc_test(
     name = "chunk-test",
     srcs = glob([
         "chunk_service_test.cpp",
+        "mock_local_file_system.h",
+        "chunkserver_test_util.h",
+        "chunkserver_test_util.cpp",
+        "fake_datastore.h",
+    ]),
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS,
+)
+
+cc_test(
+    name = "chunk-test2",
+    srcs = glob([
+        "chunk_service_test2.cpp",
         "mock_local_file_system.h",
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",

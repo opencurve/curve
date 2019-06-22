@@ -9,6 +9,7 @@
 #define SRC_CHUNKSERVER_CHUNK_SERVICE_H_
 
 #include <vector>
+#include <memory>
 
 #include "proto/chunk.pb.h"
 #include "src/chunkserver/config_info.h"
@@ -78,6 +79,7 @@ class ChunkServiceImpl : public ChunkService {
  private:
     ChunkServiceOptions chunkServiceOptions_;
     CopysetNodeManager  *copysetNodeManager_;
+    std::shared_ptr<InflightThrottle> inflightThrottle_;
     uint32_t            maxChunkSize_;
 };
 

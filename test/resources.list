@@ -20,6 +20,7 @@ Used port list:
     braftcliservice-test:   9000 9001 9002
     braftcliservice2-test:  9010 9011 9012
     chunk-test:             9020 9021 9022
+    chunk-test2:            9023 9024 9025
     cli-test:               9030 9031 9032
     chunk-test1:            9040 9041 9042 9043 9044
     chunk-snapshot-test:    9050 9051 9052
