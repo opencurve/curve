@@ -184,6 +184,14 @@ class CSChunkFile {
      * 调用fsync将snapshot文件在pagecache中的数据刷盘
      */
     void GetInfo(CSChunkInfo* info);
+    /**
+     * 获取chunk的hash值，此接口一般用于测试调用
+     * @param[out]: chunk hash值
+     * @return: 错误码
+     */
+    CSErrorCode GetHash(off_t offset,
+                        size_t length,
+                        std::string *hash);
 
  private:
     /**

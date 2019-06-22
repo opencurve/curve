@@ -443,6 +443,124 @@ TEST_F(ChunkserverTest, normal_read_write_test) {
         }
     }
 
+    // get hash
+    {
+        brpc::Channel channel;
+        ASSERT_EQ(0, channel.Init(leader.addr, NULL));
+        ChunkService_Stub stub(&channel);
+
+        // get hash : 访问不存在的chunk
+        {
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(rpcTimeoutMs);
+            GetChunkHashRequest request;
+            GetChunkHashResponse response;
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId);
+            request.set_chunkid(chunkId + 100);
+            request.set_offset(0);
+            request.set_length(kOpRequestAlignSize);
+            stub.GetChunkHash(&cntl, &request, &response, nullptr);
+            ASSERT_FALSE(cntl.Failed());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
+            ASSERT_STREQ("0", response.hash().c_str());
+        }
+
+        // get hash : 非法的offset和length
+        {
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(rpcTimeoutMs);
+            GetChunkHashRequest request;
+            GetChunkHashResponse response;
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId);
+            request.set_chunkid(chunkId + 100);
+            request.set_offset(3);
+            request.set_length(kOpRequestAlignSize);
+            stub.GetChunkHash(&cntl, &request, &response, nullptr);
+            ASSERT_FALSE(cntl.Failed());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
+                      response.status());
+        }
+
+        // Write
+        {
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(rpcTimeoutMs);
+            ChunkRequest request;
+            ChunkResponse response;
+            request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId);
+            request.set_chunkid(chunkId);
+            request.set_sn(sn);
+            request.set_offset(0);
+            request.set_size(kOpRequestAlignSize);
+            cntl.request_attachment().resize(kOpRequestAlignSize, ch);
+            stub.WriteChunk(&cntl, &request, &response, nullptr);
+            LOG_IF(INFO, cntl.Failed()) << cntl.ErrorText();
+            ASSERT_FALSE(cntl.Failed());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
+        }
+
+        // read
+        {
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(rpcTimeoutMs);
+            ChunkRequest request;
+            ChunkResponse response;
+            request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId);
+            request.set_chunkid(chunkId);
+            request.set_sn(sn);
+            request.set_offset(0);
+            request.set_size(kOpRequestAlignSize);
+            stub.ReadChunk(&cntl, &request, &response, nullptr);
+            ASSERT_FALSE(cntl.Failed());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
+            ASSERT_STREQ(expectData,
+                         cntl.response_attachment().to_string().c_str());
+        }
+
+        // get chunk info
+        {
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(rpcTimeoutMs);
+            GetChunkInfoRequest request;
+            GetChunkInfoResponse response;
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId);
+            request.set_chunkid(chunkId);
+            stub.GetChunkInfo(&cntl, &request, &response, nullptr);
+            ASSERT_FALSE(cntl.Failed());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
+            ASSERT_EQ(1, response.chunksn().size());
+        }
+
+        // get hash : 访问存在的chunk
+        {
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(rpcTimeoutMs);
+            GetChunkHashRequest request;
+            GetChunkHashResponse response;
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId);
+            request.set_chunkid(chunkId);
+            request.set_offset(0);
+            request.set_length(kOpRequestAlignSize);
+            stub.GetChunkHash(&cntl, &request, &response, nullptr);
+            ASSERT_FALSE(cntl.Failed());
+            ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                      response.status());
+            ASSERT_STREQ("650595490", response.hash().c_str());
+        }
+    }
+
     /* 多 chunk read/write/delete */
     {
         brpc::Channel channel;
