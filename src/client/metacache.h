@@ -18,6 +18,7 @@
 #include "src/client/client_common.h"
 #include "src/client/metacache_struct.h"
 #include "src/client/service_helper.h"
+#include "src/client/mds_client.h"
 
 using curve::common::RWLock;
 
@@ -43,8 +44,16 @@ class MetaCache {
     /**
      * 初始化函数
      * @param: metacacheopt为当前metacache的配置option信息
+     * @param: mdsclient为与mds通信的指针。
+     * 为什么这里需要把mdsclient传进来？
+     * 因为首先metacache充当的角色就是对于MDS一侧的信息缓存
+     * 所以对于底层想使用metacache的copyset client或者chunk closure
+     * 来说，他只需要知道metacache就可以了，不需要再去向mds查询信息，
+     * 在copyset client或者chunk closure发送IO失败之后会重新获取leader
+     * 然后再重试，如果leader获取不成功，需要向mds一侧查询当前copyset的最新信息，
+     * 这里将查询mds封装在内部了，这样copyset client和chunk closure就不感知mds了
      */
-    void Init(MetaCacheOption_t metaCacheOpt);
+    void Init(MetaCacheOption_t metaCacheOpt, MDSClient* mdsclient);
 
     /**
      * 通过chunk index获取chunkid信息
@@ -173,6 +182,7 @@ class MetaCache {
                              CopysetInfo* toupdateCopyset);
 
  private:
+    MDSClient*          mdsclient_;
     MetaCacheOption_t   metacacheopt_;
 
     // chunkindex到chunkidinfo的映射表

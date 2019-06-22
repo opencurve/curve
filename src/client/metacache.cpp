@@ -31,7 +31,8 @@ MetaCache::~MetaCache() {
     lpcsid2CopsetInfoMap_.clear();
 }
 
-void MetaCache::Init(MetaCacheOption_t metaCacheOpt) {
+void MetaCache::Init(MetaCacheOption_t metaCacheOpt, MDSClient* mdsclient) {
+    mdsclient_ = mdsclient;
     metacacheopt_ = metaCacheOpt;
 }
 
@@ -75,6 +76,19 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
             if (ret != -1) {
                 UpdateCopysetInfo(logicPoolId, copysetId, targetInfo);
                 break;
+            } else {
+                // 重试失败，这时候需要向mds重新拉取最新的copyset信息了
+                // JIRA: http://jira.netease.com/browse/CLDCFS-1262
+                std::vector<CopysetID> copysetidvec;
+                copysetidvec.push_back(copysetId);
+                std::vector<CopysetInfo_t> cpinfoVec;
+                ret = mdsclient_->GetServerList(logicPoolId,
+                                                copysetidvec,
+                                                &cpinfoVec);
+                if (ret == LIBCURVE_ERROR::OK && !cpinfoVec.empty()) {
+                    UpdateCopysetInfo(logicPoolId, copysetId, cpinfoVec[0]);
+                    break;
+                }
             }
         }
     }
