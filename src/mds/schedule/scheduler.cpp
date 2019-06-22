@@ -18,37 +18,12 @@ using ::curve::mds::topology::UNINTIALIZE_ID;
 namespace curve {
 namespace mds {
 namespace schedule {
-Scheduler::Scheduler(int trans, int remove, int add,
-    float scatterWidthRangePerent, float minScatterWidth,
-    const std::shared_ptr<TopoAdapter> &topo,
-    const std::shared_ptr<OperatorController> &opController) {
-    this->transTimeSec_ = trans;
-    this->removeTimeSec_ = remove;
-    this->addTimeSec_ = add;
-    this->scatterWidthRangePerent_ = scatterWidthRangePerent;
-    this->minScatterWidth_ = minScatterWidth;
-    this->topo_ = topo;
-    this->opController_ = opController;
-}
-
-int Scheduler::Schedule(const std::shared_ptr<TopoAdapter> &topo) {
+int Scheduler::Schedule() {
     return 0;
 }
 
 int64_t Scheduler::GetRunningInterval() {
     return 0;
-}
-
-int Scheduler::GetAddPeerTimeLimitSec() {
-    return addTimeSec_;
-}
-
-int Scheduler::GetRemovePeerTimeLimitSec() {
-    return removeTimeSec_;
-}
-
-int Scheduler::GetTransferLeaderTimeLimitSec() {
-    return transTimeSec_;
 }
 
 /**

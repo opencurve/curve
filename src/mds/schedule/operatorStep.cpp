@@ -59,9 +59,20 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
                    << ",copySetId: " << originInfo.id.second
                    << ") apply transfer leader from "
                    << this->from_ << " to " << this->to_
-                   << "failed, config change item do not match, "
+                   << " failed, config change item do not match, "
                       "report candidatePeerId is "
                    << originInfo.candidatePeerInfo.id;
+        return ApplyStatus::Failed;
+    }
+
+    if (originInfo.configChangeInfo.type() !=
+        ConfigChangeType::TRANSFER_LEADER) {
+        LOG(ERROR) << "CopySet(logicalPoolId: " << originInfo.id.first
+                   << ",copySetId: " << originInfo.id.second
+                   << "), apply transfer leader from " << this->from_
+                   << " to " << this->to_
+                   << " failed, config change type do not match, "
+                      "report type is " << originInfo.configChangeInfo.type();
         return ApplyStatus::Failed;
     }
 
@@ -73,7 +84,7 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
                    << ",copySetId: " << originInfo.id.second
                    << ") apply transfer leader from "
                    << this->from_ << " to " << this->to_
-                   << "failed, report err: "
+                   << " failed, report err: "
                    << originInfo.configChangeInfo.err().errmsg();
         return ApplyStatus::Failed;
     }
@@ -122,9 +133,18 @@ ApplyStatus AddPeer::Apply(const CopySetInfo &originInfo,
         LOG(ERROR) << "CopySet(logicalPoolId: " << originInfo.id.first
                    << ",copySetId: " << originInfo.id.second
                    << "), apply add peer " << this->add_
-                   << "failed, config change item do not match, "
+                   << " failed, config change item do not match, "
                       "report candidatePeerId is "
                    << originInfo.candidatePeerInfo.id;
+        return ApplyStatus::Failed;
+    }
+
+    if (originInfo.configChangeInfo.type() != ConfigChangeType::ADD_PEER) {
+        LOG(ERROR) << "CopySet(logicalPoolId: " << originInfo.id.first
+                   << ",copySetId: " << originInfo.id.second
+                   << "), apply add peer " << this->add_
+                   << " failed, config change type do not match, "
+                      "report type is " << originInfo.configChangeInfo.type();
         return ApplyStatus::Failed;
     }
 
@@ -135,7 +155,7 @@ ApplyStatus AddPeer::Apply(const CopySetInfo &originInfo,
         LOG(ERROR) << "CopySet(logicalPoolId: " << originInfo.id.first
                    << ",copySetId: " << originInfo.id.second
                    << "), apply add peer " << this->add_
-                   << "failed, report err: "
+                   << " failed, report err: "
                    << originInfo.configChangeInfo.err().errmsg();
         return ApplyStatus::Failed;
     }
@@ -179,9 +199,19 @@ ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
         LOG(ERROR) << "CopySet(logicalPoolId: " << originInfo.id.first
                    << ",copySetId: " << originInfo.id.second
                    << "), apply remove peer " << this->remove_
-                   << "failed, config change item do not match, "
+                   << " failed, config change item do not match, "
                       "report candidatePeerId is "
                    << originInfo.candidatePeerInfo.id;
+        return ApplyStatus::Failed;
+    }
+
+    if (originInfo.configChangeInfo.type() != ConfigChangeType::REMOVE_PEER) {
+        LOG(ERROR) << "CopySet(logicalPoolId: " << originInfo.id.first
+                   << ",copySetId: " << originInfo.id.second
+                   << "), apply remove peer " << this->remove_
+                   << " failed, config change type do not match, "
+                      "report type is "
+                   << originInfo.configChangeInfo.type();
         return ApplyStatus::Failed;
     }
 
