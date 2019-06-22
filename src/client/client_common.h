@@ -196,6 +196,10 @@ struct ChunkServerAddr {
                  butil::endpoint2str(addr_).c_str(), 0);
         return std::string(str);
     }
+
+    bool operator==(const ChunkServerAddr& other) {
+        return addr_ == other.addr_;
+    }
 };
 
 extern uint64_t GetAtomicUint64(void* arg);
