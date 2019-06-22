@@ -54,114 +54,122 @@ namespace curve {
 namespace mds {
 void InitSessionOptions(Configuration *conf,
                         struct SessionOptions *sessionOptions) {
-    sessionOptions->sessionDbName = conf->GetStringValue("mds.DbName");
-    sessionOptions->sessionUser = conf->GetStringValue("mds.DbUser");
-    sessionOptions->sessionUrl = conf->GetStringValue("mds.DbUrl");
-    sessionOptions->sessionPassword = conf->GetStringValue(
-        "mds.DbPassword");
-    sessionOptions->leaseTimeUs = conf->GetIntValue("mds.session.leaseTimeUs");
-    sessionOptions->toleranceTimeUs =
-        conf->GetIntValue("mds.session.toleranceTimeUs");
-    sessionOptions->intevalTimeUs =
-        conf->GetIntValue("mds.session.intevalTimeUs");
+    LOG_IF(FATAL,
+        !conf->GetStringValue("mds.DbName", &sessionOptions->sessionDbName));
+    LOG_IF(FATAL,
+        !conf->GetStringValue("mds.DbUser", &sessionOptions->sessionUser));
+    LOG_IF(FATAL,
+        !conf->GetStringValue("mds.DbUrl", &sessionOptions->sessionUrl));
+    LOG_IF(FATAL, !conf->GetStringValue(
+        "mds.DbPassword", &sessionOptions->sessionPassword));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.session.leaseTimeUs", &sessionOptions->leaseTimeUs));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.session.toleranceTimeUs", &sessionOptions->toleranceTimeUs));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.session.intevalTimeUs", &sessionOptions->intevalTimeUs));
 }
 
 void InitAuthOptions(Configuration *conf,
                      struct RootAuthOption *authOptions) {
     authOptions->rootOwner = ROOTUSERNAME;
-    authOptions->rootPassword = conf->GetStringValue("mds.auth.rootPassword");
+    LOG_IF(FATAL, !conf->GetStringValue(
+        "mds.auth.rootPassword", &authOptions->rootPassword));
 }
 
-void InitScheduleOption(Configuration *conf,
-    ScheduleOption *scheduleOption) {
-    scheduleOption->enableCopysetScheduler =
-        conf->GetBoolValue("mds.enable.copyset.scheduler");
-    scheduleOption->enableLeaderScheduler =
-        conf->GetBoolValue("mds.enable.leader.scheduler");
-    scheduleOption->enableRecoverScheduler =
-        conf->GetBoolValue("mds.enable.recover.scheduler");
-    scheduleOption->enableReplicaScheduler =
-        conf->GetBoolValue("mds.replica.replica.scheduler");
+void InitScheduleOption(
+    Configuration *conf, ScheduleOption *scheduleOption) {
+    LOG_IF(FATAL, !conf->GetBoolValue("mds.enable.copyset.scheduler",
+        &scheduleOption->enableCopysetScheduler));
+    LOG_IF(FATAL, !conf->GetBoolValue("mds.enable.leader.scheduler",
+        &scheduleOption->enableLeaderScheduler));
+    LOG_IF(FATAL, !conf->GetBoolValue("mds.enable.recover.scheduler",
+        &scheduleOption->enableRecoverScheduler));
+    LOG_IF(FATAL, !conf->GetBoolValue("mds.enable.replica.scheduler",
+        &scheduleOption->enableReplicaScheduler));
 
-    scheduleOption->copysetSchedulerIntervalSec =
-        conf->GetIntValue("mds.copyset.scheduler.intervalSec");
-    scheduleOption->leaderSchedulerIntervalSec =
-        conf->GetIntValue("mds.leader.scheduler.intervalSec");
-    scheduleOption->recoverSchedulerIntervalSec =
-        conf->GetIntValue("mds.recover.scheduler.intervalSec");
-    scheduleOption->replicaSchedulerIntervalSec =
-        conf->GetIntValue("mds.replica.scheduler.intervalSec");
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.copyset.scheduler.intervalSec",
+        &scheduleOption->copysetSchedulerIntervalSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.leader.scheduler.intervalSec",
+        &scheduleOption->leaderSchedulerIntervalSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.recover.scheduler.intervalSec",
+        &scheduleOption->recoverSchedulerIntervalSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.replica.scheduler.intervalSec",
+        &scheduleOption->replicaSchedulerIntervalSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.schduler.operator.concurrent",
+        &scheduleOption->operatorConcurrent));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.schduler.transfer.limitSec",
+        &scheduleOption->transferLeaderTimeLimitSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.scheduler.add.limitSec",
+        &scheduleOption->addPeerTimeLimitSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.scheduler.remove.limitSec",
+        &scheduleOption->removePeerTimeLimitSec));
 
-    scheduleOption->operatorConcurrent =
-        conf->GetIntValue("mds.schduler.operator.concurrent");
-    scheduleOption->transferLeaderTimeLimitSec =
-        conf->GetIntValue("mds.schduler.transfer.limitSec");
-    scheduleOption->addPeerTimeLimitSec =
-        conf->GetIntValue("mds.scheduler.add.limitSec");
-    scheduleOption->removePeerTimeLimitSec =
-        conf->GetIntValue("mds.scheduler.remove.limitSec");
-
-    scheduleOption->copysetNumRangePercent =
-        conf->GetDoubleValue("mds.scheduler.copysetNumRangePercent");
-    scheduleOption->scatterWithRangePerent =
-        conf->GetDoubleValue("mds.schduler.scatterWidthRangePerent");
-    scheduleOption->minScatterWidth =
-        conf->GetIntValue("mds.scheduler.minScatterWidth");
+    LOG_IF(FATAL, !conf->GetFloatValue("mds.scheduler.copysetNumRangePercent",
+        &scheduleOption->copysetNumRangePercent));
+    LOG_IF(FATAL, !conf->GetFloatValue("mds.schduler.scatterWidthRangePerent",
+        &scheduleOption->scatterWithRangePerent));
+    LOG_IF(FATAL, !conf->GetFloatValue("mds.scheduler.minScatterWidth",
+         &scheduleOption->minScatterWidth));
 }
 
-void InitHeartbeatOption(Configuration *conf,
-    HeartbeatOption *heartbeatOption) {
-    heartbeatOption->heartbeatIntervalMs =
-        conf->GetIntValue("mds.heartbeat.intervalMs");
-    heartbeatOption->heartbeatMissTimeOutMs =
-        conf->GetIntValue("mds.heartbeat.misstimeoutMs");
-    heartbeatOption->offLineTimeOutMs =
-        conf->GetIntValue("mds.heartbeat.offlinetimeoutMs");
-    heartbeatOption->cleanFollowerAfterMs =
-        conf->GetIntValue("mds.heartbeat.clean_follower_afterMs");
+void InitHeartbeatOption(
+    Configuration *conf, HeartbeatOption *heartbeatOption) {
+    LOG_IF(FATAL, !conf->GetUInt64Value("mds.heartbeat.intervalMs",
+        &heartbeatOption->heartbeatIntervalMs));
+    LOG_IF(FATAL, !conf->GetUInt64Value("mds.heartbeat.misstimeoutMs",
+        &heartbeatOption->heartbeatMissTimeOutMs));
+    LOG_IF(FATAL, !conf->GetUInt64Value("mds.heartbeat.offlinetimeoutMs",
+        &heartbeatOption->offLineTimeOutMs));
+    LOG_IF(FATAL, !conf->GetUInt64Value("mds.heartbeat.clean_follower_afterMs",
+        &heartbeatOption->cleanFollowerAfterMs));
 }
 
 void InitEtcdConf(Configuration *conf, EtcdConf *etcdConf) {
-    std::string endpoint = conf->GetStringValue("mds.etcd.endpoint");
+    std::string endpoint;
+    LOG_IF(FATAL, !conf->GetStringValue("mds.etcd.endpoint", &endpoint));
     etcdConf->Endpoints = new char[endpoint.size()];
     std::memcpy(etcdConf->Endpoints, endpoint.c_str(), endpoint.size());
     etcdConf->len = endpoint.size();
-    etcdConf->DialTimeout = conf->GetIntValue("mds.etcd.dailtimeoutMs");
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "mds.etcd.dailtimeoutMs", &etcdConf->DialTimeout));
 }
 
 void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
-    topologyOption->dbName =
-        conf->GetStringValue("mds.DbName");
-    topologyOption->user =
-        conf->GetStringValue("mds.DbUser");
-    topologyOption->url =
-        conf->GetStringValue("mds.DbUrl");
-    topologyOption->password =
-        conf->GetStringValue("mds.DbPassword");
-    topologyOption->poolSize =
-        conf->GetIntValue("mds.DbPoolSize");
-    topologyOption->ChunkServerStateUpdateSec =
-        conf->GetIntValue("mds.topology.ChunkServerStateUpdateSec", 60);
-    topologyOption->CreateCopysetRpcTimeoutMs =
-        conf->GetIntValue("mds.topology.CreateCopysetRpcTimeoutMs", 2000);
-    topologyOption->CreateCopysetRpcRetryTimes =
-        conf->GetIntValue("mds.topology.CreateCopysetRpcRetryTimes", 3);
-    topologyOption->CreateCopysetRpcRetrySleepTimeMs =
-        conf->GetIntValue("mds.topology.CreateCopysetRpcRetrySleepTimeMs",
-            1000);
+    LOG_IF(FATAL, !conf->GetStringValue("mds.DbName", &topologyOption->dbName));
+    LOG_IF(FATAL, !conf->GetStringValue("mds.DbUser", &topologyOption->user));
+    LOG_IF(FATAL, !conf->GetStringValue("mds.DbUrl", &topologyOption->url));
+    LOG_IF(FATAL,
+        !conf->GetStringValue("mds.DbPassword", &topologyOption->password));
+    LOG_IF(FATAL,
+        !conf->GetUInt32Value("mds.DbPoolSize", &topologyOption->poolSize));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.topology.ChunkServerStateUpdateSec",
+        &topologyOption->ChunkServerStateUpdateSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.topology.CreateCopysetRpcTimeoutMs",
+        &topologyOption->CreateCopysetRpcTimeoutMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.topology.CreateCopysetRpcRetryTimes",
+        &topologyOption->CreateCopysetRpcRetryTimes));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.topology.CreateCopysetRpcRetrySleepTimeMs",
+        &topologyOption->CreateCopysetRpcRetrySleepTimeMs));
 }
 
 void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
-    copysetOption->copysetRetryTimes =
-        conf->GetIntValue("mds.copyset.copysetRetryTimes", 10);
-    copysetOption->scatterWidthVariance =
-        conf->GetDoubleValue("mds.copyset.scatterWidthVariance", 0);
-    copysetOption->scatterWidthStandardDevation =
-        conf->GetDoubleValue("mds.copyset.scatterWidthStandardDevation", 0);
-    copysetOption->scatterWidthRange =
-        conf->GetDoubleValue("mds.copyset.scatterWidthRange", 0);
-    copysetOption->scatterWidthFloatingPercentage =
-        conf->GetDoubleValue("mds.copyset.scatterWidthFloatingPercentage", 0);
+    LOG_IF(FATAL, !conf->GetIntValue("mds.copyset.copysetRetryTimes",
+        &copysetOption->copysetRetryTimes));
+    LOG_IF(FATAL, !conf->GetDoubleValue("mds.copyset.scatterWidthVariance",
+        &copysetOption->scatterWidthVariance));
+    LOG_IF(FATAL, !conf->GetDoubleValue(
+        "mds.copyset.scatterWidthStandardDevation",
+        &copysetOption->scatterWidthStandardDevation));
+    LOG_IF(FATAL, !conf->GetDoubleValue("mds.copyset.scatterWidthRange",
+        &copysetOption->scatterWidthRange));
+    LOG_IF(FATAL, !conf->GetDoubleValue(
+        "mds.copyset.scatterWidthFloatingPercentage",
+        &copysetOption->scatterWidthFloatingPercentage));
 }
 
 int curve_main(int argc, char **argv) {
@@ -174,11 +182,8 @@ int curve_main(int argc, char **argv) {
     std::string confPath = FLAGS_confPath.c_str();
     Configuration conf;
     conf.SetConfigPath(confPath);
-    if (!conf.LoadConfig()) {
-        LOG(ERROR) << "load mds configuration fail, conf path = "
-                   << confPath;
-        return -1;
-    }
+    LOG_IF(FATAL, !conf.LoadConfig())
+        << "load mds configuration fail, conf path = " << confPath;
 
     // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
@@ -206,36 +211,32 @@ int curve_main(int argc, char **argv) {
     // ===========================init curveFs========================//
     // init EtcdClient
     auto client = std::make_shared<EtcdClientImp>();
-    auto res = client->Init(
-                etcdConf,
-                conf.GetIntValue("mds.etcd.operation.timeoutMs"),
-                conf.GetIntValue("mds.etcd.retry.times"));
-    if (res != EtcdErrCode::OK) {
-        LOG(ERROR) << "init etcd client err! "
-                  << "etcdaddr: " << etcdConf.Endpoints
-                  << ", etcdaddr len: " << etcdConf.len
-                  << ", etcdtimeout: " << etcdConf.DialTimeout
-                  << ", operation timeout: "
-                  << conf.GetIntValue("mds.etcd.operation.timeoutMs")
-                  << ", etcd retrytimes: "
-                  << conf.GetIntValue("mds.etcd.retry.times");
-        return -1;
-    } else {
-        std::string out;
-        res = client->Get("test", &out);
-        if (res != EtcdErrCode::OK && res != EtcdErrCode::KeyNotExist) {
-            LOG(ERROR) << "Run mds err. Check if etcd is running.";
-            return -1;
-        }
-        LOG(INFO) << "init etcd client ok! "
-                  << "etcdaddr: " << etcdConf.Endpoints
-                  << ", etcdaddr len: " << etcdConf.len
-                  << ", etcdtimeout: " << etcdConf.DialTimeout
-                  << ", operation timeout: "
-                  << conf.GetIntValue("mds.etcd.operation.timeouMs")
-                  << ", etcd retrytimes: "
-                  << conf.GetIntValue("mds.etcd.retry.times");
-    }
+    int etcdTimeout;
+    LOG_IF(FATAL, !conf.GetIntValue(
+        "mds.etcd.operation.timeoutMs", &etcdTimeout));
+    int retryTimes;
+    LOG_IF(FATAL, !conf.GetIntValue("mds.etcd.retry.times", &retryTimes));
+    auto res = client->Init(etcdConf, etcdTimeout, retryTimes);
+    LOG_IF(FATAL, res != EtcdErrCode::OK)
+        << "init etcd client err! "
+        << "etcdaddr: " << etcdConf.Endpoints
+        << ", etcdaddr len: " << etcdConf.len
+        << ", etcdtimeout: " << etcdConf.DialTimeout
+        << ", operation timeout: " << etcdTimeout
+        << ", etcd retrytimes: " << retryTimes;
+
+    std::string out;
+    res = client->Get("test", &out);
+    LOG_IF(FATAL, res != EtcdErrCode::OK && res != EtcdErrCode::KeyNotExist)
+        << "Run mds err. Check if etcd is running.";
+
+    LOG(INFO) << "init etcd client ok! "
+            << "etcdaddr: " << etcdConf.Endpoints
+            << ", etcdaddr len: " << etcdConf.len
+            << ", etcdtimeout: " << etcdConf.DialTimeout
+            << ", operation timeout: " << etcdTimeout
+            << ", etcd retrytimes: " << retryTimes;
+
 
     // init InodeIDGenerator
     auto inodeIdGenerator = std::make_shared<InodeIdGeneratorImp>(client);
@@ -244,17 +245,15 @@ int curve_main(int argc, char **argv) {
     auto chunkIdGenerator = std::make_shared<ChunkIDGeneratorImp>(client);
 
     // init LRUCache
-    auto cache =
-        std::make_shared<LRUCache>(conf.GetIntValue("mds.cache.count"));
+    int mdsCacheCount;
+    LOG_IF(FATAL, !conf.GetIntValue("mds.cache.count", &mdsCacheCount));
+    auto cache = std::make_shared<LRUCache>(mdsCacheCount);
 
     // init NameServerStorage
     NameServerStorage *storage = new NameServerStorageImp(client, cache);
 
     // init recyclebindir
-    if (!InitRecycleBinDir(storage))  {
-        LOG(ERROR) << "init recyclebindir error";
-        return -1;
-    }
+    LOG_IF(FATAL, !InitRecycleBinDir(storage)) << "init recyclebindir error";
 
     // init topology
     auto topologyIdGenerator  =
@@ -267,29 +266,21 @@ int curve_main(int argc, char **argv) {
     auto topologyStorage =
         std::make_shared<DefaultTopologyStorage>(mdsRepo);
 
-    if (!topologyStorage->init(topologyOption)) {
-        LOG(FATAL) << "init topologyStorage fail. dbName = "
-                   << topologyOption.dbName
-                   << " , user = "
-                   << topologyOption.user
-                   << " , url = "
-                   << topologyOption.url
-                   << " , password = "
-                   << topologyOption.password;
-        return -1;
-    }
+    LOG_IF(FATAL, !topologyStorage->init(topologyOption))
+        << "init topologyStorage fail. dbName = "
+        << topologyOption.dbName
+        << " , user = "
+        << topologyOption.user
+        << " , url = "
+        << topologyOption.url
+        << " , password = "
+        << topologyOption.password;
 
     auto topology =
         std::make_shared<TopologyImpl>(topologyIdGenerator,
                                            topologyTokenGenerator,
                                            topologyStorage);
-
-    int errorCode = topology->init(topologyOption);
-    if (errorCode < 0) {
-        LOG(FATAL) << "init topology fail. errorCode = "
-                   << errorCode;
-        return errorCode;
-    }
+    LOG_IF(FATAL, topology->init(topologyOption) < 0) << "init topology fail.";
 
     // init CopysetManager
     auto copysetManager =
@@ -320,18 +311,14 @@ int curve_main(int argc, char **argv) {
     // init SessionManager
     SessionManager *sessionManager =
         new SessionManager(std::make_shared<MdsRepo>());
-
-    if (!kCurveFS.Init(storage, inodeIdGenerator.get(),
+    LOG_IF(FATAL, !kCurveFS.Init(storage, inodeIdGenerator.get(),
                   chunkSegmentAllocate, cleanManger,
-                  sessionManager, sessionOptions, authOptions)) {
-        return -1;
-    }
+                  sessionManager, sessionOptions, authOptions))
+        << "init session manager fail";
+
 
     // start clean manager
-    if (!cleanManger->Start()) {
-        LOG(ERROR) << "start cleanManager fail.";
-        return -1;
-    }
+    LOG_IF(FATAL, !cleanManger->Start()) << "start cleanManager fail.";
 
     // =========================init scheduler======================//
     auto topoAdapter = std::make_shared<TopoAdapterImpl>(
@@ -350,37 +337,33 @@ int curve_main(int argc, char **argv) {
     // add heartbeat service
     brpc::Server server;
     HeartbeatServiceImpl heartbeatService(heartbeatManager);
-    if (server.AddService(&heartbeatService,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "add topologyService error";
-        return -1;
-    }
+    LOG_IF(FATAL, server.AddService(&heartbeatService,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add topologyService error";
 
     // add rpc service
-    NameSpaceService namespaceService(new FileLockManager(
-        conf.GetIntValue("mds.filelock.bucketNum")));
-    if (server.AddService(&namespaceService,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "add namespaceService error";
-        return -1;
-    }
+    int mdsFilelockBucketNum;
+    LOG_IF(FATAL, !conf.GetIntValue(
+        "mds.filelock.bucketNum", &mdsFilelockBucketNum));
+    NameSpaceService namespaceService(
+        new FileLockManager(mdsFilelockBucketNum));
+    LOG_IF(FATAL, server.AddService(&namespaceService,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add namespaceService error";
 
     // add topology service
     TopologyServiceImpl topologyService(topologyServiceManager);
-    if (server.AddService(&topologyService,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(ERROR) << "add topologyService error";
-        return -1;
-    }
+    LOG_IF(FATAL, server.AddService(&topologyService,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add topologyService error";
 
     // start rpc server
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    if (server.Start(
-        conf.GetStringValue("mds.listen.addr").c_str(), &option) != 0) {
-        LOG(ERROR) << "start brpc server error";
-        return -1;
-    }
+    std::string mdsListenAddr;
+    LOG_IF(FATAL, !conf.GetStringValue("mds.listen.addr", &mdsListenAddr));
+    LOG_IF(FATAL, server.Start(mdsListenAddr.c_str(), &option) != 0)
+        << "start brpc server error";
 
     server.RunUntilAskedToQuit();
 

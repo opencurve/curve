@@ -28,18 +28,69 @@ class Configuration {
     std::string GetConfigPath();
 
     std::string GetStringValue(const std::string &key);
+    /*
+    * @brief GetStringValue 获取指定配置项的值
+    *
+    * @param[in] key 配置项名称
+    * @param[out] out 获取的值
+    *
+    * @return false-未获取到 true-获取成功
+    */
+    bool GetStringValue(const std::string &key, std::string *out);
     void SetStringValue(const std::string &key, const std::string &value);
 
     int GetIntValue(const std::string &key, uint64_t defaultvalue = 0);
+    /*
+    * @brief GetIntValue/GetUInt32Value/GetUInt64Value 获取指定配置项的值 //NOLINT
+    *
+    * @param[in] key 配置项名称
+    * @param[out] out 获取的值
+    *
+    * @return false-未获取到 true-获取成功
+    */
+    bool GetIntValue(const std::string &key, int *out);
+    bool GetUInt32Value(const std::string &key, uint32_t *out);
+    bool GetUInt64Value(const std::string &key, uint64_t *out);
     void SetIntValue(const std::string &key, const int value);
 
     double GetDoubleValue(const std::string &key, double defaultvalue = 0.0);
+    /*
+    * @brief GetDoubleValue 获取指定配置项的值
+    *
+    * @param[in] key 配置项名称
+    * @param[out] out 获取的值
+    *
+    * @return false-未获取到 true-获取成功
+    */
+    bool GetDoubleValue(const std::string &key, double *out);
     void SetDoubleValue(const std::string &key, const double value);
 
+    double GetFloatValue(const std::string &key, float defaultvalue = 0.0);
+    /*
+    * @brief GetFloatValue 获取指定配置项的值
+    *
+    * @param[in] key 配置项名称
+    * @param[out] out 获取的值
+    *
+    * @return false-未获取到 true-获取成功
+    */
+    bool GetFloatValue(const std::string &key, float *out);
+    void SetFloatValue(const std::string &key, const float value);
+
     bool GetBoolValue(const std::string &key, bool defaultvalue = false);
+    /*
+    * @brief GetBoolValue 获取指定配置项的值
+    *
+    * @param[in] key 配置项名称
+    * @param[out] out 获取的值
+    *
+    * @return false-未获取到 true-获取成功
+    */
+    bool GetBoolValue(const std::string &key, bool *out);
     void SetBoolValue(const std::string &key, const bool value);
 
     std::string GetValue(const std::string &key);
+    bool GetValue(const std::string &key, std::string *out);
     void SetValue(const std::string &key, const std::string &value);
 
  private:
