@@ -61,6 +61,7 @@ cc_test(
     ]),
     copts = COPTS,
     defines = ["UNIT_TEST"],
+    linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
@@ -118,6 +119,7 @@ cc_test(
     ),
     copts = COPTS,
     defines = ["UNIT_TEST"],
+    linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",
@@ -148,6 +150,7 @@ cc_test(
     ),
     copts = COPTS,
     defines = ["UNIT_TEST"],
+    linkopts = ["-lfiu"],
     visibility = ["//visibility:public"],
     deps = [
         "//external:braft",

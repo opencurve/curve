@@ -17,7 +17,7 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 /* Start of preamble from import "C" comments.  */
 
 
-#line 3 "/home/lixiaocui1/Project/go/src/wrappertoc/Txn4/etcdclient.go"
+#line 3 "/home/lixiaocui1/Project/go/src/wrappertoc/Campaign/etcdclient.go"
 
 #include <stdlib.h>
 
@@ -27,28 +27,34 @@ enum EtcdErrCode
     // https://godoc.org/go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes#ErrGRPCNoSpace
     // https://godoc.org/google.golang.org/grpc/codes#Code
     OK = 0,
-    Canceled,
-    Unknown,
-    InvalidArgument,
-    DeadlineExceeded,
-    NotFound,
-    AlreadyExists,
-    PermissionDenied,
-    ResourceExhausted,
-    FailedPrecondition,
-    Aborted,
-    OutOfRange,
-    Unimplemented,
-    Internal,
-    Unavailable,
-    DataLoss,
-    Unauthenticated,
+    Canceled = 1,
+    Unknown = 2,
+    InvalidArgument = 3,
+    DeadlineExceeded = 4,
+    NotFound = 5,
+    AlreadyExists = 6,
+    PermissionDenied = 7,
+    ResourceExhausted = 8,
+    FailedPrecondition = 9,
+    Aborted = 10,
+    OutOfRange = 11,
+    Unimplemented = 12,
+    Internal = 13,
+    Unavailable = 14,
+    DataLoss = 15,
+    Unauthenticated = 16,
 
     // 自定义错误码
-    TxnUnkownOp,
-    ObjectNotExist,
-    ErrObjectType,
-    KeyNotExist,
+    TxnUnkownOp = 17,
+    ObjectNotExist = 18,
+    ErrObjectType = 19,
+    KeyNotExist = 20,
+    CampaignInternalErr = 21,
+    CampaignLeaderSuccess = 22,
+    ObserverLeaderInternal = 23,
+    ObserverLeaderChange = 24,
+    LeaderResignErr = 25,
+    LeaderResiginSuccess = 26
 };
 
 enum OpType {
@@ -129,18 +135,18 @@ extern GoUint32 EtcdClientPut(int p0, char* p1, char* p2, int p3, int p4);
 
 /* Return type for EtcdClientGet */
 struct EtcdClientGet_return {
-    GoUint32 r0;
-    char* r1;
-    GoInt r2;
+	GoUint32 r0;
+	char* r1;
+	GoInt r2;
 };
 
 extern struct EtcdClientGet_return EtcdClientGet(int p0, char* p1, int p2);
 
 /* Return type for EtcdClientList */
 struct EtcdClientList_return {
-    GoUint32 r0;
-    GoUint64 r1;
-    GoInt64 r2;
+	GoUint32 r0;
+	GoUint64 r1;
+	GoInt64 r2;
 };
 
 // TODO(lixiaocui): list可能需要有长度限制
@@ -155,20 +161,32 @@ extern GoUint32 EtcdClientTxn3(int p0, struct Operation p1, struct Operation p2,
 
 extern GoUint32 EtcdClientCompareAndSwap(int p0, char* p1, char* p2, char* p3, int p4, int p5, int p6);
 
+/* Return type for EtcdElectionCampaign */
+struct EtcdElectionCampaign_return {
+	GoUint32 r0;
+	GoUint64 r1;
+};
+
+extern struct EtcdElectionCampaign_return EtcdElectionCampaign(char* p0, int p1, char* p2, int p3, GoUint32 p4, GoUint32 p5);
+
+extern GoUint32 EtcdLeaderObserve(GoUint64 p0, GoUint64 p1, char* p2, int p3);
+
+extern GoUint32 EtcdLeaderResign(GoUint64 p0, GoUint64 p1);
+
 /* Return type for EtcdClientGetSingleObject */
 struct EtcdClientGetSingleObject_return {
-    GoUint32 r0;
-    char* r1;
-    GoInt r2;
+	GoUint32 r0;
+	char* r1;
+	GoInt r2;
 };
 
 extern struct EtcdClientGetSingleObject_return EtcdClientGetSingleObject(GoUint64 p0);
 
 /* Return type for EtcdClientGetMultiObject */
 struct EtcdClientGetMultiObject_return {
-    GoUint32 r0;
-    char* r1;
-    GoInt r2;
+	GoUint32 r0;
+	char* r1;
+	GoInt r2;
 };
 
 extern struct EtcdClientGetMultiObject_return EtcdClientGetMultiObject(GoUint64 p0, GoInt p1);
