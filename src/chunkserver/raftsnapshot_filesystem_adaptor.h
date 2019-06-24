@@ -12,6 +12,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 
@@ -103,6 +104,10 @@ class RaftSnapshotFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
     virtual bool rename(const std::string& old_path,
                        const std::string& new_path);
 
+    // 设置过滤哪些文件，这些文件不从chunkfilepool取
+    // 回收的时候也直接删除这些文件，不进入chunkfilepool
+    void SetFilterList(const std::vector<std::string>& filter);
+
  private:
    /**
     * 递归回收目录内容
@@ -110,6 +115,11 @@ class RaftSnapshotFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
     * @return: 成功返回true，否则返回false
     */
     bool RecycleDirRecursive(const std::string& path);
+
+    /**
+     * 查看文件是否需要过滤
+     */
+    bool NeedFilter(const std::string& filename);
 
  private:
     // 由于chunkfile pool获取新的chunk时需要传入metapage信息
@@ -120,6 +130,9 @@ class RaftSnapshotFilesystemAdaptor : public braft::PosixFileSystemAdaptor {
     // 操作chunkfilepool的指针，这个chunkfilePool_与copysetnode的
     // chunkfilePool_应该是全局唯一的，保证操作chunkfilepool的原子性
     std::shared_ptr<ChunkfilePool> chunkfilePool_;
+    // 过滤名单，在当前vector中的文件名，都不从chunkfilepool中取文件
+    // 回收的时候也直接删除这些文件，不进入chunkfilepool
+    std::vector<std::string> filterList_;
 };
 }  // namespace chunkserver
 }  // namespace curve

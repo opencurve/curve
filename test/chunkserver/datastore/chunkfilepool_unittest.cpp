@@ -36,10 +36,12 @@ class CSChunkfilePool_test : public testing::Test {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
         int count = 1;
-        std::string dirname = "./chunkfilepool";
+        fsptr->Mkdir("./cspooltest/");
+        std::string dirname = "./cspooltest/chunkfilepool";
         while (count < 3) {
-            std::string  filename = "./chunkfilepool/" + std::to_string(count);
-            fsptr->Mkdir("./chunkfilepool");
+            std::string  filename = "./cspooltest/chunkfilepool/"
+                                  + std::to_string(count);
+            fsptr->Mkdir("./cspooltest/chunkfilepool");
             int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
             char data[8192];
             memset(data, 'a', 8192);
@@ -56,14 +58,15 @@ class CSChunkfilePool_test : public testing::Test {
                                                     chunksize,
                                                     metapagesize,
                                                     dirname,
-                                                    "./chunkfilepool.meta");
+                                            "./cspooltest/chunkfilepool.meta");
 
         if (ret == -1) {
             LOG(ERROR) << "persist chunkfile pool meta info failed!";
             return;
         }
 
-        int fd = fsptr->Open("./chunkfilepool.meta2", O_RDWR | O_CREAT);
+        int fd = fsptr->Open("./cspooltest/chunkfilepool.meta2",
+                             O_RDWR | O_CREAT);
         if (fd < 0) {
             return;
         }
@@ -81,17 +84,18 @@ class CSChunkfilePool_test : public testing::Test {
 
     void TearDown() {
         std::vector<std::string> filename;
-        fsptr->List("./chunkfilepool", &filename);
+        fsptr->List("./cspooltest/chunkfilepool", &filename);
         for (auto iter : filename) {
-            auto path = "./chunkfilepool/" + iter;
+            auto path = "./cspooltest/chunkfilepool/" + iter;
             int err = fsptr->Delete(path.c_str());
             if (err) {
                 LOG(INFO) << "unlink file failed!, errno = " << errno;
             }
         }
-        fsptr->Delete("./chunkfilepool");
-        fsptr->Delete("./chunkfilepool.meta");
-        fsptr->Delete("./chunkfilepool.meta2");
+        fsptr->Delete("./cspooltest/chunkfilepool");
+        fsptr->Delete("./cspooltest/chunkfilepool.meta");
+        fsptr->Delete("./cspooltest/chunkfilepool.meta2");
+        fsptr->Delete("./cspooltest");
         ChunkfilepoolPtr_->UnInitialize();
     }
 
@@ -114,7 +118,7 @@ bool CheckFileOpenOrNot(const std::string& filename) {
 }
 
 TEST_F(CSChunkfilePool_test, InitializeTest) {
-    std::string chunkfilepool = "./chunkfilepool.meta";
+    std::string chunkfilepool = "./cspooltest/chunkfilepool.meta";
 
     ChunkfilePoolOptions cfop;
     cfop.chunkSize = 4096;
@@ -126,8 +130,8 @@ TEST_F(CSChunkfilePool_test, InitializeTest) {
     ASSERT_EQ(2, ChunkfilepoolPtr_->Size());
     // 初始化阶段会扫描chunkfilepool内的所有文件，在扫描结束之后需要关闭这些文件
     // 防止过多的文件描述符被占用
-    ASSERT_FALSE(CheckFileOpenOrNot("./chunkfilepool/1"));
-    ASSERT_FALSE(CheckFileOpenOrNot("./chunkfilepool/2"));
+    ASSERT_FALSE(CheckFileOpenOrNot("./cspooltest/chunkfilepool/1"));
+    ASSERT_FALSE(CheckFileOpenOrNot("./cspooltest/chunkfilepool/2"));
     cfop.chunkSize = 8192;
     cfop.metaPageSize = 4096;
     // test meta content wrong
@@ -136,7 +140,7 @@ TEST_F(CSChunkfilePool_test, InitializeTest) {
     cfop.metaPageSize = 4096;
     ASSERT_FALSE(ChunkfilepoolPtr_->Initialize(cfop));
     // invalid file name
-    std::string  filename = "./chunkfilepool/a";
+    std::string  filename = "./cspooltest/chunkfilepool/a";
     cfop.chunkSize = 4096;
     cfop.metaPageSize = 4096;
     int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
@@ -146,24 +150,24 @@ TEST_F(CSChunkfilePool_test, InitializeTest) {
     fsptr->Close(fd);
     ASSERT_FALSE(ChunkfilepoolPtr_->Initialize(cfop));
     // test meta file wrong
-    chunkfilepool = "./chunkfilepool.meta2";
+    chunkfilepool = "./cspooltest/chunkfilepool.meta2";
     cfop.chunkSize = 4096;
     cfop.metaPageSize = 4096;
     memcpy(cfop.metaPath, chunkfilepool.c_str(), chunkfilepool.size());
     ASSERT_FALSE(ChunkfilepoolPtr_->Initialize(cfop));
     // test meta file not exist
-    chunkfilepool = "./chunkfilepool.meta3";
+    chunkfilepool = "./cspooltest/chunkfilepool.meta3";
     cfop.chunkSize = 4096;
     cfop.metaPageSize = 4096;
     memcpy(cfop.metaPath, chunkfilepool.c_str(), chunkfilepool.size());
     ASSERT_FALSE(ChunkfilepoolPtr_->Initialize(cfop));
 
-    fsptr->Delete("./chunkfilepool/a");
-    fsptr->Delete("./chunkfilepool.meta3");
+    fsptr->Delete("./cspooltest/chunkfilepool/a");
+    fsptr->Delete("./cspooltest/chunkfilepool.meta3");
 }
 
 TEST_F(CSChunkfilePool_test, GetChunkTest) {
-    std::string chunkfilepool = "./chunkfilepool.meta";
+    std::string chunkfilepool = "./cspooltest/chunkfilepool.meta";
     ChunkfilePoolOptions cfop;
     cfop.chunkSize = 4096;
     cfop.metaPageSize = 4096;
@@ -200,7 +204,7 @@ TEST_F(CSChunkfilePool_test, GetChunkTest) {
 }
 
 TEST_F(CSChunkfilePool_test, RecycleChunkTest) {
-    std::string chunkfilepool = "./chunkfilepool.meta";
+    std::string chunkfilepool = "./cspooltest/chunkfilepool.meta";
     ChunkfilePoolOptions cfop;
     cfop.chunkSize = 4096;
     cfop.metaPageSize = 4096;
@@ -226,8 +230,8 @@ TEST_F(CSChunkfilePool_test, RecycleChunkTest) {
     ASSERT_EQ(2, currentStat.preallocatedChunksLeft);
 
     ASSERT_FALSE(fsptr->FileExists("./new1"));
-    ASSERT_TRUE(fsptr->FileExists("./chunkfilepool/4"));
-    ASSERT_EQ(0, fsptr->Delete("./chunkfilepool/4"));
+    ASSERT_TRUE(fsptr->FileExists("./cspooltest/chunkfilepool/4"));
+    ASSERT_EQ(0, fsptr->Delete("./cspooltest/chunkfilepool/4"));
 }
 
 TEST(CSChunkfilePool, GetChunkDirectlyTest) {
@@ -238,15 +242,15 @@ TEST(CSChunkfilePool, GetChunkDirectlyTest) {
     // create chunkfile in chunkfile pool dir
     // if chunkfile pool 的getchunkfrompool开关关掉了，那么
     // chunkfilepool的size是一直为0，不会从pool目录中找
-    std::string  filename = "./chunkfilepool/1000";
-    fsptr->Mkdir("./chunkfilepool");
+    std::string  filename = "./cspooltest/chunkfilepool/1000";
+    fsptr->Mkdir("./cspooltest/chunkfilepool");
     int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
 
     char data[8192];
     memset(data, 'a', 8192);
     ASSERT_EQ(8192, fsptr->Write(fd, data, 0, 8192));
     fsptr->Close(fd);
-    ASSERT_TRUE(fsptr->FileExists("./chunkfilepool/1000"));
+    ASSERT_TRUE(fsptr->FileExists("./cspooltest/chunkfilepool/1000"));
 
     ChunkfilePoolOptions cspopt;
     cspopt.getChunkFromPool = false;
@@ -254,7 +258,7 @@ TEST(CSChunkfilePool, GetChunkDirectlyTest) {
     cspopt.metaPageSize = 4 * 1024;
     cspopt.cpMetaFileSize = 4 * 1024;
     cspopt.retryTimes = 5;
-    strcpy(cspopt.chunkFilePoolDir, "./chunkfilepool");                             // NOLINT
+    strcpy(cspopt.chunkFilePoolDir, "./cspooltest/chunkfilepool");                             // NOLINT
 
     ChunkfilepoolPtr_ = std::make_shared<ChunkfilePool>(fsptr);
     if (ChunkfilepoolPtr_ == nullptr) {
@@ -287,7 +291,7 @@ TEST(CSChunkfilePool, GetChunkDirectlyTest) {
 
     // 删除测试文件及目录
     ASSERT_EQ(0, fsptr->Close(fd));
-    ASSERT_EQ(0, fsptr->Delete("./chunkfilepool/1000"));
-    ASSERT_EQ(0, fsptr->Delete("./chunkfilepool"));
+    ASSERT_EQ(0, fsptr->Delete("./cspooltest/chunkfilepool/1000"));
+    ASSERT_EQ(0, fsptr->Delete("./cspooltest/chunkfilepool"));
     ChunkfilepoolPtr_->UnInitialize();
 }

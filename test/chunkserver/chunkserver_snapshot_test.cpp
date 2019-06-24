@@ -1053,7 +1053,7 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
         Configuration conf = cluster.CopysetConf();
         braft::cli::CliOptions options;
         options.max_retry = 3;
-        options.timeout_ms = 8000;
+        options.timeout_ms = 80000;
         butil::Status status = AddPeer(logicPoolId,
                                        copysetId,
                                        cluster.CopysetConf(),
@@ -1240,7 +1240,7 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
         Configuration conf = cluster.CopysetConf();
         braft::cli::CliOptions options;
         options.max_retry = 3;
-        options.timeout_ms = 8000;
+        options.timeout_ms = 80000;
         butil::Status status = AddPeer(logicPoolId,
                                        copysetId,
                                        cluster.CopysetConf(),

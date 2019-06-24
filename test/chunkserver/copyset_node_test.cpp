@@ -271,6 +271,7 @@ TEST(CopysetNodeTest, error_test) {
 
         copysetNode.on_snapshot_save(&writer, &closure);
     }
+
     // on_snapshot_load: Dir not exist, File not exist, data init success
     {
         LogicPoolID logicPoolID = 1;
@@ -297,6 +298,7 @@ TEST(CopysetNodeTest, error_test) {
         EXPECT_CALL(*mockfs, FileExists(_)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(0, copysetNode.on_snapshot_load(&reader));
+        LOG(INFO) << "OK";
     }
     // on_snapshot_load: Dir not exist, File not exist, data init failed
     {
@@ -304,12 +306,12 @@ TEST(CopysetNodeTest, error_test) {
         CopysetID copysetID = 1;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        FakeClosure closure;
-        FakeSnapshotReader reader;
         std::shared_ptr<MockLocalFileSystem>
             mockfs = std::make_shared<MockLocalFileSystem>();
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
+        FakeClosure closure;
+        FakeSnapshotReader reader;
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         DataStoreOptions options;
@@ -325,6 +327,7 @@ TEST(CopysetNodeTest, error_test) {
         EXPECT_CALL(*mockfs, FileExists(_)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
+        LOG(INFO) << "OK";
     }
     // on_snapshot_load: Dir not exist, File exist, load conf.epoch failed
     {
@@ -367,6 +370,7 @@ TEST(CopysetNodeTest, error_test) {
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
     }
+
     // on_snapshot_load: Dir exist, List success, rename success
     // file exist, open failed
     {
@@ -383,17 +387,21 @@ TEST(CopysetNodeTest, error_test) {
             mockfs = std::make_shared<MockLocalFileSystem>();
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
+        copysetNodeOptions.localFileSystem = mockfs;
+        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
-        EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, DirExists(_)).Times(3).WillOnce(Return(true));
+        EXPECT_CALL(*mockfs, List(_, _)).Times(3)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
         EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1)
             .WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, FileExists(_)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*mockfs, FileExists(_)).Times(2).WillOnce(Return(true))
+                                                    .WillOnce(Return(false));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(-1));
 
-        ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
+        ASSERT_EQ(0, copysetNode.on_snapshot_load(&reader));
+        LOG(INFO) << "OK";
     }
     // on_snapshot_load: Dir exist, List success, rename failed
     {
@@ -410,16 +418,22 @@ TEST(CopysetNodeTest, error_test) {
             mockfs = std::make_shared<MockLocalFileSystem>();
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
+        copysetNodeOptions.localFileSystem = mockfs;
+        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
+        LOG(ERROR) << "mock file sys = " << mockfs;
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
-        EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
+        EXPECT_CALL(*mockfs, DirExists(_)).Times(2).WillOnce(Return(true));
+        EXPECT_CALL(*mockfs, List(_, _)).Times(2)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
+        EXPECT_CALL(*mockfs, FileExists(_)).Times(1)
+            .WillOnce(Return(true));
         EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1)
-            .WillOnce(Return(1));
+            .WillOnce(Return(-1));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
     }
+
     /* on_error */
     {
         LogicPoolID logicPoolID = 1;
@@ -500,6 +514,7 @@ TEST(CopysetNodeTest, error_test) {
         uint64_t epoch = 12;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
         auto fs = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ConfEpochFile confEpochFile(fs);
         ASSERT_EQ(0,

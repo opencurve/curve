@@ -48,8 +48,12 @@ braft::FileAdaptor* RaftSnapshotFilesystemAdaptor::open(const std::string& path,
         oflag &= (~O_CLOEXEC);
     }
 
+    // 先判断当前文件是否需要过滤，如果需要过滤，就直接走下面逻辑，不走chunkfilepool
     // 如果open操作携带create标志，则从chunkfilepool取，否则保持原来语意
-    if (oflag & O_CREAT) {
+    // 如果待打开的文件已经存在，则直接使用原有语意
+    if (!NeedFilter(path) &&
+        (oflag & O_CREAT) &&
+        false == lfs_->FileExists(path)) {
         // 从chunkfile pool中取出chunk返回
         int rc = chunkfilePool_->GetChunk(path, tempMetaPageContent);
         // 如果从chunkfilepool中取失败，那么就仍然用原来的逻辑，不返回错误。
@@ -94,8 +98,13 @@ bool RaftSnapshotFilesystemAdaptor::delete_file(const std::string& path,
         }
     } else {
         if (lfs_->FileExists(path)) {
-            // chunkfilePool内部会检查path对应文件合法性，如果不符合就直接删除
-            return chunkfilePool_->RecycleChunk(path) == 0;
+             // 如果在过滤名单里，就直接删除
+             if (NeedFilter(path)) {
+                 return lfs_->Delete(path) == 0;
+             } else {
+                // chunkfilePool内部会检查path对应文件合法性，如果不符合就直接删除
+                return chunkfilePool_->RecycleChunk(path) == 0;
+             }
         }
     }
     return true;
@@ -107,10 +116,19 @@ bool RaftSnapshotFilesystemAdaptor::RecycleDirRecursive(
     lfs_->List(path, &dircontent);
     bool rc = true;
     for (auto filepath : dircontent) {
-        if (lfs_->DirExists(path + "/" + filepath)) {
-            RecycleDirRecursive(path + "/"+ filepath);
+        std::string todeletePath = path + "/" + filepath;
+        if (lfs_->DirExists(todeletePath)) {
+            RecycleDirRecursive(todeletePath);
         } else {
-            int ret = chunkfilePool_->RecycleChunk(path + "/" + filepath);
+            // 如果在过滤名单里，就直接删除
+            if (NeedFilter(todeletePath)) {
+                if (lfs_->Delete(todeletePath) != 0) {
+                    rc = false;
+                    break;
+                }
+                continue;
+            }
+            int ret = chunkfilePool_->RecycleChunk(todeletePath);
             if (ret < 0) {
                 rc = false;
                 LOG(ERROR) << "recycle " << path + filepath << ", failed!";
@@ -129,5 +147,23 @@ bool RaftSnapshotFilesystemAdaptor::rename(const std::string& old_path,
     }
     return lfs_->Rename(old_path, new_path) == 0;
 }
+
+void RaftSnapshotFilesystemAdaptor::SetFilterList(
+                                    const std::vector<std::string>& filter) {
+    filterList_.assign(filter.begin(), filter.end());
+}
+
+bool RaftSnapshotFilesystemAdaptor::NeedFilter(const std::string& filename) {
+    bool ret = false;
+    for (auto name : filterList_) {
+        if (filename.find(name) != filename.npos) {
+            ret = true;
+            LOG(INFO) << "file " << filename.c_str() << ", need filter!";
+            break;
+        }
+    }
+    return ret;
+}
+
 }  // namespace chunkserver
 }  // namespace curve

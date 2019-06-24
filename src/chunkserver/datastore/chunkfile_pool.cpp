@@ -403,7 +403,8 @@ int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
             LOG(ERROR) << "file rename failed, " << chunkpath.c_str();
             return -1;
         } else {
-            LOG(INFO) << "Recycle " << chunkpath.c_str() << ", success!";
+            LOG(INFO) << "Recycle " << chunkpath.c_str() << ", success!"
+                      << ", now chunkpool size = " << tmpChunkvec_.size() + 1;
         }
         std::unique_lock<std::mutex> lk(mtx_);
         tmpChunkvec_.push_back(newfilenum);

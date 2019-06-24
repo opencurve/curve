@@ -11,6 +11,8 @@
 #include <brpc/controller.h>
 #include <butil/sys_byteorder.h>
 #include <braft/closure_helper.h>
+#include <braft/snapshot.h>
+#include <braft/protobuf_file.h>
 #include <utility>
 #include <memory>
 #include <cassert>
@@ -112,12 +114,18 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     nodeOptions_.usercode_in_pthread = options.usercodeInPthread;
     nodeOptions_.snapshot_throttle = options.snapshotThrottle;
 
-    scoped_refptr<braft::FileSystemAdaptor> scptr(
+    RaftSnapshotFilesystemAdaptor* rfa =
         new RaftSnapshotFilesystemAdaptor(options.chunkfilePool,
-                                          options.localFileSystem));
+                                          options.localFileSystem);
+    std::vector<std::string> filterList;
+    std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
+    filterList.push_back(kCurveConfEpochFilename);
+    filterList.push_back(snapshotMeta);
+    filterList.push_back(snapshotMeta.append(BRAFT_PROTOBUF_FILE_TEMP));
+    rfa->SetFilterList(filterList);
+
     nodeOptions_.snapshot_file_system_adaptor =
-        new scoped_refptr<braft::FileSystemAdaptor>;
-    nodeOptions_.snapshot_file_system_adaptor->swap(scptr);
+        new scoped_refptr<braft::FileSystemAdaptor>(rfa);
 
     /* 初始化 peer id */
     butil::ip_t ip;
@@ -309,7 +317,7 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
                 // 无法被chunkfilepool回收，那么chunkfilepool的存量会越来
                 // 越少，所以这里采用RaftSnapshotFilesystemAdaptor里的
                 // rename接口，在回收之前先检查是否可以回收，如果可以，先回收
-                if (0 != nodeOptions_.snapshot_file_system_adaptor->get()->
+                if (false == nodeOptions_.snapshot_file_system_adaptor->get()->
                     rename(snapshotFilename, dataFilename)) {
                     LOG(ERROR) << "rename " << snapshotFilename << " to "
                                << dataFilename << " failed";

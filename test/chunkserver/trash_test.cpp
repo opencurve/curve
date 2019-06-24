@@ -402,7 +402,7 @@ TEST_F(TrashTest, recycle_copyset_dir_ok) {
     ASSERT_EQ(0, trash->RecycleCopySet(dirPath));
 }
 
-TEST_F(TrashTest, test_concurrenct) {
+TEST_F(TrashTest, DISABLED_test_concurrenct) {
     std::thread thread1(&TrashTest::RecycleCopyset50Times, this);
     std::thread thread2(&TrashTest::CleanFiles, this);
     thread1.join();
