@@ -504,6 +504,7 @@ DirInfo_t* OpenDir(const char* dirpath, const C_UserInfo_t* userinfo) {
     DirInfo_t* dirinfo = new (std::nothrow) DirInfo_t;
     dirinfo->dirpath = const_cast<char*>(dirpath);
     dirinfo->userinfo = const_cast<C_UserInfo_t*>(userinfo);
+    dirinfo->fileStat = nullptr;
 
     return dirinfo;
 }
