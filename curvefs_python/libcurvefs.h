@@ -67,6 +67,10 @@ extern "C" {
 #define CURVE_ERROR_NO_SPACE 21
 // IO未对齐
 #define CURVE_ERROR_NOT_ALIGNED 22
+// 文件被关闭，fd不可用
+#define CURVE_ERROR_BAD_FD 23
+// 文件长度不支持
+#define CURVE_ERROR_LENGTH_NOT_SUPPORT 24
 // 未知错误
 #define CURVE_ERROR_UNKNOWN 100
 
@@ -80,7 +84,6 @@ typedef struct AioContext {
     unsigned long length;  //NOLINT
     int ret;
     int op;
-    int err;
     AioCallBack cb;
     void* buf;
 } AioContext_t;
@@ -96,8 +99,16 @@ typedef struct FileInfo {
     int           filetype;
     uint64_t      length;
     uint64_t      ctime;
+    char          filename[256];
+    char          owner[256];
 } FileInfo_t;
 
+typedef struct DirInfos {
+    char*         dirpath;
+    UserInfo_t*   userinfo;
+    uint64_t      dirsize;
+    FileInfo_t*   fileinfo;
+} DirInfos_t;
 
 int Init(const char* path);
 int Open4Qemu(const char* filename);
@@ -115,13 +126,16 @@ int AioWrite(int fd, AioContext* aioctx);
 // 获取文件的基本信息
 int StatFile4Qemu(const char* filename, FileInfo_t* finfo);
 int StatFile(const char* filename, UserInfo_t* info, FileInfo_t* finfo);
-
+int ChangeOwner(const char* filename, const char* owner, UserInfo_t* info);
 int Close(int fd);
 
 int Rename(UserInfo_t* info, const char* oldpath, const char* newpath);
 int Extend(const char* filename, UserInfo_t* info, uint64_t size);
 int Unlink(const char* filename, UserInfo_t* info);
-int Listdir(const char* dirpath, UserInfo_t* info, FileInfo_t** fileinfos);
+int DeleteForce(const char* filename, UserInfo_t* info);
+DirInfos_t* OpenDir(const char* dirpath, UserInfo_t* userinfo);
+void CloseDir(DirInfos_t* dirinfo);
+int Listdir(DirInfos_t *dirinfo);
 int Mkdir(const char* dirpath, UserInfo_t* info);
 int Rmdir(const char* dirpath, UserInfo_t* info);
 
