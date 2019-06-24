@@ -209,7 +209,7 @@ commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 version=`cat curve-mds/DEBIAN/control |grep Version`
 if [ $1 = "debug" ]
 then
-	debug="_debug"
+	debug="+debug"
 else
 	debug=""
 fi
