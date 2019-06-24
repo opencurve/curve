@@ -725,6 +725,8 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
+    ASSERT_EQ(2, kCurveFS.GetOpenFileNum());
+
     // OpenFile case3. 文件存在，open过，返回session被占用
     cntl.Reset();
     OpenFileRequest request11;

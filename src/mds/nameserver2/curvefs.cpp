@@ -1616,8 +1616,23 @@ StatusCode CurveFS::RegistClient(const std::string &clientIp,
     return StatusCode::kOK;
 }
 
+uint64_t CurveFS::GetOpenFileNum() {
+    if (sessionManager_ == nullptr) {
+        return 0;
+    }
+    return sessionManager_->GetOpenFileNum();
+}
+
 CurveFS &kCurveFS = CurveFS::GetInstance();
 
+uint64_t GetOpenFileNum(void *varg) {
+    CurveFS *curveFs = reinterpret_cast<CurveFS *>(varg);
+    return curveFs->GetOpenFileNum();
+}
+
+bvar::PassiveStatus<uint64_t> g_open_file_num_bvar(
+                        CURVE_MDS_CURVEFS_METRIC_PREFIX, "open_file_num",
+                        GetOpenFileNum, &kCurveFS);
 }   // namespace mds
 }   // namespace curve
 
