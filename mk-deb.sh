@@ -14,6 +14,33 @@ then
 	exit
 fi
 #step2 执行编译
+if [ $1 = "debug" ]
+then
+bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
+--define=libunwind=true --copt -DGFLAGS_NS=google --copt \
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
+if [ $? -ne 0 ]
+then
+	echo "build phase1 failed"
+	exit
+fi
+sh ./curvefs_python/configure.sh
+if [ $? -ne 0 ]
+then
+	echo "configure failed"
+	exit
+fi
+bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s \
+--define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
+--copt \
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
+-L${dir}/curvefs_python/tmplib/
+if [ $? -ne 0 ]
+then
+	echo "build phase2 failed"
+	exit
+fi
+else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
@@ -38,7 +65,7 @@ then
 	echo "build phase2 failed"
 	exit
 fi
-
+fi
 
 #step3 创建临时目录，拷贝二进制、lib库和配置模板
 mkdir build
@@ -180,9 +207,15 @@ fi
 #step4 获取git提交版本信息，记录到debian包的配置文件
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 version=`cat curve-mds/DEBIAN/control |grep Version`
-sed -i "s/${version}/${version}+${commit_id}/g" build/curve-mds/DEBIAN/control
-sed -i "s/${version}/${version}+${commit_id}/g" build/curve-sdk/DEBIAN/control
-sed -i "s/${version}/${version}+${commit_id}/g" build/curve-chunkserver/DEBIAN/control
+if [ $1 = "debug" ]
+then
+	debug="_debug"
+else
+	debug=""
+fi
+sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-mds/DEBIAN/control
+sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-sdk/DEBIAN/control
+sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-chunkserver/DEBIAN/control
 
 #step5 打包debian包
 dpkg-deb -b build/curve-mds .
