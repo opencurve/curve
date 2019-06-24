@@ -162,6 +162,12 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
      */
     virtual ChunkFilePoolState_t GetState();
     /**
+     * 获取当前chunkfilepool的option配置信息
+     */
+    virtual ChunkfilePoolOptions GetChunkFilePoolOpt() {
+        return chunkPoolOpt_;
+    }
+    /**
      * 析构,释放资源
      */
     virtual void UnInitialize();

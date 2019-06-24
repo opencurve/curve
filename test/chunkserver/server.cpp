@@ -33,12 +33,13 @@ using curve::chunkserver::PeerId;
 using curve::fs::LocalFileSystem;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
+using curve::chunkserver::ChunkfilePoolHelper;
 
 DEFINE_string(ip,
               "127.0.0.1",
               "Initial configuration of the replication group");
 DEFINE_int32(port, 8200, "Listen port of this peer");
-DEFINE_string(copyset_dir, "local://./0/", "copyset data dir");
+DEFINE_string(copyset_dir, "local://./0", "copyset data dir");
 DEFINE_string(conf,
               "127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0",
               "Initial configuration of the replication group");
@@ -47,8 +48,55 @@ DEFINE_int32(snapshot_interval_s, 5, "snapshot interval");
 DEFINE_int32(catchup_margin, 100, "catchup margin");
 DEFINE_int32(logic_pool_id, 2, "logic pool id");
 DEFINE_int32(copyset_id, 10001, "copyset id");
+DEFINE_bool(enable_getchunk_from_pool, false, "get chunk from pool");
+DEFINE_bool(create_chunkfilepool, true, "create chunkfile pool");
 
 butil::AtExitManager atExitManager;
+
+void CreateChunkFilePool(const std::string& dirname,
+                         uint64_t chunksize,
+                         std::shared_ptr<LocalFileSystem> fsptr) {
+    std::string datadir = dirname + "/chunkfilepool";
+    std::string metapath = dirname + "/chunkfilepool.meta";
+
+    int count = 1;
+    char data[8192];
+    memset(data, 0, 8192);
+    fsptr->Mkdir(datadir);
+    while (count <= 20) {
+        std::string filename = dirname +
+                               "/chunkfilepool/" +
+                               std::to_string(count);
+        int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
+        if (fd < 0) {
+            LOG(ERROR) << "Create file failed!";
+            continue;
+        } else {
+            LOG(INFO) << filename.c_str() << " created!";
+        }
+        for (int i = 0; i <= chunksize/4096; i++) {
+            fsptr->Write(fd, data, i*4096, 4096);
+        }
+        fsptr->Close(fd);
+        count++;
+    }
+
+    ChunkfilePoolOptions cpopt;
+    cpopt.getChunkFromPool = true;
+    cpopt.chunkSize = chunksize;
+    cpopt.metaPageSize = 4096;
+    cpopt.cpMetaFileSize = 4096;
+
+    memcpy(cpopt.chunkFilePoolDir, datadir.c_str(), datadir.size());
+    memcpy(cpopt.metaPath, metapath.c_str(), metapath.size());
+
+    int ret = ChunkfilePoolHelper::PersistEnCodeMetaInfo(
+                                            fsptr,
+                                            chunksize,
+                                            4096,
+                                            datadir,
+                                            metapath);
+}
 
 int main(int argc, char *argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
@@ -101,10 +149,21 @@ int main(int argc, char *argv[]) {
     }
     ChunkfilePoolOptions cfop;
     ::memcpy(cfop.chunkFilePoolDir, chunkDataDir.c_str(), chunkDataDir.size());
-    cfop.getChunkFromPool = false;
+    cfop.getChunkFromPool = FLAGS_enable_getchunk_from_pool;
     cfop.retryTimes = 3;
     cfop.metaPageSize = 4 * 1024;
     cfop.chunkSize = kMaxChunkSize;
+    if (cfop.getChunkFromPool) {
+        cfop.cpMetaFileSize = 4096;
+        if (FLAGS_create_chunkfilepool) {
+            CreateChunkFilePool(chunkDataDir, kMaxChunkSize, fs);
+        }
+        std::string datadir = chunkDataDir + "/chunkfilepool";
+        std::string metapath = chunkDataDir + "/chunkfilepool.meta";
+        memcpy(cfop.chunkFilePoolDir, datadir.c_str(), datadir.size());
+        memcpy(cfop.metaPath, metapath.c_str(), metapath.size());
+    }
+
     if (false == copysetNodeOptions.chunkfilePool->Initialize(cfop)) {
         LOG(FATAL) << "chunfilepool init failed";
     } else {
