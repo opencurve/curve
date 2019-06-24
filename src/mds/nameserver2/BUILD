@@ -15,6 +15,6 @@ cc_library(
             "//src/mds/common:mds_common",
             "//src/common:curve_auth",
             "//include/etcdclient:etcd_client",
-    ]
+    ],
 )
 

@@ -24,6 +24,7 @@ cc_binary(
                 "*.h"],
                 exclude = ["client_workflow_test4snap.cpp",
                             "mds_workflow_test.cpp",],),
+    linkopts = ["-lfiu"],
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
@@ -53,6 +54,7 @@ cc_library(
                     ],
     ),
     hdrs = glob(["*.h"]),
+    linkopts = ["-lfiu"],
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
@@ -78,6 +80,7 @@ cc_binary(
     srcs = glob(["mds_workflow_test.cpp",
                 "fakeMDS.cpp", 
                 "*.h"]),
+    linkopts = ["-lfiu"],
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
