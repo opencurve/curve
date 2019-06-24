@@ -29,10 +29,12 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
             LOG(FATAL) << "allocate chunkfile pool failed!";
         }
         int count = 1;
-        std::string dirname = "./chunkfilepool";
+        fsptr->Mkdir("./raftsnap");
+        fsptr->Mkdir("./raftsnap/chunkfilepool");
+        std::string dirname = "./raftsnap/chunkfilepool";
         while (count < 4) {
-            std::string  filename = "./chunkfilepool/" + std::to_string(count);
-            fsptr->Mkdir("./chunkfilepool");
+            std::string  filename = "./raftsnap/chunkfilepool/"
+                                  + std::to_string(count);
             int fd = fsptr->Open(filename.c_str(), O_RDWR | O_CREAT);
             char data[8192];
             memset(data, 'a', 8192);
@@ -49,15 +51,15 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
         cpopt.chunkSize = chunksize;
         cpopt.metaPageSize = metapagesize;
         cpopt.cpMetaFileSize = 4096;
-        memcpy(cpopt.chunkFilePoolDir, "./chunkfilepool", 17);
-        memcpy(cpopt.metaPath, "./chunkfilepool.meta", 22);
+        memcpy(cpopt.chunkFilePoolDir, "./raftsnap/chunkfilepool", 17);
+        memcpy(cpopt.metaPath, "./raftsnap/chunkfilepool.meta", 30);
 
         int ret = ChunkfilePoolHelper::PersistEnCodeMetaInfo(
                                                     fsptr,
                                                     chunksize,
                                                     metapagesize,
                                                     dirname,
-                                                    "./chunkfilepool.meta");
+                                            "./raftsnap/chunkfilepool.meta");
 
         if (ret == -1) {
             LOG(ERROR) << "persist chunkfile pool meta info failed!";
@@ -74,16 +76,16 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
 
     void TearDown() {
         std::vector<std::string> filename;
-        fsptr->List("./chunkfilepool", &filename);
+        fsptr->List("./raftsnap/chunkfilepool", &filename);
         for (auto iter : filename) {
-            auto path = "./chunkfilepool/" + iter;
+            auto path = "./raftsnap/chunkfilepool/" + iter;
             int err = fsptr->Delete(path.c_str());
             if (err) {
                 LOG(INFO) << "unlink file failed!, errno = " << errno;
             }
         }
-        fsptr->Delete("./chunkfilepool");
-        fsptr->Delete("./chunkfilepool.meta");
+        fsptr->Delete("./raftsnap/chunkfilepool");
+        fsptr->Delete("./raftsnap/chunkfilepool.meta");
         ChunkfilepoolPtr_->UnInitialize();
         fsadaptor->Release();
     }

@@ -253,13 +253,11 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     fs->List(copysetdir2+"/chunkfilepool", &Peer2ChunkPoolSize);
     fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
 
-    // 初始状态下的chunkfilepool大小为50, 在确定好leader之后，leader会发送配置
-    // 到各个follower，这时候wal就有内容了，raft打快照就会有快照数据产生。
-    // 因为从产生leader到配置apply，到快照产生时间不一定，所以这里睡眠一段时间
-    // 确保配置变更产生的WAL文件已经打快照了
-    ASSERT_EQ(19, Peer1ChunkPoolSize.size());
-    ASSERT_EQ(19, Peer2ChunkPoolSize.size());
-    ASSERT_EQ(19, Peer3ChunkPoolSize.size());
+    // 目前只有chunk文件才会从chunkfilepool中取
+    // raft snapshot meta 和 conf epoch文件直接从文件系统创建
+    ASSERT_EQ(20, Peer1ChunkPoolSize.size());
+    ASSERT_EQ(20, Peer2ChunkPoolSize.size());
+    ASSERT_EQ(20, Peer3ChunkPoolSize.size());
 
     LOG(INFO) << "write 1 start";
     // 发起 read/write， 写数据会触发chunkserver从chunkfilepool取chunk
@@ -284,9 +282,9 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
 
     // 写完数据后，chunkfilepool容量少一个
-    ASSERT_EQ(18, Peer1ChunkPoolSize.size());
-    ASSERT_EQ(18, Peer2ChunkPoolSize.size());
-    ASSERT_EQ(18, Peer3ChunkPoolSize.size());
+    ASSERT_EQ(19, Peer1ChunkPoolSize.size());
+    ASSERT_EQ(19, Peer2ChunkPoolSize.size());
+    ASSERT_EQ(19, Peer3ChunkPoolSize.size());
 
     // shutdown 某个非 leader 的 peer
     PeerId shutdownPeerid;
@@ -329,9 +327,9 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     fs->List(copysetdir3+"/chunkfilepool", &Peer3ChunkPoolSize);
 
     // 写完数据后，chunkfilepool容量少一个
-    ASSERT_EQ(18, Peer1ChunkPoolSize.size());
-    ASSERT_EQ(18, Peer2ChunkPoolSize.size());
-    ASSERT_EQ(18, Peer3ChunkPoolSize.size());
+    ASSERT_EQ(19, Peer1ChunkPoolSize.size());
+    ASSERT_EQ(19, Peer2ChunkPoolSize.size());
+    ASSERT_EQ(19, Peer3ChunkPoolSize.size());
 
     // wait snapshot, 保证能够触发打快照
     // 本次打快照，raft会从chunkfilepool取一个文件作为快照文件
@@ -365,13 +363,13 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
 
     // 写完数据后，chunkfilepool容量少一个
     if (shutdownPeerid == peer1) {
-        ASSERT_EQ(18, Peer1ChunkPoolSize.size());
-        ASSERT_EQ(17, Peer2ChunkPoolSize.size());
-    } else {
-        ASSERT_EQ(17, Peer1ChunkPoolSize.size());
+        ASSERT_EQ(19, Peer1ChunkPoolSize.size());
         ASSERT_EQ(18, Peer2ChunkPoolSize.size());
+    } else {
+        ASSERT_EQ(18, Peer1ChunkPoolSize.size());
+        ASSERT_EQ(19, Peer2ChunkPoolSize.size());
     }
-    ASSERT_EQ(17, Peer3ChunkPoolSize.size());
+    ASSERT_EQ(18, Peer3ChunkPoolSize.size());
 
     // restart, 需要从 install snapshot 恢复
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeerid, false, true, false));
@@ -418,7 +416,7 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     ASSERT_EQ(0, ::strcmp(leaderId.to_string().c_str(),
                           shutdownPeerid.to_string().c_str()));
 
-    ::sleep(1.5*snapshotTimeoutS);
+    ::sleep(5*snapshotTimeoutS);
     Peer1ChunkPoolSize.clear();
     Peer2ChunkPoolSize.clear();
     Peer3ChunkPoolSize.clear();
@@ -430,11 +428,11 @@ TEST_F(RaftSnapChunkfilePoolTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     LOG(INFO) << "chunk pool2 size = " << Peer2ChunkPoolSize.size();
     LOG(INFO) << "chunk pool3 size = " << Peer3ChunkPoolSize.size();
 
-    // 由于现在copyset的在load snapshot时用RaftSnapshotFilesystemAdaptor
-    // 的rename替换，所以不会出现chunk不会被回收，所以最终三个节点的chunkpool一致
-    ASSERT_EQ(17, Peer1ChunkPoolSize.size());
-    ASSERT_EQ(17, Peer2ChunkPoolSize.size());
-    ASSERT_EQ(17, Peer3ChunkPoolSize.size());
+    // 当前的raftsnapshot filesystem只存取chunk文件
+    // meta文件遵守原有逻辑，直接通过文件系统创建，所以这里只有两个chunk被取出
+    ASSERT_EQ(18, Peer1ChunkPoolSize.size());
+    ASSERT_EQ(18, Peer2ChunkPoolSize.size());
+    ASSERT_EQ(18, Peer3ChunkPoolSize.size());
 }
 
 }  // namespace chunkserver
