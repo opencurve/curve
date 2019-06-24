@@ -15,6 +15,7 @@
 #include <memory>
 #include <cassert>
 
+#include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
 #include "src/fs/fs_common.h"
@@ -111,6 +112,13 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     nodeOptions_.usercode_in_pthread = options.usercodeInPthread;
     nodeOptions_.snapshot_throttle = options.snapshotThrottle;
 
+    scoped_refptr<braft::FileSystemAdaptor> scptr(
+        new RaftSnapshotFilesystemAdaptor(options.chunkfilePool,
+                                          options.localFileSystem));
+    nodeOptions_.snapshot_file_system_adaptor =
+        new scoped_refptr<braft::FileSystemAdaptor>;
+    nodeOptions_.snapshot_file_system_adaptor->swap(scptr);
+
     /* 初始化 peer id */
     butil::ip_t ip;
     butil::str2ip(options.ip.c_str(), &ip);
@@ -149,6 +157,11 @@ void CopysetNode::Fini() {
         raftNode_->shutdown(nullptr);
         // 等待所有的正在处理的task结束
         raftNode_->join();
+    }
+
+    if (nodeOptions_.snapshot_file_system_adaptor != nullptr) {
+        delete nodeOptions_.snapshot_file_system_adaptor;
+        LOG(INFO) << "release raftsnapshot filesystem adaptor!";
     }
 }
 
@@ -291,7 +304,13 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
                 std::string dataFilename;
                 dataFilename.append(chunkDataApath_);
                 dataFilename.append("/").append(*it);
-                if (0 != fs_->Rename(snapshotFilename, dataFilename)) {
+                // 这里用RaftSnapshotFilesystemAdaptor提供的rename接口
+                // 因为rename原来已经存在的chunk文件会导致原来的chunk文件
+                // 无法被chunkfilepool回收，那么chunkfilepool的存量会越来
+                // 越少，所以这里采用RaftSnapshotFilesystemAdaptor里的
+                // rename接口，在回收之前先检查是否可以回收，如果可以，先回收
+                if (0 != nodeOptions_.snapshot_file_system_adaptor->get()->
+                    rename(snapshotFilename, dataFilename)) {
                     LOG(ERROR) << "rename " << snapshotFilename << " to "
                                << dataFilename << " failed";
                     return -1;

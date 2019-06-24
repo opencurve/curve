@@ -110,7 +110,8 @@ int Ext4FileSystemImpl::Statfs(const string& path,
     struct statfs diskInfo;
     int rc = posixWrapper_->statfs(path.c_str(), &diskInfo);
     if (rc < 0) {
-        LOG(ERROR) << "fstat failed: " << strerror(errno);
+        LOG(ERROR) << "fstat failed: " << strerror(errno)
+                   << ", file path = " << path.c_str();
         return -errno;
     }
     info->total = diskInfo.f_blocks * diskInfo.f_bsize;
@@ -123,7 +124,8 @@ int Ext4FileSystemImpl::Statfs(const string& path,
 int Ext4FileSystemImpl::Open(const string& path, int flags) {
     int fd = posixWrapper_->open(path.c_str(), flags, 0644);
     if (fd < 0) {
-        LOG(ERROR) << "open failed: " << strerror(errno);
+        LOG(ERROR) << "open failed: " << strerror(errno)
+                   << ", file path = " << path.c_str();
         return -errno;
     }
     return fd;
@@ -160,7 +162,8 @@ int Ext4FileSystemImpl::Delete(const string& path) {
     }
     rc = posixWrapper_->remove(path.c_str());
     if (rc < 0) {
-        LOG(ERROR) << "remove failed: " << strerror(errno);
+        LOG(ERROR) << "remove failed: " << strerror(errno)
+                   << ", file path = " << path.c_str();
         return -errno;
     }
     return rc;

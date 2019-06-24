@@ -261,3 +261,28 @@ cc_library(
         "//src/chunkserver:chunkserver-test-lib",
     ],
 )
+
+cc_test(
+    name = "raftsnapshot_test",
+    srcs = [
+        "raftsnapshot_filesystem_adaptor_unittest.cpp",
+        "raftsnapshot_chunkfilepool_integration.cpp",
+    ],
+    copts = ["-std=c++14"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//proto:chunkserver-cc-protos",
+        "//test/chunkserver:chunkserver-test-util-lib",
+        "//src/chunkserver:chunkserver-test-lib",
+        "//src/chunkserver/datastore:chunkserver_datastore",
+        "//src/common:curve_common",
+        "//src/fs:lfs",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
