@@ -8,6 +8,7 @@
 #ifndef SRC_MDS_NAMESERVER2_CURVEFS_H_
 #define SRC_MDS_NAMESERVER2_CURVEFS_H_
 
+#include <bvar/bvar.h>
 #include <vector>
 #include <string>
 #include <memory>
@@ -379,6 +380,13 @@ class CurveFS {
      *          失败返回StatusCode::KInternalError
      */
     StatusCode RegistClient(const std::string &ip, uint32_t port);
+
+    /**
+     *  @brief 获取已经open的文件个数
+     *  @param:
+     *  @return 如果curvefs未初始化，返回0
+     */
+    uint64_t GetOpenFileNum();
 
  private:
     CurveFS() = default;

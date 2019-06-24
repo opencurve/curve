@@ -142,6 +142,8 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         // init时候，从数据库加载session,session未过期
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
 
+        ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
+
         sessionManager_.Start();
 
         ProtoSession protoSession;
@@ -162,6 +164,8 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
                                                     &protoSession),
                     StatusCode::kOK);
+
+        ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         SessionRepoItem sessionRepo("/file1", "sessionID1",
                         sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
@@ -191,6 +195,8 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
 
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
 
+        ASSERT_EQ(0, sessionManager_.GetOpenFileNum());
+
         sessionManager_.Start();
 
         EXPECT_CALL(*mockRepo_, InsertSessionRepoItem(_))
@@ -206,6 +212,8 @@ TEST_F(SessionTest, testLoadAndInsertSession) {
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
                                                     &protoSession),
                     StatusCode::kOK);
+
+        ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         SessionRepoItem sessionRepo("/file1", "sessionID1",
                         sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
@@ -228,6 +236,8 @@ TEST_F(SessionTest, insert_session_test) {
         .WillOnce(Return(repo::OperationOK));
 
         ASSERT_EQ(sessionManager_.Init(sessionOptions_), true);
+        ASSERT_EQ(0, sessionManager_.GetOpenFileNum());
+
         sessionManager_.Start();
 
         // 先open file
@@ -240,6 +250,7 @@ TEST_F(SessionTest, insert_session_test) {
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
                                                     &protoSession1),
                     StatusCode::kOK);
+        ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         // 在session有效期内，再次openfile，返回kFileOccupied
         ProtoSession protoSession2;
@@ -263,7 +274,7 @@ TEST_F(SessionTest, insert_session_test) {
                                                     &protoSession3),
                     StatusCode::kOK);
         ASSERT_NE(protoSession3.sessionid(), protoSession1.sessionid());
-
+        ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         SessionRepoItem sessionRepo("/file1", "sessionid",
                         sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
@@ -296,6 +307,7 @@ TEST_F(SessionTest, insert_session_test) {
         ASSERT_EQ(sessionManager_.InsertSession("/file1", "127.0.0.1",
                                                     &protoSession1),
                     StatusCode::kOK);
+        ASSERT_EQ(1, sessionManager_.GetOpenFileNum());
 
         // 等session过期
         usleep(sessionOptions_.leaseTimeUs);
