@@ -14,7 +14,7 @@
 
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;
-
+uint16_t sleeptimeMS = 500;
 struct datastruct {
     uint32_t length;
     char* data;

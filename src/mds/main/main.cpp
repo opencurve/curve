@@ -19,6 +19,7 @@
 #include "src/mds/nameserver2/session.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/nameserver2/inode_id_generator.h"
+#include "src/mds/leader_election/leader_election.h"
 #include "src/mds/topology/topology_admin.h"
 #include "src/mds/topology/topology_service.h"
 #include "src/mds/topology/topology_id_generator.h"
@@ -34,6 +35,7 @@
 #include "proto/heartbeat.pb.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
+DEFINE_string(mdsAddr, "127.0.0.1.6666", "mds listen addr");
 
 using ::curve::mds::topology::TopologyAdminImpl;
 using ::curve::mds::topology::TopologyAdmin;
@@ -165,6 +167,26 @@ void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
         &copysetOption->scatterWidthFloatingPercentage));
 }
 
+void InitLeaderElectionOption(
+    Configuration *conf, LeaderElectionOptions *electionOp) {
+    LOG_IF(FATAL, !conf->GetStringValue("mds.listen.addr",
+        &electionOp->leaderUniqueName));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.leader.observeTimeoutMs",
+        &electionOp->observeTimeoutMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.leader.sessionInterSec",
+        &electionOp->sessionInterSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.leader.electionTimeoutMs",
+        &electionOp->electionTimeoutMs));
+}
+
+void LoadConfigFromCmdline(Configuration *conf) {
+    // 如果命令行有设置, 命令行覆盖配置文件中的字段
+    google::CommandLineFlagInfo info;
+    if (GetCommandLineFlagInfo("mdsAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.listen.addr", FLAGS_mdsAddr);
+    }
+}
+
 int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
@@ -172,11 +194,14 @@ int curve_main(int argc, char **argv) {
     // =========================加载配置===============================//
     LOG(INFO) << "load mds configuration.";
 
+    // 从配置文件中获取
     std::string confPath = FLAGS_confPath.c_str();
     Configuration conf;
     conf.SetConfigPath(confPath);
     LOG_IF(FATAL, !conf.LoadConfig())
         << "load mds configuration fail, conf path = " << confPath;
+    // 命令行覆盖配置文件中的参数
+    LoadConfigFromCmdline(&conf);
 
     // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
@@ -230,6 +255,16 @@ int curve_main(int argc, char **argv) {
             << ", operation timeout: " << etcdTimeout
             << ", etcd retrytimes: " << retryTimes;
 
+    // leader election
+    LeaderElectionOptions leaderElectionOp;
+    InitLeaderElectionOption(&conf, &leaderElectionOp);
+    leaderElectionOp.etcdCli = client;
+    auto leaderElection = std::make_shared<LeaderElection>(leaderElectionOp);
+    while (0 != leaderElection->CampaginLeader()) {
+        LOG(INFO) << leaderElectionOp.leaderUniqueName
+                  << " campaign for leader agin";
+    }
+    leaderElection->StartObserverLeader();
 
     // init InodeIDGenerator
     auto inodeIdGenerator = std::make_shared<InodeIdGeneratorImp>(client);
