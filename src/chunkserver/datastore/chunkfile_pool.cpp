@@ -271,7 +271,8 @@ int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
             LOG(ERROR) << "file rename failed, " << srcpath.c_str();
             RecycleChunk(srcpath);
         } else {
-            LOG(INFO) << "get chunk success!";
+            LOG(INFO) << "get chunk success! now pool size = "
+                      << tmpChunkvec_.size();;
             break;
         }
 
@@ -357,6 +358,36 @@ int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
             return -1;
         }
     } else {
+        // 检查该待回收的文件大小是否符合要求，不符合就直接删掉
+        uint64_t chunklen = chunkPoolOpt_.chunkSize+chunkPoolOpt_.metaPageSize;
+        int fd = fsptr_->Open(chunkpath.c_str(), O_RDWR);
+        if (fd < 0) {
+            LOG(ERROR) << "file open failed! delete file dirctly"
+                       << ", filename = " << chunkpath.c_str();
+            return fsptr_->Delete(chunkpath.c_str());
+        }
+        struct stat info;
+        int ret = fsptr_->Fstat(fd, &info);
+
+        if (ret < 0) {
+            LOG(ERROR)  << "Fstat file " << chunkpath.c_str()
+                        << "failed, ret = " << ret
+                        << ", delete file dirctly";
+            fsptr_->Close(fd);
+            return fsptr_->Delete(chunkpath.c_str());
+        }
+
+        if (info.st_size != chunklen) {
+            LOG(ERROR) << "file size illegal, " << chunkpath.c_str()
+                          << ", delete file dirctly"
+                          << ", standard size = " << chunklen
+                          << ", current file size = " << info.st_size;
+            fsptr_->Close(fd);
+            return fsptr_->Delete(chunkpath.c_str());
+        }
+
+        fsptr_->Close(fd);
+
         uint64_t newfilenum = 0;
         std::string newfilename;
         {
@@ -367,10 +398,12 @@ int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
         }
         std::string targetpath = currentdir_ + "/" + newfilename;
 
-        int ret = fsptr_->Rename(chunkpath.c_str(), targetpath.c_str());
+        ret = fsptr_->Rename(chunkpath.c_str(), targetpath.c_str());
         if (ret < 0) {
             LOG(ERROR) << "file rename failed, " << chunkpath.c_str();
             return -1;
+        } else {
+            LOG(INFO) << "Recycle " << chunkpath.c_str() << ", success!";
         }
         std::unique_lock<std::mutex> lk(mtx_);
         tmpChunkvec_.push_back(newfilenum);
@@ -393,6 +426,9 @@ bool ChunkfilePool::ScanInternal() {
     if (ret < 0) {
         LOG(ERROR) << "list chunkfile pool dir failed!";
         return false;
+    } else {
+        LOG(INFO) << "list chunkfile pool dir done, size = "
+                  << tmpvec.size();
     }
 
     uint64_t chunklen = chunkPoolOpt_.chunkSize + chunkPoolOpt_.metaPageSize;
@@ -428,7 +464,6 @@ bool ChunkfilePool::ScanInternal() {
         }
 
         fsptr_->Close(fd);
-
         uint64_t filenum = atoll(iter.c_str());
         if (filenum != 0) {
             tmpChunkvec_.push_back(filenum);
@@ -442,6 +477,8 @@ bool ChunkfilePool::ScanInternal() {
 
     std::unique_lock<std::mutex> lk(mtx_);
     currentmaxfilenum_.store(maxnum + 1);
+
+    LOG(INFO) << "scan done, pool size = " << tmpChunkvec_.size();
     return true;
 }
 
