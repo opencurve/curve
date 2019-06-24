@@ -125,6 +125,8 @@ CURVE_ERROR_INVALID_REQUEST = _curvefs.CURVE_ERROR_INVALID_REQUEST
 CURVE_ERROR_DISK_FAIL = _curvefs.CURVE_ERROR_DISK_FAIL
 CURVE_ERROR_NO_SPACE = _curvefs.CURVE_ERROR_NO_SPACE
 CURVE_ERROR_NOT_ALIGNED = _curvefs.CURVE_ERROR_NOT_ALIGNED
+CURVE_ERROR_BAD_FD = _curvefs.CURVE_ERROR_BAD_FD
+CURVE_ERROR_LENGTH_NOT_SUPPORT = _curvefs.CURVE_ERROR_LENGTH_NOT_SUPPORT
 CURVE_ERROR_UNKNOWN = _curvefs.CURVE_ERROR_UNKNOWN
 CURVE_OP_READ = _curvefs.CURVE_OP_READ
 CURVE_OP_WRITE = _curvefs.CURVE_OP_WRITE
@@ -150,10 +152,6 @@ class AioContext_t(_object):
     __swig_getmethods__["op"] = _curvefs.AioContext_t_op_get
     if _newclass:
         op = _swig_property(_curvefs.AioContext_t_op_get, _curvefs.AioContext_t_op_set)
-    __swig_setmethods__["err"] = _curvefs.AioContext_t_err_set
-    __swig_getmethods__["err"] = _curvefs.AioContext_t_err_get
-    if _newclass:
-        err = _swig_property(_curvefs.AioContext_t_err_get, _curvefs.AioContext_t_err_set)
     __swig_setmethods__["cb"] = _curvefs.AioContext_t_cb_set
     __swig_getmethods__["cb"] = _curvefs.AioContext_t_cb_get
     if _newclass:
@@ -226,6 +224,14 @@ class FileInfo_t(_object):
     __swig_getmethods__["ctime"] = _curvefs.FileInfo_t_ctime_get
     if _newclass:
         ctime = _swig_property(_curvefs.FileInfo_t_ctime_get, _curvefs.FileInfo_t_ctime_set)
+    __swig_setmethods__["filename"] = _curvefs.FileInfo_t_filename_set
+    __swig_getmethods__["filename"] = _curvefs.FileInfo_t_filename_get
+    if _newclass:
+        filename = _swig_property(_curvefs.FileInfo_t_filename_get, _curvefs.FileInfo_t_filename_set)
+    __swig_setmethods__["owner"] = _curvefs.FileInfo_t_owner_set
+    __swig_getmethods__["owner"] = _curvefs.FileInfo_t_owner_get
+    if _newclass:
+        owner = _swig_property(_curvefs.FileInfo_t_owner_get, _curvefs.FileInfo_t_owner_set)
 
     def __init__(self):
         this = _curvefs.new_FileInfo_t()
@@ -237,6 +243,40 @@ class FileInfo_t(_object):
     __del__ = lambda self: None
 FileInfo_t_swigregister = _curvefs.FileInfo_t_swigregister
 FileInfo_t_swigregister(FileInfo_t)
+
+class DirInfos_t(_object):
+    __swig_setmethods__ = {}
+    __setattr__ = lambda self, name, value: _swig_setattr(self, DirInfos_t, name, value)
+    __swig_getmethods__ = {}
+    __getattr__ = lambda self, name: _swig_getattr(self, DirInfos_t, name)
+    __repr__ = _swig_repr
+    __swig_setmethods__["dirpath"] = _curvefs.DirInfos_t_dirpath_set
+    __swig_getmethods__["dirpath"] = _curvefs.DirInfos_t_dirpath_get
+    if _newclass:
+        dirpath = _swig_property(_curvefs.DirInfos_t_dirpath_get, _curvefs.DirInfos_t_dirpath_set)
+    __swig_setmethods__["userinfo"] = _curvefs.DirInfos_t_userinfo_set
+    __swig_getmethods__["userinfo"] = _curvefs.DirInfos_t_userinfo_get
+    if _newclass:
+        userinfo = _swig_property(_curvefs.DirInfos_t_userinfo_get, _curvefs.DirInfos_t_userinfo_set)
+    __swig_setmethods__["dirsize"] = _curvefs.DirInfos_t_dirsize_set
+    __swig_getmethods__["dirsize"] = _curvefs.DirInfos_t_dirsize_get
+    if _newclass:
+        dirsize = _swig_property(_curvefs.DirInfos_t_dirsize_get, _curvefs.DirInfos_t_dirsize_set)
+    __swig_setmethods__["fileinfo"] = _curvefs.DirInfos_t_fileinfo_set
+    __swig_getmethods__["fileinfo"] = _curvefs.DirInfos_t_fileinfo_get
+    if _newclass:
+        fileinfo = _swig_property(_curvefs.DirInfos_t_fileinfo_get, _curvefs.DirInfos_t_fileinfo_set)
+
+    def __init__(self):
+        this = _curvefs.new_DirInfos_t()
+        try:
+            self.this.append(this)
+        except __builtin__.Exception:
+            self.this = this
+    __swig_destroy__ = _curvefs.delete_DirInfos_t
+    __del__ = lambda self: None
+DirInfos_t_swigregister = _curvefs.DirInfos_t_swigregister
+DirInfos_t_swigregister(DirInfos_t)
 
 
 def Init(path):
@@ -279,6 +319,10 @@ def StatFile(filename, info, finfo):
     return _curvefs.StatFile(filename, info, finfo)
 StatFile = _curvefs.StatFile
 
+def ChangeOwner(filename, owner, info):
+    return _curvefs.ChangeOwner(filename, owner, info)
+ChangeOwner = _curvefs.ChangeOwner
+
 def Close(fd):
     return _curvefs.Close(fd)
 Close = _curvefs.Close
@@ -295,8 +339,12 @@ def Unlink(filename, info):
     return _curvefs.Unlink(filename, info)
 Unlink = _curvefs.Unlink
 
-def Listdir(dirpath, info, fileinfos):
-    return _curvefs.Listdir(dirpath, info, fileinfos)
+def DeleteForce(filename, info):
+    return _curvefs.DeleteForce(filename, info)
+DeleteForce = _curvefs.DeleteForce
+
+def Listdir(dirpath, info):
+    return _curvefs.Listdir(dirpath, info)
 Listdir = _curvefs.Listdir
 
 def Mkdir(dirpath, info):
