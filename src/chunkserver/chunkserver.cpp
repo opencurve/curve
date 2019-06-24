@@ -143,16 +143,20 @@ int ChunkServer::Run(int argc, char** argv) {
     copysetNodeOptions.trash = trash_;
 
     // install snapshot的带宽限制
-    int64_t snapshotThroughputBytes
-        = conf.GetIntValue("chunkserver.snapshot_throttle_throughput_bytes");
+    int snapshotThroughputBytes;
+    LOG_IF(FATAL,
+           !conf.GetIntValue("chunkserver.snapshot_throttle_throughput_bytes",
+                             &snapshotThroughputBytes));
     /**
      * checkCycles是为了更精细的进行带宽控制，以snapshotThroughputBytes=100MB，
      * checkCycles=10为例，它可以保证每1/10秒的带宽是10MB，且不累积，例如第1个
      * 1/10秒的带宽是10MB，但是就过期了，在第2个1/10秒依然只能用10MB的带宽，而
      * 不是20MB的带宽
      */
-    int64_t checkCycles
-        = conf.GetIntValue("chunkserver.snapshot_throttle_check_cycles");
+    int checkCycles;
+    LOG_IF(FATAL,
+           !conf.GetIntValue("chunkserver.snapshot_throttle_check_cycles",
+                             &checkCycles));
     scoped_refptr<SnapshotThrottle> snapshotThrottle
         = new ThroughputSnapshotThrottle(snapshotThroughputBytes, checkCycles);
     snapshotThrottle_ = snapshotThrottle;
@@ -215,7 +219,10 @@ int ChunkServer::Run(int argc, char** argv) {
     CHECK(0 == ret) << "Fail to add CopysetService";
 
     // inflight throttle
-    uint64_t maxInflight = conf.GetIntValue("copyset.max_inflight_requests");
+    int maxInflight;
+    LOG_IF(FATAL,
+           !conf.GetIntValue("copyset.max_inflight_requests",
+                             &maxInflight));
     std::shared_ptr<InflightThrottle> inflightThrottle
         = std::make_shared<InflightThrottle>(maxInflight);
     CHECK(nullptr != inflightThrottle) << "new inflight throttle failed";
