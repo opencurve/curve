@@ -53,7 +53,7 @@ bool Operator::IsTimeout() {
     return steady_clock::now() - createTime > timeLimit;
 }
 
-std::string Operator::OpToString() {
+std::string Operator::OpToString() const {
     return "[startEpoch: " + std::to_string(startEpoch)
         + ", copysetID: (" + std::to_string(copsetID.first) + ","
         + std::to_string(copsetID.second) + "), priority: "

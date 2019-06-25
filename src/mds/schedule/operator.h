@@ -57,7 +57,7 @@ class Operator {
 
   bool IsTimeout();
 
-  std::string OpToString();
+  std::string OpToString() const;
 
  public:
   EpochType startEpoch;

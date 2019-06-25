@@ -22,7 +22,7 @@ using ::curve::mds::topology::UNINTIALIZE_ID;
 namespace curve {
 namespace mds {
 namespace schedule {
-TEST(CoordinatorTest, test_copySet_heartbeat) {
+TEST(CoordinatorTest, test_CopySetHeartbeat) {
     auto topoAdapter = std::make_shared<MockTopoAdapter>();
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
     ScheduleOption scheduleOption;
@@ -61,7 +61,7 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
         // 1. test copySet do not have operator
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
-        ASSERT_TRUE(UNINTIALIZE_ID == coordinator->CopySetHeartbeat(
+        ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
                 testCopySetInfo, ConfigChangeInfo{}, &res));
     }
     {
@@ -76,12 +76,12 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
         Operator opRes;
         ASSERT_TRUE(coordinator->GetOpController()->GetOperatorById(
             info.id, &opRes));
-        ASSERT_FALSE(UNINTIALIZE_ID == coordinator->CopySetHeartbeat(
+        ASSERT_EQ(4, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
         ASSERT_EQ("127.0.0.1:9000:0", res.configchangeitem().address());
         ASSERT_EQ(ConfigChangeType::ADD_PEER, res.type());
 
-        ASSERT_FALSE(coordinator->CopySetHeartbeat(
+        ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
     }
 
@@ -96,7 +96,7 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
         info.configChangeInfo.set_allocated_peer(replica);
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
-        ASSERT_FALSE(coordinator->CopySetHeartbeat(
+        ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
             testCopySetInfo, info.configChangeInfo, &res));
     }
 
@@ -106,7 +106,7 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
         info.peers.emplace_back(PeerInfo(4, 4, 4, 1, "192.10.123.1", 9000));
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
-        ASSERT_FALSE(coordinator->CopySetHeartbeat(
+        ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
     }
 
@@ -114,8 +114,61 @@ TEST(CoordinatorTest, test_copySet_heartbeat) {
         // 5. test transfer copysetInfo err
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .WillOnce(Return(false));
-        ASSERT_FALSE(coordinator->CopySetHeartbeat(
+        ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
+    }
+}
+
+TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
+    auto topoAdapter = std::make_shared<MockTopoAdapter>();
+    auto coordinator = std::make_shared<Coordinator>(topoAdapter);
+    ScheduleOption scheduleOption;
+    scheduleOption.operatorConcurrent = 4;
+    coordinator->InitScheduler(scheduleOption);
+
+    {
+        // 1. copyset上没有要变更的operator
+        ASSERT_FALSE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 1}));
+    }
+
+    {
+        // 2. copyset上有leader变更，并且目的leader为chunkserver-1
+        Operator testOperator(1, CopySetKey{1, 1},
+                          OperatorPriority::NormalPriority,
+                          steady_clock::now(),
+                          std::make_shared<TransferLeader>(2, 1));
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        ASSERT_FALSE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 1}));
+    }
+
+    {
+        // 3. copyset上有remove peer操作
+        Operator testOperator(1, CopySetKey{1, 2},
+                          OperatorPriority::NormalPriority,
+                          steady_clock::now(),
+                          std::make_shared<RemovePeer>(1));
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        ASSERT_FALSE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 2}));
+    }
+
+    {
+        // 4. copyset上有add peer操作, target不是1
+        Operator testOperator(1, CopySetKey{1, 3},
+                          OperatorPriority::NormalPriority,
+                          steady_clock::now(),
+                          std::make_shared<AddPeer>(2));
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        ASSERT_FALSE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 3}));
+    }
+
+    {
+        // 5. copyset上有add peer操作, target是1
+        Operator testOperator(1, CopySetKey{1, 4},
+                          OperatorPriority::NormalPriority,
+                          steady_clock::now(),
+                          std::make_shared<AddPeer>(1));
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        ASSERT_TRUE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 4}));
     }
 }
 }  // namespace schedule

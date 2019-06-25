@@ -87,6 +87,15 @@ class Coordinator {
         ::curve::mds::heartbeat::CopySetConf *newConf);
 
     /**
+     * @brief ChunkserverGoingToAdd 判断指定chunkserver是否为指定copyset上
+     *                              已有AddOperator的target
+     *
+     * @param[in] csId 指定chunkserver
+     * @param[in] key 指定chunserver
+     */
+    virtual bool ChunkserverGoingToAdd(ChunkServerIdType csId, CopySetKey key);
+
+    /**
      * @brief 根据配置初始化scheduler
      *
      * @param[in] conf, scheduler配置信息
@@ -135,6 +144,17 @@ class Coordinator {
      * @param[in] s 定时运行scheduler
      */
     void RunScheduler(const std::shared_ptr<Scheduler> &s);
+
+    /**
+     * @brief BuildCopySetConf 构建下发给chunkserver的copyset配置
+     *
+     * @param[in] res applyOperator的结果
+     * @param[out] 处理过后返还给chunkServer的copyset信息
+     *
+     * @return true-构建成功 false-构建失败
+     */
+    bool BuildCopySetConf(
+        const CopySetConf &res, ::curve::mds::heartbeat::CopySetConf *out);
 
  private:
     std::shared_ptr<TopoAdapter> topo_;

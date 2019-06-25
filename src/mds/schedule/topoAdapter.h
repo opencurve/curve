@@ -34,6 +34,7 @@ using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::Server;
 using ::curve::mds::topology::LogicalPool;
 using ::curve::mds::topology::DiskState;
+using ::curve::mds::topology::UNINTIALIZE_ID;
 using ::curve::mds::heartbeat::ConfigChangeInfo;
 using ::curve::mds::heartbeat::ConfigChangeType;
 using ::curve::mds::heartbeat::CopysetStatistics;
@@ -45,7 +46,7 @@ namespace schedule {
 
 struct PeerInfo {
  public:
-  PeerInfo() : port(0) {}
+  PeerInfo() : id(UNINTIALIZE_ID), port(0) {}
   PeerInfo(ChunkServerIdType id, ZoneIdType zoneId, ServerIdType sid,
            PhysicalPoolIDType physicalPoolId, const std::string &ip,
            uint32_t port);
@@ -84,6 +85,7 @@ struct CopySetInfo {
   ~CopySetInfo();
 
   bool ContainPeer(ChunkServerIdType id) const;
+  bool HasCandidate() const;
 
   CopySetKey id;
   EpochType epoch;

@@ -102,9 +102,11 @@ bool CopysetConfGenerator::FollowerGenCopysetConf(ChunkServerIdType reportId,
                                  << " seconds of mds start";
             return false;
         }
-        // 判断该chunkserver是否在配置组中或者是candidate
+        // 判断该chunkserver是否在配置组中 或者是 candidate 或者是 即将成为Add的目的节点 //NOLINT
         bool exist = recordCopySetInfo.HasMember(reportId);
-        if (exist || reportId == recordCopySetInfo.GetCandidate()) {
+        if (exist || reportId == recordCopySetInfo.GetCandidate() ||
+            coordinator_->ChunkserverGoingToAdd(
+                reportId, reportCopySetInfo.GetCopySetKey())) {
             return false;
         } else {
             LOG(WARNING) << "report chunkserver: " << reportId

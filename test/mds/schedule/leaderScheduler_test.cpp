@@ -112,11 +112,6 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
         std::vector<PeerInfo>({peer1, peer2, peer3}),
         ConfigChangeInfo{}, CopysetStatistics{});
     copySet1.candidatePeerInfo = PeerInfo(1, 1, 1, 1, "192.168.10.1", 9000);
-    auto replica = new ::curve::common::Peer();
-    replica->set_id(1);
-    replica->set_address("192.10.10.1:9000");
-    copySet1.configChangeInfo.set_allocated_peer(replica);
-    copySet1.configChangeInfo.set_finished(false);
     std::vector<CopySetInfo> copySetInfos({copySet1});
 
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())

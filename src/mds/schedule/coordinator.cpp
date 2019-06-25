@@ -129,33 +129,16 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     bool hasOrder = opController_->ApplyOperator(info, &res);
     if (hasOrder) {
         // build心跳中需要返回的copysetConf
-        out->set_logicalpoolid(res.id.first);
-        out->set_copysetid(res.id.second);
-        out->set_epoch(res.epoch);
-        out->set_type(res.type);
-
-        // set candidate
-        ChunkServerInfo chunkServer;
-        if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
-            LOG(ERROR) << "coordinator can not get chunkServer "
-                    << res.configChangeItem << " from topology";
+        if (!BuildCopySetConf(res, out)) {
+            LOG(ERROR) << "build copyset conf for copySet(" << info.id.first
+                       << "," << info.id.second << ") fail";
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
-        auto replica = new ::curve::common::Peer();
-        replica->set_id(res.configChangeItem);
-        replica->set_address(::curve::mds::topology::BuildPeerId(
-            chunkServer.info.ip, chunkServer.info.port, 0));
-        out->set_allocated_configchangeitem(replica);
 
-        // set 副本
-        for (auto peer : res.peers) {
-            auto replica = out->add_peers();
-            replica->set_id(peer.id);
-            replica->set_address(::curve::mds::topology::BuildPeerId(
-                peer.ip, peer.port, 0));
-        }
+        LOG(INFO) << "order operator " << op.OpToString();
         return res.configChangeItem;
     }
+
     return ::curve::mds::topology::UNINTIALIZE_ID;
 }
 
@@ -167,6 +150,59 @@ void Coordinator::RunScheduler(const std::shared_ptr<Scheduler> &s) {
         s->Schedule();
     }
 }
+
+bool Coordinator::BuildCopySetConf(
+    const CopySetConf &res, ::curve::mds::heartbeat::CopySetConf *out) {
+    // build心跳中需要返回的copysetConf
+    out->set_logicalpoolid(res.id.first);
+    out->set_copysetid(res.id.second);
+    out->set_epoch(res.epoch);
+    out->set_type(res.type);
+
+    // set candidate
+    ChunkServerInfo chunkServer;
+    if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
+        LOG(ERROR) << "coordinator can not get chunkServer "
+                << res.configChangeItem << " from topology";
+        return false;
+    }
+    auto replica = new ::curve::common::Peer();
+    replica->set_id(res.configChangeItem);
+    replica->set_address(::curve::mds::topology::BuildPeerId(
+        chunkServer.info.ip, chunkServer.info.port, 0));
+    out->set_allocated_configchangeitem(replica);
+
+    // set 副本
+    for (auto peer : res.peers) {
+        auto replica = out->add_peers();
+        replica->set_id(peer.id);
+        replica->set_address(::curve::mds::topology::BuildPeerId(
+            peer.ip, peer.port, 0));
+    }
+
+    return true;
+}
+
+bool Coordinator::ChunkserverGoingToAdd(
+    ChunkServerIDType csId, CopySetKey key) {
+    Operator op;
+    // copyset上没有需要变更的operator,
+    if (!opController_->GetOperatorById(key, &op)) {
+        return false;
+    }
+
+    // 该operator是add类型, 并且add=csId
+    AddPeer *res = dynamic_cast<AddPeer *>(op.step.get());
+    LOG(INFO) << "find operator " << op.OpToString();
+    if (res != nullptr && csId == res->GetTargetPeer()) {
+        LOG(INFO) << "chunkserver " << csId
+                  << " is target of pending operator " << op.OpToString();
+        return true;
+    }
+
+    return false;
+}
+
 
 void Coordinator::SetSchedulerRunning(bool flag) {
     std::lock_guard<std::mutex> guard(mutex_);

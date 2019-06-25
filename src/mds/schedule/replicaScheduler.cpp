@@ -27,11 +27,11 @@ int ReplicaScheduler::Schedule() {
         // 如果copyset有配置变更的信息(增加副本，减少副本，leader变更)，跳过
         // 这种情况发生在mds重启的时候, operator不做持久化会丢失，
         // 实际正在进行配置变更
-        if (info.configChangeInfo.IsInitialized()) {
+        if (info.HasCandidate()) {
             LOG(WARNING) << "copySet(" << info.id.first
                          << "," << info.id.second
-                         << ") configchangeInfo has been initialized but "
-                         "operator lost";
+                         << ") has candidate " << info.candidatePeerInfo.id
+                         << " but operator lost";
             continue;
         }
 
@@ -61,19 +61,6 @@ int ReplicaScheduler::Schedule() {
                            << copysetReplicaNum << " but statandard is "
                            << standardReplicaNum;
                 continue;
-            // 有合适的目标节点
-            } else {
-                // 在目标节点上创建copyset
-                if (!topo_->CreateCopySetAtChunkServer(info.id, csId)) {
-                    LOG(ERROR) << "replicaScheduler create copySet"
-                               "(logicalPoolId: " << info.id.first
-                               << ",copySetId: " << info.id.second
-                               << ") on chunkServer: " << csId << " error";
-                    continue;
-                }
-                LOG(ERROR) << "replicaScheduler create copySet(logicalPoolId: "
-                           << info.id.first << ",copySetId: " << info.id.second
-                           << ") on chunkServer: " << csId << " success";
             }
 
             Operator op = operatorFactory.CreateAddPeerOperator(
@@ -88,7 +75,20 @@ int ReplicaScheduler::Schedule() {
                              << standardReplicaNum << " but cannot apply"
                              "operator right now";
                 continue;
+            // 在目标节点上创建copyset
+            } else if (!topo_->CreateCopySetAtChunkServer(info.id, csId)) {
+                LOG(ERROR) << "replicaScheduler create copySet"
+                               "(logicalPoolId: " << info.id.first
+                               << ",copySetId: " << info.id.second
+                               << ") on chunkServer: " << csId << " error";
+                opController_->RemoveOperator(info.id);
+                continue;
             }
+            LOG(INFO) << "replicaScheduler create copySet(logicalPoolId: "
+                           << info.id.first << ",copySetId: " << info.id.second
+                           << ") on chunkServer: " << csId
+                           << " success and generate operator: "
+                           << op.OpToString();
             oneRoundGenOp += 1;
         } else {
             // 副本数量大于标准值， 一次移除一个副本
@@ -118,6 +118,8 @@ int ReplicaScheduler::Schedule() {
             }
         }
     }
+    LOG(INFO) << "replicaScheduelr generate "
+              << oneRoundGenOp << " at this round";
     return oneRoundGenOp;
 }
 
