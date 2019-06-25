@@ -521,7 +521,7 @@ class CopySetInfo {
         epoch_(0),
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
-        lastStateUpdateTime_(std::chrono::steady_clock::now()) {}
+        dirty_(false) {}
     CopySetInfo(PoolIdType logicalPoolId,
                 CopySetIdType id) :
         logicalPoolId_(logicalPoolId),
@@ -530,7 +530,7 @@ class CopySetInfo {
         epoch_(0),
         hasCandidate_(false),
         candidate_(UNINTIALIZE_ID),
-        lastStateUpdateTime_(std::chrono::steady_clock::now()) {}
+        dirty_(false) {}
 
     CopySetInfo(const CopySetInfo &v) :
         logicalPoolId_(v.logicalPoolId_),
@@ -540,7 +540,7 @@ class CopySetInfo {
         peers_(v.peers_),
         hasCandidate_(v.hasCandidate_),
         candidate_(v.candidate_),
-        lastStateUpdateTime_(v.lastStateUpdateTime_) {}
+        dirty_(v.dirty_) {}
 
     CopySetInfo& operator= (const CopySetInfo &v) {
         logicalPoolId_ = v.logicalPoolId_;
@@ -550,7 +550,7 @@ class CopySetInfo {
         peers_ = v.peers_;
         hasCandidate_ = v.hasCandidate_;
         candidate_ = v.candidate_;
-        lastStateUpdateTime_ = v.lastStateUpdateTime_;
+        dirty_ = v.dirty_;
         return *this;
     }
 
@@ -619,13 +619,12 @@ class CopySetInfo {
         hasCandidate_ = false;
     }
 
-    std::chrono::steady_clock::time_point GetLastStateUpdateTime() const {
-        return lastStateUpdateTime_;
+    bool GetDirtyFlag() const {
+        return dirty_;
     }
 
-    void SetLastStateUpdateTime(
-        const std::chrono::steady_clock::time_point &timePoint) const {
-        lastStateUpdateTime_ = timePoint;
+    void SetDirtyFlag(bool dirty) {
+        dirty_ = dirty;
     }
 
     ::curve::common::RWLock& GetRWLockRef() const {
@@ -640,10 +639,12 @@ class CopySetInfo {
     std::set<ChunkServerIdType> peers_;
     bool hasCandidate_;
     ChunkServerIdType candidate_;
+
     /**
-     * @brief 上次更新copyset到数据库时间
+     * @brief 脏标志位，用于定时写入数据库
      */
-    mutable std::chrono::steady_clock::time_point lastStateUpdateTime_;
+    bool dirty_;
+
     /**
      * @brief copyset读写锁,保护该copyset的并发读写
      */
