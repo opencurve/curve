@@ -21,6 +21,7 @@
 #include "src/mds/topology/topology_token_generator.h"
 #include "src/mds/topology/topology_storge.h"
 #include "src/common/concurrent/rw_lock.h"
+#include "src/common/concurrent/concurrent.h"
 
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
@@ -235,12 +236,18 @@ class TopologyImpl : public Topology {
                  std::shared_ptr<TopologyStorage> storage)
         : idGenerator_(idGenerator),
           tokenGenerator_(tokenGenerator),
-          storage_(storage) {
+          storage_(storage),
+          isStop_(true) {
     }
 
-    ~TopologyImpl() {}
+    ~TopologyImpl() {
+        Stop();
+    }
 
     int init(const TopologyOption &option);
+
+    int Run();
+    int Stop();
 
     PoolIdType AllocateLogicalPoolId() override;
     PoolIdType AllocatePhysicalPoolId() override;
@@ -423,6 +430,10 @@ class TopologyImpl : public Topology {
  private:
     int CleanInvalidLogicalPoolAndCopyset();
 
+    void BackEndFunc();
+
+    void FlushCopySetToStorage();
+
  private:
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap_;
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap_;
@@ -445,6 +456,8 @@ class TopologyImpl : public Topology {
     mutable curve::common::RWLock copySetMutex_;
 
     TopologyOption option_;
+    curve::common::Thread backEndThread_;
+    curve::common::Atomic<bool> isStop_;
 };
 
 }  // namespace topology
