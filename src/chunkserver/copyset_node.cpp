@@ -57,6 +57,7 @@ CopysetNode::~CopysetNode() {
 
     if (nodeOptions_.snapshot_file_system_adaptor != nullptr) {
         delete nodeOptions_.snapshot_file_system_adaptor;
+        nodeOptions_.snapshot_file_system_adaptor = nullptr;
         LOG(INFO) << "release raftsnapshot filesystem adaptor!";
     }
 }
@@ -263,15 +264,6 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
                    << "error message: " << strerror(errno);
         return;
     }
-    std::string filePath = chunkDataApath_ + "/" + kCurveConfEpochFilename;
-    if (0 != fs_->Rename(filePathTemp, filePath)) {
-        done->status().set_error(errno, "invalid: %s", strerror(errno));
-        LOG(ERROR) << "rename conf epoch failed, "
-                   << filePathTemp << " to " << filePath << ", "
-                   << "errno: " << errno << ", "
-                   << "error message: " << strerror(errno);
-        return;
-    }
 
     /**
      * 3.保存chunk文件名的列表到快照元数据文件中
@@ -280,11 +272,13 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
     if (0 == fs_->List(chunkDataApath_, &files)) {
         for (auto it = files.begin(); it != files.end(); ++it) {
             std::string filename;
+            // 不是conf epoch文件，保存绝对路径和相对路径
+            // 1. 添加绝对路径
             filename.append(chunkDataApath_);
             filename.append("/").append(*it);
-            /* 2. 添加分隔符 */
+            // 2. 添加分隔符
             filename.append(":");
-            /* 3. 添加相对路径 */
+            // 3. 添加相对路径
             filename.append(chunkDataRpath_);
             filename.append("/").append(*it);
             writer->add_file(filename);
@@ -295,6 +289,11 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
                    << chunkDataApath_;
         return;
     }
+
+    /**
+     * 4. 保存conf.epoch文件到快照元数据文件中
+     */
+     writer->add_file(kCurveConfEpochFilename);
 }
 
 int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
@@ -347,7 +346,7 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     /**
      * 2. 加载配置版本文件
      */
-    std::string filePath = chunkDataApath_ + "/" + kCurveConfEpochFilename;
+    std::string filePath = reader->get_path() + "/" + kCurveConfEpochFilename;
     if (fs_->FileExists(filePath)) {
         if (0 != LoadConfEpoch(filePath)) {
             LOG(ERROR) << "load conf.epoch failed: " << filePath;
