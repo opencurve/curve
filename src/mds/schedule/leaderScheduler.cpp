@@ -89,10 +89,9 @@ int LeaderScheduler::transferLeaderOut(ChunkServerIdType source, Operator *op) {
         }
 
         // 跳过正在变更的copyset
-        if (cInfo.configChangeInfo.IsInitialized()) {
-            LOG(WARNING) << "copySet(" << cInfo.id.first
-                        << "," << cInfo.id.second
-                        << ") configchangeInfo is on config change";
+        if (cInfo.HasCandidate()) {
+            LOG(INFO) << "copySet(" << cInfo.id.first
+                         << "," << cInfo.id.second << ") is on config change";
             continue;
         }
 
@@ -160,10 +159,9 @@ int LeaderScheduler::transferLeaderIn(ChunkServerIdType target, Operator *op) {
         }
 
         // 跳过正在配置变更的copyset
-        if (cInfo.configChangeInfo.IsInitialized()) {
-            LOG(WARNING) << "copySet(" << cInfo.id.first
-                        << "," << cInfo.id.second
-                        << ") is on config change";
+        if (cInfo.HasCandidate()) {
+            LOG(INFO) << "copySet(" << cInfo.id.first
+                        << "," << cInfo.id.second << ") is on config change";
             continue;
         }
 

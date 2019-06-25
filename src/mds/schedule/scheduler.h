@@ -326,12 +326,13 @@ class RecoverScheduler : public Scheduler {
      *
      * @param[in] info 待修复的copyset
      * @param[in] peerId 待修复的副本
-     * @param[out] 生成的operator
+     * @param[out] op 生成的operator
+     * @param[out] target 新增副本
      *
      * @return 是否生成了operator
      */
-    bool FixOfflinePeer(
-        const CopySetInfo &info, ChunkServerIdType peerId, Operator *op);
+    bool FixOfflinePeer(const CopySetInfo &info, ChunkServerIdType peerId,
+        Operator *op, ChunkServerIDType *target);
 
     /**
      * @brief 统计server上有哪些offline超过一定数量的chunkserver集合

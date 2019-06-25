@@ -197,7 +197,7 @@ bool CopySetScheduler::CopySetMigration(
             if (opController_->GetOperatorById(info.id, &exist)) {
                 continue;
             }
-            if (info.configChangeInfo.IsInitialized()) {
+            if (info.HasCandidate()) {
                 continue;
             }
 

@@ -22,6 +22,8 @@ bool OperatorController::AddOperator(const Operator &op) {
     if (exist == operators_.end()) {
         // concurrency exceed
         if (!AddOpInfluencePreJudgeLocked(op)) {
+            LOG(INFO) << "add operator " << op.OpToString()
+                      << " fail because of oncurrency exceed";
             return false;
         }
         operators_[op.copsetID] = op;
@@ -113,11 +115,16 @@ bool OperatorController::ApplyOperator(const CopySetInfo &originInfo,
     } else {
         auto res = operators_[originInfo.id].Apply(originInfo, newConf);
         switch (res) {
-            case ApplyStatus::Failed:RemoveOperatorLocked(originInfo.id);
+            case ApplyStatus::Failed:
+                RemoveOperatorLocked(originInfo.id);
                 return false;
-            case ApplyStatus::Finished:RemoveOperatorLocked(originInfo.id);
+            case ApplyStatus::Finished:
+                LOG(INFO) << "apply operator "
+                          << operators_[originInfo.id].OpToString() << " ok";
+                RemoveOperatorLocked(originInfo.id);
                 return false;
-            case ApplyStatus::Ordered:return true;
+            case ApplyStatus::Ordered:
+                return true;
             case ApplyStatus::OnGoing:return false;
         }
     }

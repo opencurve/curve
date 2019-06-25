@@ -88,6 +88,10 @@ bool CopySetInfo::ContainPeer(ChunkServerIdType id) const {
     return false;
 }
 
+bool CopySetInfo::HasCandidate() const {
+    return candidatePeerInfo.id != UNINTIALIZE_ID;
+}
+
 ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  OnlineState state,
                                  DiskState diskState,

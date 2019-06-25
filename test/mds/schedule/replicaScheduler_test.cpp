@@ -58,11 +58,6 @@ TEST_F(TestReplicaSchedule, test_copySet_already_has_operator) {
 TEST_F(TestReplicaSchedule, test_copySet_has_configChangeInfo) {
     auto testCopySetInfo = GetCopySetInfoForTest();
     testCopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, 1, "", 9000);
-    auto replica = new ::curve::common::Peer();
-    replica->set_id(1);
-    replica->set_address("192.10.10.1:9000");
-    testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
-    testCopySetInfo.configChangeInfo.set_finished(false);
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
     ASSERT_EQ(0, replicaScheduler_->Schedule());

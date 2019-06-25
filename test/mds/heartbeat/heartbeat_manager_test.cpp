@@ -391,6 +391,8 @@ TEST_F(TestHeartbeatManager,
         ::curve::mds::topology::ChunkServerStatus::READWRITE);
     EXPECT_CALL(*topology_, GetChunkServerNotRetired("192.168.10.3", _, _))
         .WillOnce(DoAll(SetArgPointee<2>(chunkServer3), Return(true)));
+    EXPECT_CALL(*coordinator_, ChunkserverGoingToAdd(_, _))
+        .WillOnce(Return(false));
     ::curve::mds::topology::CopySetInfo recordCopySetInfo(1, 1);
     recordCopySetInfo.SetEpoch(2);
     recordCopySetInfo.SetLeader(2);
