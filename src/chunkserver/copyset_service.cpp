@@ -132,26 +132,60 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
     auto nodePtr = copysetNodeManager_->GetCopysetNode(request->logicpoolid(),
                                                        request->copysetid());
     if (nullptr == nodePtr) {
-        response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);    // NOLINT
+        response->set_status(
+            COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);
         LOG(ERROR) << "GetCopysetStatus failed, copyset node is not found: "
                    << ToGroupIdString(request->logicpoolid(),
                                       request->copysetid());
         return;
     }
 
-    std::string hash;
-    if (0 == nodePtr->GetHash(&hash)) {
+    // 获取raft node status
+    NodeStatus status;
+    nodePtr->GetStatus(&status);
+    response->set_state(braft::state2str(status.state));
+    Peer *peer = new Peer();
+    response->set_allocated_peer(peer);
+    peer->set_address(status.peer_id.to_string());
+    Peer *leader = new Peer();
+    response->set_allocated_leader(leader);
+    leader->set_address(status.leader_id.to_string());
+    response->set_readonly(status.readonly);
+    response->set_term(status.term);
+    response->set_committedindex(status.committed_index);
+    response->set_knownappliedindex(status.known_applied_index);
+    response->set_pendingindex(status.pending_index);
+    response->set_pendingqueuesize(status.pending_queue_size);
+    response->set_applyingindex(status.applying_index);
+    response->set_firstindex(status.first_index);
+    response->set_lastindex(status.last_index);
+    response->set_diskindex(status.disk_index);
+
+    // 获取配置的版本
+    response->set_epoch(nodePtr->GetConfEpoch());
+
+    /**
+     * 考虑到query hash需要读取copyset的所有chunk数据，然后计算hash值
+     * 是一个非常耗时的操作，所以在request会设置query hash字段，如果
+     * 为false，那么就不需要查询copyset的hash值
+     */
+    if (request->queryhash()) {
+        std::string hash;
+        if (0 != nodePtr->GetHash(&hash)) {
+            response->set_status(
+                COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
+            LOG(ERROR) << "GetCopysetStatus with get hash failure: "
+                       << ToGroupIdString(request->logicpoolid(), request->copysetid());    //NOLINT
+            return;
+        }
+
         response->set_hash(hash);
-        response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-        LOG(INFO) << "GetCopysetStatus success: "
-                  <<  ToGroupIdString(request->logicpoolid(),
-                                      request->copysetid());
-        return;
     }
 
-    response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
-    LOG(ERROR) << "GetCopysetStatus with unknown failure: "
-               << ToGroupIdString(request->logicpoolid(), request->copysetid());
+    response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+    LOG(INFO) << "GetCopysetStatus success: "
+              <<  ToGroupIdString(request->logicpoolid(),
+                                  request->copysetid());
 }
 
 }  // namespace chunkserver

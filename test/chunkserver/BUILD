@@ -266,8 +266,8 @@ cc_library(
 cc_test(
     name = "raftsnapshot_test",
     srcs = [
-        "raftsnapshot_filesystem_adaptor_unittest.cpp",
         "raftsnapshot_chunkfilepool_integration.cpp",
+        "raftsnapshot_filesystem_adaptor_unittest.cpp",
     ],
     copts = ["-std=c++14"],
     deps = [
@@ -279,11 +279,11 @@ cc_test(
         "//external:leveldb",
         "//external:protobuf",
         "//proto:chunkserver-cc-protos",
-        "//test/chunkserver:chunkserver-test-util-lib",
         "//src/chunkserver:chunkserver-test-lib",
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
         "//src/fs:lfs",
+        "//test/chunkserver:chunkserver-test-util-lib",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -291,7 +291,7 @@ cc_test(
 cc_test(
     name = "metric_test",
     srcs = glob([
-        "metrics_test.cpp"
+        "metrics_test.cpp",
     ]),
     copts = ["-std=c++14"],
     deps = DEPS,

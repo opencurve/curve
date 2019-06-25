@@ -18,6 +18,7 @@
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
+#include "proto/chunk.pb.h"
 
 namespace curve {
 namespace chunkserver {
@@ -308,10 +309,6 @@ TEST_F(CopysetServiceTest, basic2) {
             copyset->set_copysetid(copysetId + 3);
             Peer *peer1 = copyset->add_peers();
             peer1->set_address("127.0.0.1:9040:0");
-            Peer *peer2 = copyset->add_peers();
-            peer2->set_address("127.0.0.1:9041:0");
-            Peer *peer3 = copyset->add_peers();
-            peer3->set_address("127.0.0.1:9042:0");
 
             stub.CreateCopysetNode2(&cntl, &request, &response, nullptr);
             if (cntl.Failed()) {
@@ -321,7 +318,12 @@ TEST_F(CopysetServiceTest, basic2) {
                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
         }
 
+        // 睡眠等待leader产生
+        ::usleep(2 * 1000 * 1000);
+
         {
+            // query hash为false
+            std::string peerStr("127.0.0.1:9040:0");
             brpc::Controller cntl;
             cntl.set_timeout_ms(3000);
             CopysetStatusRequest request;
@@ -330,7 +332,8 @@ TEST_F(CopysetServiceTest, basic2) {
             request.set_copysetid(copysetId + 3);
             Peer *peer = new Peer();
             request.set_allocated_peer(peer);
-            peer->set_address("127.0.0.1:9040:0");
+            peer->set_address(peerStr);
+            request.set_queryhash(false);
 
             stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
             if (cntl.Failed()) {
@@ -339,7 +342,59 @@ TEST_F(CopysetServiceTest, basic2) {
 
             ASSERT_EQ(response.status(),
                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-            ASSERT_EQ(response.hash(), "0");
+            ASSERT_STREQ(braft::state2str(braft::STATE_LEADER),
+                         response.state().c_str());
+            ASSERT_STREQ(peerStr.c_str(), response.leader().address().c_str());
+            ASSERT_EQ(false, response.readonly());
+            ASSERT_EQ(2, response.term());
+            ASSERT_EQ(1, response.committedindex());
+            ASSERT_EQ(1, response.knownappliedindex());
+            ASSERT_EQ(0, response.pendingindex());
+            ASSERT_EQ(0, response.pendingqueuesize());
+            ASSERT_EQ(0, response.applyingindex());
+            ASSERT_EQ(1, response.firstindex());
+            ASSERT_EQ(1, response.lastindex());
+            ASSERT_EQ(1, response.diskindex());
+            ASSERT_EQ(1, response.epoch());
+            ASSERT_FALSE(response.has_hash());
+        }
+        {
+            // query hash为true
+            std::string peerStr("127.0.0.1:9040:0");
+            brpc::Controller cntl;
+            cntl.set_timeout_ms(3000);
+            CopysetStatusRequest request;
+            CopysetStatusResponse response;
+            request.set_logicpoolid(logicPoolId);
+            request.set_copysetid(copysetId + 3);
+            Peer *peer = new Peer();
+            request.set_allocated_peer(peer);
+            peer->set_address(peerStr);
+            request.set_queryhash(true);
+
+            stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
+            if (cntl.Failed()) {
+                std::cout << cntl.ErrorText() << std::endl;
+            }
+
+            ASSERT_EQ(response.status(),
+                      COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+            ASSERT_STREQ(braft::state2str(braft::STATE_LEADER),
+                         response.state().c_str());
+            ASSERT_STREQ(peerStr.c_str(), response.leader().address().c_str());
+            ASSERT_EQ(false, response.readonly());
+            ASSERT_EQ(2, response.term());
+            ASSERT_EQ(1, response.committedindex());
+            ASSERT_EQ(1, response.knownappliedindex());
+            ASSERT_EQ(0, response.pendingindex());
+            ASSERT_EQ(0, response.pendingqueuesize());
+            ASSERT_EQ(0, response.applyingindex());
+            ASSERT_EQ(1, response.firstindex());
+            ASSERT_EQ(1, response.lastindex());
+            ASSERT_EQ(1, response.diskindex());
+            ASSERT_EQ(1, response.epoch());
+            ASSERT_TRUE(response.has_hash());
+            ASSERT_EQ("0", response.hash());
         }
     }
 
