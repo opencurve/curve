@@ -31,10 +31,11 @@ int RecoverScheduler::Schedule() {
             continue;
         }
 
-        if (copysetInfo.configChangeInfo.IsInitialized()) {
+        if (copysetInfo.HasCandidate()) {
             LOG(WARNING) << "copySet(logicalPoolId:" << copysetInfo.id.first
                          << ", copySetId:" << copysetInfo.id.second
-                         << ") configchangeInfo has been initialized";
+                         << ") already has candidate: "
+                         << copysetInfo.candidatePeerInfo.id;
             continue;
         }
 
@@ -91,21 +92,46 @@ int RecoverScheduler::Schedule() {
 
         // 修复其中一个挂掉的副本
         Operator fixRes;
-        if (!FixOfflinePeer(copysetInfo, *offlinelists.begin(), &fixRes)) {
+        ChunkServerIDType target;
+        // 修复副本失败
+        if (!FixOfflinePeer(
+                copysetInfo, *offlinelists.begin(), &fixRes, &target)) {
             LOG(ERROR) << "recoverScheduler can not find a healthy"
                           " chunkServer to fix offline one "
                        << *offlinelists.begin() << " in copyset("
                        << copysetInfo.id.first << "," << copysetInfo.id.second
                        << ")";
-        } else if (opController_->AddOperator(fixRes)) {
+            continue;
+        // 修复副本成功，但加入到controller失败
+        } else if (!opController_->AddOperator(fixRes)) {
+            LOG(ERROR) << "recover scheduler add operator "
+                       << fixRes.OpToString() << " fail";
+            continue;
+        // 修复副本成功，加入controller成功
+        } else {
             LOG(INFO) << "recoverScheduler generate operator:"
                         << fixRes.OpToString() << "for copySet("
                         << copysetInfo.id.first << ", copySetId:"
                         << copysetInfo.id.second << ")";
+            // target为初始值，说明直接移除了offline的副本
+            if (target == UNINTIALIZE_ID) {
+                oneRoundGenOp++;
+                continue;
+            }
+
+            // target不为初始值
+            // 添加operator成功之后，应该在target上创建copyset,
+            // 如果创建失败，删除该operator
+            if (!topo_->CreateCopySetAtChunkServer(copysetInfo.id, target)) {
+                LOG(ERROR) << "coordinator create copySet(logicalPoolId: "
+                            << copysetInfo.id.first << ",copySetId: "
+                            << copysetInfo.id.second << ") on chunkServer: "
+                            << target << " error, delete operator"
+                            << fixRes.OpToString();
+                opController_->RemoveOperator(copysetInfo.id);
+                continue;
+            }
             oneRoundGenOp++;
-        } else {
-            LOG(ERROR) << "recover scheduler add operator "
-                       << fixRes.OpToString() << " fail";
         }
     }
     LOG(INFO) << "recoverScheduler generate " << oneRoundGenOp
@@ -118,7 +144,8 @@ int64_t RecoverScheduler::GetRunningInterval() {
 }
 
 bool RecoverScheduler::FixOfflinePeer(
-    const CopySetInfo &info, ChunkServerIdType peerId, Operator *op) {
+    const CopySetInfo &info, ChunkServerIdType peerId,
+    Operator *op, ChunkServerIDType *target) {
     assert(op != nullptr);
     // check the number of replicas first
     auto standardReplicaNum =
@@ -135,6 +162,7 @@ bool RecoverScheduler::FixOfflinePeer(
         *op = operatorFactory.CreateRemovePeerOperator(
             info, peerId, OperatorPriority::HighPriority);
         op->timeLimit = std::chrono::seconds(removeTimeSec_);
+        *target = UNINTIALIZE_ID;
         return true;
     }
 
@@ -146,17 +174,11 @@ bool RecoverScheduler::FixOfflinePeer(
                    << info.id.first << ",copySetId: " << info.id.second
                    << "), witch replica: " << peerId << " is offline";
         return false;
-    } else if (!topo_->CreateCopySetAtChunkServer(info.id, csId)) {
-        LOG(ERROR) << "recoverScheduler create copySet(logicalPoolId: "
-                   << info.id.first << ",copySetId: " << info.id.second
-                   << ") on chunkServer: " << peerId << " error";
-        return false;
     } else {
         *op = operatorFactory.CreateAddPeerOperator(
             info, csId, OperatorPriority::HighPriority);
         op->timeLimit = std::chrono::seconds(addTimeSec_);
-        DVLOG(6) << "recoverScheduler create operator: " << op->OpToString()
-                 << " success";
+        *target = csId;
         return true;
     }
 }

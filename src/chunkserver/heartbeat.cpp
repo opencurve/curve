@@ -264,7 +264,7 @@ void Heartbeat::DumpHeartbeatRequest(const HeartbeatRequest& request) {
 void Heartbeat::DumpHeartbeatResponse(const HeartbeatResponse& response) {
     int count = response.needupdatecopysets_size();
     if (count > 0) {
-        DVLOG(6) << "Received " << count << " config change commands:";
+        LOG(INFO) << "Received " << count << " config change commands:";
         for (int i = 0; i < count; i ++) {
             CopySetConf conf = response.needupdatecopysets(i);
 
@@ -277,14 +277,14 @@ void Heartbeat::DumpHeartbeatResponse(const HeartbeatResponse& response) {
                 peersStr += conf.peers(j).address();
             }
 
-            DVLOG(6) << "Config change " << i << ": "
+            LOG(INFO) << "Config change " << i << ": "
                      << "Copyset < " << conf.logicalpoolid()
                      << ", " << conf.copysetid() << ">, epoch: "
                      << conf.epoch() << ", Peers: " << peersStr
                      << ", type: " << type << ", item: " << item;
         }
     } else {
-        DVLOG(6) << "Received no config change command.";
+        LOG(INFO) << "Received no config change command.";
     }
 }
 
@@ -299,7 +299,6 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
     brpc::Controller cntl;
     cntl.set_timeout_ms(options_.timeout);
 
-    DVLOG(6) << "Sending heartbeat to MDS " << mdsEp_;
     DumpHeartbeatRequest(request);
 
     stub.ChunkServerHeartbeat(&cntl, &request, response, nullptr);
@@ -443,7 +442,7 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
         HeartbeatRequest req;
         HeartbeatResponse resp;
 
-        DVLOG(1) << "building heartbeat info";
+        LOG(INFO) << "building heartbeat info";
         ret = heartbeat->BuildRequest(&req);
         if (ret != 0) {
             LOG(ERROR) << "Failed to build heartbeat request";
@@ -451,7 +450,7 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
             continue;
         }
 
-        DVLOG(1) << "sending heartbeat info";
+        LOG(INFO) << "sending heartbeat info";
         ret = heartbeat->SendHeartbeat(req, &resp);
         if (ret != 0) {
             LOG(ERROR) << "Failed to send heartbeat to MDS";
@@ -459,7 +458,7 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
             continue;
         }
 
-        DVLOG(1) << "executing heartbeat info";
+        LOG(INFO) << "executing heartbeat info";
         ret = heartbeat->ExecTask(resp);
         if (ret != 0) {
             LOG(ERROR) << "Failed to execute heartbeat tasks";
