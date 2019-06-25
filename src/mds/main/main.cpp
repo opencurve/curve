@@ -295,6 +295,7 @@ int curve_main(int argc, char **argv) {
                                            topologyTokenGenerator,
                                            topologyStorage);
     LOG_IF(FATAL, topology->init(topologyOption) < 0) << "init topology fail.";
+    LOG_IF(FATAL, topology->Run()) << "run topology module fail";
 
     // init CopysetManager
     auto copysetManager =
