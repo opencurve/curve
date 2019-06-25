@@ -153,6 +153,44 @@ int GetSnapshotSegmentInfo(const char* filename,
     return ret;
 }
 
+int GetOrAllocateSegmentInfo(type_uInt64_t offset,
+                            type_uInt64_t segmentsize,
+                            type_uInt64_t chunksize,
+                            const CUserInfo_t userinfo,
+                            CSegmentInfo *segInfo) {
+    if (globalSnapshotclient == nullptr) {
+        LOG(ERROR) << "not init!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    curve::client::FInfo_t fileinfo;
+    fileinfo.segmentsize = segmentsize.value;
+    fileinfo.chunksize = chunksize.value;
+
+    curve::client::SegmentInfo seg;
+    int ret = globalSnapshotclient->GetOrAllocateSegmentInfo(false,
+                                offset.value,
+                                &fileinfo,
+                                UserInfo(userinfo.owner, userinfo.password),
+                                &seg);
+    segInfo->segmentsize.value = seg.segmentsize;
+    segInfo->chunksize.value = seg.chunksize;
+    segInfo->startoffset.value = seg.startoffset;
+    segInfo->chunkVecSize.value = seg.chunkvec.size();
+    for (int i = 0; i < seg.chunkvec.size(); i++) {
+        CChunkIDInfo_t tempIDInfo;
+        ChunkIDInfo2LocalInfo(&tempIDInfo, seg.chunkvec[i]);
+        segInfo->chunkvec.push_back(tempIDInfo);
+    }
+
+    segInfo->lpcpIDInfo.lpid.value = seg.lpcpIDInfo.lpid;
+    segInfo->lpcpIDInfo.cpidVecSize.value = seg.lpcpIDInfo.cpidVec.size();
+    for (int i = 0; i < seg.lpcpIDInfo.cpidVec.size(); i++) {
+        segInfo->lpcpIDInfo.cpidVec.push_back(seg.lpcpIDInfo.cpidVec[i]);
+    }
+    return ret;
+}
+
 int ReadChunkSnapshot(CChunkIDInfo cidinfo,
                         type_uInt64_t seq,
                         type_uInt64_t offset,
