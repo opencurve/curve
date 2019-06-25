@@ -8849,6 +8849,96 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_GetOrAllocateSegmentInfo(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  type_uInt64_t arg1 ;
+  type_uInt64_t arg2 ;
+  type_uInt64_t arg3 ;
+  CUserInfo_t arg4 ;
+  CSegmentInfo *arg5 = (CSegmentInfo *) 0 ;
+  void *argp1 ;
+  int res1 = 0 ;
+  void *argp2 ;
+  int res2 = 0 ;
+  void *argp3 ;
+  int res3 = 0 ;
+  void *argp4 ;
+  int res4 = 0 ;
+  void *argp5 = 0 ;
+  int res5 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  PyObject * obj2 = 0 ;
+  PyObject * obj3 = 0 ;
+  PyObject * obj4 = 0 ;
+  int result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OOOOO:GetOrAllocateSegmentInfo",&obj0,&obj1,&obj2,&obj3,&obj4)) SWIG_fail;
+  {
+    res1 = SWIG_ConvertPtr(obj0, &argp1, SWIGTYPE_p_u_int64,  0  | 0);
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "GetOrAllocateSegmentInfo" "', argument " "1"" of type '" "type_uInt64_t""'"); 
+    }  
+    if (!argp1) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "GetOrAllocateSegmentInfo" "', argument " "1"" of type '" "type_uInt64_t""'");
+    } else {
+      type_uInt64_t * temp = reinterpret_cast< type_uInt64_t * >(argp1);
+      arg1 = *temp;
+      if (SWIG_IsNewObj(res1)) delete temp;
+    }
+  }
+  {
+    res2 = SWIG_ConvertPtr(obj1, &argp2, SWIGTYPE_p_u_int64,  0  | 0);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "GetOrAllocateSegmentInfo" "', argument " "2"" of type '" "type_uInt64_t""'"); 
+    }  
+    if (!argp2) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "GetOrAllocateSegmentInfo" "', argument " "2"" of type '" "type_uInt64_t""'");
+    } else {
+      type_uInt64_t * temp = reinterpret_cast< type_uInt64_t * >(argp2);
+      arg2 = *temp;
+      if (SWIG_IsNewObj(res2)) delete temp;
+    }
+  }
+  {
+    res3 = SWIG_ConvertPtr(obj2, &argp3, SWIGTYPE_p_u_int64,  0  | 0);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "GetOrAllocateSegmentInfo" "', argument " "3"" of type '" "type_uInt64_t""'"); 
+    }  
+    if (!argp3) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "GetOrAllocateSegmentInfo" "', argument " "3"" of type '" "type_uInt64_t""'");
+    } else {
+      type_uInt64_t * temp = reinterpret_cast< type_uInt64_t * >(argp3);
+      arg3 = *temp;
+      if (SWIG_IsNewObj(res3)) delete temp;
+    }
+  }
+  {
+    res4 = SWIG_ConvertPtr(obj3, &argp4, SWIGTYPE_p_CUserInfo,  0  | 0);
+    if (!SWIG_IsOK(res4)) {
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "GetOrAllocateSegmentInfo" "', argument " "4"" of type '" "CUserInfo_t const""'"); 
+    }  
+    if (!argp4) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "GetOrAllocateSegmentInfo" "', argument " "4"" of type '" "CUserInfo_t const""'");
+    } else {
+      CUserInfo_t * temp = reinterpret_cast< CUserInfo_t * >(argp4);
+      arg4 = *temp;
+      if (SWIG_IsNewObj(res4)) delete temp;
+    }
+  }
+  res5 = SWIG_ConvertPtr(obj4, &argp5,SWIGTYPE_p_CSegmentInfo, 0 |  0 );
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "GetOrAllocateSegmentInfo" "', argument " "5"" of type '" "CSegmentInfo *""'"); 
+  }
+  arg5 = reinterpret_cast< CSegmentInfo * >(argp5);
+  result = (int)GetOrAllocateSegmentInfo(arg1,arg2,arg3,arg4,arg5);
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_CreateCloneChunk(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   char *arg1 = (char *) 0 ;
@@ -12976,6 +13066,7 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"DeleteChunkSnapshotOrCorrectSn", _wrap_DeleteChunkSnapshotOrCorrectSn, METH_VARARGS, NULL},
 	 { (char *)"GetChunkInfo", _wrap_GetChunkInfo, METH_VARARGS, NULL},
 	 { (char *)"CheckSnapShotStatus", _wrap_CheckSnapShotStatus, METH_VARARGS, NULL},
+	 { (char *)"GetOrAllocateSegmentInfo", _wrap_GetOrAllocateSegmentInfo, METH_VARARGS, NULL},
 	 { (char *)"CreateCloneChunk", _wrap_CreateCloneChunk, METH_VARARGS, NULL},
 	 { (char *)"RecoverChunk", _wrap_RecoverChunk, METH_VARARGS, NULL},
 	 { (char *)"UnInit", _wrap_UnInit, METH_VARARGS, NULL},
