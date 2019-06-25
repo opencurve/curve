@@ -174,6 +174,12 @@ class CopysetNode : public braft::StateMachine,
     virtual int GetHash(std::string *hash);
 
     /**
+     * @brief: 获取copyset node的status，实际调用的raft node的get_status接口
+     * @param status[out]: copyset node status
+     */
+    virtual void GetStatus(NodeStatus *status);
+
+    /**
      * 返回data store指针
      * @return
      */
