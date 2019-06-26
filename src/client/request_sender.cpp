@@ -9,10 +9,13 @@
 #include <glog/logging.h>
 
 #include "proto/chunk.pb.h"
+#include "src/common/timeutility.h"
+#include "src/client/request_closure.h"
+
+using curve::common::TimeUtility;
 
 namespace curve {
 namespace client {
-
 int RequestSender::Init(IOSenderOption_t ioSenderOpt) {
     if (0 != channel_.Init(serverEndPoint_, NULL)) {
         LOG(ERROR) << "failed to init channel to server, id: " << chunkServerId_
@@ -22,6 +25,8 @@ int RequestSender::Init(IOSenderOption_t ioSenderOpt) {
     iosenderopt_ = ioSenderOpt;
     ClientClosure::SetFailureRequestOption(iosenderopt_.failRequestOpt);
 
+    confMetric_.enableAppliedIndexRead.set_value(
+                iosenderopt_.enableAppliedIndexRead);
     return 0;
 }
 
@@ -32,6 +37,12 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
                              uint64_t appliedindex,
                              ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
+
+    RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
+    if (rc->GetMetric() != nullptr) {
+        MetricHelper::IncremRPCCount(rc->GetMetric(), length, OpType::READ);
+        rc->SetStartTime(TimeUtility::GetTimeofDayUs());
+    }
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
@@ -62,6 +73,12 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
                               size_t length,
                               ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
+
+    RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
+    if (rc->GetMetric() != nullptr) {
+        MetricHelper::IncremRPCCount(rc->GetMetric(), length, OpType::WRITE);
+        rc->SetStartTime(TimeUtility::GetTimeofDayUs());
+    }
 
     DVLOG(9) << "Sending request, buf header: "
              << " buf: " << *(unsigned int *)buf;

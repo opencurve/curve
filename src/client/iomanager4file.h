@@ -8,6 +8,7 @@
 #ifndef SRC_CLIENT_IOMANAGER4FILE_H_
 #define SRC_CLIENT_IOMANAGER4FILE_H_
 
+#include <string>
 #include <atomic>
 #include <mutex>  // NOLINT
 #include <condition_variable>   // NOLINT
@@ -29,13 +30,13 @@ class IOManager4File : public IOManager {
 
   /**
    * 初始化函数
+   * @param: filename为当前iomanager服务的文件名
    * @param: ioopt为当前iomanager的配置信息
-   * @param: clientMetric为client端要统计的metric信息
    * @param: mdsclient向下透传给metacache
    * @return: 成功true,失败false
    */
-  bool Initialize(IOOption_t ioOpt,
-                  ClientMetric_t* clientMetric,
+  bool Initialize(const std::string& filename,
+                  const IOOption_t& ioOpt,
                   MDSClient* mdsclient);
 
   /**
@@ -94,6 +95,13 @@ class IOManager4File : public IOManager {
    */
   uint64_t GetInflightIONum() {
     return inflightIONum_.load();
+  }
+
+  /**
+   * 获取metric信息，测试代码使用
+   */
+  FileMetric_t* GetMetric() {
+    return fileMetric_;
   }
 
  private:
@@ -173,6 +181,7 @@ class IOManager4File : public IOManager {
   void ReleaseInflightIOToken();
 
  private:
+  friend class FlightIOGuard;
   // 当前文件的信息
   FInfo_t fi_;
 
@@ -211,7 +220,7 @@ class IOManager4File : public IOManager {
   RequestScheduler*     scheduler_;
 
   // client端metric统计信息
-  ClientMetric_t* clientMetric_;
+  FileMetric_t*        fileMetric_;
 };
 
 class FlightIOGuard {
@@ -219,10 +228,12 @@ class FlightIOGuard {
   explicit FlightIOGuard(IOManager4File* iomana) {
     iomanager = iomana;
     iomanager->GetInflightIOToken();
+    MetricHelper::IncremInflightIO(iomanager->fileMetric_, 1);
   }
 
   ~FlightIOGuard() {
     iomanager->ReleaseInflightIOToken();
+    MetricHelper::IncremInflightIO(iomanager->fileMetric_, -1);
   }
 
  private:

@@ -630,11 +630,9 @@ uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 
 int main(int argc, char ** argv) {
-    google::InitGoogleLogging(argv[0]);
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
-    brpc::StartDummyServerAt(8888/*port*/);
 
     int ret = RUN_ALL_TESTS();
     return ret;
