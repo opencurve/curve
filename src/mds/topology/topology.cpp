@@ -839,19 +839,9 @@ int TopologyImpl::UpdateCopySetPeriodically(const CopySetInfo &data) {
     CopySetKey key(data.GetLogicalPoolId(), data.GetId());
     auto it = copySetMap_.find(key);
     if (it != copySetMap_.end()) {
-        auto now = std::chrono::steady_clock::now();
-        auto duration =  now - it->second.GetLastStateUpdateTime();
-        auto durationSec =
-            std::chrono::duration_cast<std::chrono::seconds>(duration).count();
         WriteLockGuard wlockCopySet(it->second.GetRWLockRef());
-        if (durationSec >= option_.CopySetUpdateSec) {
-            data.SetLastStateUpdateTime(now);
-            if (!storage_->UpdateCopySet(data)) {
-                LOG(WARNING) << "update copyset{" << data.GetLogicalPoolId()
-                             << "," << data.GetId() << "} to repo fail";
-            }
-        }
         it->second = data;
+        it->second.SetDirtyFlag(true);
         return kTopoErrCodeSuccess;
     } else {
         LOG(WARNING) << "UpdateCopySetPeriodically can not find copyset, "
@@ -910,6 +900,53 @@ std::vector<CopySetKey> TopologyImpl::GetCopySetsInChunkServer(
     }
     return ret;
 }
+
+int TopologyImpl::Run() {
+     if (isStop_.exchange(false)) {
+        backEndThread_ = curve::common::Thread(
+            &TopologyImpl::BackEndFunc, this);
+    }
+    return 0;
+}
+
+int TopologyImpl::Stop() {
+     if (!isStop_.exchange(true)) {
+        backEndThread_.join();
+    }
+    return 0;
+}
+
+void TopologyImpl::BackEndFunc() {
+     while (!isStop_.load()) {
+        FlushCopySetToStorage();
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(option_.CopySetUpdateSec));
+    }
+}
+
+void TopologyImpl::FlushCopySetToStorage() {
+    ReadLockGuard rlockCopySetMap(copySetMutex_);
+    for (auto &c : copySetMap_) {
+        WriteLockGuard wlockCopySet(c.second.GetRWLockRef());
+        if (c.second.GetDirtyFlag()) {
+            if (!storage_->UpdateCopySet(c.second)) {
+                LOG(WARNING) << "update copyset{" << c.second.GetLogicalPoolId()
+                             << "," << c.second.GetId() << "} to repo fail";
+            } else {
+                c.second.SetDirtyFlag(false);
+                LOG(INFO) << "update copyset to repo success, "
+                          << "logicalPoolId = " << c.second.GetLogicalPoolId()
+                          << ", copysetId = " << c.second.GetId()
+                          << ", leader = " << c.second.GetLeader()
+                          << ", epoch = " << c.second.GetEpoch()
+                          << ", copyset members = "
+                          << c.second.GetCopySetMembersStr()
+                          << ", candidate = " << c.second.GetCandidate();
+            }
+        }
+    }
+}
+
 
 }  // namespace topology
 }  // namespace mds
