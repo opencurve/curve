@@ -54,8 +54,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         chunkSegmentAllocate_ =
                 new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
 
-        sessionManager_ =
-               new SessionManager(std::make_shared<FakeRepoInterface>());
+        std::shared_ptr<FakeRepoInterface> repo =
+                                    std::make_shared<FakeRepoInterface>();
+        sessionManager_ = new SessionManager(repo);
 
         sessionOptions.leaseTimeUs = 5000000;
         sessionOptions.toleranceTimeUs = 500000;
@@ -68,7 +69,7 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         cleanManager_,
-                        sessionManager_, sessionOptions, authOptions);
+                        sessionManager_, sessionOptions, authOptions, repo);
     }
 
     void TearDown() override {
@@ -1602,6 +1603,74 @@ TEST_F(NameSpaceServiceTest, clonetest) {
     } else {
         FAIL();
     }
+
+    server.Stop(10);
+    server.Join();
+}
+
+TEST_F(NameSpaceServiceTest, registClientTest) {
+    brpc::Server server;
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+
+    RegistClientRequest request;
+    RegistClientResponse response;
+    brpc::Controller cntl;
+
+    cntl.set_log_id(1);
+
+    request.set_ip("ipstring1");
+    request.set_port(10);
+    stub.RegistClient(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    stub.RegistClient(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    request.set_ip("ipstring2");
+    request.set_port(10);
+    cntl.Reset();
+    stub.RegistClient(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    request.set_ip("ipstring2_new");
+    request.set_port(11);
+    cntl.Reset();
+    stub.RegistClient(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    server.Stop(10);
+    server.Join();
 }
 
 }  // namespace mds

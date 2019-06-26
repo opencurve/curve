@@ -81,3 +81,8 @@ create table if not exists `curve_session` (
     UNIQUE KEY (`sessionID`)
 )COMMENT='session';
 
+create table if not exists `client_info` (
+    `clientIp`         varchar(16)   NOT NULL COMMENT 'client ip',
+    `clientPort`       tinyint       NOT NULL COMMENT 'client port',
+    UNIQUE KEY `key_ip_port` (`clientIp`, `clientPort`)
+)COMMENT='client_info';

@@ -256,6 +256,29 @@ struct SessionRepoItem : public RepoItem {
   void SetSessionStatus(uint16_t sessionStatus);
 };
 
+struct ClientInfoRepoItem : public RepoItem {
+ public:
+  std::string clientIp;
+  uint32_t clientPort;
+
+ public:
+  ClientInfoRepoItem() = default;
+
+  ClientInfoRepoItem(const std::string &clientIp, uint32_t clientPort);
+
+  bool operator==(const ClientInfoRepoItem &r);
+
+  void getKV(std::map<std::string, std::string> *kv) const override;
+
+  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+
+  std::string getTable() const override;
+
+  std::string GetClientIp();
+
+  uint32_t GetClientPort();
+};
+
 class MdsRepo : public RepoInterface {
  public:
   // constructor: open db
@@ -363,6 +386,18 @@ class MdsRepo : public RepoInterface {
 
   virtual int QuerySessionRepoItem(
       const std::string &sessionID, SessionRepoItem *r);
+
+  // client info operation
+  virtual int InsertClientInfoRepoItem(const ClientInfoRepoItem &r);
+
+  virtual int LoadClientInfoRepoItems(
+                       std::vector<ClientInfoRepoItem> *clientList);
+
+  virtual int DeleteClientInfoRepoItem(const std::string &clientIp,
+                                      uint32_t clientPort);
+
+  virtual int QueryClientInfoRepoItem(const std::string &clientIp,
+                            uint32_t clientPort, ClientInfoRepoItem *r);
 
  private:
   std::shared_ptr<curve::repo::DataBase> db_;

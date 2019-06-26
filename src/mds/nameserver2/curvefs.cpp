@@ -67,13 +67,15 @@ bool CurveFS::Init(NameServerStorage* storage,
                 std::shared_ptr<CleanManagerInterface> cleanManager,
                 SessionManager *sessionManager,
                 const struct SessionOptions &sessionOptions,
-                const struct RootAuthOption &authOptions) {
+                const struct RootAuthOption &authOptions,
+                std::shared_ptr<MdsRepo> repo) {
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
     cleanManager_ = cleanManager;
     sessionManager_ = sessionManager;
     rootAuthOptions_ = authOptions;
+    repo_ = repo;
 
     InitRootFile();
 
@@ -1585,6 +1587,33 @@ bool CurveFS::CheckSignature(const std::string& owner,
     std::string sig = Authenticator::CalcString2Signature(str2sig,
                                                 rootAuthOptions_.rootPassword);
     return signature == sig;
+}
+
+StatusCode CurveFS::RegistClient(const std::string &clientIp,
+                                uint32_t clientPort) {
+    ClientInfoRepoItem queryRepo("", 0);
+    auto ret = repo_->QueryClientInfoRepoItem(clientIp, clientPort, &queryRepo);
+    if (ret != repo::OperationOK) {
+        LOG(ERROR) << "RegistClient query client info from repo fail"
+                   << ", clientIp = " << clientIp
+                   << ", clientPort = " << clientPort;
+        return StatusCode::KInternalError;
+    }
+
+    ClientInfoRepoItem clientRepo(clientIp, clientPort);
+    if (queryRepo == clientRepo) {
+        return StatusCode::kOK;
+    } else {
+        ret = repo_->InsertClientInfoRepoItem(clientRepo);
+        if (ret != repo::OperationOK) {
+            LOG(ERROR) << "RegistClient insert client info to repo fail"
+                    << ", clientIp = " << clientIp
+                    << ", clientPort = " << clientPort;
+            return StatusCode::KInternalError;
+        }
+    }
+
+    return StatusCode::kOK;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();
