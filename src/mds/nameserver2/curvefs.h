@@ -20,7 +20,7 @@
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/mds/nameserver2/session.h"
-
+#include "src/mds/dao/mdsRepo.h"
 #include "src/common/authenticator.h"
 
 using curve::common::Authenticator;
@@ -54,13 +54,15 @@ class CurveFS {
      *         sessionManager：
      *         sessionOptions ：初始化所session需要的参数
      *         authOptions : 对root用户进行认认证的参数
+     *         repo : curvefs持久化数据所用的数据库，目前保存client注册信息使用
      *  @return 初始化是否成功
      */
     bool Init(NameServerStorage*, InodeIDGenerator*, ChunkSegmentAllocator*,
               std::shared_ptr<CleanManagerInterface>,
               SessionManager *sessionManager,
               const struct SessionOptions &sessionOptions,
-              const struct RootAuthOption &authOptions);
+              const struct RootAuthOption &authOptions,
+              std::shared_ptr<MdsRepo> repo);
 
     /**
      *  @brief CurveFS Uninit
@@ -354,10 +356,29 @@ class CurveFS {
                               const std::string &signature,
                               uint64_t date);
 
+    /**
+     *  @brief 检查的文件的owner，owner必须是root用户
+     *  @param: filename：文件名
+     *  @param: owner：文件的拥有者
+     *  @param: signature是用户侧传过来的签名信息
+     *  @param: date是用于计算signature的时间
+     *  @return 是否成功，成功返回StatusCode::kOK
+     *          验证失败返回StatusCode::kOwnerAuthFail
+     *          其他失败，kFileNotExists，kStorageError，kNotDirectory
+     */
     StatusCode CheckRootOwner(const std::string &filename,
                               const std::string &owner,
                               const std::string &signature,
                               uint64_t date);
+
+    /**
+     *  @brief 注册client信息
+     *  @param: ip：client的ip信息
+     *  @param: port：client的端口信息
+     *  @return 是否成功，成功返回StatusCode::kOK
+     *          失败返回StatusCode::KInternalError
+     */
+    StatusCode RegistClient(const std::string &ip, uint32_t port);
 
  private:
     CurveFS() = default;
@@ -439,6 +460,7 @@ class CurveFS {
     SessionManager *            sessionManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;
     struct RootAuthOption       rootAuthOptions_;
+    std::shared_ptr<MdsRepo> repo_;
 };
 extern CurveFS &kCurveFS;
 }   // namespace mds

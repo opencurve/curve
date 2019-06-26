@@ -63,7 +63,8 @@ class CurveFSTest: public ::testing::Test {
 
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
                         mockcleanManager_,
-                        sessionManager_, sessionOptions_, authOptions_);
+                        sessionManager_, sessionOptions_, authOptions_,
+                        mockRepo_);
     }
 
     void TearDown() override {

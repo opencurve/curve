@@ -343,7 +343,7 @@ int curve_main(int argc, char **argv) {
     SessionManager *sessionManager = new SessionManager(mdsRepo);
     LOG_IF(FATAL, !kCurveFS.Init(storage, inodeIdGenerator.get(),
                   chunkSegmentAllocate, cleanManger,
-                  sessionManager, sessionOptions, authOptions))
+                  sessionManager, sessionOptions, authOptions, mdsRepo))
         << "init session manager fail";
 
 
