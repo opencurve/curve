@@ -12,6 +12,7 @@ DEPS = [
     "//src/common:curve_common",
     "//src/fs:lfs",
     "//test/fs:fs_mock",
+    "//test/chunkserver/datastore:chunkfilepool_helper",
     "@com_google_googletest//:gtest",
     "@com_google_googletest//:gtest_main",
 ]
@@ -285,4 +286,13 @@ cc_test(
         "//src/fs:lfs",
         "@com_google_googletest//:gtest_main",
     ],
+)
+
+cc_test(
+    name = "metric_test",
+    srcs = glob([
+        "metrics_test.cpp"
+    ]),
+    copts = ["-std=c++14"],
+    deps = DEPS,
 )

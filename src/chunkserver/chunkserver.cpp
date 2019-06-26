@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "src/chunkserver/chunkserver.h"
+#include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/chunk_service.h"
 #include "src/chunkserver/braft_cli_service.h"
@@ -170,6 +171,16 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to initialize CopysetNodeManager.";
     LOG_IF(FATAL, copysetNodeManager_.ReloadCopysets() != 0)
         << "CopysetNodeManager Failed to reload copyset.";
+
+    // 初始化 metric 收集模块
+    ChunkServerMetricOptions metricOptions;
+    InitMetricOptions(&conf, &metricOptions);
+    ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
+    LOG_IF(FATAL, metric->Init(metricOptions) != 0)
+        << "Failed to init chunkserver metric.";
+    metric->MonitorCopysetManager(&copysetNodeManager_);
+    metric->MonitorChunkFilePool(chunkfilePool.get());
+    metric->UpdateConfigMetric(conf);
 
     // 心跳模块初始化
     HeartbeatOptions heartbeatOptions;
@@ -408,6 +419,16 @@ void ChunkServer::InitTrashOptions(
         "trash.expire_afterSec", &trashOptions->expiredAfterSec));
     LOG_IF(FATAL, !conf->GetIntValue(
         "trash.scan_periodSec", &trashOptions->scanPeriodSec));
+}
+
+void ChunkServer::InitMetricOptions(
+    common::Configuration *conf, ChunkServerMetricOptions *metricOptions) {
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "global.port", &metricOptions->port));
+    LOG_IF(FATAL, !conf->GetStringValue(
+        "global.ip", &metricOptions->ip));
+    LOG_IF(FATAL, !conf->GetBoolValue(
+        "metric.onoff", &metricOptions->collectMetric));
 }
 
 void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
