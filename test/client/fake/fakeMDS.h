@@ -27,7 +27,7 @@
 
 using braft::PeerId;
 using curve::common::Authenticator;
-
+using curve::chunkserver::COPYSET_OP_STATUS;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using ::curve::mds::topology::ChunkServerRegistRequest;
@@ -570,10 +570,49 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
         response->CopyFrom(*resp);
     }
 
+    void GetCopysetStatus(::google::protobuf::RpcController *controller,
+                   const ::curve::chunkserver::CopysetStatusRequest *request,
+                   ::curve::chunkserver::CopysetStatusResponse *response,
+                   google::protobuf::Closure *done) {
+        brpc::ClosureGuard doneGuard(done);
+
+        response->set_state("state");
+        curve::common::Peer *peer = new curve::common::Peer();
+        response->set_allocated_peer(peer);
+        peer->set_address("127.0.0.1:1111");
+        curve::common::Peer *leader = new curve::common::Peer();
+        response->set_allocated_leader(leader);
+        leader->set_address("127.0.0.1:1111");
+        response->set_readonly(1);
+        response->set_term(1);
+        response->set_committedindex(1);
+        response->set_knownappliedindex(applyindex_);
+        response->set_pendingindex(1);
+        response->set_pendingqueuesize(1);
+        response->set_applyingindex(0);
+        response->set_firstindex(1);
+        response->set_lastindex(1);
+        response->set_diskindex(1);
+        response->set_epoch(1);
+        response->set_hash(std::to_string(hash_));
+        response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+    }
+
+    void SetHash(uint64_t hash) {
+        hash_ = hash;
+    }
+
+    void SetApplyindex(uint64_t index) {
+        applyindex_ = index;
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
 
+ public:
+    uint64_t applyindex_;
+    uint64_t hash_;
     FakeReturn* fakeret_;
 };
 
@@ -603,6 +642,10 @@ class FakeMDS {
 
     FakeMDSCurveFSService* GetMDSService() {
         return &fakecurvefsservice_;
+    }
+
+    std::vector<FakeCreateCopysetService *> GetCreateCopysetService() {
+        return copysetServices_;
     }
 
  private:
