@@ -567,6 +567,26 @@ class FakeRepoInterface : public MdsRepo {
         LOG(INFO) << "QuerySessionRepo";
         return repo::OperationOK;
     }
+
+    // client info operation
+    int InsertClientInfoRepoItem(const ClientInfoRepoItem &r) override {
+        return repo::OperationOK;
+    }
+
+    int LoadClientInfoRepoItems(
+                       std::vector<ClientInfoRepoItem> *clientList) override {
+        return repo::OperationOK;
+    }
+
+    int DeleteClientInfoRepoItem(const std::string &clientIp,
+                                      uint32_t clientPort) override {
+        return repo::OperationOK;
+    }
+
+    int QueryClientInfoRepoItem(const std::string &clientIp,
+                        uint32_t clientPort, ClientInfoRepoItem *r) override {
+        return repo::OperationOK;
+    }
 };
 }  // namespace mds
 }  // namespace curve
