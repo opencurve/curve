@@ -144,6 +144,13 @@ bool HeartbeatManager::CheckRequest(
         return false;
     }
 
+    if (chunkServer.GetStatus() == ChunkServerStatus::RETIRED) {
+        LOG(ERROR) << "heartbeatManager receive heartbeat from"
+                   << "retired chunkserver: " << chunkServer.GetId()
+                   << ", reject.";
+        return false;
+    }
+
     // TODO(lixiaocui): 这种情况具体如何处理
     // ip和port如果变化，涉及到的变更信息如下：
     // 1. chunkserver本身ip和port要变，topology中需要体现这个
