@@ -84,6 +84,17 @@ TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkServer), Return(true)));
     heartbeatManager_->ChunkServerHeartbeat(request, &response);
     ASSERT_EQ(0, response.needupdatecopysets_size());
+
+    // 6. chunkserver retired
+    auto req = GetChunkServerHeartbeatRequestForTest();
+    ASSERT_TRUE(request.IsInitialized());
+    ::curve::mds::topology::ChunkServer retiredCs(
+        1, "hello", "", 1, "192.168.10.4", 9000, "",
+        ::curve::mds::topology::ChunkServerStatus::RETIRED);
+    EXPECT_CALL(*topology_, GetChunkServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(retiredCs), Return(true)));
+    heartbeatManager_->ChunkServerHeartbeat(req, &response);
+    ASSERT_EQ(0, response.needupdatecopysets_size());
 }
 
 TEST_F(TestHeartbeatManager, test_getChunkserverIdByPeerStr) {
