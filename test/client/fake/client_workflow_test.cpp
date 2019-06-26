@@ -117,9 +117,9 @@ int main(int argc, char ** argv) {
 
 
 
-    char* buf2 = new char[8 * 1024];
+    char* buf2 = new char[16 * 1024];
     CurveAioContext* aioctx1 = new CurveAioContext;
-    char* buf1 = new char[8 * 1024];
+    char* buf1 = new char[16 * 1024];
     CurveAioContext* aioctx2 = new CurveAioContext;
     auto f = [&]() {
         while (1) {
@@ -127,21 +127,21 @@ int main(int argc, char ** argv) {
                 aioctx1->buf = buf1;
                 aioctx1->offset = 0;
                 aioctx1->op = LIBCURVE_OP_WRITE;
-                aioctx1->length = 8 * 1024;
+                aioctx1->length = 16 * 1024;
                 aioctx1->cb = writecallbacktest;
                 AioWrite(fd, aioctx1);
                 aioctx2->buf = buf2;
                 aioctx2->offset = 0;
-                aioctx2->length = 8 * 1024;
+                aioctx2->length = 16 * 1024;
                 aioctx2->op = LIBCURVE_OP_READ;
                 aioctx2->cb = readcallbacktest;
                 AioRead(fd, aioctx2);
             }
 
-            char buf1[4096];
-            char buf2[8192];
-            Write(fd, buf2, 0, 8192);
-            Read(fd, buf1, 0, 4096);
+            // char buf1[4096];
+            // char buf2[8192];
+            // Write(fd, buf2, 0, 8192);
+            // Read(fd, buf1, 0, 4096);
         }
     };
 
