@@ -285,6 +285,8 @@ class CopysetNode : public braft::StateMachine,
 
     void SetCopysetNode(std::shared_ptr<Node> node);
 
+    void SetSnapshotFileSystem(scoped_refptr<FileSystemAdaptor>* fs);
+
     /**
      * better for test
      */
