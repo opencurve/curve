@@ -25,7 +25,7 @@ uint32_t getCopysetCountFunc(void* arg) {
 }
 
 uint32_t getLeaderCountFunc(void* arg) {
-    CopysetNodeManager* nodeMgr = reinterpret_cast<CopysetNodeManager*>(arg);
+   /*   CopysetNodeManager* nodeMgr = reinterpret_cast<CopysetNodeManager*>(arg);
     uint32_t leaderCount = 0;
     if (nodeMgr != nullptr) {
         std::vector<std::shared_ptr<CopysetNode>> nodes;
@@ -37,7 +37,8 @@ uint32_t getLeaderCountFunc(void* arg) {
             }
         }
     }
-    return leaderCount;
+    */
+    return 0;
 }
 
 uint32_t getChunkLeftFunc(void* arg) {
