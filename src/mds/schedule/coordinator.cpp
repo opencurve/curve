@@ -37,7 +37,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                               conf.addPeerTimeLimitSec,
                                               conf.scatterWithRangePerent,
                                               conf.minScatterWidth, topo_);
-        LOG(INFO) << "run leader scheduler ok!";
+        LOG(INFO) << "init leader scheduler ok!";
     }
 
     if (conf.enableCopysetScheduler) {
@@ -51,7 +51,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.scatterWithRangePerent,
                                                conf.minScatterWidth,
                                                topo_);
-        LOG(INFO) << "run copySet scheduler ok!";
+        LOG(INFO) << "init copySet scheduler ok!";
     }
 
     if (conf.enableRecoverScheduler) {
@@ -65,7 +65,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.minScatterWidth,
                                                conf.chunkserverFailureTolerance,
                                                topo_);
-        LOG(INFO) << "run recover scheduler ok!";
+        LOG(INFO) << "init recover scheduler ok!";
     }
 
     if (conf.enableReplicaScheduler) {
@@ -77,17 +77,17 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
                                                conf.addPeerTimeLimitSec,
                                                conf.scatterWithRangePerent,
                                                conf.minScatterWidth, topo_);
-        LOG(INFO) << "run replica scheduler ok!";
+        LOG(INFO) << "init replica scheduler ok!";
     }
 }
 
 void Coordinator::Run() {
+    SetSchedulerRunning(true);
     // run different scheduler at interval in different threads
     for (auto &v : schedulerController_) {
         runSchedulerThreads_[v.first] = std::thread(
             &Coordinator::RunScheduler, this, v.second);
     }
-    SetSchedulerRunning(true);
 }
 
 void Coordinator::Stop() {
@@ -149,6 +149,7 @@ void Coordinator::RunScheduler(const std::shared_ptr<Scheduler> &s) {
 
         s->Schedule();
     }
+    LOG(INFO) << "scheduler exist.";
 }
 
 bool Coordinator::BuildCopySetConf(
