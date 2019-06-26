@@ -17,8 +17,9 @@
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
+#include "src/chunkserver/chunkserver_metrics.h"
 #include "src/chunkserver/op_request.h"
-#include "src/chunkserver/inflight_closure.h"
+#include "src/chunkserver/chunk_service_closure.h"
 
 namespace curve {
 namespace chunkserver {
@@ -34,11 +35,14 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
                                    const ChunkRequest *request,
                                    ChunkResponse *response,
                                    Closure *done) {
-    InflightClosure *inflightDone =
-        new (std::nothrow) InflightClosure(inflightThrottle_, done);
-    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               request,
+                                               response,
+                                               done);
+    CHECK(nullptr != closure) << "new chunk service closure failed";
 
-    brpc::ClosureGuard doneGuard(inflightDone);
+    brpc::ClosureGuard doneGuard(closure);
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -71,11 +75,14 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
                                   const ChunkRequest *request,
                                   ChunkResponse *response,
                                   Closure *done) {
-    InflightClosure *inflightDone =
-        new (std::nothrow) InflightClosure(inflightThrottle_, done);
-    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               request,
+                                               response,
+                                               done);
+    CHECK(nullptr != closure) << "new chunk service closure failed";
 
-    brpc::ClosureGuard doneGuard(inflightDone);
+    brpc::ClosureGuard doneGuard(closure);
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -125,11 +132,14 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
                                         const ChunkRequest *request,
                                         ChunkResponse *response,
                                         Closure *done) {
-    InflightClosure *inflightDone =
-        new (std::nothrow) InflightClosure(inflightThrottle_, done);
-    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               request,
+                                               response,
+                                               done);
+    CHECK(nullptr != closure) << "new chunk service closure failed";
 
-    brpc::ClosureGuard doneGuard(inflightDone);
+    brpc::ClosureGuard doneGuard(closure);
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -171,11 +181,14 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                  const ChunkRequest *request,
                                  ChunkResponse *response,
                                  Closure *done) {
-    InflightClosure *inflightDone =
-        new (std::nothrow) InflightClosure(inflightThrottle_, done);
-    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               request,
+                                               response,
+                                               done);
+    CHECK(nullptr != closure) << "new chunk service closure failed";
 
-    brpc::ClosureGuard doneGuard(inflightDone);
+    brpc::ClosureGuard doneGuard(closure);
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -220,11 +233,14 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
                                     const ChunkRequest *request,
                                     ChunkResponse *response,
                                     Closure *done) {
-    InflightClosure *inflightDone =
-        new (std::nothrow) InflightClosure(inflightThrottle_, done);
-    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               request,
+                                               response,
+                                               done);
+    CHECK(nullptr != closure) << "new chunk service closure failed";
 
-    brpc::ClosureGuard doneGuard(inflightDone);
+    brpc::ClosureGuard doneGuard(closure);
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -269,11 +285,14 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
                                          const ChunkRequest *request,
                                          ChunkResponse *response,
                                          Closure *done) {
-    InflightClosure *inflightDone =
-        new (std::nothrow) InflightClosure(inflightThrottle_, done);
-    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               request,
+                                               response,
+                                               done);
+    CHECK(nullptr != closure) << "new chunk service closure failed";
 
-    brpc::ClosureGuard doneGuard(inflightDone);
+    brpc::ClosureGuard doneGuard(closure);
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -313,11 +332,14 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
     const ChunkRequest *request,
     ChunkResponse *response,
     Closure *done) {
-    InflightClosure *inflightDone =
-        new (std::nothrow) InflightClosure(inflightThrottle_, done);
-    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               request,
+                                               response,
+                                               done);
+    CHECK(nullptr != closure) << "new chunk service closure failed";
 
-    brpc::ClosureGuard doneGuard(inflightDone);
+    brpc::ClosureGuard doneGuard(closure);
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
@@ -363,11 +385,14 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
                                     const GetChunkInfoRequest *request,
                                     GetChunkInfoResponse *response,
                                     Closure *done) {
-    InflightClosure *inflightDone =
-        new (std::nothrow) InflightClosure(inflightThrottle_, done);
-    CHECK(nullptr != inflightDone) << "new InflightClosure failed";
+    ChunkServiceClosure* closure =
+        new (std::nothrow) ChunkServiceClosure(inflightThrottle_,
+                                               nullptr,
+                                               nullptr,
+                                               done);
+    CHECK(nullptr != closure) << "new chunk service closure failed";
 
-    brpc::ClosureGuard doneGuard(inflightDone);
+    brpc::ClosureGuard doneGuard(closure);
 
     if (inflightThrottle_->IsOverLoad()) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);

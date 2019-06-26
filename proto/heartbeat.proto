@@ -75,7 +75,7 @@ message ChunkServerHeartbeatRequest {
     // 时间窗口内该chunkserver上copyset的个数
     required uint32 copysetCount = 10;
     // chunkServer相关的统计信息
-    required ChunkServerStatisticInfo stats = 11;
+    optional ChunkServerStatisticInfo stats = 11;
 };
 
 enum ConfigChangeType {

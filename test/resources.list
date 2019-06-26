@@ -31,3 +31,4 @@ Used port list:
     chunk-snapshot-test:    9050 9051 9052
     heartbeat_test:         9300
     chunkserver_test:       9301
+    metric_test:            9401

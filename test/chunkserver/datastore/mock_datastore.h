@@ -50,6 +50,7 @@ class MockDataStore : public CSDataStore {
                                          off_t,
                                          size_t));
     MOCK_METHOD2(GetChunkInfo, CSErrorCode(ChunkID, CSChunkInfo*));
+    MOCK_METHOD0(GetStatus, DataStoreStatus());
 };
 
 }  // namespace chunkserver

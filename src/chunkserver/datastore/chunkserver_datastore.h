@@ -39,11 +39,28 @@ struct DataStoreOptions {
     PageSizeType                        pageSize;
 };
 
+/**
+ * DataStore的内部状态信息
+ * chunkFileCount:DataStore中chunk的数量
+ * snapshotCount:DataStore中快照的数量
+ */
+struct DataStoreStatus {
+    uint32_t chunkFileCount;
+    uint32_t snapshotCount;
+    DataStoreStatus() : chunkFileCount(0), snapshotCount(0) {}
+};
+
+using ChunkMap = std::unordered_map<ChunkID, CSChunkFilePtr>;
 // 为chunkid到chunkfile的映射，使用读写锁对map的操作进行保护
 class CSMetaCache {
  public:
     CSMetaCache() {}
     virtual ~CSMetaCache() {}
+
+    ChunkMap GetMap() {
+        ReadLockGuard readGuard(rwLock_);
+        return chunkMap_;
+    }
 
     CSChunkFilePtr Get(ChunkID id) {
         ReadLockGuard readGuard(rwLock_);
@@ -72,8 +89,8 @@ class CSMetaCache {
     }
 
  private:
-    RWLock                                         rwLock_;
-    std::unordered_map<ChunkID, CSChunkFilePtr>    chunkMap_;
+    RWLock      rwLock_;
+    ChunkMap    chunkMap_;
 };
 
 class CSDataStore {
@@ -198,6 +215,10 @@ class CSDataStore {
                                      off_t offset,
                                      size_t length,
                                      std::string* hash);
+    /** 获取DataStore的瞬时状态信息
+     * @return：datastore的状态信息
+     */
+    virtual DataStoreStatus GetStatus();
 
  private:
     CSErrorCode loadChunkFile(ChunkID id);

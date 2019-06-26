@@ -112,6 +112,22 @@ TEST_F(ConfigurationTest, DumpConfig) {
     ASSERT_EQ(conf.DumpConfig(), "");
 }
 
+TEST_F(ConfigurationTest, ListConfig) {
+    Configuration conf;
+
+    conf.SetConfigPath(confFile_);
+    int ret = conf.LoadConfig();
+    ASSERT_EQ(ret, true);
+    std::map<std::string, std::string> configs;
+    configs = conf.ListConfig();
+    ASSERT_NE(0, configs.size());
+    // 抽几个key来校验以下
+    ASSERT_EQ(configs["test.int1"], "12345");
+    ASSERT_EQ(configs["test.bool1"], "0");
+    // 如果key不存在，返回为空
+    ASSERT_EQ(configs["xxx"], "");
+}
+
 TEST_F(ConfigurationTest, SaveConfig) {
     bool ret;
     Configuration conf;

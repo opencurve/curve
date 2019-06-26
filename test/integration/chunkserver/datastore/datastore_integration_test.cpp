@@ -13,9 +13,9 @@ namespace chunkserver {
 const uint64_t kMB = 1024 * 1024;
 const ChunkSizeType CHUNK_SIZE = 16 * kMB;
 const PageSizeType PAGE_SIZE = 4 * 1024;
-const string baseDir = "./data";    // NOLINT
-const string poolDir = "./chunkfilepool";  // NOLINT
-const string poolMetaPath = "./chunkfilepool.meta";  // NOLINT
+const string baseDir = "./data_int";    // NOLINT
+const string poolDir = "./chunkfilepool_int";  // NOLINT
+const string poolMetaPath = "./chunkfilepool_int.meta";  // NOLINT
 
 class DatastoreIntegrationTest : public DatastoreIntegrationBase {
  public:
