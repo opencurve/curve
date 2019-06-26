@@ -72,17 +72,17 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     ChunkResponse response;
     uint32_t retry = 0;
     do {
+        cntl.Reset();
+        stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
+            &request,
+            &response,
+            nullptr);
         LOG(INFO) << "Send DeleteChunkSnapshotOrCorrectSn[log_id="
                   << cntl.log_id()
                   << "] from " << cntl.local_side()
                   << " to " << cntl.remote_side()
                   << ". [ChunkRequest] "
                   << request.DebugString();
-        cntl.Reset();
-        stub.DeleteChunkSnapshotOrCorrectSn(&cntl,
-            &request,
-            &response,
-            nullptr);
         if (cntl.Failed()) {
             LOG(WARNING) << "Received ChunkResponse error, "
                        << "cntl.errorText = "
@@ -174,16 +174,16 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     ChunkResponse response;
     uint32_t retry = 0;
     do {
-        LOG(INFO) << "Send DeleteChunk[log_id=" << cntl.log_id()
-                  << "] from " << cntl.local_side()
-                  << " to " << cntl.remote_side()
-                  << ". [ChunkRequest] "
-                  << request.DebugString();
         cntl.Reset();
         stub.DeleteChunk(&cntl,
             &request,
             &response,
             nullptr);
+        LOG(INFO) << "Send DeleteChunk[log_id=" << cntl.log_id()
+                  << "] from " << cntl.local_side()
+                  << " to " << cntl.remote_side()
+                  << ". [ChunkRequest] "
+                  << request.DebugString();
         if (cntl.Failed()) {
             LOG(WARNING) << "Received ChunkResponse error, "
                        << "cntl.errorText = "
@@ -273,16 +273,16 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     GetLeaderResponse2 response;
     uint32_t retry = 0;
     do {
-        LOG(INFO) << "Send GetLeader[log_id=" << cntl.log_id()
-                  << "] from " << cntl.local_side()
-                  << " to " << cntl.remote_side()
-                  << ". [GetLeaderRequest] "
-                  << request.DebugString();
         cntl.Reset();
         stub.GetLeader(&cntl,
             &request,
             &response,
             nullptr);
+        LOG(INFO) << "Send GetLeader[log_id=" << cntl.log_id()
+                  << "] from " << cntl.local_side()
+                  << " to " << cntl.remote_side()
+                  << ". [GetLeaderRequest] "
+                  << request.DebugString();
         if (cntl.Failed()) {
             LOG(WARNING) << "Received GetLeaderResponse error, "
                        << "cntl.errorText = "
