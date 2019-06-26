@@ -99,6 +99,12 @@ s3.config_path=conf/s3.conf
 fs.enable_renameat2=true
 
 #
+# metrics settings
+# true means on, false means off
+#
+metric.onoff=true
+
+#
 # Storage engine settings
 #
 storeng.sync_write=false

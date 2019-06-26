@@ -316,6 +316,24 @@ CSErrorCode CSDataStore::GetChunkHash(ChunkID id,
     return chunkFile->GetHash(offset, length, hash);
 }
 
+DataStoreStatus CSDataStore::GetStatus() {
+    DataStoreStatus status;
+    // TODO(yyk) 待改进
+    // 如果map中元素较多，会有较大的性能开销，10000个元素大概要花费2.6ms
+    // 如果所有chunkserver上都去抓取，对cpu占用也会较高，后续需要优化
+    ChunkMap chunkMap = metaCache_.GetMap();
+    status.chunkFileCount = chunkMap.size();
+    CSChunkInfo info;
+    for (auto& chunk : chunkMap) {
+        chunk.second->GetInfo(&info);
+        // 根据snapsn判断是否存在快照，如果不为0说明存在快照
+        if (info.snapSn != kInvalidSeq) {
+            ++status.snapshotCount;
+        }
+    }
+    return status;
+}
+
 CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
     // 如果chunk文件还未加载，则加载到metaCache当中
     if (metaCache_.Get(id) == nullptr) {

@@ -19,10 +19,10 @@
 #include "src/chunkserver/datastore/chunkserver_datastore.h"
 #include "src/chunkserver/conf_epoch_file.h"
 #include "src/chunkserver/config_info.h"
+#include "src/chunkserver/chunkserver_metrics.h"
 #include "proto/heartbeat.pb.h"
 #include "proto/chunk.pb.h"
 #include "proto/common.pb.h"
-
 
 namespace curve {
 namespace chunkserver {
@@ -40,48 +40,6 @@ const char RAFT_DATA_DIR[] = "data";
 const char RAFT_META_DIR[] = "raft_meta";
 const char RAFT_SNAP_DIR[] = "raft_snapshot";
 const char RAFT_LOG_DIR[]  = "log";
-
-struct CopysetNodeMetric {
-    // 复制组读请求累计数
-    std::shared_ptr<bvar::Adder<uint64_t>> readCounter;
-    // 复制组写请求累计数
-    std::shared_ptr<bvar::Adder<uint64_t>> writeCounter;
-    // 复制组读请求累计字节数
-    std::shared_ptr<bvar::Adder<uint64_t>> readBytes;
-    // 复制组写请求累计字节数
-    std::shared_ptr<bvar::Adder<uint64_t>> writeBytes;
-    // 复制组读请求每秒计数
-    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>> readIops;
-    // 复制组写请求每秒计数
-    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>> writeIops;
-    // 复制组读请求每秒字节数
-    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>> readBps;
-    // 复制组写请求每秒字节数
-    std::shared_ptr<bvar::PerSecond<bvar::Adder<uint64_t>>> writeBps;
-
-    void Init(LogicPoolID logicPoolId, CopysetID copysetId) {
-        std::string prefix = "copyset_" + std::to_string(logicPoolId) +
-                         "_" + std::to_string(copysetId);
-
-        readCounter = std::make_shared<bvar::Adder<uint64_t>>(
-                    prefix, "read_count");
-        writeCounter = std::make_shared<bvar::Adder<uint64_t>>(
-                    prefix, "write_count");
-        readBytes = std::make_shared<bvar::Adder<uint64_t>>(
-                    prefix, "read_bytes");
-        writeBytes = std::make_shared<bvar::Adder<uint64_t>>(
-                    prefix, "write_bytes");
-
-        readIops = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
-                    prefix, "read_iops", readCounter.get());
-        writeIops = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
-                    prefix, "write_iops", writeCounter.get());
-        readBps = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
-                    prefix, "read_bps", readBytes.get());
-        writeBps = std::make_shared<bvar::PerSecond<bvar::Adder<uint64_t>>>(
-                    prefix, "write_bps", writeBytes.get());
-    }
-};
 
 /**
  * 一个Copyset Node就是一个复制组的副本
@@ -240,27 +198,6 @@ class CopysetNode : public braft::StateMachine,
     void ListPeers(std::vector<Peer>* peers);
 
     /**
-     * @brief 增加读请求的IOPS和BPS性能统计计数
-     * @param bytes[in] 读请求的字节数
-     * @return
-     */
-    void IncReadMetrics(uint32_t bytes);
-
-    /**
-     * @brief 增加写请求的IOPS和BPS性能统计计数
-     * @param bytes[in] 写请求的字节数
-     * @return
-     */
-    void IncWriteMetrics(uint32_t bytes);
-
-    /**
-     * @brief 获取Copyset性能统计复合metric
-     * @param metric[out] 返回的性能统计复合metric
-     * @return
-     */
-    void GetPerfMetrics(IoPerfMetric* metric);
-
-    /**
      * 下面的接口都是继承StateMachine实现的接口
      */
  public:
@@ -404,7 +341,7 @@ class CopysetNode : public braft::StateMachine,
     // 复制组数据回收站目录
     std::string recyclerUri_;
     // 复制组的metric信息
-    CopysetNodeMetric metric_;
+    CopysetMetricPtr metric_;
 };
 
 }  // namespace chunkserver
