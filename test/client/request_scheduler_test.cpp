@@ -108,7 +108,7 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
     /* Scheduler run */
     ASSERT_EQ(0, requestScheduler.Run());
-    EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _)).Times(AnyNumber());
+    EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(AnyNumber());
 
     usleep(100 * 1000);
 

@@ -33,16 +33,17 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
 
     /**
      * 初始化
+     * @param: filename文件名用于初始化iomanager的metric信息
      * @param: mdsclient为全局的mds client
      * @param: userinfo为user信息
      * @param: fileservicopt fileclient的配置选项
      * @param: clientMetric为client端要统计的metric信息
      * @return: 成功返回true、否则返回false
      */
-    bool Initialize(MDSClient* mdsclient,
+    bool Initialize(const std::string& filename,
+                    MDSClient* mdsclient,
                     const UserInfo_t& userinfo,
-                    FileServiceOption_t fileservicopt,
-                    ClientMetric_t* clientMetric);
+                    FileServiceOption_t fileservicopt);
     /**
      * 打开文件
      * @param: filename为文件名

@@ -11,6 +11,7 @@
 // for Closure
 #include <google/protobuf/stubs/callback.h>
 #include "include/curve_compiler_specific.h"
+#include "src/client/client_metric.h"
 
 namespace curve {
 namespace client {
@@ -52,6 +53,26 @@ class RequestClosure : public ::google::protobuf::Closure {
      */
     void SetIOTracker(IOTracker* ioctx);
 
+    /**
+     * 设置metric
+     */
+    void SetFileMetric(FileMetric_t* fm);
+
+    /**
+     * 获取metric指针
+     */
+    FileMetric_t* GetMetric();
+
+    /**
+     * 设置rpc发送起始时间，用于RPC延时统计
+     */
+    void SetStartTime(uint64_t start);
+
+    /**
+     * 获取rpc起始时间
+     */
+    uint64_t GetStartTime();
+
  private:
     // 当前request的错误码
     int  errcode_;
@@ -61,6 +82,12 @@ class RequestClosure : public ::google::protobuf::Closure {
 
     // closure的request信息
     RequestContext* reqCtx_;
+
+    // metric信息
+    FileMetric_t* metric_;
+
+    // 起始时间
+    uint64_t starttime_;
 };
 }   // namespace client
 }   // namespace curve

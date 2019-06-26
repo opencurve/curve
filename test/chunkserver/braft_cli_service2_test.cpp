@@ -53,8 +53,8 @@ class BraftCliService2Test : public testing::Test {
 
  public:
     const char *ip    = "127.0.0.1";
-    int port          = 9000;
-    const char *confs = "127.0.0.1:9000:0,127.0.0.1:9001:0,127.0.0.1:9002:0";
+    int port          = 9310;
+    const char *confs = "127.0.0.1:9310:0,127.0.0.1:9311:0,127.0.0.1:9312:0";
     int snapshotInterval  = 600;
     int electionTimeoutMs = 3000;
 
@@ -94,11 +94,11 @@ class WaitpidGuard {
 
 TEST_F(BraftCliService2Test, basic2) {
     Peer peer1;
-    peer1.set_address("127.0.0.1:9000:0");
+    peer1.set_address("127.0.0.1:9310:0");
     Peer peer2;
-    peer2.set_address("127.0.0.1:9001:0");
+    peer2.set_address("127.0.0.1:9311:0");
     Peer peer3;
-    peer3.set_address("127.0.0.1:9002:0");
+    peer3.set_address("127.0.0.1:9312:0");
 
     PeerId leaderId;
     LogicPoolID logicPoolId = 1;

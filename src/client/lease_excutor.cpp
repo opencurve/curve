@@ -14,7 +14,7 @@ using curve::common::TimeUtility;
 
 namespace curve {
 namespace client {
-LeaseExcutor::LeaseExcutor(LeaseOption_t leaseOpt,
+LeaseExcutor::LeaseExcutor(const LeaseOption_t& leaseOpt,
                            UserInfo_t userinfo,
                            MDSClient* mdsclient,
                            IOManager4File* iomanager):

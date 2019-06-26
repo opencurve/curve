@@ -40,7 +40,7 @@ using curve::client::FileClient;
 using curve::client::FileInstance;
 using curve::client::TimerTask;
 using curve::client::TimerTaskWorker;
-using curve::client::ClientMetric_t;
+using curve::client::FileMetric_t;
 
 void sessioncallback(CurveAioContext* aioctx) {
     ASSERT_EQ(-1 * LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
@@ -109,12 +109,10 @@ TEST(ClientSession, LeaseTaskTest) {
     UserInfo_t userinfo;
     userinfo.owner = "userinfo";
 
-    ClientMetric_t clientMetric;
     MDSClient mdsclient;
     mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
-    ASSERT_TRUE(fileinstance.Initialize(&mdsclient, userinfo,
-                                        cc.GetFileServiceOption(),
-                                        &clientMetric));
+    ASSERT_TRUE(fileinstance.Initialize(filename, &mdsclient, userinfo,
+                                        cc.GetFileServiceOption()));
 
     brpc::Server server;
     FakeMDSCurveFSService curvefsservice;
@@ -284,12 +282,10 @@ TEST(ClientSession, AppliedIndexTest) {
     UserInfo_t userinfo;
     userinfo.owner = "userinfo";
 
-    ClientMetric_t clientMetric;
     MDSClient mdsclient;
     mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
-    ASSERT_TRUE(fileinstance.Initialize(&mdsclient, userinfo,
-                                        cc.GetFileServiceOption(),
-                                        &clientMetric));
+    ASSERT_TRUE(fileinstance.Initialize("/test", &mdsclient, userinfo,
+                                        cc.GetFileServiceOption()));
 
     // create fake chunkserver service
     FakeChunkServerService fakechunkservice;
@@ -417,7 +413,6 @@ uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/testConfig/client_session.conf";   // NOLINT
 
 int main(int argc, char ** argv) {
-    google::InitGoogleLogging(argv[0]);
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
