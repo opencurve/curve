@@ -227,3 +227,16 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 }
+
+std::string metaserver_addr = "127.0.0.1:9151";     // NOLINT
+uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
+uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
+std::string configpath = "./test/client/testConfig/client_libcbd.conf";   // NOLINT
+
+int main(int argc, char ** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    google::ParseCommandLineFlags(&argc, &argv, false);
+
+    int ret = RUN_ALL_TESTS();
+    return ret;
+}

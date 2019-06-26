@@ -15,12 +15,13 @@
 
 namespace curve {
 namespace client {
-// TODO(tongguangxun) :与curve系统整体配置模块统一
 class ClientConfig {
  public:
     int Init(const char* configpath);
 
     FileServiceOption_t     GetFileServiceOption();
+    uint16_t                GetDummyserverStartPort();
+
  private:
     FileServiceOption_t      fileServiceOption_;
     common::Configuration    conf_;

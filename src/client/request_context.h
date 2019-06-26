@@ -16,18 +16,6 @@
 
 namespace curve {
 namespace client {
-
-enum class OpType {
-    READ = 0,
-    WRITE,
-    READ_SNAP,
-    DELETE_SNAP,
-    CREATE_CLONE,
-    RECOVER_CHUNK,
-    GET_CHUNK_INFO,
-    UNKNOWN
-};
-
 class RequestContext {
  public:
     RequestContext();

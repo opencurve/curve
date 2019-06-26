@@ -39,7 +39,7 @@ class RequestScheduler : public Uncopyable {
           client_() {}
     virtual ~RequestScheduler();
 
-    virtual int Init(RequestScheduleOption_t reqSchdulerOpt,
+    virtual int Init(const RequestScheduleOption_t& reqSchdulerOpt,
                      MetaCache *metaCache);
     /**
      * 启动Scheduler的线程池开始处理request

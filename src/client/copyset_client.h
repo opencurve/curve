@@ -45,7 +45,7 @@ class CopysetClient : public Uncopyable {
     }
 
     int Init(MetaCache *metaCache,
-             IOSenderOption_t ioSenderOpt);
+             const IOSenderOption_t& ioSenderOpt);
 
     /**
      * 返回依赖的Meta Cache

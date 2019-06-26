@@ -25,7 +25,7 @@ using curve::client::EndPoint;
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:9105";   // NOLINT
+std::string metaserver_addr = "127.0.0.1:9104";   // NOLINT
 
 DECLARE_uint64(test_disk_size);
 DEFINE_uint32(io_time, 5, "Duration for I/O test");
@@ -42,35 +42,18 @@ std::condition_variable interfacecv;
 
 DECLARE_uint64(test_disk_size);
 void writecallbacktest(CurveAioContext* context) {
-    writeflag = true;
+     writeflag = true;
     writeinterfacecv.notify_one();
-    LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 void readcallbacktest(CurveAioContext* context) {
     readflag = true;
     interfacecv.notify_one();
-    LOG(INFO) << "aio call back here, errorcode = " << context->ret;
 }
 
 int main(int argc, char ** argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
-    std::string configpath = "./client_4.conf";   // NOLINT
-    std::string config = ""\
-    "metaserver_addr=127.0.0.1:9105\n" \
-    "getLeaderRetry=3\n"\
-    "queueCapacity=4096\n"\
-    "threadpoolSize=2\n"\
-    "opRetryIntervalUs=200000\n"\
-    "opMaxRetry=3\n"\
-    "pre_allocate_context_num=1024\n"\
-    "ioSplitMaxSizeKB=64\n"\
-    "enableAppliedIndexRead=1\n"\
-    "loglevel=0";
-
-    int fd_ =  open(configpath.c_str(), O_CREAT | O_RDWR);
-    int len = write(fd_, config.c_str(), config.length());
-    close(fd_);
+    std::string configpath = "./test/client/testConfig/client.conf";
 
     if (Init(configpath.c_str()) != 0) {
         LOG(FATAL) << "Fail to init config";
@@ -106,7 +89,7 @@ int main(int argc, char ** argv) {
     char* buffer;
     char* readbuffer;
     if (!FLAGS_verify_io) {
-        goto skip_write_io;
+        // goto skip_write_io;
     }
 
     fd = Open(filename.c_str(), &userinfo);
@@ -132,14 +115,49 @@ int main(int argc, char ** argv) {
         Write(fd, buffer, offset, 4096);
     }
 
-    CurveAioContext writeaioctx;
-    writeaioctx.buf = buffer;
-    writeaioctx.offset = 0;
-    writeaioctx.op = LIBCURVE_OP_WRITE;
-    writeaioctx.length = 8 * 1024;
-    writeaioctx.cb = writecallbacktest;
 
-    AioWrite(fd, &writeaioctx);
+
+    char* buf2 = new char[8 * 1024];
+    CurveAioContext* aioctx1 = new CurveAioContext;
+    char* buf1 = new char[8 * 1024];
+    CurveAioContext* aioctx2 = new CurveAioContext;
+    auto f = [&]() {
+        while (1) {
+            for (int i = 0; i < 10; i++) {
+                aioctx1->buf = buf1;
+                aioctx1->offset = 0;
+                aioctx1->op = LIBCURVE_OP_WRITE;
+                aioctx1->length = 8 * 1024;
+                aioctx1->cb = writecallbacktest;
+                AioWrite(fd, aioctx1);
+                aioctx2->buf = buf2;
+                aioctx2->offset = 0;
+                aioctx2->length = 8 * 1024;
+                aioctx2->op = LIBCURVE_OP_READ;
+                aioctx2->cb = readcallbacktest;
+                AioRead(fd, aioctx2);
+            }
+
+            char buf1[4096];
+            char buf2[8192];
+            Write(fd, buf2, 0, 8192);
+            Read(fd, buf1, 0, 4096);
+        }
+    };
+
+    std::thread t1(f);
+    std::thread t2(f);
+
+    t1.join();
+    t2.join();
+
+    delete[] buf1;
+    delete[] buf2;
+    delete aioctx2;
+    delete aioctx1;
+
+    CurveAioContext writeaioctx;
+    CurveAioContext readaioctx;
     {
         std::unique_lock<std::mutex> lk(writeinterfacemtx);
         writeinterfacecv.wait(lk, []()->bool{return writeflag;});
@@ -151,14 +169,6 @@ int main(int argc, char ** argv) {
         writeinterfacecv.wait(lk, []()->bool{return writeflag;});
     }
 
-    readbuffer = new char[8 * 1024];
-    CurveAioContext readaioctx;
-    readaioctx.buf = readbuffer;
-    readaioctx.offset = 0;
-    readaioctx.length = 8 * 1024;
-    writeaioctx.op = LIBCURVE_OP_READ;
-    readaioctx.cb = readcallbacktest;
-    AioRead(fd, &readaioctx);
     {
         std::unique_lock<std::mutex> lk(interfacemtx);
         interfacecv.wait(lk, []()->bool{return readflag;});

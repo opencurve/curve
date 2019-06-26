@@ -7,6 +7,7 @@
 
 #include "src/client/client_config.h"
 #include "src/client/service_helper.h"
+#include "src/client/client_metric.h"
 
 namespace curve {
 namespace client {
@@ -57,7 +58,8 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
                             ChunkServerAddr *leaderId,
                             int16_t currentleaderIndex,
                             uint32_t rpcTimeOutMs,
-                            ChunkServerID* csid) {
+                            ChunkServerID* csid,
+                            FileMetric_t* fm) {
     if (conf.empty()) {
         LOG(ERROR) << "Empty group configuration";
         return -1;
@@ -98,6 +100,7 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
         request.set_allocated_peer(peer);
 
         stub.GetLeader(&cntl, &request, &response, NULL);
+        MetricHelper::IncremGetLeaderRetryTime(fm);
 
         if (cntl.Failed()) {
             LOG(ERROR) << "GetLeader failed, "
