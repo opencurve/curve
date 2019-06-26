@@ -54,6 +54,11 @@ CopysetNode::~CopysetNode() {
     ChunkServerMetric::GetInstance()->RemoveCopysetMetric(logicPoolId_,
                                                           copysetId_);
     metric_ = nullptr;
+
+    if (nodeOptions_.snapshot_file_system_adaptor != nullptr) {
+        delete nodeOptions_.snapshot_file_system_adaptor;
+        LOG(INFO) << "release raftsnapshot filesystem adaptor!";
+    }
 }
 
 int CopysetNode::Init(const CopysetNodeOptions &options) {
@@ -182,11 +187,6 @@ void CopysetNode::Fini() {
         raftNode_->shutdown(nullptr);
         // 等待所有的正在处理的task结束
         raftNode_->join();
-    }
-
-    if (nodeOptions_.snapshot_file_system_adaptor != nullptr) {
-        delete nodeOptions_.snapshot_file_system_adaptor;
-        LOG(INFO) << "release raftsnapshot filesystem adaptor!";
     }
 }
 
@@ -506,6 +506,10 @@ void CopysetNode::SetConfEpochFile(std::unique_ptr<ConfEpochFile> epochFile) {
 
 void CopysetNode::SetCopysetNode(std::shared_ptr<Node> node) {
     raftNode_ = node;
+}
+
+void CopysetNode::SetSnapshotFileSystem(scoped_refptr<FileSystemAdaptor> *fs) {
+    nodeOptions_.snapshot_file_system_adaptor = fs;
 }
 
 bool CopysetNode::IsLeaderTerm() const {
