@@ -37,6 +37,8 @@ DEFINE_string(chunkServerMetaUri,
 DEFINE_string(copySetUri, "local://./0/copysets", "copyset data uri");
 DEFINE_string(recycleUri, "local://./0/recycler" , "recycle uri");
 DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
+DEFINE_string(chunkFilePoolMetaPath,
+    "./chunkfilepool.meta", "chunk file pool meta path");
 
 namespace curve {
 namespace chunkserver {
@@ -87,9 +89,7 @@ int ChunkServer::Run(int argc, char** argv) {
     // 远端拷贝管理模块选项
     CopyerOptions copyerOptions;
     InitCopyerOptions(&conf, &copyerOptions);
-    auto curveClient = std::make_shared<FileClient>();
-    auto s3Adapter = std::make_shared<S3Adapter>();
-    auto copyer = std::make_shared<OriginCopyer>(curveClient, s3Adapter);
+    auto copyer = std::make_shared<OriginCopyer>();
     LOG_IF(FATAL, copyer->Init(copyerOptions) != 0)
         << "Failed to initialize clone copyer.";
 
@@ -369,6 +369,24 @@ void ChunkServer::InitCopyerOptions(
         &copyerOptions->curveConf));
     LOG_IF(FATAL,
         !conf->GetStringValue("s3.config_path", &copyerOptions->s3Conf));
+    bool disableCurveClient = false;
+    bool disableS3Adapter = false;
+    LOG_IF(FATAL, !conf->GetBoolValue("clone.disable_curve_client",
+        &disableCurveClient));
+    LOG_IF(FATAL, !conf->GetBoolValue("clone.disable_s3_adapter",
+        &disableS3Adapter));
+
+    if (disableCurveClient) {
+        copyerOptions->curveClient = nullptr;
+    } else {
+        copyerOptions->curveClient = std::make_shared<FileClient>();
+    }
+
+    if (disableS3Adapter) {
+        copyerOptions->s3Client = nullptr;
+    } else {
+        copyerOptions->s3Client = std::make_shared<S3Adapter>();
+    }
 }
 
 void ChunkServer::InitCloneOptions(
@@ -475,6 +493,12 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         !info.is_default) {
         conf->SetStringValue(
             "chunkfilepool.chunk_file_pool_dir", FLAGS_chunkFilePoolDir);
+    }
+
+    if (GetCommandLineFlagInfo("chunkFilePoolMetaPath", &info) &&
+        !info.is_default) {
+        conf->SetStringValue(
+            "chunkfilepool.meta_path", FLAGS_chunkFilePoolMetaPath);
     }
 }
 
