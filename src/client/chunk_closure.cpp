@@ -56,7 +56,10 @@ void WriteChunkClosure::Run() {
         }
 
         LOG(ERROR) << "write failed, error code: " << cntl_->ErrorCode()
-                   << ", error: " << cntl_->ErrorText();
+                   << ", error: " << cntl_->ErrorText()
+                   << ", chunk id = " << chunkid
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         /* It will be invoked in brpc's bthread, so */
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
@@ -193,7 +196,10 @@ void ReadChunkClosure::Run() {
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::READ);
         }
 
-        LOG(ERROR) << "read failed, error: " << cntl_->ErrorText();
+        LOG(ERROR) << "read failed, error: " << cntl_->ErrorText()
+                   << ", chunk id = " << chunkid
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -326,7 +332,10 @@ void ReadChunkSnapClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "read snapshot failed, error: " << cntl_->ErrorText();
+        LOG(ERROR) << "read snapshot failed, error: " << cntl_->ErrorText()
+                   << ", chunk id = " << chunkid
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -457,7 +466,10 @@ void DeleteChunkSnapClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "delete snapshot failed, error: " << cntl_->ErrorText();
+        LOG(ERROR) << "delete snapshot failed, error: " << cntl_->ErrorText()
+                   << ", chunk id = " << chunkid
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -564,7 +576,10 @@ void GetChunkInfoClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "get chunk info failed, error: " << cntl_->ErrorText();
+        LOG(ERROR) << "get chunk info failed, error: " << cntl_->ErrorText()
+                   << ", chunk id = " << chunkid
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -673,7 +688,10 @@ void CreateCloneChunkClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "create clone failed, error: " << cntl_->ErrorText();
+        LOG(ERROR) << "create clone failed, error: " << cntl_->ErrorText()
+                   << ", chunk id = " << chunkid
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -784,7 +802,10 @@ void RecoverChunkClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "recover chunk failed, error: " << cntl_->ErrorText();
+        LOG(ERROR) << "recover chunk failed, error: " << cntl_->ErrorText()
+                   << ", chunk id = " << chunkid
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
