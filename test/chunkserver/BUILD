@@ -291,7 +291,7 @@ cc_test(
 cc_test(
     name = "metric_test",
     srcs = glob([
-        "metrics_test.cpp"
+        "metrics_test.cpp",
     ]),
     copts = ["-std=c++14"],
     deps = DEPS,

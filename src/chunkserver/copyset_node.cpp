@@ -751,5 +751,9 @@ int CopysetNode::GetHash(std::string *hash) {
     return 0;
 }
 
+void CopysetNode::GetStatus(NodeStatus *status) {
+    raftNode_->get_status(status);
+}
+
 }  // namespace chunkserver
 }  // namespace curve
