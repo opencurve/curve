@@ -73,6 +73,8 @@ void LeaseExcutor::RefreshLease() {
         return;
     } else if (LIBCURVE_ERROR::AUTHFAIL == ret) {
         iomanager_->LeaseTimeoutBlockIO();
+        LOG(WARNING) << "refresh session auth fail, block io. "
+                     << "session id = " << leasesession_.sessionID;
         return;
     }
 
@@ -85,6 +87,8 @@ void LeaseExcutor::RefreshLease() {
         iomanager_->LeaseTimeoutBlockIO();
         refreshTask_->SetDeleteSelf();
         isleaseAvaliable_.store(false);
+        LOG(WARNING) << "session or file not exists, no longer refresh!"
+                     << ", sessionid = " << leasesession_.sessionID;
     } else {
         LOG(WARNING) << leasesession_.sessionID << " lease refresh failed!";
         IncremRefreshFailed();

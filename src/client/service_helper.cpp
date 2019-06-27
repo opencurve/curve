@@ -70,7 +70,10 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
     for (auto iter = conf.begin(); iter != conf.end(); ++iter) {
         ++index;
         if (index == currentleaderIndex) {
-            LOG(INFO) << "skip current server address!";
+            LOG(INFO) << "refresh leader skip current leader address: "
+                      << iter->csaddr_.ToString().c_str()
+                      << ", copysetid = " << copysetId
+                      << ", logicpoolid = " << logicPoolId;
             continue;
         }
 
@@ -104,7 +107,9 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
 
         if (cntl.Failed()) {
             LOG(ERROR) << "GetLeader failed, "
-                       << cntl.ErrorText();
+                       << cntl.ErrorText()
+                       << ", copyset id = " << copysetId
+                       << ", logicpool id = " << logicPoolId;
             continue;
         }
 

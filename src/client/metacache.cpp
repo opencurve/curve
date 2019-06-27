@@ -91,6 +91,10 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                 UpdateCopysetInfo(logicPoolId, copysetId, targetInfo);
                 break;
             } else {
+                LOG(INFO) << "refresh leader from chunkserver failed, "
+                          << "get copyset chunkserver list from mds, "
+                          << "copyset id = " << copysetId << ", "
+                          << "logicpool id = " << logicPoolId;
                 // 重试失败，这时候需要向mds重新拉取最新的copyset信息了
                 // JIRA: http://jira.netease.com/browse/CLDCFS-1262
                 std::vector<CopysetID> copysetidvec;
@@ -102,13 +106,19 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                 if (ret == LIBCURVE_ERROR::OK && !cpinfoVec.empty()) {
                     UpdateCopysetInfo(logicPoolId, copysetId, cpinfoVec[0]);
                     break;
+                } else {
+                    LOG(ERROR) << "get copyset server list info from mds failed"
+                               << ", copyset id = " << copysetId
+                               << ", logicpool id = " << logicPoolId;
                 }
             }
         }
     }
 
     if (ret == -1) {
-        LOG(ERROR) << "get leader failed after retry!";
+        LOG(ERROR) << "get leader failed after retry!"
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         return -1;
     }
 
@@ -129,7 +139,9 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                       fm);
 
     if (ret == -1) {
-        LOG(ERROR) << "get leader failed!";
+        LOG(ERROR) << "get leader failed!"
+                   << ", copyset id = " << copysetId
+                   << ", logicpool id = " << logicPoolId;
         return -1;
     }
     return toupdateCopyset->UpdateLeaderInfo(csid, leaderaddr);

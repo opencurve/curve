@@ -20,8 +20,7 @@ namespace client {
 IOSplitOPtion_t Splitor::iosplitopt_;
 void Splitor::Init(IOSplitOPtion_t ioSplitOpt) {
     iosplitopt_ = ioSplitOpt;
-    confMetric_.ioSplitMaxSizeKB.set_value(
-                iosplitopt_.ioSplitMaxSizeKB);
+    confMetric_.ioSplitMaxSizeKB.set_value(iosplitopt_.ioSplitMaxSizeKB);
     LOG(INFO) << "io splitor init success!";
 }
 int Splitor::IO2ChunkRequests(IOTracker* iotracker,
@@ -64,12 +63,15 @@ int Splitor::IO2ChunkRequests(IOTracker* iotracker,
 
         if (!AssignInternal(iotracker, mc, targetlist, data + dataoff,
                             off, len, mdsclient, fi, startchunkindex)) {
-            LOG(ERROR) << "request split failed"
-                       << ", off = " << off
-                       << ", len = " << len
-                       << ", seqnum = " << fi->seqnum
-                       << ", chunksize = " << chunksize
-                       << ", chunkindex = " << startchunkindex;
+            LOG(ERROR)  << "request split failed"
+                        << ", off = " << off
+                        << ", len = " << len
+                        << ", seqnum = " << fi->seqnum
+                        << ", endoff = " << endoff
+                        << ", chunkendpos = " << chunkendpos
+                        << ", chunksize = " << chunksize
+                        << ", chunkindex = " << startchunkindex
+                        << ", endchunkindex = " << endchunkindex;
             return -1;
         }
 
@@ -161,7 +163,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                                         fileinfo,
                                         &segInfo);
         if (re == LIBCURVE_ERROR::FAILED || re == LIBCURVE_ERROR::AUTHFAIL) {
-            LOG(ERROR) << "GetOrAllocateSegment failed!";
+            LOG(ERROR) << "GetOrAllocateSegment failed! "
+                       << "offset = " << chunkidx * fileinfo->chunksize;
             return false;
         } else {
             int count = 0;
@@ -177,7 +180,15 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                                          segInfo.lpcpIDInfo.cpidVec,
                                          &cpinfoVec);
             if (re == LIBCURVE_ERROR::FAILED) {
-                LOG(ERROR) << "GetOrAllocateSegment failed!";
+                std::string cpidstr;
+                for (auto id : segInfo.lpcpIDInfo.cpidVec) {
+                    cpidstr.append(std::to_string(id))
+                        .append(",");
+                }
+
+                LOG(ERROR) << "GetServerList failed! "
+                           << "logicpool id = " << segInfo.lpcpIDInfo.lpid
+                           << ", copyset list = " << cpidstr.c_str();
                 return false;
             } else {
                 for (auto cpinfo : cpinfoVec) {
@@ -225,7 +236,8 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
         }
         return ret == 0;
     }
-    LOG(ERROR) << "can not find the chunk index info!";
+    LOG(ERROR) << "can not find the chunk index info!"
+                << ", chunk index = " << chunkidx;
     return false;
 }
 }   // namespace client

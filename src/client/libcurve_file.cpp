@@ -73,6 +73,10 @@ int FileClient::Init(const std::string& configpath) {
 
     google::SetLogDestination(google::INFO,
         clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
+    google::SetLogDestination(google::WARNING,
+        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
+    google::SetLogDestination(google::ERROR,
+        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
 
     FLAGS_minloglevel = clientconfig_.GetFileServiceOption().loginfo.loglevel;
 
