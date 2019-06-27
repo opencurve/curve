@@ -733,7 +733,7 @@ TEST(CopysetNodeTest, get_hash) {
         ASSERT_EQ(-1, copysetNode.GetHash(&hash));
     }
 
-    // List success,  one file "conf.epoch"
+    // List success
     {
         std::string hash;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -742,8 +742,6 @@ TEST(CopysetNodeTest, get_hash) {
         copysetNode.SetLocalFileSystem(mockfs);
 
         std::vector<std::string> files;
-        files.push_back("conf.epoch");
-
 
         EXPECT_CALL(*mockfs, List(_, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
