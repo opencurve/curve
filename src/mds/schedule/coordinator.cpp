@@ -103,6 +103,7 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     const ::curve::mds::topology::CopySetInfo &originInfo,
     const ::curve::mds::heartbeat::ConfigChangeInfo &configChInfo,
     ::curve::mds::heartbeat::CopySetConf *out) {
+    // 将toplogy中copyset转换成schedule中copyset的形式
     CopySetInfo info;
     if (!topo_->CopySetFromTopoToSchedule(originInfo, &info)) {
         LOG(ERROR) << "coordinator cannot convert copySet(logicalPoolId:"
@@ -113,14 +114,12 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     }
     info.configChangeInfo = configChInfo;
 
+    // 查看指定copyset上是否有operator
     Operator op;
     if (!opController_->GetOperatorById(info.id, &op)) {
         return ::curve::mds::topology::UNINTIALIZE_ID;
     }
-
-    LOG(INFO) << "find operator on copySet(logicalPoolId:"
-              << info.id.first
-              << ", copySetId:" << info.id.second << "), operator: "
+    LOG(INFO) << "find operator on" << info.CopySetInfoStr() << "), operator: "
               << op.OpToString();
 
     // 根据leader上报的copyset信息更新operator的状态
@@ -128,14 +127,45 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     CopySetConf res;
     bool hasOrder = opController_->ApplyOperator(info, &res);
     if (hasOrder) {
-        // build心跳中需要返回的copysetConf
-        if (!BuildCopySetConf(res, out)) {
-            LOG(ERROR) << "build copyset conf for copySet(" << info.id.first
-                       << "," << info.id.second << ") fail";
+        LOG(INFO) << "going to order operator " << op.OpToString();
+        // 判断epoch和startEpoch是否一致，如果不一致，operator不下发
+        // 场景： 如果mds已经下发了operator, 并且copyset完成，但心跳还未上报；
+        // 此时mds重启，在该copyset生成新的operator，不下发并移除该operator
+        if (info.epoch != op.startEpoch) {
+            LOG(WARNING) << "Operator " << op.OpToString()
+                         << "on " << info.CopySetInfoStr()
+                         << " is stale, remove operator";
+            opController_->RemoveOperator(info.id);
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
 
-        LOG(INFO) << "order operator " << op.OpToString();
+        // 如果addOperator或者transferLeader的candidate是offline状态，operator不应该下发 //NOLINT
+        ChunkServerInfo chunkServer;
+        if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
+            LOG(ERROR) << "coordinator can not get chunkServer "
+                    << res.configChangeItem << " from topology";
+            opController_->RemoveOperator(info.id);
+            return ::curve::mds::topology::UNINTIALIZE_ID;
+        }
+        bool needCheckType = (res.type == ConfigChangeType::ADD_PEER ||
+            res.type == ConfigChangeType::TRANSFER_LEADER);
+        if (needCheckType && chunkServer.IsOffline()) {
+            LOG(ERROR) << "candidate chunkserver " << chunkServer.info.id
+                       << " is offline, abort config change";
+            opController_->RemoveOperator(info.id);
+            return ::curve::mds::topology::UNINTIALIZE_ID;
+        }
+
+        // build心跳中需要返回的copysetConf, 如果build失败, 移除operator
+        if (!BuildCopySetConf(res, out)) {
+            LOG(ERROR) << "build copyset conf for " << info.CopySetInfoStr()
+                       << ") fail, remove operator";
+            opController_->RemoveOperator(info.id);
+            return ::curve::mds::topology::UNINTIALIZE_ID;
+        }
+
+        LOG(INFO) << "order operator " << op.OpToString() << " on "
+                  << info.CopySetInfoStr() << " success";
         return res.configChangeItem;
     }
 
@@ -167,6 +197,7 @@ bool Coordinator::BuildCopySetConf(
                 << res.configChangeItem << " from topology";
         return false;
     }
+
     auto replica = new ::curve::common::Peer();
     replica->set_id(res.configChangeItem);
     replica->set_address(::curve::mds::topology::BuildPeerId(
