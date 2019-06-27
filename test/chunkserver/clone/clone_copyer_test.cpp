@@ -40,12 +40,14 @@ class CloneCopyerTest : public testing::Test  {
 };
 
 TEST_F(CloneCopyerTest, BasicTest) {
-    OriginCopyer copyer(curveClient_, s3Client_);
+    OriginCopyer copyer;
     CopyerOptions options;
     options.curveConf = CURVE_CONF;
     options.s3Conf = S3_CONF;
     options.curveUser.owner = ROOT_OWNER;
     options.curveUser.password = ROOT_PWD;
+    options.curveClient = curveClient_;
+    options.s3Client = s3Client_;
     // init test
     {
         // curvefs init failed
@@ -139,6 +141,50 @@ TEST_F(CloneCopyerTest, BasicTest) {
             .Times(1);
         ASSERT_EQ(0, copyer.Fini());
     }
+}
+
+TEST_F(CloneCopyerTest, DisableTest) {
+    OriginCopyer copyer;
+    CopyerOptions options;
+    options.curveConf = CURVE_CONF;
+    options.s3Conf = S3_CONF;
+    options.curveUser.owner = ROOT_OWNER;
+    options.curveUser.password = ROOT_PWD;
+    // 禁用curveclient和s3adapter
+    options.curveClient = nullptr;
+    options.s3Client = nullptr;
+
+    // curvefs init success
+    EXPECT_CALL(*curveClient_, Init(_))
+        .Times(0);
+    ASSERT_EQ(0, copyer.Init(options));
+
+    // 从上s3或者curve请求下载数据会返回失败
+    {
+        string location;
+        off_t off = 0;
+        size_t size = 4096;
+        char* buf = new char[4096];
+
+        /* 用例:读curve上的数据，读取失败
+         */
+        location = "test:0@cs";
+        EXPECT_CALL(*curveClient_, Open(_, _))
+            .Times(0);
+        EXPECT_CALL(*curveClient_, Read(_, _, _, _))
+            .Times(0);
+        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+
+        /* 用例:读s3上的数据，读取失败
+         */
+        location = "test@s3";
+        EXPECT_CALL(*s3Client_, GetObject(_, _, _, _))
+            .Times(0);
+        ASSERT_EQ(-1, copyer.Download(location, off, size, buf));
+        delete [] buf;
+    }
+    // fini 可以成功
+    ASSERT_EQ(0, copyer.Fini());
 }
 
 }  // namespace chunkserver

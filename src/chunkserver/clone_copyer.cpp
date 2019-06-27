@@ -10,29 +10,42 @@
 namespace curve {
 namespace chunkserver {
 
-OriginCopyer::OriginCopyer(std::shared_ptr<FileClient> curveClient,
-                           std::shared_ptr<S3Adapter> s3Client)
-    : curveClient_(curveClient)
-    , s3Client_(s3Client) {}
+OriginCopyer::OriginCopyer()
+    : curveClient_(nullptr)
+    , s3Client_(nullptr) {}
 
 int OriginCopyer::Init(const CopyerOptions& options) {
-    int errorCode = curveClient_->Init(options.curveConf.c_str());
-    if (errorCode != 0) {
-        LOG(ERROR) << "Init curve client failed."
-                   << "error code: " << errorCode;
-        return -1;
+    curveClient_ = options.curveClient;
+    s3Client_ = options.s3Client;
+    if (curveClient_ != nullptr) {
+        int errorCode = curveClient_->Init(options.curveConf.c_str());
+        if (errorCode != 0) {
+            LOG(ERROR) << "Init curve client failed."
+                    << "error code: " << errorCode;
+            return -1;
+        }
+        curveUser_ = options.curveUser;
+    } else {
+        LOG(WARNING) << "Curve client is disabled.";
     }
-    s3Client_->Init(options.s3Conf);
-    curveUser_ = options.curveUser;
+    if (s3Client_ != nullptr) {
+        s3Client_->Init(options.s3Conf);
+    } else {
+        LOG(WARNING) << "s3 adapter is disabled.";
+    }
     return 0;
 }
 
 int OriginCopyer::Fini() {
-    for (auto &pair : fdMap_) {
-        curveClient_->Close(pair.second);
+    if (curveClient_ != nullptr) {
+        for (auto &pair : fdMap_) {
+            curveClient_->Close(pair.second);
+        }
+        curveClient_->UnInit();
     }
-    curveClient_->UnInit();
-    s3Client_->Deinit();
+    if (s3Client_ != nullptr) {
+        s3Client_->Deinit();
+    }
     return 0;
 }
 
@@ -61,6 +74,11 @@ int OriginCopyer::DownloadFromS3(const string& objectName,
                                      off_t off,
                                      size_t size,
                                      char* buf) {
+    if (s3Client_ == nullptr) {
+        LOG(ERROR) << "Failed to get s3 object."
+                   << "s3 adapter is disabled";
+        return -1;
+    }
     int ret = s3Client_->GetObject(objectName, buf, off, size);
     if (ret < 0) {
         LOG(ERROR) << "Failed to get s3 object."
@@ -74,6 +92,11 @@ int OriginCopyer::DownloadFromCurve(const string& fileName,
                                         off_t off,
                                         size_t size,
                                         char* buf) {
+    if (curveClient_ == nullptr) {
+        LOG(ERROR) << "Failed to read curve file."
+                   << "curve client is disabled";
+        return -1;
+    }
     int fd = 0;
     {
         std::unique_lock<std::mutex> lock(mtx_);
