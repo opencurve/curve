@@ -63,6 +63,10 @@ void IOTracker::StartRead(CurveAioContext* aioctx,
             r->done_->SetFileMetric(fileMetric_);
         });
         ret = scheduler_->ScheduleRequest(reqlist_);
+    } else {
+        LOG(ERROR) << "splitor read io failed, "
+                   << "offset = " << offset_
+                   << ", length = " << length_;
     }
 
     if (ret == -1) {
@@ -93,6 +97,10 @@ void IOTracker::StartWrite(CurveAioContext* aioctx,
             r->done_->SetFileMetric(fileMetric_);
         });
         ret = scheduler_->ScheduleRequest(reqlist_);
+    } else {
+        LOG(ERROR) << "splitor write io failed, "
+                   << "offset = " << offset_
+                   << ", length = " << length_;
     }
 
     if (ret == -1) {
@@ -149,7 +157,8 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
     } while (false);
 
     if (ret == -1) {
-        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        LOG(ERROR) << "DeleteSnapChunkOrCorrectSn request schedule failed,"
+                   << "return and recyle resource!";
         ReturnOnFail();
     }
 }
@@ -176,7 +185,8 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
     } while (false);
 
     if (ret == -1) {
-        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        LOG(ERROR) << "GetChunkInfo request schedule failed,"
+                   << " return and recyle resource!";
         ReturnOnFail();
     }
 }
@@ -209,7 +219,8 @@ void IOTracker::CreateCloneChunk(const std::string &location,
     } while (false);
 
     if (ret == -1) {
-        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        LOG(ERROR) << "CreateCloneChunk request schedule failed,"
+                   << "return and recyle resource!";
         ReturnOnFail();
     }
 }
@@ -238,7 +249,8 @@ void IOTracker::RecoverChunk(const ChunkIDInfo &cinfo,
     } while (false);
 
     if (ret == -1) {
-        LOG(ERROR) << "split or schedule failed, return and recyle resource!";
+        LOG(ERROR) << "RecoverChunk request schedule failed,"
+                   << " return and recyle resource!";
         ReturnOnFail();
     }
 }
