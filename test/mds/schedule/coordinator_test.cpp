@@ -70,23 +70,55 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
             .Times(2).WillOnce(DoAll(SetArgPointee<1>(info), Return(true)))
                     .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         EXPECT_CALL(*topoAdapter, GetChunkServerInfo(_, _))
-            .Times(2).WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)))
-                    .WillOnce(Return(false));
+            .Times(3)
+            .WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)))
+            .WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)))
+            .WillOnce(Return(false));
         coordinator->GetOpController()->AddOperator(testOperator);
         Operator opRes;
         ASSERT_TRUE(coordinator->GetOpController()->GetOperatorById(
             info.id, &opRes));
+        // 第一次下发配置
         ASSERT_EQ(4, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
         ASSERT_EQ("127.0.0.1:9000:0", res.configchangeitem().address());
         ASSERT_EQ(ConfigChangeType::ADD_PEER, res.type());
 
+        // 第二次获取chunkserver失败
         ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
             testCopySetInfo, ConfigChangeInfo{}, &res));
     }
 
     {
-        // 3. test op executing and not finish
+        // 3. 下发配置，但candidate是offline状态
+        EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
+            .Times(2)
+            .WillRepeatedly(DoAll(SetArgPointee<1>(info), Return(true)));
+        coordinator->GetOpController()->RemoveOperator(info.id);
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        csInfo.state = OnlineState::OFFLINE;
+        EXPECT_CALL(*topoAdapter, GetChunkServerInfo(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(csInfo), Return(true)));
+
+        ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
+            testCopySetInfo, ConfigChangeInfo{}, &res));
+        Operator opRes;
+        ASSERT_FALSE(coordinator->GetOpController()->GetOperatorById(
+            info.id, &opRes));
+        csInfo.state = OnlineState::ONLINE;
+
+        // 获取不到chunkserver的信息
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        EXPECT_CALL(*topoAdapter, GetChunkServerInfo(_, _))
+            .WillOnce(Return(false));
+        ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
+            testCopySetInfo, ConfigChangeInfo{}, &res));
+        ASSERT_FALSE(coordinator->GetOpController()->GetOperatorById(
+            info.id, &opRes));
+    }
+
+    {
+        // 4. test op executing and not finish
         info.candidatePeerInfo = PeerInfo(4, 1, 1, 1, "", 9000);
         info.configChangeInfo.set_finished(false);
         info.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
@@ -101,7 +133,19 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
     }
 
     {
-        // 4. test op success
+        // 5. test operator with staled startEpoch
+        info.configChangeInfo.Clear();
+        info.epoch = startEpoch + 1;
+        EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
+        coordinator->GetOpController()->RemoveOperator(info.id);
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
+            testCopySetInfo, ConfigChangeInfo{}, &res));
+    }
+
+    {
+        // 6. test op success
         info.configChangeInfo.set_finished(true);
         info.peers.emplace_back(PeerInfo(4, 4, 4, 1, "192.10.123.1", 9000));
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
@@ -111,7 +155,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
     }
 
     {
-        // 5. test transfer copysetInfo err
+        // 7. test transfer copysetInfo err
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .WillOnce(Return(false));
         ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
