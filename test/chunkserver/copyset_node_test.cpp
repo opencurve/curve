@@ -120,21 +120,15 @@ TEST(CopysetNodeTest, error_test) {
 
     // on_snapshot_save: List failed
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         std::vector<std::string> files;
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
 
-        char buff[128] = {0};
-        ::snprintf(buff,
-                   128,
-                   ":%u:%u:%lu",
-                   logicPoolID,
-                   copysetID,
-                   0);
-        int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
+        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        std::string jsonStr(json);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
@@ -149,50 +143,10 @@ TEST(CopysetNodeTest, error_test) {
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
         EXPECT_CALL(*mockfs, Write(_, _, _, _)).Times(1)
-            .WillOnce(Return(writeLen));
+            .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, List(_, _)).Times(1).WillOnce(Return(-1));
-
-        copysetNode.on_snapshot_save(&writer, &closure);
-        LOG(INFO) << closure.status().error_cstr();
-    }
-    // on_snapshot_save: save conf success, rename failed
-    {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
-        Configuration conf;
-        std::vector<std::string> files;
-        files.push_back("test-1.txt");
-        files.push_back("test-2.txt");
-
-        char buff[128] = {0};
-        ::snprintf(buff,
-                   128,
-                   ":%u:%u:%lu",
-                   logicPoolID,
-                   copysetID,
-                   0);
-        int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
-
-        CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
-        FakeClosure closure;
-        FakeSnapshotWriter writer;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile = std::make_unique<ConfEpochFile>(mockfs);
-
-        copysetNode.SetLocalFileSystem(mockfs);
-        copysetNode.SetConfEpochFile(std::move(epochFile));
-        EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*mockfs, Write(_, _, _, _)).Times(1)
-            .WillOnce(Return(writeLen));
-        EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1).WillOnce(Return(-1));
 
         copysetNode.on_snapshot_save(&writer, &closure);
         LOG(INFO) << closure.status().error_cstr();
@@ -200,21 +154,12 @@ TEST(CopysetNodeTest, error_test) {
 
     // on_snapshot_save: save conf open failed
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         std::vector<std::string> files;
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
-
-        char buff[128] = {0};
-        ::snprintf(buff,
-                   128,
-                   ":%u:%u:%lu",
-                   logicPoolID,
-                   copysetID,
-                   0);
-        int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
@@ -234,21 +179,15 @@ TEST(CopysetNodeTest, error_test) {
     }
     // on_snapshot_save: success
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         std::vector<std::string> files;
         files.push_back("test-1.txt");
         files.push_back("test-2.txt");
 
-        char buff[128] = {0};
-        ::snprintf(buff,
-                   128,
-                   ":%u:%u:%lu",
-                   logicPoolID,
-                   copysetID,
-                   0);
-        int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
+        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":774340440}";  // NOLINT
+        std::string jsonStr(json);
 
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
@@ -263,10 +202,9 @@ TEST(CopysetNodeTest, error_test) {
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1).WillOnce(Return(10));
         EXPECT_CALL(*mockfs, Write(_, _, _, _)).Times(1)
-            .WillOnce(Return(writeLen));
+            .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*mockfs, Fsync(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, Close(_)).Times(1).WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*mockfs, List(_, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
 
@@ -275,8 +213,8 @@ TEST(CopysetNodeTest, error_test) {
 
     // on_snapshot_load: Dir not exist, File not exist, data init success
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         FakeClosure closure;
@@ -303,8 +241,8 @@ TEST(CopysetNodeTest, error_test) {
     }
     // on_snapshot_load: Dir not exist, File not exist, data init failed
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         std::shared_ptr<MockLocalFileSystem>
@@ -332,8 +270,8 @@ TEST(CopysetNodeTest, error_test) {
     }
     // on_snapshot_load: Dir not exist, File exist, load conf.epoch failed
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         FakeClosure closure;
@@ -354,8 +292,8 @@ TEST(CopysetNodeTest, error_test) {
 
     // on_snapshot_load: Dir exist, List failed
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         FakeClosure closure;
@@ -445,11 +383,10 @@ TEST(CopysetNodeTest, error_test) {
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
     }
-
     /* on_error */
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         braft::Error error;
@@ -458,16 +395,16 @@ TEST(CopysetNodeTest, error_test) {
     }
     /* Fini, raftNode is null */
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         copysetNode.Fini();
     }
     /* Fini, raftNode is not null */
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         std::vector<std::string> files;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -477,8 +414,8 @@ TEST(CopysetNodeTest, error_test) {
     }
     /* Load/SaveConfEpoch */
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         copysetNodeOptions.localFileSystem = fs;
@@ -491,8 +428,8 @@ TEST(CopysetNodeTest, error_test) {
     }
     /* load: ConfEpochFile load failed*/
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
         copysetNodeOptions.localFileSystem = fs;
@@ -503,8 +440,8 @@ TEST(CopysetNodeTest, error_test) {
     }
     /* load: logic pool id 错误 */
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         uint64_t epoch = 12;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -523,8 +460,8 @@ TEST(CopysetNodeTest, error_test) {
     }
     /* load: copyset id 错误 */
     {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
         uint64_t epoch = 12;
         Configuration conf;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);

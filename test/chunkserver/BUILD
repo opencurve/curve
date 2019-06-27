@@ -20,14 +20,14 @@ DEPS = [
 cc_test(
     name = "chunk-test1",
     srcs = glob([
-        "copyset_node_manager_test.cpp",
+                "copyset_node_manager_test.cpp",
         "copyset_service_test.cpp",
-        "op_request_test.cpp",
-        "copyset_node_test.cpp",
+                "op_request_test.cpp",
+                "copyset_node_test.cpp",
         "mock_local_file_system.h",
         "conf_epoch_file_test.cpp",
-        "inflight_throttle_test.cpp",
-        "concurrent_apply_unittest.cpp",
+                "inflight_throttle_test.cpp",
+                "concurrent_apply_unittest.cpp",
         "mock_local_file_system.h",
         "mock_node.h",
         "fake_datastore.h",
@@ -56,6 +56,22 @@ cc_test(
     name = "chunk-test2",
     srcs = glob([
         "chunk_service_test2.cpp",
+        "mock_local_file_system.h",
+        "chunkserver_test_util.h",
+        "chunkserver_test_util.cpp",
+        "fake_datastore.h",
+    ]),
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS,
+)
+
+cc_test(
+    name = "copyset-epoch-test",
+    srcs = glob([
+        "copyset_epoch_test.cpp",
         "mock_local_file_system.h",
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
