@@ -181,13 +181,15 @@ int CheckSnapShotStatus(const char* filename,
                             type_uInt32_t* filestatus);
 /**
  * 获取快照分配信息
+ * @param: filename是当前文件名
  * @param: offset是当前的文件偏移
  * @param: segmentsize为segment大小
  * @param: chunksize
  * @param: userinfo是用户信息
  * @param[out]: segInfo是出参
  */
-int GetOrAllocateSegmentInfo(type_uInt64_t offset,
+int GetOrAllocateSegmentInfo(const char* filename,
+                            type_uInt64_t offset,
                             type_uInt64_t segmentsize,
                             type_uInt64_t chunksize,
                             const CUserInfo_t userinfo,

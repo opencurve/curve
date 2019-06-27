@@ -7,6 +7,8 @@
 
 #include <glog/logging.h>
 
+#include <string>
+
 #include "curvesnapshot_python/libcurveSnapshot.h"
 #include "src/client/libcurve_snapshot.h"
 #include "src/client/client_config.h"
@@ -153,7 +155,8 @@ int GetSnapshotSegmentInfo(const char* filename,
     return ret;
 }
 
-int GetOrAllocateSegmentInfo(type_uInt64_t offset,
+int GetOrAllocateSegmentInfo(const char* filename,
+                            type_uInt64_t offset,
                             type_uInt64_t segmentsize,
                             type_uInt64_t chunksize,
                             const CUserInfo_t userinfo,
@@ -166,6 +169,8 @@ int GetOrAllocateSegmentInfo(type_uInt64_t offset,
     curve::client::FInfo_t fileinfo;
     fileinfo.segmentsize = segmentsize.value;
     fileinfo.chunksize = chunksize.value;
+    fileinfo.fullPathName = std::string(filename);
+    fileinfo.filename   = std::string(filename);
 
     curve::client::SegmentInfo seg;
     int ret = globalSnapshotclient->GetOrAllocateSegmentInfo(false,

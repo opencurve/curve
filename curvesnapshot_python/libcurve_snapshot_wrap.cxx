@@ -8851,42 +8851,39 @@ fail:
 
 SWIGINTERN PyObject *_wrap_GetOrAllocateSegmentInfo(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
-  type_uInt64_t arg1 ;
+  char *arg1 = (char *) 0 ;
   type_uInt64_t arg2 ;
   type_uInt64_t arg3 ;
-  CUserInfo_t arg4 ;
-  CSegmentInfo *arg5 = (CSegmentInfo *) 0 ;
-  void *argp1 ;
-  int res1 = 0 ;
+  type_uInt64_t arg4 ;
+  CUserInfo_t arg5 ;
+  CSegmentInfo *arg6 = (CSegmentInfo *) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
   void *argp2 ;
   int res2 = 0 ;
   void *argp3 ;
   int res3 = 0 ;
   void *argp4 ;
   int res4 = 0 ;
-  void *argp5 = 0 ;
+  void *argp5 ;
   int res5 = 0 ;
+  void *argp6 = 0 ;
+  int res6 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
   PyObject * obj3 = 0 ;
   PyObject * obj4 = 0 ;
+  PyObject * obj5 = 0 ;
   int result;
   
-  if (!PyArg_ParseTuple(args,(char *)"OOOOO:GetOrAllocateSegmentInfo",&obj0,&obj1,&obj2,&obj3,&obj4)) SWIG_fail;
-  {
-    res1 = SWIG_ConvertPtr(obj0, &argp1, SWIGTYPE_p_u_int64,  0  | 0);
-    if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "GetOrAllocateSegmentInfo" "', argument " "1"" of type '" "type_uInt64_t""'"); 
-    }  
-    if (!argp1) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "GetOrAllocateSegmentInfo" "', argument " "1"" of type '" "type_uInt64_t""'");
-    } else {
-      type_uInt64_t * temp = reinterpret_cast< type_uInt64_t * >(argp1);
-      arg1 = *temp;
-      if (SWIG_IsNewObj(res1)) delete temp;
-    }
+  if (!PyArg_ParseTuple(args,(char *)"OOOOOO:GetOrAllocateSegmentInfo",&obj0,&obj1,&obj2,&obj3,&obj4,&obj5)) SWIG_fail;
+  res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "GetOrAllocateSegmentInfo" "', argument " "1"" of type '" "char const *""'");
   }
+  arg1 = reinterpret_cast< char * >(buf1);
   {
     res2 = SWIG_ConvertPtr(obj1, &argp2, SWIGTYPE_p_u_int64,  0  | 0);
     if (!SWIG_IsOK(res2)) {
@@ -8914,27 +8911,42 @@ SWIGINTERN PyObject *_wrap_GetOrAllocateSegmentInfo(PyObject *SWIGUNUSEDPARM(sel
     }
   }
   {
-    res4 = SWIG_ConvertPtr(obj3, &argp4, SWIGTYPE_p_CUserInfo,  0  | 0);
+    res4 = SWIG_ConvertPtr(obj3, &argp4, SWIGTYPE_p_u_int64,  0  | 0);
     if (!SWIG_IsOK(res4)) {
-      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "GetOrAllocateSegmentInfo" "', argument " "4"" of type '" "CUserInfo_t const""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "GetOrAllocateSegmentInfo" "', argument " "4"" of type '" "type_uInt64_t""'"); 
     }  
     if (!argp4) {
-      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "GetOrAllocateSegmentInfo" "', argument " "4"" of type '" "CUserInfo_t const""'");
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "GetOrAllocateSegmentInfo" "', argument " "4"" of type '" "type_uInt64_t""'");
     } else {
-      CUserInfo_t * temp = reinterpret_cast< CUserInfo_t * >(argp4);
+      type_uInt64_t * temp = reinterpret_cast< type_uInt64_t * >(argp4);
       arg4 = *temp;
       if (SWIG_IsNewObj(res4)) delete temp;
     }
   }
-  res5 = SWIG_ConvertPtr(obj4, &argp5,SWIGTYPE_p_CSegmentInfo, 0 |  0 );
-  if (!SWIG_IsOK(res5)) {
-    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "GetOrAllocateSegmentInfo" "', argument " "5"" of type '" "CSegmentInfo *""'"); 
+  {
+    res5 = SWIG_ConvertPtr(obj4, &argp5, SWIGTYPE_p_CUserInfo,  0  | 0);
+    if (!SWIG_IsOK(res5)) {
+      SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "GetOrAllocateSegmentInfo" "', argument " "5"" of type '" "CUserInfo_t const""'"); 
+    }  
+    if (!argp5) {
+      SWIG_exception_fail(SWIG_ValueError, "invalid null reference " "in method '" "GetOrAllocateSegmentInfo" "', argument " "5"" of type '" "CUserInfo_t const""'");
+    } else {
+      CUserInfo_t * temp = reinterpret_cast< CUserInfo_t * >(argp5);
+      arg5 = *temp;
+      if (SWIG_IsNewObj(res5)) delete temp;
+    }
   }
-  arg5 = reinterpret_cast< CSegmentInfo * >(argp5);
-  result = (int)GetOrAllocateSegmentInfo(arg1,arg2,arg3,arg4,arg5);
+  res6 = SWIG_ConvertPtr(obj5, &argp6,SWIGTYPE_p_CSegmentInfo, 0 |  0 );
+  if (!SWIG_IsOK(res6)) {
+    SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "GetOrAllocateSegmentInfo" "', argument " "6"" of type '" "CSegmentInfo *""'"); 
+  }
+  arg6 = reinterpret_cast< CSegmentInfo * >(argp6);
+  result = (int)GetOrAllocateSegmentInfo((char const *)arg1,arg2,arg3,arg4,arg5,arg6);
   resultobj = SWIG_From_int(static_cast< int >(result));
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
   return resultobj;
 fail:
+  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
   return NULL;
 }
 
