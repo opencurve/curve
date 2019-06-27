@@ -503,8 +503,8 @@ def CheckSnapShotStatus(filename, userinfo, seq, filestatus):
     return _curvesnapshot.CheckSnapShotStatus(filename, userinfo, seq, filestatus)
 CheckSnapShotStatus = _curvesnapshot.CheckSnapShotStatus
 
-def GetOrAllocateSegmentInfo(offset, segmentsize, chunksize, userinfo, segInfo):
-    return _curvesnapshot.GetOrAllocateSegmentInfo(offset, segmentsize, chunksize, userinfo, segInfo)
+def GetOrAllocateSegmentInfo(filename, offset, segmentsize, chunksize, userinfo, segInfo):
+    return _curvesnapshot.GetOrAllocateSegmentInfo(filename, offset, segmentsize, chunksize, userinfo, segInfo)
 GetOrAllocateSegmentInfo = _curvesnapshot.GetOrAllocateSegmentInfo
 
 def CreateCloneChunk(location, chunkidinfo, sn, correntSn, chunkSize):
