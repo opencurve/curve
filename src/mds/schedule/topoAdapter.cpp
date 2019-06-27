@@ -92,6 +92,20 @@ bool CopySetInfo::HasCandidate() const {
     return candidatePeerInfo.id != UNINTIALIZE_ID;
 }
 
+std::string CopySetInfo::CopySetInfoStr() const {
+    std::string res = "[copysetId:(" + std::to_string(id.first) + "," +
+        std::to_string(id.second) + "), epoch:" + std::to_string(epoch) +
+        ", leader:" + std::to_string(leader) + ", peers:(";
+    for (auto peer : peers) {
+        res += std::to_string(peer.id) + ",";
+    }
+
+    res += "), canidate:" + std::to_string(candidatePeerInfo.id) +
+        ", has configChangeInfo:" +
+        std::to_string(configChangeInfo.IsInitialized())+"]";
+    return res;
+}
+
 ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  OnlineState state,
                                  DiskState diskState,

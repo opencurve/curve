@@ -28,9 +28,8 @@ int ReplicaScheduler::Schedule() {
         // 这种情况发生在mds重启的时候, operator不做持久化会丢失，
         // 实际正在进行配置变更
         if (info.HasCandidate()) {
-            LOG(WARNING) << "copySet(" << info.id.first
-                         << "," << info.id.second
-                         << ") has candidate " << info.candidatePeerInfo.id
+            LOG(WARNING) << info.CopySetInfoStr()
+                         << " has candidate " << info.candidatePeerInfo.id
                          << " but operator lost";
             continue;
         }
@@ -44,9 +43,9 @@ int ReplicaScheduler::Schedule() {
             continue;
         } else if (copysetReplicaNum < standardReplicaNum) {
             // 副本数量小于标准值， 一次增加一个副本
-            LOG(ERROR) << "replicaScheduler find copyset("
-                       << info.id.first << "," << info.id.second
-                       << ") replicaNum:" << copysetReplicaNum
+            LOG(ERROR) << "replicaScheduler find "
+                       << info.CopySetInfoStr()
+                       << " replicaNum:" << copysetReplicaNum
                        << " smaller than standardReplicaNum:"
                        << standardReplicaNum;
 
@@ -55,9 +54,8 @@ int ReplicaScheduler::Schedule() {
             // 未能找到合适的目标节点
             if (csId == UNINTIALIZE_ID) {
                 LOG(ERROR) << "replicaScheduler can not select chunkServer"
-                             "to repair copySet(logicalPoolId: "
-                           << info.id.first << ",copySetId: "
-                           << info.id.second << "), witch only has "
+                             "to repair "
+                           << info.CopySetInfoStr() << ", witch only has "
                            << copysetReplicaNum << " but statandard is "
                            << standardReplicaNum;
                 continue;
@@ -67,9 +65,8 @@ int ReplicaScheduler::Schedule() {
                     info, csId, OperatorPriority::HighPriority);
             op.timeLimit = std::chrono::seconds(addTimeSec_);
             if (!opController_->AddOperator(op)) {
-                LOG(WARNING) << "replicaScheduler find copyset("
-                             << info.id.first << ","
-                             << info.id.second
+                LOG(WARNING) << "replicaScheduler find "
+                             << info.CopySetInfoStr()
                              << ") replicaNum:" << copysetReplicaNum
                              << " smaller than standardReplicaNum:"
                              << standardReplicaNum << " but cannot apply"
@@ -77,24 +74,22 @@ int ReplicaScheduler::Schedule() {
                 continue;
             // 在目标节点上创建copyset
             } else if (!topo_->CreateCopySetAtChunkServer(info.id, csId)) {
-                LOG(ERROR) << "replicaScheduler create copySet"
-                               "(logicalPoolId: " << info.id.first
-                               << ",copySetId: " << info.id.second
+                LOG(ERROR) << "replicaScheduler create "
+                               << info.CopySetInfoStr()
                                << ") on chunkServer: " << csId << " error";
                 opController_->RemoveOperator(info.id);
                 continue;
             }
-            LOG(INFO) << "replicaScheduler create copySet(logicalPoolId: "
-                           << info.id.first << ",copySetId: " << info.id.second
-                           << ") on chunkServer: " << csId
-                           << " success and generate operator: "
-                           << op.OpToString();
+            LOG(INFO) << "replicaScheduler create "
+                      << info.CopySetInfoStr()
+                      << ") on chunkServer: " << csId
+                      << " success and generate operator: "
+                      << op.OpToString();
             oneRoundGenOp += 1;
         } else {
             // 副本数量大于标准值， 一次移除一个副本
-            LOG(ERROR) << "replicaScheduler find copyset("
-                       << info.id.first << "," << info.id.second
-                       << ") replicaNum:" << copysetReplicaNum
+            LOG(ERROR) << "replicaScheduler find " << info.CopySetInfoStr()
+                       << " replicaNum:" << copysetReplicaNum
                        << " larger than standardReplicaNum:"
                        << standardReplicaNum;
 
@@ -102,9 +97,8 @@ int ReplicaScheduler::Schedule() {
                 SelectRedundantReplicaToRemove(info);
             if (csId == UNINTIALIZE_ID) {
                 LOG(WARNING) << "replicaScheduler can not select redundent "
-                             "replica to remove on copySet(logicalPoolId: "
-                             << info.id.first << ",copySetId: "
-                             << info.id.second << "), witch has "
+                             "replica to remove on "
+                             << info.CopySetInfoStr() << "), witch has "
                              << copysetReplicaNum << " but standard is "
                              << standardReplicaNum;
                 continue;
@@ -114,6 +108,8 @@ int ReplicaScheduler::Schedule() {
                     info, csId, OperatorPriority::HighPriority);
             op.timeLimit = std::chrono::seconds(removeTimeSec_);
             if (opController_->AddOperator(op)) {
+                LOG(INFO) << "replicaScheduler generate operator "
+                          << op.OpToString() << " on " << info.CopySetInfoStr();
                 oneRoundGenOp += 1;
             }
         }

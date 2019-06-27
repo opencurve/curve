@@ -46,76 +46,78 @@ namespace schedule {
 
 struct PeerInfo {
  public:
-  PeerInfo() : id(UNINTIALIZE_ID), port(0) {}
-  PeerInfo(ChunkServerIdType id, ZoneIdType zoneId, ServerIdType sid,
-           PhysicalPoolIDType physicalPoolId, const std::string &ip,
-           uint32_t port);
-  ChunkServerIdType id;
-  ZoneIdType zoneId;
-  ServerIdType serverId;
-  PhysicalPoolIDType physicalPoolId;
-  std::string ip;
-  uint32_t port;
+    PeerInfo() : id(UNINTIALIZE_ID), port(0) {}
+    PeerInfo(ChunkServerIdType id, ZoneIdType zoneId, ServerIdType sid,
+            PhysicalPoolIDType physicalPoolId, const std::string &ip,
+            uint32_t port);
+    ChunkServerIdType id;
+    ZoneIdType zoneId;
+    ServerIdType serverId;
+    PhysicalPoolIDType physicalPoolId;
+    std::string ip;
+    uint32_t port;
 };
 
 struct CopySetConf {
  public:
-  CopySetConf() = default;
-  CopySetConf(const CopySetKey &key, EpochType epoch,
-              const std::vector<PeerInfo> &peers, ConfigChangeType type,
-              ChunkServerIdType item);
+    CopySetConf() = default;
+    CopySetConf(const CopySetKey &key, EpochType epoch,
+                const std::vector<PeerInfo> &peers, ConfigChangeType type,
+                ChunkServerIdType item);
 
-  CopySetKey id;
-  EpochType epoch;
-  std::vector<PeerInfo> peers;
-  ConfigChangeType type;
-  ChunkServerIdType configChangeItem;
+    CopySetKey id;
+    EpochType epoch;
+    std::vector<PeerInfo> peers;
+    ConfigChangeType type;
+    ChunkServerIdType configChangeItem;
 };
 
 struct CopySetInfo {
  public:
-  CopySetInfo() = default;
-  CopySetInfo(CopySetKey id,
-              EpochType epoch,
-              ChunkServerIdType leader,
-              const std::vector<PeerInfo> &peers,
-              const ConfigChangeInfo &info,
-              const CopysetStatistics &statistics);
-  CopySetInfo(const CopySetInfo &in);
-  ~CopySetInfo();
+    CopySetInfo() = default;
+    CopySetInfo(CopySetKey id,
+                EpochType epoch,
+                ChunkServerIdType leader,
+                const std::vector<PeerInfo> &peers,
+                const ConfigChangeInfo &info,
+                const CopysetStatistics &statistics);
+    CopySetInfo(const CopySetInfo &in);
+    ~CopySetInfo();
 
-  bool ContainPeer(ChunkServerIdType id) const;
-  bool HasCandidate() const;
+    bool ContainPeer(ChunkServerIdType id) const;
+    bool HasCandidate() const;
+    std::string CopySetInfoStr() const;
 
-  CopySetKey id;
-  EpochType epoch;
-  ChunkServerIdType leader;
-  std::vector<PeerInfo> peers;
+    CopySetKey id;
+    EpochType epoch;
+    ChunkServerIdType leader;
+    std::vector<PeerInfo> peers;
 
-  // TODO(chaojie): candidateInfo 增加到topology中
-  PeerInfo candidatePeerInfo;
-  ConfigChangeInfo configChangeInfo;
-  CopysetStatistics statisticsInfo;
+    // TODO(chaojie): candidateInfo 增加到topology中
+    PeerInfo candidatePeerInfo;
+    ConfigChangeInfo configChangeInfo;
+    CopysetStatistics statisticsInfo;
 };
 
 struct ChunkServerInfo {
  public:
-  ChunkServerInfo() :
-    leaderCount(0), diskCapacity(0), diskUsed(0) {}
-  ChunkServerInfo(const PeerInfo &info, OnlineState state, DiskState diskState,
-                  uint32_t leaderCount, uint64_t capacity, uint64_t used,
-                  const ChunkServerStatisticInfo &statisticInfo);
+    ChunkServerInfo() :
+        leaderCount(0), diskCapacity(0), diskUsed(0) {}
+    ChunkServerInfo(const PeerInfo &info, OnlineState state,
+                    DiskState diskState, uint32_t leaderCount,
+                    uint64_t capacity, uint64_t used,
+                    const ChunkServerStatisticInfo &statisticInfo);
 
-  bool IsOffline();
-  bool IsHealthy();
+    bool IsOffline();
+    bool IsHealthy();
 
-  PeerInfo info;
-  OnlineState state;
-  DiskState diskState;
-  uint32_t leaderCount;
-  uint64_t diskCapacity;
-  uint64_t diskUsed;
-  ChunkServerStatisticInfo statisticInfo;
+    PeerInfo info;
+    OnlineState state;
+    DiskState diskState;
+    uint32_t leaderCount;
+    uint64_t diskCapacity;
+    uint64_t diskUsed;
+    ChunkServerStatisticInfo statisticInfo;
 };
 
 /**

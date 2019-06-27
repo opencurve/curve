@@ -90,8 +90,7 @@ int LeaderScheduler::transferLeaderOut(ChunkServerIdType source, Operator *op) {
 
         // 跳过正在变更的copyset
         if (cInfo.HasCandidate()) {
-            LOG(INFO) << "copySet(" << cInfo.id.first
-                         << "," << cInfo.id.second << ") is on config change";
+            LOG(INFO) << cInfo.CopySetInfoStr() << " is on config change";
             continue;
         }
 
@@ -115,7 +114,7 @@ int LeaderScheduler::transferLeaderOut(ChunkServerIdType source, Operator *op) {
             ChunkServerInfo csInfo;
             if (!topo_->GetChunkServerInfo(peerInfo.id, &csInfo)) {
                 LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
-                        << peerInfo.id;
+                           << peerInfo.id;
                 return -1;
             }
 
@@ -160,8 +159,7 @@ int LeaderScheduler::transferLeaderIn(ChunkServerIdType target, Operator *op) {
 
         // 跳过正在配置变更的copyset
         if (cInfo.HasCandidate()) {
-            LOG(INFO) << "copySet(" << cInfo.id.first
-                        << "," << cInfo.id.second << ") is on config change";
+            LOG(INFO) << cInfo.CopySetInfoStr() << " is on config change";
             continue;
         }
 
@@ -198,8 +196,8 @@ bool LeaderScheduler::copySetHealthy(const CopySetInfo &cInfo) {
 
         if (csInfo.IsOffline()) {
             LOG(ERROR) << "leaderScheduler find chunkServer:"
-                        << csInfo.info.id
-                        << " is offline, please check!";
+                       << csInfo.info.id
+                       << " is offline, please check!";
             healthy = false;
             break;
         }
