@@ -6,6 +6,14 @@ package curve.chunkserver;
 
 option cc_generic_services = true;
 
+// copyset epoch message，用于epoch序列化和反序列化
+message ConfEpoch {
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId   = 2;
+    required uint64 epoch       = 3;
+    required uint32 checksum    = 4;
+}
+
 message CopysetRequest {
     // logicPoolId 实际上 uint16，但是 proto 没有 uint16
     required uint32 logicPoolId = 1;

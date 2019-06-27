@@ -23,6 +23,7 @@ using ::testing::Return;
 using ::testing::AnyNumber;
 using ::testing::DoAll;
 using ::testing::SetArgPointee;
+using ::testing::SetArrayArgument;
 using ::testing::SetArgReferee;
 using ::testing::InSequence;
 using ::testing::AtLeast;
@@ -34,7 +35,7 @@ TEST(ConfEpochFileTest, load_save) {
     LogicPoolID logicPoolID = 123;
     CopysetID copysetID = 1345;
     std::string path = kCurveConfEpochFilename;
-    uint64_t epoch = 14;
+    uint64_t epoch = 0;
     std::string rmCmd("rm -f ");
     rmCmd += kCurveConfEpochFilename;
 
@@ -60,7 +61,8 @@ TEST(ConfEpochFileTest, load_save) {
 
     // load: open failed
     {
-        std::shared_ptr<MockLocalFileSystem> fs = std::make_shared<MockLocalFileSystem>();  //NOLINT
+        std::shared_ptr<MockLocalFileSystem> fs
+            = std::make_shared<MockLocalFileSystem>();
         ConfEpochFile confEpochFile(fs);
         LogicPoolID loadLogicPoolID;
         CopysetID loadCopysetID;
@@ -73,7 +75,8 @@ TEST(ConfEpochFileTest, load_save) {
     }
     // load: open success, read failed
     {
-        std::shared_ptr<MockLocalFileSystem> fs = std::make_shared<MockLocalFileSystem>();  //NOLINT
+        std::shared_ptr<MockLocalFileSystem> fs
+            = std::make_shared<MockLocalFileSystem>();
         ConfEpochFile confEpochFile(fs);
         LogicPoolID loadLogicPoolID;
         CopysetID loadCopysetID;
@@ -86,43 +89,70 @@ TEST(ConfEpochFileTest, load_save) {
                                          &loadCopysetID,
                                          &loadEpoch));
     }
-    // load: open success, read success, read failed
+    // load: open success, read success, decode success, crc32c right
     {
-        std::shared_ptr<MockLocalFileSystem> fs = std::make_shared<MockLocalFileSystem>();  //NOLINT
+        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":599727352}";  // NOLINT
+        std::string jsonStr(json);
+        std::shared_ptr<MockLocalFileSystem> fs
+            = std::make_shared<MockLocalFileSystem>();
         ConfEpochFile confEpochFile(fs);
         LogicPoolID loadLogicPoolID;
         CopysetID loadCopysetID;
         uint64_t loadEpoch;
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(2)
-            .WillOnce(Return(sizeof(size_t) + sizeof(uint32_t)))
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArrayArgument<1>(json, json + jsonStr.size()),
+                            Return(jsonStr.size())));
+        EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
+        ASSERT_EQ(0, confEpochFile.Load(path,
+                                         &loadLogicPoolID,
+                                         &loadCopysetID,
+                                         &loadEpoch));
+    }
+    // load: open success, read success, decode failed, crc32c right
+    {
+        char *json = "{\"logicPoolId";
+        std::string jsonStr(json);
+        std::shared_ptr<MockLocalFileSystem> fs
+            = std::make_shared<MockLocalFileSystem>();
+        ConfEpochFile confEpochFile(fs);
+        LogicPoolID loadLogicPoolID;
+        CopysetID loadCopysetID;
+        uint64_t loadEpoch;
+        EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
+        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArrayArgument<1>(json, json + jsonStr.size()),
+                            Return(jsonStr.size())));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
         ASSERT_EQ(-1, confEpochFile.Load(path,
                                          &loadLogicPoolID,
                                          &loadCopysetID,
                                          &loadEpoch));
     }
-    // load: open success, read success, read success, sscanf faield
+    // load: open success, read success, decode success, crc32c not right
     {
-        std::shared_ptr<MockLocalFileSystem> fs = std::make_shared<MockLocalFileSystem>();  //NOLINT
+        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":123}";  // NOLINT
+        std::string jsonStr(json);
+        std::shared_ptr<MockLocalFileSystem> fs
+            = std::make_shared<MockLocalFileSystem>();
         ConfEpochFile confEpochFile(fs);
         LogicPoolID loadLogicPoolID;
         CopysetID loadCopysetID;
         uint64_t loadEpoch;
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
-        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(2)
-            .WillOnce(Return(sizeof(size_t) + sizeof(uint32_t)))
-            .WillOnce(Return(-1));
+        EXPECT_CALL(*fs, Read(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArrayArgument<1>(json, json + jsonStr.size()),
+                            Return(jsonStr.size())));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
         ASSERT_EQ(-1, confEpochFile.Load(path,
-                                         &loadLogicPoolID,
-                                         &loadCopysetID,
-                                         &loadEpoch));
+                                        &loadLogicPoolID,
+                                        &loadCopysetID,
+                                        &loadEpoch));
     }
     // save: open failed
     {
-        std::shared_ptr<MockLocalFileSystem> fs = std::make_shared<MockLocalFileSystem>();  //NOLINT
+        std::shared_ptr<MockLocalFileSystem> fs
+            = std::make_shared<MockLocalFileSystem>();
         ConfEpochFile confEpochFile(fs);
         LogicPoolID loadLogicPoolID;
         CopysetID loadCopysetID;
@@ -135,7 +165,8 @@ TEST(ConfEpochFileTest, load_save) {
     }
     // save: open success, write failed
     {
-        std::shared_ptr<MockLocalFileSystem> fs = std::make_shared<MockLocalFileSystem>();  //NOLINT
+        std::shared_ptr<MockLocalFileSystem> fs
+            = std::make_shared<MockLocalFileSystem>();
         ConfEpochFile confEpochFile(fs);
         LogicPoolID loadLogicPoolID;
         CopysetID loadCopysetID;
@@ -151,19 +182,14 @@ TEST(ConfEpochFileTest, load_save) {
     }
     // save: open success, write success, fsync failed
     {
-        char buff[128] = {0};
-        ::snprintf(buff,
-                   128,
-                   ":%u:%u:%lu",
-                   logicPoolID,
-                   copysetID,
-                   epoch);
-        int writeLen = strlen(buff) + sizeof(size_t) + sizeof(uint32_t);
-        std::shared_ptr<MockLocalFileSystem> fs = std::make_shared<MockLocalFileSystem>();  //NOLINT
+        char *json = "{\"logicPoolId\":123,\"copysetId\":1345,\"epoch\":0,\"checksum\":599727352}";  // NOLINT
+        std::string jsonStr(json);
+        std::shared_ptr<MockLocalFileSystem> fs
+            = std::make_shared<MockLocalFileSystem>();
         ConfEpochFile confEpochFile(fs);
         EXPECT_CALL(*fs, Open(_, _)).Times(1).WillOnce(Return(10));
         EXPECT_CALL(*fs, Write(_, _, _, _)).Times(1)
-            .WillOnce(Return(writeLen));
+            .WillOnce(Return(jsonStr.size()));
         EXPECT_CALL(*fs, Close(_)).Times(1).WillOnce(Return(0));
         EXPECT_CALL(*fs, Fsync(_)).Times(1).WillOnce(Return(-1));
         ASSERT_EQ(-1, confEpochFile.Save(path,

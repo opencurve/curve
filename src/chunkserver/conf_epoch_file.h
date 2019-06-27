@@ -14,6 +14,7 @@
 #include "src/fs/local_filesystem.h"
 #include "src/fs/fs_common.h"
 #include "include/chunkserver/chunkserver_common.h"
+#include "proto/copyset.pb.h"
 
 namespace curve {
 namespace chunkserver {
@@ -62,6 +63,8 @@ class ConfEpochFile {
              const uint64_t epoch);
 
  private:
+    static uint32_t ConfEpochCrc(const ConfEpoch &confEpoch);
+
     std::shared_ptr<LocalFileSystem> fs_;
 };
 
