@@ -16,6 +16,8 @@
 #include "src/chunkserver/cli.h"
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
+#include "proto/common.pb.h"
+#include "proto/copyset.pb.h"
 
 namespace curve {
 namespace chunkserver {
@@ -220,6 +222,95 @@ static void ReadVerifyNotAvailable(PeerId leaderId,
     }
 }
 
+/**
+ * 验证copyset status是否符合预期
+ * @param peerId: peer id
+ * @param logicPoolID: 逻辑池id
+ * @param copysetId: 复制组id
+ * @param expectResp: 期待的copyset status
+ */
+static void CopysetStatusVerify(PeerId peerId,
+                                LogicPoolID logicPoolID,
+                                CopysetID copysetId,
+                                CopysetStatusResponse *expectResp) {
+    brpc::Channel channel;
+    ASSERT_EQ(0, channel.Init(peerId.addr, NULL));
+    CopysetService_Stub stub(&channel);
+    CopysetStatusRequest request;
+    CopysetStatusResponse response;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(2000);
+    request.set_logicpoolid(logicPoolID);
+    request.set_copysetid(copysetId);
+    Peer *peer = new Peer();
+    request.set_allocated_peer(peer);
+    peer->set_address(peerId.to_string());
+    request.set_queryhash(true);
+    stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
+    LOG_IF(INFO, cntl.Failed()) << cntl.ErrorText();
+    ASSERT_FALSE(cntl.Failed());
+    response.clear_state();
+    response.clear_peer();
+    response.clear_firstindex();
+    expectResp->clear_state();
+    expectResp->clear_peer();
+    expectResp->clear_firstindex();
+    ASSERT_STREQ(expectResp->DebugString().c_str(),
+                 response.DebugString().c_str());
+}
+
+/**
+ * 验证几个副本的copyset status是否一致
+ * @param peerIds: 待验证的peers
+ * @param logicPoolID: 逻辑池id
+ * @param copysetId: 复制组id
+ */
+static void CopysetStatusVerify(const std::vector<PeerId> &peerIds,
+                                LogicPoolID logicPoolID,
+                                CopysetID copysetId,
+                                uint64_t expectEpoch = 0) {
+    std::vector<CopysetStatusResponse> resps;
+    for (PeerId peerId : peerIds) {
+        LOG(INFO) << "Get " << peerId.to_string() << " copyset status";
+        brpc::Channel channel;
+        ASSERT_EQ(0, channel.Init(peerId.addr, NULL));
+        CopysetService_Stub stub(&channel);
+        CopysetStatusRequest request;
+        CopysetStatusResponse response;
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(2000);
+        request.set_logicpoolid(logicPoolID);
+        request.set_copysetid(copysetId);
+        Peer *peer = new Peer();
+        request.set_allocated_peer(peer);
+        peer->set_address(peerId.to_string());
+        request.set_queryhash(true);
+        stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
+        LOG_IF(INFO, cntl.Failed()) << cntl.ErrorText();
+        ASSERT_FALSE(cntl.Failed());
+        LOG(INFO) << peerId.to_string() << "'s status is: \n"
+                  << response.DebugString();
+        // 多个副本的state是不一样的，因为有leader，也有follower
+        response.clear_state();
+        response.clear_peer();
+        response.clear_firstindex();
+        resps.push_back(response);
+
+        if (0 != expectEpoch) {
+            ASSERT_GE(response.epoch(), expectEpoch);
+        }
+    }
+
+    auto len = resps.size();
+    if (len >= 2) {
+        for (int i = 1; i < len; ++i) {
+            LOG(INFO) << "CopysetStatus " << i + 1 << "th compare.";
+            ASSERT_STREQ(resps[0].DebugString().c_str(),
+                         resps[i].DebugString().c_str());
+        }
+    }
+}
+
 butil::AtExitManager atExitManager;
 
 /**
@@ -252,6 +343,31 @@ TEST_F(ChunkServerSnapshotTest, OneNode) {
                         length,
                         ch + 1,
                         loop);
+
+    CopysetStatusResponse expectResp;
+    // read、write、1次配置变更
+    int64_t commitedIndex = 2 * loop + 1;
+    expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+    expectResp.set_state(braft::state2str(braft::STATE_LEADER));
+    Peer *peer = new Peer();
+    expectResp.set_allocated_peer(peer);
+    peer->set_address(peer1.to_string());
+    Peer *leader = new Peer();
+    expectResp.set_allocated_leader(leader);
+    leader->set_address(peer1.to_string());
+    expectResp.set_readonly(false);
+    expectResp.set_term(2);
+    expectResp.set_committedindex(commitedIndex);
+    expectResp.set_knownappliedindex(commitedIndex);
+    expectResp.set_pendingindex(0);
+    expectResp.set_pendingqueuesize(0);
+    expectResp.set_applyingindex(0);
+    expectResp.set_firstindex(1);
+    expectResp.set_lastindex(commitedIndex);
+    expectResp.set_diskindex(commitedIndex);
+    expectResp.set_epoch(1);
+    expectResp.set_hash("3049021227");
+    CopysetStatusVerify(leaderId, logicPoolId, copysetId, &expectResp);
 }
 
 /**
@@ -310,6 +426,31 @@ TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
                         length,
                         ch + 1,
                         loop);
+
+    CopysetStatusResponse expectResp;
+    int64_t commitedIndex = 2 * 2 * loop + loop + 2;
+    expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+    expectResp.set_state(braft::state2str(braft::STATE_LEADER));
+    Peer *peer = new Peer();
+    expectResp.set_allocated_peer(peer);
+    peer->set_address(peer1.to_string());
+    Peer *leader = new Peer();
+    expectResp.set_allocated_leader(leader);
+    leader->set_address(peer1.to_string());
+    expectResp.set_readonly(false);
+    expectResp.set_term(3);
+    expectResp.set_committedindex(commitedIndex);
+    expectResp.set_knownappliedindex(commitedIndex);
+    expectResp.set_pendingindex(0);
+    expectResp.set_pendingqueuesize(0);
+    expectResp.set_applyingindex(0);
+    expectResp.set_firstindex(1);
+    expectResp.set_lastindex(commitedIndex);
+    expectResp.set_diskindex(commitedIndex);
+    expectResp.set_epoch(2);
+    expectResp.set_hash("3049021227");
+
+    CopysetStatusVerify(leaderId, logicPoolId, copysetId, &expectResp);
 }
 
 /**
@@ -345,6 +486,9 @@ TEST_F(ChunkServerSnapshotTest, TwoNodes) {
                         length,
                         ch,
                         loop);
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 1);
 }
 
 /**
@@ -416,6 +560,9 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownOnePeer) {
                         length,
                         ch + 1,
                         loop);
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 1);
 }
 
 /**
@@ -480,6 +627,9 @@ TEST_F(ChunkServerSnapshotTest, TwoNodesShutdownLeader) {
                         length,
                         ch + 1,
                         loop);
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
 
 /**
@@ -518,6 +668,9 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodes) {
                         length,
                         ch + 1,
                         loop);
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 1);
 }
 
 /**
@@ -582,6 +735,9 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownOnePeer) {
                         length,
                         ch + 1,
                         loop);
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 1);
 }
 
 /**
@@ -653,6 +809,9 @@ TEST_F(ChunkServerSnapshotTest, ThreeNodesShutdownLeader) {
                         length,
                         ch + 1,
                         loop);
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
 
 /**
@@ -787,6 +946,9 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                         length,
                         ch + 4,
                         loop);
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 1);
 }
 
 /**
@@ -939,6 +1101,9 @@ TEST_F(ChunkServerSnapshotTest, ShutdownOnePeerAndRemoveData) {
                         length,
                         ch + 4,
                         loop);
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
 
 /**
@@ -1117,6 +1282,16 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
                             ch + 5,
                             loop);
     }
+
+    ::usleep(2000 * 1000);
+    peers.push_back(peer4);
+    std::vector<PeerId> newPeers;
+    for (PeerId peerId : peers) {
+        if (peerId.to_string() != shutdownPeerid.to_string()) {
+            newPeers.push_back(peerId);
+        }
+    }
+    CopysetStatusVerify(newPeers, logicPoolId, copysetId, 3);
 }
 
 /**
@@ -1289,6 +1464,9 @@ TEST_F(ChunkServerSnapshotTest, RemovePeerAndRecoverFromInstallSnapshot) {
                             ch + 4,
                             loop);
     }
+
+    ::usleep(2000 * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
 
 }  // namespace chunkserver
