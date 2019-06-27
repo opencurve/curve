@@ -40,16 +40,31 @@ message CopysetResponse2 {
 }
 
 message CopysetStatusRequest {
-    optional uint32 logicPoolId = 1;
-    optional uint32 copysetId   = 2;
-    optional common.Peer peer  = 3;
+    required uint32 logicPoolId = 1;
+    required uint32 copysetId   = 2;
+    required common.Peer peer   = 3;
+    required bool queryHash     = 4;    // 考虑到计算copyset hash值是一个非常耗时的操作，所以设置一个bool变量可以选择不查
 }
 
 // hash并不一定是hash value，所以是字符串类型，可以用json
 // 包裹，这样可以任意的扩展
 message CopysetStatusResponse {
-    optional COPYSET_OP_STATUS status = 1;
-    optional string hash = 2;
+    required COPYSET_OP_STATUS status       = 1;    // op状态
+    required string state                   = 2;    // copyset状态
+    required common.Peer peer               = 3;    // peer
+    required common.Peer leader             = 4;    // leader
+    required bool readOnly                  = 5;    // 是否只读
+    required int64 term                     = 6;    // 当前任期
+    required int64 committedIndex           = 7;    // 当前的committed index
+    required int64 knownAppliedIndex        = 8;    // 当前copyset已知的applied index，当前peer可能未apply
+    required int64 pendingIndex             = 9;    // 当前副本未决的op log index起始index
+    required int64 pendingQueueSize         = 10;   // 当前副本未决的op log queue的长度
+    required int64 applyingIndex            = 11;   // 当前副本正在apply的op log index
+    required int64 firstIndex               = 12;   // 当前副本第一条op log index(包括盘和memory)
+    required int64 lastIndex                = 13;   // 当前副本最后一条op log index(包括盘和memory)
+    required int64 diskIndex                = 14;   // 当前副本已经持久化的最大op log index(不包含memory)
+    required uint64 epoch                   = 15;   // 当前copyset配置版本
+    optional string hash                    = 16;   // 当前copyset的数据hash值
 }
 
 service CopysetService {

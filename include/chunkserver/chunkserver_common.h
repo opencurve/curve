@@ -38,6 +38,7 @@ using GroupId = braft::GroupId;
 using PeerId = braft::PeerId;
 using Node = braft::Node;
 using NodeOptions = braft::NodeOptions;
+using NodeStatus = braft::NodeStatus;
 using FileSystemAdaptor = braft::FileSystemAdaptor;
 using DirReader = braft::DirReader;
 using PosixFileSystemAdaptor = braft::PosixFileSystemAdaptor;
