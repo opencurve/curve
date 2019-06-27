@@ -28,15 +28,6 @@ Operator::Operator(EpochType startEpoch,
 
 ApplyStatus Operator::Apply(const CopySetInfo &originInfo,
                             CopySetConf *newInfo) {
-    if (!originInfo.configChangeInfo.IsInitialized() &&
-        originInfo.epoch > this->startEpoch) {
-        LOG(ERROR) << "Operator on copySet(logicalPoolId: "
-                   << originInfo.id.first
-                   << ",copySetId: " << originInfo.id.second
-                   << ") is stale, latest epoch: " << originInfo.epoch
-                   << ", operator start epoch: " << this->startEpoch;
-        return ApplyStatus::Failed;
-    }
     return step->Apply(originInfo, newInfo);
 }
 
