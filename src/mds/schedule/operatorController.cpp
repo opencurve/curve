@@ -109,6 +109,7 @@ bool OperatorController::ApplyOperator(const CopySetInfo &originInfo,
     if (operators_[originInfo.id].IsTimeout()) {
         LOG(ERROR) << "apply operator: "
                    << operators_[originInfo.id].OpToString()
+                   << " on " << originInfo.CopySetInfoStr()
                    << " fail, operator is timeout";
         RemoveOperatorLocked(originInfo.id);
         return false;
@@ -116,15 +117,19 @@ bool OperatorController::ApplyOperator(const CopySetInfo &originInfo,
         auto res = operators_[originInfo.id].Apply(originInfo, newConf);
         switch (res) {
             case ApplyStatus::Failed:
+                LOG(ERROR) << "apply operator"
+                           << operators_[originInfo.id].OpToString()
+                           << " on " << originInfo.CopySetInfoStr()
+                           << " failed";
                 RemoveOperatorLocked(originInfo.id);
                 return false;
             case ApplyStatus::Finished:
                 LOG(INFO) << "apply operator "
-                          << operators_[originInfo.id].OpToString() << " ok";
+                          << operators_[originInfo.id].OpToString()
+                          << " on "<< originInfo.CopySetInfoStr() << " ok";
                 RemoveOperatorLocked(originInfo.id);
                 return false;
-            case ApplyStatus::Ordered:
-                return true;
+            case ApplyStatus::Ordered:return true;
             case ApplyStatus::OnGoing:return false;
         }
     }

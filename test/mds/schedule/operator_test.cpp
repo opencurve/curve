@@ -70,13 +70,6 @@ TEST(OperatorTest, OperatorTest_Apply_Test) {
     originCopySetInfo.configChangeInfo.clear_err();
     applyStatus = testOperator.Apply(originCopySetInfo, &copySetConf);
     ASSERT_EQ(ApplyStatus::OnGoing, applyStatus);
-
-    // 5. test stale operator
-    testOperator.startEpoch = 1;
-    originCopySetInfo.epoch = 2;
-    originCopySetInfo.configChangeInfo.Clear();
-    applyStatus = testOperator.Apply(originCopySetInfo, &copySetConf);
-    ASSERT_EQ(ApplyStatus::Failed, applyStatus);
 }
 
 TEST(OperatorTest, OperatorTest_Function_Test) {

@@ -32,9 +32,8 @@ int RecoverScheduler::Schedule() {
         }
 
         if (copysetInfo.HasCandidate()) {
-            LOG(WARNING) << "copySet(logicalPoolId:" << copysetInfo.id.first
-                         << ", copySetId:" << copysetInfo.id.second
-                         << ") already has candidate: "
+            LOG(WARNING) << copysetInfo.CopySetInfoStr()
+                         << " already has candidate: "
                          << copysetInfo.candidatePeerInfo.id;
             continue;
         }
@@ -54,7 +53,8 @@ int RecoverScheduler::Schedule() {
             } else {
                 offlinelists.emplace(peer.id);
                 LOG(ERROR) << "recoverSchdeuler find chunkServer "
-                           << peer.id << " offline, please check";
+                           << peer.id << " in " << copysetInfo.CopySetInfoStr()
+                           << " offline, please check";
             }
         }
 
@@ -67,10 +67,9 @@ int RecoverScheduler::Schedule() {
         int deadBound =
             copysetInfo.peers.size() - (copysetInfo.peers.size()/2 + 1);
         if (offlinelists.size() > deadBound) {
-            LOG(ERROR) << "recoverSchdeuler find copyset(logicalPoolId:"
-                       << copysetInfo.id.first
-                       << ", copySetId:" << copysetInfo.id.second
-                       << ") has " << offlinelists.size()
+            LOG(ERROR) << "recoverSchdeuler find "
+                       << copysetInfo.CopySetInfoStr()
+                       << " has " << offlinelists.size()
                        << " replica offline, cannot repair, please check";
             continue;
         }
@@ -79,6 +78,7 @@ int RecoverScheduler::Schedule() {
         for (auto offline : offlinelists) {
             if (excludes.count(offline) > 0) {
                 LOG(ERROR) << "can not recover offline chunkserver " << offline
+                          << " on " << copysetInfo.CopySetInfoStr()
                           << ", because it's server has more than "
                           << chunkserverFailureTolerance_
                           << " offline chunkservers";
@@ -98,21 +98,22 @@ int RecoverScheduler::Schedule() {
                 copysetInfo, *offlinelists.begin(), &fixRes, &target)) {
             LOG(ERROR) << "recoverScheduler can not find a healthy"
                           " chunkServer to fix offline one "
-                       << *offlinelists.begin() << " in copyset("
-                       << copysetInfo.id.first << "," << copysetInfo.id.second
-                       << ")";
+                       << *offlinelists.begin() << " in "
+                       << copysetInfo.CopySetInfoStr();
             continue;
         // 修复副本成功，但加入到controller失败
         } else if (!opController_->AddOperator(fixRes)) {
             LOG(ERROR) << "recover scheduler add operator "
-                       << fixRes.OpToString() << " fail";
+                       << fixRes.OpToString() << " on "
+                       << copysetInfo.CopySetInfoStr() << " fail";
             continue;
         // 修复副本成功，加入controller成功
         } else {
             LOG(INFO) << "recoverScheduler generate operator:"
-                        << fixRes.OpToString() << "for copySet("
-                        << copysetInfo.id.first << ", copySetId:"
-                        << copysetInfo.id.second << ")";
+                        << fixRes.OpToString() << "for "
+                        << copysetInfo.CopySetInfoStr()
+                        << ", remove offlinePeer: "
+                        << *offlinelists.begin();
             // target为初始值，说明直接移除了offline的副本
             if (target == UNINTIALIZE_ID) {
                 oneRoundGenOp++;
@@ -123,11 +124,10 @@ int RecoverScheduler::Schedule() {
             // 添加operator成功之后，应该在target上创建copyset,
             // 如果创建失败，删除该operator
             if (!topo_->CreateCopySetAtChunkServer(copysetInfo.id, target)) {
-                LOG(ERROR) << "coordinator create copySet(logicalPoolId: "
-                            << copysetInfo.id.first << ",copySetId: "
-                            << copysetInfo.id.second << ") on chunkServer: "
-                            << target << " error, delete operator"
-                            << fixRes.OpToString();
+                LOG(ERROR) << "recoverScheduler create "
+                           << copysetInfo.CopySetInfoStr()
+                           << " on chunkServer: " << target
+                           << " error, delete operator" << fixRes.OpToString();
                 opController_->RemoveOperator(copysetInfo.id);
                 continue;
             }
@@ -170,9 +170,8 @@ bool RecoverScheduler::FixOfflinePeer(
     auto csId = SelectBestPlacementChunkServer(info, peerId);
     if (csId == UNINTIALIZE_ID) {
         LOG(ERROR) << "recoverScheduler can not select chunkServer to "
-                      "repair copySet(logicalPoolId: "
-                   << info.id.first << ",copySetId: " << info.id.second
-                   << "), witch replica: " << peerId << " is offline";
+                      "repair " << info.CopySetInfoStr()
+                   << ", witch replica: " << peerId << " is offline";
         return false;
     } else {
         *op = operatorFactory.CreateAddPeerOperator(
