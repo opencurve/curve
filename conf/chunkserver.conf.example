@@ -32,8 +32,8 @@ chunkserver.stor_uri=local://./0/
 chunkserver.meta_uri=local://./0/chunkserver.dat
 # disk类型
 chunkserver.disk_type=nvme
-# raft内部install snapshot带宽上限，一般80MB
-chunkserver.snapshot_throttle_throughput_bytes=41943040
+# raft内部install snapshot带宽上限，一般5MB
+chunkserver.snapshot_throttle_throughput_bytes=5242880
 # check cycles是为了更精细的进行带宽控制，以snapshotThroughputBytes=100MB，
 # check cycles=10为例，它可以保证每1/10秒的带宽是10MB，且不累积，例如第1个
 # 1/10秒的带宽是10MB，但是就过期了，在第2个1/10秒依然只能用10MB的带宽，而
