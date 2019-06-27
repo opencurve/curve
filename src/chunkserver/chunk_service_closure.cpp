@@ -20,10 +20,8 @@ void ChunkServiceClosure::Run() {
      */
     std::unique_ptr<ChunkServiceClosure> selfGuard(this);
 
-    /**
-     * 确保done能够被调用，目的是保证rpc一定会返回
-     */
-    brpc::ClosureGuard doneGuard(brpcDone_);
+    // 返回rpc
+    brpcDone_->Run();
 
     // closure调用的时候减1，closure创建的什么加1
     inflightThrottle_->Decrement();
