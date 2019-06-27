@@ -234,7 +234,8 @@ bool CopySetScheduler::CopySetMigration(
             choose, target, OperatorPriority::NormalPriority);
         op->timeLimit =
             std::chrono::seconds(addTimeSec_);
-        LOG(INFO) << "copyset scheduler gen " << op->OpToString();
+        LOG(INFO) << "copyset scheduler gen " << op->OpToString() << " on "
+                  << choose.CopySetInfoStr();
         *rmOne = source;
         return true;
     }

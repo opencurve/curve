@@ -92,8 +92,8 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
         topo_->GetStandardZoneNumInLogicalPool(copySetInfo.id.first);
     if (standardZoneNum <= 0) {
         LOG(ERROR) << "topoAdapter find logicalPool " << copySetInfo.id.first
-                     << " standard zone num: " << standardZoneNum
-                     << " invalid";
+                   << " standard zone num: " << standardZoneNum
+                   << " invalid";
         return UNINTIALIZE_ID;
     }
     if (excludeZones.size() >= standardZoneNum) {
@@ -135,8 +135,7 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
                 copySetInfo, source, target, oldPeer, topo_,
                 minScatterWidth_, scatterWidthRangePerent_, &affected)) {
             LOG(INFO) << "SelectBestPlacementChunkServer select " << target
-                      << " for copyset(logicalPoolId: " << copySetInfo.id.first
-                      << ", copysetId: " << copySetInfo.id.second << ")"
+                      << " for " << copySetInfo.CopySetInfoStr()
                       << " to replace " << oldPeerInfo.info.id
                       << ", all replica satisfy scatter width of migration";
             return target;
@@ -152,8 +151,7 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
     SchedulerHelper::SortScatterWitAffected(&candidates);
     LOG(INFO) << "SelectBestPlacementChunkServer select "
               << candidates[candidates.size() - 1].first
-              << " for copyset(logicalPoolId: " << copySetInfo.id.first
-              << ", copysetId: " << copySetInfo.id.second << ")"
+              << " for " << copySetInfo.CopySetInfoStr()
               << " to replace " << oldPeerInfo.info.id
               << ", target has least influence for migration";
     return candidates[candidates.size() - 1].first;
@@ -196,17 +194,16 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         topo_->GetStandardReplicaNumInLogicalPool(copySetInfo.id.first);
     if (standardReplicaNum <= 0) {
         LOG(ERROR) << "topoAdapter get standard replicaNum "
-                     << standardReplicaNum << " in logicalPool,"
-                     " replicaNum must >=0, please check";
+                   << standardReplicaNum << " in logicalPool,"
+                   " replicaNum must >=0, please check";
         return UNINTIALIZE_ID;
     }
     if (copySetInfo.peers.size() <= standardReplicaNum) {
-        LOG(ERROR) << "topoAdapter cannot select redundent replica for"
-                     << " copySet(" << copySetInfo.id.first << ", "
-                     << copySetInfo.id.second << ") beacuse replicaNum "
-                     << copySetInfo.peers.size()
-                     << " not bigger than standard num "
-                     << standardReplicaNum;
+        LOG(ERROR) << "topoAdapter cannot select redundent replica for "
+                   << copySetInfo.CopySetInfoStr() << ", beacuse replicaNum "
+                   << copySetInfo.peers.size()
+                   << " not bigger than standard num "
+                   << standardReplicaNum;
         return UNINTIALIZE_ID;
     }
 
@@ -216,9 +213,9 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         topo_->GetStandardZoneNumInLogicalPool(copySetInfo.id.first);
     if (standardZoneNum <= 0) {
         LOG(ERROR) << "topoAdapter get standard zoneNum "
-                     << standardZoneNum << " in logicalPool "
-                     << copySetInfo.id.first
-                     << ", zoneNum must >=0, please check";
+                   << standardZoneNum << " in logicalPool "
+                   << copySetInfo.id.first
+                   << ", zoneNum must >=0, please check";
         return UNINTIALIZE_ID;
     }
     for (auto &peer : copySetInfo.peers) {
@@ -234,10 +231,10 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
     // 1. 不满足标准zone数量，报警
     // TODO(lixiaocui): 这种情况应该通过副本的增减进行调整
     if (zoneList.size() < standardZoneNum) {
-        LOG(ERROR) << "topoAdapter find copySet(" << copySetInfo.id.first
-                   << ", " << copySetInfo.id.second << ") replicas distribute"
-                   << " in " << zoneList.size() << " zones, less than standard"
-                   << "zoneNum " << standardZoneNum << ", please check";
+        LOG(ERROR) << "topoAdapter find " << copySetInfo.CopySetInfoStr()
+                   << " replicas distribute in "
+                   << zoneList.size() << " zones, less than standard zoneNum "
+                   << standardZoneNum << ", please check";
         return UNINTIALIZE_ID;
     }
 
@@ -264,6 +261,25 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         }
     }
 
+    // 优先移除offline状态的副本
+    for (auto cs : candidateChunkServer) {
+        ChunkServerInfo csInfo;
+        if (!topo_->GetChunkServerInfo(cs, &csInfo)) {
+            LOG(ERROR) << "scheduler cannot get chunkserver "
+                       << cs << " which is a replica of "
+                       << copySetInfo.CopySetInfoStr();
+            return UNINTIALIZE_ID;
+        }
+
+        // chunkserver不是online状态
+        if (csInfo.IsOffline()) {
+            LOG(ERROR) << "scheduler choose to remove offline chunkServer "
+                       << cs << " from " << copySetInfo.CopySetInfoStr();
+            return cs;
+        }
+    }
+
+    // 所有chunkserver都是online状态，根据移除该副本对scatter-width的影响选择
     // 根据chunkserver上copyset的数量对candidateChunkserver进行排序
     std::map<ChunkServerIDType, std::vector<CopySetInfo>> distribute;
     std::vector<std::pair<ChunkServerIDType, std::vector<CopySetInfo>>> desc;
@@ -272,25 +288,10 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
     }
     SchedulerHelper::SortDistribute(distribute, &desc);
 
-    // 优先移除offline状态的副本，然后移除满足scatter-width条件的copyset数量最多的
+    // 已优先移除offline状态的副本，然后移除满足scatter-width条件的copyset数量最多的
+    // 用于记录移除该副本对所有chunkserver的影响
     std::vector<std::pair<ChunkServerIdType, int>> candidates;
     for (auto it = desc.begin(); it != desc.end(); it++) {
-        ChunkServerInfo csInfo;
-        if (!topo_->GetChunkServerInfo(it->first, &csInfo)) {
-            LOG(ERROR) << "topoAdapter cannot get chunkserver "
-                       << it->first << " witch is a replica of copySet("
-                       << copySetInfo.id.first << ","
-                       << copySetInfo.id.second << ")";
-            return UNINTIALIZE_ID;
-        }
-
-        // chunkserver不是online状态
-        if (csInfo.state != OnlineState::ONLINE) {
-            LOG(ERROR) << "topoAdapter find chunkServer " << it->first
-                       << " offline, please check!";
-            return it->first;
-        }
-
         // 计算移除该副本对其他副本上scatter-with的影响
         ChunkServerIDType source = it->first;
         ChunkServerIDType target = UNINTIALIZE_ID;
