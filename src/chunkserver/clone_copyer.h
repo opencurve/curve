@@ -38,13 +38,15 @@ struct CopyerOptions {
     std::string curveConf;
     // s3adapter 的配置文件路径
     std::string s3Conf;
+    // curve client的对象指针
+    std::shared_ptr<FileClient> curveClient;
+    // s3 adapter的对象指针
+    std::shared_ptr<S3Adapter> s3Client;
 };
 
 class OriginCopyer {
  public:
-    OriginCopyer() = default;
-    OriginCopyer(std::shared_ptr<FileClient> curveClient,
-                 std::shared_ptr<S3Adapter> s3Client);
+    OriginCopyer();
     virtual ~OriginCopyer() = default;
 
     /**
