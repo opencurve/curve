@@ -709,11 +709,6 @@ int CopysetNode::GetHash(std::string *hash) {
     }
 
     for (std::string file : files) {
-        // 过滤掉conf.epoch文件
-        if (std::string::npos != file.find(kCurveConfEpochFilename)) {
-            continue;
-        }
-
         std::string filename = chunkDataApath_;
         filename += "/";
         filename += file;
