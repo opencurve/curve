@@ -19,10 +19,10 @@ IOMetric::IOMetric()
     : ioNum_(0)
     , ioBytes_(0)
     , errorNum_(0)
-    , rps_(&reqNum_)
-    , iops_(&ioNum_)
-    , bps_(&ioBytes_)
-    , eps_(&errorNum_) {}
+    , rps_(&reqNum_, 1)
+    , iops_(&ioNum_, 1)
+    , bps_(&ioBytes_, 1)
+    , eps_(&errorNum_, 1) {}
 
 IOMetric::~IOMetric() {}
 
