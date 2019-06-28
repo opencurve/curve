@@ -40,7 +40,7 @@ typedef struct PerSecondMetric {
     PerSecondMetric(const std::string& prefix,
                     const std::string& name) :
                     count(prefix, name + "_total_count")
-                    , value(prefix, name, &count)
+                    , value(prefix, name, &count, 1)
     {}
 } PerSecondMetric_t;
 
@@ -66,7 +66,7 @@ typedef struct InterfaceMtetric {
                     , rps(prefix, name + "_rps")
                     , bps(prefix, name + "_bps")
                     , timeoutQps(prefix, name + "_timeout_qps")
-                    , latency(prefix, name + "_latency")
+                    , latency(prefix, name + "_lat")
     {}
 } InterfaceMtetric_t;
 
