@@ -20,14 +20,17 @@ void ChunkServiceClosure::Run() {
      */
     std::unique_ptr<ChunkServiceClosure> selfGuard(this);
 
-    // 返回rpc
-    brpcDone_->Run();
+    {
+        // 所有brpcDone_调用之前要做的操作都放到这个生命周期内
+        brpc::ClosureGuard doneGuard(brpcDone_);
+        // 记录请求处理结果，收集到metric中
+        OnResonse();
+    }
 
     // closure调用的时候减1，closure创建的什么加1
+    // 这一行必须放在brpcDone_调用之后，ut里需要测试inflightio超过限制时的表现
+    // 会在传进来的closure里面加一个sleep来控制inflightio个数
     inflightThrottle_->Decrement();
-
-    // 记录请求处理结果，收集到metric中
-    OnResonse();
 }
 
 void ChunkServiceClosure::OnRequest() {
