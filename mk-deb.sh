@@ -14,7 +14,7 @@ then
 	exit
 fi
 #step2 执行编译
-if [ $1 = "debug" ]
+if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
@@ -88,6 +88,11 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+cp -r curve-tools build/
+if [ $? -ne 0 ]
+then
+	exit
+fi
 mkdir -p build/curve-mds/usr/bin
 if [ $? -ne 0 ]
 then
@@ -141,7 +146,7 @@ then
 	exit
 fi
 cp ./conf/chunkserver.conf.example \
-build/curve-chunkserver/etc/curve/chunkserver.conf.example
+build/curve-chunkserver/etc/curve/chunkserver.conf
 if [ $? -ne 0 ]
 then
 	exit
@@ -207,7 +212,7 @@ fi
 #step4 获取git提交版本信息，记录到debian包的配置文件
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
 version=`cat curve-mds/DEBIAN/control |grep Version`
-if [ $1 = "debug" ]
+if [ "$1" = "debug" ]
 then
 	debug="+debug"
 else
@@ -216,11 +221,13 @@ fi
 sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-mds/DEBIAN/control
 sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-sdk/DEBIAN/control
 sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-chunkserver/DEBIAN/control
+sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-tools/DEBIAN/control
 
 #step5 打包debian包
 dpkg-deb -b build/curve-mds .
 dpkg-deb -b build/curve-sdk .
 dpkg-deb -b build/curve-chunkserver .
+dpkg-deb -b build/curve-tools .
 #aws-c-common(commit=0302570a3cbabd98293ee03971e0867f28355086)
 #aws-checksums(commit=78be31b81a2b0445597e60ecb2412bc44e762a99)
 #aws-c-event-stream(commit=ad9a8b2a42d6c6ef07ccf251b5038b89487eacb3)
