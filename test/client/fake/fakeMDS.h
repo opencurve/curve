@@ -601,6 +601,10 @@ class FakeMDS {
         std::vector<PeerId> conf;
     };
 
+    FakeMDSCurveFSService* GetMDSService() {
+        return &fakecurvefsservice_;
+    }
+
  private:
     std::vector<CopysetCreatStruct> copysetnodeVec_;
     brpc::Server* server_;

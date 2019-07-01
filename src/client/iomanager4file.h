@@ -198,17 +198,8 @@ class IOManager4File : public IOManager {
   // 条件变量，用于唤醒和hang IO
   std::condition_variable inflightIOComeBackcv_;
 
-  // 此锁与LeaseRefreshcv_条件变量配合使用
-  // 在leasee续约失败的时候，所有新下发的IO被阻塞直到续约成功
-  std::mutex    leaseRefreshmtx_;
-  // 条件变量，用于唤醒和hang IO
-  std::condition_variable leaseRefreshcv_;
-
   // 每个IOManager都有其IO配置，保存在iooption里
   IOOption_t  ioopt_;
-
-  // 版本变更的时候置位waitinflightio_
-  std::atomic<bool> blockIO_;
 
   // inflightio_记录当前inflight的IO数量
   std::atomic<uint64_t> inflightIONum_;
