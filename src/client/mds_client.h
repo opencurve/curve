@@ -326,9 +326,19 @@ class MDSClient {
                               const UserInfo_t& userinfo,
                               std::vector<FileStatInfo>* filestatVec);
 
-    /**
-     * 析构，回收资源
-     */
+     /**
+      * 向mds注册client metric监听的地址和端口
+      * @param: ip客户端ip
+      * @param: dummyServerPort为监听端口
+      * @return: 成功返回0，
+      *          否则返回LIBCURVE_ERROR::FAILED,LIBCURVE_ERROR::AUTHFAILED等
+      */
+    LIBCURVE_ERROR Register(const std::string& ip,
+                            uint16_t port);
+
+     /**
+      * 析构，回收资源
+      */
     void UnInitialize();
 
     // 测试使用

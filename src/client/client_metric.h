@@ -137,6 +137,8 @@ typedef struct MDSClientMetric {
     InterfaceMtetric_t      changeOwner;
     // listdir接口统计信息
     InterfaceMtetric_t      listDir;
+    // register接口统计信息
+    InterfaceMtetric_t      registerClient;
 
     // 切换mds server总次数
     bvar::Adder<uint64_t>   mdsServerChangeTimes;
@@ -157,6 +159,7 @@ typedef struct MDSClientMetric {
                       , deleteFile(prefix, "deleteFile")
                       , changeOwner(prefix, "changeOwner")
                       , listDir(prefix, "listDir")
+                      , registerClient(prefix, "registerClient")
     {}
 } MDSClientMetric_t;
 
