@@ -16,13 +16,10 @@ namespace curve {
 namespace chunkserver {
 
 IOMetric::IOMetric()
-    : ioNum_(0)
-    , ioBytes_(0)
-    , errorNum_(0)
-    , rps_(&reqNum_, 1)
+    : rps_(&reqNum_, 1)
     , iops_(&ioNum_, 1)
-    , bps_(&ioBytes_, 1)
-    , eps_(&errorNum_, 1) {}
+    , eps_(&errorNum_, 1)
+    , bps_(&ioBytes_, 1) {}
 
 IOMetric::~IOMetric() {}
 
@@ -152,7 +149,6 @@ ChunkServerMetric::ChunkServerMetric()
     : hasInited_(false)
     , readMetric_(nullptr)
     , writeMetric_(nullptr)
-    , copysetCount_(nullptr)
     , leaderCount_(nullptr)
     , chunkLeft_(nullptr) {}
 
@@ -196,6 +192,9 @@ int ChunkServerMetric::Init(const ChunkServerMetricOptions& option) {
         return -1;
     }
 
+    std::string leaderCountPrefix = Prefix() + "_leader_count";
+    leaderCount_ = std::make_shared<bvar::Adder<uint32_t>>(leaderCountPrefix);
+
     hasInited_ = true;
     LOG(INFO) << "Init chunkserver metric success.";
     return 0;
@@ -205,7 +204,6 @@ int ChunkServerMetric::Fini() {
     // 释放资源，从而将暴露的metric从全局的map中移除
     readMetric_ = nullptr;
     writeMetric_ = nullptr;
-    copysetCount_ = nullptr;
     leaderCount_ = nullptr;
     chunkLeft_ = nullptr;
     copysetMetricMap_.clear();
@@ -335,19 +333,6 @@ void ChunkServerMetric::OnResponseRead(const LogicPoolID& logicPoolId,
     }
 }
 
-void ChunkServerMetric::MonitorCopysetManager(CopysetNodeManager* nodeMgr) {
-    if (!option_.collectMetric) {
-        return;
-    }
-
-    std::string cpCountPrefix = Prefix() + "_copyset_count";
-    std::string leaderCountPrefix = Prefix() + "_leader_count";
-    copysetCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        cpCountPrefix, getCopysetCountFunc, nodeMgr);
-    leaderCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        leaderCountPrefix, getLeaderCountFunc, nodeMgr);
-}
-
 void ChunkServerMetric::MonitorChunkFilePool(ChunkfilePool* chunkfilePool) {
     if (!option_.collectMetric) {
         return;
@@ -356,6 +341,22 @@ void ChunkServerMetric::MonitorChunkFilePool(ChunkfilePool* chunkfilePool) {
     std::string chunkLeftPrefix = Prefix() + "_chunkfilepool_left";
     chunkLeft_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
         chunkLeftPrefix, getChunkLeftFunc, chunkfilePool);
+}
+
+void ChunkServerMetric::IncreaseLeaderCount() {
+    if (!option_.collectMetric) {
+        return;
+    }
+
+    *leaderCount_ << 1;
+}
+
+void ChunkServerMetric::DecreaseLeaderCount() {
+    if (!option_.collectMetric) {
+        return;
+    }
+
+    *leaderCount_ << -1;
 }
 
 void ChunkServerMetric::UpdateConfigMetric(const common::Configuration& conf) {
