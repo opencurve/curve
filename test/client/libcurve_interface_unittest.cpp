@@ -65,9 +65,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     FLAGS_chunkserver_list =
          "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
 
-    ASSERT_EQ(0, Init(configpath.c_str()));
     std::string filename = "/1_userinfo_";
-
     C_UserInfo_t userinfo;
     memcpy(userinfo.owner, "userinfo", 9);
     memcpy(userinfo.password, "", 256);
@@ -83,6 +81,8 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     mds.StartCliService(pd);
     mds.StartService();
     mds.CreateCopysetNode(true);
+
+    ASSERT_EQ(0, Init(configpath.c_str()));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     // libcurve file operation
@@ -441,15 +441,31 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
 }
 
 TEST(TestLibcurveInterface, InterfaceExceptionTest) {
-    ASSERT_EQ(0, Init(configpath.c_str()));
-    // open not create file
     std::string filename = "/1_userinfo_";
 
     C_UserInfo_t userinfo;
     memcpy(userinfo.owner, "userinfo", 9);
     memcpy(userinfo.password, "", 256);
 
+    ASSERT_EQ(-2, Init(configpath.c_str()));
+
+    // open not create file
     ASSERT_EQ(-1 * LIBCURVE_ERROR::FAILED, Open(filename.c_str(), &userinfo));
+
+    // 设置leaderid
+    EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9106, &ep);
+    PeerId pd(ep);
+
+    // init mds service
+    FakeMDS mds(filename);
+    mds.Initialize();
+    mds.StartCliService(pd);
+    mds.StartService();
+    mds.CreateCopysetNode(true);
+
+    ASSERT_EQ(0, Init(configpath.c_str()));
+
 
     char* buffer = new char[8 * 1024];
     memset(buffer, 'a', 8*1024);
@@ -496,4 +512,5 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     delete[] buffer;
     delete[] readbuffer;
     UnInit();
+    mds.UnInitialize();
 }

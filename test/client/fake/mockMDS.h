@@ -37,6 +37,23 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         fakeopenfile_ = nullptr;
     }
 
+    void RegistClient(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::RegistClientRequest* request,
+                       ::curve::mds::RegistClientResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeRegisterret_->controller_ != nullptr &&
+             fakeRegisterret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::RegistClientResponse*>(
+                    fakeRegisterret_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void CreateFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateFileRequest* request,
                        ::curve::mds::CreateFileResponse* response,
@@ -269,6 +286,10 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
         fakeListDir_ = fakeret;
     }
 
+    void SetRegistRet(FakeReturn* fakeret) {
+        fakeRegisterret_ = fakeret;
+    }
+
     void CleanRetryTimes() {
         retrytimes_ = 0;
     }
@@ -287,6 +308,7 @@ class FakeCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakedeletefile_;
     FakeReturn* fakeChangeOwner_;
     FakeReturn* fakeListDir_;
+    FakeReturn* fakeRegisterret_;
 };
 
 class FakeTopologyService : public curve::mds::topology::TopologyService {
