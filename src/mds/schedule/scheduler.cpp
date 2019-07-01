@@ -109,7 +109,7 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
             excludeServers.find(cs.info.serverId) != excludeServers.end()) {
             continue;
         }
-        // chunkserver online状态，磁盘状态，容量是否符合条件
+        // chunkserver online状态, 磁盘状态，容量是否符合条件
         if (!cs.IsHealthy()) {
             // TODO(lixiaocui): consider capacity
             //  || !IsChunkServerCapacitySaturated(chunkServer)) {

@@ -57,11 +57,14 @@ TEST_F(TestLeaderSchedule, test_has_chunkServer_offline) {
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     ChunkServerInfo csInfo1(
-        peer1, offlineState, diskState, 0, 100, 10, statInfo);
+        peer1, offlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, 2, 100, 10, statInfo);
+        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
+        2, 100, 10, statInfo);
     ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, 0, 100, 10, statInfo);
+        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -95,11 +98,14 @@ TEST_F(TestLeaderSchedule, test_copySet_has_candidate) {
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, 0, 100, 10, statInfo);
+        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, 2, 100, 10, statInfo);
+        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
+        2, 100, 10, statInfo);
     ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, 0, 100, 10, statInfo);
+        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
     PoolIdType poolId = 1;
     CopySetIdType copysetId = 1;
@@ -131,11 +137,14 @@ TEST_F(TestLeaderSchedule, test_cannot_get_chunkServerInfo) {
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, 0, 100, 10, statInfo);
+        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, 2, 100, 10, statInfo);
+        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
+        2, 100, 10, statInfo);
     ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, 0, 100, 10, statInfo);
+        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -169,11 +178,14 @@ TEST_F(TestLeaderSchedule, test_no_need_tranferLeaderOut) {
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, 0, 100, 10, statInfo);
+        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, 1, 100, 10, statInfo);
+        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
+        1, 100, 10, statInfo);
     ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, 0, 100, 10, statInfo);
+        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -202,11 +214,14 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, 0, 100, 10, statInfo);
+        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, 2, 100, 10, statInfo);
+        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
+        2, 100, 10, statInfo);
     ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, 0, 100, 10, statInfo);
+        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3});
 
     PoolIdType poolId = 1;
@@ -251,13 +266,17 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
     auto diskState = ::curve::mds::topology::DiskState::DISKNORMAL;
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
-        peer1, onlineState, diskState, 0, 100, 10, statInfo);
+        peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
+        0, 100, 10, statInfo);
     ChunkServerInfo csInfo2(
-        peer2, onlineState, diskState, 3, 100, 10, statInfo);
+        peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
+        3, 100, 10, statInfo);
     ChunkServerInfo csInfo3(
-        peer3, onlineState, diskState, 1, 100, 10, statInfo);
+        peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
+        1, 100, 10, statInfo);
     ChunkServerInfo csInfo4(
-        peer4, onlineState, diskState, 1, 100, 10, statInfo);
+        peer4, onlineState, diskState, ChunkServerStatus::READWRITE,
+        1, 100, 10, statInfo);
     std::vector<ChunkServerInfo> csInfos({csInfo1, csInfo2, csInfo3, csInfo4});
 
     PoolIdType poolId = 1;
