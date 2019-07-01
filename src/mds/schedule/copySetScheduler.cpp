@@ -17,6 +17,8 @@ namespace curve {
 namespace mds {
 namespace schedule {
 int CopySetScheduler::Schedule() {
+    LOG(INFO) << "copysetScheduler begin";
+
     // 1. 获取集群中copyset 和 chunkserver列表
     //    统计每个online状态chunkserver上的copyset
     auto copysetList = topo_->GetCopySetInfos();
@@ -46,25 +48,38 @@ int CopySetScheduler::Schedule() {
     // 最大值和最小值的确定：
     // - 最小值由参数配置
     // - 最大值为最小值上浮一定百分比， 这种确定方式使得极差在一定范围之内
-    ChunkServerIdType rmOne = UNINTIALIZE_ID;
+    ChunkServerIdType source = UNINTIALIZE_ID;
     if (range <= avg * copysetNumRangePercent_) {
-        return rmOne;
+        return source;
     }
 
     Operator op;
+    ChunkServerIdType target = UNINTIALIZE_ID;
+    CopySetInfo choose;
     // 选出copyset、source和target
-    if (CopySetMigration(distribute, &op, &rmOne)) {
+    if (CopySetMigration(distribute, &op, &source, &target, &choose)) {
+        // add operator
         if (!opController_->AddOperator(op)) {
             LOG(INFO) << "copysetSchduler add op " << op.OpToString()
                       << " fail, copyset has already has operator";
         }
-        LOG(INFO) << "copysetScheduler generator op: " << op.OpToString()
-                  << "success";
+
+        // 创建copyset
+        if (!topo_->CreateCopySetAtChunkServer(choose.id, target)) {
+            LOG(ERROR) << "copysetScheduler create " << choose.CopySetInfoStr()
+                       << " on chunkServer: " << target
+                       << " error, delete operator" << op.OpToString();
+            opController_->RemoveOperator(choose.id);
+        }
+
+        LOG(INFO) << "copysetScheduler create " << choose.CopySetInfoStr()
+                  << "on chunkserver:" << target << " success. generator op: "
+                  << op.OpToString() << "success";
     }
 
     LOG_EVERY_N(INFO, 20) << "copysetScheduler is continually adjusting";
     LOG(INFO) << "copysetScheduler end.";
-    return static_cast<int>(rmOne);
+    return static_cast<int>(source);
 }
 
 void CopySetScheduler::StatsCopysetDistribute(
@@ -174,7 +189,8 @@ void CopySetScheduler::CopySetDistributionInOnlineChunkServer(
 */
 bool CopySetScheduler::CopySetMigration(
     const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
-    Operator *op, ChunkServerIdType *rmOne) {
+    Operator *op, ChunkServerIdType *source, ChunkServerIdType *target,
+    CopySetInfo *choose) {
     if (distribute.size() <= 1) {
         return false;
     }
@@ -184,11 +200,15 @@ bool CopySetScheduler::CopySetMigration(
     SchedulerHelper::SortDistribute(distribute, &desc);
 
     // 选择copyset数量最少的作为target, 并获取 info 和 target scatter-with_map
-    ChunkServerIdType target = desc[desc.size() - 1].first;
+    *target = desc[desc.size() - 1].first;
+    if (opController_->ChunkServerExceed(*target)) {
+        LOG(INFO) << "copysetScheduler found target:"
+                  << target << " operator exceed";
+        return false;
+    }
 
     // 筛选copyset和source
-    ChunkServerIdType source = UNINTIALIZE_ID;
-    CopySetInfo choose;
+    *source = UNINTIALIZE_ID;
     for (auto it = desc.begin(); it != desc.end()--; it++) {
         ChunkServerIdType possibleSource = it->first;
         for (auto info : it->second) {
@@ -214,29 +234,28 @@ bool CopySetScheduler::CopySetMigration(
 
             // 该copyset +target,-source之后的各replica的scatter-with是否符合条件 //NOLINT
             if (!SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
-                    topo_, target, possibleSource, info,
+                    topo_, *target, possibleSource, info,
                     minScatterWidth_, scatterWidthRangePerent_)) {
                 continue;
             }
 
-            source = possibleSource;
-            choose = info;
+            *source = possibleSource;
+            *choose = info;
             break;
         }
 
-        if (source != UNINTIALIZE_ID) {
+        if (*source != UNINTIALIZE_ID) {
             break;
         }
     }
 
-    if (source != UNINTIALIZE_ID) {
+    if (*source != UNINTIALIZE_ID) {
         *op = operatorFactory.CreateAddPeerOperator(
-            choose, target, OperatorPriority::NormalPriority);
+            *choose, *target, OperatorPriority::NormalPriority);
         op->timeLimit =
             std::chrono::seconds(addTimeSec_);
         LOG(INFO) << "copyset scheduler gen " << op->OpToString() << " on "
-                  << choose.CopySetInfoStr();
-        *rmOne = source;
+                  << choose->CopySetInfoStr();
         return true;
     }
     return false;
