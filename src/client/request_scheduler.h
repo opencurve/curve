@@ -71,11 +71,40 @@ class RequestScheduler : public Uncopyable {
      */
     virtual int ScheduleRequest(RequestContext *request);
 
+    /**
+     * 当leaseexcutor续约失败的时候，调用LeaseTimeoutDisableIO
+     * 后续的IO调度会被阻塞
+     */
+    void LeaseTimeoutBlockIO() {
+       std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
+       blockIO_.store(true);
+    }
+
+    /**
+     * 当lease又续约成功的时候，leaseexcutor调用该接口恢复IO,
+     * IO调度被恢复
+     */
+    void RefeshSuccAndResumeIO() {
+       std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
+       blockIO_.store(false);
+       leaseRefreshcv_.notify_all();
+    }
+
  private:
     /**
      * Thread pool的运行函数，会从queue中取request进行处理
      */
     void Process();
+
+    inline void GetIOToken() {
+      // lease续约失败的时候需要阻塞IO直到续约成功
+      if (blockIO_.load(std::memory_order_acquire)) {
+         std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
+         leaseRefreshcv_.wait(lk, [&]()->bool{
+               return !blockIO_.load();
+         });
+      }
+    }
 
  private:
     // 线程池和queue容量的配置参数
@@ -92,6 +121,13 @@ class RequestScheduler : public Uncopyable {
     std::atomic<bool> stop_;
     // 访问复制组Chunk的客户端
     CopysetClient client_;
+    // 续约失败，卡住IO
+    std::atomic<bool> blockIO_;
+    // 此锁与LeaseRefreshcv_条件变量配合使用
+    // 在leasee续约失败的时候，所有新下发的IO被阻塞直到续约成功
+    std::mutex    leaseRefreshmtx_;
+    // 条件变量，用于唤醒和hang IO
+    std::condition_variable leaseRefreshcv_;
 };
 
 }   // namespace client

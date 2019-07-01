@@ -19,7 +19,6 @@
 namespace curve {
 namespace client {
 IOManager4File::IOManager4File():
-                    blockIO_(false),
                     inflightIONum_(0),
                     scheduler_(nullptr) {
 }
@@ -70,13 +69,6 @@ void IOManager4File::UnInitialize() {
 }
 
 void IOManager4File::GetInflightIOToken() {
-    // lease续约失败的时候需要阻塞IO直到续约成功
-    if (blockIO_.load(std::memory_order_acquire)) {
-        std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
-        leaseRefreshcv_.wait(lk, [&]()->bool{
-            return !blockIO_.load();
-        });
-    }
     // 当inflight IO超过限制的时候要等到其他inflight IO回来才能继续发送
     // 因为rpc内部需要同一链路上目前允许的最大的未发送的数据量为8MB，因此
     // 不能无限制的向下发送异步IO.
@@ -191,12 +183,11 @@ void IOManager4File::WaitInflightIOAllComeBack() {
 }
 
 void IOManager4File::LeaseTimeoutBlockIO() {
-    blockIO_.store(true, std::memory_order_release);
+    scheduler_->LeaseTimeoutBlockIO();
 }
 
 void IOManager4File::RefeshSuccAndResumeIO() {
-    blockIO_.store(false, std::memory_order_release);
-    leaseRefreshcv_.notify_all();
+    scheduler_->RefeshSuccAndResumeIO();
 }
 
 }   // namespace client
