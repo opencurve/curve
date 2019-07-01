@@ -95,7 +95,6 @@ class CSMetricTest : public ::testing::Test {
         metricOptions.collectMetric = true;
         metric_ = ChunkServerMetric::GetInstance();
         metric_->Init(metricOptions);
-        metric_->MonitorCopysetManager(copysetMgr_);
         metric_->MonitorChunkFilePool(chunkfilePool_.get());
     }
 
@@ -266,26 +265,20 @@ TEST_F(CSMetricTest, OnResponseTest) {
     ASSERT_EQ(1, cpReadMetric->errorNum_.get_value());
 }
 
-TEST_F(CSMetricTest, PassiveTest) {
+TEST_F(CSMetricTest, CountTest) {
     // 初始状态下，没有copyset，chunkfilepool中有chunkNum个chunk
-    PassiveStatusPtr<uint32_t> cpCount = metric_->GetCopysetCount();
-    PassiveStatusPtr<uint32_t> leaderCount = metric_->GetLeaderCount();
-    PassiveStatusPtr<uint32_t> chunkLeft = metric_->GetChunkLeftCount();
-    // ASSERT_EQ(0, cpCount->get_value());
-    ASSERT_EQ(0, leaderCount->get_value());
-    ASSERT_EQ(10, chunkLeft->get_value());
+    ASSERT_EQ(0, metric_->GetCopysetCount());
+    ASSERT_EQ(10, metric_->GetChunkLeftCount());
 
     // 创建copyset
     Configuration conf;
     CopysetID copysetId;
     ASSERT_TRUE(copysetMgr_->CreateCopysetNode(logicId, copysetId, conf));
-    // ASSERT_EQ(1, cpCount->get_value());
+    ASSERT_EQ(1, metric_->GetCopysetCount());
     // 此时copyset下面没有chunk和快照
     CopysetMetricPtr copysetMetric = metric_->GetCopysetMetric(logicId, copysetId);  // NOLINT
-    PassiveStatusPtr<uint32_t> chunkCount = copysetMetric->GetChunkCount();
-    PassiveStatusPtr<uint32_t> snapCount = copysetMetric->GetSnapshotCount();
-    ASSERT_EQ(0, chunkCount->get_value());
-    ASSERT_EQ(0, snapCount->get_value());
+    ASSERT_EQ(0, copysetMetric->GetChunkCount());
+    ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
 
     // 写入数据生成chunk
     std::shared_ptr<CopysetNode> node =
@@ -298,8 +291,15 @@ TEST_F(CSMetricTest, PassiveTest) {
     size_t length = PAGE_SIZE;
     ASSERT_EQ(CSErrorCode::Success,
               datastore->WriteChunk(id, seq, buf, offset, length, nullptr));
-    ASSERT_EQ(1, chunkCount->get_value());
-    ASSERT_EQ(0, snapCount->get_value());
+    ASSERT_EQ(1, copysetMetric->GetChunkCount());
+    ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
+
+    // 测试leader count计数
+    ASSERT_EQ(0, metric_->GetLeaderCount());
+    metric_->IncreaseLeaderCount();
+    ASSERT_EQ(1, metric_->GetLeaderCount());
+    metric_->DecreaseLeaderCount();
+    ASSERT_EQ(0, metric_->GetLeaderCount());
 }
 
 TEST_F(CSMetricTest, ConfigTest) {
@@ -333,7 +333,6 @@ TEST_F(CSMetricTest, OnOffTest) {
     {
         metricOptions.collectMetric = false;
         ASSERT_EQ(0, metric_->Init(metricOptions));
-        metric_->MonitorCopysetManager(copysetMgr_);
         metric_->MonitorChunkFilePool(chunkfilePool_.get());
         common::Configuration conf;
         conf.SetConfigPath(confFile_);
@@ -345,9 +344,9 @@ TEST_F(CSMetricTest, OnOffTest) {
     {
         ASSERT_EQ(metric_->GetReadMetric(), nullptr);
         ASSERT_EQ(metric_->GetWriteMetric(), nullptr);
-        ASSERT_EQ(metric_->GetCopysetCount(), nullptr);
-        ASSERT_EQ(metric_->GetLeaderCount(), nullptr);
-        ASSERT_EQ(metric_->GetChunkLeftCount(), nullptr);
+        ASSERT_EQ(metric_->GetCopysetCount(), 0);
+        ASSERT_EQ(metric_->GetLeaderCount(), 0);
+        ASSERT_EQ(metric_->GetChunkLeftCount(), 0);
         ConfigMetricMap configs = metric_->GetConfigMetric();
         ASSERT_EQ(configs.size(), 0);
     }
@@ -359,6 +358,13 @@ TEST_F(CSMetricTest, OnOffTest) {
         metric_->OnResponseRead(logicId, copysetId, PAGE_SIZE, 100, true);
         metric_->OnResponseWrite(logicId, copysetId, PAGE_SIZE, 100, false);
         ASSERT_EQ(0, metric_->RemoveCopysetMetric(logicId, copysetId));
+    }
+    // 增加leader count，但是实际未计数
+    {
+        metric_->IncreaseLeaderCount();
+        ASSERT_EQ(metric_->GetLeaderCount(), 0);
+        metric_->DecreaseLeaderCount();
+        ASSERT_EQ(metric_->GetLeaderCount(), 0);
     }
 }
 

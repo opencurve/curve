@@ -36,6 +36,9 @@ class CSDataStore;
 template <typename Tp>
 using PassiveStatusPtr = std::shared_ptr<bvar::PassiveStatus<Tp>>;
 
+template <typename Tp>
+using AdderPtr = std::shared_ptr<bvar::Adder<Tp>>;
+
 // 使用LatencyRecorder的实现来统计读写请求的size情况
 // 可以统计分位值、最大值、中位数、平均值等情况
 using IOSizeRecorder = bvar::LatencyRecorder;
@@ -156,12 +159,12 @@ class CSCopysetMetric {
         return writeMetric_;
     }
 
-    const PassiveStatusPtr<uint32_t> GetChunkCount() const {
-        return chunkCount_;
+    const uint32_t GetChunkCount() const {
+        return chunkCount_->get_value();
     }
 
-    const PassiveStatusPtr<uint32_t> GetSnapshotCount() const {
-        return snapshotCount_;
+    const uint32_t GetSnapshotCount() const {
+        return snapshotCount_->get_value();
     }
 
  private:
@@ -292,17 +295,23 @@ class ChunkServerMetric : public Uncopyable {
      */
     int RemoveCopysetMetric(const LogicPoolID& logicPoolId,
                             const CopysetID& copysetId);
-    /**
-     * 监视copyset node manager，主要监视copyset的数量和leader的数量
-     * @param nodeMgr: CopysetNodeManager的对象指针
-     *                 需要保证在ChunkServerMetric生命周期内不会被释放
-     */
-    void MonitorCopysetManager(CopysetNodeManager* nodeMgr);
+
     /**
      * 监视chunk分配池，主要监视池中chunk的数量
      * @param chunkfilePool: ChunkfilePool的对象指针
      */
     void MonitorChunkFilePool(ChunkfilePool* chunkfilePool);
+
+    /**
+     * 增加 leader count 计数
+     */
+    void IncreaseLeaderCount();
+
+    /**
+     * 减少 leader count 计数
+     */
+    void DecreaseLeaderCount();
+
     /**
      * 更新配置项数据
      * @param conf: 配置内容
@@ -318,16 +327,21 @@ class ChunkServerMetric : public Uncopyable {
         return writeMetric_;
     }
 
-    const PassiveStatusPtr<uint32_t> GetCopysetCount() const {
-        return copysetCount_;
+    const uint32_t GetCopysetCount() {
+        ReadLockGuard lockGuard(rwLock_);
+        return copysetMetricMap_.size();
     }
 
-    const PassiveStatusPtr<uint32_t> GetLeaderCount() const {
-        return leaderCount_;
+    const uint32_t GetLeaderCount() const {
+        if (leaderCount_ == nullptr)
+            return 0;
+        return leaderCount_->get_value();
     }
 
-    const PassiveStatusPtr<uint32_t> GetChunkLeftCount() const {
-        return chunkLeft_;
+    const uint32_t GetChunkLeftCount() const {
+        if (chunkLeft_ == nullptr)
+            return 0;
+        return chunkLeft_->get_value();
     }
 
     const ConfigMetricMap GetConfigMetric() const {
@@ -352,10 +366,8 @@ class ChunkServerMetric : public Uncopyable {
     IOMetricPtr readMetric_;
     // 通过ChunkService进来的写io统计
     IOMetricPtr writeMetric_;
-    // copyset 的数量
-    PassiveStatusPtr<uint32_t> copysetCount_;
     // leader 的数量
-    PassiveStatusPtr<uint32_t> leaderCount_;
+    AdderPtr<uint32_t> leaderCount_;
     // chunkfilepool 中剩余的 chunk 的数量
     PassiveStatusPtr<uint32_t> chunkLeft_;
     // 各复制组metric的映射表，用GroupId作为key
