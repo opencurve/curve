@@ -1,0 +1,12 @@
+Package: curve-tools
+Version: 1.0
+Section:
+Priority: optional
+Depends: 
+Suggests:
+Architecture:amd64
+Installed-Size:
+Maintainer: curve-dev
+Provides:
+Description: curve tools
+
