@@ -318,19 +318,9 @@ CSErrorCode CSDataStore::GetChunkHash(ChunkID id,
 
 DataStoreStatus CSDataStore::GetStatus() {
     DataStoreStatus status;
-    // TODO(yyk) 待改进
-    // 如果map中元素较多，会有较大的性能开销，10000个元素大概要花费2.6ms
-    // 如果所有chunkserver上都去抓取，对cpu占用也会较高，后续需要优化
-    ChunkMap chunkMap = metaCache_.GetMap();
-    status.chunkFileCount = chunkMap.size();
-    CSChunkInfo info;
-    for (auto& chunk : chunkMap) {
-        chunk.second->GetInfo(&info);
-        // 根据snapsn判断是否存在快照，如果不为0说明存在快照
-        if (info.snapSn != kInvalidSeq) {
-            ++status.snapshotCount;
-        }
-    }
+    status.chunkFileCount = metaCache_.Size();
+
+    // TODO(yyk) 快照数量目前还未统计
     return status;
 }
 
