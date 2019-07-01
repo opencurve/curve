@@ -34,6 +34,7 @@ using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::Server;
 using ::curve::mds::topology::LogicalPool;
 using ::curve::mds::topology::DiskState;
+using ::curve::mds::topology::ChunkServerStatus;
 using ::curve::mds::topology::UNINTIALIZE_ID;
 using ::curve::mds::heartbeat::ConfigChangeInfo;
 using ::curve::mds::heartbeat::ConfigChangeType;
@@ -89,6 +90,8 @@ struct CopySetInfo {
     std::string CopySetInfoStr() const;
 
     CopySetKey id;
+    // 环境初始化的时copyset全部创建完成logicalPool可用,创建过程中不可用
+    bool logicalPoolWork;
     EpochType epoch;
     ChunkServerIdType leader;
     std::vector<PeerInfo> peers;
@@ -104,16 +107,19 @@ struct ChunkServerInfo {
     ChunkServerInfo() :
         leaderCount(0), diskCapacity(0), diskUsed(0) {}
     ChunkServerInfo(const PeerInfo &info, OnlineState state,
-                    DiskState diskState, uint32_t leaderCount,
-                    uint64_t capacity, uint64_t used,
+                    DiskState diskState, ChunkServerStatus status,
+                    uint32_t leaderCount, uint64_t capacity, uint64_t used,
                     const ChunkServerStatisticInfo &statisticInfo);
 
     bool IsOffline();
+    bool IsRetired();
     bool IsHealthy();
 
     PeerInfo info;
     OnlineState state;
     DiskState diskState;
+    ChunkServerStatus status;
+
     uint32_t leaderCount;
     uint64_t diskCapacity;
     uint64_t diskUsed;
@@ -136,7 +142,7 @@ class TopoAdapter {
     virtual bool GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) = 0;
 
     /**
-     * @brief GetCopySetInfos 获取所有的copyset信息
+     * @brief GetCopySetInfos 获取所有logicalPoolId可用的copyset信息
      *
      * @return copyset信息列表
      */
