@@ -1,7 +1,7 @@
 #
 # Global settings
 #
-#global.logfile=/root/data/log/0/chunkserver.log
+global.log_level=0
 global.ip=127.0.0.1
 global.port=8200
 global.chunk_size=16777216
