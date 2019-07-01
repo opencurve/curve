@@ -17,6 +17,7 @@
 
 
 #include <mutex>    // NOLINT
+#include <chrono>   // NOLINT
 #include <atomic>
 #include <functional>
 #include <condition_variable>    // NOLINT
@@ -32,6 +33,7 @@
 
 extern std::string metaserver_addr;
 extern std::string configpath;
+DECLARE_string(chunkserver_list);
 
 using curve::client::MDSClient;
 using curve::client::UserInfo_t;
@@ -42,8 +44,20 @@ using curve::client::TimerTask;
 using curve::client::TimerTaskWorker;
 using curve::client::FileMetric_t;
 
+#define SLEEP_TIME_S 5
+
+uint64_t ioSleepTime = 0;
+
+bool sessionFlag = false;
+std::mutex sessionMtx;
+std::condition_variable sessionCV;
+
 void sessioncallback(CurveAioContext* aioctx) {
-    ASSERT_EQ(-1 * LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
+    uint64_t ioEndTime = TimeUtility::GetTimeofDayUs();
+
+    ASSERT_GT(ioEndTime - ioSleepTime, SLEEP_TIME_S * 1000000);
+
+    sessionFlag = true;
 }
 
 TEST(TimerTaskWorkerTest, TimerTaskWorkerRunTaskTest) {
@@ -99,8 +113,21 @@ TEST(TimerTaskWorkerTest, TimerTaskWorkerRunTaskTest) {
 }
 
 TEST(ClientSession, LeaseTaskTest) {
+    FLAGS_chunkserver_list,
+             "127.0.0.1:9176:0,127.0.0.1:9177:0,127.0.0.1:9178:0";
+
     std::string filename = "/1";
 
+    /*** init mds service ***/
+    FakeMDS mds(filename);
+    mds.Initialize();
+    mds.StartService();
+    // 设置leaderid
+    curve::client::EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9176, &ep);
+    PeerId pd(ep);
+    mds.StartCliService(pd);
+    mds.CreateCopysetNode(true);
     ClientConfig cc;
     cc.Init(configpath.c_str());
 
@@ -115,7 +142,7 @@ TEST(ClientSession, LeaseTaskTest) {
                                         cc.GetFileServiceOption()));
 
     brpc::Server server;
-    FakeMDSCurveFSService curvefsservice;
+    FakeMDSCurveFSService* curvefsservice = mds.GetMDSService();
 
     // set openfile response
     ::curve::mds::OpenFileResponse openresponse;
@@ -133,17 +160,7 @@ TEST(ClientSession, LeaseTaskTest) {
 
     FakeReturn* openfakeret
      = new FakeReturn(nullptr, static_cast<void*>(&openresponse));
-    curvefsservice.SetOpenFile(openfakeret);
-
-    // 1. start service
-    if (server.AddService(&curvefsservice,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
-    }
-
-    brpc::ServerOptions options;
-    options.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+    curvefsservice->SetOpenFile(openfakeret);
 
     // 2. set refresh response
     std::mutex mtx;
@@ -168,7 +185,7 @@ TEST(ClientSession, LeaseTaskTest) {
     refreshresp.set_allocated_fileinfo(info);
     FakeReturn* refreshfakeret
     = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice.SetRefreshSession(refreshfakeret, refresht);
+    curvefsservice->SetRefreshSession(refreshfakeret, refresht);
 
     // 3. open the file
     int openret = fileinstance.Open(filename, userinfo);
@@ -189,7 +206,7 @@ TEST(ClientSession, LeaseTaskTest) {
     refreshresp.set_statuscode(::curve::mds::StatusCode::KInternalError);
     FakeReturn* refreshfakeretnotexits
      = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice.SetRefreshSession(refreshfakeretnotexits, refresht);
+    curvefsservice->SetRefreshSession(refreshfakeretnotexits, refresht);
 
     for (int i = 0; i < 5; i++) {
         {
@@ -207,7 +224,7 @@ TEST(ClientSession, LeaseTaskTest) {
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretOK
      = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice.SetRefreshSession(refreshfakeretOK, refresht);
+    curvefsservice->SetRefreshSession(refreshfakeretOK, refresht);
 
     for (int i = 0; i < 2; i++) {
         {
@@ -216,13 +233,14 @@ TEST(ClientSession, LeaseTaskTest) {
         }
     }
     ASSERT_TRUE(lease->LeaseValid());
-/*
+
+    LOG(INFO) << "111111111";
     // 7. set refresh failed
     // 续约失败，IO都是直接返回-LIBCURVE_ERROR::DISABLEIO
     refreshresp.set_statuscode(::curve::mds::StatusCode::KInternalError);
     FakeReturn* refreshfakeretfail
      = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice.SetRefreshSession(refreshfakeretfail, refresht);
+    curvefsservice->SetRefreshSession(refreshfakeretfail, refresht);
 
     for (int i = 0; i < 5; i++) {
         {
@@ -231,45 +249,50 @@ TEST(ClientSession, LeaseTaskTest) {
         }
     }
 
-    char buf[10];
-    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Write(buf, 0, 0));
-    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Read(buf, 0, 0));
+    LOG(INFO) << "2222222";
+    char* buf2 = new char[8 * 1024];
+    CurveAioContext aioctx;
+    aioctx.offset = 0;
+    aioctx.length = 4 * 1024;
+    aioctx.ret = LIBCURVE_ERROR::OK;
+    aioctx.cb = sessioncallback;
+    aioctx.buf = buf2;
 
-    // 8. set fake close return
-    ::curve::mds::CloseFileResponse closeresp;
-    closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* closefileret
-     = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
-    curvefsservice.SetCloseFile(closefileret);
+    ioSleepTime = TimeUtility::GetTimeofDayUs();
 
-    // 9. set refresh ret = kSessionNotExist
-    refreshresp.set_statuscode(::curve::mds::StatusCode::kSessionNotExist);
-    FakeReturn* refreshSessionNotExist
+    ASSERT_EQ(0, fileinstance.AioRead(&aioctx));
+
+    std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME_S));
+
+    LOG(INFO) << "3333333";
+
+    // 8. set refresh success
+    // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
+    // 这时候IO被恢复了。
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretOK1
      = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
-    curvefsservice.SetRefreshSession(refreshSessionNotExist, refresht);
+    curvefsservice->SetRefreshSession(refreshfakeretOK1, refresht);
 
-    for (int i = 0; i < 1; i++) {
+    for (int i = 0; i < 2; i++) {
         {
             std::unique_lock<std::mutex> lk(mtx);
             refreshcv.wait(lk);
         }
     }
+    ASSERT_TRUE(lease->LeaseValid());
 
-    CurveAioContext aioctx;
-    aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
-    aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = LIBCURVE_ERROR::OK;
-    aioctx.cb = sessioncallback;
-    aioctx.buf = nullptr;
+    std::unique_lock<std::mutex> lk(sessionMtx);
+    sessionCV.wait(lk, [&]() { return sessionFlag; });
 
-    fileinstance.AioRead(&aioctx);
-    fileinstance.AioWrite(&aioctx);
+    // 9. set fake close return
+    ::curve::mds::CloseFileResponse closeresp;
+    closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* closefileret
+     = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
+    curvefsservice->SetCloseFile(closefileret);
 
-    char buffer[10];
-    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Write(buffer, 0, 0));
-    ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, fileinstance.Read(buffer, 0, 0));
-*/
-
+    mds.UnInitialize();
     fileinstance.UnInitialize();
     server.Stop(0);
     server.Join();
