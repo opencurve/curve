@@ -59,6 +59,14 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
+
+    // 优先初始化 metric 收集模块
+    ChunkServerMetricOptions metricOptions;
+    InitMetricOptions(&conf, &metricOptions);
+    ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
+    LOG_IF(FATAL, metric->Init(metricOptions) != 0)
+        << "Failed to init chunkserver metric.";
+
     // 初始化并发持久模块
     ConcurrentApplyModule concurrentapply;
     int size;
@@ -76,7 +84,6 @@ int ChunkServer::Run(int argc, char** argv) {
         "fs.enable_renameat2", &lfsOption.enableRenameat2));
     LOG_IF(FATAL, 0 != fs->Init(lfsOption))
         << "Failed to initialize local filesystem module!";
-
 
     // 初始化chunk文件池
     ChunkfilePoolOptions chunkFilePoolOptions;
@@ -176,16 +183,6 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(FATAL, copysetNodeManager_.ReloadCopysets() != 0)
         << "CopysetNodeManager Failed to reload copyset.";
 
-    // 初始化 metric 收集模块
-    ChunkServerMetricOptions metricOptions;
-    InitMetricOptions(&conf, &metricOptions);
-    ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
-    LOG_IF(FATAL, metric->Init(metricOptions) != 0)
-        << "Failed to init chunkserver metric.";
-    metric->MonitorCopysetManager(&copysetNodeManager_);
-    metric->MonitorChunkFilePool(chunkfilePool.get());
-    metric->UpdateConfigMetric(conf);
-
     // 心跳模块初始化
     HeartbeatOptions heartbeatOptions;
     InitHeartbeatOptions(&conf, &heartbeatOptions);
@@ -195,6 +192,11 @@ int ChunkServer::Run(int argc, char** argv) {
     heartbeatOptions.chunkserverToken = metadata.token();
     LOG_IF(FATAL, heartbeat_.Init(heartbeatOptions) != 0)
         << "Failed to init Heartbeat manager.";
+
+    // 监控部分模块的metric指标
+    metric->MonitorCopysetManager(&copysetNodeManager_);
+    metric->MonitorChunkFilePool(chunkfilePool.get());
+    metric->UpdateConfigMetric(conf);
 
     // =======================启动各模块==================================//
     LOG(INFO) << "ChunkServer starts.";
