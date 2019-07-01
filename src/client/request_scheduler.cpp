@@ -21,6 +21,7 @@ RequestScheduler::~RequestScheduler() {
 
 int RequestScheduler::Init(const RequestScheduleOption_t& reqSchdulerOpt,
                            MetaCache *metaCache) {
+    blockIO_.store(false);
     reqschopt_ = reqSchdulerOpt;
     // 调度队列的深度会影响client端整体吞吐，这个队列存放的是异步IO任务。
     // 队列深度与maxInFlightIONum数量有关系，其深度应该大于等于maxInFlightIONum
@@ -87,6 +88,9 @@ void RequestScheduler::Process() {
         && !stop_.load(std::memory_order_acquire)) {
         BBQItem<RequestContext *> item = queue_.Take();
         if (!item.IsStop()) {
+            // 在发送IO之前先获取token
+            // 在Take操作之后gettoken防止无法结束scheduler
+            GetIOToken();
             RequestContext *req = item.Item();
             brpc::ClosureGuard guard(req->done_);
 
