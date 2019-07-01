@@ -189,13 +189,16 @@ class CopySetScheduler : public Scheduler {
      * @param[in] chunkserverlist topo中所有chunkserver, 作为参数是为了避免重复获取
      * @param[in] distribute 每个chunkserver上的copyset
      * @param[out] op 生成的operator
-     * @param[out] removeOne 需要移除的copyset
+     * @param[out] source 需要移除copyset的chunkserver
+     * @param[out] target 需要增加copyset的chunkserver
+     * @param[out] choose 选中的copyset
      *
      * @return true-生成operator false-未生成operator
      */
     bool CopySetMigration(
         const std::map<ChunkServerIdType, std::vector<CopySetInfo>> &distribute,
-        Operator *op, ChunkServerIdType *removeOne);
+        Operator *op, ChunkServerIdType *source, ChunkServerIdType *target,
+        CopySetInfo *choose);
 
  private:
     // CopySetScheduler运行时间间隔
