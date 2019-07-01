@@ -138,12 +138,10 @@ TEST(MetricTest, MDS_MetricTest) {
 }
 
 TEST(MetricTest, Config_MetricTest) {
-    FLAGS_chunkserver_list = "127.0.0.1:9140:0,127.0.0.1:9141:0,127.0.0.1:9142:0";   // NOLINT
-    ASSERT_EQ(0, Init("./test/client/testConfig/client_metric.conf"));
-
     // filename必须是全路径
     std::string filename = "/1_userinfo_";
 
+    FLAGS_chunkserver_list = "127.0.0.1:9140:0,127.0.0.1:9141:0,127.0.0.1:9142:0";   // NOLINT
     // init mds service
     FakeMDS mds(filename);
     mds.Initialize();
@@ -154,6 +152,8 @@ TEST(MetricTest, Config_MetricTest) {
     PeerId pd(ep);
     mds.StartCliService(pd);
     mds.CreateCopysetNode(true);
+
+    ASSERT_EQ(0, Init("./test/client/testConfig/client_metric.conf"));
 
     // libcurve file operation
     C_UserInfo_t userinfo;

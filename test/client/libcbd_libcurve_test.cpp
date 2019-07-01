@@ -17,6 +17,7 @@
 
 #include "src/client/libcbd.h"
 
+#include "src/client/libcurve_file.h"
 #include "include/client/libcurve.h"
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
@@ -60,6 +61,11 @@ class TestLibcbdLibcurve : public ::testing::Test {
         mds_->StartService();
         mds_->CreateCopysetNode(true);
 
+        if (Init(configpath.c_str()) != 0) {
+            LOG(FATAL) << "Fail to init config";
+            return;
+        }
+
         int64_t t0 = butil::monotonic_time_ms();
         int ret = -1;
         for (;;) {
@@ -93,10 +99,15 @@ class TestLibcbdLibcurve : public ::testing::Test {
     FakeMDS* mds_;
 };
 
-TEST(TestLibcbd, InitTest) {
+extern bool globalclientinited_;
+extern curve::client::FileClient* globalclient;
+TEST_F(TestLibcbdLibcurve, InitTest) {
     int ret;
     CurveOptions opt;
 
+    globalclient->UnInit();
+    globalclient = nullptr;
+    globalclientinited_ = false;
     memset(&opt, 0, sizeof(opt));
     // testing with no conf specified
     opt.conf = "";
