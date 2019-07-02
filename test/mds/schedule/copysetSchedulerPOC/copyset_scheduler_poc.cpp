@@ -194,7 +194,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         return true;
     }
 
-    int UpdateOnlineState(
+    int UpdateChunkServerOnlineState(
         const OnlineState &onlineState, ChunkServerIdType id) override {
         auto it = chunkServerMap_.find(id);
         if (it == chunkServerMap_.end()) {
@@ -205,7 +205,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         }
     }
 
-    int UpdateCopySet(
+    int UpdateCopySetTopo(
         const ::curve::mds::topology::CopySetInfo &data) override {
         CopySetKey key(data.GetLogicalPoolId(), data.GetId());
         auto it = copySetMap_.find(key);
@@ -470,12 +470,12 @@ class CopysetSchedulerPOC : public testing::Test {
         // 设置目标chunkserver的状态为offline
         auto it = chunkServers.begin();
         std::advance(it, index);
-        topo_->UpdateOnlineState(OnlineState::OFFLINE, *it);
+        topo_->UpdateChunkServerOnlineState(OnlineState::OFFLINE, *it);
         return *it;
     }
 
     void SetChunkServerOnline(ChunkServerIdType id) {
-        topo_->UpdateOnlineState(OnlineState::ONLINE, id);
+        topo_->UpdateChunkServerOnlineState(OnlineState::ONLINE, id);
     }
 
     void SetChunkServerOnline(const std::vector<ChunkServerIdType> &list) {
@@ -519,7 +519,7 @@ class CopysetSchedulerPOC : public testing::Test {
             members.emplace(type->GetTargetPeer());
 
             info.SetCopySetMembers(members);
-            ASSERT_EQ(0, topo_->UpdateCopySet(info));
+            ASSERT_EQ(0, topo_->UpdateCopySetTopo(info));
 
             keys.emplace_back(op.copsetID);
         }

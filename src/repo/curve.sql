@@ -50,6 +50,7 @@ create table if not exists `curve_physicalpool` (
     `logicalPoolName`    char(32)     NOT NULL COMMENT 'logical pool name',
     `physicalPoolID`     int          NOT NULL COMMENT 'physical pool id',
     `type`               tinyint      NOT NULL COMMENT 'pool type',
+    `initialScatterWidth` int         NOT NULL COMMENT 'initialScatterWidth',
     `createTime`         bigint       NOT NULL COMMENT 'create time',
     `status`             tinyint      NOT NULL COMMENT 'status',
     `redundanceAndPlacementPolicy`    json     NOT NULL COMMENT 'policy of redundance and placement',

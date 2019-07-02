@@ -81,6 +81,7 @@ const char CreateLogicalPoolTable[] =
     "    `logicalPoolName`    char(32)     NOT NULL COMMENT 'logical pool name',\n"                 //NOLINT
     "    `physicalPoolID`     int          NOT NULL COMMENT 'physical pool id',\n"                  //NOLINT
     "    `type`               tinyint      NOT NULL COMMENT 'pool type',\n"
+    "    `initialScatterWidth` int         NOT NULL COMMENT 'initialScatterWidth',\n"               //NOLINT
     "    `createTime`         bigint       NOT NULL COMMENT 'create time',\n"
     "    `status`             tinyint      NOT NULL COMMENT 'status',\n"
     "    `redundanceAndPlacementPolicy`    json     NOT NULL COMMENT 'policy of redundance and placement',\n"   //NOLINT

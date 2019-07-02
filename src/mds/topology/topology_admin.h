@@ -14,18 +14,14 @@
 #include <map>
 
 #include "src/mds/topology/topology.h"
+#include "src/mds/topology/topology_stat.h"
 #include "proto/nameserver2.pb.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/mds/topology/topology_item.h"
 
 namespace curve {
 namespace mds {
 namespace topology {
-
-
-struct CopysetIdInfo {
-    PoolIdType logicalPoolId;
-    CopySetIdType copySetId;
-};
 
 class TopologyAdmin {
  public:
@@ -34,10 +30,12 @@ class TopologyAdmin {
     virtual bool AllocateChunkRandomInSingleLogicalPool(
         ::curve::mds::FileType fileType,
         uint32_t chunkNumer,
+        ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) = 0;
     virtual bool AllocateChunkRoundRobinInSingleLogicalPool(
         ::curve::mds::FileType fileType,
         uint32_t chunkNumer,
+        ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) = 0;
 };
 
@@ -55,6 +53,7 @@ class TopologyAdminImpl : public TopologyAdmin {
      *
      * @param fileType 文件类型
      * @param chunkNumber 分配chunk数
+     * @param chunkSize chunk的大小
      * @param infos 分配到的copyset列表
      *
      * @retval true 分配成功
@@ -63,6 +62,7 @@ class TopologyAdminImpl : public TopologyAdmin {
     bool AllocateChunkRandomInSingleLogicalPool(
         curve::mds::FileType fileType,
         uint32_t chunkNumber,
+        ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) override;
 
     /**
@@ -70,6 +70,7 @@ class TopologyAdminImpl : public TopologyAdmin {
      *
      * @param fileType 文件类型
      * @param chunkNumber 分配chunk数
+     * @param chunkSize chunk的大小
      * @param infos 分配到的copyset列表
      *
      * @retval true 分配成功
@@ -78,6 +79,7 @@ class TopologyAdminImpl : public TopologyAdmin {
     bool AllocateChunkRoundRobinInSingleLogicalPool(
         curve::mds::FileType fileType,
         uint32_t chunkNumber,
+        ChunkSizeType chunkSize,
         std::vector<CopysetIdInfo> *infos) override;
 
  private:
@@ -95,6 +97,8 @@ class TopologyAdminImpl : public TopologyAdmin {
 
  private:
     std::shared_ptr<Topology> topology_;
+
+    std::shared_ptr<TopologyStat> topologyStat_;
 
     /**
      * @brief RoundRobin各逻辑池起始点map

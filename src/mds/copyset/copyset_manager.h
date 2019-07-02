@@ -51,7 +51,8 @@ class CopysetManager {
      *
      * @param cluster 集群信息
      * @param numCopysets copyset数量
-     * @param scatterWidth scatterWidth平均值
+     * @param[in][out] scatterWidth 入参为目标scatterWidth,
+     *   出参返回实际scatterWidth
      * @param out copyset列表
      *
      * @retval true 成功
@@ -59,7 +60,7 @@ class CopysetManager {
      */
     bool GenCopyset(const ClusterInfo& cluster,
         int numCopysets,
-        int scatterWidth,
+        uint32_t *scatterWidth,
         std::vector<Copyset>* out);
 
  private:

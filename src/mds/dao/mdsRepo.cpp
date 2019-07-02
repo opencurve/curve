@@ -228,6 +228,7 @@ LogicalPoolRepoItem::LogicalPoolRepoItem(uint16_t logicalID,
                                  const std::string &logicalName,
                                  uint16_t physicalID,
                                  uint8_t type,
+                                 uint32_t initialScatterWidth,
                                  int64_t createTime,
                                  uint8_t status,
                                  const std::string &reduancePolicy,
@@ -237,6 +238,7 @@ LogicalPoolRepoItem::LogicalPoolRepoItem(uint16_t logicalID,
     this->logicalPoolName = logicalName;
     this->physicalPoolID = physicalID;
     this->type = type;
+    this->initialScatterWidth = initialScatterWidth;
     this->createTime = createTime;
     this->status = status;
     this->redundanceAndPlacementPolicy = reduancePolicy;
@@ -259,6 +261,7 @@ void LogicalPoolRepoItem::getKV(
     (*kv)["logicalPoolName"] = convertToSqlValue(logicalPoolName);
     (*kv)["physicalPoolID"] = std::to_string(physicalPoolID);
     (*kv)["type"] = std::to_string(type);
+    (*kv)["initialScatterWidth"] = std::to_string(initialScatterWidth);
     (*kv)["createTime"] = std::to_string(createTime);
     (*kv)["status"] = std::to_string(status);
     (*kv)["redundanceAndPlacementPolicy"] =
@@ -615,6 +618,7 @@ int MdsRepo::LoadLogicalPoolRepoItems(
         res->getString("logicalPoolName"),
         static_cast<uint16_t>(res->getInt("physicalPoolID")),
         static_cast<uint8_t>(res->getInt("type")),
+        res->getUInt("initialScatterWidth"),
         res->getInt64("createTime"),
         static_cast<uint8_t>(res->getInt("status")),
         res->getString("redundanceAndPlacementPolicy"),
@@ -650,6 +654,7 @@ int MdsRepo::QueryLogicalPoolRepoItem(LogicalPoolIDType id,
     repo->physicalPoolID =
         static_cast<uint16_t>(res->getUInt("physicalPoolID"));
     repo->type = static_cast<uint8_t>(res->getUInt("type"));
+    repo->initialScatterWidth = res->getUInt("initialScatterWidth");
     repo->createTime = res->getInt64("createTime");
     repo->status = static_cast<uint8_t>(res->getUInt("status"));
     repo->redundanceAndPlacementPolicy =

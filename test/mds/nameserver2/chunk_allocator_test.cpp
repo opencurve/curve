@@ -61,7 +61,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         PageFileSegment segment;
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
             .WillOnce(Return(false));
 
@@ -75,9 +75,9 @@ TEST_F(ChunkAllocatorTest, testcase1) {
 
         std::vector<CopysetIdInfo> copysetInfos;
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
+            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
             Return(true)));
 
         ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
@@ -95,9 +95,9 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
+            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
             Return(true)));
 
         EXPECT_CALL(*mockChunkIDGenerator_, GenChunkID(_))
@@ -119,9 +119,9 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
+            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
             Return(true)));
 
         EXPECT_CALL(*mockChunkIDGenerator_, GenChunkID(_))
@@ -146,9 +146,9 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
+            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
             Return(true)));
 
         ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
@@ -170,9 +170,9 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         }
 
         EXPECT_CALL(*mockTopologyAdmin_,
-            AllocateChunkRoundRobinInSingleLogicalPool(_, _, _))
+            AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
-            .WillOnce(DoAll(SetArgPointee<2>(copysetInfos),
+            .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
             Return(true)));
 
         EXPECT_CALL(*mockChunkIDGenerator_, GenChunkID(_))
