@@ -61,10 +61,8 @@ struct ScheduleOption {
     // 配置变更需要尽量使得chunkserver的scatter-with不超过
     // minScatterWith * (1 + scatterWidthRangePerent)
     float scatterWithRangePerent;
-    // chunkserver要达到的最小scatterwidth
-    float minScatterWidth;
     // 一个Server上超过offlineExceed_个chunkserver挂掉,不恢复
-    int32_t chunkserverFailureTolerance;
+    uint32_t chunkserverFailureTolerance;
 };
 
 class Coordinator {
