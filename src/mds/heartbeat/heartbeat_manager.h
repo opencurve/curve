@@ -22,11 +22,13 @@
 #include "src/mds/schedule/coordinator.h"
 #include "src/common/concurrent/concurrent.h"
 #include "proto/heartbeat.pb.h"
+#include "src/mds/topology/topology_stat.h"
 
 using ::curve::mds::topology::CopySetInfo;
 using ::curve::mds::topology::PoolIdType;
 using ::curve::mds::topology::CopySetIdType;
 using ::curve::mds::topology::Topology;
+using ::curve::mds::topology::TopologyStat;
 using ::curve::mds::schedule::Coordinator;
 
 using ::curve::common::Thread;
@@ -51,6 +53,7 @@ class HeartbeatManager {
  public:
     HeartbeatManager(HeartbeatOption option,
         std::shared_ptr<Topology> topology,
+        std::shared_ptr<TopologyStat> topologyStat,
         std::shared_ptr<Coordinator> coordinator);
 
     ~HeartbeatManager() {
@@ -84,6 +87,23 @@ class HeartbeatManager {
                                 ChunkServerHeartbeatResponse *response);
 
  private:
+    /**
+     * @brief 更新chunkserver磁盘状态数据
+     *
+     * @param request 请求报文
+     */
+    void UpdateChunkServerState(
+        const ChunkServerHeartbeatRequest &request);
+
+    /**
+     * @brief 更新chunkserver统计数据
+     *
+     * @param request 请求报文
+     * @param response 回复报文
+     */
+    void UpdateChunkServerStat(
+        const ChunkServerHeartbeatRequest &request);
+
     /**
      * @brief ChunkServerHealthyChecker 心跳超时检查后端线程
      */
@@ -123,6 +143,7 @@ class HeartbeatManager {
  private:
     // heartbeat相关依赖
     std::shared_ptr<Topology> topology_;
+    std::shared_ptr<TopologyStat> topologyStat_;
     std::shared_ptr<Coordinator> coordinator_;
 
     // healthyChecker_ 后台线程checker逻辑

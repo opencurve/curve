@@ -218,6 +218,7 @@ TEST_F(RepoItemTest, testLogicalPoolCUDA) {
                        "logical pool 1",
                        1,
                        StoreType,
+                       0,
                        result,
                        Healthy,
                        rpPolicy.toStyledString(),

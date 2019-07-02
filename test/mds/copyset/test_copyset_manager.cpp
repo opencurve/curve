@@ -54,8 +54,9 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumSuccess) {
     cluster.SetUniformCluster();
 
     std::vector<Copyset> out;
+    uint32_t scatterWidth = 0;
     ASSERT_TRUE(manager.GenCopyset(cluster,
-        3, 0, &out));
+        3, &scatterWidth, &out));
     ASSERT_EQ(3, out.size());
 }
 
@@ -74,8 +75,9 @@ TEST(TestCopysetManager, GenCopysetByScatterWidthSuccess) {
     cluster.SetUniformCluster();
 
     std::vector<Copyset> out;
+    uint32_t scatterWidth = 4;
     ASSERT_TRUE(manager.GenCopyset(cluster,
-        0, 4, &out));
+        0, &scatterWidth, &out));
 }
 
 TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
@@ -97,8 +99,9 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
         cluster.SetMassiveCluster(180, 3);
 
         std::vector<Copyset> out;
+        uint32_t scatterWidth = 0;
         ASSERT_TRUE(manager.GenCopyset(cluster,
-            6000, 0, &out));
+            6000, &scatterWidth, &out));
         ASSERT_EQ(6000, out.size());
     }
 
@@ -108,8 +111,9 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
         cluster.SetMassiveCluster(180, 3);
 
         std::vector<Copyset> out;
+        uint32_t scatterWidth = 0;
         ASSERT_TRUE(manager.GenCopyset(cluster,
-            9000, 0, &out));
+            9000, &scatterWidth, &out));
         ASSERT_EQ(9000, out.size());
     }
 
@@ -119,8 +123,9 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
         cluster.SetMassiveCluster(240, 3);
 
         std::vector<Copyset> out;
+        uint32_t scatterWidth = 0;
         ASSERT_TRUE(manager.GenCopyset(cluster,
-            9000, 0, &out));
+            9000, &scatterWidth, &out));
         ASSERT_EQ(9000, out.size());
     }
 
@@ -130,8 +135,9 @@ TEST(TestCopysetManager, GenCopysetByCopysetNumAndValidSuccess) {
         cluster.SetMassiveCluster(240, 3);
 
         std::vector<Copyset> out;
+        uint32_t scatterWidth = 0;
         ASSERT_TRUE(manager.GenCopyset(cluster,
-            12000, 0, &out));
+            12000, &scatterWidth, &out));
         ASSERT_EQ(12000, out.size());
     }
 }

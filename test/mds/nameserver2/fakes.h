@@ -65,6 +65,7 @@ class FackTopologyAdmin: public TopologyAdmin {
 
     bool AllocateChunkRandomInSingleLogicalPool(
             FileType fileType, uint32_t chunkNumer,
+            ChunkSizeType chunkSize,
             std::vector<CopysetIdInfo> *infos) override {
         for (uint32_t i = 0; i != chunkNumer; i++) {
             CopysetIdInfo copysetIdInfo{0, i};
@@ -74,6 +75,7 @@ class FackTopologyAdmin: public TopologyAdmin {
     }
     bool AllocateChunkRoundRobinInSingleLogicalPool(
             FileType fileType, uint32_t chunkNumer,
+            ChunkSizeType chunkSize,
             std::vector<CopysetIdInfo> *infos) override {
         for (uint32_t i = 0; i != chunkNumer; i++) {
             CopysetIdInfo copysetIdInfo{0, i};

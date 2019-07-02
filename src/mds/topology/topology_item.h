@@ -12,7 +12,6 @@
 #include <string>
 #include <set>
 #include <utility>
-#include <chrono> //NOLINT
 
 #include "src/mds/topology/topology_id_generator.h"
 #include "proto/topology.pb.h"
@@ -75,6 +74,7 @@ class LogicalPool {
           name_(""),
           physicalPoolId_(UNINTIALIZE_ID),
           type_(PAGEFILE),
+          initialScatterWidth_(0),
           createTime_(0),
           status_(UNALLOCATABLE),
           avaliable_(false) {}
@@ -92,6 +92,7 @@ class LogicalPool {
           type_(type),
           rap_(rap),
           policy_(policy),
+          initialScatterWidth_(0),
           createTime_(createTime),
           status_(UNALLOCATABLE),
           avaliable_(avaliable) {}
@@ -142,6 +143,14 @@ class LogicalPool {
 
     std::string GetUserPolicyJsonStr() const;
 
+    void SetScatterWidth(uint32_t scatterWidth) {
+        initialScatterWidth_ = scatterWidth;
+    }
+
+    uint32_t GetScatterWidth() const {
+        return initialScatterWidth_;
+    }
+
     void SetStatus(LogicalPoolStatus status) {
         status_ = status;
     }
@@ -166,6 +175,10 @@ class LogicalPool {
     LogicalPoolType type_;
     RedundanceAndPlaceMentPolicy rap_;
     UserPolicy policy_;
+    /**
+     * @brief 逻辑池初始平均scatterWidth, 用于调度模块
+     */
+    uint32_t initialScatterWidth_;
 
     uint64_t createTime_;
     LogicalPoolStatus status_;
@@ -403,7 +416,7 @@ class ChunkServer {
           mountPoint_(""),
           status_(READWRITE),
           onlineState_(OFFLINE),
-          lastStateUpdateTime_(std::chrono::steady_clock::now()) {}
+          dirty_(false) {}
 
     ChunkServer(ChunkServerIdType id,
                 const std::string &token,
@@ -423,7 +436,38 @@ class ChunkServer {
           mountPoint_(diskPath),
           status_(status),
           onlineState_(onlineState),
-          lastStateUpdateTime_(std::chrono::steady_clock::now()) {}
+          dirty_(false) {}
+
+    ChunkServer(const ChunkServer& v) :
+        id_(v.id_),
+        token_(v.token_),
+        diskType_(v.diskType_),
+        serverId_(v.serverId_),
+        internalHostIp_(v.internalHostIp_),
+        port_(v.port_),
+        mountPoint_(v.mountPoint_),
+        status_(v.status_),
+        onlineState_(v.onlineState_),
+        state_(v.state_),
+        dirty_(v.dirty_) {}
+
+    ChunkServer& operator= (const ChunkServer& v) {
+        if (&v == this) {
+            return *this;
+        }
+        id_ = v.id_;
+        token_ = v.token_;
+        diskType_ = v.diskType_;
+        serverId_ = v.serverId_;
+        internalHostIp_ = v.internalHostIp_;
+        port_ = v.port_;
+        mountPoint_ = v.mountPoint_;
+        status_ = v.status_;
+        onlineState_ = v.onlineState_;
+        state_ = v.state_;
+        dirty_ = v.dirty_;
+        return *this;
+    }
 
     ChunkServerIdType GetId() const {
         return id_;
@@ -485,13 +529,16 @@ class ChunkServer {
         return state_;
     }
 
-    std::chrono::steady_clock::time_point GetLastStateUpdateTime() const {
-        return lastStateUpdateTime_;
+    bool GetDirtyFlag() const {
+        return dirty_;
     }
 
-    void SetLastStateUpdateTime(
-        const std::chrono::steady_clock::time_point &timePoint) {
-        lastStateUpdateTime_ = timePoint;
+    void SetDirtyFlag(bool dirty) {
+        dirty_ = dirty;
+    }
+
+    ::curve::common::RWLock& GetRWLockRef() const {
+        return mutex_;
     }
 
  private:
@@ -507,10 +554,23 @@ class ChunkServer {
     OnlineState onlineState_;  // 0:online、1: offline
 
     ChunkServerState state_;
-    std::chrono::steady_clock::time_point lastStateUpdateTime_;
+
+    /**
+     * @brief 脏标志位，用于定时写入数据库
+     */
+    bool dirty_;
+    /**
+     * @brief chunkserver读写锁,保护该chunkserver的并发读写
+     */
+    mutable ::curve::common::RWLock mutex_;
 };
 
 typedef std::pair<PoolIdType, CopySetIdType> CopySetKey;
+
+struct CopysetIdInfo {
+    PoolIdType logicalPoolId;
+    CopySetIdType copySetId;
+};
 
 class CopySetInfo {
  public:
@@ -543,6 +603,9 @@ class CopySetInfo {
         dirty_(v.dirty_) {}
 
     CopySetInfo& operator= (const CopySetInfo &v) {
+        if (&v == this) {
+            return *this;
+        }
         logicalPoolId_ = v.logicalPoolId_;
         copySetId_ = v.copySetId_;
         leader_ = v.leader_;

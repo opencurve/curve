@@ -14,5 +14,6 @@ cc_test(
     deps = [
         "//external:gtest",
         "//src/mds/topology",
+        "//test/mds/mock:common_mock"
     ],
 )

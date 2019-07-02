@@ -71,6 +71,7 @@ bool DefaultTopologyStorage::LoadLogicalPool(
                          rp.createTime,
                          rp.availFlag);
         pool.SetStatus(static_cast<LogicalPool::LogicalPoolStatus>(rp.status));
+        pool.SetScatterWidth(rp.initialScatterWidth);
         auto ret = logicalPoolMap->emplace(
             std::move(rp.logicalPoolID),
             std::move(pool));
@@ -276,6 +277,7 @@ bool DefaultTopologyStorage::StorageLogicalPool(const LogicalPool &data) {
                        data.GetName(),
                        data.GetPhysicalPoolId(),
                        data.GetLogicalPoolType(),
+                       data.GetScatterWidth(),
                        data.GetCreateTime(),
                        data.GetStatus(),
                        rapStr,
@@ -432,6 +434,7 @@ bool DefaultTopologyStorage::UpdateLogicalPool(const LogicalPool &data) {
                        data.GetName(),
                        data.GetPhysicalPoolId(),
                        data.GetLogicalPoolType(),
+                       data.GetScatterWidth(),
                        data.GetCreateTime(),
                        data.GetStatus(),
                        rapStr,
