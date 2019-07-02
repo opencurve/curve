@@ -39,6 +39,7 @@ DEFINE_string(recycleUri, "local://./0/recycler" , "recycle uri");
 DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
 DEFINE_string(chunkFilePoolMetaPath,
     "./chunkfilepool.meta", "chunk file pool meta path");
+DEFINE_string(logPath, "./0/chunkserver.log-", "log file path");
 
 namespace curve {
 namespace chunkserver {
@@ -59,6 +60,24 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
+
+    // 初始化日志
+    google::CommandLineFlagInfo info;
+    if (GetCommandLineFlagInfo("logPath", &info) && info.is_default) {
+        LOG(FATAL) << "logPath must be set when run chunkserver in command.";
+    }
+    google::SetLogDestination(google::INFO, FLAGS_logPath.c_str());
+    // 不生成WARNING和ERROR日志文件
+    google::SetLogDestination(google::WARNING, "/dev/null");
+    google::SetLogDestination(google::ERROR, "/dev/null");
+    google::SetLogDestination(google::FATAL, "/dev/null");
+
+    int32_t minLogLevel = 0;
+    LOG_IF(FATAL,
+           !conf.GetIntValue("global.log_level",
+                                &minLogLevel));
+    FLAGS_minloglevel = minLogLevel;
+    google::InitGoogleLogging("chunkserver");
 
     // 优先初始化 metric 收集模块
     ChunkServerMetricOptions metricOptions;
@@ -462,20 +481,32 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("chunkServerIp", &info) && !info.is_default) {
         conf->SetStringValue("global.ip", FLAGS_chunkServerIp);
+    } else {
+        LOG(FATAL)
+        << "chunkServerIp must be set when run chunkserver in command.";
     }
 
     if (GetCommandLineFlagInfo("chunkServerPort", &info) && !info.is_default) {
         conf->SetIntValue("global.port", FLAGS_chunkServerPort);
+    } else {
+        LOG(FATAL)
+        << "chunkServerPort must be set when run chunkserver in command.";
     }
 
     if (GetCommandLineFlagInfo("chunkServerStoreUri", &info) &&
         !info.is_default) {
         conf->SetStringValue("chunkserver.stor_uri", FLAGS_chunkServerStoreUri);
+    } else {
+        LOG(FATAL)
+        << "chunkServerStoreUri must be set when run chunkserver in command.";
     }
 
     if (GetCommandLineFlagInfo("chunkServerMetaUri", &info) &&
         !info.is_default) {
         conf->SetStringValue("chunkserver.meta_uri", FLAGS_chunkServerMetaUri);
+    } else {
+        LOG(FATAL)
+        << "chunkServerMetaUri must be set when run chunkserver in command.";
     }
 
     if (GetCommandLineFlagInfo("copySetUri", &info) && !info.is_default) {
@@ -483,23 +514,35 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         conf->SetStringValue("copyset.raft_log_uri", FLAGS_copySetUri);
         conf->SetStringValue("copyset.raft_snapshot_uri", FLAGS_copySetUri);
         conf->SetStringValue("copyset.raft_meta_uri", FLAGS_copySetUri);
+    } else {
+        LOG(FATAL)
+        << "copySetUri must be set when run chunkserver in command.";
     }
 
     if (GetCommandLineFlagInfo("recycleUri", &info) &&
         !info.is_default) {
         conf->SetStringValue("copyset.recycler_uri", FLAGS_recycleUri);
+    } else {
+        LOG(FATAL)
+        << "recycleUri must be set when run chunkserver in command.";
     }
 
     if (GetCommandLineFlagInfo("chunkFilePoolDir", &info) &&
         !info.is_default) {
         conf->SetStringValue(
             "chunkfilepool.chunk_file_pool_dir", FLAGS_chunkFilePoolDir);
+    } else {
+        LOG(FATAL)
+        << "chunkFilePoolDir must be set when run chunkserver in command.";
     }
 
     if (GetCommandLineFlagInfo("chunkFilePoolMetaPath", &info) &&
         !info.is_default) {
         conf->SetStringValue(
             "chunkfilepool.meta_path", FLAGS_chunkFilePoolMetaPath);
+    } else {
+        LOG(FATAL)
+        << "chunkFilePoolMetaPath must be set when run chunkserver in command.";
     }
 }
 
