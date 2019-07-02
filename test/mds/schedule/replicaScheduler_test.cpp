@@ -27,7 +27,7 @@ class TestReplicaSchedule : public ::testing::Test {
       opController_ = std::make_shared<OperatorController>(2);
       topoAdapter_ = std::make_shared<MockTopoAdapter>();
       replicaScheduler_ = std::make_shared<ReplicaScheduler>(
-          opController_, 1, 10, 100, 1000, 0.2, 90, topoAdapter_);
+          opController_, 1, 10, 100, 1000, 0.2, topoAdapter_);
   }
 
   void TearDown() override {
@@ -139,6 +139,8 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
     PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
     PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
     testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2});
+    EXPECT_CALL(*topoAdapter_, GetMinScatterWidthInLogicalPool(_))
+            .WillRepeatedly(Return(90));
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .WillOnce(Return(3));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
@@ -188,6 +190,8 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_createErr) {
     PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
     PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
     testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2});
+    EXPECT_CALL(*topoAdapter_, GetMinScatterWidthInLogicalPool(_))
+            .WillRepeatedly(Return(90));
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .WillOnce(Return(3));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
@@ -251,6 +255,8 @@ TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectCorrect) {
                             2, 100, 100, ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .Times(2).WillRepeatedly(Return(3));
+    EXPECT_CALL(*topoAdapter_, GetMinScatterWidthInLogicalPool(_))
+            .WillRepeatedly(Return(90));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
     EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))

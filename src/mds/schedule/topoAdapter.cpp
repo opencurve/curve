@@ -272,6 +272,15 @@ int TopoAdapterImpl::GetStandardReplicaNumInLogicalPool(PoolIdType id) {
     return 0;
 }
 
+int TopoAdapterImpl::GetMinScatterWidthInLogicalPool(PoolIdType id) {
+    ::curve::mds::topology::LogicalPool logicalPool;
+    if (topo_->GetLogicalPool(id, &logicalPool)) {
+        return logicalPool.GetScatterWidth();
+    }
+    LOG(WARNING) << "topoAdapter can not get logicalpool: " << id;
+    return 0;
+}
+
 bool TopoAdapterImpl::GetPeerInfo(ChunkServerIdType id, PeerInfo *peerInfo) {
     ::curve::mds::topology::ChunkServer cs;
     ::curve::mds::topology::Server server;
