@@ -24,6 +24,8 @@ using curve::client::UserInfo;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
 
+#define PORT_LIMIT  65535
+
 bool globalclientinited_ = false;
 curve::client::FileClient* globalclient = nullptr;
 
@@ -65,11 +67,24 @@ int FileClient::Init(const std::string& configpath) {
     std::call_once(flag, [&](){
         // 启动dummy server
         int rc = -1;
-        while (rc < 0) {
+        while (dummyServerStartPort < PORT_LIMIT) {
             rc = brpc::StartDummyServerAt(dummyServerStartPort);
+            if (rc >= 0) {
+                LOG(INFO) << "start dummy server success, listen port = "
+                          << dummyServerStartPort;
+                break;
+            }
             dummyServerStartPort++;
         }
     });
+
+    if (dummyServerStartPort >= PORT_LIMIT) {
+        mdsClient_->UnInitialize();
+        delete mdsClient_;
+        mdsClient_ = nullptr;
+        LOG(ERROR) << "start dummy server failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
 
     google::SetLogDestination(google::INFO,
         clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
@@ -671,13 +686,20 @@ int GlobalInit(const char* path) {
         globalclient = new (std::nothrow) curve::client::FileClient();
         if (globalclient != nullptr) {
             ret = globalclient->Init(path);
-            LOG(INFO) << "create global client instance success!";
+            if (ret == LIBCURVE_ERROR::OK) {
+                LOG(INFO) << "create global client instance success!";
+            } else {
+                delete globalclient;
+                globalclient = nullptr;
+                LOG(ERROR) << "init global client instance failed!";
+            }
         } else {
+            ret = -1;
             LOG(ERROR) << "create global client instance fail!";
         }
     }
     globalclientinited_ = ret == 0;
-    return -ret;
+    return ret;
 }
 
 void GlobalUnInit() {
