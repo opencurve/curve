@@ -198,8 +198,6 @@ struct CopySetRepoItem : public RepoItem {
   uint32_t copySetID;
   uint16_t logicalPoolID;
   uint64_t epoch;
-  uint32_t allocChunkNum;
-  uint64_t allocSize;
   std::string chunkServerIDList;
 
  public:
