@@ -232,7 +232,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
                                      copyset->GetCopysetId());
             return -1;
         }
-        if (copyset->IsLeader()) {
+        if (copyset->IsLeaderTerm()) {
             ++leaders;
         }
     }

@@ -17,6 +17,7 @@
 #include "include/curve_compiler_specific.h"
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/common/concurrent/rw_lock.h"
+#include "src/common/concurrent/concurrent.h"
 #include "src/chunkserver/datastore/define.h"
 #include "src/chunkserver/datastore/chunkserver_chunkfile.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
@@ -25,6 +26,7 @@
 namespace curve {
 namespace chunkserver {
 using curve::fs::LocalFileSystem;
+using ::curve::common::Atomic;
 using CSChunkFilePtr = std::shared_ptr<CSChunkFile>;
 
 /**
@@ -54,7 +56,7 @@ using ChunkMap = std::unordered_map<ChunkID, CSChunkFilePtr>;
 // 为chunkid到chunkfile的映射，使用读写锁对map的操作进行保护
 class CSMetaCache {
  public:
-    CSMetaCache() {}
+    CSMetaCache() : size_(0) {}
     virtual ~CSMetaCache() {}
 
     ChunkMap GetMap() {
@@ -73,14 +75,19 @@ class CSMetaCache {
     CSChunkFilePtr Set(ChunkID id, CSChunkFilePtr chunkFile) {
         WriteLockGuard writeGuard(rwLock_);
         // 当两个写请求并发去创建chunk文件时，返回先Set的chunkFile
-        if (chunkMap_[id] == nullptr)
+        if (chunkMap_.find(id) == chunkMap_.end()) {
             chunkMap_[id] = chunkFile;
+            size_.fetch_add(1);
+        }
         return chunkMap_[id];
     }
 
     void Remove(ChunkID id) {
         WriteLockGuard writeGuard(rwLock_);
-        chunkMap_.erase(id);
+        if (chunkMap_.find(id) != chunkMap_.end()) {
+            chunkMap_.erase(id);
+            size_.fetch_sub(1);
+        }
     }
 
     void Clear() {
@@ -88,9 +95,17 @@ class CSMetaCache {
         chunkMap_.clear();
     }
 
+    uint64_t Size() {
+        // 这里使用原子变量而不直接用chunkmap.size是为了避免加锁
+        // 获取chunk size的metric类型用的PassiveStatus，会调用此方法
+        // promethues导出时应避免在PassiveStatus的方法里加锁
+        return size_.load(std::memory_order_acquire);
+    }
+
  private:
     RWLock      rwLock_;
     ChunkMap    chunkMap_;
+    Atomic<uint64_t> size_;
 };
 
 class CSDataStore {

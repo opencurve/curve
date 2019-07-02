@@ -13,36 +13,6 @@
 namespace curve {
 namespace chunkserver {
 
-uint32_t getCopysetCountFunc(void* arg) {
-    /* CopysetNodeManager* nodeMgr = reinterpret_cast<CopysetNodeManager*>(arg);
-    uint32_t copysetCount = 0;
-    if (nodeMgr != nullptr) {
-        std::vector<std::shared_ptr<CopysetNode>> nodes;
-        nodeMgr->GetAllCopysetNodes(&nodes);
-        copysetCount = nodes.size();
-    }
-    return copysetCount;*/
-    // fix(yyk) 目前这里会出现死锁，后续需要修复
-    return 0;
-}
-
-uint32_t getLeaderCountFunc(void* arg) {
-   /*   CopysetNodeManager* nodeMgr = reinterpret_cast<CopysetNodeManager*>(arg);
-    uint32_t leaderCount = 0;
-    if (nodeMgr != nullptr) {
-        std::vector<std::shared_ptr<CopysetNode>> nodes;
-        nodeMgr->GetAllCopysetNodes(&nodes);
-        // 统计leader的数量
-        for (auto& node : nodes) {
-            if (node->IsLeader()) {
-                ++leaderCount;
-            }
-        }
-    }
-    */
-    return 0;
-}
-
 uint32_t getChunkLeftFunc(void* arg) {
     ChunkfilePool* chunkfilePool = reinterpret_cast<ChunkfilePool*>(arg);
     uint32_t chunkLeft = 0;
