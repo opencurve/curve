@@ -92,7 +92,7 @@ class HeartbeatManager {
      *
      * @param request 请求报文
      */
-    void UpdateChunkServerState(
+    void UpdateChunkServerDiskStatus(
         const ChunkServerHeartbeatRequest &request);
 
     /**
@@ -101,7 +101,7 @@ class HeartbeatManager {
      * @param request 请求报文
      * @param response 回复报文
      */
-    void UpdateChunkServerStat(
+    void UpdateChunkServerStatistics(
         const ChunkServerHeartbeatRequest &request);
 
     /**
