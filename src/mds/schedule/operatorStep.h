@@ -55,6 +55,8 @@ class TransferLeader : public OperatorStep {
 
     std::string OperatorStepToString() override;
 
+    ChunkServerIdType GetTargetPeer() const;
+
  private:
     ChunkServerIdType from_;
     ChunkServerIdType to_;

@@ -250,20 +250,24 @@ class LeaderScheduler : public Scheduler {
      *
      * @param[in] source leader需要迁移出去的chunkserverID
      * @param[out] op 生成的operator
+     * @param[out] selectedCopySet 选中的需要变更的copyset
      *
-     * @return 是否成功生成operator, -1为没有生成
+     * @return 是否成功生成operator, false为没有生成
      */
-    int transferLeaderOut(ChunkServerIdType source, Operator *op);
+    bool transferLeaderOut(ChunkServerIdType source,
+        Operator *op, CopySetInfo *selectedCopySet);
 
     /**
      * @brief 在target上随机选择一个follower copyset, 把leader迁移到该chunserver上
      *
      * @param[in] target 需要将该leader迁移到该chunkserverID
      * @param[out] op 生成的operator
+     * @param[out] selectedCopySet 选中的需要变更的copyset
      *
-     * @return 是否成功生成operator, -1为没有生成
+     * @return 是否成功生成operator, false为没有生成
      */
-    int transferLeaderIn(ChunkServerIdType target, Operator *op);
+    bool transferLeaderIn(ChunkServerIdType target,
+        Operator *op, CopySetInfo *selectedCopySet);
 
     /*
     * @brief copySetHealthy检查copySet三个副本是否都在线
