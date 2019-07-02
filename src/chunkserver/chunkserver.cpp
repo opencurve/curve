@@ -194,7 +194,6 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to init Heartbeat manager.";
 
     // 监控部分模块的metric指标
-    metric->MonitorCopysetManager(&copysetNodeManager_);
     metric->MonitorChunkFilePool(chunkfilePool.get());
     metric->UpdateConfigMetric(conf);
 

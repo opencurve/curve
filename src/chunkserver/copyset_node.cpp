@@ -393,6 +393,7 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
 
 void CopysetNode::on_leader_start(int64_t term) {
     leaderTerm_.store(term, std::memory_order_release);
+    ChunkServerMetric::GetInstance()->IncreaseLeaderCount();
     LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
               << ", peer id: " << peerId_.to_string()
               << " become leader, term is: " << leaderTerm_;
@@ -400,6 +401,7 @@ void CopysetNode::on_leader_start(int64_t term) {
 
 void CopysetNode::on_leader_stop(const butil::Status &status) {
     leaderTerm_.store(-1, std::memory_order_release);
+    ChunkServerMetric::GetInstance()->DecreaseLeaderCount();
     LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
               << ", peer id: " << peerId_.to_string() << " stepped down";
 }
@@ -519,10 +521,6 @@ bool CopysetNode::IsLeaderTerm() const {
 
 PeerId CopysetNode::GetLeaderId() const {
     return raftNode_->leader_id();
-}
-
-bool CopysetNode::IsLeader() const {
-    return raftNode_->is_leader();
 }
 
 static void DummyFunc(void* arg, const butil::Status& status) {
