@@ -141,9 +141,11 @@ bool ChunkServerInfo::IsHealthy() {
 
 TopoAdapterImpl::TopoAdapterImpl(
     std::shared_ptr<Topology> topo,
-    std::shared_ptr<TopologyServiceManager> manager) {
+    std::shared_ptr<TopologyServiceManager> manager,
+    std::shared_ptr<TopologyStat> stat) {
     this->topo_ = topo;
     this->topoServiceManager_ = manager;
+    this->topoStat_ = stat;
 }
 
 bool TopoAdapterImpl::GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) {
@@ -219,6 +221,7 @@ std::vector<ChunkServerInfo> TopoAdapterImpl::GetChunkServerInfos() {
             infos.push_back(info);
         }
     }
+
     return infos;
 }
 
@@ -327,7 +330,6 @@ bool TopoAdapterImpl::CopySetFromTopoToSchedule(
             return false;
         }
     }
-    // TODO(lixiaocui): out->statisticsInfo
     return true;
 }
 
@@ -348,13 +350,20 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
 
         return false;
     }
+
     out->state = origin.GetOnlineState();
     out->status = origin.GetStatus();
     out->diskState = origin.GetChunkServerState().GetDiskState();
     out->diskCapacity = origin.GetChunkServerState().GetDiskCapacity();
     out->diskUsed = origin.GetChunkServerState().GetDiskUsed();
-    return true;
-    // TODO(lixiaocui): out->statisticInfo
+
+    ChunkServerStat stat;
+    if (topoStat_->GetChunkServerStat(origin.GetId(), &stat)) {
+        out->leaderCount = stat.leaderCount;
+        return true;
+    }
+    LOG(ERROR) << "can not get chunkserver: " << origin.GetId() << " stat";
+    return false;
 }
 
 bool TopoAdapterImpl::CreateCopySetAtChunkServer(CopySetKey id,

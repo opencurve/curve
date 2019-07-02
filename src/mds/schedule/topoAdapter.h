@@ -14,7 +14,7 @@
 #include <memory>
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_service_manager.h"
-// #include "src/mds/topology/topology_stat.h"
+#include "src/mds/topology/topology_stat.h"
 #include "src/mds/common/mds_define.h"
 #include "proto/topology.pb.h"
 #include "proto/heartbeat.pb.h"
@@ -29,12 +29,13 @@ using ::curve::mds::topology::CopySetIdType;
 using ::curve::mds::topology::OnlineState;
 using ::curve::mds::topology::Topology;
 using ::curve::mds::topology::TopologyServiceManager;
-// using ::curve::mds::topology::TopologyStatImpl;
+using ::curve::mds::topology::TopologyStat;
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::Server;
 using ::curve::mds::topology::LogicalPool;
 using ::curve::mds::topology::DiskState;
 using ::curve::mds::topology::ChunkServerStatus;
+using ::curve::mds::topology::ChunkServerStat;
 using ::curve::mds::topology::UNINTIALIZE_ID;
 using ::curve::mds::heartbeat::ConfigChangeInfo;
 using ::curve::mds::heartbeat::ConfigChangeType;
@@ -270,7 +271,8 @@ class TopoAdapterImpl : public TopoAdapter {
  public:
     TopoAdapterImpl() = default;
     explicit TopoAdapterImpl(std::shared_ptr<Topology> topo,
-                            std::shared_ptr<TopologyServiceManager> manager);
+                             std::shared_ptr<TopologyServiceManager> manager,
+                             std::shared_ptr<TopologyStat> stat);
 
     bool GetCopySetInfo(
         const CopySetKey &id, CopySetInfo *info) override;
@@ -314,8 +316,7 @@ class TopoAdapterImpl : public TopoAdapter {
  private:
     std::shared_ptr<Topology> topo_;
     std::shared_ptr<TopologyServiceManager> topoServiceManager_;
-    // TODO(lixiaocui): 把topologyStat加进来
-    // std::shared_ptr<TopologyStatImpl> topoStat_;
+    std::shared_ptr<TopologyStat> topoStat_;
 };
 }  // namespace schedule
 }  // namespace mds
