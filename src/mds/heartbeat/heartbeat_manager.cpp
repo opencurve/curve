@@ -82,7 +82,7 @@ void HeartbeatManager::ChunkServerHealthyChecker() {
     }
 }
 
-void HeartbeatManager::UpdateChunkServerState(
+void HeartbeatManager::UpdateChunkServerDiskStatus(
     const ChunkServerHeartbeatRequest &request) {
     // 更新ChunkServerState数据
     ChunkServerState state;
@@ -104,7 +104,7 @@ void HeartbeatManager::UpdateChunkServerState(
     }
 }
 
-void HeartbeatManager::UpdateChunkServerStat(
+void HeartbeatManager::UpdateChunkServerStatistics(
     const ChunkServerHeartbeatRequest &request) {
     ChunkServerStat stat;
     stat.leaderCount = request.leadercount();
@@ -172,9 +172,9 @@ void HeartbeatManager::ChunkServerHeartbeat(
     healthyChecker_->UpdateLastReceivedHeartbeatTime(request.chunkserverid(),
                                     steady_clock::now());
 
-    UpdateChunkServerState(request);
+    UpdateChunkServerDiskStatus(request);
 
-    UpdateChunkServerStat(request);
+    UpdateChunkServerStatistics(request);
 
     // 处理心跳中的copyset
     for (auto &value : request.copysetinfos()) {
