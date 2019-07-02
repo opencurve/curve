@@ -15,17 +15,47 @@
 #include "src/chunkserver/heartbeat.h"
 #include "test/chunkserver/heartbeat_test.h"
 
-static char* param[3][2] = {
+static char* param[3][12] = {
     {
+        "",
+        "-chunkServerIp=127.0.0.1",
+        "-chunkServerPort=8200",
+        "-chunkServerStoreUri=local://./0/",
+        "-chunkServerMetaUri=local://./0/chunkserver.dat",
+        "-copySetUri=local://./0/copysets",
+        "-recycleUri=local://./0/recycler",
+        "-chunkFilePoolDir=./0/chunkfilepool/",
+        "-chunkFilePoolMetaPath=./0/chunkfilepool.meta",
         "-minloglevel=2",
+        "-logPath=./0/chunkserver.log",
         "-conf=test/chunkserver/chunkserver.conf.0",
     },
     {
+        "",
+        "-chunkServerIp=127.0.0.1",
+        "-chunkServerPort=8201",
+        "-chunkServerStoreUri=local://./1/",
+        "-chunkServerMetaUri=local://./1/chunkserver.dat",
+        "-copySetUri=local://./1/copysets",
+        "-recycleUri=local://./1/recycler",
+        "-chunkFilePoolDir=./1/chunkfilepool/",
+        "-chunkFilePoolMetaPath=./1/chunkfilepool.meta",
         "-minloglevel=2",
+        "-logPath=./1/chunkserver.log",
         "-conf=test/chunkserver/chunkserver.conf.1",
     },
     {
+        "",
+        "-chunkServerIp=127.0.0.1",
+        "-chunkServerPort=8202",
+        "-chunkServerStoreUri=local://./2/",
+        "-chunkServerMetaUri=local://./2/chunkserver.dat",
+        "-copySetUri=local://./2/copysets",
+        "-recycleUri=local://./2/recycler",
+        "-chunkFilePoolDir=./2/chunkfilepool/",
+        "-chunkFilePoolMetaPath=./2/chunkfilepool.meta",
         "-minloglevel=2",
+        "-logPath=./2/chunkserver.log",
         "-conf=test/chunkserver/chunkserver.conf.2",
     },
 };
