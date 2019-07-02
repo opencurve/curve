@@ -49,7 +49,7 @@ do
 		    -chunkServerStoreUri=local:///data/chunkserver$i/ \
 		    -copySetUri=local:///data/chunkserver$i/copysets \
 		    -recycleUri=local:///data/chunkserver$i/recycler \
-		    -logPath=${DATA_DIR}/chunkserver$i/chunkserver.log
+		    -logPath=${DATA_DIR}/chunkserver$i/chunkserver.log &
 	((port++))
 done
 exit
@@ -85,5 +85,5 @@ curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_m
 	    -chunkServerStoreUri=local:///data/chunkserver$1/ \
 	    -copySetUri=local:///data/chunkserver$1/copysets \
 	    -recycleUri=local:///data/chunkserver$1/recycler \
-	    -logPath=${DATA_DIR}/chunkserver$1/chunkserver.log
+	    -logPath=${DATA_DIR}/chunkserver$1/chunkserver.log &
 
