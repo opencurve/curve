@@ -72,7 +72,7 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
         // chunkserver-5已经是retired状态，无需更新
         // chunkserver-6 get info失败, 未成功更新状态
         // chunnkserver-7 update失败, 未成功更新状态
-        EXPECT_CALL(*topology, UpdateOnlineState(_, _))
+        EXPECT_CALL(*topology, UpdateChunkServerOnlineState(_, _))
             .Times(6).WillRepeatedly(Return(kTopoErrCodeSuccess));
         ChunkServer cs3(3, "", "", 1, "", 0, "",
             ChunkServerStatus::READWRITE, OnlineState::ONLINE);
@@ -92,7 +92,7 @@ TEST(ChunkserverHealthyChecker, test_checkHeartBeat_interval) {
             .WillOnce(Return(false));
         EXPECT_CALL(*topology, GetChunkServer(7, _))
             .WillOnce(DoAll(SetArgPointee<1>(cs7), Return(true)));
-        EXPECT_CALL(*topology, UpdateChunkServer(_))
+        EXPECT_CALL(*topology, UpdateChunkServerRwState(_, _))
             .Times(2)
             .WillOnce(Return(kTopoErrCodeSuccess))
             .WillOnce(Return(kTopoErrCodeInternalError));

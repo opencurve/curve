@@ -19,7 +19,7 @@ TEST(TestCopysetValidation, testValidateScatterWidthSuccess) {
     CopysetOption option;
     CopysetValidation validator(option);
 
-    int scatterWidth = 4;
+    uint32_t scatterWidth = 3;
     std::vector<Copyset> copysets;
     Copyset cs1, cs2, cs3, cs4;
     cs1.replicas = {1, 2, 3};
@@ -31,15 +31,17 @@ TEST(TestCopysetValidation, testValidateScatterWidthSuccess) {
     copysets.push_back(cs3);
     copysets.push_back(cs4);
 
+    uint32_t scatterWidthOut = 0;
     ASSERT_TRUE(validator.ValidateScatterWidth(
-        scatterWidth, copysets));
+        scatterWidth, &scatterWidthOut, copysets));
+    ASSERT_EQ(3, scatterWidthOut);
 }
 
 TEST(TestCopysetValidation, testValidateScatterWidthFail) {
     CopysetOption option;
     CopysetValidation validator(option);
 
-    int scatterWidth = 5;
+    uint32_t scatterWidth = 5;
     std::vector<Copyset> copysets;
     Copyset cs1, cs2, cs3, cs4;
     cs1.replicas = {1, 2, 3};
@@ -51,8 +53,10 @@ TEST(TestCopysetValidation, testValidateScatterWidthFail) {
     copysets.push_back(cs3);
     copysets.push_back(cs4);
 
+    uint32_t scatterWidthOut = 0;
     ASSERT_FALSE(validator.ValidateScatterWidth(
-        scatterWidth, copysets));
+        scatterWidth, &scatterWidthOut, copysets));
+    ASSERT_EQ(3, scatterWidthOut);
 }
 
 
@@ -71,14 +75,14 @@ TEST(TestCopysetValidation, CalcScatterWidthSuccess) {
     copysets.push_back(cs3);
     copysets.push_back(cs4);
 
-    std::map<ChunkServerIdType, int> scatterWidthMap;
+    std::map<ChunkServerIdType, uint32_t> scatterWidthMap;
     validator.CalcScatterWidth(copysets, &scatterWidthMap);
 
     ASSERT_EQ(4, scatterWidthMap.size());
-    ASSERT_EQ(4, scatterWidthMap[1]);
-    ASSERT_EQ(4, scatterWidthMap[2]);
-    ASSERT_EQ(4, scatterWidthMap[3]);
-    ASSERT_EQ(4, scatterWidthMap[4]);
+    ASSERT_EQ(3, scatterWidthMap[1]);
+    ASSERT_EQ(3, scatterWidthMap[2]);
+    ASSERT_EQ(3, scatterWidthMap[3]);
+    ASSERT_EQ(3, scatterWidthMap[4]);
 }
 
 TEST(TestCopysetValidation, CalcValidateSuccess) {

@@ -195,6 +195,7 @@ TEST_F(TestTopoloyAdmin, Test_AllocateChunkRandomInSingleLogicalPool_success) {
     bool ret =
         testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
             1,
+            1024,
             &infos);
 
     ASSERT_TRUE(ret);
@@ -210,6 +211,7 @@ TEST_F(TestTopoloyAdmin,
     bool ret =
         testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
             1,
+            1024,
             &infos);
 
     ASSERT_FALSE(ret);
@@ -248,6 +250,7 @@ TEST_F(TestTopoloyAdmin,
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
             3,
+            1024,
             &infos);
 
     ASSERT_TRUE(ret);
@@ -262,6 +265,7 @@ TEST_F(TestTopoloyAdmin,
     ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
             3,
+            1024,
             &infos2);
 
     ASSERT_TRUE(ret);
@@ -312,6 +316,7 @@ TEST_F(TestTopoloyAdmin,
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
             1,
+            1024,
             &infos);
 
     ASSERT_FALSE(ret);
@@ -328,6 +333,7 @@ TEST_F(TestTopoloyAdmin,
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
             1,
+            1024,
             &infos);
 
     ASSERT_FALSE(ret);

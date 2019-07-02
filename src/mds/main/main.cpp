@@ -10,7 +10,6 @@
 #include <brpc/channel.h>
 #include <brpc/server.h>
 
-#include "test/mds/nameserver2/fakes.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/namespace_service.h"
 #include "src/mds/nameserver2/curvefs.h"
@@ -25,6 +24,8 @@
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_token_generator.h"
 #include "src/mds/topology/topology_config.h"
+#include "src/mds/topology/topology_stat.h"
+#include "src/mds/topology/topology_metric.h"
 #include "src/mds/copyset/copyset_manager.h"
 #include "src/common/configuration.h"
 #include "src/mds/heartbeat/heartbeat_service.h"
@@ -41,6 +42,8 @@ using ::curve::mds::topology::DefaultTokenGenerator;
 using ::curve::mds::topology::DefaultTopologyStorage;
 using ::curve::mds::topology::TopologyImpl;
 using ::curve::mds::topology::TopologyOption;
+using ::curve::mds::topology::TopologyStatImpl;
+using ::curve::mds::topology::TopologyMetricService;
 using ::curve::mds::copyset::CopysetManager;
 using ::curve::mds::copyset::CopysetOption;
 using ::curve::mds::heartbeat::HeartbeatServiceImpl;
@@ -131,8 +134,8 @@ void InitEtcdConf(Configuration *conf, EtcdConf *etcdConf) {
 
 void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
     LOG_IF(FATAL, !conf->GetUInt32Value(
-        "mds.topology.ChunkServerStateUpdateSec",
-        &topologyOption->ChunkServerStateUpdateSec));
+        "mds.topology.TopologyUpdateToRepoSec",
+        &topologyOption->TopologyUpdateToRepoSec));
     LOG_IF(FATAL, !conf->GetUInt32Value(
         "mds.topology.CreateCopysetRpcTimeoutMs",
         &topologyOption->CreateCopysetRpcTimeoutMs));
@@ -142,8 +145,9 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
     LOG_IF(FATAL, !conf->GetUInt32Value(
         "mds.topology.CreateCopysetRpcRetrySleepTimeMs",
         &topologyOption->CreateCopysetRpcRetrySleepTimeMs));
-    LOG_IF(FATAL, !conf->GetUInt32Value("mds.topology.CopySetUpdateSec",
-        &topologyOption->CopySetUpdateSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.topology.UpdateMetricIntervalSec",
+        &topologyOption->UpdateMetricIntervalSec));
 }
 
 void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
@@ -320,9 +324,23 @@ int curve_main(int argc, char **argv) {
     auto copysetManager =
         std::make_shared<CopysetManager>(copysetOption);
 
+    // init TopologyStat
+    auto topologyStat =
+        std::make_shared<TopologyStatImpl>(topology);
+    LOG_IF(FATAL, topologyStat->Init() < 0)
+        << "init topologyStat fail.";
+
     // init TopoAdmin
     auto topologyAdmin =
           std::make_shared<TopologyAdminImpl>(topology);
+
+    // init TopologyMetricService
+    auto topologyMetricService =
+        std::make_shared<TopologyMetricService>(topology, topologyStat);
+    LOG_IF(FATAL, topologyMetricService->Init(topologyOption) < 0)
+        << "init topologyMetricService fail.";
+    LOG_IF(FATAL, topologyMetricService->Run() < 0)
+        << "topologyMetricService start run fail";
 
     // init TopologyServiceManager
     auto topologyServiceManager =
@@ -362,7 +380,7 @@ int curve_main(int argc, char **argv) {
 
     // =======================init heartbeat manager================//
     auto heartbeatManager = std::make_shared<HeartbeatManager>(
-        heartbeatOption, topology, coordinator);
+        heartbeatOption, topology, topologyStat, coordinator);
     heartbeatManager->Init();
     heartbeatManager->Run();
 

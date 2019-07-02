@@ -107,10 +107,10 @@ void ChunkserverHealthyChecker::UpdateChunkServerOnlineState(
     int updateErrCode = kTopoErrCodeSuccess;
     if (onlineFlag) {
         updateErrCode =
-            topo_->UpdateOnlineState(OnlineState::ONLINE, id);
+            topo_->UpdateChunkServerOnlineState(OnlineState::ONLINE, id);
     } else {
         updateErrCode =
-            topo_->UpdateOnlineState(OnlineState::OFFLINE, id);
+            topo_->UpdateChunkServerOnlineState(OnlineState::OFFLINE, id);
     }
 
     if (kTopoErrCodeSuccess != updateErrCode) {
@@ -131,11 +131,10 @@ bool ChunkserverHealthyChecker::SetChunkServerRetired(ChunkServerIdType id) {
         LOG(INFO) << "chunkserver " << id << " is already in retired state";
         return true;
     }
-
-    cs.SetStatus(ChunkServerStatus::RETIRED);
     // chunkserver上没有copyset
     if (topo_->GetCopySetsInChunkServer(id).empty()) {
-        int updateErrCode = topo_->UpdateChunkServer(cs);
+        int updateErrCode = topo_->UpdateChunkServerRwState(
+            ChunkServerStatus::RETIRED, id);
         // 更新失败
         if (kTopoErrCodeSuccess != updateErrCode) {
             LOG(ERROR) << "heartbeatManager update chunkserver get "

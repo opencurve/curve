@@ -113,7 +113,7 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
                   << reportCopySetInfo.GetId() << ") need to update";
 
         int updateCode =
-            topo_->UpdateCopySetPeriodically(reportCopySetInfo);
+            topo_->UpdateCopySetTopo(reportCopySetInfo);
         if (::curve::mds::topology::kTopoErrCodeSuccess != updateCode) {
             LOG(ERROR) << "topoUpdater update copySet(logicalPoolId:"
                        << reportCopySetInfo.GetLogicalPoolId()

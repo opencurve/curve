@@ -43,7 +43,7 @@ bool CopysetConfGenerator::GenCopysetConf(
         if (candidate != ::curve::mds::topology::UNINTIALIZE_ID) {
             auto newCopySetInfo = reportCopySetInfo;
             newCopySetInfo.SetCandidate(candidate);
-            int updateCode = topo_->UpdateCopySetPeriodically(newCopySetInfo);
+            int updateCode = topo_->UpdateCopySetTopo(newCopySetInfo);
             if (::curve::mds::topology::kTopoErrCodeSuccess != updateCode) {
                 // 更新到内存失败
                 LOG(ERROR) << "topoUpdater update copySet(logicalPoolId:"
