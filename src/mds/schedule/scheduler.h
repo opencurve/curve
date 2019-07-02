@@ -40,25 +40,22 @@ class Scheduler {
      * @param[in] addTimeLimtSec 增加一个副本mds端认为的超时时间
      * @param[in] scatterWithRangePerent scatter-width不能超过
      *            (1 + scatterWithRangePerent) * minScatterWdith
-     * @param[in] minScatterWdith 最小scatter-width
-     * @param[in] opController operator管理模块
      * @param[in] topo 提供拓扑逻辑信息
+     * @param[in] opController operator管理模块
      */
     Scheduler(int transTimeLimitSec, int removeTimeLimitSec, int addTimeLimtSec,
-        float scatterWidthRangePerent, float minScatterWdith,
+        float scatterWidthRangePerent,
         const std::shared_ptr<TopoAdapter> &topo,
         const std::shared_ptr<OperatorController> &opController) {
         this->transTimeSec_ = transTimeLimitSec;
         this->removeTimeSec_ = removeTimeLimitSec;
         this->addTimeSec_ = addTimeLimtSec;
         this->scatterWidthRangePerent_ = scatterWidthRangePerent;
-        this->minScatterWidth_ = minScatterWdith;
         this->topo_ = topo;
         this->opController_ = opController;
     }
     /**
      * @brief scheduler根据集群的状况产生operator
-     *
      */
     virtual int Schedule();
 
@@ -94,8 +91,6 @@ class Scheduler {
     // chunkserver的scatter-width不能超过
     // (1 + minScatterWdith_) * scatterWidthRangePerent_
     float scatterWidthRangePerent_;
-    // scatter-with的最小值
-    float minScatterWidth_;
 
     std::shared_ptr<TopoAdapter> topo_;
     // operator管理模块
@@ -124,7 +119,6 @@ class CopySetScheduler : public Scheduler {
      *            (1 + scatterWithRangePerent) * minScatterWdith, 父函数初始化需要 //NOLINT
      * @param[in] copysetNumRangePercent [chunkserver上copyset数量的极差]不能超过 //NOLINT
      *             [chunkserver上copyset数量均值] * copysetNumRangePercent
-     * @param[in] minScatterWdith 最小scatter-width, 父函数初始化需要 //NOLINT
      * @param[in] topo 提供拓扑逻辑信息, 父函数初始化需要 // NOLINIT
      */
     CopySetScheduler(const std::shared_ptr<OperatorController> &opController,
@@ -134,10 +128,9 @@ class CopySetScheduler : public Scheduler {
                     int addTimeLimitSec,
                     float copysetNumRangePercent,
                     float scatterWithRangePerent,
-                    float minScatterWith,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWithRangePerent, minScatterWith, topo, opController) {
+            scatterWithRangePerent, topo, opController) {
         this->runInterval_ = interSec;
         this->copysetNumRangePercent_ = copysetNumRangePercent;
     }
@@ -222,7 +215,6 @@ class LeaderScheduler : public Scheduler {
      * @param[in] addTimeLimitSec 增加一个副本mds端认为的超时时间, 父函数初始化需要 //NOLINT
      * @param[in] scatterWithRangePerent scatter-width不能超过
      *            (1 + scatterWithRangePerent) * minScatterWdith, 父函数初始化需要 //NOLINT
-     * @param[in] minScatterWdith 最小scatter-width, 父函数初始化需要 //NOLINT
      * @param[in] topo 提供拓扑逻辑信息, 父函数初始化需要 // NOLINIT
      */
     LeaderScheduler(const std::shared_ptr<OperatorController> &opController,
@@ -231,10 +223,9 @@ class LeaderScheduler : public Scheduler {
                     int addTimeLimitSec,
                     int removeTimeLimitSec,
                     float scatterWidthRangePerent,
-                    float minScatterWdith,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWidthRangePerent, minScatterWdith, topo, opController) {
+            scatterWidthRangePerent, topo, opController) {
         this->runInterval_ = interSec;
     }
 
@@ -299,12 +290,10 @@ class RecoverScheduler : public Scheduler {
                     int removeTimeLimitSec,
                     int addTimeLimitSec,
                     float scatterWithRangePerent,
-                    float minScatterWith,
                     int chunkserverFailureTolerance,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWithRangePerent, minScatterWith, topo, opController) {
-        this->opController_ = opController;
+            scatterWithRangePerent, topo, opController) {
         this->runInterval_ = interSec;
         this->chunkserverFailureTolerance_ = chunkserverFailureTolerance;
     }
@@ -373,10 +362,9 @@ class ReplicaScheduler : public Scheduler {
                    int removeTimeLimitSec,
                    int addTimeLimitSec,
                    float scatterWidthRangePerent,
-                   float minScatterWidth,
                    const std::shared_ptr<TopoAdapter> &topo)
       : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-        scatterWidthRangePerent, minScatterWidth, topo, opController) {
+        scatterWidthRangePerent, topo, opController) {
     this->opController_ = opController;
     this->runInterval_ = interSec;
     }

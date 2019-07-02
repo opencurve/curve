@@ -104,9 +104,7 @@ void InitScheduleOption(
         &scheduleOption->copysetNumRangePercent));
     LOG_IF(FATAL, !conf->GetFloatValue("mds.schduler.scatterWidthRangePerent",
         &scheduleOption->scatterWithRangePerent));
-    LOG_IF(FATAL, !conf->GetFloatValue("mds.scheduler.minScatterWidth",
-         &scheduleOption->minScatterWidth));
-    LOG_IF(FATAL, !conf->GetIntValue("mds.chunkserver.failure.tolerance",
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.chunkserver.failure.tolerance",
         &scheduleOption->chunkserverFailureTolerance));
 }
 
