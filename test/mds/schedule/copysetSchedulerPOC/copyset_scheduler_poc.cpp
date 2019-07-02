@@ -189,7 +189,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         rap.pageFileRAP.zoneNum = 3;
 
         LogicalPool pool(0, "logicalpool-0", 1, LogicalPoolType::PAGEFILE,
-            rap, LogicalPool::UserPolicy{}, 0, false);
+            rap, LogicalPool::UserPolicy{}, 0, true);
         *out = pool;
         return true;
     }

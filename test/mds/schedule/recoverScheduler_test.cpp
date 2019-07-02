@@ -91,20 +91,22 @@ TEST_F(TestRecoverSheduler, test_server_has_more_offline_chunkserver) {
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillRepeatedly(Return(std::vector<CopySetInfo>({testCopySetInfo})));
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::OFFLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     PeerInfo peer4(4, 1, 1, 1, "192.168.10.1", 9001);
     PeerInfo peer5(5, 1, 1, 1, "192.168.10.1", 9002);
     ChunkServerInfo csInfo4(peer4, OnlineState::OFFLINE, DiskState::DISKNORMAL,
-            2, 100, 100, ChunkServerStatisticInfo{});
+            ChunkServerStatus::READWRITE, 2, 100, 100,
+            ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo5(peer5, OnlineState::OFFLINE, DiskState::DISKNORMAL,
-            2, 100, 100, ChunkServerStatisticInfo{});
+            ChunkServerStatus::READWRITE, 2, 100, 100,
+            ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
         .WillOnce(Return(std::vector<ChunkServerInfo>{
             csInfo1, csInfo2, csInfo3, csInfo4, csInfo5}));
@@ -114,8 +116,49 @@ TEST_F(TestRecoverSheduler, test_server_has_more_offline_chunkserver) {
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(csInfo2.info.id , _))
         .WillOnce(DoAll(SetArgPointee<1>(csInfo2), Return(true)));
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(csInfo3.info.id , _))
-        .WillOnce(DoAll(SetArgPointee<1>(csInfo2), Return(true)));
+        .WillOnce(DoAll(SetArgPointee<1>(csInfo3), Return(true)));
     ASSERT_EQ(0, recoverScheduler_->Schedule());
+}
+
+TEST_F(TestRecoverSheduler,
+    test_server_has_more_offline_and_retired_chunkserver) {
+    auto testCopySetInfo = GetCopySetInfoForTest();
+    EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
+        .WillRepeatedly(Return(std::vector<CopySetInfo>({testCopySetInfo})));
+    ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::OFFLINE,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
+                            2, 100, 100, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
+                            2, 100, 100, ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
+                            2, 100, 100, ChunkServerStatisticInfo{});
+    PeerInfo peer4(4, 1, 1, 1, "192.168.10.1", 9001);
+    PeerInfo peer5(5, 1, 1, 1, "192.168.10.1", 9002);
+    ChunkServerInfo csInfo4(peer4, OnlineState::OFFLINE, DiskState::DISKNORMAL,
+            ChunkServerStatus::READWRITE, 2, 100, 100,
+            ChunkServerStatisticInfo{});
+    ChunkServerInfo csInfo5(peer5, OnlineState::OFFLINE, DiskState::DISKNORMAL,
+            ChunkServerStatus::RETIRED, 2, 100, 100,
+            ChunkServerStatisticInfo{});
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
+        .WillOnce(Return(std::vector<ChunkServerInfo>{
+            csInfo1, csInfo2, csInfo3, csInfo4, csInfo5}));
+
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(csInfo1.info.id , _))
+        .WillOnce(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(csInfo2.info.id , _))
+        .WillOnce(DoAll(SetArgPointee<1>(csInfo2), Return(true)));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(csInfo3.info.id , _))
+        .WillOnce(DoAll(SetArgPointee<1>(csInfo3), Return(true)));
+     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
+        .WillOnce(Return(2));
+    ASSERT_EQ(1, recoverScheduler_->Schedule());
+    Operator op;
+    ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
+    ASSERT_TRUE(dynamic_cast<RemovePeer *>(op.step.get()) != nullptr);
+    ASSERT_EQ(std::chrono::seconds(100), op.timeLimit);
 }
 
 TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
@@ -125,17 +168,17 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
         .WillRepeatedly(Return(std::vector<ChunkServerInfo>{}));
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
     ChunkServerInfo csInfo4(peer4, OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerIdType id1 = 1;
     ChunkServerIdType id2 = 2;

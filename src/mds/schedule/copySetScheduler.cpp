@@ -70,11 +70,12 @@ int CopySetScheduler::Schedule() {
                        << " on chunkServer: " << target
                        << " error, delete operator" << op.OpToString();
             opController_->RemoveOperator(choose.id);
+        } else {
+            LOG(INFO) << "copysetScheduler create " << choose.CopySetInfoStr()
+                      << "on chunkserver:" << target
+                      << " success. generator op: "
+                      << op.OpToString() << "success";
         }
-
-        LOG(INFO) << "copysetScheduler create " << choose.CopySetInfoStr()
-                  << "on chunkserver:" << target << " success. generator op: "
-                  << op.OpToString() << "success";
     }
 
     LOG_EVERY_N(INFO, 20) << "copysetScheduler is continually adjusting";

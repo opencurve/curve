@@ -189,7 +189,7 @@ TEST_F(TestSchedulerHelper, test_SatisfyZoneAndScatterWidthLimit) {
 
     PeerInfo peer4(4, 1, 1, 1, "192.168.10.1", 9001);
     ChunkServerInfo info4(peer4, OnlineState::ONLINE, DiskState::DISKERROR,
-        1, 1, 1, ChunkServerStatisticInfo{});
+        ChunkServerStatus::READWRITE, 1, 1, 1, ChunkServerStatisticInfo{});
     {
         // 2. 获取到的标准zoneNum = 0
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(4, _))
@@ -437,11 +437,11 @@ TEST_F(TestSchedulerHelper, test_SortChunkServerByCopySetNumAsc) {
     PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
     PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
     ChunkServerInfo info1(peer1, OnlineState::ONLINE, DiskState::DISKNORMAL,
-        10, 10, 10, ChunkServerStatisticInfo{});
+        ChunkServerStatus::READWRITE, 10, 10, 10, ChunkServerStatisticInfo{});
     ChunkServerInfo info2(peer2, OnlineState::ONLINE, DiskState::DISKNORMAL,
-        10, 10, 10, ChunkServerStatisticInfo{});
+        ChunkServerStatus::READWRITE, 10, 10, 10, ChunkServerStatisticInfo{});
     ChunkServerInfo info3(peer3, OnlineState::ONLINE, DiskState::DISKNORMAL,
-        10, 10, 10, ChunkServerStatisticInfo{});
+        ChunkServerStatus::READWRITE, 10, 10, 10, ChunkServerStatisticInfo{});
     std::vector<ChunkServerInfo> chunkserverList{info1, info2, info3};
 
     // {1,2,3}

@@ -109,6 +109,7 @@ std::string CopySetInfo::CopySetInfoStr() const {
 ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  OnlineState state,
                                  DiskState diskState,
+                                 ChunkServerStatus status,
                                  uint32_t leaderCount,
                                  uint64_t capacity,
                                  uint64_t used,
@@ -116,8 +117,9 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
                                  &statisticInfo) {
     this->info = info;
     this->state = state;
+    this->status = status;
     this->diskState = diskState;
-    this->leaderCount = leaderCount,
+    this->leaderCount = leaderCount;
     this->diskCapacity = capacity;
     this->diskUsed = used;
     this->statisticInfo = statisticInfo;
@@ -127,8 +129,14 @@ bool ChunkServerInfo::IsOffline() {
     return state == OnlineState::OFFLINE;
 }
 
+bool ChunkServerInfo::IsRetired() {
+    return status == ChunkServerStatus::RETIRED;
+}
+
 bool ChunkServerInfo::IsHealthy() {
-    return state == OnlineState::ONLINE && diskState == DiskState::DISKNORMAL;
+    return state == OnlineState::ONLINE &&
+           diskState == DiskState::DISKNORMAL &&
+           status != ChunkServerStatus::RETIRED;
 }
 
 TopoAdapterImpl::TopoAdapterImpl(
@@ -145,7 +153,18 @@ bool TopoAdapterImpl::GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) {
         return false;
     }
 
-    return CopySetFromTopoToSchedule(csInfo, info);
+    // cannot get logical pool
+    ::curve::mds::topology::LogicalPool lpool;
+    if (!topo_->GetLogicalPool(csInfo.GetLogicalPoolId(), &lpool)) {
+        return false;
+    }
+
+    if (!CopySetFromTopoToSchedule(csInfo, info)) {
+        return false;
+    }
+
+    info->logicalPoolWork = lpool.GetLogicalPoolAvaliableFlag();
+    return true;
 }
 
 std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfosInChunkServer(
@@ -156,7 +175,9 @@ std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfosInChunkServer(
     for (auto key : keys) {
         CopySetInfo info;
         if (GetCopySetInfo(key, &info)) {
-            out.emplace_back(info);
+            if (info.logicalPoolWork) {
+                out.emplace_back(info);
+            }
         }
     }
     return out;
@@ -167,7 +188,9 @@ std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfos() {
     for (auto copySetKey : topo_->GetCopySetsInCluster()) {
         CopySetInfo copySetInfo;
         if (GetCopySetInfo(copySetKey, &copySetInfo)) {
-            infos.push_back(copySetInfo);
+            if (copySetInfo.logicalPoolWork) {
+                infos.push_back(copySetInfo);
+            }
         }
     }
     return infos;
@@ -317,6 +340,7 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
         return false;
     }
     out->state = origin.GetOnlineState();
+    out->status = origin.GetStatus();
     out->diskState = origin.GetChunkServerState().GetDiskState();
     out->diskCapacity = origin.GetChunkServerState().GetDiskCapacity();
     out->diskUsed = origin.GetChunkServerState().GetDiskUsed();
