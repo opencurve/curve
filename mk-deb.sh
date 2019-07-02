@@ -119,11 +119,11 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-cp ./conf/mds.conf build/curve-mds/etc/curve/mds.conf
-if [ $? -ne 0 ]
-then
-	exit
-fi
+#cp ./conf/mds.conf build/curve-mds/etc/curve/mds.conf
+#if [ $? -ne 0 ]
+#then
+#	exit
+#fi
 cp ./bazel-bin/tools/curvefsTool build/curve-mds/usr/bin/curve-tool
 if [ $? -ne 0 ]
 then
@@ -145,17 +145,17 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-cp ./conf/chunkserver.conf.example \
-build/curve-chunkserver/etc/curve/chunkserver.conf
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp ./conf/s3.conf build/curve-chunkserver/etc/curve/s3.conf
-if [ $? -ne 0 ]
-then
-	exit
-fi
+#cp ./conf/chunkserver.conf.example \
+#build/curve-chunkserver/etc/curve/chunkserver.conf
+#if [ $? -ne 0 ]
+#then
+#	exit
+#fi
+#cp ./conf/s3.conf build/curve-chunkserver/etc/curve/s3.conf
+#if [ $? -ne 0 ]
+#then
+#	exit
+#fi
 cp ./bazel-bin/src/tools/curve_format \
 build/curve-chunkserver/usr/bin/curve-format
 if [ $? -ne 0 ]
@@ -203,11 +203,11 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-cp ./conf/client.conf build/curve-sdk/etc/curve/client.conf
-if [ $? -ne 0 ]
-then
-	exit
-fi
+#cp ./conf/client.conf build/curve-sdk/etc/curve/client.conf
+#if [ $? -ne 0 ]
+#then
+#	exit
+#fi
 
 #step4 获取git提交版本信息，记录到debian包的配置文件
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
