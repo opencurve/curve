@@ -111,12 +111,6 @@ class CopysetNode : public braft::StateMachine,
     virtual PeerId GetLeaderId() const;
 
     /**
-     * 返回是否是复制组Leader
-     * @return
-     */
-    virtual bool IsLeader() const;
-
-    /**
      * @brief 切换复制组的Leader
      * @param[in] peerId 目标Leader的成员ID
      * @return 心跳任务的引用

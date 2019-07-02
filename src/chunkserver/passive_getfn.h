@@ -15,16 +15,6 @@ namespace curve {
 namespace chunkserver {
 
     /**
-     * 获取chunkserver上copyset数量
-     * @param arg: copyset node manager的对象指针
-     */
-    uint32_t getCopysetCountFunc(void* arg);
-    /**
-     * 获取chunkserver上leader数量
-     * @param arg: copyset node manager的对象指针
-     */
-    uint32_t getLeaderCountFunc(void* arg);
-    /**
      * 获取chunkfilepool中剩余chunk的数量
      * @param arg: chunkfilepool的对象指针
      */
