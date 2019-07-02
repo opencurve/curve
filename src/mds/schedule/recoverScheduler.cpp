@@ -184,10 +184,15 @@ bool RecoverScheduler::FixOfflinePeer(
 
 void RecoverScheduler::CalculateExcludesChunkServer(
     std::set<ChunkServerIdType> *excludes) {
-    // 统计每个server上offline chunkserver list
+    // 统计每个server上offline 且不是 retired状态的 chunkserver list
     std::map<ServerIdType, std::vector<ChunkServerIdType>> offlineCS;
     for (auto cs : topo_->GetChunkServerInfos()) {
         if (!cs.IsOffline()) {
+            continue;
+        }
+
+        // retired需要恢复，不放入excludes中
+        if (cs.IsRetired()) {
             continue;
         }
 

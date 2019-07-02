@@ -54,6 +54,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
     auto info = GetCopySetInfoForTest();
     PeerInfo peer(4, 1, 1, 1, "127.0.0.1", 9000);
     ChunkServerInfo csInfo(peer, OnlineState::ONLINE, DiskState::DISKNORMAL,
+                           ChunkServerStatus::READWRITE,
                            1, 10, 1, ChunkServerStatisticInfo{});
 
     ::curve::mds::heartbeat::CopySetConf res;

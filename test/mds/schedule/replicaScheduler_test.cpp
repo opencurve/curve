@@ -91,13 +91,13 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectNone) {
 TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_conExceed) {
     auto testCopySetInfo = GetCopySetInfoForTest();
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
     PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
@@ -128,13 +128,13 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_conExceed) {
 TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
     auto testCopySetInfo = GetCopySetInfoForTest();
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
     PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
@@ -177,13 +177,13 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
 TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_createErr) {
     auto testCopySetInfo = GetCopySetInfoForTest();
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
-                        DiskState::DISKNORMAL,
+                        DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                         2, 100, 100, ChunkServerStatisticInfo{});
     PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
     PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
@@ -238,16 +238,16 @@ TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectCorrect) {
     PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
     testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2, peer3, peer4});
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo4(testCopySetInfo.peers[3], OnlineState::ONLINE,
-                            DiskState::DISKNORMAL,
+                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .Times(2).WillRepeatedly(Return(3));
