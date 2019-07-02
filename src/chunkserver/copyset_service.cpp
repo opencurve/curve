@@ -103,7 +103,7 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
                 COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
             LOG(ERROR) << "Create copyset "
                        << ToGroupIdString(copyset.logicpoolid(),
-                                          copyset.logicpoolid())
+                                          copyset.copysetid())
                        << " failed, response code: "
                        << COPYSET_OP_STATUS_Name(COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN); //NOLINT
             return;
