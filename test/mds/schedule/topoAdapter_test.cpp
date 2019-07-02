@@ -11,6 +11,8 @@
 #include "test/mds/schedule/common.h"
 
 using ::curve::mds::topology::ChunkServerStatus;
+using ::curve::mds::topology::ChunkServerStat;
+using ::curve::mds::topology::MockTopologyStat;
 using ::curve::mds::copyset::CopysetOption;
 using ::curve::mds::topology::MockTopology;
 
@@ -26,29 +28,32 @@ namespace mds {
 namespace schedule {
 class TestTopoAdapterImpl : public ::testing::Test {
  protected:
-  TestTopoAdapterImpl() {}
-  ~TestTopoAdapterImpl() {}
+    TestTopoAdapterImpl() {}
+    ~TestTopoAdapterImpl() {}
 
-  void SetUp() override {
-      mockTopo_ = std::make_shared<MockTopology>();
-      CopysetOption copysetOption;
-      mockTopoManager_ = std::make_shared<MockTopologyServiceManager>(
-          mockTopo_,
-          std::make_shared<::curve::mds::copyset::CopysetManager>(
-          copysetOption));
-      topoAdapter_ = std::make_shared<TopoAdapterImpl>(mockTopo_,
-                                                       mockTopoManager_);
-  }
-  void TearDown() override {
-      mockTopo_ = nullptr;
-      mockTopoManager_ = nullptr;
-      topoAdapter_ = nullptr;
-  }
+    void SetUp() override {
+        mockTopo_ = std::make_shared<MockTopology>();
+        CopysetOption copysetOption;
+        mockTopoManager_ = std::make_shared<MockTopologyServiceManager>(
+            mockTopo_, std::make_shared<::curve::mds::copyset::CopysetManager>(
+                copysetOption));
+        mockTopoStat_ = std::make_shared<MockTopologyStat>();
+        topoAdapter_ = std::make_shared<TopoAdapterImpl>(mockTopo_,
+                                                        mockTopoManager_,
+                                                        mockTopoStat_);
+    }
+    void TearDown() override {
+        mockTopo_ = nullptr;
+        mockTopoManager_ = nullptr;
+        topoAdapter_ = nullptr;
+        mockTopoStat_ = nullptr;
+    }
 
  protected:
-  std::shared_ptr<MockTopology> mockTopo_;
-  std::shared_ptr<MockTopologyServiceManager> mockTopoManager_;
-  std::shared_ptr<TopoAdapterImpl> topoAdapter_;
+    std::shared_ptr<MockTopology> mockTopo_;
+    std::shared_ptr<MockTopologyServiceManager> mockTopoManager_;
+    std::shared_ptr<MockTopologyStat> mockTopoStat_;
+    std::shared_ptr<TopoAdapterImpl> topoAdapter_;
 };
 
 TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
@@ -291,9 +296,20 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
     ChunkServerInfo info;
     auto testTopoServer = GetServerForTest();
     auto testTopoChunkServer = GetTopoChunkServerForTest();
+    ChunkServerStat stat;
+    stat.leaderCount = 10;
     {
         // 1. test GetChunkServerInfo fail
         EXPECT_CALL(*mockTopo_, GetChunkServer(_, _)).WillOnce(Return(false));
+        ASSERT_FALSE(topoAdapter_->GetChunkServerInfo(1, &info));
+
+         EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
+                            Return(true)));
+        EXPECT_CALL(*mockTopo_, GetServer(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
+        EXPECT_CALL(*mockTopoStat_, GetChunkServerStat(_, _))
+            .WillOnce(Return(false));
         ASSERT_FALSE(topoAdapter_->GetChunkServerInfo(1, &info));
     }
     {
@@ -302,14 +318,16 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
             .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
                             Return(true)));
         EXPECT_CALL(*mockTopo_, GetServer(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]),
-                            Return(true)));
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
+        EXPECT_CALL(*mockTopoStat_, GetChunkServerStat(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(stat), Return(true)));
         ASSERT_TRUE(topoAdapter_->GetChunkServerInfo(1, &info));
         ASSERT_EQ(1, info.info.id);
         ASSERT_EQ(testTopoChunkServer[0].GetOnlineState(), info.state);
         ASSERT_EQ(testTopoChunkServer[0].GetChunkServerState().GetDiskState(),
             info.diskState);
         ASSERT_EQ(testTopoChunkServer[0].GetStatus(), info.status);
+        ASSERT_EQ(stat.leaderCount, info.leaderCount);
     }
     {
         // 3. test GetChunkServerInfos fail
@@ -326,8 +344,9 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
             .WillOnce(DoAll(SetArgPointee<1>(testTopoChunkServer[0]),
                             Return(true)));
         EXPECT_CALL(*mockTopo_, GetServer(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]),
-                            Return(true)));
+            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
+        EXPECT_CALL(*mockTopoStat_, GetChunkServerStat(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(stat), Return(true)));
 
         auto res = topoAdapter_->GetChunkServerInfos();
         ASSERT_EQ(1, res[0].info.id);
@@ -352,6 +371,8 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
         EXPECT_CALL(*mockTopo_, GetChunkServerInPhysicalPool(_, _))
             .WillOnce(Return(std::list<ChunkServerIdType>{1}));
+        EXPECT_CALL(*mockTopoStat_, GetChunkServerStat(_, _))
+            .WillOnce(DoAll(SetArgPointee<1>(stat), Return(true)));
 
         auto res = topoAdapter_->GetChunkServersInPhysicalPool(1);
         ASSERT_EQ(1, res[0].info.id);
@@ -359,6 +380,7 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
         ASSERT_EQ(testTopoChunkServer[0].GetChunkServerState().GetDiskState(),
             res[0].diskState);
         ASSERT_EQ(testTopoChunkServer[0].GetStatus(), res[0].status);
+        ASSERT_EQ(stat.leaderCount, res[0].leaderCount);
     }
 }
 

@@ -371,7 +371,7 @@ int curve_main(int argc, char **argv) {
 
     // =========================init scheduler======================//
     auto topoAdapter = std::make_shared<TopoAdapterImpl>(
-        topology, topologyServiceManager);
+        topology, topologyServiceManager, topologyStat);
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
     coordinator->InitScheduler(scheduleOption);
     coordinator->Run();
