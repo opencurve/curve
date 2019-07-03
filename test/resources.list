@@ -24,6 +24,7 @@ Used port list:
     9140: metric测试
     9141: metric测试
     9142: metric测试
+    9150/9151 ChunkserverUnstableTest
 
 
 # mds & snapshotcloneserver
