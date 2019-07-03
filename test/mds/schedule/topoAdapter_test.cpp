@@ -310,7 +310,13 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
             .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
         EXPECT_CALL(*mockTopoStat_, GetChunkServerStat(_, _))
             .WillOnce(Return(false));
-        ASSERT_FALSE(topoAdapter_->GetChunkServerInfo(1, &info));
+        ASSERT_TRUE(topoAdapter_->GetChunkServerInfo(1, &info));
+        ASSERT_EQ(1, info.info.id);
+        ASSERT_EQ(testTopoChunkServer[0].GetOnlineState(), info.state);
+        ASSERT_EQ(testTopoChunkServer[0].GetChunkServerState().GetDiskState(),
+            info.diskState);
+        ASSERT_EQ(testTopoChunkServer[0].GetStatus(), info.status);
+        ASSERT_EQ(0, info.leaderCount);
     }
     {
         // 2. test GetChunkServerInfo success
@@ -543,9 +549,9 @@ TEST(TestChunkServerInfo, test_onlineState) {
     cs.state = OnlineState::ONLINE;
     cs.diskState = DiskState::DISKERROR;
     ASSERT_FALSE(cs.IsHealthy());
-    ASSERT_FALSE(cs.IsRetired());
-    cs.status = ChunkServerStatus::RETIRED;
-    ASSERT_TRUE(cs.IsRetired());
+    ASSERT_FALSE(cs.IsPendding());
+    cs.status = ChunkServerStatus::PENDDING;
+    ASSERT_TRUE(cs.IsPendding());
 }
 }  // namespace schedule
 }  // namespace mds

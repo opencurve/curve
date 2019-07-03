@@ -184,15 +184,17 @@ bool RecoverScheduler::FixOfflinePeer(
 
 void RecoverScheduler::CalculateExcludesChunkServer(
     std::set<ChunkServerIdType> *excludes) {
-    // 统计每个server上offline 且不是 retired状态的 chunkserver list
+    // 统计每个server上offline 以及 pending状态的 chunkserver list
     std::map<ServerIdType, std::vector<ChunkServerIdType>> offlineCS;
+    std::set<ChunkServerIdType> pendingCS;
     for (auto cs : topo_->GetChunkServerInfos()) {
-        if (!cs.IsOffline()) {
-            continue;
+        // 统计pending状态
+        if (cs.IsPendding()) {
+            LOG(INFO) << "chunkserver " << cs.info.id << " is set pendding";
+            pendingCS.emplace(cs.info.id);
         }
 
-        // retired需要恢复，不放入excludes中
-        if (cs.IsRetired()) {
+        if (!cs.IsOffline()) {
             continue;
         }
 
@@ -204,14 +206,21 @@ void RecoverScheduler::CalculateExcludesChunkServer(
         }
     }
 
+    // 检查server上offline的chunkserver是否超过tolerence
     for (auto item : offlineCS) {
-        if (item.second.size() >= chunkserverFailureTolerance_) {
-            LOG(ERROR) << "server " << item.first << " has "
-                       << item.second.size() << " offline chunkservers";
-            for (auto cs : item.second) {
-                excludes->emplace(cs);
-            }
+        if (item.second.size() < chunkserverFailureTolerance_) {
+            continue;
         }
+        LOG(ERROR) << "server " << item.first << " has "
+                    << item.second.size() << " offline chunkservers";
+        for (auto cs : item.second) {
+            excludes->emplace(cs);
+        }
+    }
+
+    // 如果是pendding状态，认为需要恢复
+    for (auto it : pendingCS) {
+        excludes->erase(it);
     }
 }
 }  // namespace schedule

@@ -129,14 +129,14 @@ bool ChunkServerInfo::IsOffline() {
     return state == OnlineState::OFFLINE;
 }
 
-bool ChunkServerInfo::IsRetired() {
-    return status == ChunkServerStatus::RETIRED;
+bool ChunkServerInfo::IsPendding() {
+    return status == ChunkServerStatus::PENDDING;
 }
 
 bool ChunkServerInfo::IsHealthy() {
     return state == OnlineState::ONLINE &&
            diskState == DiskState::DISKNORMAL &&
-           status != ChunkServerStatus::RETIRED;
+           status == ChunkServerStatus::READWRITE;
 }
 
 TopoAdapterImpl::TopoAdapterImpl(
@@ -360,10 +360,9 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
     ChunkServerStat stat;
     if (topoStat_->GetChunkServerStat(origin.GetId(), &stat)) {
         out->leaderCount = stat.leaderCount;
-        return true;
     }
-    LOG(ERROR) << "can not get chunkserver: " << origin.GetId() << " stat";
-    return false;
+
+    return true;
 }
 
 bool TopoAdapterImpl::CreateCopySetAtChunkServer(CopySetKey id,
