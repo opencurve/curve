@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <braft/snapshot.h>
 #include <butil/memory/ref_counted.h>
 
 #include <memory>
@@ -66,9 +67,14 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
             return;
         }
 
+        rfa = new RaftSnapshotFilesystemAdaptor(ChunkfilepoolPtr_, fsptr);
+        std::vector<std::string> filterList;
+        std::string snapshotMeta(BRAFT_SNAPSHOT_META_FILE);
+        filterList.push_back(snapshotMeta);
+        rfa->SetFilterList(filterList);
+
         ASSERT_TRUE(ChunkfilepoolPtr_->Initialize(cpopt));
-        scoped_refptr<braft::FileSystemAdaptor> scptr(
-        new RaftSnapshotFilesystemAdaptor(ChunkfilepoolPtr_, fsptr));
+        scoped_refptr<braft::FileSystemAdaptor> scptr(rfa);
 
         fsadaptor.swap(scptr);
         fsadaptor->AddRef();
@@ -101,6 +107,7 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
     scoped_refptr<braft::FileSystemAdaptor> fsadaptor;
     std::shared_ptr<ChunkfilePool>  ChunkfilepoolPtr_;
     std::shared_ptr<LocalFileSystem>  fsptr;
+    RaftSnapshotFilesystemAdaptor*  rfa;
 };
 
 TEST_F(RaftSnapshotFilesystemAdaptorTest, open_file_test) {
@@ -191,6 +198,39 @@ TEST_F(RaftSnapshotFilesystemAdaptorTest, delete_file_test) {
     ASSERT_EQ(ChunkfilepoolPtr_->Size(), 11);
     ASSERT_FALSE(fsptr->FileExists("./test_temp7/5"));
     ASSERT_EQ(0, fsptr->Delete("./test_temp7"));
+}
+
+TEST_F(RaftSnapshotFilesystemAdaptorTest, rename_test) {
+    // 1. 创建一个多层目录，且目录中含有chunk文件
+    ASSERT_EQ(0, fsptr->Mkdir("./test_temp"));
+    std::string filename = "./test_temp/";
+    filename.append(BRAFT_SNAPSHOT_META_FILE);
+
+    // 目标文件size是chunksize，但是目标文件在过滤名单里，所以直接过滤
+    CreateChunkFile(filename);
+    int poolSize = ChunkfilepoolPtr_->Size();
+    std::string temppath = "./temp";
+    char metaPage[4096];
+    ASSERT_EQ(0, ChunkfilepoolPtr_->GetChunk(temppath, metaPage));
+    ASSERT_TRUE(rfa->rename(temppath, filename));
+    ASSERT_TRUE(fsptr->FileExists(filename));
+    ASSERT_FALSE(fsptr->FileExists(temppath));
+    ASSERT_EQ(poolSize - 1, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(0, fsptr->Delete(filename));
+
+     // 目标文件size是chunksize，但是目标文件不在过滤名单里，所以先回收再rename
+    filename = "./test_temp/";
+    filename.append("test");
+    CreateChunkFile(filename);
+    ASSERT_EQ(0, ChunkfilepoolPtr_->GetChunk(temppath, metaPage));
+    ASSERT_TRUE(rfa->rename(temppath, filename));
+    ASSERT_EQ(poolSize - 1, ChunkfilepoolPtr_->Size());
+    ASSERT_FALSE(fsptr->FileExists(temppath));
+    ASSERT_TRUE(fsptr->FileExists(filename));
+    ASSERT_EQ(0, fsptr->Delete(filename));
+
+
+    ASSERT_EQ(0, fsptr->Delete("./test_temp"));
 }
 
 }   // namespace chunkserver

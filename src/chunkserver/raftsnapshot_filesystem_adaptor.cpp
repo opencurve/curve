@@ -126,13 +126,13 @@ bool RaftSnapshotFilesystemAdaptor::RecycleDirRecursive(
                     rc = false;
                     break;
                 }
-                continue;
-            }
-            int ret = chunkfilePool_->RecycleChunk(todeletePath);
-            if (ret < 0) {
-                rc = false;
-                LOG(ERROR) << "recycle " << path + filepath << ", failed!";
-                break;
+            } else {
+                int ret = chunkfilePool_->RecycleChunk(todeletePath);
+                if (ret < 0) {
+                    rc = false;
+                    LOG(ERROR) << "recycle " << path + filepath << ", failed!";
+                    break;
+                }
             }
         }
     }
@@ -141,7 +141,7 @@ bool RaftSnapshotFilesystemAdaptor::RecycleDirRecursive(
 
 bool RaftSnapshotFilesystemAdaptor::rename(const std::string& old_path,
                                             const std::string& new_path) {
-    if (lfs_->FileExists(new_path)) {
+    if (!NeedFilter(new_path) && lfs_->FileExists(new_path)) {
         // chunkfilePool内部会检查path对应文件合法性，如果不符合就直接删除
         chunkfilePool_->RecycleChunk(new_path);
     }
