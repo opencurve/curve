@@ -148,7 +148,9 @@ bool CheckFileConsistency::ReplicasConsistency() {
                 LOG(INFO) << "hash value = " << peerHash.c_str();
                 if (peerHash.compare(hash) != 0) {
                     LOG(ERROR) << "hash not equal! previous hash = " << hash
-                               << ", current hash = " << peerHash;
+                               << ", current hash = " << peerHash
+                               << ", copyset id = " << cpinfo.cpid_
+                               << ", logical pool id = " << lpid_;
                     return false;
                 }
             }
@@ -161,7 +163,9 @@ bool CheckFileConsistency::ReplicasConsistency() {
             for (auto applyindex : applyIndexVec) {
                 if (index != applyindex) {
                     LOG(ERROR) << "apply index not equal! previous apply index "
-                               << index << ", current index = " << applyindex;
+                               << index << ", current index = " << applyindex
+                               << ", copyset id = " << cpinfo.cpid_
+                               << ", logical pool id = " << lpid_;
                     return false;
                 }
             }
