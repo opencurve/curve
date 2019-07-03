@@ -41,3 +41,19 @@ cc_binary(
     ],
     copts = COPTS
 )
+
+cc_binary(
+    name = "curve_status_tool_test",
+    srcs = glob([
+                "status_tool_test.cpp"
+                ]),
+    linkopts = [
+        "-lmysqlcppconn",
+    ],
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:status_tool_lib",
+        "//test/mds/mock:common_mock"
+    ],
+)

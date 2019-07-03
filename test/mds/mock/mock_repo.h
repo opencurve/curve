@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_MDS_NAMESERVER2_MOCK_REPO_H_
-#define TEST_MDS_NAMESERVER2_MOCK_REPO_H_
+#ifndef TEST_MDS_MOCK_MOCK_REPO_H_
+#define TEST_MDS_MOCK_MOCK_REPO_H_
 
 #include <gmock/gmock.h>
 #include <vector>
@@ -191,4 +191,4 @@ class MockRepo : public MdsRepo {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // TEST_MDS_NAMESERVER2_MOCK_REPO_H_
+#endif  // TEST_MDS_MOCK_MOCK_REPO_H_
