@@ -11,6 +11,8 @@
 #include <string>
 #include <iterator>
 #include <cmath>
+#include <algorithm>
+#include <random>
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_service_manager.h"
@@ -50,6 +52,7 @@ using ::curve::mds::copyset::CopysetManager;
 namespace curve {
 namespace mds {
 namespace schedule {
+bool leaderCountOn = false;
 class FakeTopo : public ::curve::mds::topology::TopologyImpl {
  public:
     FakeTopo() : TopologyImpl(
@@ -103,6 +106,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         for (auto it : copySet) {
             ::curve::mds::topology::CopySetInfo info(0, id++);
             info.SetCopySetMembers(it.replicas);
+            info.SetLeader(*it.replicas.begin());
             copySetMap_[info.GetCopySetKey()]  = info;
         }
     }
@@ -240,18 +244,50 @@ class FakeTopologyServiceManager : public TopologyServiceManager {
     }
 };
 
+class FakeTopologyStat : public TopologyStat {
+ public:
+    explicit FakeTopologyStat(const std::shared_ptr<Topology> &topo)
+        : topo_(topo) {}
+    void UpdateChunkServerStat(ChunkServerIdType csId,
+        const ChunkServerStat &stat) {}
+
+    bool GetChunkServerStat(ChunkServerIdType csId, ChunkServerStat *stat) {
+        if (!leaderCountOn) {
+            stat->leaderCount = 10;
+            return true;
+        }
+        std::vector<CopySetKey> cplist = topo_->GetCopySetsInChunkServer(csId);
+        int leaderCount = 0;
+        for (auto key : cplist) {
+            ::curve::mds::topology::CopySetInfo out;
+            if (topo_->GetCopySet(key, &out)) {
+                if (out.GetLeader() == csId) {
+                    leaderCount++;
+                }
+            }
+        }
+        stat->leaderCount = leaderCount;
+        return true;
+    }
+
+ private:
+    std::shared_ptr<Topology> topo_;
+};
+
 class CopysetSchedulerPOC : public testing::Test {
  protected:
     void SetUp() override {
         std::shared_ptr<FakeTopo> fakeTopo = std::make_shared<FakeTopo>();
         fakeTopo->BuildMassiveTopo();
         topo_ = fakeTopo;
+        topoStat_ = std::make_shared<FakeTopologyStat>(topo_);
         minScatterwidth_ = 90;
         scatterwidthPercent_ = 0.2;
         copysetNumPercent_ = 0.05;
 
         PrintScatterWithInCluster();
         PrintCopySetNumInCluster();
+        PrintLeaderCountInChunkServer();
     }
 
     void TearDown() override {}
@@ -428,6 +464,50 @@ class CopysetSchedulerPOC : public testing::Test {
                   << ", 最小值：" << min;
     }
 
+    void PrintLeaderCountInChunkServer() {
+        // 打印每个chunkserver上leader的数量
+        std::map<ChunkServerIdType, int> leaderDistribute;
+        int sumNumber = 0;
+        int max = -1;
+        int maxId = -1;
+        int min = -1;
+        int minId = -1;
+
+        for (auto it : topo_->GetChunkServerInCluster()) {
+            ChunkServerStat out;
+            if (topoStat_->GetChunkServerStat(it, &out)) {
+                leaderDistribute[it] = out.leaderCount;
+                if (max == -1 || out.leaderCount > max) {
+                    max = out.leaderCount;
+                    maxId = it;
+                }
+
+                if (min == -1 || out.leaderCount < min) {
+                    min = out.leaderCount;
+                    minId = it;
+                }
+
+                sumNumber += out.leaderCount;
+                LOG(INFO) << "PRINT chunkserverid:" << it
+                      << ", leader num:" << out.leaderCount;
+            }
+        }
+
+        float avg = static_cast<float>(sumNumber) /
+            static_cast<float>(leaderDistribute.size());
+        float variance = 0;
+        for (auto it : leaderDistribute) {
+            variance += std::pow(it.second - avg, 2);
+        }
+        variance /= leaderDistribute.size();
+        LOG(INFO) << "###print leader-num in cluster###\n"
+                  << "均值：" << avg
+                  << ", 方差：" << variance
+                  << ", 标准差： " << std::sqrt(variance)
+                  << ", 最大值：(" << max << "," << maxId << ")"
+                  << "), 最小值：(" << min << "," << minId << ")";
+    }
+
     // 计算每个chunkserver的scatter-with
     int GetChunkServerScatterwith(ChunkServerIdType csId) {
         // 计算chunkserver上的scatter-with
@@ -485,9 +565,20 @@ class CopysetSchedulerPOC : public testing::Test {
         }
     }
 
+    void BuildLeaderScheduler(int opConcurrent) {
+        topoAdapter_ =  std::make_shared<TopoAdapterImpl>(
+            topo_, std::make_shared<FakeTopologyServiceManager>(), topoStat_);
+
+        opController_ = std::make_shared<OperatorController>(opConcurrent);
+
+        leaderScheduler_ = std::make_shared<LeaderScheduler>(
+            opController_, 1000, 10, 100, 1000,
+            scatterwidthPercent_, topoAdapter_);
+    }
+
     void BuilRecoverScheduler(int opConcurrent) {
         topoAdapter_ =  std::make_shared<TopoAdapterImpl>(
-            topo_, std::make_shared<FakeTopologyServiceManager>());
+            topo_, std::make_shared<FakeTopologyServiceManager>(), topoStat_);
 
         opController_ = std::make_shared<OperatorController>(opConcurrent);
 
@@ -536,6 +627,18 @@ class CopysetSchedulerPOC : public testing::Test {
         }
     }
 
+    void ApplyTranferLeaderOperator() {
+        for (auto op : opController_->GetOperators()) {
+            auto type = dynamic_cast<TransferLeader *>(op.step.get());
+            ASSERT_TRUE(type != nullptr);
+
+            ::curve::mds::topology::CopySetInfo info;
+            ASSERT_TRUE(topo_->GetCopySet(op.copsetID, &info));
+            info.SetLeader(type->GetTargetPeer());
+            ASSERT_EQ(0, topo_->UpdateCopySetTopo(info));
+        }
+    }
+
     // 有两个chunkserver offline的停止条件:
     // 所有copyset均有两个及以上的副本offline
     bool SatisfyStopCondition(const std::vector<ChunkServerIdType> &idList) {
@@ -570,10 +673,12 @@ class CopysetSchedulerPOC : public testing::Test {
 
  protected:
     std::shared_ptr<Topology> topo_;
+    std::shared_ptr<TopologyStat> topoStat_;
     std::shared_ptr<OperatorController> opController_;
     std::shared_ptr<TopoAdapterImpl> topoAdapter_;
     std::shared_ptr<RecoverScheduler> recoverScheduler_;
     std::shared_ptr<CopySetScheduler> copySetScheduler_;
+    std::shared_ptr<LeaderScheduler> leaderScheduler_;
     int minScatterwidth_;
     float scatterwidthPercent_;
     float copysetNumPercent_;
@@ -952,6 +1057,22 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
     // 均值：100.556, 方差：8.18025, 标准差： 2.86011, 最大值：107, 最小值：91
     // ###print copyset-num in cluster###
     // 均值：100, 方差：1, 标准差： 1, 最大值： 101, 最小值：91
+}
+
+TEST_F(CopysetSchedulerPOC, DISABLED_test_leader_rebalance) {
+    leaderCountOn = true;
+    BuildLeaderScheduler(4);
+
+    int opnum = 0;
+    do {
+        opnum = leaderScheduler_->Schedule();
+        if (opnum > 0) {
+            ApplyTranferLeaderOperator();
+        }
+    } while (opnum > 0);
+
+    PrintLeaderCountInChunkServer();
+    leaderCountOn = false;
 }
 }  // namespace schedule
 }  // namespace mds

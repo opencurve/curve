@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <glog/logging.h>
+#include <algorithm>
+#include <random>
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorFactory.h"
 
@@ -23,7 +25,12 @@ int LeaderScheduler::Schedule() {
     int maxId = -1;
     int minLeaderCount = -1;
     int minId = -1;
-    for (auto csInfo : topo_->GetChunkServerInfos()) {
+    std::vector<ChunkServerInfo> csInfos = topo_->GetChunkServerInfos();
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(csInfos.begin(), csInfos.end(), g);
+
+    for (auto csInfo : csInfos) {
         if (csInfo.IsOffline()) {
             LOG(ERROR) << "leaderScheduler find chunkServer:" << csInfo.info.id
                        << " is offline, please check!";
@@ -49,6 +56,7 @@ int LeaderScheduler::Schedule() {
     if (maxLeaderCount >= 0 &&
         minLeaderCount >= 0 &&
         maxLeaderCount - minLeaderCount <= 1) {
+        LOG(INFO) << "leaderScheduler no need to generate transferLeader op";
         return oneRoundGenOp;
     }
 
@@ -56,9 +64,13 @@ int LeaderScheduler::Schedule() {
     // 将它的leader transfer到其他副本上
     if (maxId > 0) {
         Operator transferLeaderOutOp;
-        if (transferLeaderOut(maxId, &transferLeaderOutOp) >= 0) {
+        CopySetInfo selectedCopySet;
+        if (transferLeaderOut(maxId, &transferLeaderOutOp, &selectedCopySet)) {
             if (opController_->AddOperator(transferLeaderOutOp)) {
                 oneRoundGenOp += 1;
+                LOG(INFO) << "leaderScheduler generatre operator "
+                          << transferLeaderOutOp.OpToString()
+                          << " for " << selectedCopySet.CopySetInfoStr();
                 return oneRoundGenOp;
             }
         }
@@ -68,9 +80,13 @@ int LeaderScheduler::Schedule() {
     // 将它的leader tansfer到该chunkserver上
     if (minId > 0) {
         Operator transferLeaderInOp;
-        if (transferLeaderIn(minId, &transferLeaderInOp) >= 0) {
+        CopySetInfo selectedCopySet;
+        if (transferLeaderIn(minId, &transferLeaderInOp, &selectedCopySet)) {
             if (opController_->AddOperator(transferLeaderInOp)) {
                 oneRoundGenOp += 1;
+                LOG(INFO) << "leaderScheduler generatre operator "
+                          << transferLeaderInOp.OpToString()
+                          << " for " << selectedCopySet.CopySetInfoStr();
                 return oneRoundGenOp;
             }
         }
@@ -79,7 +95,8 @@ int LeaderScheduler::Schedule() {
     return oneRoundGenOp;
 }
 
-int LeaderScheduler::transferLeaderOut(ChunkServerIdType source, Operator *op) {
+bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source,
+    Operator *op, CopySetInfo *selectedCopySet) {
     // 找出该chunkserver上所有的leaderCopyset作为备选
     std::vector<CopySetInfo> candidateInfos;
     for (auto &cInfo : topo_->GetCopySetInfos()) {
@@ -98,24 +115,24 @@ int LeaderScheduler::transferLeaderOut(ChunkServerIdType source, Operator *op) {
     }
 
     if (candidateInfos.size() <= 0) {
-        return -1;
+        return false;
     }
 
     int retryTimes = 1;
     while (retryTimes < maxRetryTransferLeader) {
         // 任意选择一个copyset
         srand((unsigned)time(NULL));
-        auto selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
+        *selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
 
         // 从follower中选择leader数目最少
         int targetId = -1;
         int targetLeaderCount = -1;
-        for (auto peerInfo : selectedCopySet.peers) {
+        for (auto peerInfo : selectedCopySet->peers) {
             ChunkServerInfo csInfo;
             if (!topo_->GetChunkServerInfo(peerInfo.id, &csInfo)) {
                 LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
                            << peerInfo.id;
-                return -1;
+                return false;
             }
 
             // 跳过有副本不在线的copyset
@@ -127,7 +144,8 @@ int LeaderScheduler::transferLeaderOut(ChunkServerIdType source, Operator *op) {
                 continue;
             }
 
-            if (targetId <= 0 || csInfo.leaderCount < targetLeaderCount) {
+            if (targetId <= 0 ||
+                (csInfo.leaderCount + 1 < targetLeaderCount - 1)) {
                 targetId = csInfo.info.id;
                 targetLeaderCount = csInfo.leaderCount;
             }
@@ -138,18 +156,19 @@ int LeaderScheduler::transferLeaderOut(ChunkServerIdType source, Operator *op) {
             continue;
         } else {
             *op = operatorFactory.CreateTransferLeaderOperator(
-            selectedCopySet, targetId, OperatorPriority::NormalPriority);
+            *selectedCopySet, targetId, OperatorPriority::NormalPriority);
             op->timeLimit =
                 std::chrono::seconds(transTimeSec_);
-            return 0;
+            return true;
         }
     }
 
-    return -1;
+    return false;
 }
 
-int LeaderScheduler::transferLeaderIn(ChunkServerIdType target, Operator *op) {
-    // 从target中选择一个follower copyset, 把它的leader迁移到target上
+bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target,
+    Operator *op, CopySetInfo *selectedCopySet) {
+    // 从target中选择follower copyset, 把它的leader迁移到target上
     std::vector<CopySetInfo> candidateInfos;
     for (auto &cInfo : topo_->GetCopySetInfos()) {
         // 跳过leader copyset
@@ -170,17 +189,43 @@ int LeaderScheduler::transferLeaderIn(ChunkServerIdType target, Operator *op) {
     }
 
     if (candidateInfos.size() <= 0) {
-        return -1;
+        return false;
     }
 
     srand((unsigned)time(NULL));
-    auto selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
+    int retryTimes = 1;
+    while (retryTimes < maxRetryTransferLeader) {
+        // 从candidate中随机选取一个copyset
+        *selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
 
-    // 把leader tansfer到target上
-    *op = operatorFactory.CreateTransferLeaderOperator(
-        selectedCopySet, target, OperatorPriority::NormalPriority);
-    op->timeLimit = std::chrono::seconds(transTimeSec_);
-    return 0;
+        // 获取selectedCopySet的leader上的leaderCount 和 target上的leaderCount
+        ChunkServerInfo sourceInfo;
+        ChunkServerInfo targetInfo;
+        if (!topo_->GetChunkServerInfo(selectedCopySet->leader, &sourceInfo)) {
+            LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
+                    << selectedCopySet->leader;
+            retryTimes++;
+            continue;
+        }
+        if (!topo_->GetChunkServerInfo(target, &targetInfo)) {
+            LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
+                       << target;
+            retryTimes++;
+            continue;
+        }
+        if (sourceInfo.leaderCount - 1 < targetInfo.leaderCount + 1) {
+            retryTimes++;
+            continue;
+        }
+
+        // 把leader tansfer到target上
+        *op = operatorFactory.CreateTransferLeaderOperator(
+            *selectedCopySet, target, OperatorPriority::NormalPriority);
+        op->timeLimit = std::chrono::seconds(transTimeSec_);
+        return true;
+    }
+
+    return false;
 }
 
 bool LeaderScheduler::copySetHealthy(const CopySetInfo &cInfo) {

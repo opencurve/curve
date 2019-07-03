@@ -273,7 +273,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
         3, 100, 10, statInfo);
     ChunkServerInfo csInfo3(
         peer3, onlineState, diskState, ChunkServerStatus::READWRITE,
-        1, 100, 10, statInfo);
+        2, 100, 10, statInfo);
     ChunkServerInfo csInfo4(
         peer4, onlineState, diskState, ChunkServerStatus::READWRITE,
         1, 100, 10, statInfo);
@@ -312,10 +312,10 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
         .WillOnce(Return(std::vector<CopySetInfo>({copySet1})))
         .WillOnce(Return(std::vector<CopySetInfo>({copySet3, copySet2})));
      EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
-        .Times(2)
+        .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(3, _))
-        .Times(2)
+        .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo3), Return(true)));
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(2, _))
         .Times(2)
