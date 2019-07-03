@@ -266,7 +266,7 @@ void TopologyMetricService::BackEndFunc() {
     while (!isStop_.load()) {
         UpdateTopologyMetrics();
         std::this_thread::sleep_for(
-            std::chrono::milliseconds(option_.UpdateMetricIntervalSec));
+            std::chrono::seconds(option_.UpdateMetricIntervalSec));
     }
 }
 
