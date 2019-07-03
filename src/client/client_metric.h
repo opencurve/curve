@@ -350,12 +350,14 @@ class MetricHelper {
     }
 
     /**
-     * 统计读写RPC接口统计信息请求次数及带宽统计，用于rps及bps计算
+     * 统计读写RPC接口统计信息请求次数及带宽统计，用于qps及bps计算
      * @param: fm为当前文件的metric指针
      * @param: length为当前请求大小
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremRPCCount(FileMetric_t* fm, uint64_t length, OpType type) {
+    static void IncremRPCQPSCount(FileMetric_t* fm,
+                                  uint64_t length,
+                                  OpType type) {
         if (fm != nullptr) {
             switch (type) {
                 case OpType::READ:
@@ -365,6 +367,28 @@ class MetricHelper {
                 case OpType::WRITE:
                     fm->writeRPC.qps.count << 1;
                     fm->writeRPC.bps.count << length;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    /**
+     * 统计读写RPC接口统计信息请求次数及带宽统计，用于rps计算
+     * @param: fm为当前文件的metric指针
+     * @param: length为当前请求大小
+     * @param: read为当前操作是读操作还是写操作
+     */
+    static void IncremRPCRPSCount(FileMetric_t* fm,
+                                  OpType type) {
+        if (fm != nullptr) {
+            switch (type) {
+                case OpType::READ:
+                    fm->readRPC.rps.count << 1;
+                    break;
+                case OpType::WRITE:
+                    fm->writeRPC.rps.count << 1;
                     break;
                 default:
                     break;
@@ -406,9 +430,15 @@ class MetricHelper {
         }
     }
 
-    static void IncremInflightIO(FileMetric_t* fm, int num) {
+    static void IncremInflightIO(FileMetric_t* fm) {
         if (fm != nullptr) {
-            fm->inflightIONum << num;
+            fm->inflightIONum << 1;
+        }
+    }
+
+    static void DecremInflightIO(FileMetric_t* fm) {
+        if (fm != nullptr) {
+            fm->inflightIONum << -1;
         }
     }
 };
