@@ -27,5 +27,5 @@ then
 fi
 
 echo "kill chunkserver $1"
-kill -9 `ps -efl|grep chunkserver$1|grep -v grep|awk '{print $4}'`
+kill -9 `ps -efl|grep -w chunkserver$1|grep -v grep|awk '{print $4}'`
 
