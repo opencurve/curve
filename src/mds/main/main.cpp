@@ -162,6 +162,7 @@ void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
 }
 
 int curve_main(int argc, char **argv) {
+    // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
 
     // =========================加载配置===============================//
@@ -172,26 +173,6 @@ int curve_main(int argc, char **argv) {
     conf.SetConfigPath(confPath);
     LOG_IF(FATAL, !conf.LoadConfig())
         << "load mds configuration fail, conf path = " << confPath;
-
-    // =======================设置MDS LOG=============================//
-    // 初始化MDS日志
-    std::string logPath;
-    LOG_IF(FATAL,
-           !conf.GetStringValue("mds.log_path",
-                             &logPath));
-    google::SetLogDestination(google::INFO, logPath.c_str());
-    // 不生成WARNING和ERROR日志文件
-    google::SetLogDestination(google::WARNING, "/dev/null");
-    google::SetLogDestination(google::ERROR, "/dev/null");
-    google::SetLogDestination(google::FATAL, "/dev/null");
-
-    int32_t minLogLevel = 0;
-    LOG_IF(FATAL,
-           !conf.GetIntValue("mds.log_level",
-                                &minLogLevel));
-    FLAGS_minloglevel = minLogLevel;
-    google::InitGoogleLogging("mds");
-
 
     // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
