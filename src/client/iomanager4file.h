@@ -230,12 +230,12 @@ class FlightIOGuard {
   explicit FlightIOGuard(IOManager4File* iomana) {
     iomanager = iomana;
     iomanager->GetInflightIOToken();
-    MetricHelper::IncremInflightIO(iomanager->fileMetric_, 1);
+    MetricHelper::IncremInflightIO(iomanager->fileMetric_);
   }
 
   ~FlightIOGuard() {
     iomanager->ReleaseInflightIOToken();
-    MetricHelper::IncremInflightIO(iomanager->fileMetric_, -1);
+    MetricHelper::DecremInflightIO(iomanager->fileMetric_);
   }
 
  private:
