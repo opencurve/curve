@@ -94,6 +94,11 @@ std::string TransferLeader::OperatorStepToString() {
            " to " + std::to_string(to_);
 }
 
+ChunkServerIdType TransferLeader::GetTargetPeer() const {
+    return to_;
+}
+
+
 AddPeer::AddPeer(ChunkServerIdType peerID) {
     this->add_ = peerID;
 }
