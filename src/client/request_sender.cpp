@@ -49,6 +49,7 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
+    done->SetChunkServerID(chunkServerId_);
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_READ);
@@ -87,6 +88,7 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
+    done->SetChunkServerID(chunkServerId_);
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_WRITE);

@@ -40,7 +40,8 @@ class RequestScheduler : public Uncopyable {
     virtual ~RequestScheduler();
 
     virtual int Init(const RequestScheduleOption_t& reqSchdulerOpt,
-                     MetaCache *metaCache);
+                     MetaCache *metaCache,
+                     FileMetric_t* fm = nullptr);
     /**
      * 启动Scheduler的线程池开始处理request
      * 启动之后才能push request，除此之外，只有当

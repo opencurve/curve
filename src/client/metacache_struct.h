@@ -57,6 +57,8 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetPeerInfo {
 
 // copyset的基本信息，包含peer信息、leader信息、appliedindex信息
 typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
+    // leader存在变更可能标志位
+    bool leaderMayChange_;
     // 当前copyset的节点信息
     std::vector<CopysetPeerInfo_t> csinfos_;
     // 当前节点的apply信息，在read的时候需要，用来避免读IO进入raft
@@ -72,6 +74,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         csinfos_.clear();
         leaderindex_ = -1;
         lastappliedindex_ = 0;
+        leaderMayChange_ = false;
     }
 
     ~CopysetInfo() {
@@ -84,6 +87,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
         this->leaderindex_ = other.leaderindex_;
         this->lastappliedindex_ = other.lastappliedindex_;
+        this->leaderMayChange_ = other.leaderMayChange_;
         return *this;
     }
 
@@ -92,10 +96,23 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         this->csinfos_.assign(other.csinfos_.begin(), other.csinfos_.end());
         this->leaderindex_ = other.leaderindex_;
         this->lastappliedindex_ = other.lastappliedindex_;
+        this->leaderMayChange_ = other.leaderMayChange_;
     }
 
     uint64_t GetAppliedIndex() {
         return lastappliedindex_;
+    }
+
+    void SetLeaderUnstableFlag() {
+        leaderMayChange_ = true;
+    }
+
+    void ResetSetLeaderUnstableFlag() {
+        leaderMayChange_ = false;
+    }
+
+    bool LeaderMayChange() {
+        return leaderMayChange_;
     }
 
     /**
@@ -115,6 +132,20 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      */
     int16_t GetCurrentLeaderIndex() {
         return leaderindex_;
+    }
+
+    bool GetCurrentLeaderServerID(ChunkServerID* id) {
+        if (leaderindex_ >= 0) {
+            if (csinfos_.size() < leaderindex_) {
+                return false;
+            } else {
+                *id = csinfos_[leaderindex_].chunkserverid_;
+                return true;
+            }
+
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -180,6 +211,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         // 新的addr不在当前copyset内，如果其id合法，那么将其插入copyset
         if (!exists && id) {
             csinfos_.push_back(CopysetPeerInfo(id, addr));
+            leaderindex_++;
         } else if (exists == false) {
             LOG(WARNING) << addr.ToString() << " not in current copyset and "
                          << "its chunkserverid is not valid " << id;
@@ -231,6 +263,39 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         leaderindex_ = index;
     }
 } CopysetInfo_t;
+
+typedef struct CopysetIDInfo {
+    LogicPoolID lpid;
+    CopysetID   cpid;
+
+    CopysetIDInfo(LogicPoolID logicpoolid, CopysetID copysetid) {
+        lpid = logicpoolid;
+        cpid = copysetid;
+    }
+
+    CopysetIDInfo(const CopysetIDInfo& other) {
+        lpid = other.lpid;
+        cpid = other.cpid;
+    }
+
+    CopysetIDInfo& operator=(const CopysetIDInfo& other) {
+        lpid = other.lpid;
+        cpid = other.cpid;
+        return *this;
+    }
+} CopysetIDInfo_t;
+
+static inline bool
+operator<(const CopysetIDInfo& cpidinfo1, const CopysetIDInfo& cpidinfo2) {
+        return cpidinfo1.lpid <= cpidinfo2.lpid &&
+               cpidinfo1.cpid < cpidinfo2.cpid;
+}
+
+static inline bool
+operator==(const CopysetIDInfo& cpidinfo1, const CopysetIDInfo& cpidinfo2) {
+    return cpidinfo1.cpid == cpidinfo2.cpid &&
+           cpidinfo1.lpid == cpidinfo2.lpid;
+}
 
 }   // namespace client
 }   // namespace curve
