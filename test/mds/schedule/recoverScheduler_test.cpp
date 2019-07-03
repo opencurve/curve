@@ -126,7 +126,7 @@ TEST_F(TestRecoverSheduler,
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillRepeatedly(Return(std::vector<CopySetInfo>({testCopySetInfo})));
     ChunkServerInfo csInfo1(testCopySetInfo.peers[0], OnlineState::OFFLINE,
-                            DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
+                            DiskState::DISKNORMAL, ChunkServerStatus::PENDDING,
                             2, 100, 100, ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo2(testCopySetInfo.peers[1], OnlineState::ONLINE,
                             DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
@@ -140,7 +140,7 @@ TEST_F(TestRecoverSheduler,
             ChunkServerStatus::READWRITE, 2, 100, 100,
             ChunkServerStatisticInfo{});
     ChunkServerInfo csInfo5(peer5, OnlineState::OFFLINE, DiskState::DISKNORMAL,
-            ChunkServerStatus::RETIRED, 2, 100, 100,
+            ChunkServerStatus::READWRITE, 2, 100, 100,
             ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
         .WillOnce(Return(std::vector<ChunkServerInfo>{

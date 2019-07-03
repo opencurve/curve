@@ -113,7 +113,7 @@ struct ChunkServerInfo {
                     const ChunkServerStatisticInfo &statisticInfo);
 
     bool IsOffline();
-    bool IsRetired();
+    bool IsPendding();
     bool IsHealthy();
 
     PeerInfo info;

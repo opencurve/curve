@@ -133,6 +133,19 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         return out;
     }
 
+    std::list<ChunkServerIdType> GetChunkServerInServer(
+        ServerIdType id,
+        ChunkServerFilter filter = [](const ChunkServer&) {
+            return true;}) const override {
+        std::list<ChunkServerIdType> res;
+        for (auto it : chunkServerMap_) {
+            if (it.second.GetServerId() == id) {
+                res.emplace_back(it.first);
+            }
+        }
+        return res;
+    }
+
     std::vector<CopySetKey> GetCopySetsInCluster(
         CopySetFilter filter = [](const ::curve::mds::topology::CopySetInfo&) {
             return true;}) const override {
@@ -206,6 +219,17 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
             return -1;
         } else {
             it->second.SetOnlineState(onlineState);
+            return 0;
+        }
+    }
+
+    int UpdateChunkServerRwState(const ChunkServerStatus &rwStatus,
+                                  ChunkServerIdType id) {
+        auto it = chunkServerMap_.find(id);
+        if (it == chunkServerMap_.end()) {
+            return -1;
+        } else {
+            it->second.SetStatus(rwStatus);
             return 0;
         }
     }
@@ -284,6 +308,7 @@ class CopysetSchedulerPOC : public testing::Test {
         minScatterwidth_ = 90;
         scatterwidthPercent_ = 0.2;
         copysetNumPercent_ = 0.05;
+        offlineTolerent_ = 8;
 
         PrintScatterWithInCluster();
         PrintCopySetNumInCluster();
@@ -555,6 +580,14 @@ class CopysetSchedulerPOC : public testing::Test {
         return *it;
     }
 
+    std::list<ChunkServerIdType> OfflineChunkServerInServer1() {
+        auto chunkserverlist = topo_->GetChunkServerInServer(1);
+        for (auto it : chunkserverlist) {
+            topo_->UpdateChunkServerOnlineState(OnlineState::OFFLINE, it);
+        }
+        return chunkserverlist;
+    }
+
     void SetChunkServerOnline(ChunkServerIdType id) {
         topo_->UpdateChunkServerOnlineState(OnlineState::ONLINE, id);
     }
@@ -584,7 +617,7 @@ class CopysetSchedulerPOC : public testing::Test {
 
         recoverScheduler_ = std::make_shared<RecoverScheduler>(
             opController_, 1000, 10, 100, 1000,
-            scatterwidthPercent_, 8, topoAdapter_);
+            scatterwidthPercent_, offlineTolerent_, topoAdapter_);
     }
 
     void BuildCopySetScheduler(int opConcurrent) {
@@ -682,6 +715,7 @@ class CopysetSchedulerPOC : public testing::Test {
     int minScatterwidth_;
     float scatterwidthPercent_;
     float copysetNumPercent_;
+    int offlineTolerent_;
 };
 
 TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_1) {
@@ -861,6 +895,30 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_4) {
     PrintScatterWithInCluster();
     PrintCopySetNumInOnlineChunkServer();
     PrintCopySetNumInCluster();
+}
+
+TEST_F(CopysetSchedulerPOC, test_chunkserver_offline_over_concurrency) {
+    // 测试一个server有多个chunkserver offline, 有一个被设置为pending,
+    // 可以recover的情况
+    offlineTolerent_ = 20;
+    BuilRecoverScheduler(4);
+
+    // offline一个server上的chunkserver
+    auto chunkserverSet = OfflineChunkServerInServer1();
+    // 选择其中一个设置为pendding状态
+    ChunkServerIdType target = *chunkserverSet.begin();
+    topo_->UpdateChunkServerRwState(ChunkServerStatus::PENDDING, target);
+
+    int opNum = 0;
+    int targetOpNum = topo_->GetCopySetsInChunkServer(target).size();
+    // 开始恢复
+    do {
+        opNum = recoverScheduler_->Schedule();
+        // update copyset to topology
+        ApplyOperatorsInOpController(target);
+    } while (topo_->GetCopySetsInChunkServer(target).size() > 0);
+
+    ASSERT_EQ(targetOpNum, opNum);
 }
 
 TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLINT

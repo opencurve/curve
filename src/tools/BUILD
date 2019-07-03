@@ -86,7 +86,7 @@ cc_library(
     copts = COPTS
 )
 
-cc_test(
+cc_binary(
     name = "checkConsistecny",
     srcs = ["curve_data_check_main.cpp"],
     copts = COPTS,
