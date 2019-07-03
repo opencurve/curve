@@ -477,7 +477,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));
@@ -905,7 +905,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));

@@ -14,6 +14,7 @@
 #include "src/client/mds_client.h"
 #include "src/client/file_instance.h"
 #include "src/client/request_closure.h"
+#include "src/client/metacache_struct.h"
 
 namespace curve {
 namespace client {
@@ -179,6 +180,14 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
             re = mdsclient->GetServerList(segInfo.lpcpIDInfo.lpid,
                                          segInfo.lpcpIDInfo.cpidVec,
                                          &cpinfoVec);
+            for (auto cpinfo : cpinfoVec) {
+                for (auto peerinfo : cpinfo.csinfos_) {
+                    mc->AddCopysetIDInfo(peerinfo.chunkserverid_,
+                                         CopysetIDInfo(segInfo.lpcpIDInfo.lpid,
+                                                      cpinfo.cpid_));
+                }
+            }
+
             if (re == LIBCURVE_ERROR::FAILED) {
                 std::string cpidstr;
                 for (auto id : segInfo.lpcpIDInfo.cpidVec) {

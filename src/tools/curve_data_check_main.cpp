@@ -42,5 +42,6 @@ int main(int argc, char** argv) {
 
     cfc.UnInit();
 
+    rc == 0 ? LOG(INFO) << "Check success!" : LOG(INFO) << "Check fail!";
     return rc;
 }
