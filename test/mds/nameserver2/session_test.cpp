@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "src/mds/nameserver2/session.h"
-#include "test/mds/nameserver2/mock_repo.h"
+#include "test/mds/mock/mock_repo.h"
 #include "src/common/timeutility.h"
 
 using ::testing::AtLeast;

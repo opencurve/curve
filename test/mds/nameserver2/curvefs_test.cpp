@@ -18,7 +18,7 @@
 #include "test/mds/nameserver2/mock_inode_id_generator.h"
 #include "test/mds/nameserver2/mock_chunk_allocate.h"
 #include "test/mds/nameserver2/mock_clean_manager.h"
-#include "test/mds/nameserver2/mock_repo.h"
+#include "test/mds/mock/mock_repo.h"
 
 
 using ::testing::AtLeast;
