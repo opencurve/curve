@@ -52,7 +52,7 @@ do
 	echo "Disk:"$m" <==> ""wwn:"${disk_map[$m]} >> $diskinfo
 done
 #步骤3
-#根据磁盘数量创建数据目录，目前的格式统一是/data/chunkserver+num
+#根据磁盘数量创建数据目录和日志目录，目前的数据目录格式统一是/data/chunkserver+num，日志目录在/data/log/chunkserver+num
 #create data directory
 if [ -d ${DATA_DIR} ]
 then
@@ -68,6 +68,7 @@ echo $((${#disk_map[@]}-1))
 for i in `seq 0 $((${#disk_map[@]}-1))`
 do
 	mkdir -p ${DATA_DIR}/chunkserver$i
+	mkdir -p ${DATA_DIR}/log/chunkserver$i
 done
 #步骤4
 #格式化磁盘文件系统
