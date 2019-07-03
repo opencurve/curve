@@ -12,9 +12,13 @@
 #include <brpc/controller.h>
 #include <brpc/server.h>
 #include <glog/logging.h>
+#include <fiu-control.h>
+
 #include <thread>   // NOLINT
+
 #include "proto/chunk.pb.h"
 #include "proto/cli2.pb.h"
+#include "proto/copyset.pb.h"
 #include "src/client/client_common.h"
 
 using braft::PeerId;

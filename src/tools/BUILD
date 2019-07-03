@@ -61,6 +61,54 @@ cc_test(
     ],
 )
 
+cc_library(
+    name = "consistency_check_lib",
+    srcs = glob(
+        ["consistency_check.cpp"]
+    ),
+    hdrs = glob(["consistency_check.h"]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:brpc",
+        "//external:braft",
+        "//external:protobuf",
+        "//src/common:curve_common",
+        "//include/client:include_client",
+        "//proto:nameserver2_cc_proto",
+        "//proto:chunkserver-cc-protos",
+        "//src/client:curve_client"
+    ],
+    visibility = ["//visibility:public"],
+    copts = COPTS
+)
+
+cc_test(
+    name = "checkConsistecny",
+    srcs = ["curve_data_check_main.cpp"],
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//include/client:include_client",
+        "//proto:chunkserver-cc-protos",
+        "//proto:nameserver2_cc_proto",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//src/tools:consistency_check_lib",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_binary(
     name = "curve_format",
     srcs = [
