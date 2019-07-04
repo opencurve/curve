@@ -279,6 +279,69 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(10 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskUsed.get_value()); //NOLINT
 }
 
+TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+    CopySetIdType copysetId = 0x51;
+
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddZone(0x22, "zone2", physicalPoolId);
+    PrepareAddZone(0x23, "zone3", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "127.0.0.1", "127.0.0.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "127.0.0.1", "127.0.0.1", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "127.0.0.1", "127.0.0.1", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
+    PrepareAddChunkServer(0x44, "token4", "nvme", 0x33, "127.0.0.1", 8888);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(copysetId, logicalPoolId, replicas);
+
+
+    ChunkServerStat stat1;
+    CopysetStat cstat1;
+    stat1.leaderCount = 1;
+    stat1.copysetCount = 1;
+    stat1.readRate = 1;
+    stat1.writeRate = 1;
+    stat1.readIOPS = 1;
+    stat1.writeIOPS = 1;
+    cstat1.logicalPoolId = logicalPoolId;
+    cstat1.copysetId = copysetId;
+    cstat1.readRate = 1;
+    cstat1.writeRate = 1;
+    cstat1.readIOPS = 1;
+    cstat1.writeIOPS = 1;
+    stat1.copysetStats.push_back(cstat1);
+
+    EXPECT_CALL(*topologyStat_, GetChunkServerStat(_, _))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(stat1),
+            Return(true)));
+
+    testObj_->UpdateTopologyMetrics();
+
+    ASSERT_EQ(4, gChunkServerMetrics.size());
+    ASSERT_EQ(1, gLogicalPoolMetrics.size());
+
+    topology_->UpdateChunkServerRwState(ChunkServerStatus::RETIRED, 0x41);
+
+    std::set<ChunkServerIdType> replicas2{0x41, 0x42, 0x44};
+    CopySetInfo cs(logicalPoolId, copysetId);
+    cs.SetCopySetMembers(replicas2);
+    topology_->UpdateCopySetTopo(cs);
+
+    testObj_->UpdateTopologyMetrics();
+
+    ASSERT_EQ(3, gChunkServerMetrics.size());
+    ASSERT_EQ(1, gLogicalPoolMetrics.size());
+}
+
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
