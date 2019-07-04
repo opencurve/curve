@@ -61,24 +61,6 @@ int ChunkServer::Run(int argc, char** argv) {
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
 
-    // 初始化日志
-    google::CommandLineFlagInfo info;
-    if (GetCommandLineFlagInfo("logPath", &info) && info.is_default) {
-        LOG(FATAL) << "logPath must be set when run chunkserver in command.";
-    }
-    google::SetLogDestination(google::INFO, FLAGS_logPath.c_str());
-    // 不生成WARNING和ERROR日志文件
-    google::SetLogDestination(google::WARNING, "/dev/null");
-    google::SetLogDestination(google::ERROR, "/dev/null");
-    google::SetLogDestination(google::FATAL, "/dev/null");
-
-    int32_t minLogLevel = 0;
-    LOG_IF(FATAL,
-           !conf.GetIntValue("global.log_level",
-                                &minLogLevel));
-    FLAGS_minloglevel = minLogLevel;
-    google::InitGoogleLogging("chunkserver");
-
     // 优先初始化 metric 收集模块
     ChunkServerMetricOptions metricOptions;
     InitMetricOptions(&conf, &metricOptions);
