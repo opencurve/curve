@@ -207,7 +207,7 @@ using ConfigMetricMap =  std::unordered_map<std::string, ConfigItemPtr>;
 
 class ChunkServerMetric : public Uncopyable {
  public:
-    // 单例，仅仅在 c++11或者更高版本下正确
+    // 实现单例
     static ChunkServerMetric *GetInstance();
 
     /**
