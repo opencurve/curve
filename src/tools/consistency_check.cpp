@@ -14,6 +14,7 @@ DEFINE_string(filename, "", "filename to check consistency");
 DEFINE_uint64(filesize, 10*1024*1024*1024ul, "filesize");
 DEFINE_uint64(chunksize, 16*1024*1024, "chunksize");
 DEFINE_uint64(segmentsize, 1*1024*1024*1024, "segmentsize");
+DEFINE_uint64(retry_times, 5, "rpc retry times");
 DEFINE_string(username, "test", "user name");
 DEFINE_bool(check_hash, true, R"(用户需要先确认copyset的applyindex一致之后
                         再去查copyset内容是不是一致。通常需要先设置
@@ -42,7 +43,7 @@ bool CheckFileConsistency::Init() {
 
 bool CheckFileConsistency::FetchFileCopyset() {
     curve::client::FInfo_t finfo;
-    finfo.filename = FLAGS_filename;
+    finfo.fullPathName = FLAGS_filename;
     finfo.chunksize = FLAGS_chunksize;
     finfo.segmentsize = FLAGS_segmentsize;
 
@@ -97,59 +98,70 @@ bool CheckFileConsistency::ReplicasConsistency() {
                 }
             }
 
-            // 2. 发起getcopysetstatus rpc
-            brpc::Controller cntl;
-            cntl.set_timeout_ms(3000);
+            int retry = 0;
+            while (retry < FLAGS_retry_times) {
+                // 2. 发起getcopysetstatus rpc
+                brpc::Controller cntl;
+                cntl.set_timeout_ms(3000);
 
-            curve::chunkserver::CopysetStatusRequest request;
-            curve::chunkserver::CopysetStatusResponse response;
+                curve::chunkserver::CopysetStatusRequest request;
+                curve::chunkserver::CopysetStatusResponse response;
 
-            curve::common::Peer *peer = new curve::common::Peer();
-            peer->set_address(iter.csaddr_.ToString());
+                curve::common::Peer *peer = new curve::common::Peer();
+                peer->set_address(iter.csaddr_.ToString());
 
-            request.set_logicpoolid(lpid_);
-            request.set_copysetid(cpinfo.cpid_);
-            request.set_allocated_peer(peer);;
-            request.set_queryhash(FLAGS_check_hash);
+                request.set_logicpoolid(lpid_);
+                request.set_copysetid(cpinfo.cpid_);
+                request.set_allocated_peer(peer);;
+                request.set_queryhash(FLAGS_check_hash);
 
-            curve::chunkserver::CopysetService_Stub stub(&channel);
-            stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
-            if (cntl.Failed()) {
-                LOG(ERROR) << cntl.ErrorText() << std::endl;
-                return false;
+                curve::chunkserver::CopysetService_Stub stub(&channel);
+                stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
+                if (cntl.Failed()) {
+                    LOG(ERROR) << cntl.ErrorText() << std::endl;
+                } else {
+                    // 3. 存储要检查的内容
+                    if (FLAGS_check_hash) {
+                        copysetHash.push_back(response.hash());
+                    } else {
+                        applyIndexVec.push_back(response.knownappliedindex());
+                    }
+                    break;
+                }
+                retry++;
             }
 
-            // 3. 存储要检查的内容
-            if (FLAGS_check_hash) {
-                copysetHash.push_back(response.hash());
-            } else {
-                applyIndexVec.push_back(response.knownappliedindex());
+            if (retry == FLAGS_retry_times) {
+                LOG(ERROR) << "GetCopysetStatus rpc timeout!";
+                return false;
             }
         }
 
         // 4. 检查当前copyset的chunkserver内容是否一致
         if (FLAGS_check_hash) {
             if (copysetHash.empty()) {
-                LOG(INFO) << "has no copyset info!";
+                LOG(ERROR) << "has no copyset info!";
                 return true;
             }
             std::string hash = *copysetHash.begin();
             for (auto peerHash : copysetHash) {
                 LOG(INFO) << "hash value = " << peerHash.c_str();
                 if (peerHash.compare(hash) != 0) {
-                    LOG(INFO) << "hash not equal!";
+                    LOG(ERROR) << "hash not equal! previous hash = " << hash
+                               << ", current hash = " << peerHash;
                     return false;
                 }
             }
         } else {
             if (applyIndexVec.empty()) {
-                LOG(INFO) << "has no copyset info!";
+                LOG(ERROR) << "has no copyset info!";
                 return true;
             }
             uint64_t index = *applyIndexVec.begin();
             for (auto applyindex : applyIndexVec) {
                 if (index != applyindex) {
-                    LOG(INFO) << "apply index not equal!";
+                    LOG(ERROR) << "apply index not equal! previous apply index "
+                               << index << ", current index = " << applyindex;
                     return false;
                 }
             }
