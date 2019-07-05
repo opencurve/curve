@@ -18,76 +18,89 @@
 namespace curve {
 namespace mds {
 namespace schedule {
+enum OperatorAction {
+    ADD = 1,
+    REMOVE = 2,
+};
+
 class OperatorController {
  public:
-  OperatorController() = default;
-  explicit OperatorController(int concurent);
-  ~OperatorController() = default;
+    OperatorController() = default;
+    explicit OperatorController(int concurent);
+    ~OperatorController() = default;
 
-  bool AddOperator(const Operator &op);
+    bool AddOperator(const Operator &op);
 
-  void RemoveOperator(const CopySetKey &key);
+    void RemoveOperator(const CopySetKey &key);
 
-  bool GetOperatorById(const CopySetKey &id, Operator *op);
+    bool GetOperatorById(const CopySetKey &id, Operator *op);
 
-  std::vector<Operator> GetOperators();
+    std::vector<Operator> GetOperators();
 
-  /**
-   * @brief execute operator
-   *
-   * @param op 入参, 需要执行的operator
-   * @param originInfo 入参, chunkserver上报的copyset的信息
-   * @param newConf 出参, 下发给copyset的配置信息
-   *
-   * @return if newConf is assigned return true else return false
-   */
-  bool ApplyOperator(const CopySetInfo &originInfo,
-                     CopySetConf *newConf);
+    /**
+     * @brief execute operator
+     *
+     * @param op 入参, 需要执行的operator
+     * @param originInfo 入参, chunkserver上报的copyset的信息
+     * @param newConf 出参, 下发给copyset的配置信息
+     *
+     * @return if newConf is assigned return true else return false
+     */
+    bool ApplyOperator(const CopySetInfo &originInfo,
+                        CopySetConf *newConf);
 
-  /**
-   * @brief ChunkServerExceed chunksevrer上的operator是否达到设置的并发度
-   *
-   * @param[in] id 指定chunkserver id
-   *
-   * @return false-未达到上限 true-已达到并发度
-   */
-  bool ChunkServerExceed(ChunkServerIdType id);
+    /**
+     * @brief ChunkServerExceed chunksevrer上的operator是否达到设置的并发度
+     *
+     * @param[in] id 指定chunkserver id
+     *
+     * @return false-未达到上限 true-已达到并发度
+     */
+    bool ChunkServerExceed(ChunkServerIdType id);
 
  private:
-  /**
-   * @brief update influence about replace operator
-   */
-  void UpdateReplaceOpInfluenceLocked(const Operator &oldOp,
-                                      const Operator &newOp);
-
-  /**
-   * @brief update influence about add operator
-   */
-  void UpdateAddOpInfluenceLocked(const Operator &op);
-
-  /**
-   * @brief update influence about remove operator
-   */
-  void UpdateRemoveOpInfluenceLocked(const Operator &op);
-
-  /**
-   * @brief judge the operator will exceed concurrency if replace
-   */
-  bool ReplaceOpInfluencePreJudgeLocked(const Operator &oldOp,
+    /**
+     * @brief update influence about replace operator
+     */
+    void UpdateReplaceOpInfluenceLocked(const Operator &oldOp,
                                         const Operator &newOp);
 
-  /**
-   * @brief judge the operator will exceed concurrency if replace
-   */
-  bool AddOpInfluencePreJudgeLocked(const Operator &op);
+    /**
+     * @brief update influence about add operator
+     */
+    void UpdateAddOpInfluenceLocked(const Operator &op);
 
-  void RemoveOperatorLocked(const CopySetKey &key);
+    /**
+     * @brief update influence about remove operator
+     */
+    void UpdateRemoveOpInfluenceLocked(const Operator &op);
+
+    /**
+     * @brief judge the operator will exceed concurrency if replace
+     */
+    bool ReplaceOpInfluencePreJudgeLocked(const Operator &oldOp,
+                                            const Operator &newOp);
+
+    /**
+     * @brief judge the operator will exceed concurrency if replace
+     */
+    bool AddOpInfluencePreJudgeLocked(const Operator &op);
+
+    void RemoveOperatorLocked(const CopySetKey &key);
+
+    /*
+     * @brief UpdateOperatorMetric 在添加和移除operator的时候更新metric
+     *
+     * @param[in] OperatorAction ADD表示添加，REMOVE表示移除
+     * @param[in] op 需要移除或添加的operator
+     */
+    void UpdateOperatorMetric(OperatorAction action, const Operator &op);
 
  private:
-  int operatorConcurrent_;
-  std::map<CopySetKey, Operator> operators_;
-  std::map<ChunkServerIdType, int> opInfluence_;
-  std::mutex mutex_;
+    int operatorConcurrent_;
+    std::map<CopySetKey, Operator> operators_;
+    std::map<ChunkServerIdType, int> opInfluence_;
+    std::mutex mutex_;
 };
 
 }  // namespace schedule
