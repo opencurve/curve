@@ -275,7 +275,7 @@ int TopoAdapterImpl::GetStandardReplicaNumInLogicalPool(PoolIdType id) {
     return 0;
 }
 
-int TopoAdapterImpl::GetMinScatterWidthInLogicalPool(PoolIdType id) {
+int TopoAdapterImpl::GetAvgScatterWidthInLogicalPool(PoolIdType id) {
     ::curve::mds::topology::LogicalPool logicalPool;
     if (topo_->GetLogicalPool(id, &logicalPool)) {
         return logicalPool.GetScatterWidth();
