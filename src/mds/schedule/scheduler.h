@@ -87,6 +87,15 @@ class Scheduler {
     ChunkServerIdType SelectRedundantReplicaToRemove(
         const CopySetInfo &copySetInfo);
 
+    /**
+     * @brief GetMinScatterWidth 根据均值和百分比获取scatter-width的设定最小值
+     *
+     * @param[in] lpid 逻辑池id
+     *
+     * @return scatter-width的设定最小值
+     */
+    int GetMinScatterWidth(PoolIdType lpid);
+
  protected:
     // chunkserver的scatter-width不能超过
     // (1 + minScatterWdith_) * scatterWidthRangePerent_
@@ -249,24 +258,26 @@ class LeaderScheduler : public Scheduler {
      *        上迁移出去
      *
      * @param[in] source leader需要迁移出去的chunkserverID
+     * @param[in] leaderCount source上leader的个数
      * @param[out] op 生成的operator
      * @param[out] selectedCopySet 选中的需要变更的copyset
      *
      * @return 是否成功生成operator, false为没有生成
      */
-    bool transferLeaderOut(ChunkServerIdType source,
+    bool transferLeaderOut(ChunkServerIdType source, int leaderCount,
         Operator *op, CopySetInfo *selectedCopySet);
 
     /**
      * @brief 在target上随机选择一个follower copyset, 把leader迁移到该chunserver上
      *
      * @param[in] target 需要将该leader迁移到该chunkserverID
+     * @param[in] leaderCount target上leader的个数
      * @param[out] op 生成的operator
      * @param[out] selectedCopySet 选中的需要变更的copyset
      *
      * @return 是否成功生成operator, false为没有生成
      */
-    bool transferLeaderIn(ChunkServerIdType target,
+    bool transferLeaderIn(ChunkServerIdType target, int leaderCount,
         Operator *op, CopySetInfo *selectedCopySet);
 
     /*
