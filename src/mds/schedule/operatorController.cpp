@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include "src/mds/schedule/operatorController.h"
+#include "src/mds/schedule/schedulerMetric.h"
 
 namespace curve {
 namespace mds {
@@ -28,6 +29,7 @@ bool OperatorController::AddOperator(const Operator &op) {
         }
         operators_[op.copsetID] = op;
         UpdateAddOpInfluenceLocked(op);
+        UpdateOperatorMetric(OperatorAction::ADD, op);
         return true;
     }
 
@@ -46,6 +48,7 @@ bool OperatorController::AddOperator(const Operator &op) {
         } else {
             operators_[op.copsetID] = op;
             UpdateReplaceOpInfluenceLocked(exist->second, op);
+            UpdateOperatorMetric(OperatorAction::ADD, op);
             return true;
         }
     }
@@ -64,6 +67,7 @@ void OperatorController::RemoveOperatorLocked(const CopySetKey &key) {
         return;
     }
     UpdateRemoveOpInfluenceLocked(exist->second);
+    UpdateOperatorMetric(OperatorAction::REMOVE, exist->second);
     operators_.erase(key);
 }
 
@@ -198,6 +202,61 @@ bool OperatorController::AddOpInfluencePreJudgeLocked(const Operator &op) {
         }
     }
     return true;
+}
+
+void OperatorController::UpdateOperatorMetric(
+    OperatorAction action, const Operator &op) {
+    // operator num
+    if (action == OperatorAction::REMOVE) {
+        SchedulerMetric::GetInstance()->operatorNum << -1;
+    } else {
+        SchedulerMetric::GetInstance()->operatorNum << 1;
+    }
+
+    // high operator
+    if (op.priority == OperatorPriority::HighPriority) {
+        if (action == OperatorAction::REMOVE) {
+            SchedulerMetric::GetInstance()->highOpNum << -1;
+        } else {
+            SchedulerMetric::GetInstance()->highOpNum << 1;
+        }
+    }
+
+    // normal operator
+    if (op.priority == OperatorPriority::NormalPriority) {
+        if (action == OperatorAction::REMOVE) {
+            SchedulerMetric::GetInstance()->normalOpNum << -1;
+        } else {
+            SchedulerMetric::GetInstance()->normalOpNum << 1;
+        }
+    }
+
+    // add operator
+    if (dynamic_cast<AddPeer *>(op.step.get()) != nullptr) {
+        if (action == OperatorAction::REMOVE) {
+            SchedulerMetric::GetInstance()->addOpNum << -1;
+        } else {
+            SchedulerMetric::GetInstance()->addOpNum << 1;
+        }
+    }
+
+    // remove operator
+    if (dynamic_cast<RemovePeer *>(op.step.get()) != nullptr) {
+        if (action == OperatorAction::REMOVE) {
+            SchedulerMetric::GetInstance()->removeOpNum << -1;
+        } else {
+            SchedulerMetric::GetInstance()->removeOpNum << 1;
+        }
+    }
+
+    // transfer leader operator
+    if (dynamic_cast<TransferLeader *>(op.step.get()) != nullptr) {
+        if (action == OperatorAction::REMOVE) {
+            SchedulerMetric::GetInstance()->transferOpNum << -1;
+        } else {
+            SchedulerMetric::GetInstance()->transferOpNum << 1;
+        }
+    }
 }
 }  // namespace schedule
 }  // namespace mds
