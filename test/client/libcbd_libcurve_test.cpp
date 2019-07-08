@@ -31,6 +31,8 @@ using curve::client::EndPoint;
 
 #define filename    "1_userinfo_test.img"
 
+DECLARE_string(chunkserver_list);
+
 extern std::string configpath;
 void LibcbdLibcurveTestCallback(CurveAioContext* context) {
     context->op = LIBCURVE_OP_MAX;
@@ -39,6 +41,8 @@ void LibcbdLibcurveTestCallback(CurveAioContext* context) {
 class TestLibcbdLibcurve : public ::testing::Test {
  public:
     void SetUp() {
+        FLAGS_chunkserver_list =
+         "127.0.0.1:9110:0,127.0.0.1:9111:0,127.0.0.1:9112:0";
         if (Init(configpath.c_str()) != 0) {
             LOG(FATAL) << "Fail to init config";
             return;
@@ -47,7 +51,7 @@ class TestLibcbdLibcurve : public ::testing::Test {
 
         // 设置leaderid
         EndPoint ep;
-        butil::str2endpoint("127.0.0.1", 9106, &ep);
+        butil::str2endpoint("127.0.0.1", 9110, &ep);
         braft::PeerId pd(ep);
 
         /*** init mds service ***/

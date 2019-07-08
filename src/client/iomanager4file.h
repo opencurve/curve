@@ -13,6 +13,7 @@
 #include <mutex>  // NOLINT
 #include <condition_variable>   // NOLINT
 
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/client/metacache.h"
 #include "src/client/iomanager.h"
 #include "src/client/mds_client.h"
@@ -102,6 +103,13 @@ class IOManager4File : public IOManager {
    */
   FileMetric_t* GetMetric() {
     return fileMetric_;
+  }
+
+  /**
+   * 重新设置io配置信息，测试使用
+   */
+  void SetIOOpt(const IOOption_t& opt) {
+     ioopt_ = opt;
   }
 
  private:
@@ -212,6 +220,9 @@ class IOManager4File : public IOManager {
 
   // client端metric统计信息
   FileMetric_t*        fileMetric_;
+
+  // task thread pool为了将qemu线程与curve线程隔离
+  curve::common::TaskThreadPool taskPool_;
 };
 
 class FlightIOGuard {
