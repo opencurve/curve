@@ -118,9 +118,12 @@ bool MDSClient::ChangeMDServer(int* mdsAddrleft) {
 }
 
 bool MDSClient::UpdateRetryinfoOrChangeServer(int* retrycount,
-                                              int* mdsAddrleft) {
+                                              int* mdsAddrleft,
+                                              bool sync) {
+    uint64_t retryTime = sync ? metaServerOpt_.synchronizeRPCRetryTime
+                              : metaServerOpt_.rpcRetryTimes;
     (*retrycount)++;
-    if (*retrycount >= metaServerOpt_.rpcRetryTimes) {
+    if (*retrycount >= retryTime) {
         if (*mdsAddrleft > 0 && ChangeMDServer(mdsAddrleft)) {
             // 切换mds地址，重新在新的mds addr上重试
             *retrycount = 0;
@@ -144,7 +147,7 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         bool infoComplete = false;
 
         brpc::Controller cntl;
@@ -220,7 +223,7 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::CreateFileResponse response;
 
@@ -279,7 +282,7 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::CloseFileResponse response;
 
@@ -336,7 +339,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::GetFileInfoResponse response;
 
@@ -397,7 +400,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         ::curve::mds::CreateSnapShotResponse response;
         {
@@ -463,7 +466,7 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         ::curve::mds::DeleteSnapShotResponse response;
 
@@ -522,7 +525,7 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
     seqVec.push_back(seq);
 
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         ::curve::mds::ListSnapShotFileInfoResponse response;
 
@@ -593,7 +596,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         ::curve::mds::ListSnapShotFileInfoResponse response;
         if ((*seq).size() > (*snapif).size()) {
@@ -665,7 +668,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         ::curve::mds::GetOrAllocateSegmentResponse response;
 
@@ -867,7 +870,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
     LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         ::curve::mds::CheckSnapShotStatusResponse response;
 
@@ -945,7 +948,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
                         << ", retry GetServerList, retry times = "
                         << count;
 
-            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
+            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {
                 break;
             }
             continue;
@@ -1003,7 +1006,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::CreateCloneFileResponse response;
 
@@ -1080,7 +1083,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::SetCloneFileStatusResponse response;
 
@@ -1165,7 +1168,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                         << ", retry allocate, retry times = "
                         << count;
 
-            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
+            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {
                 break;
             }
             continue;
@@ -1264,7 +1267,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::RenameFileResponse response;
 
@@ -1325,7 +1328,7 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::ExtendFileResponse response;
 
@@ -1383,7 +1386,7 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::DeleteFileResponse response;
 
@@ -1440,7 +1443,7 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::ChangeOwnerResponse response;
 
@@ -1497,7 +1500,7 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    while (count < metaServerOpt_.rpcRetryTimes) {
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         curve::mds::ListDirResponse response;
 

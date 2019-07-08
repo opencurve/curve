@@ -116,11 +116,11 @@ int main(int argc, char ** argv) {
     }
 
 
-
     char* buf2 = new char[16 * 1024];
     CurveAioContext* aioctx1 = new CurveAioContext;
     char* buf1 = new char[16 * 1024];
     CurveAioContext* aioctx2 = new CurveAioContext;
+
     auto f = [&]() {
         while (1) {
             for (int i = 0; i < 10; i++) {
@@ -211,7 +211,7 @@ int main(int argc, char ** argv) {
 
     LOG(INFO) << "LibCurve I/O verified for stage 1, going to read repeatedly";
 
-skip_write_io:
+// skip_write_io:
     std::atomic<bool> stop(false);
     auto testfunc = [&]() {
         while (!stop.load()) {
