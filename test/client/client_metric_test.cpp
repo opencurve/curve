@@ -32,6 +32,7 @@ TEST(MetricTest, MDS_MetricTest) {
     metaopt.rpcTimeoutMs = 500;
     metaopt.rpcRetryTimes = 5;
     metaopt.retryIntervalUs = 200;
+    metaopt.synchronizeRPCRetryTime = 3;
 
     brpc::Server server;
     FakeMDSCurveFSService curvefsservice;
@@ -69,8 +70,8 @@ TEST(MetricTest, MDS_MetricTest) {
 
     MDSClientMetric_t* mdsmetric = mdsclient.GetMetric();
 
-    ASSERT_EQ(mdsmetric->createFile.qps.count.get_value(), 6);
-    ASSERT_EQ(mdsmetric->createFile.eps.count.get_value(), 5);
+    ASSERT_EQ(mdsmetric->createFile.qps.count.get_value(), 4);
+    ASSERT_EQ(mdsmetric->createFile.eps.count.get_value(), 3);
 
     // file close ok
     ::curve::mds::CloseFileResponse response1;
@@ -87,8 +88,8 @@ TEST(MetricTest, MDS_MetricTest) {
     mdsclient.CloseFile(filename.c_str(), userinfo,  "sessid");
 
     // 共调用6次，1次成功，5次重试
-    ASSERT_EQ(mdsmetric->closeFile.qps.count.get_value(), 6);
-    ASSERT_EQ(mdsmetric->closeFile.eps.count.get_value(), 5);
+    ASSERT_EQ(mdsmetric->closeFile.qps.count.get_value(), 4);
+    ASSERT_EQ(mdsmetric->closeFile.eps.count.get_value(), 3);
 
     // file open ok
     FInfo_t fi;
@@ -107,8 +108,8 @@ TEST(MetricTest, MDS_MetricTest) {
     mdsclient.OpenFile(filename.c_str(), userinfo, &fi, &lease);
 
     // 共调用6次，1次成功，5次重试
-    ASSERT_EQ(mdsmetric->closeFile.qps.count.get_value(), 6);
-    ASSERT_EQ(mdsmetric->closeFile.eps.count.get_value(), 5);
+    ASSERT_EQ(mdsmetric->closeFile.qps.count.get_value(), 4);
+    ASSERT_EQ(mdsmetric->closeFile.eps.count.get_value(), 3);
 
     // set delete file ok
     ::curve::mds::DeleteFileResponse delresponse;
@@ -125,8 +126,8 @@ TEST(MetricTest, MDS_MetricTest) {
     mdsclient.DeleteFile(filename.c_str(), userinfo);
 
     // 共调用6次，1次成功，5次重试
-    ASSERT_EQ(mdsmetric->deleteFile.qps.count.get_value(), 6);
-    ASSERT_EQ(mdsmetric->deleteFile.eps.count.get_value(), 5);
+    ASSERT_EQ(mdsmetric->deleteFile.qps.count.get_value(), 4);
+    ASSERT_EQ(mdsmetric->deleteFile.eps.count.get_value(), 3);
     mdsclient.UnInitialize();
 
     server.Stop(0);

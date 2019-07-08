@@ -37,17 +37,23 @@ typedef struct InFlightIOCntlInfo {
  * @rpcTimeoutMs: 设置rpc超时时间
  * @rpcRetryTimes: 设置rpc重试次数
  * @retryIntervalUs: 设置rpc重试间隔时间
+ * @synchronizeRPCTimeoutMS: 设置同步调用RPC超时时间
+ * @synchronizeRPCRetryTime: 设置同步调用RPC超时重试次数
  * @metaaddrvec: mds server地址
  */
 typedef struct MetaServerOption {
     uint64_t  rpcTimeoutMs;
-    uint16_t  rpcRetryTimes;
+    uint32_t  rpcRetryTimes;
     uint32_t  retryIntervalUs;
+    uint32_t  synchronizeRPCTimeoutMS;
+    uint32_t  synchronizeRPCRetryTime;
     std::vector<std::string> metaaddrvec;
     MetaServerOption() {
         rpcTimeoutMs = 500;
         rpcRetryTimes = 5;
-        retryIntervalUs = 200;
+        retryIntervalUs = 50000;
+        synchronizeRPCRetryTime = 3;
+        synchronizeRPCTimeoutMS = 500;
     }
 } MetaServerOption_t;
 
@@ -56,7 +62,7 @@ typedef struct MetaServerOption {
  * @refreshTimesPerLease: 一个租约内续约次数
  */
 typedef struct LeaseOption {
-    uint16_t    refreshTimesPerLease;
+    uint32_t    refreshTimesPerLease;
     LeaseOption() {
         refreshTimesPerLease = 5;
     }
@@ -84,7 +90,7 @@ typedef struct FailureRequestOption {
  */
 typedef struct IOSenderOption {
     uint64_t  rpcTimeoutMs;
-    uint16_t  rpcRetryTimes;
+    uint32_t  rpcRetryTimes;
     bool enableAppliedIndexRead;
     FailureRequestOption_t failRequestOpt;
     IOSenderOption() {
@@ -136,12 +142,25 @@ typedef struct IOSplitOPtion {
 } IOSplitOPtion_t;
 
 /**
+ * 任务队列配置信息
+ */
+typedef struct TaskThreadOption {
+    uint64_t    taskQueueCapacity;
+    uint32_t    taskThreadPoolSize;
+    TaskThreadOption() {
+        taskQueueCapacity = 500000;
+        taskThreadPoolSize = 1;
+    }
+} TaskThreadOption_t;
+
+/**
  * IOOption存储了当前io 操作所需要的所有配置信息
  */
 typedef struct IOOption {
-    IOSplitOPtion_t  ioSplitOpt;
-    IOSenderOption_t ioSenderOpt;
-    MetaCacheOption_t   metaCacheOpt;
+    IOSplitOPtion_t         ioSplitOpt;
+    IOSenderOption_t        ioSenderOpt;
+    MetaCacheOption_t       metaCacheOpt;
+    TaskThreadOption_t      taskThreadOpt;
     InFlightIOCntlInfo_t    inflightOpt;
     RequestScheduleOption_t reqSchdulerOpt;
 } IOOption_t;

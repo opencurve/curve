@@ -66,6 +66,8 @@ class MDSClientTest : public ::testing::Test {
         metaopt.rpcTimeoutMs = 500;
         metaopt.rpcRetryTimes = 5;
         metaopt.retryIntervalUs = 200;
+        metaopt.synchronizeRPCTimeoutMS = 2000;
+        metaopt.synchronizeRPCRetryTime = 3;
         mdsclient_.Initialize(metaopt);
         userinfo.owner = "test";
         if (Init(configpath.c_str()) != 0) {
@@ -277,7 +279,7 @@ TEST_F(MDSClientTest, Closefile) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
          mdsclient_.CloseFile(filename.c_str(),
                                 userinfo,  "sessid"));
-    ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
+    ASSERT_EQ(metaopt.synchronizeRPCRetryTime * metaopt.metaaddrvec.size(),
         curvefsservice.GetRetryTimes());
 
     LOG(INFO) << "create file done!";
@@ -368,7 +370,19 @@ TEST_F(MDSClientTest, Openfile) {
 
     ASSERT_EQ(globalclient->Open(filename, userinfo), LIBCURVE_ERROR::OK);
 
-    LOG(INFO) << "create file done!";
+    // 设置rpc失败，触发重试
+    brpc::Controller cntl;
+    cntl.SetFailed(-1, "failed");
+
+    FakeReturn* fakeret3
+                = new FakeReturn(&cntl, static_cast<void*>(&openresponse2));
+    curvefsservice.SetOpenFile(fakeret3);
+    curvefsservice.CleanRetryTimes();
+
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, globalclient->Open(filename, userinfo));
+    ASSERT_EQ(metaopt.synchronizeRPCRetryTime * metaopt.metaaddrvec.size(),
+        curvefsservice.GetRetryTimes());
+
     ASSERT_EQ(0, server.Stop(0));
     ASSERT_EQ(0, server.Join());
 
@@ -935,7 +949,7 @@ TEST_F(MDSClientTest, GetFileInfo) {
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
          mdsclient_.GetFileInfo(filename.c_str(),
           userinfo, finfo));
-    ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
+    ASSERT_EQ(metaopt.synchronizeRPCRetryTime * metaopt.metaaddrvec.size(),
         curvefsservice.GetRetryTimes());
 
     ASSERT_EQ(0, server.Stop(0));
@@ -1728,7 +1742,7 @@ TEST_F(MDSClientTest, CreateCloneFile) {
                                                             4*1024*1024,
                                                             &finfo));
 
-    ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
+    ASSERT_EQ(metaopt.synchronizeRPCRetryTime * metaopt.metaaddrvec.size(),
             curvefsservice.GetRetryTimes());
 
     // 认证失败
@@ -1804,7 +1818,7 @@ TEST_F(MDSClientTest, CompleteCloneMeta) {
                                                             "destination",
                                                             userinfo));
 
-    ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
+    ASSERT_EQ(metaopt.synchronizeRPCRetryTime * metaopt.metaaddrvec.size(),
             curvefsservice.GetRetryTimes());
 
     // 认证失败
@@ -1869,7 +1883,7 @@ TEST_F(MDSClientTest, CompleteCloneFile) {
                                                             "destination",
                                                             userinfo));
 
-    ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
+    ASSERT_EQ(metaopt.synchronizeRPCRetryTime * metaopt.metaaddrvec.size(),
             curvefsservice.GetRetryTimes());
 
     // 认证失败
