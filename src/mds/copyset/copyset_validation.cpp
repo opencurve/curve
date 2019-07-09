@@ -40,7 +40,7 @@ bool CopysetValidation::Validate(
     //检查方差
     if (option_.scatterWidthVariance != 0 &&
         variance > option_.scatterWidthVariance) {
-        LOG(ERROR) << "Validate copyset failed in scatterWidthVariance = "
+        LOG(WARNING) << "Validate copyset failed in scatterWidthVariance = "
                    << option_.scatterWidthVariance
                    << ", actual = " << variance;
         return false;
@@ -51,7 +51,7 @@ bool CopysetValidation::Validate(
         double standardDevation =
             StatisticsTools::CalcStandardDevation(variance);
         if (standardDevation > option_.scatterWidthStandardDevation) {
-            LOG(ERROR) << "Validate copyset failed in "
+            LOG(WARNING) << "Validate copyset failed in "
                        << "scatterWidthStandardDevation = "
                        << option_.scatterWidthStandardDevation
                        << ", actual = " << standardDevation;
@@ -71,7 +71,7 @@ bool CopysetValidation::Validate(
     // 检查极差
     if ((option_.scatterWidthRange != 0) &&
         (range > option_.scatterWidthRange)) {
-        LOG(ERROR) << "Validate copyset failed in "
+        LOG(WARNING) << "Validate copyset failed in "
                    << "scatterWidthRange = "
                    << option_.scatterWidthRange
                    << ", actual = " << range;
@@ -83,7 +83,7 @@ bool CopysetValidation::Validate(
         double maxPercent = (maxValue - average) * 100 / average;
         if ((minPercent > option_.scatterWidthFloatingPercentage) ||
             (maxPercent > option_.scatterWidthFloatingPercentage)) {
-            LOG(ERROR) << "Validate copyset failed in "
+            LOG(WARNING) << "Validate copyset failed in "
                        << "scatterWidthFloatingPercentage = "
                        << option_.scatterWidthFloatingPercentage
                        << ", actual minValue = " << minValue
@@ -107,7 +107,7 @@ bool CopysetValidation::ValidateScatterWidth(uint32_t scatterWidth,
     double average = StatisticsTools::CalcAverage(scatterWidthVec);
     *scatterWidthOut = std::round(average);
     if (average < scatterWidth) {
-        LOG(ERROR) << "ValidateScatterWidth failed"
+        LOG(WARNING) << "ValidateScatterWidth failed"
                    << ", scatterWidth = " << scatterWidth
                    << ", current = " << average;
         return false;

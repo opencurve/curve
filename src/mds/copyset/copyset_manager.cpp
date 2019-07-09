@@ -109,7 +109,7 @@ bool CopysetManager::GenCopyset(const ClusterInfo& cluster,
         if (validator_->Validate(*out)) {
             return true;
         }
-        LOG(ERROR) << "Validate copyset metric failed, retry = "
+        LOG(WARNING) << "Validate copyset metric failed, retry = "
                    << retry;
         retry++;
     }

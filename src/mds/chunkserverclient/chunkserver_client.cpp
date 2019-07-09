@@ -84,7 +84,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
                   << ". [ChunkRequest] "
                   << request.DebugString();
         if (cntl.Failed()) {
-            LOG(WARNING) << "Received ChunkResponse error, "
+            LOG(WARNING) << "Send DeleteChunkSnapshotOrCorrectSn error, "
                        << "cntl.errorText = "
                        << cntl.ErrorText()
                        << ", retry, time = "
@@ -185,7 +185,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
                   << ". [ChunkRequest] "
                   << request.DebugString();
         if (cntl.Failed()) {
-            LOG(WARNING) << "Received ChunkResponse error, "
+            LOG(WARNING) << "Send DeleteChunk error, "
                        << "cntl.errorText = "
                        << cntl.ErrorText()
                        << ", retry, time = "
@@ -284,7 +284,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
                   << ". [GetLeaderRequest] "
                   << request.DebugString();
         if (cntl.Failed()) {
-            LOG(WARNING) << "Received GetLeaderResponse error, "
+            LOG(WARNING) << "Send GetLeader error, "
                        << "cntl.errorText = "
                        << cntl.ErrorText()
                        << ", retry, time = "
@@ -316,7 +316,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
             *leader = topology_->FindChunkServerNotRetired(
                 leaderIp, leaderPort);
             if (UNINTIALIZE_ID == *leader) {
-                LOG(ERROR) << "GetLeader failed on FindChunkServer,"
+                LOG(WARNING) << "GetLeader failed on FindChunkServer,"
                            << "leaderIp = " << leaderIp
                            << "leaderPort = " << leaderPort;
                 return kMdsFail;
