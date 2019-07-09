@@ -490,8 +490,6 @@ bool TopologyImpl::GetChunkServer(ChunkServerIdType chunkserverId,
         *out = it->second;
         return true;
     }
-
-    LOG(ERROR) << "topologyImpl can not get chunkServer: " << chunkserverId;
     return false;
 }
 
@@ -952,15 +950,6 @@ void TopologyImpl::FlushCopySetToStorage() {
         if (!storage_->UpdateCopySet(v)) {
             LOG(WARNING) << "update copyset{" << v.GetLogicalPoolId()
                          << "," << v.GetId() << "} to repo fail";
-        } else {
-            LOG(INFO) << "update copyset to repo success, "
-                      << "logicalPoolId = " << v.GetLogicalPoolId()
-                      << ", copysetId = " << v.GetId()
-                      << ", leader = " << v.GetLeader()
-                      << ", epoch = " << v.GetEpoch()
-                      << ", copyset members = "
-                      << v.GetCopySetMembersStr()
-                      << ", candidate = " << v.GetCandidate();
         }
     }
 }
@@ -982,24 +971,6 @@ void TopologyImpl::FlushChunkServerToStorage() {
         if (!storage_->UpdateChunkServer(v)) {
             LOG(WARNING) << "update chunkserver to repo fail"
                          << ", chunkserverid = " << v.GetId();
-        } else {
-            LOG(INFO) << "update chunkserver to repo success, "
-                      << "chunkserverId = " << v.GetId()
-                      << ", token = " << v.GetToken()
-                      << ", diskType = " << v.GetDiskType()
-                      << ", serverId = " << v.GetServerId()
-                      << ", hostIp = "
-                      << v.GetHostIp()
-                      << ", port = " << v.GetPort()
-                      << ", mountPoint = " << v.GetMountPoint()
-                      << ", rwStatus = " << v.GetStatus()
-                      << ", onlineState = " << v.GetOnlineState()
-                      << ", diskState = "
-                      << v.GetChunkServerState().GetDiskState()
-                      << ", diskCapacity = "
-                      << v.GetChunkServerState().GetDiskCapacity()
-                      << ", diskUsed = "
-                      << v.GetChunkServerState().GetDiskUsed();
         }
     }
 }
