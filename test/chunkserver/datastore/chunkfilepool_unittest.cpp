@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <json/json.h>
 #include <fcntl.h>
 #include <climits>
@@ -16,6 +17,20 @@
 #include "src/common/curve_define.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
+#include "test/fs/mock_local_filesystem.h"
+
+using ::testing::_;
+using ::testing::Ge;
+using ::testing::Gt;
+using ::testing::Mock;
+using ::testing::DoAll;
+using ::testing::Return;
+using ::testing::ReturnPointee;
+using ::testing::NotNull;
+using ::testing::StrEq;
+using ::testing::ElementsAre;
+using ::testing::SetArgPointee;
+using ::testing::ReturnArg;
 
 using curve::fs::FileSystemType;
 using curve::fs::LocalFileSystem;
@@ -38,7 +53,7 @@ class CSChunkfilePool_test : public testing::Test {
         int count = 1;
         fsptr->Mkdir("./cspooltest/");
         std::string dirname = "./cspooltest/chunkfilepool";
-        while (count < 3) {
+        while (count < 51) {
             std::string  filename = "./cspooltest/chunkfilepool/"
                                   + std::to_string(count);
             fsptr->Mkdir("./cspooltest/chunkfilepool");
@@ -127,7 +142,7 @@ TEST_F(CSChunkfilePool_test, InitializeTest) {
 
     // initialize
     ASSERT_TRUE(ChunkfilepoolPtr_->Initialize(cfop));
-    ASSERT_EQ(2, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(50, ChunkfilepoolPtr_->Size());
     // 初始化阶段会扫描chunkfilepool内的所有文件，在扫描结束之后需要关闭这些文件
     // 防止过多的文件描述符被占用
     ASSERT_FALSE(CheckFileOpenOrNot("./cspooltest/chunkfilepool/1"));
@@ -178,9 +193,9 @@ TEST_F(CSChunkfilePool_test, GetChunkTest) {
     ASSERT_EQ(-1, ChunkfilepoolPtr_->GetChunk("./new_exit", metapage));
     ASSERT_EQ(-2, fsptr->Delete("./new_exit"));
     ChunkfilepoolPtr_->Initialize(cfop);
-    ASSERT_EQ(2, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(50, ChunkfilepoolPtr_->Size());
     ASSERT_EQ(0, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
-    ASSERT_EQ(1, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(49, ChunkfilepoolPtr_->Size());
     ASSERT_TRUE(fsptr->FileExists("./new1"));
     int fd = fsptr->Open("./new1", O_RDWR);
     char data[4096];
@@ -196,12 +211,90 @@ TEST_F(CSChunkfilePool_test, GetChunkTest) {
     // test get chunk success
     ASSERT_EQ(0, ChunkfilepoolPtr_->GetChunk("./new2", metapage));
     ASSERT_TRUE(fsptr->FileExists("./new2"));
-    ASSERT_NE(1, ChunkfilepoolPtr_->Size());
+    ASSERT_NE(49, ChunkfilepoolPtr_->Size());
     ASSERT_EQ(0, fsptr->Delete("./new2"));
-
-    // test get chunk fail
-    ASSERT_EQ(-1, ChunkfilepoolPtr_->GetChunk("./new3", metapage));
 }
+
+
+TEST_F(CSChunkfilePool_test, GetChunkMockTest) {
+    auto lfs = std::make_shared<curve::fs::MockLocalFileSystem>();
+
+    std::string chunkfilepool = "./cspooltest/chunkfilepool.meta";
+    ChunkfilePoolOptions cfop;
+    cfop.chunkSize = 4096;
+    cfop.metaPageSize = 4096;
+    memcpy(cfop.metaPath, chunkfilepool.c_str(), chunkfilepool.size());
+    // test get chunk success
+    char metapage[4096];
+    memset(metapage, '1', 4096);
+    ChunkfilepoolPtr_->Initialize(cfop);
+
+    ChunkfilepoolPtr_->SetLocalFileSystem(lfs);
+
+    // 打开文件失败，chunkfile pool没变化
+    EXPECT_CALL(*lfs, Open(_, _)).Times(5).WillRepeatedly(Return(-1));
+    ASSERT_EQ(50, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(-1, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
+    ASSERT_EQ(45, ChunkfilepoolPtr_->Size());
+
+    // 写入文件失败，chunkfile pool没变化
+    EXPECT_CALL(*lfs, Open(_, _)).Times(5).WillRepeatedly(Return(1));
+    EXPECT_CALL(*lfs, Write(_, _, _, _)).Times(5).WillRepeatedly(Return(-1));
+    EXPECT_CALL(*lfs, Close(_)).Times(5).WillRepeatedly(Return(-1));
+    ASSERT_EQ(45, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(-1, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
+    ASSERT_EQ(40, ChunkfilepoolPtr_->Size());
+
+    // Fsync文件失败，chunkfile pool没变化
+    EXPECT_CALL(*lfs, Open(_, _)).Times(5).WillRepeatedly(Return(1));
+    EXPECT_CALL(*lfs, Write(_, _, _, _)).Times(5).WillRepeatedly(Return(4096));
+    EXPECT_CALL(*lfs, Fsync(_)).Times(5).WillRepeatedly(Return(-1));
+    EXPECT_CALL(*lfs, Close(_)).Times(5).WillRepeatedly(Return(-1));
+    ASSERT_EQ(40, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(-1, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
+    ASSERT_EQ(35, ChunkfilepoolPtr_->Size());
+
+    // Close文件失败，chunkfile pool没变化
+    EXPECT_CALL(*lfs, Open(_, _)).Times(5).WillRepeatedly(Return(1));
+    EXPECT_CALL(*lfs, Write(_, _, _, _)).Times(5).WillRepeatedly(Return(4096));
+    EXPECT_CALL(*lfs, Fsync(_)).Times(5).WillRepeatedly(Return(0));
+    EXPECT_CALL(*lfs, Close(_)).Times(5).WillRepeatedly(Return(-1));
+    ASSERT_EQ(35, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(-1, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
+    ASSERT_EQ(30, ChunkfilepoolPtr_->Size());
+
+
+    // Close文件成功Rename失败，chunkfile pool没变化
+    EXPECT_CALL(*lfs, Open(_, _)).Times(5).WillRepeatedly(Return(1));
+    EXPECT_CALL(*lfs, Write(_, _, _, _)).Times(5).WillRepeatedly(Return(4096));
+    EXPECT_CALL(*lfs, Fsync(_)).Times(5).WillRepeatedly(Return(0));
+    EXPECT_CALL(*lfs, Close(_)).Times(5).WillRepeatedly(Return(0));
+    EXPECT_CALL(*lfs, Rename(_, _, _)).Times(5).WillRepeatedly(Return(-1));
+    ASSERT_EQ(30, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(-1, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
+    ASSERT_EQ(25, ChunkfilepoolPtr_->Size());
+
+    // Close文件成功Rename返回EEXIST，chunkfile pool没变化
+    EXPECT_CALL(*lfs, Open(_, _)).Times(1).WillRepeatedly(Return(1));
+    EXPECT_CALL(*lfs, Write(_, _, _, _)).Times(1).WillRepeatedly(Return(4096));
+    EXPECT_CALL(*lfs, Fsync(_)).Times(1).WillRepeatedly(Return(0));
+    EXPECT_CALL(*lfs, Close(_)).Times(1).WillRepeatedly(Return(0));
+    EXPECT_CALL(*lfs, Rename(_, _, _)).Times(1).WillRepeatedly(Return(-EEXIST));
+    ASSERT_EQ(25, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(-EEXIST, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
+    ASSERT_EQ(24, ChunkfilepoolPtr_->Size());
+
+    // Close文件成功Rename成功，chunkfile pool少一个chunk
+    EXPECT_CALL(*lfs, Open(_, _)).Times(1).WillRepeatedly(Return(1));
+    EXPECT_CALL(*lfs, Write(_, _, _, _)).Times(1).WillRepeatedly(Return(4096));
+    EXPECT_CALL(*lfs, Fsync(_)).Times(1).WillRepeatedly(Return(0));
+    EXPECT_CALL(*lfs, Close(_)).Times(1).WillRepeatedly(Return(0));
+    EXPECT_CALL(*lfs, Rename(_, _, _)).Times(1).WillRepeatedly(Return(0));
+    ASSERT_EQ(24, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(0, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
+    ASSERT_EQ(23, ChunkfilepoolPtr_->Size());
+}
+
 
 TEST_F(CSChunkfilePool_test, RecycleChunkTest) {
     std::string chunkfilepool = "./cspooltest/chunkfilepool.meta";
@@ -212,22 +305,22 @@ TEST_F(CSChunkfilePool_test, RecycleChunkTest) {
 
     ChunkfilepoolPtr_->Initialize(cfop);
     ChunkFilePoolState_t currentStat = ChunkfilepoolPtr_->GetState();
-    ASSERT_EQ(2, currentStat.preallocatedChunksLeft);
-    ASSERT_EQ(2, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(50, currentStat.preallocatedChunksLeft);
+    ASSERT_EQ(50, ChunkfilepoolPtr_->Size());
     char metapage[4096];
     memset(metapage, '1', 4096);
     ASSERT_EQ(0, ChunkfilepoolPtr_->GetChunk("./new1", metapage));
     ASSERT_TRUE(fsptr->FileExists("./new1"));
-    ASSERT_EQ(1, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(49, ChunkfilepoolPtr_->Size());
 
     currentStat = ChunkfilepoolPtr_->GetState();
-    ASSERT_EQ(1, currentStat.preallocatedChunksLeft);
+    ASSERT_EQ(49, currentStat.preallocatedChunksLeft);
 
     ChunkfilepoolPtr_->RecycleChunk("./new1");
-    ASSERT_EQ(2, ChunkfilepoolPtr_->Size());
+    ASSERT_EQ(50, ChunkfilepoolPtr_->Size());
 
     currentStat = ChunkfilepoolPtr_->GetState();
-    ASSERT_EQ(2, currentStat.preallocatedChunksLeft);
+    ASSERT_EQ(50, currentStat.preallocatedChunksLeft);
 
     ASSERT_FALSE(fsptr->FileExists("./new1"));
     ASSERT_TRUE(fsptr->FileExists("./cspooltest/chunkfilepool/4"));
