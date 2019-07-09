@@ -153,8 +153,7 @@ void TopologyServiceManager::ListChunkServer(
             csInfo->set_diskcapacity(st.GetDiskCapacity());
             csInfo->set_diskused(st.GetDiskUsed());
         } else {
-            LOG(ERROR) << "TopologyServiceManager has encounter"
-                       << "a internalError."
+            LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListChunkServer, "
                        << "[msg:] chunkserver not found, id = "
                        << id;
@@ -340,7 +339,7 @@ void TopologyServiceManager::GetServer(const GetServerRequest *request,
     }
     Zone zone;
     if (!topology_->GetZone(sv.GetZoneId(), &zone)) {
-        LOG(ERROR) << "topology has encounter an internalError,"
+        LOG(ERROR) << "Topology has counter an internal error: "
                    << " Server belong Zone not found, ServerId = "
                    << sv.GetId()
                    << " ZoneId = "
@@ -350,7 +349,7 @@ void TopologyServiceManager::GetServer(const GetServerRequest *request,
     }
     PhysicalPool pPool;
     if (!topology_->GetPhysicalPool(zone.GetPhysicalPoolId(), &pPool)) {
-        LOG(ERROR) << "topology has encounter an internalError,"
+        LOG(ERROR) << "Topology has counter an internal error: "
                    << " Zone belong PhysicalPool not found, zoneId = "
                    << zone.GetId()
                    << " physicalPoolId = "
@@ -384,7 +383,7 @@ void TopologyServiceManager::DeleteServer(const DeleteServerRequest *request,
     for (auto &csId : server.GetChunkServerList()) {
         ChunkServer cs;
         if (!topology_->GetChunkServer(csId, &cs)) {
-            LOG(ERROR) << "topology has encounter an internalError"
+            LOG(ERROR) << "Topology has counter an internal error: "
                        << ", chunkServer in server not found"
                        << ", chunkserverId = " << csId
                        << ", serverId = " << request->serverid();
@@ -437,7 +436,7 @@ void TopologyServiceManager::ListZoneServer(
         if (topology_->GetServer(id, &sv)) {
             Zone zone;
             if (!topology_->GetZone(sv.GetZoneId(), &zone)) {
-                LOG(ERROR) << "topology has encounter an internalError,"
+                LOG(ERROR) << "Topology has counter an internal error: "
                            << " Server belong Zone not found, ServerId = "
                            << sv.GetId()
                            << " ZoneId = "
@@ -447,7 +446,7 @@ void TopologyServiceManager::ListZoneServer(
             }
             PhysicalPool pPool;
             if (!topology_->GetPhysicalPool(zone.GetPhysicalPoolId(), &pPool)) {
-                LOG(ERROR) << "topology has encounter an internalError,"
+                LOG(ERROR) << "Topology has counter an internal error: "
                            << " Zone belong PhysicalPool not found, zoneId = "
                            << zone.GetId()
                            << " physicalPoolId = "
@@ -468,8 +467,7 @@ void TopologyServiceManager::ListZoneServer(
             info->set_physicalpoolname(pPool.GetName());
             info->set_desc(sv.GetDesc());
         } else {
-            LOG(ERROR) << "TopologyServiceManager has encounter"
-                       << "a internalError."
+            LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListZoneServer, "
                        << "[msg:] server not found, id = "
                        << id;
@@ -601,8 +599,7 @@ void TopologyServiceManager::ListPoolZone(const ListPoolZoneRequest* request,
             info->set_physicalpoolname(pPool.GetName());
             info->set_desc(zone.GetDesc());
         } else {
-            LOG(ERROR) << "TopologyServiceManager has encounter"
-                       << "a internalError."
+            LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListPoolZone, "
                        << "[msg:] Zone not found, id = "
                        << id;
@@ -705,8 +702,7 @@ void TopologyServiceManager::ListPhysicalPool(
             info->set_physicalpoolname(pool.GetName());
             info->set_desc(pool.GetDesc());
         } else {
-            LOG(ERROR) << "TopologyServiceManager has encounter"
-                       << "a internalError."
+            LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListPhysicalPool, "
                        << "[msg:] PhysicalPool not found, id = "
                        << id;
@@ -780,8 +776,7 @@ int TopologyServiceManager::GenCopysetForPageFilePool(
                 csInfo.location.logicalPoolId = lPool.GetId();
                 cluster.AddChunkServerInfo(csInfo);
             } else {
-                LOG(ERROR) << "TopologyServiceManager has encounter"
-                           << "a internalError."
+                LOG(ERROR) << "Topology has counter an internal error: "
                            << "[func:] CreateLogicalPool, "
                            << "[msg:] ChunkServer not found, id = "
                            << id
@@ -933,7 +928,7 @@ bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
                   << " copysetRequest.copysets_size() = "
                   << copysetRequest.copysets_size();
         if (cntl.Failed()) {
-            LOG(ERROR) << "Received CopysetResponse error, "
+            LOG(WARNING) << "Send CopysetRequest failed, "
                        << "cntl.errorText = "
                        << cntl.ErrorText()
                        << ", retry = "
@@ -947,7 +942,7 @@ bool TopologyServiceManager::CreateCopysetNodeOnChunkServer(
         retry < option_.CreateCopysetRpcRetryTimes);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << "Received CopysetResponse error, retry fail,"
+        LOG(ERROR) << "Send CopysetRequest failed, retry times exceed, "
                    << "cntl.errorText = "
                    << cntl.ErrorText() << std::endl;
         return false;
@@ -1073,7 +1068,7 @@ void TopologyServiceManager::CreateLogicalPool(
                         &copysetInfos)) {
                 response->set_statuscode(errcode);
             } else {
-                LOG(ERROR) << "[CreateLogicalPool] has counter a internalError:"
+                LOG(ERROR) << "Topology has counter an internal error: "
                            << "recover from CreateCopysetForLogicalPool fail, "
                            << "remove logicalpool and copyset Fail."
                            << " logicalpoolid = " << lPool.GetId();
@@ -1097,8 +1092,7 @@ void TopologyServiceManager::CreateLogicalPool(
                                 &copysetInfos)) {
                         response->set_statuscode(kTopoErrCodeInvalidParam);
                     } else {
-                        LOG(ERROR) << "[CreateLogicalPool] has counter "
-                                   << "a internalError:"
+                        LOG(ERROR) << "Topology has counter an internal error: "
                                    << "recover from UpdateLogicalPool fail, "
                                    << "remove logicalpool and copyset Fail."
                                    << " logicalpoolid = "
@@ -1129,8 +1123,7 @@ void TopologyServiceManager::CreateLogicalPool(
                             &copysetInfos)) {
                     response->set_statuscode(errcode);
                 } else {
-                    LOG(ERROR) << "[CreateLogicalPool] has counter "
-                               << "a internalError:"
+                    LOG(ERROR) << "Topology has counter an internal error: "
                                << "recover from UpdateLogicalPool fail, "
                                << "remove logicalpool and copyset Fail."
                                << " logicalpoolid = "
@@ -1249,8 +1242,7 @@ void TopologyServiceManager::ListLogicalPool(
             info->set_userpolicy(policyStr);
             info->set_allocatestatus(AllocateStatus::ALLOW);
         } else {
-            LOG(ERROR) << "TopologyServiceManager has encounter"
-                       << "a internalError."
+            LOG(ERROR) << "Topology has counter an internal error: "
                        << "[func:] ListLogicalPool, "
                        << "[msg:] LogicalPool not found, id = "
                        << id;
@@ -1278,8 +1270,7 @@ void TopologyServiceManager::GetChunkServerListInCopySets(
                     csLoc->set_hostip(cs.GetHostIp());
                     csLoc->set_port(cs.GetPort());
                 } else {
-                    LOG(ERROR) << "TopologyServiceManager has encounter"
-                               << "a internalError."
+                    LOG(ERROR) << "Topology has counter an internal error: "
                                << "[func:] GetChunkServerListInCopySets, "
                                << "[msg:] ChunkServer not found, id = "
                                << csId;
