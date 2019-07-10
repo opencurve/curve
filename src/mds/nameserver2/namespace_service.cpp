@@ -49,10 +49,17 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckPathOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckPathOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckPathOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -61,10 +68,18 @@ void NameSpaceService::CreateFile(::google::protobuf::RpcController* controller,
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         // TODO(hzsunjianliang): check if we should really print error here
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CreateFile fail, filename = " <<  request->filename()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CreateFile fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CreateFile fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
+
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -105,10 +120,18 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+
         return;
     }
     bool forceDeleteFlag = false;
@@ -124,10 +147,17 @@ void NameSpaceService::DeleteFile(::google::protobuf::RpcController* controller,
     retCode = kCurveFS.DeleteFile(request->filename(), fileId, forceDeleteFlag);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", DeleteFile fail, filename = " <<  request->filename()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", DeleteFile fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", DeleteFile fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -168,10 +198,17 @@ void NameSpaceService::GetFileInfo(
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -179,10 +216,17 @@ void NameSpaceService::GetFileInfo(
         response->mutable_fileinfo());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", GetFileInfo fail, filename = " <<  request->filename()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", GetFileInfo fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", GetFileInfo fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -227,10 +271,17 @@ void NameSpaceService::GetOrAllocateSegment(
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -241,13 +292,23 @@ void NameSpaceService::GetOrAllocateSegment(
 
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", GetOrAllocateSegment fail, filename = "
-            <<  request->filename()
-            << ", offset = " << request->offset()
-            << ", allocateTag = " << request->allocateifnotexist()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", GetOrAllocateSegment fail, filename = "
+                <<  request->filename()
+                << ", offset = " << request->offset()
+                << ", allocateTag = " << request->allocateifnotexist()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", GetOrAllocateSegment fail, filename = "
+                <<  request->filename()
+                << ", offset = " << request->offset()
+                << ", allocateTag = " << request->allocateifnotexist()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -295,10 +356,19 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->oldfilename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = "
+                << request->oldfilename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = "
+                << request->oldfilename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -307,11 +377,19 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
                                              request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR)  << "logid = " << cntl->log_id()
-                    << ", CheckDestinationOwner fail, filename = "
-                    <<  request->newfilename()
-                    << ", owner = " << request->owner()
-                    << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING)  << "logid = " << cntl->log_id()
+                        << ", CheckDestinationOwner fail, filename = "
+                        <<  request->newfilename()
+                        << ", owner = " << request->owner()
+                        << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR)  << "logid = " << cntl->log_id()
+                        << ", CheckDestinationOwner fail, filename = "
+                        <<  request->newfilename()
+                        << ", owner = " << request->owner()
+                        << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -330,11 +408,19 @@ void NameSpaceService::RenameFile(::google::protobuf::RpcController* controller,
             request->newfilename(), oldFileId, newFileId);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", RenameFile fail, oldfilename = " << request->oldfilename()
-            << ", newfilename = " << request->newfilename()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", RenameFile fail, oldfilename = " << request->oldfilename()
+                << ", newfilename = " << request->newfilename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", RenameFile fail, oldfilename = " << request->oldfilename()
+                << ", newfilename = " << request->newfilename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -376,25 +462,40 @@ void NameSpaceService::ExtendFile(::google::protobuf::RpcController* controller,
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
     retCode = kCurveFS.ExtendFile(request->filename(),
            request->newsize());
     if (retCode != StatusCode::kOK)  {
-       response->set_statuscode(retCode);
-       LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", ExtendFile fail, filename = " << request->filename()
-                  << ", newsize = " << request->newsize()
-                  << ", statusCode = " << retCode
-                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", ExtendFile fail, filename = " << request->filename()
+                    << ", newsize = " << request->newsize()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", ExtendFile fail, filename = " << request->filename()
+                    << ", newsize = " << request->newsize()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
     } else {
-       response->set_statuscode(StatusCode::kOK);
-       LOG(INFO) << "logid = " << cntl->log_id()
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
            << ", ExtendFile ok, filename = " << request->filename()
            << ", newsize = " << request->newsize();
     }
@@ -431,24 +532,39 @@ void NameSpaceService::ChangeOwner(
                                       request->signature(), request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->rootowner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->rootowner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->rootowner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
     retCode = kCurveFS.ChangeOwner(request->filename(), request->newowner());
     if (retCode != StatusCode::kOK)  {
-       response->set_statuscode(retCode);
-       LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", ChangeOwner fail, filename = " << request->filename()
-                  << ", newOwner = " << request->newowner()
-                  << ", statusCode = " << retCode
-                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", ChangeOwner fail, filename = " << request->filename()
+                    << ", newOwner = " << request->newowner()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", ChangeOwner fail, filename = " << request->filename()
+                    << ", newOwner = " << request->newowner()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
     } else {
-       response->set_statuscode(StatusCode::kOK);
-       LOG(INFO) << "logid = " << cntl->log_id()
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
            << ", ChangeOwner ok, filename = " << request->filename()
            << ", newOwner = " << request->newowner();
     }
@@ -486,10 +602,17 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -497,10 +620,17 @@ void NameSpaceService::ListDir(::google::protobuf::RpcController* controller,
     retCode = kCurveFS.ReadDir(request->filename(), &fileInfoList);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", ListDir fail, filename = " <<  request->filename()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", ListDir fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", ListDir fail, filename = " <<  request->filename()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -547,24 +677,41 @@ void NameSpaceService::CreateSnapShot(
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
     retCode = kCurveFS.CreateSnapShotFile(request->filename(),
                                     response->mutable_snapshotfileinfo());
     if (retCode != StatusCode::kOK)  {
-       response->set_statuscode(retCode);
-       LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", CreateSnapShot fail, filename = " << request->filename()
-                  << ", statusCode = " << retCode
-                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", CreateSnapShot fail, filename = "
+                    << request->filename()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", CreateSnapShot fail, filename = "
+                    << request->filename()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
+
     } else {
-       response->set_statuscode(StatusCode::kOK);
-       LOG(INFO) << "logid = " << cntl->log_id()
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
            << ", CreateSnapShot ok, filename = " << request->filename()
            << ", seq = " << response->snapshotfileinfo().seqnum();
     }
@@ -603,10 +750,18 @@ void NameSpaceService::ListSnapShot(
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
+
         return;
     }
 
@@ -631,14 +786,21 @@ void NameSpaceService::ListSnapShot(
     }
 
     if (retCode != StatusCode::kOK)  {
-       response->set_statuscode(retCode);
-       LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", ListSnapShot fail, filename = " << request->filename()
-                  << ", statusCode = " << retCode
-                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        response->set_statuscode(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", ListSnapShot fail, filename = " << request->filename()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", ListSnapShot fail, filename = " << request->filename()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
     } else {
-       response->set_statuscode(StatusCode::kOK);
-       LOG(INFO) << "logid = " << cntl->log_id()
+        response->set_statuscode(StatusCode::kOK);
+        LOG(INFO) << "logid = " << cntl->log_id()
                   << ", ListSnapShot ok, filename = " << request->filename()
                   << ", statusCode = " << retCode;
     }
@@ -679,10 +841,17 @@ void NameSpaceService::DeleteSnapShot(
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -691,11 +860,21 @@ void NameSpaceService::DeleteSnapShot(
 
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-                  << ", DeleteSnapShot fail, filename = " << request->filename()
-                  << ", seq = " << request->seq()
-                  << ", statusCode = " << retCode
-                  << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                    << ", DeleteSnapShot fail, filename = "
+                    << request->filename()
+                    << ", seq = " << request->seq()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                    << ", DeleteSnapShot fail, filename = "
+                    << request->filename()
+                    << ", seq = " << request->seq()
+                    << ", statusCode = " << retCode
+                    << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
         return;
     }
     response->set_statuscode(StatusCode::kOK);
@@ -736,10 +915,17 @@ void NameSpaceService::CheckSnapShotStatus(
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -749,12 +935,22 @@ void NameSpaceService::CheckSnapShotStatus(
                         request->seq(), &fileStatus, &progress);
     if (retCode  != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckSnapShotFileStatus fail, filename = "
-            <<  request->filename()
-            << ", seq = " << request->seq()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckSnapShotFileStatus fail, filename = "
+                <<  request->filename()
+                << ", seq = " << request->seq()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckSnapShotFileStatus fail, filename = "
+                <<  request->filename()
+                << ", seq = " << request->seq()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
+
     } else {
         response->set_statuscode(StatusCode::kOK);
         response->set_filestatus(fileStatus);
@@ -814,10 +1010,17 @@ void NameSpaceService::GetSnapShotFileSegment(
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -827,13 +1030,24 @@ void NameSpaceService::GetSnapShotFileSegment(
                         response->mutable_pagefilesegment());
     if (retCode  != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", GetSnapShotFileSegment fail, filename = "
-            <<  request->filename()
-            << ", offset = " << request->offset()
-            << ", seqnum = " << request->seqnum()
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", GetSnapShotFileSegment fail, filename = "
+                <<  request->filename()
+                << ", offset = " << request->offset()
+                << ", seqnum = " << request->seqnum()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", GetSnapShotFileSegment fail, filename = "
+                <<  request->filename()
+                << ", offset = " << request->offset()
+                << ", seqnum = " << request->seqnum()
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
+
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -884,10 +1098,17 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -899,13 +1120,23 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
                                 fileInfo);
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", OpenFile fail, filename = "
-            <<  request->filename()
-            << ", clientip = " << clientIP
-            << ", clientport = " << clientPort
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", OpenFile fail, filename = "
+                <<  request->filename()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", OpenFile fail, filename = "
+                <<  request->filename()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
         delete protoSession;
         delete fileInfo;
         return;
@@ -960,23 +1191,40 @@ void NameSpaceService::CloseFile(::google::protobuf::RpcController* controller,
                                       signature, request->date());
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
     retCode = kCurveFS.CloseFile(request->filename(), request->sessionid());
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CloseFile fail, filename = " <<  request->filename()
-            << ", sessionid = " << request->sessionid()
-            << ", clientip = " << clientIP
-            << ", clientport = " << clientPort
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CloseFile fail, filename = " <<  request->filename()
+                << ", sessionid = " << request->sessionid()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CloseFile fail, filename = " <<  request->filename()
+                << ", sessionid = " << request->sessionid()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
         return;
     } else {
         response->set_statuscode(StatusCode::kOK);
@@ -1036,10 +1284,17 @@ void NameSpaceService::RefreshSession(
     if (retCode != StatusCode::kOK) {
         response->set_statuscode(retCode);
         response->set_sessionid(request->sessionid());
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CheckFileOwner fail, filename = " <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << retCode;
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CheckFileOwner fail, filename = " <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << retCode;
+        }
         return;
     }
 
@@ -1053,15 +1308,27 @@ void NameSpaceService::RefreshSession(
     if (retCode != StatusCode::kOK)  {
         response->set_statuscode(retCode);
         response->set_sessionid(request->sessionid());
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", RefreshSession fail, filename = " <<  request->filename()
-            << ", sessionid = " << request->sessionid()
-            << ", date = " << request->date()
-            << ", signature = " << request->signature()
-            << ", clientip = " << clientIP
-            << ", clientport = " << clientPort
-            << ", statusCode = " << retCode
-            << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        if (google::ERROR != GetMdsLogLevel(retCode)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", RefreshSession fail, filename = " <<  request->filename()
+                << ", sessionid = " << request->sessionid()
+                << ", date = " << request->date()
+                << ", signature = " << request->signature()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", RefreshSession fail, filename = " <<  request->filename()
+                << ", sessionid = " << request->sessionid()
+                << ", date = " << request->date()
+                << ", signature = " << request->signature()
+                << ", clientip = " << clientIP
+                << ", clientport = " << clientPort
+                << ", statusCode = " << retCode
+                << ", StatusCode_Name = " << StatusCode_Name(retCode);
+        }
         delete fileInfo;
         return;
     } else {
@@ -1177,11 +1444,19 @@ void NameSpaceService::CreateCloneFile(
 
     if (ret != StatusCode::kOK) {
         response->set_statuscode(ret);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CreateCloneFile CheckPathOwner fail, filename = "
-            <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << ret;
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CreateCloneFile CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CreateCloneFile CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
         return;
     }
 
@@ -1195,10 +1470,17 @@ void NameSpaceService::CreateCloneFile(
                             response->mutable_fileinfo());
     response->set_statuscode(ret);
     if (ret != StatusCode::kOK) {
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", CreateCloneFile fail, filename = " <<  request->filename()
-            << ", statusCode = " << ret
-            << ", StatusCode_Name = " << StatusCode_Name(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", CreateCloneFile fail, filename = " <<  request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", CreateCloneFile fail, filename = " <<  request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret);
+        }
     } else {
         LOG(INFO) << "logid = " << cntl->log_id()
             << ", CreateFile ok, filename = " << request->filename();
@@ -1238,14 +1520,21 @@ void NameSpaceService::SetCloneFileStatus(
     StatusCode ret = kCurveFS.CheckPathOwner(request->filename(),
                                              request->owner(),
                                              signature, request->date());
-
     if (ret != StatusCode::kOK) {
         response->set_statuscode(ret);
-        LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", SetCloneFileStatus CheckPathOwner fail, filename = "
-            <<  request->filename()
-            << ", owner = " << request->owner()
-            << ", statusCode = " << ret;
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", SetCloneFileStatus CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", SetCloneFileStatus CheckPathOwner fail, filename = "
+                <<  request->filename()
+                << ", owner = " << request->owner()
+                << ", statusCode = " << ret;
+        }
         return;
     }
 
@@ -1255,10 +1544,19 @@ void NameSpaceService::SetCloneFileStatus(
                                 request->filestatus());
     response->set_statuscode(ret);
     if (ret != StatusCode::kOK) {
-         LOG(ERROR) << "logid = " << cntl->log_id()
-            << ", SetCloneFileStatus fail, filename = " <<  request->filename()
-            << ", statusCode = " << ret
-            << ", StatusCode_Name = " << StatusCode_Name(ret);
+        if (google::ERROR != GetMdsLogLevel(ret)) {
+            LOG(WARNING) << "logid = " << cntl->log_id()
+                << ", SetCloneFileStatus fail, filename = "
+                << request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret);
+        } else {
+            LOG(ERROR) << "logid = " << cntl->log_id()
+                << ", SetCloneFileStatus fail, filename = "
+                << request->filename()
+                << ", statusCode = " << ret
+                << ", StatusCode_Name = " << StatusCode_Name(ret);
+        }
     } else {
         LOG(INFO) << "logid = " << cntl->log_id()
             << ", SetCloneFileStatus ok, filename = " << request->filename();
@@ -1297,6 +1595,28 @@ void NameSpaceService::RegistClient(
     return;
 }
 
+uint32_t GetMdsLogLevel(StatusCode code) {
+    switch (code) {
+        case StatusCode::kSegmentNotAllocated:
+        case StatusCode::kSnapshotFileNotExists:
+        case StatusCode::kOK:
+            return google::INFO;
+
+        case StatusCode::kNotDirectory:
+        case StatusCode::kDirNotExist:
+        case StatusCode::kDirNotEmpty:
+        case StatusCode::kFileUnderSnapShot:
+        case StatusCode::kFileIdNotMatch:
+        case StatusCode::kSessionNotExist:
+        case StatusCode::kFileOccupied:
+        case StatusCode::kFileNotExists:
+        case StatusCode::kParaError:
+            return google::WARNING;
+
+        default:
+            return google::ERROR;
+    }
+}
 }  // namespace mds
 }  // namespace curve
 
