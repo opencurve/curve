@@ -202,8 +202,6 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         stats->set_readiops(readMetric->iops_.get_value(1));
         stats->set_writeiops(writeMetric->iops_.get_value(1));
         req->set_allocated_stats(stats);
-    } else {
-        LOG(ERROR) << "Failed to get chunkserver io metric.";
     }
 
     size_t cap, avail;
@@ -314,7 +312,7 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
 
     stub.ChunkServerHeartbeat(&cntl, &request, response, nullptr);
     if (cntl.Failed()) {
-        LOG(ERROR) << "Fail to send heartbeat to MDS " << mdsEp_ << ","
+        LOG(WARNING) << "Fail to send heartbeat to MDS " << mdsEp_ << ","
                    << " cntl error: " << cntl.ErrorText();
         return -1;
     } else {
@@ -464,7 +462,7 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
         LOG(INFO) << "sending heartbeat info";
         ret = heartbeat->SendHeartbeat(req, &resp);
         if (ret != 0) {
-            LOG(ERROR) << "Failed to send heartbeat to MDS";
+            LOG(WARNING) << "Failed to send heartbeat to MDS";
             sleep(1);
             continue;
         }
