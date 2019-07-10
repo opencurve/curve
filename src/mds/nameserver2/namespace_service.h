@@ -39,6 +39,13 @@ bool isPathValid(const std::string path);
 bool IsRenamePathValid(const std::string& oldFileName,
                        const std::string& newFileName);
 
+/**
+ *  @brief 根据错误码，判断日志的打印级别
+ *  @param code 错误吗
+ *  @return 打印级别，google::INFO，google::WARNING，google::ERROR
+ */
+uint32_t GetMdsLogLevel(StatusCode code);
+
 class NameSpaceService: public CurveFSService {
  public:
     explicit NameSpaceService(FileLockManager *fileLockManager) {
