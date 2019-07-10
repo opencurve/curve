@@ -32,8 +32,6 @@ int LeaderScheduler::Schedule() {
 
     for (auto csInfo : csInfos) {
         if (csInfo.IsOffline()) {
-            LOG(ERROR) << "leaderScheduler find chunkServer:" << csInfo.info.id
-                       << " is offline, please check!";
             continue;
         }
 
@@ -130,7 +128,7 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source,
         for (auto peerInfo : selectedCopySet->peers) {
             ChunkServerInfo csInfo;
             if (!topo_->GetChunkServerInfo(peerInfo.id, &csInfo)) {
-                LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
+                LOG(ERROR) << "leaderScheduler cannot get info of chunkServer: "
                            << peerInfo.id;
                 return false;
             }
@@ -240,9 +238,6 @@ bool LeaderScheduler::copySetHealthy(const CopySetInfo &cInfo) {
         }
 
         if (csInfo.IsOffline()) {
-            LOG(ERROR) << "leaderScheduler find chunkServer:"
-                       << csInfo.info.id
-                       << " is offline, please check!";
             healthy = false;
             break;
         }

@@ -86,7 +86,7 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
     ZoneIDType sourceZone;
     int minZone = topo->GetStandardZoneNumInLogicalPool(candidate.id.first);
     if (minZone <=0) {
-        LOG(ERROR) << "standard zone num should >0";
+        LOG(ERROR) << "standard zone num should > 0";
         return false;
     }
 

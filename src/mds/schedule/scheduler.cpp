@@ -134,8 +134,8 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
         int minScatterWidth =
             topo_->GetMinScatterWidthInLogicalPool(copySetInfo.id.first);
         if (minScatterWidth <= 0) {
-            LOG(ERROR) << "minScatterWith in logical pool "
-                      << copySetInfo.id.first << " is not initialized";
+            LOG(WARNING) << "minScatterWith in logical pool "
+                       << copySetInfo.id.first << " is not initialized";
             return UNINTIALIZE_ID;
         }
         if (SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
@@ -280,8 +280,8 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
 
         // chunkserver不是online状态
         if (csInfo.IsOffline()) {
-            LOG(ERROR) << "scheduler choose to remove offline chunkServer "
-                       << cs << " from " << copySetInfo.CopySetInfoStr();
+            LOG(WARNING) << "scheduler choose to remove offline chunkServer "
+                         << cs << " from " << copySetInfo.CopySetInfoStr();
             return cs;
         }
     }

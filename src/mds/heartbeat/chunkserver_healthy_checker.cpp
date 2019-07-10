@@ -38,19 +38,16 @@ void ChunkserverHealthyChecker::CheckHeartBeatInterval() {
         } else {
             // miss < 若当前时间 - 上次心跳到达时间 < offline, 报警
             if (timePass < milliseconds(option_.offLineTimeOutMs)) {
-                LOG_EVERY_N(WARNING, 10)
-                             << "heartbeatManager find chunkServer: "
+                LOG(WARNING) << "heartbeatManager find chunkServer: "
                              << iter->first << " heartbeat miss, "
                              << timePass / milliseconds(1)
                              << " milliseconds from last heartbeat";
             } else {
                 // 若当前时间 - 上次心跳到达时间 > offline, 报警, 设为offline
-                // bug-fix[CLDCFS-904] offline状态应该一直报警
-                LOG_EVERY_N(ERROR, 10)
-                               << "heartbeatManager find chunkServer: "
-                               << iter->first << " offline, "
-                               << timePass / milliseconds(1)
-                               << " milliseconds from last heartbeat";
+                LOG(WARNING) << "heartbeatManager find chunkServer: "
+                           << iter->first << " offline, "
+                           << timePass / milliseconds(1)
+                           << " milliseconds from last heartbeat";
                 if (iter->second.OnlineFlag) {
                     needUpdateOnlineState = true;
                 }
@@ -114,7 +111,7 @@ void ChunkserverHealthyChecker::UpdateChunkServerOnlineState(
     }
 
     if (kTopoErrCodeSuccess != updateErrCode) {
-        LOG(ERROR) << "heartbeatManager update chunkserver get "
+        LOG(WARNING) << "heartbeatManager update chunkserver get "
                         "error code: " << updateErrCode;
     }
 }
@@ -137,7 +134,7 @@ bool ChunkserverHealthyChecker::SetChunkServerRetired(ChunkServerIdType id) {
             ChunkServerStatus::RETIRED, id);
         // 更新失败
         if (kTopoErrCodeSuccess != updateErrCode) {
-            LOG(ERROR) << "heartbeatManager update chunkserver get "
+            LOG(WARNING) << "heartbeatManager update chunkserver get "
                     "error code: " << updateErrCode;
             return false;
         }
