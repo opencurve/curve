@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "src/common/crc32.h"
+#include "src/common/string_util.h"
 #include "src/chunkserver/register.h"
 #include "src/chunkserver/chunkserver_helper.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
@@ -21,17 +22,22 @@
 
 namespace curve {
 namespace chunkserver {
-int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
-    butil::ip_t mdsIp;
-    if (butil::str2ip(ops_.mdsIp.c_str(), &mdsIp) < 0) {
-        LOG(ERROR) << "Invalid MDS IP provided: " << ops_.mdsIp;
-        return -1;
+Register::Register(const RegisterOptions &ops) {
+    this->ops_ = ops;
+
+    // 解析mds的多个地址
+    ::curve::common::SplitString(ops.mdsListenAddr, ",", &mdsEps_);
+    // 检验每个地址的合法性
+    for (auto addr : mdsEps_) {
+        butil::EndPoint endpt;
+        if (butil::str2endpoint(addr.c_str(), &endpt) < 0) {
+            LOG(FATAL) << "Invalid sub mds ip:port provided: " << addr;
+        }
     }
+    inServiceIndex_ = 0;
+}
 
-    butil::EndPoint mdsEp = butil::EndPoint(mdsIp, ops_.mdsPort);
-    LOG(INFO) << "MDS address is  " << ops_.mdsIp << ":" << ops_.mdsPort;
-
-    // 元数据文件不存在，向MDS注册, 并把所有的内容持久化
+int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
     ::curve::mds::topology::ChunkServerRegistRequest req;
     ::curve::mds::topology::ChunkServerRegistResponse resp;
 
@@ -40,7 +46,8 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
     req.set_hostip(ops_.chunkserverIp);
     req.set_port(ops_.chunkserverPort);
 
-    LOG(INFO) << "Registering to MDS " << mdsEp;
+    LOG(INFO) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
+              <<" Registering to MDS " << mdsEps_[inServiceIndex_];
     int retries = ops_.registerRetries;
     while (retries >= 0) {
         brpc::Channel channel;
@@ -48,8 +55,11 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
 
         cntl.set_timeout_ms(ops_.registerTimeout);
 
-        if (channel.Init(mdsEp, NULL) != 0) {
-            LOG(ERROR) << "Fail to init channel to MDS " << mdsEp;
+        if (channel.Init(mdsEps_[inServiceIndex_].c_str(), NULL) != 0) {
+            LOG(ERROR) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
+                       << " Fail to init channel to MDS "
+                       << mdsEps_[inServiceIndex_];
+            return -1;
         }
         curve::mds::topology::TopologyService_Stub stub(&channel);
 
@@ -58,18 +68,25 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
         if (!cntl.Failed() && resp.statuscode() == 0) {
             break;
         } else {
-            LOG(ERROR) << "Fail to register to MDS " << mdsEp << ","
+            LOG(ERROR) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
+                       << " Fail to register to MDS "
+                       << mdsEps_[inServiceIndex_]
+                       << ", cntl errorCode: " << cntl.ErrorCode() << ","
                        << " cntl error: " << cntl.ErrorText() << ","
                        << " statusCode: " << resp.statuscode() << ","
                        << " going to sleep and try again.";
+            if (cntl.ErrorCode() == EHOSTDOWN ||
+                cntl.ErrorCode() == brpc::ELOGOFF) {
+                inServiceIndex_ = (inServiceIndex_ + 1) % mdsEps_.size();
+            }
             sleep(1);
             --retries;
         }
     }
 
     if (retries <= 0) {
-        LOG(ERROR) << "Fail to register to MDS " << mdsEp
-                   << " for " << ops_.registerRetries
+        LOG(ERROR) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
+                   << " Fail to register to MDS for " << ops_.registerRetries
                    << " times.";
         return -1;
     }
@@ -79,8 +96,9 @@ int Register::RegisterToMDS(ChunkServerMetadata *metadata) {
     metadata->set_token(resp.token());
     metadata->set_checksum(ChunkServerMetaHelper::MetadataCrc(*metadata));
 
-    LOG(INFO) << "Successfully registered to MDS,"
-              << " chunkserver id: " << metadata->id() << ","
+    LOG(INFO) << ops_.chunkserverIp << ":" << ops_.chunkserverPort
+              << " Successfully registered to MDS: " << mdsEps_[inServiceIndex_]
+              << ", chunkserver id: " << metadata->id() << ","
               << " token: " << metadata->token() << ","
               << " persisting them to local storage.";
 
