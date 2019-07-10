@@ -406,9 +406,8 @@ void ChunkServer::InitHeartbeatOptions(
     LOG_IF(FATAL, !conf->GetStringValue("global.ip", &heartbeatOptions->ip));
     LOG_IF(FATAL, !conf->GetUInt32Value("global.port",
         &heartbeatOptions->port));
-    LOG_IF(FATAL, !conf->GetStringValue("mds.ip", &heartbeatOptions->mdsIp));
-    LOG_IF(FATAL, !conf->GetUInt32Value("mds.port",
-        &heartbeatOptions->mdsPort));
+    LOG_IF(FATAL, !conf->GetStringValue("mds.listen.addr",
+        &heartbeatOptions->mdsListenAddr));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.heartbeat_interval",
         &heartbeatOptions->interval));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.heartbeat_timeout",
@@ -417,11 +416,8 @@ void ChunkServer::InitHeartbeatOptions(
 
 void ChunkServer::InitRegisterOptions(
     common::Configuration *conf, RegisterOptions *registerOptions) {
-    LOG_IF(FATAL, !conf->GetStringValue("mds.ip", &registerOptions->mdsIp));
-    LOG_IF(FATAL, !conf->GetIntValue("mds.port", &registerOptions->mdsPort));
-    if (registerOptions->mdsPort <= 0 || registerOptions->mdsPort >= 65535) {
-        LOG(FATAL) << "Invalid MDS port provided: " << registerOptions->mdsPort;
-    }
+    LOG_IF(FATAL, !conf->GetStringValue("mds.listen.addr",
+        &registerOptions->mdsListenAddr));
     LOG_IF(FATAL, !conf->GetStringValue("global.ip",
         &registerOptions->chunkserverIp));
     LOG_IF(FATAL, !conf->GetIntValue("global.port",
