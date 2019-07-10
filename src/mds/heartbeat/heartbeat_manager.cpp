@@ -144,17 +144,17 @@ void HeartbeatManager::UpdateChunkServerStatistics(
                 cstat.readIOPS = request.copysetinfos(i).stats().readiops();
                 cstat.writeIOPS = request.copysetinfos(i).stats().writeiops();
             } else {
-                LOG(ERROR) << "hearbeat manager receive request "
-                           << "copyset {" << cstat.logicalPoolId
-                           << ", " << cstat.copysetId << "} "
-                           << "do not have CopysetStatistics";
+                LOG(WARNING) << "hearbeat manager receive request "
+                             << "copyset {" << cstat.logicalPoolId
+                             << ", " << cstat.copysetId << "} "
+                             << "do not have CopysetStatistics";
             }
             stat.copysetStats.push_back(cstat);
         }
 
     } else {
-        LOG(ERROR) << "hearbeat manager receive request "
-                   << "do not have ChunkServerStatisticInfo";
+        LOG(WARNING) << "hearbeat manager receive request "
+                     << "do not have ChunkServerStatisticInfo";
     }
     topologyStat_->UpdateChunkServerStat(request.chunkserverid(), stat);
 }
