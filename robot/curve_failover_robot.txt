@@ -1,0 +1,218 @@
+*** Settings ***
+Library           Resources/keywords/base_operate.py
+Library           Resources/test/curve_base_test.py
+Library           Resources/swig/swig_operate.py
+Library			  Collections
+Library           RequestsLibrary
+Library           Process
+Library           SSHLibrary
+Library           Resources/keywords/mythread.py
+Library           Resources/keywords/fault_inject.py
+Library           Resources/keywords/deploy.py
+
+Suite Setup       init failover cluster
+Suite Teardown    clean failover env
+
+
+*** Test Cases ***
+#test up all cs
+#    [Tags]    P8    base    first release
+#    up all cs
+#    [Teardown]   file clean    none
+
+
+test get all chunk num
+    [Tags]    P1    base    first release   no-need
+    stop fio
+    sleep  2
+    ${begin_num}    get all chunk num
+    ${begin_num}    Convert To Integer  ${begin_num}
+    exec deleteforce
+    ${end_num}    get all chunk num
+    ${end_num}    Convert To Integer   ${end_num}
+    should be equal    ${begin_num}   ${end_num}
+    [Teardown]	    file clean   none
+
+
+inject one chunkserver down/up
+    [Tags]    P1    base    first release   failover
+    init rw cloud disk
+    ${num}   evaluate   int(1)
+    ${host}   test kill chunkserver num   ${num}
+    check vm iops
+    check data consistency
+    check copies consistency
+    sleep  5
+    test start chunkserver num   ${num}  ${host}
+    check vm iops
+    check data consistency
+    check copies consistency
+    [Teardown]	  start host cs process   ${host}
+
+inject two chunkserver down/up
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate   int(2)
+    ${host}   test kill chunkserver num   ${num}
+    check vm iops
+    check data consistency
+    check copies consistency
+    sleep  5
+    test start chunkserver num   ${num}  ${host}
+    check vm iops
+    check data consistency
+    check copies consistency
+    [Teardown]	  start host cs process   ${host}
+
+inject host all chunkserver down/up
+    [Tags]    P1    base    first release   failover
+    ${host}  test stop chunkserver host
+    check vm iops
+    check data consistency
+    check copies consistency
+    sleep  5
+    test start chunkserver host  ${host}
+    check vm iops
+    check data consistency
+    check copies consistency
+    [Teardown]	  start host cs process  ${host}
+
+inject restart one chunkserver
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate   int(1)
+    test restart chunkserver num   ${num}
+    check vm iops
+    check copies consistency
+    [Teardown]	  check data consistency
+
+inject restart two chunkserver
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate   int(2)
+    test restart chunkserver num   ${num}
+    check vm iops
+    check copies consistency
+    [Teardown]	 check data consistency
+
+inject kill diff host chunkserver
+    [Tags]    P1    base    first release   failover
+    test kill diff host chunkserver
+    sleep   10
+    check vm iops
+    check copies consistency
+    [Teardown]	 check data consistency
+
+inject stop and start vm
+    [Tags]    P1    base    first release   failover
+    test start vm
+    check vm iops
+    check copies consistency
+    [Teardown]	 check data consistency
+
+inject reboot vm
+    [Tags]    P1    base    first release   failover
+    test restart vm
+    check vm iops
+    check copies consistency
+    [Teardown]	  check data consistency
+
+inject kill mds
+    [Tags]    P1    base    first release   failover
+    ${host}  test kill mds
+    ${limit_iops}   evaluate  int(0)
+    check vm iops  ${limit_iops}
+    sleep  3
+    test start mds
+    sleep  3
+    check vm iops
+    check data consistency
+    check copies consistency
+    [Teardown]	   start mds process  ${host}
+
+test chunkserver loss package 5%
+    [Tags]    P1    base    first release   failover
+    ${percent}  evaluate  int(5)
+    test cs loss package  ${percent}
+    check vm iops
+    check copies consistency
+    [Teardown]	   check data consistency
+
+test mds loss package 5%
+    [Tags]    P1    base    first release   failover
+    ${percent}  evaluate  int(5)
+    test mds loss package  ${percent}
+    check vm iops
+    check copies consistency
+    [Teardown]	   check data consistency
+
+test chunkserver delay package 100ms
+    [Tags]    P1    base    first release   failover
+    ${ms}  evaluate  int(100)
+    test cs delay package  ${ms}
+    check vm iops
+    check copies consistency
+    [Teardown]	  check data consistency
+
+test mds delay package 100ms
+    [Tags]    P1    base    first release   failover
+    ${ms}  evaluate  int(100)
+    test mds delay package  ${ms}
+    check vm iops
+    check copies consistency
+    [Teardown]	   check data consistency
+
+test out/in chunkserver recover
+    [Tags]    P1    base    first release   failover    no-need
+    ${host}	${cs_copyset_num}  test outcs recover copyset
+    check vm iops
+    check copies consistency
+    ${copyset_num}       Convert To Integer    ${cs_copyset_num}
+    test upcs recover copyset  ${host}	 ${copyset_num}
+    check vm iops
+    check copies consistency
+    [Teardown]	   check data consistency
+
+test suspend up recover chunkserver
+    [Tags]    P1    base    first release   failover   no-need
+    test suspend recover copyset
+#    check vm iops
+    check copies consistency
+    [Teardown]	   check data consistency
+
+test stop all cs not recover
+    [Tags]    P1    base    first release   failover
+    stop all cs not recover
+    check vm iops
+    check data consistency
+    check copies consistency
+    [Teardown]	  check data consistency
+
+*** Keywords ***
+
+init failover cluster
+     detach vol
+     init abnormal test env
+
+init abnormal test env
+     backup config
+     destroy etcd
+     destroy mds
+     drop all chunkserver dat
+     drop abnormal test db
+     install deb
+     add config file
+     start abnormal test services
+     create pool
+     restart cinder server
+
+init rw cloud disk
+     test restart vm
+     remove vm key
+     stop fio
+     attach new vol
+     sleep  5
+     write full disk
+     run fio
+
+clean failover env
+     stop fio
+     detach vol
+
