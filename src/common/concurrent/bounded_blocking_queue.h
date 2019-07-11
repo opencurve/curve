@@ -11,7 +11,7 @@
 #include <cassert>
 #include <cstdio>
 #include <condition_variable>   //NOLINT
-#include <queue>
+#include <deque>
 #include <mutex>                //NOLINT
 #include <atomic>
 
@@ -57,13 +57,13 @@ class BBQItem {
  * 有 capacity 限制的阻塞队列，线程安全
  */
 template<typename T>
-class BoundedBlockingQueue : public Uncopyable {
+class BoundedBlockingDeque : public Uncopyable {
  public:
-    BoundedBlockingQueue()
+    BoundedBlockingDeque()
         : mutex_(),
           notEmpty_(),
           notFull_(),
-          queue_(),
+          deque_(),
           capacity_(0) {
     }
 
@@ -75,39 +75,59 @@ class BoundedBlockingQueue : public Uncopyable {
         return 0;
     }
 
-    void Put(const T &x) {
+    void PutBack(const T &x) {
         std::unique_lock<std::mutex> guard(mutex_);
-        while (queue_.size() == capacity_) {
+        while (deque_.size() == capacity_) {
             notFull_.wait(guard);
         }
-        queue_.push(x);
+        deque_.push_back(x);
         notEmpty_.notify_one();
     }
 
-    T Take() {
+    void PutFront(const T &x) {
         std::unique_lock<std::mutex> guard(mutex_);
-        while (queue_.empty()) {
+        while (deque_.size() == capacity_) {
+            notFull_.wait(guard);
+        }
+        deque_.push_front(x);
+        notEmpty_.notify_one();
+    }
+
+    T TakeFront() {
+        std::unique_lock<std::mutex> guard(mutex_);
+        while (deque_.empty()) {
             notEmpty_.wait(guard);
         }
-        T front(queue_.front());
-        queue_.pop();
+        T front(deque_.front());
+        deque_.pop_front();
         notFull_.notify_one();
         return front;
     }
 
+    T TakeBack() {
+        std::unique_lock<std::mutex> guard(mutex_);
+        while (deque_.empty()) {
+            notEmpty_.wait(guard);
+        }
+        T back(deque_.back());
+        deque_.pop_back();
+        notFull_.notify_one();
+        return back;
+    }
+
     bool Empty() const {
         std::lock_guard<std::mutex> guard(mutex_);
-        return queue_.empty();
+        return deque_.empty();
     }
 
     bool Full() const {
         std::lock_guard<std::mutex> guard(mutex_);
-        return queue_.size() == capacity_;
+        return deque_.size() == capacity_;
     }
 
     size_t Size() const {
         std::lock_guard<std::mutex> guard(mutex_);
-        return queue_.size();
+        return deque_.size();
     }
 
     size_t Capacity() const {
@@ -119,7 +139,7 @@ class BoundedBlockingQueue : public Uncopyable {
     mutable std::mutex mutex_;
     std::condition_variable notEmpty_;
     std::condition_variable notFull_;
-    std::queue<T> queue_;
+    std::deque<T> deque_;
     size_t capacity_;
 };
 

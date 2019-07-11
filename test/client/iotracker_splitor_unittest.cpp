@@ -94,7 +94,6 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
         fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
         fopt.leaseOpt.refreshTimesPerLease = 4;
-        fopt.ioOpt.inflightOpt.maxInFlightIONum = 1;
 
         fileinstance_ = new FileInstance();
         userinfo.owner = "userinfo";
@@ -434,30 +433,6 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartRead) {
     ASSERT_EQ('e', data[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('f', data[4 * 1024 + chunk_size]);
     ASSERT_EQ('f', data[aioctx->length - 1]);
-
-    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
-
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
-        while (reqcount > 0) {
-            fileinstance_->AioRead(aioctx);
-            reqcount--;
-        }
-    };
-
-    auto threadFunc2 = [&]() {
-        while (reqcount > 0) {
-            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
-            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
-        }
-    };
-
-    std::thread t3(threadFunc2);
-    std::thread t1(threadFunc1);
-    std::thread t2(threadFunc1);
-    t1.join();
-    t2.join();
-    t3.join();
 }
 
 TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
@@ -496,29 +471,6 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
     ASSERT_EQ('b', writebuffer[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('c', writebuffer[4 * 1024 + chunk_size]);
     ASSERT_EQ('c', writebuffer[aioctx->length - 1]);
-
-    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
-
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
-        while (reqcount > 0) {
-            fileinstance_->AioWrite(aioctx);
-            reqcount--;
-        }
-    };
-
-    auto threadFunc2 = [&]() {
-        while (reqcount > 0) {
-            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
-        }
-    };
-
-    std::thread t1(threadFunc1);
-    std::thread t2(threadFunc1);
-    std::thread t3(threadFunc2);
-    t1.join();
-    t2.join();
-    t3.join();
 }
 
 
@@ -537,7 +489,6 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetSegmentFail) {
     MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     auto ioctxmana = fileinstance_->GetIOManager4File();
     ioctxmana->SetRequestScheduler(mockschuler);
-    fopt.ioOpt.inflightOpt.maxInFlightIONum = 64;
     ioctxmana->SetIOOpt(fopt.ioOpt);
 
     CurveAioContext* aioctx = new CurveAioContext;
@@ -568,7 +519,6 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetSegmentFail) {
     std::thread t2(threadFunc1);
     t1.join();
     t2.join();
-    ASSERT_GT(ioctxmana->GetInflightIONum(), 31);
 }
 
 TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetServerlistFail) {
@@ -586,7 +536,6 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetServerlistFail) {
     MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
     auto ioctxmana = fileinstance_->GetIOManager4File();
     ioctxmana->SetRequestScheduler(mockschuler);
-    fopt.ioOpt.inflightOpt.maxInFlightIONum = 64;
     ioctxmana->SetIOOpt(fopt.ioOpt);
 
     // offset 10*1024*1024*1024ul 不在metacache里
@@ -619,7 +568,6 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetServerlistFail) {
     std::thread t2(threadFunc1);
     t1.join();
     t2.join();
-    ASSERT_GT(ioctxmana->GetInflightIONum(), 31);
 }
 
 TEST_F(IOTrackerSplitorTest, ManagerStartRead) {
@@ -652,31 +600,6 @@ TEST_F(IOTrackerSplitorTest, ManagerStartRead) {
     ASSERT_EQ('e', data[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('f', data[4 * 1024 + chunk_size]);
     ASSERT_EQ('f', data[length - 1]);
-
-    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
-
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
-        while (reqcount > 0) {
-            ioctxmana->Read(data, offset, length, &mdsclient_);
-            reqcount--;
-        }
-    };
-
-    auto threadFunc2 = [&]() {
-        while (reqcount > 0) {
-            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
-            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
-        }
-    };
-
-    std::thread t1(threadFunc1);
-    std::thread t2(threadFunc1);
-    std::thread t3(threadFunc2);
-    t1.join();
-    t2.join();
-    t3.join();
-
     delete[] data;
 }
 
@@ -714,30 +637,6 @@ TEST_F(IOTrackerSplitorTest, ManagerStartWrite) {
     ASSERT_EQ('b', writebuffer[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('c', writebuffer[4 * 1024 + chunk_size]);
     ASSERT_EQ('c', writebuffer[length - 1]);
-
-    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
-
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
-        while (reqcount > 0) {
-            ioctxmana->Write(buf, offset, length, &mdsclient_);
-            reqcount--;
-        }
-    };
-
-    auto threadFunc2 = [&]() {
-        while (reqcount > 0) {
-            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
-            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
-        }
-    };
-
-    std::thread t1(threadFunc1);
-    std::thread t2(threadFunc1);
-    std::thread t3(threadFunc2);
-    t1.join();
-    t2.join();
-    t3.join();
 
     delete[] buf;
 }

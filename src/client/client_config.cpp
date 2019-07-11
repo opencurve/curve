@@ -66,6 +66,12 @@ int ClientConfig::Init(const char* configpath) {
         return -1;
     }
 
+    if (!conf_.GetUInt64Value("maxInFlightRPCNum",
+        &fileServiceOption_.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum)) {  //  NOLINT
+        LOG(ERROR) << "config no maxInFlightRPCNum info";
+        return -1;
+    }
+
     if (!conf_.GetUInt32Value("getLeaderRetry",
         &fileServiceOption_.ioOpt.metaCacheOpt.getLeaderRetry)) {
         LOG(ERROR) << "config no getLeaderRetry info";
@@ -162,12 +168,6 @@ int ClientConfig::Init(const char* configpath) {
     if (!conf_.GetUInt32Value("synchronizeRPCRetryTime",
         &fileServiceOption_.metaServerOpt.synchronizeRPCRetryTime)) {
         LOG(ERROR) << "config no synchronizeRPCRetryTime info";
-        return -1;
-    }
-
-    if (!conf_.GetUInt64Value("maxInFlightIONum",
-        &fileServiceOption_.ioOpt.inflightOpt.maxInFlightIONum)) {
-        LOG(ERROR) << "config no maxInFlightIONum info";
         return -1;
     }
 

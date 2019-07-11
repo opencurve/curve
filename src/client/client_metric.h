@@ -77,7 +77,7 @@ typedef struct FileMetric {
     const std::string prefix = "curve client";
 
     // 当前文件inflight io数量
-    bvar::Adder<int64_t>                    inflightIONum;
+    bvar::Adder<int64_t>                    inflightRPCNum;
     // 当前文件请求的最大请求字节数，这种统计方式可以很方便的看到最大值，分位值
     bvar::LatencyRecorder                   sizeRecorder;
 
@@ -98,7 +98,7 @@ typedef struct FileMetric {
         , userWrite(prefix, filename + "_write")
         , readRPC(prefix, filename + "_read_rpc")
         , writeRPC(prefix, filename + "_write_rpc")
-        , inflightIONum(prefix, filename + "_inflight_io_num")
+        , inflightRPCNum(prefix, filename + "_inflight_rpc_num")
         , getLeaderRetryQPS(prefix, filename + "_get_leader_retry_rpc")
         , sizeRecorder(prefix, filename + "_write_request_size_recoder")
     {}
@@ -193,14 +193,14 @@ typedef struct ConfigMetric {
     // 向chunkserver发送请求的最大size
     bvar::Status<uint64_t> ioSplitMaxSizeKB;
     // 向chunkserver发送的最大未返回请求数量
-    bvar::Status<uint64_t> maxInFlightIONum;
+    bvar::Status<uint64_t> maxInFlightRPCNum;
 
     ConfigMetric() :
         opRetryIntervalUs(prefix, "OpRetryIntervalUs", 0)
         , opMaxRetry(prefix, "opMaxRetry", 0)
         , enableAppliedIndexRead(prefix, "enableAppliedIndexRead", 0)
         , ioSplitMaxSizeKB(prefix, "ioSplitMaxSizeKB", 0)
-        , maxInFlightIONum(prefix, "maxInFlightIONum", 0)
+        , maxInFlightRPCNum(prefix, "maxInFlightRPCNum", 0)
         , threadpoolSize(prefix, "threadpoolSize", 0)
         , queueCapacity(prefix, "queueCapacity", 0)
         , getLeaderTimeOutMs(prefix, "getLeaderTimeOutMs", 0)
@@ -430,15 +430,15 @@ class MetricHelper {
         }
     }
 
-    static void IncremInflightIO(FileMetric_t* fm) {
+    static void IncremInflightRPC(FileMetric_t* fm) {
         if (fm != nullptr) {
-            fm->inflightIONum << 1;
+            fm->inflightRPCNum << 1;
         }
     }
 
-    static void DecremInflightIO(FileMetric_t* fm) {
+    static void DecremInflightRPC(FileMetric_t* fm) {
         if (fm != nullptr) {
-            fm->inflightIONum << -1;
+            fm->inflightRPCNum << -1;
         }
     }
 };
