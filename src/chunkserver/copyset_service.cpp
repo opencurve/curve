@@ -134,9 +134,9 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
     if (nullptr == nodePtr) {
         response->set_status(
             COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "GetCopysetStatus failed, copyset node is not found: "
-                   << ToGroupIdString(request->logicpoolid(),
-                                      request->copysetid());
+        LOG(WARNING) << "GetCopysetStatus failed, copyset node is not found: "
+                     << ToGroupIdString(request->logicpoolid(),
+                                        request->copysetid());
         return;
     }
 
@@ -175,7 +175,8 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
             response->set_status(
                 COPYSET_OP_STATUS::COPYSET_OP_STATUS_FAILURE_UNKNOWN);
             LOG(ERROR) << "GetCopysetStatus with get hash failure: "
-                       << ToGroupIdString(request->logicpoolid(), request->copysetid());    //NOLINT
+                       << ToGroupIdString(request->logicpoolid(),
+                                          request->copysetid());
             return;
         }
 
