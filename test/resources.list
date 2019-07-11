@@ -10,6 +10,9 @@ Used port list:
     9106: client workflow测试chunkserver占用
     9107: client workflow测试chunkserver占用
     9108: client workflow测试chunkserver占用
+    9109: request scheduler测试占用
+    9110/9111/9112: TestLibcbdLibcurve测试占用
+    9115/9116/9117: TestLibcurveInterface测试占用
 
     9120: mds 接口测试
     9121: mds 接口测试
