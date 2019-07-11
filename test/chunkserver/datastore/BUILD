@@ -28,6 +28,7 @@ cc_test(
     name = "curve_datastore_unittest",
     srcs = [
         "chunkfilepool_unittest.cpp",
+        "chunkfilepool_mock_unittest.cpp",
         "datastore_mock_unittest.cpp",
         "datastore_unittest_main.cpp",
     ],

@@ -81,6 +81,7 @@ int ChunkfilePoolHelper::PersistEnCodeMetaInfo(
         LOG(ERROR) << "meta file write failed, "
                    << persistPath.c_str()
                    << ", ret = " << ret;
+        fsptr->Close(fd);
         delete[] writeBuffer;
         return -1;
     }
@@ -193,10 +194,11 @@ bool ChunkfilePool::Initialize(const ChunkfilePoolOptions& cfopt) {
         }
         if (fsptr_->DirExists(currentdir_.c_str())) {
             return ScanInternal();
+        } else {
+            LOG(ERROR) << "chunkfile pool not exists, inited failed!"
+                       << " chunkfile pool path = " << currentdir_.c_str();
+            return false;
         }
-        LOG(ERROR) << "chunkfile pool not exists, inited failed!"
-                   << " chunkfile pool path = " << currentdir_.c_str();
-        return false;
     } else {
         currentdir_ = chunkPoolOpt_.chunkFilePoolDir;
         if (!fsptr_->DirExists(currentdir_.c_str())) {
@@ -324,6 +326,9 @@ int ChunkfilePool::AllocateChunk(const std::string& chunkpath) {
     }
 
     ret = fsptr_->Close(fd);
+    if (ret != 0) {
+        LOG(ERROR) << "close failed, " << chunkpath.c_str();
+    }
     return ret;
 }
 
