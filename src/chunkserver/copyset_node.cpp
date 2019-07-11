@@ -15,6 +15,7 @@
 #include <braft/protobuf_file.h>
 #include <utility>
 #include <memory>
+#include <algorithm>
 #include <cassert>
 
 #include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
@@ -705,6 +706,9 @@ int CopysetNode::GetHash(std::string *hash) {
     if (0 != ret) {
         return -1;
     }
+
+    // 计算所有chunk文件crc需要保证计算的顺序是一样的
+    std::sort(files.begin(), files.end());
 
     for (std::string file : files) {
         std::string filename = chunkDataApath_;

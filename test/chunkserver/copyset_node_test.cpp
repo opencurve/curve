@@ -693,23 +693,49 @@ TEST(CopysetNodeTest, get_hash) {
     conf1.add_peer(peer);
     conf1.add_peer(peer1);
 
+    std::string hashValue = std::to_string(1355371765);
     // get hash
     {
         std::string hash;
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
 
-        // 创建一个空文件
         ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
-        ::system("touch 8589934594/data/test-1.txt");
 
-        // 写入两个有数据的文件
-        ::system("dd if=/dev/zero of=8589934594/data/test-2.txt bs=512 count=10");  // NOLINT
+        // 生成多个有数据的文件
+        ::system("echo \"abcddddddddd333\" > 8589934594/data/test-2.txt");
+        ::system("echo \"mmmmmmmm\" > 8589934594/data/test-4.txt");
         ::system("dd if=/dev/zero of=8589934594/data/test-3.txt bs=512 count=15");  // NOLINT
+        ::system("echo \"eeeeeeeeeee\" > 8589934594/data/test-5.txt");
+
+        ::system("touch 8589934594/data/test-1.txt");
+        ::system("echo \"wwwww\" > 8589934594/data/test-1.txt");
 
         // 获取hash
         ASSERT_EQ(0, copysetNode.GetHash(&hash));
-        ASSERT_STREQ(std::to_string(3567976690).c_str(), hash.c_str());
+        ASSERT_STREQ(hashValue.c_str(), hash.c_str());
         ::system("rm -fr 8589934594");
+    }
+
+    {
+        std::string hash;
+        // 使用不同的copyset id，让目录不一样
+        CopysetNode copysetNode(logicPoolID, copysetID + 1, conf);
+
+        ASSERT_EQ(0, copysetNode.Init(copysetNodeOptions));
+
+        // 生成多个有数据的文件，并且交换生成文件的顺序
+        ::system("touch 8589934595/data/test-1.txt");
+        ::system("echo \"wwwww\" > 8589934595/data/test-1.txt");
+
+        ::system("echo \"mmmmmmmm\" > 8589934595/data/test-4.txt");
+        ::system("echo \"eeeeeeeeeee\" > 8589934595/data/test-5.txt");
+        ::system("dd if=/dev/zero of=8589934595/data/test-3.txt bs=512 count=15");  // NOLINT
+        ::system("echo \"abcddddddddd333\" > 8589934595/data/test-2.txt");
+
+        // 获取hash
+        ASSERT_EQ(0, copysetNode.GetHash(&hash));
+        ASSERT_STREQ(hashValue.c_str(), hash.c_str());
+        ::system("rm -fr 8589934595");
     }
 
     // List failed
