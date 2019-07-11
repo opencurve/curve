@@ -154,7 +154,9 @@ TEST_F(CopysetClientTest, normal_test) {
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, ioSenderOpt);
+
+    RequestScheduler scheduler;
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler, nullptr);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -198,8 +200,9 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);;
         reqCtx->done_ = reqDone;
+
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).
@@ -228,6 +231,7 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -260,6 +264,7 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -297,6 +302,7 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -326,6 +332,7 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -358,6 +365,7 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -402,7 +410,9 @@ TEST_F(CopysetClientTest, write_error_test) {
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, ioSenderOpt);
+
+    RequestScheduler scheduler;
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler, nullptr);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -446,6 +456,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -475,6 +486,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
@@ -502,6 +514,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -531,6 +544,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -570,6 +584,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -610,6 +625,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -650,6 +666,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -698,6 +715,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -753,6 +771,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -802,7 +821,8 @@ TEST_F(CopysetClientTest, read_error_test) {
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, ioSenderOpt);
+    RequestScheduler scheduler;
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -847,6 +867,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -876,6 +897,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
@@ -903,6 +925,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
@@ -930,6 +953,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -959,6 +983,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -998,6 +1023,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1038,6 +1064,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1078,6 +1105,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1126,6 +1154,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -1181,6 +1210,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -1230,7 +1260,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, ioSenderOpt);
+    RequestScheduler scheduler;
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -1276,6 +1307,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -1306,6 +1338,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST);
@@ -1335,6 +1368,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
@@ -1363,6 +1397,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -1393,6 +1428,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1433,6 +1469,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1473,6 +1510,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1513,6 +1551,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1562,6 +1601,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -1618,6 +1658,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -1659,6 +1700,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -1703,7 +1745,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, ioSenderOpt);
+    RequestScheduler scheduler;
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -1738,6 +1781,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -1766,6 +1810,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
@@ -1792,6 +1837,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -1820,6 +1866,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1858,6 +1905,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1896,6 +1944,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1934,6 +1983,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -1981,6 +2031,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -2035,6 +2086,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -2074,6 +2126,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -2119,7 +2172,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, ioSenderOpt);
+    RequestScheduler scheduler;
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -2154,6 +2208,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -2181,6 +2236,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
@@ -2206,6 +2262,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -2233,6 +2290,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
 
         ChunkResponse response2;
@@ -2264,6 +2322,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -2301,6 +2360,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -2338,6 +2398,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -2384,6 +2445,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -2437,6 +2499,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -2475,6 +2538,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -2520,7 +2584,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, ioSenderOpt);
+    RequestScheduler scheduler;
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -2555,6 +2620,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -2581,6 +2647,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
@@ -2605,6 +2672,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -2631,6 +2699,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -2663,6 +2732,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -2699,6 +2769,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -2735,6 +2806,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -2780,6 +2852,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -2832,6 +2905,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -2913,7 +2987,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
-    copysetClient.Init(&mockMetaCache, ioSenderOpt);
+    RequestScheduler scheduler;
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler);
 
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;

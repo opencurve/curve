@@ -194,7 +194,7 @@ TEST(MetricTest, Config_MetricTest) {
     ASSERT_EQ(confMetric_.opMaxRetry.get_value(), 3);
     ASSERT_EQ(confMetric_.enableAppliedIndexRead.get_value(), 1);
     ASSERT_EQ(confMetric_.ioSplitMaxSizeKB.get_value(), 64);
-    ASSERT_EQ(confMetric_.maxInFlightIONum.get_value(), 2048);
+    ASSERT_EQ(confMetric_.maxInFlightRPCNum.get_value(), 2048);
 
     Close(fd);
     mds.UnInitialize();
@@ -280,7 +280,7 @@ TEST(MetricTest, ChunkServer_MetricTest) {
 
 
     // 4次正确读写，4次超时读写,超时会引起重试，重试次数为3，数据量最大是8192
-    ASSERT_EQ(fm->inflightIONum.get_value(), 0);
+    ASSERT_EQ(fm->inflightRPCNum.get_value(), 0);
     ASSERT_EQ(fm->userRead.qps.count.get_value(), 2);
     ASSERT_EQ(fm->userWrite.qps.count.get_value(), 2);
     ASSERT_EQ(fm->userRead.eps.count.get_value(), 2);

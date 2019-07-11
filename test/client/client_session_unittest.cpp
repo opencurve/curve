@@ -113,7 +113,7 @@ TEST(TimerTaskWorkerTest, TimerTaskWorkerRunTaskTest) {
 }
 
 TEST(ClientSession, LeaseTaskTest) {
-    FLAGS_chunkserver_list,
+    FLAGS_chunkserver_list =
              "127.0.0.1:9176:0,127.0.0.1:9177:0,127.0.0.1:9178:0";
 
     std::string filename = "/1";

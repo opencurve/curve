@@ -226,7 +226,6 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.refreshTimesPerLease = 4;
-    fopt.ioOpt.inflightOpt.maxInFlightIONum = 1;
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);

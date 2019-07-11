@@ -29,7 +29,10 @@ typedef struct LogInfo {
  * in flight IO控制信息
  */
 typedef struct InFlightIOCntlInfo {
-    uint64_t    maxInFlightIONum;
+    uint64_t    maxInFlightRPCNum;
+    InFlightIOCntlInfo() {
+        maxInFlightRPCNum = 2048;
+    }
 } InFlightIOCntlInfo_t;
 
 /**
@@ -92,6 +95,7 @@ typedef struct IOSenderOption {
     uint64_t  rpcTimeoutMs;
     uint32_t  rpcRetryTimes;
     bool enableAppliedIndexRead;
+    InFlightIOCntlInfo_t inflightOpt;
     FailureRequestOption_t failRequestOpt;
     IOSenderOption() {
         rpcTimeoutMs = 500;
@@ -164,7 +168,6 @@ typedef struct IOOption {
     IOSenderOption_t        ioSenderOpt;
     MetaCacheOption_t       metaCacheOpt;
     TaskThreadOption_t      taskThreadOpt;
-    InFlightIOCntlInfo_t    inflightOpt;
     RequestScheduleOption_t reqSchdulerOpt;
 } IOOption_t;
 

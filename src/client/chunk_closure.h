@@ -71,7 +71,7 @@ class ClientClosure : public Closure {
  protected:
     static FailureRequestOption_t  failReqOpt_;
     // 已经重试了几次
-    uint16_t                 retriedTimes_;
+    uint64_t                 retriedTimes_;
     brpc::Controller*        cntl_;
     ChunkResponse*           response_;
     CopysetClient*           client_;
@@ -86,6 +86,8 @@ class WriteChunkClosure : public ClientClosure {
     WriteChunkClosure(CopysetClient *client, Closure *done)
         : ClientClosure(client, done) {}
 
+    void GetToken();
+    void ReleaseToken();
     void Run();
     void SetCntl(brpc::Controller* cntl) {
         cntl_ = cntl;
@@ -103,6 +105,8 @@ class ReadChunkClosure : public ClientClosure {
     ReadChunkClosure(CopysetClient *client, Closure *done)
         : ClientClosure(client, done) {}
 
+    void GetToken();
+    void ReleaseToken();
     void Run();
     void SetCntl(brpc::Controller* cntl) {
         cntl_ = cntl;
