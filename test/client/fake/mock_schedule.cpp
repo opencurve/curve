@@ -23,7 +23,7 @@ struct datastruct {
 char* writebuffer;
 int Schedule::ScheduleRequest(
     const std::list<curve::client::RequestContext*> reqlist) {
-        LOG(INFO) << "ENTER MOCK ScheduleRequest";
+        // LOG(INFO) << "ENTER MOCK ScheduleRequest";
         char fakedate[10] = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'k'};
         curve::client::OpType type = curve::client::OpType::UNKNOWN;
         int size = reqlist.size();
@@ -75,16 +75,16 @@ int Schedule::ScheduleRequest(
                 datavec.push_back(datas);
             }
             processed++;
-            LOG(INFO) << "current request context chunkID : "
-                       << iter->idinfo_.cid_
-                       << ", copyset id = "
-                       << iter->idinfo_.cpid_
-                       << ", logic pool id ="
-                       << iter->idinfo_.lpid_
-                       << ", offset = "
-                       << iter->offset_
-                       << ", length = "
-                       << iter->rawlength_;
+            // LOG(INFO) << "current request context chunkID : "
+            //            << iter->idinfo_.cid_
+            //            << ", copyset id = "
+            //            << iter->idinfo_.cpid_
+            //            << ", logic pool id ="
+            //            << iter->idinfo_.lpid_
+            //            << ", offset = "
+            //            << iter->offset_
+            //            << ", length = "
+            //            << iter->rawlength_;
             if (processed >= size) {
                 if (type == curve::client::OpType::WRITE) {
                     writebuffer = new char[totallength];

@@ -56,7 +56,7 @@ class FakeChunkService : public ChunkService {
         brpc::ClosureGuard doneGuard(done);
 
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
-        char buff[8192] = {0};
+        char buff[16 * 1024] = {0};
         ::memcpy(buff, chunk_, request->size());
         cntl->response_attachment().append(buff, request->size());
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -141,7 +141,7 @@ class FakeChunkService : public ChunkService {
     // wait4netunstable用来模拟网络延时，当打开之后，每个读写rpc会停留一段时间再返回
     bool wait4netunstable;
     uint64_t waittimeMS;
-    char chunk_[8192];
+    char chunk_[16 * 1024];
 };
 
 class CliServiceFake : public curve::chunkserver::CliService2 {

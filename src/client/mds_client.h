@@ -345,15 +345,31 @@ class MDSClient {
      */
     bool ChangeMDServer(int* mdsAddrleft);
 
-     /**
-     * client在于MDS通信失败时尝试重新连接，如果超过一定次数，就切换leader重试
+    /**
+     * 当mds以集群方式部署时，其有多个server节点。client在于mds通信过程中如果
+     * RPC超时，首先选择在当前mds server上进行超时重试。如果超时重试次数超过设置
+     * 的上限范围，就从配置的集群server中切换sever节点进行重试。
+     * libcurve在调用mds服务的时候，有些接口是在用户一侧是同步接口，例如Open、
+     * GetFileInfo操作，这些操作不需要无限重试，只需要在synchronizeRPCRetryTime
+     * 以内不成功就向上返回错误。而对于GetSegment和GetServerList接口则是在IO路径
+     * 上调用的，因为IO路径上如果出现错误就一致尝试重试，重试次数很大。所以为了区分两
+     * 种类型的RPC调用，需要设置sync标志，在除GetSegment和GetServerList接口外的
+     * RPC调用都应该设置sync = true。
+     * sync主要用来判断当前RPC重试次数是否需要进行切换server，当sync = true时，重试
+     * 次数达到synchronizeRPCRetryTime时就要切换server了。当sync = false时，重试
+     * 次数达到rpcRetryTimes时就要切换server。
+     * 因为这部分逻辑在所有的RPC接口里都会用到，所以为了复用代码减少重复代码，把这部分逻辑
+     * 单独抽出来。
      * @param[in][out] :retrycount是入参，也是出参，更新重试的次数，
      *        如果这个次数超过设置的规定次数，那么就切换leader重试，并将该值置0
      * @param: mdsAddrleft代表当前RPC调用还有多少个mdsserver可以尝试，如果还有server
      *          可以重试，就调用ChangeMDServer切换server重试。
+     * @param: sync代表当前调用是否为同步调用，根据sync值选择重试次数
      * @return: 达到重试次数且切换server失败返回false， 否则返回true
      */
-    bool UpdateRetryinfoOrChangeServer(int* retrycount, int* mdsAddrleft);
+    bool UpdateRetryinfoOrChangeServer(int* retrycount,
+                                       int* mdsAddrleft,
+                                       bool sync = true);
 
     /**
      * 将mds侧错误码对应到libcurve错误码

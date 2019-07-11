@@ -25,7 +25,7 @@ void MDSClientBase::OpenFile(const std::string& filename,
     request.set_filename(filename);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<OpenFileRequest>(&request, userinfo);
 
     LOG(INFO) << "OpenFile: filename = " << filename.c_str()
@@ -53,7 +53,7 @@ void MDSClientBase::CreateFile(const std::string& filename,
     }
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<CreateFileRequest>(&request, userinfo);
 
     LOG(INFO) << "CreateFile: filename = " << filename.c_str()
@@ -76,7 +76,7 @@ void MDSClientBase::CloseFile(const std::string& filename,
     request.set_sessionid(sessionid);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<curve::mds::CloseFileRequest>(&request, userinfo);
 
     LOG(INFO) << "CloseFile: filename = " << filename.c_str()
@@ -97,7 +97,7 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
     request.set_filename(filename);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<curve::mds::GetFileInfoRequest>(&request, userinfo);
 
     LOG(INFO) << "GetFileInfo: filename = " << filename.c_str()
@@ -117,7 +117,7 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
     request.set_filename(filename);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<::curve::mds::CreateSnapShotRequest>(&request, userinfo);
 
     LOG(INFO) << "CreateSnapShot: filename = " << filename.c_str()
@@ -139,7 +139,7 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
     request.set_filename(filename);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<::curve::mds::DeleteSnapShotRequest>(&request, userinfo);
 
     LOG(INFO) << "DeleteSnapShot: filename = " << filename.c_str()
@@ -164,7 +164,7 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
     request.set_filename(filename);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<ListSnapShotFileInfoRequest>(&request, userinfo);
 
     LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
@@ -190,7 +190,7 @@ void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
     request.set_seqnum(seq);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<GetOrAllocateSegmentRequest>(&request, userinfo);
 
     LOG(INFO) << "GetSnapshotSegmentInfo: filename = " << filename.c_str()
@@ -235,7 +235,7 @@ void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
     request.set_filename(filename);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<CheckSnapShotStatusRequest>(&request, userinfo);
 
     LOG(INFO) << "CheckSnapShotStatus: filename = " << filename.c_str()
@@ -280,7 +280,7 @@ void MDSClientBase::CreateCloneFile(const std::string &destination,
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<CreateCloneFileRequest>(&request, userinfo);
 
     LOG(INFO) << "CreateCloneFile: destination = " << destination
@@ -308,7 +308,7 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
     }
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<SetCloneFileStatusRequest>(&request, userinfo);
 
     LOG(INFO) << "CreateCloneFile: filename = " << filename.c_str()
@@ -370,7 +370,7 @@ void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
     }
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<RenameFileRequest>(&request, userinfo);
 
     LOG(INFO) << "RenameFile: origin = " << origin.c_str()
@@ -395,7 +395,7 @@ void MDSClientBase::Extend(const std::string& filename,
     request.set_newsize(newsize);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<ExtendFileRequest>(&request, userinfo);
 
     LOG(INFO) << "Extend: filename = " << filename.c_str()
@@ -422,7 +422,7 @@ void MDSClientBase::DeleteFile(const std::string& filename,
     }
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<DeleteFileRequest>(&request, userinfo);
 
     LOG(INFO) << "DeleteFile: filename = " << filename.c_str()
@@ -453,7 +453,7 @@ void MDSClientBase::ChangeOwner(const std::string& filename,
         request.set_signature(sig);
     }
 
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     cntl->set_log_id(GetLogId());
 
     LOG(INFO) << "ChangeOwner: filename = " << filename.c_str()
@@ -474,7 +474,7 @@ void MDSClientBase::Listdir(const std::string& dirpath,
     request.set_filename(dirpath);
 
     cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<::curve::mds::ListDirRequest>(&request, userinfo);
 
     LOG(INFO) << "Listdir: filename = " << dirpath.c_str()
