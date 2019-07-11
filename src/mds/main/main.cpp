@@ -108,6 +108,9 @@ void InitScheduleOption(
         &scheduleOption->scatterWithRangePerent));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.chunkserver.failure.tolerance",
         &scheduleOption->chunkserverFailureTolerance));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.scheduler.chunkserver.cooling.timeSec",
+        &scheduleOption->chunkserverCoolingTimeSec));
 }
 
 void InitHeartbeatOption(
