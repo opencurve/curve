@@ -22,7 +22,7 @@ namespace curve {
 namespace client {
 
 using curve::common::ThreadPool;
-using curve::common::BoundedBlockingQueue;
+using curve::common::BoundedBlockingDeque;
 using curve::common::BBQItem;
 using curve::common::Uncopyable;
 
@@ -36,12 +36,19 @@ class RequestScheduler : public Uncopyable {
     RequestScheduler()
         : running_(false),
           stop_(true),
+          blockingQueue_(true),
           client_() {}
     virtual ~RequestScheduler();
 
+    /**
+     * 初始化
+     * @param: reqSchdulerOpt为scheduler的配置选项
+     * @param: metacache为meta信息
+     * @param: filematric为文件的metric信息
+     */
     virtual int Init(const RequestScheduleOption_t& reqSchdulerOpt,
                      MetaCache *metaCache,
-                     FileMetric_t* fm = nullptr);
+                     FileMetric* fileMetric = nullptr);
     /**
      * 启动Scheduler的线程池开始处理request
      * 启动之后才能push request，除此之外，只有当
@@ -73,12 +80,23 @@ class RequestScheduler : public Uncopyable {
     virtual int ScheduleRequest(RequestContext *request);
 
     /**
+     * 对于需要重新入队的RPC将其放在头部
+     */
+    virtual int ReSchedule(RequestContext *request);
+
+    /**
+     * 关闭scheduler之前先flush scheduler队列
+     */
+    virtual void Flush();
+
+    /**
      * 当leaseexcutor续约失败的时候，调用LeaseTimeoutDisableIO
      * 后续的IO调度会被阻塞
      */
     void LeaseTimeoutBlockIO() {
        std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
        blockIO_.store(true);
+       client_.StartRecycleRetryRPC();
     }
 
     /**
@@ -89,6 +107,14 @@ class RequestScheduler : public Uncopyable {
        std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
        blockIO_.store(false);
        leaseRefreshcv_.notify_all();
+       client_.ResumeRPCRetry();
+    }
+
+    /**
+     * 测试使用，获取队列
+     */
+    BoundedBlockingDeque<BBQItem<RequestContext *>>* GetQueue() {
+       return &queue_;
     }
 
  private:
@@ -97,12 +123,12 @@ class RequestScheduler : public Uncopyable {
      */
     void Process();
 
-    inline void GetIOToken() {
+    inline void WaitValidSession() {
       // lease续约失败的时候需要阻塞IO直到续约成功
-      if (blockIO_.load(std::memory_order_acquire)) {
+      if (blockIO_.load(std::memory_order_acquire) && blockingQueue_) {
          std::unique_lock<std::mutex> lk(leaseRefreshmtx_);
          leaseRefreshcv_.wait(lk, [&]()->bool{
-               return !blockIO_.load();
+               return !blockIO_.load() || !blockingQueue_;
          });
       }
     }
@@ -111,7 +137,7 @@ class RequestScheduler : public Uncopyable {
     // 线程池和queue容量的配置参数
     RequestScheduleOption_t reqschopt_;
     // 存放 request 的队列
-    BoundedBlockingQueue<BBQItem<RequestContext *>> queue_;
+    BoundedBlockingDeque<BBQItem<RequestContext *>> queue_;
     // 处理 request 的线程池
     ThreadPool threadPool_;
     // Scheduler 运行标记，只有运行了，才接收 request
@@ -129,6 +155,8 @@ class RequestScheduler : public Uncopyable {
     std::mutex    leaseRefreshmtx_;
     // 条件变量，用于唤醒和hang IO
     std::condition_variable leaseRefreshcv_;
+    // 阻塞队列
+    bool blockingQueue_;
 };
 
 }   // namespace client

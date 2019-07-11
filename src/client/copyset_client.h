@@ -10,24 +10,30 @@
 
 #include <google/protobuf/stubs/callback.h>
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include <cstdio>
 #include <string>
 
+#include "src/common/concurrent/concurrent.h"
 #include "src/client/client_metric.h"
 #include "src/client/client_common.h"
 #include "src/client/config_info.h"
 #include "src/common/uncopyable.h"
 #include "src/client/request_sender_manager.h"
 #include "include/curve_compiler_specific.h"
+#include "src/client/inflight_controller.h"
 
 namespace curve {
 namespace client {
 
+using curve::common::Mutex;
+using curve::common::ConditionVariable;
 using curve::common::Uncopyable;
 using ::google::protobuf::Closure;
 
 class MetaCache;
+class RequestScheduler;
 /**
  * 负责管理 ChunkServer 的链接，向上层提供访问
  * 指定 copyset 的 chunk 的 read/write 等接口
@@ -35,8 +41,11 @@ class MetaCache;
 class CopysetClient : public Uncopyable {
  public:
     CopysetClient() :
+        sessionNotValid_(false),
         metaCache_(nullptr),
-        senderManager_(nullptr) {}
+        senderManager_(nullptr),
+        scheduler_(nullptr),
+        exitFlag_(false) {}
 
     virtual  ~CopysetClient() {
         if (nullptr != senderManager_) {
@@ -47,8 +56,10 @@ class CopysetClient : public Uncopyable {
 
     int Init(MetaCache *metaCache,
              const IOSenderOption_t& ioSenderOpt,
-             FileMetric_t* fm = nullptr);
+             RequestScheduler* scheduler = nullptr,
+             FileMetric* fileMetic = nullptr);
 
+    void UnInit();
     /**
      * 返回依赖的Meta Cache
      */
@@ -70,7 +81,7 @@ class CopysetClient : public Uncopyable {
                   size_t length,
                   uint64_t appliedindex,
                   google::protobuf::Closure *done,
-                  uint16_t retriedTimes = 0);
+                  uint64_t retriedTimes = 0);
 
     /**
     * 写Chunk
@@ -88,7 +99,7 @@ class CopysetClient : public Uncopyable {
                   off_t offset,
                   size_t length,
                   Closure *done,
-                  uint16_t retriedTimes = 0);
+                  uint64_t retriedTimes = 0);
 
     /**
      * 读Chunk快照文件
@@ -104,7 +115,7 @@ class CopysetClient : public Uncopyable {
                   off_t offset,
                   size_t length,
                   Closure *done,
-                  uint16_t retriedTimes = 0);
+                  uint64_t retriedTimes = 0);
 
     /**
      * 删除此次转储时产生的或者历史遗留的快照
@@ -117,7 +128,7 @@ class CopysetClient : public Uncopyable {
     int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
                   uint64_t correctedSn,
                   Closure *done,
-                  uint16_t retriedTimes = 0);
+                  uint64_t retriedTimes = 0);
 
     /**
      * 获取chunk文件的信息
@@ -127,7 +138,7 @@ class CopysetClient : public Uncopyable {
      */
     int GetChunkInfo(ChunkIDInfo idinfo,
                   Closure *done,
-                  uint16_t retriedTimes = 0);
+                  uint64_t retriedTimes = 0);
 
     /**
     * @brief lazy 创建clone chunk
@@ -152,7 +163,7 @@ class CopysetClient : public Uncopyable {
                   uint64_t correntSn,
                   uint64_t chunkSize,
                   Closure *done,
-                  uint16_t retriedTimes = 0);
+                  uint64_t retriedTimes = 0);
 
    /**
     * @brief 实际恢复chunk数据
@@ -168,9 +179,47 @@ class CopysetClient : public Uncopyable {
                   uint64_t offset,
                   uint64_t len,
                   Closure *done,
-                  uint16_t retriedTimes = 0);
+                  uint64_t retriedTimes = 0);
+
+    /**
+     * session过期，需要将重试RPC停住
+     */
+    void StartRecycleRetryRPC() {
+        sessionNotValid_ = true;
+    }
+
+    /**
+     * session恢复通知不再回收重试的RPC
+     */
+    void ResumeRPCRetry() {
+        sessionNotValid_ = false;
+    }
+
+    /**
+     * 在文件关闭的时候接收上层关闭通知, 根据session有效状态
+     * 置位exitFlag, 如果sessio无效状态下再有rpc超时返回，这
+     * 些RPC会直接错误返回，如果session正常，则将继续正常下发
+     * RPC，直到重试次数结束或者成功返回
+     */
+    void ResetExitFlag() {
+        if (sessionNotValid_) {
+            exitFlag_ = true;
+        }
+    }
 
  private:
+    friend class WriteChunkClosure;
+    friend class ReadChunkClosure;
+    /**
+    * 获取token，查看现在是否能下发RPC
+    */
+    void GetInflightRPCToken();
+
+    /**
+    * 更新inflight计数并唤醒正在block的RPC
+    */
+    void ReleaseInflightRPCToken();
+
     // 拉取新的leader信息
     bool FetchLeader(LogicPoolID lpid,
                      CopysetID cpid,
@@ -184,8 +233,23 @@ class CopysetClient : public Uncopyable {
     RequestSenderManager *senderManager_;
     // 配置
     IOSenderOption_t iosenderopt_;
-    // client端metric统计信息
-    FileMetric_t*        fileMetric_;
+
+    // session是否有效，如果session无效那么需要将重试的RPC停住
+    // RPC停住通过将这个rpc重新push到request scheduler队列，这样不会
+    // 阻塞brpc内部的线程，防止一个文件的操作影响到其他文件
+    bool sessionNotValid_;
+
+    // request 调度器，在session过期的时候重新将RPC push到调度队列
+    RequestScheduler* scheduler_;
+
+    // 当前copyset client对应的文件metric
+    FileMetric* fileMetric_;
+
+    // 是否在停止状态中，如果是在关闭过程中且session失效，需要将rpc直接返回不下发
+    bool exitFlag_;
+
+    // inflight RPC 控制
+    InflightControl inflightCntl_;
 };
 
 }   // namespace client

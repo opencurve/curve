@@ -29,6 +29,7 @@ class FakeChunkService : public ChunkService {
  public:
     FakeChunkService() {
         rpcFailed = false;
+        retryTimes = 0;
         waittimeMS = 10;
         wait4netunstable = false;
     }
@@ -39,6 +40,7 @@ class FakeChunkService : public ChunkService {
                     ::curve::chunkserver::ChunkResponse *response,
                     google::protobuf::Closure *done) {
         brpc::ClosureGuard doneGuard(done);
+        retryTimes++;
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
 
         if (rpcFailed) {
@@ -60,14 +62,13 @@ class FakeChunkService : public ChunkService {
                    ::curve::chunkserver::ChunkResponse *response,
                    google::protobuf::Closure *done) {
         brpc::ClosureGuard doneGuard(done);
-
+        retryTimes++;
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
-        char buff[16 * 1024] = {0};
-
         if (rpcFailed) {
             cntl->SetFailed(-1, "set rpc failed!");
         }
 
+        char buff[128 * 1024] = {0};
         ::memcpy(buff, chunk_, request->size());
         cntl->response_attachment().append(buff, request->size());
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -156,12 +157,21 @@ class FakeChunkService : public ChunkService {
         waittimeMS = waittime;
     }
 
+    void CleanRetryTimes() {
+        retryTimes = 0;
+    }
+
+    uint64_t GetRetryTimes() {
+        return retryTimes;
+    }
+
  private:
     // wait4netunstable用来模拟网络延时，当打开之后，每个读写rpc会停留一段时间再返回
     bool wait4netunstable;
     uint64_t waittimeMS;
-    char chunk_[16 * 1024];
     bool rpcFailed;
+    uint64_t retryTimes;
+    char chunk_[128 * 1024];
 };
 
 class CliServiceFake : public curve::chunkserver::CliService2 {

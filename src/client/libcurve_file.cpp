@@ -363,15 +363,17 @@ int FileClient::Close(int fd) {
         LOG(ERROR) << "can not find " << fd;
         return -LIBCURVE_ERROR::FAILED;
     }
+
     int ret = fileserviceMap_[fd]->Close();
     if (ret == LIBCURVE_ERROR::OK) {
         fileserviceMap_[fd]->UnInitialize();
-        LOG(ERROR) << "uninitialize " << fd;
         delete fileserviceMap_[fd];
         fileserviceMap_.erase(iter);
+        LOG(INFO) << "uninitialize " << fd;
     } else {
         LOG(ERROR) << "close failed " << fd;
     }
+
     return ret;
 }
 

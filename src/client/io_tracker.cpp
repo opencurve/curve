@@ -291,7 +291,6 @@ void IOTracker::Done() {
         errcode_ == LIBCURVE_ERROR::OK ? iocv_.Complete(length_)
                                        : iocv_.Complete(-errcode_);
     } else {
-        MetricHelper::DecremInflightIO(fileMetric_);
         aioctx_->ret = errcode_ == LIBCURVE_ERROR::OK ? length_ : -errcode_;
         aioctx_->cb(aioctx_);
         iomanager_->HandleAsyncIOResponse(this);

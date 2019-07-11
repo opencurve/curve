@@ -26,12 +26,21 @@
 namespace curve {
 namespace client {
 FailureRequestOption_t  ClientClosure::failReqOpt_;
+void WriteChunkClosure::GetToken() {
+    client_->GetInflightRPCToken();
+}
+
+void WriteChunkClosure::ReleaseToken() {
+    client_->ReleaseInflightRPCToken();
+}
 
 void WriteChunkClosure::Run() {
     std::unique_ptr<WriteChunkClosure> selfGuard(this);
     std::unique_ptr<brpc::Controller> cntlGuard(cntl_);
     std::unique_ptr<ChunkResponse> responseGuard(response_);
     brpc::ClosureGuard doneGuard(done_);
+
+    ReleaseToken();
 
     MetaCache *metaCache = client_->GetMetaCache();
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
@@ -172,11 +181,21 @@ write_retry:
                         retriedTimes_ + 1);
 }
 
+void ReadChunkClosure::GetToken() {
+    client_->GetInflightRPCToken();
+}
+
+void ReadChunkClosure::ReleaseToken() {
+    client_->ReleaseInflightRPCToken();
+}
+
 void ReadChunkClosure::Run() {
     std::unique_ptr<ReadChunkClosure> selfGuard(this);
     std::unique_ptr<brpc::Controller> cntlGuard(cntl_);
     std::unique_ptr<ChunkResponse> responseGuard(response_);
     brpc::ClosureGuard doneGuard(done_);
+
+    ReleaseToken();
 
     MetaCache *metaCache = client_->GetMetaCache();
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
