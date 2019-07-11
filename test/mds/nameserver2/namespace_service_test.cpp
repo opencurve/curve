@@ -21,6 +21,7 @@
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/common/authenticator.h"
 #include "test/mds/mock/mock_topology.h"
+#include "test/mds/mock/mock_chunkserver.h"
 
 using curve::common::TimeUtility;
 using curve::common::Authenticator;
@@ -36,8 +37,8 @@ class NameSpaceServiceTest : public ::testing::Test {
         storage_ =  new FakeNameServerStorage();
         inodeGenerator_ = new FakeInodeIDGenerator(0);
 
-        auto topology = std::make_shared<MockTopology>();
-        cleanCore_ = std::make_shared<CleanCore>(storage_, topology);
+        topology_ = std::make_shared<MockTopology>();
+        cleanCore_ = std::make_shared<CleanCore>(storage_, topology_);
 
         // new taskmanger for 2 worker thread, and check thread period 2 second
         cleanTaskManager_ = std::make_shared<CleanTaskManager>(2, 2000);
@@ -105,6 +106,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<CleanCore> cleanCore_;
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
     std::shared_ptr<CleanManager> cleanManager_;
+    std::shared_ptr<MockTopology> topology_;
 
     SessionManager *sessionManager_;
     struct SessionOptions sessionOptions;
@@ -304,6 +306,22 @@ TEST_F(NameSpaceServiceTest, test1) {
         FAIL();
     }
 
+    // 创建文件名不规范的文件会失败
+    cntl.Reset();
+    request.set_filename("/file4/");
+    request.set_owner("owner4");
+    request.set_date(TimeUtility::GetTimeofDayUs());
+    request.set_filetype(INODE_PAGEFILE);
+    request.set_filelength(fileLength);
+
+    cntl.set_log_id(2);  // set by user
+    stub.CreateFile(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kParaError);
+    } else {
+        FAIL();
+    }
+
     // test ListDir
     {
         ListDirRequest listRequest;
@@ -334,6 +352,17 @@ TEST_F(NameSpaceServiceTest, test1) {
         }
 
         cntl.Reset();
+        listRequest.set_filename("/dir2/");
+        listRequest.set_owner("owner");
+        listRequest.set_date(TimeUtility::GetTimeofDayUs());
+        stub.ListDir(&cntl, &listRequest, &listResponse, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(listResponse.statuscode(), StatusCode::kParaError);
+        } else {
+            ASSERT_TRUE(false);
+        }
+
+        cntl.Reset();
         uint64_t date = TimeUtility::GetTimeofDayUs();
         std::string str2sig = Authenticator::GetString2Signature(date,
                                                 authOptions.rootOwner);
@@ -356,6 +385,17 @@ TEST_F(NameSpaceServiceTest, test1) {
     cntl.Reset();
     GetFileInfoRequest request1;
     GetFileInfoResponse response1;
+    request1.set_filename("/file1/");
+    request1.set_owner("owner1");
+    request1.set_date(TimeUtility::GetTimeofDayUs());
+    stub.GetFileInfo(&cntl, &request1, &response1, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response1.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
     request1.set_filename("/file1");
     request1.set_owner("owner1");
     request1.set_date(TimeUtility::GetTimeofDayUs());
@@ -387,6 +427,19 @@ TEST_F(NameSpaceServiceTest, test1) {
     stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response2.statuscode(), StatusCode::kSegmentNotAllocated);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request2.set_filename("/file1/");
+    request2.set_owner("owner1");
+    request2.set_date(TimeUtility::GetTimeofDayUs());
+    request2.set_offset(DefaultSegmentSize);
+    request2.set_allocateifnotexist(false);
+    stub.GetOrAllocateSegment(&cntl, &request2, &response2, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response2.statuscode(), StatusCode::kParaError);
     } else {
         ASSERT_TRUE(false);
     }
@@ -549,6 +602,25 @@ TEST_F(NameSpaceServiceTest, test1) {
         } else {
             ASSERT_TRUE(false);
         }
+
+        // changeowner 文件名不规范，失败
+        cntl.Reset();
+        request.set_filename("/file1/");
+        request.set_newowner("owner1");
+        date = TimeUtility::GetTimeofDayUs();
+        str2sig = Authenticator::GetString2Signature(date,
+                                                    authOptions.rootOwner);
+        sig = Authenticator::CalcString2Signature(str2sig,
+                                                    authOptions.rootPassword);
+        request.set_rootowner(authOptions.rootOwner);
+        request.set_signature(sig);
+        request.set_date(date);
+        stub.ChangeOwner(&cntl, &request, &response, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(response.statuscode(), StatusCode::kParaError);
+        } else {
+            ASSERT_TRUE(false);
+        }
     }
 
     // test RenameFile
@@ -557,6 +629,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     // 重命名成功 /dir/file3 -> /dir/file4
     // 原文件不存在，重命名失败
     // 重命名到根目录下，root owner，成功 /dir/file4 -> /file4
+    // 文件名不规范，失败
     cntl.Reset();
     RenameFileRequest request4;
     RenameFileResponse response4;
@@ -632,6 +705,42 @@ TEST_F(NameSpaceServiceTest, test1) {
     }
 
     cntl.Reset();
+    request4.set_oldfilename("/file4/");
+    request4.set_newfilename("/file5");
+    request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request4.set_oldfilename("/file4");
+    request4.set_newfilename("/file5/");
+    request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request4.set_oldfilename("/file4");
+    request4.set_newfilename("/file4/file5");
+    request4.set_owner("owner3");
+    request4.set_date(TimeUtility::GetTimeofDayUs());
+    stub.RenameFile(&cntl, &request4, &response4, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response4.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
     request4.set_oldfilename("/file4");
     request4.set_newfilename("/dir/file5");
     request4.set_owner("owner3");
@@ -647,6 +756,7 @@ TEST_F(NameSpaceServiceTest, test1) {
 
     // test ExtendFile
     // 扩容file2,第一次扩大，成功；第二次缩小，失败
+    // 扩容的文件名不符合规范，失败
     uint64_t newsize = kMiniFileLength * 2;
     cntl.Reset();
     ExtendFileRequest request5;
@@ -670,6 +780,18 @@ TEST_F(NameSpaceServiceTest, test1) {
     stub.ExtendFile(&cntl, &request5, &response5, NULL);
     if (!cntl.Failed()) {
         ASSERT_EQ(response5.statuscode(), StatusCode::kShrinkBiggerFile);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    request5.set_filename("/file2/");
+    request5.set_owner("owner2");
+    request5.set_date(TimeUtility::GetTimeofDayUs());
+    request5.set_newsize(newsize);
+    stub.ExtendFile(&cntl, &request5, &response5, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response5.statuscode(), StatusCode::kParaError);
     } else {
         ASSERT_TRUE(false);
     }
@@ -742,6 +864,19 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
+    // openFile case4, 文件名不符合规范
+    cntl.Reset();
+    request11.set_filename("/file2/");
+    request11.set_owner("owner2");
+    request11.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.OpenFile(&cntl, &request11, &response11, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response11.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
     // CloseFile case1. 文件不存在，返回kFileNotExists
     cntl.Reset();
     CloseFileRequest request12;
@@ -805,6 +940,20 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_TRUE(false);
     }
 
+    // CloseFile case5. 文件名不符合规范
+    cntl.Reset();
+    request14.set_filename("/file2/");
+    request14.set_owner("owner2");
+    request14.set_date(TimeUtility::GetTimeofDayUs());
+    request14.set_sessionid(response9.protosession().sessionid());
+
+    stub.CloseFile(&cntl, &request14, &response14, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response14.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
     // RefreshSession case1. 文件不存在，返回kFileNotExists
     cntl.Reset();
     ReFreshSessionRequest request15;
@@ -857,6 +1006,24 @@ TEST_F(NameSpaceServiceTest, test1) {
         std::cout << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
+
+    // RefreshSession case5. 文件名不符合规范
+    cntl.Reset();
+
+    request18.set_filename("/file1/");
+    request18.set_owner("owner1");
+    request18.set_date(TimeUtility::GetTimeofDayUs());
+    request18.set_sessionid(response10.protosession().sessionid());
+    request18.set_date(common::TimeUtility::GetTimeofDayUs());
+
+    stub.RefreshSession(&cntl, &request18, &response18, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response18.statuscode(), StatusCode::kParaError);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
     // end session test
 
     server.Stop(10);
@@ -950,6 +1117,17 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_TRUE(false);
     }
 
+    cntl.Reset();
+    snapshotRequest.set_filename("/file1/");
+    snapshotRequest.set_owner("owner1");
+    snapshotRequest.set_date(TimeUtility::GetTimeofDayUs());
+    stub.CreateSnapShot(&cntl, &snapshotRequest, &snapshotResponses, NULL);
+    if (!cntl.Failed()) {
+         ASSERT_EQ(snapshotResponses.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
     // get the original file
     cntl.Reset();
     request1.set_filename("/file1");
@@ -987,6 +1165,52 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_TRUE(false);
     }
 
+    cntl.Reset();
+    checkRequest.set_filename("/file1/");
+    checkRequest.set_owner("owner1");
+    checkRequest.set_date(TimeUtility::GetTimeofDayUs());
+    checkRequest.set_seq(1);
+    stub.CheckSnapShotStatus(&cntl, &checkRequest, &checkResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(checkResponse.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    // get SnapShot segment
+    cntl.Reset();
+    GetOrAllocateSegmentRequest getSegmentRequest;
+    GetOrAllocateSegmentResponse getSegmentResponse;
+    getSegmentRequest.set_filename("/file1");
+    getSegmentRequest.set_owner("owner1");
+    getSegmentRequest.set_date(TimeUtility::GetTimeofDayUs());
+    getSegmentRequest.set_offset(DefaultSegmentSize);
+    getSegmentRequest.set_allocateifnotexist(false);
+    getSegmentRequest.set_seqnum(1);
+    stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest,
+                            &getSegmentResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getSegmentResponse.statuscode(),
+                        StatusCode::kSegmentNotAllocated);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    cntl.Reset();
+    getSegmentRequest.set_filename("/file1/");
+    getSegmentRequest.set_owner("owner1");
+    getSegmentRequest.set_date(TimeUtility::GetTimeofDayUs());
+    getSegmentRequest.set_offset(DefaultSegmentSize);
+    getSegmentRequest.set_allocateifnotexist(false);
+    getSegmentRequest.set_seqnum(1);
+    stub.GetSnapShotFileSegment(&cntl, &getSegmentRequest,
+                            &getSegmentResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(getSegmentResponse.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
     // test deletesnapshotfile
     cntl.Reset();
     DeleteSnapShotRequest deleteRequest;
@@ -1003,6 +1227,18 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_TRUE(false);
     }
 
+    cntl.Reset();
+    deleteRequest.set_filename("/file1/");
+    deleteRequest.set_owner("owner1");
+    deleteRequest.set_date(TimeUtility::GetTimeofDayUs());
+    deleteRequest.set_seq(1);
+    stub.DeleteSnapShot(&cntl, &deleteRequest, &deleteResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(deleteResponse.statuscode(), StatusCode::kParaError);
+    } else {
+        LOG(ERROR) << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
 
     // list snapshotdelete ok
     cntl.Reset();
@@ -1027,6 +1263,18 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
     } else {
         ASSERT_TRUE(false);
     }
+
+    cntl.Reset();
+    listRequest.set_filename("/file1/");
+    listRequest.set_owner("owner1");
+    listRequest.set_date(TimeUtility::GetTimeofDayUs());
+    listRequest.add_seq(2);
+    stub.ListSnapShot(&cntl, &listRequest, &listResponse, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(listResponse.statuscode(), StatusCode::kParaError);
+    } else {
+        ASSERT_TRUE(false);
+    }
     server.Stop(10);
     server.Join();
 }
@@ -1039,9 +1287,15 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     ASSERT_EQ(server.AddService(&namespaceService,
             brpc::SERVER_DOESNT_OWN_SERVICE), 0);
 
+    using ::curve::chunkserver::MockChunkService;
+    MockChunkService *chunkService = new MockChunkService();
+    ASSERT_EQ(server.AddService(chunkService,
+                                      brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
     ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+    butil::EndPoint listenAddr = server.listen_address();
 
     // init client
     brpc::Channel channel;
@@ -1157,6 +1411,25 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(file.seqnum(), 1);
     } else {
         ASSERT_TRUE(false);
+    }
+
+    // 文件/dir1/file2申请segment
+    GetOrAllocateSegmentRequest allocRequest;
+    GetOrAllocateSegmentResponse allocResponse;
+    for (int i = 0; i < 10; i++) {
+        cntl.Reset();
+        allocRequest.set_filename("/dir1/file2");
+        allocRequest.set_owner("owner");
+        allocRequest.set_date(TimeUtility::GetTimeofDayUs());
+        allocRequest.set_offset(DefaultSegmentSize * i);
+        allocRequest.set_allocateifnotexist(true);
+        stub.GetOrAllocateSegment(&cntl, &allocRequest, &allocResponse, NULL);
+        if (!cntl.Failed()) {
+            ASSERT_EQ(allocResponse.statuscode(),
+                                        StatusCode::kOK);
+        } else {
+            ASSERT_TRUE(false);
+        }
     }
 
     // 开始测试删除文件逻辑
@@ -1363,6 +1636,36 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     }
 
     // 6 删除文件/dir1/file2成功，删除目录/dir1成功，查询目录和文件均已经删除
+    using ::curve::mds::topology::ChunkServerStatus;
+    using ::curve::mds::topology::OnlineState;
+    using ::curve::chunkserver::ChunkRequest;
+    using ::curve::chunkserver::ChunkResponse;
+    using ::curve::chunkserver::CHUNK_OP_STATUS;
+    using ::testing::_;
+    using ::testing::Return;
+    using ::testing::AtLeast;
+    using ::testing::SetArgPointee;
+    using ::testing::DoAll;
+    using ::testing::Invoke;
+
+    EXPECT_CALL(*topology_, GetCopySet(_, _))
+            .WillRepeatedly(Return(true));
+    ChunkServer chunkserver(1, "", "", 1, "127.0.0.1", listenAddr.port, "",
+            ChunkServerStatus::READWRITE, OnlineState::ONLINE);
+    EXPECT_CALL(*topology_, GetChunkServer(_, _))
+            .WillRepeatedly(DoAll(SetArgPointee<1>(chunkserver), Return(true)));
+
+    ChunkResponse chunkResponse;
+    chunkResponse.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    EXPECT_CALL(*chunkService, DeleteChunk(_, _, _, _))
+        .WillRepeatedly(DoAll(SetArgPointee<2>(chunkResponse),
+                Invoke([](RpcController *controller,
+                          const ChunkRequest *chunkRequest,
+                          ChunkResponse *chunkResponse,
+                          Closure *done){
+                          brpc::ClosureGuard doneGuard(done);
+                    })));
+
     cntl.Reset();
     request3.set_filename("/dir1/file2");
     request3.set_owner("owner");
@@ -1497,8 +1800,23 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_TRUE(false);
     }
 
+    // 删除文件时，如果文件名不满足要求，会返回失败
+    cntl.Reset();
+    request3.set_filename("/file1/");
+    request3.set_owner("owner");
+    request3.set_date(TimeUtility::GetTimeofDayUs());
+
+    stub.DeleteFile(&cntl, &request3, &response3, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response3.statuscode(), StatusCode::kParaError);
+    } else {
+        std::cout << cntl.ErrorText();
+        ASSERT_TRUE(false);
+    }
+
     server.Stop(10);
     server.Join();
+    delete chunkService;
 }
 
 TEST_F(NameSpaceServiceTest, isPathValid) {
@@ -1674,7 +1992,6 @@ TEST_F(NameSpaceServiceTest, registClientTest) {
     server.Stop(10);
     server.Join();
 }
-
 }  // namespace mds
 }  // namespace curve
 

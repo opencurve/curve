@@ -397,8 +397,8 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
 
             // 查看任务是否已经在
             if ( cleanManager_->GetTask(fileInfo.id()) != nullptr ) {
-                LOG(WARNING) << "filename = " << filename
-                        << ", deleteFile task already submited";
+                LOG(WARNING) << "filename = " << filename << ", inode = "
+                    << fileInfo.id() << ", deleteFile task already submited";
                 return StatusCode::kOK;
             }
 
@@ -413,12 +413,14 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
             // 提交一个删除文件的任务
             if (!cleanManager_->SubmitDeleteCommonFileJob(fileInfo)) {
                 LOG(ERROR) << "fileName = " << filename
+                        << ", inode = " << fileInfo.id()
                         << ", submit delete file job fail.";
                 return StatusCode::KInternalError;
             }
 
             LOG(INFO) << "delete file task submitted, file is pagefile"
-                  << ", filename = " << filename;
+                        << ", inode = " << fileInfo.id()
+                        << ", filename = " << filename;
             return StatusCode::kOK;
         }
      } else {
