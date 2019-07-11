@@ -227,7 +227,8 @@ class LeaderScheduler : public Scheduler {
      * @param[in] topo 提供拓扑逻辑信息, 父函数初始化需要 // NOLINIT
      */
     LeaderScheduler(const std::shared_ptr<OperatorController> &opController,
-                    int64_t interSec,
+                    uint32_t interSec,
+                    uint32_t chunkserverCoolingTimeSec,
                     int transTimeLimitSec,
                     int addTimeLimitSec,
                     int removeTimeLimitSec,
@@ -236,6 +237,7 @@ class LeaderScheduler : public Scheduler {
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
             scatterWidthRangePerent, topo, opController) {
         this->runInterval_ = interSec;
+        this->chunkserverCoolingTimeSec_ = chunkserverCoolingTimeSec;
     }
 
     /**
@@ -289,8 +291,22 @@ class LeaderScheduler : public Scheduler {
     */
     bool copySetHealthy(const CopySetInfo &csInfo);
 
+    /**
+     * @brief coolingTimeExpired 判断当前时间 - aliveTime
+     *                           是否大于chunkserverCoolingTimeSec_
+     *
+     * @brief aliveTime chunkserver的启动时间
+     *
+     * @return false表示 当前时间 - aliveTime <= chunkserverCoolingTimeSec_
+     *         true 当前时间 - aliveTime > chunkserverCoolingTimeSec_
+     */
+    bool coolingTimeExpired(uint64_t aliveTime);
+
  private:
     int64_t runInterval_;
+
+    // chunkserver启动coolingTimeSec_后才可以作为target leader
+    uint32_t chunkserverCoolingTimeSec_;
 
     // transferLeaderout的重试次数
     const int maxRetryTransferLeader = 10;

@@ -166,6 +166,9 @@ class Heartbeat {
 
     // ChunkServer本身的地址
     butil::EndPoint csEp_;
+
+    // 模块初始化时间, unix时间
+    uint64_t startUpTime_;
 };
 
 }  // namespace chunkserver
