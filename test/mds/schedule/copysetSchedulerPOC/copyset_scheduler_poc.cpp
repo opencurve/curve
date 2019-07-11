@@ -605,7 +605,7 @@ class CopysetSchedulerPOC : public testing::Test {
         opController_ = std::make_shared<OperatorController>(opConcurrent);
 
         leaderScheduler_ = std::make_shared<LeaderScheduler>(
-            opController_, 1000, 10, 100, 1000,
+            opController_, 1000, 0, 10, 100, 1000,
             scatterwidthPercent_, topoAdapter_);
     }
 

@@ -63,6 +63,11 @@ struct ScheduleOption {
     float scatterWithRangePerent;
     // 一个Server上超过offlineExceed_个chunkserver挂掉,不恢复
     uint32_t chunkserverFailureTolerance;
+    // chunkserver启动coolingTimeSec_后才可以作为leader均衡中的target leader
+    // chunkserver刚启时copyset会回放日志, 而transferleader的时候会停止现在的io,
+    // 如果作为目标leader,就需要等待日志回放完成才可以接受transferleader，回放时间
+    // 过长，就导致leadertimeout时间内io会被卡住
+    uint32_t chunkserverCoolingTimeSec;
 };
 
 class Coordinator {

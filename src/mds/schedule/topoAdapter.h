@@ -106,7 +106,7 @@ struct CopySetInfo {
 struct ChunkServerInfo {
  public:
     ChunkServerInfo() :
-        leaderCount(0), diskCapacity(0), diskUsed(0) {}
+        leaderCount(0), diskCapacity(0), diskUsed(0), startUpTime(0) {}
     ChunkServerInfo(const PeerInfo &info, OnlineState state,
                     DiskState diskState, ChunkServerStatus status,
                     uint32_t leaderCount, uint64_t capacity, uint64_t used,
@@ -117,6 +117,7 @@ struct ChunkServerInfo {
     bool IsHealthy();
 
     PeerInfo info;
+    uint64_t startUpTime;
     OnlineState state;
     DiskState diskState;
     ChunkServerStatus status;

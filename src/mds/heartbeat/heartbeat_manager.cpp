@@ -167,6 +167,13 @@ void HeartbeatManager::ChunkServerHeartbeat(
         LOG(ERROR) << "heartbeatManager get error request";
         return;
     }
+
+    // 将chunksever中记录的startUpTime记录到到topology中
+    if (request.has_starttime()) {
+        topology_->UpdateChunkServerStartUpTime(
+            request.starttime(), request.chunkserverid());
+    }
+
     // 将心跳上报时间点pass到chunkserver健康检查模块
     healthyChecker_->UpdateLastReceivedHeartbeatTime(request.chunkserverid(),
                                     steady_clock::now());
