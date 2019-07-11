@@ -25,10 +25,22 @@ TEST(CleanCore, testcleansnapshotfile) {
     auto cleanCore = new CleanCore(storage, topology);
 
     {
-        // delete ok (no, segment)
-        EXPECT_CALL(*storage, GetSegment(_, _, _))
-        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
+        // segment size = 0
+        FileInfo cleanFile;
+        cleanFile.set_length(kMiniFileLength);
+        cleanFile.set_segmentsize(0);
+        TaskProgress progress;
+        ASSERT_EQ(cleanCore->CleanSnapShotFile(cleanFile, &progress),
+            StatusCode::KInternalError);
+    }
 
+    {
+        // delete ok (no, segment)
+        uint32_t segmentNum = kMiniFileLength / DefaultSegmentSize;
+        for (uint32_t i = 0; i < segmentNum; i++) {
+            EXPECT_CALL(*storage, GetSegment(_, i * DefaultSegmentSize, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+        }
 
         EXPECT_CALL(*storage, DeleteSnapshotFile(_, _))
         .Times(1)
@@ -46,9 +58,11 @@ TEST(CleanCore, testcleansnapshotfile) {
     }
     {
         // all ok , but do DeleteFile namespace meta error
-        EXPECT_CALL(*storage, GetSegment(_, _, _))
-        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
-
+        uint32_t segmentNum = kMiniFileLength / DefaultSegmentSize;
+        for (uint32_t i = 0; i < segmentNum; i++) {
+            EXPECT_CALL(*storage, GetSegment(_, i * DefaultSegmentSize, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+        }
 
         EXPECT_CALL(*storage, DeleteSnapshotFile(_, _))
         .WillOnce(Return(StoreStatus::InternalError));
@@ -63,7 +77,7 @@ TEST(CleanCore, testcleansnapshotfile) {
 
     {
         // get segment error
-        EXPECT_CALL(*storage, GetSegment(_, _, _))
+        EXPECT_CALL(*storage, GetSegment(_, 0, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -77,9 +91,13 @@ TEST(CleanCore, testcleansnapshotfile) {
     {
         // 联调Bug修复：快照文件共享源文件的segment，所以在查询segment的时候需要使用
         // ParentID 进行查找
+        uint32_t segmentNum = kMiniFileLength / DefaultSegmentSize;
         uint64_t expectParentID = 101;
-        EXPECT_CALL(*storage, GetSegment(expectParentID, _, _))
-        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
+        for (uint32_t i = 0; i < segmentNum; i++) {
+            EXPECT_CALL(*storage,
+                        GetSegment(expectParentID, i * DefaultSegmentSize, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+        }
 
         EXPECT_CALL(*storage, DeleteSnapshotFile(_, _))
         .Times(1)
@@ -99,6 +117,29 @@ TEST(CleanCore, testcleansnapshotfile) {
     {
         // get segment ok, DeleteSnapShotChunk Error
     }
+
+    {
+        // get segment ok, DeleteSnapShotChunk OK
+        uint32_t segmentNum = kMiniFileLength / DefaultSegmentSize;
+        for (uint32_t i = 0; i < segmentNum; i++) {
+            EXPECT_CALL(*storage, GetSegment(_, i * DefaultSegmentSize, _))
+            .WillOnce(Return(StoreStatus::OK));
+        }
+
+        EXPECT_CALL(*storage, DeleteSnapshotFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        FileInfo cleanFile;
+        cleanFile.set_length(kMiniFileLength);
+        cleanFile.set_segmentsize(DefaultSegmentSize);
+        TaskProgress progress;
+        ASSERT_EQ(cleanCore->CleanSnapShotFile(cleanFile, &progress),
+            StatusCode::kOK);
+
+        ASSERT_EQ(progress.GetStatus(), TaskStatus::SUCCESS);
+        ASSERT_EQ(progress.GetProgress(), 100);
+    }
     delete storage;
 }
 
@@ -108,10 +149,22 @@ TEST(CleanCore, testcleanfile) {
     auto cleanCore = new CleanCore(storage, topology);
 
     {
-        // delete ok (no, segment)
-        EXPECT_CALL(*storage, GetSegment(_, _, _))
-        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
+        // segmentsize = 0
+        FileInfo cleanFile;
+        cleanFile.set_length(kMiniFileLength);
+        cleanFile.set_segmentsize(0);
+        TaskProgress progress;
+        ASSERT_EQ(cleanCore->CleanFile(cleanFile, &progress),
+            StatusCode::KInternalError);
+    }
 
+    {
+        // delete ok (no, segment)
+        uint32_t segmentNum = kMiniFileLength / DefaultSegmentSize;
+        for (uint32_t i = 0; i < segmentNum; i++) {
+            EXPECT_CALL(*storage, GetSegment(_, i * DefaultSegmentSize, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+        }
 
         EXPECT_CALL(*storage, DeleteFile(_, _))
         .Times(1)
@@ -130,9 +183,11 @@ TEST(CleanCore, testcleanfile) {
 
     {
         // all ok , but do DeleteFile namespace meta error
-        EXPECT_CALL(*storage, GetSegment(_, _, _))
-        .WillRepeatedly(Return(StoreStatus::KeyNotExist));
-
+        uint32_t segmentNum = kMiniFileLength / DefaultSegmentSize;
+        for (uint32_t i = 0; i < segmentNum; i++) {
+            EXPECT_CALL(*storage, GetSegment(_, i * DefaultSegmentSize, _))
+            .WillOnce(Return(StoreStatus::KeyNotExist));
+        }
 
         EXPECT_CALL(*storage, DeleteFile(_, _))
         .WillOnce(Return(StoreStatus::InternalError));
@@ -148,7 +203,7 @@ TEST(CleanCore, testcleanfile) {
 
     {
         // get segment error
-        EXPECT_CALL(*storage, GetSegment(_, _, _))
+        EXPECT_CALL(*storage, GetSegment(_, 0, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -165,6 +220,19 @@ TEST(CleanCore, testcleanfile) {
     }
     {
         // get segment ok, DeleteSnapShotChunk ok, DeleteSegment error
+        EXPECT_CALL(*storage, GetSegment(_, 0, _))
+                .WillOnce(Return(StoreStatus::OK));
+
+        EXPECT_CALL(*storage, DeleteSegment(_, _))
+        .WillOnce(Return(StoreStatus::InternalError));
+
+        FileInfo cleanFile;
+        cleanFile.set_length(kMiniFileLength);
+        cleanFile.set_segmentsize(DefaultSegmentSize);
+        TaskProgress progress;
+        ASSERT_EQ(cleanCore->CleanFile(cleanFile, &progress),
+            StatusCode::kCommonFileDeleteError);
+        ASSERT_EQ(progress.GetStatus(), TaskStatus::FAILED);
     }
     delete storage;
 }
