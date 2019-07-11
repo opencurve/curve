@@ -57,8 +57,8 @@ void ChunkServiceImpl::DeleteChunk(RpcController *controller,
                                                        request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "delete chunk failed, copyset node is not found:"
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "delete chunk failed, copyset node is not found:"
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
@@ -114,8 +114,8 @@ void ChunkServiceImpl::WriteChunk(RpcController *controller,
                                                        request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "write chunk failed, copyset node is not found:"
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "write chunk failed, copyset node is not found:"
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
@@ -163,8 +163,8 @@ void ChunkServiceImpl::CreateCloneChunk(RpcController *controller,
                                                        request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "write chunk failed, copyset node is not found:"
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "write chunk failed, copyset node is not found:"
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
@@ -214,8 +214,8 @@ void ChunkServiceImpl::ReadChunk(RpcController *controller,
                                                        request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "read chunk failed, copyset node is not found:"
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "read chunk failed, copyset node is not found:"
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
@@ -265,8 +265,8 @@ void ChunkServiceImpl::RecoverChunk(RpcController *controller,
                                                        request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "recover chunk failed, copyset node is not found:"
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "recover chunk failed, copyset node is not found:"
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
@@ -313,8 +313,8 @@ void ChunkServiceImpl::ReadChunkSnapshot(RpcController *controller,
                                                        request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "read chunk snapshot failed, copyset node is not found:"
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "read chunk snapshot failed, copyset node is not found:"
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
@@ -361,8 +361,9 @@ void ChunkServiceImpl::DeleteChunkSnapshotOrCorrectSn(
                                                        request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "delete chunk snapshot failed, copyset node is not found:"
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "delete chunk snapshot failed, "
+                     << "since copyset node is not found:"
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
@@ -408,8 +409,8 @@ void ChunkServiceImpl::GetChunkInfo(RpcController *controller,
                                             request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "GetChunkInfo failed, copyset node is not found: "
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "GetChunkInfo failed, copyset node is not found: "
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
@@ -475,8 +476,8 @@ void ChunkServiceImpl::GetChunkHash(RpcController *controller,
                                             request->copysetid());
     if (nullptr == nodePtr) {
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
-        LOG(ERROR) << "GetChunkHash failed, copyset node is not found: "
-                   << request->logicpoolid() << "," << request->copysetid();
+        LOG(WARNING) << "GetChunkHash failed, copyset node is not found: "
+                     << request->logicpoolid() << "," << request->copysetid();
         return;
     }
 
