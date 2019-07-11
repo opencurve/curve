@@ -35,6 +35,7 @@ std::condition_variable writeinterfacecv;
 std::mutex interfacemtx;
 std::condition_variable interfacecv;
 
+DECLARE_string(chunkserver_list);
 DECLARE_uint64(test_disk_size);
 void writecallbacktest(CurveAioContext* context) {
     writeflag = true;
@@ -48,6 +49,9 @@ void readcallbacktest(CurveAioContext* context) {
 }
 
 TEST(TestLibcurveInterface, InterfaceTest) {
+    FLAGS_chunkserver_list =
+         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
+
     ASSERT_EQ(0, Init(configpath.c_str()));
     std::string filename = "/1_userinfo_";
 
@@ -57,7 +61,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
 
     // 设置leaderid
     EndPoint ep;
-    butil::str2endpoint("127.0.0.1", 9106, &ep);
+    butil::str2endpoint("127.0.0.1", 9115, &ep);
     PeerId pd(ep);
 
     // init mds service

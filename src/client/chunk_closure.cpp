@@ -140,11 +140,13 @@ void WriteChunkClosure::Run() {
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "write failed for UNKNOWN reason, write info: "
+    LOG(ERROR) << "write failed, write info: "
                << "<" << logicPoolId << ", " << copysetId
                << ", " << chunkid << "> offset=" << reqCtx->offset_
-               << ", length=" << reqCtx->rawlength_
-               << ", status=" << status;
+               << ", length =" << reqCtx->rawlength_
+               << ", status ="
+               << curve::chunkserver::CHUNK_OP_STATUS_Name(
+                   static_cast<CHUNK_OP_STATUS>(status));
     bthread_usleep(failReqOpt_.opRetryIntervalUs);
     goto write_retry;
 
@@ -286,11 +288,13 @@ void ReadChunkClosure::Run() {
         return;
     }
     /* 2.5.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "read failed for UNKNOWN reason, read info: "
+    LOG(ERROR) << "read failed , read info: "
                << "<" << logicPoolId << ", " << copysetId
                << ", " << chunkid << "> offset=" << reqCtx->offset_
                << ", length=" << reqCtx->rawlength_
-               << ", status=" << status;
+               << ", status="
+               << curve::chunkserver::CHUNK_OP_STATUS_Name(
+                   static_cast<CHUNK_OP_STATUS>(status));
     bthread_usleep(failReqOpt_.opRetryIntervalUs);
     goto read_retry;
 
