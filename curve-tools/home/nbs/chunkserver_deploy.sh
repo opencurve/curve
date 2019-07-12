@@ -11,6 +11,13 @@ then
 fi
 
 #步骤1：清理环境
+#清理/etc/fstab残留信息
+grep curvefs /etc/fstab
+if [ $? -eq 0 ]
+then
+	sed -i '/curvefs/d' /etc/fstab
+	sed -i '/\/data\/chunkserver/d' /etc/fstab
+fi
 #通过lsscsi的输出过滤出curve使用的数据盘，将数据盘挂载的目录都卸载掉，为下一步格式化磁盘做准备
 #prepare deploy env
 for i in `lsscsi |grep ATA|awk '{print $7}'|awk -F"/" '{print $3}'`
