@@ -46,7 +46,6 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
         newConf->peers = originInfo.peers;
         newConf->type = ConfigChangeType::TRANSFER_LEADER;
         newConf->configChangeItem = this->to_;
-        LOG(ERROR) << originInfo.configChangeInfo.InitializationErrorString();
         return ApplyStatus::Ordered;
     }
 
