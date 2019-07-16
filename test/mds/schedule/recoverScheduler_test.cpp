@@ -185,7 +185,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     ChunkServerIdType id3 = 3;
     ChunkServerIdType id4 = 4;
     Operator op;
-    EXPECT_CALL(*topoAdapter_, GetMinScatterWidthInLogicalPool(_))
+    EXPECT_CALL(*topoAdapter_, GetAvgScatterWidthInLogicalPool(_))
             .WillRepeatedly(Return(90));
     {
         // 1. 所有chunkserveronline
