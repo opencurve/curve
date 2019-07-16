@@ -234,8 +234,7 @@ bool CopySetScheduler::CopySetMigration(
             }
 
             // scatter-width在topology中还未设置
-            int minScatterWidth =
-                topo_->GetMinScatterWidthInLogicalPool(info.id.first);
+            int minScatterWidth = GetMinScatterWidth(info.id.first);
             if (minScatterWidth <= 0) {
                 LOG(WARNING) << "minScatterWith in logical pool "
                              << info.id.first << " is not initialized";

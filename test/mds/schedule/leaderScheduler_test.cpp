@@ -215,7 +215,7 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
     auto statInfo = ::curve::mds::heartbeat::ChunkServerStatisticInfo();
     ChunkServerInfo csInfo1(
         peer1, onlineState, diskState, ChunkServerStatus::READWRITE,
-        0, 100, 10, statInfo);
+        1, 100, 10, statInfo);
     ChunkServerInfo csInfo2(
         peer2, onlineState, diskState, ChunkServerStatus::READWRITE,
         2, 100, 10, statInfo);
@@ -254,6 +254,7 @@ TEST_F(TestLeaderSchedule, test_tranferLeaderout_normal) {
     ASSERT_EQ(std::chrono::seconds(10), op.timeLimit);
     TransferLeader *res = dynamic_cast<TransferLeader *>(op.step.get());
     ASSERT_TRUE(res != nullptr);
+    ASSERT_EQ(csInfo3.info.id, res->GetTargetPeer());
 }
 
 TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
@@ -312,7 +313,7 @@ TEST_F(TestLeaderSchedule, test_transferLeaderIn_normal) {
         .WillOnce(Return(std::vector<CopySetInfo>({copySet1})))
         .WillOnce(Return(std::vector<CopySetInfo>({copySet3, copySet2})));
      EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(1, _))
-        .Times(3)
+        .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo1), Return(true)));
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(3, _))
         .Times(3)
