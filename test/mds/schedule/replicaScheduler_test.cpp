@@ -139,7 +139,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
     PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
     PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
     testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2});
-    EXPECT_CALL(*topoAdapter_, GetMinScatterWidthInLogicalPool(_))
+    EXPECT_CALL(*topoAdapter_, GetAvgScatterWidthInLogicalPool(_))
             .WillRepeatedly(Return(90));
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .WillOnce(Return(3));
@@ -190,7 +190,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_createErr) {
     PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
     PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
     testCopySetInfo.peers = std::vector<PeerInfo>({peer1, peer2});
-    EXPECT_CALL(*topoAdapter_, GetMinScatterWidthInLogicalPool(_))
+    EXPECT_CALL(*topoAdapter_, GetAvgScatterWidthInLogicalPool(_))
             .WillRepeatedly(Return(90));
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .WillOnce(Return(3));
@@ -255,7 +255,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectCorrect) {
                             2, 100, 100, ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .Times(2).WillRepeatedly(Return(3));
-    EXPECT_CALL(*topoAdapter_, GetMinScatterWidthInLogicalPool(_))
+    EXPECT_CALL(*topoAdapter_, GetAvgScatterWidthInLogicalPool(_))
             .WillRepeatedly(Return(90));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));

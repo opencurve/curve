@@ -207,7 +207,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
 
         LogicalPool pool(0, "logicalpool-0", 1, LogicalPoolType::PAGEFILE,
             rap, LogicalPool::UserPolicy{}, 0, true);
-        pool.SetScatterWidth(90);
+        pool.SetScatterWidth(100);
         *out = pool;
         return true;
     }
