@@ -46,9 +46,8 @@ struct HeartbeatOptions {
     ChunkServerID           chunkserverId;
     std::string             chunkserverToken;
     std::string             storeUri;
-    std::string             mdsIp;
+    std::string             mdsListenAddr;
     std::string             ip;
-    uint32_t                mdsPort;
     uint32_t                port;
     uint32_t                interval;
     uint32_t                timeout;
@@ -160,7 +159,10 @@ class Heartbeat {
     HeartbeatOptions options_;
 
     // MDS的地址
-    butil::EndPoint mdsEp_;
+    std::vector<std::string> mdsEps_;
+
+    // 当前供服务的mds
+    int inServiceIndex_;
 
     // ChunkServer本身的地址
     butil::EndPoint csEp_;

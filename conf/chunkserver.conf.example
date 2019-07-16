@@ -12,8 +12,8 @@ global.meta_page_size=4096
 #
 # MDS settings
 #
-mds.ip=127.0.0.1
-mds.port=6666
+#支持mds多地址，以逗号分隔 127.0.0.1:6666,127.0.0.1:7777
+mds.listen.addr=127.0.0.1:6666
 # 向mds注册的最大重试次数
 mds.register_retries=100
 # 向mds注册的rpc超时时间，一般1000ms
