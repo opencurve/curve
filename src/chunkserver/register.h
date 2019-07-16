@@ -10,6 +10,7 @@
 
 #include <string>
 #include <memory>
+#include <vector>
 #include "src/fs/local_filesystem.h"
 #include "proto/chunkserver.pb.h"
 
@@ -21,8 +22,7 @@ const uint32_t CURRENT_METADATA_VERSION = 0x01;
 
 // register配置选项
 struct RegisterOptions {
-    std::string mdsIp;
-    int mdsPort;
+    std::string mdsListenAddr;
     std::string chunkserverIp;
     int chunkserverPort;
     std::string chunserverStoreUri;
@@ -36,7 +36,7 @@ struct RegisterOptions {
 
 class Register {
  public:
-    explicit Register(const RegisterOptions &ops) : ops_(ops) {}
+    explicit Register(const RegisterOptions &ops);
     ~Register() {}
 
     /**
@@ -56,6 +56,9 @@ class Register {
 
  private:
     RegisterOptions ops_;
+
+    std::vector<std::string> mdsEps_;
+    int inServiceIndex_;
 };
 }  // namespace chunkserver
 }  // namespace curve
