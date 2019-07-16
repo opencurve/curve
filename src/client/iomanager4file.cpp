@@ -106,7 +106,6 @@ int IOManager4File::Read(char* buf, off_t offset,
     temp.StartRead(nullptr, buf, offset, length, mdsclient, &fi_);
 
     int rc = temp.Wait();
-    MetricHelper::IncremUserQPSCount(fileMetric_, length, OpType::READ);
     return rc;
 }
 
@@ -119,7 +118,6 @@ int IOManager4File::Write(const char* buf, off_t offset,
     temp.StartWrite(nullptr, buf, offset, length, mdsclient, &fi_);
 
     int rc = temp.Wait();
-    MetricHelper::IncremUserQPSCount(fileMetric_, length, OpType::WRITE);
     return rc;
 }
 
@@ -138,7 +136,7 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
 
     GetInflightIOToken();
-    MetricHelper::IncremInflightIO(fileMetric_, 1);
+    MetricHelper::IncremInflightIO(fileMetric_);
 
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
                                                    scheduler_, fileMetric_);
@@ -164,7 +162,7 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
 
     GetInflightIOToken();
-    MetricHelper::IncremInflightIO(fileMetric_, 1);
+    MetricHelper::IncremInflightIO(fileMetric_);
 
     IOTracker* temp = new (std::nothrow) IOTracker(this, &mc_,
                                                    scheduler_, fileMetric_);

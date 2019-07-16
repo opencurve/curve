@@ -9,6 +9,9 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <chrono>   //  NOLINT
+#include <thread>   //  NOLINT
+
 #include "include/client/libcurve.h"
 #include "src/client/client_metric.h"
 #include "src/client/file_instance.h"
@@ -233,6 +236,8 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     FileInstance fi;
     ASSERT_TRUE(fi.Initialize(filename.c_str(), &mdsclient, userinfo, opt));
 
+    FileMetric_t* fm = fi.GetIOManager4File()->GetMetric();
+
     char* buffer;
 
     buffer = new char[8 * 1024];
@@ -246,40 +251,53 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     memset(buffer + 7 * 1024, 'h', 1024);
 
     int ret = fi.Write(buffer, 0, 8192);
+    ASSERT_EQ(8192, ret);
     ret = fi.Write(buffer, 0, 4096);
+    ASSERT_EQ(4096, ret);
 
     ret = fi.Read(buffer, 0, 8192);
+    ASSERT_EQ(8192, ret);
     ret = fi.Read(buffer, 0, 4096);
+    ASSERT_EQ(4096, ret);
+
+    // 先睡眠，确保采样
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ASSERT_GT(fm->writeRPC.latency.max_latency(), 0);
+    ASSERT_GT(fm->readRPC.latency.max_latency(), 0);
 
     // read write超时重试
     mds.EnableNetUnstable(1500);
     ret = fi.Write(buffer, 0, 4096);
+    ASSERT_EQ(-2, ret);
     ret = fi.Write(buffer, 0, 4096);
+    ASSERT_EQ(-2, ret);
 
     ret = fi.Read(buffer, 0, 4096);
+    ASSERT_EQ(-2, ret);
     ret = fi.Read(buffer, 0, 4096);
+    ASSERT_EQ(-2, ret);
 
-    FileMetric_t* fm = fi.GetIOManager4File()->GetMetric();
 
     // 4次正确读写，4次超时读写,超时会引起重试，重试次数为3，数据量最大是8192
     ASSERT_EQ(fm->inflightIONum.get_value(), 0);
-    ASSERT_EQ(fm->userRead.qps.count.get_value(), 4);
-    ASSERT_EQ(fm->userWrite.qps.count.get_value(), 4);
+    ASSERT_EQ(fm->userRead.qps.count.get_value(), 2);
+    ASSERT_EQ(fm->userWrite.qps.count.get_value(), 2);
     ASSERT_EQ(fm->userRead.eps.count.get_value(), 2);
     ASSERT_EQ(fm->userWrite.eps.count.get_value(), 2);
     ASSERT_EQ(fm->userWrite.rps.count.get_value(), 4);
     ASSERT_EQ(fm->userRead.rps.count.get_value(), 4);
     ASSERT_EQ(fm->getLeaderRetryQPS.count.get_value(), 12);
-    ASSERT_EQ(fm->readRPC.qps.count.get_value(), 8);
-    ASSERT_EQ(fm->writeRPC.qps.count.get_value(), 8);
+    ASSERT_EQ(fm->readRPC.qps.count.get_value(), 2);
+    ASSERT_EQ(fm->writeRPC.qps.count.get_value(), 2);
+    ASSERT_EQ(fm->readRPC.rps.count.get_value(), 8);
+    ASSERT_EQ(fm->writeRPC.rps.count.get_value(), 8);
     ASSERT_EQ(fm->readRPC.eps.count.get_value(), 6);
     ASSERT_EQ(fm->readRPC.eps.count.get_value(), 6);
     ASSERT_EQ(fm->writeRPC.timeoutQps.count.get_value(), 6);
     ASSERT_EQ(fm->readRPC.timeoutQps.count.get_value(), 6);
-    ASSERT_EQ(fm->writeRPC.latency.count(), 8);
-    ASSERT_EQ(fm->readRPC.latency.count(), 8);
-    ASSERT_GT(fm->writeRPC.latency.max_latency(), 0);
-    ASSERT_GT(fm->readRPC.latency.max_latency(), 0);
+    ASSERT_EQ(fm->writeRPC.latency.count(), 2);
+    ASSERT_EQ(fm->readRPC.latency.count(), 2);
 
     delete[] buffer;
     fi.UnInitialize();
