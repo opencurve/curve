@@ -334,6 +334,7 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
             info.diskState);
         ASSERT_EQ(testTopoChunkServer[0].GetStatus(), info.status);
         ASSERT_EQ(stat.leaderCount, info.leaderCount);
+        ASSERT_EQ(testTopoChunkServer[0].GetStartUpTime(), info.startUpTime);
     }
     {
         // 3. test GetChunkServerInfos fail
