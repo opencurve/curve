@@ -54,6 +54,17 @@ class RequestClosure : public ::google::protobuf::Closure {
     void SetIOTracker(IOTracker* ioctx);
 
     /**
+     * 设置当前closure重试次数
+     */
+    void IncremRetriedTimes() {
+       retryTimes_++;
+    }
+
+    uint64_t GetRetriedTimes() {
+       return retryTimes_;
+    }
+
+    /**
      * 设置metric
      */
     void SetFileMetric(FileMetric_t* fm);
@@ -88,6 +99,9 @@ class RequestClosure : public ::google::protobuf::Closure {
 
     // 起始时间
     uint64_t starttime_;
+
+    // 重试次数
+    uint64_t retryTimes_;
 };
 }   // namespace client
 }   // namespace curve
