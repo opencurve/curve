@@ -16,11 +16,12 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
         return StatusCode::KInternalError;
     }
     uint32_t  segmentNum = fileInfo.length() / fileInfo.segmentsize();
+    uint64_t segmentSize = fileInfo.segmentsize();
     for (uint32_t i = 0; i < segmentNum; i++) {
         // load  segment
         PageFileSegment segment;
         StoreStatus storeRet = storage_->GetSegment(fileInfo.parentid(),
-                                                    i * fileInfo.segmentsize(),
+                                                    i * segmentSize,
                                                     &segment);
         if (storeRet == StoreStatus::KeyNotExist) {
             continue;
@@ -28,6 +29,7 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
             LOG(ERROR) << "cleanSnapShot File Error: "
             << "GetSegment Error, inodeid = " << fileInfo.id()
             << ", filename = " << fileInfo.filename()
+            << ", offset = " << i * segmentSize
             << ", sequenceNum = " << fileInfo.seqnum();
             progress->SetStatus(TaskStatus::FAILED);
             return StatusCode::kSnapshotFileDeleteError;
@@ -85,17 +87,19 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
     }
 
     int  segmentNum = commonFile.length() / commonFile.segmentsize();
+    uint64_t segmentSize = commonFile.segmentsize();
     for (int i = 0; i != segmentNum; i++) {
         // load  segment
         PageFileSegment segment;
         StoreStatus storeRet = storage_->GetSegment(commonFile.id(),
-                                    i * commonFile.segmentsize(), &segment);
+                                    i * segmentSize, &segment);
         if (storeRet == StoreStatus::KeyNotExist) {
             continue;
         } else if (storeRet !=  StoreStatus::OK) {
             LOG(ERROR) << "Clean common File Error: "
-            << "GetSegment Error, inodeid = " << commonFile.id()
-            << ", filename = " << commonFile.filename();
+                << "GetSegment Error, inodeid = " << commonFile.id()
+                << ", filename = " << commonFile.filename()
+                << ", offset = " << i * segmentSize;
             progress->SetStatus(TaskStatus::FAILED);
             return StatusCode::kCommonFileDeleteError;
         }
@@ -121,11 +125,12 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
 
         // delete segment
         storeRet = storage_->DeleteSegment(commonFile.id(),
-                                    i * commonFile.segmentsize());
+                                    i * segmentSize);
         if (storeRet != StoreStatus::OK) {
             LOG(ERROR) << "Clean common File Error: "
             << "DeleteSegment Error, inodeid = " << commonFile.id()
             << ", filename = " << commonFile.filename()
+            << ", offset = " << i * segmentSize
             << ", sequenceNum = " << commonFile.seqnum();
             progress->SetStatus(TaskStatus::FAILED);
             return StatusCode::kCommonFileDeleteError;
