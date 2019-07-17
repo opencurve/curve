@@ -20,6 +20,8 @@ const char INODESTOREKEY[] = "04";
 const char INODESTOREKEYEND[] = "05";
 const char CHUNKSTOREKEY[] = "05";
 const char CHUNKSTOREKEYEND[] = "06";
+const char LEADERCAMPAIGNNPFX[] = "07leader";
+
 // TODO(hzsunjianliang): if use single prefix for snapshot file?
 const int PREFIX_LENGTH = 2;
 const int SEGMENTKEYLEN = 18;

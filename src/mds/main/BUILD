@@ -10,6 +10,7 @@ cc_binary(
         "//src/common:curve_common",
         "//src/mds/heartbeat",
         "//src/mds/nameserver2",
+        "//src/mds/leader_election",
         "//src/mds/schedule",
         "//src/mds/topology",
         "//test/mds/nameserver2:fakes",
