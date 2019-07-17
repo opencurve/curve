@@ -53,7 +53,7 @@ int ReplicaScheduler::Schedule() {
                 SelectBestPlacementChunkServer(info, UNINTIALIZE_ID);
             // 未能找到合适的目标节点
             if (csId == UNINTIALIZE_ID) {
-                LOG(ERROR) << "replicaScheduler can not select chunkServer"
+                LOG(WARNING) << "replicaScheduler can not select chunkServer"
                              "to repair "
                            << info.CopySetInfoStr() << ", witch only has "
                            << copysetReplicaNum << " but statandard is "
@@ -88,7 +88,7 @@ int ReplicaScheduler::Schedule() {
             oneRoundGenOp += 1;
         } else {
             // 副本数量大于标准值， 一次移除一个副本
-            LOG(ERROR) << "replicaScheduler find " << info.CopySetInfoStr()
+            LOG(WARNING) << "replicaScheduler find " << info.CopySetInfoStr()
                        << " replicaNum:" << copysetReplicaNum
                        << " larger than standardReplicaNum:"
                        << standardReplicaNum;
