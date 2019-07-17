@@ -42,7 +42,7 @@ bool IOManager4File::Initialize(const std::string& filename,
 
     scheduler_ = new (std::nothrow) RequestScheduler();
     if (scheduler_ == nullptr ||
-        -1 == scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_)) {
+        -1 == scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, fileMetric_)) {
         LOG(ERROR) << "Init scheduler_ failed!";
         return false;
     }
@@ -55,7 +55,8 @@ bool IOManager4File::Initialize(const std::string& filename,
         return false;
     }
 
-    LOG(INFO) << "iomanager init success!";
+    LOG(INFO) << "iomanager init success! conf info: "
+              << "maxInFlightIONum = " << ioopt_.inflightOpt.maxInFlightIONum;
     return true;
 }
 

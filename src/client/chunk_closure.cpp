@@ -61,21 +61,9 @@ void WriteChunkClosure::Run() {
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
                                       0);
-        /**
-         * 考虑到leader可能挂了，所以会尝试去获取新leader，保证client端
-         * 能够自动切换到新的leader上面
-         */
-        if (-1 == metaCache->GetLeader(logicPoolId,
-                                       copysetId,
-                                       &leaderId,
-                                       &leaderAddr,
-                                       true,
-                                       fm)) {
-            LOG(WARNING) << "Refresh leader failed, "
-                         << "copyset id = " << copysetId
-                         << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
-        }
+        // 仅当cntl_->Failed()的时候我们才怀疑当前这个chunkserver有问题
+        ChunkServerID csid = this->GetChunkServerID();
+        metaCache->SetChunkserverUnstable(csid);
         goto write_retry;
     }
 
@@ -95,6 +83,7 @@ void WriteChunkClosure::Run() {
     }
     /* 2. 处理chunkserver返回的错误 */
     /* 2.1.不是 leader */
+    // 当chunkserver返回redirected的时候，这个chunkserver是正常工作状态的
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED == status) {
         if (response_->has_redirect()) {
             std::string redirect = response_->redirect();
@@ -213,21 +202,11 @@ void ReadChunkClosure::Run() {
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
-        /**
-         * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
-         * 能够自动切换到新的 leader 上面
-         */
-        if (-1 == metaCache->GetLeader(logicPoolId,
-                                       copysetId,
-                                       &leaderId,
-                                       &leaderAddr,
-                                       true,
-                                       fm)) {
-            LOG(WARNING) << "Refresh leader failed, "
-                         << "copyset id = " << copysetId
-                         << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
-        }
+
+        // 仅当cntl_->Failed()的时候我们才怀疑当前这个chunkserver有问题
+        ChunkServerID csid = this->GetChunkServerID();
+        metaCache->SetChunkserverUnstable(csid);
+
         goto read_retry;
     }
 

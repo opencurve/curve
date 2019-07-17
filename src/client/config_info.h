@@ -116,10 +116,12 @@ typedef struct RequestScheduleOption {
 
 /**
  * metaccache模块配置信息
+ * @maxUnStableDurationMs: 一个chunkserver在metacache的unstable map中待的最长时间
  * @getLeaderRetry: 获取leader重试次数
  * @retryIntervalUs: 相隔多久进行重试
  */
 typedef struct MetaCacheOption {
+    uint32_t maxUnStableDurationMs;
     uint32_t getLeaderRetry;
     uint32_t retryIntervalUs;
     uint32_t getLeaderTimeOutMs;
@@ -127,6 +129,7 @@ typedef struct MetaCacheOption {
         getLeaderRetry = 3;
         retryIntervalUs = 500;
         getLeaderTimeOutMs = 1000;
+        maxUnStableDurationMs = 30000;  // 30s
     }
 } MetaCacheOption_t;
 

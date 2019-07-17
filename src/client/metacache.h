@@ -10,6 +10,7 @@
 #include <string>
 #include <list>
 #include <map>
+#include <set>
 #include <vector>
 #include <unordered_map>
 
@@ -32,6 +33,7 @@ enum MetaCacheErrorType {
     SERVERLIST_NOT_FOUND = 3,
     UNKNOWN_ERROR
 };
+
 class MetaCache {
  public:
     using CopysetLogicPoolIDStr      = std::string;
@@ -76,7 +78,9 @@ class MetaCache {
     /**
      * sender发送数据的时候需要知道对应的leader然后发送给对应的chunkserver
      * 如果get不到的时候，外围设置refresh为true，然后向chunkserver端拉取最新的
-     * server信息，然后更新metacache
+     * server信息，然后更新metacache。
+     * 如果当前copyset的leaderMayChange置位的时候，即使refresh为false，也需要
+     * 先去拉取新的leader信息，才能继续下发IO.
      * @param: lpid逻辑池id
      * @param: cpid是copysetid
      * @param: serverId对应chunkserver的id信息，是出参
@@ -173,6 +177,44 @@ class MetaCache {
                                         CopysetID csid,
                                         ChunkID chunkid);
 
+    /**
+     * 如果leader所在的chunkserver出现问题了，导致RPC失败。这时候这个
+     * chunkserver上的其他leader copyset也会存在同样的问题，所以需要
+     * 通知当前chunkserver上的leader copyset. 主要是通过设置这个copyset
+     * 的leaderMayChange标志，当该copyset的再次下发IO的时候会查看这个
+     * 状态，当这个标志位置位的时候，IO下发需要先进行leader refresh，
+     * 如果leaderrefresh成功，leaderMayChange会被reset。
+     * SetChunkserverUnstable就会遍历当前chunkserver上的所有copyset
+     * 并设置这个chunkserver的leader copyset的leaderMayChange标志。
+     * @param: csid是当前不稳定的chunkserver ID
+     */
+    virtual void SetChunkserverUnstable(ChunkServerID csid);
+
+    /**
+     * 向map中添加对应chunkserver的copyset信息
+     * @param: csid为当前chunkserverid
+     * @param: cpid为当前copyset的id信息
+     */
+    virtual void AddCopysetIDInfo(ChunkServerID csid,
+                                  const CopysetIDInfo& cpid);
+
+    virtual void UpdateChunkserverCopysetInfo(LogicPoolID lpid,
+                                              const CopysetInfo_t& cpinfo);
+
+    /**
+     * 测试使用
+     * 获取copysetinfo信息
+     */
+    virtual CopysetInfo_t GetCopysetinfo(LogicPoolID lpid, CopysetID csid);
+
+    /**
+     * 测试使用
+     * 获取CopysetIDInfo_t
+     */
+    virtual bool CopysetIDInfoIn(ChunkServerID csid,
+                                LogicPoolID lpid,
+                                CopysetID cpid);
+
  private:
     /**
      * 更新copyset的leader信息
@@ -202,6 +244,16 @@ class MetaCache {
     CURVE_CACHELINE_ALIGNMENT RWLock    rwlock4chunkInfoMap_;
     CURVE_CACHELINE_ALIGNMENT RWLock    rwlock4ChunkInfo_;
     CURVE_CACHELINE_ALIGNMENT RWLock    rwlock4CopysetInfo_;
+
+    // chunkserverCopysetIDMap_存放当前chunkserver到copyset的映射
+    // 当rpc closure设置SetChunkserverUnstable时，会设置该chunkserver
+    // 的所有copyset处于leaderMayChange状态，后续copyset需要判断该值来看
+    // 是否需要刷新leader
+
+    // chunkserverid到copyset的映射
+    std::unordered_map<ChunkServerID, std::set<CopysetIDInfo_t>> chunkserverCopysetIDMap_;  // NOLINT
+    // 读写锁保护unStableCSMap
+    CURVE_CACHELINE_ALIGNMENT RWLock    rwlock4CSCopysetIDMap_;
 };
 
 }   // namespace client
