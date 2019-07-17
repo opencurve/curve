@@ -9,4 +9,7 @@ cc_library(
     srcs = glob(["*.cpp", "*.h"]),
     copts = GCC_TEST_FLAGS,
     visibility = ["//visibility:public"],
+    deps = [
+        "//proto:chunkserver-cc-protos",
+    ],
 )
