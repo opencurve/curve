@@ -38,7 +38,6 @@ extern uint32_t chunk_size;
 extern std::string configpath;
 
 extern char* writebuffer;
-uint16_t sleeptimeMS = 500;
 
 using curve::client::UserInfo_t;
 using curve::client::CopysetInfo_t;
