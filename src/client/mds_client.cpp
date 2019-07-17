@@ -5,10 +5,13 @@
  * Copyright (c)￼ 2018 netease
  */
 #include <glog/logging.h>
+#include <bthread/bthread.h>
 
 #include <thread>   // NOLINT
 #include <chrono>   // NOLINT
 
+#include "src/common/uuid.h"
+#include "src/common/net_common.h"
 #include "src/client/metacache.h"
 #include "src/client/mds_client.h"
 #include "src/common/timeutility.h"
@@ -137,10 +140,58 @@ bool MDSClient::UpdateRetryinfoOrChangeServer(int* retrycount,
             return false;
         }
     } else {
-        std::this_thread::sleep_for(std::chrono::microseconds(
-                                metaServerOpt_.retryIntervalUs));
+        bthread_usleep(metaServerOpt_.retryIntervalUs);
     }
     return true;
+}
+
+LIBCURVE_ERROR MDSClient::Register(const std::string& ip,
+                                   uint16_t port) {
+    // 记录当前mds重试次数
+    int count = 0;
+    // 记录还没重试的mds addr数量
+    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
+
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
+        brpc::Controller cntl;
+        curve::mds::RegistClientResponse response;
+
+        mdsClientMetric_.registerClient.qps.count << 1;
+        {
+            LatencyGuard lg(&mdsClientMetric_.registerClient.latency);
+            ReadLockGuard readGuard(rwlock_);
+            mdsClientBase_.Register(ip,
+                                    port,
+                                    &response,
+                                    &cntl,
+                                    channel_);
+        }
+
+        if (cntl.Failed()) {
+            mdsClientMetric_.registerClient.eps.count << 1;
+            LOG(ERROR) << "register client failed, errcorde = "
+                        << response.statuscode()
+                        << ", error content:"
+                        << cntl.ErrorText()
+                        << ", log id = " << cntl.log_id();
+
+            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
+                break;
+            }
+            continue;
+        }
+
+        LIBCURVE_ERROR retcode;
+        curve::mds::StatusCode stcode = response.statuscode();
+        MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
+                << "Register failed, errocde = " << retcode
+                << ", error message = " << curve::mds::StatusCode_Name(stcode)
+                << ", log id = " << cntl.log_id();
+        return retcode;
+    }
+    return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,

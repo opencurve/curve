@@ -443,5 +443,4 @@ service CurveFSService {
 
     // curve status
     rpc     RegistClient(RegistClientRequest) returns (RegistClientResponse);
-
 }

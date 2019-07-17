@@ -147,7 +147,7 @@ const char CreateCloneTable[] =
 const char CreateClientInfoTable[] =
     "create table if not exists `client_info` (\n"
     "    `clientIp`         varchar(16)   NOT NULL COMMENT 'client ip',\n"                //NOLINT
-    "    `clientPort`       tinyint       NOT NULL COMMENT 'client port',\n"               //NOLINT
+    "    `clientPort`       int           NOT NULL COMMENT 'client port',\n"               //NOLINT
     "UNIQUE KEY `key_ip_port` (`clientIp`, `clientPort`)\n"
     ")COMMENT='client_info';";
 

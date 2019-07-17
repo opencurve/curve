@@ -44,6 +44,9 @@ cc_library(
         "//proto:chunkserver-cc-protos",
         # "//src/chunkserver:chunkserver-lib"
     ],
+    linkopts = [
+        "-luuid"
+    ],
     copts = COPTS,
     visibility = ["//visibility:public"],
 )
