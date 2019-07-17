@@ -96,7 +96,7 @@ def critical(*args):
         else:
             pass
 
-if os.path.exists("/var/lib/jenkins/workspace/curve/curve_multijob/Resources/log"):
-    init_logger("/var/lib/jenkins//workspace/curve/curve_multijob/Resources/log/curve-test.log", logging.DEBUG, True)
+if os.path.exists("/var/lib/jenkins/workspace/curve/curve_multijob/robot/Resources/log"):
+    init_logger("/var/lib/jenkins//workspace/curve/curve_multijob/robot/Resources/log/curve-test.log", logging.DEBUG, True)
 else:
     print "log dir not created!"
