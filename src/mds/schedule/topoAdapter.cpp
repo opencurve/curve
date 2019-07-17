@@ -398,9 +398,6 @@ void TopoAdapterImpl::GetChunkServerScatterMap(
             }
 
             if (chunkServer.GetOnlineState() == OnlineState::OFFLINE) {
-                LOG_EVERY_N(ERROR, 1000) << "topoAdapter find chunkServer "
-                           << chunkServer.GetId()
-                           << " is offline, please check" << std::endl;
                 continue;
             }
 

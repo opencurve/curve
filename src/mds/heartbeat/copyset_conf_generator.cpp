@@ -46,7 +46,7 @@ bool CopysetConfGenerator::GenCopysetConf(
             int updateCode = topo_->UpdateCopySetTopo(newCopySetInfo);
             if (::curve::mds::topology::kTopoErrCodeSuccess != updateCode) {
                 // 更新到内存失败
-                LOG(ERROR) << "topoUpdater update copySet(logicalPoolId:"
+                LOG(WARNING) << "topoUpdater update copySet(logicalPoolId:"
                         << reportCopySetInfo.GetLogicalPoolId()
                         << ", copySetId:" << reportCopySetInfo.GetId()
                         << ") got error code: " << updateCode;
