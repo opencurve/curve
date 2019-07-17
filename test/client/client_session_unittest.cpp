@@ -55,7 +55,7 @@ std::condition_variable sessionCV;
 void sessioncallback(CurveAioContext* aioctx) {
     uint64_t ioEndTime = TimeUtility::GetTimeofDayUs();
 
-    ASSERT_GT(ioEndTime - ioSleepTime, SLEEP_TIME_S * 1000000);
+    ASSERT_LT(ioEndTime - ioSleepTime, SLEEP_TIME_S * 1000000);
 
     sessionFlag = true;
 }
