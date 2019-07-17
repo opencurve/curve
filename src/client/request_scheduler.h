@@ -85,9 +85,9 @@ class RequestScheduler : public Uncopyable {
     virtual int ReSchedule(RequestContext *request);
 
     /**
-     * 关闭scheduler之前先flush scheduler队列
+     * 关闭scheduler之前如果队列在sessionnotvalid睡眠就将其唤醒
      */
-    virtual void Flush();
+    virtual void WakeupBlockQueueAtExit();
 
     /**
      * 当leaseexcutor续约失败的时候，调用LeaseTimeoutDisableIO

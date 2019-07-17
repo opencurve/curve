@@ -86,8 +86,9 @@ void IOManager4File::UnInitialize() {
     taskPool_.Stop();
 
     if (scheduler_ != nullptr) {
-        scheduler_->Fini();
+        scheduler_->WakeupBlockQueueAtExit();
         inflightCntl_.WaitInflightAllComeBack();
+        scheduler_->Fini();
         delete scheduler_;
         scheduler_ = nullptr;
     }
