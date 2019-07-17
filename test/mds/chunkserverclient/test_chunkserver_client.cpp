@@ -19,7 +19,7 @@
 #include "proto/chunk.pb.h"
 #include "src/mds/chunkserverclient/chunkserver_client.h"
 #include "test/mds/mock/mock_topology.h"
-#include "test/mds/chunkserverclient/mock_chunkserver.h"
+#include "test/mds/mock/mock_chunkserver.h"
 
 
 using ::curve::mds::topology::READWRITE;
