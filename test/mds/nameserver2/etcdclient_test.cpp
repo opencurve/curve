@@ -13,6 +13,7 @@
 #include <memory>
 #include "src/mds/nameserver2/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/leader_election/leader_election.h"
 #include "src/common/timeutility.h"
 #include "proto/nameserver2.pb.h"
 
@@ -34,7 +35,7 @@ class TestEtcdClinetImp : public ::testing::Test {
         ASSERT_EQ(EtcdErrCode::DeadlineExceeded,
             client_->CompareAndSwap("04", "10", "110"));
 
-        client_->SetTimeout(20000);
+        client_->SetTimeout(200000);
         system("etcd&");
     }
 
@@ -270,5 +271,102 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     ASSERT_FALSE(
         EtcdErrCode::OK == client_->CompareAndSwap("04", "300", "400"));
 }
+
+TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
+    std::string pfx("/leadere-election/");
+    int sessionnInterSec = 1;
+    int dialtTimeout = 2000;
+    int retryTimes = 3;
+    char endpoints[] = "127.0.0.1:2379";
+    EtcdConf conf = {endpoints, strlen(endpoints), 20000};
+    std::string leaderName1("leader1");
+    std::string leaderName2("leader2");
+    uint64_t leaderOid;
+
+    {
+        // 1. leader1竞选成功，client退出后leader2竞选成功
+        LOG(INFO) << "test case1 start...";
+        // 启动一个线程竞选leader
+        int electionTimeoutMs = 0;
+        uint64_t targetOid;
+        std::thread thread1(&EtcdClientImp::CampaignLeader, client_, pfx,
+            leaderName1, sessionnInterSec, electionTimeoutMs, &targetOid);
+        // 等待线程1执行完成, 线程1执行完成就说明竞选成功，
+        // 否则electionTimeoutMs为0的情况下会一直hung在里面
+        thread1.join();
+        LOG(INFO) << "thread 1 exit.";
+        client_->CloseClient();
+
+        // 启动第二个线程竞选leader
+        auto client2 = std::make_shared<EtcdClientImp>();
+        ASSERT_EQ(0, client2->Init(conf, dialtTimeout, retryTimes));
+        std::thread thread2(&EtcdClientImp::CampaignLeader, client2, pfx,
+            leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
+        // 线程1退出后，leader2会当选
+        thread2.join();
+        LOG(INFO) << "thread 2 exit.";
+        // leader2为leader的情况下此时观察leader1的key应该是出错的
+        ASSERT_EQ(EtcdErrCode::ObserverLeaderInternal,
+            client2->LeaderObserve(targetOid, 1000, leaderName1));
+        client2->CloseClient();
+    }
+
+    {
+        // 2. leader1竞选成功后，不退出; leader2竞选超时
+        LOG(INFO) << "test case2 start...";
+        int electionTimeoutMs = 1000;
+        auto client1 = std::make_shared<EtcdClientImp>();
+        ASSERT_EQ(0, client1->Init(conf, dialtTimeout, retryTimes));
+        std::thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
+            leaderName1, sessionnInterSec, electionTimeoutMs, &leaderOid);
+        thread1.join();
+        LOG(INFO) << "thread 1 exit.";
+
+        // leader2再次竞选
+        std::thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
+            leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
+        thread2.join();
+        client1->CloseClient();
+        LOG(INFO) << "thread 2 exit.";
+    }
+
+    {
+        // 3. leader1竞选成功后，删除key; leader2竞选成功; observe leader1改变;
+        //  observer leader2的过程中etcd挂掉
+        LOG(INFO) << "test case3 start...";
+        uint64_t targetOid;
+        int electionTimeoutMs = 0;
+        auto client1 = std::make_shared<EtcdClientImp>();
+        ASSERT_EQ(0, client1->Init(conf, dialtTimeout, retryTimes));
+        std::thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
+            leaderName1, sessionnInterSec, electionTimeoutMs, &targetOid);
+        thread1.join();
+        LOG(INFO) << "thread 1 exit.";
+        // leader1卸任leader
+        ASSERT_EQ(EtcdErrCode::LeaderResiginSuccess,
+            client1->LeaderResign(targetOid, 500));
+
+        // leader2当选
+        std::thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
+            leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
+        thread2.join();
+        // leader1观察到leader改变
+        ASSERT_EQ(EtcdErrCode::ObserverLeaderChange,
+            client1->LeaderObserve(targetOid, 1000, leaderName1));
+
+        // leader2启动线程observe
+        std::thread thread3(&EtcdClientImp::LeaderObserve, client1,
+            targetOid, 1000, leaderName2);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        system("killall etcd");
+        thread3.join();
+        client1->CloseClient();
+        LOG(INFO) << "thread 2 exit.";
+
+        // 使得etcd完全停掉
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+    }
+}
+
 }  // namespace mds
 }  // namespace curve

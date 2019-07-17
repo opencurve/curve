@@ -42,7 +42,10 @@ class TestHeartbeatManager : public ::testing::Test {
         option, topology_, topologyStat_, coordinator_);
   }
 
-  void TearDown() override {}
+  void TearDown() override {
+      heartbeatManager_->Run();
+      heartbeatManager_->Stop();
+  }
 
  protected:
   std::shared_ptr<MockTopology> topology_;
