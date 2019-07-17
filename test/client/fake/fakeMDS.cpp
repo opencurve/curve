@@ -24,6 +24,7 @@ using curve::client::ChunkInfoDetail;
 DEFINE_bool(fake_chunkserver, true, "create fake chunkserver");
 DEFINE_uint64(test_disk_size, 10 * 1024 * 1024 * 1024ul, "test size");
 DEFINE_uint32(copyset_num, 32, "copyset num in one chunkserver");
+DEFINE_uint32(logic_pool_id, 10000, "logic pool id");
 DEFINE_uint64(seq_num, 1, "seqnum");
 // raft::Configuration format to reuse raft parse functions
 DEFINE_string(chunkserver_list,
@@ -149,7 +150,7 @@ bool FakeMDS::StartService() {
 
     for (unsigned i = 0; i < FLAGS_copyset_num; i ++) {
         CopysetCreatStruct copysetstruct;
-        copysetstruct.logicpoolid = 10000;
+        copysetstruct.logicpoolid = FLAGS_logic_pool_id;
         copysetstruct.copysetid = i;
         copysetstruct.leaderid = peers_[i % peers_.size()];
         auto csinfo = getserverlistresponse->add_csinfo();

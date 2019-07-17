@@ -648,6 +648,14 @@ class FakeMDS {
         return copysetServices_;
     }
 
+    std::vector<FakeChunkService*> GetFakeChunkService() {
+        return chunkServices_;
+    }
+
+    CliServiceFake* GetCliService() {
+        return &fakeCliService_;
+    }
+
  private:
     std::vector<CopysetCreatStruct> copysetnodeVec_;
     brpc::Server* server_;

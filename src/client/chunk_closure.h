@@ -44,6 +44,13 @@ class ClientClosure : public Closure {
     virtual void SetCntl(brpc::Controller* cntl) = 0;
     virtual void SetResponse(Message* response) = 0;
     virtual void SetRetriedTimes(uint16_t retriedTimes) = 0;
+    virtual void SetChunkServerID(ChunkServerID csid) {
+        chunkserverID_ = csid;
+    }
+
+    virtual ChunkServerID GetChunkServerID() {
+        return chunkserverID_;
+    }
 
     static void SetFailureRequestOption(
             const FailureRequestOption_t& failRequestOpt) {
@@ -52,6 +59,9 @@ class ClientClosure : public Closure {
         confMetric_.opMaxRetry.set_value(failReqOpt_.opMaxRetry);
         confMetric_.opRetryIntervalUs.set_value(
                     failReqOpt_.opRetryIntervalUs);
+        LOG(INFO) << "Client clousre conf info: "
+              << "opRetryIntervalUs = " << failReqOpt_.opRetryIntervalUs
+              << ", opMaxRetry = " << failReqOpt_.opMaxRetry;
     }
 
     Closure* GetClosure() {
@@ -66,6 +76,9 @@ class ClientClosure : public Closure {
     ChunkResponse*           response_;
     CopysetClient*           client_;
     Closure*                 done_;
+    // 这里保存chunkserverID，是为了区别当前这个rpc是发给哪个chunkserver的
+    // 这样方便在rpc closure里直接找到，当前是哪个chunkserver返回的失败
+    ChunkServerID            chunkserverID_;
 };
 
 class WriteChunkClosure : public ClientClosure {
