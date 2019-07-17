@@ -32,6 +32,7 @@ using curve::common::ConditionVariable;
 using curve::common::Uncopyable;
 using ::google::protobuf::Closure;
 
+// TODO(tongguangxun) :后续除了read、write的接口也需要调整重试逻辑
 class MetaCache;
 class RequestScheduler;
 /**
@@ -73,7 +74,7 @@ class CopysetClient : public Uncopyable {
      * @param length:读的长度
      * @param appliedindex:需要读到>=appliedIndex的数据
      * @param done:上一层异步回调的closure
-     * @param retriedTimes:已经重试了几次
+     * @param needReschedule为true需要将rpc重新push队列，否则直接发送
      */
     int ReadChunk(ChunkIDInfo idinfo,
                   uint64_t sn,
@@ -81,7 +82,7 @@ class CopysetClient : public Uncopyable {
                   size_t length,
                   uint64_t appliedindex,
                   google::protobuf::Closure *done,
-                  uint64_t retriedTimes = 0);
+                  bool needReschedule = false);
 
     /**
     * 写Chunk
@@ -91,7 +92,7 @@ class CopysetClient : public Uncopyable {
      *@param offset:写的偏移
     * @param length:写的长度
     * @param done:上一层异步回调的closure
-    * @param retriedTimes:已经重试了几次
+    * @param needReschedule为true需要将rpc重新push队列，否则直接发送
     */
     int WriteChunk(ChunkIDInfo idinfo,
                   uint64_t sn,
@@ -99,7 +100,7 @@ class CopysetClient : public Uncopyable {
                   off_t offset,
                   size_t length,
                   Closure *done,
-                  uint64_t retriedTimes = 0);
+                  bool needReschedule = false);
 
     /**
      * 读Chunk快照文件

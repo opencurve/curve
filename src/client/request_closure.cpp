@@ -13,6 +13,7 @@ namespace curve {
 namespace client {
 
 RequestClosure::RequestClosure(RequestContext* reqctx) {
+    retryTimes_ = 0;
     errcode_ = -1;
     reqCtx_ = reqctx;
     metric_ = nullptr;
