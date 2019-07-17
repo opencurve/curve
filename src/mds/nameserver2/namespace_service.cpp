@@ -898,11 +898,6 @@ void NameSpaceService::CheckSnapShotStatus(
         return;
     }
 
-    LOG(INFO) << "logid = " << cntl->log_id()
-              << ", CheckSnapShotStatus not support yet, filename = "
-              << request->filename()
-              << ", seqnum" << request->seq();
-
     FileReadLockGuard guard(fileLockManager_, request->filename());
 
     std::string signature;

@@ -46,13 +46,13 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
     switch (ret) {
         case LIBCURVE_ERROR::OK:
             break;
-        case LIBCURVE_ERROR::NOTEXIST:
+        case -LIBCURVE_ERROR::NOTEXIST:
             LOG(ERROR) << "create snapshot file not exist"
                        << ", file = " << file
                        << ", user = " << user
                        << ", snapshotName = " << snapshotName;
             return kErrCodeFileNotExist;
-        case LIBCURVE_ERROR::AUTHFAIL:
+        case -LIBCURVE_ERROR::AUTHFAIL:
             LOG(ERROR) << "create snapshot by invalid user"
                        << ", file = " << file
                        << ", user = " << user
@@ -297,38 +297,13 @@ void SnapshotCoreImpl::CancelAfterCreateSnapshotOnCurvefs(
     std::shared_ptr<SnapshotTaskInfo> task) {
     SnapshotInfo &info = task->GetSnapshotInfo();
     UUID uuid = task->GetUuid();
-    uint64_t seqNum = info.GetSeqNum();
-    int ret = client_->DeleteSnapshot(info.GetFileName(),
-        info.GetUser(),
-        seqNum);
-    if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "Client DeleteSnapshot error "
-                   << "while canceling CreateSnapshot, "
-                   << " ret = " << ret
-                   << ", fileName = " << info.GetFileName()
-                   << ", user = " << info.GetUser()
-                   << ", seqNum = " << seqNum;
+
+    int ret = DeleteSnapshotOnCurvefs(info);
+    if (ret < 0) {
+        LOG(ERROR) << "DeleteSnapshotOnCurvefs fail.";
         HandleCreateSnapshotError(task);
         return;
     }
-    do {
-        ret = client_->CheckSnapShotStatus(info.GetFileName(),
-            info.GetUser(),
-            seqNum);
-            if (LIBCURVE_ERROR::OK == ret ||
-                LIBCURVE_ERROR::NOTEXIST == ret) {
-                break;
-            } else if (LIBCURVE_ERROR::DELETING == ret) {
-                // nothing
-            } else {
-                LOG(ERROR) << "CheckSnapShotStatus fail"
-                           << ", ret = " << ret;
-                HandleCreateSnapshotError(task);
-                return;
-            }
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(checkSnapshotStatusIntervalMs_));
-    } while (LIBCURVE_ERROR::DELETING == ret);
     HandleClearSnapshotOnMateStore(task);
 }
 
@@ -399,12 +374,51 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
     return kErrCodeSuccess;
 }
 
+int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(const SnapshotInfo &info) {
+    std::string fileName = info.GetFileName();
+    std::string user = info.GetUser();
+    uint64_t seqNum = info.GetSeqNum();
+    int ret = client_->DeleteSnapshot(fileName,
+        user,
+        seqNum);
+    if (ret != LIBCURVE_ERROR::OK &&
+        ret != -LIBCURVE_ERROR::NOTEXIST) {
+        LOG(ERROR) << "DeleteSnapshot error, "
+                   << " ret = " << ret
+                   << ", fileName = " << fileName
+                   << ", user = " << user
+                   << ", seqNum = " << seqNum;
+        return kErrCodeInternalError;
+    }
+    do {
+        FileStatus status;
+        ret = client_->CheckSnapShotStatus(info.GetFileName(),
+            info.GetUser(),
+            seqNum,
+            &status);
+            if (-LIBCURVE_ERROR::NOTEXIST == ret) {
+                break;
+            } else if (LIBCURVE_ERROR::OK == ret) {
+                // nothing
+                if (status != FileStatus::Deleting) {
+                    break;
+                }
+            } else {
+                LOG(ERROR) << "CheckSnapShotStatus fail"
+                           << ", ret = " << ret;
+                return kErrCodeInternalError;
+            }
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(checkSnapshotStatusIntervalMs_));
+    } while (LIBCURVE_ERROR::OK == ret);
+    return kErrCodeSuccess;
+}
+
 int SnapshotCoreImpl::BuildChunkIndexData(
     const SnapshotInfo &info,
     ChunkIndexData *indexData,
     std::vector<SegmentInfo> *segInfos,
     std::shared_ptr<SnapshotTaskInfo> task) {
-    int ret = 0;
     std::string fileName = info.GetFileName();
     std::string user = info.GetUser();
     uint64_t seqNum = info.GetSeqNum();
@@ -418,14 +432,14 @@ int SnapshotCoreImpl::BuildChunkIndexData(
     for (uint64_t i = 0; i < fileLength/segmentSize; i++) {
         uint64_t offset = i * segmentSize;
         SegmentInfo segInfo;
-        ret = client_->GetSnapshotSegmentInfo(
+        int ret = client_->GetSnapshotSegmentInfo(
             fileName,
             user,
             seqNum,
             offset,
             &segInfo);
         if (ret != LIBCURVE_ERROR::OK &&
-            ret != LIBCURVE_ERROR::NOT_ALLOCATE) {
+            ret != -LIBCURVE_ERROR::NOT_ALLOCATE) {
             LOG(ERROR) << "GetSnapshotSegmentInfo error, "
                        << " ret = " << ret
                        << ", fileName = " << fileName
@@ -509,7 +523,7 @@ int SnapshotCoreImpl::BuildSegmentInfo(
             offset,
             &segInfo);
         if (ret != LIBCURVE_ERROR::OK &&
-            ret != LIBCURVE_ERROR::NOT_ALLOCATE) {
+            ret != -LIBCURVE_ERROR::NOT_ALLOCATE) {
             LOG(ERROR) << "GetSnapshotSegmentInfo error,"
                        << " ret = " << ret
                        << ", fileName = " << fileName
@@ -553,7 +567,7 @@ int SnapshotCoreImpl::TransferSnapshotDataChunk(
             offset,
             chunkSplitSize_,
             buf.get());
-        if (ret != LIBCURVE_ERROR::OK) {
+        if (ret < 0) {
             LOG(ERROR) << "ReadChunkSnapshot error, "
                        << " ret = " << ret
                        << ", logicalPool = " << cidInfo.lpid_
@@ -614,7 +628,6 @@ int SnapshotCoreImpl::TransferSnapshotData(
     const ChunkDataExistFilter &filter,
     std::shared_ptr<SnapshotTaskInfo> task) {
     int ret = 0;
-    uint64_t seqNum = info.GetSeqNum();
     uint64_t segmentSize = info.GetSegmentSize();
     uint64_t chunkSize = info.GetChunkSize();
     uint64_t chunkPerSegment = segmentSize/chunkSize;
@@ -676,35 +689,11 @@ int SnapshotCoreImpl::TransferSnapshotData(
             return kErrCodeSuccess;
         }
     }
-    ret = client_->DeleteSnapshot(info.GetFileName(),
-        info.GetUser(),
-        seqNum);
-    if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "DeleteSnapshot error, "
-                   << " ret = " << ret
-                   << ", fileName = " << info.GetFileName()
-                   << ", user = " << info.GetUser()
-                   << ", seqNum = " << seqNum;
-        return kErrCodeInternalError;
+    ret = DeleteSnapshotOnCurvefs(info);
+    if (ret < 0) {
+        LOG(ERROR) << "DeleteSnapshotOnCurvefs fail.";
+        return ret;
     }
-    do {
-        ret = client_->CheckSnapShotStatus(info.GetFileName(),
-            info.GetUser(),
-            seqNum);
-            if (LIBCURVE_ERROR::OK == ret ||
-                LIBCURVE_ERROR::NOTEXIST == ret) {
-                break;
-            } else if (LIBCURVE_ERROR::DELETING == ret) {
-                // nothing
-            } else {
-                LOG(ERROR) << "CheckSnapShotStatus fail"
-                           << ", ret = " << ret;
-                return kErrCodeInternalError;
-            }
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(checkSnapshotStatusIntervalMs_));
-    } while (LIBCURVE_ERROR::DELETING == ret);
-
     return kErrCodeSuccess;
 }
 
@@ -716,8 +705,8 @@ int SnapshotCoreImpl::DeleteSnapshotPre(
     SnapshotInfo *snapInfo) {
     int ret = metaStore_->GetSnapshotInfo(uuid, snapInfo);
     if (ret < 0) {
-        // snapshot not exist.
-        return kErrCodeFileNotExist;
+        // 快照不存在时直接返回删除成功，使接口幂等
+        return kErrCodeSuccess;
     }
     if (snapInfo->GetUser() != user) {
         LOG(ERROR) << "Can not delete snapshot by different user.";
@@ -736,15 +725,14 @@ int SnapshotCoreImpl::DeleteSnapshotPre(
         case Status::error:
             snapInfo->SetStatus(Status::errorDeleting);
             break;
-        case Status::pending:
-            LOG(ERROR) << "Can not delete snapshot unfinished.";
-            return kErrCodeSnapshotCannotDeleteUnfinished;
         case Status::canceling:
         case Status::deleting:
         case Status::errorDeleting:
             return kErrCodeTaskExist;
             break;
         default:
+            LOG(ERROR) << "Can not delete snapshot unfinished.";
+            return kErrCodeSnapshotCannotDeleteUnfinished;
             break;
     }
 
@@ -850,38 +838,12 @@ void SnapshotCoreImpl::HandleDeleteSnapshotTask(
     // ClearSnapshotOnCurvefs  when errorDeleting
     if ((Status::errorDeleting == info.GetStatus()) ||
         (Status::canceling == info.GetStatus())) {
-        ret = client_->DeleteSnapshot(info.GetFileName(),
-            info.GetUser(),
-            seqNum);
-        if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "Client DeleteSnapshot error "
-                       << "while DeleteSnapshot, "
-                       << " ret = " << ret
-                       << " fileName = " << info.GetFileName()
-                       << " user = " << info.GetUser()
-                       << " seqNum = " << seqNum;
+        ret = DeleteSnapshotOnCurvefs(info);
+        if (ret < 0) {
+            LOG(ERROR) << "DeleteSnapshotOnCurvefs fail.";
             HandleDeleteSnapshotError(task);
             return;
         }
-
-        do {
-            ret = client_->CheckSnapShotStatus(info.GetFileName(),
-                info.GetUser(),
-                seqNum);
-                if (LIBCURVE_ERROR::OK == ret ||
-                    LIBCURVE_ERROR::NOTEXIST == ret) {
-                    break;
-                } else if (LIBCURVE_ERROR::DELETING == ret) {
-                    // nothing
-                } else {
-                    LOG(ERROR) << "CheckSnapShotStatus fail"
-                               << ", ret = " << ret;
-                    HandleDeleteSnapshotError(task);
-                    return;
-                }
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(checkSnapshotStatusIntervalMs_));
-        } while (LIBCURVE_ERROR::DELETING == ret);
     }
 
     task->SetProgress(kDelProgressDeleteChunkIndexDataComplete);
