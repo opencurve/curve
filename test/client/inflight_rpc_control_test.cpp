@@ -192,7 +192,7 @@ TEST_F(InflightRPCTest, metricTest) {
 TEST_F(InflightRPCTest, inflightRPCTest) {
     // 测试inflight RPC超过限制的时候copyset client hang住request scheduler
     fileinstance_ = new FileInstance();
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 1000;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 10000;
     // 设置inflight RPC最大数量为1
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 1;
     fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
@@ -231,7 +231,6 @@ TEST_F(InflightRPCTest, inflightRPCTest) {
     ASSERT_EQ(1, fm->inflightRPCNum.get_value());
     ASSERT_EQ(2, scheduler->GetQueue()->Size());
     ASSERT_EQ(1, fm->inflightRPCNum.get_value());
-
     {
         std::unique_lock<std::mutex> lk(rmtx);
         rcv.wait(lk, []()->bool{return iorflag;});
@@ -257,6 +256,7 @@ TEST_F(InflightRPCTest, inflightRPCTest) {
 TEST_F(InflightRPCTest, sessionNotValidhangRPCTest) {
     // session过期，重试RPC被重新放回队列，然后退出时RPC直接错误返回
     fileinstance_ = new FileInstance();
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 50;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 5000;
     // 设置inflight RPC最大数量为1
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 100;
@@ -305,7 +305,7 @@ TEST_F(InflightRPCTest, sessionNotValidhangRPCTest) {
     iomana->AioRead(aioctx, &mdsclient_);
     iomana->AioWrite(aioctx2, &mdsclient_);
 
-    std::this_thread::sleep_for(std::chrono::seconds(15));
+    std::this_thread::sleep_for(std::chrono::seconds(30));
     // IO都重试失败，并且在充实过程中session过期，rpc停止重试
     // 被重新压回队列
     ASSERT_EQ(0, fm->inflightRPCNum.get_value());

@@ -53,9 +53,6 @@ int RequestScheduler::Run() {
 }
 
 int RequestScheduler::Fini() {
-    client_.ResetExitFlag();
-    Flush();
-
     if (running_.exchange(false, std::memory_order_acq_rel)) {
         for (int i = 0; i < threadPool_.NumOfThreads(); ++i) {
             // notify the wait thread
@@ -99,7 +96,7 @@ int RequestScheduler::ReSchedule(RequestContext *request) {
     return -1;
 }
 
-void RequestScheduler::Flush() {
+void RequestScheduler::WakeupBlockQueueAtExit() {
     // 在scheduler退出的时候要把队列的内容清空, 通知copyset client
     // 当前操作是退出状态，copyset client会针对inflight RPC做响应处理
     // 正常情况下队列内容一定会在Fini调用结束之后全部清空
@@ -108,6 +105,7 @@ void RequestScheduler::Flush() {
     // 把队列里内容统统扔到copyset client，因为在session
     // 续约失败后copyset client会将IO全部失败返回，scheduler
     // 模块不需要处理具体RPC请求，由copyset client负责。
+    client_.ResetExitFlag();
     blockingQueue_ = false;
     std::atomic_thread_fence(std::memory_order_acquire);
     leaseRefreshcv_.notify_all();
