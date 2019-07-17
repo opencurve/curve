@@ -407,11 +407,16 @@ TEST_F(CopysetClientTest, write_error_test) {
     ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
     ioSenderOpt.enableAppliedIndexRead = 1;
 
+    RequestScheduleOption_t reqopt;
+    reqopt.ioSenderOpt = ioSenderOpt;
+
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
 
     RequestScheduler scheduler;
+    scheduler.Init(reqopt, &mockMetaCache);
+    scheduler.Run();
     copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler, nullptr);
 
     LogicPoolID logicPoolId = 1;
@@ -529,7 +534,7 @@ TEST_F(CopysetClientTest, write_error_test) {
                                  buff1, offset, len, reqDone, 0);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
-                  reqDone->GetErrorCode());
+                 reqDone->GetErrorCode());
     }
     /* 不是 leader，返回正确的 leader */
     {
@@ -800,6 +805,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
+    scheduler.Fini();
 }
 
 /**
@@ -818,10 +824,17 @@ TEST_F(CopysetClientTest, read_error_test) {
     ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
     ioSenderOpt.enableAppliedIndexRead = 1;
 
+    RequestScheduleOption_t reqopt;
+    reqopt.ioSenderOpt = ioSenderOpt;
+
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
     mockMetaCache.DelegateToFake();
+
     RequestScheduler scheduler;
+    scheduler.Init(reqopt, &mockMetaCache);
+    scheduler.Run();
+
     copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler);
 
     LogicPoolID logicPoolId = 1;
@@ -1239,6 +1252,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
+    scheduler.Fini();
 }
 
 /**

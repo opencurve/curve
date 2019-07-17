@@ -161,7 +161,7 @@ void WriteChunkClosure::Run() {
 
 write_retry:
     MetricHelper::IncremFailRPCCount(fm, OpType::WRITE);
-    if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
+    if (reqDone->GetRetriedTimes() >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
@@ -178,7 +178,7 @@ write_retry:
                         reqCtx->offset_,
                         reqCtx->rawlength_,
                         doneGuard.release(),
-                        retriedTimes_ + 1);
+                        true);
 }
 
 void ReadChunkClosure::GetToken() {
@@ -325,7 +325,7 @@ void ReadChunkClosure::Run() {
 read_retry:
     MetricHelper::IncremFailRPCCount(fm, OpType::READ);
 
-    if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
+    if (reqDone->GetRetriedTimes() >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
         LOG(ERROR) << "retried times exceeds";
         return;
@@ -339,7 +339,7 @@ read_retry:
                        reqCtx->rawlength_,
                        reqCtx->appliedindex_,
                        doneGuard.release(),
-                       retriedTimes_ + 1);
+                       true);
 }
 
 void ReadChunkSnapClosure::Run() {
