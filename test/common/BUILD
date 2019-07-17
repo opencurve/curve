@@ -15,6 +15,9 @@ cc_library(
     srcs = [
             "mock_s3_adapter.h",
             ],
+    linkopts = [
+        "-luuid"
+    ],
     deps = [
             "//src/common:curve_common",
             ],
