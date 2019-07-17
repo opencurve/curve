@@ -28,6 +28,7 @@ using curve::chunkserver::CHUNK_OP_STATUS;
 class FakeChunkService : public ChunkService {
  public:
     FakeChunkService() {
+        rpcFailed = false;
         waittimeMS = 10;
         wait4netunstable = false;
     }
@@ -39,6 +40,11 @@ class FakeChunkService : public ChunkService {
                     google::protobuf::Closure *done) {
         brpc::ClosureGuard doneGuard(done);
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
+
+        if (rpcFailed) {
+            cntl->SetFailed(-1, "set rpc failed!");
+        }
+
         ::memcpy(chunk_,
                  cntl->request_attachment().to_string().c_str(),
                  request->size());
@@ -57,6 +63,11 @@ class FakeChunkService : public ChunkService {
 
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
         char buff[16 * 1024] = {0};
+
+        if (rpcFailed) {
+            cntl->SetFailed(-1, "set rpc failed!");
+        }
+
         ::memcpy(buff, chunk_, request->size());
         cntl->response_attachment().append(buff, request->size());
         response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -128,6 +139,14 @@ class FakeChunkService : public ChunkService {
         fakeGetChunkInforet_ = fakeret;
     }
 
+    void SetRPCFailed() {
+        rpcFailed = true;
+    }
+
+    void ReSetRPCFailed() {
+        rpcFailed = false;
+    }
+
     FakeReturn* fakedeletesnapchunkret_;
     FakeReturn* fakereadchunksnapret_;
     FakeReturn* fakeGetChunkInforet_;
@@ -142,10 +161,15 @@ class FakeChunkService : public ChunkService {
     bool wait4netunstable;
     uint64_t waittimeMS;
     char chunk_[16 * 1024];
+    bool rpcFailed;
 };
 
 class CliServiceFake : public curve::chunkserver::CliService2 {
  public:
+    CliServiceFake() {
+        invokeTimes = 0;
+    }
+
     void GetLeader(::google::protobuf::RpcController* controller,
                     const curve::chunkserver::GetLeaderRequest2* request,
                     curve::chunkserver::GetLeaderResponse2* response,
@@ -154,14 +178,24 @@ class CliServiceFake : public curve::chunkserver::CliService2 {
         curve::common::Peer *peer = new curve::common::Peer();
         peer->set_address(leaderid_.to_string());
         response->set_allocated_leader(peer);
+        invokeTimes++;
     }
 
     void SetPeerID(PeerId peerid) {
         leaderid_ = peerid;
     }
 
+    uint64_t GetInvokeTimes() {
+        return invokeTimes;
+    }
+
+    void ReSetInvokeTimes() {
+        invokeTimes = 0;
+    }
+
  private:
     PeerId leaderid_;
+    uint64_t invokeTimes;
 };
 
 class FakeChunkServerService : public ChunkService {

@@ -20,7 +20,8 @@ namespace curve {
 namespace client {
 
 int CopysetClient::Init(MetaCache *metaCache,
-                        const IOSenderOption_t& ioSenderOpt) {
+                        const IOSenderOption_t& ioSenderOpt,
+                        FileMetric_t* fm) {
     if (nullptr == metaCache) {
         return -1;
     }
@@ -31,9 +32,29 @@ int CopysetClient::Init(MetaCache *metaCache,
         return -1;
     }
     iosenderopt_ = ioSenderOpt;
+
+    fileMetric_ = fm;
+
+    LOG(INFO) << "CopysetClient init success, conf info: "
+              << ", opRetryIntervalUs = "
+              << iosenderopt_.failRequestOpt.opRetryIntervalUs
+              << ", opMaxRetry = "
+              << iosenderopt_.failRequestOpt.opMaxRetry;
     return 0;
 }
-
+bool CopysetClient::FetchLeader(LogicPoolID lpid, CopysetID cpid,
+                                ChunkServerID* leaderid,
+                                butil::EndPoint* leaderaddr) {
+    if (-1 == metaCache_->GetLeader(lpid, cpid, leaderid,
+                                    leaderaddr, true, fileMetric_)) {
+        LOG(WARNING) << "Get leader address form cache failed, but "
+                        << "also refresh leader address failed from mds."
+                        << "(write <" << lpid << ", " << cpid << ">)";
+        bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
+        return false;
+    }
+    return true;
+}
 int CopysetClient::ReadChunk(ChunkIDInfo idinfo,
                              uint64_t sn,
                              off_t offset,
@@ -49,19 +70,10 @@ int CopysetClient::ReadChunk(ChunkIDInfo idinfo,
 
     for (unsigned int i = retriedTimes;
         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
-        /* cache中找 */
-        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
-                                        &leaderId, &leaderAddr, false)) {
-            /* 没找到刷新cache */
-            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
-                                            &leaderId, &leaderAddr, true)) {
-                LOG(WARNING) << "Get leader address form cache failed, but "
-                             << "also refresh leader address failed from mds."
-                             << "(write <" << idinfo.lpid_
-                             << ", " << idinfo.cpid_ << ">)";
-                /* 刷新cache失败，再等一定时间再重试 */
-                bthread_usleep(iosenderopt_.failRequestOpt.
-                                opRetryIntervalUs);
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_, &leaderId,
+                                        &leaderAddr, false, fileMetric_)) {
+            if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
+                                        &leaderId, &leaderAddr)) {
                 continue;
             }
         }
@@ -104,19 +116,10 @@ int CopysetClient::WriteChunk(ChunkIDInfo idinfo,
 
     for (unsigned int i = retriedTimes;
         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
-        /* cache中找 */
-        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
-                                        &leaderId, &leaderAddr, false)) {
-            /* 没找到刷新cache */
-            if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_,
-                                            &leaderId, &leaderAddr, true)) {
-                LOG(WARNING) << "Get leader address form cache failed, but "
-                        << "also refresh leader address failed from mds."
-                        << "(write <" << idinfo.lpid_ << ", " << idinfo.cpid_
-                        << ">)";
-                /* 刷新cache失败，再等一定时间再重试 */
-                bthread_usleep(iosenderopt_.failRequestOpt.
-                                opRetryIntervalUs);
+        if (-1 == metaCache_->GetLeader(idinfo.lpid_, idinfo.cpid_, &leaderId,
+                                        &leaderAddr, false, fileMetric_)) {
+            if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
+                                        &leaderId, &leaderAddr)) {
                 continue;
             }
         }
@@ -144,6 +147,7 @@ int CopysetClient::WriteChunk(ChunkIDInfo idinfo,
     return 0;
 }
 
+// TODO(tongguangxun): 后面的这些快照接口也需要设置同样的FetchLeader逻辑
 int CopysetClient::ReadChunkSnapshot(ChunkIDInfo idinfo,
                                      uint64_t sn,
                                      off_t offset,

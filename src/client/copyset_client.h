@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <string>
 
+#include "src/client/client_metric.h"
 #include "src/client/client_common.h"
 #include "src/client/config_info.h"
 #include "src/common/uncopyable.h"
@@ -45,7 +46,8 @@ class CopysetClient : public Uncopyable {
     }
 
     int Init(MetaCache *metaCache,
-             const IOSenderOption_t& ioSenderOpt);
+             const IOSenderOption_t& ioSenderOpt,
+             FileMetric_t* fm = nullptr);
 
     /**
      * 返回依赖的Meta Cache
@@ -169,12 +171,21 @@ class CopysetClient : public Uncopyable {
                   uint16_t retriedTimes = 0);
 
  private:
+    // 拉取新的leader信息
+    bool FetchLeader(LogicPoolID lpid,
+                     CopysetID cpid,
+                     ChunkServerID* leaderid,
+                     butil::EndPoint* leaderaddr);
+
+ private:
     // 元数据缓存
     MetaCache            *metaCache_;
     // 所有ChunkServer的链接管理者
     RequestSenderManager *senderManager_;
     // 配置
     IOSenderOption_t iosenderopt_;
+    // client端metric统计信息
+    FileMetric_t*        fileMetric_;
 };
 
 }   // namespace client

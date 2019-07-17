@@ -48,6 +48,11 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption_t& metaServerOpt) {
     }
     confMetric_.metaserverAddr.set_value(metaserverAddr);
 
+    LOG(INFO) << "MDS Client conf info: "
+              << "rpcRetryTimes = " << metaServerOpt_.rpcRetryTimes
+              << ", rpcTimeoutMs = " << metaServerOpt_.rpcTimeoutMs
+              << ", retryIntervalUs = " << metaServerOpt_.retryIntervalUs;
+
     for (auto addr : metaServerOpt_.metaaddrvec) {
         lastWorkingMDSAddrIndex_++;
 
