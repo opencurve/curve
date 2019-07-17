@@ -414,6 +414,7 @@ class ChunkServer {
           internalHostIp_(""),
           port_(0),
           mountPoint_(""),
+          startUpTime_(0),
           status_(READWRITE),
           onlineState_(OFFLINE),
           dirty_(false) {}
@@ -434,6 +435,7 @@ class ChunkServer {
           internalHostIp_(hostIp),
           port_(port),
           mountPoint_(diskPath),
+          startUpTime_(0),
           status_(status),
           onlineState_(onlineState),
           dirty_(false) {}
@@ -446,6 +448,7 @@ class ChunkServer {
         internalHostIp_(v.internalHostIp_),
         port_(v.port_),
         mountPoint_(v.mountPoint_),
+        startUpTime_(v.startUpTime_),
         status_(v.status_),
         onlineState_(v.onlineState_),
         state_(v.state_),
@@ -462,6 +465,7 @@ class ChunkServer {
         internalHostIp_ = v.internalHostIp_;
         port_ = v.port_;
         mountPoint_ = v.mountPoint_;
+        startUpTime_ = v.startUpTime_;
         status_ = v.status_;
         onlineState_ = v.onlineState_;
         state_ = v.state_;
@@ -508,6 +512,14 @@ class ChunkServer {
         return mountPoint_;
     }
 
+    void SetStartUpTime(uint64_t time) {
+        startUpTime_ = time;
+    }
+
+    uint64_t GetStartUpTime() const {
+        return startUpTime_;
+    }
+
     void SetStatus(ChunkServerStatus status) {
         status_ = status;
     }
@@ -549,6 +561,11 @@ class ChunkServer {
     std::string internalHostIp_;
     uint32_t port_;
     std::string mountPoint_;  // mnt/ssd1
+
+    /**
+     * @brief chunkserver启动时间
+     */
+    uint64_t startUpTime_;
 
     ChunkServerStatus status_;
     OnlineState onlineState_;  // 0:online、1: offline

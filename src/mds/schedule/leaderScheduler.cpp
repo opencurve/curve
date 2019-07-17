@@ -7,9 +7,11 @@
 
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
 #include <glog/logging.h>
 #include <algorithm>
 #include <random>
+#include <limits>
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorFactory.h"
 
@@ -41,6 +43,10 @@ int LeaderScheduler::Schedule() {
         }
 
         if (minLeaderCount == -1 || csInfo.leaderCount < minLeaderCount) {
+            // 因为只有minLeaderCount的才会作为目标节点，这里只需要判断目标节点是否刚启动
+            if (!coolingTimeExpired(csInfo.startUpTime)) {
+                continue;
+            }
             minId = csInfo.info.id;
             minLeaderCount = csInfo.leaderCount;
         }
@@ -127,8 +133,9 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
         *selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
 
         // 从follower中选择leader数目最少
-        int targetId = -1;
-        int targetLeaderCount = -1;
+        ChunkServerIdType targetId = UNINTIALIZE_ID;
+        uint32_t targetLeaderCount = std::numeric_limits<uint32_t>::max();
+        uint64_t targetStartUpTime = 0;
         for (auto peerInfo : selectedCopySet->peers) {
             ChunkServerInfo csInfo;
             if (!topo_->GetChunkServerInfo(peerInfo.id, &csInfo)) {
@@ -146,13 +153,16 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
                 continue;
             }
 
-            if (targetId <= 0 || csInfo.leaderCount < targetLeaderCount) {
+            if (csInfo.leaderCount < targetLeaderCount) {
                 targetId = csInfo.info.id;
                 targetLeaderCount = csInfo.leaderCount;
+                targetStartUpTime = csInfo.startUpTime;
             }
         }
 
-        if (targetId <= 0 || count - 1 < targetLeaderCount + 1) {
+        if (targetId == UNINTIALIZE_ID ||
+            count - 1 < targetLeaderCount + 1 ||
+            !coolingTimeExpired(targetStartUpTime)) {
             retryTimes++;
             continue;
         } else {
@@ -240,6 +250,16 @@ bool LeaderScheduler::copySetHealthy(const CopySetInfo &cInfo) {
         }
     }
     return healthy;
+}
+
+bool LeaderScheduler::coolingTimeExpired(uint64_t startUpTime) {
+    if (startUpTime == 0) {
+        return false;
+    }
+
+    struct timeval tm;
+    gettimeofday(&tm, NULL);
+    return tm.tv_sec - startUpTime > chunkserverCoolingTimeSec_;
 }
 
 int64_t LeaderScheduler::GetRunningInterval() {

@@ -96,6 +96,10 @@ class MockTopology : public Topology {
 
     MOCK_METHOD2(UpdateChunkServerDiskStatus, int(const ChunkServerState &state,
                                            ChunkServerIdType id));
+
+    MOCK_METHOD2(UpdateChunkServerStartUpTime, int(uint64_t time,
+                         ChunkServerIdType id));
+
     MOCK_METHOD1(UpdateCopySet,
         int(const ::curve::mds::topology::CopySetInfo &data));
 

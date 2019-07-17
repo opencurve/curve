@@ -25,8 +25,8 @@ class DataBase {
  public:
   DataBase() = default;
 
-  DataBase(const std::string &url,
-           const std::string &user,
+  DataBase(const std::string &user,
+           const std::string &url,
            const std::string &password,
            const std::string &schema,
            uint32_t capacity);

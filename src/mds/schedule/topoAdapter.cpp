@@ -123,6 +123,7 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
     this->diskCapacity = capacity;
     this->diskUsed = used;
     this->statisticInfo = statisticInfo;
+    this->startUpTime = 0;
 }
 
 bool ChunkServerInfo::IsOffline() {
@@ -351,6 +352,7 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
         return false;
     }
 
+    out->startUpTime = origin.GetStartUpTime();
     out->state = origin.GetOnlineState();
     out->status = origin.GetStatus();
     out->diskState = origin.GetChunkServerState().GetDiskState();

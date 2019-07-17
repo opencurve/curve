@@ -1376,6 +1376,34 @@ TEST_F(TestTopology, UpdateChunkServerRwState_ChunkServerNotFound) {
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
 }
 
+TEST_F(TestTopology, UpdateChunkServerStartUpTime_success) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    ChunkServerIdType csId = 0x41;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId);
+    PrepareAddChunkServer(csId,
+            "token",
+            "ssd",
+            serverId,
+            "/");
+    uint64_t time = 0x1234567812345678;
+    int ret = topology_->UpdateChunkServerStartUpTime(time,  csId);
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+
+    ChunkServer cs;
+    topology_->GetChunkServer(csId, &cs);
+    ASSERT_EQ(time, cs.GetStartUpTime());
+}
+
+TEST_F(TestTopology, UpdateChunkServerStartUpTime_ChunkServerNotFound) {
+    ChunkServerIdType csId = 0x41;
+    int ret = topology_->UpdateChunkServerStartUpTime(1000,  csId);
+    ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
+}
+
 TEST_F(TestTopology, FindLogicalPool_success) {
     PoolIdType logicalPoolId = 0x01;
     std::string logicalPoolName = "logicalPool1";

@@ -7,6 +7,7 @@
  */
 
 #include <sys/statvfs.h>
+#include <sys/time.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <braft/closure_helper.h>
@@ -15,6 +16,7 @@
 #include <memory>
 
 #include "src/fs/fs_common.h"
+#include "src/common/timeutility.h"
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
@@ -68,6 +70,9 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     LOG(INFO) << "MDS address: " << options_.mdsListenAddr;
 
     copysetMan_ = options.copysetNodeManager;
+
+    // 获取当前unix时间戳
+    startUpTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
     return 0;
 }
 
@@ -186,6 +191,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
 
     req->set_chunkserverid(options_.chunkserverId);
     req->set_token(options_.chunkserverToken);
+    req->set_starttime(startUpTime_);
     req->set_ip(options_.ip);
     req->set_port(options_.port);
 
