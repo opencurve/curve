@@ -54,6 +54,8 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
       clientOption_.requestQueueCap =
           conf_.GetIntValue("client.request_queue_capacity");
       clientOption_.threadNum = conf_.GetIntValue("client.thread_number");
+      clientOption_.requestRpcTimeOutMs =
+          conf_.GetIntValue("client.request_rpcTimeOutMs");
       clientOption_.requestMaxRetry =
           conf_.GetIntValue("client.request_max_retry");
       clientOption_.requestRetryIntervalUs =
