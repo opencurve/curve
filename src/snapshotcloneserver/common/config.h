@@ -22,6 +22,8 @@ struct CurveClientOptions {
   uint32_t requestQueueCap;
   // opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
   uint32_t threadNum;
+  // rpc超时时间
+  uint32_t requestRpcTimeOutMs;
   // opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
   uint32_t requestMaxRetry;
   // opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;

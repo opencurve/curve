@@ -162,8 +162,6 @@ int DBSnapshotCloneMetaStore::GetCloneInfo(const std::string &taskID,
         *info = search->second;
         return 0;
     }
-    LOG(ERROR) << "Get clone info failed,"
-               << "taskID:" << taskID;
     return -1;
 }
 
@@ -178,7 +176,6 @@ int DBSnapshotCloneMetaStore::GetCloneInfoList(std::vector<CloneInfo> *v) {
     if (v->size() != 0) {
         return 0;
     }
-    LOG(ERROR) << "GetCloneList failed";
     return -1;
 }
 
@@ -278,9 +275,7 @@ int DBSnapshotCloneMetaStore::GetSnapshotInfo(const UUID &uuid,
         *info = search->second;
         return 0;
     }
-    LOG(ERROR) << "GetSnapshotList failed,"
-               << "uuid:" << uuid;
-        return -1;
+    return -1;
 }
 
 int DBSnapshotCloneMetaStore::GetSnapshotList(const std::string &name,

@@ -212,6 +212,21 @@ int CloneServiceManager::RecoverCloneTask() {
                 }
                 break;
             }
+            case CloneStatus::cleaning:
+            case CloneStatus::errorCleaning: {
+                std::shared_ptr<CloneTaskInfo> taskInfo =
+                    std::make_shared<CloneTaskInfo>(cloneInfo);
+                std::shared_ptr<CloneTask> task =
+                    std::make_shared<CloneTask>(
+                        cloneInfo.GetTaskId(), taskInfo, cloneCore_);
+                ret = cloneTaskMgr_->PushTask(task);
+                if (ret < 0) {
+                    LOG(ERROR) << "CloneTaskMgr Push Task error"
+                               << ", ret = " << ret;
+                    return ret;
+                }
+                break;
+            }
             default:
                 break;
         }

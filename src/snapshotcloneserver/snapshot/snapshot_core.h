@@ -225,6 +225,15 @@ class SnapshotCoreImpl : public SnapshotCore {
         std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
+     * @brief 删除curvefs上的快照
+     *
+     * @param info 快照信息
+     *
+     * @return 错误码
+     */
+    int DeleteSnapshotOnCurvefs(const SnapshotInfo &info);
+
+    /**
      * @brief 构建索引块
      *
      * @param info 快照信息
