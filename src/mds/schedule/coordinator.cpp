@@ -32,6 +32,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
         schedulerController_[SchedulerType::LeaderSchedulerType] =
             std::make_shared<LeaderScheduler>(opController_,
                                               conf.leaderSchedulerIntervalSec,
+                                              conf.chunkserverCoolingTimeSec,
                                               conf.transferLeaderTimeLimitSec,
                                               conf.removePeerTimeLimitSec,
                                               conf.addPeerTimeLimitSec,

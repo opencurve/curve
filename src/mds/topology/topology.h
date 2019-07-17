@@ -119,6 +119,18 @@ class Topology {
     virtual int UpdateChunkServerDiskStatus(const ChunkServerState &state,
                                        ChunkServerIdType id) = 0;
 
+
+    /**
+     * @brief 更新chunkserver启动时间
+     *
+     * @param time 启动时间
+     * @param id chunkserver id
+     *
+     * @return 错误码
+     */
+    virtual int UpdateChunkServerStartUpTime(uint64_t time,
+                         ChunkServerIdType id) = 0;
+
     /**
      * @brief 更新copyset 拓扑信息
      * @detail
@@ -330,6 +342,8 @@ class TopologyImpl : public Topology {
     int UpdateChunkServerOnlineState(const OnlineState &onlineState,
                           ChunkServerIdType id) override;
     int UpdateChunkServerDiskStatus(const ChunkServerState &state,
+                         ChunkServerIdType id) override;
+    int UpdateChunkServerStartUpTime(uint64_t time,
                          ChunkServerIdType id) override;
 
     int UpdateCopySetTopo(const CopySetInfo &data) override;

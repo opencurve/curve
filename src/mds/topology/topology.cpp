@@ -343,6 +343,19 @@ int TopologyImpl::UpdateChunkServerDiskStatus(const ChunkServerState &state,
     }
 }
 
+int TopologyImpl::UpdateChunkServerStartUpTime(uint64_t time,
+                     ChunkServerIdType id) {
+    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
+    auto it = chunkServerMap_.find(id);
+    if (it != chunkServerMap_.end()) {
+        WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+        it->second.SetStartUpTime(time);
+        return kTopoErrCodeSuccess;
+    } else {
+        return kTopoErrCodeChunkServerNotFound;
+    }
+}
+
 PoolIdType TopologyImpl::FindLogicalPool(
     const std::string &logicalPoolName,
     const std::string &physicalPoolName) const {
