@@ -20,7 +20,7 @@ bool IOManager4Chunk::Initialize(IOOption_t ioOpt, MDSClient* mdsclient) {
     mc_.Init(ioopt_.metaCacheOpt, mdsclient);
     Splitor::Init(ioopt_.ioSplitOpt);
     scheduler_ = new (std::nothrow) RequestScheduler();
-    if (-1 == scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_)) {
+    if (-1 == scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, nullptr)) {
         LOG(ERROR) << "Init scheduler_ failed!";
         return false;
     }

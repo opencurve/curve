@@ -26,12 +26,21 @@
 namespace curve {
 namespace client {
 FailureRequestOption_t  ClientClosure::failReqOpt_;
+void WriteChunkClosure::GetToken() {
+    client_->GetInflightRPCToken();
+}
+
+void WriteChunkClosure::ReleaseToken() {
+    client_->ReleaseInflightRPCToken();
+}
 
 void WriteChunkClosure::Run() {
     std::unique_ptr<WriteChunkClosure> selfGuard(this);
     std::unique_ptr<brpc::Controller> cntlGuard(cntl_);
     std::unique_ptr<ChunkResponse> responseGuard(response_);
     brpc::ClosureGuard doneGuard(done_);
+
+    ReleaseToken();
 
     MetaCache *metaCache = client_->GetMetaCache();
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
@@ -44,9 +53,6 @@ void WriteChunkClosure::Run() {
     int status = -1;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
-
-    uint64_t duration = TimeUtility::GetTimeofDayUs() - reqDone->GetStartTime();
-    MetricHelper::LatencyRecord(fm, duration, OpType::WRITE);
 
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
@@ -64,18 +70,9 @@ void WriteChunkClosure::Run() {
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
                                       0);
-        /**
-         * 考虑到leader可能挂了，所以会尝试去获取新leader，保证client端
-         * 能够自动切换到新的leader上面
-         */
-        if (-1 == metaCache->GetLeader(logicPoolId,
-                                       copysetId,
-                                       &leaderId,
-                                       &leaderAddr,
-                                       true,
-                                       fm)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        }
+        // 仅当cntl_->Failed()的时候我们才怀疑当前这个chunkserver有问题
+        ChunkServerID csid = this->GetChunkServerID();
+        metaCache->SetChunkserverUnstable(csid);
         goto write_retry;
     }
 
@@ -86,10 +83,16 @@ void WriteChunkClosure::Run() {
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
                                       response_->appliedindex());
+
+        uint64_t duration = TimeUtility::GetTimeofDayUs()
+                          - reqDone->GetStartTime();
+        MetricHelper::LatencyRecord(fm, duration, OpType::WRITE);
+        MetricHelper::IncremRPCQPSCount(fm, reqCtx->rawlength_, OpType::WRITE);
         return;
     }
     /* 2. 处理chunkserver返回的错误 */
     /* 2.1.不是 leader */
+    // 当chunkserver返回redirected的时候，这个chunkserver是正常工作状态的
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED == status) {
         if (response_->has_redirect()) {
             std::string redirect = response_->redirect();
@@ -113,7 +116,10 @@ void WriteChunkClosure::Run() {
                                        &leaderAddr,
                                        true,
                                        fm)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
+            LOG(WARNING) << "Refresh leader failed, "
+                         << "copyset id = " << copysetId
+                         << ", logicPoolId = " << logicPoolId
+                         << ", currrent op return status = " << status;
         }
         goto write_retry;
     }
@@ -125,7 +131,10 @@ void WriteChunkClosure::Run() {
                                        &leaderAddr,
                                        true,
                                        fm)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
+            LOG(WARNING) << "Refresh leader failed, "
+                         << "copyset id = " << copysetId
+                         << ", logicPoolId = " << logicPoolId
+                         << ", currrent op return status = " << status;
         }
         goto write_retry;
     }
@@ -137,20 +146,22 @@ void WriteChunkClosure::Run() {
                    << ", " << chunkid << "> offset=" << reqCtx->offset_
                    << ", length=" << reqCtx->rawlength_
                    << ", status=" << status;
+        MetricHelper::IncremFailRPCCount(fm, OpType::WRITE);
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "write failed for UNKNOWN reason, write info: "
+    LOG(ERROR) << "write failed, write info: "
                << "<" << logicPoolId << ", " << copysetId
                << ", " << chunkid << "> offset=" << reqCtx->offset_
-               << ", length=" << reqCtx->rawlength_
-               << ", status=" << status;
-    bthread_usleep(failReqOpt_.opRetryIntervalUs);
+               << ", length =" << reqCtx->rawlength_
+               << ", status ="
+               << curve::chunkserver::CHUNK_OP_STATUS_Name(
+                   static_cast<CHUNK_OP_STATUS>(status));
     goto write_retry;
 
 write_retry:
     MetricHelper::IncremFailRPCCount(fm, OpType::WRITE);
-    if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
+    if (reqDone->GetRetriedTimes() >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
@@ -159,13 +170,23 @@ write_retry:
         return;
     }
 
+    // 只要重试，就先睡眠一段时间
+    bthread_usleep(failReqOpt_.opRetryIntervalUs);
     client_->WriteChunk(reqCtx->idinfo_,
                         reqCtx->seq_,
                         reqCtx->writeBuffer_,
                         reqCtx->offset_,
                         reqCtx->rawlength_,
                         doneGuard.release(),
-                        retriedTimes_ + 1);
+                        true);
+}
+
+void ReadChunkClosure::GetToken() {
+    client_->GetInflightRPCToken();
+}
+
+void ReadChunkClosure::ReleaseToken() {
+    client_->ReleaseInflightRPCToken();
 }
 
 void ReadChunkClosure::Run() {
@@ -173,6 +194,8 @@ void ReadChunkClosure::Run() {
     std::unique_ptr<brpc::Controller> cntlGuard(cntl_);
     std::unique_ptr<ChunkResponse> responseGuard(response_);
     brpc::ClosureGuard doneGuard(done_);
+
+    ReleaseToken();
 
     MetaCache *metaCache = client_->GetMetaCache();
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
@@ -186,8 +209,6 @@ void ReadChunkClosure::Run() {
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
-    uint64_t duration = TimeUtility::GetTimeofDayUs() - reqDone->GetStartTime();
-    MetricHelper::LatencyRecord(fm, duration, OpType::READ);
 
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试*/
@@ -200,18 +221,11 @@ void ReadChunkClosure::Run() {
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
-        /**
-         * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
-         * 能够自动切换到新的 leader 上面
-         */
-        if (-1 == metaCache->GetLeader(logicPoolId,
-                                       copysetId,
-                                       &leaderId,
-                                       &leaderAddr,
-                                       true,
-                                       fm)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
-        }
+
+        // 仅当cntl_->Failed()的时候我们才怀疑当前这个chunkserver有问题
+        ChunkServerID csid = this->GetChunkServerID();
+        metaCache->SetChunkserverUnstable(csid);
+
         goto read_retry;
     }
 
@@ -226,6 +240,11 @@ void ReadChunkClosure::Run() {
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
                                       response_->appliedindex());
+
+        uint64_t duration = TimeUtility::GetTimeofDayUs()
+                          - reqDone->GetStartTime();
+        MetricHelper::LatencyRecord(fm, duration, OpType::READ);
+        MetricHelper::IncremRPCQPSCount(fm, reqCtx->rawlength_, OpType::READ);
         return;
     }
     /* 2.处理chunkserver返回的错误 */
@@ -248,7 +267,10 @@ void ReadChunkClosure::Run() {
                                        &leaderAddr,
                                        true,
                                        fm)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
+            LOG(WARNING) << "Refresh leader failed, "
+                         << "copyset id = " << copysetId
+                         << ", logicPoolId = " << logicPoolId
+                         << ", currrent op return status = " << status;
         }
         goto read_retry;
     }
@@ -260,7 +282,10 @@ void ReadChunkClosure::Run() {
                                        &leaderAddr,
                                        true,
                                        fm)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
+            LOG(WARNING) << "Refresh leader failed, "
+                         << "copyset id = " << copysetId
+                         << ", logicPoolId = " << logicPoolId
+                         << ", currrent op return status = " << status;
         }
         goto read_retry;
     }
@@ -272,44 +297,49 @@ void ReadChunkClosure::Run() {
                    << ", " << chunkid << "> offset=" << reqCtx->offset_
                    << ", length=" << reqCtx->rawlength_
                    << ", status=" << status;
+        MetricHelper::IncremFailRPCCount(fm, OpType::READ);
         return;
     }
     /* 2.4.chunk not exist */
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST == status) {
         reqDone->SetFailed(0);
-        ::memset(reqCtx->readBuffer_,
-                 0,
-                 reqCtx->rawlength_);
-        metaCache->UpdateAppliedIndex(logicPoolId,
-                                      copysetId,
+        ::memset(reqCtx->readBuffer_, 0, reqCtx->rawlength_);
+        metaCache->UpdateAppliedIndex(logicPoolId, copysetId,
                                       response_->appliedindex());
+        uint64_t duration = TimeUtility::GetTimeofDayUs()
+                          - reqDone->GetStartTime();
+        MetricHelper::LatencyRecord(fm, duration, OpType::READ);
+        MetricHelper::IncremRPCQPSCount(fm, reqCtx->rawlength_, OpType::READ);
         return;
     }
     /* 2.5.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "read failed for UNKNOWN reason, read info: "
+    LOG(ERROR) << "read failed , read info: "
                << "<" << logicPoolId << ", " << copysetId
                << ", " << chunkid << "> offset=" << reqCtx->offset_
                << ", length=" << reqCtx->rawlength_
-               << ", status=" << status;
-    bthread_usleep(failReqOpt_.opRetryIntervalUs);
+               << ", status="
+               << curve::chunkserver::CHUNK_OP_STATUS_Name(
+                   static_cast<CHUNK_OP_STATUS>(status));
     goto read_retry;
 
 read_retry:
     MetricHelper::IncremFailRPCCount(fm, OpType::READ);
 
-    if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
+    if (reqDone->GetRetriedTimes() >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
         LOG(ERROR) << "retried times exceeds";
         return;
     }
 
+    // 重试之前先睡眠
+    bthread_usleep(failReqOpt_.opRetryIntervalUs);
     client_->ReadChunk(reqCtx->idinfo_,
                        reqCtx->seq_,
                        reqCtx->offset_,
                        reqCtx->rawlength_,
                        reqCtx->appliedindex_,
                        doneGuard.release(),
-                       retriedTimes_ + 1);
+                       true);
 }
 
 void ReadChunkSnapClosure::Run() {
@@ -345,7 +375,10 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
+            LOG(WARNING) << "Refresh leader failed, "
+                         << "copyset id = " << copysetId
+                         << ", logicPoolId = " << logicPoolId
+                         << ", currrent op return status = " << status;
         }
         goto read_retry;
     }
@@ -378,7 +411,10 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
+            LOG(WARNING) << "Refresh leader failed, "
+                         << "copyset id = " << copysetId
+                         << ", logicPoolId = " << logicPoolId
+                         << ", currrent op return status = " << status;
         }
 
         goto read_retry;
@@ -390,7 +426,10 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderId,
                                        &leaderAddr,
                                        true)) {
-            bthread_usleep(failReqOpt_.opRetryIntervalUs);
+            LOG(WARNING) << "Refresh leader failed, "
+                         << "copyset id = " << copysetId
+                         << ", logicPoolId = " << logicPoolId
+                         << ", currrent op return status = " << status;
         }
         goto read_retry;
     }
@@ -428,7 +467,6 @@ void ReadChunkSnapClosure::Run() {
                << ", offset=" << reqCtx->offset_
                << ", length=" << reqCtx->rawlength_
                << ", status=" << status;
-    bthread_usleep(failReqOpt_.opRetryIntervalUs);
     goto read_retry;
 
 read_retry:
@@ -438,6 +476,8 @@ read_retry:
         return;
     }
 
+    // 先睡眠，再重试
+    bthread_usleep(failReqOpt_.opRetryIntervalUs);
     client_->ReadChunkSnapshot(reqCtx->idinfo_,
                                reqCtx->seq_,
                                reqCtx->offset_,

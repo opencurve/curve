@@ -334,6 +334,7 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
             info.diskState);
         ASSERT_EQ(testTopoChunkServer[0].GetStatus(), info.status);
         ASSERT_EQ(stat.leaderCount, info.leaderCount);
+        ASSERT_EQ(testTopoChunkServer[0].GetStartUpTime(), info.startUpTime);
     }
     {
         // 3. test GetChunkServerInfos fail
@@ -454,16 +455,16 @@ TEST_F(TestTopoAdapterImpl, test_other_functions) {
         ASSERT_TRUE(topoAdapter_->CreateCopySetAtChunkServer(key, 1));
     }
     {
-        // 4. test GetMinScatterWidthInLogicalPool
+        // 4. test GetAvgScatterWidthInLogicalPool
         EXPECT_CALL(*mockTopo_, GetLogicalPool(1, _))
             .WillOnce(Return(false));
-        ASSERT_EQ(0, topoAdapter_->GetMinScatterWidthInLogicalPool(1));
+        ASSERT_EQ(0, topoAdapter_->GetAvgScatterWidthInLogicalPool(1));
 
         ::curve::mds::topology::LogicalPool lpool;
         lpool.SetScatterWidth(90);
         EXPECT_CALL(*mockTopo_, GetLogicalPool(1, _))
             .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
-        ASSERT_EQ(90, topoAdapter_->GetMinScatterWidthInLogicalPool(1));
+        ASSERT_EQ(90, topoAdapter_->GetAvgScatterWidthInLogicalPool(1));
     }
 }
 

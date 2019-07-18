@@ -20,14 +20,14 @@ DEPS = [
 cc_test(
     name = "chunk-test1",
     srcs = glob([
-                "copyset_node_manager_test.cpp",
+        "copyset_node_manager_test.cpp",
         "copyset_service_test.cpp",
-                "op_request_test.cpp",
-                "copyset_node_test.cpp",
+        "op_request_test.cpp",
+        "copyset_node_test.cpp",
         "mock_local_file_system.h",
         "conf_epoch_file_test.cpp",
-                "inflight_throttle_test.cpp",
-                "concurrent_apply_unittest.cpp",
+        "inflight_throttle_test.cpp",
+        "concurrent_apply_unittest.cpp",
         "mock_local_file_system.h",
         "mock_node.h",
         "fake_datastore.h",
@@ -284,6 +284,7 @@ cc_test(
     srcs = [
         "raftsnapshot_chunkfilepool_integration.cpp",
         "raftsnapshot_filesystem_adaptor_unittest.cpp",
+        "raftsnapshot_filesystem_adaptor_mock_unittest.cpp",
     ],
     copts = ["-std=c++14"],
     deps = [
@@ -299,6 +300,7 @@ cc_test(
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
         "//src/fs:lfs",
+        "//test/fs:fs_mock",
         "//test/chunkserver:chunkserver-test-util-lib",
         "@com_google_googletest//:gtest_main",
     ],

@@ -19,6 +19,8 @@
 #include "include/curve_compiler_specific.h"
 #include "src/client/iomanager4file.h"
 #include "src/client/service_helper.h"
+#include "proto/nameserver2.pb.h"
+#include "src/common/net_common.h"
 
 using curve::client::UserInfo;
 using curve::common::ReadLockGuard;
@@ -57,6 +59,8 @@ int FileClient::Init(const std::string& configpath) {
         if (LIBCURVE_ERROR::OK != mdsClient_->Initialize(
             clientconfig_.GetFileServiceOption().metaServerOpt)) {
             LOG(ERROR) << "Init global mds client failed!";
+            delete mdsClient_;
+            mdsClient_ = nullptr;
             return -LIBCURVE_ERROR::FAILED;
         }
     }
@@ -78,20 +82,44 @@ int FileClient::Init(const std::string& configpath) {
         }
     });
 
-    if (dummyServerStartPort >= PORT_LIMIT) {
+    bool rc = true;
+    do {
+        if (dummyServerStartPort >= PORT_LIMIT) {
+            rc = false;
+            LOG(ERROR) << "start dummy server failed!";
+            break;
+        }
+
+        // 获取本地IP
+        std::string ip;
+        if (!common::NetCommon::GetLocalIP(&ip)) {
+            rc = false;
+            LOG(ERROR) << "get local ip failed! can not regist to mds!";
+            break;
+        }
+
+        // 向mds注册
+        LIBCURVE_ERROR ret = mdsClient_->Register(ip, dummyServerStartPort);
+        if (ret != LIBCURVE_ERROR::OK) {
+            rc = false;
+            LOG(ERROR) << "regist client metric info to mds failed!";
+            break;
+        }
+    } while (0);
+
+    if (rc == false) {
         mdsClient_->UnInitialize();
         delete mdsClient_;
         mdsClient_ = nullptr;
-        LOG(ERROR) << "start dummy server failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
 
     google::SetLogDestination(google::INFO,
         clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
-    google::SetLogDestination(google::WARNING,
-        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
-    google::SetLogDestination(google::ERROR,
-        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
+    // 文件只保留info级别的文件包含WANING和ERROR级别，，ERROR，WARNING不单独写文件
+    google::SetLogDestination(google::WARNING, "/dev/null");
+    google::SetLogDestination(google::ERROR, "/dev/null");
+    google::SetLogDestination(google::FATAL, "/dev/null");
 
     FLAGS_minloglevel = clientconfig_.GetFileServiceOption().loginfo.loglevel;
 
@@ -363,15 +391,17 @@ int FileClient::Close(int fd) {
         LOG(ERROR) << "can not find " << fd;
         return -LIBCURVE_ERROR::FAILED;
     }
+
     int ret = fileserviceMap_[fd]->Close();
     if (ret == LIBCURVE_ERROR::OK) {
         fileserviceMap_[fd]->UnInitialize();
-        LOG(ERROR) << "uninitialize " << fd;
         delete fileserviceMap_[fd];
         fileserviceMap_.erase(iter);
+        LOG(INFO) << "uninitialize " << fd;
     } else {
         LOG(ERROR) << "close failed " << fd;
     }
+
     return ret;
 }
 

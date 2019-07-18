@@ -25,6 +25,7 @@ const char CopySetTable[] = "curve_copyset";
 const char SessionTable[] = "curve_session";
 const char SnapshotTable[] = "snapshot";
 const char CloneTable[] = "clone";
+const char ClientInfoTable[] = "client_info";
 
 const char CreateChunkServerTable[] =
     "create table if not exists `curve_chunkserver` (\n"
@@ -143,7 +144,12 @@ const char CreateCloneTable[] =
     "    `status`           tinyint       NOT NULL COMMENT 'clone/recovery task status'\n"    //NOLINT
     ")COMMENT='clone';";
 
-
+const char CreateClientInfoTable[] =
+    "create table if not exists `client_info` (\n"
+    "    `clientIp`         varchar(16)   NOT NULL COMMENT 'client ip',\n"                //NOLINT
+    "    `clientPort`       int           NOT NULL COMMENT 'client port',\n"               //NOLINT
+    "UNIQUE KEY `key_ip_port` (`clientIp`, `clientPort`)\n"
+    ")COMMENT='client_info';";
 
 const char CreateDataBase[] = "create database if not exists %s;";
 const size_t CreateDataBaseLen = strlen(CreateDataBase) - 2;
@@ -177,6 +183,7 @@ const std::map<std::string, std::string> CurveMDSTables = {
     {LogicalPoolTable, CreateLogicalPoolTable},
     {CopySetTable, CreateCopySetTable},
     {SessionTable, CreateSessionTable},
+    {ClientInfoTable, CreateClientInfoTable},
 };
 
 const std::map<std::string, std::string> CurveSnapshotTables = {

@@ -32,6 +32,7 @@ void Coordinator::InitScheduler(const ScheduleOption &conf) {
         schedulerController_[SchedulerType::LeaderSchedulerType] =
             std::make_shared<LeaderScheduler>(opController_,
                                               conf.leaderSchedulerIntervalSec,
+                                              conf.chunkserverCoolingTimeSec,
                                               conf.transferLeaderTimeLimitSec,
                                               conf.removePeerTimeLimitSec,
                                               conf.addPeerTimeLimitSec,
@@ -148,7 +149,7 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
         bool needCheckType = (res.type == ConfigChangeType::ADD_PEER ||
             res.type == ConfigChangeType::TRANSFER_LEADER);
         if (needCheckType && chunkServer.IsOffline()) {
-            LOG(ERROR) << "candidate chunkserver " << chunkServer.info.id
+            LOG(WARNING) << "candidate chunkserver " << chunkServer.info.id
                        << " is offline, abort config change";
             opController_->RemoveOperator(info.id);
             return ::curve::mds::topology::UNINTIALIZE_ID;
