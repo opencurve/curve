@@ -11,17 +11,52 @@ import random
 import time
 import mythread
 
-def backup_config():
+def add_config():
+    # add mds config
     for host in config.mds_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "sudo rm -rf /etc/curve-bak && sudo cp -r /etc/curve /etc/curve-bak"
+        ori_cmd = "sudo rm *.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"backup host %s config fail"%host
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/mds.conf %s:~/"%\
+            (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s:6666/g' mds.conf"%host
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
+        ori_cmd = "sudo mv mds.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s mds conf fail"%host
+    # add client config
+    for host in config.client_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        ori_cmd = "sudo rm *.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/client.conf %s:~/"%\
+            (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = R"sed -i 's/metaserver_addr=127.0.0.1:6666/metaserver_addr=%s:6666/g' client.conf"%(config.mds_list[0])
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s client config fail"%host
+        ori_cmd = "sudo mv client.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s client conf fail"%host
+    # add chunkserver config
     for host in config.chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "sudo rm -rf /etc/curve-bak && sudo cp -r /etc/curve /etc/curve-bak"
+        ori_cmd = "sudo rm *.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"backup host %s config fail"%host
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/chunkserver.conf.example %s:~/chunkserver.conf"%\
+            (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = R"sed -i 's/global.ip=127.0.0.1/global.ip=%s/g' chunkserver.conf"%host
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s:6666/g' chunkserver.conf"%(config.mds_list[0])
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        ori_cmd = "sudo mv chunkserver.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s chunkserver conf fail"%host
 
 def destroy_mds():
     for host in config.mds_list:
@@ -89,7 +124,7 @@ def drop_abnormal_test_db():
         cmd_list = ["DROP TABLE curve_logicalpool;", "DROP TABLE curve_copyset;", \
                     "DROP TABLE curve_physicalpool;", "DROP TABLE curve_zone;", \
                     "DROP TABLE curve_server;", "DROP TABLE curve_chunkserver;", \
-                    "DROP TABLE curve_session;", "DROP TABLE client_info;"]
+                    "DROP TABLE curve_session;",  "DROP TABLE client_info;"]
         for cmd in cmd_list:
             conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
             db_operator.exec_sql(conn, cmd)
@@ -98,11 +133,10 @@ def drop_abnormal_test_db():
         logger.error("drop db fail.")
         raise
 
-
 def install_deb():
     try:
-#        mkdeb_url =  config.curve_workspace + "mk-deb.sh"
-#        exec_mkdeb = "bash %s"%mkdeb_url
+        mkdeb_url =  config.curve_workspace + "mk-deb.sh"
+        exec_mkdeb = "bash %s"%mkdeb_url
 #        shell_operator.run_exec2(exec_mkdeb)
         cmd = "ls %scurve-mds*.deb"%config.curve_workspace
         mds_deb = shell_operator.run_exec2(cmd)
@@ -112,7 +146,7 @@ def install_deb():
                   (config.pravie_key_path,config.curve_workspace,host)
             shell_operator.run_exec2(cmd)
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "sudo dpkg -i *%s"%version
+            ori_cmd = "sudo dpkg -i *%s*"%version
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0,"mds install deb fail"
         for host in config.chunkserver_list:
@@ -120,10 +154,10 @@ def install_deb():
                   (config.pravie_key_path,config.curve_workspace,host)
             shell_operator.run_exec2(cmd)
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "sudo dpkg -i curve-chunkserver*%s curve-tools*%s"%(version,version)
+            ori_cmd = "sudo dpkg -i curve-chunkserver*%s* curve-tools*%s*"%(version,version)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0, "chunkserver install deb fail"
-            rm_deb = "rm *%s"%version
+            rm_deb = "rm *%s*"%version
             shell_operator.ssh_exec(ssh, rm_deb)
     except Exception:
         logger.error("install deb fail.")
@@ -188,7 +222,7 @@ def create_pool():
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_host)
     rs = shell_operator.ssh_exec(ssh, logical_pool)
     i = 0
-    while i < 300:
+    while i < 300: 
        num = get_copyset_num()
        if num == 6000:
            break

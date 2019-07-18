@@ -159,6 +159,8 @@ def gen_remote_cmd(user, host_ip, port, ssh_key, ori_cmd, sudo_flag=False, sudo_
 def create_ssh_connect(host,port,user):
     ssh = paramiko.SSHClient()
     ssh.load_system_host_keys()
+    transport = paramiko.Transport((host,port))
+    transport.banner_timeout = 60
     key = paramiko.RSAKey.from_private_key_file(config.pravie_key_path)
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(host,port=port,username=user,timeout=100,pkey=key)
