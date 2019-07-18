@@ -44,10 +44,7 @@ class TestLibcbdLibcurve : public ::testing::Test {
     void SetUp() {
         FLAGS_chunkserver_list =
          "127.0.0.1:9110:0,127.0.0.1:9111:0,127.0.0.1:9112:0";
-        if (Init(configpath.c_str()) != 0) {
-            LOG(FATAL) << "Fail to init config";
-            return;
-        }
+
         mds_ = new FakeMDS(filename);
 
         // 设置leaderid
