@@ -281,6 +281,7 @@ void IOTracker::Done() {
     if (errcode_ == LIBCURVE_ERROR::OK) {
         uint64_t duration = TimeUtility::GetTimeofDayUs() - opStartTimePoint_;
         MetricHelper::UserLatencyRecord(fileMetric_, duration, type_);
+        MetricHelper::IncremUserQPSCount(fileMetric_, length_, type_);
     } else {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
     }
@@ -290,7 +291,6 @@ void IOTracker::Done() {
         errcode_ == LIBCURVE_ERROR::OK ? iocv_.Complete(length_)
                                        : iocv_.Complete(-errcode_);
     } else {
-        MetricHelper::IncremInflightIO(fileMetric_, -1);
         aioctx_->ret = errcode_ == LIBCURVE_ERROR::OK ? length_ : -errcode_;
         aioctx_->cb(aioctx_);
         iomanager_->HandleAsyncIOResponse(this);

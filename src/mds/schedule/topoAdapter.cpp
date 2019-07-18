@@ -123,6 +123,7 @@ ChunkServerInfo::ChunkServerInfo(const PeerInfo &info,
     this->diskCapacity = capacity;
     this->diskUsed = used;
     this->statisticInfo = statisticInfo;
+    this->startUpTime = 0;
 }
 
 bool ChunkServerInfo::IsOffline() {
@@ -275,7 +276,7 @@ int TopoAdapterImpl::GetStandardReplicaNumInLogicalPool(PoolIdType id) {
     return 0;
 }
 
-int TopoAdapterImpl::GetMinScatterWidthInLogicalPool(PoolIdType id) {
+int TopoAdapterImpl::GetAvgScatterWidthInLogicalPool(PoolIdType id) {
     ::curve::mds::topology::LogicalPool logicalPool;
     if (topo_->GetLogicalPool(id, &logicalPool)) {
         return logicalPool.GetScatterWidth();
@@ -351,6 +352,7 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
         return false;
     }
 
+    out->startUpTime = origin.GetStartUpTime();
     out->state = origin.GetOnlineState();
     out->status = origin.GetStatus();
     out->diskState = origin.GetChunkServerState().GetDiskState();
@@ -398,9 +400,6 @@ void TopoAdapterImpl::GetChunkServerScatterMap(
             }
 
             if (chunkServer.GetOnlineState() == OnlineState::OFFLINE) {
-                LOG_EVERY_N(ERROR, 1000) << "topoAdapter find chunkServer "
-                           << chunkServer.GetId()
-                           << " is offline, please check" << std::endl;
                 continue;
             }
 

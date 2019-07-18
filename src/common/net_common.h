@@ -9,6 +9,7 @@
 #define SRC_COMMON_NET_COMMON_H_
 
 #include <stdlib.h>
+#include <netdb.h>
 #include <netinet/in.h>    // in_addr
 #include <arpa/inet.h>     // inet_pton, inet_ntop
 #include <glog/logging.h>
@@ -40,6 +41,29 @@ class NetCommon {
             LOG(ERROR) << "Invalid port provided: " << port;
             return false;
         }
+
+        return true;
+    }
+
+    static bool GetLocalIP(std::string* ipstr) {
+        char hostname[128];
+        int ret = gethostname(hostname, sizeof(hostname));
+
+        if (ret == -1) {
+            LOG(INFO) << "get hostname failed!";
+            return false;
+        }
+
+        struct hostent* t;
+        t = gethostbyname(hostname);
+
+        if (t == nullptr) {
+            LOG(INFO) << "get host ip failed!";
+            return false;
+        }
+
+        char* ip = inet_ntoa(*(struct in_addr*)t->h_addr_list[0]);
+        *ipstr = std::string(ip);
 
         return true;
     }

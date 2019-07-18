@@ -13,12 +13,15 @@
 #include <mutex>  // NOLINT
 #include <condition_variable>   // NOLINT
 
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/concurrent/task_thread_pool.h"
 #include "src/client/metacache.h"
 #include "src/client/iomanager.h"
 #include "src/client/mds_client.h"
 #include "src/client/client_common.h"
 #include "src/client/request_scheduler.h"
 #include "include/curve_compiler_specific.h"
+#include "src/client/inflight_controller.h"
 
 namespace curve {
 namespace client {
@@ -91,18 +94,23 @@ class IOManager4File : public IOManager {
   }
 
   /**
-   * 获取inflight IO数量，测试代码使用
-   */
-  uint64_t GetInflightIONum() {
-    return inflightIONum_.load();
-  }
-
-  /**
    * 获取metric信息，测试代码使用
    */
   FileMetric_t* GetMetric() {
     return fileMetric_;
   }
+
+  /**
+   * 重新设置io配置信息，测试使用
+   */
+  void SetIOOpt(const IOOption_t& opt) {
+     ioopt_ = opt;
+  }
+
+  /**
+   * 测试使用，获取request scheduler
+   */
+  RequestScheduler* GetScheduler() { return scheduler_; }
 
  private:
   friend class LeaseExcutor;
@@ -137,72 +145,27 @@ class IOManager4File : public IOManager {
    */
   void HandleAsyncIOResponse(IOTracker* iotracker) override;
 
-  /**
-   * 调用该接口等待inflight回来，这段期间IO是hang的
-   */
-  void WaitInflightIOAllComeBack();
-  /**
-   * 递增inflight io
-   */
-  inline void IncremInflightIONum() {
-    inflightIONum_.fetch_add(1, std::memory_order_release);
-  }
-  /**
-   * 递减inflight IO
-   */
-  inline void DecremInflightIONum() {
-    inflightIONum_.fetch_sub(1, std::memory_order_release);
-  }
-  /**
-   * 检查inflight io是否超过maxinflight
-   */
-  inline bool CheckInflightIOOverFlow() {
-    return inflightIONum_.load() >= ioopt_.inflightOpt.maxInFlightIONum;
-  }
-  /**
-   * 一旦超过最大限制的inflight数量，就要等待inflight io回来才能继续
-   */
-  inline void WaitForInflightIOComeBack() {
-    std::unique_lock<std::mutex> lk(inflightIOComeBackmtx_);
-    inflightIOComeBackcv_.wait(lk, [this]() {
-        return inflightIONum_.load(std::memory_order_acquire)
-               < ioopt_.inflightOpt.maxInFlightIONum;
-    });
-  }
+  class FlightIOGuard {
+   public:
+    explicit FlightIOGuard(IOManager4File* iomana) {
+      iomanager = iomana;
+      iomanager->inflightCntl_.IncremInflightNum();
+    }
 
-  /**
-   * 获取token，查看现在是否能下发IO
-   */
-  void GetInflightIOToken();
+    ~FlightIOGuard() {
+      iomanager->inflightCntl_.DecremInflightNum();
+    }
 
-  /**
-   * 更新inflight计数并唤醒正在block的IO
-   */
-  void ReleaseInflightIOToken();
+   private:
+    IOManager4File* iomanager;
+  };
 
  private:
-  friend class FlightIOGuard;
   // 当前文件的信息
   FInfo_t fi_;
 
-  // 此锁与inflightIOAllComeBackcv_条件变量配合使用
-  // 在版本变更的时候等待所有inflight io全部回来
-  std::mutex  inflightIOAllComeBackmtx_;
-  // 条件变量，用于唤醒和hang IO
-  std::condition_variable inflightIOAllComeBackcv_;
-
-  // 此锁与inflightIOComeBackcv_条件变量配合使用
-  // 在inflight IO超出最大限制时，等待inflight IO回来
-  // 并不需要等到所有的inflight IO都会来
-  std::mutex  inflightIOComeBackmtx_;
-  // 条件变量，用于唤醒和hang IO
-  std::condition_variable inflightIOComeBackcv_;
-
   // 每个IOManager都有其IO配置，保存在iooption里
   IOOption_t  ioopt_;
-
-  // inflightio_记录当前inflight的IO数量
-  std::atomic<uint64_t> inflightIONum_;
 
   // metacache存储当前文件的所有元数据信息
   MetaCache mc_;
@@ -212,23 +175,12 @@ class IOManager4File : public IOManager {
 
   // client端metric统计信息
   FileMetric_t*        fileMetric_;
-};
 
-class FlightIOGuard {
- public:
-  explicit FlightIOGuard(IOManager4File* iomana) {
-    iomanager = iomana;
-    iomanager->GetInflightIOToken();
-    MetricHelper::IncremInflightIO(iomanager->fileMetric_, 1);
-  }
+  // task thread pool为了将qemu线程与curve线程隔离
+  curve::common::TaskThreadPool taskPool_;
 
-  ~FlightIOGuard() {
-    iomanager->ReleaseInflightIOToken();
-    MetricHelper::IncremInflightIO(iomanager->fileMetric_, -1);
-  }
-
- private:
-  IOManager4File* iomanager;
+  // inflight IO控制
+  InflightControl  inflightCntl_;
 };
 
 }   // namespace client

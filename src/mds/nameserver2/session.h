@@ -156,6 +156,13 @@ class SessionManager {
      */
     bool isFileHasValidSession(const std::string &fileName);
 
+    /**
+     *  @brief 获取已经open的文件个数
+     *  @param
+     *  @return 已经open的文件个数
+     */
+    uint64_t GetOpenFileNum();
+
  private:
     // 启动mds时调用，从数据库中加载session信息到内存，返回调用是否成功
     bool LoadSession();
@@ -195,7 +202,7 @@ class SessionManager {
      *         clientIP: client的IP
      *  @return 是否成功，成功返回StatusCode::kOK
      */
-    StatusCode InsertNewSession(const std::string &fileName,
+    StatusCode InsertNewSessionUnlocked(const std::string &fileName,
                                  const std::string &clientIP);
 
     /**
@@ -205,7 +212,7 @@ class SessionManager {
      *         sessionId:
      *  @return 是否成功，成功返回StatusCode::kOK
      */
-    StatusCode DeleteOldSession(const std::string &fileName,
+    StatusCode DeleteOldSessionUnlocked(const std::string &fileName,
                         const std::string &sessionId);
 
     // 控制后台扫描线程是否需要停止扫描
@@ -240,6 +247,8 @@ class SessionManager {
 
     // 后台线程使用信号量进行周期性睡眠
     curve::common::ConditionVariable exitcv_;
+
+    curve::common::Atomic<uint64_t> openFileNum_;
 };
 }  // namespace mds
 }  // namespace curve

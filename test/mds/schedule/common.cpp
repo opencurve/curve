@@ -5,10 +5,12 @@
  * Copyright (c) 2018 netease
  */
 
+#include <sys/time.h>
 #include <vector>
 #include <set>
 #include <string>
 #include "test/mds/schedule/common.h"
+#include "src/common/timeutility.h"
 #include "proto/topology.pb.h"
 
 using ::curve::mds::topology::ChunkServerStatus;
@@ -73,6 +75,8 @@ std::vector<::curve::mds::topology::ChunkServer> GetTopoChunkServerForTest() {
             9000, "", ChunkServerStatus::READWRITE);
         chunkserver.SetChunkServerState(
             ::curve::mds::topology::ChunkServerState{});
+        chunkserver.SetStartUpTime(
+            ::curve::common::TimeUtility::GetTimeofDaySec());
         out.emplace_back(chunkserver);
     }
     return out;

@@ -77,7 +77,7 @@ typedef struct FileMetric {
     const std::string prefix = "curve client";
 
     // 当前文件inflight io数量
-    bvar::Adder<int64_t>                    inflightIONum;
+    bvar::Adder<int64_t>                    inflightRPCNum;
     // 当前文件请求的最大请求字节数，这种统计方式可以很方便的看到最大值，分位值
     bvar::LatencyRecorder                   sizeRecorder;
 
@@ -98,7 +98,7 @@ typedef struct FileMetric {
         , userWrite(prefix, filename + "_write")
         , readRPC(prefix, filename + "_read_rpc")
         , writeRPC(prefix, filename + "_write_rpc")
-        , inflightIONum(prefix, filename + "_inflight_io_num")
+        , inflightRPCNum(prefix, filename + "_inflight_rpc_num")
         , getLeaderRetryQPS(prefix, filename + "_get_leader_retry_rpc")
         , sizeRecorder(prefix, filename + "_write_request_size_recoder")
     {}
@@ -137,6 +137,8 @@ typedef struct MDSClientMetric {
     InterfaceMtetric_t      changeOwner;
     // listdir接口统计信息
     InterfaceMtetric_t      listDir;
+    // register接口统计信息
+    InterfaceMtetric_t      registerClient;
 
     // 切换mds server总次数
     bvar::Adder<uint64_t>   mdsServerChangeTimes;
@@ -157,6 +159,7 @@ typedef struct MDSClientMetric {
                       , deleteFile(prefix, "deleteFile")
                       , changeOwner(prefix, "changeOwner")
                       , listDir(prefix, "listDir")
+                      , registerClient(prefix, "registerClient")
     {}
 } MDSClientMetric_t;
 
@@ -193,14 +196,14 @@ typedef struct ConfigMetric {
     // 向chunkserver发送请求的最大size
     bvar::Status<uint64_t> ioSplitMaxSizeKB;
     // 向chunkserver发送的最大未返回请求数量
-    bvar::Status<uint64_t> maxInFlightIONum;
+    bvar::Status<uint64_t> maxInFlightRPCNum;
 
     ConfigMetric() :
         opRetryIntervalUs(prefix, "OpRetryIntervalUs", 0)
         , opMaxRetry(prefix, "opMaxRetry", 0)
         , enableAppliedIndexRead(prefix, "enableAppliedIndexRead", 0)
         , ioSplitMaxSizeKB(prefix, "ioSplitMaxSizeKB", 0)
-        , maxInFlightIONum(prefix, "maxInFlightIONum", 0)
+        , maxInFlightRPCNum(prefix, "maxInFlightRPCNum", 0)
         , threadpoolSize(prefix, "threadpoolSize", 0)
         , queueCapacity(prefix, "queueCapacity", 0)
         , getLeaderTimeOutMs(prefix, "getLeaderTimeOutMs", 0)
@@ -350,12 +353,14 @@ class MetricHelper {
     }
 
     /**
-     * 统计读写RPC接口统计信息请求次数及带宽统计，用于rps及bps计算
+     * 统计读写RPC接口统计信息请求次数及带宽统计，用于qps及bps计算
      * @param: fm为当前文件的metric指针
      * @param: length为当前请求大小
      * @param: read为当前操作是读操作还是写操作
      */
-    static void IncremRPCCount(FileMetric_t* fm, uint64_t length, OpType type) {
+    static void IncremRPCQPSCount(FileMetric_t* fm,
+                                  uint64_t length,
+                                  OpType type) {
         if (fm != nullptr) {
             switch (type) {
                 case OpType::READ:
@@ -365,6 +370,28 @@ class MetricHelper {
                 case OpType::WRITE:
                     fm->writeRPC.qps.count << 1;
                     fm->writeRPC.bps.count << length;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
+    /**
+     * 统计读写RPC接口统计信息请求次数及带宽统计，用于rps计算
+     * @param: fm为当前文件的metric指针
+     * @param: length为当前请求大小
+     * @param: read为当前操作是读操作还是写操作
+     */
+    static void IncremRPCRPSCount(FileMetric_t* fm,
+                                  OpType type) {
+        if (fm != nullptr) {
+            switch (type) {
+                case OpType::READ:
+                    fm->readRPC.rps.count << 1;
+                    break;
+                case OpType::WRITE:
+                    fm->writeRPC.rps.count << 1;
                     break;
                 default:
                     break;
@@ -406,9 +433,15 @@ class MetricHelper {
         }
     }
 
-    static void IncremInflightIO(FileMetric_t* fm, int num) {
+    static void IncremInflightRPC(FileMetric_t* fm) {
         if (fm != nullptr) {
-            fm->inflightIONum << num;
+            fm->inflightRPCNum << 1;
+        }
+    }
+
+    static void DecremInflightRPC(FileMetric_t* fm) {
+        if (fm != nullptr) {
+            fm->inflightRPCNum << -1;
         }
     }
 };

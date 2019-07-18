@@ -431,6 +431,61 @@ TEST_F(RepoItemTest, testSessionCUDA) {
                                      &queryRes2));
     ASSERT_EQ("sessionIDtest", queryRes2.sessionID);
 }
+
+TEST_F(RepoItemTest, testClientInfoCUDA) {
+    // insert client info r1
+    ClientInfoRepoItem r1("ip1", 100);
+    ASSERT_EQ(OperationOK, repo->InsertClientInfoRepoItem(r1));
+
+    // r1不唯一，插入失败
+    ASSERT_EQ(SqlException, repo->InsertClientInfoRepoItem(r1));
+
+    // insert client info r2
+    ClientInfoRepoItem r2("ip2", 101);
+    ASSERT_EQ(OperationOK, repo->InsertClientInfoRepoItem(r2));
+
+    // query client info
+    ClientInfoRepoItem queryRes;
+    ASSERT_EQ(OperationOK, repo->QueryClientInfoRepoItem(
+                                    r1.clientIp, r1.clientPort, &queryRes));
+    ASSERT_TRUE(queryRes == r1);
+    ASSERT_EQ(r1.clientIp, queryRes.clientIp);
+    ASSERT_EQ(r1.clientPort, queryRes.clientPort);
+
+    // 查询不存在的client
+    ClientInfoRepoItem notExistClient;
+    notExistClient.clientIp = "NotExistIp";
+    notExistClient.clientPort = 123;
+    ASSERT_EQ(OperationOK, repo->QueryClientInfoRepoItem(
+                                    "NotExistIp", 123, &notExistClient));
+    ASSERT_EQ("NotExistIp", notExistClient.clientIp);
+    ASSERT_EQ(123, notExistClient.clientPort);
+
+    // query all client
+    std::vector<ClientInfoRepoItem> clientList;
+    ASSERT_EQ(OperationOK, repo->LoadClientInfoRepoItems(&clientList));
+    ASSERT_EQ(2, clientList.size());
+    ASSERT_TRUE(r1 == clientList[0]);
+    ASSERT_EQ(r1.clientIp, clientList[0].clientIp);
+    ASSERT_EQ(r1.clientPort, clientList[0].clientPort);
+    ASSERT_TRUE(r2 == clientList[1]);
+    ASSERT_EQ(r2.clientIp, clientList[1].clientIp);
+    ASSERT_EQ(r2.clientPort, clientList[1].clientPort);
+
+    // delete client
+    ASSERT_EQ(OperationOK,
+              repo->DeleteClientInfoRepoItem(r1.clientIp, r1.clientPort));
+    ClientInfoRepoItem queryRes2;
+    queryRes2.clientIp = "client_temp";
+    ASSERT_EQ(OperationOK,
+              repo->QueryClientInfoRepoItem(r1.clientIp, r1.clientPort,
+                                     &queryRes2));
+    ASSERT_EQ("client_temp", queryRes2.clientIp);
+
+    // 删除不存在的client
+    ASSERT_EQ(OperationOK,
+              repo->DeleteClientInfoRepoItem(r1.clientIp, r1.clientPort));
+}
 }  // namespace mds
 }  // namespace curve
 

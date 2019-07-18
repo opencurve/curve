@@ -37,7 +37,11 @@ int main(int argc, char** argv) {
 
     int rc = cfc.ReplicasConsistency() ? 0 : -1;
 
+    rc == 0 ? LOG(INFO) << "consistency check success!"
+            : LOG(ERROR) << "consistency check failed!";
+
     cfc.UnInit();
 
+    rc == 0 ? LOG(INFO) << "Check success!" : LOG(INFO) << "Check fail!";
     return rc;
 }

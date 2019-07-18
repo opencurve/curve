@@ -7,6 +7,7 @@
  */
 
 #include <sys/statvfs.h>
+#include <sys/time.h>
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <braft/closure_helper.h>
@@ -15,6 +16,7 @@
 #include <memory>
 
 #include "src/fs/fs_common.h"
+#include "src/common/timeutility.h"
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 
@@ -40,25 +42,37 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     toStop_.store(false, std::memory_order_release);
     options_ = options;
 
-    storePath_ = FsAdaptorUtil::GetPathFromUri(options_.storeUri);
-
-    butil::ip_t mdsIp;
     butil::ip_t csIp;
-    if (butil::str2ip(options_.mdsIp.c_str(), &mdsIp) < 0) {
-        LOG(ERROR) << "Invalid MDS IP provided: " << options_.mdsIp;
-        return -1;
-    }
+    storePath_ = FsAdaptorUtil::GetPathFromUri(options_.storeUri);
     if (butil::str2ip(options_.ip.c_str(), &csIp) < 0) {
         LOG(ERROR) << "Invalid Chunkserver IP provided: " << options_.ip;
         return -1;
     }
-    mdsEp_ = butil::EndPoint(mdsIp, options_.mdsPort);
     csEp_ = butil::EndPoint(csIp, options_.port);
-    LOG(INFO) << "MDS address: " << options_.mdsIp << ":" << options_.mdsPort;
     LOG(INFO) << "Chunkserver address: " << options_.ip << ":" << options_.port;
+
+    // mdsEps不能为空
+    ::curve::common::SplitString(options_.mdsListenAddr, ",", &mdsEps_);
+    if (mdsEps_.empty()) {
+        LOG(ERROR) << "Invalid mds ip provided: " << options_.mdsListenAddr;
+        return -1;
+    }
+    // 检查每个地址的合法性
+    for (auto addr : mdsEps_) {
+        butil::EndPoint endpt;
+        if (butil::str2endpoint(addr.c_str(), &endpt) < 0) {
+            LOG(ERROR) << "Invalid sub mds ip:port provided: " << addr;
+            return -1;
+        }
+    }
+
+    inServiceIndex_ = 0;
+    LOG(INFO) << "MDS address: " << options_.mdsListenAddr;
 
     copysetMan_ = options.copysetNodeManager;
 
+    // 获取当前unix时间戳
+    startUpTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
     return 0;
 }
 
@@ -177,6 +191,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
 
     req->set_chunkserverid(options_.chunkserverId);
     req->set_token(options_.chunkserverToken);
+    req->set_starttime(startUpTime_);
     req->set_ip(options_.ip);
     req->set_port(options_.port);
 
@@ -202,8 +217,6 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
         stats->set_readiops(readMetric->iops_.get_value(1));
         stats->set_writeiops(writeMetric->iops_.get_value(1));
         req->set_allocated_stats(stats);
-    } else {
-        LOG(ERROR) << "Failed to get chunkserver io metric.";
     }
 
     size_t cap, avail;
@@ -302,8 +315,11 @@ void Heartbeat::DumpHeartbeatResponse(const HeartbeatResponse& response) {
 int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
                              HeartbeatResponse* response) {
     brpc::Channel channel;
-    if (channel.Init(mdsEp_, NULL) != 0) {
-        LOG(ERROR) << "Fail to init channel to MDS " << mdsEp_;
+    if (channel.Init(mdsEps_[inServiceIndex_].c_str(), NULL) != 0) {
+        LOG(ERROR) << csEp_.ip << ":" << csEp_.port
+                   << " Fail to init channel to MDS "
+                   << mdsEps_[inServiceIndex_];
+        return -1;
     }
 
     curve::mds::heartbeat::HeartbeatService_Stub stub(&channel);
@@ -314,8 +330,19 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
 
     stub.ChunkServerHeartbeat(&cntl, &request, response, nullptr);
     if (cntl.Failed()) {
-        LOG(ERROR) << "Fail to send heartbeat to MDS " << mdsEp_ << ","
+        LOG(ERROR) << csEp_.ip << ":" << csEp_.port
+                   << " Fail to send heartbeat to MDS "
+                   << mdsEps_[inServiceIndex_] << ","
+                   << " cntl errorCode: " << cntl.ErrorCode()
                    << " cntl error: " << cntl.ErrorText();
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            LOG(WARNING) << "current mds: " << mdsEps_[inServiceIndex_]
+                         << " is shutdown or going to quit";
+            inServiceIndex_ = (inServiceIndex_ + 1) % mdsEps_.size();
+            LOG(INFO) << "next heartbeat switch to "
+                      << mdsEps_[inServiceIndex_];
+        }
         return -1;
     } else {
         DumpHeartbeatResponse(*response);
@@ -464,7 +491,7 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
         LOG(INFO) << "sending heartbeat info";
         ret = heartbeat->SendHeartbeat(req, &resp);
         if (ret != 0) {
-            LOG(ERROR) << "Failed to send heartbeat to MDS";
+            LOG(WARNING) << "Failed to send heartbeat to MDS";
             sleep(1);
             continue;
         }

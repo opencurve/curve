@@ -51,7 +51,51 @@ void sessioncallback(CurveAioContext* aioctx) {
     ASSERT_EQ(-LIBCURVE_ERROR::DISABLEIO, aioctx->ret);
 }
 */
-TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
+using curve::mds::RegistClientResponse;
+
+class CurveClientUserAuthFail : public ::testing::Test {
+ public:
+    void SetUp() {
+        metaopt.metaaddrvec.push_back("127.0.0.1:9104");
+
+        metaopt.metaaddrvec.push_back("127.0.0.1:9104");
+        metaopt.rpcTimeoutMs = 500;
+        metaopt.rpcRetryTimes = 5;
+        metaopt.retryIntervalUs = 200;
+
+        if (server.AddService(&curvefsservice,
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+            LOG(FATAL) << "Fail to add service";
+        }
+
+        if (server.AddService(&topologyservice,
+                            brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+            LOG(FATAL) << "Fail to add service";
+        }
+
+        RegistClientResponse* registResp = new RegistClientResponse();
+        registResp->set_statuscode(::curve::mds::StatusCode::kOK);
+        FakeReturn* fakeregist = new FakeReturn(nullptr, static_cast<void*>(registResp));      // NOLINT
+        curvefsservice.SetRegistRet(fakeregist);
+
+        brpc::ServerOptions options;
+        options.idle_timeout_sec = -1;
+        LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
+        ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+    }
+
+    void TearDown() {
+        ASSERT_EQ(0, server.Stop(0));
+        ASSERT_EQ(0, server.Join());
+    }
+
+    brpc::Server        server;
+    MetaServerOption_t  metaopt;
+    FakeMDSCurveFSService curvefsservice;
+    FakeMDSTopologyService topologyservice;
+};
+
+TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     std::string filename = "./1_userinfo_.txt";
 
     Init(configpath.c_str());
@@ -74,9 +118,6 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     ASSERT_TRUE(fileinstance.Initialize(filename, &mdsclient, userinfo,
                                         cc.GetFileServiceOption()));
 
-    brpc::Server server;
-    FakeMDSCurveFSService curvefsservice;
-
     // set openfile response
     ::curve::mds::OpenFileResponse openresponse;
     curve::mds::FileInfo * finfo = new curve::mds::FileInfo;
@@ -97,14 +138,6 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     curvefsservice.SetOpenFile(openfakeret);
 
     // 1. create a File authfailed
-    if (server.AddService(&curvefsservice,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
-    }
-
-    brpc::ServerOptions options;
-    options.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
 
     ::curve::mds::CreateFileResponse response;
     response.set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
@@ -193,11 +226,9 @@ TEST(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
     fileinstance.UnInitialize();
     mdsclient.UnInitialize();
     UnInit();
-    server.Stop(0);
-    server.Join();
 }
 
-TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
+TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     ClientConfigOption_t opt;
     opt.metaServerOpt.rpcTimeoutMs = 500;
     opt.metaServerOpt.rpcRetryTimes = 3;
@@ -220,22 +251,6 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     std::string filename = "./1_usertest_.img";
     brpc::Server server;
     uint64_t seq = 1;
-    FakeMDSCurveFSService curvefsservice;
-    FakeMDSTopologyService topologyservice;
-
-    if (server.AddService(&curvefsservice,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
-    }
-    if (server.AddService(&topologyservice,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
-    }
-
-    brpc::ServerOptions options;
-    options.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
-
     // test create snap
     // normal test
     ::curve::mds::CreateSnapShotResponse response;
@@ -338,9 +353,6 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
                 cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fivec));
     cl.UnInit();
 
-    ASSERT_EQ(0, server.Stop(0));
-    ASSERT_EQ(0, server.Join());
-
     delete fakeret;
     delete fakeret1;
     delete listfakeret;
@@ -348,7 +360,7 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 }
 
 // root user测试
-TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
+TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     ClientConfigOption_t opt;
     opt.metaServerOpt.rpcTimeoutMs = 500;
     opt.metaServerOpt.rpcRetryTimes = 3;
@@ -373,22 +385,6 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     std::string filename = "./1_usertest_.img";
     brpc::Server server;
     uint64_t seq = 1;
-    FakeMDSCurveFSService curvefsservice;
-    FakeMDSTopologyService topologyservice;
-
-    if (server.AddService(&curvefsservice,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
-    }
-    if (server.AddService(&topologyservice,
-                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
-    }
-
-    brpc::ServerOptions options;
-    options.idle_timeout_sec = -1;
-    ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
-
     // test create snap
     // normal test
     ::curve::mds::CreateSnapShotResponse response;
@@ -491,9 +487,6 @@ TEST(CurveSnapClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
                 cl.ListSnapShot(filename, rootuserinfo,
                                 &seqvec, &fivec));
     cl.UnInit();
-
-    ASSERT_EQ(0, server.Stop(0));
-    ASSERT_EQ(0, server.Join());
 
     delete fakeret;
     delete fakeret1;

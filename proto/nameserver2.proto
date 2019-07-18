@@ -398,6 +398,15 @@ message SetCloneFileStatusResponse {
     required StatusCode statusCode = 1;
 }
 
+message RegistClientRequest {
+    required string ip = 1;
+    required uint32 port = 2;
+}
+
+message RegistClientResponse {
+    required StatusCode statusCode = 1;
+}
+
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
@@ -431,4 +440,7 @@ service CurveFSService {
     // clone rpcs
     rpc     CreateCloneFile(CreateCloneFileRequest) returns (CreateCloneFileResponse);
     rpc     SetCloneFileStatus(SetCloneFileStatusRequest) returns (SetCloneFileStatusResponse);
+
+    // curve status
+    rpc     RegistClient(RegistClientRequest) returns (RegistClientResponse);
 }

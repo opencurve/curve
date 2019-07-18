@@ -81,6 +81,7 @@ int ChunkfilePoolHelper::PersistEnCodeMetaInfo(
         LOG(ERROR) << "meta file write failed, "
                    << persistPath.c_str()
                    << ", ret = " << ret;
+        fsptr->Close(fd);
         delete[] writeBuffer;
         return -1;
     }
@@ -193,9 +194,11 @@ bool ChunkfilePool::Initialize(const ChunkfilePoolOptions& cfopt) {
         }
         if (fsptr_->DirExists(currentdir_.c_str())) {
             return ScanInternal();
+        } else {
+            LOG(ERROR) << "chunkfile pool not exists, inited failed!"
+                       << " chunkfile pool path = " << currentdir_.c_str();
+            return false;
         }
-        LOG(ERROR) << "chunkfile pool not exists, inited failed!"
-                   << " chunkfile pool path = " << currentdir_.c_str();
     } else {
         currentdir_ = chunkPoolOpt_.chunkFilePoolDir;
         if (!fsptr_->DirExists(currentdir_.c_str())) {
@@ -232,6 +235,7 @@ int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
     int retry = 0;
 
     while (retry < chunkPoolOpt_.retryTimes) {
+        uint64_t chunkID;
         std::string srcpath;
         if (chunkPoolOpt_.getChunkFromPool) {
             std::unique_lock<std::mutex> lk(mtx_);
@@ -239,7 +243,8 @@ int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
                 LOG(ERROR) << "no avaliable chunk!";
                 break;
             }
-            srcpath = currentdir_ + "/" + std::to_string(tmpChunkvec_.back());
+            chunkID = tmpChunkvec_.back();
+            srcpath = currentdir_ + "/" + std::to_string(chunkID);
             tmpChunkvec_.pop_back();
             --currentState_.preallocatedChunksLeft;
         } else {
@@ -253,29 +258,32 @@ int ChunkfilePool::GetChunk(const std::string& targetpath, char* metapage) {
             }
         }
 
-        ret = WriteMetaPage(srcpath, metapage);
+        bool rc = WriteMetaPage(srcpath, metapage);
         LOG(INFO) << "src path = " << srcpath.c_str()
                   << ", dist path = " << targetpath.c_str();
-        if (ret == 0) {
-            // 这里使用RENAME_NOREPLACE模式来rename文件
-            // 当目标文件存在时，不允许被覆盖
-            // 也就是说通过chunkfilepool创建文件需要保证目标文件不存在
-            // datastore可能存在并发创建文件的场景
-            // 通过rename一来保证文件创建的原子性，二来保证不会覆盖已有文件
-            ret = fsptr_->Rename(srcpath.c_str(),
-                                 targetpath.c_str(),
+        if (rc) {
+            // 这里使用RENAME_NOREPLACE模式来rename文件当目标文件存在时，不允许被覆盖
+            // 也就是说通过chunkfilepool创建文件需要保证目标文件不存在datastore可能存
+            // 在并发创建文件的场景通过rename一来保证文件创建的原子性，二来保证不会覆盖已
+            // 有文件
+            ret = fsptr_->Rename(srcpath.c_str(), targetpath.c_str(),
                                  RENAME_NOREPLACE);
-        }
-
-        if (ret < 0) {
-            LOG(ERROR) << "file rename failed, " << srcpath.c_str();
-            RecycleChunk(srcpath);
+            // 目标文件已存在，直接退出当前逻辑，并删除已写过的文件
+            if (ret == -EEXIST) {
+                LOG(ERROR) << targetpath << ", already exists! src path = "
+                           << srcpath;
+                break;
+            } else if (ret < 0) {
+                LOG(ERROR) << "file rename failed, " << srcpath.c_str();
+            } else {
+                LOG(INFO) << "get chunk success! now pool size = "
+                          << tmpChunkvec_.size();
+                break;
+            }
         } else {
-            LOG(INFO) << "get chunk success! now pool size = "
-                      << tmpChunkvec_.size();;
-            break;
+            LOG(ERROR) << "write metapage failed, "
+                       << srcpath.c_str();
         }
-
         retry++;
     }
     return ret;
@@ -318,36 +326,44 @@ int ChunkfilePool::AllocateChunk(const std::string& chunkpath) {
     }
 
     ret = fsptr_->Close(fd);
+    if (ret != 0) {
+        LOG(ERROR) << "close failed, " << chunkpath.c_str();
+    }
     return ret;
 }
 
-int ChunkfilePool::WriteMetaPage(const std::string& sourcepath, char* page) {
+bool ChunkfilePool::WriteMetaPage(const std::string& sourcepath, char* page) {
     int fd = -1;
     int ret = -1;
 
-    do {
-        ret = fsptr_->Open(sourcepath.c_str(), O_RDWR);
-        if (ret < 0) {
-            LOG(ERROR) << "file open failed, " << sourcepath.c_str();
-            break;
-        }
-        fd = ret;
+    ret = fsptr_->Open(sourcepath.c_str(), O_RDWR);
+    if (ret < 0) {
+        LOG(ERROR) << "file open failed, " << sourcepath.c_str();
+        return false;
+    }
 
-        ret = fsptr_->Write(fd, page, 0, chunkPoolOpt_.metaPageSize);
-        if (ret != chunkPoolOpt_.metaPageSize) {
-            LOG(ERROR) << "write failed, " << sourcepath.c_str();
-            break;
-        }
+    fd = ret;
 
-        ret = fsptr_->Fsync(fd);
-        if (ret < 0) {
-            LOG(ERROR) << "fsync failed, " << sourcepath.c_str();
-            break;
-        }
-    } while (0);
+    ret = fsptr_->Write(fd, page, 0, chunkPoolOpt_.metaPageSize);
+    if (ret != chunkPoolOpt_.metaPageSize) {
+        fsptr_->Close(fd);
+        LOG(ERROR) << "write metapage failed, " << sourcepath.c_str();
+        return false;
+    }
+
+    ret = fsptr_->Fsync(fd);
+    if (ret != 0) {
+        fsptr_->Close(fd);
+        LOG(ERROR) << "fsync metapage failed, " << sourcepath.c_str();
+        return false;
+    }
 
     ret = fsptr_->Close(fd);
-    return ret;
+    if (ret != 0) {
+        LOG(ERROR) << "close failed, " << sourcepath.c_str();
+        return false;
+    }
+    return true;
 }
 
 int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
@@ -366,10 +382,10 @@ int ChunkfilePool::RecycleChunk(const std::string& chunkpath) {
                        << ", filename = " << chunkpath.c_str();
             return fsptr_->Delete(chunkpath.c_str());
         }
+
         struct stat info;
         int ret = fsptr_->Fstat(fd, &info);
-
-        if (ret < 0) {
+        if (ret != 0) {
             LOG(ERROR)  << "Fstat file " << chunkpath.c_str()
                         << "failed, ret = " << ret
                         << ", delete file dirctly";
@@ -456,7 +472,7 @@ bool ChunkfilePool::ScanInternal() {
         struct stat info;
         int ret = fsptr_->Fstat(fd, &info);
 
-        if (ret < 0 || info.st_size != chunklen) {
+        if (ret != 0 || info.st_size != chunklen) {
             LOG(ERROR) << "file size illegal, " << filepath.c_str()
                        << ", standard size = " << chunklen
                        << ", current size = " << info.st_size;

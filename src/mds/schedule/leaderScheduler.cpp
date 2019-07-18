@@ -7,9 +7,11 @@
 
 #include <stdlib.h>
 #include <time.h>
+#include <sys/time.h>
 #include <glog/logging.h>
 #include <algorithm>
 #include <random>
+#include <limits>
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorFactory.h"
 
@@ -32,8 +34,6 @@ int LeaderScheduler::Schedule() {
 
     for (auto csInfo : csInfos) {
         if (csInfo.IsOffline()) {
-            LOG(ERROR) << "leaderScheduler find chunkServer:" << csInfo.info.id
-                       << " is offline, please check!";
             continue;
         }
 
@@ -43,6 +43,10 @@ int LeaderScheduler::Schedule() {
         }
 
         if (minLeaderCount == -1 || csInfo.leaderCount < minLeaderCount) {
+            // 因为只有minLeaderCount的才会作为目标节点，这里只需要判断目标节点是否刚启动
+            if (!coolingTimeExpired(csInfo.startUpTime)) {
+                continue;
+            }
             minId = csInfo.info.id;
             minLeaderCount = csInfo.leaderCount;
         }
@@ -65,12 +69,14 @@ int LeaderScheduler::Schedule() {
     if (maxId > 0) {
         Operator transferLeaderOutOp;
         CopySetInfo selectedCopySet;
-        if (transferLeaderOut(maxId, &transferLeaderOutOp, &selectedCopySet)) {
+        if (transferLeaderOut(maxId, maxLeaderCount, &transferLeaderOutOp,
+            &selectedCopySet)) {
             if (opController_->AddOperator(transferLeaderOutOp)) {
                 oneRoundGenOp += 1;
                 LOG(INFO) << "leaderScheduler generatre operator "
                           << transferLeaderOutOp.OpToString()
-                          << " for " << selectedCopySet.CopySetInfoStr();
+                          << " for " << selectedCopySet.CopySetInfoStr()
+                          << " from transfer leader out";
                 return oneRoundGenOp;
             }
         }
@@ -81,12 +87,14 @@ int LeaderScheduler::Schedule() {
     if (minId > 0) {
         Operator transferLeaderInOp;
         CopySetInfo selectedCopySet;
-        if (transferLeaderIn(minId, &transferLeaderInOp, &selectedCopySet)) {
+        if (transferLeaderIn(minId, minLeaderCount, &transferLeaderInOp,
+            &selectedCopySet)) {
             if (opController_->AddOperator(transferLeaderInOp)) {
                 oneRoundGenOp += 1;
                 LOG(INFO) << "leaderScheduler generatre operator "
                           << transferLeaderInOp.OpToString()
-                          << " for " << selectedCopySet.CopySetInfoStr();
+                          << " for " << selectedCopySet.CopySetInfoStr()
+                          << " from transfer leader in";
                 return oneRoundGenOp;
             }
         }
@@ -95,7 +103,7 @@ int LeaderScheduler::Schedule() {
     return oneRoundGenOp;
 }
 
-bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source,
+bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
     Operator *op, CopySetInfo *selectedCopySet) {
     // 找出该chunkserver上所有的leaderCopyset作为备选
     std::vector<CopySetInfo> candidateInfos;
@@ -125,12 +133,13 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source,
         *selectedCopySet = candidateInfos[rand()%candidateInfos.size()];
 
         // 从follower中选择leader数目最少
-        int targetId = -1;
-        int targetLeaderCount = -1;
+        ChunkServerIdType targetId = UNINTIALIZE_ID;
+        uint32_t targetLeaderCount = std::numeric_limits<uint32_t>::max();
+        uint64_t targetStartUpTime = 0;
         for (auto peerInfo : selectedCopySet->peers) {
             ChunkServerInfo csInfo;
             if (!topo_->GetChunkServerInfo(peerInfo.id, &csInfo)) {
-                LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
+                LOG(ERROR) << "leaderScheduler cannot get info of chunkServer: "
                            << peerInfo.id;
                 return false;
             }
@@ -144,14 +153,16 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source,
                 continue;
             }
 
-            if (targetId <= 0 ||
-                (csInfo.leaderCount + 1 < targetLeaderCount - 1)) {
+            if (csInfo.leaderCount < targetLeaderCount) {
                 targetId = csInfo.info.id;
                 targetLeaderCount = csInfo.leaderCount;
+                targetStartUpTime = csInfo.startUpTime;
             }
         }
 
-        if (targetId <= 0) {
+        if (targetId == UNINTIALIZE_ID ||
+            count - 1 < targetLeaderCount + 1 ||
+            !coolingTimeExpired(targetStartUpTime)) {
             retryTimes++;
             continue;
         } else {
@@ -166,7 +177,7 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source,
     return false;
 }
 
-bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target,
+bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
     Operator *op, CopySetInfo *selectedCopySet) {
     // 从target中选择follower copyset, 把它的leader迁移到target上
     std::vector<CopySetInfo> candidateInfos;
@@ -200,20 +211,14 @@ bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target,
 
         // 获取selectedCopySet的leader上的leaderCount 和 target上的leaderCount
         ChunkServerInfo sourceInfo;
-        ChunkServerInfo targetInfo;
         if (!topo_->GetChunkServerInfo(selectedCopySet->leader, &sourceInfo)) {
             LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
-                    << selectedCopySet->leader;
+                       << selectedCopySet->leader;
             retryTimes++;
             continue;
         }
-        if (!topo_->GetChunkServerInfo(target, &targetInfo)) {
-            LOG(ERROR) << "leaderScheduler cannot get info of chukServer:"
-                       << target;
-            retryTimes++;
-            continue;
-        }
-        if (sourceInfo.leaderCount - 1 < targetInfo.leaderCount + 1) {
+
+        if (sourceInfo.leaderCount - 1 < count + 1) {
             retryTimes++;
             continue;
         }
@@ -240,14 +245,21 @@ bool LeaderScheduler::copySetHealthy(const CopySetInfo &cInfo) {
         }
 
         if (csInfo.IsOffline()) {
-            LOG(ERROR) << "leaderScheduler find chunkServer:"
-                       << csInfo.info.id
-                       << " is offline, please check!";
             healthy = false;
             break;
         }
     }
     return healthy;
+}
+
+bool LeaderScheduler::coolingTimeExpired(uint64_t startUpTime) {
+    if (startUpTime == 0) {
+        return false;
+    }
+
+    struct timeval tm;
+    gettimeofday(&tm, NULL);
+    return tm.tv_sec - startUpTime > chunkserverCoolingTimeSec_;
 }
 
 int64_t LeaderScheduler::GetRunningInterval() {

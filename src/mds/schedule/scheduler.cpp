@@ -131,11 +131,10 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
         int source = UNINTIALIZE_ID;
         int target = cs.info.id;
         int affected = 0;
-        int minScatterWidth =
-            topo_->GetMinScatterWidthInLogicalPool(copySetInfo.id.first);
+        int minScatterWidth = GetMinScatterWidth(copySetInfo.id.first);
         if (minScatterWidth <= 0) {
-            LOG(ERROR) << "minScatterWith in logical pool "
-                      << copySetInfo.id.first << " is not initialized";
+            LOG(WARNING) << "minScatterWith in logical pool "
+                       << copySetInfo.id.first << " is not initialized";
             return UNINTIALIZE_ID;
         }
         if (SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
@@ -280,8 +279,8 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
 
         // chunkserver不是online状态
         if (csInfo.IsOffline()) {
-            LOG(ERROR) << "scheduler choose to remove offline chunkServer "
-                       << cs << " from " << copySetInfo.CopySetInfoStr();
+            LOG(WARNING) << "scheduler choose to remove offline chunkServer "
+                         << cs << " from " << copySetInfo.CopySetInfoStr();
             return cs;
         }
     }
@@ -304,8 +303,7 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
         ChunkServerIDType target = UNINTIALIZE_ID;
         ChunkServerIdType ignore = UNINTIALIZE_ID;
         int affected = 0;
-        int minScatterWidth
-            = topo_->GetMinScatterWidthInLogicalPool(copySetInfo.id.first);
+        int minScatterWidth = GetMinScatterWidth(copySetInfo.id.first);
         if (minScatterWidth <= 0) {
             LOG(ERROR) << "minScatterWith in logical pool "
                        << copySetInfo.id.first << " is not initialized";
@@ -327,6 +325,11 @@ ChunkServerIdType Scheduler::SelectRedundantReplicaToRemove(
 
     SchedulerHelper::SortScatterWitAffected(&candidates);
     return candidates[candidates.size() - 1].first;
+}
+
+int Scheduler::GetMinScatterWidth(PoolIdType lpid) {
+    return topo_->GetAvgScatterWidthInLogicalPool(lpid) *
+        (1 - scatterWidthRangePerent_ / 2);
 }
 
 }  // namespace schedule

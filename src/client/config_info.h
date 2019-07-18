@@ -29,7 +29,10 @@ typedef struct LogInfo {
  * in flight IO控制信息
  */
 typedef struct InFlightIOCntlInfo {
-    uint64_t    maxInFlightIONum;
+    uint64_t    maxInFlightRPCNum;
+    InFlightIOCntlInfo() {
+        maxInFlightRPCNum = 2048;
+    }
 } InFlightIOCntlInfo_t;
 
 /**
@@ -37,17 +40,23 @@ typedef struct InFlightIOCntlInfo {
  * @rpcTimeoutMs: 设置rpc超时时间
  * @rpcRetryTimes: 设置rpc重试次数
  * @retryIntervalUs: 设置rpc重试间隔时间
+ * @synchronizeRPCTimeoutMS: 设置同步调用RPC超时时间
+ * @synchronizeRPCRetryTime: 设置同步调用RPC超时重试次数
  * @metaaddrvec: mds server地址
  */
 typedef struct MetaServerOption {
     uint64_t  rpcTimeoutMs;
-    uint16_t  rpcRetryTimes;
+    uint32_t  rpcRetryTimes;
     uint32_t  retryIntervalUs;
+    uint32_t  synchronizeRPCTimeoutMS;
+    uint32_t  synchronizeRPCRetryTime;
     std::vector<std::string> metaaddrvec;
     MetaServerOption() {
         rpcTimeoutMs = 500;
         rpcRetryTimes = 5;
-        retryIntervalUs = 200;
+        retryIntervalUs = 50000;
+        synchronizeRPCRetryTime = 3;
+        synchronizeRPCTimeoutMS = 500;
     }
 } MetaServerOption_t;
 
@@ -56,7 +65,7 @@ typedef struct MetaServerOption {
  * @refreshTimesPerLease: 一个租约内续约次数
  */
 typedef struct LeaseOption {
-    uint16_t    refreshTimesPerLease;
+    uint32_t    refreshTimesPerLease;
     LeaseOption() {
         refreshTimesPerLease = 5;
     }
@@ -84,8 +93,9 @@ typedef struct FailureRequestOption {
  */
 typedef struct IOSenderOption {
     uint64_t  rpcTimeoutMs;
-    uint16_t  rpcRetryTimes;
+    uint32_t  rpcRetryTimes;
     bool enableAppliedIndexRead;
+    InFlightIOCntlInfo_t inflightOpt;
     FailureRequestOption_t failRequestOpt;
     IOSenderOption() {
         rpcTimeoutMs = 500;
@@ -110,10 +120,12 @@ typedef struct RequestScheduleOption {
 
 /**
  * metaccache模块配置信息
+ * @maxUnStableDurationMs: 一个chunkserver在metacache的unstable map中待的最长时间
  * @getLeaderRetry: 获取leader重试次数
  * @retryIntervalUs: 相隔多久进行重试
  */
 typedef struct MetaCacheOption {
+    uint32_t maxUnStableDurationMs;
     uint32_t getLeaderRetry;
     uint32_t retryIntervalUs;
     uint32_t getLeaderTimeOutMs;
@@ -121,6 +133,7 @@ typedef struct MetaCacheOption {
         getLeaderRetry = 3;
         retryIntervalUs = 500;
         getLeaderTimeOutMs = 1000;
+        maxUnStableDurationMs = 30000;  // 30s
     }
 } MetaCacheOption_t;
 
@@ -136,13 +149,25 @@ typedef struct IOSplitOPtion {
 } IOSplitOPtion_t;
 
 /**
+ * 任务队列配置信息
+ */
+typedef struct TaskThreadOption {
+    uint64_t    taskQueueCapacity;
+    uint32_t    taskThreadPoolSize;
+    TaskThreadOption() {
+        taskQueueCapacity = 500000;
+        taskThreadPoolSize = 1;
+    }
+} TaskThreadOption_t;
+
+/**
  * IOOption存储了当前io 操作所需要的所有配置信息
  */
 typedef struct IOOption {
-    IOSplitOPtion_t  ioSplitOpt;
-    IOSenderOption_t ioSenderOpt;
-    MetaCacheOption_t   metaCacheOpt;
-    InFlightIOCntlInfo_t    inflightOpt;
+    IOSplitOPtion_t         ioSplitOpt;
+    IOSenderOption_t        ioSenderOpt;
+    MetaCacheOption_t       metaCacheOpt;
+    TaskThreadOption_t      taskThreadOpt;
     RequestScheduleOption_t reqSchdulerOpt;
 } IOOption_t;
 

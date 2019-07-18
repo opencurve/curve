@@ -118,6 +118,7 @@ void LeaseExcutor::IncremRefreshFailed() {
     if (failedrefreshcount_.load() >= leaseoption_.refreshTimesPerLease) {
         isleaseAvaliable_.store(false);
         iomanager_->LeaseTimeoutBlockIO();
+        LOG(ERROR) << "session invalid now!";
     }
 }
 
