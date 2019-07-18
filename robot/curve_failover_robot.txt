@@ -13,6 +13,11 @@ Library           Resources/keywords/deploy.py
 Suite Setup       init failover cluster
 Suite Teardown    clean failover env
 
+*** Variables ***
+${fio_vdsize}     20
+${vdbench_vdsize}   20
+${vm_iops_limit}   8000
+
 
 *** Test Cases ***
 #test up all cs
@@ -22,8 +27,8 @@ Suite Teardown    clean failover env
 
 
 test get all chunk num
-    [Tags]    P1    base    first release   no-need
-    stop fio
+    [Tags]    P1    base    first release   failover  no-need
+    stop rwio
     sleep  2
     ${begin_num}    get all chunk num
     ${begin_num}    Convert To Integer  ${begin_num}
@@ -81,38 +86,43 @@ inject restart one chunkserver
     ${num}   evaluate   int(1)
     test restart chunkserver num   ${num}
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	  check data consistency
+    [Teardown]	  wait iops ok   ${vm_iops_limit}
 
 inject restart two chunkserver
     [Tags]    P1    base    first release   failover
     ${num}   evaluate   int(2)
     test restart chunkserver num   ${num}
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	 check data consistency
+    [Teardown]	 wait iops ok    ${vm_iops_limit}
 
 inject kill diff host chunkserver
     [Tags]    P1    base    first release   failover
     test kill diff host chunkserver
     sleep   10
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	 check data consistency
+    [Teardown]	 wait iops ok    ${vm_iops_limit}
 
 inject stop and start vm
     [Tags]    P1    base    first release   failover
     test start vm
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	 check data consistency
+    [Teardown]	 wait iops ok     ${vm_iops_limit}
 
 inject reboot vm
     [Tags]    P1    base    first release   failover
     test restart vm
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	  check data consistency
+    [Teardown]	  wait iops ok    ${vm_iops_limit}
 
 inject kill mds
     [Tags]    P1    base    first release   failover
@@ -132,50 +142,58 @@ test chunkserver loss package 5%
     ${percent}  evaluate  int(5)
     test cs loss package  ${percent}
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	   check data consistency
+    [Teardown]	   wait iops ok    ${vm_iops_limit}
 
 test mds loss package 5%
     [Tags]    P1    base    first release   failover
     ${percent}  evaluate  int(5)
     test mds loss package  ${percent}
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	   check data consistency
+    [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test chunkserver delay package 100ms
     [Tags]    P1    base    first release   failover
     ${ms}  evaluate  int(100)
     test cs delay package  ${ms}
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	  check data consistency
+    sleep   5
+    [Teardown]	 wait iops ok    ${vm_iops_limit}
 
 test mds delay package 100ms
     [Tags]    P1    base    first release   failover
     ${ms}  evaluate  int(100)
     test mds delay package  ${ms}
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	   check data consistency
+    [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test out/in chunkserver recover
-    [Tags]    P1    base    first release   failover    no-need
+    [Tags]    P1    base    first release   failover  longtime
     ${host}	${cs_copyset_num}  test outcs recover copyset
     check vm iops
+    check data consistency
     check copies consistency
     ${copyset_num}       Convert To Integer    ${cs_copyset_num}
     test upcs recover copyset  ${host}	 ${copyset_num}
     check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	   check data consistency
+    [Teardown]	   wait iops ok    ${vm_iops_limit}
 
 test suspend up recover chunkserver
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover  longtime
     test suspend recover copyset
 #    check vm iops
+    check data consistency
     check copies consistency
-    [Teardown]	   check data consistency
+    [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test stop all cs not recover
     [Tags]    P1    base    first release   failover
@@ -183,36 +201,35 @@ test stop all cs not recover
     check vm iops
     check data consistency
     check copies consistency
-    [Teardown]	  check data consistency
+    [Teardown]	  wait iops ok   ${vm_iops_limit}
 
 *** Keywords ***
 
 init failover cluster
      detach vol
+#     init rw cloud disk
      init abnormal test env
 
 init abnormal test env
-     backup config
      destroy etcd
      destroy mds
      drop all chunkserver dat
      drop abnormal test db
      install deb
-     add config file
+     add config 
      start abnormal test services
      create pool
      restart cinder server
 
 init rw cloud disk
-     test restart vm
      remove vm key
-     stop fio
-     attach new vol
+     attach new vol   ${fio_vdsize}   ${vdbench_vdsize} 
+     test restart vm
+     stop rwio
      sleep  5
-     write full disk
-     run fio
+     write full disk   ${fio_vdsize}
+     run rwio
 
 clean failover env
-     stop fio
+     stop rwio
      detach vol
-

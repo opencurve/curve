@@ -108,8 +108,8 @@ def remove_vm_key():
     shell_operator.run_exec(cmd)
     print cmd
 
-def attach_new_vol():
-    ori_cmd = "bash curve_test.sh create"
+def attach_new_vol(fio_size,vdbench_size):
+    ori_cmd = "bash curve_test.sh create %d %d"%(int(fio_size),int(vdbench_size))
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
     logger.info("exec cmd %s" % ori_cmd)
@@ -119,6 +119,7 @@ def attach_new_vol():
     ssh.close()
 
 def detach_vol():
+    stop_rwio()
     ori_cmd = "bash curve_test.sh delete"
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
@@ -131,39 +132,48 @@ def get_vol_uuid():
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_host
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
-    ori_cmd = "source OPENRC && cinder list |grep %s | grep -w 10 | awk '{print $2}'"%("".join(rs[1]).strip())
+    ori_cmd = "source OPENRC && cinder list |grep %s |grep thrash-fio | awk '{print $2}'"%("".join(rs[1]).strip())
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
     vol_uuid = "".join(rs[1]).strip() 
     assert vol_uuid != "","get vol uuid fail"
     config.vol_uuid = vol_uuid
     ssh.close()
 
-def stop_fio():
+def stop_rwio():
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
-    ori_cmd = "supervisorctl stop fio"
-#    cmd = shell_operator.gen_remote_cmd(config.vm_user, config.vm_host, 22, config.ssh_key, ori_cmd)
+    ori_cmd = "supervisorctl stop all"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"stop fio fail"
+    assert rs[3] == 0,"stop rwio fail"
+    ori_cmd = "ps -ef|grep -v grep | grep -w /root/vdbench50406/profile | awk '{print $2}'| xargs kill -9"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    time.sleep(3)
     ssh.close()
 
-def run_fio():
-    ori_cmd =  "lsblk |grep vdc | awk '{print $1}'"
- #   cmd = shell_operator.gen_remote_cmd(config.vm_user, config.vm_host, 22, config.ssh_key, ori_cmd)
+def run_rwio():
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
+    ori_cmd =  "lsblk |grep vdc | awk '{print $1}'"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     output = "".join(rs[1]).strip()
     if output != "vdc":
         logger.error("attach is error")
         assert  False,"output is %s"%output
-    ori_cmd = "supervisorctl stop fio && supervisorctl reload"
-#    cmd = shell_operator.gen_remote_cmd(config.vm_user, config.vm_host, 22, config.ssh_key, ori_cmd)
+    ori_cmd =  "lsblk |grep vdd | awk '{print $1}'"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    time.sleep(3)
-    assert rs[3] == 0,"start fio fail"
+    output = "".join(rs[1]).strip()
+    if output != "vdd":
+        logger.error("attach is error")
+        assert  False,"output is %s"%output
+    ori_cmd = "supervisorctl stop all && supervisorctl reload"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    ori_cmd = "nohup /root/vdbench50406/vdbench -jn -f /root/vdbench50406/profile &"
+    rs = shell_operator.ssh_background_exec2(ssh, ori_cmd)
+    #write 60s io
+    time.sleep(60)
+#    assert rs[3] == 0,"start rwio fail"
     ssh.close()
 
-def write_full_disk():
-    ori_cmd = "fio -name=/dev/vdc -direct=1 -iodepth=32 -rw=write -ioengine=libaio -bs=1024k -size=10G -numjobs=1 -time_based"
+def write_full_disk(fio_size):
+    ori_cmd = "fio -name=/dev/vdc -direct=1 -iodepth=32 -rw=write -ioengine=libaio -bs=1024k -size=%dG -numjobs=1 -time_based"%int(fio_size)
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"write fio fail"
@@ -213,12 +223,14 @@ def restart_vm(ssh,uuid):
 
 def check_vm_status(ssh,uuid):
     ori_cmd = "source OPENRC && nova list|grep %s|awk '{print $6}'"%uuid
-    for i in range(1,120):
+    i = 0
+    while i < 180:
        rs = shell_operator.ssh_exec(ssh, ori_cmd)
        if "".join(rs[1]).strip() == "ACTIVE":
            return True
        else:
-           time.sleep(1)
+           time.sleep(5)
+           i = i + 5
     assert False,"start vm fail"
 
 def get_chunkserver_status(host):
@@ -465,7 +477,7 @@ def get_cluster_iops():
 def exec_deleteforce():
     mds_list = config.mds_list
     host = random.choice(mds_list)
-    cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 Resources/keywords/deleteforce-test.py %s:~/"%(config.pravie_key_path,host)
+    cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 robot/Resources/keywords/deleteforce-test.py %s:~/"%(config.pravie_key_path,host)
     shell_operator.run_exec2(cmd)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmd = "sudo cp ~/deleteforce-test.py /usr/curvefs/"
@@ -493,7 +505,6 @@ def get_all_chunk_num():
 def check_vm_iops(limit_iops=2000):
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     ori_cmd = "iostat -d vdc 1 2 |grep vdc | awk 'END {print $6}'"
-#add sleep time to 10s
     time.sleep(5)
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     kb_wrtn = "".join(rs[1]).strip()
@@ -501,6 +512,19 @@ def check_vm_iops(limit_iops=2000):
     logger.info("now vm vdc iops is %d with 4k randrw"%iops)
     assert iops >= limit_iops,"vm iops not ok,is %d"%iops
 
+def wait_iops_ok(limit_iops=8000):
+    ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
+    i = 0
+    while i < 300:
+        ori_cmd = "iostat -d vdc 1 2 |grep vdc | awk 'END {print $6}'"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        kb_wrtn = "".join(rs[1]).strip()
+        iops = int(kb_wrtn) / int(config.vm_iosize)
+        if iops >= limit_iops:
+            break
+        i = i + 2
+        time.sleep(2)
+    assert iops >= limit_iops,"vm iops not ok in 300s"
 
 def check_copies_consistency():
     host = random.choice(config.mds_list)
@@ -514,7 +538,7 @@ def check_copies_consistency():
     ori_cmd = ori_cmdpri + check_hash
     i = 0
     try:
-        stop_fio()
+        stop_rwio()
         while i < 600:
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             if rs[1] == []:
@@ -529,14 +553,31 @@ def check_copies_consistency():
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
         logger.debug("exec %s,stdout is %s"%(ori_cmd,"".join(rs[1])))
         assert rs[1] == [],"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
+#        check_data_consistency()
     except:
         logger.error("check consistency error")
-        run_fio()
+        run_rwio()
         raise
-    run_fio()
+    run_rwio()
 
 def check_data_consistency():
-    pass
+    try:
+        #wait run 60s io
+        time.sleep(60)
+        ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
+        ori_cmd = "grep \"Data Validation error\" /root/output/ -R  && \
+                grep \"Data Validation error\" /root/nohup.out"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        if rs[1] != []:
+            t = time.time()
+            ori_cmd = "mv /root/output /root/vdbench-output/output-%d && mv /root/nohup.out /root/nohup-%d"%(int(t),int(t))
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+#            logger.error("find error in %s"%rs[1])
+            assert False,"find data consistency error,save log to vm /root/vdbench-output/output-%d"%int(t)
+    except Exception as e:
+        ssh.close()
+        raise
+    ssh.close()
 
 def test_kill_chunkserver_num(num):
     start_iops = get_cluster_iops()
@@ -790,8 +831,8 @@ def test_start_vm():
         logger.debug("exec %s" % ori_cmd)
         uuid = "".join(rs[1]).strip()
         stop_vm(ssh,uuid)
+        time.sleep(30)
         start_vm(ssh,uuid)
-        time.sleep(60)
         check_vm_status(ssh,uuid)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.9:
@@ -832,9 +873,8 @@ def test_cs_loss_package(percent):
     except Exception as e:
         raise       
     finally:
-        time.sleep(30)
+        time.sleep(60)
         cancel_tc_inject(ssh,dev)
-        time.sleep(5)
 
 def test_mds_loss_package(percent):
     start_iops = get_cluster_iops()
@@ -852,9 +892,8 @@ def test_mds_loss_package(percent):
     except Exception as e:
         raise
     finally:
-        time.sleep(30)
+        time.sleep(60)
         cancel_tc_inject(ssh,dev)
-        time.sleep(5)
 
 def test_cs_delay_package(ms):
     start_iops = get_cluster_iops()
@@ -872,9 +911,8 @@ def test_cs_delay_package(ms):
     except Exception as e:
         raise
     finally:
-        time.sleep(30)
+        time.sleep(60)
         cancel_tc_inject(ssh,dev)
-        time.sleep(5)
 
 def test_mds_delay_package(ms):
     start_iops = get_cluster_iops()
@@ -892,6 +930,14 @@ def test_mds_delay_package(ms):
     except Exception as e:
         raise
     finally:
-        time.sleep(30)
+        time.sleep(60)
         cancel_tc_inject(ssh,dev)
-        time.sleep(5)
+
+def thrasher_abnormal_cluster():
+    actions = []
+    actions.append((test_kill_chunkserver_num,1.0,))
+    actions.append((test_outcs_recover_copyset,0,))
+    actions.append((stop_all_cs_not_recover,1.0,))
+    actions.append((test_suspend_recover_copyset,1.0,))
+    actions.append((test_kill_mds,1.0,))
+
