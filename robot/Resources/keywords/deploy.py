@@ -89,7 +89,7 @@ def drop_abnormal_test_db():
         cmd_list = ["DROP TABLE curve_logicalpool;", "DROP TABLE curve_copyset;", \
                     "DROP TABLE curve_physicalpool;", "DROP TABLE curve_zone;", \
                     "DROP TABLE curve_server;", "DROP TABLE curve_chunkserver;", \
-                    "DROP TABLE curve_session;"]
+                    "DROP TABLE curve_session;", "DROP TABLE client_info;"]
         for cmd in cmd_list:
             conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
             db_operator.exec_sql(conn, cmd)
