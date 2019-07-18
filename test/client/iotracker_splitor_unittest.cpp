@@ -38,7 +38,6 @@ extern uint32_t chunk_size;
 extern std::string configpath;
 
 extern char* writebuffer;
-uint16_t sleeptimeMS = 500;
 
 using curve::client::UserInfo_t;
 using curve::client::CopysetInfo_t;
@@ -80,6 +79,7 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
         fopt.metaServerOpt.rpcTimeoutMs = 500;
         fopt.metaServerOpt.rpcRetryTimes = 3;
+        fopt.metaServerOpt.retryIntervalUs = 50000;
         fopt.loginfo.loglevel = 0;
         fopt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
         fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
@@ -93,7 +93,6 @@ class IOTrackerSplitorTest : public ::testing::Test {
         fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
         fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
         fopt.leaseOpt.refreshTimesPerLease = 4;
-        fopt.ioOpt.inflightOpt.maxInFlightIONum = 1;
 
         fileinstance_ = new FileInstance();
         userinfo.owner = "userinfo";
@@ -105,11 +104,12 @@ class IOTrackerSplitorTest : public ::testing::Test {
     }
 
     void TearDown() {
-        server.Stop(0);
-        server.Join();
         fileinstance_->UnInitialize();
         mdsclient_.UnInitialize();
         delete fileinstance_;
+        LOG(INFO) << "DONE!";
+        server.Stop(0);
+        server.Join();
     }
 
     void InsertMetaCache() {
@@ -410,17 +410,17 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartRead) {
 
     auto ioctxmana = fileinstance_->GetIOManager4File();
     ioctxmana->SetRequestScheduler(mockschuler);
-    CurveAioContext aioctx;
-    aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
-    aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = LIBCURVE_ERROR::OK;
-    aioctx.cb = readcallback;
-    aioctx.buf = new char[aioctx.length];
-    aioctx.op = LIBCURVE_OP::LIBCURVE_OP_READ;
+    CurveAioContext* aioctx = new CurveAioContext;
+    aioctx->offset = 4 * 1024 * 1024 - 4 * 1024;
+    aioctx->length = 4 * 1024 * 1024 + 8 * 1024;
+    aioctx->ret = LIBCURVE_ERROR::OK;
+    aioctx->cb = readcallback;
+    aioctx->buf = new char[aioctx->length];
+    aioctx->op = LIBCURVE_OP::LIBCURVE_OP_READ;
 
     ioreadflag = false;
-    char* data = static_cast<char*>(aioctx.buf);
-    ioctxmana->AioRead(&aioctx, &mdsclient_);
+    char* data = static_cast<char*>(aioctx->buf);
+    ioctxmana->AioRead(aioctx, &mdsclient_);
 
     {
         std::unique_lock<std::mutex> lk(readmtx);
@@ -431,33 +431,7 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartRead) {
     ASSERT_EQ('b', data[4 * 1024]);
     ASSERT_EQ('e', data[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('f', data[4 * 1024 + chunk_size]);
-    ASSERT_EQ('f', data[aioctx.length - 1]);
-
-    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
-
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
-        while (reqcount > 0) {
-            fileinstance_->AioRead(&aioctx);
-            reqcount--;
-        }
-    };
-
-    auto threadFunc2 = [&]() {
-        while (reqcount > 0) {
-            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
-            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
-        }
-    };
-
-    std::thread t3(threadFunc2);
-    std::thread t1(threadFunc1);
-    std::thread t2(threadFunc1);
-    t1.join();
-    t2.join();
-    t3.join();
-
-    delete[] data;
+    ASSERT_EQ('f', data[aioctx->length - 1]);
 }
 
 TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
@@ -468,22 +442,22 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
     auto ioctxmana = fileinstance_->GetIOManager4File();
     ioctxmana->SetRequestScheduler(mockschuler);
 
-    CurveAioContext aioctx;
-    aioctx.offset = 4 * 1024 * 1024 - 4 * 1024;
-    aioctx.length = 4 * 1024 * 1024 + 8 * 1024;
-    aioctx.ret = LIBCURVE_ERROR::OK;
-    aioctx.cb = writecallback;
-    aioctx.buf = new char[aioctx.length];
-    aioctx.op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
+    CurveAioContext* aioctx = new CurveAioContext;
+    aioctx->offset = 4 * 1024 * 1024 - 4 * 1024;
+    aioctx->length = 4 * 1024 * 1024 + 8 * 1024;
+    aioctx->ret = LIBCURVE_ERROR::OK;
+    aioctx->cb = writecallback;
+    aioctx->buf = new char[aioctx->length];
+    aioctx->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
 
-    char* data = static_cast<char*>(aioctx.buf);
+    char* data = static_cast<char*>(aioctx->buf);
 
     memset(data, 'a', 4 * 1024);
     memset(data + 4 * 1024, 'b', chunk_size);
     memset(data + 4 * 1024 + chunk_size, 'c', 4 * 1024);
 
     iowriteflag = false;
-    ioctxmana->AioWrite(&aioctx, &mdsclient_);
+    ioctxmana->AioWrite(aioctx, &mdsclient_);
 
     {
         std::unique_lock<std::mutex> lk(writemtx);
@@ -495,33 +469,104 @@ TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWrite) {
     ASSERT_EQ('b', writebuffer[4 * 1024]);
     ASSERT_EQ('b', writebuffer[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('c', writebuffer[4 * 1024 + chunk_size]);
-    ASSERT_EQ('c', writebuffer[aioctx.length - 1]);
+    ASSERT_EQ('c', writebuffer[aioctx->length - 1]);
+}
 
-    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
 
+TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetSegmentFail) {
+    MockRequestScheduler* mockschuler = new MockRequestScheduler;
+    mockschuler->DelegateToFake();
+
+    curve::mds::GetOrAllocateSegmentResponse* response =
+                new curve::mds::GetOrAllocateSegmentResponse();
+    brpc::Controller* controller1 = new brpc::Controller;
+    controller1->SetFailed(-1, "error");
+    FakeReturn* fakeret = new FakeReturn(controller1,
+                static_cast<void*>(response));
+    curvefsservice.SetGetOrAllocateSegmentFakeReturn(fakeret);
+
+    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
+    auto ioctxmana = fileinstance_->GetIOManager4File();
+    ioctxmana->SetRequestScheduler(mockschuler);
+    ioctxmana->SetIOOpt(fopt.ioOpt);
+
+    CurveAioContext* aioctx = new CurveAioContext;
+    aioctx->offset = 10*1024*1024*1024ul;
+    aioctx->length = chunk_size + 8 * 1024;
+    aioctx->ret = LIBCURVE_ERROR::OK;
+    aioctx->cb = writecallback;
+    aioctx->buf = new char[aioctx->length];
+    aioctx->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
+
+    char* data = static_cast<char*>(aioctx->buf);
+
+    memset(data, 'a', 4 * 1024);
+    memset(data + 4 * 1024, 'b', chunk_size);
+    memset(data + 4 * 1024 + chunk_size, 'c', 4 * 1024);
+
+    // 设置mds一侧get segment接口返回失败，底层task thread层会一直重试，
+    // 但是不会阻塞上层继续向下发送IO请求
     int reqcount = 32;
     auto threadFunc1 = [&]() {
         while (reqcount > 0) {
-            fileinstance_->AioWrite(&aioctx);
+            fileinstance_->AioWrite(aioctx);
             reqcount--;
-        }
-    };
-
-    auto threadFunc2 = [&]() {
-        while (reqcount > 0) {
-            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
-            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
         }
     };
 
     std::thread t1(threadFunc1);
     std::thread t2(threadFunc1);
-    std::thread t3(threadFunc2);
     t1.join();
     t2.join();
-    t3.join();
+}
 
-    delete[] data;
+TEST_F(IOTrackerSplitorTest, ManagerAsyncStartWriteReadGetServerlistFail) {
+    MockRequestScheduler* mockschuler = new MockRequestScheduler;
+    mockschuler->DelegateToFake();
+
+    ::curve::mds::topology::GetChunkServerListInCopySetsResponse* response
+        = new ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
+    brpc::Controller* controller1 = new brpc::Controller;
+    controller1->SetFailed(-1, "error");
+    FakeReturn* fakeret = new FakeReturn(controller1,
+                static_cast<void*>(response));
+    topologyservice.SetFakeReturn(fakeret);
+
+    MetaCache* mc = fileinstance_->GetIOManager4File()->GetMetaCache();
+    auto ioctxmana = fileinstance_->GetIOManager4File();
+    ioctxmana->SetRequestScheduler(mockschuler);
+    ioctxmana->SetIOOpt(fopt.ioOpt);
+
+    // offset 10*1024*1024*1024ul 不在metacache里
+    // client回去mds拿segment和serverlist
+    CurveAioContext* aioctx = new CurveAioContext;
+    aioctx->offset = 10*1024*1024*1024ul;
+    aioctx->length = chunk_size + 8 * 1024;
+    aioctx->ret = LIBCURVE_ERROR::OK;
+    aioctx->cb = writecallback;
+    aioctx->buf = new char[aioctx->length];
+    aioctx->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
+
+    char* data = static_cast<char*>(aioctx->buf);
+
+    memset(data, 'a', 4 * 1024);
+    memset(data + 4 * 1024, 'b', chunk_size);
+    memset(data + 4 * 1024 + chunk_size, 'c', 4 * 1024);
+
+    // 设置mds一侧get server list接口返回失败，底层task thread层会一直重试
+    // 但是不会阻塞，上层继续向下发送IO请求
+    int reqcount = 32;
+    auto threadFunc1 = [&]() {
+        while (reqcount > 0) {
+            fileinstance_->AioWrite(aioctx);
+            reqcount--;
+        }
+    };
+
+    std::thread t1(threadFunc1);
+    std::thread t2(threadFunc1);
+    t1.join();
+    t2.join();
 }
 
 TEST_F(IOTrackerSplitorTest, ManagerStartRead) {
@@ -554,31 +599,6 @@ TEST_F(IOTrackerSplitorTest, ManagerStartRead) {
     ASSERT_EQ('e', data[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('f', data[4 * 1024 + chunk_size]);
     ASSERT_EQ('f', data[length - 1]);
-
-    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
-
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
-        while (reqcount > 0) {
-            ioctxmana->Read(data, offset, length, &mdsclient_);
-            reqcount--;
-        }
-    };
-
-    auto threadFunc2 = [&]() {
-        while (reqcount > 0) {
-            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
-            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
-        }
-    };
-
-    std::thread t1(threadFunc1);
-    std::thread t2(threadFunc1);
-    std::thread t3(threadFunc2);
-    t1.join();
-    t2.join();
-    t3.join();
-
     delete[] data;
 }
 
@@ -616,30 +636,6 @@ TEST_F(IOTrackerSplitorTest, ManagerStartWrite) {
     ASSERT_EQ('b', writebuffer[4 * 1024 + chunk_size - 1]);
     ASSERT_EQ('c', writebuffer[4 * 1024 + chunk_size]);
     ASSERT_EQ('c', writebuffer[length - 1]);
-
-    fiu_enable("client_request_schedule_sleep", 32, nullptr, 0);
-
-    int reqcount = 32;
-    auto threadFunc1 = [&]() {
-        while (reqcount > 0) {
-            ioctxmana->Write(buf, offset, length, &mdsclient_);
-            reqcount--;
-        }
-    };
-
-    auto threadFunc2 = [&]() {
-        while (reqcount > 0) {
-            ASSERT_LT(ioctxmana->GetInflightIONum(), 3);
-            LOG(INFO) << "inflight IO = " << ioctxmana->GetInflightIONum();
-        }
-    };
-
-    std::thread t1(threadFunc1);
-    std::thread t2(threadFunc1);
-    std::thread t3(threadFunc2);
-    t1.join();
-    t2.join();
-    t3.join();
 
     delete[] buf;
 }

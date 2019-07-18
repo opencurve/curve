@@ -24,17 +24,10 @@ std::map<ChunkServerIdType, ChunkServerMetricPtr> gChunkServerMetrics;
 void TopologyMetricService::UpdateTopologyMetrics() {
     // 处理chunkserver
     std::vector<ChunkServerIdType> chunkservers =
-        topo_->GetChunkServerInCluster();
-    // 移除不存在的chunkserver
-    for (auto iy = gChunkServerMetrics.begin();
-        iy != gChunkServerMetrics.end();) {
-        if (std::find(chunkservers.begin(), chunkservers.end(), iy->first) ==
-            chunkservers.end()) {
-            iy = gChunkServerMetrics.erase(iy);
-        } else {
-            iy++;
-        }
-    }
+        topo_->GetChunkServerInCluster(
+                [](const ChunkServer &cs) {
+                    return cs.GetStatus() != ChunkServerStatus::RETIRED;
+                });
 
     for (auto csId : chunkservers) {
         auto it = gChunkServerMetrics.find(csId);
@@ -171,6 +164,17 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         if (std::find(lPools.begin(), lPools.end(), iy->first) ==
             lPools.end()) {
             iy = gLogicalPoolMetrics.erase(iy);
+        } else {
+            iy++;
+        }
+    }
+
+    // 移除不存在的chunkserver
+    for (auto iy = gChunkServerMetrics.begin();
+        iy != gChunkServerMetrics.end();) {
+        if (std::find(chunkservers.begin(), chunkservers.end(), iy->first) ==
+            chunkservers.end()) {
+            iy = gChunkServerMetrics.erase(iy);
         } else {
             iy++;
         }

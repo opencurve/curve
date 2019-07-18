@@ -409,6 +409,42 @@ void SessionRepoItem::SetSessionStatus(uint16_t status) {
   sessionStatus = status;
 }
 
+// client info
+ClientInfoRepoItem::ClientInfoRepoItem(const std::string &clientIp,
+                                      uint32_t clientPort) {
+  this->clientIp = clientIp;
+  this->clientPort = clientPort;
+}
+
+bool ClientInfoRepoItem::operator==(const ClientInfoRepoItem &r) {
+  return clientIp == r.clientIp && clientPort == r.clientPort;
+}
+
+
+void ClientInfoRepoItem::getKV(std::map<std::string, std::string> *kv) const {
+  (*kv)["clientIp"] = convertToSqlValue(clientIp);
+  (*kv)["clientPort"] = std::to_string(clientPort);
+}
+
+void ClientInfoRepoItem::getPrimaryKV(std::map<std::string,
+                               std::string> *primary) const {
+  (*primary)["clientIp"] = convertToSqlValue(clientIp);
+  (*primary)["clientPort"] = std::to_string(clientPort);
+  return;
+}
+
+std::string ClientInfoRepoItem::getTable() const {
+  return ClientInfoTable;
+}
+
+std::string ClientInfoRepoItem::GetClientIp() {
+  return clientIp;
+}
+
+uint32_t ClientInfoRepoItem::GetClientPort() {
+  return clientPort;
+}
+
 int MdsRepo::InsertChunkServerRepoItem(const ChunkServerRepoItem &cr) {
   return db_->ExecUpdate(makeSql.makeInsert(cr));
 }
@@ -828,6 +864,56 @@ int MdsRepo::QuerySessionRepoItem(const std::string &sessionID,
                         static_cast<uint8_t>(res->getUInt("sessionStatus"));
         repo->createTime = res->getUInt64("createTime");
         repo->clientIP = res->getString("clientIP");
+    }
+
+    delete (res);
+    return OperationOK;
+}
+
+int MdsRepo::InsertClientInfoRepoItem(const ClientInfoRepoItem &r) {
+    return db_->ExecUpdate(makeSql.makeInsert(r));
+}
+
+int MdsRepo::LoadClientInfoRepoItems(
+                        std::vector<ClientInfoRepoItem> *clientList) {
+    sql::ResultSet *res;
+    int resCode =
+        db_->QueryRows(makeSql.makeQueryRows(ClientInfoRepoItem{}), &res);
+    if (OperationOK != resCode) {
+        return resCode;
+    }
+
+    while (res->next()) {
+        clientList->push_back(
+            ClientInfoRepoItem(res->getString("clientIp"),
+                        res->getUInt("clientPort")));
+    }
+
+    delete (res);
+    return OperationOK;
+}
+
+int MdsRepo::DeleteClientInfoRepoItem(const std::string &clientIp,
+                                      uint32_t clientPort) {
+    return db_->ExecUpdate(makeSql.makeDelete(
+                                ClientInfoRepoItem(clientIp, clientPort)));
+}
+
+int MdsRepo::QueryClientInfoRepoItem(const std::string &clientIp,
+                                      uint32_t clientPort,
+                                      ClientInfoRepoItem *repo) {
+    assert(repo != nullptr);
+
+    sql::ResultSet *res;
+    int resCode = db_->QueryRows(makeSql.makeQueryRow(
+                            ClientInfoRepoItem(clientIp, clientPort)), &res);
+    if (OperationOK != resCode) {
+        return resCode;
+    }
+
+    if (res->next()) {
+        repo->clientIp = res->getString("clientIp");
+        repo->clientPort = res->getUInt("clientPort");
     }
 
     delete (res);

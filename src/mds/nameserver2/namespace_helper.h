@@ -26,6 +26,7 @@ extern const char INODESTOREKEY[];
 extern const char INODESTOREKEYEND[];
 extern const char CHUNKSTOREKEY[];
 extern const char CHUNKSTOREKEYEND[];
+extern const char LEADERCAMPAIGNNPFX[];
 
 extern const int PREFIX_LENGTH;
 extern const int SEGMENTKEYLEN;

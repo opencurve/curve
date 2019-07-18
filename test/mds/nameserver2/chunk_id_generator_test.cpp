@@ -11,7 +11,7 @@
 #include <chrono> //NOLINT
 #include "src/mds/nameserver2/chunk_id_generator.h"
 #include "src/mds/nameserver2/namespace_helper.h"
-#include "test/mds/nameserver2/mock_etcdclient.h"
+#include "test/mds/mock/mock_etcdclient.h"
 
 using ::testing::_;
 using ::testing::Return;

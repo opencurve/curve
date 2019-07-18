@@ -17,6 +17,7 @@
 
 #include "src/client/libcbd.h"
 
+#include "src/client/libcurve_file.h"
 #include "include/client/libcurve.h"
 #include "src/client/file_instance.h"
 #include "test/client/fake/mock_schedule.h"
@@ -31,6 +32,8 @@ using curve::client::EndPoint;
 
 #define filename    "1_userinfo_test.img"
 
+DECLARE_string(chunkserver_list);
+
 extern std::string configpath;
 void LibcbdLibcurveTestCallback(CurveAioContext* context) {
     context->op = LIBCURVE_OP_MAX;
@@ -39,15 +42,14 @@ void LibcbdLibcurveTestCallback(CurveAioContext* context) {
 class TestLibcbdLibcurve : public ::testing::Test {
  public:
     void SetUp() {
-        if (Init(configpath.c_str()) != 0) {
-            LOG(FATAL) << "Fail to init config";
-            return;
-        }
+        FLAGS_chunkserver_list =
+         "127.0.0.1:9110:0,127.0.0.1:9111:0,127.0.0.1:9112:0";
+
         mds_ = new FakeMDS(filename);
 
         // 设置leaderid
         EndPoint ep;
-        butil::str2endpoint("127.0.0.1", 9106, &ep);
+        butil::str2endpoint("127.0.0.1", 9110, &ep);
         braft::PeerId pd(ep);
 
         /*** init mds service ***/
@@ -55,6 +57,11 @@ class TestLibcbdLibcurve : public ::testing::Test {
         mds_->StartCliService(pd);
         mds_->StartService();
         mds_->CreateCopysetNode(true);
+
+        if (Init(configpath.c_str()) != 0) {
+            LOG(FATAL) << "Fail to init config";
+            return;
+        }
 
         int64_t t0 = butil::monotonic_time_ms();
         int ret = -1;
@@ -89,10 +96,15 @@ class TestLibcbdLibcurve : public ::testing::Test {
     FakeMDS* mds_;
 };
 
-TEST(TestLibcbd, InitTest) {
+extern bool globalclientinited_;
+extern curve::client::FileClient* globalclient;
+TEST_F(TestLibcbdLibcurve, InitTest) {
     int ret;
     CurveOptions opt;
 
+    globalclient->UnInit();
+    globalclient = nullptr;
+    globalclientinited_ = false;
     memset(&opt, 0, sizeof(opt));
     // testing with no conf specified
     opt.conf = "";

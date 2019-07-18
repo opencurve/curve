@@ -22,6 +22,12 @@ class TimeUtility{
         gettimeofday(&now, NULL);
         return now.tv_sec * 1000000L + now.tv_usec;
     }
+
+    static inline uint64_t GetTimeofDaySec() {
+        timeval tm;
+        gettimeofday(&tm, NULL);
+        return tm.tv_sec;
+    }
 };
 
 }   // namespace common

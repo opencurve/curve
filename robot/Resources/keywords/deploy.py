@@ -188,7 +188,7 @@ def create_pool():
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_host)
     rs = shell_operator.ssh_exec(ssh, logical_pool)
     i = 0
-    while i < 300: 
+    while i < 300:
        num = get_copyset_num()
        if num == 6000:
            break

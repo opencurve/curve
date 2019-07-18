@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "src/common/uuid.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/client/config_info.h"
 #include "src/client/client_common.h"

@@ -174,6 +174,19 @@ class MockRepo : public MdsRepo {
 
   MOCK_METHOD2(QuerySessionRepoItem,
                 int(const std::string &sessionID, SessionRepoItem *r));
+
+  MOCK_METHOD1(InsertClientInfoRepoItem,
+               int(const ClientInfoRepoItem &r));
+
+  MOCK_METHOD1(LoadClientInfoRepoItems,
+               int(std::vector<ClientInfoRepoItem> *clientList));
+
+  MOCK_METHOD2(DeleteClientInfoRepoItem,
+               int(const std::string &clientIp, uint32_t clientPort));
+
+  MOCK_METHOD3(QueryClientInfoRepoItem,
+               int(const std::string &clientIp, uint32_t clientPort,
+               ClientInfoRepoItem *r));
 };
 }  // namespace mds
 }  // namespace curve

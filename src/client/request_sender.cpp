@@ -40,7 +40,7 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
 
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     if (rc->GetMetric() != nullptr) {
-        MetricHelper::IncremRPCCount(rc->GetMetric(), length, OpType::READ);
+        MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::READ);
         rc->SetStartTime(TimeUtility::GetTimeofDayUs());
     }
 
@@ -49,6 +49,7 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
+    done->SetChunkServerID(chunkServerId_);
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_READ);
@@ -76,7 +77,7 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
 
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     if (rc->GetMetric() != nullptr) {
-        MetricHelper::IncremRPCCount(rc->GetMetric(), length, OpType::WRITE);
+        MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::WRITE);
         rc->SetStartTime(TimeUtility::GetTimeofDayUs());
     }
 
@@ -87,6 +88,7 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
+    done->SetChunkServerID(chunkServerId_);
 
     ChunkRequest request;
     request.set_optype(curve::chunkserver::CHUNK_OP_TYPE::CHUNK_OP_WRITE);

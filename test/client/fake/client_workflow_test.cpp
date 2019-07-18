@@ -30,7 +30,7 @@ std::string metaserver_addr = "127.0.0.1:9104";   // NOLINT
 DECLARE_uint64(test_disk_size);
 DEFINE_uint32(io_time, 5, "Duration for I/O test");
 DEFINE_bool(fake_mds, true, "create fake mds");
-DEFINE_bool(create_copysets, false, "create copysets on chunkserver");
+DEFINE_bool(create_copysets, true, "create copysets on chunkserver");
 DEFINE_bool(verify_io, true, "verify read/write I/O getting done correctly");
 
 bool writeflag = false;
@@ -42,12 +42,14 @@ std::condition_variable interfacecv;
 
 DECLARE_uint64(test_disk_size);
 void writecallbacktest(CurveAioContext* context) {
-     writeflag = true;
+    writeflag = true;
     writeinterfacecv.notify_one();
+    delete context;
 }
 void readcallbacktest(CurveAioContext* context) {
     readflag = true;
     interfacecv.notify_one();
+    delete context;
 }
 
 int main(int argc, char ** argv) {
@@ -116,26 +118,34 @@ int main(int argc, char ** argv) {
     }
 
 
+    char* buf2 = new char[128 * 1024];
+    char* buf1 = new char[128 * 1024];
 
-    char* buf2 = new char[16 * 1024];
-    CurveAioContext* aioctx1 = new CurveAioContext;
-    char* buf1 = new char[16 * 1024];
-    CurveAioContext* aioctx2 = new CurveAioContext;
     auto f = [&]() {
+        uint64_t j = 0;
+        // mds.EnableNetUnstable(600);
         while (1) {
             for (int i = 0; i < 10; i++) {
+                CurveAioContext* aioctx2 = new CurveAioContext;
+                CurveAioContext* aioctx1 = new CurveAioContext;
                 aioctx1->buf = buf1;
                 aioctx1->offset = 0;
                 aioctx1->op = LIBCURVE_OP_WRITE;
-                aioctx1->length = 16 * 1024;
+                aioctx1->length = 128 * 1024;
                 aioctx1->cb = writecallbacktest;
                 AioWrite(fd, aioctx1);
                 aioctx2->buf = buf2;
                 aioctx2->offset = 0;
-                aioctx2->length = 16 * 1024;
+                aioctx2->length = 128 * 1024;
                 aioctx2->op = LIBCURVE_OP_READ;
                 aioctx2->cb = readcallbacktest;
                 AioRead(fd, aioctx2);
+                if (j%10 == 0) {
+                    mds.EnableNetUnstable(600);
+                } else {
+                    mds.EnableNetUnstable(100);
+                }
+                j++;
             }
 
             // char buf1[4096];
@@ -153,8 +163,8 @@ int main(int argc, char ** argv) {
 
     delete[] buf1;
     delete[] buf2;
-    delete aioctx2;
-    delete aioctx1;
+    // delete aioctx2;
+    // delete aioctx1;
 
     CurveAioContext writeaioctx;
     CurveAioContext readaioctx;
@@ -211,7 +221,7 @@ int main(int argc, char ** argv) {
 
     LOG(INFO) << "LibCurve I/O verified for stage 1, going to read repeatedly";
 
-skip_write_io:
+// skip_write_io:
     std::atomic<bool> stop(false);
     auto testfunc = [&]() {
         while (!stop.load()) {

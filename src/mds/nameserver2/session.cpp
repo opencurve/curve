@@ -121,7 +121,7 @@ StatusCode SessionManager::InsertSession(const std::string &fileName,
     auto iter = sessionMap_.find(fileName);
     if (iter == sessionMap_.end()) {
         // session不存在，生成并插入新的session
-        StatusCode ret = InsertNewSession(fileName, clientIP);
+        StatusCode ret = InsertNewSessionUnlocked(fileName, clientIP);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "insert new session error, fileName = " << fileName
                        << ", clientIP = " << clientIP
@@ -146,7 +146,7 @@ StatusCode SessionManager::InsertSession(const std::string &fileName,
     if (session->IsLeaseTimeOut()) {
         // lease过期，删除过期lease，然后生成并插入新的session
         std::string oldSessionId = session->GetSessionId();
-        StatusCode ret = DeleteOldSession(fileName, oldSessionId);
+        StatusCode ret = DeleteOldSessionUnlocked(fileName, oldSessionId);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "delete session fail, fileName = " << fileName
                        << ", clientIP = " << clientIP
@@ -155,7 +155,7 @@ StatusCode SessionManager::InsertSession(const std::string &fileName,
             return ret;
         }
 
-        ret = InsertNewSession(fileName, clientIP);
+        ret = InsertNewSessionUnlocked(fileName, clientIP);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "insert new sessioni error, fileName = " << fileName
                        << ", clientIP = " << clientIP
@@ -207,7 +207,7 @@ StatusCode SessionManager::DeleteSession(const std::string &fileName,
     }
 
     // session存在，删除session
-    auto ret = DeleteOldSession(fileName, sessionID);
+    auto ret = DeleteOldSessionUnlocked(fileName, sessionID);
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "delete session fail, fileName = " << fileName
                    << ", sessionID = " << sessionID
@@ -256,8 +256,9 @@ StatusCode SessionManager::UpdateSession(const std::string &fileName,
         }
 
         // 无论lease没有过期，只要身份校验通过，更新lease时间
-        if (session->IsLeaseTimeOut()) {
+        if (session->GetSessionStatus() == SessionStatus::kSessionStaled) {
             session->SetStatus(SessionStatus::kSessionOK);
+            openFileNum_++;
         }
         session->UpdateLeaseTime();
     } while (0);
@@ -284,6 +285,10 @@ bool SessionManager::isFileHasValidSession(const std::string &fileName) {
     return true;
 }
 
+uint64_t SessionManager::GetOpenFileNum() {
+    return openFileNum_.load(std::memory_order_acquire);
+}
+
 // 扫描sessionMap_，如果有过期的session，把状态标记为kSessionStaled
 void SessionManager::ScanSessionMap() {
     common::WriteLockGuard wl(rwLock_);
@@ -295,6 +300,7 @@ void SessionManager::ScanSessionMap() {
             LOG(INFO) << "session timeout, fileName = " << iterator->first
                       << ", sessionId = " << iterator->second.GetSessionId();
             iterator->second.SetStatus(SessionStatus::kSessionStaled);
+            openFileNum_--;
         }
 
         iterator++;
@@ -358,7 +364,7 @@ void SessionManager::UpdateRepoSesssions() {
     }
 }
 
-StatusCode SessionManager::InsertNewSession(const std::string &fileName,
+StatusCode SessionManager::InsertNewSessionUnlocked(const std::string &fileName,
                                             const std::string &clientIP) {
     Session session(leaseTime_, toleranceTime_, clientIP);
 
@@ -389,10 +395,12 @@ StatusCode SessionManager::InsertNewSession(const std::string &fileName,
         return StatusCode::KInternalError;
     }
 
+    openFileNum_++;
+
     return StatusCode::kOK;
 }
 
-StatusCode SessionManager::DeleteOldSession(const std::string &fileName,
+StatusCode SessionManager::DeleteOldSessionUnlocked(const std::string &fileName,
                                          const std::string &sessionId) {
     // 删除session持久化信息，
     auto ret = repo_->DeleteSessionRepoItem(sessionId);
@@ -405,6 +413,12 @@ StatusCode SessionManager::DeleteOldSession(const std::string &fileName,
     }
 
     // 从内存组织中删除
+    auto iter = sessionMap_.find(fileName);
+    if (iter != sessionMap_.end()) {
+        if (iter->second.GetSessionStatus() == SessionStatus::kSessionOK) {
+            openFileNum_--;
+        }
+    }
     sessionMap_.erase(fileName);
 
     return StatusCode::kOK;
@@ -443,6 +457,7 @@ void SessionManager::Start() {
 bool SessionManager::LoadSession() {
     common::WriteLockGuard wl(rwLock_);
 
+    openFileNum_ = 0;
     // 启动mds时从数据库中加载session信息
     std::vector<SessionRepoItem> sessionList;
     if (repo_->LoadSessionRepoItems(&sessionList) != repo::OperationOK) {
@@ -498,6 +513,10 @@ bool SessionManager::LoadSession() {
 
     auto sesssionIter = sessionMap_.begin();
     while (sesssionIter != sessionMap_.end()) {
+        if (sesssionIter->second.GetSessionStatus()
+                        == SessionStatus::kSessionOK) {
+            openFileNum_++;
+        }
         LOG(INFO) << "load session from repo, session id = "
                   << sesssionIter->second.GetSessionId()
                   << ", filename = " << sesssionIter->first;

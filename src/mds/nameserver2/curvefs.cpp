@@ -67,13 +67,15 @@ bool CurveFS::Init(NameServerStorage* storage,
                 std::shared_ptr<CleanManagerInterface> cleanManager,
                 SessionManager *sessionManager,
                 const struct SessionOptions &sessionOptions,
-                const struct RootAuthOption &authOptions) {
+                const struct RootAuthOption &authOptions,
+                std::shared_ptr<MdsRepo> repo) {
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
     cleanManager_ = cleanManager;
     sessionManager_ = sessionManager;
     rootAuthOptions_ = authOptions;
+    repo_ = repo;
 
     InitRootFile();
 
@@ -311,7 +313,7 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
     }
 
     if (fileId != kUnitializedFileID && fileId != fileInfo.id()) {
-        LOG(ERROR) << "delete file, file id missmatch"
+        LOG(WARNING) << "delete file, file id missmatch"
                    << ", fileName = " << filename
                    << ", fileInfo.id() = " << fileInfo.id()
                    << ", para fileId = " << fileId;
@@ -395,8 +397,8 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
 
             // 查看任务是否已经在
             if ( cleanManager_->GetTask(fileInfo.id()) != nullptr ) {
-                LOG(WARNING) << "filename = " << filename
-                        << ", deleteFile task already submited";
+                LOG(WARNING) << "filename = " << filename << ", inode = "
+                    << fileInfo.id() << ", deleteFile task already submited";
                 return StatusCode::kOK;
             }
 
@@ -411,12 +413,14 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
             // 提交一个删除文件的任务
             if (!cleanManager_->SubmitDeleteCommonFileJob(fileInfo)) {
                 LOG(ERROR) << "fileName = " << filename
+                        << ", inode = " << fileInfo.id()
                         << ", submit delete file job fail.";
                 return StatusCode::KInternalError;
             }
 
             LOG(INFO) << "delete file task submitted, file is pagefile"
-                  << ", filename = " << filename;
+                        << ", inode = " << fileInfo.id()
+                        << ", filename = " << filename;
             return StatusCode::kOK;
         }
      } else {
@@ -510,7 +514,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     }
 
     if (oldFileId != kUnitializedFileID && oldFileId != oldFileInfo.id()) {
-        LOG(ERROR) << "rename file, oldFileId missmatch"
+        LOG(WARNING) << "rename file, oldFileId missmatch"
                    << ", oldFileName = " << oldFileName
                    << ", newFileName = " << newFileName
                    << ", oldFileInfo.id() = " << oldFileInfo.id()
@@ -539,7 +543,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     std::string  lastEntry;
     auto ret2 = WalkPath(newFileName, &parentFileInfo, &lastEntry);
     if (ret2 != StatusCode::kOK) {
-        LOG(INFO) << "dest middle dir not exist";
+        LOG(WARNING) << "dest middle dir not exist";
         return StatusCode::kFileNotExists;
     }
 
@@ -548,7 +552,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     if (ret3 == StatusCode::kOK) {
         if (newFileId != kUnitializedFileID
             && newFileId != existNewFileInfo.id()) {
-            LOG(ERROR) << "rename file, newFileId missmatch"
+            LOG(WARNING) << "rename file, newFileId missmatch"
                         << ", oldFileName = " << oldFileName
                         << ", newFileName = " << newFileName
                         << ", newFileInfo.id() = " << existNewFileInfo.id()
@@ -1027,13 +1031,13 @@ StatusCode CurveFS::GetSnapShotFileSegment(
     }
 
     if (offset % snapShotFileInfo.segmentsize() != 0) {
-        LOG(ERROR) << "offset not align with segment, fileName = "
+        LOG(WARNING) << "offset not align with segment, fileName = "
                    << fileName << ", seq = " << seq;
         return StatusCode::kParaError;
     }
 
     if (offset + snapShotFileInfo.segmentsize() > snapShotFileInfo.length()) {
-        LOG(ERROR) << "bigger than file length, fileName = "
+        LOG(WARNING) << "bigger than file length, fileName = "
                    << fileName << ", seq = " << seq;
         return StatusCode::kParaError;
     }
@@ -1047,14 +1051,14 @@ StatusCode CurveFS::GetSnapShotFileSegment(
     }
 
     if (offset % fileInfo.segmentsize() != 0) {
-        LOG(ERROR) << "origin file offset not align with segment, fileName = "
+        LOG(WARNING) << "origin file offset not align with segment, fileName = "
                    << fileName << ", offset = " << offset
                    << ", file segmentsize = " << fileInfo.segmentsize();
         return StatusCode::kParaError;
     }
 
     if (offset + fileInfo.segmentsize() > fileInfo.length()) {
-        LOG(ERROR) << "bigger than origin file length, fileName = "
+        LOG(WARNING) << "bigger than origin file length, fileName = "
                    << fileName << ", offset = " << offset
                    << ", file segmentsize = " << fileInfo.segmentsize()
                    << ", file length = " << fileInfo.length();
@@ -1222,13 +1226,13 @@ StatusCode CurveFS::CreateCloneFile(const std::string &fileName,
                             FileInfo *retFileInfo) {
     // 检查基本参数
     if (filetype != FileType::INODE_PAGEFILE) {
-        LOG(ERROR) << "CreateCloneFile err, filename = " << fileName
+        LOG(WARNING) << "CreateCloneFile err, filename = " << fileName
                 << ", filetype not support";
         return StatusCode::kParaError;
     }
 
     if  (length < kMiniFileLength || seq < kStartSeqNum) {
-        LOG(ERROR) << "CreateCloneFile err, filename = " << fileName
+        LOG(WARNING) << "CreateCloneFile err, filename = " << fileName
                     << "file Length < MinFileLength " << kMiniFileLength
                     << ", length = " << length;
         return StatusCode::kParaError;
@@ -1388,7 +1392,7 @@ StatusCode CurveFS::CheckPathOwnerInternal(const std::string &filename,
                 return StatusCode::kOwnerAuthFail;
             }
         } else if (ret == StoreStatus::KeyNotExist) {
-            LOG(ERROR) << paths[i] << " not exist";
+            LOG(WARNING) << paths[i] << " not exist";
             return StatusCode::kFileNotExists;
         } else {
             LOG(ERROR) << "GetFile " << paths[i] << " error, errcode = " << ret;
@@ -1587,8 +1591,50 @@ bool CurveFS::CheckSignature(const std::string& owner,
     return signature == sig;
 }
 
+StatusCode CurveFS::RegistClient(const std::string &clientIp,
+                                uint32_t clientPort) {
+    ClientInfoRepoItem queryRepo("", 0);
+    auto ret = repo_->QueryClientInfoRepoItem(clientIp, clientPort, &queryRepo);
+    if (ret != repo::OperationOK) {
+        LOG(ERROR) << "RegistClient query client info from repo fail"
+                   << ", clientIp = " << clientIp
+                   << ", clientPort = " << clientPort;
+        return StatusCode::KInternalError;
+    }
+
+    ClientInfoRepoItem clientRepo(clientIp, clientPort);
+    if (queryRepo == clientRepo) {
+        return StatusCode::kOK;
+    } else {
+        ret = repo_->InsertClientInfoRepoItem(clientRepo);
+        if (ret != repo::OperationOK) {
+            LOG(ERROR) << "RegistClient insert client info to repo fail"
+                    << ", clientIp = " << clientIp
+                    << ", clientPort = " << clientPort;
+            return StatusCode::KInternalError;
+        }
+    }
+
+    return StatusCode::kOK;
+}
+
+uint64_t CurveFS::GetOpenFileNum() {
+    if (sessionManager_ == nullptr) {
+        return 0;
+    }
+    return sessionManager_->GetOpenFileNum();
+}
+
 CurveFS &kCurveFS = CurveFS::GetInstance();
 
+uint64_t GetOpenFileNum(void *varg) {
+    CurveFS *curveFs = reinterpret_cast<CurveFS *>(varg);
+    return curveFs->GetOpenFileNum();
+}
+
+bvar::PassiveStatus<uint64_t> g_open_file_num_bvar(
+                        CURVE_MDS_CURVEFS_METRIC_PREFIX, "open_file_num",
+                        GetOpenFileNum, &kCurveFS);
 }   // namespace mds
 }   // namespace curve
 

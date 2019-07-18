@@ -63,7 +63,8 @@ class CurveFSTest: public ::testing::Test {
 
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
                         mockcleanManager_,
-                        sessionManager_, sessionOptions_, authOptions_);
+                        sessionManager_, sessionOptions_, authOptions_,
+                        mockRepo_);
     }
 
     void TearDown() override {
@@ -2214,6 +2215,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
                                      &protoSession, &fileInfo),
                   StatusCode::kFileNotExists);
+        ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
     }
 
     // open目录
@@ -2227,6 +2229,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
                                      &protoSession, &fileInfo),
                   StatusCode::kNotSupported);
+        ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
     }
 
     // 插入session失败
@@ -2245,6 +2248,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
                                      &protoSession, &fileInfo),
                   StatusCode::KInternalError);
+        ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
     }
 
     // 执行成功
@@ -2263,6 +2267,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
                                      &protoSession, &fileInfo),
                   StatusCode::kOK);
+        ASSERT_EQ(curvefs_->GetOpenFileNum(), 1);
     }
 
     SessionRepoItem sessionRepo("/file1", "sessionid",

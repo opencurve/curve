@@ -7,8 +7,10 @@
 
 #include <gtest/gtest.h>
 #include <glog/logging.h>
+#include <sys/time.h>
 #include "src/mds/heartbeat/heartbeat_manager.h"
 #include "src/mds/heartbeat/chunkserver_healthy_checker.h"
+#include "src/common/timeutility.h"
 #include "test/mds/heartbeat/mock_coordinator.h"
 #include "test/mds/mock/mock_topology.h"
 #include "test/mds/heartbeat/mock_topoAdapter.h"
@@ -40,7 +42,10 @@ class TestHeartbeatManager : public ::testing::Test {
         option, topology_, topologyStat_, coordinator_);
   }
 
-  void TearDown() override {}
+  void TearDown() override {
+      heartbeatManager_->Run();
+      heartbeatManager_->Stop();
+  }
 
  protected:
   std::shared_ptr<MockTopology> topology_;
@@ -96,6 +101,36 @@ TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
         ::curve::mds::topology::ChunkServerStatus::RETIRED);
     EXPECT_CALL(*topology_, GetChunkServer(_, _))
         .WillOnce(DoAll(SetArgPointee<1>(retiredCs), Return(true)));
+    heartbeatManager_->ChunkServerHeartbeat(req, &response);
+    ASSERT_EQ(0, response.needupdatecopysets_size());
+
+    // 7. startTime not initialized
+    // TODO(lixiaocui): 后续考虑心跳加上错误码
+    ::curve::mds::topology::ChunkServer normalCs(
+        1, "hello", "", 1, "192.168.10.1", 9000, "");
+    EXPECT_CALL(*topology_, GetChunkServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(normalCs), Return(true)));
+    heartbeatManager_->ChunkServerHeartbeat(req, &response);
+    ASSERT_EQ(0, response.needupdatecopysets_size());
+
+    // 8. startTime initialized and not equal
+    uint64_t t = ::curve::common::TimeUtility::GetTimeofDaySec();
+    req.set_starttime(t);
+    EXPECT_CALL(*topology_, GetChunkServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(normalCs), Return(true)));
+    EXPECT_CALL(*topology_,
+        UpdateChunkServerStartUpTime(t, req.chunkserverid()))
+        .WillOnce(Return(::curve::mds::topology::kTopoErrCodeSuccess));
+    heartbeatManager_->ChunkServerHeartbeat(req, &response);
+    ASSERT_EQ(0, response.needupdatecopysets_size());
+
+    // 9. startTime initialized and equal
+    req.set_starttime(0);
+    EXPECT_CALL(*topology_, GetChunkServer(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(normalCs), Return(true)));
+    EXPECT_CALL(*topology_,
+        UpdateChunkServerStartUpTime(0, req.chunkserverid()))
+        .WillOnce(Return(::curve::mds::topology::kTopoErrCodeSuccess));
     heartbeatManager_->ChunkServerHeartbeat(req, &response);
     ASSERT_EQ(0, response.needupdatecopysets_size());
 }

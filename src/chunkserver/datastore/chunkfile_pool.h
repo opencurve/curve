@@ -172,6 +172,13 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
      */
     virtual void UnInitialize();
 
+    /**
+     * 测试使用
+     */
+    virtual void SetLocalFileSystem(std::shared_ptr<LocalFileSystem> fs) {
+        fsptr_ = fs;
+    }
+
  private:
     // 从chunkfile pool目录中遍历预分配的chunk信息
     bool ScanInternal();
@@ -181,9 +188,9 @@ class CURVE_CACHELINE_ALIGNMENT ChunkfilePool {
      * 为新的chunkfile进行metapage赋值
      * @param: sourcepath为要写入的文件路径
      * @param: page为要写入的metapage信息
-     * @return: 成功返回0，否则返回小于0
+     * @return: 成功返回true，否则返回false
      */
-    int WriteMetaPage(const std::string& sourcepath, char* page);
+    bool WriteMetaPage(const std::string& sourcepath, char* page);
     /**
      * 直接分配chunk，不从chunkfilepool获取
      * @param: chunkpath为datastore中chunk文件的路径

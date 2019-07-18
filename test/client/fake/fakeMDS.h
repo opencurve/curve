@@ -42,6 +42,26 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         retrytimes_ = 0;
     }
 
+    void RegistClient(::google::protobuf::RpcController* controller,
+                       const ::curve::mds::RegistClientRequest* request,
+                       ::curve::mds::RegistClientResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeRegisterret_->controller_ != nullptr &&
+             fakeRegisterret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        ip_ = request->ip();
+        port_ = request->port();
+
+        auto resp = static_cast<::curve::mds::RegistClientResponse*>(
+                    fakeRegisterret_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void CreateFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateFileRequest* request,
                        ::curve::mds::CreateFileResponse* response,
@@ -98,6 +118,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                 ::curve::mds::OpenFileResponse* response,
                 ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
+        if (fakeopenfile_->controller_ != nullptr &&
+             fakeopenfile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
 
         retrytimes_++;
 
@@ -351,6 +375,13 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
         auto resp = static_cast<::curve::mds::CloseFileResponse*>(
                     fakedeletefile_->response_);
+
+        if (request->forcedelete()) {
+            LOG(INFO) << "force delete file!";
+            fiu_do_on("test/client/fake/fakeMDS/forceDeleteFile",
+            resp->set_statuscode(curve::mds::StatusCode::kNotSupported));
+        }
+
         response->CopyFrom(*resp);
     }
 
@@ -369,6 +400,84 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         auto resp = static_cast<::curve::mds::ExtendFileResponse*>(
                     fakeextendfile_->response_);
         response->CopyFrom(*resp);
+    }
+
+    void CreateCloneFile(::google::protobuf::RpcController* controller,
+                        const ::curve::mds::CreateCloneFileRequest* request,
+                        ::curve::mds::CreateCloneFileResponse* response,
+                        ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeCreateCloneFile_->controller_ != nullptr
+             && fakeCreateCloneFile_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::CreateCloneFileResponse*>(
+                    fakeCreateCloneFile_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void SetCloneFileStatus(::google::protobuf::RpcController* controller,
+                        const ::curve::mds::SetCloneFileStatusRequest* request,
+                        ::curve::mds::SetCloneFileStatusResponse* response,
+                        ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeSetCloneFileStatus_->controller_ != nullptr
+             && fakeSetCloneFileStatus_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::SetCloneFileStatusResponse*>(
+                    fakeSetCloneFileStatus_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ChangeOwner(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ChangeOwnerRequest* request,
+                    ::curve::mds::ChangeOwnerResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeChangeOwner_->controller_ != nullptr &&
+             fakeChangeOwner_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::ChangeOwnerResponse*>(
+                    fakeChangeOwner_->response_);
+
+        response->CopyFrom(*resp);
+    }
+
+    void ListDir(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ListDirRequest* request,
+                    ::curve::mds::ListDirResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeListDir_->controller_ != nullptr &&
+             fakeListDir_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::ListDirResponse*>(
+                    fakeListDir_->response_);
+
+        response->CopyFrom(*resp);
+    }
+
+    void SetListDir(FakeReturn* fakeret) {
+        fakeListDir_ = fakeret;
+    }
+
+    void SetCreateCloneFile(FakeReturn* fakeret) {
+        fakeCreateCloneFile_ = fakeret;
     }
 
     void SetExtendFile(FakeReturn* fakeret) {
@@ -437,12 +546,32 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakedeletefile_ = fakeret;
     }
 
+    void SetRegistRet(FakeReturn* fakeret) {
+        fakeRegisterret_ = fakeret;
+    }
+
+    void SetCloneFileStatus(FakeReturn* fakeret) {
+        fakeSetCloneFileStatus_ = fakeret;
+    }
+
+    void SetChangeOwner(FakeReturn* fakeret) {
+        fakeChangeOwner_ = fakeret;
+    }
+
     void CleanRetryTimes() {
         retrytimes_ = 0;
     }
 
     uint64_t GetRetryTimes() {
         return retrytimes_;
+    }
+
+    std::string GetIP() {
+        return ip_;
+    }
+
+    uint16_t GetPort() {
+        return port_;
     }
 
     void CheckAuth(const std::string& signature,
@@ -457,6 +586,12 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
     uint64_t retrytimes_;
 
+    std::string ip_;
+    uint16_t port_;
+
+    FakeReturn* fakeListDir_;
+    FakeReturn* fakeSetCloneFileStatus_;
+    FakeReturn* fakeCreateCloneFile_;
     FakeReturn* fakeCreateFileret_;
     FakeReturn* fakeGetFileInforet_;
     FakeReturn* fakeGetOrAllocateSegmentret_;
@@ -466,6 +601,8 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeRefreshSession_;
     FakeReturn* fakedeletefile_;
     FakeReturn* fakeextendfile_;
+    FakeReturn* fakeRegisterret_;
+    FakeReturn* fakeChangeOwner_;
 
     FakeReturn* fakechecksnapshotret_;
     FakeReturn* fakecreatesnapshotret_;
@@ -646,6 +783,18 @@ class FakeMDS {
 
     std::vector<FakeCreateCopysetService *> GetCreateCopysetService() {
         return copysetServices_;
+    }
+
+    std::vector<FakeChunkService*> GetFakeChunkService() {
+        return chunkServices_;
+    }
+
+    CliServiceFake* GetCliService() {
+        return &fakeCliService_;
+    }
+
+    std::vector<FakeChunkService *> GetChunkservice() {
+        return chunkServices_;
     }
 
  private:
