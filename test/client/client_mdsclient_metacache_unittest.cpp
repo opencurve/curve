@@ -144,6 +144,12 @@ TEST(MDSClientTestRegitser, Register) {
     // regist失败，初始化失败
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Init(configpath.c_str()));
 
+    // config with regist off
+    std::string confpath = "./test/client/testConfig/client_session.conf";
+    ASSERT_EQ(0, Init(confpath.c_str()));
+    ASSERT_EQ(0, Init(confpath.c_str()));
+    UnInit();
+
     RegistClientResponse* registResp = new RegistClientResponse();
     registResp->set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* fakeregist = new FakeReturn(nullptr, static_cast<void*>(registResp));      // NOLINT
@@ -165,7 +171,6 @@ TEST(MDSClientTestRegitser, Register) {
 TEST_F(MDSClientTest, Createfile) {
     std::string filename = "/1_userinfo_";
     size_t len = 4 * 1024 * 1024;
-
 
     // set response file exist
     ::curve::mds::CreateFileResponse response;
@@ -379,6 +384,13 @@ TEST_F(MDSClientTest, Openfile) {
     curvefsservice.SetOpenFile(fakeret2);
 
     ASSERT_EQ(globalclient->Open(filename, userinfo), LIBCURVE_ERROR::OK);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, Write(0, nullptr, 0, 0));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, Read(0, nullptr, 0, 0));
+
+    CurveAioContext aioctx;
+    aioctx.length = 0;
+    ASSERT_EQ(LIBCURVE_ERROR::OK, AioWrite(0, &aioctx));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, AioRead(0, &aioctx));
 
     // 设置rpc失败，触发重试
     brpc::Controller cntl;
@@ -1873,4 +1885,44 @@ TEST_F(MDSClientTest, ListDir) {
 
     delete fakeret;
     delete fakeret2;
+}
+
+TEST(LibcurveInterface, InvokeWithOutInit) {
+    CurveAioContext aioctx;
+    UserInfo_t      userinfo;
+    C_UserInfo_t*    ui;
+
+    FileClient fc;
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Create("", userinfo, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Listdir("", userinfo, nullptr));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Mkdir("nullptr", userinfo));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Rmdir("nullptr", userinfo));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Close(0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.StatFile("", userinfo, nullptr));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.ChangeOwner("nullptr", "nullptr", userinfo));  //  NOLINT
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Create("", userinfo, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Rename(userinfo, "", ""));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Extend("", userinfo,  0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, fc.Unlink("", userinfo, false));
+
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Open4Qemu(""));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Open4Qemu("/test_dd_"));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Extend4Qemu("", 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Extend4Qemu("/test_dd_", 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Read(0, nullptr, 0, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Write(0, nullptr, 0, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, AioRead(0, &aioctx));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, AioWrite(0, &aioctx));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Create("", ui, 0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Rename(ui, "", ""));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Extend("", ui,  0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Unlink("", ui));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, DeleteForce("", ui));
+    ASSERT_EQ(nullptr, OpenDir("", ui));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Listdir(nullptr));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Mkdir(nullptr, ui));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Rmdir(nullptr, ui));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Close(0));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, StatFile(nullptr, ui, nullptr));
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, ChangeOwner(nullptr, nullptr, nullptr));
 }

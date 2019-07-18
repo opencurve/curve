@@ -172,11 +172,22 @@ typedef struct IOOption {
 } IOOption_t;
 
 /**
+ * client一侧常规的共同的配置信息
+ */
+typedef struct CommonConfigOpt {
+    bool    registerToMDS;
+    CommonConfigOpt() {
+        registerToMDS = false;
+    }
+} CommonConfigOpt_t;
+
+/**
  * ClientConfigOption是外围快照系统需要设置的配置信息
  */
 typedef struct ClientConfigOption {
     LogInfo_t                  loginfo;
     IOOption_t                 ioOpt;
+    CommonConfigOpt_t          commonOpt;
     MetaServerOption_t         metaServerOpt;
 } ClientConfigOption_t;
 
@@ -187,6 +198,7 @@ typedef struct FileServiceOption {
     LogInfo_t                 loginfo;
     IOOption_t                ioOpt;
     LeaseOption_t             leaseOpt;
+    CommonConfigOpt_t         commonOpt;
     MetaServerOption_t        metaServerOpt;
 } FileServiceOption_t;
 
