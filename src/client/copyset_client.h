@@ -59,8 +59,6 @@ class CopysetClient : public Uncopyable {
              const IOSenderOption_t& ioSenderOpt,
              RequestScheduler* scheduler = nullptr,
              FileMetric* fileMetic = nullptr);
-
-    void UnInit();
     /**
      * 返回依赖的Meta Cache
      */
@@ -74,15 +72,13 @@ class CopysetClient : public Uncopyable {
      * @param length:读的长度
      * @param appliedindex:需要读到>=appliedIndex的数据
      * @param done:上一层异步回调的closure
-     * @param needReschedule为true需要将rpc重新push队列，否则直接发送
      */
     int ReadChunk(ChunkIDInfo idinfo,
                   uint64_t sn,
                   off_t offset,
                   size_t length,
                   uint64_t appliedindex,
-                  google::protobuf::Closure *done,
-                  bool needReschedule = false);
+                  google::protobuf::Closure *done);
 
     /**
     * 写Chunk
@@ -92,15 +88,13 @@ class CopysetClient : public Uncopyable {
      *@param offset:写的偏移
     * @param length:写的长度
     * @param done:上一层异步回调的closure
-    * @param needReschedule为true需要将rpc重新push队列，否则直接发送
     */
     int WriteChunk(ChunkIDInfo idinfo,
                   uint64_t sn,
                   const char *buf,
                   off_t offset,
                   size_t length,
-                  Closure *done,
-                  bool needReschedule = false);
+                  Closure *done);
 
     /**
      * 读Chunk快照文件
@@ -189,6 +183,7 @@ class CopysetClient : public Uncopyable {
         sessionNotValid_ = true;
     }
 
+
     /**
      * session恢复通知不再回收重试的RPC
      */
@@ -211,15 +206,6 @@ class CopysetClient : public Uncopyable {
  private:
     friend class WriteChunkClosure;
     friend class ReadChunkClosure;
-    /**
-    * 获取token，查看现在是否能下发RPC
-    */
-    void GetInflightRPCToken();
-
-    /**
-    * 更新inflight计数并唤醒正在block的RPC
-    */
-    void ReleaseInflightRPCToken();
 
     // 拉取新的leader信息
     bool FetchLeader(LogicPoolID lpid,
@@ -248,9 +234,6 @@ class CopysetClient : public Uncopyable {
 
     // 是否在停止状态中，如果是在关闭过程中且session失效，需要将rpc直接返回不下发
     bool exitFlag_;
-
-    // inflight RPC 控制
-    InflightControl inflightCntl_;
 };
 
 }   // namespace client

@@ -23,6 +23,8 @@
 #include "include/curve_compiler_specific.h"
 #include "src/client/inflight_controller.h"
 
+using curve::common::Atomic;
+
 namespace curve {
 namespace client {
 class FlightIOGuard;
@@ -181,6 +183,20 @@ class IOManager4File : public IOManager {
 
   // inflight IO控制
   InflightControl  inflightCntl_;
+
+  // 是否退出
+  bool exit_;
+
+  // lease续约线程与qemu一侧线程调用是并发的
+  // qemu在调用close的时候会关闭iomanager及其对应
+  // 资源。lease续约线程在续约成功或失败的时候会通知iomanager的
+  // scheduler线程现在需要block IO或者resume IO，所以
+  // 如果在lease续约线程需要通知iomanager的时候，这时候
+  // 如果iomanager的资源scheduler已经被释放了，就会
+  // 导致crash，所以需要对这个资源加一把锁，在退出的时候
+  // 不会有并发的情况，保证在资源被析构的时候lease续约
+  // 线程不会再用到这些资源.
+  std::mutex exitMtx_;
 };
 
 }   // namespace client
