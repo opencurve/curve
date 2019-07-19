@@ -389,12 +389,11 @@ func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
     var ctx context.Context
     ctx = clientv3.WithRequireLeader(context.Background())
 
-    ticker := time.NewTicker(time.Duration(timeout) * time.Millisecond)
+    ticker := time.NewTicker(time.Duration(timeout / 5) * time.Millisecond)
     defer ticker.Stop()
 
+    observer := election.Observe(ctx)
     for {
-        observer := election.Observe(ctx)
-        updateTime := time.Now()
         select {
         case resp, ok := <-observer:
             if !ok {
@@ -402,7 +401,6 @@ func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
                 return C.ObserverLeaderInternal
             }
             if string(resp.Kvs[0].Value) == goLeaderName {
-                updateTime = time.Now()
                 continue
             }
             fmt.Printf("Observe() leaderChange, now is: %v, expect: %v\n",
@@ -411,12 +409,18 @@ func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
         // observe如果设置有timeout的context, 含义是observe timeout时间便退出，其次，
         // 还是get操作的超时时间。
         // 在应用中希望对该key一直进行检测，因此context不带超时。这样会导致etcd挂掉的时候
-        // grpc无限重试，所以需要在外部定时去检查上次observe的时间是否过长，过长则认为失败。
+        // grpc无限重试，所以需要在外部定时去检查etcd网络连接状态
         case <-ticker.C:
-            // 判断observe上次更新时间与当前时间差，如果超过一定的时间，则退出
-            if time.Since(updateTime) >
-                time.Duration(timeout) * time.Millisecond {
-                fmt.Printf("Observe() hung since %v\n", updateTime)
+            // 定期和mds通信，确认网络是否正常
+            t := time.Now()
+            ctx, cancel := context.WithTimeout(context.Background(),
+                time.Duration(int(timeout))*time.Millisecond)
+            defer cancel()
+
+            _, err := globalClient.Get(ctx, "observe-test")
+            errCode := GetErrCode(EtcdGet, err)
+            if errCode != C.OK {
+                fmt.Printf("Observe hung since %v\n", t)
                 return C.ObserverLeaderInternal
             }
         }
