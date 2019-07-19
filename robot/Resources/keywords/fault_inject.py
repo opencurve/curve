@@ -233,6 +233,26 @@ def check_vm_status(ssh,uuid):
            i = i + 5
     assert False,"start vm fail"
 
+def init_vm():
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    ori_cmd = "source OPENRC && nova list|grep %s | awk '{print $2}'"%config.vm_host
+    try:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.debug("exec %s" % ori_cmd)
+        uuid = "".join(rs[1]).strip()
+        ori_cmd = "source ADMIN &&  nova reset-state %s --active"%uuid
+        rs = shell_operator.ssh_exec(ssh,ori_cmd)
+        time.sleep(2)
+        ori_cmd = "bash curve_test.sh delete"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        restart_vm(ssh,uuid)
+        time.sleep(1)
+        check_vm_status(ssh,uuid)
+    except:
+        logger.error("init vm error")
+        raise
+    ssh.close()
+
 def get_chunkserver_status(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
 #    grep_cmd = "ls -l /etc/curve/chunkserver.conf.* | grep -v example | awk '{print $9}'"
@@ -834,6 +854,7 @@ def test_start_vm():
         time.sleep(30)
         start_vm(ssh,uuid)
         check_vm_status(ssh,uuid)
+        time.sleep(10)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.9:
             raise Exception("client io is slow = %d"%(end_iops))

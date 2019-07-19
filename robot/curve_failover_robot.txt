@@ -51,7 +51,7 @@ inject one chunkserver down/up
     test start chunkserver num   ${num}  ${host}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	  start host cs process   ${host}
 
 inject two chunkserver down/up
@@ -65,7 +65,7 @@ inject two chunkserver down/up
     test start chunkserver num   ${num}  ${host}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	  start host cs process   ${host}
 
 inject host all chunkserver down/up
@@ -78,7 +78,7 @@ inject host all chunkserver down/up
     test start chunkserver host  ${host}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	  start host cs process  ${host}
 
 inject restart one chunkserver
@@ -96,7 +96,7 @@ inject restart two chunkserver
     test restart chunkserver num   ${num}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
 inject kill diff host chunkserver
@@ -143,7 +143,7 @@ test chunkserver loss package 5%
     test cs loss package  ${percent}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	   wait iops ok    ${vm_iops_limit}
 
 test mds loss package 5%
@@ -152,7 +152,7 @@ test mds loss package 5%
     test mds loss package  ${percent}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test chunkserver delay package 100ms
@@ -161,7 +161,7 @@ test chunkserver delay package 100ms
     test cs delay package  ${ms}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     sleep   5
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
@@ -206,9 +206,8 @@ test stop all cs not recover
 *** Keywords ***
 
 init failover cluster
-     detach vol
-#     init rw cloud disk
      init abnormal test env
+     init vm
 
 init abnormal test env
      destroy etcd
