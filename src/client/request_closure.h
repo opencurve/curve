@@ -10,8 +10,17 @@
 
 // for Closure
 #include <google/protobuf/stubs/callback.h>
+
+#include <map>
+
 #include "include/curve_compiler_specific.h"
+#include "src/client/inflight_controller.h"
 #include "src/client/client_metric.h"
+#include "src/client/config_info.h"
+#include "src/client/client_common.h"
+#include "src/common/concurrent/concurrent.h"
+
+using curve::common::RWLock;
 
 namespace curve {
 namespace client {
@@ -54,6 +63,11 @@ class RequestClosure : public ::google::protobuf::Closure {
     void SetIOTracker(IOTracker* ioctx);
 
     /**
+     * 设置当前closure属于哪个iomanager
+     */
+    void SetIOManagerID(IOManagerID id);
+
+    /**
      * 设置当前closure重试次数
      */
     void IncremRetriedTimes() {
@@ -84,6 +98,29 @@ class RequestClosure : public ::google::protobuf::Closure {
      */
     uint64_t GetStartTime();
 
+    /**
+     * 添加inflight控制
+     * @param: id标识对应的iomanager
+     * @param: opt对应的inflight控制配置信息
+     */
+    static int AddInflightCntl(IOManagerID id, InFlightIOCntlInfo_t opt);
+
+    /**
+     * 删除inflight控制
+     * @param: id标识对应待删除的iomanager
+     */
+    static void DeleteInflightCntl(IOManagerID id);
+
+    /**
+     * 发送rpc之前都需要先获取inflight token
+     */
+    void GetInflightRPCToken();
+
+    /**
+     * 返回给用户或者重新进队的时候都要释放inflight token
+     */
+    void ReleaseInflightRPCToken();
+
  private:
     // 当前request的错误码
     int  errcode_;
@@ -102,6 +139,15 @@ class RequestClosure : public ::google::protobuf::Closure {
 
     // 重试次数
     uint64_t retryTimes_;
+
+    // 当前closure归属于哪个iomanager
+    IOManagerID managerID_;
+
+    // 读写锁用于保护map
+    static RWLock rwLock_;
+
+    // iomanager到inflight controller的映射
+    static std::map<IOManagerID, InflightControl*> inflightCntlMap_;
 };
 }   // namespace client
 }   // namespace curve
