@@ -29,6 +29,8 @@ using ChunkIndex    = uint32_t;
 using EndPoint  = butil::EndPoint;
 using Status    = butil::Status;
 
+using IOManagerID = uint64_t;
+
 // 操作类型
 enum class OpType {
     READ = 0,

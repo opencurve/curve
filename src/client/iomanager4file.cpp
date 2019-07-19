@@ -18,8 +18,8 @@
 
 namespace curve {
 namespace client {
-IOManager4File::IOManager4File():
-                    scheduler_(nullptr) {
+Atomic<uint64_t> IOManager::idRecorder_(1);
+IOManager4File::IOManager4File(): scheduler_(nullptr), exit_(false) {
 }
 
 bool IOManager4File::Initialize(const std::string& filename,
@@ -32,6 +32,13 @@ bool IOManager4File::Initialize(const std::string& filename,
 
     confMetric_.maxInFlightRPCNum.set_value(
                 ioopt_.ioSenderOpt.inflightOpt.maxInFlightRPCNum);
+
+    int ret = RequestClosure::AddInflightCntl(id_,
+              ioopt_.ioSenderOpt.inflightOpt);
+    if (ret != 0) {
+        LOG(ERROR) << "add inflight control for rpc failed!";
+        return false;
+    }
 
     fileMetric_ = new (std::nothrow) FileMetric(filename);
     if (fileMetric_ == nullptr) {
@@ -51,8 +58,8 @@ bool IOManager4File::Initialize(const std::string& filename,
     }
     scheduler_->Run();
 
-    int ret = taskPool_.Start(ioopt_.taskThreadOpt.taskThreadPoolSize,
-                              ioopt_.taskThreadOpt.taskQueueCapacity);
+    ret = taskPool_.Start(ioopt_.taskThreadOpt.taskThreadPoolSize,
+                          ioopt_.taskThreadOpt.taskQueueCapacity);
     if (ret != 0) {
         LOG(ERROR) << "task thread pool start failed!";
         return false;
@@ -89,12 +96,20 @@ void IOManager4File::UnInitialize() {
         scheduler_->WakeupBlockQueueAtExit();
         inflightCntl_.WaitInflightAllComeBack();
         scheduler_->Fini();
-        delete scheduler_;
-        scheduler_ = nullptr;
     }
 
-    if (fileMetric_ != nullptr) {
+    RequestClosure::DeleteInflightCntl(id_);
+
+    {
+        // 这个锁保证设置exit_和delete scheduler_是原子的
+        // 这样保证在scheduler_被析构的时候lease线程不会使用scheduler_
+        // jira: http://jira.netease.com/browse/CLDCFS-1395
+        std::unique_lock<std::mutex> lk(exitMtx_);
+        exit_ = true;
+
+        delete scheduler_;
         delete fileMetric_;
+        scheduler_ = nullptr;
         fileMetric_ = nullptr;
     }
 }
@@ -177,11 +192,21 @@ void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {
 }
 
 void IOManager4File::LeaseTimeoutBlockIO() {
-    scheduler_->LeaseTimeoutBlockIO();
+    std::unique_lock<std::mutex> lk(exitMtx_);
+    if (exit_ == false) {
+        scheduler_->LeaseTimeoutBlockIO();
+    } else {
+        LOG(WARNING) << "io manager already exit, no need block io!";
+    }
 }
 
 void IOManager4File::RefeshSuccAndResumeIO() {
-    scheduler_->RefeshSuccAndResumeIO();
+    std::unique_lock<std::mutex> lk(exitMtx_);
+    if (exit_ == false) {
+        scheduler_->RefeshSuccAndResumeIO();
+    } else {
+        LOG(WARNING) << "io manager already exit, no need resume io!";
+    }
 }
 }   // namespace client
 }   // namespace curve

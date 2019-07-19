@@ -38,8 +38,6 @@ int CopysetClient::Init(MetaCache *metaCache,
     }
     iosenderopt_ = ioSenderOpt;
 
-    inflightCntl_.SetMaxInflightNum(iosenderopt_.inflightOpt.maxInFlightRPCNum);
-
     LOG(INFO) << "CopysetClient init success, conf info: "
               << ", opRetryIntervalUs = "
               << iosenderopt_.failRequestOpt.opRetryIntervalUs
@@ -63,21 +61,6 @@ bool CopysetClient::FetchLeader(LogicPoolID lpid, CopysetID cpid,
     return true;
 }
 
-void CopysetClient::GetInflightRPCToken() {
-    inflightCntl_.GetInflightToken();
-    MetricHelper::IncremInflightRPC(fileMetric_);
-}
-
-void CopysetClient::ReleaseInflightRPCToken() {
-    inflightCntl_.ReleaseInflightToken();
-    MetricHelper::DecremInflightRPC(fileMetric_);
-}
-
-void CopysetClient::UnInit() {
-    // 等待所有RPC都回来之后才能返回
-    inflightCntl_.WaitInflightAllComeBack();
-}
-
 // 因为这里的CopysetClient::ReadChunk(会在两个逻辑里调用
 // 1. 从request scheduler下发的新的请求
 // 2. clientclosure再重试逻辑里调用copyset client重试
@@ -88,39 +71,38 @@ int CopysetClient::ReadChunk(ChunkIDInfo idinfo,
                              off_t offset,
                              size_t length,
                              uint64_t appliedindex,
-                             google::protobuf::Closure *done,
-                             bool needReschedule) {
-    brpc::ClosureGuard doneGuard(done);
-
-    // session过期，rpc不重试，直接push到调度队列，等待下次调度
-    // 重试调用是在brpc的线程里，所以这里不会卡住重试的RPC，这样
-    // 不会阻塞brpc线程，因为brpc线程是所有文件公用的。避免影响其他文件
-    // 因为session续约失败可能只是网络问题，等待续约成功之后IO其实还可以
-    // 正常下发，所以不能直接向上返回失败，在底层hang住，等续约成功之后继续发送
-    if (sessionNotValid_ == true && exitFlag_) {
-        // session过期退出时，直接返回，默认的返回值为-1
-        LOG(WARNING) << " return directly for session not valid at exit!"
-                    << ", copyset id = " << idinfo.cpid_
-                    << ", logical pool id = " << idinfo.lpid_
-                    << ", chunk id = " << idinfo.cid_
-                    << ", offset = " << offset
-                    << ", len = " << length;
-        return 0;
-    }
-
+                             google::protobuf::Closure *done) {
     RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
 
-    // 对于所有重试的RPC直接放入队列头部重新调度
-    if (needReschedule) {
-        doneGuard.release();
-        LOG(WARNING) << "read retry rpc reEnqueue!";
-        int ret = scheduler_->ReSchedule(reqclosure->GetReqCtx());
-        if (ret == -1) {
-            // 如果调度失败直接向上返回，默认request closure返回-1
-            LOG(ERROR) << "write rpc ReSchedule error, return to user!";
-            brpc::ClosureGuard doneGuard(done);
+    brpc::ClosureGuard doneGuard(done);
+
+    // session过期情况下重试有两种场景：
+    // 1. 正常重试过程，非文件关闭状态，这时候RPC直接重新push到scheduler队列头部
+    //     重试调用是在brpc的线程里，所以这里不会卡住重试的RPC，这样
+    //     不会阻塞brpc线程，因为brpc线程是所有文件公用的。避免影响其他文件
+    //     因为session续约失败可能只是网络问题，等待续约成功之后IO其实还可以
+    //     正常下发，所以不能直接向上返回失败，在底层hang住，等续约成功之后继续发送
+    // 2. 在关闭文件过程中exitFlag_=true，重试rpc会直接向上通过closure返回给用户
+    //     return调用之后doneguard会调用closure的run，会释放inflight rpc计数，
+    //     然后closure向上返回给用户。
+    if (sessionNotValid_ == true) {
+        if (exitFlag_) {
+            LOG(WARNING) << " return directly for session not valid at exit!"
+                        << ", copyset id = " << idinfo.cpid_
+                        << ", logical pool id = " << idinfo.lpid_
+                        << ", chunk id = " << idinfo.cid_
+                        << ", offset = " << offset
+                        << ", len = " << length;
+            return 0;
+        } else {
+            // session过期之后需要重新push到队列
+            // jira: http://jira.netease.com/browse/CLDNBS-1280
+            LOG(WARNING) << "session not valid, read rpc ReSchedule!";
+            doneGuard.release();
+            reqclosure->ReleaseInflightRPCToken();
+            scheduler_->ReSchedule(reqclosure->GetReqCtx());
+            return 0;
         }
-        return 0;
     }
 
     std::shared_ptr<RequestSender> senderPtr = nullptr;
@@ -141,15 +123,16 @@ int CopysetClient::ReadChunk(ChunkIDInfo idinfo,
                                                     leaderAddr,
                                                     iosenderopt_);
         if (nullptr != senderPtr) {
-            ReadChunkClosure *readDone = new ReadChunkClosure(this,
-                                                     doneGuard.release());
-            readDone->GetToken();
+            ReadChunkClosure *readDone =
+                new ReadChunkClosure(this, doneGuard.release());
             senderPtr->ReadChunk(idinfo, sn, offset, length,
                                  appliedindex, readDone);
             /* 成功发起read，break出去，重试逻辑进入ReadChunkClosure回调 */
             break;
         } else {
             // 如果建立连接失败，再等一定时间再重试
+            LOG(ERROR) << "create or reset sender failed (read <"
+                       << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
             bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
             continue;
         }
@@ -163,42 +146,40 @@ int CopysetClient::WriteChunk(ChunkIDInfo idinfo,
                               const char *buf,
                               off_t offset,
                               size_t length,
-                              google::protobuf::Closure *done,
-                              bool needReschedule) {
+                              google::protobuf::Closure *done) {
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
-    brpc::ClosureGuard doneGuard(done);
-
-    // session过期，rpc不重试，直接push到调度队列，等待下次调度
-    // 重试调用是在brpc的线程里，所以这里不会卡住重试的RPC，这样
-    // 不会阻塞brpc线程，因为brpc线程是所有文件公用的。避免影响其他文件
-    // 因为session续约失败可能只是网络问题，等待续约成功之后IO其实还可以
-    // 正常下发，所以不能直接向上返回失败，在底层hang住，等续约成功之后继续发送
-    if (sessionNotValid_ == true && exitFlag_) {
-        // session过期退出时，直接返回，默认的返回值为-1
-        LOG(WARNING) << " return directly for session not valid at exit!"
-                    << ", copyset id = " << idinfo.cpid_
-                    << ", logical pool id = " << idinfo.lpid_
-                    << ", chunk id = " << idinfo.cid_
-                    << ", offset = " << offset
-                    << ", len = " << length;
-        return 0;
-    }
 
     RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
 
-    // 对于所有重试的RPC直接放入队列头部重新调度
-    if (needReschedule) {
-        doneGuard.release();
-        LOG(WARNING) << "write retry rpc reEnqueue!";
-        int ret = scheduler_->ReSchedule(reqclosure->GetReqCtx());
-        if (ret == -1) {
-            // 如果调度失败直接向上返回，默认request closure返回-1
-            LOG(ERROR) << "write rpc ReSchedule error, return to user!";
-            brpc::ClosureGuard doneGuard(done);
+    brpc::ClosureGuard doneGuard(done);
+
+    // session过期情况下重试有两种场景：
+    // 1. 正常重试过程，非文件关闭状态，这时候RPC直接重新push到scheduler队列头部
+    //     重试调用是在brpc的线程里，所以这里不会卡住重试的RPC，这样
+    //     不会阻塞brpc线程，因为brpc线程是所有文件公用的。避免影响其他文件
+    //     因为session续约失败可能只是网络问题，等待续约成功之后IO其实还可以
+    //     正常下发，所以不能直接向上返回失败，在底层hang住，等续约成功之后继续发送
+    // 2. 在关闭文件过程中exitFlag_=true，重试rpc会直接向上通过closure返回给用户
+    //     return调用之后doneguard会调用closure的run，会释放inflight rpc计数，
+    //     然后closure向上返回给用户。
+    if (sessionNotValid_ == true) {
+        if (exitFlag_) {
+            LOG(WARNING) << " return directly for session not valid at exit!"
+                        << ", copyset id = " << idinfo.cpid_
+                        << ", logical pool id = " << idinfo.lpid_
+                        << ", chunk id = " << idinfo.cid_
+                        << ", offset = " << offset
+                        << ", len = " << length;
+            return 0;
+        } else {
+            LOG(WARNING) << "session not valid, write rpc ReSchedule!";
+            doneGuard.release();
+            reqclosure->ReleaseInflightRPCToken();
+            scheduler_->ReSchedule(reqclosure->GetReqCtx());
+            return 0;
         }
-        return 0;
     }
 
     while (reqclosure->GetRetriedTimes() <
@@ -214,9 +195,8 @@ int CopysetClient::WriteChunk(ChunkIDInfo idinfo,
                                                 leaderAddr,
                                                 iosenderopt_);
         if (nullptr != senderPtr) {
-            WriteChunkClosure * writeDone = new WriteChunkClosure(this,
-                                                     doneGuard.release());
-            writeDone->GetToken();
+            WriteChunkClosure * writeDone =
+                new WriteChunkClosure(this, doneGuard.release());
             senderPtr->WriteChunk(idinfo, sn, buf, offset, length, writeDone);
             // 成功发起write，break出去，重试逻辑进 WriteChunkClosure回调
             break;
@@ -224,12 +204,10 @@ int CopysetClient::WriteChunk(ChunkIDInfo idinfo,
             // 如果建立连接失败，再等一定时间再重试
             LOG(ERROR) << "create or reset sender failed (write <"
                        << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
-            bthread_usleep(iosenderopt_.failRequestOpt.
-                            opRetryIntervalUs);
+            bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
             continue;
         }
     }
-
     return 0;
 }
 

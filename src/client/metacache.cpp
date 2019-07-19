@@ -88,7 +88,6 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                   << ", CopysetID = " << copysetId;
         uint32_t retry = 0;
         while (retry++ < metacacheopt_.getLeaderRetry) {
-            bthread_usleep(metacacheopt_.retryIntervalUs);
             ret = UpdateLeaderInternal(logicPoolId, copysetId, &targetInfo, fm);
             if (ret != -1) {
                 targetInfo.ResetSetLeaderUnstableFlag();
@@ -119,6 +118,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                                << ", logicpool id = " << logicPoolId;
                 }
             }
+            bthread_usleep(metacacheopt_.retryIntervalUs);
         }
     }
 
