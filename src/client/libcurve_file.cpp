@@ -90,20 +90,22 @@ int FileClient::Init(const std::string& configpath) {
             break;
         }
 
-        // 获取本地IP
-        std::string ip;
-        if (!common::NetCommon::GetLocalIP(&ip)) {
-            rc = false;
-            LOG(ERROR) << "get local ip failed! can not regist to mds!";
-            break;
-        }
+        if (clientconfig_.GetFileServiceOption().commonOpt.registerToMDS) {
+            // 获取本地IP
+            std::string ip;
+            rc = common::NetCommon::GetLocalIP(&ip);
+            if (rc == false) {
+                LOG(ERROR) << "get local ip failed! can not regist to mds!";
+                break;
+            }
 
-        // 向mds注册
-        LIBCURVE_ERROR ret = mdsClient_->Register(ip, dummyServerStartPort);
-        if (ret != LIBCURVE_ERROR::OK) {
-            rc = false;
-            LOG(ERROR) << "regist client metric info to mds failed!";
-            break;
+            // 向mds注册
+            LIBCURVE_ERROR ret = mdsClient_->Register(ip, dummyServerStartPort);
+            if (ret != LIBCURVE_ERROR::OK) {
+                rc = false;
+                LOG(ERROR) << "regist client metric info to mds failed!";
+                break;
+            }
         }
     } while (0);
 

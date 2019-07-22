@@ -29,7 +29,7 @@ class FakeChunkService : public ChunkService {
  public:
     FakeChunkService() {
         rpcFailed = false;
-        retryTimes = 0;
+        retryTimes.store(0);
         waittimeMS = 10;
         wait4netunstable = false;
     }
@@ -40,7 +40,7 @@ class FakeChunkService : public ChunkService {
                     ::curve::chunkserver::ChunkResponse *response,
                     google::protobuf::Closure *done) {
         brpc::ClosureGuard doneGuard(done);
-        retryTimes++;
+        retryTimes.fetch_add(1);
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
 
         if (rpcFailed) {
@@ -62,7 +62,7 @@ class FakeChunkService : public ChunkService {
                    ::curve::chunkserver::ChunkResponse *response,
                    google::protobuf::Closure *done) {
         brpc::ClosureGuard doneGuard(done);
-        retryTimes++;
+        retryTimes.fetch_add(1);
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
         if (rpcFailed) {
             cntl->SetFailed(-1, "set rpc failed!");
@@ -158,11 +158,11 @@ class FakeChunkService : public ChunkService {
     }
 
     void CleanRetryTimes() {
-        retryTimes = 0;
+        retryTimes.store(0);
     }
 
     uint64_t GetRetryTimes() {
-        return retryTimes;
+        return retryTimes.load();
     }
 
  private:
@@ -170,7 +170,7 @@ class FakeChunkService : public ChunkService {
     bool wait4netunstable;
     uint64_t waittimeMS;
     bool rpcFailed;
-    uint64_t retryTimes;
+    std::atomic<uint64_t> retryTimes;
     char chunk_[128 * 1024];
 };
 

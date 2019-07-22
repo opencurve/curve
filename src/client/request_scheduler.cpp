@@ -62,7 +62,6 @@ int RequestScheduler::Fini() {
         threadPool_.Stop();
     }
 
-    client_.UnInit();
     return 0;
 }
 
@@ -125,6 +124,7 @@ void RequestScheduler::Process() {
                     DVLOG(9) << "Processing read request, buf header: "
                              << " buf: " << *(unsigned int*)req->readBuffer_;
                     {
+                        req->done_->GetInflightRPCToken();
                         client_.ReadChunk(req->idinfo_,
                                         req->seq_,
                                         req->offset_,
@@ -137,6 +137,7 @@ void RequestScheduler::Process() {
                     DVLOG(9) << "Processing write request, buf header: "
                              << " buf: " << *(unsigned int*)req->writeBuffer_;
                     {
+                        req->done_->GetInflightRPCToken();
                         client_.WriteChunk(req->idinfo_,
                                         req->seq_,
                                         req->writeBuffer_,

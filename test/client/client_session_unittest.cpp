@@ -55,7 +55,7 @@ std::condition_variable sessionCV;
 void sessioncallback(CurveAioContext* aioctx) {
     uint64_t ioEndTime = TimeUtility::GetTimeofDayUs();
 
-    ASSERT_LT(ioEndTime - ioSleepTime, SLEEP_TIME_S * 1000000);
+    ASSERT_GT(ioEndTime - ioSleepTime, SLEEP_TIME_S * 1000000);
 
     sessionFlag = true;
 }
@@ -234,7 +234,6 @@ TEST(ClientSession, LeaseTaskTest) {
     }
     ASSERT_TRUE(lease->LeaseValid());
 
-    LOG(INFO) << "111111111";
     // 7. set refresh failed
     // 续约失败，IO都是直接返回-LIBCURVE_ERROR::DISABLEIO
     refreshresp.set_statuscode(::curve::mds::StatusCode::KInternalError);
@@ -249,7 +248,6 @@ TEST(ClientSession, LeaseTaskTest) {
         }
     }
 
-    LOG(INFO) << "2222222";
     char* buf2 = new char[8 * 1024];
     CurveAioContext aioctx;
     aioctx.offset = 0;
@@ -263,8 +261,6 @@ TEST(ClientSession, LeaseTaskTest) {
     ASSERT_EQ(0, fileinstance.AioRead(&aioctx));
 
     std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME_S));
-
-    LOG(INFO) << "3333333";
 
     // 8. set refresh success
     // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true

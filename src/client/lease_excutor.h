@@ -77,6 +77,15 @@ class LeaseExcutor {
      */
     bool LeaseValid();
 
+    /**
+     * 测试使用，主动失效增加刷新失败
+     */
+    void InvalidLease() {
+        for (int i = 0; i <= leaseoption_.refreshTimesPerLease; i++) {
+            IncremRefreshFailed();
+        }
+    }
+
  private:
     /**
      * 续约任务执行者
