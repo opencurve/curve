@@ -16,7 +16,6 @@
 #include <mutex>    // NOLINT
 #include <condition_variable>   //NOLINT
 
-#include "src/client/config_info.h"
 #include "test/client/fake/mock_schedule.h"
 #include "src/client/io_tracker.h"
 #include "src/client/splitor.h"
@@ -30,6 +29,8 @@
 #include "src/client/mds_client.h"
 #include "src/client/metacache_struct.h"
 #include "test/client/fake/fakeMDS.h"
+#include "src/client/lease_excutor.h"
+#include "src/client/config_info.h"
 
 DECLARE_string(chunkserver_list);
 
@@ -39,6 +40,7 @@ extern std::string configpath;
 
 extern char* writebuffer;
 
+using curve::client::LeaseExcutor;
 using curve::client::EndPoint;
 using curve::client::UserInfo_t;
 using curve::client::CopysetInfo_t;
@@ -194,7 +196,7 @@ TEST_F(InflightRPCTest, inflightRPCTest) {
     fileinstance_ = new FileInstance();
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 10000;
     // 设置inflight RPC最大数量为1
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 1;
+    fopt.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 1;
     fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     auto fm = iomana->GetMetric();
@@ -231,6 +233,7 @@ TEST_F(InflightRPCTest, inflightRPCTest) {
     ASSERT_EQ(1, fm->inflightRPCNum.get_value());
     ASSERT_EQ(2, scheduler->GetQueue()->Size());
     ASSERT_EQ(1, fm->inflightRPCNum.get_value());
+
     {
         std::unique_lock<std::mutex> lk(rmtx);
         rcv.wait(lk, []()->bool{return iorflag;});
@@ -249,7 +252,86 @@ TEST_F(InflightRPCTest, inflightRPCTest) {
     }
 
     ASSERT_EQ(0, fm->inflightRPCNum.get_value());
+
     fileinstance_->UnInitialize();
+}
+
+TEST_F(InflightRPCTest, FileCloseTest) {
+    // 测试在文件关闭的时候，lese续约失败不会调用iomanager已析构的资源
+    // lease时长10s，在lease期间仅续约一次，一次失败就会调用iomanager
+    // block IO，这时候其实调用的是scheduler的LeaseTimeoutBlockIO
+    fileinstance_ = new FileInstance();
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 10000;
+    // 设置inflight RPC最大数量为1
+    fopt.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 1;
+
+    std::condition_variable cv;
+    std::mutex mtx;
+    bool inited = false;
+
+    std::condition_variable resumecv;
+    std::mutex resumemtx;
+    bool resume = true;
+
+    IOManager4File* iomanager;
+
+    auto f1 = [&]() {
+        for (int  i = 0; i < 50; i++) {
+            {
+                std::unique_lock<std::mutex> lk(resumemtx);
+                resumecv.wait(lk, [&](){ return resume;});
+                resume = false;
+            }
+            iomanager = new IOManager4File();
+            ASSERT_TRUE(iomanager->Initialize("/", fopt.ioOpt, &mdsclient_));
+
+            {
+                std::unique_lock<std::mutex> lk(mtx);
+                inited = true;
+                cv.notify_one();
+            }
+            iomanager->UnInitialize();
+        }
+    };
+
+    auto f2 = [&]() {
+        for (int i = 0; i < 50; i++) {
+            {
+                std::unique_lock<std::mutex> lk(mtx);
+                cv.wait(lk, [&](){ return inited;});
+                inited = false;
+            }
+
+            LeaseOption lopt;
+            lopt.refreshTimesPerLease = 1;
+            UserInfo_t userinfo("test", "");
+            LeaseExcutor lease(lopt, userinfo, &mdsclient_, iomanager);
+
+            for (int j = 0; j < 5; j ++) {
+                // 测试iomanager退出之后，lease再去调用其scheduler资源不会crash
+                lease.InvalidLease();
+            }
+
+            lease.Stop();
+
+            {
+                std::unique_lock<std::mutex> lk(resumemtx);
+                resume = true;
+                resumecv.notify_one();
+            }
+        }
+    };
+
+    // 并发两个线程，一个线程启动iomanager初始化，然后反初始化
+    // 另一个线程启动lease续约，然后调用iomanager使其block IO
+    // 预期：并发两个线程，lease线程续约失败即使在iomanager线程
+    // 退出的同时去调用其block IO接口也不会出现并发竞争共享资源的
+    // 场景。
+    std::thread t1(f1);
+    std::thread t2(f2);
+
+    t1.joinable() ? t1.join() : void();
+    t2.joinable() ? t2.join() : void();
 }
 
 
@@ -259,7 +341,7 @@ TEST_F(InflightRPCTest, sessionNotValidhangRPCTest) {
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 50;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 5000;
     // 设置inflight RPC最大数量为1
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 100;
+    fopt.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 100;
     fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     auto fm = iomana->GetMetric();
@@ -320,7 +402,7 @@ TEST_F(InflightRPCTest, sessionValidRPCTest) {
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 5;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 5000;
     // 设置inflight RPC最大数量为1
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 100;
+    fopt.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 100;
     fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     auto fm = iomana->GetMetric();
@@ -354,7 +436,7 @@ TEST_F(InflightRPCTest, sessionValidRPCTest) {
 
     // 设置rpc等待时间，这样确保rpc发出去但是没有回来，发出的
     // RPC都是inflight RPC
-    mds->EnableNetUnstable(5000);
+    mds->EnableNetUnstable(8000);
     iorflag = false;
     iowflag = false;
     ASSERT_EQ(LIBCURVE_ERROR::OK, iomana->AioRead(aioctx, &mdsclient_));

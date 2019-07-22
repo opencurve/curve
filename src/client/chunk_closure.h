@@ -17,6 +17,7 @@
 #include "src/client/client_config.h"
 #include "src/client/client_common.h"
 #include "src/client/client_metric.h"
+#include "src/client/request_closure.h"
 
 namespace curve {
 namespace client {
@@ -80,14 +81,11 @@ class ClientClosure : public Closure {
     // 这样方便在rpc closure里直接找到，当前是哪个chunkserver返回的失败
     ChunkServerID            chunkserverID_;
 };
-
 class WriteChunkClosure : public ClientClosure {
  public:
     WriteChunkClosure(CopysetClient *client, Closure *done)
         : ClientClosure(client, done) {}
 
-    void GetToken();
-    void ReleaseToken();
     void Run();
     void SetCntl(brpc::Controller* cntl) {
         cntl_ = cntl;
@@ -105,8 +103,6 @@ class ReadChunkClosure : public ClientClosure {
     ReadChunkClosure(CopysetClient *client, Closure *done)
         : ClientClosure(client, done) {}
 
-    void GetToken();
-    void ReleaseToken();
     void Run();
     void SetCntl(brpc::Controller* cntl) {
         cntl_ = cntl;

@@ -28,15 +28,16 @@ class TestEtcdClinetImp : public ::testing::Test {
     void SetUp() override {
         client_ = std::make_shared<EtcdClientImp>();
         char endpoints[] = "127.0.0.1:2379";
-        EtcdConf conf = {endpoints, strlen(endpoints), 20000};
-        ASSERT_EQ(0, client_->Init(conf, 200, 3));
+        EtcdConf conf = {endpoints, strlen(endpoints), 3000};
+        ASSERT_EQ(EtcdErrCode::Unknown, client_->Init(conf, 200, 3));
+        system("etcd&");
+        ASSERT_EQ(0, client_->Init(conf, 0, 3));
         ASSERT_EQ(
             EtcdErrCode::DeadlineExceeded, client_->Put("05", "hello word"));
         ASSERT_EQ(EtcdErrCode::DeadlineExceeded,
             client_->CompareAndSwap("04", "10", "110"));
 
-        client_->SetTimeout(200000);
-        system("etcd&");
+        client_->SetTimeout(20000);
     }
 
     void TearDown() override {
