@@ -147,9 +147,6 @@ void OperatorController::UpdateReplaceOpInfluenceLocked(const Operator &oldOp,
 
 void OperatorController::UpdateAddOpInfluenceLocked(const Operator &op) {
     for (auto csId : op.AffectedChunkServers()) {
-        if (opInfluence_.find(csId) == opInfluence_.end()) {
-            opInfluence_[csId] = 1;
-        }
         opInfluence_[csId]++;
     }
 }
@@ -172,11 +169,7 @@ bool OperatorController::ReplaceOpInfluencePreJudgeLocked(
     }
 
     for (auto csId : newOp.AffectedChunkServers()) {
-        if (influenceList.find(csId) == influenceList.end()) {
-            influenceList[csId] = 1;
-        } else {
-            influenceList[csId] += 1;
-        }
+         influenceList[csId]++;
     }
 
     for (auto csId : influenceList) {
@@ -190,11 +183,7 @@ bool OperatorController::ReplaceOpInfluencePreJudgeLocked(
 bool OperatorController::AddOpInfluencePreJudgeLocked(const Operator &op) {
     std::map<ChunkServerIdType, int> influenceList;
     for (auto csId : op.AffectedChunkServers()) {
-        if (influenceList.find(csId) == influenceList.end()) {
-            influenceList[csId] = 1;
-        } else {
-            influenceList[csId] += 1;
-        }
+         influenceList[csId]++;
     }
     for (auto csId : influenceList) {
         if (opInfluence_[csId.first] + csId.second > operatorConcurrent_) {
