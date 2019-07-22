@@ -218,17 +218,17 @@ def create_pool():
     rs = shell_operator.ssh_exec(ssh, physical_pool)
     assert rs[1] == []
     time.sleep(120)
-    logical_pool = "curve-tool -copyset_num=6000 -mds_ip=%s -mds_port=6666\
+    logical_pool = "curve-tool -copyset_num=4000 -mds_ip=%s -mds_port=6666\
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_host)
     rs = shell_operator.ssh_exec(ssh, logical_pool)
     i = 0
     while i < 300: 
        num = get_copyset_num()
-       if num == 6000:
+       if num == 4000:
            break
        i = i + 5
        time.sleep(5)
-    assert num == 6000,"create copyset fail,now copyset num is %d"%num
+    assert num == 4000,"create copyset fail,now copyset num is %d"%num
 
 def restart_cinder_server():
     client_host = random.choice(config.client_list)
