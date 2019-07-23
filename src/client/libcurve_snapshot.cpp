@@ -63,15 +63,26 @@ int SnapshotClient::GetSnapShot(const std::string& filename,
                                         const UserInfo_t& userinfo,
                                         uint64_t seq,
                                         FInfo* snapinfo) {
-    LIBCURVE_ERROR ret = mdsclient_.GetSnapShot(filename, userinfo,
-                                                seq, snapinfo);
+    std::map<uint64_t, FInfo> infomap;
+    std::vector<uint64_t> seqvec;
+    seqvec.push_back(seq);
+    LIBCURVE_ERROR ret = mdsclient_.ListSnapShot(filename, userinfo,
+                                                 &seqvec, &infomap);
+    if (ret == LIBCURVE_ERROR::OK && !infomap.empty()) {
+        auto it = infomap.begin();
+        if (it->first != seq) {
+            LOG(ERROR) << "Snapshot info not found with seqnum = " << seq;
+            return -LIBCURVE_ERROR::NOTEXIST;
+        }
+        ::memcpy(snapinfo, &it->second, sizeof(FInfo));
+    }
     return -ret;
 }
 
 int SnapshotClient::ListSnapShot(const std::string& filename,
                                         const UserInfo_t& userinfo,
                                         const std::vector<uint64_t>* seq,
-                                        std::vector<FInfo*>* snapif) {
+                                        std::map<uint64_t, FInfo>* snapif) {
     LIBCURVE_ERROR ret = mdsclient_.ListSnapShot(filename, userinfo,
                                                     seq, snapif);
     return -ret;
@@ -86,7 +97,7 @@ int SnapshotClient::GetSnapshotSegmentInfo(const std::string& filename,
                                         seq, offset, segInfo);
 
     if (ret != LIBCURVE_ERROR::OK) {
-        LOG(INFO) << "GetSnapshotSegmentInfo failed, ret = " << ret;
+        LOG(ERROR) << "GetSnapshotSegmentInfo failed, ret = " << ret;
         return -ret;
     }
 
