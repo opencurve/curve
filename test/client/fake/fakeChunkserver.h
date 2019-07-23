@@ -65,7 +65,7 @@ class FakeChunkService : public ChunkService {
         retryTimes.fetch_add(1);
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
         if (rpcFailed) {
-            cntl->SetFailed(-1, "set rpc failed!");
+            cntl->SetFailed(EHOSTDOWN, "set rpc failed!");
         }
 
         char buff[128 * 1024] = {0};
