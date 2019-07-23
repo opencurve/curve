@@ -290,7 +290,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         // 启动一个线程竞选leader
         int electionTimeoutMs = 0;
         uint64_t targetOid;
-        std::thread thread1(&EtcdClientImp::CampaignLeader, client_, pfx,
+        common::Thread thread1(&EtcdClientImp::CampaignLeader, client_, pfx,
             leaderName1, sessionnInterSec, electionTimeoutMs, &targetOid);
         // 等待线程1执行完成, 线程1执行完成就说明竞选成功，
         // 否则electionTimeoutMs为0的情况下会一直hung在里面
@@ -301,7 +301,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         // 启动第二个线程竞选leader
         auto client2 = std::make_shared<EtcdClientImp>();
         ASSERT_EQ(0, client2->Init(conf, dialtTimeout, retryTimes));
-        std::thread thread2(&EtcdClientImp::CampaignLeader, client2, pfx,
+        common::Thread thread2(&EtcdClientImp::CampaignLeader, client2, pfx,
             leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
         // 线程1退出后，leader2会当选
         thread2.join();
@@ -318,13 +318,13 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         int electionTimeoutMs = 1000;
         auto client1 = std::make_shared<EtcdClientImp>();
         ASSERT_EQ(0, client1->Init(conf, dialtTimeout, retryTimes));
-        std::thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
+        common::Thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName1, sessionnInterSec, electionTimeoutMs, &leaderOid);
         thread1.join();
         LOG(INFO) << "thread 1 exit.";
 
         // leader2再次竞选
-        std::thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
+        common::Thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
         thread2.join();
         client1->CloseClient();
@@ -339,7 +339,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         int electionTimeoutMs = 0;
         auto client1 = std::make_shared<EtcdClientImp>();
         ASSERT_EQ(0, client1->Init(conf, dialtTimeout, retryTimes));
-        std::thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
+        common::Thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName1, sessionnInterSec, electionTimeoutMs, &targetOid);
         thread1.join();
         LOG(INFO) << "thread 1 exit.";
@@ -348,7 +348,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
             client1->LeaderResign(targetOid, 500));
 
         // leader2当选
-        std::thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
+        common::Thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
         thread2.join();
         // leader1观察到leader改变
@@ -356,7 +356,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
             client1->LeaderObserve(targetOid, 1000, leaderName1));
 
         // leader2启动线程observe
-        std::thread thread3(&EtcdClientImp::LeaderObserve, client1,
+        common::Thread thread3(&EtcdClientImp::LeaderObserve, client1,
             targetOid, 1000, leaderName2);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         system("killall etcd");
