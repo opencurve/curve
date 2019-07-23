@@ -84,7 +84,7 @@ void Coordinator::Run() {
     SetSchedulerRunning(true);
     // run different scheduler at interval in different threads
     for (auto &v : schedulerController_) {
-        runSchedulerThreads_[v.first] = std::thread(
+        runSchedulerThreads_[v.first] = common::Thread(
             &Coordinator::RunScheduler, this, v.second);
     }
 }
@@ -236,7 +236,7 @@ bool Coordinator::ChunkserverGoingToAdd(
 
 
 void Coordinator::SetSchedulerRunning(bool flag) {
-    std::lock_guard<std::mutex> guard(mutex_);
+    common::LockGuard guard(mutex_);
     schedulerRunning_ = flag;
 }
 
