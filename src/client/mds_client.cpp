@@ -7,6 +7,7 @@
 #include <glog/logging.h>
 #include <bthread/bthread.h>
 
+#include <utility>
 #include <thread>   // NOLINT
 #include <chrono>   // NOLINT
 
@@ -494,7 +495,8 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
             *seq = fi->seqnum;
             delete fi;
             return LIBCURVE_ERROR::OK;
-        } else if (!response.has_snapshotfileinfo()) {
+        } else if (!response.has_snapshotfileinfo() &&
+                   stcode == ::curve::mds::StatusCode::kOK) {
             LOG(ERROR) << "mds side response has no snapshot file info!";
             return LIBCURVE_ERROR::FAILED;
         }
@@ -569,84 +571,10 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
     return LIBCURVE_ERROR::FAILED;
 }
 
-LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
-                                        const UserInfo_t& userinfo,
-                                        uint64_t seq,
-                                        FInfo* fi) {
-    // 记录当前mds重试次数
-    int count = 0;
-    // 记录还没重试的mds addr数量
-    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
-
-    std::vector<uint64_t> seqVec;
-    seqVec.push_back(seq);
-
-    LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
-    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
-        brpc::Controller cntl;
-        ::curve::mds::ListSnapShotFileInfoResponse response;
-
-        {
-            std::unique_lock<bthread::Mutex> lk(mutex_);
-            mdsClientBase_.ListSnapShot(filename,
-                                        userinfo,
-                                        &seqVec,
-                                        &response,
-                                        &cntl,
-                                        channel_);
-        }
-
-        if (cntl.Failed()) {
-            LOG(ERROR) << "list snap file failed, errcorde = "
-                        << response.statuscode()
-                        << ", error content:"
-                        << cntl.ErrorText()
-                        << ", retry GetSnapShot, retry times = "
-                        << count
-                        << ", log id = " << cntl.log_id();
-
-            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
-                break;
-            }
-            continue;
-        }
-
-        ::curve::mds::StatusCode stcode = response.statuscode();
-
-        if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
-
-        LOG_IF(ERROR, stcode != ::curve::mds::StatusCode::kOK)
-        << "list snap file failed, errcode = " << stcode;
-
-        auto size = response.fileinfo_size();
-        for (int i = 0; i < size; i++) {
-            curve::mds::FileInfo finfo = response.fileinfo(i);
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
-        }
-
-        LIBCURVE_ERROR retcode;
-        MDSStatusCode2LibcurveError(stcode, &retcode);
-
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "GetSnapShot: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq
-                << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode)
-                << ", log id = " << cntl.log_id();
-
-        return retcode;
-    }
-    return LIBCURVE_ERROR::FAILED;
-}
-
 LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
                                         const UserInfo_t& userinfo,
                                         const std::vector<uint64_t>* seq,
-                                        std::vector<FInfo*>* snapif) {
+                                        std::map<uint64_t, FInfo>* snapif) {
     // 记录当前mds重试次数
     int count = 0;
     // 记录还没重试的mds addr数量
@@ -656,10 +584,6 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
     while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         ::curve::mds::ListSnapShotFileInfoResponse response;
-        if ((*seq).size() > (*snapif).size()) {
-            LOG(ERROR) << "resource not enough!";
-            return LIBCURVE_ERROR::FAILED;
-        }
 
         {
             std::unique_lock<bthread::Mutex> lk(mutex_);
@@ -696,9 +620,17 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         << "list snap file failed, errcode = " << stcode;
 
         auto size = response.fileinfo_size();
+
         for (int i = 0; i < size; i++) {
+            FInfo_t tempInfo;
             curve::mds::FileInfo finfo = response.fileinfo(i);
-            ServiceHelper::ProtoFileInfo2Local(&finfo, (*snapif)[i]);
+            ServiceHelper::ProtoFileInfo2Local(&finfo, &tempInfo);
+            snapif->insert(std::make_pair(tempInfo.seqnum, tempInfo));
+        }
+
+        if (size != seq->size()) {
+            LOG(ERROR) << "target seq snapshot not found!";
+            return LIBCURVE_ERROR::FAILED;
         }
 
         LIBCURVE_ERROR retcode;
