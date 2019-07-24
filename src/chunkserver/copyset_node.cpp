@@ -658,6 +658,23 @@ int CopysetNode::GetConfChange(ConfigChangeType *type,
                                Peer *alterPeer) {
     Configuration adding, removing;
     PeerId transferee;
+
+    /**
+     * 避免new leader当选leader之后，提交noop entry之前，epoch和
+     * 配置可能不一致的情况。考虑如下情形：
+     *
+     * 三个成员的复制组{ABC}，当前epoch=5，A是leader，收到配置配置+D，
+     * 假设B收到了{ABC+D}的配置变更日志，然后leader A挂了，B当选为了
+     * new leader，在B提交noop entry之前，B上查询到的epoch值最大可能为5，
+     * 而查询到的配置确实{ABCD}了，所以这里在new leader B在提交noop entry
+     * 之前，也就是实现隐公提交配置变更日志{ABC+D}之前，不允许向用户返回
+     * 配置和配置变更信息，避免epoch和配置信息不一致
+     */
+    if (leaderTerm_.load(std::memory_order_acquire) <= 0) {
+        *type = ConfigChangeType::NONE;
+        return 0;
+    }
+
     bool ret
         = raftNode_->conf_changes(oldConf, &adding, &removing, &transferee);
 
