@@ -243,7 +243,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
             LOG(ERROR) << "Failed to build heartbeat information of copyset "
                        << ToGroupIdStr(copyset->GetLogicPoolId(),
                                      copyset->GetCopysetId());
-            return -1;
+            continue;
         }
         if (copyset->IsLeaderTerm()) {
             ++leaders;
