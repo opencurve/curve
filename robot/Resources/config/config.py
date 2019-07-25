@@ -61,8 +61,10 @@ abnormal_user = "nbs"
 pravie_key_path = "/home/nbs/rsa/id_rsa"
 abnormal_db_host = "10.182.26.25"
 recover_time = 10800
-offline_timeout = 60
+offline_timeout = 300
 vol_uuid = ""
+thrash_attach = True
+thrash_thread = []
 
 # db info
 db_host = "127.0.0.1"
@@ -106,6 +108,7 @@ nova_user = "nbs"
 ssh_key = "/home/nbs/rsa/id_rsa"
 #vm_host
 vm_host = "60.191.82.99"
+vm_stability_host = "60.191.82.105"
 vm_user = "root"
 vm_iosize = "4" #4k
 

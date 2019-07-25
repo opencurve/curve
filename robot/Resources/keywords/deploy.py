@@ -23,6 +23,24 @@ def add_config():
         ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s:6666/g' mds.conf"%host
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
+        #change offline time
+        ori_cmd = R"sed -i 's/mds.heartbeat.offlinetimeoutMs=1800000/mds.heartbeat.offlinetimeoutMs=%d/g' mds.conf"%(config.offline_timeout*1000)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
+        #change scheduler time
+        ori_cmd = R"sed -i 's/mds.copyset.scheduler.intervalSec=30/mds.copyset.scheduler.intervalSec=5/g' mds.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
+        ori_cmd = R"sed -i 's/mds.replica.scheduler.intervalSec=30/mds.replica.scheduler.intervalSec=5/g' mds.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
+        ori_cmd = R"sed -i 's/mds.recover.scheduler.intervalSec=30/mds.recover.scheduler.intervalSec=5/g' mds.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
+        # change topology update time
+        ori_cmd = R"sed -i 's/mds.topology.TopologyUpdateToRepoSec=60/mds.topology.TopologyUpdateToRepoSec=1/g' mds.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
         ori_cmd = "sudo mv mds.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s mds conf fail"%host
@@ -48,9 +66,11 @@ def add_config():
         cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/chunkserver.conf.example %s:~/chunkserver.conf"%\
             (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
+        #change global ip
         ori_cmd = R"sed -i 's/global.ip=127.0.0.1/global.ip=%s/g' chunkserver.conf"%host
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        #change mds ip
         ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s:6666/g' chunkserver.conf"%(config.mds_list[0])
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host

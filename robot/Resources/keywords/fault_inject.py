@@ -12,6 +12,7 @@ import threading
 import random
 import time
 import mythread
+import test_curve_stability
 
 def block_ip(chain):
     ori_cmd = "iptables -I %s 2>&1" % chain
@@ -97,6 +98,41 @@ def del_rate_limit(dev):
     print cmd
     # rc = shell_operator.run_exec(cmd)
 
+def inject_cpu_stress(ssh,stress=50):
+    cmd = "sudo nohup python cpu_stress.py %d &"%stress
+    shell_operator.ssh_background_exec2(ssh,cmd)
+    cmd = "ps -ef|grep -v grep | grep cpu_stress.py | awk '{print $2}'"
+    rs = shell_operator.ssh_exec(ssh,cmd)
+    assert rs[1] != [],"up cpu stress fail"
+
+def del_cpu_stress(ssh):
+    cmd = "ps -ef|grep -v grep | grep cpu_stress.py | awk '{print $2}'"
+    rs = shell_operator.ssh_exec(ssh,cmd) 
+    if rs[1] == []:
+        logger.info("no cpu stress running")
+        return
+    cmd = "ps -ef|grep -v grep | grep cpu_stress.py | awk '{print $2}'| sudo xargs kill -9"
+    rs = shell_operator.ssh_exec(ssh,cmd)
+    assert rs[3] == 0,"stop cpu stess fail"
+
+def inject_mem_stress(ssh,stress):
+    cmd = "sudo nohup /usr/local/stress/memtester/bin/memtester %dG > memtest.log  &"%stress
+    shell_operator.ssh_background_exec2(ssh,cmd)
+    cmd = "ps -ef|grep -v grep | grep memtester | awk '{print $2}'"
+    rs = shell_operator.ssh_exec(ssh,cmd)
+    assert rs[1] != [],"up memster stress fail"
+
+def del_mem_stress(ssh):
+    cmd = "ps -ef|grep -v grep | grep memtester | awk '{print $2}'"
+    rs = shell_operator.ssh_exec(ssh,cmd)
+    if rs[1] == []:
+        logger.info("no memtester stress running")
+        return
+    cmd = "ps -ef|grep -v grep | grep memtester | awk '{print $2}'| sudo xargs kill -9"
+    rs = shell_operator.ssh_exec(ssh,cmd)
+    assert rs[3] == 0,"stop memtester stess fail"
+
+
 def get_hostip_dev(ssh,hostip):
     ori_cmd = "ip a|grep %s | awk '{print $7}'"%hostip
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -127,6 +163,42 @@ def detach_vol():
     assert rs[3] == 0,"retcode is %d"%rs[3]
     logger.info("exec cmd %s"%ori_cmd)
     ssh.close()
+
+def loop_attach_detach_vol():
+    ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_stability_host
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    vm_uuid = "".join(rs[1]).strip() 
+    thread = []
+    for i in range(3):
+        t = mythread.runThread(test_curve_stability.vol_all, vm_uuid)
+        thread.append(t)
+
+    config.thrash_thread = thread
+    logger.debug("thrash attach detach %s" %vm_uuid)
+    for t in thread:
+        t.start()
+   # logger.debug("get result is %d" % t.get_result())
+   # assert t.get_result() == 0
+
+def stop_attach_detach():
+    try:
+        if config.thrash_thread == []:
+            assert False,"attach thread not up"
+        thread = config.thrash_thread
+        config.thrash_attach = False
+        time = 0
+        for t in thread:
+            assert t.exitcode == 0,"attach detach thread error"
+            result = t.get_result()
+            logger.debug("thrash attach detach time is %d"%result)
+            assert result > 0,"attach detach thread error"
+            time = time + result
+        logger.info("attach detach all time is %d"%time)
+    except:
+        raise   
+
+
 
 def get_vol_uuid():
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_host
@@ -236,18 +308,38 @@ def check_vm_status(ssh,uuid):
 def init_vm():
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     ori_cmd = "source OPENRC && nova list|grep %s | awk '{print $2}'"%config.vm_host
+    ori_cmd2 = "source OPENRC && nova list|grep %s | awk '{print $2}'"%config.vm_stability_host
     try:
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
         logger.debug("exec %s" % ori_cmd)
+        logger.debug("exec %s" % ori_cmd2)
         uuid = "".join(rs[1]).strip()
-        ori_cmd = "source ADMIN &&  nova reset-state %s --active"%uuid
+        uuid2 = "".join(rs2[1]).strip()
+#        ori_cmd = "source ADMIN &&  nova reset-state %s --active"%uuid
+#        ori_cmd2 = "source ADMIN &&  nova reset-state %s --active"%uuid2
+        ori_cmd = "source OPENRC &&  nova stop %s"%uuid
+        ori_cmd2 = "source OPENRC &&  nova stop %s"%uuid2
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
-        time.sleep(2)
-        ori_cmd = "bash curve_test.sh delete"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
+        time.sleep(5)
+        i = 0
+        while i < 600:
+           ori_cmd = "bash curve_test.sh delete"
+           rs = shell_operator.ssh_exec(ssh, ori_cmd)
+           if rs[3] == 0:
+               break
+           else:
+              logger.error("delete volume fail,please check.return code is %d"%rs[3])
+              time.sleep(60)
+              i = i + 60
+        assert rs[3] == 0,"delete volume fail,please check.return code is %d"%rs[3] 
+        time.sleep(3)
         restart_vm(ssh,uuid)
+        restart_vm(ssh,uuid2)
         time.sleep(1)
         check_vm_status(ssh,uuid)
+        check_vm_status(ssh,uuid2)
     except:
         logger.error("init vm error")
         raise
@@ -421,7 +513,7 @@ def start_host_cs_process(host,csid=-1):
         id = get_chunkserver_id(host,csid)
         if id == -1 and get_cs_copyset_num(id) == 0:
             ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat;sudo rm -rf /data/chunkserver%d/copysets;\
-             sudo rm -rf /data/chunkserver%d/recycler"%(cs,cs,cs)
+             sudo rm -rf /data/chunkserver%d/recycler"%(csid,csid,csid)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
         ori_cmd = "sudo nohup /home/nbs/chunkserver_start.sh %d %s 8200 &"%(csid,host)
@@ -491,6 +583,63 @@ def start_mds_process(host):
     if rs[1] == []:
         assert False, "mds up fail"
 
+def kill_etcd_process(host):
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "ps -ef|grep -v grep  | grep etcd | awk '{print $2}'"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] == []:
+        logger.debug("etcd not up")
+        return
+    pid = "".join(rs[1]).strip()
+    kill_cmd = "sudo kill -9 %s"%pid
+    rs = shell_operator.ssh_exec(ssh,kill_cmd)
+    logger.debug("exec %s,stdout is %s"%(kill_cmd,"".join(rs[1])))
+    assert rs[3] == 0,"kill etcd fail"
+
+def start_etcd_process(host):
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "ps -ef|grep -v grep | grep etcd | awk '{print $2}'"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] != []:
+        logger.debug("etcd already up")
+        return
+    mkdir_cmd = "rm -rf etcd_log && mkdir etcd_log"
+    rs = shell_operator.ssh_exec(ssh, mkdir_cmd)
+    up_cmd = " cd etcd_log && nohup etcd &"
+    shell_operator.ssh_background_exec2(ssh, up_cmd)
+    logger.debug("exec %s"%(up_cmd))
+    time.sleep(2)
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] == []:
+        assert False, "etcd up fail"
+
+def stop_mysql_process(host):
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "ps -ef|grep -v grep | grep mysql"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] == []:
+        logger.debug("mysql not up")
+        return
+    ori_cmd = "sudo service mysql stop"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    logger.debug("exec %s,stdout is %s"%(ori_cmd,"".join(rs[1])))
+    assert rs[3] == 0,"stop mysql fail"
+
+def start_mysql_process(host):
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "ps -ef|grep -v grep | grep mysql"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] != []:
+        logger.debug("mysql already up")
+        return
+    start_cmd = "sudo service mysql start"
+    rs = shell_operator.ssh_exec(ssh, start_cmd)
+    assert rs[3] == 0,"start mysql fail"
+    time.sleep(2)
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] == []:
+        assert False, "mysql up fail"
+
 def get_cluster_iops():
     return 100
 
@@ -525,7 +674,6 @@ def get_all_chunk_num():
 def check_vm_iops(limit_iops=2000):
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     ori_cmd = "iostat -d vdc 1 2 |grep vdc | awk 'END {print $6}'"
-    time.sleep(5)
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     kb_wrtn = "".join(rs[1]).strip()
     iops = int(kb_wrtn) / int(config.vm_iosize)
@@ -592,6 +740,8 @@ def check_data_consistency():
             t = time.time()
             ori_cmd = "mv /root/output /root/vdbench-output/output-%d && mv /root/nohup.out /root/nohup-%d"%(int(t),int(t))
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            ori_cmd = "mkdir output && touch nohup.out"
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
 #            logger.error("find error in %s"%rs[1])
             assert False,"find data consistency error,save log to vm /root/vdbench-output/output-%d"%int(t)
     except Exception as e:
@@ -605,7 +755,6 @@ def test_kill_chunkserver_num(num):
     try:
 #    check_chunkserver_status(chunkserver_host)
         kill_mult_cs_process(chunkserver_host,num)
-        time.sleep(5)
         end_iops = get_cluster_iops()
         if float(end_iops)/float(start_iops) < 0.9:
             raise Exception("client io is slow, = %d more than 5s" % (end_iops))
@@ -623,7 +772,6 @@ def test_start_chunkserver_num(num,host=None):
         chunkserver_host = host
     try:
         start_mult_cs_process(chunkserver_host,num)
-        time.sleep(5)
         end_iops = get_cluster_iops()
         if float(end_iops)/float(start_iops) < 0.9:
             raise Exception("client io is slow, = %d more than 5s" % (end_iops))
@@ -677,10 +825,10 @@ def test_upcs_recover_copyset(host,copyset_num):
             if abs(num - copyset_num) <= 10:
                 break
         if abs(num - copyset_num) > 10:
+            logger.error("get host %s chunkserver %d copyset num is %d"%(chunkserver_host,cs_list[0],num))
             raise Exception(
                 "host %s chunkserver %d not recover to %d in %d,now is %d" % \
             (chunkserver_host, cs_list[0],copyset_num,config.recover_time,num))
-        logger.error("get host %s chunkserver %d copyset num is %d"%(chunkserver_host,cs_list[0],num))
     except Exception as e:
         logger.error("error is :%s"%e)
         raise 
@@ -711,6 +859,48 @@ def stop_all_cs_not_recover():
         raise
     start_host_cs_process(chunkserver_host)
 
+def pendding_all_cs_recover():
+    chunkserver_host = random.choice(config.chunkserver_list)
+    ssh = shell_operator.create_ssh_connect(chunkserver_host, 1046, config.abnormal_user)
+    ssh_mds = shell_operator.create_ssh_connect(config.mds_list[0], 1046, config.abnormal_user)
+    try:
+        stop_host_cs_process(chunkserver_host)
+        list = get_chunkserver_status(chunkserver_host)
+        down_list = list["down"]
+        csid_list = []
+        time.sleep(config.offline_timeout + 60)
+        for cs in down_list:
+            chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
+            assert chunkserver_id != -1
+            csid_list.append(chunkserver_id)
+            pendding_cmd = "sudo curve-tool -mds_port=6666 -mds_ip=%s -op=set_chunkserver \
+                    -chunkserver_id=%d -chunkserver_status=pendding"%(config.mds_list[0],chunkserver_id)
+            rs = shell_operator.ssh_exec(ssh_mds,pendding_cmd)
+            assert rs[3] == 0,"pendding chunkserver %d fail,rs is %s"%(cs,rs[1])
+        time.sleep(300)
+        i = 0
+        while i < config.recover_time:
+            i = i + 60
+            time.sleep(60)
+            for chunkserver_id in csid_list:
+                num = get_cs_copyset_num(chunkserver_id)
+                if num != 0:
+                    break
+            if num == 0:
+                break
+        if num != 0:
+            logger.error("exist chunkserver copyset %d"%num)
+            raise Exception("pendding chunkserver fail")
+    except Exception as e:
+        #        raise AssertionError()
+        logger.error("error is %s" % e)
+        cs_list = start_host_cs_process(chunkserver_host)
+        raise
+    for cs in down_list:
+        start_host_cs_process(chunkserver_host,cs)
+
+
+
 def test_suspend_recover_copyset():
     chunkserver_host = random.choice(config.chunkserver_list)
     try:
@@ -720,15 +910,18 @@ def test_suspend_recover_copyset():
         begin_num = get_cs_copyset_num(chunkserver_id)
         #time.sleep(config.recover_time)
         i = 0
-        time.sleep(5)
+        time.sleep(60)
         while i < config.recover_time:
-            i = i + 5
+            i = i + 1
             num = get_cs_copyset_num(chunkserver_id)
-            time.sleep(5)
+            time.sleep(1)
             logger.info("now cs copyset num is %d,begin_num is %d"%(num,begin_num))
-            if num > 0 and num != begin_num :
+            if num > 0 and abs(begin_num - num) > 10 :
                 break
-        start_host_cs_process(chunkserver_host,cs_list[0])
+            elif num == 0:
+               cs_list = start_host_cs_process(chunkserver_host,cs_list[0]) 
+               assert False,"copyset is 0"
+        start_host_cs_process(chunkserver_host)
         i = 0
         while i < config.recover_time:
             i = i + 60
@@ -752,8 +945,6 @@ def test_kill_mds():
     mds_host = random.choice(config.mds_list)
     try:
         kill_mds_process(mds_host)
-#    start_mds_process(mds_host)
-        time.sleep(5)
         end_iops = get_cluster_iops()
         if float(end_iops)/float(start_iops) < 0.9:
             raise Exception("client io is slow, = %d more than 5s" % (end_iops))
@@ -769,19 +960,65 @@ def test_start_mds():
         kill_mds_process(mds_host)
         time.sleep(30)
         start_mds_process(mds_host)
-        time.sleep(5)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.9:
             raise Exception("client io is slow, = %d more than 5s" % (end_iops))
     except Exception as e:
         raise 
 
+def test_kill_etcd():
+    start_iops = get_cluster_iops()
+    etcd_host = random.choice(config.etcd_list)
+    try:
+        kill_etcd_process(etcd_host)
+        end_iops = get_cluster_iops()
+        if float(end_iops)/float(start_iops) < 0.9:
+            raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+    except Exception as e:
+        start_etcd_process(etcd_host)
+        raise 
+    return etcd_host
+
+def test_start_etcd(host):
+    start_iops = get_cluster_iops()
+    etcd_host = host
+    try:
+        start_etcd_process(etcd_host)
+        end_iops = get_cluster_iops()
+        if float(end_iops) / float(start_iops) < 0.9:
+            raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+    except Exception as e:
+        raise 
+
+def test_kill_mysql():
+    start_iops = get_cluster_iops()
+    mysql_host = random.choice(config.mds_list)
+    try:
+        stop_mysql_process(mysql_host)
+        end_iops = get_cluster_iops()
+        if float(end_iops)/float(start_iops) < 0.9:
+            raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+    except Exception as e:
+        start_mysql_process(mysql_host)
+        raise
+    return mysql_host
+
+def test_start_mysql(host):
+    start_iops = get_cluster_iops()
+    mysql_host = host
+    try:
+        start_mysql_process(mysql_host)
+        end_iops = get_cluster_iops()
+        if float(end_iops) / float(start_iops) < 0.9:
+            raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+    except Exception as e:
+        raise
+
 def test_stop_chunkserver_host():
     start_iops = get_cluster_iops()
     chunkserver_host = random.choice(config.chunkserver_list)
     try:
         stop_host_cs_process(chunkserver_host)
-        time.sleep(5)
         end_iops = get_cluster_iops()
         if float(end_iops)/float(start_iops) < 0.9:
             raise Exception("client io is slow, = %d more than 5s" % (end_iops))
@@ -798,7 +1035,6 @@ def test_start_chunkserver_host(host=None):
         chunkserver_host = host
     try:
         start_host_cs_process(chunkserver_host)
-        time.sleep(5)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.9:
             raise Exception("client io is slow, = %d more than 5s" % (end_iops))
@@ -810,7 +1046,6 @@ def test_restart_chunkserver_num(num):
     chunkserver_host = random.choice(config.chunkserver_list)
     try:
         restart_mult_cs_process(chunkserver_host,num)
-        time.sleep(5)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.9:
             raise Exception("client io is slow, = %d more than 5s" % (end_iops))
@@ -854,7 +1089,6 @@ def test_start_vm():
         time.sleep(30)
         start_vm(ssh,uuid)
         check_vm_status(ssh,uuid)
-        time.sleep(10)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.9:
             raise Exception("client io is slow = %d"%(end_iops))
@@ -887,7 +1121,7 @@ def test_cs_loss_package(percent):
     try:
         package_loss_all(ssh, dev, percent)
         show_tc_inject(ssh,dev)
-        time.sleep(5)
+        check_vm_iops(1)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
@@ -906,7 +1140,7 @@ def test_mds_loss_package(percent):
     try:
         package_loss_all(ssh, dev, percent)
         show_tc_inject(ssh,dev)
-        time.sleep(5)
+        check_vm_iops(1)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
@@ -925,7 +1159,7 @@ def test_cs_delay_package(ms):
     try:
         package_delay_all(ssh, dev, ms)
         show_tc_inject(ssh,dev)
-        time.sleep(5)
+        check_vm_iops(1)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
@@ -944,7 +1178,7 @@ def test_mds_delay_package(ms):
     try:
         package_delay_all(ssh, dev, ms)
         show_tc_inject(ssh,dev)
-        time.sleep(5)
+        check_vm_iops(1)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
@@ -953,6 +1187,63 @@ def test_mds_delay_package(ms):
     finally:
         time.sleep(60)
         cancel_tc_inject(ssh,dev)
+
+def test_chunkserver_cpu_stress(stress=50):
+    chunkserver_host = random.choice(config.chunkserver_list)
+    cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 robot/Resources/keywords/cpu_stress.py \
+     %s:~/"%(config.pravie_key_path,chunkserver_host)
+    shell_operator.run_exec2(cmd)
+    ssh = shell_operator.create_ssh_connect(chunkserver_host, 1046, config.abnormal_user)
+    inject_cpu_stress(ssh,stress)
+    return ssh
+ 
+def test_mds_cpu_stress(stress=50):
+    mds_host = random.choice(config.mds_list)
+    cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 robot/Resources/keywords/cpu_stress.py \
+     %s:~/"%(config.pravie_key_path,mds_host)
+    shell_operator.run_exec2(cmd)
+    ssh = shell_operator.create_ssh_connect(mds_host, 1046, config.abnormal_user)
+    inject_cpu_stress(ssh,stress)
+    return ssh
+
+def test_client_cpu_stress(stress=50):
+    client_host = random.choice(config.client_list)
+    cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 robot/Resources/keywords/cpu_stress.py \
+     %s:~/"%(config.pravie_key_path,client_host)
+    shell_operator.run_exec2(cmd)
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    inject_cpu_stress(ssh,stress)
+    return ssh
+
+def test_chunkserver_mem_stress(stress=50):
+    chunkserver_host = random.choice(config.chunkserver_list)
+    cmd = "free -g |grep Mem|awk \'{print $2}\'"
+    ssh = shell_operator.create_ssh_connect(chunkserver_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    all_mem = int("".join(rs[1]).strip())
+    stress = all_mem * stress / 100
+    inject_mem_stress(ssh,stress)
+    return ssh
+
+def test_mds_mem_stress(stress=50):
+    mds_host = random.choice(config.mds_list)
+    cmd = "free -g |grep Mem|awk \'{print $2}\'"
+    ssh = shell_operator.create_ssh_connect(mds_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    all_mem = int("".join(rs[1]).strip())
+    stress = all_mem * stress / 100
+    inject_mem_stress(ssh,stress)
+    return ssh
+
+def test_client_mem_stress(stress=50):
+    client_host = random.choice(config.client_list)
+    cmd = "free -g |grep Mem|awk \'{print $2}\'"
+    ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    all_mem = int("".join(rs[1]).strip())
+    stress = all_mem * stress / 100
+    inject_mem_stress(ssh,stress)
+    return ssh
 
 def thrasher_abnormal_cluster():
     actions = []
