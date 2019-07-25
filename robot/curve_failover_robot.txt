@@ -16,7 +16,7 @@ Suite Teardown    clean failover env
 *** Variables ***
 ${fio_vdsize}     20
 ${vdbench_vdsize}   20
-${vm_iops_limit}   8000
+${vm_iops_limit}   6000
 
 
 *** Test Cases ***
@@ -27,7 +27,7 @@ ${vm_iops_limit}   8000
 
 
 test get all chunk num
-    [Tags]    P1    base    first release   failover  no-need
+    [Tags]    P1    base    first release   failover   
     stop rwio
     sleep  2
     ${begin_num}    get all chunk num
@@ -36,7 +36,6 @@ test get all chunk num
     ${end_num}    get all chunk num
     ${end_num}    Convert To Integer   ${end_num}
     should be equal    ${begin_num}   ${end_num}
-    [Teardown]	    file clean   none
 
 
 inject one chunkserver down/up
@@ -44,11 +43,13 @@ inject one chunkserver down/up
     init rw cloud disk
     ${num}   evaluate   int(1)
     ${host}   test kill chunkserver num   ${num}
+    sleep  5
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     sleep  5
     test start chunkserver num   ${num}  ${host}
+    sleep  5
     check vm iops
     check data consistency
 #    check copies consistency
@@ -58,11 +59,13 @@ inject two chunkserver down/up
     [Tags]    P1    base    first release   failover
     ${num}   evaluate   int(2)
     ${host}   test kill chunkserver num   ${num}
+    sleep  5
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     sleep  5
     test start chunkserver num   ${num}  ${host}
+    sleep  5
     check vm iops
     check data consistency
 #    check copies consistency
@@ -71,29 +74,33 @@ inject two chunkserver down/up
 inject host all chunkserver down/up
     [Tags]    P1    base    first release   failover
     ${host}  test stop chunkserver host
-    check vm iops
-    check data consistency
-    check copies consistency
-    sleep  5
-    test start chunkserver host  ${host}
+    sleep  10
     check vm iops
     check data consistency
 #    check copies consistency
+    sleep  5
+    test start chunkserver host  ${host}
+    sleep  5
+    check vm iops
+    check data consistency
+    check copies consistency
     [Teardown]	  start host cs process  ${host}
 
 inject restart one chunkserver
     [Tags]    P1    base    first release   failover
     ${num}   evaluate   int(1)
     test restart chunkserver num   ${num}
+    sleep  5
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	  wait iops ok   ${vm_iops_limit}
 
 inject restart two chunkserver
     [Tags]    P1    base    first release   failover
     ${num}   evaluate   int(2)
     test restart chunkserver num   ${num}
+    sleep  5
     check vm iops
     check data consistency
 #    check copies consistency
@@ -102,7 +109,7 @@ inject restart two chunkserver
 inject kill diff host chunkserver
     [Tags]    P1    base    first release   failover
     test kill diff host chunkserver
-    sleep   10
+    sleep   5
     check vm iops
     check data consistency
     check copies consistency
@@ -111,6 +118,7 @@ inject kill diff host chunkserver
 inject stop and start vm
     [Tags]    P1    base    first release   failover
     test start vm
+    sleep   10
     check vm iops
     check data consistency
     check copies consistency
@@ -119,15 +127,17 @@ inject stop and start vm
 inject reboot vm
     [Tags]    P1    base    first release   failover
     test restart vm
+    sleep   5
     check vm iops
     check data consistency
     check copies consistency
     [Teardown]	  wait iops ok    ${vm_iops_limit}
 
 inject kill mds
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover   no-need
     ${host}  test kill mds
     ${limit_iops}   evaluate  int(0)
+    sleep  5
     check vm iops  ${limit_iops}
     sleep  3
     test start mds
@@ -136,6 +146,100 @@ inject kill mds
     check data consistency
     check copies consistency
     [Teardown]	   start mds process  ${host}
+
+inject kill etcd
+    [Tags]    P1    base    first release   failover   no-need
+    ${host}  test kill etcd
+    ${limit_iops}   evaluate  int(0)
+    sleep  5
+    check vm iops  ${limit_iops}
+    sleep  3
+    test start etcd   ${host}
+    sleep  3
+    check vm iops
+    check data consistency
+    check copies consistency
+    [Teardown]     start etcd process  ${host}
+
+inject kill mysql
+    [Tags]    P1    base    first release   failover   no-need
+    ${host}  test kill mysql
+    ${limit_iops}   evaluate  int(0)
+    sleep  5
+    check vm iops   ${limit_iops} 
+    sleep  3
+    test start mysql
+    sleep  3
+    check vm iops
+    check data consistency
+    check copies consistency
+    [Teardown]     start mysql process  ${host}
+
+inject chunkserver cpu stress 95%
+    [Tags]    P1    base    first release   failover 
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test chunkserver cpu stress   ${cpu_stress}
+    sleep  5
+    check vm iops    ${vm_iops_limit} 
+    del cpu stress   ${ssh}
+    check data consistency
+#    check copies consistency
+    [Teardown]     del cpu stress    ${ssh}
+    
+inject mds cpu stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test mds cpu stress   ${cpu_stress}
+#    sleep  5
+    check vm iops    ${vm_iops_limit}
+    del cpu stress   ${ssh}
+    check data consistency
+#    check copies consistency
+    [Teardown]     del cpu stress    ${ssh}
+
+inject client cpu stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test client cpu stress   ${cpu_stress}
+    sleep  5
+    check vm iops    ${vm_iops_limit}
+    del cpu stress   ${ssh}
+    check data consistency
+    check copies consistency
+    [Teardown]     del cpu stress    ${ssh}
+
+inject chunkserver mem stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test chunkserver mem stress   ${cpu_stress}
+    sleep  10
+    check vm iops    ${vm_iops_limit}
+    del mem stress   ${ssh}
+    check data consistency
+#    check copies consistency
+    [Teardown]     del mem stress    ${ssh}
+
+inject mds mem stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test mds mem stress   ${cpu_stress}
+    sleep  10
+    check vm iops    ${vm_iops_limit}
+    del mem stress   ${ssh}
+    check data consistency
+#    check copies consistency
+    [Teardown]     del mem stress    ${ssh}
+
+inject client mem stress 95%
+    [Tags]    P1    base    first release   failover
+    ${cpu_stress}   evaluate  int(95)
+    ${ssh}   test client mem stress   ${cpu_stress}
+    sleep  10
+    check vm iops    ${vm_iops_limit}
+    del mem stress   ${ssh}
+    check data consistency
+    check copies consistency
+    [Teardown]     del mem stress    ${ssh}
 
 test chunkserver loss package 5%
     [Tags]    P1    base    first release   failover
@@ -159,6 +263,7 @@ test chunkserver delay package 100ms
     [Tags]    P1    base    first release   failover
     ${ms}  evaluate  int(100)
     test cs delay package  ${ms}
+    sleep  5
     check vm iops
     check data consistency
 #    check copies consistency
@@ -203,11 +308,20 @@ test stop all cs not recover
     check copies consistency
     [Teardown]	  wait iops ok   ${vm_iops_limit}
 
+test pendding host all cs
+   [Tags]    P1    base    first release   failover  longtime
+   pendding all cs recover 
+   check vm iops 
+   check data consistency
+   check copies consistency
+    [Teardown]	  wait iops ok   ${vm_iops_limit}
+
 *** Keywords ***
 
 init failover cluster
      init abnormal test env
      init vm
+     loop attach detach vol
 
 init abnormal test env
      destroy etcd
@@ -223,7 +337,6 @@ init abnormal test env
 init rw cloud disk
      remove vm key
      attach new vol   ${fio_vdsize}   ${vdbench_vdsize} 
-     test restart vm
      stop rwio
      sleep  5
      write full disk   ${fio_vdsize}
@@ -231,4 +344,5 @@ init rw cloud disk
 
 clean failover env
      stop rwio
+     stop attach detach 
      detach vol
