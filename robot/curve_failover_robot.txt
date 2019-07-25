@@ -16,7 +16,7 @@ Suite Teardown    clean failover env
 *** Variables ***
 ${fio_vdsize}     20
 ${vdbench_vdsize}   20
-${vm_iops_limit}   6000
+${vm_iops_limit}   8000
 
 
 *** Test Cases ***
@@ -180,8 +180,10 @@ inject chunkserver cpu stress 95%
     ${cpu_stress}   evaluate  int(95)
     ${ssh}   test chunkserver cpu stress   ${cpu_stress}
     sleep  5
-    check vm iops    ${vm_iops_limit} 
+    ${limit_iops}   evaluate  int(2000)
+    check vm iops    ${limit_iops} 
     del cpu stress   ${ssh}
+    check vm iops    ${vm_iops_limit} 
     check data consistency
 #    check copies consistency
     [Teardown]     del cpu stress    ${ssh}
@@ -190,9 +192,11 @@ inject mds cpu stress 95%
     [Tags]    P1    base    first release   failover
     ${cpu_stress}   evaluate  int(95)
     ${ssh}   test mds cpu stress   ${cpu_stress}
-#    sleep  5
-    check vm iops    ${vm_iops_limit}
+    sleep  5
+    ${limit_iops}   evaluate  int(2000)
+    check vm iops    ${limit_iops} 
     del cpu stress   ${ssh}
+    check vm iops    ${vm_iops_limit} 
     check data consistency
 #    check copies consistency
     [Teardown]     del cpu stress    ${ssh}
@@ -202,8 +206,10 @@ inject client cpu stress 95%
     ${cpu_stress}   evaluate  int(95)
     ${ssh}   test client cpu stress   ${cpu_stress}
     sleep  5
-    check vm iops    ${vm_iops_limit}
+    ${limit_iops}   evaluate  int(2000)
+    check vm iops    ${limit_iops} 
     del cpu stress   ${ssh}
+    check vm iops    ${vm_iops_limit} 
     check data consistency
     check copies consistency
     [Teardown]     del cpu stress    ${ssh}
