@@ -196,7 +196,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     delete[] readbuffer;
     UnInit();
 }
-
+/*
 TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     std::string filename = "/1_userinfo_";
 
@@ -439,7 +439,7 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     mds.UnInitialize();
     delete[] buffer;
 }
-
+*/
 TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     std::string filename = "/1_userinfo_";
 

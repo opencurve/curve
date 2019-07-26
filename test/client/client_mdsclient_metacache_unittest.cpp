@@ -1089,6 +1089,20 @@ TEST_F(MDSClientTest, GetServerList) {
     ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
         topologyservice.GetRetryTimes());
 
+    // 设置rpc返回hostdown，触发主动切换mds
+    // 当rpc内部收到EHOSTDOWN错误的时候，其内部会重试，默认为3次
+    // 这样每一次都是4次
+    brpc::Controller cntl2;
+    cntl2.SetFailed(EHOSTDOWN, "failed");
+
+    FakeReturn* fakeret3
+     = new FakeReturn(&cntl2, static_cast<void*>(&response_1));
+    topologyservice.SetFakeReturn(fakeret3);
+    topologyservice.CleanRetryTimes();
+    ASSERT_EQ(LIBCURVE_ERROR::FAILED,
+         mdsclient_.GetServerList(12345, cpidvec, &cpinfoVec));
+    ASSERT_EQ(4 * metaopt.rpcRetryTimes, topologyservice.GetRetryTimes());
+
     delete faktopologyeret;
     delete fakeret2;
 }
