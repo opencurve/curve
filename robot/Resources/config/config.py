@@ -107,8 +107,8 @@ nova_host ="10.187.0.10"
 nova_user = "nbs"
 ssh_key = "/home/nbs/rsa/id_rsa"
 #vm_host
-vm_host = "60.191.82.99"
-vm_stability_host = "60.191.82.105"
+vm_host = "60.191.82.127"
+vm_stability_host = "60.191.82.86"
 vm_user = "root"
 vm_iosize = "4" #4k
 
