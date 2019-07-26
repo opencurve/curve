@@ -154,10 +154,11 @@ class MockCurveFsClient : public CurveFsClient {
         int(ChunkIDInfo cidinfo,
         uint64_t correctedSeq));
 
-    MOCK_METHOD3(CheckSnapShotStatus,
+    MOCK_METHOD4(CheckSnapShotStatus,
         int(std::string filename,
         std::string user,
-        uint64_t seq));
+        uint64_t seq,
+        FileStatus* filestatus));
 
     MOCK_METHOD2(GetChunkInfo,
         int(ChunkIDInfo cidinfo,
