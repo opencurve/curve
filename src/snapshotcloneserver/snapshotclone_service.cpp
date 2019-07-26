@@ -91,7 +91,11 @@ void SnapshotCloneServiceImpl::HandleCreateSnapshotAction(
     if ((version == nullptr) ||
         (user == nullptr) ||
         (file == nullptr) ||
-        (name == nullptr)) {
+        (name == nullptr) ||
+        (version->empty()) ||
+        (user->empty()) ||
+        (file->empty()) ||
+        (name->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -147,7 +151,11 @@ void SnapshotCloneServiceImpl::HandleDeleteSnapshotAction(
     if ((version == nullptr) ||
         (user == nullptr) ||
         (uuid == nullptr) ||
-        (file == nullptr)) {
+        (file == nullptr) ||
+        (version->empty()) ||
+        (user->empty()) ||
+        (uuid->empty()) ||
+        (file->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -197,7 +205,11 @@ void SnapshotCloneServiceImpl::HandleCancelSnapshotAction(
     if ((version == nullptr) ||
         (user == nullptr) ||
         (uuid == nullptr) ||
-        (file == nullptr)) {
+        (file == nullptr) ||
+        (version->empty()) ||
+        (user->empty()) ||
+        (uuid->empty()) ||
+        (file->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -247,7 +259,11 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     if ((version == nullptr) ||
         (user == nullptr) ||
         (file == nullptr) ||
-        (limit == nullptr)) {
+        (limit == nullptr) ||
+        (version->empty()) ||
+        (user->empty()) ||
+        (file->empty()) ||
+        (limit->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -321,7 +337,12 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
         (user == nullptr) ||
         (source == nullptr) ||
         (destination == nullptr) ||
-        (lazy == nullptr)) {
+        (lazy == nullptr) ||
+        (version->empty()) ||
+        (user->empty()) ||
+        (source->empty()) ||
+        (destination->empty()) ||
+        (lazy->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -384,7 +405,12 @@ void SnapshotCloneServiceImpl::HandleRecoverAction(brpc::Controller* bcntl) {
         (user == nullptr) ||
         (source == nullptr) ||
         (destination == nullptr) ||
-        (lazy == nullptr)) {
+        (lazy == nullptr) ||
+        (version->empty()) ||
+        (user->empty()) ||
+        (source->empty()) ||
+        (destination->empty()) ||
+        (lazy->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -439,7 +465,9 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     const std::string *user =
         bcntl->http_request().uri().GetQuery("User");
     if ((version == nullptr) ||
-        (user == nullptr)) {
+        (user == nullptr) ||
+        (version->empty()) ||
+        (user->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -475,6 +503,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     Json::Value listObj;
     for (auto &info :  cloneTaskInfos) {
         Json::Value cloneTaskObj;
+        cloneTaskObj["TaskId"] = info.GetCloneInfo().GetTaskId();
         cloneTaskObj["User"] = info.GetCloneInfo().GetUser();
         cloneTaskObj["File"] = info.GetCloneInfo().GetDest();
         cloneTaskObj["TaskType"] = static_cast<int> (
@@ -526,7 +555,10 @@ void SnapshotCloneServiceImpl::HandleCleanCloneTaskAction(
         bcntl->http_request().uri().GetQuery("TaskId");
     if ((version == nullptr) ||
         (user == nullptr) ||
-        (taskId == nullptr)) {
+        (taskId == nullptr) ||
+        (version->empty()) ||
+        (user->empty()) ||
+        (taskId->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
