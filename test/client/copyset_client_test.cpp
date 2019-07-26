@@ -494,7 +494,7 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));
@@ -941,7 +941,7 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(3)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));

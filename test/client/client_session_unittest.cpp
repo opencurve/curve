@@ -270,7 +270,7 @@ TEST(ClientSession, LeaseTaskTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
     curvefsservice->SetRefreshSession(refreshfakeretOK1, refresht);
 
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 3; i++) {
         {
             std::unique_lock<std::mutex> lk(mtx);
             refreshcv.wait(lk);
@@ -281,6 +281,7 @@ TEST(ClientSession, LeaseTaskTest) {
     std::unique_lock<std::mutex> lk(sessionMtx);
     sessionCV.wait(lk, [&]() { return sessionFlag; });
 
+
     // 9. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
@@ -288,10 +289,72 @@ TEST(ClientSession, LeaseTaskTest) {
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice->SetCloseFile(closefileret);
 
-    mds.UnInitialize();
+    // 10. set refresh success
+    // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
+    // 这时候IO被恢复了。
+    sessionFlag = false;
+    brpc::Controller* cntl = new brpc::Controller;
+    cntl->SetFailed(-1, "set failed!");
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretfailed
+     = new FakeReturn(cntl, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshfakeretfailed, refresht);
+
+    curvefsservice->CleanRetryTimes();
+
+
+    brpc::Server server2;
+    FakeMDSCurveFSService curvefsservice2;
+    server2.AddService(&curvefsservice2, brpc::SERVER_DOESNT_OWN_SERVICE);
+
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    if (server2.Start("127.0.0.1:9102", &options) != 0) {
+        LOG(ERROR) << "Fail to start Server";
+    }
+
+    brpc::Controller* cntl2 = new brpc::Controller;
+    cntl2->SetFailed(-1, "set failed!");
+    ::curve::mds::ReFreshSessionResponse refreshresp2;
+    refreshresp2.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretfailed2
+     = new FakeReturn(cntl2, static_cast<void*>(&refreshresp2));
+    curvefsservice2.SetRefreshSession(refreshfakeretfailed2, refresht);
+
+    curvefsservice2.CleanRetryTimes();
+
+    // synchronizeRPCRetryTime = 3
+    // 每个mds会重试3次，因为配置文件里的mds为127.0.0.1:9101@127.0.0.1:9102
+    // 所以两个mds在一次续约过程中会各重试3次，续约4次不成功会将IO停住，lease失效。
+    for (int i = 1;
+         i <= 4 * 2 * cc.GetFileServiceOption().
+              metaServerOpt.synchronizeRPCRetryTime + 1;
+         i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+
+        LOG(ERROR) << i;
+        if (i < 3 * 2 * cc.GetFileServiceOption().
+                metaServerOpt.synchronizeRPCRetryTime) {
+            ASSERT_TRUE(lease->LeaseValid());
+        }
+    }
+
+    ASSERT_FALSE(lease->LeaseValid());
+
     fileinstance.UnInitialize();
     server.Stop(0);
     server.Join();
+    server2.Stop(0);
+    server2.Join();
+    mds.UnInitialize();
+
+    ASSERT_GT(curvefsservice->GetRetryTimes(), 2 * cc.GetFileServiceOption().
+             metaServerOpt.synchronizeRPCRetryTime - 1);
+    ASSERT_GT(curvefsservice2.GetRetryTimes(), 2 * cc.GetFileServiceOption().
+             metaServerOpt.synchronizeRPCRetryTime - 1);
 }
 
 TEST(ClientSession, AppliedIndexTest) {
