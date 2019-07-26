@@ -117,7 +117,7 @@ int ClientConfig::Init(const char* configpath) {
     RETURN_IF_FALSE(ret)
 
     std::vector<std::string> mdsAddr;
-    common::SplitString(metaAddr, "@", &mdsAddr);
+    common::SplitString(metaAddr, ",", &mdsAddr);
     fileServiceOption_.metaServerOpt.metaaddrvec.assign(mdsAddr.begin(),
                                                         mdsAddr.end());
     for (auto& addr : fileServiceOption_.metaServerOpt.metaaddrvec) {

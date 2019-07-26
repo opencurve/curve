@@ -326,10 +326,14 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
         brpc::ClosureGuard done_guard(done);
         if (fakeret_->controller_ != nullptr
          && fakeret_->controller_->Failed()) {
-            controller->SetFailed("failed");
+            auto cntl = static_cast<brpc::Controller*>(fakeret_->controller_);
+            auto brpccntl = static_cast<brpc::Controller*>(controller);
+            brpccntl->SetFailed(cntl->ErrorCode(), "failed");
         }
 
         retrytimes_++;
+
+        LOG(ERROR) << "GetChunkServerListInCopySets";
 
         auto resp = static_cast<GetChunkServerListInCopySetsResponse*>(
             fakeret_->response_);

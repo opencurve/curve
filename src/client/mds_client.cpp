@@ -137,6 +137,7 @@ bool MDSClient::UpdateRetryinfoOrChangeServer(int* retrycount,
             *retrycount = 0;
         } else {
             LOG(ERROR) << "retry failed!";
+            bthread_usleep(metaServerOpt_.retryIntervalUs);
             return false;
         }
     } else {
@@ -851,69 +852,84 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                                 const UserInfo_t& userinfo,
                                 const std::string& sessionid,
                                 leaseRefreshResult* resp) {
-    brpc::Controller cntl;
-    curve::mds::ReFreshSessionResponse response;
+    // 记录当前mds重试次数
+    int count = 0;
+    // 记录还没重试的mds addr数量
+    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
-    mdsClientMetric_.refreshSession.qps.count << 1;
-    {
-        LatencyGuard lg(&mdsClientMetric_.refreshSession.latency);
-        ReadLockGuard readGuard(rwlock_);
-        mdsClientBase_.RefreshSession(filename,
-                                     userinfo,
-                                     sessionid,
-                                     &response,
-                                     &cntl,
-                                     channel_);
-    }
+    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
+        brpc::Controller cntl;
+        curve::mds::ReFreshSessionResponse response;
+        mdsClientMetric_.refreshSession.qps.count << 1;
 
-    if (cntl.Failed()) {
-        mdsClientMetric_.refreshSession.eps.count << 1;
-        LOG(ERROR) << "Fail to send ReFreshSessionRequest, "
-                    << cntl.ErrorText();
-        return LIBCURVE_ERROR::FAILED;
-    }
-
-    curve::mds::StatusCode stcode = response.statuscode();
-
-    if (stcode != curve::mds::StatusCode::kOK) {
-        LOG(ERROR) << "RefreshSession NOT OK: filename = "
-                    << filename.c_str()
-                    << ", owner = "
-                    << userinfo.owner
-                    << ", sessionid = "
-                    << sessionid
-                    << ", status code = "
-                    << curve::mds::StatusCode_Name(stcode);
-    }
-
-    if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-        resp->status = leaseRefreshResult::Status::FAILED;
-        return LIBCURVE_ERROR::AUTHFAIL;
-    }
-
-    LOG_EVERY_N(INFO, 10) << "RefreshSession returned: filename = "
-                          << filename.c_str()
-                          << ", owner = "
-                          << userinfo.owner
-                          << ", sessionid = "
-                          << sessionid
-                          << ", status code = "
-                          << curve::mds::StatusCode_Name(stcode);
-
-    if (stcode == curve::mds::StatusCode::kSessionNotExist
-        || stcode == curve::mds::StatusCode::kFileNotExists) {
-        resp->status = leaseRefreshResult::Status::NOT_EXIST;
-    } else if (stcode != curve::mds::StatusCode::kOK) {
-        resp->status = leaseRefreshResult::Status::FAILED;
-    } else {
-        resp->status = leaseRefreshResult::Status::OK;
-        if (response.has_fileinfo()) {
-            curve::mds::FileInfo finfo = response.fileinfo();
-            ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
+        {
+            LatencyGuard lg(&mdsClientMetric_.refreshSession.latency);
+            ReadLockGuard readGuard(rwlock_);
+            mdsClientBase_.RefreshSession(filename,
+                                        userinfo,
+                                        sessionid,
+                                        &response,
+                                        &cntl,
+                                        channel_);
         }
-    }
 
-    return LIBCURVE_ERROR::OK;
+        if (cntl.Failed()) {
+            mdsClientMetric_.refreshSession.eps.count << 1;
+            LOG(ERROR) << "Fail to send ReFreshSessionRequest, "
+                        << cntl.ErrorText()
+                        << ", retry again!";
+            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
+                break;
+            }
+            continue;
+        }
+
+        curve::mds::StatusCode stcode = response.statuscode();
+
+        if (stcode != curve::mds::StatusCode::kOK) {
+            LOG(ERROR) << "RefreshSession NOT OK: filename = "
+                        << filename.c_str()
+                        << ", owner = "
+                        << userinfo.owner
+                        << ", sessionid = "
+                        << sessionid
+                        << ", status code = "
+                        << curve::mds::StatusCode_Name(stcode);
+        }
+
+        if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
+            resp->status = leaseRefreshResult::Status::FAILED;
+            return LIBCURVE_ERROR::AUTHFAIL;
+        }
+
+        LOG_EVERY_N(INFO, 10) << "RefreshSession returned: filename = "
+                            << filename.c_str()
+                            << ", owner = "
+                            << userinfo.owner
+                            << ", sessionid = "
+                            << sessionid
+                            << ", status code = "
+                            << curve::mds::StatusCode_Name(stcode);
+
+        if (stcode == curve::mds::StatusCode::kSessionNotExist
+            || stcode == curve::mds::StatusCode::kFileNotExists) {
+            resp->status = leaseRefreshResult::Status::NOT_EXIST;
+        } else if (stcode != curve::mds::StatusCode::kOK) {
+            resp->status = leaseRefreshResult::Status::FAILED;
+            return LIBCURVE_ERROR::FAILED;
+        } else {
+            if (response.has_fileinfo()) {
+                curve::mds::FileInfo finfo = response.fileinfo();
+                ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
+                resp->status = leaseRefreshResult::Status::OK;
+            } else {
+                LOG(ERROR) << "session response has no fileinfo!";
+                return LIBCURVE_ERROR::FAILED;
+            }
+        }
+        return LIBCURVE_ERROR::OK;
+    }
+    return LIBCURVE_ERROR::FAILED;
 }
 
 LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
@@ -977,6 +993,8 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
                             std::vector<CopysetInfo_t>* cpinfoVec) {
     // 记录当前mds重试次数
     int count = 0;
+    // 记录重试中timeOut次数
+    int timeOutTimes = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1004,8 +1022,39 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
                         << ", retry GetServerList, retry times = "
                         << count;
 
-            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {
-                break;
+            // 1. 访问不存在的IP地址会报错：ETIMEDOUT
+            // 2. 访问存在的IP地址，但无人监听：ECONNREFUSED
+            // 3. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
+            // 4. 链接建立，对端主机挂掉了：brpc::ERPCTIMEDOUT
+            // 5. 对端server调用了Stop：ELOGOFF
+            // 6. 对端链接已关闭：ECONNRESET
+            // 在这几种场景下，主动切换mds。
+            // GetServerList在主IO路劲上，所以即使切换mds server失败
+            // 也不能直接向上返回，也需要重试到规定次数。
+            // 因为返回失败就会导致qemu一侧磁盘IO错误，上层应用就crash了。
+            // 所以这里的rpc超时次数要设置大一点
+            if (cntl.ErrorCode() == brpc::ERPCTIMEDOUT ||
+                cntl.ErrorCode() == ETIMEDOUT) {
+                timeOutTimes++;
+            }
+
+            // rpc超时次数达到synchronizeRPCRetryTime次的时候就触发切换mds
+            if (timeOutTimes > metaServerOpt_.synchronizeRPCRetryTime ||
+                cntl.ErrorCode() == EHOSTDOWN ||
+                cntl.ErrorCode() == ECONNRESET ||
+                cntl.ErrorCode() == ECONNREFUSED ||
+                cntl.ErrorCode() == brpc::ELOGOFF) {
+                count++;
+                if (!ChangeMDServer(&mdsAddrleft)) {
+                    LOG(ERROR) << "change mds server failed!";
+                    bthread_usleep(metaServerOpt_.retryIntervalUs);
+                } else {
+                    timeOutTimes = 0;
+                }
+            } else {
+                if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {  //  NOLINT
+                    LOG(ERROR) << "UpdateRetryinfoOrChangeServer failed!";
+                }
             }
             continue;
         }
@@ -1195,6 +1244,8 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                                         SegmentInfo *segInfo) {
     // 记录当前mds重试次数
     int count = 0;
+    // 记录重试中timeOut次数
+    int timeOutTimes = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1224,8 +1275,39 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                         << ", retry allocate, retry times = "
                         << count;
 
-            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {
-                break;
+
+            // 1. 访问不存在的IP地址会报错：ETIMEDOUT
+            // 2. 访问存在的IP地址，但无人监听：ECONNREFUSED
+            // 3. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
+            // 4. 链接建立，对端主机挂掉了：brpc::ERPCTIMEDOUT
+            // 5. 对端server调用了Stop：ELOGOFF
+            // 6. 对端链接已关闭：ECONNRESET
+            // 在这几种场景下，主动切换mds。
+            // GetOrAllocateSegment在主IO路劲上，所以即使切换mds server失败
+            // 也不能直接向上返回，也需要重试到规定次数。
+            // 因为返回失败就会导致qemu一侧磁盘IO错误，上层应用就crash了。
+            if (cntl.ErrorCode() == brpc::ERPCTIMEDOUT ||
+                cntl.ErrorCode() == ETIMEDOUT) {
+                timeOutTimes++;
+            }
+
+            // rpc超时次数达到synchronizeRPCRetryTime次的时候就触发切换mds
+            if (timeOutTimes > metaServerOpt_.synchronizeRPCRetryTime ||
+                cntl.ErrorCode() == EHOSTDOWN ||
+                cntl.ErrorCode() == ECONNRESET ||
+                cntl.ErrorCode() == ECONNREFUSED ||
+                cntl.ErrorCode() == brpc::ELOGOFF) {
+                count++;
+                if (!ChangeMDServer(&mdsAddrleft)) {
+                    LOG(ERROR) << "change mds server failed!";
+                    bthread_usleep(metaServerOpt_.retryIntervalUs);
+                } else {
+                    timeOutTimes = 0;
+                }
+            } else {
+                if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {   //  NOLINT
+                    LOG(ERROR) << "UpdateRetryinfoOrChangeServer failed!";
+                }
             }
             continue;
         } else {
