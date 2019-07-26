@@ -405,6 +405,16 @@ TEST_F(MDSClientTest, Openfile) {
     ASSERT_EQ(metaopt.synchronizeRPCRetryTime * metaopt.metaaddrvec.size(),
         curvefsservice.GetRetryTimes());
 
+    // file close not exist
+    ::curve::mds::CloseFileResponse response2;
+    response2.set_statuscode(::curve::mds::StatusCode::kSessionNotExist);
+
+    FakeReturn* fakeret4
+                = new FakeReturn(nullptr, static_cast<void*>(&response2));
+    curvefsservice.SetCloseFile(fakeret4);
+
+    ASSERT_EQ(LIBCURVE_ERROR::OK, Close(0));
+
     delete fakeret;
     delete fakeret1;
     delete fakeret2;
