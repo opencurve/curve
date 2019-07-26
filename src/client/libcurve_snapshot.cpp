@@ -186,7 +186,8 @@ int SnapshotClient::CompleteCloneFile(const std::string &destination,
 int SnapshotClient::DeleteFile(const std::string& filename,
                                const UserInfo_t& userinfo,
                                uint64_t id) {
-    LIBCURVE_ERROR ret = mdsclient_.DeleteFile(filename, userinfo, id);
+    LIBCURVE_ERROR ret =
+        mdsclient_.DeleteFile(filename, userinfo, false, id);
     return -ret;
 }
 

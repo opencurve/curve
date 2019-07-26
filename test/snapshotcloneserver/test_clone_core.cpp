@@ -257,7 +257,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileNotExist) {
         .WillOnce(Return(kErrCodeInternalError));
 
     EXPECT_CALL(*client_, GetFileInfo(source, user, _))
-        .WillOnce(Return(LIBCURVE_ERROR::NOTEXIST));
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -278,7 +278,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileAUTHFAIL) {
         .WillOnce(Return(kErrCodeInternalError));
 
     EXPECT_CALL(*client_, GetFileInfo(source, user, _))
-        .WillOnce(Return(LIBCURVE_ERROR::AUTHFAIL));
+        .WillOnce(Return(-LIBCURVE_ERROR::AUTHFAIL));
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -299,7 +299,7 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileFail) {
         .WillOnce(Return(kErrCodeInternalError));
 
     EXPECT_CALL(*client_, GetFileInfo(source, user, _))
-        .WillOnce(Return(LIBCURVE_ERROR::FAILED));
+        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
 
     int ret = core_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -838,7 +838,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotFail(
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillRepeatedly(DoAll(
                 SetArgPointee<2>(fInfo),
-                Return(LIBCURVE_ERROR::FAILED)));
+                Return(-LIBCURVE_ERROR::FAILED)));
 }
 
 void TestCloneCoreImpl::MockBuildFileInfoFromFileFail(
@@ -854,7 +854,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromFileFail(
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillRepeatedly(DoAll(
                 SetArgPointee<2>(fInfo),
-                Return(LIBCURVE_ERROR::FAILED)));
+                Return(-LIBCURVE_ERROR::FAILED)));
 }
 
 void TestCloneCoreImpl::MockCreateCloneFileFail(
@@ -863,43 +863,43 @@ void TestCloneCoreImpl::MockCreateCloneFileFail(
     fInfoOut.id = 100;
     EXPECT_CALL(*client_, CreateCloneFile(_, _, _, _, _, _))
         .WillOnce(DoAll(SetArgPointee<5>(fInfoOut),
-            Return(LIBCURVE_ERROR::FAILED)));
+            Return(-LIBCURVE_ERROR::FAILED)));
 }
 
 void TestCloneCoreImpl::MockCloneMetaFail(
     std::shared_ptr<CloneTaskInfo> task) {
     EXPECT_CALL(*client_, GetOrAllocateSegmentInfo(_, _, _, _, _))
-        .WillRepeatedly(Return(LIBCURVE_ERROR::FAILED));
+        .WillRepeatedly(Return(-LIBCURVE_ERROR::FAILED));
 }
 
 void TestCloneCoreImpl::MockCreateCloneChunkFail(
     std::shared_ptr<CloneTaskInfo> task) {
     EXPECT_CALL(*client_, CreateCloneChunk(_, _, _, _, _))
-        .WillRepeatedly(Return(LIBCURVE_ERROR::FAILED));
+        .WillRepeatedly(Return(-LIBCURVE_ERROR::FAILED));
 }
 
 void TestCloneCoreImpl::MockCompleteCloneMetaFail(
     std::shared_ptr<CloneTaskInfo> task) {
     EXPECT_CALL(*client_, CompleteCloneMeta(_, _))
-        .WillOnce(Return(LIBCURVE_ERROR::FAILED));
+        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
 }
 
 void TestCloneCoreImpl::MockRecoverChunkFail(
     std::shared_ptr<CloneTaskInfo> task) {
     EXPECT_CALL(*client_, RecoverChunk(_, _, _))
-        .WillRepeatedly(Return(LIBCURVE_ERROR::FAILED));
+        .WillRepeatedly(Return(-LIBCURVE_ERROR::FAILED));
 }
 
 void TestCloneCoreImpl::MockRenameCloneFileFail(
     std::shared_ptr<CloneTaskInfo> task) {
     EXPECT_CALL(*client_, RenameCloneFile(_, _, _, _, _))
-        .WillOnce(Return(LIBCURVE_ERROR::FAILED));
+        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
 }
 
 void TestCloneCoreImpl::MockCompleteCloneFileFail(
     std::shared_ptr<CloneTaskInfo> task) {
     EXPECT_CALL(*client_, CompleteCloneFile(_, _))
-        .WillOnce(Return(LIBCURVE_ERROR::FAILED));
+        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
 }
 
 TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreSuccess) {
@@ -965,7 +965,7 @@ TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreInvalidUser) {
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 }
 
-TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreCannotCleanNotError) {
+TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreCannotCleanUnFinished) {
     const TaskIdType &taskId = "id1";
     const std::string user = "user1";
     CloneInfo cloneInfoOut;
@@ -973,7 +973,7 @@ TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreCannotCleanNotError) {
     CloneInfo cinfo;
     cinfo.SetTaskId(taskId);
     cinfo.SetUser(user);
-    cinfo.SetStatus(CloneStatus::done);
+    cinfo.SetStatus(CloneStatus::cloning);
 
     EXPECT_CALL(*metaStore_, GetCloneInfo(_, _))
         .WillOnce(DoAll(
@@ -982,7 +982,7 @@ TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreCannotCleanNotError) {
 
     int ret = core_->CleanCloneOrRecoverTaskPre(
         user, taskId, &cloneInfoOut);
-    ASSERT_EQ(kErrCodeCannotCleanCloneNotError, ret);
+    ASSERT_EQ(kErrCodeCannotCleanCloneUnfinished, ret);
 }
 
 TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreTaskExist) {
@@ -993,7 +993,7 @@ TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreTaskExist) {
     CloneInfo cinfo;
     cinfo.SetTaskId(taskId);
     cinfo.SetUser(user);
-    cinfo.SetStatus(CloneStatus::cleaning);
+    cinfo.SetStatus(CloneStatus::errorCleaning);
 
     EXPECT_CALL(*metaStore_, GetCloneInfo(_, _))
         .WillOnce(DoAll(
@@ -1031,14 +1031,14 @@ TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreUpdateCloneInfoFail) {
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskSuccess) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, false);
-    info.SetStatus(CloneStatus::cleaning);
+    info.SetStatus(CloneStatus::errorCleaning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
     EXPECT_CALL(*client_, DeleteFile(_, _, _))
         .Times(2)
         .WillOnce(Return(LIBCURVE_ERROR::OK))
-        .WillOnce(Return(LIBCURVE_ERROR::NOTEXIST));
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
         .WillOnce(Return(0));
@@ -1048,13 +1048,13 @@ TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskSuccess) {
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskSuccess2) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, false);
-    info.SetStatus(CloneStatus::cleaning);
+    info.SetStatus(CloneStatus::errorCleaning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
     EXPECT_CALL(*client_, DeleteFile(_, _, _))
         .Times(2)
-        .WillOnce(Return(LIBCURVE_ERROR::NOTEXIST))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST))
         .WillOnce(Return(LIBCURVE_ERROR::OK));
 
     EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
@@ -1065,7 +1065,7 @@ TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskSuccess2) {
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskLazySuccess) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, true);
-    info.SetStatus(CloneStatus::cleaning);
+    info.SetStatus(CloneStatus::errorCleaning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
@@ -1081,13 +1081,13 @@ TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskLazySuccess) {
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskFail1) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, false);
-    info.SetStatus(CloneStatus::cleaning);
+    info.SetStatus(CloneStatus::errorCleaning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
     EXPECT_CALL(*client_, DeleteFile(_, _, _))
         .Times(1)
-        .WillOnce(Return(LIBCURVE_ERROR::FAILED));
+        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
 
     EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillOnce(Return(0));
@@ -1098,20 +1098,35 @@ TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskFail1) {
 TEST_F(TestCloneCoreImpl, TestHandleCleanCloneOrRecoverTaskFail2) {
     CloneInfo info("id1", "user1", CloneTaskType::kClone,
     "snapid1", "file1", CloneFileType::kSnapshot, false);
-    info.SetStatus(CloneStatus::cleaning);
+    info.SetStatus(CloneStatus::errorCleaning);
     std::shared_ptr<CloneTaskInfo> task =
         std::make_shared<CloneTaskInfo>(info);
 
     EXPECT_CALL(*client_, DeleteFile(_, _, _))
         .Times(2)
-        .WillOnce(Return(LIBCURVE_ERROR::NOTEXIST))
-        .WillOnce(Return(LIBCURVE_ERROR::FAILED));
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST))
+        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
 
     EXPECT_CALL(*metaStore_, UpdateCloneInfo(_))
         .WillOnce(Return(0));
 
     core_->HandleCleanCloneOrRecoverTask(task);
 }
+
+TEST_F(TestCloneCoreImpl,
+    TestHandleCleanCloneOrRecoverTaskCleanNotErrorSuccess) {
+    CloneInfo info("id1", "user1", CloneTaskType::kClone,
+    "snapid1", "file1", CloneFileType::kSnapshot, false);
+    info.SetStatus(CloneStatus::cleaning);
+    std::shared_ptr<CloneTaskInfo> task =
+        std::make_shared<CloneTaskInfo>(info);
+
+    EXPECT_CALL(*metaStore_, DeleteCloneInfo(_))
+        .WillOnce(Return(0));
+
+    core_->HandleCleanCloneOrRecoverTask(task);
+}
+
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

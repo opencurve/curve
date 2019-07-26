@@ -16,6 +16,8 @@ int CurveFsClientImpl::Init(const CurveClientOptions &options) {
     ClientConfigOption_t opt;
 
     opt.metaServerOpt.metaaddrvec.push_back(options.mdsAddr);
+    opt.metaServerOpt.rpcTimeoutMs = options.requestRpcTimeOutMs;
+    opt.metaServerOpt.synchronizeRPCTimeoutMS = options.requestRpcTimeOutMs;
     opt.ioOpt.reqSchdulerOpt.queueCapacity = options.requestQueueCap;
     opt.ioOpt.reqSchdulerOpt.threadpoolSize = options.threadNum;
     opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = options.requestMaxRetry;
@@ -23,6 +25,7 @@ int CurveFsClientImpl::Init(const CurveClientOptions &options) {
         = options.requestRetryIntervalUs;
     opt.ioOpt.metaCacheOpt.getLeaderRetry = options.getLeaderRetry;
     opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = options.enableApplyIndexRead;
+    opt.ioOpt.ioSenderOpt.rpcTimeoutMs = options.requestRpcTimeOutMs;
     opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = options.ioSplitSize;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = options.loglevel;
@@ -80,9 +83,10 @@ int CurveFsClientImpl::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
 
 int CurveFsClientImpl::CheckSnapShotStatus(std::string filename,
                         std::string user,
-                        uint64_t seq) {
+                        uint64_t seq,
+                        FileStatus* filestatus) {
     return client_.CheckSnapShotStatus(filename, UserInfo(user, ""),
-                                       seq, nullptr);
+                                       seq, filestatus);
 }
 
 int CurveFsClientImpl::GetChunkInfo(
@@ -155,6 +159,13 @@ int CurveFsClientImpl::RenameCloneFile(
     const std::string &destination) {
     return client_.RenameCloneFile(UserInfo(user, ""), originId, destinationId,
             origin, destination);
+}
+
+int CurveFsClientImpl::DeleteFile(
+    const std::string &fileName,
+    const std::string &user,
+    uint64_t fileId) {
+    return client_.DeleteFile(fileName, UserInfo(user, ""), fileId);
 }
 
 }  // namespace snapshotcloneserver
