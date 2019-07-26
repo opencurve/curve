@@ -1749,7 +1749,7 @@ void MDSClient::MDSStatusCode2LibcurveError(const curve::mds::StatusCode& status
             *errcode = LIBCURVE_ERROR::FILE_OCCUPIED;
             break;
         case ::curve::mds::StatusCode::kSessionNotExist:
-            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
             break;
         case ::curve::mds::StatusCode::kParaError:
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
