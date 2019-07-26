@@ -61,9 +61,19 @@ void WriteChunkClosure::Run() {
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
                                       0);
-        // 仅当cntl_->Failed()的时候我们才怀疑当前这个chunkserver有问题
-        ChunkServerID csid = this->GetChunkServerID();
-        metaCache->SetChunkserverUnstable(csid);
+
+        if (-1 == metaCache->GetLeader(logicPoolId,
+                                    copysetId,
+                                    &leaderId,
+                                    &leaderAddr,
+                                    true,
+                                    fm)) {
+            LOG(WARNING) << "Refresh leader failed, "
+                        << "copyset id = " << copysetId
+                        << ", logicPoolId = " << logicPoolId
+                        << ", currrent op return status = " << status;
+        }
+
         goto write_retry;
     }
 
@@ -202,9 +212,17 @@ void ReadChunkClosure::Run() {
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
 
-        // 仅当cntl_->Failed()的时候我们才怀疑当前这个chunkserver有问题
-        ChunkServerID csid = this->GetChunkServerID();
-        metaCache->SetChunkserverUnstable(csid);
+        if (-1 == metaCache->GetLeader(logicPoolId,
+                                       copysetId,
+                                       &leaderId,
+                                       &leaderAddr,
+                                       true,
+                                       fm)) {
+                LOG(WARNING) << "Refresh leader failed, "
+                            << "copyset id = " << copysetId
+                            << ", logicPoolId = " << logicPoolId
+                            << ", currrent op return status = " << status;
+        }
 
         goto read_retry;
     }
