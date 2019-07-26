@@ -129,7 +129,7 @@ concurrentapply.queuedepth=1
 # Chunkfile pool
 #
 # 是否开启从chunkfilepool获取chunk，一般是true
-chunkfilepool.enable_get_chunk_from_pool=false
+chunkfilepool.enable_get_chunk_from_pool=true
 # chunkfilepool目录
 chunkfilepool.chunk_file_pool_dir=./0/
 # chunkfilepool meta文件路径
