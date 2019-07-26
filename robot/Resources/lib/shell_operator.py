@@ -159,13 +159,16 @@ def gen_remote_cmd(user, host_ip, port, ssh_key, ori_cmd, sudo_flag=False, sudo_
 def create_ssh_connect(host,port,user):
     ssh = paramiko.SSHClient()
     ssh.load_system_host_keys()
+    transport = paramiko.Transport((host,port))
+    transport.banner_timeout = 60
     key = paramiko.RSAKey.from_private_key_file(config.pravie_key_path)
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(host,port=port,username=user,timeout=100,pkey=key)
     return ssh
 
-def ssh_exec(con, cmd):
-    logger.info('ssh exec cmd %s', cmd)
+def ssh_exec(con, cmd,log=True):
+    if log == True:
+        logger.info('ssh exec cmd %s', cmd)
     stdin, stdout, stderr = con.exec_command(cmd, timeout=120)
     return_code = stdout.channel.recv_exit_status()
     return stdin,stdout.readlines(),stderr.readlines(),return_code

@@ -52,8 +52,8 @@ mds_ip = "127.0.0.1"
 mds_port = 6666
 mds_listen = "-listenAddr=127.0.0.1:6666"
 
-#abnomal test
-chunkserver_list = ["10.182.26.16","10.182.26.17","10.182.26.18","10.182.26.46","10.182.26.47","10.182.26.48","10.182.26.49","10.182.26.50","10.182.26.51"]
+#abnormal test
+chunkserver_list = ["10.182.26.16","10.182.26.17","10.182.26.18","10.182.26.46","10.182.26.47","10.182.26.48"]
 mds_list = ["10.182.26.25"]
 etcd_list = ["10.182.26.25"]
 client_list = ["10.182.26.25"]
@@ -61,8 +61,10 @@ abnormal_user = "nbs"
 pravie_key_path = "/home/nbs/rsa/id_rsa"
 abnormal_db_host = "10.182.26.25"
 recover_time = 10800
-offline_timeout = 60
+offline_timeout = 300
 vol_uuid = ""
+thrash_attach = True
+thrash_thread = []
 
 # db info
 db_host = "127.0.0.1"
@@ -106,6 +108,7 @@ nova_user = "nbs"
 ssh_key = "/home/nbs/rsa/id_rsa"
 #vm_host
 vm_host = "60.191.82.99"
+vm_stability_host = "60.191.82.105"
 vm_user = "root"
 vm_iosize = "4" #4k
 
