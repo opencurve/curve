@@ -72,6 +72,8 @@ enum LIBCURVE_ERROR {
     BAD_FD                  = 23,
     // 文件长度不满足要求
     LENGTH_NOT_SUPPORT      = 24,
+    // session不存在
+    SESSION_NOT_EXIST       = 25,
     // 未知错误
     UNKNOWN                 = 100
 };
