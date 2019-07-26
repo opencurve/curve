@@ -395,16 +395,16 @@ int FileClient::Close(int fd) {
     }
 
     int ret = fileserviceMap_[fd]->Close();
-    if (ret == LIBCURVE_ERROR::OK) {
+    if (ret == LIBCURVE_ERROR::OK || ret == -LIBCURVE_ERROR::SESSION_NOT_EXIST) {   //  NOLINT
         fileserviceMap_[fd]->UnInitialize();
         delete fileserviceMap_[fd];
         fileserviceMap_.erase(iter);
         LOG(INFO) << "uninitialize " << fd;
+        return LIBCURVE_ERROR::OK;
     } else {
         LOG(ERROR) << "close failed " << fd;
+        return -LIBCURVE_ERROR::FAILED;
     }
-
-    return ret;
 }
 
 bool FileClient::CheckAligned(off_t offset, size_t length) {

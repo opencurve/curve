@@ -60,8 +60,8 @@ const int kErrCodeCannotCancelFinished = -14;
 const int kErrCodeInvalidSnapshot = -15;
 // 错误码：不能删除正在克隆的快照
 const int kErrCodeSnapshotCannotDeleteCloning = -16;
-// 错误码：不能清理非错误的克隆
-const int kErrCodeCannotCleanCloneNotError = -17;
+// 错误码：不能清理未完成的克隆
+const int kErrCodeCannotCleanCloneUnfinished = -17;
 // 错误码：快照到达上限
 const int kErrCodeSnapshotCountReachLimit = -18;
 
