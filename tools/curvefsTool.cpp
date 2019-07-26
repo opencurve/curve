@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 #include <brpc/server.h>
 #include <brpc/channel.h>
+#include <butil/endpoint.h>
 
 #include <fstream>
 #include <map>
@@ -288,6 +289,15 @@ int CurvefsTools::ReadClusterMap() {
                                << ", ipPort string error: "
                                << ipPort;
                 }
+                butil::ip_t ip;
+                if (butil::str2ip(info.internalIp.c_str(), &ip) != 0) {
+                    LOG(ERROR) << "parse cluster map error in line, context: \""
+                               << line
+                               << "\", line No: "
+                               << lineNo
+                               << ", invalid ip adress, ipPort str: "
+                               << ipPort;
+                }
                 index++;
                 colNo += strList[index].size();
             } else {
@@ -321,6 +331,15 @@ int CurvefsTools::ReadClusterMap() {
                                << "\", line No: "
                                << lineNo
                                << ", ipPort string error: "
+                               << ipPort;
+                }
+                butil::ip_t ip;
+                if (butil::str2ip(info.externalIp.c_str(), &ip) != 0) {
+                    LOG(ERROR) << "parse cluster map error in line, context: \""
+                               << line
+                               << "\", line No: "
+                               << lineNo
+                               << ", invalid ip adress, ipPort str: "
                                << ipPort;
                 }
                 index++;
