@@ -31,7 +31,16 @@ class TestEtcdClinetImp : public ::testing::Test {
         EtcdConf conf = {endpoints, strlen(endpoints), 3000};
         ASSERT_EQ(EtcdErrCode::Unknown, client_->Init(conf, 200, 3));
         system("etcd&");
-        ASSERT_EQ(0, client_->Init(conf, 0, 3));
+        // 一定时间内尝试init直到etcd完全起来
+        int now = ::curve::common::TimeUtility::GetTimeofDaySec();
+        bool initSuccess = false;
+        while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
+            if (0 == client_->Init(conf, 0, 3)) {
+                initSuccess = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(initSuccess);
         ASSERT_EQ(
             EtcdErrCode::DeadlineExceeded, client_->Put("05", "hello word"));
         ASSERT_EQ(EtcdErrCode::DeadlineExceeded,
