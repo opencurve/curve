@@ -283,8 +283,8 @@ cc_test(
     name = "raftsnapshot_test",
     srcs = [
         "raftsnapshot_chunkfilepool_integration.cpp",
-        "raftsnapshot_filesystem_adaptor_unittest.cpp",
         "raftsnapshot_filesystem_adaptor_mock_unittest.cpp",
+        "raftsnapshot_filesystem_adaptor_unittest.cpp",
     ],
     copts = ["-std=c++14"],
     deps = [
@@ -300,8 +300,8 @@ cc_test(
         "//src/chunkserver/datastore:chunkserver_datastore",
         "//src/common:curve_common",
         "//src/fs:lfs",
-        "//test/fs:fs_mock",
         "//test/chunkserver:chunkserver-test-util-lib",
+        "//test/fs:fs_mock",
         "@com_google_googletest//:gtest_main",
     ],
 )
