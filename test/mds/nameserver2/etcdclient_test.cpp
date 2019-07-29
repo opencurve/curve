@@ -28,7 +28,7 @@ class TestEtcdClinetImp : public ::testing::Test {
     void SetUp() override {
         client_ = std::make_shared<EtcdClientImp>();
         char endpoints[] = "127.0.0.1:2379";
-        EtcdConf conf = {endpoints, strlen(endpoints), 3000};
+        EtcdConf conf = {endpoints, strlen(endpoints), 10000};
         ASSERT_EQ(EtcdErrCode::Unknown, client_->Init(conf, 200, 3));
         system("etcd&");
         // 一定时间内尝试init直到etcd完全起来
@@ -285,7 +285,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
 TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
     std::string pfx("/leadere-election/");
     int sessionnInterSec = 1;
-    int dialtTimeout = 2000;
+    int dialtTimeout = 10000;
     int retryTimes = 3;
     char endpoints[] = "127.0.0.1:2379";
     EtcdConf conf = {endpoints, strlen(endpoints), 20000};
@@ -354,7 +354,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         LOG(INFO) << "thread 1 exit.";
         // leader1卸任leader
         ASSERT_EQ(EtcdErrCode::LeaderResiginSuccess,
-            client1->LeaderResign(targetOid, 500));
+            client1->LeaderResign(targetOid, 1000));
 
         // leader2当选
         common::Thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
