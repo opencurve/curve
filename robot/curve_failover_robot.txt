@@ -83,7 +83,7 @@ inject host all chunkserver down/up
     sleep  5
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	  start host cs process  ${host}
 
 inject restart one chunkserver
@@ -112,7 +112,7 @@ inject kill diff host chunkserver
     sleep   5
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
 inject stop and start vm
@@ -121,7 +121,7 @@ inject stop and start vm
     sleep   10
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	 wait iops ok     ${vm_iops_limit}
 
 inject reboot vm
@@ -130,7 +130,7 @@ inject reboot vm
     sleep   5
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	  wait iops ok    ${vm_iops_limit}
 
 inject kill mds
@@ -144,7 +144,7 @@ inject kill mds
     sleep  3
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	   start mds process  ${host}
 
 inject kill etcd
@@ -158,7 +158,7 @@ inject kill etcd
     sleep  3
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]     start etcd process  ${host}
 
 inject kill mysql
@@ -172,7 +172,7 @@ inject kill mysql
     sleep  3
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]     start mysql process  ${host}
 
 inject chunkserver cpu stress 95%
@@ -211,7 +211,7 @@ inject client cpu stress 95%
     del cpu stress   ${ssh}
     check vm iops    ${vm_iops_limit} 
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]     del cpu stress    ${ssh}
 
 inject chunkserver mem stress 95%
@@ -244,7 +244,7 @@ inject client mem stress 95%
     check vm iops    ${vm_iops_limit}
     del mem stress   ${ssh}
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]     del mem stress    ${ssh}
 
 test chunkserver loss package 5%
@@ -282,7 +282,7 @@ test mds delay package 100ms
     test mds delay package  ${ms}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test out/in chunkserver recover
@@ -290,12 +290,12 @@ test out/in chunkserver recover
     ${host}	${cs_copyset_num}  test outcs recover copyset
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     ${copyset_num}       Convert To Integer    ${cs_copyset_num}
     test upcs recover copyset  ${host}	 ${copyset_num}
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	   wait iops ok    ${vm_iops_limit}
 
 test suspend up recover chunkserver
@@ -303,7 +303,7 @@ test suspend up recover chunkserver
     test suspend recover copyset
 #    check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test stop all cs not recover
@@ -311,7 +311,7 @@ test stop all cs not recover
     stop all cs not recover
     check vm iops
     check data consistency
-    check copies consistency
+#    check copies consistency
     [Teardown]	  wait iops ok   ${vm_iops_limit}
 
 test pendding host all cs
@@ -319,7 +319,7 @@ test pendding host all cs
    pendding all cs recover 
    check vm iops 
    check data consistency
-   check copies consistency
+#   check copies consistency
     [Teardown]	  wait iops ok   ${vm_iops_limit}
 
 *** Keywords ***
@@ -350,5 +350,6 @@ init rw cloud disk
 
 clean failover env
      stop rwio
+     check copies consistency
      stop attach detach 
      detach vol
