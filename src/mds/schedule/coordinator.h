@@ -163,7 +163,7 @@ class Coordinator {
     std::shared_ptr<TopoAdapter> topo_;
 
     std::map<SchedulerType, std::shared_ptr<Scheduler>> schedulerController_;
-    std::map<SchedulerType, std::thread> runSchedulerThreads_;
+    std::map<SchedulerType, common::Thread> runSchedulerThreads_;
     std::shared_ptr<OperatorController> opController_;
 
     bool schedulerRunning_;

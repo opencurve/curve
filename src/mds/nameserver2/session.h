@@ -78,7 +78,7 @@ class Session {
     uint64_t updateTime_;
     // 能够容忍的client和mds之间的时钟不同步的时间，单位us
     uint32_t toleranceTime_;
-    std::mutex sessionLock_;
+    common::Mutex sessionLock_;
     // proto中定义的session结构，可用来返回给client
     ProtoSession protoSession_;
     // client的ip
@@ -219,7 +219,7 @@ class SessionManager {
     curve::common::Atomic<bool> sessionScanStop_;
 
     // session的后台扫描线程，扫描回收过期的session
-    std::thread *scanThread;
+    common::Thread *scanThread;
 
     // 对sessionMap_进行操作时，需要进行加锁
     curve::common::RWLock rwLock_;
