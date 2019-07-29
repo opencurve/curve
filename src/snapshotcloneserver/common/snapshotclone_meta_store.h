@@ -42,6 +42,7 @@ enum class CloneStep {
     kCreateCloneChunk,
     kCompleteCloneMeta,
     kRecoverChunk,
+    kChangeOwner,
     kRenameCloneFile,
     kCompleteCloneFile,
     kEnd

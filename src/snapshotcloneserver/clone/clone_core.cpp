@@ -21,6 +21,17 @@ using ::curve::common::LocationOperator;
 namespace curve {
 namespace snapshotcloneserver {
 
+int CloneCoreImpl::Init() {
+    int ret = client_->Mkdir(cloneTempDir_, mdsRootUser_);
+    if (ret != LIBCURVE_ERROR::OK &&
+        ret != -LIBCURVE_ERROR::EXISTS) {
+        LOG(ERROR) << "Mkdir fail, ret = " << ret
+                   << ", dirpath = " << cloneTempDir_;
+        return kErrCodeServerInitFail;
+    }
+    return kErrCodeSuccess;
+}
+
 int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     const std::string &user,
     const std::string &destination,
@@ -44,7 +55,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     int ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
     if (ret < 0) {
         FInfo fInfo;
-        ret = client_->GetFileInfo(source, user, &fInfo);
+        ret = client_->GetFileInfo(source, mdsRootUser_, &fInfo);
         switch (ret) {
             case LIBCURVE_ERROR::OK:
                 fileType = CloneFileType::kFile;
@@ -55,12 +66,6 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                            << ", user = " << user
                            << ", destination = " << destination;
                 return kErrCodeFileNotExist;
-            case -LIBCURVE_ERROR::AUTHFAIL:
-                LOG(ERROR) << "Clone file by invalid user"
-                           << ", source = " << source
-                           << ", user = " << user
-                           << ", destination = " << destination;
-                return kErrCodeInvalidUser;
             default:
                 LOG(ERROR) << "GetFileInfo encounter an error"
                            << ", ret = " << ret
@@ -68,13 +73,13 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                            << ", user = " << user;
                 return kErrCodeInternalError;
         }
+        // TODO(镜像克隆的用户认证待完善)
     } else {
         if (snapInfo.GetStatus() != Status::done) {
             LOG(ERROR) << "Can not clone by snapshot has status:"
                        << static_cast<int>(snapInfo.GetStatus());
             return kErrCodeInvalidSnapshot;
         }
-        // TODO(xuchaojie): 后续考虑将鉴权逻辑独立，还需支持超级用户等复杂逻辑
         if (snapInfo.GetUser() != user) {
             LOG(ERROR) << "Clone snapshot by invalid user"
                        << ", source = " << source
@@ -185,6 +190,13 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
                     return;
                 }
                 break;
+            case CloneStep::kChangeOwner:
+                ret = ChangeOwner(task, newFileInfo);
+                if (ret < 0) {
+                    HandleCloneError(task);
+                    return;
+                }
+                break;
             case CloneStep::kRenameCloneFile:
                 ret = RenameCloneFile(task, newFileInfo);
                 if (ret < 0) {
@@ -230,7 +242,7 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
         FInfo fInfo;
         std::string destination = task->GetCloneInfo().GetDest();
         std::string user = task->GetCloneInfo().GetUser();
-        ret = client_->GetFileInfo(destination, user, &fInfo);
+        ret = client_->GetFileInfo(destination, mdsRootUser_, &fInfo);
         if (ret != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "GetFileInfo fail"
                        << ", ret = " << ret
@@ -298,7 +310,7 @@ int CloneCoreImpl::BuildFileInfoFromFile(
 
     FInfo fInfo;
     // TODO(xuchaojie): 从文件克隆的source暂使用文件名，设计后续改为UUID
-    int ret = client_->GetFileInfo(source, user, &fInfo);
+    int ret = client_->GetFileInfo(source, mdsRootUser_, &fInfo);
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "GetFileInfo fail"
                    << ", ret = " << ret
@@ -333,7 +345,7 @@ int CloneCoreImpl::BuildFileInfoFromFile(
         uint64_t offset = i * segmentSize;
         SegmentInfo segInfoOut;
         ret = client_->GetOrAllocateSegmentInfo(
-                false, offset, &fInfo, user, &segInfoOut);
+                false, offset, &fInfo, mdsRootUser_, &segInfoOut);
         if (ret != LIBCURVE_ERROR::OK &&
             ret != -LIBCURVE_ERROR::NOT_ALLOCATE) {
             LOG(ERROR) << "GetOrAllocateSegmentInfo fail"
@@ -372,7 +384,7 @@ int CloneCoreImpl::CreateCloneFile(
 
     FInfo fInfoOut;
     int ret = client_->CreateCloneFile(fileName,
-        user, fileLength, seqNum, chunkSize, &fInfoOut);
+        mdsRootUser_, fileLength, seqNum, chunkSize, &fInfoOut);
     if (ret != LIBCURVE_ERROR::OK &&
         ret != -LIBCURVE_ERROR::EXISTS) {
         LOG(ERROR) << "CreateCloneFile file"
@@ -432,16 +444,9 @@ int CloneCoreImpl::CreateCloneChunk(
                 location = LocationOperator::GenerateS3Location(
                     cloneChunkInfo.second.location);
             } else {
-                if (IsLazy(task)) {
-                    location = LocationOperator::GenerateCurveLocation(
-                        task->GetCloneInfo().GetDest(),
-                        std::stoull(cloneChunkInfo.second.location));
-                } else {
-                    // 非lazy情况下recover chunk时文件还未重命名
-                    location = LocationOperator::GenerateCurveLocation(
-                        cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId(),
-                        std::stoull(cloneChunkInfo.second.location));
-                }
+                location = LocationOperator::GenerateCurveLocation(
+                    task->GetCloneInfo().GetSrc(),
+                    std::stoull(cloneChunkInfo.second.location));
             }
             ChunkIDInfo cidInfo = cloneChunkInfo.second.chunkIdInfo;
             ret = client_->CreateCloneChunk(location,
@@ -479,7 +484,7 @@ int CloneCoreImpl::CompleteCloneMeta(
     std::string origin =
         cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
     std::string user = task->GetCloneInfo().GetUser();
-    int ret = client_->CompleteCloneMeta(origin, user);
+    int ret = client_->CompleteCloneMeta(origin, mdsRootUser_);
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "CompleteCloneMeta fail"
                    << ", ret = " << ret
@@ -489,7 +494,7 @@ int CloneCoreImpl::CompleteCloneMeta(
     }
     if (IsLazy(task)) {
         task->GetCloneInfo().SetNextStep(
-            CloneStep::kRenameCloneFile);
+            CloneStep::kChangeOwner);
     } else {
         task->GetCloneInfo().SetNextStep(
             CloneStep::kRecoverChunk);
@@ -557,6 +562,31 @@ int CloneCoreImpl::RecoverChunk(
     return kErrCodeSuccess;
 }
 
+int CloneCoreImpl::ChangeOwner(
+    std::shared_ptr<CloneTaskInfo> task,
+    const FInfo &fInfo) {
+    std::string user = task->GetCloneInfo().GetUser();
+    std::string origin =
+        cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
+
+    int ret = client_->ChangeOwner(origin, user);
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "ChangeOwner fail, ret = " << ret
+                   << ", fileName = " << origin
+                   << ", newOwner = " << user;
+        return ret;
+    }
+
+    task->GetCloneInfo().SetNextStep(CloneStep::kRenameCloneFile);
+    ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
+    if (ret < 0) {
+        LOG(ERROR) << "UpdateCloneInfo after ChangeOwner error."
+                   << " ret = " << ret;
+        return ret;
+    }
+    return kErrCodeSuccess;
+}
+
 int CloneCoreImpl::RenameCloneFile(
     std::shared_ptr<CloneTaskInfo> task,
     const FInfo &fInfo) {
@@ -569,7 +599,7 @@ int CloneCoreImpl::RenameCloneFile(
 
     // 判断原始文件存不存在
     FInfo oriFInfo;
-    int ret = client_->GetFileInfo(origin, user, &oriFInfo);
+    int ret = client_->GetFileInfo(origin, mdsRootUser_, &oriFInfo);
 
     if (LIBCURVE_ERROR::OK == ret) {
         if (oriFInfo.id != originId) {
@@ -578,7 +608,7 @@ int CloneCoreImpl::RenameCloneFile(
                        << ", originId = " << originId;
             return kErrCodeInternalError;
         }
-        ret = client_->RenameCloneFile(user,
+        ret = client_->RenameCloneFile(mdsRootUser_,
             originId,
             destinationId,
             origin,
@@ -595,7 +625,7 @@ int CloneCoreImpl::RenameCloneFile(
     } else if (-LIBCURVE_ERROR::NOTEXIST == ret) {
         // 有可能是已经rename过了
         FInfo destFInfo;
-        ret = client_->GetFileInfo(destination, user, &destFInfo);
+        ret = client_->GetFileInfo(destination, mdsRootUser_, &destFInfo);
         if (ret != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "Origin File is missing, when rename clone file,"
                        << "GetFileInfo fail, ret = " << ret
@@ -639,7 +669,7 @@ int CloneCoreImpl::CompleteCloneFile(
             cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
     }
     std::string user = task->GetCloneInfo().GetUser();
-    int ret = client_->CompleteCloneFile(fileName, user);
+    int ret = client_->CompleteCloneFile(fileName, mdsRootUser_);
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "CompleteCloneFile fail"
                    << ", ret = " << ret
@@ -650,7 +680,7 @@ int CloneCoreImpl::CompleteCloneFile(
     if (IsLazy(task)) {
         task->GetCloneInfo().SetNextStep(CloneStep::kEnd);
     } else {
-        task->GetCloneInfo().SetNextStep(CloneStep::kRenameCloneFile);
+        task->GetCloneInfo().SetNextStep(CloneStep::kChangeOwner);
     }
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
@@ -766,7 +796,7 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
         cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
     std::string user = fInfo->owner;
     FInfo fInfoOut;
-    int ret = client_->GetFileInfo(newFileName, user, &fInfoOut);
+    int ret = client_->GetFileInfo(newFileName, mdsRootUser_, &fInfoOut);
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "GetFileInfo fail"
                    << ", ret = " << ret
@@ -784,7 +814,7 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
         SegmentInfo segInfoOut;
         uint64_t offset = segInfo.first * segmentSize;
         ret = client_->GetOrAllocateSegmentInfo(
-            true, offset, fInfo, user, &segInfoOut);
+            true, offset, fInfo, mdsRootUser_, &segInfoOut);
         if (ret != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "GetOrAllocateSegmentInfo fail"
                        << ", newFileName = " << newFileName
@@ -854,7 +884,7 @@ void CloneCoreImpl::HandleCleanCloneOrRecoverTask(
         uint64_t fileId = task->GetCloneInfo().GetOriginId();
         std::string user =
             task->GetCloneInfo().GetUser();
-        int ret = client_->DeleteFile(tempFileName, user, fileId);
+        int ret = client_->DeleteFile(tempFileName, mdsRootUser_, fileId);
         if (ret != LIBCURVE_ERROR::OK &&
             ret != -LIBCURVE_ERROR::NOTEXIST) {
             LOG(ERROR) << "DeleteFile failed"
@@ -867,7 +897,7 @@ void CloneCoreImpl::HandleCleanCloneOrRecoverTask(
         }
         // recover及lazy情况下不能删除destfile
         if (IsClone(task) && (!IsLazy(task))) {
-            ret = client_->DeleteFile(destFileName, user, fileId);
+            ret = client_->DeleteFile(destFileName, mdsRootUser_, fileId);
             if (ret != LIBCURVE_ERROR::OK &&
                 ret != -LIBCURVE_ERROR::NOTEXIST) {
                 LOG(ERROR) << "DeleteFile failed"
