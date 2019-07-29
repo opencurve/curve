@@ -40,7 +40,6 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
         return kErrCodeSnapshotCountReachLimit;
     }
 
-    // 通过获取文件接口判断文件是否存在，以及是否有user权限。
     FInfo fInfo;
     ret = client_->GetFileInfo(file, user, &fInfo);
     switch (ret) {
@@ -52,18 +51,19 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
                        << ", user = " << user
                        << ", snapshotName = " << snapshotName;
             return kErrCodeFileNotExist;
-        case -LIBCURVE_ERROR::AUTHFAIL:
-            LOG(ERROR) << "create snapshot by invalid user"
-                       << ", file = " << file
-                       << ", user = " << user
-                       << ", snapshotName = " << snapshotName;
-            return kErrCodeInvalidUser;
         default:
             LOG(ERROR) << "GetFileInfo encounter an error"
                        << ", ret = " << ret
                        << ", file = " << file
                        << ", user = " << user;
             return kErrCodeInternalError;
+    }
+    if (fInfo.owner != user) {
+        LOG(ERROR) << "create snapshot by invalid user"
+                   << ", file = " << file
+                   << ", user = " << user
+                   << ", snapshotName = " << snapshotName;
+        return kErrCodeInvalidUser;
     }
 
     if (fInfo.filestatus != FileStatus::Created &&

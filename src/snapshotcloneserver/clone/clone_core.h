@@ -144,7 +144,10 @@ class CloneCoreImpl : public CloneCore {
         dataStore_(dataStore),
         snapshotRef_(snapshotRef),
         cloneChunkSplitSize_(option.cloneChunkSplitSize),
-        cloneTempDir_(option.cloneTempDir) {}
+        cloneTempDir_(option.cloneTempDir),
+        mdsRootUser_(option.mdsRootUser) {}
+
+    int Init();
 
     int CloneOrRecoverPre(const UUID &source,
          const std::string &user,
@@ -294,6 +297,18 @@ class CloneCoreImpl : public CloneCore {
         const CloneSegmentMap &segInfos);
 
     /**
+     * @brief 修改克隆文件的owner
+     *
+     * @param task 任务信息
+     * @param fInfo 新文件的文件信息
+     *
+     * @return 错误码
+     */
+    int ChangeOwner(
+        std::shared_ptr<CloneTaskInfo> task,
+        const FInfo &fInfo);
+
+    /**
      * @brief 重命名克隆文件
      *
      * @param task 任务信息
@@ -374,6 +389,8 @@ class CloneCoreImpl : public CloneCore {
     uint64_t cloneChunkSplitSize_;
     // 克隆临时目录
     std::string cloneTempDir_;
+    // mds root user
+    std::string mdsRootUser_;
 };
 
 }  // namespace snapshotcloneserver
