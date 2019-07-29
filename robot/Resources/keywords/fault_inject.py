@@ -671,7 +671,7 @@ def get_all_chunk_num():
     return num
 
 
-def check_vm_iops(limit_iops=2000):
+def check_vm_iops(limit_iops=4000):
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     ori_cmd = "iostat -d vdc 1 2 |grep vdc | awk 'END {print $6}'"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -724,9 +724,9 @@ def check_copies_consistency():
 #        check_data_consistency()
     except:
         logger.error("check consistency error")
-        run_rwio()
+#        run_rwio()
         raise
-    run_rwio()
+#    run_rwio()
 
 def check_data_consistency():
     try:
@@ -789,6 +789,7 @@ def test_outcs_recover_copyset():
         i = 0
         time.sleep(5)
         while i < config.recover_time:
+            check_vm_iops()
             i = i + 60
             num = get_cs_copyset_num(chunkserver_id)
             time.sleep(60)
@@ -812,12 +813,13 @@ def test_upcs_recover_copyset(host,copyset_num):
         chunkserver_host = host
     try:
         cs_list = start_mult_cs_process(chunkserver_host,1)
-        time.sleep(65)
+        time.sleep(10)
         chunkserver_id = get_chunkserver_id(chunkserver_host,cs_list[0])
         assert chunkserver_id != -1,"mysql can not find chunkserver"
         #time.sleep(config.recover_time)
         i = 0
         while i < config.recover_time:
+            check_vm_iops()
             i = i + 60
             time.sleep(60)
             num = get_cs_copyset_num(chunkserver_id)
@@ -847,6 +849,7 @@ def stop_all_cs_not_recover():
             num = get_cs_copyset_num(chunkserver_id)
             dict[chunkserver_id] = num
         time.sleep(config.offline_timeout + 10)
+        check_vm_iops()
         for cs in dict:
             num = get_cs_copyset_num(cs)
             if num != dict[cs]:
@@ -877,9 +880,10 @@ def pendding_all_cs_recover():
                     -chunkserver_id=%d -chunkserver_status=pendding"%(config.mds_list[0],chunkserver_id)
             rs = shell_operator.ssh_exec(ssh_mds,pendding_cmd)
             assert rs[3] == 0,"pendding chunkserver %d fail,rs is %s"%(cs,rs[1])
-        time.sleep(300)
+        time.sleep(10)
         i = 0
         while i < config.recover_time:
+            check_vm_iops()
             i = i + 60
             time.sleep(60)
             for chunkserver_id in csid_list:
@@ -910,8 +914,9 @@ def test_suspend_recover_copyset():
         begin_num = get_cs_copyset_num(chunkserver_id)
         #time.sleep(config.recover_time)
         i = 0
-        time.sleep(60)
+        time.sleep(10)
         while i < config.recover_time:
+            check_vm_iops()
             i = i + 1
             num = get_cs_copyset_num(chunkserver_id)
             time.sleep(1)
@@ -924,6 +929,7 @@ def test_suspend_recover_copyset():
         start_host_cs_process(chunkserver_host)
         i = 0
         while i < config.recover_time:
+            check_vm_iops()
             i = i + 60
             num = get_cs_copyset_num(chunkserver_id)
             time.sleep(60)
