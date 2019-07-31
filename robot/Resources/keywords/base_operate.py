@@ -23,7 +23,7 @@ def clean_db():
         cmd_list = ["DELETE FROM curve_logicalpool;", "DELETE FROM curve_copyset;", \
                 "DELETE FROM curve_physicalpool;", "DELETE FROM curve_zone;", \
                 "DELETE FROM curve_server;", "DELETE FROM curve_chunkserver;", \
-                "DELETE FROM curve_session;"]
+                "DELETE FROM curve_session;", "DELETE FROM client_info;"]
         for cmd in cmd_list:
             conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
             db_operator.exec_sql(conn, cmd)
@@ -38,7 +38,7 @@ def drop_mds_table():
         cmd_list = ["DROP TABLE curve_logicalpool;", "DROP TABLE curve_copyset;", \
                     "DROP TABLE curve_physicalpool;", "DROP TABLE curve_zone;", \
                     "DROP TABLE curve_server;", "DROP TABLE curve_chunkserver;", \
-                    "DROP TABLE curve_session;"]
+                    "DROP TABLE curve_session;", "DROP TABLE client_info;"]
         for cmd in cmd_list:
             conn = db_operator.conn_db(config.db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
             db_operator.exec_sql(conn, cmd)
