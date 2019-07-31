@@ -195,6 +195,7 @@ TEST_F(OpRequestTest, CreateCloneTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   closure->response_->status());
     }
@@ -376,6 +377,7 @@ TEST_F(OpRequestTest, PasteChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   response->status());
     }
@@ -591,6 +593,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   response->status());
         ASSERT_EQ(memcmp(chunkData,
@@ -627,6 +630,7 @@ TEST_F(OpRequestTest, ReadChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   closure->response_->status());
         ASSERT_EQ(memcmp(chunkData,
@@ -950,6 +954,7 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, response->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   response->status());
     }
@@ -979,6 +984,7 @@ TEST_F(OpRequestTest, RecoverChunkTest) {
         // 验证结果
         ASSERT_TRUE(closure->isDone_);
         ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
+        ASSERT_TRUE(response->has_status());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   closure->response_->status());
     }
