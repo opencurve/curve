@@ -313,8 +313,19 @@ void ReadChunkRequest::OnApply(uint64_t index,
             return;
         }
         // 如果是ReadChunk请求还需要从本地读取数据
-        if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ)
+        if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_READ) {
             ReadChunk();
+        }
+        // 如果是recover请求，说明请求区域已经被写过了，可以直接返回成功
+        if (request_->optype() == CHUNK_OP_TYPE::CHUNK_OP_RECOVER) {
+            response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+            DVLOG(9) << "recover success, range already written."
+                     << " logic pool id: " << request_->logicpoolid()
+                     << " copyset id: " << request_->copysetid()
+                     << " chunkid: " << request_->chunkid()
+                     << " offset: " << request_->offset()
+                     << " length: " << request_->size();
+        }
     } while (false);
 
     if (response_->status() == CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS) {
@@ -371,7 +382,7 @@ void ReadChunkRequest::ReadChunk() {
                  << " logic pool id: " << request_->logicpoolid()
                  << " copyset id: " << request_->copysetid()
                  << " chunkid: " << request_->chunkid()
-                 << " data size: " << request_->size()
+                 << " read off: " << request_->offset()
                  << " read len :" << size;
     } else if (CSErrorCode::ChunkNotExistError == ret) {
         response_->set_status(
