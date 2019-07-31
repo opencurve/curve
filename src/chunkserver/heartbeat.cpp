@@ -336,7 +336,9 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
                    << " cntl errorCode: " << cntl.ErrorCode()
                    << " cntl error: " << cntl.ErrorText();
         if (cntl.ErrorCode() == EHOSTDOWN ||
-            cntl.ErrorCode() == brpc::ELOGOFF) {
+            cntl.ErrorCode() == ETIMEDOUT ||
+            cntl.ErrorCode() == brpc::ELOGOFF ||
+            cntl.ErrorCode() == brpc::ERPCTIMEDOUT) {
             LOG(WARNING) << "current mds: " << mdsEps_[inServiceIndex_]
                          << " is shutdown or going to quit";
             inServiceIndex_ = (inServiceIndex_ + 1) % mdsEps_.size();
