@@ -256,3 +256,17 @@ def restart_cinder_server():
     ori_cmd = "sudo service cinder-volume restart"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[1] == []
+
+def wait_cinder_server_up():
+    cinder_host = config.nova_host
+    ssh = shell_operator.create_ssh_connect(cinder_host, 1046, config.abnormal_user)
+    ori_cmd = R"source OPENRC && cinder get-host-list --all-services | grep pool1 | grep curve2 | awk '{print $16}'"
+    i = 0
+    while i < 360:
+       rs = shell_operator.ssh_exec(ssh, ori_cmd)
+       status = "".join(rs[1]).strip()
+       if status == "up":
+           break
+       i = i + 5
+       time.sleep(5)
+    assert status == "up","up curve2 cinder service fail,please check"
