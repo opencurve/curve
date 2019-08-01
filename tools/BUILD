@@ -4,6 +4,7 @@ cc_binary(
         deps = ["//proto:topology_cc_proto",
                 "//external:gflags",
                 "//src/mds/common:mds_common",
+                "//src/common:curve_common",
                 "//external:glog",
                 "//external:brpc"]
         )
