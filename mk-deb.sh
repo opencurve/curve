@@ -118,6 +118,12 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+cp ./bazel-bin/src/tools/curve_status_tool \
+build/curve-mds/usr/bin/curve_status_tool
+if [ $? -ne 0 ]
+then
+	exit
+fi
 cp thirdparties/etcdclient/libetcdclient.so \
 build/curve-mds/usr/lib/libetcdclient.so
 if [ $? -ne 0 ]

@@ -131,8 +131,8 @@ cc_binary(
     ],
 )
 
-cc_test(
-    name = "status_tool",
+cc_binary(
+    name = "curve_status_tool",
     srcs = ["status_tool.cpp", "status_tool.h", "status_tool_main.cpp"],
     copts = COPTS,
     linkopts = [
