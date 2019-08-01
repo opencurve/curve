@@ -1058,6 +1058,28 @@ def test_restart_chunkserver_num(num):
     except Exception as e:
         raise e
 
+def test_start_all_chunkserver():
+    start_iops = get_cluster_iops()
+    try:
+        for chunkserver_host in config.chunkserver_list:
+           start_host_cs_process(chunkserver_host)
+           end_iops = get_cluster_iops()
+           if float(end_iops) / float(start_iops) < 0.9:
+               raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+    except Exception as e:
+        raise e
+
+def test_stop_all_chunkserver():
+    start_iops = get_cluster_iops()
+    try:
+        for chunkserver_host in config.chunkserver_list:
+            stop_host_cs_process(chunkserver_host)
+            end_iops = get_cluster_iops()
+            if float(end_iops)/float(start_iops) < 0.9:
+               raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+    except Exception as e:
+        test_start_all_chunkserver()
+        raise e
 
 def test_kill_diff_host_chunkserver():
     start_iops = get_cluster_iops()
