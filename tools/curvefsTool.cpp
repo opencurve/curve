@@ -18,9 +18,13 @@
 
 #include "proto/topology.pb.h"
 #include "src/mds/common/mds_define.h"
+#include "src/common/string_util.h"
 
+DEFINE_string(mds_addr, "127.0.0.1:6666",
+    "mds ip and port list, separated by \",\"");
+// 兼容原有接口
 DEFINE_string(mds_ip, "127.0.0.1", "mds ip");
-DEFINE_int32(mds_port, 8000, "mds port");
+DEFINE_int32(mds_port, 6666, "mds port");
 
 DEFINE_string(op,
     "",
@@ -45,6 +49,11 @@ DEFINE_string(chunkserver_status, "readwrite",
 
 const uint32_t rpcTimeOutMs = 2000u;
 const uint32_t createLogicalPoolRpcTimeOutMs = 30000u;
+
+const int kRetCodeCommonErr = -1;
+const int kRetCodeRedirectMds = -2;
+
+using ::curve::common::SplitString;
 
 namespace curve {
 namespace mds {
@@ -81,13 +90,15 @@ class CurvefsTools {
     int HandleBuildCluster();
     int SetChunkServer();
 
+    int GetMaxTry() {
+        return mdsAddressStr_.size();
+    }
+
+    int TryAnotherMdsAddress();
+
     static const std::string clusterMapSeprator;
 
  private:
-    void SplitString(const std::string& s,
-        std::vector<std::string> *v,
-        const std::string& c);
-
     int ReadClusterMap();
     int ScanCluster();
     int CreatePhysicalPool();
@@ -117,29 +128,60 @@ class CurvefsTools {
     std::list<ZoneIdType> zoneToDel;
     std::list<ServerIdType> serverToDel;
 
+    std::vector<std::string> mdsAddressStr_;
+    int mdsAddressIndex_;
     brpc::Channel channel_;
 };
 
 const std::string CurvefsTools::clusterMapSeprator = " ";  // NOLINT
 
 int CurvefsTools::Init() {
-    int ret = channel_.Init(FLAGS_mds_ip.c_str(), FLAGS_mds_port, NULL);
+    // 兼容原有接口
+    google::CommandLineFlagInfo info1, info2;
+    if ((GetCommandLineFlagInfo("mds_ip", &info1) && !info1.is_default) ||
+        (GetCommandLineFlagInfo("mds_port", &info2) && !info2.is_default)) {
+        mdsAddressStr_.push_back(
+            FLAGS_mds_ip + ':' + std::to_string(FLAGS_mds_port));
+         mdsAddressIndex_ = -1;
+         return 0;
+    }
+
+    SplitString(FLAGS_mds_addr, ",", &mdsAddressStr_);
+    if (mdsAddressStr_.size() <= 0) {
+        LOG(ERROR) << "no avaliable mds address.";
+        return kRetCodeCommonErr;
+    }
+
+     for (auto addr : mdsAddressStr_) {
+        butil::EndPoint endpt;
+        if (butil::str2endpoint(addr.c_str(), &endpt) < 0) {
+            LOG(ERROR) << "Invalid sub mds ip:port provided: " << addr;
+            return kRetCodeCommonErr;
+        }
+    }
+     mdsAddressIndex_ = -1;
+     return 0;
+}
+
+int CurvefsTools::TryAnotherMdsAddress() {
+    if (mdsAddressStr_.size() == 0) {
+        LOG(ERROR) << "no avaliable mds address.";
+        return kRetCodeCommonErr;
+    }
+    mdsAddressIndex_ = (mdsAddressIndex_ + 1) % mdsAddressStr_.size();
+    std::string mdsAddress = mdsAddressStr_[mdsAddressIndex_];
+    LOG(INFO) << "try mds address(" << mdsAddressIndex_
+              << "): " << mdsAddress;
+    int ret = channel_.Init(mdsAddress.c_str(), NULL);
     if (ret != 0) {
-        LOG(FATAL) << "Fail to init channel to ip: "
-                   << FLAGS_mds_ip
-                   << " port "
-                   << FLAGS_mds_port
-                   << std::endl;
+        LOG(ERROR) << "Fail to init channel to mdsAddress: "
+                   << mdsAddress;
     }
     return ret;
 }
 
 int CurvefsTools::HandleCreateLogicalPool() {
     TopologyService_Stub stub(&channel_);
-
-    brpc::Controller cntl;
-    cntl.set_timeout_ms(createLogicalPoolRpcTimeOutMs);
-    cntl.set_log_id(1);
 
     CreateLogicalPoolRequest request;
     request.set_logicalpoolname(FLAGS_name);
@@ -160,20 +202,35 @@ int CurvefsTools::HandleCreateLogicalPool() {
     request.set_scatterwidth(FLAGS_scatterWidth);
 
     CreateLogicalPoolResponse response;
+
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(createLogicalPoolRpcTimeOutMs);
+    cntl.set_log_id(1);
+
+    LOG(INFO) << "CreateLogicalPool, second request: "
+              << request.DebugString();
+
     stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
 
-     if (cntl.Failed()) {
+    if (cntl.ErrorCode() == EHOSTDOWN ||
+        cntl.ErrorCode() == brpc::ELOGOFF) {
+        return kRetCodeRedirectMds;
+
+    } else if (cntl.Failed()) {
         LOG(ERROR) << "CreateLogicalPool, errcorde = "
                     << response.statuscode()
                     << ", error content:"
                     << cntl.ErrorText();
-        return -1;
+        return kRetCodeCommonErr;
     }
     if (response.statuscode() != 0) {
-        LOG(ERROR) << "Rpc response fail. "
+        LOG(ERROR) << "CreateLogicalPool Rpc response fail. "
                    << "Message is :"
                    << response.DebugString();
         return response.statuscode();
+    } else {
+        LOG(INFO) << "Received CreateLogicalPool Rpc response success, "
+                  << response.DebugString();
     }
 
     return 0;
@@ -238,7 +295,7 @@ int CurvefsTools::ReadClusterMap() {
                 continue;
             }
             std::vector<std::string> strList;
-            SplitString(line, &strList, CurvefsTools::clusterMapSeprator);
+            SplitString(line, CurvefsTools::clusterMapSeprator, &strList);
 
             std::vector<std::string>::size_type index = 0;
             while (index < strList.size() && strList[index].empty()) {
@@ -263,7 +320,7 @@ int CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return -1;
+                return kRetCodeCommonErr;
             }
 
             while (index < strList.size() && strList[index].empty()) {
@@ -274,7 +331,7 @@ int CurvefsTools::ReadClusterMap() {
             if (index < strList.size() && !strList[index].empty()) {
                 std::string ipPort = strList[index];
                 std::vector<std::string> ipPortList;
-                SplitString(ipPort, &ipPortList, ":");
+                SplitString(ipPort, ":", &ipPortList);
                 if (1 == ipPortList.size()) {
                     info.internalIp = ipPortList[0];
                     info.internalPort = 0;
@@ -307,7 +364,7 @@ int CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return -1;
+                return kRetCodeCommonErr;
             }
 
             while (index < strList.size() && strList[index].empty()) {
@@ -318,7 +375,7 @@ int CurvefsTools::ReadClusterMap() {
             if (index < strList.size() && !strList[index].empty()) {
                 std::string ipPort = strList[index];
                 std::vector<std::string> ipPortList;
-                SplitString(ipPort, &ipPortList, ":");
+                SplitString(ipPort, ":", &ipPortList);
                 if (1 == ipPortList.size()) {
                     info.externalIp = ipPortList[0];
                     info.externalPort = 0;
@@ -351,7 +408,7 @@ int CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return -1;
+                return kRetCodeCommonErr;
             }
 
             while (index < strList.size() && strList[index].empty()) {
@@ -370,7 +427,7 @@ int CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return -1;
+                return kRetCodeCommonErr;
             }
 
             while (index < strList.size() && strList[index].empty()) {
@@ -389,7 +446,7 @@ int CurvefsTools::ReadClusterMap() {
                            << lineNo
                            << ", colume No: "
                            << colNo;
-                return -1;
+                return kRetCodeCommonErr;
             }
 
             cluster.push_back(info);
@@ -398,7 +455,7 @@ int CurvefsTools::ReadClusterMap() {
         LOG(ERROR) << "open cluster map file : "
                    << clusterMap
                    << " fail.";
-        return -1;
+        return kRetCodeCommonErr;
     }
     return 0;
 }
@@ -406,35 +463,45 @@ int CurvefsTools::ReadClusterMap() {
 int CurvefsTools::ListPhysicalPool(
     std::list<PhysicalPoolInfo> *physicalPoolInfos) {
     TopologyService_Stub stub(&channel_);
-    brpc::Controller listPhysicalPoolCntl;
-    listPhysicalPoolCntl.set_timeout_ms(rpcTimeOutMs);
-    listPhysicalPoolCntl.set_log_id(1);
-    ListPhysicalPoolRequest listPhysicalPoolRequest;
-    ListPhysicalPoolResponse listPhysicalPoolResponse;
-    stub.ListPhysicalPool(&listPhysicalPoolCntl,
-        &listPhysicalPoolRequest,
-        &listPhysicalPoolResponse,
+    ListPhysicalPoolRequest request;
+    ListPhysicalPoolResponse response;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(rpcTimeOutMs);
+    cntl.set_log_id(1);
+
+    LOG(INFO) << "ListPhysicalPool send request: "
+              << request.DebugString();
+
+    stub.ListPhysicalPool(&cntl,
+        &request,
+        &response,
         nullptr);
 
-    if (listPhysicalPoolCntl.Failed()) {
+    if (cntl.ErrorCode() == EHOSTDOWN ||
+        cntl.ErrorCode() == brpc::ELOGOFF) {
+        return kRetCodeRedirectMds;
+    } else if (cntl.Failed()) {
         LOG(ERROR) << "ListPhysicalPool Rpc fail, errcorde = "
-                    << listPhysicalPoolResponse.statuscode()
+                    << response.statuscode()
                     << ", error content:"
-                    << listPhysicalPoolCntl.ErrorText();
-        return -1;
+                    << cntl.ErrorText();
+        return kRetCodeCommonErr;
     }
-    if (listPhysicalPoolResponse.statuscode() != kTopoErrCodeSuccess) {
+    if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListPhysicalPool Rpc response fail. "
                    << "Message is :"
-                   << listPhysicalPoolResponse.DebugString();
-        return listPhysicalPoolResponse.statuscode();
+                   << response.DebugString();
+        return response.statuscode();
+    } else {
+        LOG(INFO) << "Received ListPhysicalPool Rpc response success, "
+                  << response.DebugString();
     }
 
     for (int i = 0;
-            i < listPhysicalPoolResponse.physicalpoolinfos_size();
+            i < response.physicalpoolinfos_size();
             i++) {
         physicalPoolInfos->push_back(
-            listPhysicalPoolResponse.physicalpoolinfos(i));
+            response.physicalpoolinfos(i));
     }
     return 0;
 }
@@ -444,19 +511,28 @@ int CurvefsTools::AddListPoolZone(PoolIdType poolid,
     TopologyService_Stub stub(&channel_);
     ListPoolZoneRequest request;
     ListPoolZoneResponse response;
+    request.set_physicalpoolid(poolid);
+
     brpc::Controller cntl;
     cntl.set_timeout_ms(rpcTimeOutMs);
     cntl.set_log_id(1);
-    request.set_physicalpoolid(poolid);
+
+    LOG(INFO) << "ListPoolZone, send request: "
+              << request.DebugString();
+
     stub.ListPoolZone(&cntl, &request, &response, nullptr);
-    if (cntl.Failed()) {
+
+    if (cntl.ErrorCode() == EHOSTDOWN ||
+        cntl.ErrorCode() == brpc::ELOGOFF) {
+        return kRetCodeRedirectMds;
+    } else if (cntl.Failed()) {
         LOG(ERROR) << "ListPoolZone Rpc fail, errcorde = "
                    << response.statuscode()
                    << ", error content:"
                    << cntl.ErrorText()
                    << ", physicalpoolid = "
                    << poolid;
-        return -1;
+        return kRetCodeCommonErr;
     }
     if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListPoolZone Rpc response fail. "
@@ -465,7 +541,11 @@ int CurvefsTools::AddListPoolZone(PoolIdType poolid,
                    << " , physicalpoolid = "
                    << poolid;
         return response.statuscode();
+    } else {
+        LOG(INFO) << "Received ListPoolZone Rpc response success, "
+                  << response.DebugString();
     }
+
     for (int i = 0; i < response.zones_size(); i++) {
         zoneInfos->push_back(response.zones(i));
     }
@@ -477,19 +557,27 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
     TopologyService_Stub stub(&channel_);
     ListZoneServerRequest request;
     ListZoneServerResponse response;
+    request.set_zoneid(zoneid);
     brpc::Controller cntl;
     cntl.set_timeout_ms(rpcTimeOutMs);
     cntl.set_log_id(1);
-    request.set_zoneid(zoneid);
+
+    LOG(INFO) << "ListZoneServer, send request: "
+              << request.DebugString();
+
     stub.ListZoneServer(&cntl, &request, &response, nullptr);
-    if (cntl.Failed()) {
+
+    if (cntl.ErrorCode() == EHOSTDOWN ||
+        cntl.ErrorCode() == brpc::ELOGOFF) {
+        return kRetCodeRedirectMds;
+    } else if (cntl.Failed()) {
         LOG(ERROR) << "ListZoneServer Rpc fail, errcorde = "
                    << response.statuscode()
                    << ", error content:"
                    << cntl.ErrorText()
                    << ", zoneid = "
                    << zoneid;
-        return -1;
+        return kRetCodeCommonErr;
     }
     if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "ListZoneServer Rpc response fail. "
@@ -498,7 +586,11 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
                    << " , zoneid = "
                    << zoneid;
         return response.statuscode();
+    } else {
+        LOG(ERROR) << "ListZoneServer Rpc response success, "
+                   << response.DebugString();
     }
+
     for (int i = 0; i < response.serverinfo_size(); i++) {
         serverInfos->push_back(response.serverinfo(i));
     }
@@ -668,28 +760,32 @@ int CurvefsTools::ScanCluster() {
 int CurvefsTools::CreatePhysicalPool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : physicalPoolToAdd) {
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
-        cntl.set_log_id(1);
-
         PhysicalPoolRequest request;
         request.set_physicalpoolname(it.physicalPoolName);
         request.set_desc("");
 
         PhysicalPoolResponse response;
-        stub.CreatePhysicalPool(&cntl, &request, &response, nullptr);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_log_id(1);
 
         LOG(INFO) << "CreatePhysicalPool, send request: "
                   << request.DebugString();
 
-        if (cntl.Failed()) {
+        stub.CreatePhysicalPool(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
             LOG(ERROR) << "CreatePhysicalPool, errcorde = "
                        << response.statuscode()
                        << ", error content:"
                        << cntl.ErrorText()
                        << " , physicalPoolName ="
                        << it.physicalPoolName;
-            return -1;
+            return kRetCodeCommonErr;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "CreatePhysicalPool Rpc response fail. "
@@ -698,6 +794,9 @@ int CurvefsTools::CreatePhysicalPool() {
                        << " , physicalPoolName ="
                        << it.physicalPoolName;
             return response.statuscode();
+        } else {
+            LOG(INFO) << "Received CreatePhysicalPool response success, "
+                      << response.DebugString();
         }
     }
     return 0;
@@ -706,29 +805,33 @@ int CurvefsTools::CreatePhysicalPool() {
 int CurvefsTools::CreateZone() {
     TopologyService_Stub stub(&channel_);
     for (auto it : zoneToAdd) {
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
-        cntl.set_log_id(1);
-
         ZoneRequest request;
         request.set_zonename(it.zoneName);
         request.set_physicalpoolname(it.physicalPoolName);
         request.set_desc("");
 
         ZoneResponse response;
-        stub.CreateZone(&cntl, &request, &response, nullptr);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_log_id(1);
 
         LOG(INFO) << "CreateZone, send request: "
                   << request.DebugString();
 
-        if (cntl.Failed()) {
+        stub.CreateZone(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
             LOG(ERROR) << "CreateZone, errcorde = "
                        << response.statuscode()
                        << ", error content:"
                        << cntl.ErrorText()
                        << " , zoneName = "
                        << it.zoneName;
-            return -1;
+            return kRetCodeCommonErr;
         }
         if (response.statuscode() != 0) {
             LOG(ERROR) << "CreateZone Rpc response fail. "
@@ -737,6 +840,9 @@ int CurvefsTools::CreateZone() {
                        << " , zoneName = "
                        << it.zoneName;
             return response.statuscode();
+        } else {
+            LOG(INFO) << "Received CreateZone Rpc success, "
+                      << response.DebugString();
         }
     }
     return 0;
@@ -745,10 +851,6 @@ int CurvefsTools::CreateZone() {
 int CurvefsTools::CreateServer() {
     TopologyService_Stub stub(&channel_);
     for (auto it : serverToAdd) {
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
-        cntl.set_log_id(1);
-
         ServerRegistRequest request;
         request.set_hostname(it.serverName);
         request.set_internalip(it.internalIp);
@@ -760,19 +862,27 @@ int CurvefsTools::CreateServer() {
         request.set_desc("");
 
         ServerRegistResponse response;
-        stub.RegistServer(&cntl, &request, &response, nullptr);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_log_id(1);
 
         LOG(INFO) << "CreateServer, send request: "
                   << request.DebugString();
 
-        if (cntl.Failed()) {
+        stub.RegistServer(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
             LOG(ERROR) << "RegistServer, errcorde = "
                        << response.statuscode()
                        << ", error content : "
                        << cntl.ErrorText()
                        << " , serverName = "
                        << it.serverName;
-            return -1;
+            return kRetCodeCommonErr;
         }
         if (response.statuscode() != 0) {
             LOG(ERROR) << "RegistServer Rpc response fail. "
@@ -781,6 +891,9 @@ int CurvefsTools::CreateServer() {
                        << " , serverName = "
                        << it.serverName;
             return response.statuscode();
+        } else {
+            LOG(INFO) << "Received RegistServer Rpc response success, "
+                      << response.DebugString();
         }
     }
     return 0;
@@ -789,27 +902,31 @@ int CurvefsTools::CreateServer() {
 int CurvefsTools::ClearPhysicalPool() {
     TopologyService_Stub stub(&channel_);
     for (auto it : physicalPoolToDel) {
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
-        cntl.set_log_id(1);
-
         PhysicalPoolRequest request;
         request.set_physicalpoolid(it);
 
         PhysicalPoolResponse response;
-        stub.DeletePhysicalPool(&cntl, &request, &response, nullptr);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_log_id(1);
 
         LOG(INFO) << "DeletePhysicalPool, send request: "
                   << request.DebugString();
 
-        if (cntl.Failed()) {
+        stub.DeletePhysicalPool(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
             LOG(ERROR) << "DeletePhysicalPool, errcorde = "
                        << response.statuscode()
                        << ", error content:"
                        << cntl.ErrorText()
                        << " , physicalPoolId = "
                        << it;
-            return -1;
+            return kRetCodeCommonErr;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "DeletePhysicalPool Rpc response fail. "
@@ -818,6 +935,9 @@ int CurvefsTools::ClearPhysicalPool() {
                        << " , physicalPoolId = "
                        << it;
             return response.statuscode();
+        } else {
+            LOG(INFO) << "Received DeletePhysicalPool Rpc response success, "
+                      << response.statuscode();
         }
     }
     return 0;
@@ -826,27 +946,33 @@ int CurvefsTools::ClearPhysicalPool() {
 int CurvefsTools::ClearZone() {
     TopologyService_Stub stub(&channel_);
     for (auto it : zoneToDel) {
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
-        cntl.set_log_id(1);
-
         ZoneRequest request;
         request.set_zoneid(it);
 
         ZoneResponse response;
-        stub.DeleteZone(&cntl, &request, &response, nullptr);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_log_id(1);
 
         LOG(INFO) << "DeleteZone, send request: "
                   << request.DebugString();
 
-        if (cntl.Failed()) {
+        stub.DeleteZone(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
             LOG(ERROR) << "DeleteZone, errcorde = "
                        << response.statuscode()
                        << ", error content:"
                        << cntl.ErrorText()
                        << " , zoneId = "
                        << it;
-            return -1;
+            return kRetCodeCommonErr;
+        } else {
+            break;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "DeleteZone Rpc response fail. "
@@ -855,6 +981,9 @@ int CurvefsTools::ClearZone() {
                        << " , zoneId = "
                        << it;
             return response.statuscode();
+        } else {
+            LOG(INFO) << "Received DeleteZone Rpc success, "
+                      << response.DebugString();
         }
     }
     return 0;
@@ -863,27 +992,31 @@ int CurvefsTools::ClearZone() {
 int CurvefsTools::ClearServer() {
     TopologyService_Stub stub(&channel_);
     for (auto it : serverToDel) {
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
-        cntl.set_log_id(1);
-
         DeleteServerRequest request;
         request.set_serverid(it);
 
         DeleteServerResponse response;
-        stub.DeleteServer(&cntl, &request, &response, nullptr);
+
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_log_id(1);
 
         LOG(INFO) << "DeleteServer, send request: "
                   << request.DebugString();
 
-        if (cntl.Failed()) {
+        stub.DeleteServer(&cntl, &request, &response, nullptr);
+
+        if (cntl.ErrorCode() == EHOSTDOWN ||
+            cntl.ErrorCode() == brpc::ELOGOFF) {
+            return kRetCodeRedirectMds;
+        } else if (cntl.Failed()) {
             LOG(ERROR) << "DeleteServer, errcorde = "
                        << response.statuscode()
                        << ", error content:"
                        << cntl.ErrorText()
                        << " , serverId = "
                        << it;
-            return -1;
+            return kRetCodeCommonErr;
         }
         if (response.statuscode() != kTopoErrCodeSuccess) {
             LOG(ERROR) << "DeleteServer Rpc response fail. "
@@ -892,31 +1025,15 @@ int CurvefsTools::ClearServer() {
                        << " , serverId = "
                        << it;
             return response.statuscode();
+        } else {
+            LOG(INFO) << "Received DeleteServer Rpc response success, "
+                      << response.DebugString();
         }
     }
     return 0;
 }
 
-void CurvefsTools::SplitString(const std::string& s,
-    std::vector<std::string> *v,
-    const std::string& c) {
-  std::string::size_type pos1, pos2;
-  pos2 = s.find(c);
-  pos1 = 0;
-  while (std::string::npos != pos2) {
-    v->push_back(s.substr(pos1, pos2-pos1));
-
-    pos1 = pos2 + c.size();
-    pos2 = s.find(c, pos1);
-  }
-  if (pos1 != s.length())
-    v->push_back(s.substr(pos1));
-}
-
 int CurvefsTools::SetChunkServer() {
-    brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeOutMs);
-    cntl.set_log_id(1);
     SetChunkServerStatusRequest request;
     request.set_chunkserverid(FLAGS_chunkserver_id);
     if (FLAGS_chunkserver_status == "retired") {
@@ -927,28 +1044,39 @@ int CurvefsTools::SetChunkServer() {
         request.set_chunkserverstatus(ChunkServerStatus::READWRITE);
     } else {
         LOG(ERROR) << "SetChunkServer param error, unknown chunkserver status";
-        return -1;
+        return kRetCodeCommonErr;
     }
 
     SetChunkServerStatusResponse response;
     TopologyService_Stub stub(&channel_);
-    stub.SetChunkServer(&cntl, &request, &response, nullptr);
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(rpcTimeOutMs);
+    cntl.set_log_id(1);
 
     LOG(INFO) << "SetChunkServerStatusRequest, send request: "
               << request.DebugString();
 
-    if (cntl.Failed()) {
+    stub.SetChunkServer(&cntl, &request, &response, nullptr);
+
+    if (cntl.ErrorCode() == EHOSTDOWN ||
+        cntl.ErrorCode() == brpc::ELOGOFF) {
+        return kRetCodeRedirectMds;
+    } else if (cntl.Failed()) {
         LOG(ERROR) << "SetChunkServerStatusRequest, errcorde = "
                    << response.statuscode()
                    << ", error content:"
                    << cntl.ErrorText();
-        return -1;
+        return kRetCodeCommonErr;
     }
     if (response.statuscode() != kTopoErrCodeSuccess) {
         LOG(ERROR) << "SetChunkServerStatusRequest Rpc response fail. "
                    << "Message is :"
                    << response.DebugString();
         return response.statuscode();
+    } else {
+        LOG(INFO) << "Received SetChunkServerStatusRequest Rpc "
+                  << "response success, "
+                  << response.DebugString();
     }
     return 0;
 }
@@ -967,19 +1095,42 @@ int main(int argc, char **argv) {
     curve::mds::topology::CurvefsTools tools;
     if (tools.Init() < 0) {
         LOG(ERROR) << "curvefsTool init error.";
-        return -1;
+        return kRetCodeCommonErr;
     }
 
-    std::string operation = FLAGS_op;
-    if (operation == "create_logicalpool") {
-        ret = tools.HandleCreateLogicalPool();
-    } else if (operation == "create_physicalpool") {
-        ret = tools.HandleBuildCluster();
-    } else if (operation == "set_chunkserver") {
-        ret = tools.SetChunkServer();
+    int maxTry = tools.GetMaxTry();
+    int retry = 0;
+    for (; retry < maxTry; retry++) {
+        ret = tools.TryAnotherMdsAddress();
+        if (ret < 0) {
+            return kRetCodeCommonErr;
+        }
+
+        std::string operation = FLAGS_op;
+        if (operation == "create_logicalpool") {
+            ret = tools.HandleCreateLogicalPool();
+        } else if (operation == "create_physicalpool") {
+            ret = tools.HandleBuildCluster();
+        } else if (operation == "set_chunkserver") {
+            ret = tools.SetChunkServer();
+        } else {
+            LOG(ERROR) << "undefined op.";
+            ret = kRetCodeCommonErr;
+            break;
+        }
+        if (ret != kRetCodeRedirectMds) {
+            break;
+        }
+    }
+
+    if (retry >= maxTry) {
+        LOG(ERROR) << "rpc retry times exceed.";
+        return kRetCodeCommonErr;
+    }
+    if (ret < 0) {
+        LOG(ERROR) << "exec fail, ret = " << ret;
     } else {
-        LOG(ERROR) << "undefined op.";
-        ret = -1;
+        LOG(INFO) << "exec success, ret = " << ret;
     }
 
     return ret;
