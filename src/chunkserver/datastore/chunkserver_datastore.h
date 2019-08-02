@@ -93,6 +93,7 @@ class CSMetaCache {
     void Clear() {
         WriteLockGuard writeGuard(rwLock_);
         chunkMap_.clear();
+        size_.store(0);
     }
 
     uint64_t Size() {
