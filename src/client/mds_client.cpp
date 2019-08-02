@@ -34,7 +34,7 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption_t& metaServerOpt) {
         return LIBCURVE_ERROR::OK;
     }
 
-    lastWorkingMDSAddrIndex_.store(-1);
+    lastWorkingMDSAddrIndex_ = -1;
     metaServerOpt_ = metaServerOpt;
 
     int rc = mdsClientBase_.Init(metaServerOpt_);
@@ -57,9 +57,9 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption_t& metaServerOpt) {
               << ", retryIntervalUs = " << metaServerOpt_.retryIntervalUs;
 
     for (auto addr : metaServerOpt_.metaaddrvec) {
-        lastWorkingMDSAddrIndex_.fetch_add(1);
+        lastWorkingMDSAddrIndex_++;
 
-        channel_ = std::make_shared<brpc::Channel>();
+        channel_ = new (std::nothrow) brpc::Channel();
         if (channel_->Init(addr.c_str(), nullptr) != 0) {
             LOG(ERROR) << "Init channel failed!";
             continue;
@@ -73,6 +73,8 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption_t& metaServerOpt) {
 }
 
 void MDSClient::UnInitialize() {
+    delete channel_;
+    channel_ = nullptr;
     inited_ = false;
 }
 
@@ -82,10 +84,10 @@ void MDSClient::UnInitialize() {
 bool MDSClient::ChangeMDServer(int* mdsAddrleft) {
     bool createRet = false;
     int addrSize = metaServerOpt_.metaaddrvec.size();
-    int nextMDSAddrIndex = (lastWorkingMDSAddrIndex_.load() + 1) % addrSize;
+    int nextMDSAddrIndex = (lastWorkingMDSAddrIndex_ + 1) % addrSize;
 
     while (1) {
-        if (nextMDSAddrIndex == lastWorkingMDSAddrIndex_.load()) {
+        if (nextMDSAddrIndex == lastWorkingMDSAddrIndex_) {
             LOG(ERROR) << "have retried all mds address!";
             break;
         }
@@ -93,16 +95,19 @@ bool MDSClient::ChangeMDServer(int* mdsAddrleft) {
         (*mdsAddrleft)--;
 
         {
-            auto newChan = std::make_shared<brpc::Channel>();
+            // 加写锁，后续其他线程如果调用，则阻塞
+            std::unique_lock<bthread::Mutex> lk(mutex_);
 
-            int ret = newChan->Init(metaServerOpt_.
+            // 重新创建之前需要将原来的channel析构掉，否则会造成第二次链接失败
+            delete channel_;
+            channel_ = new (std::nothrow) brpc::Channel();
+
+            int ret = channel_->Init(metaServerOpt_.
                                 metaaddrvec[nextMDSAddrIndex].c_str(), nullptr);
             if (ret != 0) {
                 LOG(ERROR) << "Init channel failed!";
                 continue;
             }
-
-            std::atomic_exchange(&channel_, newChan);
 
             createRet = true;
 
@@ -116,11 +121,11 @@ bool MDSClient::ChangeMDServer(int* mdsAddrleft) {
         nextMDSAddrIndex %= addrSize;
     }
 
-    lastWorkingMDSAddrIndex_.store(nextMDSAddrIndex);
+    lastWorkingMDSAddrIndex_ = nextMDSAddrIndex;
     return createRet;
 }
 
-bool MDSClient::UpdateRetryinfoOrChangeServer(uint32_t* retrycount,
+bool MDSClient::UpdateRetryinfoOrChangeServer(int* retrycount,
                                               int* mdsAddrleft,
                                               bool sync) {
     uint64_t retryTime = sync ? metaServerOpt_.synchronizeRPCRetryTime
@@ -144,7 +149,7 @@ bool MDSClient::UpdateRetryinfoOrChangeServer(uint32_t* retrycount,
 LIBCURVE_ERROR MDSClient::Register(const std::string& ip,
                                    uint16_t port) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -155,12 +160,12 @@ LIBCURVE_ERROR MDSClient::Register(const std::string& ip,
         mdsClientMetric_.registerClient.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.registerClient.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.Register(ip,
                                     port,
                                     &response,
                                     &cntl,
-                                    tempChannel);
+                                    channel_);
         }
 
         if (cntl.Failed()) {
@@ -195,7 +200,7 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
                                     FInfo_t* fi,
                                     LeaseSession* lease) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -208,12 +213,12 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
         mdsClientMetric_.openFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.openFile.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.OpenFile(filename,
                                     userinfo,
                                     &response,
                                     &cntl,
-                                    tempChannel);
+                                    channel_);
         }
 
         if (cntl.Failed()) {
@@ -271,7 +276,7 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
                                     size_t size,
                                     bool normalFile) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -282,14 +287,15 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
         mdsClientMetric_.createFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.createFile.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
+            curve::mds::CurveFSService_Stub stub(channel_);
             mdsClientBase_.CreateFile(filename,
                                       userinfo,
                                       size,
                                       normalFile,
                                       &response,
                                       &cntl,
-                                      tempChannel);
+                                      channel_);
         }
 
         if (cntl.Failed()) {
@@ -329,7 +335,7 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
                                     const UserInfo_t& userinfo,
                                     const std::string& sessionid) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -340,13 +346,13 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
         mdsClientMetric_.closeFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.closeFile.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.CloseFile(filename,
                                     userinfo,
                                     sessionid,
                                     &response,
                                     &cntl,
-                                    tempChannel);
+                                    channel_);
         }
 
         if (cntl.Failed()) {
@@ -386,7 +392,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
                                     const UserInfo_t& uinfo,
                                     FInfo_t* fi) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -397,12 +403,12 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
         mdsClientMetric_.getFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.getFile.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetFileInfo(filename,
                                        uinfo,
                                        &response,
                                        &cntl,
-                                       tempChannel);
+                                       channel_);
         }
 
         if (cntl.Failed()) {
@@ -447,7 +453,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
                                         const UserInfo_t& userinfo,
                                         uint64_t* seq) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -455,12 +461,12 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         brpc::Controller cntl;
         ::curve::mds::CreateSnapShotResponse response;
         {
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.CreateSnapShot(filename,
                                           userinfo,
                                           &response,
                                           &cntl,
-                                          tempChannel);
+                                          channel_);
         }
 
         if (cntl.Failed()) {
@@ -512,7 +518,7 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
                                          const UserInfo_t& userinfo,
                                          uint64_t seq) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -522,13 +528,13 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
         ::curve::mds::DeleteSnapShotResponse response;
 
         {
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.DeleteSnapShot(filename,
                                           userinfo,
                                           seq,
                                           &response,
                                           &cntl,
-                                          tempChannel);
+                                          channel_);
         }
 
         if (cntl.Failed()) {
@@ -568,7 +574,7 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
                                         uint64_t seq,
                                         FInfo* fi) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -581,13 +587,13 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
         ::curve::mds::ListSnapShotFileInfoResponse response;
 
         {
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.ListSnapShot(filename,
                                         userinfo,
                                         &seqVec,
                                         &response,
                                         &cntl,
-                                        tempChannel);
+                                        channel_);
         }
 
         if (cntl.Failed()) {
@@ -642,7 +648,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
                                         const std::vector<uint64_t>* seq,
                                         std::vector<FInfo*>* snapif) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -656,13 +662,13 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         }
 
         {
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.ListSnapShot(filename,
                                         userinfo,
                                         seq,
                                         &response,
                                         &cntl,
-                                        tempChannel);
+                                        channel_);
         }
 
         if (cntl.Failed()) {
@@ -715,7 +721,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
                                         uint64_t offset,
                                         SegmentInfo *segInfo) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -724,14 +730,14 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
         ::curve::mds::GetOrAllocateSegmentResponse response;
 
         {
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetSnapshotSegmentInfo(filename,
                                                   userinfo,
                                                   seq,
                                                   offset,
                                                   &response,
                                                   &cntl,
-                                                  tempChannel);
+                                                  channel_);
         }
 
         if (cntl.Failed()) {
@@ -847,7 +853,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                                 const std::string& sessionid,
                                 leaseRefreshResult* resp) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -858,13 +864,13 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
 
         {
             LatencyGuard lg(&mdsClientMetric_.refreshSession.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.RefreshSession(filename,
                                         userinfo,
                                         sessionid,
                                         &response,
                                         &cntl,
-                                        tempChannel);
+                                        channel_);
         }
 
         if (cntl.Failed()) {
@@ -931,7 +937,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
                                               uint64_t seq,
                                               FileStatus* filestatus) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -941,13 +947,13 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
         ::curve::mds::CheckSnapShotStatusResponse response;
 
         {
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.CheckSnapShotStatus(filename,
                                                userinfo,
                                                seq,
                                                &response,
                                                &cntl,
-                                               tempChannel);
+                                               channel_);
         }
 
         if (cntl.Failed()) {
@@ -986,7 +992,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
                             const std::vector<CopysetID>& copysetidvec,
                             std::vector<CopysetInfo_t>* cpinfoVec) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录重试中timeOut次数
     int timeOutTimes = 0;
     // 记录还没重试的mds addr数量
@@ -999,12 +1005,12 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
         mdsClientMetric_.getServerList.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.getServerList.latency);   // NOLINT
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetServerList(logicalpooid,
                                         copysetidvec,
                                         &response,
                                         &cntl,
-                                        tempChannel);
+                                        channel_);
         }
 
         if (cntl.Failed()) {
@@ -1101,7 +1107,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
                                         uint32_t chunksize,
                                         FInfo* fileinfo) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1110,7 +1116,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
         curve::mds::CreateCloneFileResponse response;
 
         {
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.CreateCloneFile(destination,
                                            userinfo,
                                            size,
@@ -1118,7 +1124,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
                                            chunksize,
                                            &response,
                                            &cntl,
-                                           tempChannel);
+                                           channel_);
         }
 
         if (cntl.Failed()) {
@@ -1178,7 +1184,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
                                             const UserInfo_t& userinfo,
                                             uint64_t fileID) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1187,14 +1193,14 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         curve::mds::SetCloneFileStatusResponse response;
 
         {
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.SetCloneFileStatus(filename,
                                               filestatus,
                                               userinfo,
                                               fileID,
                                               &response,
                                               &cntl,
-                                              tempChannel);
+                                              channel_);
         }
 
         if (cntl.Failed()) {
@@ -1237,7 +1243,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                                         const FInfo_t* fi,
                                         SegmentInfo *segInfo) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录重试中timeOut次数
     int timeOutTimes = 0;
     // 记录还没重试的mds addr数量
@@ -1250,14 +1256,14 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
         mdsClientMetric_.getOrAllocateSegment.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.getOrAllocateSegment.latency);    // NOLINT
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetOrAllocateSegment(allocate,
                                                 userinfo,
                                                 offset,
                                                 fi,
                                                 &response,
                                                 &cntl,
-                                                tempChannel);
+                                                channel_);
         }
 
         if (cntl.Failed()) {
@@ -1395,7 +1401,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
                                         uint64_t originId,
                                         uint64_t destinationId) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1406,7 +1412,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
         mdsClientMetric_.renameFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.renameFile.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.RenameFile(userinfo,
                                       origin,
                                       destination,
@@ -1414,7 +1420,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
                                       destinationId,
                                       &response,
                                       &cntl,
-                                      tempChannel);
+                                      channel_);
         }
 
         if (cntl.Failed()) {
@@ -1456,7 +1462,7 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
                                  const UserInfo_t& userinfo,
                                  uint64_t newsize) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1467,13 +1473,13 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
         mdsClientMetric_.extendFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.extendFile.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.Extend(filename,
                                 userinfo,
                                 newsize,
                                 &response,
                                 &cntl,
-                                tempChannel);
+                                channel_);
         }
 
         if (cntl.Failed()) {
@@ -1514,7 +1520,7 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
                                      bool deleteforce,
                                      uint64_t fileid) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1525,14 +1531,14 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
         mdsClientMetric_.deleteFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.deleteFile.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.DeleteFile(filename,
                                       userinfo,
                                       deleteforce,
                                       fileid,
                                       &response,
                                       &cntl,
-                                      tempChannel);
+                                      channel_);
         }
 
         if (cntl.Failed()) {
@@ -1571,7 +1577,7 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
                                         const std::string& newOwner,
                                         const UserInfo_t& userinfo) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1582,13 +1588,13 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
         mdsClientMetric_.changeOwner.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.changeOwner.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.ChangeOwner(filename,
                                        newOwner,
                                        userinfo,
                                        &response,
                                        &cntl,
-                                       tempChannel);
+                                       channel_);
         }
 
         if (cntl.Failed()) {
@@ -1628,7 +1634,7 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
                         const UserInfo_t& userinfo,
                         std::vector<FileStatInfo>* filestatVec) {
     // 记录当前mds重试次数
-    uint32_t count = 0;
+    int count = 0;
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
@@ -1639,12 +1645,12 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
         mdsClientMetric_.listDir.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.listDir.latency);
-            auto tempChannel = std::atomic_load(&channel_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.Listdir(dirpath,
                                    userinfo,
                                    &response,
                                    &cntl,
-                                   tempChannel);
+                                   channel_);
         }
 
         if (cntl.Failed()) {
