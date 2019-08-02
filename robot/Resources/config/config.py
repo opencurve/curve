@@ -54,12 +54,12 @@ mds_listen = "-listenAddr=127.0.0.1:6666"
 
 #abnormal test
 chunkserver_list = ["10.182.26.16","10.182.26.17","10.182.26.18","10.182.26.46","10.182.26.47","10.182.26.48"]
-mds_list = ["10.182.26.25"]
-etcd_list = ["10.182.26.25"]
+mds_list = ["10.182.26.25","10.182.26.16","10.182.26.17"]
+etcd_list = ["10.182.26.16","10.182.26.17","10.182.26.18"]
 client_list = ["10.182.26.25"]
 abnormal_user = "nbs"
 pravie_key_path = "/home/nbs/rsa/id_rsa"
-abnormal_db_host = "10.182.26.25"
+abnormal_db_host = "10.182.2.252"
 recover_time = 10800
 offline_timeout = 300
 vol_uuid = ""
