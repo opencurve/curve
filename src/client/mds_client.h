@@ -14,7 +14,6 @@
 
 #include <vector>
 #include <string>
-#include <memory>
 
 #include "proto/topology.pb.h"
 #include "proto/nameserver2.pb.h"
@@ -378,7 +377,7 @@ class MDSClient {
      * @param: sync代表当前调用是否为同步调用，根据sync值选择重试次数
      * @return: 达到重试次数且切换server失败返回false， 否则返回true
      */
-    bool UpdateRetryinfoOrChangeServer(uint32_t* retrycount,
+    bool UpdateRetryinfoOrChangeServer(int* retrycount,
                                        int* mdsAddrleft,
                                        bool sync = true);
 
@@ -395,13 +394,16 @@ class MDSClient {
     bool            inited_;
 
     // client与mds通信的rpc channel
-    std::shared_ptr<brpc::Channel>  channel_;
+    brpc::Channel*  channel_;
 
     // 当前模块的初始化option配置
     MetaServerOption_t metaServerOpt_;
 
     // 记录上一次重试过的leader信息, 该索引对应metaServerOpt_里leader addr的索引
-    common::Atomic<int> lastWorkingMDSAddrIndex_;
+    int lastWorkingMDSAddrIndex_;
+
+    // 读写锁，在切换MDS地址的时候需要暂停其他线程的RPC调用
+    RWLock rwlock_;
 
     // client与mds通信的metric统计
     MDSClientMetric_t mdsClientMetric_;
