@@ -11,6 +11,7 @@
 #include <brpc/channel.h>
 #include <brpc/controller.h>
 #include <brpc/errno.pb.h>
+#include <bthread/mutex.h>
 
 #include <vector>
 #include <string>
@@ -392,6 +393,9 @@ class MDSClient {
  private:
     // 初始化标志，放置重复初始化
     bool            inited_;
+
+    // brpc提供的mutex锁
+    mutable bthread::Mutex mutex_;
 
     // client与mds通信的rpc channel
     brpc::Channel*  channel_;
