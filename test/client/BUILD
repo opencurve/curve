@@ -28,8 +28,7 @@ cc_test(
                 "snapshot_service_unittest.cpp",
                 "client_metric_test.cpp",
                 "libcbd_libcurve_test.cpp",
-                "inflight_rpc_control_test.cpp",
-                "test_shared_ptr_atomic.cpp"
+                "inflight_rpc_control_test.cpp"
                 ]
     ),
     copts = COPTS,
