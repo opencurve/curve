@@ -132,6 +132,38 @@ def del_mem_stress(ssh):
     rs = shell_operator.ssh_exec(ssh,cmd)
     assert rs[3] == 0,"stop memtester stess fail"
 
+def inject_clock_offset(ssh,time):
+    cmd = "sudo date -s `date -d \"+%d min\" | awk \'{print $4}\'`" % time
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"inject clock offet fail,return is %s"%rs[1]
+
+def del_clock_offset(ssh,time):
+    cmd = "sudo date -s `date -d \"-%d min\" | awk \'{print $4}\'`" % time
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0, "del clock offet fail,return is %s" % rs[1]
+
+def listen_network_stress(ip):
+    ori_cmd = "iperf -s"
+    ssh = shell_operator.create_ssh_connect(ip, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("exec cmd %s" % ori_cmd)
+#    assert rs[3] == 0,"up iperf fail: %s"%rs[1]
+
+def inject_network_stress(ip):
+    ori_cmd = "iperf -c %s -b 20000M -t 10 -p 5001"%ip
+    ssh = shell_operator.create_ssh_connect(ip, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("exec cmd %s" % ori_cmd)
+    assert rs[3] == 0,"inject iperf fail: %s"%rs[1]
+
+def stop_network_stress(ip):
+    ori_cmd = "ps -ef|grep iperf |grep -v grep| awk '{print $2}' | sudo xargs kill -9"
+    ssh = shell_operator.create_ssh_connect(ip, 1046, config.abnormal_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"stop iperf fail: %s"%rs[1]
+    ori_cmd = "ps -ef|grep iperf |grep -v grep"
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[1] == [],"stop iperf fail,pid %s"%rs[1]
 
 def get_hostip_dev(ssh,hostip):
     ori_cmd = "ip a|grep %s | awk '{print $7}'"%hostip
@@ -305,6 +337,22 @@ def check_vm_status(ssh,uuid):
            i = i + 5
     assert False,"start vm fail"
 
+def check_vm_vd(ip,nova_ssh,uuid):
+    i = 0
+    while i < 300:
+    try:
+        ssh = shell_operator.create_ssh_connect(ip, 22, config.vm_user)
+        ori_cmd = "lsblk |grep vdc | awk '{print $1}'"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        output = "".join(rs[1]).strip()
+        if output == "vdc":
+            ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+            shell_operator.ssh_exec(nova_ssh,ori_cmd)
+    except:
+        i = i + 5
+        time.sleep(5)
+    assert rs[3] == 0,"start vm fail,ori_cmd is %s"%rs
+
 def init_vm():
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     ori_cmd = "source OPENRC && nova list|grep %s | awk '{print $2}'"%config.vm_host
@@ -318,11 +366,11 @@ def init_vm():
         uuid2 = "".join(rs2[1]).strip()
 #        ori_cmd = "source ADMIN &&  nova reset-state %s --active"%uuid
 #        ori_cmd2 = "source ADMIN &&  nova reset-state %s --active"%uuid2
-        ori_cmd = "source OPENRC &&  nova stop %s"%uuid
-        ori_cmd2 = "source OPENRC &&  nova stop %s"%uuid2
+        ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+        ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
         rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
-        time.sleep(5)
+        time.sleep(60)
         i = 0
         while i < 600:
            ori_cmd = "bash curve_test.sh delete"
@@ -333,13 +381,19 @@ def init_vm():
               logger.error("delete volume fail,please check.return code is %d"%rs[3])
               time.sleep(60)
               i = i + 60
+              ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+              ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
+              rs = shell_operator.ssh_exec(ssh,ori_cmd)
+              rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
         assert rs[3] == 0,"delete volume fail,please check.return code is %d"%rs[3] 
         time.sleep(3)
-        restart_vm(ssh,uuid)
-        restart_vm(ssh,uuid2)
-        time.sleep(1)
+#        restart_vm(ssh,uuid)
+#        restart_vm(ssh,uuid2)
+#        time.sleep(1)
         check_vm_status(ssh,uuid)
         check_vm_status(ssh,uuid2)
+        check_vm_vd(config.vm_host,ssh,uuid)
+        check_vm_vd(config.vm_stability_host,ssh,uuid2)
     except:
         logger.error("init vm error")
         raise
@@ -603,9 +657,9 @@ def start_etcd_process(host):
     if rs[1] != []:
         logger.debug("etcd already up")
         return
-    mkdir_cmd = "rm -rf etcd_log && mkdir etcd_log"
-    rs = shell_operator.ssh_exec(ssh, mkdir_cmd)
-    up_cmd = " cd etcd_log && nohup etcd &"
+#    mkdir_cmd = "sudo rm -rf /etcd/default.etcd"
+#    rs = shell_operator.ssh_exec(ssh, mkdir_cmd)
+    up_cmd = " cd etcdrun && sudo nohup  ./run.sh existing &"
     shell_operator.ssh_background_exec2(ssh, up_cmd)
     logger.debug("exec %s"%(up_cmd))
     time.sleep(2)
@@ -620,7 +674,7 @@ def stop_mysql_process(host):
     if rs[1] == []:
         logger.debug("mysql not up")
         return
-    ori_cmd = "sudo service mysql stop"
+    ori_cmd = "sudo killall mysqld"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     logger.debug("exec %s,stdout is %s"%(ori_cmd,"".join(rs[1])))
     assert rs[3] == 0,"stop mysql fail"
@@ -632,9 +686,9 @@ def start_mysql_process(host):
     if rs[1] != []:
         logger.debug("mysql already up")
         return
-    start_cmd = "sudo service mysql start"
-    rs = shell_operator.ssh_exec(ssh, start_cmd)
-    assert rs[3] == 0,"start mysql fail"
+    start_cmd = "sudo /home/nbs/mysql/Percona-Server-5.7.26-debain9/bin/mysqld_safe --defaults-file=/home/nbs/mysql/my.cnf &"
+    rs = shell_operator.ssh_background_exec2(ssh, start_cmd)
+#    assert rs[3] == 0,"start mysql fail"
     time.sleep(2)
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     if rs[1] == []:
@@ -644,8 +698,8 @@ def get_cluster_iops():
     return 100
 
 def exec_deleteforce():
-    mds_list = config.mds_list
-    host = random.choice(mds_list)
+    client_list = config.client_list
+    host = random.choice(client_list)
     cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 robot/Resources/keywords/deleteforce-test.py %s:~/"%(config.pravie_key_path,host)
     shell_operator.run_exec2(cmd)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
@@ -946,53 +1000,73 @@ def test_suspend_recover_copyset():
         cs_list = start_host_cs_process(chunkserver_host)
         raise
 
-def test_kill_mds():
+def test_kill_mds(num=1):
     start_iops = get_cluster_iops()
-    mds_host = random.choice(config.mds_list)
+    mds_ips = list(config.mds_list)
     try:
-        kill_mds_process(mds_host)
-        end_iops = get_cluster_iops()
-        if float(end_iops)/float(start_iops) < 0.9:
-            raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+        for i in range(0,num):
+            mds_host = random.choice(mds_ips)
+            kill_mds_process(mds_host)
+            end_iops = get_cluster_iops()
+            if float(end_iops)/float(start_iops) < 0.9:
+                raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+            mds_ips.remove(mds_host)
     except Exception as e:
-        start_mds_process(mds_host)
+        logger.error("kill mds %s fail"%mds_host)
         raise 
     return mds_host
 
 def test_start_mds():
     start_iops = get_cluster_iops()
-    mds_host = random.choice(config.mds_list)
     try:
-        kill_mds_process(mds_host)
-        time.sleep(30)
-        start_mds_process(mds_host)
-        end_iops = get_cluster_iops()
-        if float(end_iops) / float(start_iops) < 0.9:
-            raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+        logger.info("mds list is %s"%config.mds_list)
+        for mds_host in config.mds_list:
+            start_mds_process(mds_host)
+            end_iops = get_cluster_iops()
+            if float(end_iops) / float(start_iops) < 0.9:
+                raise Exception("client io is slow, = %d more than 5s" % (end_iops))
     except Exception as e:
         raise 
 
-def test_kill_etcd():
+def test_round_restart_mds():
     start_iops = get_cluster_iops()
-    etcd_host = random.choice(config.etcd_list)
+    mds_list = list(config.mds_list)
     try:
-        kill_etcd_process(etcd_host)
-        end_iops = get_cluster_iops()
-        if float(end_iops)/float(start_iops) < 0.9:
-            raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+        for mds_host in mds_list:
+            kill_mds_process(mds_host)
+            time.sleep(2)
+            start_mds_process(mds_host)
+            end_iops = get_cluster_iops()
+            if float(end_iops)/float(start_iops) < 0.9:
+                raise Exception("client io is slow, = %d more than 5s" % (end_iops))
     except Exception as e:
-        start_etcd_process(etcd_host)
-        raise 
+        logger.error("round restart mds %s fail"%mds_host)
+        raise
+
+def test_kill_etcd(num=1):
+    start_iops = get_cluster_iops()
+    etcd_ips = list(config.etcd_list)
+    try:
+        for i in range(0,num):
+            etcd_host = random.choice(etcd_ips)
+            kill_etcd_process(etcd_host)
+            end_iops = get_cluster_iops()
+            if float(end_iops)/float(start_iops) < 0.9:
+                raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+            etcd_ips.remove(etcd_host)
+    except Exception as e:
+        logger.error("kill etcd %s fail"%etcd_host)
+        raise
     return etcd_host
 
-def test_start_etcd(host):
+def test_start_etcd():
     start_iops = get_cluster_iops()
-    etcd_host = host
     try:
-        start_etcd_process(etcd_host)
-        end_iops = get_cluster_iops()
-        if float(end_iops) / float(start_iops) < 0.9:
-            raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+        for etcd_host in config.etcd_list:
+            start_etcd_process(etcd_host)
+            end_iops = get_cluster_iops()
+            if float(end_iops) / float(start_iops) < 0.9:
+                raise Exception("client io is slow, = %d more than 5s" % (end_iops))
     except Exception as e:
         raise 
 
@@ -1083,7 +1157,7 @@ def test_stop_all_chunkserver():
 
 def test_kill_diff_host_chunkserver():
     start_iops = get_cluster_iops()
-    chunkserver_list = config.chunkserver_list
+    chunkserver_list = list(config.chunkserver_list)
     chunkserver_host1 = random.choice(chunkserver_list)
     chunkserver_list.remove(chunkserver_host1)
     chunkserver_host2 = random.choice(chunkserver_list)
@@ -1168,7 +1242,7 @@ def test_mds_loss_package(percent):
     try:
         package_loss_all(ssh, dev, percent)
         show_tc_inject(ssh,dev)
-        check_vm_iops(1)
+        check_vm_iops()
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
@@ -1206,7 +1280,7 @@ def test_mds_delay_package(ms):
     try:
         package_delay_all(ssh, dev, ms)
         show_tc_inject(ssh,dev)
-        check_vm_iops(1)
+        check_vm_iops()
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
@@ -1273,6 +1347,45 @@ def test_client_mem_stress(stress=50):
     inject_mem_stress(ssh,stress)
     return ssh
 
+def test_chunkserver_network_stress():
+    chunkserver_host = random.choice(config.chunkserver_list)
+    t1 = mythread.runThread(listen_network_stress, chunkserver_host)
+    t2 = mythread.runThread(inject_network_stress, chunkserver_host)
+    t1.start()
+    time.sleep(3)
+    t2.start()
+    return chunkserver_host
+
+def test_mds_network_stress():
+    mds_host = random.choice(config.mds_list)
+    t1 = mythread.runThread(listen_network_stress, mds_host)
+    t2 = mythread.runThread(inject_network_stress, mds_host)
+    t1.start()
+    time.sleep(3)
+    t2.start()
+    return mds_host
+
+def test_client_network_stress():
+    client_host = random.choice(config.client_list)
+    t1 = mythread.runThread(listen_network_stress, client_host)
+    t2 = mythread.runThread(inject_network_stress, client_host)
+    t1.start()
+    time.sleep(3)
+    t2.start()
+    return client_host
+
+def test_chunkserver_clock_offset(offset):
+    chunkserver_host = random.choice(config.chunkserver_list)
+    ssh = shell_operator.create_ssh_connect(chunkserver_host, 1046, config.abnormal_user)
+    inject_clock_offset(ssh,offset)
+    return ssh
+
+def test_mds_clock_offset(offset):
+    mds_host = random.choice(config.mds_list)
+    ssh = shell_operator.create_ssh_connect(mds_host, 1046, config.abnormal_user)
+    inject_clock_offset(ssh,offset)
+    return ssh
+
 def thrasher_abnormal_cluster():
     actions = []
     actions.append((test_kill_chunkserver_num,1.0,))
@@ -1281,3 +1394,5 @@ def thrasher_abnormal_cluster():
     actions.append((test_suspend_recover_copyset,1.0,))
     actions.append((test_kill_mds,1.0,))
 
+def log_test(i):
+    logger.info("%s"%i)

@@ -16,8 +16,8 @@ def cinder_vol_create(ssh, size):
     name = "volume" + str(int(time.time()))
     cmd = "source OPENRC && cinder create --volume-type curve %d  --availability-zone dongguan1 --disable_host  \
          pubbeta2-curve2.dg.163.org@curve --display-name %s " %(size,name)
-    rs = shell_operator.ssh_exec(ssh, cmd,log=False)
-    assert rs[3] == 0,"create vol fail"
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"create vol fail,error is %s"%rs
     id_pt = re.compile(r'\S+\s+id\s+\S\s+(\S+)')
     id_mt = id_pt.search("".join(rs[1]))
 #    logger.error("id_mt = %s"%id_mt)
@@ -27,13 +27,13 @@ def cinder_vol_create(ssh, size):
 
 def nova_vol_attach(ssh,vm_id, vol_id):
     cmd = 'source OPENRC && nova volume-attach %s %s' %(vm_id,vol_id)
-    rs = shell_operator.ssh_exec(ssh, cmd,log=False)
-    assert rs[3] == 0,"attach vol %s fail"%vol_id
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0,"attach vol %s fail,error is %s"%(vol_id,rs)
 
 def nova_vol_detach(ssh,vm_id, vol_id):
     cmd = 'source OPENRC && nova volume-detach %s %s' %(vm_id,vol_id)
-    rs = shell_operator.ssh_exec(ssh, cmd,log=False)
-    assert rs[3] == 0, "detach vol %s fail" % vol_id
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0, "detach vol %s fail,error is %s" % (vol_id,rs)
 
 def show_vol(ssh,id):
     status = 'none'
@@ -56,14 +56,18 @@ def wait_vol_status(ssh,id, status):
             time.sleep(4)
             time_all = time_all + 4
             status_now = show_vol(ssh,id)
+            if status_now == "error":
+                logger.error("vol %serror"%id)
+                assert False,"vol %s error"%id
+                break
         else:
             print "time expired %s %s" %(id, status)
             break
 
 def vol_deleted(ssh,vol_id):
     cmd = 'source OPENRC && cinder delete %s' % (vol_id)
-    rs = shell_operator.ssh_exec(ssh, cmd,log=False)
-    assert rs[3] == 0, "delete vol %s fail" % vol_id
+    rs = shell_operator.ssh_exec(ssh, cmd)
+    assert rs[3] == 0, "delete vol %s fail,error is %s" % (vol_id,rs)
 
 
 def vol_all(vm_id):
