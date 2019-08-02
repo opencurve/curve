@@ -294,6 +294,12 @@ TEST_F(CSMetricTest, CountTest) {
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
 
+    // 模拟copyset重新加载datastore,重新初始化后，chunk数量不变
+    // for bug fix: CLDCFS-1473
+    datastore->Initialize();
+    ASSERT_EQ(1, copysetMetric->GetChunkCount());
+    ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
+
     // 测试leader count计数
     ASSERT_EQ(0, metric_->GetLeaderCount());
     metric_->IncreaseLeaderCount();
