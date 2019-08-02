@@ -20,7 +20,7 @@ void MDSClientBase::OpenFile(const std::string& filename,
                             const UserInfo_t& userinfo,
                             OpenFileResponse* response,
                             brpc::Controller* cntl,
-                            std::shared_ptr<brpc::Channel> channel) {
+                            brpc::Channel* channel) {
     OpenFileRequest request;
     request.set_filename(filename);
 
@@ -32,7 +32,7 @@ void MDSClientBase::OpenFile(const std::string& filename,
                 << ", owner = " << userinfo.owner
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.OpenFile(cntl, &request, response, nullptr);
 }
 
@@ -42,7 +42,7 @@ void MDSClientBase::CreateFile(const std::string& filename,
                             bool normalFile,
                             CreateFileResponse* response,
                             brpc::Controller* cntl,
-                            std::shared_ptr<brpc::Channel> channel) {
+                            brpc::Channel* channel) {
     CreateFileRequest request;
     request.set_filename(filename);
     if (normalFile) {
@@ -61,7 +61,7 @@ void MDSClientBase::CreateFile(const std::string& filename,
                 << ", is nomalfile: " << normalFile
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.CreateFile(cntl, &request, response, NULL);
 }
 
@@ -70,7 +70,7 @@ void MDSClientBase::CloseFile(const std::string& filename,
                             const std::string& sessionid,
                             CloseFileResponse* response,
                             brpc::Controller* cntl,
-                            std::shared_ptr<brpc::Channel> channel) {
+                            brpc::Channel* channel) {
     CloseFileRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
@@ -84,7 +84,7 @@ void MDSClientBase::CloseFile(const std::string& filename,
                 << ", sessionid = " << sessionid
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.CloseFile(cntl, &request, response, nullptr);
 }
 
@@ -92,7 +92,7 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
                                 const UserInfo_t& userinfo,
                                 GetFileInfoResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     GetFileInfoRequest request;
     request.set_filename(filename);
 
@@ -104,7 +104,7 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
                 << ", owner = " << userinfo.owner
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.GetFileInfo(cntl, &request, response, nullptr);
 }
 
@@ -112,7 +112,7 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
                                 const UserInfo_t& userinfo,
                                 CreateSnapShotResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     CreateSnapShotRequest request;
     request.set_filename(filename);
 
@@ -124,7 +124,7 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
                 << ", owner = " << userinfo.owner
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.CreateSnapShot(cntl, &request, response, nullptr);
 }
 
@@ -133,7 +133,7 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
                                 uint64_t seq,
                                 DeleteSnapShotResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     DeleteSnapShotRequest request;;
     request.set_seq(seq);
     request.set_filename(filename);
@@ -147,7 +147,7 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
                 << ", seqnum = " << seq
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.DeleteSnapShot(cntl, &request, response, nullptr);
 }
 
@@ -156,7 +156,7 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
                                 const std::vector<uint64_t>* seq,
                                 ListSnapShotFileInfoResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     ListSnapShotFileInfoRequest request;
     for (unsigned int i = 0; i < (*seq).size(); i++) {
         request.add_seq((*seq)[i]);
@@ -172,7 +172,7 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
                 << ", seqnum = " << seq
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.ListSnapShot(cntl, &request, response, nullptr);
 }
 
@@ -182,7 +182,7 @@ void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
                                 uint64_t offset,
                                 GetOrAllocateSegmentResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     GetOrAllocateSegmentRequest request;
     request.set_filename(filename);
     request.set_offset(offset);
@@ -198,7 +198,7 @@ void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
                 << ", offset = " << offset
                 << ", seqnum = " << seq;
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.GetSnapShotFileSegment(cntl, &request, response, nullptr);
 }
 
@@ -207,7 +207,7 @@ void MDSClientBase::RefreshSession(const std::string& filename,
                                 const std::string& sessionid,
                                 ReFreshSessionResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     ReFreshSessionRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
@@ -220,7 +220,7 @@ void MDSClientBase::RefreshSession(const std::string& filename,
                   << ", owner = " << userinfo.owner
                   << ", sessionid = " << sessionid;
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
 }
 
@@ -229,7 +229,7 @@ void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
                                 uint64_t seq,
                                 CheckSnapShotStatusResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     CheckSnapShotStatusRequest request;
     request.set_seq(seq);
     request.set_filename(filename);
@@ -242,7 +242,7 @@ void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
                 << ", owner = " << userinfo.owner
                 << ", seqnum = " << seq;
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.CheckSnapShotStatus(cntl, &request, response, nullptr);
 }
 
@@ -250,7 +250,7 @@ void MDSClientBase::GetServerList(const LogicPoolID& logicalpooid,
                                 const std::vector<CopysetID>& copysetidvec,
                                 GetChunkServerListInCopySetsResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     GetChunkServerListInCopySetsRequest request;
     request.set_logicalpoolid(logicalpooid);
     for (auto copysetid : copysetidvec) {
@@ -260,7 +260,7 @@ void MDSClientBase::GetServerList(const LogicPoolID& logicalpooid,
     cntl->set_log_id(GetLogId());
     cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
 
-    curve::mds::topology::TopologyService_Stub stub(channel.get());
+    curve::mds::topology::TopologyService_Stub stub(channel);
     stub.GetChunkServerListInCopySets(cntl, &request, response, nullptr);
 }
 
@@ -271,7 +271,7 @@ void MDSClientBase::CreateCloneFile(const std::string &destination,
                                 uint32_t chunksize,
                                 CreateCloneFileResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     CreateCloneFileRequest request;
     request.set_seq(sn);
     request.set_filelength(size);
@@ -289,7 +289,7 @@ void MDSClientBase::CreateCloneFile(const std::string &destination,
               << ", size = " << size
               << ", chunksize = " << chunksize;
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.CreateCloneFile(cntl, &request, response, NULL);
 }
 
@@ -299,7 +299,7 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
                                 uint64_t fileID,
                                 SetCloneFileStatusResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     SetCloneFileStatusRequest request;
     request.set_filename(filename);
     request.set_filestatus(static_cast<curve::mds::FileStatus>(filestatus));
@@ -317,7 +317,7 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
                 << ", fileID = " << fileID
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.SetCloneFileStatus(cntl, &request, response, NULL);
 }
 
@@ -327,7 +327,7 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
                                 const FInfo_t* fi,
                                 GetOrAllocateSegmentResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     GetOrAllocateSegmentRequest request;
 
     // convert the user offset to seg  offset
@@ -349,7 +349,7 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
                 << ", segment offset = " << seg_offset
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.GetOrAllocateSegment(cntl, &request, response, NULL);
 }
 
@@ -360,7 +360,7 @@ void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
                                 uint64_t destinationId,
                                 RenameFileResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     RenameFileRequest request;
     request.set_oldfilename(origin);
     request.set_newfilename(destination);
@@ -380,7 +380,7 @@ void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
               << ", owner = " << userinfo.owner.c_str()
               << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.RenameFile(cntl, &request, response, NULL);
 }
 
@@ -389,7 +389,7 @@ void MDSClientBase::Extend(const std::string& filename,
                                 uint64_t newsize,
                                 ExtendFileResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     ExtendFileRequest request;
     request.set_filename(filename);
     request.set_newsize(newsize);
@@ -403,7 +403,7 @@ void MDSClientBase::Extend(const std::string& filename,
               << ", newsize = " << newsize
               << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.ExtendFile(cntl, &request, response, NULL);
 }
 
@@ -413,7 +413,7 @@ void MDSClientBase::DeleteFile(const std::string& filename,
                                 uint64_t fileid,
                                 DeleteFileResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     DeleteFileRequest request;
     request.set_filename(filename);
     request.set_forcedelete(deleteforce);
@@ -429,7 +429,7 @@ void MDSClientBase::DeleteFile(const std::string& filename,
                 << ", owner = " << userinfo.owner.c_str()
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.DeleteFile(cntl, &request, response, NULL);
 }
 
@@ -438,7 +438,7 @@ void MDSClientBase::ChangeOwner(const std::string& filename,
                                 const UserInfo_t& userinfo,
                                 ChangeOwnerResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     curve::mds::ChangeOwnerRequest request;
     uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
     request.set_date(date);
@@ -461,7 +461,7 @@ void MDSClientBase::ChangeOwner(const std::string& filename,
                 << ", new owner = " << newOwner.c_str()
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.ChangeOwner(cntl, &request, response, NULL);
 }
 
@@ -469,7 +469,7 @@ void MDSClientBase::Listdir(const std::string& dirpath,
                                 const UserInfo_t& userinfo,
                                 ListDirResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     curve::mds::ListDirRequest request;
     request.set_filename(dirpath);
 
@@ -481,7 +481,7 @@ void MDSClientBase::Listdir(const std::string& dirpath,
                 << ", owner = " << userinfo.owner.c_str()
                 << ", log id = " << cntl->log_id();
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.ListDir(cntl, &request, response, NULL);
 }
 
@@ -489,7 +489,7 @@ void MDSClientBase::Register(const std::string& ip,
                                 uint16_t port,
                                 RegistClientResponse* response,
                                 brpc::Controller* cntl,
-                                std::shared_ptr<brpc::Channel> channel) {
+                                brpc::Channel* channel) {
     curve::mds::RegistClientRequest     request;
 
     request.set_ip(ip);
@@ -502,7 +502,7 @@ void MDSClientBase::Register(const std::string& ip,
               << "ip = " << ip
               << "port = " << port;
 
-    curve::mds::CurveFSService_Stub stub(channel.get());
+    curve::mds::CurveFSService_Stub stub(channel);
     stub.RegistClient(cntl, &request, response, NULL);
 }
 
