@@ -96,7 +96,7 @@ bool MDSClient::ChangeMDServer(int* mdsAddrleft) {
 
         {
             // 加写锁，后续其他线程如果调用，则阻塞
-            WriteLockGuard wrguard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
 
             // 重新创建之前需要将原来的channel析构掉，否则会造成第二次链接失败
             delete channel_;
@@ -160,7 +160,7 @@ LIBCURVE_ERROR MDSClient::Register(const std::string& ip,
         mdsClientMetric_.registerClient.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.registerClient.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.Register(ip,
                                     port,
                                     &response,
@@ -213,7 +213,7 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
         mdsClientMetric_.openFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.openFile.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.OpenFile(filename,
                                     userinfo,
                                     &response,
@@ -287,7 +287,7 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
         mdsClientMetric_.createFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.createFile.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             curve::mds::CurveFSService_Stub stub(channel_);
             mdsClientBase_.CreateFile(filename,
                                       userinfo,
@@ -346,7 +346,7 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
         mdsClientMetric_.closeFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.closeFile.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.CloseFile(filename,
                                     userinfo,
                                     sessionid,
@@ -403,7 +403,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
         mdsClientMetric_.getFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.getFile.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetFileInfo(filename,
                                        uinfo,
                                        &response,
@@ -461,7 +461,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         brpc::Controller cntl;
         ::curve::mds::CreateSnapShotResponse response;
         {
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.CreateSnapShot(filename,
                                           userinfo,
                                           &response,
@@ -528,7 +528,7 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
         ::curve::mds::DeleteSnapShotResponse response;
 
         {
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.DeleteSnapShot(filename,
                                           userinfo,
                                           seq,
@@ -587,7 +587,7 @@ LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
         ::curve::mds::ListSnapShotFileInfoResponse response;
 
         {
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.ListSnapShot(filename,
                                         userinfo,
                                         &seqVec,
@@ -662,7 +662,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         }
 
         {
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.ListSnapShot(filename,
                                         userinfo,
                                         seq,
@@ -730,7 +730,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
         ::curve::mds::GetOrAllocateSegmentResponse response;
 
         {
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetSnapshotSegmentInfo(filename,
                                                   userinfo,
                                                   seq,
@@ -864,7 +864,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
 
         {
             LatencyGuard lg(&mdsClientMetric_.refreshSession.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.RefreshSession(filename,
                                         userinfo,
                                         sessionid,
@@ -947,7 +947,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
         ::curve::mds::CheckSnapShotStatusResponse response;
 
         {
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.CheckSnapShotStatus(filename,
                                                userinfo,
                                                seq,
@@ -1005,7 +1005,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
         mdsClientMetric_.getServerList.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.getServerList.latency);   // NOLINT
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetServerList(logicalpooid,
                                         copysetidvec,
                                         &response,
@@ -1116,7 +1116,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
         curve::mds::CreateCloneFileResponse response;
 
         {
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.CreateCloneFile(destination,
                                            userinfo,
                                            size,
@@ -1193,7 +1193,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         curve::mds::SetCloneFileStatusResponse response;
 
         {
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.SetCloneFileStatus(filename,
                                               filestatus,
                                               userinfo,
@@ -1256,7 +1256,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
         mdsClientMetric_.getOrAllocateSegment.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.getOrAllocateSegment.latency);    // NOLINT
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetOrAllocateSegment(allocate,
                                                 userinfo,
                                                 offset,
@@ -1412,7 +1412,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
         mdsClientMetric_.renameFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.renameFile.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.RenameFile(userinfo,
                                       origin,
                                       destination,
@@ -1473,7 +1473,7 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
         mdsClientMetric_.extendFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.extendFile.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.Extend(filename,
                                 userinfo,
                                 newsize,
@@ -1531,7 +1531,7 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
         mdsClientMetric_.deleteFile.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.deleteFile.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.DeleteFile(filename,
                                       userinfo,
                                       deleteforce,
@@ -1588,7 +1588,7 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
         mdsClientMetric_.changeOwner.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.changeOwner.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.ChangeOwner(filename,
                                        newOwner,
                                        userinfo,
@@ -1645,7 +1645,7 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
         mdsClientMetric_.listDir.qps.count << 1;
         {
             LatencyGuard lg(&mdsClientMetric_.listDir.latency);
-            ReadLockGuard readGuard(rwlock_);
+            std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.Listdir(dirpath,
                                    userinfo,
                                    &response,
