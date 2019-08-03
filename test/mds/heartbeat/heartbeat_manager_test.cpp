@@ -34,6 +34,8 @@ class TestHeartbeatManager : public ::testing::Test {
   void SetUp() override {
     HeartbeatOption option;
     option.cleanFollowerAfterMs = 0;
+    option.heartbeatMissTimeOutMs = 10000;
+    option.offLineTimeOutMs = 30000;
     option.mdsStartTime = steady_clock::now();
     topology_ = std::make_shared<MockTopology>();
     coordinator_ = std::make_shared<MockCoordinator>();
@@ -42,10 +44,7 @@ class TestHeartbeatManager : public ::testing::Test {
         option, topology_, topologyStat_, coordinator_);
   }
 
-  void TearDown() override {
-      heartbeatManager_->Run();
-      heartbeatManager_->Stop();
-  }
+  void TearDown() override {}
 
  protected:
   std::shared_ptr<MockTopology> topology_;
@@ -53,6 +52,11 @@ class TestHeartbeatManager : public ::testing::Test {
   std::shared_ptr<MockCoordinator> coordinator_;
   std::shared_ptr<HeartbeatManager> heartbeatManager_;
 };
+
+TEST_F(TestHeartbeatManager, test_stop_and_run) {
+    heartbeatManager_->Run();
+    heartbeatManager_->Stop();
+}
 
 TEST_F(TestHeartbeatManager, test_checkReuqest_abnormal) {
     // 1. request not initialized
