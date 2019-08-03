@@ -13,7 +13,6 @@
 
 #include <string>
 #include <vector>
-#include <memory>
 
 #include "proto/topology.pb.h"
 #include "proto/nameserver2.pb.h"
@@ -97,7 +96,7 @@ class MDSClientBase {
                   const UserInfo_t& userinfo,
                   OpenFileResponse* response,
                   brpc::Controller* cntl,
-                  std::shared_ptr<brpc::Channel> channel);
+                  brpc::Channel* channel);
     /**
      * 创建文件
      * @param: filename创建文件的文件名
@@ -114,7 +113,7 @@ class MDSClientBase {
                     bool normalFile,
                     CreateFileResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 关闭文件，需要携带sessionid，这样mds端会在数据库删除该session信息
      * @param: filename是要续约的文件名
@@ -129,7 +128,7 @@ class MDSClientBase {
                     const std::string& sessionid,
                     CloseFileResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 获取文件信息，fi是出参
      * @param: filename是文件名
@@ -142,7 +141,7 @@ class MDSClientBase {
                     const UserInfo_t& userinfo,
                     GetFileInfoResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 创建版本号为seq的快照
      * @param: userinfo是用户信息
@@ -155,7 +154,7 @@ class MDSClientBase {
                     const UserInfo_t& userinfo,
                     CreateSnapShotResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 删除版本号为seq的快照
      * @param: userinfo是用户信息
@@ -170,7 +169,7 @@ class MDSClientBase {
                     uint64_t seq,
                     DeleteSnapShotResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 以列表的形式获取版本号为seq的snapshot文件信息，snapif是出参
      * @param: filename是要快照的文件名
@@ -185,7 +184,7 @@ class MDSClientBase {
                     const std::vector<uint64_t>* seq,
                     ListSnapShotFileInfoResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 获取快照的chunk信息并更新到metacache，segInfo是出参
      * @param: filename是要快照的文件名
@@ -202,7 +201,7 @@ class MDSClientBase {
                     uint64_t offset,
                     GetOrAllocateSegmentResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
      * 续约结果将会通过leaseRefreshResult* resp返回给调用层
@@ -217,7 +216,7 @@ class MDSClientBase {
                     const std::string& sessionid,
                     ReFreshSessionResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 获取快照状态
      * @param: filenam文件名
@@ -232,7 +231,7 @@ class MDSClientBase {
                     uint64_t seq,
                     CheckSnapShotStatusResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 获取copysetid对应的serverlist信息并更新到metacache
      * @param: logicPoolId逻辑池信息
@@ -245,7 +244,7 @@ class MDSClientBase {
                     const std::vector<CopysetID>& copysetidvec,
                     GetChunkServerListInCopySetsResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 创建clone文件
      * @param:destination clone目标文件名
@@ -264,7 +263,7 @@ class MDSClientBase {
                     uint32_t chunksize,
                     CreateCloneFileResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * @brief 通知mds完成Clone Meta
      * @param: filename 目标文件
@@ -281,7 +280,7 @@ class MDSClientBase {
                     uint64_t fileID,
                     SetCloneFileStatusResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 获取segment的chunk信息，并更新到Metacache
      * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
@@ -298,7 +297,7 @@ class MDSClientBase {
                     const FInfo_t* fi,
                     GetOrAllocateSegmentResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * @brief 重名文件
      * @param:userinfo 用户信息
@@ -317,7 +316,7 @@ class MDSClientBase {
                     uint64_t destinationId,
                     RenameFileResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 扩展文件
      * @param: userinfo是用户信息
@@ -332,7 +331,7 @@ class MDSClientBase {
                     uint64_t newsize,
                     ExtendFileResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 删除文件
      * @param: userinfo是用户信息
@@ -349,7 +348,7 @@ class MDSClientBase {
                     uint64_t fileid,
                     DeleteFileResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 变更owner
      * @param: filename待变更的文件名
@@ -364,7 +363,7 @@ class MDSClientBase {
                     const UserInfo_t& userinfo,
                     ChangeOwnerResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
     /**
      * 枚举目录内容
      * @param: userinfo是用户信息
@@ -377,7 +376,7 @@ class MDSClientBase {
                     const UserInfo_t& userinfo,
                     ListDirResponse* response,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
 
     /**
      * 注册client metric信息
@@ -391,7 +390,7 @@ class MDSClientBase {
                     uint16_t port,
                     RegistClientResponse* reponse,
                     brpc::Controller* cntl,
-                    std::shared_ptr<brpc::Channel> channel);
+                    brpc::Channel* channel);
 
  private:
     /**
