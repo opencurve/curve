@@ -33,6 +33,7 @@ test get all chunk num
     ${begin_num}    get all chunk num
     ${begin_num}    Convert To Integer  ${begin_num}
     exec deleteforce
+    sleep  3
     ${end_num}    get all chunk num
     ${end_num}    Convert To Integer   ${end_num}
     should be equal    ${begin_num}   ${end_num}
@@ -331,7 +332,7 @@ inject all chunkserver down
     [Tags]    P1    base    first release   failover
     test stop all chunkserver
     test start all chunkserver
-    sleep   5
+    sleep   10
     check vm iops
     check data consistency
 #    check copies consistency
@@ -342,7 +343,7 @@ inject all chunkserver down 10min
     test stop all chunkserver
     sleep   600
     test start all chunkserver
-    sleep   5
+    sleep   80
     check vm iops
     check data consistency
 #    check copies consistency
