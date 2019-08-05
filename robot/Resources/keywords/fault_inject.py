@@ -165,6 +165,16 @@ def stop_network_stress(ip):
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
     assert rs[1] == [],"stop iperf fail,pid %s"%rs[1]
 
+def ipmitool_cycle_restart_host(ssh):
+    ori_cmd = "sudo ipmitool chassis power cycle"
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"cycle restart host fail,return is %s"%rs
+
+def ipmitool_reset_restart_host(ssh):
+    ori_cmd = "sudo ipmitool chassis power reset"
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"reset restart host fail,return is %s"%rs
+
 def get_hostip_dev(ssh,hostip):
     ori_cmd = "ip a|grep %s | awk '{print $7}'"%hostip
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -398,6 +408,14 @@ def init_vm():
         logger.error("init vm error")
         raise
     ssh.close()
+
+def check_host_connect(ip):
+    cmd = "ping %s -w3"
+    status = shell_operator.run_exec(cmd)
+    if status == 0:
+        return True
+    else:
+        return False
 
 def get_chunkserver_status(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
@@ -1385,6 +1403,23 @@ def test_mds_clock_offset(offset):
     ssh = shell_operator.create_ssh_connect(mds_host, 1046, config.abnormal_user)
     inject_clock_offset(ssh,offset)
     return ssh
+
+def test_ipmitool_restart_node():
+    chunkserver_host = random.choice(config.chunkserver_list)
+    ssh = shell_operator.create_ssh_connect(chunkserver_host, 1046, config.abnormal_user)
+    ipmitool_cycle_restart_host(ssh)
+    time.sleep(60)
+    starttime = time.time()
+    i = 0
+    while time.time() - starttime < 600:
+        status = check_host_connect(chunkserver_host)
+        if status == True:
+            break
+        else:
+            logger.debug("wait host up")
+            time.sleep(5)
+    assert status,"restart host %s fail"%chunkserver_host
+    start_host_cs_process(chunkserver_host) 
 
 def thrasher_abnormal_cluster():
     actions = []
