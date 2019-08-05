@@ -71,14 +71,16 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
 
     copysetMan_ = options.copysetNodeManager;
 
+    // 初始化timer
+    waitInterval_.Init(options_.intervalSec * 1000);
+
     // 获取当前unix时间戳
     startUpTime_ = ::curve::common::TimeUtility::GetTimeofDaySec();
     return 0;
 }
 
 int Heartbeat::Run() {
-    hbThread_ = std::unique_ptr<std::thread>(
-            new std::thread(std::bind(Heartbeat::HeartbeatWorker, this)));
+    hbThread_ = Thread(&Heartbeat::HeartbeatWorker, this);
 
     return 0;
 }
@@ -87,7 +89,7 @@ int Heartbeat::Stop() {
     LOG(INFO) << "Stopping Heartbeat manager.";
     toStop_.store(true, std::memory_order_release);
 
-    hbThread_->join();
+    hbThread_.join();
     LOG(INFO) << "Stopped Heartbeat manager.";
 
     return 0;
@@ -459,31 +461,17 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
     return 0;
 }
 
-void Heartbeat::WaitForNextHeartbeat() {
-    static int64_t t0 = butil::monotonic_time_ms();
-    int64_t t1 = butil::monotonic_time_ms();
-
-    int rest = options_.interval - (t1 - t0) / 1000;
-    rest = (rest < 0) ? 0 : rest;
-
-    t0 = t1;
-    DVLOG(6) << "Heartbeat waiting interval";
-
-    sleep(rest);
-    DVLOG(6) << "Heartbeat finished waiting";
-}
-
-void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
+void Heartbeat::HeartbeatWorker() {
     int ret;
 
     LOG(INFO) << "Starting Heartbeat worker thread.";
 
-    while (!heartbeat->toStop_.load(std::memory_order_acquire)) {
+    while (!toStop_.load(std::memory_order_acquire)) {
         HeartbeatRequest req;
         HeartbeatResponse resp;
 
         LOG(INFO) << "building heartbeat info";
-        ret = heartbeat->BuildRequest(&req);
+        ret = BuildRequest(&req);
         if (ret != 0) {
             LOG(ERROR) << "Failed to build heartbeat request";
             sleep(1);
@@ -491,7 +479,7 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
         }
 
         LOG(INFO) << "sending heartbeat info";
-        ret = heartbeat->SendHeartbeat(req, &resp);
+        ret = SendHeartbeat(req, &resp);
         if (ret != 0) {
             LOG(WARNING) << "Failed to send heartbeat to MDS";
             sleep(1);
@@ -499,14 +487,14 @@ void Heartbeat::HeartbeatWorker(Heartbeat *heartbeat) {
         }
 
         LOG(INFO) << "executing heartbeat info";
-        ret = heartbeat->ExecTask(resp);
+        ret = ExecTask(resp);
         if (ret != 0) {
             LOG(ERROR) << "Failed to execute heartbeat tasks";
             sleep(1);
             continue;
         }
 
-        heartbeat->WaitForNextHeartbeat();
+        waitInterval_.WaitForNextExcution();
     }
 
     LOG(INFO) << "Heartbeat worker thread stopped.";

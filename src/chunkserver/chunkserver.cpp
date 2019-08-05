@@ -409,7 +409,7 @@ void ChunkServer::InitHeartbeatOptions(
     LOG_IF(FATAL, !conf->GetStringValue("mds.listen.addr",
         &heartbeatOptions->mdsListenAddr));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.heartbeat_interval",
-        &heartbeatOptions->interval));
+        &heartbeatOptions->intervalSec));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.heartbeat_timeout",
         &heartbeatOptions->timeout));
 }
