@@ -408,7 +408,7 @@ def init_vm():
     ssh.close()
 
 def check_host_connect(ip):
-    cmd = "ping %s -w3"
+    cmd = "ping %s -w3"%ip
     status = shell_operator.run_exec(cmd)
     if status == 0:
         return True
