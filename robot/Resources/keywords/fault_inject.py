@@ -350,17 +350,19 @@ def check_vm_status(ssh,uuid):
 def check_vm_vd(ip,nova_ssh,uuid):
     i = 0
     while i < 300:
-    try:
-        ssh = shell_operator.create_ssh_connect(ip, 22, config.vm_user)
-        ori_cmd = "lsblk |grep vdc | awk '{print $1}'"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        output = "".join(rs[1]).strip()
-        if output == "vdc":
-            ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
-            shell_operator.ssh_exec(nova_ssh,ori_cmd)
-    except:
-        i = i + 5
-        time.sleep(5)
+        try:
+            ssh = shell_operator.create_ssh_connect(ip, 22, config.vm_user)
+            ori_cmd = "lsblk |grep vdc | awk '{print $1}'"
+            rs = shell_operator.ssh_exec(ssh, ori_cmd)
+            output = "".join(rs[1]).strip()
+            if output == "vdc":
+                ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+                shell_operator.ssh_exec(nova_ssh,ori_cmd)
+            elif output == "":
+                break
+        except:
+            i = i + 5
+            time.sleep(5)
     assert rs[3] == 0,"start vm fail,ori_cmd is %s"%rs
 
 def init_vm():
