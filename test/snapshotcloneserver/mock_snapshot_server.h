@@ -239,9 +239,10 @@ class MockSnapshotServiceManager : public SnapshotServiceManager {
         int(UUID uuid,
         const std::string &user,
         const std::string &file));
-    MOCK_METHOD3(GetFileSnapshotInfo,
+    MOCK_METHOD4(GetFileSnapshotInfo,
         int(const std::string &file,
         const std::string &user,
+        const UUID *uuid,
         std::vector<FileSnapshotInfo> *info));
     MOCK_METHOD3(CancelSnapshot,
         int(UUID uuid,
@@ -255,20 +256,23 @@ class MockCloneServiceManager : public CloneServiceManager {
         CloneServiceManager(nullptr, nullptr) {}
     ~MockCloneServiceManager() {}
 
-    MOCK_METHOD4(CloneFile,
+    MOCK_METHOD5(CloneFile,
         int(const UUID &source,
         const std::string &user,
         const std::string &destination,
-        bool lazyFlag));
+        bool lazyFlag,
+        TaskIdType *taskId));
 
-    MOCK_METHOD4(RecoverFile,
+    MOCK_METHOD5(RecoverFile,
         int(const UUID &source,
         const std::string &user,
         const std::string &destination,
-        bool lazyFlag));
+        bool lazyFlag,
+        TaskIdType *taskId));
 
-    MOCK_METHOD2(GetCloneTaskInfo,
+    MOCK_METHOD3(GetCloneTaskInfo,
         int(const std::string &user,
+        const TaskIdType *taskId,
         std::vector<TaskCloneInfo> *info));
 
     MOCK_METHOD2(CleanCloneTask,
