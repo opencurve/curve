@@ -9,6 +9,7 @@
 #define SRC_SNAPSHOTCLONESERVER_COMMON_DEFINE_H_
 
 #include <string>
+#include <map>
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -64,6 +65,8 @@ const int kErrCodeSnapshotCannotDeleteCloning = -16;
 const int kErrCodeCannotCleanCloneUnfinished = -17;
 // 错误码：快照到达上限
 const int kErrCodeSnapshotCountReachLimit = -18;
+
+extern std::map<int, std::string> code2Msg;
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

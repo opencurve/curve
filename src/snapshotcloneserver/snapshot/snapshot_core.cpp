@@ -17,6 +17,7 @@
 #include "src/common/uuid.h"
 
 using ::curve::common::UUIDGenerator;
+using ::curve::common::NameLockGuard;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -25,6 +26,7 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
     const std::string &user,
     const std::string &snapshotName,
     SnapshotInfo *snapInfo) {
+    NameLockGuard lockGuard(snapshotNameLock_, file);
     std::vector<SnapshotInfo> fileInfo;
     int ret = metaStore_->GetSnapshotList(file, &fileInfo);
     for (auto& snap : fileInfo) {
@@ -34,7 +36,6 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
             return kErrCodeSnapshotCannotCreateWhenError;
         }
     }
-    // TODO(xuchaojie): 需增加一个filelock，防止并发创建快照导致超出上限
     if (fileInfo.size() >= maxSnapshotLimit_) {
         LOG(ERROR) << "Snapshot count reach the max limit.";
         return kErrCodeSnapshotCountReachLimit;
@@ -149,7 +150,8 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
 
     ChunkIndexData indexData;
     ChunkIndexDataName name(fileName, seqNum);
-    std::vector<SegmentInfo> segInfos;
+    // the key is segment index
+    std::map<uint64_t, SegmentInfo> segInfos;
     if (existIndexData) {
         ret = dataStore_->GetChunkIndexData(name, &indexData);
         if (ret < 0) {
@@ -417,7 +419,7 @@ int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(const SnapshotInfo &info) {
 int SnapshotCoreImpl::BuildChunkIndexData(
     const SnapshotInfo &info,
     ChunkIndexData *indexData,
-    std::vector<SegmentInfo> *segInfos,
+    std::map<uint64_t, SegmentInfo> *segInfos,
     std::shared_ptr<SnapshotTaskInfo> task) {
     std::string fileName = info.GetFileName();
     std::string user = info.GetUser();
@@ -438,64 +440,67 @@ int SnapshotCoreImpl::BuildChunkIndexData(
             seqNum,
             offset,
             &segInfo);
-        if (ret != LIBCURVE_ERROR::OK &&
-            ret != -LIBCURVE_ERROR::NOT_ALLOCATE) {
-            LOG(ERROR) << "GetSnapshotSegmentInfo error, "
-                       << " ret = " << ret
-                       << ", fileName = " << fileName
-                       << ", user = " << user
-                       << ", seqNum = " << seqNum
-                       << ", offset = " << offset;
-            return kErrCodeInternalError;
-        }
-        segInfos->push_back(segInfo);
-        for (std::vector<uint64_t>::size_type j = 0;
-            j < segInfo.chunkvec.size();
-            j++) {
-            ChunkInfoDetail chunkInfo;
-            ChunkIDInfo cidInfo = segInfo.chunkvec[j];
-            ret = client_->GetChunkInfo(cidInfo,
-                &chunkInfo);
-            if (ret != LIBCURVE_ERROR::OK) {
-                LOG(ERROR) << "GetChunkInfo error, "
-                           << " ret = " << ret
-                           << ", logicalPoolId = " << cidInfo.lpid_
-                           << ", copysetId = " << cidInfo.cpid_
-                           << ", chunkId = " << cidInfo.cid_;
-                return kErrCodeInternalError;
-            }
-            // 2个sn，小的是snap sn，大的是快照之后的写
-            // 1个sn，有两种情况：
-            //    小于等于seqNum时为snap sn, 且快照之后未写过;
-            //    大于时, 表示打快照时为空，是快照之后首次写的版本(seqNum+1)
-            // 没有sn，从未写过
-            // 大于2个sn，错误，报错
-            if (chunkInfo.chunkSn.size() == 2) {
-                uint64_t seq =
-                    std::min(chunkInfo.chunkSn[0],
-                            chunkInfo.chunkSn[1]);
-                chunkIndex = i * (segmentSize / chunkSize) + j;
-                ChunkDataName chunkDataName(fileName, seq, chunkIndex);
-                indexData->PutChunkDataName(chunkDataName);
-            } else if (chunkInfo.chunkSn.size() == 1) {
-                uint64_t seq = chunkInfo.chunkSn[0];
-                if (seq <= seqNum) {
+
+        if (LIBCURVE_ERROR::OK == ret) {
+            segInfos->emplace(i, segInfo);
+            for (std::vector<uint64_t>::size_type j = 0;
+                j < segInfo.chunkvec.size();
+                j++) {
+                ChunkInfoDetail chunkInfo;
+                ChunkIDInfo cidInfo = segInfo.chunkvec[j];
+                ret = client_->GetChunkInfo(cidInfo,
+                    &chunkInfo);
+                if (ret != LIBCURVE_ERROR::OK) {
+                    LOG(ERROR) << "GetChunkInfo error, "
+                               << " ret = " << ret
+                               << ", logicalPoolId = " << cidInfo.lpid_
+                               << ", copysetId = " << cidInfo.cpid_
+                               << ", chunkId = " << cidInfo.cid_;
+                    return kErrCodeInternalError;
+                }
+                // 2个sn，小的是snap sn，大的是快照之后的写
+                // 1个sn，有两种情况：
+                //    小于等于seqNum时为snap sn, 且快照之后未写过;
+                //    大于时, 表示打快照时为空，是快照之后首次写的版本(seqNum+1)
+                // 没有sn，从未写过
+                // 大于2个sn，错误，报错
+                if (chunkInfo.chunkSn.size() == 2) {
+                    uint64_t seq =
+                        std::min(chunkInfo.chunkSn[0],
+                                chunkInfo.chunkSn[1]);
                     chunkIndex = i * (segmentSize / chunkSize) + j;
                     ChunkDataName chunkDataName(fileName, seq, chunkIndex);
                     indexData->PutChunkDataName(chunkDataName);
+                } else if (chunkInfo.chunkSn.size() == 1) {
+                    uint64_t seq = chunkInfo.chunkSn[0];
+                    if (seq <= seqNum) {
+                        chunkIndex = i * (segmentSize / chunkSize) + j;
+                        ChunkDataName chunkDataName(fileName, seq, chunkIndex);
+                        indexData->PutChunkDataName(chunkDataName);
+                    }
+                } else if (chunkInfo.chunkSn.size() == 0) {
+                    // nothing
+                } else {
+                    // should not reach here
+                    LOG(ERROR) << "GetChunkInfo return chunkInfo.chunkSn.size()"
+                               << " invalid, size = "
+                               << chunkInfo.chunkSn.size();
+                    return kErrCodeInternalError;
                 }
-            } else if (chunkInfo.chunkSn.size() == 0) {
-                // nothing
-            } else {
-                // should not reach here
-                LOG(ERROR) << "GetChunkInfo return chunkInfo.chunkSn.size() "
-                           << "invalid, size = "
-                           << chunkInfo.chunkSn.size();
-                return kErrCodeInternalError;
+                if (task->IsCanceled()) {
+                    return kErrCodeSuccess;
+                }
             }
-            if (task->IsCanceled()) {
-                return kErrCodeSuccess;
-            }
+        } else if (-LIBCURVE_ERROR::NOT_ALLOCATE == ret) {
+            // nothing
+        } else {
+            LOG(ERROR) << "GetSnapshotSegmentInfo error,"
+                       << " ret = " << ret
+                       << ", fileName = " << fileName
+                       << ", user = " << user
+                       << ", seq = " << seqNum
+                       << ", offset = " << offset;
+            return kErrCodeInternalError;
         }
     }
 
@@ -504,7 +509,7 @@ int SnapshotCoreImpl::BuildChunkIndexData(
 
 int SnapshotCoreImpl::BuildSegmentInfo(
     const SnapshotInfo &info,
-    std::vector<SegmentInfo> *segInfos) {
+    std::map<uint64_t, SegmentInfo> *segInfos) {
     int ret = kErrCodeSuccess;
     std::string fileName = info.GetFileName();
     std::string user = info.GetUser();
@@ -522,8 +527,12 @@ int SnapshotCoreImpl::BuildSegmentInfo(
             seq,
             offset,
             &segInfo);
-        if (ret != LIBCURVE_ERROR::OK &&
-            ret != -LIBCURVE_ERROR::NOT_ALLOCATE) {
+
+        if (LIBCURVE_ERROR::OK == ret) {
+            segInfos->emplace(i, std::move(segInfo));
+        } else if (-LIBCURVE_ERROR::NOT_ALLOCATE == ret) {
+            // nothing
+        } else {
             LOG(ERROR) << "GetSnapshotSegmentInfo error,"
                        << " ret = " << ret
                        << ", fileName = " << fileName
@@ -532,8 +541,6 @@ int SnapshotCoreImpl::BuildSegmentInfo(
                        << ", offset = " << offset;
             return kErrCodeInternalError;
         }
-        // todo(xuchaojie): 后续考虑是否将segInfos改成map
-        segInfos->push_back(segInfo);
     }
     return kErrCodeSuccess;
 }
@@ -624,7 +631,7 @@ int SnapshotCoreImpl::TransferSnapshotDataChunk(
 int SnapshotCoreImpl::TransferSnapshotData(
     const ChunkIndexData indexData,
     const SnapshotInfo &info,
-    const std::vector<SegmentInfo> &segInfos,
+    const std::map<uint64_t, SegmentInfo> &segInfos,
     const ChunkDataExistFilter &filter,
     std::shared_ptr<SnapshotTaskInfo> task) {
     int ret = 0;
@@ -648,21 +655,25 @@ int SnapshotCoreImpl::TransferSnapshotData(
 
     for (auto &chunkIndex : chunkIndexVec) {
         uint64_t segNum = chunkIndex / chunkPerSegment;
-        if (segNum >= segInfos.size()) {
-            LOG(ERROR) << "TransferSnapshotData, segNum >= segInfos.size()"
-                       << " segNum = " << segNum
-                       << ", size = " << segInfos.size();
+
+        auto it = segInfos.find(segNum);
+        if (it == segInfos.end()) {
+            LOG(ERROR) << "TransferSnapshotData has encounter an interanl error"
+                       << ": The ChunkIndexData is not match to SegmentInfo!!!"
+                       << " chunkIndex = " << chunkIndex
+                       << ", segNum = " << segNum;
             return kErrCodeInternalError;
         }
+
         uint64_t chunkIndexInSegment = chunkIndex % chunkPerSegment;
-        if (chunkIndexInSegment >= segInfos[segNum].chunkvec.size()) {
+        if (chunkIndexInSegment >= it->second.chunkvec.size()) {
             LOG(ERROR) << "TransferSnapshotData, "
                        << "chunkIndexInSegment >= "
                        << "segInfos[segNum].chunkvec.size()"
                        << ", chunkIndexInSegment = "
                        << chunkIndexInSegment
                        << ", size = "
-                       << segInfos[segNum].chunkvec.size();
+                       << it->second.chunkvec.size();
             return kErrCodeInternalError;
         }
     }
@@ -673,15 +684,19 @@ int SnapshotCoreImpl::TransferSnapshotData(
         uint64_t segNum = chunkIndex / chunkPerSegment;
         uint64_t chunkIndexInSegment = chunkIndex % chunkPerSegment;
 
-        ChunkIDInfo cidInfo =
-            segInfos[segNum].chunkvec[chunkIndexInSegment];
-
-        if (!filter(chunkDataName)) {
-            ret = TransferSnapshotDataChunk(chunkDataName, chunkSize, cidInfo);
-            if (ret < 0) {
-                return ret;
+        auto it = segInfos.find(segNum);
+        if (it != segInfos.end()) {
+            ChunkIDInfo cidInfo =
+                it->second.chunkvec[chunkIndexInSegment];
+            if (!filter(chunkDataName)) {
+                ret = TransferSnapshotDataChunk(
+                    chunkDataName, chunkSize, cidInfo);
+                if (ret < 0) {
+                    return ret;
+                }
             }
         }
+
         task->SetProgress(static_cast<uint32_t>(
                 kProgressTransferSnapshotDataStart + index * progressPerData));
         index++;

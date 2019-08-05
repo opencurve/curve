@@ -26,6 +26,8 @@ namespace snapshotcloneserver {
  */
 class FileSnapshotInfo {
  public:
+    FileSnapshotInfo() = default;
+
      /**
       * @brief 构造函数
       *
@@ -142,12 +144,14 @@ class SnapshotServiceManager {
      *
      * @param file 文件名
      * @param user 用户名
+     * @param uuid 指定uuid，为nullptr时不指定
      * @param info 快照信息列表
      *
      * @return 错误码
      */
     virtual int GetFileSnapshotInfo(const std::string &file,
         const std::string &user,
+        const UUID *uuid,
         std::vector<FileSnapshotInfo> *info);
 
     /**
