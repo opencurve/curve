@@ -378,11 +378,6 @@ def init_vm():
         uuid2 = "".join(rs2[1]).strip()
 #        ori_cmd = "source ADMIN &&  nova reset-state %s --active"%uuid
 #        ori_cmd2 = "source ADMIN &&  nova reset-state %s --active"%uuid2
-        ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
-        ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
-        rs = shell_operator.ssh_exec(ssh,ori_cmd)
-        rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
-        time.sleep(60)
         i = 0
         while i < 600:
            ori_cmd = "bash curve_test.sh delete"
@@ -398,10 +393,11 @@ def init_vm():
               rs = shell_operator.ssh_exec(ssh,ori_cmd)
               rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
         assert rs[3] == 0,"delete volume fail,please check.return code is %d"%rs[3] 
-        time.sleep(3)
-#        restart_vm(ssh,uuid)
-#        restart_vm(ssh,uuid2)
-#        time.sleep(1)
+        ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+        ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
+        rs = shell_operator.ssh_exec(ssh,ori_cmd)
+        rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
+        time.sleep(60)
         check_vm_status(ssh,uuid)
         check_vm_status(ssh,uuid2)
         check_vm_vd(config.vm_host,ssh,uuid)
