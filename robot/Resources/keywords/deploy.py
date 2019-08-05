@@ -103,7 +103,7 @@ def destroy_mds():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] == []:
             logger.error("mds not up")
-            return
+            continue
         pid = "".join(rs[1]).strip()
         kill_cmd = "sudo kill -9 %s"%pid
         rs = shell_operator.ssh_exec(ssh,kill_cmd)
@@ -117,7 +117,7 @@ def destroy_etcd():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] == []:
             logger.error("etcd not up")
-            return
+            continue
         pid = "".join(rs[1]).strip()
         kill_cmd = "sudo kill -9 %s"%pid
         rs = shell_operator.ssh_exec(ssh,kill_cmd)
