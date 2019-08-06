@@ -158,7 +158,6 @@ inject kill two mds
     check data consistency
     [Teardown]    test start mds
 
-
 inject round restart mds
     [Tags]    P1    base    first release   failover
     test round restart mds
@@ -179,12 +178,11 @@ inject loop restart one mds
     check data consistency
     [Teardown]    test start mds
 
-inject kill etcd
+inject kill one etcd
     [Tags]    P1    base    first release   failover   
     ${host}  test kill etcd
-#    ${limit_iops}   evaluate  int(0)
     sleep  5
-    check vm iops  ${vm_iops_limit}
+    check vm iops
     sleep  3
     test start etcd 
 #    sleep  3
@@ -192,6 +190,26 @@ inject kill etcd
     check data consistency
 #    check copies consistency
     [Teardown]     start etcd process  ${host}
+
+test round restart etcd
+    [Tags]    P1    base    first release   failover  
+    test round restart etcd
+    sleep  3
+    check vm iops
+    check data consistency
+    [Teardown]    test start etcd
+
+inject loop restart one etcd
+    [Tags]    P1    base    first release   failover
+    ${etcd_ip}    evaluate    str("10.182.26.16")
+    :FOR   ${i}   IN RANGE   10
+          kill etcd process   ${etcd_ip}
+          start etcd process  ${etcd_ip}
+          sleep  2
+          check vm iops
+    END
+    check data consistency
+    [Teardown]    test start etcd
 
 inject kill mysql
     [Tags]    P1    base    first release   failover   no-need 
@@ -336,7 +354,7 @@ test mds loss package 5%
     [Tags]    P1    base    first release   failover
     ${percent}  evaluate  int(5)
     test mds loss package  ${percent}
-    sleep  5
+    sleep  30
     check vm iops
     check data consistency
 #    check copies consistency
@@ -357,7 +375,7 @@ test mds delay package 100ms
     [Tags]    P1    base    first release   failover
     ${ms}  evaluate  int(100)
     test mds delay package  ${ms}
-    sleep  5
+    sleep  30
     check vm iops
     check data consistency
 #    check copies consistency
@@ -402,7 +420,15 @@ test pendding host all cs
 
 test ipmitool restart chunkserver node
    [Tags]    P1    base    first release   failover  
-   test ipmitool restart node
+   test ipmitool restart chunkserver
+   sleep  40
+   check vm iops
+   check data consistency
+   [Teardown]    wait iops ok   ${vm_iops_limit}
+
+test ipmitool restart mds node
+   [Tags]    P1    base    first release   failover  
+   test ipmitool restart mds
    sleep  40
    check vm iops
    check data consistency
@@ -422,6 +448,20 @@ inject kill all mds
     check vm iops  
     check data consistency
     [Teardown]    test start mds
+
+inject kill two etcd
+    [Tags]    P1    base    first release   failover
+    ${num}   evaluate  int(2)
+    test kill etcd   ${num}
+    sleep  5
+#    check vm iops
+    sleep  3
+    test start etcd
+#    sleep  3
+    check vm iops
+    check data consistency
+#    check copies consistency
+    [Teardown]     test start etcd
 
 inject all chunkserver down
     [Tags]    P1    base    first release   failover
