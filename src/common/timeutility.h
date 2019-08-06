@@ -23,6 +23,12 @@ class TimeUtility{
         return now.tv_sec * 1000000L + now.tv_usec;
     }
 
+    static inline uint64_t GetTimeofDayMs() {
+        timeval now;
+        gettimeofday(&now, NULL);
+        return now.tv_sec * 1000L + now.tv_usec / 1000;
+    }
+
     static inline uint64_t GetTimeofDaySec() {
         timeval tm;
         gettimeofday(&tm, NULL);

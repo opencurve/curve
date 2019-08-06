@@ -21,7 +21,11 @@
 
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/copyset_node_manager.h"
+#include "src/common/wait_interval.h"
+#include "src/common/concurrent/concurrent.h"
 #include "proto/heartbeat.pb.h"
+
+using ::curve::common::Thread;
 
 namespace curve {
 namespace chunkserver {
@@ -49,7 +53,7 @@ struct HeartbeatOptions {
     std::string             mdsListenAddr;
     std::string             ip;
     uint32_t                port;
-    uint32_t                interval;
+    uint32_t                intervalSec;
     uint32_t                timeout;
     CopysetNodeManager*     copysetNodeManager;
 
@@ -93,7 +97,7 @@ class Heartbeat {
     /*
      * 心跳工作线程
      */
-    static void HeartbeatWorker(Heartbeat *heartbeat);
+    void HeartbeatWorker();
 
     /*
      * 获取Chunkserver存储空间信息
@@ -123,11 +127,6 @@ class Heartbeat {
     int ExecTask(const HeartbeatResponse& response);
 
     /*
-     * 等待下一个心跳时间点
-     */
-    void WaitForNextHeartbeat();
-
-    /*
      * 输出心跳请求信息
      */
     void DumpHeartbeatRequest(const HeartbeatRequest& request);
@@ -144,10 +143,14 @@ class Heartbeat {
 
  private:
     // 心跳线程
-    std::unique_ptr<std::thread> hbThread_;
+    Thread hbThread_;
 
     // 控制心跳模块运行或停止
     std::atomic<bool> toStop_;
+
+    // 使用定时器
+    ::curve::common::WaitInterval waitInterval_;
+
 
     // Copyset管理模块
     CopysetNodeManager* copysetMan_;
