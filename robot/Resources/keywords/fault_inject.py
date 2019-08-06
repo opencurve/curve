@@ -1086,6 +1086,21 @@ def test_start_etcd():
     except Exception as e:
         raise 
 
+def test_round_restart_etcd():
+    start_iops = get_cluster_iops()
+    etcd_list = list(config.etcd_list)
+    try:
+        for etcd_host in etcd_list:
+            kill_etcd_process(etcd_host)
+            time.sleep(2)
+            start_etcd_process(etcd_host)
+            end_iops = get_cluster_iops()
+            if float(end_iops)/float(start_iops) < 0.9:
+                raise Exception("client io is slow, = %d more than 5s" % (end_iops))
+    except Exception as e:
+        logger.error("round restart etcd %s fail"%etcd_host)
+        raise
+
 def test_kill_mysql():
     start_iops = get_cluster_iops()
     mysql_host = random.choice(config.mds_list)
@@ -1402,8 +1417,9 @@ def test_mds_clock_offset(offset):
     inject_clock_offset(ssh,offset)
     return ssh
 
-def test_ipmitool_restart_node():
-    chunkserver_host = random.choice(config.chunkserver_list)
+#使用cycle会从掉电到上电有１秒钟的间隔
+def test_ipmitool_restart_chunkserver():
+    chunkserver_host = random.choice(config.chunkserver_reset_list)
     ssh = shell_operator.create_ssh_connect(chunkserver_host, 1046, config.abnormal_user)
     ipmitool_cycle_restart_host(ssh)
     time.sleep(60)
@@ -1417,7 +1433,44 @@ def test_ipmitool_restart_node():
             logger.debug("wait host up")
             time.sleep(5)
     assert status,"restart host %s fail"%chunkserver_host
-    start_host_cs_process(chunkserver_host) 
+    start_host_cs_process(chunkserver_host)
+
+#使用reset从掉电到上电没有间隔
+def test_ipmitool_reset_chunkserver():
+    chunkserver_host = random.choice(config.chunkserver_reset_list)
+    ssh = shell_operator.create_ssh_connect(chunkserver_host, 1046, config.abnormal_user)
+    ipmitool_reset_restart_host(ssh)
+    time.sleep(60)
+    starttime = time.time()
+    i = 0
+    while time.time() - starttime < 600:
+        status = check_host_connect(chunkserver_host)
+        if status == True:
+            break
+        else:
+            logger.debug("wait host up")
+            time.sleep(5)
+    assert status,"restart host %s fail"%chunkserver_host
+    start_host_cs_process(chunkserver_host)
+
+def test_ipmitool_restart_mds():
+    mds_host = random.choice(config.mds_reset_list)
+    ssh = shell_operator.create_ssh_connect(mds_host, 1046, config.abnormal_user)
+    ipmitool_cycle_restart_host(ssh)
+    time.sleep(60)
+    starttime = time.time()
+    i = 0
+    while time.time() - starttime < 600:
+        status = check_host_connect(mds_host)
+        if status == True:
+            break
+        else:
+            logger.debug("wait host up")
+            time.sleep(5)
+    assert status,"restart host %s fail"%mds_host
+    start_mds_process(mds_host)
+    start_etcd_process(mds_host)
+    start_host_cs_process(mds_host)
 
 def thrasher_abnormal_cluster():
     actions = []

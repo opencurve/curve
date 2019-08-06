@@ -14,7 +14,7 @@ import mythread
 def add_config():
     etcd = []
     for host in config.etcd_list:
-        etcd.append(host + ":12380")
+        etcd.append(host + ":12379")
     etcd_addrs = ",".join(etcd)
     # add mds config
     for host in config.mds_list:
