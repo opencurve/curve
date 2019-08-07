@@ -1087,7 +1087,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
                             .append(std::to_string(port))
                             .append(", ");
             }
-            LOG(INFO) << "copyset id : " << copysetseverl.cpid_
+            DVLOG(9) << "copyset id : " << copysetseverl.cpid_
                       << ", peer info : " << copyset_peer.c_str();
             cpinfoVec->push_back(copysetseverl);
         }

@@ -116,6 +116,11 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
+    FLAGS_minloglevel = clientconfig_.GetFileServiceOption().loginfo.loglevel;
+
+    /*
+    // 因为性能问题，日志目前不在本地打开
+    // jira:http://jira.netease.com/browse/CLDCFS-1476
     google::SetLogDestination(google::INFO,
         clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
     // 文件只保留info级别的文件包含WANING和ERROR级别，，ERROR，WARNING不单独写文件
@@ -123,10 +128,9 @@ int FileClient::Init(const std::string& configpath) {
     google::SetLogDestination(google::ERROR, "/dev/null");
     google::SetLogDestination(google::FATAL, "/dev/null");
 
-    FLAGS_minloglevel = clientconfig_.GetFileServiceOption().loginfo.loglevel;
-
-    std::string processname("libcurve");
-    google::InitGoogleLogging(processname.c_str());
+     std::string processname("libcurve");
+     google::InitGoogleLogging(processname.c_str());
+    */
 
     inited_ = true;
     return LIBCURVE_ERROR::OK;
@@ -149,7 +153,7 @@ void FileClient::UnInit() {
         delete mdsClient_;
         mdsClient_ = nullptr;
     }
-    google::ShutdownGoogleLogging();
+    // google::ShutdownGoogleLogging();
     inited_ = false;
 }
 

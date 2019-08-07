@@ -60,7 +60,7 @@ class ClientClosure : public Closure {
         confMetric_.opMaxRetry.set_value(failReqOpt_.opMaxRetry);
         confMetric_.opRetryIntervalUs.set_value(
                     failReqOpt_.opRetryIntervalUs);
-        LOG(INFO) << "Client clousre conf info: "
+        DVLOG(9) << "Client clousre conf info: "
               << "opRetryIntervalUs = " << failReqOpt_.opRetryIntervalUs
               << ", opMaxRetry = " << failReqOpt_.opMaxRetry;
     }
