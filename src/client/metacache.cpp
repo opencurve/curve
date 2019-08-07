@@ -84,7 +84,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
 
     int ret = 0;
     if (refresh || targetInfo.LeaderMayChange()) {
-        LOG(INFO) << "refresh leader, LogicPoolID = " << logicPoolId
+        DVLOG(9) << "refresh leader, LogicPoolID = " << logicPoolId
                   << ", CopysetID = " << copysetId;
         uint32_t retry = 0;
         while (retry++ < metacacheopt_.getLeaderRetry) {
