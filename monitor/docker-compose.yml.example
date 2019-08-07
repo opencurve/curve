@@ -1,0 +1,40 @@
+version: '2.0'
+
+services:
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/:/etc/prometheus/:rw
+      - ./prometheus/data:/prometheus:rw
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=256GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.listen-address=:9090'
+    network_mode: host
+
+  grafana:
+    image: grafana/grafana
+    depends_on:
+      - prometheus
+    network_mode: host
+    volumes:
+      - ./grafana/data:/var/lib/grafana:rw
+      - ./grafana/provisioning/:/etc/grafana/provisioning/:rw
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini:rw
+    environment:
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=curve
+
+  mysqld_exporter:
+    image: prom/mysqld-exporter:latest
+    environment:
+      - DATA_SOURCE_NAME=user:password@(ip:port)/
+    network_mode: host
+    command:
+      - '--web.listen-address=:9104'
