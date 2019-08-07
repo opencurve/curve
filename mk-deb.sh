@@ -93,6 +93,11 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+cp -r curve-monitor build/
+if [ $? -ne 0 ]
+then
+	exit
+fi
 mkdir -p build/curve-mds/usr/bin
 if [ $? -ne 0 ]
 then
@@ -216,6 +221,26 @@ fi
 #then
 #	exit
 #fi
+mkdir -p build/curve-monitor/usr/bin
+if [ $? -ne 0 ]
+then
+	exit
+fi
+mkdir -p build/curve-monitor/etc/curve/monitor
+if [ $? -ne 0 ]
+then
+	exit
+fi
+cp monitor/curve-monitor.sh build/curve-monitor/usr/bin/curve-monitor.sh
+if [ $? -ne 0 ]
+then
+	exit
+fi
+cp -r monitor/* build/curve-monitor/etc/curve/monitor
+if [ $? -ne 0 ]
+then
+	exit
+fi
 
 #step4 获取git提交版本信息，记录到debian包的配置文件
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
@@ -230,12 +255,14 @@ sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-mds/DEBIAN/c
 sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-sdk/DEBIAN/control
 sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-chunkserver/DEBIAN/control
 sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-tools/DEBIAN/control
+sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-monitor/DEBIAN/control
 
 #step5 打包debian包
 dpkg-deb -b build/curve-mds .
 dpkg-deb -b build/curve-sdk .
 dpkg-deb -b build/curve-chunkserver .
 dpkg-deb -b build/curve-tools .
+dpkg-deb -b build/curve-monitor .
 #aws-c-common(commit=0302570a3cbabd98293ee03971e0867f28355086)
 #aws-checksums(commit=78be31b81a2b0445597e60ecb2412bc44e762a99)
 #aws-c-event-stream(commit=ad9a8b2a42d6c6ef07ccf251b5038b89487eacb3)
