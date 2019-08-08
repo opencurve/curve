@@ -200,7 +200,7 @@ test round restart etcd
     [Teardown]    test start etcd
 
 inject loop restart one etcd
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover  no-need
     ${etcd_ip}    evaluate    str("10.182.26.16")
     :FOR   ${i}   IN RANGE   10
           kill etcd process   ${etcd_ip}
@@ -354,7 +354,7 @@ test mds loss package 5%
     [Tags]    P1    base    first release   failover
     ${percent}  evaluate  int(5)
     test mds loss package  ${percent}
-    sleep  30
+    sleep  60
     check vm iops
     check data consistency
 #    check copies consistency
@@ -375,7 +375,7 @@ test mds delay package 100ms
     [Tags]    P1    base    first release   failover
     ${ms}  evaluate  int(100)
     test mds delay package  ${ms}
-    sleep  30
+    sleep  120
     check vm iops
     check data consistency
 #    check copies consistency
@@ -450,7 +450,7 @@ inject kill all mds
     [Teardown]    test start mds
 
 inject kill two etcd
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover  no-need
     ${num}   evaluate  int(2)
     test kill etcd   ${num}
     sleep  5

@@ -102,7 +102,7 @@ def destroy_mds():
         ori_cmd = "ps -ef|grep -v grep | grep -v sudo | grep curve-mds | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] == []:
-            logger.error("mds not up")
+            logger.debug("mds not up")
             continue
         pid = "".join(rs[1]).strip()
         kill_cmd = "sudo kill -9 %s"%pid
@@ -116,7 +116,7 @@ def destroy_etcd():
         ori_cmd = "ps -ef|grep -v grep | grep etcd | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] == []:
-            logger.error("etcd not up")
+            logger.debug("etcd not up")
             continue
         pid = "".join(rs[1]).strip()
         kill_cmd = "sudo kill -9 %s"%pid
@@ -186,7 +186,10 @@ def install_deb():
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
             ori_cmd = "sudo dpkg -i *%s* aws-sdk_1.0_amd64.deb"%version
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
-            assert rs[3] == 0,"mds install deb fail"
+            assert rs[3] == 0,"mds install deb fail,error is %s"%rs
+            rm_deb = "rm *%s*"%version
+            shell_operator.ssh_exec(ssh, rm_deb)
+
         for host in config.chunkserver_list:
             cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %s*.deb %s:~/" %\
                   (config.pravie_key_path,config.curve_workspace,host)
@@ -194,7 +197,7 @@ def install_deb():
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
             ori_cmd = "sudo dpkg -i curve-chunkserver*%s* curve-tools*%s* aws-sdk_1.0_amd64.deb"%(version,version)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
-            assert rs[3] == 0, "chunkserver install deb fail"
+            assert rs[3] == 0, "chunkserver install deb fail,error is %s"%rs
             rm_deb = "rm *%s*"%version
             shell_operator.ssh_exec(ssh, rm_deb)
     except Exception:
@@ -207,12 +210,12 @@ def add_config_file():
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         ori_cmd = "sudo cp -r /etc/curve-bak /etc/curve"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"add host %s config fail"%host
+        assert rs[3] == 0,"add host %s config fail,error is %s"%(host,rs[2])
     for host in config.chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         ori_cmd = "sudo cp -r /etc/curve-bak /etc/curve"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"add host %s config fail"%host
+        assert rs[3] == 0,"add host %s config fail,error is %s"%(host,rs[2])
 
 def start_abnormal_test_services():
     try:
@@ -278,7 +281,7 @@ def restart_cinder_server():
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
     ori_cmd = "sudo service cinder-volume restart"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[1] == []
+    assert rs[1] == [],"rs is %s"%rs
 
 def wait_cinder_server_up():
     cinder_host = config.nova_host
