@@ -73,7 +73,7 @@ int CreateSnapShot(const char* filename,
                                  filename,
                                  UserInfo(userinfo.owner, userinfo.password),
                                  &seq->value);
-    LOG(ERROR) << "create snapshot ret = " << ret
+    LOG(INFO) << "create snapshot ret = " << ret
                << ", seq = " << seq->value;
     return ret;
 }

@@ -321,7 +321,7 @@ TEST(SnapInstance, SnapShotTest) {
     std::map<uint64_t, curve::client::FInfo_t> fimap;
     seqvec.push_back(1);
     seqvec.push_back(seq);
-    ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
+    ASSERT_EQ(-LIBCURVE_ERROR::NOTEXIST,
                 cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fimap));
 
     listresponse->add_fileinfo();
