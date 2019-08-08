@@ -372,7 +372,7 @@ test chunkserver delay package 100ms
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
 test mds delay package 100ms
-    [Tags]    P1    base    first release   failover
+    [Tags]    P1    base    first release   failover   no-need
     ${ms}  evaluate  int(100)
     test mds delay package  ${ms}
     sleep  120
