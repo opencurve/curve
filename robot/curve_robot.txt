@@ -2,6 +2,7 @@
 Library           Resources/keywords/base_operate.py
 Library           Resources/test/curve_base_test.py
 Library           Resources/swig/swig_operate.py
+Library           Resources/keywords/snapshot_operate.py
 Library			  Collections
 Library           RequestsLibrary
 Library           Process
@@ -1730,6 +1731,699 @@ failover demo
     Should Be Equal	    ${rc}	    ${NONE}
     terminate all processes
     [Teardown]	    file clean  ${file_fd}
+
+
+# create snapshot 相关用例
+
+create snapshot with notexist file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  snapshot create with not exist file
+    ${expect_rc}    evaluate    int(-6)
+    should be equal  ${rc}  ${expect_rc}
+
+create snapshot with null file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  snapshot create with empty str file
+    ${expect_rc}    evaluate    int(-17)
+    should be equal  ${rc}  ${expect_rc}
+
+create snapshot special char file name
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  snapshot create with special file name
+    ${expect_rc}    evaluate    int(-6)
+    should be equal  ${rc}  ${expect_rc}
+
+create snapshot with empty
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    ${seq}  snapshot normal create
+    ${seginfo_rst}  get snapshot first segment info  ${seq}
+    ${expect_segrst}  evaluate  int(-10)
+    should be equal  ${seginfo_rst}  ${expect_segrst}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+create snapshot with nomal file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${expect_chunkvecsize}  evaluate  int(64)
+    should be equal  ${seginfo.chunkVecSize.value}  ${expect_chunkvecsize}
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    ${expect_content}    evaluate    str("aaaaaaaa")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+create snapshot with nomal file and check first chunk snapshot
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${content}  read first chunk snapshot   ${seq}
+    ${expect_content}    evaluate    str("aaaaaaaa")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+# 创建文件->写文件->创建快照->修改文件->读快照验证（修改前数据）->删除重新快照->验证快照数据（修改后数据）
+create snapshot and check chunk snapshot after cow
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    #${content}  read first chunk snapshot   ${seq}
+    ${expect_content}    evaluate    str("aaaaaaaa")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    #${content}  read first chunk snapshot   ${seq}
+    ${expect_content}    evaluate    str("tttttttt")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+create snapshot repeat
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${expect_rc}    evaluate  int(-7)
+    should not be equal  ${seq.value}   ${expect_rc}
+    ${rc}  snapshot normal create
+    should be equal  ${rc}  ${expect_rc}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# getsnapshot info 用例
+
+get empty file snapshot info
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_status}    evaluate  int(0)
+    ${expect_seqnum}   evaluate  int(1)
+    ${expect_segmentsize}  evaluate  int(1073741824)
+    ${expect_filetype}  evaluate  int(4)
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
+    should be equal  ${finfo.filetype}    ${expect_filetype}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+get nomal file snapshot info
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_status}    evaluate  int(0)
+    ${expect_seqnum}   evaluate  int(1)
+    ${expect_segmentsize}  evaluate  int(1073741824)
+    ${expect_type}  evaluate  int(4)
+    ${expect_filename}  evaluate  str("lc-1")
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
+    should be equal  ${finfo.filetype}  ${expect_type}
+    should be equal  ${finfo.filename}  ${expect_filename}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check snapshot info after modify file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_status}    evaluate  int(0)
+    ${expect_seqnum}   evaluate  int(1)
+    ${expect_segmentsize}  evaluate  int(1073741824)
+    ${expect_type}  evaluate  int(4)
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
+    should be equal  ${finfo.filetype}  ${expect_type}
+    modify curve file for snapshot
+    ${finfo}    get sanpshot info  ${seq}
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
+    should be equal  ${finfo.filetype}  ${expect_type}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+get deleted snapshot info
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_status}    evaluate  int(0)
+    ${expect_seqnum}   evaluate  int(1)
+    should be equal  ${finfo.filestatus}    ${expect_status}
+    should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    ${rc}    get sanpshot info  ${seq}
+    ${expect_rc}    evaluate    int(-6)
+    should be equal  ${rc}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+get sanpshot info use error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seq.value}    evaluate  int(8)
+    ${finfo}    get sanpshot info  ${seq}
+    ${expect_rs}    evaluate    int(-6)
+    should be equal  ${finfo}  ${expect_rs}
+    ${seq.value}    evaluate  int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+delete snapshoting curve file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${rc}   delete curve file for shanpshot
+    ${expect_delete_rc}     evaluate  int(-7)
+    should be equal  ${rc}  ${expect_delete_rc}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# getsegmentinfo 相关用例
+
+check snapshot segmentinfo after modify file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    # check setment info
+    ${expect_segmentsize}   evaluate  int(1073741824)
+    ${expect_chunksize}     evaluate  int(16777216)
+    ${expect_startoffset}   evaluate  int(0)
+    ${expect_chunkvecsize}  evaluate  int(64)
+    should be equal  ${seginfo.segmentsize.value}   ${expect_segmentsize}
+    should be equal  ${seginfo.chunksize.value}     ${expect_chunksize}
+    should be equal  ${seginfo.startoffset.value}   ${expect_startoffset}
+    should be equal  ${seginfo.chunkVecSize.value}  ${expect_chunkvecsize}
+    modify curve file for snapshot
+    ${seginfo_new}  get snapshot first segment info  ${seq}
+    should be equal  ${seginfo_new.segmentsize.value}   ${expect_segmentsize}
+    should be equal  ${seginfo_new.chunksize.value}     ${expect_chunksize}
+    should be equal  ${seginfo_new.startoffset.value}   ${expect_startoffset}
+    should be equal  ${seginfo_new.chunkVecSize.value}  ${expect_chunkvecsize}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+get deleted snapshot segmentinfo
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${expect_segmentsize}   evaluate  int(1073741824)
+    ${expect_chunksize}     evaluate  int(16777216)
+    ${expect_startoffset}   evaluate  int(0)
+    ${expect_chunkvecsize}  evaluate  int(64)
+    should be equal  ${seginfo.segmentsize.value}   ${expect_segmentsize}
+    should be equal  ${seginfo.chunksize.value}     ${expect_chunksize}
+    should be equal  ${seginfo.startoffset.value}   ${expect_startoffset}
+    should be equal  ${seginfo.chunkVecSize.value}  ${expect_chunkvecsize}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    ${rs}  get snapshot first segment info  ${seq}
+    ${expect_rs}    evaluate    int(-6)
+    should be equal  ${rs}  ${expect_rs}
+    [Teardown]      delete curve file for shanpshot
+
+
+get snapshot segmentinfo with error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seq.value}    evaluate  int(8)
+    ${rc}  get snapshot first segment info  ${seq}
+    ${expect_segmen_rc}     evaluate  int(-6)
+    should be equal  ${rc}  ${expect_segmen_rc}
+    ${seq.value}    evaluate  int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check snapshot segmentinfo with nomal param
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${expect_offset}    evaluate  int(0)
+    should be equal  ${seginfo.startoffset.value}   ${expect_offset}
+    #check first segment info
+    ${seginfo.startoffset.value}    evaluate  int(1073741824)
+    ${second_seginfo}   get snapshot segment info with seq and offset  ${seq}   ${seginfo.startoffset}
+    #check second segment info
+    ${expect_rst}   evaluate  int(-10)
+    should be equal  ${second_seginfo}   ${expect_rst}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+get empty file snapshot segmentinfo
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${expect_seginfo}   evaluate  int(-10)
+    should be equal  ${seginfo}    ${expect_seginfo}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# snapshot chunkinfo 用例验证
+
+check empty file snapshot chunkinfo after modify file
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    ${seq}  snapshot normal create
+    write curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    ${expect_size}  evaluate  int(1)
+    ${expect_first_sn}  evaluate  int(2)
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    # check chunkinfo
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check nomal file snapshot chunkinfo after cow
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    ${expect_size}  evaluate  int(1)
+    ${expect_first_sn}  evaluate  int(1)
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    ${expect_size}  evaluate  int(2)
+    ${expect_first_sn}  evaluate  int(2)
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+# CLDCFS-1249
+get snapshot chunkinfo with notexist chunidinfo
+    [Tags]    P0    base    first release   no-need
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    # 修改chunkidinfo
+    ${seginfo.chunkvec[0].cpid_.value}    evaluate  int(66)
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    #TODO: 此处需要判断错误，当前是死循环，不停轮询查询id信息
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+check snapshot chunkinfo after delete snapshot
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    ${expect_size}  evaluate  int(1)
+    ${expect_first_sn}  evaluate  int(1)
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    # 此处应该再重新获取下segmentinfo, chunkvec[0]应该不存在
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    should be equal  ${chunkinfo.snSize.value}  ${expect_size}
+    should be equal  ${chunkinfo.chunkSn[0]}    ${expect_first_sn}
+    # check chunkinfo
+    [Teardown]      delete curve file for shanpshot
+
+
+# read snapshot chunk 用例 CLDCFS-1249
+
+read snapshot chunk with notexist idinfo
+    [Tags]    P0    base    first release   no-need
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    # 修改chunkidinfo
+    ${seginfo.chunkvec[0].cpid_.value}    evaluate  int(66)
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    # TODO:当前客户端死循环打印错误，此处校验结果应该返回错误
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+read snapshot chunk with error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${seq.value}    evaluate  int(8)
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    # 此处校验结果应该返回错误
+    ${expect_rst}   evaluate  int(-6)
+    should be equal  ${content}     ${expect_rst}
+    ${seq.value}    evaluate  int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# 查询快照状态用例
+check empty file snapshot status
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    ${seq}  snapshot normal create
+    ${status}   check snapshot status   ${seq}
+    ${expect_status}    evaluate  int(0)
+    should be equal  ${status.value}      ${expect_status}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check nomal file snapshot status
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${status}   check snapshot status   ${seq}
+    ${expect_status}    evaluate  int(0)
+    should be equal  ${status.value}      ${expect_status}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+check snapshot status after snapshot deleted
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${status}   check snapshot status   ${seq}
+    ${expect_status}    evaluate  int(0)
+    should be equal  ${status.value}      ${expect_status}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    ${new_status}   check snapshot status   ${seq}
+    ${expect_rst}   evaluate  int(-6)
+    should be equal  ${new_status}      ${expect_rst}
+    [Teardown]      delete curve file for shanpshot
+
+
+check snapshot status after file and snapshot deleted
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${status}   check snapshot status   ${seq}
+    ${expect_status}    evaluate  int(0)
+    should be equal  ${status.value}      ${expect_status}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    delete curve file for shanpshot
+    ${rc}   check snapshot status   ${seq}
+    ${expect_rst}   evaluate  int(-6)
+    should be equal  ${rc}      ${expect_rst}
+
+check snapshot status use error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seq.value}    evaluate  int(8)
+    ${rs}   check snapshot status   ${seq}
+    ${expect_rs}    evaluate  int(-6)
+    should be equal  ${rs}  ${expect_rs}
+    ${seq.value}    evaluate  int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+# 删除快照相关用例
+repeat delete snapshot
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    ${rs}   delete file snapshot    ${seq}
+    ${expect_rs}    evaluate  int(-6)
+    should be equal  ${rs}  ${expect_rs}
+    [Teardown]      delete curve file for shanpshot
+
+delete snapshot use error seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seq.value}    evaluate  int(8)
+    ${rs}   delete file snapshot    ${seq}
+    ${expect_rs}    evaluate  int(-6)
+    should be equal  ${rs}  ${expect_rs}
+    ${seq.value}    evaluate    int(1)
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+# 删除chunk快照(当前无限重试，需要调用方设置重试次数)  CLDCFS-1254
+delete chunk snapshot with snapshot seq
+    [Tags]    P0    base    first release   no-need
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
+    should be equal  ${rc}  ${expect_rc}
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    # 此处判断返回结果是否为错误
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+delete chunk snapshot with correct seq
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${seq.value}    evaluate  ${seq.value}+1
+    ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
+    should be equal  ${rc}  ${expect_rc}
+    ${seq.value}    evaluate  ${seq.value}-1
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    ${expect_rst}   evaluate  int(-6)
+    should be equal  ${content}     ${expect_rst}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+repeat delete chunk snapshot
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${seq.value}    evaluate  ${seq.value}+1
+    ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
+    should be equal  ${rc}  ${expect_rc}
+    ${rc}   delete chunk snapshot with correct sn  ${seginfo.chunkvec[0]}  ${seq}
+    should be equal  ${rc}  ${expect_rc}
+    ${seq.value}    evaluate  ${seq.value}-1
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
+
+
+# 创建clone&recover
+# 步骤：创建文件、写文件、创建快照记录seq，触发cow，获取快照信息（版本号），createclonechunk(指定s3上对象，correctedseq=快照seq),恢复快照，验证chunk数据是否为s3数据
+create clone and recover chunk
+    [Tags]    P0    base    first release   test-snapshot
+    ${rc}  create curve file for snapshot
+    ${expect_rc}    evaluate    int(0)
+    should be equal  ${rc}  ${expect_rc}
+    write curve file for snapshot
+    ${seq}  snapshot normal create
+    modify curve file for snapshot
+    ${cotent}   read 4k length curve file
+    ${expect_content}   evaluate  str("tttttttt")*512
+    should be equal  ${cotent}  ${expect_content}
+    ${seginfo}  get snapshot first segment info  ${seq}
+    ${chunkinfo}    get chunk info with chunk id info  ${seginfo.chunkvec[0]}
+    #${seginfo.chunkvec[0].cid_.value}     evaluate  int(2)
+    ${rc}   create clone chunk with s3 object   ${seginfo.chunkvec[0]}
+    should be equal  ${rc}  ${expect_rc}
+    ${rc}   recover chunk data  ${seginfo.chunkvec[0]}
+    should be equal  ${rc}  ${expect_rc}
+    # check数据
+    ${content}  read chunk snapshot  ${seginfo.chunkvec[0]}  ${seq}
+    ${expect_content}   evaluate  str("aaaaaaaa")*512
+    should be equal  ${content}     ${expect_content}
+    ${rs}   delete file snapshot    ${seq}
+    sleep  2
+    should be equal  ${rs}  ${expect_rc}
+    [Teardown]      delete curve file for shanpshot
 
 
 *** Keywords ***
