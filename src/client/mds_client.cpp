@@ -630,7 +630,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
 
         if (size != seq->size()) {
             LOG(ERROR) << "target seq snapshot not found!";
-            return LIBCURVE_ERROR::FAILED;
+            return LIBCURVE_ERROR::NOTEXIST;
         }
 
         LIBCURVE_ERROR retcode;
