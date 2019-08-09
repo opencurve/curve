@@ -81,6 +81,7 @@ TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreSuccess) {
                 Return(kErrCodeSuccess)));
     FInfo fInfo;
     fInfo.filestatus = FileStatus::Created;
+    fInfo.owner = user;
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(fInfo),
@@ -100,6 +101,7 @@ TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreAddSnapshotFail) {
         .WillOnce(Return(kErrCodeSuccess));
     FInfo fInfo;
     fInfo.filestatus = FileStatus::Created;
+    fInfo.owner = user;
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(fInfo),
@@ -155,10 +157,11 @@ TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreInvalidUser) {
         .WillOnce(Return(kErrCodeSuccess));
     FInfo fInfo;
     fInfo.filestatus = FileStatus::Created;
+    fInfo.owner = "user2";
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(fInfo),
-                    Return(-LIBCURVE_ERROR::AUTHFAIL)));
+                    Return(LIBCURVE_ERROR::OK)));
     int ret = core_->CreateSnapshotPre(file, user, desc, &info);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 }
@@ -189,6 +192,7 @@ TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreFailStatusInvalid) {
         .WillOnce(Return(kErrCodeSuccess));
     FInfo fInfo;
     fInfo.filestatus = FileStatus::Cloning;
+    fInfo.owner = user;
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(fInfo),
