@@ -322,7 +322,6 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
 }
 
 void MDSClientBase::GetOrAllocateSegment(bool allocate,
-                                const UserInfo_t& userinfo,
                                 uint64_t offset,
                                 const FInfo_t* fi,
                                 GetOrAllocateSegmentResponse* response,
@@ -341,10 +340,10 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
 
     cntl->set_log_id(GetLogId());
     cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-    FillUserInfo<GetOrAllocateSegmentRequest>(&request, userinfo);
+    FillUserInfo<GetOrAllocateSegmentRequest>(&request, fi->userinfo);
 
     LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
-                << ", owner = " << userinfo.owner.c_str()
+                << ", owner = " << fi->owner.c_str()
                 << ", offset = " << offset
                 << ", segment offset = " << seg_offset
                 << ", log id = " << cntl->log_id();

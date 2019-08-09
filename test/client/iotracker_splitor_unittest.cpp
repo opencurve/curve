@@ -229,11 +229,12 @@ class IOTrackerSplitorTest : public ::testing::Test {
         curve::client::MetaCache* mc = fileinstance_->GetIOManager4File()->
                                                             GetMetaCache();
         curve::client::FInfo_t fi;
+        fi.userinfo = userinfo;
         fi.chunksize   = 4 * 1024 * 1024;
         fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
         SegmentInfo sinfo;
         LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-        mdsclient_.GetOrAllocateSegment(true, userinfo, 0, &fi, &sinfo);
+        mdsclient_.GetOrAllocateSegment(true, 0, &fi, &sinfo);
         int count = 0;
         for (auto iter : sinfo.chunkvec) {
             uint64_t index = (sinfo.startoffset + count*fi.chunksize )
@@ -649,11 +650,11 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     auto fileserv = new FileInstance();
 
     UserInfo_t rootuserinfo;
-    rootuserinfo.owner = "userinfo";
-    rootuserinfo.password = "12345";
+    rootuserinfo.owner = "root";
+    rootuserinfo.password = "root_password";
 
-    ASSERT_TRUE(fileserv->Initialize("/test", &mdsclient_, userinfo, fopt));
-
+    ASSERT_TRUE(fileserv->Initialize("/test", &mdsclient_, rootuserinfo, fopt));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, fileserv->Open("1_userinfo_.txt", userinfo));
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();
 
@@ -679,6 +680,10 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     };
     std::thread process(threadfunc);
     std::thread waitthread(waitfunc);
+
+    uint64_t off = 4 * 1024 * 1024 * 1024ul - 4 * 1024;
+    uint64_t len = 4 * 1024 * 1024 + 8 * 1024;
+    iomana->Write(buf, off, len, &mdsclient_);
 
     if (process.joinable()) {
         process.join();
