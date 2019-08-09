@@ -160,7 +160,6 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
 
     if (chunkidxexist == MetaCacheErrorType::CHUNKINFO_NOT_FOUND) {
         LIBCURVE_ERROR re = mdsclient->GetOrAllocateSegment(true,
-                                        UserInfo(fileinfo->owner, ""),
                                         (off_t)chunkidx * fileinfo->chunksize,
                                         fileinfo,
                                         &segInfo);

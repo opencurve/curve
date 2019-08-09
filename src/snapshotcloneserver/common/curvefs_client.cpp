@@ -142,13 +142,11 @@ int CurveFsClientImpl::GetFileInfo(
 }
 
 int CurveFsClientImpl::GetOrAllocateSegmentInfo(
-    bool allocate,
-    uint64_t offset,
-    const FInfo* fileInfo,
-    const std::string user,
-    SegmentInfo *segInfo) {
-    return client_.GetOrAllocateSegmentInfo(allocate, offset, fileInfo,
-        UserInfo(user, ""), segInfo);
+    bool allocate, uint64_t offset, FInfo* fileInfo,
+    const std::string &user, SegmentInfo *segInfo) {
+    fileInfo->userinfo = UserInfo(user, "");
+    return client_.GetOrAllocateSegmentInfo(allocate, offset,
+                                            fileInfo, segInfo);
 }
 
 int CurveFsClientImpl::RenameCloneFile(
