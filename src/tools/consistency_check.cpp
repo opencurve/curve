@@ -49,13 +49,14 @@ bool CheckFileConsistency::FetchFileCopyset() {
 
     curve::client::UserInfo_t userinfo;
     userinfo.owner = FLAGS_username;
+    finfo.userinfo = userinfo;
 
     for (int i = 0; i < FLAGS_filesize/FLAGS_segmentsize; i++) {
         curve::client::SegmentInfo_t segInfo;
 
         // 1. 获取文件的copyset id信息
         LIBCURVE_ERROR ret = mdsclient_.GetOrAllocateSegment(false,
-                             userinfo, i * FLAGS_segmentsize, &finfo, &segInfo);
+                                    i * FLAGS_segmentsize, &finfo, &segInfo);
         if (ret != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "get segment info failed, exit consistency check!";
             return false;

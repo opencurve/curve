@@ -200,7 +200,7 @@ class MockCurveFsClient : public CurveFsClient {
     MOCK_METHOD5(GetOrAllocateSegmentInfo,
         int(bool allocate,
         uint64_t offset,
-        const FInfo* fileInfo,
+        FInfo* fileInfo,
         const std::string &user,
         SegmentInfo *segInfo));
 

@@ -1170,7 +1170,6 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
 }
 
 LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
-                                        const UserInfo_t& userinfo,
                                         uint64_t offset,
                                         const FInfo_t* fi,
                                         SegmentInfo *segInfo) {
@@ -1190,7 +1189,6 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
             LatencyGuard lg(&mdsClientMetric_.getOrAllocateSegment.latency);    // NOLINT
             std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetOrAllocateSegment(allocate,
-                                                userinfo,
                                                 offset,
                                                 fi,
                                                 &response,
@@ -1206,7 +1204,6 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                         << ", offset:" << offset
                         << ", retry allocate, retry times = "
                         << count;
-
 
             // 1. 访问不存在的IP地址会报错：ETIMEDOUT
             // 2. 访问存在的IP地址，但无人监听：ECONNREFUSED

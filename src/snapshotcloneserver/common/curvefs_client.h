@@ -270,7 +270,7 @@ class CurveFsClient {
     virtual int GetOrAllocateSegmentInfo(
         bool allocate,
         uint64_t offset,
-        const FInfo* fileInfo,
+        FInfo* fileInfo,
         const std::string &user,
         SegmentInfo *segInfo) = 0;
 
@@ -412,7 +412,7 @@ class CurveFsClientImpl : public CurveFsClient {
     int GetOrAllocateSegmentInfo(
         bool allocate,
         uint64_t offset,
-        const FInfo* fileInfo,
+        FInfo* fileInfo,
         const std::string &user,
         SegmentInfo *segInfo) override;
 

@@ -119,30 +119,6 @@ typedef struct SegmentInfo {
     LogicalPoolCopysetIDInfo lpcpIDInfo;
 } SegmentInfo_t;
 
-typedef struct FInfo {
-    uint64_t        id;
-    uint64_t        parentid;
-    FileType        filetype;
-    uint32_t        chunksize;
-    uint32_t        segmentsize;
-    uint64_t        length;
-    uint64_t        ctime;
-    uint64_t        seqnum;
-    std::string     owner;
-    std::string     filename;
-    std::string     fullPathName;
-    FileStatus      filestatus;
-
-    FInfo() {
-        id = 0;
-        ctime = 0;
-        seqnum = 0;
-        length = 0;                                                        // NOLINT
-        chunksize = 4 * 1024 * 1024;
-        segmentsize = 1 * 1024 * 1024 * 1024ul;
-    }
-} FInfo_t;
-
 // 存储用户信息
 typedef struct UserInfo {
     // 当前执行的owner信息
@@ -164,6 +140,33 @@ typedef struct UserInfo {
         return owner != "";
     }
 } UserInfo_t;
+
+typedef struct FInfo {
+    uint64_t        id;
+    uint64_t        parentid;
+    FileType        filetype;
+    uint32_t        chunksize;
+    uint32_t        segmentsize;
+    uint64_t        length;
+    uint64_t        ctime;
+    uint64_t        seqnum;
+    // userinfo是当前操作这个文件的用户信息
+    UserInfo_t      userinfo;
+    // owner是当前文件所属信息
+    std::string     owner;
+    std::string     filename;
+    std::string     fullPathName;
+    FileStatus      filestatus;
+
+    FInfo() {
+        id = 0;
+        ctime = 0;
+        seqnum = 0;
+        length = 0;
+        chunksize = 4 * 1024 * 1024;
+        segmentsize = 1 * 1024 * 1024 * 1024ul;
+    }
+} FInfo_t;
 
 // ChunkServerAddr 代表一个copyset group里的一个chunkserver节点
 // 与braft中的PeerID对应
