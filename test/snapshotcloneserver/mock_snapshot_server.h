@@ -151,7 +151,7 @@ class MockCurveFsClient : public CurveFsClient {
             uint64_t len,
             char *buf));
     MOCK_METHOD2(DeleteChunkSnapshotOrCorrectSn,
-        int(ChunkIDInfo cidinfo,
+        int(const ChunkIDInfo &cidinfo,
         uint64_t correctedSeq));
 
     MOCK_METHOD4(CheckSnapShotStatus,
@@ -161,7 +161,7 @@ class MockCurveFsClient : public CurveFsClient {
         FileStatus* filestatus));
 
     MOCK_METHOD2(GetChunkInfo,
-        int(ChunkIDInfo cidinfo,
+        int(const ChunkIDInfo &cidinfo,
         ChunkInfoDetail *chunkInfo));
 
     MOCK_METHOD6(CreateCloneFile,
@@ -201,7 +201,7 @@ class MockCurveFsClient : public CurveFsClient {
         int(bool allocate,
         uint64_t offset,
         const FInfo* fileInfo,
-        const std::string user,
+        const std::string &user,
         SegmentInfo *segInfo));
 
     MOCK_METHOD5(RenameCloneFile,
@@ -215,6 +215,14 @@ class MockCurveFsClient : public CurveFsClient {
         int(const std::string &fileName,
         const std::string &user,
         uint64_t fileId));
+
+    MOCK_METHOD2(Mkdir,
+        int(const std::string& dirpath,
+        const std::string &user));
+
+    MOCK_METHOD2(ChangeOwner,
+        int(const std::string& filename,
+            const std::string& newOwner));
 };
 
 class MockSnapshotServiceManager : public SnapshotServiceManager {
