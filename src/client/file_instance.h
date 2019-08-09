@@ -104,9 +104,6 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
     // 当前FileInstance的初始化配置信息
     FileServiceOption_t     fileopt_;
 
-    // 与mds通信时携带的user信息
-    UserInfo_t             userinfo_;
-
     // MDSClient是FileInstance与mds通信的唯一出口
     MDSClient*              mdsclient_;
 
