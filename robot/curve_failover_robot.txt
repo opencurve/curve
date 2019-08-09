@@ -427,7 +427,7 @@ test ipmitool restart chunkserver node
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
 test ipmitool restart mds node
-   [Tags]    P1    base    first release   failover  
+   [Tags]    P1    base    first release   failover    no-need 
    test ipmitool restart mds
    sleep  40
    check vm iops
