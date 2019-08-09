@@ -95,7 +95,6 @@ class MDSClient {
     /**
      * 获取segment的chunk信息，并更新到Metacache
      * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
-     * @param: userinfo为user信息
      * @param: offset为文件整体偏移
      * @param: fi是当前文件的基本信息
      * @param[out]: segInfoh获取当前segment的内部chunk信息
@@ -103,7 +102,6 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetOrAllocateSegment(bool allocate,
-                            const UserInfo_t& userinfo,
                             uint64_t offset,
                             const FInfo_t* fi,
                             SegmentInfo *segInfo);

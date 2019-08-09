@@ -119,7 +119,6 @@ typedef struct SegmentInfo {
     LogicalPoolCopysetIDInfo lpcpIDInfo;
 } SegmentInfo_t;
 
-
 // 存储用户信息
 typedef struct UserInfo {
     // 当前执行的owner信息
@@ -153,6 +152,7 @@ typedef struct FInfo {
     uint64_t        seqnum;
     // userinfo是当前操作这个文件的用户信息
     UserInfo_t      userinfo;
+    // owner是当前文件所属信息
     std::string     owner;
     std::string     filename;
     std::string     fullPathName;
@@ -162,7 +162,7 @@ typedef struct FInfo {
         id = 0;
         ctime = 0;
         seqnum = 0;
-        length = 0;                                                        // NOLINT
+        length = 0;
         chunksize = 4 * 1024 * 1024;
         segmentsize = 1 * 1024 * 1024 * 1024ul;
     }

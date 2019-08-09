@@ -140,10 +140,8 @@ int SnapshotClient::GetFileInfo(const std::string &filename,
 int SnapshotClient::GetOrAllocateSegmentInfo(bool allocate,
                                         uint64_t offset,
                                         const FInfo_t* fi,
-                                        const UserInfo_t& userinfo,
                                         SegmentInfo *segInfo) {
-    int ret = mdsclient_.GetOrAllocateSegment(allocate, userinfo,
-                                        offset, fi, segInfo);
+    int ret = mdsclient_.GetOrAllocateSegment(allocate, offset, fi, segInfo);
 
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(INFO) << "GetSnapshotSegmentInfo failed, ret = " << ret;
