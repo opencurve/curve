@@ -926,14 +926,18 @@ def pendding_all_cs_recover():
         down_list = list["down"]
         csid_list = []
         time.sleep(config.offline_timeout + 60)
+        mds = []
+        for host in config.mds_list:
+            mds.append(host + ":6666")
+        mds_addrs = ",".join(mds)
         for cs in down_list:
             chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
             assert chunkserver_id != -1
             csid_list.append(chunkserver_id)
-            pendding_cmd = "sudo curve-tool -mds_port=6666 -mds_ip=%s -op=set_chunkserver \
-                    -chunkserver_id=%d -chunkserver_status=pendding"%(config.mds_list[0],chunkserver_id)
+            pendding_cmd = "sudo curve-tool -mds_port=6666 -mds_addr=%s -op=set_chunkserver \
+                    -chunkserver_id=%d -chunkserver_status=pendding"%(mds_addrs,chunkserver_id)
             rs = shell_operator.ssh_exec(ssh_mds,pendding_cmd)
-            assert rs[3] == 0,"pendding chunkserver %d fail,rs is %s"%(cs,rs[1])
+            assert rs[3] == 0,"pendding chunkserver %d fail,rs is %s"%(cs,rs)
         time.sleep(10)
         i = 0
         while i < config.recover_time:
