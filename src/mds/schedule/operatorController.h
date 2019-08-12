@@ -11,6 +11,7 @@
 
 #include <map>
 #include <vector>
+#include <memory>
 #include "src/mds/schedule/operator.h"
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/topology/topology.h"
@@ -18,15 +19,13 @@
 namespace curve {
 namespace mds {
 namespace schedule {
-enum OperatorAction {
-    ADD = 1,
-    REMOVE = 2,
-};
+class ScheduleMetrics;
 
 class OperatorController {
  public:
     OperatorController() = default;
-    explicit OperatorController(int concurent);
+    explicit OperatorController(
+        int concurent, std::shared_ptr<ScheduleMetrics> metric);
     ~OperatorController() = default;
 
     bool AddOperator(const Operator &op);
@@ -88,19 +87,13 @@ class OperatorController {
 
     void RemoveOperatorLocked(const CopySetKey &key);
 
-    /*
-     * @brief UpdateOperatorMetric 在添加和移除operator的时候更新metric
-     *
-     * @param[in] OperatorAction ADD表示添加，REMOVE表示移除
-     * @param[in] op 需要移除或添加的operator
-     */
-    void UpdateOperatorMetric(OperatorAction action, const Operator &op);
-
  private:
     int operatorConcurrent_;
     std::map<CopySetKey, Operator> operators_;
     std::map<ChunkServerIdType, int> opInfluence_;
     std::mutex mutex_;
+
+    std::shared_ptr<ScheduleMetrics> metrics_;
 };
 
 }  // namespace schedule
