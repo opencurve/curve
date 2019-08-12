@@ -228,6 +228,10 @@ ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
 std::string RemovePeer::OperatorStepToString() {
     return "remove peer " + std::to_string(remove_);
 }
+
+ChunkServerIdType RemovePeer::GetTargetPeer() const {
+    return remove_;
+}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

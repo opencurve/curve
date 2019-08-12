@@ -27,7 +27,7 @@
 #include "src/mds/topology/topology_config.h"
 #include "src/mds/topology/topology_stat.h"
 #include "src/mds/topology/topology_metric.h"
-#include "src/mds/schedule/schedulerMetric.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 #include "src/mds/copyset/copyset_manager.h"
 #include "src/common/configuration.h"
 #include "src/mds/heartbeat/heartbeat_service.h"
@@ -54,7 +54,7 @@ using ::curve::mds::heartbeat::HeartbeatOption;
 using ::curve::mds::schedule::TopoAdapterImpl;
 using ::curve::mds::schedule::TopoAdapter;
 using ::curve::mds::schedule::ScheduleOption;
-using ::curve::mds::schedule::SchedulerMetric;
+using ::curve::mds::schedule::ScheduleMetrics;
 using ::curve::common::Configuration;
 
 namespace curve {
@@ -401,12 +401,11 @@ int curve_main(int argc, char **argv) {
     LOG_IF(FATAL, !cleanManger->Start()) << "start cleanManager fail.";
 
     // =========================init scheduler======================//
-    LOG_IF(FATAL, SchedulerMetric::GetInstance() == nullptr)
-        << "init scheduler metric fail";
+    auto scheduleMetrics = std::make_shared<ScheduleMetrics>(topology);
     auto topoAdapter = std::make_shared<TopoAdapterImpl>(
         topology, topologyServiceManager, topologyStat);
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
-    coordinator->InitScheduler(scheduleOption);
+    coordinator->InitScheduler(scheduleOption, scheduleMetrics);
     coordinator->Run();
 
     // =======================init heartbeat manager================//

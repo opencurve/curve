@@ -24,9 +24,10 @@ Coordinator::~Coordinator() {
     Stop();
 }
 
-void Coordinator::InitScheduler(const ScheduleOption &conf) {
+void Coordinator::InitScheduler(
+    const ScheduleOption &conf, std::shared_ptr<ScheduleMetrics> metrics) {
     opController_ =
-        std::make_shared<OperatorController>(conf.operatorConcurrent);
+        std::make_shared<OperatorController>(conf.operatorConcurrent, metrics);
 
     if (conf.enableLeaderScheduler) {
         schedulerController_[SchedulerType::LeaderSchedulerType] =
