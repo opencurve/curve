@@ -9,8 +9,10 @@
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/topology/topology_id_generator.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 #include "src/mds/common/mds_define.h"
 #include "test/mds/schedule/mock_topoAdapter.h"
+#include "test/mds/mock/mock_topology.h"
 #include "test/mds/schedule/common.h"
 
 using ::testing::_;
@@ -20,28 +22,31 @@ using ::testing::SetArgPointee;
 using ::testing::DoAll;
 
 using ::curve::mds::topology::TopologyIdGenerator;
+using ::curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
 namespace schedule {
 class TestRecoverSheduler : public ::testing::Test {
  protected:
-  TestRecoverSheduler() {}
-  ~TestRecoverSheduler() {}
+    TestRecoverSheduler() {}
+    ~TestRecoverSheduler() {}
 
-  void SetUp() override {
-      opController_ = std::make_shared<OperatorController>(2);
-      topoAdapter_ = std::make_shared<MockTopoAdapter>();
-      int64_t runInterval = 1;
-      recoverScheduler_ =
-          std::make_shared<RecoverScheduler>(opController_, runInterval,
-            10, 100, 1000, 0.2, 3, topoAdapter_);
-  }
-  void TearDown() override {
-      opController_ = nullptr;
-      topoAdapter_ = nullptr;
-      recoverScheduler_ = nullptr;
-  }
+    void SetUp() override {
+        auto topo = std::make_shared<MockTopology>();
+        auto metric = std::make_shared<ScheduleMetrics>(topo);
+        opController_ = std::make_shared<OperatorController>(2, metric);
+        topoAdapter_ = std::make_shared<MockTopoAdapter>();
+        int64_t runInterval = 1;
+        recoverScheduler_ =
+            std::make_shared<RecoverScheduler>(opController_, runInterval,
+                10, 100, 1000, 0.2, 3, topoAdapter_);
+    }
+    void TearDown() override {
+        opController_ = nullptr;
+        topoAdapter_ = nullptr;
+        recoverScheduler_ = nullptr;
+    }
 
  protected:
   std::shared_ptr<MockTopoAdapter> topoAdapter_;
@@ -218,7 +223,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
 
     {
         // 3. 副本数量大于标准，follower挂掉
-        opController_->RemoveOperator(op.copsetID);
+        opController_->RemoveOperator(op.copysetID);
         csInfo1.state = OnlineState::ONLINE;
         csInfo2.state = OnlineState::OFFLINE;
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(id1, _))
@@ -235,7 +240,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
 
     {
         // 4. 副本数目等于标准， follower挂掉
-        opController_->RemoveOperator(op.copsetID);
+        opController_->RemoveOperator(op.copysetID);
         EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
             .WillRepeatedly(Return(3));
         std::vector<ChunkServerInfo> chunkserverList(
@@ -266,7 +271,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
 
     {
         // 5. 选不出替换chunkserver
-        opController_->RemoveOperator(op.copsetID);
+        opController_->RemoveOperator(op.copysetID);
         EXPECT_CALL(*topoAdapter_, GetChunkServersInPhysicalPool(_))
             .WillOnce(Return(std::vector<ChunkServerInfo>{}));
         ASSERT_EQ(0, recoverScheduler_->Schedule());

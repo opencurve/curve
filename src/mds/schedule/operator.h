@@ -62,7 +62,7 @@ class Operator {
  public:
   EpochType startEpoch;
   // CopySetKey is a pair, first-logicalPoolId, second-copysetId
-  CopySetKey copsetID;
+  CopySetKey copysetID;
   steady_clock::time_point createTime;
   OperatorPriority priority;
   // TODO(lixiaocui): 可能可以改成模板
