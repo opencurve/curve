@@ -6,8 +6,12 @@
  */
 
 #include "src/mds/schedule/scheduler.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 #include "test/mds/schedule/mock_topoAdapter.h"
+#include "test/mds/mock/mock_topology.h"
 #include "test/mds/schedule/common.h"
+
+using ::curve::mds::topology::MockTopology;
 
 using ::testing::_;
 using ::testing::Return;
@@ -24,7 +28,9 @@ class TestReplicaSchedule : public ::testing::Test {
   ~TestReplicaSchedule() {}
 
   void SetUp() override {
-      opController_ = std::make_shared<OperatorController>(2);
+      auto topo = std::make_shared<MockTopology>();
+      auto metric = std::make_shared<ScheduleMetrics>(topo);
+      opController_ = std::make_shared<OperatorController>(2, metric);
       topoAdapter_ = std::make_shared<MockTopoAdapter>();
       replicaScheduler_ = std::make_shared<ReplicaScheduler>(
           opController_, 1, 10, 100, 1000, 0.2, topoAdapter_);
@@ -168,7 +174,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
     ASSERT_EQ(1, replicaScheduler_->Schedule());
     Operator op;
     ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
-    ASSERT_EQ(testCopySetInfo.id, op.copsetID);
+    ASSERT_EQ(testCopySetInfo.id, op.copysetID);
     ASSERT_EQ(testCopySetInfo.epoch, op.startEpoch);
     ASSERT_EQ(OperatorPriority::HighPriority, op.priority);
     ASSERT_EQ(std::chrono::seconds(1000), op.timeLimit);
@@ -288,7 +294,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_larger_replicaNum_selectCorrect) {
     ASSERT_EQ(1, replicaScheduler_->Schedule());
     Operator op;
     ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
-    ASSERT_EQ(testCopySetInfo.id, op.copsetID);
+    ASSERT_EQ(testCopySetInfo.id, op.copysetID);
     ASSERT_EQ(testCopySetInfo.epoch, op.startEpoch);
     ASSERT_EQ(OperatorPriority::HighPriority, op.priority);
     ASSERT_EQ(std::chrono::seconds(100), op.timeLimit);

@@ -19,8 +19,8 @@ Operator::Operator(EpochType startEpoch,
                    const steady_clock::time_point &timeLimit,
                    std::shared_ptr<OperatorStep> step) {
     this->startEpoch = startEpoch;
-    this->copsetID.first = id.first;
-    this->copsetID.second = id.second;
+    this->copysetID.first = id.first;
+    this->copysetID.second = id.second;
     this->createTime = steady_clock::now();
     this->priority = pri;
     this->step = step;
@@ -46,8 +46,8 @@ bool Operator::IsTimeout() {
 
 std::string Operator::OpToString() const {
     return "[startEpoch: " + std::to_string(startEpoch)
-        + ", copysetID: (" + std::to_string(copsetID.first) + ","
-        + std::to_string(copsetID.second) + "), priority: "
+        + ", copysetID: (" + std::to_string(copysetID.first) + ","
+        + std::to_string(copysetID.second) + "), priority: "
         + std::to_string(priority) + ", step: "
         + step->OperatorStepToString() + "]";
 }
