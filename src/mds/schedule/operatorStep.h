@@ -35,6 +35,8 @@ class OperatorStep {
     virtual ApplyStatus Apply(const CopySetInfo &originInfo,
                                 CopySetConf *newConf) = 0;
     virtual std::string OperatorStepToString() = 0;
+
+    virtual ChunkServerIdType GetTargetPeer() const = 0;
 };
 
 class TransferLeader : public OperatorStep {
@@ -55,7 +57,7 @@ class TransferLeader : public OperatorStep {
 
     std::string OperatorStepToString() override;
 
-    ChunkServerIdType GetTargetPeer() const;
+    ChunkServerIdType GetTargetPeer() const override;
 
  private:
     ChunkServerIdType from_;
@@ -78,7 +80,8 @@ class AddPeer : public OperatorStep {
     ApplyStatus Apply(const CopySetInfo &originInfo,
                         CopySetConf *newConf) override;
 
-    ChunkServerIdType GetTargetPeer() const;
+    ChunkServerIdType GetTargetPeer() const override;
+
     std::string OperatorStepToString() override;
 
  private:
@@ -102,6 +105,8 @@ class RemovePeer : public OperatorStep {
                         CopySetConf *newConf) override;
 
     std::string OperatorStepToString() override;
+
+    ChunkServerIdType GetTargetPeer() const override;
 
  private:
     ChunkServerIdType remove_;

@@ -22,7 +22,11 @@
 #include "src/mds/common/mds_define.h"
 #include "src/mds/copyset/copyset_policy.h"
 #include "src/mds/copyset/copyset_manager.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 #include "test/mds/schedule/copysetSchedulerPOC/mock_topology.h"
+#include "test/mds/mock/mock_topology.h"
+
+using ::curve::mds::topology::MockTopology;
 
 using ::curve::mds::topology::Server;
 using ::curve::mds::topology::ChunkServer;
@@ -602,7 +606,9 @@ class CopysetSchedulerPOC : public testing::Test {
         topoAdapter_ =  std::make_shared<TopoAdapterImpl>(
             topo_, std::make_shared<FakeTopologyServiceManager>(), topoStat_);
 
-        opController_ = std::make_shared<OperatorController>(opConcurrent);
+        opController_ =
+            std::make_shared<OperatorController>(
+                opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
         leaderScheduler_ = std::make_shared<LeaderScheduler>(
             opController_, 1000, 0, 10, 100, 1000,
@@ -613,7 +619,9 @@ class CopysetSchedulerPOC : public testing::Test {
         topoAdapter_ =  std::make_shared<TopoAdapterImpl>(
             topo_, std::make_shared<FakeTopologyServiceManager>(), topoStat_);
 
-        opController_ = std::make_shared<OperatorController>(opConcurrent);
+        opController_ =
+            std::make_shared<OperatorController>(
+                opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
         recoverScheduler_ = std::make_shared<RecoverScheduler>(
             opController_, 1000, 10, 100, 1000,
@@ -633,7 +641,7 @@ class CopysetSchedulerPOC : public testing::Test {
             ASSERT_TRUE(type != nullptr);
 
             ::curve::mds::topology::CopySetInfo info;
-            ASSERT_TRUE(topo_->GetCopySet(op.copsetID, &info));
+            ASSERT_TRUE(topo_->GetCopySet(op.copysetID, &info));
             auto members = info.GetCopySetMembers();
             auto it = members.find(choose);
             if (it == members.end()) {
@@ -646,7 +654,7 @@ class CopysetSchedulerPOC : public testing::Test {
             info.SetCopySetMembers(members);
             ASSERT_EQ(0, topo_->UpdateCopySetTopo(info));
 
-            keys.emplace_back(op.copsetID);
+            keys.emplace_back(op.copysetID);
         }
         for (auto key : keys) {
             opController_->RemoveOperator(key);
@@ -666,7 +674,7 @@ class CopysetSchedulerPOC : public testing::Test {
             ASSERT_TRUE(type != nullptr);
 
             ::curve::mds::topology::CopySetInfo info;
-            ASSERT_TRUE(topo_->GetCopySet(op.copsetID, &info));
+            ASSERT_TRUE(topo_->GetCopySet(op.copysetID, &info));
             info.SetLeader(type->GetTargetPeer());
             ASSERT_EQ(0, topo_->UpdateCopySetTopo(info));
         }
