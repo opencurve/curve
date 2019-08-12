@@ -7,9 +7,13 @@
 
 #include <sys/time.h>
 #include "src/mds/schedule/scheduler.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 #include "test/mds/schedule/mock_topoAdapter.h"
+#include "test/mds/mock/mock_topology.h"
 #include "test/mds/schedule/common.h"
 #include "src/common/timeutility.h"
+
+using ::curve::mds::topology::MockTopology;
 
 using ::testing::_;
 using ::testing::Return;
@@ -26,7 +30,9 @@ class TestLeaderSchedule : public ::testing::Test {
     ~TestLeaderSchedule() {}
 
     void SetUp() override {
-        opController_ = std::make_shared<OperatorController>(2);
+        auto topo = std::make_shared<MockTopology>();
+        auto metric = std::make_shared<ScheduleMetrics>(topo);
+        opController_ = std::make_shared<OperatorController>(2, metric);
         topoAdapter_ = std::make_shared<MockTopoAdapter>();
         leaderScheduler_ = std::make_shared<LeaderScheduler>(
             opController_, 1, 0, 10, 100, 1000, 0.2, topoAdapter_);

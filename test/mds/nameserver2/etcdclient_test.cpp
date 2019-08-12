@@ -27,10 +27,14 @@ class TestEtcdClinetImp : public ::testing::Test {
 
     void SetUp() override {
         client_ = std::make_shared<EtcdClientImp>();
-        char endpoints[] = "127.0.0.1:2379";
+        char endpoints[] = "127.0.0.1:2377";
         EtcdConf conf = {endpoints, strlen(endpoints), 10000};
         ASSERT_EQ(EtcdErrCode::Unknown, client_->Init(conf, 200, 3));
-        system("etcd&");
+        std::string runEtcd =
+            std::string("etcd --listen-client-urls 'http://localhost:2377'") +
+            std::string(" --advertise-client-urls 'http://localhost:2377'") +
+            std::string(" --listen-peer-urls 'http://localhost:2376'&");
+        system(runEtcd.c_str());
         // 一定时间内尝试init直到etcd完全起来
         int now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
@@ -288,7 +292,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
     int sessionnInterSec = 1;
     int dialtTimeout = 10000;
     int retryTimes = 3;
-    char endpoints[] = "127.0.0.1:2379";
+    char endpoints[] = "127.0.0.1:2377";
     EtcdConf conf = {endpoints, strlen(endpoints), 20000};
     std::string leaderName1("leader1");
     std::string leaderName2("leader2");
