@@ -226,7 +226,8 @@ function deploy_one {
     exit
   fi
   uuid=`ls -l /dev/disk/by-uuid/|grep -w ${short_diskname}|awk '{print $9}'`
-  sed -i '/${dirname}/d' /etc/fstab
+  line_num=`grep -n $dirname /etc/fstab`
+  sed -i ''${line_num}'d' /etc/fstab
   echo "UUID=$uuid    $dirname    ext4  rw,errors=remount-ro    0    0" >> /etc/fstab
   #格式化chunkfile pool
   curve-format -allocatepercent=80 \
@@ -257,4 +258,3 @@ function main {
 }
 
 main $@
-
