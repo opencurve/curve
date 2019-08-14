@@ -1,0 +1,1430 @@
+/*
+ * Project: curve
+ * Created Date: 19-06-13
+ * Author: wudemiao
+ * Copyright (c) 2019 netease
+ */
+
+#include <brpc/channel.h>
+#include <gtest/gtest.h>
+#include <butil/at_exit.h>
+
+#include <vector>
+#include <map>
+
+#include "src/chunkserver/copyset_node_manager.h"
+#include "src/chunkserver/cli.h"
+#include "src/fs/fs_common.h"
+#include "src/fs/local_filesystem.h"
+#include "test/integration/raft/peer_cluster.h"
+
+namespace curve {
+namespace chunkserver {
+
+using curve::fs::LocalFileSystem;
+using curve::fs::LocalFsFactory;
+using curve::fs::FileSystemType;
+
+static char* raftLogParam[5][13] = {
+    {
+        "chunkserver",
+        "-chunkServerIp=127.0.0.1",
+        "-chunkServerPort=9071",
+        "-chunkServerStoreUri=local://./9071/",
+        "-chunkServerMetaUri=local://./9071/chunkserver.dat",
+        "-copySetUri=local://./9071/copysets",
+        "-recycleUri=local://./9071/recycler",
+        "-chunkFilePoolDir=./9071/chunkfilepool/",
+        "-chunkFilePoolMetaPath=./9071/chunkfilepool.meta",
+        "-conf=test/integration/raft/chunkserver.conf.9071",
+        "-raft_sync_segments=true",
+        NULL
+    },
+    {
+        "chunkserver",
+        "-chunkServerIp=127.0.0.1",
+        "-chunkServerPort=9072",
+        "-chunkServerStoreUri=local://./9072/",
+        "-chunkServerMetaUri=local://./9072/chunkserver.dat",
+        "-copySetUri=local://./9072/copysets",
+        "-recycleUri=local://./9072/recycler",
+        "-chunkFilePoolDir=./9072/chunkfilepool/",
+        "-chunkFilePoolMetaPath=./9072/chunkfilepool.meta",
+        "-conf=test/integration/raft/chunkserver.conf.9072",
+        "-raft_sync_segments=true",
+        NULL
+    },
+    {
+        "chunkserver",
+        "-chunkServerIp=127.0.0.1",
+        "-chunkServerPort=9073",
+        "-chunkServerStoreUri=local://./9073/",
+        "-chunkServerMetaUri=local://./9073/chunkserver.dat",
+        "-copySetUri=local://./9073/copysets",
+        "-recycleUri=local://./9073/recycler",
+        "-chunkFilePoolDir=./9073/chunkfilepool/",
+        "-chunkFilePoolMetaPath=./9073/chunkfilepool.meta",
+        "-conf=test/integration/raft/chunkserver.conf.9073",
+        "-raft_sync_segments=true",
+        NULL
+    },
+    {
+        "chunkserver",
+        "-chunkServerIp=127.0.0.1",
+        "-chunkServerPort=9074",
+        "-chunkServerStoreUri=local://./9074/",
+        "-chunkServerMetaUri=local://./9074/chunkserver.dat",
+        "-copySetUri=local://./9074/copysets",
+        "-recycleUri=local://./9074/recycler",
+        "-chunkFilePoolDir=./9074/chunkfilepool/",
+        "-chunkFilePoolMetaPath=./9074/chunkfilepool.meta",
+        "-conf=test/integration/raft/chunkserver.conf.9074",
+        "-raft_sync_segments=true",
+        NULL
+    },
+    {
+        "chunkserver",
+        "-chunkServerIp=127.0.0.1",
+        "-chunkServerPort=9075",
+        "-chunkServerStoreUri=local://./9075/",
+        "-chunkServerMetaUri=local://./9075/chunkserver.dat",
+        "-copySetUri=local://./9075/copysets",
+        "-recycleUri=local://./9075/recycler",
+        "-chunkFilePoolDir=./9075/chunkfilepool/",
+        "-chunkFilePoolMetaPath=./9075/chunkfilepool.meta",
+        "-conf=test/integration/raft/chunkserver.conf.9075",
+        "-raft_sync_segments=true",
+        NULL
+    },
+};
+
+class RaftLogReplicationTest : public testing::Test {
+ protected:
+    virtual void SetUp() {
+        peer1.set_address("127.0.0.1:9071:0");
+        peer2.set_address("127.0.0.1:9072:0");
+        peer3.set_address("127.0.0.1:9073:0");
+        peer4.set_address("127.0.0.1:9074:0");
+        peer5.set_address("127.0.0.1:9075:0");
+
+        std::string mkdir1("mkdir ");
+        mkdir1 += std::to_string(PeerCluster::PeerToId(peer1));
+        std::string mkdir2("mkdir ");
+        mkdir2 += std::to_string(PeerCluster::PeerToId(peer2));
+        std::string mkdir3("mkdir ");
+        mkdir3 += std::to_string(PeerCluster::PeerToId(peer3));
+        std::string mkdir4("mkdir ");
+        mkdir4 += std::to_string(PeerCluster::PeerToId(peer4));
+        std::string mkdir5("mkdir ");
+        mkdir5 += std::to_string(PeerCluster::PeerToId(peer5));
+
+        ::system(mkdir1.c_str());
+        ::system(mkdir2.c_str());
+        ::system(mkdir3.c_str());
+        ::system(mkdir4.c_str());
+        ::system(mkdir5.c_str());
+
+        electionTimeoutMs = 3000;
+        snapshotIntervalS = 1;
+        waitMultiReplicasBecomeConsistent = 3000;
+
+        paramsIndexs[PeerCluster::PeerToId(peer1)] = 0;
+        paramsIndexs[PeerCluster::PeerToId(peer2)] = 1;
+        paramsIndexs[PeerCluster::PeerToId(peer3)] = 2;
+        paramsIndexs[PeerCluster::PeerToId(peer4)] = 3;
+        paramsIndexs[PeerCluster::PeerToId(peer5)] = 4;
+
+        params.push_back(raftLogParam[0]);
+        params.push_back(raftLogParam[1]);
+        params.push_back(raftLogParam[2]);
+        params.push_back(raftLogParam[3]);
+        params.push_back(raftLogParam[4]);
+    }
+    virtual void TearDown() {
+        std::string rmdir1("rm -fr ");
+        rmdir1 += std::to_string(PeerCluster::PeerToId(peer1));
+        std::string rmdir2("rm -fr ");
+        rmdir2 += std::to_string(PeerCluster::PeerToId(peer2));
+        std::string rmdir3("rm -fr ");
+        rmdir3 += std::to_string(PeerCluster::PeerToId(peer3));
+        std::string rmdir4("rm -fr ");
+        rmdir4 += std::to_string(PeerCluster::PeerToId(peer4));
+        std::string rmdir5("rm -fr ");
+        rmdir5 += std::to_string(PeerCluster::PeerToId(peer5));
+
+        ::system(rmdir1.c_str());
+        ::system(rmdir2.c_str());
+        ::system(rmdir3.c_str());
+        ::system(rmdir4.c_str());
+        ::system(rmdir5.c_str());
+
+        // wait for process exit
+        ::usleep(1000 * 1000);
+    }
+
+ public:
+    Peer peer1;
+    Peer peer2;
+    Peer peer3;
+    Peer peer4;
+    Peer peer5;
+    int electionTimeoutMs;
+    int snapshotIntervalS;
+    std::map<int, int> paramsIndexs;
+    std::vector<char **> params;
+    // 等待多个副本数据一致的时间
+    int waitMultiReplicasBecomeConsistent;
+};
+
+butil::AtExitManager atExitManager;
+
+/**
+ * 验证3个节点的复制组，测试隐式提交
+ * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
+ * 2. 挂掉2个follower
+ * 3. 等带step down
+ * 3. 拉起1个follower
+ */
+TEST_F(RaftLogReplicationTest, ThreeNodeImplicitCommit) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 10;
+
+    // 1. 启动3个成员的复制组
+    PeerId leaderId;
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    // 2. 挂掉2个Follower
+    std::vector<Peer> followerPeers;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
+    ASSERT_GE(followerPeers.size(), 2);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers[0]));
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers[1]));
+    WriteVerifyNotAvailable(leaderPeer,
+                            logicPoolId,
+                            copysetId,
+                            chunkId,
+                            length,
+                            ch ++,
+                            1);
+
+    // 3. 等待step down
+    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    // 4. 拉起1个follower
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers[0],
+                                   PeerCluster::PeerToId(followerPeers[0])));
+    Peer newLeader;
+    ASSERT_EQ(0, cluster.WaitLeader(&newLeader));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    // new leader就是old leader
+    ASSERT_STREQ(leaderPeer.address().c_str(), newLeader.address().c_str());
+    // read step down之前append进去的log entry，测试隐式提交
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,
+               1);
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    ::usleep(waitMultiReplicasBecomeConsistent * 1000);
+    std::vector<Peer> newPeers;
+    for (Peer peer : peers) {
+        if (peer.address() != followerPeers[1].address()) {
+            newPeers.push_back(peer);
+        }
+    }
+    CopysetStatusVerify(newPeers, logicPoolId, copysetId, 2);
+}
+
+/**
+ * 验证3个节点的复制组，测试日志截断
+ * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
+ * 2. 挂掉2个follower
+ * 3. 挂掉leader
+ * 3. 拉起2个follower
+ */
+TEST_F(RaftLogReplicationTest, ThreeNodeTruncateLog) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 10;
+
+    // 1. 启动3个成员的复制组
+    PeerId leaderId;
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    // 2. 挂掉2个Follower
+    std::vector<Peer> followerPeers;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
+    ASSERT_GE(followerPeers.size(), 2);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers[0]));
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers[1]));
+    WriteVerifyNotAvailable(leaderPeer,
+                            logicPoolId,
+                            copysetId,
+                            chunkId,
+                            length,
+                            ch++,
+                            2);
+
+    // 3. 挂掉leader
+    ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
+    Peer oldLeader = leaderPeer;
+
+    // 4. 拉起2个follower
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers[0],
+                                   PeerCluster::PeerToId(followerPeers[0])));
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers[1],
+                                   PeerCluster::PeerToId(followerPeers[1])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
+    // 日志截断
+    ReadNotVerify(leaderPeer,
+                  logicPoolId,
+                  copysetId,
+                  chunkId,
+                  length,
+                  ch - 1,
+                  2);
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    ::usleep(waitMultiReplicasBecomeConsistent * 1000);
+    std::vector<Peer> newPeers;
+    for (Peer peer : peers) {
+        if (peer.address() != oldLeader.address()) {
+            newPeers.push_back(peer);
+        }
+    }
+    CopysetStatusVerify(newPeers, logicPoolId, copysetId, 2);
+}
+
+/**
+ * 验证3个节点的复制组，测试向落后多个term的follower复制日志
+ * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
+ * 2. 挂掉一个follower
+ * 3. 挂掉leader，等待1个ET重启
+ * 4. 挂掉leader，等待1个ET重启
+ * 3. 拉起挂掉的follower
+ */
+TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 10;
+
+    // 1. 启动3个成员的复制组
+    PeerId leaderId;
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    // 2. 挂掉1个Follower
+    std::vector<Peer> followerPeers;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
+    ASSERT_GE(followerPeers.size(), 1);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers[0]));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    // 3. 挂掉leader，等待1个ET重启
+    ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
+    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
+                                   PeerCluster::PeerToId(leaderPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    // 4. 挂掉leader，等待1个ET重启
+    ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
+    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
+                                   PeerCluster::PeerToId(leaderPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    // 5. 拉起挂掉的follower
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers[0],
+                                   PeerCluster::PeerToId(followerPeers[0])));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    // 多等一会，保证安装快照成功
+    ::usleep(1.3 * waitMultiReplicasBecomeConsistent * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
+}
+
+/**
+ * 验证4个成员的复制组日志复制
+ * 1. 4个成员正常启动
+ * 2. 挂掉leader
+ * 3. leader拉起来
+ * 4. 挂1一个follower
+ * 5. follower拉起来
+ * 6. 挂2个follower
+ * 7. 拉起1个follower
+ * 8. 挂掉leader
+ * 9. 拉起上一步挂的leader
+ * 10. 挂掉leader和两个follower
+ * 11. 逐个拉起来
+ * 12. 挂掉3个follower
+ * 13. 逐个拉起来
+ */
+TEST_F(RaftLogReplicationTest, FourNodeKill) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 10;
+
+    // 1. 启动4个成员的复制组
+    PeerId leaderId;
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    peers.push_back(peer4);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+    ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // a
+                        loop);
+
+    // 2. 挂掉leader
+    ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    Peer newLeader;
+    ASSERT_EQ(0, cluster.WaitLeader(&newLeader));
+    ASSERT_EQ(0, leaderId.parse(newLeader.address()));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // b
+                        loop);
+
+
+    // 3. old leader拉起来
+    ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
+                                   PeerCluster::PeerToId(leaderPeer)));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // c
+                        loop);
+
+    // 4. 挂1一个follower
+    std::vector<Peer> followerPeers1;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers1);
+    ASSERT_GE(followerPeers1.size(), 3);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers1[0]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // d
+                        loop);
+
+    // 5. follower拉起来
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers1[0],
+                                   PeerCluster::PeerToId(followerPeers1[0])));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // e
+                        loop);
+
+    // 6. 挂2个follower
+    std::vector<Peer> followerPeers2;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers2);
+    ASSERT_GE(followerPeers2.size(), 3);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers2[0]));
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers2[1]));
+    WriteVerifyNotAvailable(newLeader,
+                            logicPoolId,
+                            copysetId,
+                            chunkId,
+                            length,
+                            ch++,  // f
+                            1);
+
+    // 7. 拉起1个follower
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers2[0],
+                                   PeerCluster::PeerToId(followerPeers2[0])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // g
+                        loop);
+
+    // 8. 挂掉leader
+    ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    // 9. 拉起上一步挂的leader
+    ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
+                                   PeerCluster::PeerToId(leaderPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // h
+                        loop);
+
+    // 10. 挂掉leader和两个follower
+    ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
+    Peer shutdownFollower;
+    if (leaderPeer.address() != followerPeers2[0].address()) {
+        shutdownFollower = followerPeers2[0];
+    } else {
+        shutdownFollower = followerPeers2[2];
+    }
+    ASSERT_EQ(0, cluster.ShutdownPeer(shutdownFollower));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    ::usleep(1000 * electionTimeoutMs * 1.5);
+    // 11. 逐个拉起来
+    ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
+                                   PeerCluster::PeerToId(leaderPeer)));
+    ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+    ASSERT_EQ(0, cluster.StartPeer(shutdownFollower,
+                                   PeerCluster::PeerToId(shutdownFollower)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // i
+                        loop);
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers2[1],
+                                   PeerCluster::PeerToId(followerPeers2[1])));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // i
+                        loop);
+
+    // 12. 挂掉3个follower
+    std::vector<Peer> followerPeers3;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers3);
+    ASSERT_GE(followerPeers3.size(), 3);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers3[0]));
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers3[1]));
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers3[2]));
+    WriteVerifyNotAvailable(leaderPeer,
+                            logicPoolId,
+                            copysetId,
+                            chunkId,
+                            length,
+                            ch++,  // j
+                            1);
+
+
+    ::usleep(1000 * electionTimeoutMs * 1.5);
+    // 13. 逐个拉起来
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers3[0],
+                                   PeerCluster::PeerToId(followerPeers3[0])));
+    ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers3[1],
+                                   PeerCluster::PeerToId(followerPeers3[1])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // k
+                        loop);
+
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers3[2],
+                                   PeerCluster::PeerToId(followerPeers3[2])));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
+                        loop);
+
+    ::usleep(waitMultiReplicasBecomeConsistent * 1000);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
+}
+
+/**
+ * 验证4个成员的复制组日志复制
+ * 1. 4个成员正常启动
+ * 2. hang leader
+ * 3. 恢复leader
+ * 4. hang1一个follower
+ * 5. 恢复follower
+ * 6. hang2个follower
+ * 7. 恢复1个follower
+ * 8. hangleader
+ * 9. hang上一步hang的leader
+ * 10. hang leader和两个follower
+ * 11. 逐个恢复
+ * 12. hang3个follower
+ * 13. 逐个恢复
+ */
+TEST_F(RaftLogReplicationTest, FourNodeHang) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 10;
+
+    // 1. 启动4个成员的复制组
+    PeerId leaderId;
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    peers.push_back(peer4);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+    ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // a
+                        loop);
+
+    // 2. hang leader
+    ASSERT_EQ(0, cluster.HangPeer(leaderPeer));
+    Peer oldLeader = leaderPeer;
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+    Peer newLeader;
+    ASSERT_EQ(0, cluster.WaitLeader(&newLeader));
+    ASSERT_EQ(0, leaderId.parse(newLeader.address()));
+    ASSERT_STRNE(oldLeader.address().c_str(), newLeader.address().c_str());
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // b
+                        loop);
+
+
+    // 3. 恢复old leader
+    ASSERT_EQ(0, cluster.SignalPeer(oldLeader));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // c
+                        loop);
+
+    // 4. hang 1一个follower
+    std::vector<Peer> followerPeers1;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers1);
+    ASSERT_GE(followerPeers1.size(), 1);
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers1[0]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // d
+                        loop);
+
+    // 5. 恢复follower
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers1[0]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // e
+                        loop);
+
+    // 6. hang 2个follower
+    std::vector<Peer> followerPeers2;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers2);
+    ASSERT_GE(followerPeers2.size(), 3);
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers2[0]));
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers2[1]));
+    WriteVerifyNotAvailable(newLeader,
+                            logicPoolId,
+                            copysetId,
+                            chunkId,
+                            length,
+                            ch++,  // f
+                            1);
+
+    // 7. 恢复2个follower
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers2[0]));
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers2[1]));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // g
+                        loop);
+
+    // 8. hang leader和一个follower
+    std::vector<Peer> followerPeers3;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers3);
+    ASSERT_EQ(0, cluster.HangPeer(leaderPeer));
+    ASSERT_GE(followerPeers3.size(), 3);
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers3[0]));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    // 9. 恢复上一步挂的leader和follower
+    ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[0]));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // h
+                        loop);
+}
+
+/**
+ * 验证5个成员的复制组日志复制
+ * 1. 5个成员正常启动
+ * 2. 挂 leader
+ * 3. 恢复leader
+ * 4. 挂1一个follower
+ * 5. 恢复follower
+ * 6. 挂2个follower
+ * 7. 恢复1个follower
+ * 8. 挂leader
+ * 9. 恢复一步挂的leader
+ * 10. 挂leader和两个follower
+ * 11. 逐个恢复
+ * 12. 挂3个follower
+ * 13. 逐个恢复
+ */
+TEST_F(RaftLogReplicationTest, FiveNodeKill) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 10;
+
+    // 1. 启动5个成员的复制组
+    PeerId leaderId;
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    peers.push_back(peer4);
+    peers.push_back(peer5);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+    ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
+    ASSERT_EQ(0, cluster.StartPeer(peer5, PeerCluster::PeerToId(peer5)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // a
+                        loop);
+
+    // 2. 挂掉leader
+    ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+    Peer newLeader;
+    ASSERT_EQ(0, cluster.WaitLeader(&newLeader));
+    ASSERT_EQ(0, leaderId.parse(newLeader.address()));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // b
+                        loop);
+
+
+    // 3. old leader拉起来
+    ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
+                                   PeerCluster::PeerToId(leaderPeer)));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // c
+                        loop);
+
+    // 4. 挂1一个follower
+    std::vector<Peer> followerPeers1;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers1);
+    ASSERT_GE(followerPeers1.size(), 1);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers1[0]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // d
+                        loop);
+
+    // 5. follower拉起来
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers1[0],
+                                   PeerCluster::PeerToId(followerPeers1[0])));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // e
+                        loop);
+
+    // 6. 挂2个follower
+    std::vector<Peer> followerPeers2;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers2);
+    ASSERT_GE(followerPeers2.size(), 4);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers2[0]));
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers2[1]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // f
+                        loop);
+
+    // 7. 拉起1个follower
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers2[0],
+                                   PeerCluster::PeerToId(followerPeers2[0])));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // g
+                        loop);
+
+    // 8. 挂掉leader
+    ASSERT_EQ(0, cluster.ShutdownPeer(newLeader));
+    ReadVerifyNotAvailable(newLeader,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    // 9. 拉起上一步挂的leader
+    ASSERT_EQ(0, cluster.StartPeer(newLeader,
+                                   PeerCluster::PeerToId(newLeader)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // h
+                        loop);
+
+    // 10. 挂掉leader和两个follower
+    ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
+    Peer shutdownFollower;
+    if (leaderPeer.address() != followerPeers2[0].address()) {
+        shutdownFollower = followerPeers2[0];
+    } else {
+        shutdownFollower = followerPeers2[2];
+    }
+    ASSERT_EQ(0, cluster.ShutdownPeer(shutdownFollower));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    // 11. 逐个拉起来
+    ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
+                                   PeerCluster::PeerToId(leaderPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // i
+                        loop);
+    ASSERT_EQ(0, cluster.StartPeer(shutdownFollower,
+                                   PeerCluster::PeerToId(shutdownFollower)));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // j
+                        loop);
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers2[1],
+                                   PeerCluster::PeerToId(followerPeers2[1])));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // k
+                        loop);
+
+    // 12. 挂掉3个follower
+    std::vector<Peer> followerPeers3;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers3);
+    ASSERT_GE(followerPeers3.size(), 3);
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers3[0]));
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers3[1]));
+    ASSERT_EQ(0, cluster.ShutdownPeer(followerPeers3[2]));
+    WriteVerifyNotAvailable(leaderPeer,
+                            logicPoolId,
+                            copysetId,
+                            chunkId,
+                            length,
+                            ch++,  // l
+                            1);
+
+
+    // 13. 逐个拉起来
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers3[0],
+                                   PeerCluster::PeerToId(followerPeers3[0])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // m
+                        loop);
+
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers3[1],
+                                   PeerCluster::PeerToId(followerPeers3[1])));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // n
+                        loop);
+
+    ASSERT_EQ(0, cluster.StartPeer(followerPeers3[2],
+                                   PeerCluster::PeerToId(followerPeers3[2])));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // o
+                        loop);
+}
+
+
+/**
+ * 验证5个成员的复制组日志复制
+ * 1. 5个成员正常启动
+ * 2. hang leader
+ * 3. 恢复leader
+ * 4. hang 1一个follower
+ * 5. 恢复follower
+ * 6. hang 2个follower
+ * 7. 恢复1个follower
+ * 8. hang leader
+ * 9. hang上一步hang的leader
+ * 10. hang leader和两个follower
+ * 11. 逐个恢复
+ * 12. hang3个follower
+ * 13. 逐个恢复
+ */
+TEST_F(RaftLogReplicationTest, FiveNodeHang) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 10;
+
+    // 1. 启动5个成员的复制组
+    PeerId leaderId;
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    peers.push_back(peer4);
+    peers.push_back(peer5);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+    ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
+    ASSERT_EQ(0, cluster.StartPeer(peer5, PeerCluster::PeerToId(peer5)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // a
+                        loop);
+
+    // 2. hang leader
+    ASSERT_EQ(0, cluster.HangPeer(leaderPeer));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+    Peer newLeader;
+    ASSERT_EQ(0, cluster.WaitLeader(&newLeader));
+    ASSERT_EQ(0, leaderId.parse(newLeader.address()));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // b
+                        loop);
+
+
+    // 3. 恢复old leader
+    ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // c
+                        loop);
+
+    // 4. hang 1一个follower
+    std::vector<Peer> followerPeers1;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers1);
+    ASSERT_GE(followerPeers1.size(), 1);
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers1[0]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // d
+                        loop);
+
+    // 5. 恢复follower
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers1[0]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // e
+                        loop);
+
+    // 6. hang 2个follower
+    std::vector<Peer> followerPeers2;
+    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers2);
+    ASSERT_GE(followerPeers2.size(), 4);
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers2[0]));
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers2[1]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // f
+                        loop);
+
+    // 7. 恢复1个follower
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers2[0]));
+    WriteThenReadVerify(newLeader,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // g
+                        loop);
+
+    // 8. hang leader
+    ASSERT_EQ(0, cluster.HangPeer(newLeader));
+    ReadVerifyNotAvailable(newLeader,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    // 9. 恢复上一步挂的leader
+    ASSERT_EQ(0, cluster.SignalPeer(newLeader));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // h
+                        loop);
+
+    // 10. hang leader和两个follower
+    ASSERT_EQ(0, cluster.HangPeer(leaderPeer));
+    Peer shutdownFollower;
+    if (leaderPeer.address() != followerPeers2[0].address()) {
+        shutdownFollower = followerPeers2[0];
+    } else {
+        shutdownFollower = followerPeers2[2];
+    }
+    ASSERT_EQ(0, cluster.HangPeer(shutdownFollower));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    // 11. 逐个恢复
+    ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // i
+                        loop);
+    ASSERT_EQ(0, cluster.SignalPeer(shutdownFollower));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // j
+                        loop);
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers2[1]));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // k
+                        loop);
+
+    // 12. hang 3个follower
+    std::vector<Peer> followerPeers3;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers3);
+    ASSERT_GE(followerPeers3.size(), 3);
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers3[0]));
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers3[1]));
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers3[2]));
+    WriteVerifyNotAvailable(leaderPeer,
+                            logicPoolId,
+                            copysetId,
+                            chunkId,
+                            length,
+                            ch++,  // l
+                            1);
+
+
+    // 13. 逐个恢复
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[0]));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // m
+                        loop);
+
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[1]));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // n
+                        loop);
+
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[2]));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // o
+                        loop);
+}
+
+}  // namespace chunkserver
+}  // namespace curve
