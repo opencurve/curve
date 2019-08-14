@@ -878,9 +878,8 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
                             ch++,  // f
                             1);
 
-    // 7. 恢复2个follower
+// 7. 恢复1个follower
     ASSERT_EQ(0, cluster.SignalPeer(followerPeers2[0]));
-    ASSERT_EQ(0, cluster.SignalPeer(followerPeers2[1]));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     WriteThenReadVerify(leaderPeer,
@@ -891,12 +890,8 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
                         ch++,  // g
                         loop);
 
-    // 8. hang leader和一个follower
-    std::vector<Peer> followerPeers3;
-    PeerCluster::GetFollwerPeers(peers, newLeader, &followerPeers3);
+    // 8. hang leader
     ASSERT_EQ(0, cluster.HangPeer(leaderPeer));
-    ASSERT_GE(followerPeers3.size(), 3);
-    ASSERT_EQ(0, cluster.HangPeer(followerPeers3[0]));
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -905,9 +900,8 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
                            ch - 1,
                            1);
 
-    // 9. 恢复上一步挂的leader和follower
+    // 9. 恢复上一步挂的leader
     ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
-    ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[0]));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     WriteThenReadVerify(leaderPeer,
@@ -916,6 +910,100 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
                         chunkId,
                         length,
                         ch++,  // h
+                        loop);
+
+    // 10. hang leader和两个follower
+    ASSERT_EQ(0, cluster.HangPeer(leaderPeer));
+    Peer shutdownFollower;
+    if (leaderPeer.address() != followerPeers2[0].address()) {
+        shutdownFollower = followerPeers2[0];
+    } else {
+        shutdownFollower = followerPeers2[2];
+    }
+    ASSERT_EQ(0, cluster.HangPeer(shutdownFollower));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    // 11. 逐个恢复
+    ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
+    ::usleep(1000 * electionTimeoutMs * 1.5);
+    ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+    ASSERT_EQ(0, cluster.SignalPeer(shutdownFollower));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // i
+                        loop);
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers2[1]));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // j
+                        loop);
+
+    // 12. hang 3个follower
+    std::vector<Peer> followerPeers3;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers3);
+    ASSERT_GE(followerPeers3.size(), 3);
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers3[0]));
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers3[1]));
+    ASSERT_EQ(0, cluster.HangPeer(followerPeers3[2]));
+    WriteVerifyNotAvailable(leaderPeer,
+                            logicPoolId,
+                            copysetId,
+                            chunkId,
+                            length,
+                            ch++,  // k
+                            1);
+
+
+    // 13. 逐个恢复
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[0]));
+    ::usleep(1000 * electionTimeoutMs * 1.5);
+    ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
+    ReadVerifyNotAvailable(leaderPeer,
+                           logicPoolId,
+                           copysetId,
+                           chunkId,
+                           length,
+                           ch - 1,
+                           1);
+
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[1]));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,  // l
+                        loop);
+
+    ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[2]));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,
                         loop);
 }
 
