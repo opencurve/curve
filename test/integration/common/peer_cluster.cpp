@@ -5,7 +5,7 @@
  * Copyright (c) 2019 netease
  */
 
-#include "test/integration/raft/peer_cluster.h"
+#include "test/integration/common/peer_cluster.h"
 
 #include <wait.h>
 #include <brpc/controller.h>
