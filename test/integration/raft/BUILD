@@ -1,8 +1,6 @@
 cc_test(
     name = "raft-log-replication-test",
     srcs = glob([
-        "peer_cluster.h",
-        "peer_cluster.cpp",
         "raft_log_replication_test.cpp",
     ]),
     copts = ["-std=c++14"],
@@ -17,6 +15,7 @@ cc_test(
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-test-lib",
         "//src/common:curve_common",
+        "//test/integration/common:integration-test-common",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -24,8 +23,6 @@ cc_test(
 cc_test(
     name = "raft-config-change-test",
     srcs = glob([
-        "peer_cluster.h",
-        "peer_cluster.cpp",
         "raft_config_change_test.cpp",
     ]),
     copts = ["-std=c++14"],
@@ -40,6 +37,7 @@ cc_test(
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-test-lib",
         "//src/common:curve_common",
+        "//test/integration/common:integration-test-common",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -63,6 +61,7 @@ cc_test(
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-test-lib",
         "//src/common:curve_common",
+        "//test/integration/common:integration-test-common",
         "@com_google_googletest//:gtest_main",
     ],
 )
