@@ -15,7 +15,7 @@
 #include "src/chunkserver/cli2.h"
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
-#include "test/integration/raft/peer_cluster.h"
+#include "test/integration/common/peer_cluster.h"
 
 namespace curve {
 namespace chunkserver {
