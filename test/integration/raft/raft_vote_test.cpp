@@ -1631,7 +1631,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
                         loop);
 
     ::usleep(2 * waitMultiReplicasBecomeConsistent * 1000);
-    CopysetStatusVerify(peers, logicPoolId, copysetId, 1);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
 }
 
 /**
