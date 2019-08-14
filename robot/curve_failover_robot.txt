@@ -321,7 +321,7 @@ test client network stress
     sleep  2
     check vm iops    ${vm_iops_limit}
     check data consistency
- #   stop network stress    ${ip}
+#   stop network stress    ${ip}
     [Teardown]     stop network stress    ${ip}
 
 test chunkserver clock offset 2min
@@ -338,7 +338,7 @@ test mds clock offset 2min
     ${ssh}    test mds clock offset    ${offset}
     check vm iops   ${vm_iops_limit}
     check data consistency
- #   check copies consistency
+#   check copies consistency
     [Teardown]   del clock offset   ${ssh}    ${offset}
 
 test chunkserver loss package 5%

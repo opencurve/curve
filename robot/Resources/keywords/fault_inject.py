@@ -934,7 +934,7 @@ def pendding_all_cs_recover():
             chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
             assert chunkserver_id != -1
             csid_list.append(chunkserver_id)
-            pendding_cmd = "sudo curve-tool -mds_port=6666 -mds_addr=%s -op=set_chunkserver \
+            pendding_cmd = "sudo curve-tool -mds_addr=%s -op=set_chunkserver \
                     -chunkserver_id=%d -chunkserver_status=pendding"%(mds_addrs,chunkserver_id)
             rs = shell_operator.ssh_exec(ssh_mds,pendding_cmd)
             assert rs[3] == 0,"pendding chunkserver %d fail,rs is %s"%(cs,rs)
