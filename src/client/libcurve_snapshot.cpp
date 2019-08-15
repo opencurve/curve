@@ -74,7 +74,7 @@ int SnapshotClient::GetSnapShot(const std::string& filename,
             LOG(ERROR) << "Snapshot info not found with seqnum = " << seq;
             return -LIBCURVE_ERROR::NOTEXIST;
         }
-        ::memcpy(snapinfo, &it->second, sizeof(FInfo));
+        *snapinfo = it->second;
     }
     return -ret;
 }
