@@ -303,19 +303,19 @@ TEST(SnapInstance, SnapShotTest) {
     listresponse->set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* listfakeret
      = new FakeReturn(nullptr, static_cast<void*>(listresponse));
-    curve::client::FInfo_t* sinfo = new curve::client::FInfo_t;
+    curve::client::FInfo_t sinfo;
     curvefsservice.SetListSnapShot(listfakeret);
     ASSERT_EQ(LIBCURVE_ERROR::OK, cl.GetSnapShot(filename,
                                                 emptyuserinfo,
-                                                seq, sinfo));
-    ASSERT_EQ(sinfo->id, 1);
-    ASSERT_EQ(sinfo->filename, filename.c_str());
-    ASSERT_EQ(sinfo->parentid, 0);
-    ASSERT_EQ(sinfo->chunksize, 4 * 1024 * 1024);
-    ASSERT_EQ(sinfo->ctime, 12345678);
-    ASSERT_EQ(sinfo->seqnum, seq);
-    ASSERT_EQ(sinfo->segmentsize, 1 * 1024 * 1024 * 1024ul);
-    ASSERT_EQ(sinfo->filetype, curve::mds::FileType::INODE_PAGEFILE);
+                                                seq, &sinfo));
+    ASSERT_EQ(sinfo.id, 1);
+    ASSERT_EQ(sinfo.filename, filename.c_str());
+    ASSERT_EQ(sinfo.parentid, 0);
+    ASSERT_EQ(sinfo.chunksize, 4 * 1024 * 1024);
+    ASSERT_EQ(sinfo.ctime, 12345678);
+    ASSERT_EQ(sinfo.seqnum, seq);
+    ASSERT_EQ(sinfo.segmentsize, 1 * 1024 * 1024 * 1024ul);
+    ASSERT_EQ(sinfo.filetype, curve::mds::FileType::INODE_PAGEFILE);
 
     std::vector<uint64_t> seqvec;
     std::map<uint64_t, curve::client::FInfo_t> fimap;
@@ -364,7 +364,7 @@ TEST(SnapInstance, SnapShotTest) {
      = new FakeReturn(&listcntl, static_cast<void*>(listresponse1));
     curvefsservice.SetListSnapShot(listfakeret2);
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED,
-            cl.GetSnapShot(filename, userinfo, seq, sinfo));
+            cl.GetSnapShot(filename, userinfo, seq, &sinfo));
 
     ASSERT_EQ(opt.metaServerOpt.rpcRetryTimes,
         curvefsservice.GetRetryTimes());
