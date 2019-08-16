@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "src/mds/topology/topology_stat.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 namespace curve {
 namespace mds {
@@ -120,9 +121,11 @@ struct LogicalPoolMetric {
     // leader数量最大值
     bvar::Status<double> leaderNumMax;
 
-    // 整个逻辑池的容量
+    // 整个逻辑池的容量,即对应物理池的容量
     bvar::Status<uint64_t> diskCapacity;
-    // 整个逻辑池的使用量
+    // 整个逻辑池的分配量,即对应物理池的分配量
+    bvar::Status<uint64_t> diskAlloc;
+    // 整个逻辑池的使用量,即对应物理池的使用量
     bvar::Status<uint64_t> diskUsed;
 
     explicit LogicalPoolMetric(const std::string &logicalPoolName) :
@@ -168,6 +171,8 @@ struct LogicalPoolMetric {
             logicalPoolName + "_leadernum_max", 0),
         diskCapacity(kTopologyLogicalPoolMetricPrefix,
             logicalPoolName + "_diskCapacity", 0),
+        diskAlloc(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_diskAlloc", 0),
         diskUsed(kTopologyLogicalPoolMetricPrefix,
             logicalPoolName + "_diskUsed", 0) {}
 };
@@ -251,9 +256,11 @@ class TopologyMetricService {
 
  public:
      TopologyMetricService(std::shared_ptr<Topology> topo,
-        std::shared_ptr<TopologyStat> topoStat)
+        std::shared_ptr<TopologyStat> topoStat,
+        std::shared_ptr<AllocStatistic> allocStatistic)
         : topo_(topo),
           topoStat_(topoStat),
+          allocStatistic_(allocStatistic),
           isStop_(true) {}
     ~TopologyMetricService() {
         Stop();
@@ -302,6 +309,10 @@ class TopologyMetricService {
      * @brief topology统计模块
      */
     std::shared_ptr<TopologyStat> topoStat_;
+    /**
+     * @brief 分配统计模块
+     */
+    std::shared_ptr<AllocStatistic> allocStatistic_;
     /**
      * @brief 后台线程
      */

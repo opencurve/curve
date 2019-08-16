@@ -66,6 +66,7 @@ bool CurveFS::Init(NameServerStorage* storage,
                 ChunkSegmentAllocator* chunkSegAllocator,
                 std::shared_ptr<CleanManagerInterface> cleanManager,
                 SessionManager *sessionManager,
+                std::shared_ptr<AllocStatistic> allocStatistic,
                 const struct SessionOptions &sessionOptions,
                 const struct RootAuthOption &authOptions,
                 const struct CurveFSOption &curveFSOptions,
@@ -74,6 +75,7 @@ bool CurveFS::Init(NameServerStorage* storage,
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
     cleanManager_ = cleanManager;
+    allocStatistic_ = allocStatistic;
     sessionManager_ = sessionManager;
     rootAuthOptions_ = authOptions;
     curveFSOptions_ = curveFSOptions;
@@ -778,6 +780,9 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
                            << offset;
                 return StatusCode::kStorageError;
             }
+            allocStatistic_->AllocSpace(segment->logicalpoolid(),
+                    segment->segmentsize(),
+                    revision);
 
             LOG(INFO) << "alloc segment success, fileInfo.id() = "
                       << fileInfo.id()
