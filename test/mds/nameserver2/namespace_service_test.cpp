@@ -23,6 +23,7 @@
 #include "test/mds/mock/mock_topology.h"
 #include "test/mds/mock/mock_chunkserver.h"
 #include "src/mds/chunkserverclient/copyset_client.h"
+#include "test/mds/mock/mock_alloc_statistic.h"
 
 using curve::common::TimeUtility;
 using curve::common::Authenticator;
@@ -42,7 +43,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         topology_ = std::make_shared<MockTopology>();
         ChunkServerClientOption option;
         auto client = std::make_shared<CopysetClient>(topology_, option);
-        cleanCore_ = std::make_shared<CleanCore>(storage_, client);
+        allocStatistic_ = std::make_shared<MockAllocStatistic>();
+        cleanCore_ = std::make_shared<CleanCore>(
+            storage_, client, allocStatistic_);
 
         // new taskmanger for 2 worker thread, and check thread period 2 second
         cleanTaskManager_ = std::make_shared<CleanTaskManager>(2, 2000);
@@ -52,12 +55,13 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         ASSERT_EQ(cleanManager_->Start(), true);
 
-        std::shared_ptr<FackTopologyAdmin> topologyAdmin =
-                                std::make_shared<FackTopologyAdmin>();
+        std::shared_ptr<FackTopologyChunkAllocator> topologyChunkAllocator =
+                                std::make_shared<FackTopologyChunkAllocator>();
         std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
                             std::make_shared<FackChunkIDGenerator>();
         chunkSegmentAllocate_ =
-                new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
+                new ChunkSegmentAllocatorImpl(topologyChunkAllocator,
+                        chunkIdGenerator);
 
         std::shared_ptr<FakeRepoInterface> repo =
                                     std::make_shared<FakeRepoInterface>();
@@ -76,7 +80,9 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         cleanManager_,
-                        sessionManager_, sessionOptions, authOptions,
+                        sessionManager_,
+                        allocStatistic_,
+                        sessionOptions, authOptions,
                         curveFSOptions, repo);
     }
 
@@ -103,6 +109,7 @@ class NameSpaceServiceTest : public ::testing::Test {
             delete sessionManager_;
             sessionManager_ = nullptr;
         }
+        allocStatistic_ = nullptr;
     }
 
  public:
@@ -114,6 +121,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
     std::shared_ptr<CleanManager> cleanManager_;
     std::shared_ptr<MockTopology> topology_;
+    std::shared_ptr<AllocStatistic> allocStatistic_;
 
     SessionManager *sessionManager_;
     struct SessionOptions sessionOptions;

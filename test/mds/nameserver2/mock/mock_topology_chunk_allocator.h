@@ -5,24 +5,24 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_MDS_NAMESERVER2_MOCK_MOCK_TOPOLOGY_ADMIN_H_
-#define TEST_MDS_NAMESERVER2_MOCK_MOCK_TOPOLOGY_ADMIN_H_
+#ifndef TEST_MDS_NAMESERVER2_MOCK_MOCK_TOPOLOGY_CHUNK_ALLOCATOR_H_
+#define TEST_MDS_NAMESERVER2_MOCK_MOCK_TOPOLOGY_CHUNK_ALLOCATOR_H_
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <vector>
-#include "src/mds/topology/topology_admin.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 
-using ::curve::mds::topology::TopologyAdmin;
+using ::curve::mds::topology::TopologyChunkAllocator;
 
 namespace curve {
 namespace mds {
 
-class  MOCKTopologyAdmin1: public TopologyAdmin {
+class  MockTopologyChunkAllocator: public TopologyChunkAllocator {
  public:
      using CopysetIdInfo = ::curve::mds::topology::CopysetIdInfo;
 
-    ~MOCKTopologyAdmin1() {}
+    ~MockTopologyChunkAllocator() {}
     MOCK_METHOD4(AllocateChunkRandomInSingleLogicalPool,
         bool(FileType, uint32_t,
             ChunkSizeType chunkSize, std::vector<CopysetIdInfo> *));
@@ -34,5 +34,4 @@ class  MOCKTopologyAdmin1: public TopologyAdmin {
 
 }  // namespace mds
 }  // namespace curve
-
-#endif  // TEST_MDS_NAMESERVER2_MOCK_MOCK_TOPOLOGY_ADMIN_H_
+#endif  // TEST_MDS_NAMESERVER2_MOCK_MOCK_TOPOLOGY_CHUNK_ALLOCATOR_H_

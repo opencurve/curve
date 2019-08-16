@@ -139,7 +139,8 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
             progress->SetStatus(TaskStatus::FAILED);
             return StatusCode::kCommonFileDeleteError;
         }
-
+        allocStatistic_->DeAllocSpace(segment.logicalpoolid(),
+            segment.segmentsize(), revision);
         progress->SetProgress(100 * (i + 1) / segmentNum);
     }
 
