@@ -607,6 +607,11 @@ def delete_multi_dir(depth,user_name=config.user_name, pass_word=config.pass_wor
 def test():
     logger.info("pass,need to add later")
 
+def test_kill_one_chunkserver():
+    id = random.randint(0,2)
+    process_name = "chunkserver.conf.%d"%id
+    logger.info("kill chunkserver %d"%id)
+    kill_process(process_name)
 
 def thrasher(fd):
     actions = []

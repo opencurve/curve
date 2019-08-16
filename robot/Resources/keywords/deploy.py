@@ -12,6 +12,10 @@ import time
 import mythread
 
 def add_config():
+    etcd = []
+    for host in config.etcd_list:
+        etcd.append(host + ":12379")
+    etcd_addrs = ",".join(etcd)
     # add mds config
     for host in config.mds_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
@@ -41,10 +45,23 @@ def add_config():
         ori_cmd = R"sed -i 's/mds.topology.TopologyUpdateToRepoSec=60/mds.topology.TopologyUpdateToRepoSec=1/g' mds.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
+        #add mysql conf
+        ori_cmd = R"sed -i 's/mds.DbUrl=localhost/mds.DbUrl=%s/g' mds.conf"%(config.abnormal_db_host)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
+        #add etcd conf
+        ori_cmd = R"sed -i 's/mds.etcd.endpoint=127.0.0.1:2379/mds.etcd.endpoint=%s/g' mds.conf"%(etcd_addrs)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
+
         ori_cmd = "sudo mv mds.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s mds conf fail"%host
     # add client config
+        mds_addrs = []
+    for host in config.mds_list:
+        mds_addrs.append(host + ":6666")
+    addrs = ",".join(mds_addrs)
     for host in config.client_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         ori_cmd = "sudo rm *.conf"
@@ -52,13 +69,14 @@ def add_config():
         cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/client.conf %s:~/"%\
             (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
-        ori_cmd = R"sed -i 's/metaserver_addr=127.0.0.1:6666/metaserver_addr=%s:6666/g' client.conf"%(config.mds_list[0])
+        ori_cmd = R"sed -i 's/metaserver_addr=127.0.0.1:6666/metaserver_addr=%s/g' client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s client config fail"%host
         ori_cmd = "sudo mv client.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s client conf fail"%host
     # add chunkserver config
+    addrs = ",".join(mds_addrs)
     for host in config.chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         ori_cmd = "sudo rm *.conf"
@@ -71,7 +89,7 @@ def add_config():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
         #change mds ip
-        ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s:6666/g' chunkserver.conf"%(config.mds_list[0])
+        ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' chunkserver.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
         ori_cmd = "sudo mv chunkserver.conf /etc/curve/"
@@ -84,8 +102,8 @@ def destroy_mds():
         ori_cmd = "ps -ef|grep -v grep | grep -v sudo | grep curve-mds | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] == []:
-            logger.error("mds not up")
-            return
+            logger.debug("mds not up")
+            continue
         pid = "".join(rs[1]).strip()
         kill_cmd = "sudo kill -9 %s"%pid
         rs = shell_operator.ssh_exec(ssh,kill_cmd)
@@ -98,8 +116,8 @@ def destroy_etcd():
         ori_cmd = "ps -ef|grep -v grep | grep etcd | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         if rs[1] == []:
-            logger.error("etcd not up")
-            return
+            logger.debug("etcd not up")
+            continue
         pid = "".join(rs[1]).strip()
         kill_cmd = "sudo kill -9 %s"%pid
         rs = shell_operator.ssh_exec(ssh,kill_cmd)
@@ -155,8 +173,8 @@ def drop_abnormal_test_db():
 
 def install_deb():
     try:
-        mkdeb_url =  config.curve_workspace + "mk-deb.sh"
-        exec_mkdeb = "bash %s"%mkdeb_url
+#        mkdeb_url =  config.curve_workspace + "mk-deb.sh"
+#        exec_mkdeb = "bash %s"%mkdeb_url
 #        shell_operator.run_exec2(exec_mkdeb)
         cmd = "ls %scurve-mds*.deb"%config.curve_workspace
         mds_deb = shell_operator.run_exec2(cmd)
@@ -166,17 +184,20 @@ def install_deb():
                   (config.pravie_key_path,config.curve_workspace,host)
             shell_operator.run_exec2(cmd)
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "sudo dpkg -i *%s*"%version
+            ori_cmd = "sudo dpkg -i *%s* aws-sdk_1.0_amd64.deb"%version
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
-            assert rs[3] == 0,"mds install deb fail"
+            assert rs[3] == 0,"mds install deb fail,error is %s"%rs
+            rm_deb = "rm *%s*"%version
+            shell_operator.ssh_exec(ssh, rm_deb)
+
         for host in config.chunkserver_list:
             cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %s*.deb %s:~/" %\
                   (config.pravie_key_path,config.curve_workspace,host)
             shell_operator.run_exec2(cmd)
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "sudo dpkg -i curve-chunkserver*%s* curve-tools*%s*"%(version,version)
+            ori_cmd = "sudo dpkg -i curve-chunkserver*%s* curve-tools*%s* aws-sdk_1.0_amd64.deb"%(version,version)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
-            assert rs[3] == 0, "chunkserver install deb fail"
+            assert rs[3] == 0, "chunkserver install deb fail,error is %s"%rs
             rm_deb = "rm *%s*"%version
             shell_operator.ssh_exec(ssh, rm_deb)
     except Exception:
@@ -189,28 +210,31 @@ def add_config_file():
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         ori_cmd = "sudo cp -r /etc/curve-bak /etc/curve"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"add host %s config fail"%host
+        assert rs[3] == 0,"add host %s config fail,error is %s"%(host,rs[2])
     for host in config.chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         ori_cmd = "sudo cp -r /etc/curve-bak /etc/curve"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"add host %s config fail"%host
+        assert rs[3] == 0,"add host %s config fail,error is %s"%(host,rs[2])
 
 def start_abnormal_test_services():
     try:
-        for host in config.mds_list:
+        for host in config.etcd_list:
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "rm -rf etcd_log && mkdir etcd_log"
+            ori_cmd = "sudo rm -rf /etcd/default.etcd"
             shell_operator.ssh_exec(ssh, ori_cmd)
-            etcd_cmd = "cd etcd_log && nohup etcd &"
+            etcd_cmd = "cd etcdrun && sudo nohup  ./run.sh new &"
             shell_operator.ssh_background_exec2(ssh, etcd_cmd)
-            mds_cmd = "sudo nohup /usr/bin/curve-mds --confPath=/etc/curve/mds.conf &"
-            shell_operator.ssh_background_exec2(ssh, mds_cmd)
             ori_cmd = "ps -ef|grep -v grep | grep -w etcd | awk '{print $2}'"
             time.sleep(2)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             logger.debug("etcd pid is %s"%rs[1])
             assert rs[1] != [], "up etcd fail"
+        for host in config.mds_list:
+            ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+            mds_cmd = "sudo nohup /usr/bin/curve-mds --confPath=/etc/curve/mds.conf &"
+            shell_operator.ssh_background_exec2(ssh, mds_cmd)
+            time.sleep(1)
             ori_cmd = "ps -ef|grep -v grep | grep -v sudo | grep -w curve-mds | awk '{print $2}'"
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[1] != [], "up mds fail"
@@ -231,12 +255,14 @@ def get_copyset_num():
     return int(copyset["rowcount"])
 
 def create_pool():
-    mds_host = random.choice(config.mds_list)
-    ssh = shell_operator.create_ssh_connect(mds_host, 1046, config.abnormal_user)
-    physical_pool = "curve-tool -cluster_map=topo.txt  -mds_ip=%s -mds_port=6666\
-     -physicalpool_name=pool1 -op=create_physicalpool"%(mds_host)
-    rs = shell_operator.ssh_exec(ssh, physical_pool)
-    assert rs[1] == []
+    ssh = shell_operator.create_ssh_connect(config.mds_list[0], 1046, config.abnormal_user)
+    for mds_host in config.mds_list:
+        physical_pool = "curve-tool -cluster_map=topo.txt  -mds_ip=%s -mds_port=6666\
+        -physicalpool_name=pool1 -op=create_physicalpool"%(mds_host)
+        rs = shell_operator.ssh_exec(ssh, physical_pool)
+        if rs[3] == 0:
+            logger.info("master mds is %s"%mds_host)
+            break
     time.sleep(120)
     logical_pool = "curve-tool -copyset_num=4000 -mds_ip=%s -mds_port=6666\
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_host)
@@ -255,4 +281,24 @@ def restart_cinder_server():
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
     ori_cmd = "sudo service cinder-volume restart"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[1] == []
+    assert rs[1] == [],"rs is %s"%rs
+
+def wait_cinder_server_up():
+    cinder_host = config.nova_host
+    ssh = shell_operator.create_ssh_connect(cinder_host, 1046, config.abnormal_user)
+    ori_cmd = R"source OPENRC && cinder get-host-list --all-services | grep pool1 | grep curve2 | awk '{print $16}'"
+    i = 0
+    while i < 360:
+       rs = shell_operator.ssh_exec(ssh, ori_cmd)
+       status = "".join(rs[1]).strip()
+       if status == "up":
+           break
+       i = i + 5
+       time.sleep(5)
+    assert status == "up","up curve2 cinder service fail,please check"
+    if status == "up":
+       time.sleep(60)
+
+
+
+    
