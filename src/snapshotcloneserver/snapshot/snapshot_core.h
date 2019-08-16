@@ -19,6 +19,9 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
+#include "src/common/concurrent/name_lock.h"
+
+using ::curve::common::NameLock;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -208,7 +211,7 @@ class SnapshotCoreImpl : public SnapshotCore {
      */
     int BuildSegmentInfo(
         const SnapshotInfo &info,
-        std::vector<SegmentInfo> *segInfos);
+        std::map<uint64_t, SegmentInfo> *segInfos);
 
     /**
      * @brief 在curvefs上创建快照
@@ -246,7 +249,7 @@ class SnapshotCoreImpl : public SnapshotCore {
     int BuildChunkIndexData(
         const SnapshotInfo &info,
         ChunkIndexData *indexData,
-        std::vector<SegmentInfo> *segInfos,
+        std::map<uint64_t, SegmentInfo> *segInfos,
         std::shared_ptr<SnapshotTaskInfo> task);
 
     using ChunkDataExistFilter =
@@ -266,7 +269,7 @@ class SnapshotCoreImpl : public SnapshotCore {
     int TransferSnapshotData(
         const ChunkIndexData indexData,
         const SnapshotInfo &info,
-        const std::vector<SegmentInfo> &segInfos,
+        const std::map<uint64_t, SegmentInfo> &segInfos,
         const ChunkDataExistFilter &filter,
         std::shared_ptr<SnapshotTaskInfo> task);
 
@@ -345,6 +348,8 @@ class SnapshotCoreImpl : public SnapshotCore {
     std::shared_ptr<SnapshotDataStore> dataStore_;
     // 快照引用计数管理模块
     std::shared_ptr<SnapshotReference> snapshotRef_;
+    // 锁定某个snapshot filename 的锁
+    NameLock snapshotNameLock_;
 
     // 转储chunk分片大小
     uint64_t chunkSplitSize_;

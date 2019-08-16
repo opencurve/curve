@@ -61,7 +61,7 @@ class CloneInfo {
           nextStep_(CloneStep::kCreateCloneFile),
           status_(CloneStatus::error) {}
 
-  CloneInfo(const std::string &taskId,
+  CloneInfo(const TaskIdType &taskId,
         const std::string &user,
         CloneTaskType type,
         const std::string &source,
@@ -81,7 +81,7 @@ class CloneInfo {
           nextStep_(CloneStep::kCreateCloneFile),
           status_(CloneStatus::cloning) {}
 
-  CloneInfo(const std::string &taskId,
+  CloneInfo(const TaskIdType &taskId,
         const std::string &user,
         CloneTaskType type,
         const std::string &source,
@@ -106,11 +106,11 @@ class CloneInfo {
           nextStep_(nextStep),
           status_(status) {}
 
-  std::string GetTaskId() const {
+  TaskIdType GetTaskId() const {
       return taskId_;
   }
 
-  void SetTaskId(const std::string &taskId) {
+  void SetTaskId(const TaskIdType &taskId) {
       taskId_ = taskId;
   }
 
@@ -203,7 +203,7 @@ class CloneInfo {
 
  private:
     // 任务Id
-    std::string  taskId_;
+    TaskIdType  taskId_;
     // 用户
     std::string user_;
     // 克隆或恢复
@@ -284,6 +284,10 @@ class SnapshotInfo {
         fileLength_(filelength),
         time_(time),
         status_(status) {}
+
+    void SetUuid(const UUID &uuid) {
+        uuid_ = uuid;
+    }
 
     UUID GetUuid() const {
         return uuid_;
