@@ -20,9 +20,9 @@
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
 #include "src/mds/nameserver2/session.h"
 #include "src/mds/dao/mdsRepo.h"
-#include "src/mds/topology/topology_admin.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 
-using ::curve::mds::topology::TopologyAdmin;
+using ::curve::mds::topology::TopologyChunkAllocator;
 
 const uint64_t FACK_INODE_INITIALIZE = 0;
 const uint64_t FACK_CHUNKID_INITIALIZE = 0;
@@ -55,12 +55,12 @@ class FackChunkIDGenerator: public ChunkIDGenerator {
     std::atomic<uint64_t> value_;
 };
 
-class FackTopologyAdmin: public TopologyAdmin {
+class FackTopologyChunkAllocator: public TopologyChunkAllocator {
  public:
     using CopysetIdInfo = ::curve::mds::topology::CopysetIdInfo;
     using FileType = ::curve::mds::FileType;
 
-    FackTopologyAdmin() {}
+    FackTopologyChunkAllocator() {}
 
     bool AllocateChunkRandomInSingleLogicalPool(
             FileType fileType, uint32_t chunkNumer,
