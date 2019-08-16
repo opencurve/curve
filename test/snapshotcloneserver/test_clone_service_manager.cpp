@@ -86,11 +86,13 @@ TEST_F(TestCloneServiceManager,
                                 cond1.Signal();
                             }));
 
+    TaskIdType taskId;
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
@@ -111,11 +113,13 @@ TEST_F(TestCloneServiceManager,
             SetArgPointee<5>(cloneInfo),
             Return(kErrCodeInternalError)));
 
+    TaskIdType taskId;
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
@@ -141,18 +145,21 @@ TEST_F(TestCloneServiceManager,
         .WillOnce(Invoke([&cond1] (std::shared_ptr<CloneTaskInfo> task) {
                             }));
 
+    TaskIdType taskId;
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     ret = manager_->CloneFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeTaskExist, ret);
 }
 
@@ -180,11 +187,13 @@ TEST_F(TestCloneServiceManager,
                                 cond1.Signal();
                             }));
 
+    TaskIdType taskId;
     int ret = manager_->RecoverFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
@@ -205,11 +214,13 @@ TEST_F(TestCloneServiceManager,
             SetArgPointee<5>(cloneInfo),
             Return(kErrCodeInternalError)));
 
+    TaskIdType taskId;
     int ret = manager_->RecoverFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
@@ -235,18 +246,21 @@ TEST_F(TestCloneServiceManager,
         .WillOnce(Invoke([&cond1] (std::shared_ptr<CloneTaskInfo> task) {
                             }));
 
+    TaskIdType taskId;
     int ret = manager_->RecoverFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     ret = manager_->RecoverFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeTaskExist, ret);
 }
 
@@ -276,11 +290,13 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccess) {
                                 cond1.Signal();
                             }));
 
+    TaskIdType taskId;
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     std::vector<CloneInfo> cloneInfos;
@@ -290,7 +306,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccess) {
             Return(kErrCodeSuccess)));
 
     std::vector<TaskCloneInfo> infos;
-    ret = manager_->GetCloneTaskInfo(user, &infos);
+    ret = manager_->GetCloneTaskInfo(user, nullptr, &infos);
     cond2.Signal();
 
     ASSERT_EQ(kErrCodeSuccess, ret);
@@ -315,7 +331,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoFail) {
             Return(kErrCodeInternalError)));
 
     std::vector<TaskCloneInfo> infos;
-    int ret = manager_->GetCloneTaskInfo("user1", &infos);
+    int ret = manager_->GetCloneTaskInfo("user1", nullptr, &infos);
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
@@ -367,11 +383,13 @@ TEST_F(TestCloneServiceManager, TestCloneServiceNotStart) {
             SetArgPointee<5>(cloneInfo),
             Return(kErrCodeSuccess)));
 
+    TaskIdType taskId;
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
-        lazyFlag);
+        lazyFlag,
+        &taskId);
     ASSERT_EQ(kErrCodeServiceIsStop, ret);
 }
 
@@ -392,7 +410,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccessCloneTaskDone) {
             Return(kErrCodeSuccess)));
 
     std::vector<TaskCloneInfo> infos;
-    int ret = manager_->GetCloneTaskInfo(user, &infos);
+    int ret = manager_->GetCloneTaskInfo(user, nullptr, &infos);
 
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(1, infos.size());
@@ -424,7 +442,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccessCloneTaskError) {
             Return(kErrCodeSuccess)));
 
     std::vector<TaskCloneInfo> infos;
-    int ret = manager_->GetCloneTaskInfo(user, &infos);
+    int ret = manager_->GetCloneTaskInfo(user, nullptr, &infos);
 
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(1, infos.size());
@@ -461,7 +479,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccessCloneTaskDone2) {
             Return(kErrCodeSuccess)));
 
     std::vector<TaskCloneInfo> infos;
-    int ret = manager_->GetCloneTaskInfo(user, &infos);
+    int ret = manager_->GetCloneTaskInfo(user, nullptr, &infos);
 
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(1, infos.size());
@@ -498,7 +516,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccessCloneTaskError2) {
             Return(kErrCodeSuccess)));
 
     std::vector<TaskCloneInfo> infos;
-    int ret = manager_->GetCloneTaskInfo(user, &infos);
+    int ret = manager_->GetCloneTaskInfo(user, nullptr, &infos);
 
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(1, infos.size());
@@ -534,7 +552,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoFailCanNotReach) {
             Return(kErrCodeSuccess)));
 
     std::vector<TaskCloneInfo> infos;
-    int ret = manager_->GetCloneTaskInfo(user, &infos);
+    int ret = manager_->GetCloneTaskInfo(user, nullptr, &infos);
 
     ASSERT_EQ(kErrCodeSuccess, ret);
 }
@@ -560,7 +578,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoFailOnGetCloneInfo) {
              Return(kErrCodeInternalError)));
 
     std::vector<TaskCloneInfo> infos;
-    int ret = manager_->GetCloneTaskInfo(user, &infos);
+    int ret = manager_->GetCloneTaskInfo(user, nullptr, &infos);
 
     ASSERT_EQ(kErrCodeInternalError, ret);
 }

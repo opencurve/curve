@@ -119,15 +119,37 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
 
 int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
     const std::string &user,
+    const UUID *uuid,
     std::vector<FileSnapshotInfo> *info) {
+    int ret = kErrCodeSuccess;
     std::vector<SnapshotInfo> snapInfos;
-    int ret = core_->GetFileSnapshotInfo(file, &snapInfos);
-    if (ret < 0) {
-        LOG(ERROR) << "GetFileSnapshotInfo error, "
-                   << " ret = " << ret
-                   << ", file = " << file;
-        return ret;
+    if (uuid != nullptr) {
+        SnapshotInfo snap;
+        ret = core_->GetSnapshotInfo(*uuid, &snap);
+        if (ret < 0) {
+            LOG(ERROR) << "GetSnapshotInfo error, "
+                       << " ret = " << ret
+                       << ", file = " << file
+                       << ", uuid = " << *uuid;
+            return ret;
+        }
+        if (snap.GetUser() != user) {
+            return kErrCodeInvalidUser;
+        }
+        if (snap.GetFileName() != file) {
+            return kErrCodeFileNameNotMatch;
+        }
+        snapInfos.push_back(snap);
+    } else {
+        ret = core_->GetFileSnapshotInfo(file, &snapInfos);
+        if (ret < 0) {
+            LOG(ERROR) << "GetFileSnapshotInfo error, "
+                       << " ret = " << ret
+                       << ", file = " << file;
+            return ret;
+        }
     }
+
     for (auto &snap : snapInfos) {
         if (snap.GetUser() == user) {
             Status st = snap.GetStatus();

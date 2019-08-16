@@ -33,7 +33,8 @@ void CloneServiceManager::Stop() {
 int CloneServiceManager::CloneFile(const UUID &source,
     const std::string &user,
     const std::string &destination,
-    bool lazyFlag) {
+    bool lazyFlag,
+    TaskIdType *taskId) {
     CloneInfo cloneInfo;
     int ret = cloneCore_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -47,6 +48,7 @@ int CloneServiceManager::CloneFile(const UUID &source,
                    << ", lazyFlag = " << lazyFlag;
         return ret;
     }
+    *taskId = cloneInfo.GetTaskId();
     std::shared_ptr<CloneTaskInfo> taskInfo =
         std::make_shared<CloneTaskInfo>(cloneInfo);
     std::shared_ptr<CloneTask> task =
@@ -64,7 +66,8 @@ int CloneServiceManager::CloneFile(const UUID &source,
 int CloneServiceManager::RecoverFile(const UUID &source,
     const std::string &user,
     const std::string &destination,
-    bool lazyFlag) {
+    bool lazyFlag,
+    TaskIdType *taskId) {
     CloneInfo cloneInfo;
     int ret = cloneCore_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -78,6 +81,7 @@ int CloneServiceManager::RecoverFile(const UUID &source,
                    << ", lazyFlag = " << lazyFlag;
         return ret;
     }
+    *taskId = cloneInfo.GetTaskId();
     std::shared_ptr<CloneTaskInfo> taskInfo =
         std::make_shared<CloneTaskInfo>(cloneInfo);
     std::shared_ptr<CloneTask> task =
@@ -93,14 +97,32 @@ int CloneServiceManager::RecoverFile(const UUID &source,
 }
 
 int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
+    const TaskIdType *taskId,
     std::vector<TaskCloneInfo> *info) {
+    int ret = kErrCodeSuccess;
     std::vector<CloneInfo> cloneInfos;
-    int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
-    if (ret < 0) {
-        LOG(ERROR) << "GetCloneInfoList fail"
-                   << ", ret = " << ret;
-        return ret;
+    if (taskId != nullptr) {
+        CloneInfo cloneInfo;
+        ret = cloneCore_->GetCloneInfo(*taskId, &cloneInfo);
+        if (ret < 0) {
+            LOG(ERROR) << "GetCloneInfo fail"
+                       << ", ret = " << ret
+                       << ", taskId = " << *taskId;
+            return ret;
+        }
+        if (cloneInfo.GetUser() != user) {
+            return kErrCodeInvalidUser;
+        }
+        cloneInfos.push_back(cloneInfo);
+    } else {
+        ret = cloneCore_->GetCloneInfoList(&cloneInfos);
+        if (ret < 0) {
+            LOG(ERROR) << "GetCloneInfoList fail"
+                       << ", ret = " << ret;
+            return ret;
+        }
     }
+
     for (auto &cloneInfo : cloneInfos) {
         if (cloneInfo.GetUser() == user) {
             switch (cloneInfo.GetStatus()) {

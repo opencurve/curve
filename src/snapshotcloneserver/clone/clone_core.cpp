@@ -309,7 +309,6 @@ int CloneCoreImpl::BuildFileInfoFromFile(
     std::string user = task->GetCloneInfo().GetUser();
 
     FInfo fInfo;
-    // TODO(xuchaojie): 从文件克隆的source暂使用文件名，设计后续改为UUID
     int ret = client_->GetFileInfo(source, mdsRootUser_, &fInfo);
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(ERROR) << "GetFileInfo fail"
