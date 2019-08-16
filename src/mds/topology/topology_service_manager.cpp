@@ -23,6 +23,7 @@
 #include "proto/copyset.pb.h"
 
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/concurrent/name_lock.h"
 
 namespace curve {
 namespace mds {
@@ -41,10 +42,11 @@ using ::curve::mds::copyset::CopysetConstrait;
 void TopologyServiceManager::RegistChunkServer(
     const ChunkServerRegistRequest *request,
     ChunkServerRegistResponse *response) {
-    // TODO(xuchaojie): 替换为namelock锁住ip和端口
-    ::curve::common::LockGuard lock(registCsMutex);
     std::string hostIp = request->hostip();
     uint32_t port = request->port();
+    ::curve::common::NameLockGuard lock(registCsMutex,
+        hostIp + ":" + std::to_string(port));
+
     // 需要为Retired或offline情况才能换盘，否则视为ipPort重复的chunkserver
     std::vector<ChunkServerIdType> list =
         topology_->GetChunkServerInCluster(

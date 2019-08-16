@@ -125,6 +125,8 @@ class LogicalPool {
         return rap_;
     }
 
+    uint16_t GetReplicaNum() const;
+
     std::string GetRedundanceAndPlaceMentPolicyJsonStr() const;
 
     uint64_t GetCreateTime() const {
@@ -190,13 +192,15 @@ class PhysicalPool {
     PhysicalPool()
         : id_(UNINTIALIZE_ID),
           name_(""),
-          desc_("") {}
+          desc_(""),
+          diskCapacity_(0) {}
     PhysicalPool(PoolIdType id,
                  const std::string &name,
                  const std::string &desc)
         : id_(id),
           name_(name),
-          desc_(desc) {}
+          desc_(desc),
+          diskCapacity_(0) {}
 
     PoolIdType GetId() const {
         return id_;
@@ -210,6 +214,13 @@ class PhysicalPool {
     }
     std::string GetDesc() const {
         return desc_;
+    }
+
+    void SetDiskCapacity(uint64_t diskCapacity) {
+        diskCapacity_ = diskCapacity;
+    }
+    uint64_t GetDiskCapacity() {
+        return diskCapacity_;
     }
 
     void AddZone(ZoneIdType id) {
@@ -226,6 +237,9 @@ class PhysicalPool {
     PoolIdType id_;
     std::string name_;
     std::string desc_;
+
+    // 逻辑的总容量
+    uint64_t diskCapacity_;
 
     std::list<ZoneIdType> zoneList_;
 };
