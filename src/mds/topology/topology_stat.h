@@ -75,7 +75,7 @@ struct ChunkServerStat {
 };
 
 /**
- * @brief Topology统计模块，负责处理各种统计数据以及定期计算metric
+ * @brief Topology统计模块，负责处理各种统计数据
  */
 class TopologyStat {
  public:

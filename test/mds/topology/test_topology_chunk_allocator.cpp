@@ -11,11 +11,12 @@
 #include <memory>
 
 
-#include "src/mds/topology/topology_admin.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 #include "src/mds/common/mds_define.h"
 #include "test/mds/topology/mock_topology.h"
 #include "proto/nameserver2.pb.h"
 #include "src/common/timeutility.h"
+#include "test/mds/mock/mock_alloc_statistic.h"
 
 namespace curve {
 namespace mds {
@@ -28,10 +29,10 @@ using ::testing::SetArgPointee;
 using ::testing::Invoke;
 
 
-class TestTopoloyAdmin : public ::testing::Test {
+class TestTopologyChunkAllocator : public ::testing::Test {
  protected:
-    TestTopoloyAdmin() {}
-    virtual ~TestTopoloyAdmin() {}
+    TestTopologyChunkAllocator() {}
+    virtual ~TestTopologyChunkAllocator() {}
     virtual void SetUp() {
         idGenerator_ = std::make_shared<MockIdGenerator>();
         tokenGenerator_ = std::make_shared<MockTokenGenerator>();
@@ -39,7 +40,11 @@ class TestTopoloyAdmin : public ::testing::Test {
         topology_ = std::make_shared<TopologyImpl>(idGenerator_,
                                                tokenGenerator_,
                                                storage_);
-        testObj_ = std::make_shared<TopologyAdminImpl>(topology_);
+        TopologyOption option;
+        allocStatistic_ = std::make_shared<MockAllocStatistic>();
+        testObj_ = std::make_shared<TopologyChunkAllocatorImpl>(topology_,
+        allocStatistic_,
+        option);
     }
 
     virtual void TearDown() {
@@ -47,6 +52,7 @@ class TestTopoloyAdmin : public ::testing::Test {
         tokenGenerator_ = nullptr;
         storage_ = nullptr;
         topology_ = nullptr;
+        allocStatistic_ = nullptr;
         testObj_ = nullptr;
     }
 
@@ -79,10 +85,12 @@ class TestTopoloyAdmin : public ::testing::Test {
 
     void PrepareAddPhysicalPool(PoolIdType id = 0x11,
                  const std::string &name = "testPhysicalPool",
-                 const std::string &desc = "descPhysicalPool") {
+                 const std::string &desc = "descPhysicalPool",
+                 uint64_t diskCapacity = 10240) {
         PhysicalPool pool(id,
                 name,
                 desc);
+        pool.SetDiskCapacity(diskCapacity);
         EXPECT_CALL(*storage_, StoragePhysicalPool(_))
             .WillOnce(Return(true));
 
@@ -130,7 +138,9 @@ class TestTopoloyAdmin : public ::testing::Test {
                 ServerIdType serverId = 0x31,
                 const std::string &hostIp = "testInternalIp",
                 uint32_t port = 0,
-                const std::string &diskPath = "/") {
+                const std::string &diskPath = "/",
+                uint64_t diskUsed = 512,
+                uint64_t diskCapacity = 1024) {
             ChunkServer cs(id,
                     token,
                     diskType,
@@ -138,6 +148,10 @@ class TestTopoloyAdmin : public ::testing::Test {
                     hostIp,
                     port,
                     diskPath);
+            ChunkServerState state;
+            state.SetDiskCapacity(diskCapacity);
+            state.SetDiskUsed(diskUsed);
+            cs.SetChunkServerState(state);
             EXPECT_CALL(*storage_, StorageChunkServer(_))
                 .WillOnce(Return(true));
         int ret = topology_->AddChunkServer(cs);
@@ -161,12 +175,14 @@ class TestTopoloyAdmin : public ::testing::Test {
     std::shared_ptr<MockIdGenerator> idGenerator_;
     std::shared_ptr<MockTokenGenerator> tokenGenerator_;
     std::shared_ptr<MockStorage> storage_;
+    std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<Topology> topology_;
-    std::shared_ptr<TopologyAdminImpl> testObj_;
+    std::shared_ptr<TopologyChunkAllocatorImpl> testObj_;
 };
 
 
-TEST_F(TestTopoloyAdmin, Test_AllocateChunkRandomInSingleLogicalPool_success) {
+TEST_F(TestTopologyChunkAllocator,
+    Test_AllocateChunkRandomInSingleLogicalPool_success) {
     std::vector<CopysetIdInfo> infos;
 
     PoolIdType logicalPoolId = 0x01;
@@ -191,6 +207,8 @@ TEST_F(TestTopoloyAdmin, Test_AllocateChunkRandomInSingleLogicalPool_success) {
     replicas.insert(0x43);
     PrepareAddCopySet(copysetId, logicalPoolId, replicas);
 
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
+        .WillRepeatedly(Return(true));
 
     bool ret =
         testObj_->AllocateChunkRandomInSingleLogicalPool(INODE_PAGEFILE,
@@ -205,7 +223,7 @@ TEST_F(TestTopoloyAdmin, Test_AllocateChunkRandomInSingleLogicalPool_success) {
     ASSERT_EQ(copysetId, infos[0].copySetId);
 }
 
-TEST_F(TestTopoloyAdmin,
+TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRandomInSingleLogicalPool_logicalPoolNotFound) {
     std::vector<CopysetIdInfo> infos;
     bool ret =
@@ -217,7 +235,7 @@ TEST_F(TestTopoloyAdmin,
     ASSERT_FALSE(ret);
 }
 
-TEST_F(TestTopoloyAdmin,
+TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRoundRobinInSingleLogicalPool_success) {
     std::vector<CopysetIdInfo> infos;
 
@@ -246,6 +264,9 @@ TEST_F(TestTopoloyAdmin,
     PrepareAddCopySet(0x54, logicalPoolId, replicas);
     PrepareAddCopySet(0x55, logicalPoolId, replicas);
 
+
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
+        .WillRepeatedly(Return(true));
 
     bool ret =
         testObj_->AllocateChunkRoundRobinInSingleLogicalPool(INODE_PAGEFILE,
@@ -310,7 +331,7 @@ TEST_F(TestTopoloyAdmin,
     }
 }
 
-TEST_F(TestTopoloyAdmin,
+TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRoundRobinInSingleLogicalPool_logicalPoolNotFound) {
     std::vector<CopysetIdInfo> infos;
     bool ret =
@@ -322,7 +343,7 @@ TEST_F(TestTopoloyAdmin,
     ASSERT_FALSE(ret);
 }
 
-TEST_F(TestTopoloyAdmin,
+TEST_F(TestTopologyChunkAllocator,
     Test_AllocateChunkRoundRobinInSingleLogicalPool_copysetEmpty) {
     std::vector<CopysetIdInfo> infos;
     PoolIdType logicalPoolId = 0x01;
@@ -519,6 +540,25 @@ TEST(TestAllocateChunkPolicy,
               << "pool4 : " << poolMap[4] << std::endl;
 }
 
+// 测试能否随机到每个pool
+TEST(TestAllocateChunkPolicy,
+    TestChooseSingleLogicalPoolRandom) {
+    std::vector<PoolIdType> pools = {1, 2, 3, 4, 5};
+    std::map<PoolIdType, int> allocMap;
+    allocMap[1] = 0;
+    allocMap[2] = 0;
+    allocMap[3] = 0;
+    allocMap[4] = 0;
+    allocMap[5] = 0;
+    for (int i = 0; i < 100; i++) {
+        PoolIdType pid;
+        AllocateChunkPolicy::ChooseSingleLogicalPoolRandom(pools, &pid);
+        allocMap[pid]++;
+    }
+    for (auto p : allocMap) {
+        ASSERT_GT(p.second, 0);
+    }
+}
 
 }  // namespace topology
 }  // namespace mds
