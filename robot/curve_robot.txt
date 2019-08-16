@@ -1732,6 +1732,20 @@ failover demo
     terminate all processes
     [Teardown]	    file clean  ${file_fd}
 
+test kill chunkserver one
+    [Tags]    P0    base    first release
+    create libcurve file with normal user
+    ${fd}   open libcurve file
+    ${new_fd}       Convert To Integer    ${fd}
+    ${thread}   background loop write file   ${new_fd}
+    check write isalive    ${thread}
+    test kill one chunkserver
+    sleep  2
+    check write isalive    ${thread}
+    stop write
+    wait thread  ${thread}
+    check loop read   ${new_fd}
+    [Teardown]      file clean     ${new_fd}
 
 # create snapshot 相关用例
 
