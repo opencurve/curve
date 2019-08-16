@@ -16,6 +16,7 @@
 #include "src/mds/copyset/copyset_manager.h"
 #include "src/mds/copyset/copyset_policy.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/concurrent/name_lock.h"
 
 
 namespace curve {
@@ -173,6 +174,7 @@ class TopologyServiceManager {
      * @brief 拓扑模块
      */
     std::shared_ptr<Topology> topology_;
+
     /**
      * @brief copyset管理模块
      */
@@ -181,7 +183,7 @@ class TopologyServiceManager {
     /**
      * @brief 注册chunkserver保护锁，防止并发注册chunkserver造成重复注册
      */
-    ::curve::common::Mutex registCsMutex;
+    ::curve::common::NameLock registCsMutex;
 
     /**
      * @brief 拓扑配置项

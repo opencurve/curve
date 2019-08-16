@@ -113,6 +113,26 @@ std::string LogicalPool::GetUserPolicyJsonStr() const {
     return "{\"policy\" : 1}";
 }
 
+uint16_t LogicalPool::GetReplicaNum() const {
+    uint16_t ret = 0;
+    switch (GetLogicalPoolType()) {
+        case LogicalPoolType::PAGEFILE : {
+            ret = rap_.pageFileRAP.replicaNum;
+            break;
+        }
+        case LogicalPoolType::APPENDFILE : {
+            // TODO(xuchaojie): fix it
+            break;
+        }
+        case LogicalPoolType::APPENDECFILE : {
+            // TODO(xuchaojie): fix it
+            break;
+        }
+        default:
+            break;
+    }
+    return ret;
+}
 
 std::string CopySetInfo::GetCopySetMembersStr() const {
     Json::Value copysetMemJson;
