@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <climits>
 #include <vector>
+#include <memory>
 
 #include "src/common/crc32.h"
 #include "src/common/configuration.h"
@@ -103,9 +104,10 @@ int ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
         LOG(ERROR) << "meta file open failed, " << metaFilePath;
         return -1;
     }
-    char* readvalid = new char[metaFileSize];
-    memset(readvalid, 0, metaFileSize);
-    int ret = fsptr->Read(fd, readvalid, 0, metaFileSize);
+
+    std::unique_ptr<char[]> readvalid(new char[metaFileSize]);
+    memset(readvalid.get(), 0, metaFileSize);
+    int ret = fsptr->Read(fd, readvalid.get(), 0, metaFileSize);
     if (ret != metaFileSize) {
         fsptr->Close(fd);
         LOG(ERROR) << "meta file read failed, " << metaFilePath;
@@ -115,60 +117,70 @@ int ChunkfilePoolHelper::DecodeMetaInfoFromMetaFile(
     fsptr->Close(fd);
 
     uint32_t crcvalue = 0;
+    bool parse = false;
+    do {
+        Json::Reader reader;
+        Json::Value value;
+        if (!reader.parse(readvalid.get(), value)) {
+            LOG(ERROR) << "chunkfile meta file got error!";
+            break;
+        }
 
-    Json::Reader reader;
-    Json::Value value;
-    if (!reader.parse(readvalid, value)) {
-        LOG(ERROR) << "chunkfile meta file got error!";
-        return -1;
-    }
+        if (!value[kChunkSize].isNull()) {
+            *chunksize = value[kChunkSize].asUInt();
+        } else {
+            LOG(ERROR) << "chunkfile meta file got error!"
+                    << " no chunksize!";
+            break;
+        }
 
-    if (!value[kChunkSize].isNull()) {
-        *chunksize = value[kChunkSize].asUInt();
-    } else {
-        LOG(ERROR) << "chunkfile meta file got error!"
-                   << " no chunksize!";
-        return -1;
-    }
+        if (!value[kMetaPageSize].isNull()) {
+            *metapagesize = value[kMetaPageSize].asUInt();
+        } else {
+            LOG(ERROR) << "chunkfile meta file got error!"
+                    << " no metaPageSize!";
+            break;
+        }
 
-    if (!value[kMetaPageSize].isNull()) {
-        *metapagesize = value[kMetaPageSize].asUInt();
-    } else {
-        LOG(ERROR) << "chunkfile meta file got error!"
-                   << " no metaPageSize!";
-        return -1;
-    }
+        if (!value[kChunkFilePoolPath].isNull()) {
+            *chunkfilePath = value[kChunkFilePoolPath].asString();
+        } else {
+            LOG(ERROR) << "chunkfile meta file got error!"
+                    << " no chunkfilepool path!";
+            break;
+        }
 
-    if (!value[kChunkFilePoolPath].isNull()) {
-        *chunkfilePath = value[kChunkFilePoolPath].asString();
-    } else {
-        LOG(ERROR) << "chunkfile meta file got error!"
-                   << " no chunkfilepool path!";
-        return -1;
-    }
+        if (!value[kCRC].isNull()) {
+            crcvalue = value[kCRC].asUInt();
+        } else {
+            LOG(ERROR) << "chunkfile meta file got error!"
+                    << " no crc!";
+            break;
+        }
 
-    if (!value[kCRC].isNull()) {
-        crcvalue = value[kCRC].asUInt();
-    } else {
-        LOG(ERROR) << "chunkfile meta file got error!"
-                   << " no crc!";
+        parse = true;
+    } while (false);
+
+    if (!parse) {
+        LOG(ERROR) << "parse meta file failed! " << metaFilePath;
         return -1;
     }
 
     uint32_t crcCheckSize = 2*sizeof(uint32_t) +
                             sizeof(kChunkFilePoolMaigic) +
                             chunkfilePath->size();
-    char* crcCheckBuf = new char[crcCheckSize];
 
-    ::memcpy(crcCheckBuf, kChunkFilePoolMaigic, sizeof(kChunkFilePoolMaigic));
-    ::memcpy(crcCheckBuf + sizeof(kChunkFilePoolMaigic),
+    std::unique_ptr<char[]> crcCheckBuf(new char[crcCheckSize]);
+
+    ::memcpy(crcCheckBuf.get(), kChunkFilePoolMaigic, sizeof(kChunkFilePoolMaigic));    //  NOLINT
+    ::memcpy(crcCheckBuf.get() + sizeof(kChunkFilePoolMaigic),
              chunksize, sizeof(uint32_t));
-    ::memcpy(crcCheckBuf + sizeof(uint32_t) + sizeof(kChunkFilePoolMaigic),
+    ::memcpy(crcCheckBuf.get() + sizeof(uint32_t) + sizeof(kChunkFilePoolMaigic),    //  NOLINT
              metapagesize, sizeof(uint32_t));
-    ::memcpy(crcCheckBuf + 2*sizeof(uint32_t) + sizeof(kChunkFilePoolMaigic),
+    ::memcpy(crcCheckBuf.get() + 2*sizeof(uint32_t) + sizeof(kChunkFilePoolMaigic),    //  NOLINT
              chunkfilePath->c_str(),
              chunkfilePath->size());
-    uint32_t crcCalc = ::curve::common::CRC32(crcCheckBuf, crcCheckSize);
+    uint32_t crcCalc = ::curve::common::CRC32(crcCheckBuf.get(), crcCheckSize);
 
     if (crcvalue != crcCalc) {
         LOG(ERROR) << "crc check failed!";
