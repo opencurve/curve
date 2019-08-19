@@ -11,7 +11,9 @@ cc_test(
             "//external:brpc",
             "//src/common:curve_common",
             "//src/mds/topology:topology",
+            "//src/mds/nameserver2/helper:helper",
             "//test/mds/mock:common_mock",
+            "//test/mds/nameserver2/mock:nameserver2_mock",
     ],
 )
 
