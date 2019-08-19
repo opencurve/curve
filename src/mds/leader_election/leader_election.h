@@ -12,7 +12,7 @@
 #include <memory>
 #include <string>
 
-#include "src/mds/nameserver2/etcd_client.h"
+#include "src/mds/kvstorageclient/etcd_client.h"
 
 namespace curve {
 namespace mds {

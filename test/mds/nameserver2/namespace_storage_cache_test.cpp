@@ -11,6 +11,7 @@
 #include <string>
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 #include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/timeutility.h"
 
 namespace curve {

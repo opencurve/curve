@@ -10,6 +10,7 @@
 #include <glog/logging.h>
 #include <memory>
 #include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/timeutility.h"
 #include "test/mds/mock/mock_etcdclient.h"
 
