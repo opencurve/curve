@@ -7,17 +7,15 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "src/mds/nameserver2/curvefs.h"
-#include "src/mds/nameserver2/inode_id_generator.h"
+#include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/session.h"
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
-
-
-#include "test/mds/nameserver2/mock_namespace_storage.h"
-#include "test/mds/nameserver2/mock_inode_id_generator.h"
-#include "test/mds/nameserver2/mock_chunk_allocate.h"
-#include "test/mds/nameserver2/mock_clean_manager.h"
+#include "test/mds/nameserver2/mock/mock_namespace_storage.h"
+#include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
+#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
+#include "test/mds/nameserver2/mock/mock_clean_manager.h"
 #include "test/mds/mock/mock_repo.h"
 
 
