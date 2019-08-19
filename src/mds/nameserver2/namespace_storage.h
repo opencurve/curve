@@ -17,8 +17,7 @@
 
 #include "src/common/encode.h"
 #include "src/mds/common/mds_define.h"
-#include "src/mds/nameserver2/etcd_client.h"
-#include "src/mds/nameserver2/namespace_helper.h"
+#include "src/mds/kvstorageclient/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 
 namespace curve {
@@ -207,7 +206,7 @@ class NameServerStorage {
 class NameServerStorageImp : public NameServerStorage {
  public:
   explicit NameServerStorageImp(
-      std::shared_ptr<StorageClient> client, std::shared_ptr<Cache> cache);
+      std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache);
   ~NameServerStorageImp() {}
 
     StoreStatus PutFile(const FileInfo & fileInfo) override;
@@ -271,7 +270,7 @@ class NameServerStorageImp : public NameServerStorage {
     std::shared_ptr<Cache> cache_;
 
     // 底层存储介质
-    std::shared_ptr<StorageClient> client_;
+    std::shared_ptr<KVStorageClient> client_;
 };
 }  // namespace mds
 }  // namespace curve

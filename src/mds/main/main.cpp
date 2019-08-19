@@ -18,7 +18,6 @@
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/mds/nameserver2/session.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
-#include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/leader_election/leader_election.h"
 #include "src/mds/topology/topology_admin.h"
 #include "src/mds/topology/topology_service.h"
@@ -34,6 +33,7 @@
 #include "src/mds/schedule/topoAdapter.h"
 #include "proto/heartbeat.pb.h"
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1.6666", "mds listen addr");
@@ -301,6 +301,18 @@ int curve_main(int argc, char **argv) {
     }
     leaderElection->StartObserverLeader();
 
+    // init alloc staistic
+    uint64_t retryInterTimes, periodicPersistInterMs;
+    LOG_IF(FATAL, !conf.GetUInt64Value(
+        "mds.segment.alloc.periodic.persistInterMs", &periodicPersistInterMs));
+    LOG_IF(FATAL, !conf.GetUInt64Value(
+        "mds.segment.alloc.retryInterMs", &retryInterTimes));
+    auto segmentAllocStatistic = std::make_shared<AllocStatistic>(
+        periodicPersistInterMs, retryInterTimes, client);
+    res = segmentAllocStatistic->Init();
+    LOG_IF(FATAL, res != 0) << "int segment alloc statistic fail";
+    segmentAllocStatistic->Run();
+
     // init InodeIDGenerator
     auto inodeIdGenerator = std::make_shared<InodeIdGeneratorImp>(client);
 
@@ -486,6 +498,7 @@ int curve_main(int argc, char **argv) {
 
     // 在退出之前把自己的节点删除
     leaderElection->LeaderResign();
+    segmentAllocStatistic->Stop();
 
     return 0;
 }
