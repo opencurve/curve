@@ -15,7 +15,7 @@
 #include "src/common/timeutility.h"
 #include "src/common/configuration.h"
 #include "test/mds/nameserver2/fakes.h"
-#include "test/mds/nameserver2/mock_clean_manager.h"
+#include "test/mds/nameserver2/mock/mock_clean_manager.h"
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
