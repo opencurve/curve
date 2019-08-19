@@ -15,12 +15,12 @@
 #include <thread>  //NOLINT
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"
-#include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/mds/nameserver2/session.h"
+#include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/dao/mdsRepo.h"
 #include "src/common/authenticator.h"
 
