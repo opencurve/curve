@@ -38,6 +38,7 @@ class TestNameServerStorageImp : public ::testing::Test {
     }
 
     void GetFileInfoForTest(FileInfo *fileinfo) {
+        uint64_t DefaultChunkSize = 16 * kMB;
         std::string filename = "helloword-" + std::to_string(1) + ".log";
         fileinfo->set_id(1);
         fileinfo->set_filename(filename);
