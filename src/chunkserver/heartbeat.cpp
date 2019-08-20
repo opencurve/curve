@@ -81,7 +81,6 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
 
 int Heartbeat::Run() {
     hbThread_ = Thread(&Heartbeat::HeartbeatWorker, this);
-
     return 0;
 }
 
@@ -463,8 +462,16 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
 
 void Heartbeat::HeartbeatWorker() {
     int ret;
+    int errorIntervalSec = 2;
 
     LOG(INFO) << "Starting Heartbeat worker thread.";
+
+    // 处理配置等于0等异常情况
+    if (options_.intervalSec <= 4) {
+        errorIntervalSec = 2;
+    } else {
+        errorIntervalSec = options_.intervalSec / 2;
+    }
 
     while (!toStop_.load(std::memory_order_acquire)) {
         HeartbeatRequest req;
@@ -474,7 +481,7 @@ void Heartbeat::HeartbeatWorker() {
         ret = BuildRequest(&req);
         if (ret != 0) {
             LOG(ERROR) << "Failed to build heartbeat request";
-            sleep(1);
+            ::sleep(errorIntervalSec);
             continue;
         }
 
@@ -482,7 +489,7 @@ void Heartbeat::HeartbeatWorker() {
         ret = SendHeartbeat(req, &resp);
         if (ret != 0) {
             LOG(WARNING) << "Failed to send heartbeat to MDS";
-            sleep(1);
+            ::sleep(errorIntervalSec);
             continue;
         }
 
@@ -490,7 +497,7 @@ void Heartbeat::HeartbeatWorker() {
         ret = ExecTask(resp);
         if (ret != 0) {
             LOG(ERROR) << "Failed to execute heartbeat tasks";
-            sleep(1);
+            ::sleep(errorIntervalSec);
             continue;
         }
 
