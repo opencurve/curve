@@ -66,11 +66,14 @@ class NameSpaceServiceTest : public ::testing::Test {
         authOptions.rootOwner = "root";
         authOptions.rootPassword = "root_password";
 
+        curveFSOptions.defaultChunkSize = 16 * kMB;
+
         InitRecycleBinDir(storage_);
 
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         cleanManager_,
-                        sessionManager_, sessionOptions, authOptions, repo);
+                        sessionManager_, sessionOptions, authOptions,
+                        curveFSOptions, repo);
     }
 
     void TearDown() override {
@@ -111,6 +114,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     SessionManager *sessionManager_;
     struct SessionOptions sessionOptions;
     struct RootAuthOption authOptions;
+    struct CurveFSOption curveFSOptions;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -407,7 +411,8 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_EQ(response1.fileinfo().owner(), "owner1");
         ASSERT_EQ(response1.fileinfo().parentid(), 0);
         ASSERT_EQ(response1.fileinfo().filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(response1.fileinfo().chunksize(), DefaultChunkSize);
+        ASSERT_EQ(response1.fileinfo().chunksize(),
+                            curveFSOptions.defaultChunkSize);
         ASSERT_EQ(response1.fileinfo().segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(response1.fileinfo().length(), fileLength);
     } else {
@@ -1087,7 +1092,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(file.filename(), "file1");
         ASSERT_EQ(file.parentid(), 0);
         ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.seqnum(), 1);
@@ -1140,7 +1145,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(file.id(), 1);
         ASSERT_EQ(file.filename(), "file1");
         ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.seqnum(), 2);
@@ -1369,7 +1374,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(file.filename(), "file1");
         ASSERT_EQ(file.parentid(), 0);
         ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.seqnum(), 1);
@@ -1405,7 +1410,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(file.id(), 3);
         ASSERT_EQ(file.filename(), "file2");
         ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.seqnum(), 1);
@@ -1871,7 +1876,7 @@ TEST_F(NameSpaceServiceTest, clonetest) {
     request.set_filetype(FileType::INODE_PAGEFILE);
     request.set_filelength(kMiniFileLength);
     request.set_seq(10);
-    request.set_chunksize(DefaultChunkSize);
+    request.set_chunksize(curveFSOptions.defaultChunkSize);
     request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_owner("tom");
     cntl.set_log_id(1);
@@ -1899,7 +1904,7 @@ TEST_F(NameSpaceServiceTest, clonetest) {
         ASSERT_EQ(fileInfo.filename(), "clonefile1");
         ASSERT_EQ(fileInfo.filetype(), FileType::INODE_PAGEFILE);
         ASSERT_EQ(fileInfo.owner(), "tom");
-        ASSERT_EQ(fileInfo.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(fileInfo.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(fileInfo.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(fileInfo.length(), kMiniFileLength);
         ASSERT_EQ(fileInfo.filestatus(), FileStatus::kFileCloning);
