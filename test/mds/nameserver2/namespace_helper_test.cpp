@@ -93,6 +93,8 @@ TEST(NameSpaceHelperTest, test_EncodeAndDecodeID) {
 }
 
 TEST(NameSpaceHelperTest, test_EncodeAnDecode_FileInfo) {
+    uint64_t DefaultChunkSize = 16 * kMB;
+
     FileInfo fileInfo;
     fileInfo.set_id(2<<8);
     fileInfo.set_filename("helloword.log");
