@@ -121,6 +121,15 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
 
         retrytimes_++;
 
+        // 检查请求内容是全路径
+        auto checkFullpath = [&]() {
+            LOG(INFO) << "request filename = " << request->filename();
+            ASSERT_EQ(request->filename()[0], '/');
+        };
+
+        fiu_do_on("test/client/fake/fakeMDS.GetOrAllocateSegment",
+                 checkFullpath());
+
         auto resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
                     fakeGetOrAllocateSegmentret_->response_);
         response->CopyFrom(*resp);
