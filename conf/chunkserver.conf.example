@@ -72,7 +72,7 @@ copyset.raft_meta_uri=local://./0/copysets
 copyset.raft_snapshot_uri=local://./0/copysets
 # copyset回收目录
 copyset.recycler_uri=local://./0/recycler
-copyset.max_inflight_requests=5000
+copyset.max_inflight_requests=500000
 
 #
 # Clone settings
