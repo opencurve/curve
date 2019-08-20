@@ -49,7 +49,7 @@ bool FileInstance::Initialize(const std::string& filename,
             return false;
         }
 
-        userinfo_ = userinfo;
+        finfo_.userinfo = userinfo;
         mdsclient_ = mdsclient;
 
         if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt, mdsclient_)) {
@@ -58,7 +58,7 @@ bool FileInstance::Initialize(const std::string& filename,
         }
 
         leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
-                                userinfo_, mdsclient_, &iomanager4file_);
+                                finfo_.userinfo, mdsclient_, &iomanager4file_);
         if (CURVE_UNLIKELY(leaseexcutor_ == nullptr)) {
             LOG(ERROR) << "allocate lease excutor failed!";
             break;
@@ -105,7 +105,7 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
     LeaseSession_t  lease;
     int ret = -LIBCURVE_ERROR::FAILED;
 
-    ret = mdsclient_->OpenFile(filename, userinfo_, &finfo_, &lease);
+    ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
     if (LIBCURVE_ERROR::OK == ret) {
         finfo_.fullPathName = filename;
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
@@ -118,12 +118,13 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
 }
 
 int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {
-    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, userinfo_, fi);
+    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, finfo_.userinfo, fi);
     return -ret;
 }
 
 int FileInstance::Close() {
-    LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName, userinfo_,
+    LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName,
+                                finfo_.userinfo,
                                 leaseexcutor_->GetLeaseSessionID());
     return -ret;
 }
