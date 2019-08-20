@@ -34,6 +34,10 @@ struct RootAuthOption {
     std::string rootPassword;
 };
 
+struct CurveFSOption {
+    uint64_t defaultChunkSize;
+};
+
 using ::curve::mds::DeleteSnapShotResponse;
 
 bool InitRecycleBinDir(NameServerStorage *storage);
@@ -55,6 +59,7 @@ class CurveFS {
      *         sessionManager：
      *         sessionOptions ：初始化所session需要的参数
      *         authOptions : 对root用户进行认认证的参数
+     *         CurveFSOption : 对curvefs进行初始化需要的参数
      *         repo : curvefs持久化数据所用的数据库，目前保存client注册信息使用
      *  @return 初始化是否成功
      */
@@ -63,6 +68,7 @@ class CurveFS {
               SessionManager *sessionManager,
               const struct SessionOptions &sessionOptions,
               const struct RootAuthOption &authOptions,
+              const struct CurveFSOption &curveFSOptions,
               std::shared_ptr<MdsRepo> repo);
 
     /**
@@ -388,6 +394,13 @@ class CurveFS {
      */
     uint64_t GetOpenFileNum();
 
+    /**
+     *  @brief 获取curvefs的defaultChunkSize信息
+     *  @param:
+     *  @return 返回获取的defaultChunkSize信息
+     */
+    uint64_t GetDefaultChunkSize();
+
  private:
     CurveFS() = default;
 
@@ -468,6 +481,7 @@ class CurveFS {
     SessionManager *            sessionManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;
     struct RootAuthOption       rootAuthOptions_;
+    struct CurveFSOption        curveFSOptions_;
     std::shared_ptr<MdsRepo> repo_;
 };
 extern CurveFS &kCurveFS;
