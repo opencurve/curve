@@ -62,6 +62,7 @@ TEST(CaCheTest, test_cache_with_capacity_no_limit) {
     ASSERT_FALSE(cache->Get("1", &res));
 }
 TEST(CaCheTest, test_cache_with_large_data_capacity_no_limit) {
+    uint64_t DefaultChunkSize = 16 * kMB;
     std::shared_ptr<LRUCache> cache = std::make_shared<LRUCache>();
 
     int i = 1;

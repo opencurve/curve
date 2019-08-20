@@ -24,6 +24,8 @@ using ::curve::mds::topology::PoolIdType;
 namespace curve {
 namespace mds {
 
+const uint64_t DefaultChunkSize = 16 * kMB;
+
 class ChunkAllocatorTest: public ::testing::Test {
  protected:
     void SetUp() override {
