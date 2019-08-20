@@ -918,6 +918,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     topologyservice.SetFakeReturn(faktopologyeret);
 
     curve::client::FInfo_t fi;
+    fi.userinfo = userinfo;
     fi.chunksize   = 4 * 1024 * 1024;
     fi.segmentsize = 1 * 1024 * 1024 * 1024ul;
     curve::client::MetaCache mc;
@@ -927,8 +928,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
 
     SegmentInfo segInfo;
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;
-    mdsclient_.GetOrAllocateSegment(true, userinfo,
-                                    0, &fi, &segInfo);
+    mdsclient_.GetOrAllocateSegment(true, 0, &fi, &segInfo);
     int count = 0;
     for (auto iter : segInfo.chunkvec) {
         uint64_t index = (segInfo.startoffset +
@@ -1516,12 +1516,12 @@ TEST_F(MDSClientTest, GetOrAllocateSegmentException) {
     topologyservice.SetFakeReturn(faktopologyeret);
 
     curve::client::FInfo_t fi;
+    fi.userinfo = userinfo;
     SegmentInfo segInfo;
     LogicalPoolCopysetIDInfo_t lpcsIDInfo;
     curve::client::MetaCache mc;
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            mdsclient_.GetOrAllocateSegment(true, userinfo,
-                    0, &fi, &segInfo));
+            mdsclient_.GetOrAllocateSegment(true, 0, &fi, &segInfo));
 
 
     // 设置rpc失败，触发重试
@@ -1535,8 +1535,7 @@ TEST_F(MDSClientTest, GetOrAllocateSegmentException) {
     curvefsservice.CleanRetryTimes();
 
     ASSERT_EQ(LIBCURVE_ERROR::FAILED,
-            mdsclient_.GetOrAllocateSegment(true, userinfo,
-                        0, &fi, &segInfo));
+            mdsclient_.GetOrAllocateSegment(true, 0, &fi, &segInfo));
 
     ASSERT_EQ(metaopt.rpcRetryTimes * metaopt.metaaddrvec.size(),
             curvefsservice.GetRetryTimes());

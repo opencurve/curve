@@ -234,7 +234,6 @@ class SnapshotClient {
   int GetOrAllocateSegmentInfo(bool allocate,
                                 uint64_t offset,
                                 const FInfo_t* fi,
-                                const UserInfo_t& userinfo,
                                 SegmentInfo *segInfo);
 
   /**

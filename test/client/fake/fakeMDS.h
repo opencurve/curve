@@ -25,6 +25,8 @@
 #include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
 
+using curve::common::Authenticator;
+
 using braft::PeerId;
 using curve::common::Authenticator;
 using curve::chunkserver::COPYSET_OP_STATUS;
@@ -104,6 +106,17 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         if (fakeGetOrAllocateSegmentret_->controller_ != nullptr &&
              fakeGetOrAllocateSegmentret_->controller_->Failed()) {
             controller->SetFailed("failed");
+        }
+
+        if (!strcmp(request->owner().c_str(), "root")) {
+            // 当user为root用户的时候需要检查其signature信息
+            std::string str2sig = Authenticator::GetString2Signature(
+                                                        request->date(),
+                                                        request->owner());
+            std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                         "root_password");
+            ASSERT_STREQ(request->signature().c_str(), sig.c_str());
+            LOG(INFO) << "GetOrAllocateSegment with password!";
         }
 
         retrytimes_++;
