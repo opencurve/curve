@@ -16,26 +16,6 @@ namespace curve {
 namespace snapshotcloneserver {
 // curve client options
 struct CurveClientOptions {
-    // opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:6666");
-    std::string mdsAddr;
-    // opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    uint32_t requestQueueCap;
-    // opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
-    uint32_t threadNum;
-    // rpc超时时间
-    uint32_t requestRpcTimeOutMs;
-    // opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    uint32_t requestMaxRetry;
-    // opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    uint32_t requestRetryIntervalUs;
-    // opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    uint32_t getLeaderRetry;
-    // opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    uint32_t enableApplyIndexRead;
-    // opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
-    uint32_t ioSplitSize;
-    // opt.loginfo.loglevel = 0;
-    uint32_t loglevel;
     // config path
     std::string configPath;
     // mds root user

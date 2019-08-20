@@ -104,7 +104,7 @@ int OriginCopyer::DownloadFromCurve(const string& fileName,
         if (iter != fdMap_.end()) {
             fd = iter->second;
         } else {
-            fd = curveClient_->Open(fileName, curveUser_);
+            fd = curveClient_->Open4ReadOnly(fileName, curveUser_);
             if (fd < 0) {
                 LOG(ERROR) << "Open curve file failed."
                         << "file name: " << fileName
