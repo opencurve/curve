@@ -65,47 +65,51 @@ int FileClient::Init(const std::string& configpath) {
         }
     }
 
-    // 在一个进程里只允许启动一次
-    uint16_t dummyServerStartPort = clientconfig_.GetDummyserverStartPort();
-    static std::once_flag flag;
-    std::call_once(flag, [&](){
-        // 启动dummy server
-        int rc = -1;
-        while (dummyServerStartPort < PORT_LIMIT) {
-            rc = brpc::StartDummyServerAt(dummyServerStartPort);
-            if (rc >= 0) {
-                LOG(INFO) << "start dummy server success, listen port = "
-                          << dummyServerStartPort;
-                break;
-            }
-            dummyServerStartPort++;
-        }
-    });
 
     bool rc = true;
     do {
+        if (!clientconfig_.GetFileServiceOption().commonOpt.registerToMDS) {
+            LOG(INFO) << "do not need register to mds!";
+            break;
+        }
+
+        // 在一个进程里只允许启动一次
+        uint16_t dummyServerStartPort = clientconfig_.GetDummyserverStartPort();
+        static std::once_flag flag;
+        std::call_once(flag, [&](){
+            // 启动dummy server
+            int ret = -1;
+            while (dummyServerStartPort < PORT_LIMIT) {
+                ret = brpc::StartDummyServerAt(dummyServerStartPort);
+                if (ret >= 0) {
+                    LOG(INFO) << "start dummy server success, listen port = "
+                            << dummyServerStartPort;
+                    break;
+                }
+                dummyServerStartPort++;
+            }
+        });
+
         if (dummyServerStartPort >= PORT_LIMIT) {
             rc = false;
             LOG(ERROR) << "start dummy server failed!";
             break;
         }
 
-        if (clientconfig_.GetFileServiceOption().commonOpt.registerToMDS) {
-            // 获取本地IP
-            std::string ip;
-            rc = common::NetCommon::GetLocalIP(&ip);
-            if (rc == false) {
-                LOG(ERROR) << "get local ip failed! can not regist to mds!";
-                break;
-            }
+        // 获取本地IP
+        std::string ip;
+        rc = common::NetCommon::GetLocalIP(&ip);
+        if (rc == false) {
+            LOG(ERROR) << "get local ip failed! can not regist to mds!";
+            break;
+        }
 
-            // 向mds注册
-            LIBCURVE_ERROR ret = mdsClient_->Register(ip, dummyServerStartPort);
-            if (ret != LIBCURVE_ERROR::OK) {
-                rc = false;
-                LOG(ERROR) << "regist client metric info to mds failed!";
-                break;
-            }
+        // 向mds注册
+        LIBCURVE_ERROR ret = mdsClient_->Register(ip, dummyServerStartPort);
+        if (ret != LIBCURVE_ERROR::OK) {
+            rc = false;
+            LOG(ERROR) << "regist client metric info to mds failed!";
+            break;
         }
     } while (0);
 
@@ -175,6 +179,42 @@ int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
         delete fileserv;
         return ret;
     }
+
+    int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
+
+    {
+        WriteLockGuard lk(rwlock_);
+        fileserviceMap_[fd] = fileserv;
+    }
+    return fd;
+}
+
+int FileClient::Open4ReadOnly(const std::string& filename,
+                                  const UserInfo_t& userinfo) {
+    FileInstance* fileserv = new (std::nothrow) FileInstance();
+    if (fileserv == nullptr ||
+        !fileserv->Initialize(filename,
+                              mdsClient_,
+                              userinfo,
+                              clientconfig_.GetFileServiceOption(),
+                              true)) {
+        LOG(ERROR) << "FileInstance initialize failed!";
+        delete fileserv;
+        return -1;
+    }
+
+    FInfo_t finfo;
+    int ret = fileserv->GetFileInfo(filename, &finfo);
+    if (ret != 0) {
+        LOG(ERROR) << "get file info failed! Open4ReadOnly failed!";
+        fileserv->UnInitialize();
+        delete fileserv;
+        return -1;
+    }
+
+    finfo.userinfo = userinfo;
+    finfo.fullPathName = filename;
+    fileserv->GetIOManager4File()->UpdataFileInfo(finfo);
 
     int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
 
