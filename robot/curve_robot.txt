@@ -1796,7 +1796,7 @@ create snapshot with nomal file
     ${expect_content}    evaluate    str("aaaaaaaa")*512
     should be equal  ${content}     ${expect_content}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -1812,7 +1812,7 @@ create snapshot with nomal file and check first chunk snapshot
     ${expect_content}    evaluate    str("aaaaaaaa")*512
     should be equal  ${content}     ${expect_content}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -1832,7 +1832,7 @@ create snapshot and check chunk snapshot after cow
     ${expect_content}    evaluate    str("aaaaaaaa")*512
     should be equal  ${content}     ${expect_content}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     ${seq}  snapshot normal create
     ${seginfo}  get snapshot first segment info  ${seq}
@@ -1841,7 +1841,7 @@ create snapshot and check chunk snapshot after cow
     ${expect_content}    evaluate    str("tttttttt")*512
     should be equal  ${content}     ${expect_content}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -1858,7 +1858,7 @@ create snapshot repeat
     ${rc}  snapshot normal create
     should be equal  ${rc}  ${expect_rc}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     ${expect_rc}    evaluate    int(0)
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
@@ -1882,7 +1882,7 @@ get empty file snapshot info
     should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
     should be equal  ${finfo.filetype}    ${expect_filetype}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -1906,7 +1906,7 @@ get nomal file snapshot info
     should be equal  ${finfo.filetype}  ${expect_type}
     should be equal  ${finfo.filename}  ${expect_filename}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -1934,7 +1934,7 @@ check snapshot info after modify file
     should be equal  ${finfo.segmentsize.value}    ${expect_segmentsize}
     should be equal  ${finfo.filetype}  ${expect_type}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -1951,7 +1951,7 @@ get deleted snapshot info
     should be equal  ${finfo.filestatus}    ${expect_status}
     should be equal  ${finfo.seqnum.value}  ${expect_seqnum}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     ${rc}    get sanpshot info  ${seq}
     ${expect_rc}    evaluate    int(-6)
@@ -1971,7 +1971,7 @@ get sanpshot info use error seq
     should be equal  ${finfo}  ${expect_rs}
     ${seq.value}    evaluate  int(1)
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -1986,7 +1986,7 @@ delete snapshoting curve file
     ${expect_delete_rc}     evaluate  int(-7)
     should be equal  ${rc}  ${expect_delete_rc}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -2016,7 +2016,7 @@ check snapshot segmentinfo after modify file
     should be equal  ${seginfo_new.startoffset.value}   ${expect_startoffset}
     should be equal  ${seginfo_new.chunkVecSize.value}  ${expect_chunkvecsize}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
@@ -2038,7 +2038,7 @@ get deleted snapshot segmentinfo
     should be equal  ${seginfo.startoffset.value}   ${expect_startoffset}
     should be equal  ${seginfo.chunkVecSize.value}  ${expect_chunkvecsize}
     ${rs}   delete file snapshot    ${seq}
-    sleep  2
+    sleep  5
     should be equal  ${rs}  ${expect_rc}
     ${rs}  get snapshot first segment info  ${seq}
     ${expect_rs}    evaluate    int(-6)
