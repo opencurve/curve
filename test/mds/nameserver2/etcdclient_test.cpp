@@ -28,8 +28,8 @@ class TestEtcdClinetImp : public ::testing::Test {
     void SetUp() override {
         client_ = std::make_shared<EtcdClientImp>();
         char endpoints[] = "127.0.0.1:2377";
-        EtcdConf conf = {endpoints, strlen(endpoints), 10000};
-        ASSERT_EQ(EtcdErrCode::Unknown, client_->Init(conf, 200, 3));
+        EtcdConf conf = {endpoints, strlen(endpoints), 1000};
+        ASSERT_EQ(EtcdErrCode::DeadlineExceeded, client_->Init(conf, 200, 3));
         std::string runEtcd =
             std::string("etcd --listen-client-urls 'http://localhost:2377'") +
             std::string(" --advertise-client-urls 'http://localhost:2377'") +
@@ -306,6 +306,16 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         uint64_t targetOid;
         common::Thread thread1(&EtcdClientImp::CampaignLeader, client_, pfx,
             leaderName1, sessionnInterSec, electionTimeoutMs, &targetOid);
+        int now = ::curve::common::TimeUtility::GetTimeofDaySec();
+        bool leaderKeyExist = false;
+        while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
+            if (targetOid == 0) {
+                continue;
+            }
+            leaderKeyExist = client_->LeaderKeyExist(
+                targetOid, sessionnInterSec * 1000);
+        }
+        ASSERT_TRUE(leaderKeyExist);
         // 等待线程1执行完成, 线程1执行完成就说明竞选成功，
         // 否则electionTimeoutMs为0的情况下会一直hung在里面
         thread1.join();
@@ -320,8 +330,8 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         // 线程1退出后，leader2会当选
         thread2.join();
         LOG(INFO) << "thread 2 exit.";
-        // leader2为leader的情况下此时观察leader1的key应该是出错的
-        ASSERT_EQ(EtcdErrCode::ObserverLeaderInternal,
+        // leader2为leader的情况下此时观察leader1的key应该发现not exist
+        ASSERT_EQ(EtcdErrCode::ObserverLeaderNotExist,
             client2->LeaderObserve(targetOid, 1000, leaderName1));
         client2->CloseClient();
     }
