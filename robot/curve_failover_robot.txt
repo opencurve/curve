@@ -402,6 +402,14 @@ test suspend up recover chunkserver
 #    check copies consistency
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
+test suspend delete and up recover chunkserver
+    [Tags]    P1    base    first release   failover  longtime  no-need
+    test suspend delete recover copyset
+#    check vm iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	   wait iops ok   ${vm_iops_limit}
+
 test stop all cs not recover
     [Tags]    P1    base    first release   failover
     stop all cs not recover
