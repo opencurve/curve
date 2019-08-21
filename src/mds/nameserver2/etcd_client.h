@@ -137,6 +137,17 @@ class EtcdClientImp : public StorageClient {
         uint64_t *leaderOid);
 
     /**
+     * @brief ElectionLeaderKeyExist 判断leader注册的key-value是否还存在
+     *
+     * @brief leaderOid 指定的leader
+     * @brief timeoutMs client去etcd服务端进行get操作的超时时间
+     *
+     * @return true-当前leader写入key存在且版本号最小
+     *         false-当前leader写入的key不存在或者版本号不是最小
+     */
+    virtual bool LeaderKeyExist(uint64_t leaderOid, uint64_t timeoutMs);
+
+    /**
      * @brief LeaderObserve 当选leader后监测注册节点是否被删除以及etcd是否internal err //NOLINT
      *
      * @param[in] leaderOid 监测指定leader
@@ -157,7 +168,7 @@ class EtcdClientImp : public StorageClient {
      * @return EtcdErrCode::LeaderResiginSuccess卸任成功
      *         EtcdErrCode::LeaderResiginErr卸任失败
      */
-    int LeaderResign(uint64_t leaderOid, uint64_t timeoutMs);
+     virtual int LeaderResign(uint64_t leaderOid, uint64_t timeoutMs);
 
     // for test
     void SetTimeout(int time);
