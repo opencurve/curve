@@ -52,9 +52,18 @@ class LeaderElection {
 
     /**
      * @brief StartObserverLeader 启动leader节点监测线程
-     *
      */
     void StartObserverLeader();
+
+    /**
+     * @brief StartObserverLeader etcd server中leader key是否还存在
+     */
+    bool LeaderKeyExist();
+
+    /**
+     * @brief LeaderResign leader主动卸任leader，卸任成功后其他节点可以竞选leader
+     */
+    int LeaderResign();
 
  public:
     /**
