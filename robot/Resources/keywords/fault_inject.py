@@ -340,6 +340,8 @@ def check_vm_status(ssh,uuid):
        rs = shell_operator.ssh_exec(ssh, ori_cmd)
        if "".join(rs[1]).strip() == "ACTIVE":
            return True
+       elif "".join(rs[1]).strip() == "ERROR":
+           return False
        else:
            time.sleep(5)
            i = i + 5
@@ -398,8 +400,12 @@ def init_vm():
         assert rs[3] == 0,"hard reboot vm fail,return is %s"%rs[2]
         assert rs2[3] == 0,"hard reboot vm fail,return is %s"%rs2[2]
         time.sleep(60)
-        check_vm_status(ssh,uuid)
-        check_vm_status(ssh,uuid2)
+        rs = check_vm_status(ssh,uuid)
+        if rs == False:
+            rs = shell_operator.ssh_exec(ssh,ori_cmd)
+        rs = check_vm_status(ssh,uuid2)
+        if rs == False:
+            rs = shell_operator.ssh_exec(ssh,ori_cmd2)
         check_vm_vd(config.vm_host,ssh,uuid)
         check_vm_vd(config.vm_stability_host,ssh,uuid2)
     except:
@@ -1005,6 +1011,50 @@ def test_suspend_recover_copyset():
         cs_list = start_host_cs_process(chunkserver_host)
         raise
 
+def test_suspend_delete_recover_copyset():
+    chunkserver_host = random.choice(config.chunkserver_list)
+    logger.info("|------begin test suspend delete recover,host %s------|"%(chunkserver_host))
+    try:
+        cs_list = kill_mult_cs_process(chunkserver_host,1)
+        chunkserver_id = get_chunkserver_id(chunkserver_host,cs_list[0])
+        assert chunkserver_id != -1
+        begin_num = get_cs_copyset_num(chunkserver_id)
+        #time.sleep(config.recover_time)
+        i = 0
+        time.sleep(10)
+        while i < config.recover_time:
+            check_vm_iops()
+            i = i + 1
+            num = get_cs_copyset_num(chunkserver_id)
+            time.sleep(1)
+            logger.info("now cs copyset num is %d,begin_num is %d"%(num,begin_num))
+            if num > 0 and abs(begin_num - num) > 10 :
+                break
+            elif num == 0:
+               cs_list = start_host_cs_process(chunkserver_host,cs_list[0]) 
+               assert False,"copyset is 0"
+        start_host_cs_process(chunkserver_host,cs_list[0])
+        time.sleep(300)
+        chunkserver_id = get_chunkserver_id(chunkserver_host,cs_list[0])
+        i = 0
+        while i < config.recover_time:
+            check_vm_iops()
+            i = i + 60
+            num = get_cs_copyset_num(chunkserver_id)
+            time.sleep(60)
+            logger.info("cs copyset num is %d"%num)
+            if abs(num - begin_num) < 10:
+                break
+        if abs(num - begin_num) > 10:
+            raise Exception(
+                "host %s chunkserver %d not recover to %d in %d,now is %d" % \
+            (chunkserver_host, cs_list[0],begin_num,config.recover_time,num))
+    except Exception as e:
+#        raise AssertionError()
+        logger.error("error is %s"%e)
+        cs_list = start_host_cs_process(chunkserver_host)
+        raise
+
 def test_kill_mds(num=1):
     start_iops = get_cluster_iops()
     logger.info("|------begin test kill mds num %d------|"%(num))
@@ -1222,7 +1272,8 @@ def test_start_vm():
         stop_vm(ssh,uuid)
         time.sleep(30)
         start_vm(ssh,uuid)
-        check_vm_status(ssh,uuid)
+        rs = check_vm_status(ssh,uuid)
+        assert rs,"vm status is error"
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.9:
             raise Exception("client io is slow = %d"%(end_iops))
@@ -1240,7 +1291,8 @@ def test_restart_vm():
         uuid = "".join(rs[1]).strip()
         restart_vm(ssh,uuid)
         time.sleep(60)
-        check_vm_status(ssh,uuid)
+        rs = check_vm_status(ssh,uuid)
+        assert rs,"vm status is error"
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.9:
             raise Exception("client io is slow = %d"%(end_iops))
