@@ -294,9 +294,10 @@ int curve_main(int argc, char **argv) {
     InitLeaderElectionOption(&conf, &leaderElectionOp);
     leaderElectionOp.etcdCli = client;
     auto leaderElection = std::make_shared<LeaderElection>(leaderElectionOp);
-    while (0 != leaderElection->CampaginLeader()) {
+    while (0 != leaderElection->CampaginLeader() ||
+        false == leaderElection->LeaderKeyExist()) {
         LOG(INFO) << leaderElectionOp.leaderUniqueName
-                  << " campaign for leader agin";
+                  << " campaign for leader again";
     }
     leaderElection->StartObserverLeader();
 
@@ -473,6 +474,8 @@ int curve_main(int argc, char **argv) {
     LOG_IF(FATAL, server.Start(mdsListenAddr.c_str(), &option) != 0)
         << "start brpc server error";
 
+    // 要想实现SIGTERM的优雅退出，启动进程时需要指定参数：
+    // --graceful_quit_on_sigterm
     server.RunUntilAskedToQuit();
 
     kCurveFS.Uninit();
@@ -480,6 +483,10 @@ int curve_main(int argc, char **argv) {
         LOG(ERROR) << "stop cleanManager fail.";
         return -1;
     }
+
+    // 在退出之前把自己的节点删除
+    leaderElection->LeaderResign();
+
     return 0;
 }
 }  // namespace mds
