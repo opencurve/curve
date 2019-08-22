@@ -76,6 +76,12 @@ void InitAuthOptions(Configuration *conf,
         "mds.auth.rootPassword", &authOptions->rootPassword));
 }
 
+void InitCurveFSOptions(Configuration *conf,
+                     struct CurveFSOption *curveFSOptions) {
+    LOG_IF(FATAL, !conf->GetUInt64Value(
+        "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize));
+}
+
 void InitScheduleOption(
     Configuration *conf, ScheduleOption *scheduleOption) {
     LOG_IF(FATAL, !conf->GetBoolValue("mds.enable.copyset.scheduler",
@@ -212,6 +218,9 @@ int curve_main(int argc, char **argv) {
 
     RootAuthOption authOptions;
     InitAuthOptions(&conf, &authOptions);
+
+    struct CurveFSOption curveFSOptions;
+    InitCurveFSOptions(&conf, &curveFSOptions);
 
     ScheduleOption scheduleOption;
     InitScheduleOption(&conf, &scheduleOption);
@@ -383,7 +392,8 @@ int curve_main(int argc, char **argv) {
     SessionManager *sessionManager = new SessionManager(mdsRepo);
     LOG_IF(FATAL, !kCurveFS.Init(storage, inodeIdGenerator.get(),
                   chunkSegmentAllocate, cleanManger,
-                  sessionManager, sessionOptions, authOptions, mdsRepo))
+                  sessionManager, sessionOptions, authOptions,
+                  curveFSOptions, mdsRepo))
         << "init session manager fail";
 
 

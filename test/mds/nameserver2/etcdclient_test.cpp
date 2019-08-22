@@ -69,6 +69,7 @@ TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
     FileInfo fileInfo7, fileInfo8;
     std::string fileInfo9, fileKey10, fileInfo10, fileName10;
     std::string fileInfo6, snapshotKey6, snapshotInfo6, snapshotName6;
+    uint64_t DefaultChunkSize = 16 * kMB;
     for (int i = 0; i < 11; i++) {
         FileInfo fileinfo;
         std::string filename = "helloword-" + std::to_string(i) + ".log";
