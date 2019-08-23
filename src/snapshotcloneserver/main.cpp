@@ -37,29 +37,6 @@ namespace snapshotcloneserver {
 
 void InitClientOption(Configuration *conf,
                       CurveClientOptions *clientOption) {
-    LOG_IF(FATAL, !conf->GetStringValue("client.mds_server_address",
-                                        &clientOption->mdsAddr));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.request_queue_capacity",
-                                        &clientOption->requestQueueCap));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.thread_number",
-                                        &clientOption->threadNum));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.request_rpcTimeOutMs",
-                                        &clientOption->requestRpcTimeOutMs));
-    LOG_IF(FATAL, !conf->GetUInt32Value("requestMaxRetry",
-                                        &clientOption->requestMaxRetry));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.request_retry_interval_us",
-                                        &clientOption->requestRetryIntervalUs));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.request_retry_interval_us",
-                                        &clientOption->requestRetryIntervalUs));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.get_leader_retry",
-                                        &clientOption->getLeaderRetry));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.enable_apply_index_read",
-                                        &clientOption->enableApplyIndexRead));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.io_split_size",
-                                        &clientOption->ioSplitSize));
-    LOG_IF(FATAL, !conf->GetUInt32Value("client.loglevel",
-                                        &clientOption->loglevel));
-
     LOG_IF(FATAL, !conf->GetStringValue("client.config_path",
                                         &clientOption->configPath));
     LOG_IF(FATAL, !conf->GetStringValue("mds.rootUser",

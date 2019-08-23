@@ -311,7 +311,7 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
     cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<SetCloneFileStatusRequest>(&request, userinfo);
 
-    LOG(INFO) << "CreateCloneFile: filename = " << filename.c_str()
+    LOG(INFO) << "SetCloneFileStatus: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner.c_str()
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID

@@ -16,24 +16,8 @@ int CurveFsClientImpl::Init(const CurveClientOptions &options) {
     mdsRootUser_ = options.mdsRootUser;
     mdsRootPassword_ = options.mdsRootPassword;
 
-    ClientConfigOption_t opt;
-
-    opt.metaServerOpt.metaaddrvec.push_back(options.mdsAddr);
-    opt.metaServerOpt.rpcTimeoutMs = options.requestRpcTimeOutMs;
-    opt.metaServerOpt.synchronizeRPCTimeoutMS = options.requestRpcTimeOutMs;
-    opt.ioOpt.reqSchdulerOpt.queueCapacity = options.requestQueueCap;
-    opt.ioOpt.reqSchdulerOpt.threadpoolSize = options.threadNum;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = options.requestMaxRetry;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs
-        = options.requestRetryIntervalUs;
-    opt.ioOpt.metaCacheOpt.getLeaderRetry = options.getLeaderRetry;
-    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = options.enableApplyIndexRead;
-    opt.ioOpt.ioSenderOpt.rpcTimeoutMs = options.requestRpcTimeOutMs;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = options.ioSplitSize;
-    opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
-    opt.loginfo.loglevel = options.loglevel;
-
-    if (client_.Init(opt) < 0 || fileClient_.Init(options.configPath) < 0) {
+    if (client_.Init(options.configPath) < 0
+        || fileClient_.Init(options.configPath) < 0) {
         return kErrCodeServerInitFail;
     }
     return kErrCodeSuccess;
