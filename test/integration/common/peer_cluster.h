@@ -5,8 +5,8 @@
  * Copyright (c) 2019 netease
  */
 
-#ifndef TEST_INTEGRATION_RAFT_PEER_CLUSTER_H_
-#define TEST_INTEGRATION_RAFT_PEER_CLUSTER_H_
+#ifndef TEST_INTEGRATION_COMMON_PEER_CLUSTER_H_
+#define TEST_INTEGRATION_COMMON_PEER_CLUSTER_H_
 
 #include <butil/status.h>
 #include <gtest/gtest.h>
@@ -297,4 +297,4 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
 }  // namespace chunkserver
 }  // namespace curve
 
-#endif  // TEST_INTEGRATION_RAFT_PEER_CLUSTER_H_
+#endif  // TEST_INTEGRATION_COMMON_PEER_CLUSTER_H_
