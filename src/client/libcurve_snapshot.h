@@ -34,6 +34,13 @@ class SnapshotClient {
    * @return：0为成功，-1为失败
    */
   int Init(ClientConfigOption_t opt);
+
+  /**
+   * file对象初始化函数
+   * @param: 配置文件路径
+   */
+  int Init(const std::string& configpath);
+
   /**
    * 创建快照
    * @param: userinfo是用户信息
@@ -288,6 +295,9 @@ class SnapshotClient {
 
   // IOManager4Chunk用于管理发向chunkserver端的IO
   IOManager4Chunk         iomanager4chunk_;
+
+  // 用于client 配置读取
+  ClientConfig clientconfig_;
 };
 }   // namespace client
 }   // namespace curve

@@ -40,6 +40,32 @@ int SnapshotClient::Init(ClientConfigOption_t clientopt) {
     return ret;
 }
 
+int SnapshotClient::Init(const std::string& configpath) {
+    if (-1 == clientconfig_.Init(configpath.c_str())) {
+        LOG(ERROR) << "config init failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    int ret = -LIBCURVE_ERROR::FAILED;
+    do {
+        if (mdsclient_.Initialize(
+            clientconfig_.GetFileServiceOption().metaServerOpt)
+            != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "MDSClient init failed!";
+            break;
+        }
+
+        if (!iomanager4chunk_.Initialize(
+            clientconfig_.GetFileServiceOption().ioOpt, &mdsclient_)) {
+            LOG(ERROR) << "Init io context manager failed!";
+            break;
+        }
+        ret = LIBCURVE_ERROR::OK;
+    } while (0);
+
+    return ret;
+}
+
 void SnapshotClient::UnInit() {
     iomanager4chunk_.UnInitialize();
     mdsclient_.UnInitialize();
