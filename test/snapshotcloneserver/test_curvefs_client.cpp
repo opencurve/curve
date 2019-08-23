@@ -20,22 +20,11 @@ class TestCurveFsClientImpl : public ::testing::Test {
 
     virtual void SetUp() {
         client_ = std::make_shared<CurveFsClientImpl>();
-        clientOption_.mdsAddr = "127.0.0.1:8999";
-        clientOption_.requestQueueCap = 4096;
-        clientOption_.threadNum = 2;
-        clientOption_.requestRpcTimeOutMs = 500;
-        clientOption_.requestMaxRetry = 3;
-        clientOption_.requestRetryIntervalUs = 500;
-        clientOption_.getLeaderRetry = 3;
-        clientOption_.enableApplyIndexRead = 1;
-        clientOption_.ioSplitSize = 64;
-        clientOption_.loglevel = 0;
-        clientOption_.configPath = "";
+        clientOption_.configPath = "test/snapshotcloneserver/client_test.conf";
         clientOption_.mdsRootUser = "root";
         clientOption_.mdsRootPassword = "1234";
         client_->Init(clientOption_);
     }
-
 
     virtual void TearDown() {
     }

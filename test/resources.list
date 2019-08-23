@@ -29,7 +29,7 @@ Used port list:
 
 # mds & snapshotcloneserver
 
-    use port : 8900~8999
+    use port : 8900~8999, 8888
 
 # chunkserver
 

@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
-
+#include <fiu-control.h>
 #include <string>
 #include <iostream>
 #include <thread>   //NOLINT
@@ -34,6 +34,7 @@ using curve::client::ClientConfig;
 using curve::client::FileInstance;
 using curve::client::CopysetInfo_t;
 using curve::client::CopysetIDInfo;
+using curve::client::FileClient;
 
 extern std::string configpath;
 extern uint32_t chunk_size;
@@ -196,6 +197,97 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     delete[] readbuffer;
     UnInit();
 }
+
+TEST(TestLibcurveInterface, FileClientTest) {
+    fiu_init(0);
+    FLAGS_chunkserver_list =
+         "127.0.0.1:9115:0,127.0.0.1:9116:0,127.0.0.1:9117:0";
+
+    std::string filename = "/1";
+    UserInfo_t userinfo;
+    userinfo.owner = "userinfo";
+
+    FileClient fc;
+
+    // 设置leaderid
+    EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9115, &ep);
+    PeerId pd(ep);
+
+    // init mds service
+    FakeMDS mds(filename);
+    mds.Initialize();
+    mds.StartCliService(pd);
+    mds.StartService();
+    mds.CreateCopysetNode(true);
+
+    ASSERT_EQ(0, fc.Init(configpath));
+
+    int fd = fc.Open4ReadOnly(filename, userinfo);
+    int fd2 = fc.Open(filename, userinfo);
+
+    ASSERT_NE(fd, -1);
+    ASSERT_NE(fd2, -1);
+
+    fiu_enable("test/client/fake/fakeMDS.GetOrAllocateSegment", 1, nullptr, 0);
+
+    char* buffer = new char[8 * 1024];
+    memset(buffer, 'a', 1024);
+    memset(buffer + 1024, 'b', 1024);
+    memset(buffer + 2 * 1024, 'c', 1024);
+    memset(buffer + 3 * 1024, 'd', 1024);
+    memset(buffer + 4 * 1024, 'e', 1024);
+    memset(buffer + 5 * 1024, 'f', 1024);
+    memset(buffer + 6 * 1024, 'g', 1024);
+    memset(buffer + 7 * 1024, 'h', 1024);
+
+    CurveAioContext writeaioctx;
+    writeaioctx.buf = buffer;
+    writeaioctx.offset = 0;
+    writeaioctx.length = 8 * 1024;
+    writeaioctx.cb = writecallbacktest;
+
+    ASSERT_EQ(-1, fc.AioWrite(fd, &writeaioctx));
+
+    writeflag = false;
+    ASSERT_EQ(0, fc.AioWrite(fd2, &writeaioctx));
+    {
+        std::unique_lock<std::mutex> lk(writeinterfacemtx);
+        writeinterfacecv.wait(lk, []()->bool{return writeflag;});
+    }
+    char* readbuffer = new char[8 * 1024];
+    CurveAioContext readaioctx;
+    readaioctx.buf = readbuffer;
+    readaioctx.offset = 0;
+    readaioctx.length = 8 * 1024;
+    readaioctx.cb = readcallbacktest;
+
+    readflag = false;
+    fc.AioRead(fd, &readaioctx);
+    {
+        std::unique_lock<std::mutex> lk(interfacemtx);
+        interfacecv.wait(lk, []()->bool{return readflag;});
+    }
+
+    for (int i = 0; i < 1024; i++) {
+        ASSERT_EQ(readbuffer[i], 'a');
+        ASSERT_EQ(readbuffer[i +  1024], 'b');
+        ASSERT_EQ(readbuffer[i +  2 * 1024], 'c');
+        ASSERT_EQ(readbuffer[i +  3 * 1024], 'd');
+        ASSERT_EQ(readbuffer[i +  4 * 1024], 'e');
+        ASSERT_EQ(readbuffer[i +  5 * 1024], 'f');
+        ASSERT_EQ(readbuffer[i +  6 * 1024], 'g');
+        ASSERT_EQ(readbuffer[i +  7 * 1024], 'h');
+    }
+
+    fc.Close(fd);
+    fc.Close(fd2);
+    mds.UnInitialize();
+    delete[] buffer;
+    delete[] readbuffer;
+    fc.UnInit();
+}
+
 /*
 TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     std::string filename = "/1_userinfo_";
