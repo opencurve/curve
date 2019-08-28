@@ -36,6 +36,8 @@ class TestCloneCoreImpl : public ::testing::Test {
     virtual void SetUp() {
         snapshotRef_ =
             std::make_shared<SnapshotReference>();
+        cloneRef_ =
+            std::make_shared<CloneReference>();
         client_ = std::make_shared<MockCurveFsClient>();
         metaStore_ = std::make_shared<MockSnapshotCloneMetaStore>();
         dataStore_ = std::make_shared<MockSnapshotDataStore>();
@@ -46,6 +48,7 @@ class TestCloneCoreImpl : public ::testing::Test {
             metaStore_,
             dataStore_,
             snapshotRef_,
+            cloneRef_,
             option);
     }
 
@@ -54,6 +57,8 @@ class TestCloneCoreImpl : public ::testing::Test {
         metaStore_ = nullptr;
         dataStore_ = nullptr;
         core_ = nullptr;
+        snapshotRef_ = nullptr;
+        cloneRef_ = nullptr;
     }
 
  protected:
@@ -124,6 +129,7 @@ class TestCloneCoreImpl : public ::testing::Test {
     std::shared_ptr<MockSnapshotCloneMetaStore> metaStore_;
     std::shared_ptr<MockSnapshotDataStore> dataStore_;
     std::shared_ptr<SnapshotReference> snapshotRef_;
+    std::shared_ptr<CloneReference> cloneRef_;
     SnapshotCloneServerOptions option;
 };
 
@@ -179,8 +185,18 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSuccess) {
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(source, _))
         .WillOnce(Return(kErrCodeInternalError));
 
+    FInfo fInfo;
+    fInfo.id = 100;
+    fInfo.chunksize = 1024 * 1024;
+    fInfo.segmentsize = 0;
+    fInfo.length = 2 * fInfo.segmentsize;
+    fInfo.seqnum = 100;
+    fInfo.owner = "user1";
+    fInfo.filename = "file1";
+    fInfo.filestatus = FileStatus::Created;
     EXPECT_CALL(*client_, GetFileInfo(source, option.mdsRootUser, _))
-        .WillOnce(Return(LIBCURVE_ERROR::OK));
+        .WillOnce(DoAll(SetArgPointee<2>(fInfo),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*metaStore_, AddCloneInfo(_))
         .WillOnce(Return(kErrCodeSuccess));

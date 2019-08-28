@@ -14,9 +14,11 @@
 #include "src/snapshotcloneserver/clone/clone_task.h"
 #include "src/common/location_operator.h"
 #include "src/common/uuid.h"
+#include "src/common/concurrent/name_lock.h"
 
 using ::curve::common::UUIDGenerator;
 using ::curve::common::LocationOperator;
+using ::curve::common::NameLockGuard;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -82,7 +84,28 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     //是否为快照
     SnapshotInfo snapInfo;
     CloneFileType fileType;
-    ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
+
+    {
+        NameLockGuard lockSnapGuard(snapshotRef_->GetSnapshotLock(), source);
+        ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
+        if (0 == ret) {
+            if (snapInfo.GetStatus() != Status::done) {
+                LOG(ERROR) << "Can not clone by snapshot has status:"
+                           << static_cast<int>(snapInfo.GetStatus());
+                return kErrCodeInvalidSnapshot;
+            }
+            if (snapInfo.GetUser() != user) {
+                LOG(ERROR) << "Clone snapshot by invalid user"
+                           << ", source = " << source
+                           << ", user = " << user
+                           << ", destination = " << destination
+                           << ", snapshot.user = " << snapInfo.GetUser();
+                return kErrCodeInvalidUser;
+            }
+            fileType = CloneFileType::kSnapshot;
+            snapshotRef_->IncrementSnapshotRef(source);
+        }
+    }
     if (ret < 0) {
         FInfo fInfo;
         ret = client_->GetFileInfo(source, mdsRootUser_, &fInfo);
@@ -103,22 +126,14 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                            << ", user = " << user;
                 return kErrCodeInternalError;
         }
+        if (fInfo.filestatus != FileStatus::Created &&
+            fInfo.filestatus != FileStatus::Cloned) {
+            LOG(ERROR) << "Can not clone when file status = "
+                       << static_cast<int>(fInfo.filestatus);
+            return kErrCodeFileStatusInvalid;
+        }
+
         // TODO(镜像克隆的用户认证待完善)
-    } else {
-        if (snapInfo.GetStatus() != Status::done) {
-            LOG(ERROR) << "Can not clone by snapshot has status:"
-                       << static_cast<int>(snapInfo.GetStatus());
-            return kErrCodeInvalidSnapshot;
-        }
-        if (snapInfo.GetUser() != user) {
-            LOG(ERROR) << "Clone snapshot by invalid user"
-                       << ", source = " << source
-                       << ", user = " << user
-                       << ", destination = " << destination
-                       << ", snapshot.user = " << snapInfo.GetUser();
-            return kErrCodeInvalidUser;
-        }
-        fileType = CloneFileType::kSnapshot;
     }
 
     UUID uuid = UUIDGenerator().GenerateUUID();
@@ -133,14 +148,56 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                    << ", user = " << user
                    << ", source = " << source
                    << ", destination = " << destination;
+        if (CloneFileType::kSnapshot == fileType) {
+            snapshotRef_->DecrementSnapshotRef(source);
+        }
         return ret;
     }
-    *cloneInfo = info;
-    if (CloneFileType::kSnapshot == fileType) {
-        snapshotRef_->IncrementSnapshotRef(source);
-    } else {
-        // TODO(xuchaojie): 非快照情况下，需提供措施防止被克隆文件被删除
+    if (CloneFileType::kFile == fileType) {
+        NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+        ret = client_->SetCloneFileStatus(source,
+            FileStatus::BeingCloned,
+            mdsRootUser_);
+        switch (ret) {
+            case LIBCURVE_ERROR::OK:
+                break;
+            case -LIBCURVE_ERROR::NOTEXIST:
+                LOG(ERROR) << "Clone source file not exist"
+                           << ", source = " << source
+                           << ", user = " << user
+                           << ", destination = " << destination;
+                ret = metaStore_->DeleteCloneInfo(info.GetTaskId());
+                if (ret < 0) {
+                    LOG(ERROR) << "DeleteCloneInfo fail, ret = " << ret;
+                    return kErrCodeInternalError;
+                }
+                return kErrCodeFileNotExist;
+            case -LIBCURVE_ERROR::STATUS_NOT_MATCH:
+                LOG(ERROR) << "SetCloneFileStatus file status not match"
+                           << ", ret = " << ret
+                           << ", source = " << source
+                           << ", user = " << user;
+                metaStore_->DeleteCloneInfo(info.GetTaskId());
+                if (ret < 0) {
+                    LOG(ERROR) << "DeleteCloneInfo fail, ret = " << ret;
+                    return kErrCodeInternalError;
+                }
+                return kErrCodeFileStatusInvalid;
+            default:
+                LOG(ERROR) << "SetCloneFileStatus encounter an error"
+                           << ", ret = " << ret
+                           << ", source = " << source
+                           << ", user = " << user;
+                metaStore_->DeleteCloneInfo(info.GetTaskId());
+                if (ret < 0) {
+                    LOG(ERROR) << "DeleteCloneInfo fail, ret = " << ret;
+                }
+                return kErrCodeInternalError;
+        }
+        cloneRef_->IncrementRef(source);
     }
+
+    *cloneInfo = info;
     return kErrCodeSuccess;
 }
 
@@ -725,6 +782,27 @@ int CloneCoreImpl::CompleteCloneFile(
 void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
     if (IsSnapshot(task)) {
         snapshotRef_->DecrementSnapshotRef(task->GetCloneInfo().GetSrc());
+    } else {
+        std::string source = task->GetCloneInfo().GetSrc();
+        cloneRef_->DecrementRef(source);
+        NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+        if (cloneRef_->GetRef(source) == 0) {
+            int ret = client_->SetCloneFileStatus(source,
+                    FileStatus::Created, mdsRootUser_);
+            if (ret < 0) {
+                LOG(ERROR) << "SetCloneFileStatus fail, ret = " << ret;
+
+                task->GetCloneInfo().SetStatus(CloneStatus::error);
+                metaStore_->UpdateCloneInfo(task->GetCloneInfo());
+                task->Finish();
+                LOG(ERROR) << "Task Fail"
+                           << ", taskid = " << task->GetCloneInfo().GetTaskId()
+                           << ", step = "
+                           << static_cast<int>(
+                                   task->GetCloneInfo().GetNextStep());
+                return;
+            }
+        }
     }
     task->GetCloneInfo().SetStatus(CloneStatus::done);
     metaStore_->UpdateCloneInfo(task->GetCloneInfo());
@@ -739,6 +817,17 @@ void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
 void CloneCoreImpl::HandleCloneError(std::shared_ptr<CloneTaskInfo> task) {
     if (IsSnapshot(task)) {
         snapshotRef_->DecrementSnapshotRef(task->GetCloneInfo().GetSrc());
+    } else {
+        std::string source = task->GetCloneInfo().GetSrc();
+        cloneRef_->DecrementRef(source);
+        NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+        if (cloneRef_->GetRef(source) == 0) {
+            int ret = client_->SetCloneFileStatus(source,
+                    FileStatus::Created, mdsRootUser_);
+            if (ret < 0) {
+                LOG(ERROR) << "SetCloneFileStatus fail, ret = " << ret;
+            }
+        }
     }
     task->GetCloneInfo().SetStatus(CloneStatus::error);
     metaStore_->UpdateCloneInfo(task->GetCloneInfo());
@@ -915,6 +1004,21 @@ void CloneCoreImpl::HandleCleanCloneOrRecoverTask(
     std::shared_ptr<CloneTaskInfo> task) {
     // 只有错误的clone/recover任务才清理临时文件
     if (CloneStatus::errorCleaning == task->GetCloneInfo().GetStatus()) {
+        // 错误情况下可能未清除镜像被克隆标志
+        if (IsFile(task)) {
+            //重新发送
+            std::string source = task->GetCloneInfo().GetSrc();
+            NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+            if (cloneRef_->GetRef(source) == 0) {
+                int ret = client_->SetCloneFileStatus(source,
+                        FileStatus::Created, mdsRootUser_);
+                if (ret < 0) {
+                    LOG(ERROR) << "SetCloneFileStatus fail, ret = " << ret;
+                    HandleCleanError(task);
+                    return;
+                }
+            }
+        }
         std::string tempFileName =
             cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
         std::string destFileName =

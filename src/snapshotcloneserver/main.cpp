@@ -142,6 +142,9 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
 
     auto snapshotMetric = std::make_shared<SnapshotMetric>(metaStore);
 
+    auto cloneRef_ =
+        std::make_shared<CloneReference>();
+
     std::shared_ptr<SnapshotTaskManager> taskMgr =
         std::make_shared<SnapshotTaskManager>(snapshotMetric);
     std::shared_ptr<SnapshotCore> core =
@@ -169,6 +172,7 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
                          metaStore,
                          dataStore,
                          snapshotRef_,
+                         cloneRef_,
                          serverOption_);
     if (cloneCore->Init() < 0) {
         LOG(ERROR) << "CloneCore init fail.";

@@ -14,12 +14,19 @@ enum FileType {
 };
 
 enum FileStatus {
+    // 文件创建完成
     kFileCreated = 0;
+    // 文件删除中
     kFileDeleting = 1;
 
+    // 文件正在克隆
     kFileCloning = 2;
+    // 文件元数据安装完毕
     kFileCloneMetaInstalled = 3;
+    // 文件克隆完成
     kFileCloned = 4;
+    // 文件正在被克隆
+    kFileBeingCloned = 5;
 }
 
 message FileInfo {
