@@ -116,7 +116,7 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
             LOG(ERROR) << "GetCloneInfo fail"
                        << ", ret = " << ret
                        << ", taskId = " << *taskId;
-            return ret;
+            return kErrCodeFileNotExist;
         }
         if (cloneInfo.GetUser() != user) {
             return kErrCodeInvalidUser;
@@ -235,7 +235,8 @@ int CloneServiceManager::RecoverCloneTask() {
                     cloneCore_->GetSnapshotRef()->IncrementSnapshotRef(
                         taskInfo->GetCloneInfo().GetSrc());
                 } else {
-                    // TODO(xuchaojie): 镜像管理
+                    cloneCore_->GetCloneRef()->IncrementRef(
+                        taskInfo->GetCloneInfo().GetSrc());
                 }
                 ret = cloneTaskMgr_->PushTask(task);
                 if (ret < 0) {

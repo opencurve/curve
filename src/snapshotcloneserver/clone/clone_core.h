@@ -18,6 +18,7 @@
 #include "src/snapshotcloneserver/common/snapshotclone_meta_store.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
+#include "src/snapshotcloneserver/clone/clone_reference.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -55,10 +56,6 @@ class CloneCore {
      */
     virtual void HandleCloneOrRecoverTask(
         std::shared_ptr<CloneTaskInfo> task) = 0;
-
-
-
-
 
     /**
      * @brief 清理克隆或恢复任务前置
@@ -109,6 +106,14 @@ class CloneCore {
      * @return 快照引用管理模块
      */
     virtual std::shared_ptr<SnapshotReference> GetSnapshotRef() = 0;
+
+
+    /**
+     * @brief 获取镜像引用管理模块
+     *
+     * @return 镜像引用管理模块
+     */
+    virtual std::shared_ptr<CloneReference> GetCloneRef() = 0;
 };
 
 /**
@@ -138,11 +143,13 @@ class CloneCoreImpl : public CloneCore {
         std::shared_ptr<SnapshotCloneMetaStore> metaStore,
         std::shared_ptr<SnapshotDataStore> dataStore,
         std::shared_ptr<SnapshotReference> snapshotRef,
+        std::shared_ptr<CloneReference> cloneRef,
         const SnapshotCloneServerOptions option)
       : client_(client),
         metaStore_(metaStore),
         dataStore_(dataStore),
         snapshotRef_(snapshotRef),
+        cloneRef_(cloneRef),
         cloneChunkSplitSize_(option.cloneChunkSplitSize),
         cloneTempDir_(option.cloneTempDir),
         mdsRootUser_(option.mdsRootUser) {}
@@ -171,6 +178,10 @@ class CloneCoreImpl : public CloneCore {
 
     std::shared_ptr<SnapshotReference> GetSnapshotRef() {
         return snapshotRef_;
+    }
+
+    std::shared_ptr<CloneReference> GetCloneRef() {
+        return cloneRef_;
     }
 
  private:
@@ -384,6 +395,7 @@ class CloneCoreImpl : public CloneCore {
     std::shared_ptr<SnapshotCloneMetaStore> metaStore_;
     std::shared_ptr<SnapshotDataStore> dataStore_;
     std::shared_ptr<SnapshotReference> snapshotRef_;
+    std::shared_ptr<CloneReference> cloneRef_;
 
     // clone chunk分片大小
     uint64_t cloneChunkSplitSize_;

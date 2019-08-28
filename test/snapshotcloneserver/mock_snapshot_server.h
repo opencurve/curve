@@ -194,6 +194,11 @@ class MockCurveFsClient : public CurveFsClient {
         int(const std::string &filename,
         const std::string &user));
 
+    MOCK_METHOD3(SetCloneFileStatus,
+        int(const std::string &filename,
+        const FileStatus& filestatus,
+        const std::string &user));
+
     MOCK_METHOD3(GetFileInfo,
         int(const std::string &filename,
         const std::string &user,
@@ -311,6 +316,9 @@ class MockCloneCore : public CloneCore {
 
     MOCK_METHOD0(GetSnapshotRef,
         std::shared_ptr<SnapshotReference>());
+
+    MOCK_METHOD0(GetCloneRef,
+        std::shared_ptr<CloneReference>());
 };
 }  // namespace snapshotcloneserver
 }  // namespace curve

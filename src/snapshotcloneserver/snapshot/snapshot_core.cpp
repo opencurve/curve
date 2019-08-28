@@ -727,6 +727,7 @@ int SnapshotCoreImpl::DeleteSnapshotPre(
     const std::string &user,
     const std::string &fileName,
     SnapshotInfo *snapInfo) {
+    NameLockGuard lockSnapGuard(snapshotRef_->GetSnapshotLock(), uuid);
     int ret = metaStore_->GetSnapshotInfo(uuid, snapInfo);
     if (ret < 0) {
         // 快照不存在时直接返回删除成功，使接口幂等
@@ -740,7 +741,6 @@ int SnapshotCoreImpl::DeleteSnapshotPre(
         LOG(ERROR) << "Can not delete, fileName is not matched.";
         return kErrCodeFileNameNotMatch;
     }
-
 
     switch (snapInfo->GetStatus()) {
         case Status::done:

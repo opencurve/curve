@@ -30,7 +30,8 @@ std::map<int, std::string> code2Msg = {
     {kErrCodeInvalidSnapshot, "Invalid snapshot."},
     {kErrCodeSnapshotCannotDeleteCloning, "Cannot delete when using."},
     {kErrCodeCannotCleanCloneUnfinished, "Cannot clean task unfinished."},
-    {kErrCodeSnapshotCountReachLimit, "Snapshot count reach the limit."}
+    {kErrCodeSnapshotCountReachLimit, "Snapshot count reach the limit."},
+    {kErrCodeFileExist, "File exist."}
 };
 
 }  // namespace snapshotcloneserver

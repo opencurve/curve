@@ -136,7 +136,7 @@ int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
                        << " ret = " << ret
                        << ", file = " << file
                        << ", uuid = " << *uuid;
-            return ret;
+            return kErrCodeFileNotExist;
         }
         if (snap.GetUser() != user) {
             return kErrCodeInvalidUser;
