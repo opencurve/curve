@@ -32,6 +32,8 @@ class PasteChunkInternalRequest;
 class CloneClosure : public Closure {
  public:
     CloneClosure() : request_(nullptr)
+                   , response_(nullptr)
+                   , userResponse_(nullptr)
                    , done_(nullptr) {}
 
     void Run();
@@ -41,9 +43,21 @@ class CloneClosure : public Closure {
     void SetRequest(Message* request) {
         request_ = dynamic_cast<ChunkRequest *>(request);
     }
+    void SetResponse(Message* response) {
+        response_ = dynamic_cast<ChunkResponse *>(response);
+    }
+    void SetUserResponse(Message* response) {
+        userResponse_ = dynamic_cast<ChunkResponse *>(response);
+    }
 
  private:
+    // paste chunk的请求结构体
     ChunkRequest        *request_;
+    // paste chunk的响应结构体
+    ChunkResponse       *response_;
+    // 真正要返回给用户的响应结构体
+    ChunkResponse       *userResponse_;
+    // CloneClosure生命周期结束后需要执行的回调
     Closure             *done_;
 };
 

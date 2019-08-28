@@ -43,5 +43,15 @@ uint32_t getDatastoreSnapshotCountFunc(void* arg) {
     return snapshotCount;
 }
 
+uint32_t getDatastoreCloneChunkCountFunc(void* arg) {
+    CSDataStore* dataStore = reinterpret_cast<CSDataStore*>(arg);
+    uint32_t cloneChunkCount  = 0;
+    if (dataStore != nullptr) {
+        DataStoreStatus status = dataStore->GetStatus();
+        cloneChunkCount = status.cloneChunkCount;
+    }
+    return cloneChunkCount;
+}
+
 }  // namespace chunkserver
 }  // namespace curve

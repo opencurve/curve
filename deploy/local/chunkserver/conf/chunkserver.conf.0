@@ -52,8 +52,8 @@ copyset.max_inflight_requests=5000
 #
 # Clone settings
 #
-clone.disable_curve_client=true
-clone.disable_s3_adapter=true
+clone.disable_curve_client=false
+clone.disable_s3_adapter=false
 clone.slice_size=1048576
 clone.thread_num=10
 clone.queue_depth=100
