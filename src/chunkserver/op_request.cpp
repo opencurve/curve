@@ -663,18 +663,6 @@ void PasteChunkInternalRequest::Process() {
     }
 }
 
-void PasteChunkInternalRequest::RedirectChunkRequest() {
-    if (readRequest_ == nullptr)
-        return;
-
-    PeerId leader = node_->GetLeaderId();
-    if (!leader.is_empty()) {
-        readRequest_->response_->set_redirect(leader.to_string());
-    }
-    readRequest_->response_->set_status(
-        CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
-}
-
 void PasteChunkInternalRequest::OnApply(uint64_t index,
                                         ::google::protobuf::Closure *done) {
     brpc::ClosureGuard doneGuard(done);
@@ -685,10 +673,7 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
                                       request_->size());
 
     if (CSErrorCode::Success == ret) {
-        if (readRequest_ != nullptr) {
-            readRequest_->response_->set_status(
-                CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
-        }
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         DVLOG(9) << "paste chunk success : "
                  << " logic pool id: " << request_->logicpoolid()
                  << " copyset id: " << request_->copysetid()
@@ -703,17 +688,13 @@ void PasteChunkInternalRequest::OnApply(uint64_t index,
                    << " chunkid: " << request_->chunkid()
                    << " offset: " << request_->offset()
                    << " length: " << request_->size();
-        if (readRequest_ != nullptr) {
-            readRequest_->response_->set_status(
-                CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
-        }
+        response_->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     }
-    if (readRequest_ != nullptr) {
-        auto maxIndex = (index > node_->GetAppliedIndex()
-                        ? index
-                        : node_->GetAppliedIndex());
-        readRequest_->response_->set_appliedindex(maxIndex);
-    }
+
+    auto maxIndex = (index > node_->GetAppliedIndex()
+                    ? index
+                    : node_->GetAppliedIndex());
+    response_->set_appliedindex(maxIndex);
 }
 
 void PasteChunkInternalRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,  //NOLINT
