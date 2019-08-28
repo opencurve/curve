@@ -349,7 +349,7 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                   << ", filename = " << filename;
         return StatusCode::kOK;
     } else if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
-        StatusCode ret = CheckFileCanChange(filename);
+        StatusCode ret = CheckFileCanChange(filename, fileInfo);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "delete file, can not delete file"
                        << ", filename = " << filename
@@ -388,13 +388,6 @@ StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
             if (fileInfo.filestatus() == FileStatus::kFileDeleting) {
                 LOG(INFO) << "file is underdeleting, filename = " << filename;
                 return StatusCode::kFileUnderDeleting;
-            }
-
-            if (fileInfo.filestatus() != FileStatus::kFileCreated) {
-                LOG(ERROR) << "delete file, file status error, filename = "
-                           << filename
-                           << ", status = " << fileInfo.filestatus();
-                return StatusCode:: KInternalError;
             }
 
             // 查看任务是否已经在
@@ -464,7 +457,8 @@ StatusCode CurveFS::ReadDir(const std::string & dirname,
     return StatusCode::kOK;
 }
 
-StatusCode CurveFS::CheckFileCanChange(const std::string &fileName) {
+StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
+    const FileInfo &fileInfo) {
     // 检查文件是否有快照
     std::vector<FileInfo> snapshotFileInfos;
     auto ret = ListSnapShotFile(fileName, &snapshotFileInfos);
@@ -480,7 +474,11 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName) {
         return StatusCode::kFileUnderSnapShot;
     }
 
-    // TODO(hzchenwei7) :删除文件还需考虑克隆的情况
+    if (fileInfo.filestatus() == FileStatus::kFileBeingCloned) {
+        LOG(ERROR) << "CheckFileCanChange, file is being Cloned, "
+                   << "cannot delete or rename, fileName = " << fileName;
+        return StatusCode::kCommonFileDeleteError;
+    }
 
     // 检查文件是否有分配出去的可用session
     if (isFileHasValidSession(fileName)) {
@@ -533,7 +531,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
     }
 
     // 判断oldFileName能否rename，文件是否正在被使用，是否正在快照中，是否正在克隆
-    ret = CheckFileCanChange(oldFileName);
+    ret = CheckFileCanChange(oldFileName, oldFileInfo);
     if (ret != StatusCode::kOK) {
         LOG(ERROR) << "rename fail, can not rename file"
                 << ", oldFileName = " << oldFileName
@@ -573,7 +571,7 @@ StatusCode CurveFS::RenameFile(const std::string & oldFileName,
         }
 
         // 判断newFileName能否rename，是否正在被使用，是否正在快照中，是否正在克隆
-        StatusCode ret = CheckFileCanChange(newFileName);
+        StatusCode ret = CheckFileCanChange(newFileName, existNewFileInfo);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "cannot rename file"
                         << ", newFileName = " << newFileName
@@ -693,7 +691,7 @@ StatusCode CurveFS::ChangeOwner(const std::string &filename,
     if (fileInfo.filetype() == FileType::INODE_PAGEFILE) {
         // 判断filename能否change owner
         // 是否正在被使用，是否正在快照中，是否正在克隆
-        ret = CheckFileCanChange(filename);
+        ret = CheckFileCanChange(filename, fileInfo);
         if (ret != StatusCode::kOK) {
             LOG(ERROR) << "cannot changeOwner file"
                         << ", filename = " << filename
@@ -1351,6 +1349,11 @@ StatusCode CurveFS::SetCloneFileStatus(const std::string &filename,
                     return kCloneStatusNotMatch;
                 }
                 break;
+            case kFileBeingCloned:
+                if (fileStatus != kFileCreated ||
+                    fileStatus != kFileCloned) {
+                    return kCloneStatusNotMatch;
+                }
             default:
                 return kCloneStatusNotMatch;
         }
