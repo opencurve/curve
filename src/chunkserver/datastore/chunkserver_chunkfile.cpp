@@ -114,16 +114,18 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
 }
 
 CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
-                         std::shared_ptr<ChunkfilePool> ChunkfilePool,
+                         std::shared_ptr<ChunkfilePool> chunkfilePool,
                          const ChunkOptions& options)
     : fd_(-1),
       size_(options.chunkSize),
       pageSize_(options.pageSize),
       chunkId_(options.id),
       baseDir_(options.baseDir),
+      isCloneChunk_(false),
       snapshot_(nullptr),
-      chunkfilePool_(ChunkfilePool),
-      lfs_(lfs) {
+      chunkfilePool_(chunkfilePool),
+      lfs_(lfs),
+      metric_(options.metric) {
     CHECK(!baseDir_.empty()) << "Create chunk file failed";
     CHECK(lfs_ != nullptr) << "Create chunk file failed";
     metaPage_.sn = options.sn;
@@ -133,6 +135,9 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
     if (!metaPage_.location.empty()) {
         uint32_t bits = size_ / pageSize_;
         metaPage_.bitmap = std::make_shared<Bitmap>(bits);
+    }
+    if (metric_ != nullptr) {
+        metric_->chunkFileCount << 1;
     }
 }
 
@@ -144,6 +149,13 @@ CSChunkFile::~CSChunkFile() {
 
     if (fd_ >= 0) {
         lfs_->Close(fd_);
+    }
+
+    if (metric_ != nullptr) {
+        metric_->chunkFileCount << -1;
+        if (isCloneChunk_) {
+            metric_->cloneChunkCount << -1;
+        }
     }
 }
 
@@ -186,10 +198,20 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
     if (fileInfo.st_size != fileSize()) {
         LOG(ERROR) << "Wrong file size."
                    << " filepath = " << chunkFilePath
-                   << ",filesize = " << fileInfo.st_size;
+                   << ", real filesize = " << fileInfo.st_size
+                   << ", expect filesize = " << fileSize();
         return CSErrorCode::FileFormatError;
     }
-    return loadMetaPage();
+
+    CSErrorCode errCode = loadMetaPage();
+    // 重启后，只有重新open加载metapage后，才能知道是否为clone chunk
+    if (!metaPage_.location.empty() && !isCloneChunk_) {
+        if (metric_ != nullptr) {
+            metric_->cloneChunkCount << 1;
+        }
+        isCloneChunk_ = true;
+    }
+    return errCode;
 }
 
 CSErrorCode CSChunkFile::LoadSnapshot(SequenceNum sn) {
@@ -207,6 +229,7 @@ CSErrorCode CSChunkFile::LoadSnapshot(SequenceNum sn) {
     options.baseDir = baseDir_;
     options.chunkSize = size_;
     options.pageSize = pageSize_;
+    options.metric = metric_;
     snapshot_ = new(std::nothrow) CSSnapshot(lfs_,
                                             chunkfilePool_,
                                             options);
@@ -263,7 +286,7 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
         }
 
         // clone chunk不允许创建快照
-        if (isCloneChunk()) {
+        if (isCloneChunk_) {
             LOG(ERROR) << "Clone chunk can't create snapshot."
                        << "ChunkID: " << chunkId_
                        << ",request sn: " << sn
@@ -278,6 +301,7 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
         options.baseDir = baseDir_;
         options.chunkSize = size_;
         options.pageSize = pageSize_;
+        options.metric = metric_;
         snapshot_ = new(std::nothrow) CSSnapshot(lfs_,
                                                  chunkfilePool_,
                                                  options);
@@ -350,7 +374,7 @@ CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
         return CSErrorCode::InvalidArgError;
     }
     // 如果不是clone chunk直接返回成功
-    if (!isCloneChunk()) {
+    if (!isCloneChunk_) {
         return CSErrorCode::Success;
     }
 
@@ -407,7 +431,7 @@ CSErrorCode CSChunkFile::Read(char * buf, off_t offset, size_t length) {
     }
 
     // 如果是 clonechunk ,要保证读取区域已经被写过，否则返回错误
-    if (isCloneChunk()) {
+    if (isCloneChunk_) {
         // 上面下来的请求必须是pagesize对齐的
         // 请求paste区域的起始page索引号
         uint32_t beginIndex = offset / pageSize_;
@@ -556,7 +580,7 @@ CSErrorCode CSChunkFile::DeleteSnapshotOrCorrectSn(SequenceNum correctedSn)  {
     WriteLockGuard writeGuard(rwLock_);
 
     // 如果是clone chunk， 理论上不应该会调这个接口，返回错误
-    if (isCloneChunk()) {
+    if (isCloneChunk_) {
         LOG(ERROR) << "Delete snapshot failed, this is a clone chunk."
                    << "ChunkID: " << chunkId_;
         return CSErrorCode::StatusConflictError;
@@ -632,7 +656,7 @@ void CSChunkFile::GetInfo(CSChunkInfo* info)  {
     info->snapSn = (snapshot_ == nullptr
                         ? 0
                         : snapshot_->GetSn());
-    info->isClone = isCloneChunk();
+    info->isClone = isCloneChunk_;
     info->location = metaPage_.location;
     // 这里会有一次memcpy，否则需要对bitmap操作加锁
     // 这一步存在ReadChunk关键路径上，对性能会有一定要求
@@ -795,15 +819,17 @@ CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {
 CSErrorCode CSChunkFile::flush() {
     ChunkFileMetaPage tempMeta = metaPage_;
     bool needUpdateMeta = dirtyPages_.size() > 0;
+    bool clearClone = false;
     for (auto pageIndex : dirtyPages_) {
         tempMeta.bitmap->Set(pageIndex);
     }
-    if (isCloneChunk()) {
+    if (isCloneChunk_) {
         // 如果所有的page都被写过,将Chunk标记为非clone chunk
         if (tempMeta.bitmap->NextClearBit(0) == Bitmap::NO_POS) {
             tempMeta.location = "";
             tempMeta.bitmap = nullptr;
             needUpdateMeta = true;
+            clearClone = true;
         }
     }
     if (needUpdateMeta) {
@@ -817,6 +843,12 @@ CSErrorCode CSChunkFile::flush() {
         metaPage_.bitmap = tempMeta.bitmap;
         metaPage_.location = tempMeta.location;
         dirtyPages_.clear();
+        if (clearClone) {
+            if (metric_ != nullptr) {
+                metric_->cloneChunkCount << -1;
+            }
+            isCloneChunk_ = false;
+        }
     }
     return CSErrorCode::Success;
 }

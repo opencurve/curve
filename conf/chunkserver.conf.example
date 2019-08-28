@@ -78,9 +78,9 @@ copyset.max_inflight_requests=500000
 # Clone settings
 #
 # 禁止使用curveclient
-clone.disable_curve_client=true
+clone.disable_curve_client=false
 # 禁止使用s3adapter
-clone.disable_s3_adapter=true
+clone.disable_s3_adapter=false
 # 克隆的分片大小，一般1MB
 clone.slice_size=1048576
 # 克隆的线程数量

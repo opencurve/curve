@@ -36,6 +36,7 @@ using curve::common::BitRange;
 
 class ChunkfilePool;
 class CSSnapshot;
+struct DataStoreMetric;
 
 /**
  * Chunkfile Metapage Format
@@ -84,6 +85,8 @@ struct ChunkOptions {
     ChunkSizeType   chunkSize;
     // page的大小，bitmap中每个bit表示1个page，metapage大小也是1个page
     PageSizeType    pageSize;
+    // datastore内部统计指标
+    std::shared_ptr<DataStoreMetric> metric;
 
     ChunkOptions() : id(0)
                    , sn(0)
@@ -91,7 +94,8 @@ struct ChunkOptions {
                    , baseDir("")
                    , location("")
                    , chunkSize(0)
-                   , pageSize(0) {}
+                   , pageSize(0)
+                   , metric(nullptr) {}
 };
 
 class CSChunkFile {
@@ -257,7 +261,7 @@ class CSChunkFile {
             return rc;
         }
         // 如果是clone chunk，需要判断是否需要更改bitmap并更新metapage
-        if (isCloneChunk()) {
+        if (isCloneChunk_) {
             uint32_t beginIndex = offset / pageSize_;
             uint32_t endIndex = (offset + length - 1) / pageSize_;
             for (uint32_t i = beginIndex; i <= endIndex; ++i) {
@@ -268,10 +272,6 @@ class CSChunkFile {
             }
         }
         return rc;
-    }
-
-    inline bool isCloneChunk() {
-        return !metaPage_.location.empty();
     }
 
     inline bool CheckOffsetAndLength(off_t offset, size_t len) {
@@ -304,6 +304,8 @@ class CSChunkFile {
     ChunkID chunkId_;
     // chunk所在目录
     std::string baseDir_;
+    // 是否为clone chunk
+    bool isCloneChunk_;
     // chunk的metapage
     ChunkFileMetaPage metaPage_;
     // 被写过但还未更新到metapage中的page索引
@@ -316,6 +318,8 @@ class CSChunkFile {
     std::shared_ptr<ChunkfilePool> chunkfilePool_;
     // 依赖本地文件系统操作文件
     std::shared_ptr<LocalFileSystem> lfs_;
+    // datastore内部统计指标
+    std::shared_ptr<DataStoreMetric> metric_;
 };
 }  // namespace chunkserver
 }  // namespace curve
