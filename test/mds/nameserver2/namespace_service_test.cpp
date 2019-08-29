@@ -22,10 +22,12 @@
 #include "src/common/authenticator.h"
 #include "test/mds/mock/mock_topology.h"
 #include "test/mds/mock/mock_chunkserver.h"
+#include "src/mds/chunkserverclient/copyset_client.h"
 
 using curve::common::TimeUtility;
 using curve::common::Authenticator;
 using curve::mds::topology::MockTopology;
+using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 
 namespace curve {
 namespace mds {
@@ -38,7 +40,9 @@ class NameSpaceServiceTest : public ::testing::Test {
         inodeGenerator_ = new FakeInodeIDGenerator(0);
 
         topology_ = std::make_shared<MockTopology>();
-        cleanCore_ = std::make_shared<CleanCore>(storage_, topology_);
+        ChunkServerClientOption option;
+        auto client = std::make_shared<CopysetClient>(topology_, option);
+        cleanCore_ = std::make_shared<CleanCore>(storage_, client);
 
         // new taskmanger for 2 worker thread, and check thread period 2 second
         cleanTaskManager_ = std::make_shared<CleanTaskManager>(2, 2000);
@@ -1653,8 +1657,11 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     using ::testing::DoAll;
     using ::testing::Invoke;
 
+    CopySetInfo copyset(1, 1);
+    copyset.SetLeader(1);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
-            .WillRepeatedly(Return(true));
+            .WillRepeatedly(
+                    DoAll(SetArgPointee<1>(copyset), Return(true)));
     ChunkServer chunkserver(1, "", "", 1, "127.0.0.1", listenAddr.port, "",
             ChunkServerStatus::READWRITE, OnlineState::ONLINE);
     EXPECT_CALL(*topology_, GetChunkServer(_, _))
