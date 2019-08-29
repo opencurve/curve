@@ -54,14 +54,3 @@ proto_library(
 )
 
 
-cc_proto_library(
-    name = "schedulemetric_cc_proto",
-    visibility = ["//visibility:public"],
-    deps = [":schedulemetric_proto"],
-)
-
-proto_library(
-    name = "schedulemetric_proto",
-    srcs = ["schedulemetric.proto"],
-    visibility = ["//visibility:public"],
-)
