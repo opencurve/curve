@@ -65,6 +65,8 @@ const int kErrCodeSnapshotCannotDeleteCloning = -16;
 const int kErrCodeCannotCleanCloneUnfinished = -17;
 // 错误码：快照到达上限
 const int kErrCodeSnapshotCountReachLimit = -18;
+// 错误码：文件已存在
+const int kErrCodeFileExist = -19;
 
 extern std::map<int, std::string> code2Msg;
 
