@@ -376,36 +376,22 @@ def init_vm():
         logger.debug("exec %s" % ori_cmd2)
         uuid = "".join(rs[1]).strip()
         uuid2 = "".join(rs2[1]).strip()
-#        ori_cmd = "source ADMIN &&  nova reset-state %s --active"%uuid
-#        ori_cmd2 = "source ADMIN &&  nova reset-state %s --active"%uuid2
-        i = 0
-        while i < 600:
-           ori_cmd = "bash curve_test.sh delete"
-           rs = shell_operator.ssh_exec(ssh, ori_cmd)
-           if rs[3] == 0:
-               break
-           else:
-              logger.error("delete volume fail,please check.return is %s"%rs[2])
-              time.sleep(60)
-              i = i + 60
-              ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
-              ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
-              rs = shell_operator.ssh_exec(ssh,ori_cmd)
-              rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
-        assert rs[3] == 0,"delete volume fail,please check.return is %s"%rs[2] 
-        ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
-        ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
-        rs = shell_operator.ssh_exec(ssh,ori_cmd)
-        rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
-        assert rs[3] == 0,"hard reboot vm fail,return is %s"%rs[2]
-        assert rs2[3] == 0,"hard reboot vm fail,return is %s"%rs2[2]
-        time.sleep(60)
-        rs = check_vm_status(ssh,uuid)
-        if rs == False:
+        
+        for i in range(1,10):
+            ori_cmd = "bash curve_test.sh delete"
+            shell_operator.ssh_exec(ssh, ori_cmd)
+            ori_cmd = "source OPENRC &&  nova reboot %s --hard"%uuid
+            ori_cmd2 = "source OPENRC &&  nova reboot %s --hard"%uuid2
             rs = shell_operator.ssh_exec(ssh,ori_cmd)
-        rs = check_vm_status(ssh,uuid2)
-        if rs == False:
-            rs = shell_operator.ssh_exec(ssh,ori_cmd2)
+            rs2 = shell_operator.ssh_exec(ssh,ori_cmd2)
+            time.sleep(60)
+            rs1 = check_vm_status(ssh,uuid)
+            rs2 = check_vm_status(ssh,uuid2)
+            if rs1 == True or rs2 == True:
+                break
+        assert rs1 == True,"hard reboot vm fail"
+        assert rs2 == True,"hard reboot vm fail"
+      
         check_vm_vd(config.vm_host,ssh,uuid)
         check_vm_vd(config.vm_stability_host,ssh,uuid2)
     except:
@@ -1541,6 +1527,62 @@ def test_ipmitool_restart_mds():
     start_mds_process(mds_host)
     start_etcd_process(mds_host)
     start_host_cs_process(mds_host)
+
+def clean_last_data():
+    ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
+    ori_cmd = "rm /root/perf/test-ssd/fiodata/* && rm /root/perf/test-ssd/cfg/*"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    #assert rs[3] == 0,"rm fail"
+    ori_cmd = "rm /root/perf/fiodata -rf"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+
+def analysis_data(ssh):
+    ori_cmd = "cd /root/perf/ && python gen_randrw_data.py"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"gen randrw data fail,error is %s"%rs
+    ori_cmd = "cat /root/perf/test.csv"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"get data fail,error is %s"%rs
+    for line in rs[1]:
+        if 'randread,4k' in line:
+            randr_4k_iops = line.split(',')[4]
+        elif 'randwrite,4k' in line:
+            randw_4k_iops = line.split(',')[8]
+        elif 'write,512k' in line: 
+            write_512k_iops = line.split(',')[8]
+        elif 'read,512k' in line:
+            read_512k_iops = line.split(',')[4]
+    logger.info("get one volume Basic data:------")
+    logger.info("4k rand read iops is %d/s"%int(float(randr_4k_iops)*1000))
+    logger.info("4k rand write iops is %d/s"%int(float(randw_4k_iops)*1000))
+    logger.info("512k read BW is %d MB/s"%(int(float(read_512k_iops)*1000)/2))
+    logger.info("512k write BW is %d MB/s"%(int(float(write_512k_iops)*1000)/2))
+
+def perf_test():
+    ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
+    ori_cmd = "supervisorctl stop all"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    time.sleep(5)
+    clean_last_data()
+    start_test = "cd /root/perf && nohup python /root/perf/io_test.py &"
+    shell_operator.ssh_background_exec2(ssh,start_test)
+    time.sleep(60)
+    final = 0
+    starttime = time.time()
+    while time.time() - starttime < 3600:
+        ori_cmd = "ps -ef|grep -v grep |grep io_test.py"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        if rs[1] == []:
+            final = 1
+            break
+        else:
+            logger.debug("wait io test finally")
+            time.sleep(60)
+    assert final == 1,"io test have not finall"
+    ori_cmd = "cp -r /root/perf/test-ssd/fiodata /root/perf"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"cp fiodata fail,error is %s"%rs
+    analysis_data(ssh)
 
 def thrasher_abnormal_cluster():
     actions = []
