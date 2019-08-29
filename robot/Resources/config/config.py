@@ -67,6 +67,13 @@ offline_timeout = 300
 vol_uuid = ""
 thrash_attach = True
 thrash_thread = []
+#snapshot_test
+snap_server_list = ["10.182.26.25"]
+snap_version = '2019-08-01'
+snapshot_size = 10
+snapshot_timeout = 1200
+snapshot_vmid = ""
+snapshot_volid = ""
 
 # db info
 db_host = "127.0.0.1"

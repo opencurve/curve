@@ -92,9 +92,35 @@ def add_config():
         ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' chunkserver.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        #open use snapshot
+        ori_cmd = R"sed -i 's/clone.disable_curve_client=true/clone.disable_curve_client=false/g' chunkserver.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        ori_cmd = R"sed -i 's/clone.disable_s3_adapter=true/clone.disable_s3_adapter=false/g' chunkserver.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        ori_cmd = R"sed -i 's#curve.config_path=conf/client.conf#curve.config_path=/etc/curve/conf/client.conf#g' chunkserver.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        ori_cmd = R"sed -i 's#s3.config_path=conf/s3.conf#s3.config_path=/etc/curve/conf/s3.conf#g' chunkserver.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
         ori_cmd = "sudo mv chunkserver.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s chunkserver conf fail"%host
+    # add s3 and client conf
+    client_host = random.choice(config.client_list)
+    cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %s:/etc/curve/client.conf ."%\
+            (config.pravie_key_path,client_host)
+    shell_operator.run_exec2(cmd)
+    for host in config.chunkserver_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf %s:~/"%\
+                            (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s s3 conf fail"%host
 
 def destroy_mds():
     for host in config.mds_list:
@@ -124,6 +150,20 @@ def destroy_etcd():
         logger.debug("exec %s,stdout is %s"%(kill_cmd,"".join(rs[1])))
         assert rs[3] == 0,"kill etcd fail"
 
+def destroy_snapshotclone_server():
+    for host in config.snap_server_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        ori_cmd = "ps -ef|grep -v grep |grep -v sudo | grep snapshotcloneserver | awk '{print $2}'"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        if rs[1] == []:
+            logger.debug("snapshotcloneserver not up")
+            continue
+        pid = "".join(rs[1]).strip()
+        kill_cmd = "sudo kill -9 %s"%pid
+        rs = shell_operator.ssh_exec(ssh,kill_cmd)
+        logger.debug("exec %s,stdout is %s"%(kill_cmd,"".join(rs[1])))
+        assert rs[3] == 0,"kill snapshotcloneserver fail"
+  
 def initial_chunkserver(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     try:
@@ -163,8 +203,13 @@ def drop_abnormal_test_db():
                     "DROP TABLE curve_physicalpool;", "DROP TABLE curve_zone;", \
                     "DROP TABLE curve_server;", "DROP TABLE curve_chunkserver;", \
                     "DROP TABLE curve_session;",  "DROP TABLE client_info;"]
+        cmd_list_2 = ["DROP TABLE clone;","DROP TABLE snapshot;"]
         for cmd in cmd_list:
             conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.mds_db_name)
+            db_operator.exec_sql(conn, cmd)
+            logger.debug("drop table %s" %cmd)
+        for cmd in cmd_list_2:
+            conn = db_operator.conn_db(config.abnormal_db_host, config.db_port, config.db_user, config.db_pass, config.snap_db_name)
             db_operator.exec_sql(conn, cmd)
             logger.debug("drop table %s" %cmd)
     except Exception:
@@ -242,6 +287,10 @@ def start_abnormal_test_services():
         for host in config.chunkserver_list:
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
             ori_cmd = "sudo nohup ./chunkserver_start.sh all %s 8200 &"%host
+            shell_operator.ssh_background_exec2(ssh, ori_cmd)
+        for host in config.snap_server_list:
+            ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+            ori_cmd = "cd snapshot/temp && sudo nohup ./snapshotcloneserver -conf=./snapshot_clone_server.conf &"
             shell_operator.ssh_background_exec2(ssh, ori_cmd)
     except Exception:
         logger.error("up servers fail.")
