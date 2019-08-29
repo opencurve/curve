@@ -145,6 +145,9 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapSuccess) {
                     SetArgPointee<0>(list),
                     Return(true)));
 
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+
     SnapshotInfo snap("id1", "user1", "file1", "snap1");
     snap.SetStatus(Status::done);
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(source, _))
@@ -170,6 +173,9 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileSuccess) {
 
     EXPECT_CALL(*metaStore_, GetCloneInfoList(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(source, _))
         .WillOnce(Return(kErrCodeInternalError));
 
@@ -194,6 +200,9 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapInvalidSnapshot) {
     EXPECT_CALL(*metaStore_, GetCloneInfoList(_))
         .WillOnce(Return(true));
 
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+
     SnapshotInfo snap("id1", "user2", "file1", "snap1");
     snap.SetStatus(Status::pending);
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(source, _))
@@ -215,6 +224,8 @@ TEST_F(TestCloneCoreImpl, TestClonePreForSnapInvalidUser) {
     CloneInfo cloneInfoOut;
     EXPECT_CALL(*metaStore_, GetCloneInfoList(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     SnapshotInfo snap("id1", "user2", "file1", "snap1");
     snap.SetStatus(Status::done);
@@ -237,6 +248,8 @@ TEST_F(TestCloneCoreImpl, TestClonePreAddCloneInfoFail) {
     CloneInfo cloneInfoOut;
     EXPECT_CALL(*metaStore_, GetCloneInfoList(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     SnapshotInfo snap("id1", "user1", "file1", "snap1");
     snap.SetStatus(Status::done);
@@ -262,6 +275,8 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileNotExist) {
     CloneInfo cloneInfoOut;
     EXPECT_CALL(*metaStore_, GetCloneInfoList(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(source, _))
         .WillOnce(Return(kErrCodeInternalError));
@@ -283,6 +298,8 @@ TEST_F(TestCloneCoreImpl, TestClonePreForFileFail) {
     CloneInfo cloneInfoOut;
     EXPECT_CALL(*metaStore_, GetCloneInfoList(_))
         .WillOnce(Return(true));
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
 
     EXPECT_CALL(*metaStore_, GetSnapshotInfo(source, _))
         .WillOnce(Return(kErrCodeInternalError));
@@ -318,6 +335,42 @@ TEST_F(TestCloneCoreImpl, TestClonePreFailHasError) {
         source, user, destination, lazyFlag,
         CloneTaskType::kClone, &cloneInfoOut);
     ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
+}
+
+TEST_F(TestCloneCoreImpl, TestClonePreDestinationExist) {
+    const UUID &source = "fi1e1";
+    const std::string user = "user1";
+    const std::string destination = "destination1";
+    bool lazyFlag = true;
+    CloneInfo cloneInfoOut;
+    EXPECT_CALL(*metaStore_, GetCloneInfoList(_))
+        .WillOnce(Return(true));
+
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(LIBCURVE_ERROR::OK));
+
+    int ret = core_->CloneOrRecoverPre(
+        source, user, destination, lazyFlag,
+        CloneTaskType::kClone, &cloneInfoOut);
+    ASSERT_EQ(kErrCodeFileExist, ret);
+}
+
+TEST_F(TestCloneCoreImpl, TestRecoverPreDestinationNotExist) {
+    const UUID &source = "fi1e1";
+    const std::string user = "user1";
+    const std::string destination = "destination1";
+    bool lazyFlag = true;
+    CloneInfo cloneInfoOut;
+    EXPECT_CALL(*metaStore_, GetCloneInfoList(_))
+        .WillOnce(Return(true));
+
+    EXPECT_CALL(*client_, GetFileInfo(destination, option.mdsRootUser, _))
+        .WillOnce(Return(-LIBCURVE_ERROR::NOTEXIST));
+
+    int ret = core_->CloneOrRecoverPre(
+        source, user, destination, lazyFlag,
+        CloneTaskType::kRecover, &cloneInfoOut);
+    ASSERT_EQ(kErrCodeFileNotExist, ret);
 }
 
 TEST_F(TestCloneCoreImpl, HandleCloneOrRecoverTaskSuccessForCloneBySnapshot) {

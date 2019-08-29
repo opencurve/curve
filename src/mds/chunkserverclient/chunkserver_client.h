@@ -18,6 +18,7 @@
 #include "src/mds/topology/topology.h"
 #include "proto/cli2.pb.h"
 #include "proto/chunk.pb.h"
+#include "src/mds/chunkserverclient/chunkserverclient_config.h"
 
 using ::curve::mds::topology::Topology;
 using ::curve::mds::topology::ChunkServerIdType;
@@ -28,8 +29,13 @@ namespace chunkserverclient {
 
 class ChunkServerClient {
  public:
-    explicit ChunkServerClient(std::shared_ptr<Topology> topology)
-        :topology_(topology) {}
+    ChunkServerClient(std::shared_ptr<Topology> topology,
+        const ChunkServerClientOption &option)
+        : topology_(topology),
+          rpcTimeoutMs_(option.rpcTimeoutMs),
+          rpcRetryTimes_(option.rpcRetryTimes),
+          rpcRetryIntervalMs_(option.rpcRetryIntervalMs) {}
+
     virtual ~ChunkServerClient() {}
 
     /**
@@ -86,6 +92,9 @@ class ChunkServerClient {
 
  private:
     std::shared_ptr<Topology> topology_;
+    uint32_t rpcTimeoutMs_;
+    uint32_t rpcRetryTimes_;
+    uint32_t rpcRetryIntervalMs_;
 };
 
 }  // namespace chunkserverclient

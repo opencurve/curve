@@ -7,6 +7,9 @@
 
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/common/concurrent/concurrent.h"
+
+using curve::common::LockGuard;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -44,8 +47,7 @@ int SnapshotTaskManager::PushTask(std::shared_ptr<SnapshotTask> task) {
 
     {
         WriteLockGuard taskMapWlock(taskMapLock_);
-        std::lock_guard<std::mutex>
-            waitingTasksLock(waitingTasksLock_);
+        LockGuard waitingTasksLock(waitingTasksLock_);
         auto ret = taskMap_.emplace(task->GetTaskId(), task);
         if (!ret.second) {
             LOG(ERROR) << "SnapshotTaskManager::PushTask, uuid duplicated.";
@@ -74,12 +76,11 @@ int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
     auto it = taskMap_.find(taskId);
     if (it != taskMap_.end()) {
         auto taskInfo = it->second->GetTaskInfo();
-        taskInfo->Lock();
+        LockGuard lockGuard(taskInfo->GetLockRef());
         if (!taskInfo->IsFinish()) {
             taskInfo->Cancel();
             return kErrCodeSuccess;
         }
-        taskInfo->UnLock();
     }
     return kErrCodeCannotCancelFinished;
 }
@@ -94,10 +95,8 @@ void SnapshotTaskManager::BackEndThreadFunc() {
 }
 
 void SnapshotTaskManager::ScanWaitingTask() {
-    std::lock_guard<std::mutex>
-        waitingTasksLock(waitingTasksLock_);
-    std::lock_guard<std::mutex>
-        workingTasksLock(workingTasksLock_);
+    LockGuard waitingTasksLock(waitingTasksLock_);
+    LockGuard workingTasksLock(workingTasksLock_);
     uint32_t waitingNum = waitingTasks_.size();
     uint32_t workingNum = workingTasks_.size();
     VLOG(0) << "SnapshotTaskManager::ScanWaitingTask: "
@@ -121,8 +120,7 @@ void SnapshotTaskManager::ScanWaitingTask() {
 
 void SnapshotTaskManager::ScanWorkingTask() {
     WriteLockGuard taskMapWlock(taskMapLock_);
-    std::lock_guard<std::mutex>
-        workingTasksLock(workingTasksLock_);
+    LockGuard workingTasksLock(workingTasksLock_);
     uint32_t waitingNum = waitingTasks_.size();
     uint32_t workingNum = workingTasks_.size();
     VLOG(0) << "SnapshotTaskManager::ScanWorkingTask: "
