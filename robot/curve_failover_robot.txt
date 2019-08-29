@@ -9,13 +9,14 @@ Library           SSHLibrary
 Library           Resources/keywords/mythread.py
 Library           Resources/keywords/fault_inject.py
 Library           Resources/keywords/deploy.py
+Library           Resources/keywords/test_curve_stability.py
 
 Suite Setup       init failover cluster
 Suite Teardown    clean failover env
 
 *** Variables ***
-${fio_vdsize}     20
-${vdbench_vdsize}   20
+${fio_vdsize}     10
+${vdbench_vdsize}   10
 ${vm_iops_limit}   8000
 
 
@@ -492,16 +493,30 @@ inject all chunkserver down 10min
 #    check copies consistency
     [Teardown]   wait iops ok    ${vm_iops_limit}
 
+test clone vol
+    [Tags]    P1    base    first release   failover   no-need
+    test clone iovol consistency
+
+test cancel vol snapshot
+    [Tags]    P2    base    first release   failover   no-need
+    test cancel snapshot
+
+test one volume perf
+    [Tags]    P1    base    first release   failover  no-need
+    perf test
+
 *** Keywords ***
 
 init failover cluster
      init abnormal test env
      init vm
+     init vol
      loop attach detach vol
 
 init abnormal test env
      destroy etcd
      destroy mds
+     destroy snapshotclone server
      drop all chunkserver dat
      drop abnormal test db
      install deb
