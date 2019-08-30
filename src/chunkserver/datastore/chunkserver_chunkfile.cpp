@@ -574,16 +574,14 @@ CSErrorCode CSChunkFile::DeleteSnapshotOrCorrectSn(SequenceNum correctedSn)  {
     }
 
     /*
-     * 如果快照存在时需要根据correctedSn与当前sn_的大小判断是否可以删除快照
-     * 1.正常情况下correctedSn等于sn_,表示当前chunk的快照是此次转储过程中产生的
-     *   此时需要删除快照文件
-     * 2.特殊情况下如果correctedSn大于sn_,说明快照是历史快照产生的没有删除掉
-     *   此时也可以删除快照文件
-     * 3.如果correctedSn小于sn_，一般发生在日志恢复的时候，
-     *   且恢复之前有一个版本号更加新的写请求，那么快照文件应当是在删除操作后产生的
-     *   此时不能删除快照文件
+     * 由于上一步的判断，此时correctedSn>=metaPage_.sn && metaPage_.correctedSn
+     * 此时通过版本判断当前快照文件与当前chunk文件的关系
+     * 如果chunk.sn>snap.sn，那么这个快照要么就是历史快照，
+     * 要么就是当前版本chunk的快照，这种情况允许删除快照
+     * 如果chunk.sn<=snap.sn，则这个快照一定是在当前删除操作之后产生的
+     * 当前的删除操作时回放的历史日志，这种情况不允许删除
      */
-    if (snapshot_ != nullptr && correctedSn >= metaPage_.sn) {
+    if (snapshot_ != nullptr && metaPage_.sn > snapshot_->GetSn()) {
         CSErrorCode errorCode = snapshot_->Delete();
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Delete snapshot failed."
@@ -680,12 +678,16 @@ bool CSChunkFile::needCreateSnapshot(SequenceNum sn) {
     // 之前必然已经生成过快照文件，因此也不需要创建新的快照
     if (sn <= chunkSn)
         return false;
-    // 请求版本大于chunk，且chunk存在快照文件，可能有两种原因：
+    // 请求版本大于chunk，且chunk存在快照文件，可能有多种原因：
     // 1.上次写请求产生了快照文件，但是metapage更新失败；
     // 2.有以前的历史快照文件未被删除
+    // 3.raft的follower恢复时从leader下载raft快照，同时chunk也在做快照
+    //   由于先下载的chunk文件，下载过程中chunk可能做了多次快照
+    //   下载以后follower做日志恢复，可能出现
     // 对于第1种情况，sn_一定等于快照的版本号，可以直接使用当前快照文件
     // 对于第2种情况，理论不会发生，应当报错
-    if (nullptr != snapshot_ && metaPage_.sn == snapshot_->GetSn()) {
+    // 对于第3种情况，快照的版本一定大于或者等于chunk的版本
+    if (nullptr != snapshot_ && metaPage_.sn <= snapshot_->GetSn()) {
         return false;
     }
     return true;
@@ -702,11 +704,15 @@ bool CSChunkFile::needCow(SequenceNum sn) {
     // 前面的逻辑保证了这里的sn一定是等于metaPage.sn的
     // 因为sn<metaPage_.sn时，请求会被拒绝
     // sn>metaPage_.sn时，前面会先更新metaPage.sn为sn
-    // 又因为snapSn正常情况下是小与metaPage_.sn，所以snapSn也应当小于sn
-    // 有一种情况会出现sn==snap.sn，就是DataStore重启恢复历史日志
+    // 又因为snapSn正常情况下是小于metaPage_.sn，所以snapSn也应当小于sn
+    // 有几种情况可能出现metaPage_.sn <= snap.sn
+    // 场景一：DataStore重启恢复历史日志，可能出现metaPage_.sn==snap.sn
     // 重启前有一个请求产生了快照文件，但是还没更新metapage时就重启了
     // 重启后又回放了先前的一个操作，这个操作的sn等于当前chunk的sn
-    if (sn != metaPage_.sn || sn <= snapshot_->GetSn()) {
+    // 场景二：follower在做raft的恢复时通过leader下载raft快照
+    // 下载过程中，Leader上的chunk也在做chunk的快照，下载以后follower再做日志恢复
+    // 由于follower先下载chunk文件，后下载快照文件，所以此时metaPage_.sn<=snap.sn
+    if (sn != metaPage_.sn || metaPage_.sn <= snapshot_->GetSn()) {
         LOG(WARNING) << "May be a log repaly opt after an unexpected restart."
                      << "Request sn: " << sn
                      << ", chunk sn: " << metaPage_.sn
