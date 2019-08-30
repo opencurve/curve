@@ -494,11 +494,11 @@ inject all chunkserver down 10min
     [Teardown]   wait iops ok    ${vm_iops_limit}
 
 test clone vol
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover  snapshot
     test clone iovol consistency
 
 test cancel vol snapshot
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   snapshot
     test cancel snapshot
 
 test one volume perf
@@ -512,7 +512,7 @@ test one volume perf
 init failover cluster
      init abnormal test env
      init vm
-#     init vol
+     init vol
      loop attach detach vol
 
 init abnormal test env
