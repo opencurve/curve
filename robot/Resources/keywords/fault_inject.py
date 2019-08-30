@@ -387,7 +387,7 @@ def init_vm():
             time.sleep(60)
             rs1 = check_vm_status(ssh,uuid)
             rs2 = check_vm_status(ssh,uuid2)
-            if rs1 == True or rs2 == True:
+            if rs1 == True and rs2 == True:
                 break
         assert rs1 == True,"hard reboot vm fail"
         assert rs2 == True,"hard reboot vm fail"
@@ -1552,21 +1552,32 @@ def analysis_data(ssh):
             write_512k_iops = line.split(',')[8]
         elif 'read,512k' in line:
             read_512k_iops = line.split(',')[4]
-    logger.info("get one volume Basic data:------")
-    logger.info("4k rand read iops is %d/s"%int(float(randr_4k_iops)*1000))
-    logger.info("4k rand write iops is %d/s"%int(float(randw_4k_iops)*1000))
-    logger.info("512k read BW is %d MB/s"%(int(float(read_512k_iops)*1000)/2))
-    logger.info("512k write BW is %d MB/s"%(int(float(write_512k_iops)*1000)/2))
-
+    randr_4k_iops = float(randr_4k_iops)*1000
+    randw_4k_iops = float(randw_4k_iops)*1000
+    read_512k_BW = float(read_512k_iops)*1000/2
+    write_512k_BW = float(write_512k_iops)*1000/2
+    logger.info("get one volume Basic data:-------------------------------")
+    logger.info("4k rand read iops is %d/s"%int(randr_4k_iops))
+    logger.info("4k rand write iops is %d/s"%int(randw_4k_iops))
+    logger.info("512k read BW is %d MB/s"%int(read_512k_BW))
+    logger.info("512k write BW is %d MB/s"%int(write_512k_BW))    
+    if randr_4k_iops < 75000:
+        assert float(75000 - randr_4k_iops)/75000 < 0.02,"4k_randr_iops did not meet expectations,expect more than 75000"
+    if randw_4k_iops < 41858:
+        assert float(41858 - randw_4k_iops)/41858 < 0.02,"4k_randw_iops did not meet expectations,expect more than 41858"    
+    if read_512k_BW < 440:
+        assert float(440 - read_512k_BW)/440 < 0.02,"512k_read_bw did not meet expectations,expect more than 440"
+    if write_512k_BW < 130:
+        assert float(130 - write_512k_BW)/130 < 0.02,"512k_write_bw did not meet expectations,expect more than 130"
 def perf_test():
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     ori_cmd = "supervisorctl stop all"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     time.sleep(5)
-    clean_last_data()
-    start_test = "cd /root/perf && nohup python /root/perf/io_test.py &"
-    shell_operator.ssh_background_exec2(ssh,start_test)
-    time.sleep(60)
+#    clean_last_data()
+#    start_test = "cd /root/perf && nohup python /root/perf/io_test.py &"
+#    shell_operator.ssh_background_exec2(ssh,start_test)
+#    time.sleep(60)
     final = 0
     starttime = time.time()
     while time.time() - starttime < 3600:
