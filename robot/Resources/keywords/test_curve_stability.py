@@ -103,7 +103,7 @@ def vol_write_data():
     ori_cmd = "lsblk |grep %dG | awk '{print $1}'"%config.snapshot_size
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     vd = "".join(rs[1]).strip()
-    ori_cmd = "fio -name=/dev/%s -direct=1 -iodepth=2 -rw=write -ioengine=libaio -bs=64k -size=%dG -numjobs=1 -time_based  -runtime=60"%(vd,config.snapshot_size)
+    ori_cmd = "fio -name=/dev/%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=64k -size=%dG -numjobs=1 -time_based  -runtime=120"%(vd,config.snapshot_size)
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"write fio fail"
 
@@ -309,7 +309,7 @@ def check_snapshot_delete(vol_id,snapshot_id):
     final = False
     while time.time() - starttime < 120:
         rc = get_snapshot_status(vol_id,snapshot_id)
-        if rc["Code"] == "-1":
+        if rc["Code"] == "-8":
             final = True
             break
         else:
@@ -372,18 +372,7 @@ def test_cancel_snapshot():
     starttime = time.time()
     final = False
     time.sleep(5)
-    while time.time() - starttime < 120:
-        rc = get_snapshot_status(vol_id,snapshot_uuid)
-        if  rc["Status"] == 0 :
-            final = True
-            break
-        else:
-           time.sleep(10)
-    if final == True:
-       delete_vol_snapshot(vol_id,snapshot_uuid)
-       check_snapshot_delete(vol_id,snapshot_uuid)
-    else:
-       assert False,"cancel snapshot vol fail,status is %s"%rc
+    check_snapshot_delete(vol_id,snapshot_uuid)
 
 #def test_delete_snapshot():
 
