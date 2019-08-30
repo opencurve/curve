@@ -498,11 +498,13 @@ test clone vol
     test clone iovol consistency
 
 test cancel vol snapshot
-    [Tags]    P2    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   no-need
     test cancel snapshot
 
 test one volume perf
-    [Tags]    P1    base    first release   failover  no-need
+    [Tags]    P1    base    first release  longtime   perf
+    init vm
+    attach new vol   200   200
     perf test
 
 *** Keywords ***
@@ -510,7 +512,7 @@ test one volume perf
 init failover cluster
      init abnormal test env
      init vm
-     init vol
+#     init vol
      loop attach detach vol
 
 init abnormal test env
