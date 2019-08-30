@@ -33,6 +33,7 @@
 #include "src/mds/heartbeat/heartbeat_service.h"
 #include "src/mds/schedule/topoAdapter.h"
 #include "proto/heartbeat.pb.h"
+#include "src/mds/chunkserverclient/chunkserverclient_config.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1.6666", "mds listen addr");
@@ -55,6 +56,7 @@ using ::curve::mds::schedule::TopoAdapterImpl;
 using ::curve::mds::schedule::TopoAdapter;
 using ::curve::mds::schedule::ScheduleOption;
 using ::curve::mds::schedule::ScheduleMetrics;
+using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 using ::curve::common::Configuration;
 
 namespace curve {
@@ -188,6 +190,23 @@ void InitLeaderElectionOption(
         &electionOp->electionTimeoutMs));
 }
 
+void InitChunkServerClientOption(
+    Configuration *conf, ChunkServerClientOption *option) {
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.chunkserverclient.rpcTimeoutMs",
+        &option->rpcTimeoutMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.chunkserverclient.rpcRetryTimes",
+        &option->rpcRetryTimes));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.chunkserverclient.rpcRetryIntervalMs",
+        &option->rpcRetryIntervalMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.chunkserverclient.updateLeaderRetryTimes",
+        &option->updateLeaderRetryTimes));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.chunkserverclient.updateLeaderRetryIntervalMs",
+        &option->updateLeaderRetryIntervalMs));
+}
+
 void LoadConfigFromCmdline(Configuration *conf) {
     // 如果命令行有设置, 命令行覆盖配置文件中的字段
     google::CommandLineFlagInfo info;
@@ -237,6 +256,9 @@ int curve_main(int argc, char **argv) {
 
     CopysetOption copysetOption;
     InitCopysetOption(&conf, &copysetOption);
+
+    ChunkServerClientOption chunkServerClientOption;
+    InitChunkServerClientOption(&conf, &chunkServerClientOption);
 
     // ===========================init curveFs========================//
     // init EtcdClient
@@ -383,7 +405,10 @@ int curve_main(int argc, char **argv) {
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
     // init CleanManager
     auto taskManager = std::make_shared<CleanTaskManager>();
-    auto cleanCore = std::make_shared<CleanCore>(storage, topology);
+    auto copysetClient =
+        std::make_shared<CopysetClient>(topology, chunkServerClientOption);
+
+    auto cleanCore = std::make_shared<CleanCore>(storage, copysetClient);
 
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
                                                       taskManager, storage);
@@ -399,6 +424,8 @@ int curve_main(int argc, char **argv) {
 
     // start clean manager
     LOG_IF(FATAL, !cleanManger->Start()) << "start cleanManager fail.";
+
+    cleanManger->RecoverCleanTasks();
 
     // =========================init scheduler======================//
     auto scheduleMetrics = std::make_shared<ScheduleMetrics>(topology);

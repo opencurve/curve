@@ -33,14 +33,6 @@ const int kCsClientReturnFail = -5;
 const int kCsClientCSOffline = -6;
 
 
-
-// TODO(xuchaojie): use config file instead.
-const uint32_t kRpcTimeoutMs = 1000u;
-const uint32_t kRpcRetryTime = 3u;
-const uint32_t kRpcRetryIntervalMs = 500u;
-
-const uint32_t kUpdateLeaderRetryTime = 3u;
-const uint32_t kUpdateLeaderRetryIntervalMs = 500u;
 // kStaledRequestTimeIntervalUs表示request的过期时间，防止request被截取并回放
 const uint64_t kStaledRequestTimeIntervalUs = 15 * 1000 * 1000u;
 

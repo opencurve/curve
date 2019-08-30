@@ -23,11 +23,11 @@ namespace mds {
 
 class CleanCore {
  public:
-    explicit CleanCore(NameServerStorage * storage,
-        std::shared_ptr<Topology> topo) {
-        storage_ = storage;
-        copysetClient_ = std::make_shared<CopysetClient>(topo);
-    }
+    CleanCore(NameServerStorage * storage,
+        std::shared_ptr<CopysetClient> copysetClient)
+        : storage_(storage),
+          copysetClient_(copysetClient) {}
+
     /**
      * @brief 删除快照文件，更新task状态
      * @param snapShotFile: 需要清理的snapshot文件

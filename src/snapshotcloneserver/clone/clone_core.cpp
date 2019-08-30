@@ -49,10 +49,40 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
             return kErrCodeSnapshotCannotCreateWhenError;
         }
     }
+    // 目标文件已存在不能clone, 不存在不能recover
+    FInfo destFInfo;
+    int ret = client_->GetFileInfo(destination, mdsRootUser_, &destFInfo);
+    switch (ret) {
+        case LIBCURVE_ERROR::OK:
+            if (CloneTaskType::kClone == taskType) {
+                LOG(ERROR) << "Clone dest file must not exist"
+                           << ", source = " << source
+                           << ", user = " << user
+                           << ", destination = " << destination;
+                return kErrCodeFileExist;
+            }
+            break;
+        case -LIBCURVE_ERROR::NOTEXIST:
+            if (CloneTaskType::kRecover == taskType) {
+                LOG(ERROR) << "Recover dest file must exist"
+                           << ", source = " << source
+                           << ", user = " << user
+                           << ", destination = " << destination;
+                return kErrCodeFileNotExist;
+            }
+            break;
+        default:
+            LOG(ERROR) << "GetFileInfo encounter an error"
+                       << ", ret = " << ret
+                       << ", source = " << source
+                       << ", user = " << user;
+            return kErrCodeInternalError;
+    }
+
     //是否为快照
     SnapshotInfo snapInfo;
     CloneFileType fileType;
-    int ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
+    ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
     if (ret < 0) {
         FInfo fInfo;
         ret = client_->GetFileInfo(source, mdsRootUser_, &fInfo);
@@ -291,10 +321,10 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
         auto it = segInfos->find(segmentIndex);
         if (it == segInfos->end()) {
             CloneSegmentInfo segInfo;
-            segInfo.emplace(chunkIndex, info);
+            segInfo.emplace(chunkIndex % chunkPerSegment, info);
             segInfos->emplace(segmentIndex, segInfo);
         } else {
-            it->second.emplace(chunkIndex, info);
+            it->second.emplace(chunkIndex % chunkPerSegment, info);
         }
     }
     return kErrCodeSuccess;
@@ -691,7 +721,6 @@ int CloneCoreImpl::CompleteCloneFile(
 }
 
 void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
-    task->Lock();
     if (IsSnapshot(task)) {
         snapshotRef_->DecrementSnapshotRef(task->GetCloneInfo().GetSrc());
     }
@@ -700,7 +729,6 @@ void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
     task->SetProgress(kProgressCloneComplete);
 
     task->Finish();
-    task->UnLock();
     LOG(INFO) << "Task Success"
               << ", taskid = " << task->GetCloneInfo().GetTaskId();
     return;
@@ -823,12 +851,21 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
             return kErrCodeInternalError;
         }
 
-        for (std::vector<ChunkIDInfo>::size_type i = 0;
-             i < segInfoOut.chunkvec.size(); i++) {
-            auto it = segInfo.second.find(i);
-            if (it != segInfo.second.end()) {
-                it->second.chunkIdInfo = segInfoOut.chunkvec[i];
+        for (auto &cloneChunkInfo : segInfo.second) {
+            if (cloneChunkInfo.first > segInfoOut.chunkvec.size()) {
+                LOG(ERROR) << "can not find chunkIndexInSeg = "
+                           << cloneChunkInfo.first
+                           << ", segmentIndex = " << segInfo.first
+                           << ", logicalPoolId = "
+                           << cloneChunkInfo.second.chunkIdInfo.lpid_
+                           << ", copysetId = "
+                           << cloneChunkInfo.second.chunkIdInfo.cpid_
+                           << ", chunkId = "
+                           << cloneChunkInfo.second.chunkIdInfo.cid_;
+                return kErrCodeInternalError;
             }
+            cloneChunkInfo.second.chunkIdInfo =
+                segInfoOut.chunkvec[cloneChunkInfo.first];
         }
     }
     return kErrCodeSuccess;
