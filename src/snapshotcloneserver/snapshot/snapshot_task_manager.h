@@ -24,6 +24,7 @@
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
+using ::curve::common::Mutex;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -128,11 +129,11 @@ class SnapshotTaskManager {
 
     // 快照等待队列
     std::list<std::shared_ptr<SnapshotTask> > waitingTasks_;
-    mutable std::mutex waitingTasksLock_;
+    mutable Mutex waitingTasksLock_;
 
     // 快照工作队列,实际是个map，其中key是文件名，以便于查询
     std::map<std::string, std::shared_ptr<SnapshotTask> > workingTasks_;
-    mutable std::mutex workingTasksLock_;
+    mutable Mutex workingTasksLock_;
 
     std::shared_ptr<ThreadPool> threadpool_;
 

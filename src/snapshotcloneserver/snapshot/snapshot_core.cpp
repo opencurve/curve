@@ -18,6 +18,7 @@
 
 using ::curve::common::UUIDGenerator;
 using ::curve::common::NameLockGuard;
+using ::curve::common::LockGuard;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -225,10 +226,9 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
     }
     task->SetProgress(kProgressTransferSnapshotDataComplete);
 
-    task->Lock();
+    LockGuard lockGuard(task->GetLockRef());
     if (task->IsCanceled()) {
         CancelAfterTransferSnapshotData(task, indexData, fileSnapshotMap);
-        task->UnLock();
         return;
     }
 
@@ -238,14 +238,12 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
         LOG(ERROR) << "UpdateSnapshot error, "
                    << " ret = " << ret;
         HandleCreateSnapshotError(task);
-        task->UnLock();
         return;
     }
     task->SetProgress(kProgressComplete);
 
     task->Finish();
     LOG(INFO) << "CreateSnapshot Success.";
-    task->UnLock();
     return;
 }
 
@@ -253,6 +251,7 @@ void SnapshotCoreImpl::CancelAfterTransferSnapshotData(
     std::shared_ptr<SnapshotTaskInfo> task,
     const ChunkIndexData &indexData,
     const FileSnapMap &fileSnapshotMap) {
+    LOG(INFO) << "Cancel After TransferSnapshotData";
     std::vector<ChunkIndexType> chunkIndexVec = indexData.GetAllChunkIndex();
     for (auto &chunkIndex : chunkIndexVec) {
         ChunkDataName chunkDataName;
@@ -277,6 +276,7 @@ void SnapshotCoreImpl::CancelAfterTransferSnapshotData(
 
 void SnapshotCoreImpl::CancelAfterCreateChunkIndexData(
     std::shared_ptr<SnapshotTaskInfo> task) {
+    LOG(INFO) << "Cancel After CreateChunkIndexData";
     SnapshotInfo &info = task->GetSnapshotInfo();
     UUID uuid = task->GetUuid();
     uint64_t seqNum = info.GetSeqNum();
@@ -297,6 +297,7 @@ void SnapshotCoreImpl::CancelAfterCreateChunkIndexData(
 
 void SnapshotCoreImpl::CancelAfterCreateSnapshotOnCurvefs(
     std::shared_ptr<SnapshotTaskInfo> task) {
+    LOG(INFO) << "Cancel After CreateSnapshotOnCurvefs";
     SnapshotInfo &info = task->GetSnapshotInfo();
     UUID uuid = task->GetUuid();
 
@@ -384,7 +385,8 @@ int SnapshotCoreImpl::DeleteSnapshotOnCurvefs(const SnapshotInfo &info) {
         user,
         seqNum);
     if (ret != LIBCURVE_ERROR::OK &&
-        ret != -LIBCURVE_ERROR::NOTEXIST) {
+        ret != -LIBCURVE_ERROR::NOTEXIST &&
+        ret != -LIBCURVE_ERROR::DELETING) {
         LOG(ERROR) << "DeleteSnapshot error, "
                    << " ret = " << ret
                    << ", fileName = " << fileName
@@ -549,6 +551,7 @@ int SnapshotCoreImpl::TransferSnapshotDataChunk(
     const ChunkDataName &name,
     uint64_t chunkSize,
     const ChunkIDInfo &cidInfo) {
+
     std::shared_ptr<TransferTask> transferTask =
         std::make_shared<TransferTask>();
     int ret = dataStore_->DataChunkTranferInit(name,
