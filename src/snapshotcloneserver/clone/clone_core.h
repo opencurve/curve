@@ -123,7 +123,7 @@ struct CloneChunkInfo {
     uint64_t seqNum;
 };
 
-// 克隆/恢复所需segment信息，key是ChunkIndex, value是chunk信息
+// 克隆/恢复所需segment信息，key是ChunkIndex In Segment, value是chunk信息
 using CloneSegmentInfo = std::map<uint64_t, CloneChunkInfo>;
 // 克隆/恢复所需segment信息表，key是segmentIndex
 using CloneSegmentMap = std::map<uint64_t, CloneSegmentInfo>;

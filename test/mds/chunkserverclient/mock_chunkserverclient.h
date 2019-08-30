@@ -10,6 +10,7 @@
 
 #include <memory>
 #include "src/mds/chunkserverclient/chunkserver_client.h"
+#include "src/mds/chunkserverclient/chunkserverclient_config.h"
 
 
 using ::curve::mds::topology::ChunkServerIdType;
@@ -20,8 +21,9 @@ namespace chunkserverclient {
 
 class MockChunkServerClient : public ChunkServerClient {
  public:
-    explicit MockChunkServerClient(std::shared_ptr<Topology> topo)
-        : ChunkServerClient(topo) {}
+    MockChunkServerClient(std::shared_ptr<Topology> topo,
+        const ChunkServerClientOption &option)
+        : ChunkServerClient(topo, option) {}
     MOCK_METHOD5(DeleteChunkSnapshotOrCorrectSn,
         int(ChunkServerIdType csId,
         LogicalPoolID logicalPoolId,
