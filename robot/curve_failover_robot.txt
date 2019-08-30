@@ -502,7 +502,7 @@ test cancel vol snapshot
     test cancel snapshot
 
 test one volume perf
-    [Tags]    P1    base    first release  longtime   perf
+    [Tags]    P1    base    first release  longtime   perf  no-need
     init vm
     attach new vol   200   200
     perf test
