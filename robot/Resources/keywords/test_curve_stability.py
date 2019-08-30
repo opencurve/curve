@@ -362,6 +362,7 @@ def test_clone_iovol_consistency():
        assert False,"clone vol fail,status is %s"%rc
 
 def test_cancel_snapshot():
+    vol_write_data()
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     vol_id = config.snapshot_volid
     vm_id = config.snapshot_vmid
@@ -377,3 +378,24 @@ def test_cancel_snapshot():
 #def test_delete_snapshot():
 
 #def test_delete_clone():    
+
+def test_snapshot_all(vol_uuid):
+    test_clone_iovol_consistency()
+    test_cancel_snapshot()
+    return "finally"
+
+def begin_snapshot_test():
+    t = mythread.runThread(test_snapshot_all,config.snapshot_volid)
+    config.snapshot_thread = t
+    t.start()
+
+def stop_snapshot_test():
+    try:
+        if config.snapshot_thread == []:
+            assert False,"snapshot thread not up"
+        thread = config.snapshot_thread
+        assert thread.exitcode == 0,"snapshot thread error"
+        result = thread.get_result()
+        assert result == "finally","snapshot test fail,result is %s"%result
+    except:
+        raise
