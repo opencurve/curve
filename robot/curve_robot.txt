@@ -1796,7 +1796,7 @@ create snapshot with nomal file
     ${expect_content}    evaluate    str("aaaaaaaa")*512
     should be equal  ${content}     ${expect_content}
     ${rs}   delete file snapshot    ${seq}
-    sleep  5
+    sleep  15
     should be equal  ${rs}  ${expect_rc}
     [Teardown]      delete curve file for shanpshot
 
