@@ -381,7 +381,7 @@ def test_cancel_snapshot():
 
 def test_snapshot_all(vol_uuid):
     test_clone_iovol_consistency()
-    test_cancel_snapshot()
+#    test_cancel_snapshot()
     return "finally"
 
 def begin_snapshot_test():
