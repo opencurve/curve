@@ -1,4 +1,5 @@
 #/usr/bin/env python
+
 # -*- coding: utf8 -*-
 
 import os, time, random, re
@@ -100,12 +101,21 @@ def vol_all(vm_id):
 
 def vol_write_data():
     ssh = shell_operator.create_ssh_connect(config.vm_stability_host, 22, config.vm_user)
-    ori_cmd = "lsblk |grep %dG | awk '{print $1}'"%config.snapshot_size
-    rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    vd = "".join(rs[1]).strip()
-    ori_cmd = "fio -name=/dev/%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=64k -size=%dG -numjobs=1 -time_based  -runtime=120"%(vd,config.snapshot_size)
-    rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"write fio fail"
+    start_time = time.time()
+    while time.time() - start_time < 120:
+        ori_cmd = "lsblk |grep %dG | awk '{print $1}'"%config.snapshot_size
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        vd = "".join(rs[1]).strip()
+        if vd != "":
+            break
+        time.sleep(5)
+    if vd != "":
+        logger.info("vd is %s"%vd)
+        ori_cmd = "fio -name=/dev/%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=64k -size=%dG -numjobs=1 -time_based  -runtime=2"%(vd,config.snapshot_size)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"write fio fail"
+    else:
+        assert False,"get vd fail"
 
 def creat_vol_snapshot(vol_uuid):
     snap_server = random.choice(config.snap_server_list)
@@ -381,7 +391,7 @@ def test_cancel_snapshot():
 
 def test_snapshot_all(vol_uuid):
     test_clone_iovol_consistency()
-#    test_cancel_snapshot()
+    test_cancel_snapshot()
     return "finally"
 
 def begin_snapshot_test():
