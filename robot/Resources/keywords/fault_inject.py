@@ -212,7 +212,7 @@ def loop_attach_detach_vol():
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
     vm_uuid = "".join(rs[1]).strip() 
     thread = []
-    for i in range(3):
+    for i in range(2):
         t = mythread.runThread(test_curve_stability.vol_all, vm_uuid)
         thread.append(t)
 
