@@ -172,6 +172,20 @@ def clone_vol_snapshot(snapshot_uuid,lazy="true"):
     clone_vol_uuid = ref["UUID"]
     return clone_vol_uuid
 
+def clean_vol_clone(clone_uuid):
+    snap_server = random.choice(config.snap_server_list)
+    payload = {}
+    payload['Action'] = 'CleanCloneTask'
+    payload['Version'] = config.snap_version
+    payload['User'] = 'cinder'
+    payload['UUID'] = clone_uuid
+    payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    logger.info("exec requests:%s %s"%(http,payload))
+    r = requests.get(http, params=payload_str)
+    logger.info("exec requests url:%s"%(r.url))
+    assert r.status_code == 200, "clean clone vol fail,return code is %d,return msg is %s" % (r.status_code, r.text)
+
 def cancel_vol_snapshot(voluuid,snapshot_uuid):
     snap_server = random.choice(config.snap_server_list)
     payload = {}
@@ -329,7 +343,7 @@ def check_snapshot_delete(vol_id,snapshot_id):
     else:
         assert False,"delete snapshot fail in 120s,rc is %s"%rc
 
-def test_clone_iovol_consistency():
+def test_clone_iovol_consistency(lazy):
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     vol_id = config.snapshot_volid
     vm_id = config.snapshot_vmid 
@@ -345,7 +359,7 @@ def test_clone_iovol_consistency():
         else:
            time.sleep(60)
     if final == True:
-        clone_vol_uuid = clone_vol_snapshot(snapshot_uuid)
+        clone_vol_uuid = clone_vol_snapshot(snapshot_uuid,lazy)
     else:
         assert False,"create snapshot vol fail,status is %s"%rc
     final = False
@@ -368,6 +382,10 @@ def test_clone_iovol_consistency():
            raise
         finally:
            nova_vol_attach(ssh,vm_id, vol_id)
+           delete_vol_snapshot(vol_id,snapshot_uuid)
+           check_snapshot_delete(vol_id,snapshot_uuid)
+           clean_vol_clone(clone_vol_uuid)
+           check_clone_clean(clone_vol_uuid)
     else:
        assert False,"clone vol fail,status is %s"%rc
 
@@ -390,8 +408,11 @@ def test_cancel_snapshot():
 #def test_delete_clone():    
 
 def test_snapshot_all(vol_uuid):
-    test_clone_iovol_consistency()
+    lazy="true"
+    test_clone_iovol_consistency(lazy)
     test_cancel_snapshot()
+    lazy="false"
+    test_clone_iovol_consistency(lazy)
     return "finally"
 
 def begin_snapshot_test():
