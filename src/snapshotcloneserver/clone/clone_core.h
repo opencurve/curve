@@ -19,6 +19,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_data_store.h"
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
 #include "src/snapshotcloneserver/clone/clone_reference.h"
+#include "src/snapshotcloneserver/common/thread_pool.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -152,7 +153,14 @@ class CloneCoreImpl : public CloneCore {
         cloneRef_(cloneRef),
         cloneChunkSplitSize_(option.cloneChunkSplitSize),
         cloneTempDir_(option.cloneTempDir),
-        mdsRootUser_(option.mdsRootUser) {}
+        mdsRootUser_(option.mdsRootUser),
+        cloneCoreThreadNum_(option.cloneCoreThreadNum) {
+          threadPool_ = std::make_shared<ThreadPool>(option.cloneCoreThreadNum);
+    }
+
+    ~CloneCoreImpl() {
+        threadPool_->Stop();
+    }
 
     int Init();
 
@@ -367,8 +375,10 @@ class CloneCoreImpl : public CloneCore {
      * @brief 处理克隆或恢复失败
      *
      * @param task 任务信息
+     * @param retCode 待处理的错误码
      */
-    void HandleCloneError(std::shared_ptr<CloneTaskInfo> task);
+    void HandleCloneError(std::shared_ptr<CloneTaskInfo> task,
+        int retCode);
 
     /**
      * @brief 处理清理克隆或恢复任务成功
@@ -397,12 +407,17 @@ class CloneCoreImpl : public CloneCore {
     std::shared_ptr<SnapshotReference> snapshotRef_;
     std::shared_ptr<CloneReference> cloneRef_;
 
+    // 执行并发步骤的线程池
+    std::shared_ptr<ThreadPool> threadPool_;
+
     // clone chunk分片大小
     uint64_t cloneChunkSplitSize_;
     // 克隆临时目录
     std::string cloneTempDir_;
     // mds root user
     std::string mdsRootUser_;
+    // 线程数
+    uint32_t cloneCoreThreadNum_;
 };
 
 }  // namespace snapshotcloneserver

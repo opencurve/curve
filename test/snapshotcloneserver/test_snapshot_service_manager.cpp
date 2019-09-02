@@ -391,6 +391,86 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
     ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
+// 删除转cancel用例
+TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelSuccess) {
+    const std::string file = "file1";
+    const std::string user = "user1";
+    const std::string desc = "snap1";
+    UUID uuid;
+    UUID uuidOut = "abc";
+
+    SnapshotInfo info(uuidOut, user, file, desc);
+    EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
+        .WillOnce(DoAll(
+            SetArgPointee<3>(info),
+            Return(kErrCodeSuccess)));
+
+    CountDownEvent cond1(1);
+
+    EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
+        .WillOnce(Invoke([&cond1] (
+                             std::shared_ptr<SnapshotTaskInfo> task) {
+                                while (1) {
+                                    if (task->IsCanceled()) {
+                                        break;
+                                    }
+                                }
+                                task->Finish();
+                                cond1.Signal();
+                            }));
+
+    int ret = manager_->CreateSnapshot(
+        file,
+        user,
+        desc,
+        &uuid);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(uuid, uuidOut);
+
+    EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
+        .WillOnce(Return(kErrCodeSnapshotCannotDeleteUnfinished));
+
+    ret = manager_->DeleteSnapshot(uuid, user, file);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+
+    cond1.Wait();
+}
+
+TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelByDeleteSuccess) {
+    const std::string file = "file1";
+    const std::string user = "user1";
+    const std::string desc = "snap1";
+    UUID uuid = "uuid1";
+
+    CountDownEvent cond1(1);
+
+    EXPECT_CALL(*core_, DeleteSnapshotPre(uuid, user, _, _))
+        .WillOnce(Return(kErrCodeSnapshotCannotDeleteUnfinished))
+        .WillOnce(Return(kErrCodeSuccess));
+
+    EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
+        .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
+                            task->Finish();
+                            cond1.Signal();
+                }));
+
+    int ret = manager_->DeleteSnapshot(uuid, user, file);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+
+    cond1.Wait();
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(1, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
+}
+
+
+
 TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPreFail) {
     const std::string file = "file1";
     const std::string user = "user1";

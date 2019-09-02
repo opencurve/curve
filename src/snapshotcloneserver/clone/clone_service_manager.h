@@ -16,6 +16,7 @@
 #include "src/snapshotcloneserver/clone/clone_task_manager.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
+#include "src/snapshotcloneserver/clone/clone_closure.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -86,6 +87,7 @@ class CloneServiceManager {
      * @param user  文件或快照的用户
      * @param destination 目标文件
      * @param lazyFlag  是否lazy模式
+     * @param closure 异步回调实体
      * @param[out] taskId 任务ID
      *
      * @return 错误码
@@ -94,6 +96,7 @@ class CloneServiceManager {
         const std::string &user,
         const std::string &destination,
         bool lazyFlag,
+        std::shared_ptr<CloneClosure> closure,
         TaskIdType *taskId);
 
     /**
@@ -103,6 +106,7 @@ class CloneServiceManager {
      * @param user  文件或快照的用户
      * @param destination 目标文件名
      * @param lazyFlag  是否lazy模式
+     * @param closure 异步回调实体
      * @param[out] taskId 任务ID
      *
      * @return 错误码
@@ -111,6 +115,7 @@ class CloneServiceManager {
         const std::string &user,
         const std::string &destination,
         bool lazyFlag,
+        std::shared_ptr<CloneClosure> closure,
         TaskIdType *taskId);
 
     /**

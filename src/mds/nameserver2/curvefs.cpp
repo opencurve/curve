@@ -1343,17 +1343,26 @@ StatusCode CurveFS::SetCloneFileStatus(const std::string &filename,
                 }
                 break;
             case kFileCloned:
-                if (fileStatus == kFileCloned) {
+                if (fileStatus == kFileCloned ||
+                    fileStatus == kFileBeingCloned) {
                     // noop
                 } else {
                     return kCloneStatusNotMatch;
                 }
                 break;
+            case kFileCreated:
+                if (fileStatus != kFileCreated &&
+                    fileStatus != kFileBeingCloned) {
+                    return kCloneStatusNotMatch;
+                }
+                break;
             case kFileBeingCloned:
-                if (fileStatus != kFileCreated ||
+                if (fileStatus != kFileBeingCloned &&
+                    fileStatus != kFileCreated &&
                     fileStatus != kFileCloned) {
                     return kCloneStatusNotMatch;
                 }
+                break;
             default:
                 return kCloneStatusNotMatch;
         }

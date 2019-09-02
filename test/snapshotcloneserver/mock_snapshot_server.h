@@ -263,18 +263,20 @@ class MockCloneServiceManager : public CloneServiceManager {
         CloneServiceManager(nullptr, nullptr) {}
     ~MockCloneServiceManager() {}
 
-    MOCK_METHOD5(CloneFile,
+    MOCK_METHOD6(CloneFile,
         int(const UUID &source,
         const std::string &user,
         const std::string &destination,
         bool lazyFlag,
+        std::shared_ptr<CloneClosure> entity,
         TaskIdType *taskId));
 
-    MOCK_METHOD5(RecoverFile,
+    MOCK_METHOD6(RecoverFile,
         int(const UUID &source,
         const std::string &user,
         const std::string &destination,
         bool lazyFlag,
+        std::shared_ptr<CloneClosure> entity,
         TaskIdType *taskId));
 
     MOCK_METHOD3(GetCloneTaskInfo,
