@@ -92,11 +92,13 @@ TEST_F(TestCloneServiceManager,
                             }));
 
     TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
@@ -125,11 +127,13 @@ TEST_F(TestCloneServiceManager,
             Return(kErrCodeInternalError)));
 
     TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
@@ -159,11 +163,13 @@ TEST_F(TestCloneServiceManager,
                             }));
 
     TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
@@ -172,6 +178,7 @@ TEST_F(TestCloneServiceManager,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeTaskExist, ret);
 
@@ -210,11 +217,13 @@ TEST_F(TestCloneServiceManager,
                             }));
 
     TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
     int ret = manager_->RecoverFile(
         source,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
@@ -243,11 +252,13 @@ TEST_F(TestCloneServiceManager,
             Return(kErrCodeInternalError)));
 
     TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
     int ret = manager_->RecoverFile(
         source,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
@@ -277,11 +288,13 @@ TEST_F(TestCloneServiceManager,
                             }));
 
     TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
     int ret = manager_->RecoverFile(
         source,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
@@ -290,6 +303,7 @@ TEST_F(TestCloneServiceManager,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeTaskExist, ret);
 
@@ -329,11 +343,13 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccess) {
                             }));
 
     TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeSuccess, ret);
 
@@ -429,11 +445,13 @@ TEST_F(TestCloneServiceManager, TestCloneServiceNotStart) {
             Return(kErrCodeSuccess)));
 
     TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
     int ret = manager_->CloneFile(
         source,
         user,
         destination,
         lazyFlag,
+        closure,
         &taskId);
     ASSERT_EQ(kErrCodeServiceIsStop, ret);
 }

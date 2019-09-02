@@ -1155,7 +1155,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         MDSStatusCode2LibcurveError(stcode, &retcode);
 
         LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "CreateCloneFile failed, filename = " << filename.c_str()
+                << "SetCloneFileStatus failed, filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner.c_str()
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID

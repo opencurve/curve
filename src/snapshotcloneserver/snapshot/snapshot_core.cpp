@@ -23,6 +23,15 @@ using ::curve::common::LockGuard;
 namespace curve {
 namespace snapshotcloneserver {
 
+int SnapshotCoreImpl::Init() {
+    int ret = threadPool_->Start();
+    if (ret < 0) {
+        LOG(ERROR) << "SnapshotCoreImpl, thread start fail, ret = " << ret;
+        return ret;
+    }
+    return kErrCodeSuccess;
+}
+
 int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
     const std::string &user,
     const std::string &snapshotName,
@@ -552,90 +561,6 @@ int SnapshotCoreImpl::BuildSegmentInfo(
     return kErrCodeSuccess;
 }
 
-int SnapshotCoreImpl::TransferSnapshotDataChunk(
-    const ChunkDataName &name,
-    uint64_t chunkSize,
-    const ChunkIDInfo &cidInfo) {
-
-    std::shared_ptr<TransferTask> transferTask =
-        std::make_shared<TransferTask>();
-    int ret = dataStore_->DataChunkTranferInit(name,
-            transferTask);
-    if (ret < 0) {
-        LOG(ERROR) << "DataChunkTranferInit error, "
-                   << " ret = " << ret
-                   << ", fileName = " << name.fileName_
-                   << ", chunkSeqNum = " << name.chunkSeqNum_
-                   << ", chunkIndex = " << name.chunkIndex_;
-        return ret;
-    }
-
-    auto buf = std::unique_ptr<char[]>(new char[chunkSplitSize_]);
-    bool hasAddPart = false;
-    for (uint64_t i = 0;
-        i < chunkSize / chunkSplitSize_;
-        i++) {
-        uint64_t offset = i * chunkSplitSize_;
-        ret = client_->ReadChunkSnapshot(
-            cidInfo,
-            name.chunkSeqNum_,
-            offset,
-            chunkSplitSize_,
-            buf.get());
-        if (ret < 0) {
-            LOG(ERROR) << "ReadChunkSnapshot error, "
-                       << " ret = " << ret
-                       << ", logicalPool = " << cidInfo.lpid_
-                       << ", copysetId = " << cidInfo.cpid_
-                       << ", chunkId = " << cidInfo.cid_
-                       << ", seqNum = " << name.chunkSeqNum_
-                       << ", offset = " << offset;
-            ret = kErrCodeInternalError;
-            break;
-        }
-        ret = dataStore_->DataChunkTranferAddPart(name,
-            transferTask,
-            i,
-            chunkSplitSize_,
-            buf.get());
-        hasAddPart = true;
-        if (ret < 0) {
-            LOG(ERROR) << "DataChunkTranferAddPart error, "
-                       << " ret = " << ret
-                       << ", index = " << i;
-            break;
-        }
-    }
-    if (ret >= 0) {
-        ret =
-            dataStore_->DataChunkTranferComplete(name, transferTask);
-        if (ret < 0) {
-            LOG(ERROR) << "DataChunkTranferComplete error, "
-                       << " ret = " << ret
-                       << ", fileName = " << name.fileName_
-                       << ", chunkSeqNum = " << name.chunkSeqNum_
-                       << ", chunkIndex = " << name.chunkIndex_;
-        }
-    }
-    if (ret < 0) {
-        if (hasAddPart) {
-            int ret2 =
-                dataStore_->DataChunkTranferAbort(
-                name,
-                transferTask);
-            if (ret2 < 0) {
-                LOG(ERROR) << "DataChunkTranferAbort error, "
-                           << " ret = " << ret2
-                           << ", fileName = " << name.fileName_
-                           << ", chunkSeqNum = " << name.chunkSeqNum_
-                           << ", chunkIndex = " << name.chunkIndex_;
-            }
-        }
-        return ret;
-    }
-    return kErrCodeSuccess;
-}
-
 int SnapshotCoreImpl::TransferSnapshotData(
     const ChunkIndexData indexData,
     const SnapshotInfo &info,
@@ -686,6 +611,7 @@ int SnapshotCoreImpl::TransferSnapshotData(
         }
     }
 
+    auto tracker = std::make_shared<TaskTracker>();
     for (auto &chunkIndex : chunkIndexVec) {
         ChunkDataName chunkDataName;
         indexData.GetChunkDataName(chunkIndex, &chunkDataName);
@@ -697,12 +623,27 @@ int SnapshotCoreImpl::TransferSnapshotData(
             ChunkIDInfo cidInfo =
                 it->second.chunkvec[chunkIndexInSegment];
             if (!filter(chunkDataName)) {
-                ret = TransferSnapshotDataChunk(
-                    chunkDataName, chunkSize, cidInfo);
-                if (ret < 0) {
-                    return ret;
-                }
+                auto taskInfo =
+                    std::make_shared<TransferSnapshotDataChunkTaskInfo>(
+                        chunkDataName, chunkSize, cidInfo, chunkSplitSize_);
+                UUID taskId = UUIDGenerator().GenerateUUID();
+                auto task = new TransferSnapshotDataChunkTask(
+                    taskId,
+                    taskInfo,
+                    client_,
+                    dataStore_);
+                tracker->AddTask(task);
+                threadPool_->PushTask(task);
             }
+        }
+        if (tracker->GetTaskNum() >= snapshotCoreThreadNum_) {
+            tracker->WaitSome(1);
+        }
+        ret = tracker->GetResult();
+        if (ret < 0) {
+            LOG(ERROR) << "TransferSnapshotDataChunk tracker GetResult fail"
+                       << ", ret = " << ret;
+            return ret;
         }
 
         task->SetProgress(static_cast<uint32_t>(
@@ -713,6 +654,15 @@ int SnapshotCoreImpl::TransferSnapshotData(
             return kErrCodeSuccess;
         }
     }
+    // 最后剩余数量不足的任务
+    tracker->Wait();
+    ret = tracker->GetResult();
+    if (ret < 0) {
+        LOG(ERROR) << "TransferSnapshotDataChunk tracker GetResult fail"
+                   << ", ret = " << ret;
+        return ret;
+    }
+
     ret = DeleteSnapshotOnCurvefs(info);
     if (ret < 0) {
         LOG(ERROR) << "DeleteSnapshotOnCurvefs fail.";
@@ -753,11 +703,11 @@ int SnapshotCoreImpl::DeleteSnapshotPre(
         case Status::deleting:
         case Status::errorDeleting:
             return kErrCodeTaskExist;
-            break;
-        default:
-            LOG(ERROR) << "Can not delete snapshot unfinished.";
+        case Status::pending:
             return kErrCodeSnapshotCannotDeleteUnfinished;
-            break;
+        default:
+            LOG(ERROR) << "Can not reach here!";
+            return kErrCodeInternalError;
     }
 
     if (snapshotRef_->GetSnapshotRef(uuid) > 0) {

@@ -70,6 +70,10 @@ const int kErrCodeFileExist = -19;
 
 extern std::map<int, std::string> code2Msg;
 
+std::string BuildErrorMessage(
+    int errCode,
+    const std::string &requestId);
+
 }  // namespace snapshotcloneserver
 }  // namespace curve
 

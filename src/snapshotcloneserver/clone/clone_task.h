@@ -16,17 +16,21 @@
 #include "src/snapshotcloneserver/common/task.h"
 #include "src/snapshotcloneserver/common/task_info.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
+#include "src/snapshotcloneserver/common/curvefs_client.h"
+#include "src/snapshotcloneserver/clone/clone_closure.h"
 
 namespace curve {
 namespace snapshotcloneserver {
 
 class CloneTaskInfo : public TaskInfo {
  public:
-    explicit CloneTaskInfo(const CloneInfo &cloneInfo,
-        std::shared_ptr<CloneInfoMetric> metric)
+    CloneTaskInfo(const CloneInfo &cloneInfo,
+        std::shared_ptr<CloneInfoMetric> metric,
+        std::shared_ptr<CloneClosure> closure)
         : TaskInfo(),
           cloneInfo_(cloneInfo),
-          metric_(metric) {}
+          metric_(metric),
+          closure_(closure) {}
 
     CloneInfo& GetCloneInfo() {
         return cloneInfo_;
@@ -36,9 +40,14 @@ class CloneTaskInfo : public TaskInfo {
         metric_->Update(this);
     }
 
+    std::shared_ptr<CloneClosure> GetClosure() {
+        return closure_;
+    }
+
  private:
     CloneInfo cloneInfo_;
     std::shared_ptr<CloneInfoMetric> metric_;
+    std::shared_ptr<CloneClosure> closure_;
 };
 
 
@@ -51,7 +60,6 @@ class CloneTaskBase : public Task {
         : Task(taskId),
           taskInfo_(taskInfo),
           core_(core) {}
-
 
     std::shared_ptr<CloneTaskInfo> GetTaskInfo() const {
         return taskInfo_;
@@ -85,6 +93,67 @@ class CloneCleanTask : public CloneTaskBase {
     void Run() override {
         core_->HandleCleanCloneOrRecoverTask(taskInfo_);
     }
+};
+
+
+struct CreateCloneChunkTaskInfo : public TaskInfo {
+    std::string location_;
+    ChunkIDInfo chunkidinfo_;
+    uint64_t sn_;
+    uint64_t csn_;
+    uint64_t chunkSize_;
+
+    CreateCloneChunkTaskInfo(
+        const std::string &location,
+        const ChunkIDInfo &chunkidinfo,
+        uint64_t sn,
+        uint64_t csn,
+        uint64_t chunkSize)
+        : TaskInfo(),
+          location_(location),
+          chunkidinfo_(chunkidinfo),
+          sn_(sn),
+          csn_(csn),
+          chunkSize_(chunkSize) {}
+};
+
+
+class CreateCloneChunkTask : public TrackerTask {
+ public:
+     CreateCloneChunkTask(const TaskIdType &taskId,
+        std::shared_ptr<CreateCloneChunkTaskInfo> taskInfo,
+        std::shared_ptr<CurveFsClient> client)
+        : TrackerTask(taskId),
+          taskInfo_(taskInfo),
+          client_(client) {}
+
+    std::shared_ptr<CreateCloneChunkTaskInfo> GetTaskInfo() const {
+        return taskInfo_;
+    }
+
+    void Run() override {
+        std::unique_ptr<CreateCloneChunkTask> self_guard(this);
+        int ret  = client_->CreateCloneChunk(taskInfo_->location_,
+            taskInfo_->chunkidinfo_,
+            taskInfo_->sn_,
+            taskInfo_->csn_,
+            taskInfo_->chunkSize_);
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "CreateCloneChunk fail"
+                       << ", ret = " << ret
+                       << ", location = " << taskInfo_->location_
+                       << ", logicalPoolId = " << taskInfo_->chunkidinfo_.lpid_
+                       << ", copysetId = " << taskInfo_->chunkidinfo_.cpid_
+                       << ", chunkId = " << taskInfo_->chunkidinfo_.cid_
+                       << ", seqNum = " << taskInfo_->sn_
+                       << ", csn = " << taskInfo_->csn_;
+        }
+        GetTracker()->HandleResponse(ret);
+    }
+
+ protected:
+    std::shared_ptr<CreateCloneChunkTaskInfo> taskInfo_;
+    std::shared_ptr<CurveFsClient> client_;
 };
 
 

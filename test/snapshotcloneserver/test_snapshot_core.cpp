@@ -41,11 +41,13 @@ class TestSnapshotCoreImpl : public ::testing::Test {
         option.chunkSplitSize = 1024u * 1024u;
         option.checkSnapshotStatusIntervalMs = 1000u;
         option.maxSnapshotLimit = 64;
+        option.snapshotCoreThreadNum = 1;
         core_ = std::make_shared<SnapshotCoreImpl>(client_,
                 metaStore_,
                 dataStore_,
                 snapshotRef_,
                 option);
+        ASSERT_EQ(core_->Init(), 0);
     }
 
     virtual void TearDown() {

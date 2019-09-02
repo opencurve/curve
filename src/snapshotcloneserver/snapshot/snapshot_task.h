@@ -156,6 +156,57 @@ class SnapshotDeleteTask : public SnapshotTask {
     }
 };
 
+struct TransferSnapshotDataChunkTaskInfo : public TaskInfo {
+    ChunkDataName name_;
+    uint64_t chunkSize_;
+    ChunkIDInfo cidInfo_;
+    uint64_t chunkSplitSize_;
+
+    TransferSnapshotDataChunkTaskInfo(const ChunkDataName &name,
+        uint64_t chunkSize,
+        const ChunkIDInfo &cidInfo,
+        uint64_t chunkSplitSize)
+        : name_(name),
+          chunkSize_(chunkSize),
+          cidInfo_(cidInfo),
+          chunkSplitSize_(chunkSplitSize) {}
+};
+
+class TransferSnapshotDataChunkTask : public TrackerTask {
+ public:
+    TransferSnapshotDataChunkTask(const TaskIdType &taskId,
+        std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo,
+        std::shared_ptr<CurveFsClient> client,
+        std::shared_ptr<SnapshotDataStore> dataStore)
+        : TrackerTask(taskId),
+          taskInfo_(taskInfo),
+          client_(client),
+          dataStore_(dataStore) {}
+
+    std::shared_ptr<TransferSnapshotDataChunkTaskInfo> GetTaskInfo() const {
+        return taskInfo_;
+    }
+
+    void Run() override {
+        std::unique_ptr<TransferSnapshotDataChunkTask> self_guard(this);
+        int ret = TransferSnapshotDataChunk();
+        GetTracker()->HandleResponse(ret);
+    }
+
+ private:
+    /**
+     * @brief 转储快照单个chunk
+     *
+     * @return 错误码
+     */
+    int TransferSnapshotDataChunk();
+
+ protected:
+    std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo_;
+    std::shared_ptr<CurveFsClient> client_;
+    std::shared_ptr<SnapshotDataStore> dataStore_;
+};
+
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

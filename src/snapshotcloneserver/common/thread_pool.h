@@ -46,6 +46,15 @@ class ThreadPool {
         threadPool_.Enqueue(task->clousre());
     }
 
+    /**
+     * @brief 添加快照任务
+     *
+     * @param task 快照任务
+     */
+    void PushTask(Task* task) {
+        threadPool_.Enqueue(task->clousre());
+    }
+
  private:
     /**
      * @brief 通用线程池

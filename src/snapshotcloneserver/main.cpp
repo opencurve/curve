@@ -76,6 +76,9 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
                &serverOption->checkSnapshotStatusIntervalMs));
     LOG_IF(FATAL, !conf->GetUInt32Value("server.maxSnapshotLimit",
                                         &serverOption->maxSnapshotLimit));
+    LOG_IF(FATAL, !conf->GetUInt32Value("server.snapshotCoreThreadNum",
+                                        &serverOption->snapshotCoreThreadNum));
+
     LOG_IF(FATAL, !conf->GetIntValue("server.clonePoolThreadNum",
                                      &serverOption->clonePoolThreadNum));
     LOG_IF(FATAL, !conf->GetUInt32Value(
@@ -87,6 +90,8 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
                                         &serverOption->cloneTempDir));
     LOG_IF(FATAL, !conf->GetStringValue("mds.rootUser",
                                         &serverOption->mdsRootUser));
+    LOG_IF(FATAL, !conf->GetUInt32Value("server.cloneCoreThreadNum",
+                                        &serverOption->cloneCoreThreadNum));
 }
 
 int snapshotcloneserver_main(int argc, char* argv[]) {
@@ -147,13 +152,17 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
 
     std::shared_ptr<SnapshotTaskManager> taskMgr =
         std::make_shared<SnapshotTaskManager>(snapshotMetric);
-    std::shared_ptr<SnapshotCore> core =
+    auto core =
         std::make_shared<SnapshotCoreImpl>(
             client,
             metaStore,
             dataStore,
             snapshotRef_,
             serverOption_);
+    if (core->Init() < 0) {
+        LOG(ERROR) << "SnapshotCore init fail.";
+        return kErrCodeServerInitFail;
+    }
     std::shared_ptr<SnapshotServiceManager> snapshotServiceManager_ =
         std::make_shared<SnapshotServiceManager>(taskMgr,
                 core);
