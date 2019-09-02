@@ -99,6 +99,22 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
     int ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
     if (kErrCodeTaskExist == ret) {
         return kErrCodeSuccess;
+    } else if (kErrCodeSnapshotCannotDeleteUnfinished == ret) {
+        // 转Cancel
+        ret = CancelSnapshot(uuid, user, file);
+        if (kErrCodeCannotCancelFinished == ret) {
+            // 防止这一过程中又执行完了
+            ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
+            if (ret < 0) {
+                LOG(ERROR) << "DeleteSnapshotPre fail"
+                           << ", ret = " << ret
+                           << ", uuid = " << uuid
+                           << ", file =" << file;
+                return ret;
+            }
+        } else {
+            return ret;
+        }
     } else if (ret < 0) {
         LOG(ERROR) << "DeleteSnapshotPre fail"
                    << ", ret = " << ret

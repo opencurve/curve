@@ -5,6 +5,7 @@
  * Copyright (c) 2019 netease
  */
 
+#include <json/json.h>
 
 #include "src/snapshotcloneserver/common/define.h"
 
@@ -33,6 +34,16 @@ std::map<int, std::string> code2Msg = {
     {kErrCodeSnapshotCountReachLimit, "Snapshot count reach the limit."},
     {kErrCodeFileExist, "File exist."}
 };
+
+std::string BuildErrorMessage(
+    int errCode,
+    const std::string &requestId) {
+    Json::Value mainObj;
+    mainObj["Code"] = std::to_string(errCode);
+    mainObj["Message"] = code2Msg[errCode];
+    mainObj["RequestId"] = requestId;
+    return mainObj.toStyledString();
+}
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

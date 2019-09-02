@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/snapshotcloneserver/common/task_tracker.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -57,6 +58,22 @@ class Task {
     TaskIdType taskId_;
 };
 
+class TrackerTask : public Task {
+ public:
+    explicit TrackerTask(const TaskIdType &taskId)
+        : Task(taskId) {}
+
+    void SetTracker(std::shared_ptr<TaskTracker> tracker) {
+        tracker_ = tracker;
+    }
+
+    std::shared_ptr<TaskTracker> GetTracker() {
+        return tracker_;
+    }
+
+ private:
+    std::shared_ptr<TaskTracker> tracker_;
+};
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
