@@ -428,6 +428,15 @@ void WriteChunkRequest::OnApply(uint64_t index,
                  << " chunkid: " << request_->chunkid()
                  << " data size: " << request_->size();
         node_->UpdateAppliedIndex(index);
+    } else if (CSErrorCode::BackwardRequestError == ret) {
+        LOG(WARNING) << "write failed: "
+                     << " logic pool id: " << request_->logicpoolid()
+                     << " copyset id: " << request_->copysetid()
+                     << " chunkid: " << request_->chunkid()
+                     << " data size: " << request_->size()
+                     << " data store return: " << ret;
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     } else {
         /**
          * 2.其他错误
@@ -439,7 +448,6 @@ void WriteChunkRequest::OnApply(uint64_t index,
                    << " copyset id: " << request_->copysetid()
                    << " chunkid: " << request_->chunkid()
                    << " data size: " << request_->size()
-                   << " error: " << strerror(errno)
                    << " data store return: " << ret;
         response_->set_status(
             CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -459,12 +467,20 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                      request.offset(),
                                      request.size(),
                                      &cost);
-    if (CSErrorCode::Success != ret) {
-        LOG(FATAL) << "write failed: " <<
-                   request.logicpoolid() << ", " << request.copysetid()
-                   << " chunkid: " << request.chunkid()
-                   << " data size: " << request.size()
-                   << " error: " << strerror(errno);
+     if (CSErrorCode::BackwardRequestError == ret) {
+        LOG(WARNING) << "write failed: "
+                     << " logic pool id: " << request_->logicpoolid()
+                     << " copyset id: " << request_->copysetid()
+                     << " chunkid: " << request_->chunkid()
+                     << " data size: " << request_->size()
+                     << " data store return: " << ret;
+    } else if (CSErrorCode::Success != ret) {
+        LOG(FATAL) << "write failed: "
+                   << " logic pool id: " << request_->logicpoolid()
+                   << " copyset id: " << request_->copysetid()
+                   << " chunkid: " << request_->chunkid()
+                   << " data size: " << request_->size()
+                   << " data store return: " << ret;
     }
 }
 
