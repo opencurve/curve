@@ -469,17 +469,17 @@ void WriteChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                                      &cost);
      if (CSErrorCode::BackwardRequestError == ret) {
         LOG(WARNING) << "write failed: "
-                     << " logic pool id: " << request_->logicpoolid()
-                     << " copyset id: " << request_->copysetid()
-                     << " chunkid: " << request_->chunkid()
-                     << " data size: " << request_->size()
+                     << " logic pool id: " << request.logicpoolid()
+                     << " copyset id: " << request.copysetid()
+                     << " chunkid: " << request.chunkid()
+                     << " data size: " << request.size()
                      << " data store return: " << ret;
     } else if (CSErrorCode::Success != ret) {
         LOG(FATAL) << "write failed: "
-                   << " logic pool id: " << request_->logicpoolid()
-                   << " copyset id: " << request_->copysetid()
-                   << " chunkid: " << request_->chunkid()
-                   << " data size: " << request_->size()
+                   << " logic pool id: " << request.logicpoolid()
+                   << " copyset id: " << request.copysetid()
+                   << " chunkid: " << request.chunkid()
+                   << " data size: " << request.size()
                    << " data store return: " << ret;
     }
 }
