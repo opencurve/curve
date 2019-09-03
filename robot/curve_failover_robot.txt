@@ -448,10 +448,6 @@ stop attach detach thread
     stop attach detach
     [Teardown]   wait iops ok    ${vm_iops_limit}
 
-stop snapshot test
-    [Tags]    P1    base    first release   failover  
-    stop snapshot test
-
 inject kill all mds
     [Tags]    P1    base    first release   failover
     ${num}   evaluate  int(3)
@@ -498,11 +494,11 @@ inject all chunkserver down 10min
     [Teardown]   wait iops ok    ${vm_iops_limit}
 
 test clone vol
-    [Tags]    P1    base    first release   failover  snapshot  no-need
+    [Tags]    P1    base    first release   failover   no-need
     test clone iovol consistency
 
 test cancel vol snapshot
-    [Tags]    P1    base    first release   failover   snapshot  no-need
+    [Tags]    P1    base    first release   failover   no-need
     test cancel snapshot
 
 test one volume perf
@@ -516,8 +512,7 @@ test one volume perf
 init failover cluster
      init abnormal test env
      init vm
-     init vol
-     begin snapshot test
+#     init vol
      loop attach detach vol
 
 init abnormal test env
