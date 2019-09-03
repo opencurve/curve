@@ -271,6 +271,8 @@ def get_clone_status(clone_vol_uuid):
         logger.error("get clone vol %s fail"%sclone_vol_uuid)
         return ref["Code"]
     clones_info = ref["TaskInfos"]
+    if clones_info == None:
+         return None
     for clone in clones_info:
         if clone["UUID"] == clone_vol_uuid:
             return clone
@@ -333,7 +335,8 @@ def check_snapshot_delete(vol_id,snapshot_id):
     final = False
     while time.time() - starttime < 120:
         rc = get_snapshot_status(vol_id,snapshot_id)
-        if rc["Code"] == "-8":
+        logger.info("rc is %s"%rc)
+        if rc == "-8":
             final = True
             break
         else:
@@ -342,6 +345,23 @@ def check_snapshot_delete(vol_id,snapshot_id):
         return True
     else:
         assert False,"delete snapshot fail in 120s,rc is %s"%rc
+
+def check_clone_clean(clone_id):
+    starttime = time.time()
+    final = False
+    while time.time() - starttime < 120:
+        rc = get_clone_status(clone_id)
+        logger.info("rc is %s"%rc)
+        if rc == "-8":
+            final = True
+            break
+        else:
+           time.sleep(10)
+    if final == True:
+        return True
+    else:
+        assert False,"clean clone fail in 120s,rc is %s"%rc
+
 
 def test_clone_iovol_consistency(lazy):
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
