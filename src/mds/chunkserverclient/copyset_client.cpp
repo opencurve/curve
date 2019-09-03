@@ -43,7 +43,7 @@ int CopysetClient::DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
         }
     }
 
-    uint32_t retry = 1;
+    uint32_t retry = 0;
     while ((retry < updateLeaderRetryTimes_) &&
            ((UNINTIALIZE_ID == leaderId) ||
             (kCsClientCSOffline == ret) ||
@@ -60,6 +60,7 @@ int CopysetClient::DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
         }
 
         leaderId = copyset.GetLeader();
+        LOG(INFO) << "UpdateLeader success, new leaderId = " << leaderId;
 
         if (leaderId != UNINTIALIZE_ID) {
             ret = chunkserverClient_->DeleteChunkSnapshotOrCorrectSn(
@@ -102,7 +103,7 @@ int CopysetClient::DeleteChunk(LogicalPoolID logicalPoolId,
 
     // delete Chunk在kCsClientCSOffline、kRpcFail、kCsClientNotLeader
     // 这三种返回值时需要进行重试
-    uint32_t retry = 1;
+    uint32_t retry = 0;
     while ((retry < updateLeaderRetryTimes_) &&
            ((UNINTIALIZE_ID == leaderId) ||
             (kCsClientCSOffline == ret) ||
@@ -119,6 +120,7 @@ int CopysetClient::DeleteChunk(LogicalPoolID logicalPoolId,
         }
 
         leaderId = copyset.GetLeader();
+        LOG(INFO) << "UpdateLeader success, new leaderId = " << leaderId;
 
         if (leaderId != UNINTIALIZE_ID) {
             ret = chunkserverClient_->DeleteChunk(
