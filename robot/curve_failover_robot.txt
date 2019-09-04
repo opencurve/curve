@@ -504,9 +504,19 @@ test cancel vol snapshot
 test one volume perf
     [Tags]    P1    base    first release  longtime   perf  no-need
     init vm
+    remove vm key
     attach new vol   200   200
+    stop rwio
     perf test
 
+inject cluster stress test
+    [Tags]    P1    base    first release  longtime   perf  no-need
+    init vm
+    remove vm key
+    attach new vol   20   20
+    stop rwio
+    stress test
+    
 *** Keywords ***
 
 init failover cluster
