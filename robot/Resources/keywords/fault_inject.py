@@ -1561,7 +1561,14 @@ def analysis_data(ssh):
     logger.info("4k rand read iops is %d/s"%int(randr_4k_iops))
     logger.info("4k rand write iops is %d/s"%int(randw_4k_iops))
     logger.info("512k read BW is %d MB/s"%int(read_512k_BW))
-    logger.info("512k write BW is %d MB/s"%int(write_512k_BW))    
+    logger.info("512k write BW is %d MB/s"%int(write_512k_BW))
+    filename = "onevolume_perf.txt"
+    with open(filename,'w') as f:
+        f.write("--------------------------get one volume Perf data--------------------------------")
+        f.write("|  4k   |    randwrite   |   %d /s     |   基准数据  |  41858   |  \n"%int(randw_4k_iops))
+        f.write("|  4k   |    randread    |   %d /s     |   基准数据  |  75000   |  \n"%int(randr_4k_iops))
+        f.write("|  512k |    write       |   %d MB/s   |   基准数据  |  130     |  \n"%int(write_512k_BW))
+        f.write("|  512k |    read        |   %d MB/s   |   基准数据  |  440     |  \n"%int(read_512k_BW))
     if randr_4k_iops < 75000:
         assert float(75000 - randr_4k_iops)/75000 < 0.02,"4k_randr_iops did not meet expectations,expect more than 75000"
     if randw_4k_iops < 41858:
@@ -1577,6 +1584,9 @@ def perf_test():
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     time.sleep(5)
     clean_last_data()
+    init_io = "fio -name=/dev/vdc -direct=1 -iodepth=128 -rw=randrw  -ioengine=libaio \
+        -bs=4k -size=200G  -runtime=300 -numjobs=1 -time_based"
+    shell_operator.ssh_exec(ssh, init_io)
     start_test = "cd /root/perf && nohup python /root/perf/io_test.py &"
     shell_operator.ssh_background_exec2(ssh,start_test)
     time.sleep(60)
