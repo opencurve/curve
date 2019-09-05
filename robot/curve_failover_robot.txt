@@ -503,7 +503,6 @@ test cancel vol snapshot
 
 test one volume perf
     [Tags]    P1    base    first release  longtime   perf  no-need
-    init vm
     remove vm key
     attach new vol   200   200
     stop rwio
