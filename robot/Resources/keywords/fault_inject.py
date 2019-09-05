@@ -1564,19 +1564,20 @@ def analysis_data(ssh):
     logger.info("512k write BW is %d MB/s"%int(write_512k_BW))
     filename = "onevolume_perf.txt"
     with open(filename,'w') as f:
-        f.write("--------------------------get one volume Perf data--------------------------------")
-        f.write("|  4k   |    randwrite   |   %d /s     |   基准数据  |  41858   |  \n"%int(randw_4k_iops))
+        f.write("--------------------------get one volume Perf data--------------------------------\n")
+        f.write("|  4k   |    randwrite   |   %d /s     |   基准数据  |  56000   |  \n"%int(randw_4k_iops))
         f.write("|  4k   |    randread    |   %d /s     |   基准数据  |  75000   |  \n"%int(randr_4k_iops))
-        f.write("|  512k |    write       |   %d MB/s   |   基准数据  |  130     |  \n"%int(write_512k_BW))
-        f.write("|  512k |    read        |   %d MB/s   |   基准数据  |  440     |  \n"%int(read_512k_BW))
+        f.write("|  512k |    write       |   %d MB/s   |   基准数据  |  135     |  \n"%int(write_512k_BW))
+        f.write("|  512k |    read        |   %d MB/s   |   基准数据  |  450     |  \n"%int(read_512k_BW))
+        f.write("----------------------------------------------------------------------------------\n")
     if randr_4k_iops < 75000:
         assert float(75000 - randr_4k_iops)/75000 < 0.02,"4k_randr_iops did not meet expectations,expect more than 75000"
-    if randw_4k_iops < 41858:
-        assert float(41858 - randw_4k_iops)/41858 < 0.02,"4k_randw_iops did not meet expectations,expect more than 41858"    
-    if read_512k_BW < 440:
-        assert float(440 - read_512k_BW)/440 < 0.02,"512k_read_bw did not meet expectations,expect more than 440"
-    if write_512k_BW < 130:
-        assert float(130 - write_512k_BW)/130 < 0.02,"512k_write_bw did not meet expectations,expect more than 130"
+    if randw_4k_iops < 56000:
+        assert float(56000 - randw_4k_iops)/56000 < 0.02,"4k_randw_iops did not meet expectations,expect more than 56000"    
+    if read_512k_BW < 450:
+        assert float(450 - read_512k_BW)/450 < 0.02,"512k_read_bw did not meet expectations,expect more than 450"
+    if write_512k_BW < 135:
+        assert float(135 - write_512k_BW)/135 < 0.02,"512k_write_bw did not meet expectations,expect more than 135"
 
 def perf_test():
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
