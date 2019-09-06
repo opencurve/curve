@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 namespace curve {
 namespace mds {
@@ -17,7 +18,7 @@ std::ostream& operator << (std::ostream & os, StoreStatus &s) {
 }
 
 NameServerStorageImp::NameServerStorageImp(
-    std::shared_ptr<StorageClient> client, std::shared_ptr<Cache> cache) {
+    std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache) {
     this->client_ = client;
     this->cache_ = cache;
 }

@@ -60,6 +60,7 @@ enum EtcdErrCode
     GetLeaderKeyErr = 27,
     GetLeaderKeyOK = 28,
     ObserverLeaderNotExist = 29,
+    ObjectLenNotEnough = 30,
 };
 
 enum OpType {
@@ -145,6 +146,7 @@ struct EtcdClientGet_return {
 	GoUint32 r0;
 	char* r1;
 	GoInt r2;
+	GoInt64 r3;
 };
 
 extern struct EtcdClientGet_return EtcdClientGet(int p0, char* p1, int p2);
@@ -159,6 +161,16 @@ struct EtcdClientList_return {
 // TODO(lixiaocui): list可能需要有长度限制
 
 extern struct EtcdClientList_return EtcdClientList(int p0, char* p1, char* p2, int p3, int p4);
+
+/* Return type for EtcdClientListWithLimitAndRevision */
+struct EtcdClientListWithLimitAndRevision_return {
+	GoUint32 r0;
+	GoUint64 r1;
+	GoInt r2;
+	GoInt64 r3;
+};
+
+extern struct EtcdClientListWithLimitAndRevision_return EtcdClientListWithLimitAndRevision(unsigned int p0, char* p1, char* p2, int p3, int p4, GoInt64 p5, GoInt64 p6);
 
 extern GoUint32 EtcdClientDelete(int p0, char* p1, int p2);
 
@@ -196,6 +208,8 @@ struct EtcdClientGetMultiObject_return {
 	GoUint32 r0;
 	char* r1;
 	GoInt r2;
+	char* r3;
+	GoInt r4;
 };
 
 extern struct EtcdClientGetMultiObject_return EtcdClientGetMultiObject(GoUint64 p0, GoInt p1);
