@@ -40,6 +40,7 @@ enum EtcdErrCode
     GetLeaderKeyErr = 27,
     GetLeaderKeyOK = 28,
     ObserverLeaderNotExist = 29,
+    ObjectLenNotEnough = 30,
 };
 
 enum OpType {
@@ -188,7 +189,7 @@ func NewEtcdClientV3(conf C.struct_EtcdConf) C.enum_EtcdErrCode {
 
 //export EtcdCloseClient
 func EtcdCloseClient() {
-    if (globalClient != nil) {
+    if globalClient != nil {
         globalClient.Close()
     }
 }
@@ -207,7 +208,7 @@ func EtcdClientPut(timeout C.int, key, value *C.char,
 
 //export EtcdClientGet
 func EtcdClientGet(timeout C.int, key *C.char,
-    keyLen C.int) (C.enum_EtcdErrCode, *C.char, int) {
+    keyLen C.int) (C.enum_EtcdErrCode, *C.char, int, int64) {
     goKey := C.GoStringN(key, keyLen)
     ctx, cancel := context.WithTimeout(context.Background(),
         time.Duration(int(timeout))*time.Millisecond)
@@ -216,17 +217,19 @@ func EtcdClientGet(timeout C.int, key *C.char,
     resp, err := globalClient.Get(ctx, goKey)
     errCode := GetErrCode(EtcdGet, err)
     if errCode != C.OK {
-        return errCode, nil, 0
+        return errCode, nil, 0, 0
     }
 
     if resp.Count <= 0 {
-        return C.KeyNotExist, nil, 0
+        return C.KeyNotExist, nil, 0, resp.Header.Revision
     }
 
     return errCode,
            C.CString(string(resp.Kvs[0].Value)),
-           len(resp.Kvs[0].Value)
+           len(resp.Kvs[0].Value),
+           resp.Header.Revision
 }
+
 
 // TODO(lixiaocui): list可能需要有长度限制
 //export EtcdClientList
@@ -243,7 +246,7 @@ func EtcdClientList(timeout C.int, startKey, endKey *C.char,
     if goEndKey == "" {
         // return keys >= start
         resp, err = globalClient.Get(
-            ctx, goStartKey, clientv3.WithFromKey());
+            ctx, goStartKey, clientv3.WithFromKey())
     } else {
         // return keys in range [start, end)
         resp, err = globalClient.Get(
@@ -255,6 +258,37 @@ func EtcdClientList(timeout C.int, startKey, endKey *C.char,
         return errCode, 0, 0
     }
     return  errCode, AddManagedObject(resp.Kvs), resp.Count
+}
+
+//export EtcdClientListWithLimitAndRevision
+func EtcdClientListWithLimitAndRevision(timeout C.uint, startKey, endKey *C.char,
+    startLen, endLen C.int, limit int64, startRevision int64)(
+    C.enum_EtcdErrCode, uint64, int, int64) {
+    goStartKey := C.GoStringN(startKey, startLen)
+    goEndKey := C.GoStringN(endKey, endLen)
+    ctx, cancle := context.WithTimeout(context.Background(),
+        time.Duration(int(timeout)) * time.Millisecond)
+    defer cancle()
+
+    var resp *clientv3.GetResponse
+    var err error
+    ops := []clientv3.OpOption{
+        clientv3.WithLimit(limit),
+        clientv3.WithRev(startRevision),
+        clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend)}
+
+    if goEndKey == "" {
+        ops = append(ops, clientv3.WithFromKey())
+    } else {
+        ops = append(ops, clientv3.WithRange(goEndKey))
+    }
+
+    resp, err = globalClient.Get(ctx, goStartKey, ops...)
+    errCode := GetErrCode(EtcdList, err)
+    if errCode != C.OK {
+        return errCode, 0, 0, 0
+    }
+    return errCode, AddManagedObject(resp.Kvs), len(resp.Kvs), resp.Header.Revision
 }
 
 //export EtcdClientDelete
@@ -513,14 +547,20 @@ func EtcdClientGetSingleObject(
 
 //export EtcdClientGetMultiObject
 func EtcdClientGetMultiObject(
-    oid uint64, serial int) (C.enum_EtcdErrCode, *C.char, int) {
+    oid uint64, serial int) (C.enum_EtcdErrCode, *C.char, int, *C.char, int) {
     if value, exist := GetManagedObject(oid); !exist {
-        return C.ObjectNotExist, nil, 0
+        return C.ObjectNotExist, nil, 0, nil, 0
     } else if res, ok := value.([]*mvccpb.KeyValue); ok {
-        return C.OK, C.CString(string(res[serial].Value)),
-            len(res[serial].Value)
+        if serial >= len(res) {
+            return C.ObjectLenNotEnough, nil, 0, nil, 0
+        }
+        return C.OK,
+            C.CString(string(res[serial].Value)),
+            len(res[serial].Value),
+            C.CString(string(res[serial].Key)),
+            len(res[serial].Key)
     } else {
-        return C.ErrObjectType, nil, 0
+        return C.ErrObjectType, nil, 0, nil, 0
     }
 }
 

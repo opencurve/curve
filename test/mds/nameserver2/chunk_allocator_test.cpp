@@ -8,8 +8,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "test/mds/nameserver2/mock_chunk_id_generator.h"
-#include "test/mds/nameserver2/mock_topology_admin.h"
+#include "test/mds/nameserver2/mock/mock_chunk_id_generator.h"
+#include "test/mds/nameserver2/mock/mock_topology_admin.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/common/mds_define.h"
 
