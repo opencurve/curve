@@ -202,6 +202,26 @@ def cancel_vol_snapshot(voluuid,snapshot_uuid):
     logger.info("requests ret is %s"%r.text)
     assert r.status_code == 200, "cancel snapshot fail,return code is %d,return msg is %s" % (r.status_code, r.text)
 
+def recover_snapshot(vol_uuid,snapshot_uuid,lazy='true'):
+    snap_server = random.choice(config.snap_server_list)
+    payload = {}
+    payload['Action'] = 'Recover'
+    payload['Version'] = config.snap_version
+    payload['User'] = 'cinder'
+    payload['Source'] = snapshot_uuid
+    payload['Destination'] = R'/cinder/volume-%s'%vol_uuid
+    payload['Lazy']  = lazy
+    payload_str = "&".join("%s=%s" % (k,v) for k,v in payload.items())
+    http = R'http://%s:5555/SnapshotCloneService' % snap_server
+    logger.info("exec requests:%s %s"%(http,payload))
+    r = requests.get(http, params=payload_str)
+    logger.info("exec requests url:%s"%(r.url))
+    assert r.status_code == 200, "recover snapshot fail,return code is %d,return msg is %s" % (r.status_code, r.text)
+    logger.info("requests ret is %s"%r.text)
+    ref = json.loads(r.text)
+    recover_vol_uuid = ref["UUID"]
+    return recover_vol_uuid    
+
 def detach_snapshot_vol(vol_uuid):
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_host
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
@@ -305,6 +325,21 @@ def get_vol_md5(vol_uuid):
     logger.info("md5 is %s"%md5)
     return md5
 
+def check_clone_vol_exist(clonevol_uuid):
+    curvefs.UnInit()
+    rc = curvefs.Init("./client.conf")
+    if rc != 0:
+        raise AssertionError
+    filename = "volume-" + clonevol_uuid
+    user = curvefs.UserInfo_t()
+    user.owner = "cinder"
+    dirs = curvefs.Listdir("/cinder", user)
+    for d in dirs:
+        logger.info("dir is %s,filename is %s"%(d,filename))
+        if d == filename:
+            return True
+    return False
+
 def diff_vol_consistency(vol_uuid,clone_uuid):
     context1 = get_vol_md5(vol_uuid)
     context2 = get_vol_md5(clone_uuid)
@@ -380,6 +415,9 @@ def test_clone_iovol_consistency(lazy):
            time.sleep(60)
     if final == True:
         clone_vol_uuid = clone_vol_snapshot(snapshot_uuid,lazy)
+        time.sleep(1)
+        rc = check_clone_vol_exist(snapshot_uuid)
+        assert rc,"clone vol volume-%s not create ok in 2s"%snapshot_uuid
     else:
         assert False,"create snapshot vol fail,status is %s"%rc
     final = False
@@ -423,16 +461,63 @@ def test_cancel_snapshot():
     time.sleep(5)
     check_snapshot_delete(vol_id,snapshot_uuid)
 
-#def test_delete_snapshot():
-
-#def test_delete_clone():    
+def test_recover_snapshot(lazy="true"):
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    vol_id = config.snapshot_volid
+    vm_id = config.snapshot_vmid
+    snapshot_uuid = creat_vol_snapshot(vol_id)
+    starttime = time.time()
+    final = False
+    time.sleep(5)
+    while time.time() - starttime < config.snapshot_timeout:
+        rc = get_snapshot_status(vol_id,snapshot_uuid)
+        if rc["Progress"] == 100 and rc["Status"] == 0 :
+            final = True
+            break
+        else:
+           time.sleep(60)
+    if final == True:
+        try:
+            nova_vol_detach(ssh,vm_id, vol_id)
+            wait_vol_status(ssh,vol_id, 'available')
+            first_md5 = get_vol_md5(vol_id)
+            nova_vol_attach(ssh,vm_id, vol_id)
+            wait_vol_status(ssh,vol_id, 'in-use')
+            vol_write_data()
+            nova_vol_detach(ssh,vm_id, vol_id)
+            wait_vol_status(ssh,vol_id, 'available')
+            recover_task = recover_snapshot(vol_id,snapshot_uuid,lazy)
+            final_recover = False
+            time.sleep(5)
+            starttime = time.time()
+            while time.time() - starttime < config.snapshot_timeout:
+                rc = get_clone_status(recover_task)
+                if rc["TaskStatus"] == 0 and rc["TaskType"] == 0:
+                    final_recover = True
+                    break
+                else:
+                    time.sleep(60)
+            if final_recover == True:
+                second_md5 = get_vol_md5(vol_id)
+            else:
+                assert False,"recover vol %s fail in %d s"%(vol_id,config.snapshot_timeout)
+            assert first_md5 == second_md5,"vol md5 not same after recover,fisrt is %s,recovered is %s"(first_md5,second_md5)
+        except:
+            raise
+        finally:
+            nova_vol_attach(ssh,vm_id, vol_id)
+            wait_vol_status(ssh,vol_id, 'in-use')
+    delete_vol_snapshot(vol_id,snapshot_uuid)
+    check_snapshot_delete(vol_id,snapshot_uuid)
 
 def test_snapshot_all(vol_uuid):
     lazy="true"
     test_clone_iovol_consistency(lazy)
+    test_recover_snapshot(lazy)
     test_cancel_snapshot()
     lazy="false"
     test_clone_iovol_consistency(lazy)
+    test_recover_snapshot(lazy)
     return "finally"
 
 def begin_snapshot_test():

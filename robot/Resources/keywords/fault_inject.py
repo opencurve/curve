@@ -13,6 +13,7 @@ import random
 import time
 import mythread
 import test_curve_stability
+import re
 
 def block_ip(chain):
     ori_cmd = "iptables -I %s 2>&1" % chain
@@ -1560,24 +1561,36 @@ def analysis_data(ssh):
     logger.info("4k rand read iops is %d/s"%int(randr_4k_iops))
     logger.info("4k rand write iops is %d/s"%int(randw_4k_iops))
     logger.info("512k read BW is %d MB/s"%int(read_512k_BW))
-    logger.info("512k write BW is %d MB/s"%int(write_512k_BW))    
+    logger.info("512k write BW is %d MB/s"%int(write_512k_BW))
+    filename = "onevolume_perf.txt"
+    with open(filename,'w') as f:
+        f.write("--------------------------get one volume Perf data--------------------------------\n")
+        f.write("|  4k   |    randwrite   |   %d /s     |   基准数据  |  56000   |  \n"%int(randw_4k_iops))
+        f.write("|  4k   |    randread    |   %d /s     |   基准数据  |  75000   |  \n"%int(randr_4k_iops))
+        f.write("|  512k |    write       |   %d MB/s   |   基准数据  |  135     |  \n"%int(write_512k_BW))
+        f.write("|  512k |    read        |   %d MB/s   |   基准数据  |  450     |  \n"%int(read_512k_BW))
+        f.write("----------------------------------------------------------------------------------\n")
     if randr_4k_iops < 75000:
         assert float(75000 - randr_4k_iops)/75000 < 0.02,"4k_randr_iops did not meet expectations,expect more than 75000"
-    if randw_4k_iops < 41858:
-        assert float(41858 - randw_4k_iops)/41858 < 0.02,"4k_randw_iops did not meet expectations,expect more than 41858"    
-    if read_512k_BW < 440:
-        assert float(440 - read_512k_BW)/440 < 0.02,"512k_read_bw did not meet expectations,expect more than 440"
-    if write_512k_BW < 130:
-        assert float(130 - write_512k_BW)/130 < 0.02,"512k_write_bw did not meet expectations,expect more than 130"
+    if randw_4k_iops < 56000:
+        assert float(56000 - randw_4k_iops)/56000 < 0.02,"4k_randw_iops did not meet expectations,expect more than 56000"    
+    if read_512k_BW < 450:
+        assert float(450 - read_512k_BW)/450 < 0.02,"512k_read_bw did not meet expectations,expect more than 450"
+    if write_512k_BW < 135:
+        assert float(135 - write_512k_BW)/135 < 0.02,"512k_write_bw did not meet expectations,expect more than 135"
+
 def perf_test():
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     ori_cmd = "supervisorctl stop all"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     time.sleep(5)
-#    clean_last_data()
-#    start_test = "cd /root/perf && nohup python /root/perf/io_test.py &"
-#    shell_operator.ssh_background_exec2(ssh,start_test)
-#    time.sleep(60)
+    clean_last_data()
+    init_io = "fio -name=/dev/vdc -direct=1 -iodepth=128 -rw=randrw  -ioengine=libaio \
+        -bs=4k -size=200G  -runtime=300 -numjobs=1 -time_based"
+    shell_operator.ssh_exec(ssh, init_io)
+    start_test = "cd /root/perf && nohup python /root/perf/io_test.py &"
+    shell_operator.ssh_background_exec2(ssh,start_test)
+    time.sleep(60)
     final = 0
     starttime = time.time()
     while time.time() - starttime < 3600:
@@ -1594,6 +1607,45 @@ def perf_test():
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"cp fiodata fail,error is %s"%rs
     analysis_data(ssh)
+
+def stress_test():
+    ori_cmd = "bash attach_thrash.sh"
+    ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    assert rs[3] == 0,"attach thrash vol fail,rs is %s"%rs
+    ori_cmd = "cat thrash_vm"
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    logger.info("rs is %s"%rs[1])
+    vm_list = []
+    for i in rs[1]:
+       logger.info("uuid is %s"%i)
+       vm_list.append(i.strip())
+    vm_ip_list = []
+    for vm in vm_list:
+        ori_cmd = "source OPENRC && nova list|grep %s"%vm
+        rs = shell_operator.ssh_exec(ssh,ori_cmd)
+        ret = "".join(rs[1]).strip()
+        ip = re.findall(r'\d+\.\d+\.\d+\.\d+',ret)
+        logger.info("get vm %s ip %s"%(vm,ip))
+        vm_ip_list.append(ip[0])
+    ssh.close()
+    ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
+    ori_cmd = "/etc/init.d/nagent start"
+    rs = shell_operator.ssh_exec(ssh,ori_cmd)
+    ori_cmd = "nohup fio -name=/dev/vdc -direct=1 -iodepth=1 -rw=randrw  -ioengine=libaio \
+       -bs=4k -size=10G  -runtime=99999999 -numjobs=1 -time_based -write_iops_log=str \
+       -log_avg_msec=500 -rate_iops=10 &"
+    shell_operator.ssh_background_exec2(ssh,ori_cmd) 
+    for ip in vm_ip_list:
+        ori_cmd = "ssh %s -o StrictHostKeyChecking=no "%ip + "\"" + " supervisorctl reload && supervisorctl start all " + "\""
+        logger.info("exec cmd %s" % ori_cmd)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"start supervisor fail,rs is %s"%rs
+    start_time = time.time()
+    while time.time() - start_time < 70000:
+        check_vm_iops(4)
+        time.sleep(10) 
+    ssh.close()
 
 def thrasher_abnormal_cluster():
     actions = []

@@ -121,7 +121,33 @@ def add_config():
         ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s s3 conf fail"%host
+    for host in config.snap_server_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf %s:~/"%\
+                            (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s s3 conf fail"%host
+    for host in config.snap_server_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/snapshot_clone_server.conf %s:~/"%\
+                  (config.pravie_key_path,host)
+        shell_operator.run_exec2(cmd)
+        ori_cmd = "sed -i \"s/client.config_path=\S*/client.config_path=\/etc\/curve\/client.conf/\" snapshot_clone_server.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot config fail"%host
+        ori_cmd = "sed -i \"s/s3.config_path=\S*/s3.config_path=\/etc\/curve\/s3.conf/\" snapshot_clone_server.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot config fail"%host
+        ori_cmd = "sed -i \"s/server.address=\S*/server.address=%s:5555/\" snapshot_clone_server.conf"%host
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s snapshot config fail"%host
 
+        ori_cmd = "sudo mv s3.conf /etc/curve/ && sudo mv client.conf /etc/curve/ && sudo mv snapshot_clone_server.conf /etc/curve/"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"mv %s snapshot_clone_server conf fail"%host
+         
 def destroy_mds():
     for host in config.mds_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
@@ -290,7 +316,7 @@ def start_abnormal_test_services():
             shell_operator.ssh_background_exec2(ssh, ori_cmd)
         for host in config.snap_server_list:
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "cd snapshot/temp && sudo nohup ./snapshotcloneserver -conf=./snapshot_clone_server.conf &"
+            ori_cmd = "cd snapshot/temp && sudo nohup curve-snapshotcloneserver -conf=/etc/curve/snapshot_clone_server.conf &"
             shell_operator.ssh_background_exec2(ssh, ori_cmd)
     except Exception:
         logger.error("up servers fail.")
