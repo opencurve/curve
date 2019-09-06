@@ -9,8 +9,8 @@
 #include <cstdlib>
 #include <thread> //NOLINT
 #include "src/mds/leader_election/leader_election.h"
-#include "src/mds/nameserver2/namespace_helper.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 
 using ::curve::common::Thread;
 
