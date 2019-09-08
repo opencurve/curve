@@ -1642,9 +1642,9 @@ def stress_test():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"start supervisor fail,rs is %s"%rs
     start_time = time.time()
-    while time.time() - start_time < 70000:
+    while time.time() - start_time < 22000:
         check_vm_iops(4)
-        time.sleep(10) 
+        time.sleep(1800) 
     ssh.close() 
 
 def thrasher_abnormal_cluster():
