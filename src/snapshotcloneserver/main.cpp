@@ -27,6 +27,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 #include "src/snapshotcloneserver/common/config.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 DEFINE_string(conf, "conf/snapshot_clone_server.conf", "snapshot&clone server config file path");  //NOLINT
 
@@ -139,8 +140,10 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
     std::shared_ptr<SnapshotReference> snapshotRef_ =
         std::make_shared<SnapshotReference>();
 
+    auto snapshotMetric = std::make_shared<SnapshotMetric>(metaStore);
+
     std::shared_ptr<SnapshotTaskManager> taskMgr =
-        std::make_shared<SnapshotTaskManager>();
+        std::make_shared<SnapshotTaskManager>(snapshotMetric);
     std::shared_ptr<SnapshotCore> core =
         std::make_shared<SnapshotCoreImpl>(
             client,
@@ -156,8 +159,10 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
         return kErrCodeServerInitFail;
     }
 
+    auto cloneMetric = std::make_shared<CloneMetric>();
+
     std::shared_ptr<CloneTaskManager> cloneTaskMgr =
-        std::make_shared<CloneTaskManager>();
+        std::make_shared<CloneTaskManager>(cloneMetric);
 
     auto cloneCore = std::make_shared<CloneCoreImpl>(
                          client,
@@ -222,7 +227,11 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
         return kErrCodeServerStartFail;
     }
 
+    LOG(INFO) << "snapshorcloneserver start success, begin working ...";
+
     server_->RunUntilAskedToQuit();
+
+    LOG(INFO) << "snapshorcloneserver stopping ...";
 
     server_->Stop(0);
     server_->Join();

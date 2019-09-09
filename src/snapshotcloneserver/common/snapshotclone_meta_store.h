@@ -425,6 +425,14 @@ class SnapshotCloneMetaStore {
      * @return: 0 获取成功/ -1 获取失败
      */
     virtual int GetSnapshotList(std::vector<SnapshotInfo> *list) = 0;
+
+    /**
+     * @brief 获取快照总数
+     *
+     * @return 快照总数
+     */
+    virtual uint32_t GetSnapshotCount() = 0;
+
     /**
      * @brief 插入一条clone任务记录到metastore
      * @param clone记录信息
@@ -472,6 +480,7 @@ class DBSnapshotCloneMetaStore : public SnapshotCloneMetaStore{
     int GetSnapshotList(const std::string &filename,
                         std::vector<SnapshotInfo> *v) override;
     int GetSnapshotList(std::vector<SnapshotInfo> *list) override;
+    uint32_t GetSnapshotCount() override;
 
     int AddCloneInfo(const CloneInfo &cloneInfo) override;
 

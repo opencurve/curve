@@ -59,6 +59,12 @@ int CloneTaskManager::PushTask(std::shared_ptr<CloneTaskBase> task) {
     }
     threadpool_->PushTask(task);
     cloneTaskMap_.emplace(task->GetTaskId(), task);
+    if (task->GetTaskInfo()->GetCloneInfo().GetTaskType() ==
+        CloneTaskType::kClone) {
+        cloneMetric_->cloneDoing << 1;
+    } else {
+        cloneMetric_->recoverDoing << 1;
+    }
     return kErrCodeSuccess;
 }
 
@@ -84,14 +90,28 @@ void CloneTaskManager::ScanWorkingTask() {
     WriteLockGuard taskMapWlock(cloneTaskMapLock_);
     std::lock_guard<std::mutex>
         workingTasksLock(cloningTasksLock_);
-    uint32_t workingNum = cloningTasks_.size();
-    VLOG(0) << "CloneTaskManager::ScanWorkingTask: "
-              << " working task num = "
-              << workingNum;
     for (auto it = cloningTasks_.begin();
             it != cloningTasks_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
         if (taskInfo->IsFinish()) {
+            if (taskInfo->GetCloneInfo().GetTaskType() ==
+                CloneTaskType::kClone) {
+                cloneMetric_->cloneDoing << -1;
+                if (CloneStatus::done !=
+                    taskInfo->GetCloneInfo().GetStatus()) {
+                    cloneMetric_->cloneFailed << 1;
+                } else {
+                    cloneMetric_->cloneSucceed << 1;
+                }
+            } else {
+                cloneMetric_->recoverDoing << -1;
+                if (CloneStatus::done !=
+                    taskInfo->GetCloneInfo().GetStatus()) {
+                    cloneMetric_->recoverFailed << 1;
+                } else {
+                    cloneMetric_->recoverSucceed << 1;
+                }
+            }
             cloneTaskMap_.erase(it->second->GetTaskId());
             it = cloningTasks_.erase(it);
         } else {

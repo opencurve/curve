@@ -45,8 +45,11 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
         return ret;
     }
     *uuid = snapInfo.GetUuid();
+
+    auto snapInfoMetric = std::make_shared<SnapshotInfoMetric>(*uuid);
     std::shared_ptr<SnapshotTaskInfo> taskInfo =
-        std::make_shared<SnapshotTaskInfo>(snapInfo);
+        std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
+    taskInfo->UpdateMetric();
     std::shared_ptr<SnapshotCreateTask> task =
         std::make_shared<SnapshotCreateTask>(
             snapInfo.GetUuid(), taskInfo, core_);
@@ -103,8 +106,10 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
                    << ", file =" << file;
         return ret;
     }
+    auto snapInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> taskInfo =
-        std::make_shared<SnapshotTaskInfo>(snapInfo);
+        std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
+    taskInfo->UpdateMetric();
     std::shared_ptr<SnapshotDeleteTask> task =
         std::make_shared<SnapshotDeleteTask>(
             snapInfo.GetUuid(), taskInfo, core_);
@@ -218,8 +223,11 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
         Status st = snap.GetStatus();
         switch (st) {
             case Status::pending : {
+                auto snapInfoMetric =
+                    std::make_shared<SnapshotInfoMetric>(snap.GetUuid());
                 std::shared_ptr<SnapshotTaskInfo> taskInfo =
-                    std::make_shared<SnapshotTaskInfo>(snap);
+                    std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
+                taskInfo->UpdateMetric();
                 std::shared_ptr<SnapshotCreateTask> task =
                     std::make_shared<SnapshotCreateTask>(
                         snap.GetUuid(),
@@ -239,8 +247,11 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
             case Status::canceling :
             case Status::deleting :
             case Status::errorDeleting : {
+                auto snapInfoMetric =
+                    std::make_shared<SnapshotInfoMetric>(snap.GetUuid());
                 std::shared_ptr<SnapshotTaskInfo> taskInfo =
-                    std::make_shared<SnapshotTaskInfo>(snap);
+                    std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
+                taskInfo->UpdateMetric();
                 std::shared_ptr<SnapshotDeleteTask> task =
                     std::make_shared<SnapshotDeleteTask>(
                         snap.GetUuid(),

@@ -15,6 +15,7 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/task.h"
 #include "src/snapshotcloneserver/common/task_info.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -29,9 +30,11 @@ class SnapshotTaskInfo : public TaskInfo {
       *
       * @param snapInfo 快照信息
       */
-    explicit SnapshotTaskInfo(const SnapshotInfo &snapInfo)
+    explicit SnapshotTaskInfo(const SnapshotInfo &snapInfo,
+        std::shared_ptr<SnapshotInfoMetric> metric)
         : TaskInfo(),
-          snapshotInfo_(snapInfo) {}
+          snapshotInfo_(snapInfo),
+          metric_(metric) {}
 
     /**
      * @brief 获取快照信息
@@ -60,9 +63,15 @@ class SnapshotTaskInfo : public TaskInfo {
         return snapshotInfo_.GetFileName();
     }
 
+    void UpdateMetric() {
+        metric_->Update(this);
+    }
+
  private:
     // 快照信息
     SnapshotInfo snapshotInfo_;
+    // metric 信息
+    std::shared_ptr<SnapshotInfoMetric> metric_;
 };
 
 
