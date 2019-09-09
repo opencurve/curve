@@ -15,22 +15,30 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/task.h"
 #include "src/snapshotcloneserver/common/task_info.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 namespace curve {
 namespace snapshotcloneserver {
 
 class CloneTaskInfo : public TaskInfo {
  public:
-    explicit CloneTaskInfo(const CloneInfo &cloneInfo)
+    explicit CloneTaskInfo(const CloneInfo &cloneInfo,
+        std::shared_ptr<CloneInfoMetric> metric)
         : TaskInfo(),
-          cloneInfo_(cloneInfo) {}
+          cloneInfo_(cloneInfo),
+          metric_(metric) {}
 
     CloneInfo& GetCloneInfo() {
         return cloneInfo_;
     }
 
+    void UpdateMetric() {
+        metric_->Update(this);
+    }
+
  private:
     CloneInfo cloneInfo_;
+    std::shared_ptr<CloneInfoMetric> metric_;
 };
 
 

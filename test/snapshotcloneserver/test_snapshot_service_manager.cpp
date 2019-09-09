@@ -13,6 +13,7 @@
 
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
 #include "src/common/concurrent/count_down_event.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 using curve::common::CountDownEvent;
 using ::testing::Return;
@@ -33,14 +34,16 @@ class TestSnapshotServiceManager : public ::testing::Test {
     virtual ~TestSnapshotServiceManager() {}
 
     virtual void SetUp() {
-        SnapshotCloneServerOptions serverOption_;
         serverOption_.snapshotPoolThreadNum = 8;
-        serverOption_.snapshotTaskManagerScanIntervalMs = 1000;
+        serverOption_.snapshotTaskManagerScanIntervalMs = 100;
         core_ =
             std::make_shared<MockSnapshotCore>();
+        auto metaStore_ =
+            std::shared_ptr<MockSnapshotCloneMetaStore>();
+        snapshotMetric_ = std::make_shared<SnapshotMetric>(metaStore_);
         std::shared_ptr<SnapshotTaskManager>
             taskMgr_ =
-            std::make_shared<SnapshotTaskManager>();
+            std::make_shared<SnapshotTaskManager>(snapshotMetric_);
 
         manager_ = std::make_shared<SnapshotServiceManager>(taskMgr_, core_);
 
@@ -54,6 +57,7 @@ class TestSnapshotServiceManager : public ::testing::Test {
         core_ = nullptr;
         manager_->Stop();
         manager_ = nullptr;
+        snapshotMetric_ = nullptr;
     }
 
     void PrepareCreateSnapshot(
@@ -71,6 +75,7 @@ class TestSnapshotServiceManager : public ::testing::Test {
 
         EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
             .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                                     task->Finish();
                                     cond1.Signal();
                                 }));
@@ -88,6 +93,8 @@ class TestSnapshotServiceManager : public ::testing::Test {
  protected:
     std::shared_ptr<MockSnapshotCore> core_;
     std::shared_ptr<SnapshotServiceManager> manager_;
+    std::shared_ptr<SnapshotMetric> snapshotMetric_;
+    SnapshotCloneServerOptions serverOption_;
 };
 
 TEST_F(TestSnapshotServiceManager,
@@ -108,6 +115,7 @@ TEST_F(TestSnapshotServiceManager,
 
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                                 task->Finish();
                                 cond1.Signal();
                             }));
@@ -121,6 +129,15 @@ TEST_F(TestSnapshotServiceManager,
     ASSERT_EQ(uuid, uuidOut);
 
     cond1.Wait();
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(1, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
 TEST_F(TestSnapshotServiceManager,
@@ -178,6 +195,15 @@ TEST_F(TestSnapshotServiceManager,
         &uuid2);
 
     ASSERT_EQ(kErrCodeInternalError, ret);
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(1, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
 TEST_F(TestSnapshotServiceManager,
@@ -220,6 +246,7 @@ TEST_F(TestSnapshotServiceManager,
         .Times(3)
         .WillRepeatedly(Invoke([&cv, &m, &count] (
                         std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                                 std::unique_lock<std::mutex> lk(m);
                                 count++;
                                 task->Finish();
@@ -249,6 +276,15 @@ TEST_F(TestSnapshotServiceManager,
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     cv.wait(lk, [&count](){return count == 3;});
+
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(3, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
 TEST_F(TestSnapshotServiceManager,
@@ -285,6 +321,7 @@ TEST_F(TestSnapshotServiceManager,
         .Times(3)
         .WillRepeatedly(Invoke([&cond1] (
                         std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                                 task->Finish();
                                 cond1.Signal();
                             }));
@@ -311,6 +348,15 @@ TEST_F(TestSnapshotServiceManager,
         &uuid);
     ASSERT_EQ(kErrCodeSuccess, ret);
     cond1.Wait();
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(3, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
 TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
@@ -326,6 +372,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
 
     EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                             task->Finish();
                             cond1.Signal();
                 }));
@@ -334,6 +381,14 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(1, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
 TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPreFail) {
@@ -362,6 +417,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPushTaskFail) {
 
     EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                             cond1.Signal();
                 }));
 
@@ -372,6 +428,14 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPushTaskFail) {
 
     ret = manager_->DeleteSnapshot(uuid, user, file);
     ASSERT_EQ(kErrCodeInternalError, ret);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(1, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
 TEST_F(TestSnapshotServiceManager, TestCreateAndDeleteSnapshotSuccess) {
@@ -389,6 +453,7 @@ TEST_F(TestSnapshotServiceManager, TestCreateAndDeleteSnapshotSuccess) {
 
     EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                             task->Finish();
                             cond1.Signal();
                 }));
@@ -397,6 +462,14 @@ TEST_F(TestSnapshotServiceManager, TestCreateAndDeleteSnapshotSuccess) {
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(2, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
 
@@ -557,12 +630,14 @@ TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
 
     EXPECT_CALL(*core_, HandleCreateSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                             task->Finish();
                             cond1.Signal();
                 }));
 
     EXPECT_CALL(*core_, HandleDeleteSnapshotTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<SnapshotTaskInfo> task) {
+            task->GetSnapshotInfo().SetStatus(Status::done);
                             task->Finish();
                             cond1.Signal();
                 }));
@@ -570,6 +645,15 @@ TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
     int ret = manager_->RecoverSnapshotTask();
     ASSERT_EQ(kErrCodeSuccess, ret);
     cond1.Wait();
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(
+            serverOption_.snapshotTaskManagerScanIntervalMs));
+
+    ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
+    ASSERT_EQ(2, snapshotMetric_->snapshotSucceed.get_value());
+    ASSERT_EQ(0, snapshotMetric_->snapshotFailed.get_value());
 }
 
 TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskFail) {

@@ -144,11 +144,11 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     return kErrCodeSuccess;
 }
 
-constexpr uint32_t kProgressCreateCloneFile = 10;
-constexpr uint32_t kProgressCreateCloneMeta = 20;
-constexpr uint32_t kProgressCreateCloneChunk = 50;
+constexpr uint32_t kProgressCreateCloneFile = 1;
+constexpr uint32_t kProgressCreateCloneMeta = 2;
+constexpr uint32_t kProgressCreateCloneChunk = 5;
 constexpr uint32_t kProgressRecoverChunkBegin = kProgressCreateCloneChunk;
-constexpr uint32_t kProgressRecoverChunkEnd = 90;
+constexpr uint32_t kProgressRecoverChunkEnd = 95;
 constexpr uint32_t kProgressCloneComplete = 100;
 
 void CloneCoreImpl::HandleCloneOrRecoverTask(
@@ -246,6 +246,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
                 HandleCloneError(task);
                 return;
         }
+        task->UpdateMetric();
         step = task->GetCloneInfo().GetNextStep();
     }
     HandleCloneSuccess(task);
@@ -431,6 +432,7 @@ int CloneCoreImpl::CreateCloneFile(
         // 克隆情况下destinationId = originId;
         task->GetCloneInfo().SetDestId(fInfoOut.id);
     }
+    task->GetCloneInfo().SetTime(fInfoOut.ctime);
     task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneMeta);
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {

@@ -20,6 +20,7 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 
 using ::curve::common::RWLock;
@@ -31,13 +32,14 @@ namespace snapshotcloneserver {
 
 class CloneTaskManager {
  public:
-    CloneTaskManager()
-        : isStop_(true) {}
+    explicit CloneTaskManager(std::shared_ptr<CloneMetric> cloneMetric)
+        : isStop_(true),
+          cloneMetric_(cloneMetric),
+          cloneTaskManagerScanIntervalMs_(0) {}
 
     ~CloneTaskManager() {
         Stop();
     }
-
 
     int Init(std::shared_ptr<ThreadPool> pool,
         const SnapshotCloneServerOptions &option) {
@@ -77,6 +79,9 @@ class CloneTaskManager {
 
     // 当前任务管理是否停止，用于支持start，stop功能
     std::atomic_bool isStop_;
+
+    // metric
+    std::shared_ptr<CloneMetric> cloneMetric_;
 
     // CloneTaskManager 后台线程扫描间隔
     uint32_t cloneTaskManagerScanIntervalMs_;
