@@ -13,6 +13,7 @@
 
 #include "test/snapshotcloneserver/mock_snapshot_server.h"
 #include "src/common/concurrent/count_down_event.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 using curve::common::CountDownEvent;
 using ::testing::Return;
@@ -34,17 +35,17 @@ class TestCloneServiceManager : public ::testing::Test {
 
     virtual void SetUp() {
         cloneCore_ = std::make_shared<MockCloneCore>();
+        cloneMetric_ = std::make_shared<CloneMetric>();
         std::shared_ptr<CloneTaskManager> cloneTaskMgr_ =
-            std::make_shared<CloneTaskManager>();
+            std::make_shared<CloneTaskManager>(cloneMetric_);
 
-        SnapshotCloneServerOptions option;
-        option.clonePoolThreadNum = 8;
-        option.cloneTaskManagerScanIntervalMs = 1000;
+        option_.clonePoolThreadNum = 8;
+        option_.cloneTaskManagerScanIntervalMs = 100;
 
         manager_ = std::make_shared<CloneServiceManager>(
             cloneTaskMgr_, cloneCore_);
 
-        ASSERT_EQ(0, manager_->Init(option))
+        ASSERT_EQ(0, manager_->Init(option_))
             << "manager init fail.";
         ASSERT_EQ(0, manager_->Start())
             << "manager start fail.";
@@ -52,6 +53,7 @@ class TestCloneServiceManager : public ::testing::Test {
 
     virtual void TearDown() {
         cloneCore_ = nullptr;
+        cloneMetric_ = nullptr;
         manager_->Stop();
         manager_ = nullptr;
     }
@@ -59,6 +61,8 @@ class TestCloneServiceManager : public ::testing::Test {
  protected:
     std::shared_ptr<MockCloneCore> cloneCore_;
     std::shared_ptr<CloneServiceManager> manager_;
+    std::shared_ptr<CloneMetric> cloneMetric_;
+    SnapshotCloneServerOptions option_;
 };
 
 
@@ -82,6 +86,7 @@ TEST_F(TestCloneServiceManager,
 
     EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<CloneTaskInfo> task) {
+                task->GetCloneInfo().SetStatus(CloneStatus::done);
                                 task->Finish();
                                 cond1.Signal();
                             }));
@@ -96,6 +101,12 @@ TEST_F(TestCloneServiceManager,
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+    ASSERT_EQ(0, cloneMetric_->cloneDoing.get_value());
+    ASSERT_EQ(1, cloneMetric_->cloneSucceed.get_value());
+    ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
 }
 
 TEST_F(TestCloneServiceManager,
@@ -143,6 +154,8 @@ TEST_F(TestCloneServiceManager,
 
     EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<CloneTaskInfo> task) {
+                task->GetCloneInfo().SetStatus(CloneStatus::done);
+                                cond1.Signal();
                             }));
 
     TaskIdType taskId;
@@ -161,6 +174,14 @@ TEST_F(TestCloneServiceManager,
         lazyFlag,
         &taskId);
     ASSERT_EQ(kErrCodeTaskExist, ret);
+
+    cond1.Wait();
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+    ASSERT_EQ(1, cloneMetric_->cloneDoing.get_value());
+    ASSERT_EQ(0, cloneMetric_->cloneSucceed.get_value());
+    ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
 }
 
 TEST_F(TestCloneServiceManager,
@@ -183,6 +204,7 @@ TEST_F(TestCloneServiceManager,
 
     EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<CloneTaskInfo> task) {
+                task->GetCloneInfo().SetStatus(CloneStatus::done);
                                 task->Finish();
                                 cond1.Signal();
                             }));
@@ -197,6 +219,12 @@ TEST_F(TestCloneServiceManager,
     ASSERT_EQ(kErrCodeSuccess, ret);
 
     cond1.Wait();
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+    ASSERT_EQ(0, cloneMetric_->recoverDoing.get_value());
+    ASSERT_EQ(1, cloneMetric_->recoverSucceed.get_value());
+    ASSERT_EQ(0, cloneMetric_->recoverFailed.get_value());
 }
 
 TEST_F(TestCloneServiceManager,
@@ -244,6 +272,8 @@ TEST_F(TestCloneServiceManager,
 
     EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
         .WillOnce(Invoke([&cond1] (std::shared_ptr<CloneTaskInfo> task) {
+                task->GetCloneInfo().SetStatus(CloneStatus::done);
+                                cond1.Signal();
                             }));
 
     TaskIdType taskId;
@@ -262,6 +292,14 @@ TEST_F(TestCloneServiceManager,
         lazyFlag,
         &taskId);
     ASSERT_EQ(kErrCodeTaskExist, ret);
+
+    cond1.Wait();
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+    ASSERT_EQ(1, cloneMetric_->recoverDoing.get_value());
+    ASSERT_EQ(0, cloneMetric_->recoverSucceed.get_value());
+    ASSERT_EQ(0, cloneMetric_->recoverFailed.get_value());
 }
 
 TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoSuccess) {
@@ -358,6 +396,7 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskSuccess) {
     EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
         .WillOnce(Invoke([&cond1] (
             std::shared_ptr<CloneTaskInfo> task) {
+                task->GetCloneInfo().SetStatus(CloneStatus::done);
                                 task->Finish();
                                 cond1.Signal();
                             }));
@@ -365,6 +404,12 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskSuccess) {
     int ret = manager_->RecoverCloneTask();
     ASSERT_EQ(kErrCodeSuccess, ret);
     cond1.Wait();
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+    ASSERT_EQ(0, cloneMetric_->cloneDoing.get_value());
+    ASSERT_EQ(1, cloneMetric_->cloneSucceed.get_value());
+    ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
 }
 
 TEST_F(TestCloneServiceManager, TestCloneServiceNotStart) {
@@ -624,6 +669,12 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskPushTaskFail) {
 
     int ret = manager_->RecoverCloneTask();
     ASSERT_EQ(kErrCodeServiceIsStop, ret);
+
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+    ASSERT_EQ(0, cloneMetric_->cloneDoing.get_value());
+    ASSERT_EQ(0, cloneMetric_->cloneSucceed.get_value());
+    ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
 }
 
 TEST_F(TestCloneServiceManager, TestRecoverCloneTaskDefaultSuccess) {

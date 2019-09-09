@@ -13,6 +13,8 @@
 #include <memory>
 #include <vector>
 
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
+
 namespace curve {
 namespace snapshotcloneserver {
 
@@ -49,8 +51,11 @@ int CloneServiceManager::CloneFile(const UUID &source,
         return ret;
     }
     *taskId = cloneInfo.GetTaskId();
+
+    auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(*taskId);
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(cloneInfo);
+        std::make_shared<CloneTaskInfo>(cloneInfo, cloneInfoMetric);
+    taskInfo->UpdateMetric();
     std::shared_ptr<CloneTask> task =
         std::make_shared<CloneTask>(
             cloneInfo.GetTaskId(), taskInfo, cloneCore_);
@@ -82,8 +87,11 @@ int CloneServiceManager::RecoverFile(const UUID &source,
         return ret;
     }
     *taskId = cloneInfo.GetTaskId();
+
+    auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(*taskId);
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(cloneInfo);
+        std::make_shared<CloneTaskInfo>(cloneInfo, cloneInfoMetric);
+    taskInfo->UpdateMetric();
     std::shared_ptr<CloneTask> task =
         std::make_shared<CloneTask>(
             cloneInfo.GetTaskId(), taskInfo, cloneCore_);
@@ -190,7 +198,7 @@ int CloneServiceManager::CleanCloneTask(const std::string &user,
         return ret;
     }
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(cloneInfo);
+        std::make_shared<CloneTaskInfo>(cloneInfo, nullptr);
     std::shared_ptr<CloneCleanTask> task =
         std::make_shared<CloneCleanTask>(
             cloneInfo.GetTaskId(), taskInfo, cloneCore_);
@@ -214,8 +222,11 @@ int CloneServiceManager::RecoverCloneTask() {
         switch (cloneInfo.GetStatus()) {
             case CloneStatus::cloning:
             case CloneStatus::recovering: {
+                auto cloneInfoMetric =
+                    std::make_shared<CloneInfoMetric>(cloneInfo.GetTaskId());
                 std::shared_ptr<CloneTaskInfo> taskInfo =
-                    std::make_shared<CloneTaskInfo>(cloneInfo);
+                    std::make_shared<CloneTaskInfo>(cloneInfo, cloneInfoMetric);
+                taskInfo->UpdateMetric();
                 std::shared_ptr<CloneTask> task =
                     std::make_shared<CloneTask>(
                         cloneInfo.GetTaskId(), taskInfo, cloneCore_);
@@ -237,7 +248,7 @@ int CloneServiceManager::RecoverCloneTask() {
             case CloneStatus::cleaning:
             case CloneStatus::errorCleaning: {
                 std::shared_ptr<CloneTaskInfo> taskInfo =
-                    std::make_shared<CloneTaskInfo>(cloneInfo);
+                    std::make_shared<CloneTaskInfo>(cloneInfo, nullptr);
                 std::shared_ptr<CloneTask> task =
                     std::make_shared<CloneTask>(
                         cloneInfo.GetTaskId(), taskInfo, cloneCore_);

@@ -91,12 +91,12 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
     return kErrCodeSuccess;
 }
 
-constexpr uint32_t kProgressCreateSnapshotOnCurvefsComplete = 10;
-constexpr uint32_t kProgressBuildChunkIndexDataComplete = 20;
-constexpr uint32_t kProgressBuildSnapshotMapComplete = 30;
+constexpr uint32_t kProgressCreateSnapshotOnCurvefsComplete = 5;
+constexpr uint32_t kProgressBuildChunkIndexDataComplete = 6;
+constexpr uint32_t kProgressBuildSnapshotMapComplete = 10;
 constexpr uint32_t kProgressTransferSnapshotDataStart =
                        kProgressBuildSnapshotMapComplete;
-constexpr uint32_t kProgressTransferSnapshotDataComplete = 90;
+constexpr uint32_t kProgressTransferSnapshotDataComplete = 99;
 constexpr uint32_t kProgressComplete = 100;
 
 /**
@@ -105,7 +105,7 @@ constexpr uint32_t kProgressComplete = 100;
  * 快照进度规划如下:
  *
  *  |CreateSnapshotOnCurvefs| BuildChunkIndexData | BuildSnapshotMap | TransferSnapshotData | UpdateSnapshot | //NOLINT
- *  | 10%                   | 20%                 | 30%              | 30%~90%              | 100%           | //NOLINT
+ *  | 5%                    | 6%                  | 10%              | 10%~99%              | 100%           | //NOLINT
  *
  *
  *  异步执行期间发生error与cancel情况说明：
@@ -144,6 +144,7 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
     }
 
     task->SetProgress(kProgressCreateSnapshotOnCurvefsComplete);
+    task->UpdateMetric();
     if (task->IsCanceled()) {
         CancelAfterCreateSnapshotOnCurvefs(task);
         return;
@@ -165,6 +166,7 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
         }
 
         task->SetProgress(kProgressBuildChunkIndexDataComplete);
+        task->UpdateMetric();
 
         ret = BuildSegmentInfo(*info, &segInfos);
         if (ret < 0) {
@@ -191,6 +193,7 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
         }
 
         task->SetProgress(kProgressBuildChunkIndexDataComplete);
+        task->UpdateMetric();
     }
 
     if (task->IsCanceled()) {
@@ -210,6 +213,7 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
         return;
     }
     task->SetProgress(kProgressBuildSnapshotMapComplete);
+    task->UpdateMetric();
 
     ret = TransferSnapshotData(indexData,
         *info,
@@ -225,6 +229,7 @@ void SnapshotCoreImpl::HandleCreateSnapshotTask(
         return;
     }
     task->SetProgress(kProgressTransferSnapshotDataComplete);
+    task->UpdateMetric();
 
     LockGuard lockGuard(task->GetLockRef());
     if (task->IsCanceled()) {
@@ -702,6 +707,7 @@ int SnapshotCoreImpl::TransferSnapshotData(
 
         task->SetProgress(static_cast<uint32_t>(
                 kProgressTransferSnapshotDataStart + index * progressPerData));
+        task->UpdateMetric();
         index++;
         if (task->IsCanceled()) {
             return kErrCodeSuccess;
@@ -799,6 +805,7 @@ void SnapshotCoreImpl::HandleDeleteSnapshotTask(
         return;
     }
     task->SetProgress(kDelProgressBuildSnapshotMapComplete);
+    task->UpdateMetric();
     ChunkIndexDataName name(task->GetFileName(),
         seqNum);
     ChunkIndexData indexData;
@@ -840,6 +847,7 @@ void SnapshotCoreImpl::HandleDeleteSnapshotTask(
             }
             task->SetProgress(static_cast<uint32_t>(
                 kDelProgressDeleteChunkDataStart + index * progressPerData));
+            task->UpdateMetric();
             index++;
         }
         task->SetProgress(kDelProgressDeleteChunkDataComplete);
@@ -865,6 +873,7 @@ void SnapshotCoreImpl::HandleDeleteSnapshotTask(
     }
 
     task->SetProgress(kDelProgressDeleteChunkIndexDataComplete);
+    task->UpdateMetric();
     ret = metaStore_->DeleteSnapshot(uuid);
     if (ret < 0) {
         LOG(ERROR) << "DeleteSnapshot error, "

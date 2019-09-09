@@ -71,6 +71,8 @@ class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
             std::vector<SnapshotInfo> *v));
     MOCK_METHOD1(GetSnapshotList,
         int(std::vector<SnapshotInfo> *list));
+    MOCK_METHOD0(GetSnapshotCount,
+        uint32_t());
     MOCK_METHOD1(AddCloneInfo, int(const CloneInfo &info));
     MOCK_METHOD1(DeleteCloneInfo, int(const std::string &taskID));
     MOCK_METHOD1(UpdateCloneInfo, int(const CloneInfo &info));
