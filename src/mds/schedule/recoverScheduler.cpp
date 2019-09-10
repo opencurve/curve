@@ -72,14 +72,16 @@ int RecoverScheduler::Schedule() {
         }
 
         // excludes中的offline副本不做恢复
-        for (auto offline : offlinelists) {
-            if (excludes.count(offline) > 0) {
-                LOG(ERROR) << "can not recover offline chunkserver " << offline
+        for (auto it = offlinelists.begin(); it != offlinelists.end();) {
+            if (excludes.count(*it) > 0) {
+                LOG(ERROR) << "can not recover offline chunkserver " << *it
                           << " on " << copysetInfo.CopySetInfoStr()
                           << ", because it's server has more than "
                           << chunkserverFailureTolerance_
                           << " offline chunkservers";
-                offlinelists.erase(offline);
+                it = offlinelists.erase(it);
+            } else {
+                ++it;
             }
         }
 
