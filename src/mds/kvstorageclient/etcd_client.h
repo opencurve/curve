@@ -30,6 +30,18 @@ class KVStorageClient {
     virtual int Put(const std::string &key, const std::string &value) = 0;
 
     /**
+     * @brief PutRewithRevision 存储key-value
+     *
+     * @param[in] key
+     * @param[in] value
+     * @param[out] revision 返回版本号
+     *
+     * @return 返回错误码EtcdErrCode
+     */
+    virtual int PutRewithRevision(const std::string &key,
+        const std::string &value, int64_t *revision) = 0;
+
+    /**
      * @brief Get 获取指定key的value
      *
      * @param[in] key
@@ -59,6 +71,17 @@ class KVStorageClient {
      * @return 返回错误码
      */
     virtual int Delete(const std::string &key) = 0;
+
+    /**
+     * @brief DeleteRewithRevision 删除指定key的value
+     *
+     * @param[in] key
+     * @param[out] revision 返回版本号
+     *
+     * @return 返回错误码
+     */
+    virtual int DeleteRewithRevision(
+        const std::string &key, int64_t *revision) = 0;
 
     /*
     * @brief TxnN 事务 按照ops[0] ops[1] ... 的顺序进行操作，目前支持2个和3个操作
@@ -105,12 +128,18 @@ class EtcdClientImp : public KVStorageClient {
 
     int Put(const std::string &key, const std::string &value) override;
 
+    int PutRewithRevision(const std::string &key, const std::string &value,
+        int64_t *revision) override;
+
     int Get(const std::string &key, std::string *out) override;
 
     int List(const std::string &startKey,
         const std::string &endKey, std::vector<std::string> *values) override;
 
     int Delete(const std::string &key) override;
+
+    int DeleteRewithRevision(
+        const std::string &key, int64_t *revision) override;
 
     int TxnN(const std::vector<Operation> &ops) override;
 

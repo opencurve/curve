@@ -336,6 +336,21 @@ TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
     }
 }
 
+TEST_F(TestEtcdClinetImp, test_return_with_revision) {
+    int64_t startRevision;
+    int res = client_->GetCurrentRevision(&startRevision);
+    ASSERT_EQ(EtcdErrCode::OK, res);
+
+    int64_t revision;
+    res = client_->PutRewithRevision("hello", "everyOne", &revision);
+    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(startRevision + 1, revision);
+
+    res = client_->DeleteRewithRevision("hello", &revision);
+    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(startRevision + 2, revision);
+}
+
 TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
     std::string pfx("/leadere-election/");
     int sessionnInterSec = 1;

@@ -141,6 +141,14 @@ extern void EtcdCloseClient();
 
 extern GoUint32 EtcdClientPut(int p0, char* p1, char* p2, int p3, int p4);
 
+/* Return type for EtcdClientPutRewtihRevision */
+struct EtcdClientPutRewtihRevision_return {
+	GoUint32 r0;
+	GoInt64 r1;
+};
+
+extern struct EtcdClientPutRewtihRevision_return EtcdClientPutRewtihRevision(int p0, char* p1, char* p2, int p3, int p4);
+
 /* Return type for EtcdClientGet */
 struct EtcdClientGet_return {
 	GoUint32 r0;
@@ -173,6 +181,14 @@ struct EtcdClientListWithLimitAndRevision_return {
 extern struct EtcdClientListWithLimitAndRevision_return EtcdClientListWithLimitAndRevision(unsigned int p0, char* p1, char* p2, int p3, int p4, GoInt64 p5, GoInt64 p6);
 
 extern GoUint32 EtcdClientDelete(int p0, char* p1, int p2);
+
+/* Return type for EtcdClientDeleteRewithRevision */
+struct EtcdClientDeleteRewithRevision_return {
+	GoUint32 r0;
+	GoInt64 r1;
+};
+
+extern struct EtcdClientDeleteRewithRevision_return EtcdClientDeleteRewithRevision(int p0, char* p1, int p2);
 
 extern GoUint32 EtcdClientTxn2(int p0, struct Operation p1, struct Operation p2);
 
