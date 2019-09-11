@@ -35,6 +35,26 @@ int EtcdClientImp::Put(const std::string &key, const std::string &value) {
     return errCode;
 }
 
+
+int EtcdClientImp::PutRewithRevision(
+        const std::string &key, const std::string &value, int64_t *revision) {
+    bool needRetry = false;
+    int retry = 0;
+    int errCode;
+    do {
+        EtcdClientPutRewtihRevision_return res = EtcdClientPutRewtihRevision(
+            timeout_, const_cast<char*>(key.c_str()),
+            const_cast<char*>(value.c_str()), key.size(), value.size());
+        if (res.r0 == EtcdErrCode::OK) {
+            *revision = res.r1;
+        }
+        errCode = res.r0;
+        needRetry = NeedRetry(errCode);
+    } while (needRetry && ++retry <= retryTimes_);
+
+    return errCode;
+}
+
 int EtcdClientImp::Get(const std::string &key, std::string *out) {
     assert(out != nullptr);
     out->clear();
@@ -109,6 +129,25 @@ int EtcdClientImp::Delete(const std::string &key) {
             timeout_, const_cast<char*>(key.c_str()), key.size());
         needRetry = NeedRetry(errCode);
     } while (needRetry && ++retry <= retryTimes_);
+    return errCode;
+}
+
+int EtcdClientImp::DeleteRewithRevision(
+    const std::string &key, int64_t *revision) {
+    bool needRetry = false;
+    int retry = 0;
+    int errCode;
+    do {
+        EtcdClientDeleteRewithRevision_return res =
+            EtcdClientDeleteRewithRevision(
+            timeout_, const_cast<char*>(key.c_str()), key.size());
+        if (res.r0 == EtcdErrCode::OK) {
+            *revision = res.r1;
+        }
+        errCode = res.r0;
+        needRetry = NeedRetry(errCode);
+    } while (needRetry && ++retry <= retryTimes_);
+
     return errCode;
 }
 

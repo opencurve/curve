@@ -56,11 +56,12 @@ class MockNameServerStorage : public NameServerStorage {
                                          uint64_t,
                                          PageFileSegment *segment));
 
-    MOCK_METHOD3(PutSegment, StoreStatus(InodeID,
+    MOCK_METHOD4(PutSegment, StoreStatus(InodeID,
                                          uint64_t,
-                                         const PageFileSegment *));
+                                         const PageFileSegment *,
+                                         int64_t *));
 
-    MOCK_METHOD2(DeleteSegment, StoreStatus(InodeID, uint64_t));
+    MOCK_METHOD3(DeleteSegment, StoreStatus(InodeID, uint64_t, int64_t*));
 
     MOCK_METHOD2(SnapShotFile, StoreStatus(const FileInfo *,
                                     const FileInfo *));
