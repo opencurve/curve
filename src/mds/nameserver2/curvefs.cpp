@@ -769,7 +769,8 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
                 LOG(ERROR) << "AllocateChunkSegment error";
                 return StatusCode::kSegmentAllocateError;
             }
-            if (storage_->PutSegment(fileInfo.id(), offset, segment)
+            int64_t revision;
+            if (storage_->PutSegment(fileInfo.id(), offset, segment, &revision)
                 != StoreStatus::OK) {
                 LOG(ERROR) << "PutSegment fail, fileInfo.id() = "
                            << fileInfo.id()

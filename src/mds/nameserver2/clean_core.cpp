@@ -127,8 +127,9 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
         }
 
         // delete segment
-        storeRet = storage_->DeleteSegment(commonFile.id(),
-                                    i * segmentSize);
+        int64_t revision;
+        storeRet = storage_->DeleteSegment(
+            commonFile.id(), i * segmentSize, &revision);
         if (storeRet != StoreStatus::OK) {
             LOG(ERROR) << "Clean common File Error: "
             << "DeleteSegment Error, inodeid = " << commonFile.id()

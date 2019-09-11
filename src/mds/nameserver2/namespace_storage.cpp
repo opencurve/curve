@@ -409,7 +409,8 @@ StoreStatus NameServerStorageImp::ListFileInternal(
 
 StoreStatus NameServerStorageImp::PutSegment(InodeID id,
                                              uint64_t off,
-                                             const PageFileSegment *segment) {
+                                             const PageFileSegment *segment,
+                                             int64_t *revision) {
     std::string storeKey =
         NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
     std::string encodeSegment;
@@ -417,7 +418,7 @@ StoreStatus NameServerStorageImp::PutSegment(InodeID id,
         return StoreStatus::InternalError;
     }
 
-    int errCode = client_->Put(storeKey, encodeSegment);
+    int errCode = client_->PutRewithRevision(storeKey, encodeSegment, revision);
     if (errCode != EtcdErrCode::OK) {
         LOG(ERROR) << "put segment of logicalPoolId:"
                    << segment->logicalpoolid() << "err:" << errCode;
@@ -456,10 +457,11 @@ StoreStatus NameServerStorageImp::GetSegment(InodeID id,
     return getErrorCode(errCode);
 }
 
-StoreStatus NameServerStorageImp::DeleteSegment(InodeID id, uint64_t off) {
+StoreStatus NameServerStorageImp::DeleteSegment(
+    InodeID id, uint64_t off, int64_t *revision) {
     std::string storeKey =
         NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
-    int errCode = client_->Delete(storeKey);
+    int errCode = client_->DeleteRewithRevision(storeKey, revision);
 
     // 先更新缓存，再更新etcd
     cache_->Remove(storeKey);
