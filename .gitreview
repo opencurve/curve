@@ -1,0 +1,5 @@
+[gerrit]
+host=gerrit.storage.netease.com
+port=29418
+project=nebd
+defaultbranch=feature

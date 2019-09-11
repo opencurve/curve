@@ -1,0 +1,52 @@
+<domain type="kvm">
+  <uuid>{{ uuid }}</uuid>
+  <name>{{ name }}</name>
+  <memory>2097152</memory>
+  <vcpu cpuset="{{ cpuset }}">2</vcpu>
+  <os>
+    <type>hvm</type>
+    <boot dev="hd"/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+  </features>
+  <cpu mode="host-model" match="exact"/>
+  <devices>
+    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+    <disk type="{{ disk_type }}" device="disk">
+    {%- if disk_type == "file" %}
+      <driver type="raw" cache="none"/>
+      <source file="{{ disk_file }}"/>
+    {%- elif disk_type == "network" %}
+      <driver type="raw" cache="none"/>
+      <source protocol="{{ protocol }}" name="{{ disk_name }}">
+      {%- if protocol == 'rbd' %}
+        {% for mon_host in mon_hosts -%}
+          <host name="{{ mon_host }}" port="6789"/>
+        {% endfor -%}
+      {% endif -%}
+      </source>
+    {% endif -%}
+      <target bus="virtio" dev="vda"/>
+    </disk>
+    <controller type='scsi' index='0' model='virtio-scsi'>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x0b' function='0x0'/>
+    </controller>
+    <interface type="bridge">
+      <mac address="66:66:66:66:66:0a"/>
+      <model type="virtio"/>
+      <source bridge="bri"/>
+    </interface>
+    <serial type="file">
+      <source path="/var/log/libvirt/qemu/{{ name }}-console.log"/>
+    </serial>
+    <serial type="pty"/>
+    <input type="tablet" bus="usb"/>
+    <graphics type="vnc" autoport="yes" keymap="en-us" listen="0.0.0.0"/>
+    <channel type="unix">
+      <source mode="bind" path="/var/lib/libvirt/qemu/org.qemu.guest_agent.0.{{ name }}.sock"/>
+      <target type="virtio" name="org.qemu.guest_agent.0"/>
+    </channel>
+  </devices>
+</domain>
