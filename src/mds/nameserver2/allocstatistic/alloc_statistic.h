@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <map>
+#include <set>
 #include <string>
 #include "src/mds/kvstorageclient/etcd_client.h"
 #include "src/mds/common/mds_define.h"
@@ -18,10 +19,29 @@
 using ::curve::mds::topology::PoolIdType;
 using ::curve::common::Atomic;
 using ::curve::common::Mutex;
+using ::curve::common::RWLock;
 using ::curve::common::Thread;
 
 namespace curve {
 namespace mds {
+/**
+ * AllocStatistic 用于统计当前已分配出去的segment量
+ * 思路
+ * 统计分为两部分:
+ * part1:
+ *    ①统计指定revision之前的分配量
+ *    ②记录mds启动以来，每个revision对应的segment分配量
+ *    ③合并①和②中的数据
+ * part2: 后台定期持久化part1中合并以后的数据
+ *
+ * 涉及到的几个map:
+ * existSegmentAllocValues_: mds上次退出持久化在etcd中的数据+mds启动以来segment的变化
+ * segmentAlloc_: 最终存放part1部分完成合并之后数据
+ *
+ * 根据当前的统计状态给外部提供segment分配量:
+ * 1. 如果part1部分全部完成，从mergeMap_中获取数据
+ * 2. 如果part1部分未完成，从existSegmentAllocValues_中获取数据
+ */
 class AllocStatistic {
  public:
     /**
@@ -36,6 +56,7 @@ class AllocStatistic {
         std::shared_ptr<EtcdClientImp> client) :
         client_(client),
         currentValueAvalible_(false),
+        segmentAllocFromEtcdOK_(false),
         stop_(true),
         periodicPersistInterMs_(periodicPersistInterMs),
         retryInterMs_(retryInterMs) {}
@@ -68,26 +89,26 @@ class AllocStatistic {
      *
      * @return false表示未获取成功，true表示获取成功
      */
-    virtual bool GetAllocByLogicalPool(PoolIdType lid, uint64_t *alloc);
+    virtual bool GetAllocByLogicalPool(PoolIdType lid, int64_t *alloc);
 
     /**
-     * @brief AllocChange 用于外部更新mds启动后segment的增减
+     * @brief AllocSpace put segment后更新
      *
-     * @param[in] changeSize segment增加或者减少量
+     * @param[in] lid segment所在的logicalpoolId
+     * @param[in] changeSize segment增加量
+     * @param[in] revison 本次变化对应的版本
      */
-    virtual void AllocChange(PoolIdType lid, int64_t changeSize);
+    virtual void AllocSpace(PoolIdType, int64_t changeSize, int64_t revision);
 
     /**
-     * @brief UpdateChangeLock 外部使用AllocChange时需要先加锁
+     * @brief DeAllocSpace delete segment后更新
      *
+     * @param[in] lid segment所在的logicalpoolId
+     * @param[in] changeSize segment减少量
+     * @param[in] revison 本次变化对应的版本
      */
-    virtual void UpdateChangeLock();
-
-    /**
-     * @brief UpdateChangeLock 外部使用AllocChange完成时时需要解锁
-     *
-     */
-    virtual void UpdateChangeUnlock();
+    virtual void DeAllocSpace(
+        PoolIdType, int64_t changeSize, int64_t revision);
 
  private:
      /**
@@ -107,6 +128,34 @@ class AllocStatistic {
      */
     bool HandleResult(int res);
 
+    /**
+     * @brief DoMerge 对于每个logicalPool, 合并变化量和etcd中读取的数据
+     */
+    void DoMerge();
+
+    /**
+     * @brief GetLatestSegmentAllocInfo
+     *        用于获取当前需要持久化到etcd中的值.
+     *
+     * @return 当前每个logicalPool需要持久化到etcd中的值
+     */
+    std::map<PoolIdType, int64_t> GetLatestSegmentAllocInfo();
+
+    /**
+     * @brief UpdateSegmentAllocByCurrrevision 合并变化量和etcd中读取的数据
+     *
+     * @param[in] lid logicalPoolId
+     * @paran[out] 该logicalpool的segment分配量
+     */
+    void UpdateSegmentAllocByCurrrevision(PoolIdType lid);
+
+    /**
+     * @brief GetCurrentLogicalPools 获取当前所有的logicalPool
+     *
+     * @return 返回logical pool集合
+     */
+    std::set<PoolIdType> GetCurrentLogicalPools();
+
  private:
     // etcd模块
     std::shared_ptr<EtcdClientImp> client_;
@@ -115,15 +164,23 @@ class AllocStatistic {
     int64_t curRevision_;
 
     // mds启动前最后一次持久化的值
-    std::map<PoolIdType, uint64_t> existSegmentAllocValues_;
+    std::map<PoolIdType, int64_t> existSegmentAllocValues_;
+    RWLock existSegmentAllocValuesLock_;
 
-    // mds启动后重新统计的已分配的segment
-    std::map<PoolIdType, uint64_t> segmentAlloc_;
+    // 前期存放统计指定revision前segment的分配量
+    // 后期存放合并之后的量
+    std::map<PoolIdType, int64_t> segmentAlloc_;
+    RWLock segmentAllocLock_;
+    Atomic<bool> segmentAllocFromEtcdOK_;
 
     // mds启动后segment的变化
-    std::map<PoolIdType, int64_t> segmentChange_;
+    // PoolIdType: poolId
+    // std::map<int64_t, int64_t> first表示版本, second表示变化量
+    std::map<PoolIdType, std::map<int64_t, int64_t>> segmentChange_;
+    RWLock segmentChangeLock_;
 
-    // 当前值是否可用
+    // segmentAlloc_中的值是否可以使用
+    // 经过至少一次合并之后即可用
     Atomic<bool> currentValueAvalible_;
 
     // 出错情况下的重试间隔,单位ms
@@ -132,7 +189,7 @@ class AllocStatistic {
     // 持久化间隔, 单位ms
     uint64_t periodicPersistInterMs_;
 
-    // 退出当前模块
+    // stop_为true的时候停止持久化线程和统计etcd中segment分配量的统计线程
     Atomic<bool> stop_;
 
     // 定期持久化每个逻辑池已分配的segment大小的线程
@@ -140,11 +197,6 @@ class AllocStatistic {
 
     // 统计指定revision下已分配segment大小的线程
     Thread calculateAlloc_;
-
-    // 1. 该锁用于保证segmentAlloc_统计出错的情况下，
-    // 重新获取revision过程中没有segment的写入
-    // 2. 解决segmentChange_的并发访问
-    Mutex updateLock;
 };
 }  // namespace mds
 }  // namespace curve
