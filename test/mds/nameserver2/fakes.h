@@ -311,7 +311,8 @@ class FakeNameServerStorage : public NameServerStorage {
 
     StoreStatus PutSegment(InodeID id,
                            uint64_t off,
-                           const PageFileSegment * segment) override {
+                           const PageFileSegment * segment,
+                           int64_t *revision) override {
         std::lock_guard<std::mutex> guard(lock_);
         std::string storeKey =
             NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
@@ -322,7 +323,8 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus DeleteSegment(InodeID id, uint64_t off) override {
+    StoreStatus DeleteSegment(
+        InodeID id, uint64_t off, int64_t *revision) override {
         std::lock_guard<std::mutex> guard(lock_);
         std::string storeKey =
             NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);

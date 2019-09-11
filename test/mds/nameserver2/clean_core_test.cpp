@@ -223,7 +223,7 @@ TEST(CleanCore, testcleanfile) {
         EXPECT_CALL(*storage, GetSegment(_, 0, _))
                 .WillOnce(Return(StoreStatus::OK));
 
-        EXPECT_CALL(*storage, DeleteSegment(_, _))
+        EXPECT_CALL(*storage, DeleteSegment(_, _, _))
         .WillOnce(Return(StoreStatus::InternalError));
 
         FileInfo cleanFile;

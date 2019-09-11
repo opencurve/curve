@@ -1311,7 +1311,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(true));
 
 
-        EXPECT_CALL(*storage_, PutSegment(_, _, _))
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1447,7 +1447,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(true));
 
 
-        EXPECT_CALL(*storage_, PutSegment(_, _, _))
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
