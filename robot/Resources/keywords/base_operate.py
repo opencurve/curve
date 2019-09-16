@@ -175,9 +175,9 @@ def chunkserver_log_create():
 
 def clean_cs_data():
     try:
-        clean_cs_data_dir0 = "rm -rf " + config.cs_0
-        clean_cs_data_dir1 = "rm -rf " + config.cs_1
-        clean_cs_data_dir2 = "rm -rf " + config.cs_2
+        clean_cs_data_dir0 = "sudo rm -rf " + config.cs_0
+        clean_cs_data_dir1 = "sudo rm -rf " + config.cs_1
+        clean_cs_data_dir2 = "sudo rm -rf " + config.cs_2
         shell_operator.run_exec3(clean_cs_data_dir0)
         shell_operator.run_exec3(clean_cs_data_dir1)
         shell_operator.run_exec3(clean_cs_data_dir2)
