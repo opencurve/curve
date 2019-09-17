@@ -32,9 +32,6 @@ class MockTopoAdapter : public TopoAdapter {
 
     MOCK_METHOD0(GetChunkServerInfos, std::vector<ChunkServerInfo>());
 
-    MOCK_METHOD1(GetChunkServersInPhysicalPool,
-                std::vector<ChunkServerInfo>(PhysicalPoolIDType));
-
     MOCK_METHOD1(GetStandardZoneNumInLogicalPool, int(PoolIdType id));
 
     MOCK_METHOD1(GetStandardReplicaNumInLogicalPool, int(PoolIdType id));
@@ -47,11 +44,21 @@ class MockTopoAdapter : public TopoAdapter {
     MOCK_METHOD2(CopySetFromTopoToSchedule,
                 bool(const ::curve::mds::topology::CopySetInfo &origin,
                     ::curve::mds::schedule::CopySetInfo *out));
+
     MOCK_METHOD2(ChunkServerFromTopoToSchedule,
                 bool(const ::curve::mds::topology::ChunkServer &origin,
                     ::curve::mds::schedule::ChunkServerInfo *out));
+
     MOCK_METHOD2(GetChunkServerScatterMap, void(const ChunkServerIDType &,
                 std::map<ChunkServerIdType, int> *));
+
+    MOCK_METHOD0(GetLogicalpools, std::vector<PoolIdType>());
+
+    MOCK_METHOD1(GetCopySetInfosInLogicalPool,
+        std::vector<CopySetInfo>(PoolIdType));
+
+    MOCK_METHOD1(GetChunkServersInLogicalPool,
+        std::vector<ChunkServerInfo>(PoolIdType));
 };
 }  // namespace schedule
 }  // namespace mds
