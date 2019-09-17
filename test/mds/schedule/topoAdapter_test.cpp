@@ -363,33 +363,6 @@ TEST_F(TestTopoAdapterImpl, test_chunkserverInfo) {
             res[0].diskState);
         ASSERT_EQ(testTopoChunkServer[0].GetStatus(), res[0].status);
     }
-    {
-        // 5. tests GetChunkServersInPhysicalPool topo get chunkserver error
-        EXPECT_CALL(*mockTopo_, GetChunkServer(_, _)).WillOnce(Return(false));
-        EXPECT_CALL(*mockTopo_, GetChunkServerInPhysicalPool(_, _))
-            .WillOnce(Return(std::list<ChunkServerIdType>{1}));
-        ASSERT_EQ(0, topoAdapter_->GetChunkServersInPhysicalPool(1).size());
-    }
-    {
-        // 6. tests GetChunkServersInPhysicalPool success
-        EXPECT_CALL(*mockTopo_, GetChunkServer(_, _))
-            .WillOnce(DoAll(
-                SetArgPointee<1>(testTopoChunkServer[0]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetServer(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(testTopoServer[0]), Return(true)));
-        EXPECT_CALL(*mockTopo_, GetChunkServerInPhysicalPool(_, _))
-            .WillOnce(Return(std::list<ChunkServerIdType>{1}));
-        EXPECT_CALL(*mockTopoStat_, GetChunkServerStat(_, _))
-            .WillOnce(DoAll(SetArgPointee<1>(stat), Return(true)));
-
-        auto res = topoAdapter_->GetChunkServersInPhysicalPool(1);
-        ASSERT_EQ(1, res[0].info.id);
-        ASSERT_EQ(testTopoChunkServer[0].GetOnlineState(), res[0].state);
-        ASSERT_EQ(testTopoChunkServer[0].GetChunkServerState().GetDiskState(),
-            res[0].diskState);
-        ASSERT_EQ(testTopoChunkServer[0].GetStatus(), res[0].status);
-        ASSERT_EQ(stat.leaderCount, res[0].leaderCount);
-    }
 }
 
 TEST_F(TestTopoAdapterImpl, test_other_functions) {
@@ -467,6 +440,12 @@ TEST_F(TestTopoAdapterImpl, test_other_functions) {
             .WillOnce(DoAll(SetArgPointee<1>(lpool), Return(true)));
         ASSERT_EQ(90, topoAdapter_->GetAvgScatterWidthInLogicalPool(1));
     }
+    {
+        // 5. test GetLogicalpools
+        EXPECT_CALL(*mockTopo_, GetLogicalPoolInCluster(_))
+            .WillOnce(Return(std::vector<PoolIdType>({1})));
+        ASSERT_EQ(1, topoAdapter_->GetLogicalpools()[0]);
+    }
 }
 
 TEST(TestCopySetInfo, test_copySetInfo_function) {
@@ -483,7 +462,7 @@ TEST(TestCopySetInfo, test_copySetInfo_function) {
     ASSERT_FALSE(test1.statisticsInfo.IsInitialized());
 
     // 1.2 with configChangeInfo
-    testcopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, 1, "", 9000);
+    testcopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "", 9000);
     auto replica = new ::curve::common::Peer();
     replica->set_address("192.168.10.1:9000");
     testcopySetInfo.configChangeInfo.set_allocated_peer(replica);
@@ -535,7 +514,7 @@ TEST(TestCopySetInfo, test_copySetInfo_function) {
 }
 
 TEST(TestChunkServerInfo, test_onlineState) {
-    ChunkServerInfo cs(PeerInfo(1, 1, 1, 1, "", 9000),
+    ChunkServerInfo cs(PeerInfo(1, 1, 1, "", 9000),
                        OnlineState::ONLINE,
                        DiskState::DISKNORMAL,
                        ChunkServerStatus::READWRITE,

@@ -19,10 +19,18 @@ namespace schedule {
 int CopySetScheduler::Schedule() {
     LOG(INFO) << "copysetScheduler begin";
 
+    int res = 0;
+    for (auto lid : topo_->GetLogicalpools()) {
+        res = DoCopySetSchedule(lid);
+    }
+    return res;
+}
+
+int CopySetScheduler::DoCopySetSchedule(PoolIdType lid) {
     // 1. 获取集群中copyset 和 chunkserver列表
     //    统计每个online状态chunkserver上的copyset
-    auto copysetList = topo_->GetCopySetInfos();
-    auto chunkserverList = topo_->GetChunkServerInfos();
+    auto copysetList = topo_->GetCopySetInfosInLogicalPool(lid);
+    auto chunkserverList = topo_->GetChunkServersInLogicalPool(lid);
     std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
     CopySetDistributionInOnlineChunkServer(
         copysetList, chunkserverList, &distribute);
