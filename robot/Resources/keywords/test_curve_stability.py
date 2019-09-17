@@ -288,7 +288,7 @@ def get_clone_status(clone_vol_uuid):
     logger.info("requests ret is %s"%r.text)
     ref = json.loads(r.text)
     if r.status_code != 200:
-        logger.error("get clone vol %s fail"%sclone_vol_uuid)
+        logger.error("get clone vol %s fail"%clone_vol_uuid)
         return ref["Code"]
     clones_info = ref["TaskInfos"]
     if clones_info == None:
