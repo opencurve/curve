@@ -1644,7 +1644,7 @@ def stress_test():
     start_time = time.time()
     while time.time() - start_time < 70000:
         check_vm_iops(4)
-        time.sleep(10) 
+        time.sleep(1800) 
     ssh.close() 
 
 def thrasher_abnormal_cluster():
