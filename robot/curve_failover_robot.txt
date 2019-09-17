@@ -180,7 +180,7 @@ inject loop restart one mds
     [Teardown]    test start mds
 
 inject kill one etcd     
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   
     ${host}  test kill etcd
     sleep  5
     check vm iops
@@ -193,7 +193,7 @@ inject kill one etcd
     [Teardown]     start etcd process  ${host}
 
 test round restart etcd
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   
     test round restart etcd
     sleep  3
     check vm iops
@@ -201,7 +201,7 @@ test round restart etcd
     [Teardown]    test start etcd
 
 inject loop restart one etcd
-    [Tags]    P1    base    first release   failover  no-need
+    [Tags]    P1    base    first release   failover  
     ${etcd_ip}    evaluate    str("10.182.26.16")
     :FOR   ${i}   IN RANGE   10
           kill etcd process   ${etcd_ip}
@@ -352,7 +352,7 @@ test chunkserver loss package 5%
     [Teardown]	   wait iops ok    ${vm_iops_limit}
 
 test mds loss package 5%   
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover  
     ${percent}  evaluate  int(5)
     test mds loss package  ${percent}
     sleep  60
@@ -362,7 +362,7 @@ test mds loss package 5%
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test chunkserver delay package 100ms
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   
     ${ms}  evaluate  int(100)
     test cs delay package  ${ms}
     sleep  5
@@ -373,7 +373,7 @@ test chunkserver delay package 100ms
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
 test mds delay package 100ms
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   
     ${ms}  evaluate  int(100)
     test mds delay package  ${ms}
     sleep  120
@@ -463,7 +463,7 @@ inject kill all mds
     [Teardown]    test start mds
 
 inject kill two etcd
-    [Tags]    P1    base    first release   failover  no-need
+    [Tags]    P1    base    first release   failover  
     ${num}   evaluate  int(2)
     test kill etcd   ${num}
     sleep  5
