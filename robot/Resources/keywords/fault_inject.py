@@ -1316,7 +1316,7 @@ def test_mds_loss_package(percent):
     try:
         package_loss_all(ssh, dev, percent)
         show_tc_inject(ssh,dev)
-        check_vm_iops()
+        check_vm_iops(1)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
@@ -1356,7 +1356,7 @@ def test_mds_delay_package(ms):
     try:
         package_delay_all(ssh, dev, ms)
         show_tc_inject(ssh,dev)
-        check_vm_iops()
+        check_vm_iops(1)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
