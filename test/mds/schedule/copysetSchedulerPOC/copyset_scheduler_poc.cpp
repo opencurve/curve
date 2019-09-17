@@ -113,6 +113,18 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
             info.SetLeader(*it.replicas.begin());
             copySetMap_[info.GetCopySetKey()]  = info;
         }
+
+        logicalPoolSet_.insert(0);
+    }
+
+    std::vector<PoolIdType> GetLogicalPoolInCluster(
+        LogicalPoolFilter filter = [](const LogicalPool&) {
+            return true;}) const override {
+        std::vector<PoolIdType> ret;
+        for (auto lid : logicalPoolSet_) {
+            ret.emplace_back(lid);
+        }
+        return ret;
     }
 
     std::vector<ChunkServerIdType> GetChunkServerInCluster(
@@ -127,14 +139,17 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
         return ret;
     }
 
-    std::list<ChunkServerIdType> GetChunkServerInPhysicalPool(
-        PoolIdType id, ChunkServerFilter filter = [](const ChunkServer&) {
+    std::list<ChunkServerIdType> GetChunkServerInLogicalPool(
+        PoolIdType id,
+        ChunkServerFilter filter = [](const ChunkServer&) {
             return true;}) const override {
-        std::list<ChunkServerIdType> out;
-        for (auto id : GetChunkServerInCluster(filter)) {
-            out.push_back(id);
+        std::list<ChunkServerIdType> ret;
+        for (auto it = chunkServerMap_.begin();
+            it != chunkServerMap_.end();
+            it++) {
+            ret.emplace_back(it->first);
         }
-        return out;
+        return ret;
     }
 
     std::list<ChunkServerIdType> GetChunkServerInServer(
@@ -170,6 +185,20 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
                 ret.push_back(it.first);
             }
         }
+        return ret;
+    }
+
+    std::vector<::curve::mds::topology::CopySetInfo>
+    GetCopySetInfosInLogicalPool(PoolIdType logicalPoolId,
+        CopySetFilter filter = [](const ::curve::mds::topology::CopySetInfo&) {
+            return true;}) const override {
+        std::vector<::curve::mds::topology::CopySetInfo> ret;
+        for (auto it : copySetMap_) {
+            if (it.first.first == logicalPoolId) {
+                ret.push_back(it.second);
+            }
+        }
+
         return ret;
     }
 
@@ -255,6 +284,7 @@ class FakeTopo : public ::curve::mds::topology::TopologyImpl {
     std::map<ServerIdType, Server> serverMap_;
     std::map<ChunkServerIdType, ChunkServer> chunkServerMap_;
     std::map<CopySetKey, ::curve::mds::topology::CopySetInfo> copySetMap_;
+    std::set<PoolIdType> logicalPoolSet_;
     ClusterInfo cluster_;
 };
 
@@ -314,14 +344,14 @@ class CopysetSchedulerPOC : public testing::Test {
         copysetNumPercent_ = 0.05;
         offlineTolerent_ = 8;
 
-        PrintScatterWithInCluster();
-        PrintCopySetNumInCluster();
+        PrintScatterWithInLogicalPool();
+        PrintCopySetNumInLogicalPool();
         PrintLeaderCountInChunkServer();
     }
 
     void TearDown() override {}
 
-    void PrintScatterWithInOnlineChunkServer() {
+    void PrintScatterWithInOnlineChunkServer(PoolIdType lid = 0) {
         // 打印初始每个chunkserver的scatter-with
         int sumFactor = 0;
         std::map<ChunkServerIDType, int> factorMap;
@@ -329,7 +359,8 @@ class CopysetSchedulerPOC : public testing::Test {
         int maxId = -1;
         int min = -1;
         int minId = -1;
-        for (auto it : topo_->GetChunkServerInCluster()) {
+
+        for (auto it : topo_->GetChunkServerInLogicalPool(lid)) {
             ChunkServer chunkserver;
             ASSERT_TRUE(topo_->GetChunkServer(it, &chunkserver));
             if (chunkserver.GetOnlineState() == OnlineState::OFFLINE) {
@@ -369,7 +400,7 @@ class CopysetSchedulerPOC : public testing::Test {
                   << ", 最小值：(" << min << "," << minId << ")";
     }
 
-    void PrintScatterWithInCluster() {
+    void PrintScatterWithInLogicalPool(PoolIdType lid = 0) {
         // 打印初始每个chunkserver的scatter-with
         int sumFactor = 0;
         int max = -1;
@@ -377,7 +408,7 @@ class CopysetSchedulerPOC : public testing::Test {
         int min = -1;
         int minId = -1;
         std::map<ChunkServerIDType, int> factorMap;
-        for (auto it : topo_->GetChunkServerInCluster()) {
+        for (auto it : topo_->GetChunkServerInLogicalPool(lid)) {
             int factor = GetChunkServerScatterwith(it);
             sumFactor += factor;
             factorMap[it] = factor;
@@ -410,7 +441,7 @@ class CopysetSchedulerPOC : public testing::Test {
                   << ", 最小值：(" << min << "," << minId << ")";
     }
 
-    void PrintCopySetNumInOnlineChunkServer() {
+    void PrintCopySetNumInOnlineChunkServer(PoolIdType lid = 0) {
         // 打印每个chunksever上copyset的数量
         std::map<ChunkServerIDType, int> numberMap;
         int sumNumber = 0;
@@ -418,7 +449,7 @@ class CopysetSchedulerPOC : public testing::Test {
         int maxId = -1;
         int min = -1;
         int minId = -1;
-        for (auto it : topo_->GetChunkServerInCluster()) {
+        for (auto it : topo_->GetChunkServerInLogicalPool(lid)) {
             ChunkServer chunkserver;
             ASSERT_TRUE(topo_->GetChunkServer(it, &chunkserver));
             if (chunkserver.GetOnlineState() == OnlineState::OFFLINE) {
@@ -457,13 +488,13 @@ class CopysetSchedulerPOC : public testing::Test {
                   << "), 最小值：(" << min << "," << minId << ")";
     }
 
-    void PrintCopySetNumInCluster() {
+    void PrintCopySetNumInLogicalPool(PoolIdType lid = 0) {
         // 打印每个chunksever上copyset的数量
         std::map<ChunkServerIDType, int> numberMap;
         int sumNumber = 0;
         int max = -1;
         int min = -1;
-        for (auto it : topo_->GetChunkServerInCluster()) {
+        for (auto it : topo_->GetChunkServerInLogicalPool(lid)) {
             int number = topo_->GetCopySetsInChunkServer(it).size();
             sumNumber += number;
             numberMap[it] = number;
@@ -493,7 +524,7 @@ class CopysetSchedulerPOC : public testing::Test {
                   << ", 最小值：" << min;
     }
 
-    void PrintLeaderCountInChunkServer() {
+    void PrintLeaderCountInChunkServer(PoolIdType lid = 0) {
         // 打印每个chunkserver上leader的数量
         std::map<ChunkServerIdType, int> leaderDistribute;
         int sumNumber = 0;
@@ -502,7 +533,7 @@ class CopysetSchedulerPOC : public testing::Test {
         int min = -1;
         int minId = -1;
 
-        for (auto it : topo_->GetChunkServerInCluster()) {
+        for (auto it : topo_->GetChunkServerInLogicalPool(lid)) {
             ChunkServerStat out;
             if (topoStat_->GetChunkServerStat(it, &out)) {
                 leaderDistribute[it] = out.leaderCount;
@@ -570,8 +601,8 @@ class CopysetSchedulerPOC : public testing::Test {
         return chunkServerCount.size();
     }
 
-    ChunkServerIdType RandomOfflineOneChunkServer() {
-        auto chunkServers = topo_->GetChunkServerInCluster();
+    ChunkServerIdType RandomOfflineOneChunkServer(PoolIdType lid = 0) {
+        auto chunkServers = topo_->GetChunkServerInLogicalPool(lid);
 
         // 选择[0, chunkServers.size())中的index
         std::srand(std::time(nullptr));
@@ -581,6 +612,7 @@ class CopysetSchedulerPOC : public testing::Test {
         auto it = chunkServers.begin();
         std::advance(it, index);
         topo_->UpdateChunkServerOnlineState(OnlineState::OFFLINE, *it);
+        LOG(INFO) << "offline chunkserver: " << *it;
         return *it;
     }
 
@@ -743,9 +775,9 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_1) {
 
     // 4. 打印最终的scatter-with
     PrintScatterWithInOnlineChunkServer();
-    PrintScatterWithInCluster();
+    PrintScatterWithInLogicalPool();
     PrintCopySetNumInOnlineChunkServer();
-    PrintCopySetNumInCluster();
+    PrintCopySetNumInLogicalPool();
 
     // =============================结果======================================
     // ===========================集群初始状态=================================
@@ -792,9 +824,9 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_2) {
 
     // 4. 打印最终的scatter-with
     PrintScatterWithInOnlineChunkServer();
-    PrintScatterWithInCluster();
+    PrintScatterWithInLogicalPool();
     PrintCopySetNumInOnlineChunkServer();
-    PrintCopySetNumInCluster();
+    PrintCopySetNumInLogicalPool();
 
     // ============================结果===================================
     // =========================集群初始状态===============================
@@ -846,9 +878,9 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_3) {
 
     // 4. 打印最终的scatter-with
     PrintScatterWithInOnlineChunkServer();
-    PrintScatterWithInCluster();
+    PrintScatterWithInLogicalPool();
     PrintCopySetNumInOnlineChunkServer();
-    PrintCopySetNumInCluster();
+    PrintCopySetNumInLogicalPool();
 
     // ============================结果====================================
     // ========================集群初始状态=================================
@@ -900,9 +932,9 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_4) {
 
     // 4. 打印最终的scatter-with
     PrintScatterWithInOnlineChunkServer();
-    PrintScatterWithInCluster();
+    PrintScatterWithInLogicalPool();
     PrintCopySetNumInOnlineChunkServer();
-    PrintCopySetNumInCluster();
+    PrintCopySetNumInLogicalPool();
 }
 
 TEST_F(CopysetSchedulerPOC, test_chunkserver_offline_over_concurrency) {
@@ -921,7 +953,8 @@ TEST_F(CopysetSchedulerPOC, test_chunkserver_offline_over_concurrency) {
     int targetOpNum = topo_->GetCopySetsInChunkServer(target).size();
     // 开始恢复
     do {
-        opNum = recoverScheduler_->Schedule();
+        recoverScheduler_->Schedule();
+        opNum += opController_->GetOperators().size();
         // update copyset to topology
         ApplyOperatorsInOpController(target);
     } while (topo_->GetCopySetsInChunkServer(target).size() > 0);
@@ -942,9 +975,9 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
     } while (topo_->GetCopySetsInChunkServer(choose).size() > 0);
 
     PrintScatterWithInOnlineChunkServer();
-    PrintScatterWithInCluster();
+    PrintScatterWithInLogicalPool();
     PrintCopySetNumInOnlineChunkServer();
-    PrintCopySetNumInCluster();
+    PrintCopySetNumInLogicalPool();
     // ============================结果====================================
     // ========================集群初始状态=================================
     // ###print scatter-with in cluster###
@@ -969,8 +1002,8 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
         removeOne = copySetScheduler_->Schedule();
         ApplyOperatorsInOpController(removeOne);
     } while (removeOne > 0);
-    PrintScatterWithInCluster();
-    PrintCopySetNumInCluster();
+    PrintScatterWithInLogicalPool();
+    PrintCopySetNumInLogicalPool();
     LOG(INFO) << "offline one:" << choose;
     ASSERT_TRUE(GetChunkServerScatterwith(choose) <=
         minScatterwidth_ * (1 + scatterwidthPercent_));
@@ -1008,9 +1041,9 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
         ApplyOperatorsInOpController(choose2);
     } while (!SatisfyStopCondition(idlist));
     PrintScatterWithInOnlineChunkServer();
-    PrintScatterWithInCluster();
+    PrintScatterWithInLogicalPool();
     PrintCopySetNumInOnlineChunkServer();
-    PrintCopySetNumInCluster();
+    PrintCopySetNumInLogicalPool();
 
     // ============================结果===================================
     // =========================集群初始状态===============================
@@ -1037,8 +1070,8 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
         removeOne = copySetScheduler_->Schedule();
         ApplyOperatorsInOpController(removeOne);
     } while (removeOne > 0);
-    PrintScatterWithInCluster();
-    PrintCopySetNumInCluster();
+    PrintScatterWithInLogicalPool();
+    PrintCopySetNumInLogicalPool();
     // ============================结果====================================
     // ========================迁移后的状态=================================
     // ###print scatter-with in cluster###
@@ -1078,9 +1111,9 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
       ApplyOperatorsInOpController(idlist);
     } while (!SatisfyStopCondition(idlist));
     PrintScatterWithInOnlineChunkServer();
-    PrintScatterWithInCluster();
+    PrintScatterWithInLogicalPool();
     PrintCopySetNumInOnlineChunkServer();
-    PrintCopySetNumInCluster();
+    PrintCopySetNumInLogicalPool();
 
     // ============================结果====================================
     // ========================集群初始状态=================================
@@ -1108,8 +1141,8 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
             ApplyOperatorsInOpController(removeOne);
         }
     } while (removeOne > 0);
-    PrintScatterWithInCluster();
-    PrintCopySetNumInCluster();
+    PrintScatterWithInLogicalPool();
+    PrintCopySetNumInLogicalPool();
 
     for (auto choose : idlist) {
         ASSERT_TRUE(GetChunkServerScatterwith(choose) <=

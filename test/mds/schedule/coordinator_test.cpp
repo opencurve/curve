@@ -56,7 +56,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
     testOperator.timeLimit = std::chrono::seconds(100);
 
     auto info = GetCopySetInfoForTest();
-    PeerInfo peer(4, 1, 1, 1, "127.0.0.1", 9000);
+    PeerInfo peer(4, 1, 1, "127.0.0.1", 9000);
     ChunkServerInfo csInfo(peer, OnlineState::ONLINE, DiskState::DISKNORMAL,
                            ChunkServerStatus::READWRITE,
                            1, 10, 1, ChunkServerStatisticInfo{});
@@ -124,7 +124,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
 
     {
         // 4. test op executing and not finish
-        info.candidatePeerInfo = PeerInfo(4, 1, 1, 1, "", 9000);
+        info.candidatePeerInfo = PeerInfo(4, 1, 1, "", 9000);
         info.configChangeInfo.set_finished(false);
         info.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
         auto replica = new ::curve::common::Peer();
@@ -152,7 +152,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
     {
         // 6. test op success
         info.configChangeInfo.set_finished(true);
-        info.peers.emplace_back(PeerInfo(4, 4, 4, 1, "192.10.123.1", 9000));
+        info.peers.emplace_back(PeerInfo(4, 4, 4, "192.10.123.1", 9000));
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
