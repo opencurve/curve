@@ -186,6 +186,7 @@ inject kill one etcd
     check vm iops
     sleep  3
     test start etcd 
+    test start mds
 #    sleep  3
     check vm iops
     check data consistency
@@ -198,6 +199,7 @@ test round restart etcd
     sleep  3
     check vm iops
     check data consistency
+    test start mds
     [Teardown]    test start etcd
 
 inject loop restart one etcd
@@ -210,6 +212,7 @@ inject loop restart one etcd
           check vm iops
     END
     check data consistency
+    test start mds
     [Teardown]    test start etcd
 
 inject kill mysql
@@ -359,6 +362,7 @@ test mds loss package 5%
     check vm iops
     check data consistency
 #    check copies consistency
+    test start mds
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test chunkserver delay package 100ms
@@ -369,6 +373,7 @@ test chunkserver delay package 100ms
     check vm iops
     check data consistency
 #    check copies consistency
+    test start mds
     sleep   5
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
@@ -380,6 +385,7 @@ test mds delay package 100ms
     check vm iops
     check data consistency
 #    check copies consistency
+    test start mds
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test out/in chunkserver recover
