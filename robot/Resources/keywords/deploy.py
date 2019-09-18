@@ -314,6 +314,7 @@ def start_abnormal_test_services():
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
             ori_cmd = "sudo nohup ./chunkserver_start.sh all %s 8200 &"%host
             shell_operator.ssh_background_exec2(ssh, ori_cmd)
+            time.sleep(3)
         for host in config.snap_server_list:
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
             ori_cmd = "cd snapshot/temp && sudo nohup curve-snapshotcloneserver -conf=/etc/curve/snapshot_clone_server.conf &"
