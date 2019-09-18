@@ -23,14 +23,17 @@ void CleanTaskManager::CheckCleanResult(void) {
             common::LockGuard lck(mutex_);
             for (auto iter = cleanTasks_.begin();
                 stopFlag_ != true && iter != cleanTasks_.end();) {
-                // TODO(hzsunjianliang): check if task is too long to warning
-                // TODO(hzsunjianliang): check if task is failed for retry?
                 auto taskProgress = iter->second->GetTaskProgress();
-                if ( taskProgress.GetStatus() == TaskStatus::SUCCESS ) {
+                if (taskProgress.GetStatus() == TaskStatus::SUCCESS) {
                     LOG(INFO) << "going to remove task, taskID = "
                         << iter->second->GetTaskID();
                     iter = cleanTasks_.erase(iter);
                     continue;
+                } else if (taskProgress.GetStatus() == TaskStatus::FAILED) {
+                    LOG(WARNING) << "CleanTaskManager find Task Failed, retry,"
+                                 << " taskID = " << iter->second->GetTaskID();
+                    iter->second->SetTaskProgress(TaskProgress());
+                    cleanWorkers_->Enqueue(iter->second->Closure());
                 }
                 ++iter;
             }
