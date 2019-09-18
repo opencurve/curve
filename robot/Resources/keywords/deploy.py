@@ -331,16 +331,20 @@ def get_copyset_num():
 
 def create_pool():
     ssh = shell_operator.create_ssh_connect(config.mds_list[0], 1046, config.abnormal_user)
+    mds = []
     for mds_host in config.mds_list:
-        physical_pool = "curve-tool -cluster_map=topo.txt  -mds_ip=%s -mds_port=6666\
-        -physicalpool_name=pool1 -op=create_physicalpool"%(mds_host)
-        rs = shell_operator.ssh_exec(ssh, physical_pool)
-        if rs[3] == 0:
-            logger.info("master mds is %s"%mds_host)
-            break
+        mds.append(mds_host + ":6666")
+        mds_addrs = ",".join(mds)
+    physical_pool = "curve-tool -cluster_map=topo.txt  -mds_ip=%s -mds_addr=%s\
+            -physicalpool_name=pool1 -op=create_physicalpool"%(mds_addrs)
+    rs = shell_operator.ssh_exec(ssh, physical_pool)
+    if rs[3] == 0:
+        logger.info("create physical pool sucess")
+    else:
+        assert False,"create physical fail ,msg is %s"%rs
     time.sleep(120)
-    logical_pool = "curve-tool -copyset_num=4000 -mds_ip=%s -mds_port=6666\
-     -physicalpool_name=pool1 -op=create_logicalpool"%(mds_host)
+    logical_pool = "curve-tool -copyset_num=4000 -mds_ip=%s -mds_addr=%s\
+     -physicalpool_name=pool1 -op=create_logicalpool"%(mds_addrs)
     rs = shell_operator.ssh_exec(ssh, logical_pool)
     i = 0
     while i < 300: 
