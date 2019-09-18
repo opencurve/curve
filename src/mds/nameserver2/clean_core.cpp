@@ -116,7 +116,9 @@ StatusCode CleanCore::CleanFile(const FileInfo & commonFile,
                 seq);
             if (ret != 0) {
                 LOG(ERROR) << "Clean common File Error: "
-                    << "DeleteChunk Error, inodeid = " << commonFile.id()
+                    << "DeleteChunk Error"
+                    << ", ret = " << ret
+                    << ", inodeid = " << commonFile.id()
                     << ", filename = " << commonFile.filename()
                     << ", sequenceNum = " << seq;
                 progress->SetStatus(TaskStatus::FAILED);
