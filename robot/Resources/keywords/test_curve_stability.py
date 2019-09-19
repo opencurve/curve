@@ -492,7 +492,7 @@ def test_recover_snapshot(lazy="true"):
             starttime = time.time()
             while time.time() - starttime < config.snapshot_timeout:
                 rc = get_clone_status(recover_task)
-                if rc["TaskStatus"] == 0 and rc["TaskType"] == 0:
+                if rc["TaskStatus"] == 0 and rc["TaskType"] == 1:
                     final_recover = True
                     break
                 else:
