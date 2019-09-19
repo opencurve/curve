@@ -612,6 +612,17 @@ void CreateCloneChunkRequest::OnApply(uint64_t index,
                  << " correctedSn: " << request_->correctedsn()
                  << " location: " << request_->location();
         node_->UpdateAppliedIndex(index);
+    } else if (CSErrorCode::ChunkConflictError == ret ||
+               CSErrorCode::InvalidArgError == ret) {
+        LOG(ERROR) << "create clone failed: "
+                   << " logic pool id: " << request_->logicpoolid()
+                   << " copyset id: " << request_->copysetid()
+                   << " chunkid: " << request_->chunkid()
+                   << " sn " << request_->sn()
+                   << " correctedSn: " << request_->correctedsn()
+                   << " location: " << request_->location();
+        response_->set_status(
+            CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
     } else {
         /**
          * 其他错误
@@ -641,7 +652,19 @@ void CreateCloneChunkRequest::OnApplyFromLog(std::shared_ptr<CSDataStore> datast
                                            request.correctedsn(),
                                            request.size(),
                                            request.location());
-    if (CSErrorCode::Success != ret) {
+    if (CSErrorCode::Success == ret)
+        return;
+
+    if (CSErrorCode::ChunkConflictError == ret ||
+        CSErrorCode::InvalidArgError == ret) {
+        LOG(ERROR) << "create clone failed:"
+                   << " logic pool id: " << request.logicpoolid()
+                   << " copyset id: " << request.copysetid()
+                   << " chunkid: " << request.chunkid()
+                   << " sn " << request.sn()
+                   << " correctedSn: " << request.correctedsn()
+                   << " location: " << request.location();
+    } else {
         LOG(FATAL) << "create clone failed: "
                    << " logic pool id: " << request.logicpoolid()
                    << " copyset id: " << request.copysetid()
