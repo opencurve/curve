@@ -978,7 +978,7 @@ def test_suspend_recover_copyset():
         begin_num = get_cs_copyset_num(chunkserver_id)
         #time.sleep(config.recover_time)
         i = 0
-        time.sleep(10)
+        time.sleep(config.offline_timeout - 5)
         while i < config.recover_time:
             check_vm_iops()
             i = i + 1
