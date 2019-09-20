@@ -523,7 +523,7 @@ inject cluster stress test
 
 init failover cluster
      init abnormal test env
-     check chunkserver online 
+#     check chunkserver online 
      init vm
 #     init vol
      loop attach detach vol
