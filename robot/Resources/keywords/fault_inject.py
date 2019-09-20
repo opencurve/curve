@@ -721,7 +721,19 @@ def check_vm_iops(limit_iops=4000):
     logger.info("now vm vdc iops is %d with 4k randrw"%iops)
     assert iops >= limit_iops,"vm iops not ok,is %d"%iops
 
+def check_chunkserver_online(num=120):
+    host = random.choice(config.mds_list)
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "curve_status_tool status -confPath=/etc/curve/mds.conf |grep chunkserver"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"get chunkserver status fail,rs is %s"%rs
+    status = "".join(rs[1]).strip()
+    online_num = re.findall(r'(?<=online = )\d+',status)
+    logger.info("chunkserver online num is %s"%online_num)
+    assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
+
 def wait_iops_ok(limit_iops=8000):
+    check_chunkserver_online()
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     i = 0
     while i < 300:
