@@ -1,0 +1,10 @@
+#!/bin/bash
+
+if [[ -d build ]]; then
+  echo 'build dir already exists; rm it before build package'
+  exit 1
+fi
+
+./get_3rdparty
+
+dpkg-buildpackage -us -uc -j24

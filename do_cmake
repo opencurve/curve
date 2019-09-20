@@ -1,0 +1,16 @@
+#!/bin/bash -x
+
+if [[ -d build ]]; then
+  echo 'build dir already exists; rm -rf build and re-run'
+  exit 1
+fi
+
+./get_3rdparty
+
+export CC=/usr/lib/gcc-4.9-backport/bin/gcc
+export CXX=/usr/lib/gcc-4.9-backport/bin/g++
+export LD_LIBRARY_PATH=/usr/lib/gcc-4.9-backport/lib/:/usr/lib:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+
+mkdir build && cd build
+cmake -DNEBD_DEBUG_ENABLE=ON -DNEBD_COVERAGE_ENABLE=ON ..
+make -j24

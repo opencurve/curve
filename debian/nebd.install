@@ -1,0 +1,14 @@
+#! /usr/bin/dh-exec --with=install
+
+etc/nebd/nebd-client.conf
+etc/nebd/nebd-server.conf
+usr/bin/nebd-server
+usr/lib/libbrpc.so
+usr/lib/libconfig.so.11
+usr/lib/libnebd.so
+usr/lib/libnebd_common.so
+usr/lib/libclient_proto.so
+usr/lib/libjsoncpp.so
+usr/lib/libjsoncpp.so.19
+usr/lib/libjsoncpp.so.1.8.4
+usr/lib/libgtest.so

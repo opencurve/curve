@@ -1,0 +1,13 @@
+#!/bin/bash -x
+mkdir 3rd_party_tarballs
+
+for pkg_ver in boost_1_66_0 brpc_0_9_6 googletest_1_8_1 libconfig_1_7_2 jsoncpp_1_8_4 cmock_20180514; do
+  wget -c --no-verbose http://10.187.0.105/nebd-build/$pkg_ver.tar.gz -P 3rd_party_tarballs/
+  wget -c --no-verbose http://10.187.0.105/nebd-build/$pkg_ver.tar.gz.md5sum -P 3rd_party_tarballs/
+  pkg=$(echo ${pkg_ver} | cut -d_ -f1)
+  rm -rf 3rdparty/$pkg
+  mkdir -p 3rdparty/$pkg
+  tar xf 3rd_party_tarballs/$pkg_ver.tar.gz -C 3rdparty/$pkg --strip-components=1
+done
+
+rm -rf 3rd_party_tarballs

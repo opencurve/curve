@@ -1,0 +1,3 @@
+etc/nebd
+var/log/nebd
+run/nebd-server

@@ -1,0 +1,5 @@
+nebd (1.0.0-1) stable; urgency=medium
+
+  * New upstream release
+
+ -- Ceph Team <ceph@netease-storage>  Fri, 20 Sep 2019 10:30:00 +0800

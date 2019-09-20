@@ -1,0 +1,34 @@
+FROM debian:wheezy
+MAINTAINER majie1
+
+WORKDIR /root/
+RUN echo "deb [trusted=yes] http://pkg.cloud.netease.com/debian wheezy main" >/etc/apt/sources.list
+RUN echo "deb [trusted=yes] http://pkg.cloud.netease.com/debian wheezy-updates main" >>/etc/apt/sources.list
+RUN echo "deb [trusted=yes] http://pkg.cloud.netease.com/debian wheezy-backports main" >>/etc/apt/sources.list
+RUN echo "deb [trusted=yes] http://pkg.cloud.netease.com/debian-security wheezy-updates main" >>/etc/apt/sources.list
+RUN echo "deb [trusted=yes] http://pkg.cloud.netease.com/openstack ceph-wheezy main" >>/etc/apt/sources.list
+RUN apt-get update
+
+COPY ./ /root/nebd
+WORKDIR /root/nebd
+RUN ./install_deps
+
+WORKDIR /root/
+RUN rm -rf /root/nebd
+
+ENV CC /usr/lib/gcc-4.9-backport/bin/gcc
+ENV CXX /usr/lib/gcc-4.9-backport/bin/g++
+ENV LD_LIBRARY_PATH /usr/lib/gcc-4.9-backport/lib/:/usr/lib:/usr/lib/x86_64-linux-gnu
+ENV PATH /root/cmake-3.15.3/bin:$PATH
+ADD http://10.187.0.105/nebd-build/cmake_3_15_3.tar.gz ./
+RUN tar -xf cmake_3_15_3.tar.gz
+WORKDIR /root/cmake-3.15.3/
+RUN ./bootstrap --parallel=$(nproc) && make -j$(nproc)
+
+WORKDIR /root
+RUN git clone https://github.com/linux-test-project/lcov.git
+WORKDIR /root/lcov
+RUN make install
+
+# you code dir -> /root/nebd in docker
+WORKDIR /root/

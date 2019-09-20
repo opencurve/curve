@@ -1,0 +1,8 @@
+.gitreview
+3rdparty/boost
+3rdparty/brpc
+3rdparty/googletest
+3rdparty/jsoncpp
+3rdparty/libconfig
+3rdparty/cmock
+build

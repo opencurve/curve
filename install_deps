@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ $(id -u) != 0 ]]; then
+  SUDO=sudo
+fi
+export LC_ALL=C
+$SUDO apt-get install sudo devscripts equivs wget lcov -y --force-yes
+$SUDO mk-build-deps --install --remove --tool="apt-get -y --no-install-recommends" debian/control
+$SUDO apt-get remove nebd-build-deps -y

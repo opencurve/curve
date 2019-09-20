@@ -1,0 +1,41 @@
+Source: nebd
+Section: admin
+Priority: optional
+Maintainer: ceph-team <ceph@netease-storage>
+Uploaders: majie1 <majie1@corp.netease.com>
+Build-Depends:
+         dpkg-dev,
+         debhelper (>= 9),
+         dh-exec,
+         git,
+         gcc-4.9-backport,
+         librbd-dev (> 0.94.0),
+         librados-dev (> 0.94.0),
+         libgflags-dev,
+         libleveldb-dev,
+         libprotobuf-dev,
+         libprotoc-dev,
+         libsnappy-dev,
+         libssl-dev,
+         protobuf-compiler,
+         automake,
+Standards-Version: 3.9.3
+
+Package: nebd
+Architecture: linux-any
+Depends: gcc-4.9-backport,
+         librbd1 (> 0.94.0),
+         librados2 (> 0.94.0),
+         libgflags2,
+         libleveldb1,
+         libprotoc7,
+         libprotobuf7,
+         libsnappy1,
+         logrotate,
+Description: nebd, hot update
+
+Package: nebd-dbg
+Architecture: linux-any
+Section: debug
+Depends: nebd (= ${binary:Version}),
+Description: debug symbols for nebd

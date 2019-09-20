@@ -1,0 +1,93 @@
+# Guide
+
+## Need to know first
+1. use cmake==3.15.3, need build first
+2. 3rd party lib list
+	- brpc 0.9.6
+	- boost 1.66.0 (use head only library in part2)
+	- googletest 1.8.1
+	- jsoncpp 1.8.4
+	- libconfig 1.7.2
+
+## Develop
+### manually
+1. build cmake
+	- download source code
+	- `./bootstrap --parallel=24 && make -j24`
+2. add env to .basrc or something
+	``` bash
+	echo "
+	export CC=/usr/lib/gcc-4.9-backport/bin/gcc
+	export CXX=/usr/lib/gcc-4.9-backport/bin/g++
+	export LD_LIBRARY_PATH=/usr/lib/gcc-4.9-backport/lib/:/usr/lib:/usr/lib/x86_64-linux-gnu:\$LD_LIBRARY_PATH
+	export PATH=/home/username/cmake-3.15.3/bin:\$PATH
+	" >> ~/.bashrc
+	source ~/.bashrc
+	```
+3. install build deps
+4. `bash do_cmake.sh`
+5. go to build/, which contians bin, lib.
+
+### quick start using docker
+1. build docker image
+```
+cd nebd
+sudo docker build -f Dockerfile.develop --tag something:latest .
+```
+2. run a container, map your code path to container
+```
+sudo docker run -it -v /your/path:/root/nebd something:latest bash
+```
+3. in the docker
+```
+# cd nebd
+# ./do_cmake
+# go to build dir
+```
+
+## UnitTest
+### manually
+1. we use ctest, run unittest after build
+```
+cd build
+ctest (-j4 for multijobs, -V for detail)
+```
+
+### quick start using docker
+1. build docker image
+```
+cd nebd
+sudo docker build -f Dockerfile.unittest --tag somehing:latest .
+```
+2. run unittest
+```
+sudo docker run --rm -t -v /your/path:/root/nebd something:latest
+```
+
+## Package
+### manually
+1. build cmake
+2. add env
+3. get 3rd party source code, `./get_3rdparty.sh`
+4. update debian/changelog
+5. `dpkg-buildpackage -us -uc -j24`
+
+### quick start using docker
+1. build docoker image
+```
+cd nebd;
+sudo docker build -f Dockerfile.unittest --tag something:latest .
+```
+2. build nebd package
+```
+mdkir WORKDIR 
+mv /your/codepath/ WORKDIR/
+sudo docker run --rm -t -v WORKDIR:/root/WORKDIR something:latest
+```
+3. your deb package will under WORKDIR, nebd and nebd-dbg
+
+## How to build qemu
+todo
+
+## Hints
+todo
