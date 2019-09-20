@@ -390,6 +390,7 @@ test out/in chunkserver recover
 #    check copies consistency
     ${copyset_num}       Convert To Integer    ${cs_copyset_num}
     test upcs recover copyset  ${host}	 ${copyset_num}
+    sleep  5
     check vm iops
     check data consistency
 #    check copies consistency
@@ -414,6 +415,7 @@ test suspend delete and up recover chunkserver
 test stop all cs not recover
     [Tags]    P1    base    first release   failover
     stop all cs not recover
+    sleep   5
     check vm iops
     check data consistency
 #    check copies consistency
@@ -422,6 +424,7 @@ test stop all cs not recover
 test pendding host all cs
    [Tags]    P1    base    first release   failover  longtime
    pendding all cs recover 
+   sleep  5
    check vm iops 
    check data consistency
 #   check copies consistency
@@ -430,15 +433,15 @@ test pendding host all cs
 test ipmitool restart chunkserver node
    [Tags]    P1    base    first release   failover  
    test ipmitool restart chunkserver
-   sleep  40
+   sleep  60
    check vm iops
    check data consistency
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
 test ipmitool restart mds node
-   [Tags]    P1    base    first release   failover    no-need 
+   [Tags]    P1    base    first release   failover   
    test ipmitool restart mds
-   sleep  40
+   sleep  60
    check vm iops
    check data consistency
    [Teardown]    wait iops ok   ${vm_iops_limit}
