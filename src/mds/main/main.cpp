@@ -36,7 +36,8 @@
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
-DEFINE_string(mdsAddr, "127.0.0.1.6666", "mds listen addr");
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
+DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
 
 using ::curve::mds::topology::TopologyAdminImpl;
 using ::curve::mds::topology::TopologyAdmin;
@@ -212,6 +213,10 @@ void LoadConfigFromCmdline(Configuration *conf) {
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("mdsAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.listen.addr", FLAGS_mdsAddr);
+    }
+
+    if (GetCommandLineFlagInfo("etcdAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.etcd.endpoint", FLAGS_etcdAddr);
     }
 }
 

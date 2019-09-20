@@ -37,7 +37,7 @@ class TestEtcdClinetImp : public ::testing::Test {
             std::string(" --listen-peer-urls 'http://localhost:2376'&");
         system(runEtcd.c_str());
         // 一定时间内尝试init直到etcd完全起来
-        int now = ::curve::common::TimeUtility::GetTimeofDaySec();
+        uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
         while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
             if (0 == client_->Init(conf, 0, 3)) {
