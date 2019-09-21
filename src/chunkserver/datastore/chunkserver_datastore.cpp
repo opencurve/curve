@@ -53,6 +53,7 @@ bool CSDataStore::Initialize() {
 
     // 如果之前加载过，这里要重新加载
     metaCache_.Clear();
+    metric_ = std::make_shared<DataStoreMetric>();
     for (size_t i = 0; i < files.size(); ++i) {
         FileNameOperator::FileInfo info =
             FileNameOperator::ParseFileName(files[i]);
@@ -181,6 +182,7 @@ CSErrorCode CSDataStore::WriteChunk(ChunkID id,
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
         options.pageSize = pageSize_;
+        options.metric = metric_;
         chunkFile = std::make_shared<CSChunkFile>(lfs_,
                                                   chunkfilePool_,
                                                   options);
@@ -233,10 +235,11 @@ CSErrorCode CSDataStore::CreateCloneChunk(ChunkID id,
         options.id = id;
         options.sn = sn;
         options.correctedSn = correctedSn;
+        options.location = location;
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
         options.pageSize = pageSize_;
-        options.location = location;
+        options.metric = metric_;
         chunkFile = std::make_shared<CSChunkFile>(lfs_,
                                                   chunkfilePool_,
                                                   options);
@@ -318,9 +321,9 @@ CSErrorCode CSDataStore::GetChunkHash(ChunkID id,
 
 DataStoreStatus CSDataStore::GetStatus() {
     DataStoreStatus status;
-    status.chunkFileCount = metaCache_.Size();
-
-    // TODO(yyk) 快照数量目前还未统计
+    status.chunkFileCount = metric_->chunkFileCount.get_value();
+    status.cloneChunkCount = metric_->cloneChunkCount.get_value();
+    status.snapshotCount = metric_->snapshotCount.get_value();
     return status;
 }
 
@@ -333,6 +336,7 @@ CSErrorCode CSDataStore::loadChunkFile(ChunkID id) {
         options.baseDir = baseDir_;
         options.chunkSize = chunkSize_;
         options.pageSize = pageSize_;
+        options.metric = metric_;
         CSChunkFilePtr chunkFilePtr =
             std::make_shared<CSChunkFile>(lfs_,
                                           chunkfilePool_,

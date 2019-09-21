@@ -31,8 +31,8 @@ copyset.raft_snapshot_uri=local:///root/data/0/cs/snapshot
 #
 # Clone settings
 #
-clone.disable_curve_client=true
-clone.disable_s3_adapter=true
+clone.disable_curve_client=false
+clone.disable_s3_adapter=false
 clone.slice_size=1048576
 clone.thread_num=10
 clone.queue_depth=100

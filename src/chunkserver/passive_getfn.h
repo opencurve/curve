@@ -29,6 +29,11 @@ namespace chunkserver {
      * @param arg: datastore的对象指针
      */
     uint32_t getDatastoreSnapshotCountFunc(void* arg);
+    /**
+     * 获取datastore中clone chunk的数量
+     * @param arg: datastore的对象指针
+     */
+    uint32_t getDatastoreCloneChunkCountFunc(void* arg);
 
 }  // namespace chunkserver
 }  // namespace curve
