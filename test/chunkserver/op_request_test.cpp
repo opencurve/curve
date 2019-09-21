@@ -117,9 +117,9 @@ TEST(ChunkOpRequestTest, encode) {
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_PASTE);
     {
         ChunkOpRequest *opReq
-            = new PasteChunkInternalRequest(nullptr,
-                                            nodePtr,
+            = new PasteChunkInternalRequest(nodePtr,
                                             &request,
+                                            nullptr,
                                             nullptr,
                                             nullptr);
 

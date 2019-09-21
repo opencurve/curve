@@ -185,11 +185,11 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
-        char cloneData[SLICE_SIZE]= {0};
-        memset(cloneData, 'b', SLICE_SIZE);
-        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
+        char cloneData[length]= {0};
+        memset(cloneData, 'b', length);
+        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
             .WillOnce(DoAll(SetArrayArgument<3>(cloneData,
-                                                cloneData + SLICE_SIZE),
+                                                cloneData + length),
                             Return(0)));
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
@@ -229,11 +229,11 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
-        char cloneData[SLICE_SIZE]= {0};
-        memset(cloneData, 'b', SLICE_SIZE);
-        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
+        char cloneData[length]= {0};
+        memset(cloneData, 'b', length);
+        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
             .WillOnce(DoAll(SetArrayArgument<3>(cloneData,
-                                                cloneData + SLICE_SIZE),
+                                                cloneData + length),
                             Return(0)));
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
@@ -359,7 +359,7 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
+        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
             .WillOnce(Return(-1));
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
@@ -383,7 +383,7 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
+        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
             .WillOnce(Return(0));
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .WillOnce(Return(CSErrorCode::InternalError));
@@ -485,11 +485,11 @@ TEST_F(CloneCoreTest, RecoverChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_RECOVER, offset, length);  //NOLINT
-        char cloneData[SLICE_SIZE]= {0};
-        memset(cloneData, 'b', SLICE_SIZE);
-        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
+        char cloneData[length]= {0};
+        memset(cloneData, 'b', length);
+        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
             .WillOnce(DoAll(SetArrayArgument<3>(cloneData,
-                                                cloneData + SLICE_SIZE),
+                                                cloneData + length),
                             Return(0)));
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
