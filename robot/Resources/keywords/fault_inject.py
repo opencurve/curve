@@ -712,7 +712,7 @@ def get_all_chunk_num():
     return num
 
 
-def check_vm_iops(limit_iops=4000):
+def check_vm_iops(limit_iops=3000):
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     ori_cmd = "iostat -d vdc 1 2 |grep vdc | awk 'END {print $6}'"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
