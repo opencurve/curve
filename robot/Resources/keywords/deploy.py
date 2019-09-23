@@ -343,7 +343,7 @@ def create_pool():
     if rs[3] == 0:
         logger.info("create physical pool sucess")
     else:
-        assert False,"create physical fail ,msg is %s"%rs
+        assert False,"create physical fail ,msg is %s"%rs[2]
     time.sleep(120)
     logical_pool = "curve-tool -copyset_num=4000  -mds_addr=%s\
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_addrs)
