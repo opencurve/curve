@@ -44,11 +44,13 @@ void CurveCluster::BuildNetWork() {
 void CurveCluster::StopCluster() {
     LOG(INFO) << "stop cluster begin...";
 
+    int waitStatus;
     for (auto it = mdsPidMap_.begin(); it != mdsPidMap_.end();) {
         LOG(INFO) << "begin to stop mds" << it->first << " " << it->second;
         int res = kill(it->second, SIGTERM);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(mdsIpPort_[it->first], 5000, false));
+        waitpid(it->second, &waitStatus, 0);
         LOG(INFO) << "success stop mds" << it->first << " " << it->second;
         it = mdsPidMap_.erase(it);
     }
@@ -58,6 +60,7 @@ void CurveCluster::StopCluster() {
         int res = kill(it->second, SIGTERM);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(etcdClientIpPort_[it->first], 5000, false));
+        waitpid(it->second, &waitStatus, 0);
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = etcdPidMap_.erase(it);
     }
@@ -69,6 +72,7 @@ void CurveCluster::StopCluster() {
         int res = kill(it->second, SIGTERM);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(chunkserverIpPort_[it->first], 5000, false));
+        waitpid(it->second, &waitStatus, 0);
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = chunkserverPidMap_.erase(it);
     }
@@ -110,6 +114,8 @@ void CurveCluster::StopMDS(int id) {
         int res = kill(mdsPidMap_[id], SIGTERM);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(MDSIpPort(id), 5000, false));
+        int waitStatus;
+        waitpid(mdsPidMap_[id], &waitStatus, 0);
         mdsPidMap_.erase(id);
     }
 
@@ -124,6 +130,8 @@ void CurveCluster::StopAllMDS() {
         int res = kill(it->second, SIGTERM);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(mdsIpPort_[it->first], 5000, false));
+        int waitStatus;
+        waitpid(it->second, &waitStatus, 0);
         LOG(INFO) << "success stop mds" << it->first << " " << it->second;
         it = mdsPidMap_.erase(it);
     }
@@ -176,6 +184,8 @@ void CurveCluster::StopEtcd(int id) {
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(etcdClientIpPort_[id], 5000, false));
         ASSERT_EQ(0, ProbePort(etcdPeersIpPort_[id], 5000, false));
+        int waitStatus;
+        waitpid(etcdPidMap_[id], &waitStatus, 0);
         etcdPidMap_.erase(id);
         LOG(INFO) << "stop etcd " << etcdClientIpPort_[id] << " success";
     } else {
@@ -186,11 +196,13 @@ void CurveCluster::StopEtcd(int id) {
 void CurveCluster::StopAllEtcd() {
     LOG(INFO) << "stop all etcd begin...";
 
+    int waitStatus;
     for (auto it = etcdPidMap_.begin(); it != etcdPidMap_.end();) {
         LOG(INFO) << "begin to stop etcd" << it->first << " " << it->second;
         int res = kill(it->second, SIGTERM);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(etcdClientIpPort_[it->first], 5000, false));
+        waitpid(it->second, &waitStatus, 0);
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = etcdPidMap_.erase(it);
     }
@@ -271,6 +283,8 @@ void CurveCluster::StopChunkServer(int id) {
         LOG(INFO) << "exec cmd: " << killCmd << " to stop chunkserver " << id;
         ASSERT_EQ(0, system(killCmd.c_str()));
         ASSERT_EQ(0, ProbePort(chunkserverIpPort_[id], 5000, false));
+        int waitStatus;
+        waitpid(chunkserverPidMap_[id], &waitStatus, 0);
         chunkserverPidMap_.erase(id);
         LOG(INFO) << "stop chunkserver "
                   << chunkserverIpPort_[id] << " success";
@@ -290,6 +304,8 @@ void  CurveCluster::StopAllChunkServer() {
         int res = kill(it->second, SIGTERM);
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(chunkserverIpPort_[it->first], 5000, false));
+        int waitStatus;
+        waitpid(it->second, &waitStatus, 0);
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = chunkserverPidMap_.erase(it);
     }
