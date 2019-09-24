@@ -11,8 +11,10 @@
 #include <bthread/bthread.h>
 #include <braft/configuration.h>
 
+#include <cmath>
 #include <string>
 #include <memory>
+#include <cstdlib>
 
 #include "src/client/client_common.h"
 #include "src/client/request_sender.h"
@@ -26,6 +28,28 @@
 namespace curve {
 namespace client {
 FailureRequestOption_t  ClientClosure::failReqOpt_;
+void ClientClosure::SleepBeforeRetry(int rpcstatus, int cntlstatus) {
+    uint64_t nextsleeptime = failReqOpt_.opRetryIntervalUs;
+    RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
+    if (cntlstatus == brpc::ERPCTIMEDOUT ||
+        rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
+        std::srand(std::time(nullptr));
+
+        nextsleeptime = failReqOpt_.opRetryIntervalUs
+                      * std::pow(2, reqDone->GetRetriedTimes());
+
+        int random_time = std::rand() % (nextsleeptime/5 + 1);
+        random_time -= nextsleeptime/10;
+
+        nextsleeptime += random_time;
+    }
+
+    if (nextsleeptime > failReqOpt_.maxRetrySleepIntervalUs) {
+        nextsleeptime = failReqOpt_.maxRetrySleepIntervalUs;
+    }
+
+    bthread_usleep(nextsleeptime);
+}
 
 void WriteChunkClosure::Run() {
     std::unique_ptr<WriteChunkClosure> selfGuard(this);
@@ -45,10 +69,12 @@ void WriteChunkClosure::Run() {
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
+    int cntlstatus = cntl_->ErrorCode();
+
     if (cntl_->Failed()) {
-        /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        if (status == brpc::ERPCTIMEDOUT) {
+        /* 如果连接失败，再等一定时间再重试 */
+        if (cntlstatus == brpc::ERPCTIMEDOUT) {
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::WRITE);
         }
 
@@ -71,7 +97,7 @@ void WriteChunkClosure::Run() {
             LOG(WARNING) << "Refresh leader failed, "
                         << "copyset id = " << copysetId
                         << ", logicPoolId = " << logicPoolId
-                        << ", currrent op return status = " << status;
+                        << ", currrent op return status = " << cntlstatus;
         }
 
         goto write_retry;
@@ -172,7 +198,7 @@ write_retry:
     }
 
     // 只要重试，就先睡眠一段时间
-    bthread_usleep(failReqOpt_.opRetryIntervalUs);
+    SleepBeforeRetry(status, cntlstatus);
     client_->WriteChunk(reqCtx->idinfo_,
                         reqCtx->seq_,
                         reqCtx->writeBuffer_,
@@ -199,6 +225,7 @@ void ReadChunkClosure::Run() {
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
+    int cntlstatus = cntl_->ErrorCode();
 
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试*/
@@ -330,7 +357,7 @@ read_retry:
     }
 
     // 重试之前先睡眠
-    bthread_usleep(failReqOpt_.opRetryIntervalUs);
+    SleepBeforeRetry(status, cntlstatus);
     client_->ReadChunk(reqCtx->idinfo_,
                        reqCtx->seq_,
                        reqCtx->offset_,
