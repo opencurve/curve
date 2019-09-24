@@ -62,6 +62,9 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(ERROR, ret == false) << "config no opRetryIntervalUs info";
     RETURN_IF_FALSE(ret)
 
+    ret = conf_.GetUInt64Value("maxRetrySleepIntervalUs",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs);   // NOLINT
+
     ret = conf_.GetUInt64Value("maxInFlightRPCNum",
         &fileServiceOption_.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum);
     LOG_IF(ERROR, ret == false) << "config no maxInFlightRPCNum info";
