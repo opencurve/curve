@@ -486,6 +486,17 @@ TEST_F(RepoItemTest, testClientInfoCUDA) {
     ASSERT_EQ(OperationOK,
               repo->DeleteClientInfoRepoItem(r1.clientIp, r1.clientPort));
 }
+
+TEST_F(RepoItemTest, testClusterInfoCUDA) {
+    ClusterInfoRepoItem item("uuid1");
+    ASSERT_EQ(OperationOK, repo->InsertClusterInfoRepoItem(item));
+
+    std::vector<ClusterInfoRepoItem> list;
+    ASSERT_EQ(OperationOK, repo->LoadClusterInfoRepoItems(&list));
+    ASSERT_EQ(1, list.size());
+    ASSERT_STREQ("uuid1", list[0].clusterId.c_str());
+}
+
 }  // namespace mds
 }  // namespace curve
 
