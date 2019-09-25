@@ -1,6 +1,10 @@
 create database if not exists curve_mds;
 use curve_mds;
 
+create table if not exists `curve_clusterInfo` (
+    `clusterId`        varchar(128)    NOT NULL PRIMARY KEY COMMENT 'clusterId'
+)COMMENT='clusterInfo';
+
 create table if not exists `curve_chunkserver` (
     `chunkServerID`     int            NOT NULL PRIMARY KEY COMMENT 'chunk server id',
     `token`             varchar(16)    NOT NULL COMMENT 'token to identity chunk server',
