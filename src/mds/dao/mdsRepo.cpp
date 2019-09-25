@@ -64,6 +64,20 @@ std::shared_ptr<DataBase> MdsRepo::getDataBase() {
     return db_;
 }
 
+// ClusterInfoRepoItem
+void ClusterInfoRepoItem::getKV(std::map<std::string, std::string> *kv) const {
+    (*kv)["clusterId"] = convertToSqlValue(clusterId);
+}
+
+void ClusterInfoRepoItem::getPrimaryKV(
+    std::map<std::string, std::string> *primary) const {
+    (*primary)["clusterId"] = convertToSqlValue(clusterId);
+}
+
+std::string ClusterInfoRepoItem::getTable() const {
+    return ClusterInfoTable;
+}
+
 // ChunkServer
 ChunkServerRepoItem::ChunkServerRepoItem(uint32_t id) {
     this->chunkServerID = id;
@@ -919,6 +933,29 @@ int MdsRepo::QueryClientInfoRepoItem(const std::string &clientIp,
     delete (res);
     return OperationOK;
 }
+
+int MdsRepo::InsertClusterInfoRepoItem(const ClusterInfoRepoItem &r) {
+    return db_->ExecUpdate(makeSql.makeInsert(r));
+}
+
+int MdsRepo::LoadClusterInfoRepoItems(
+    std::vector<ClusterInfoRepoItem> *list) {
+    sql::ResultSet *res;
+    int resCode =
+        db_->QueryRows(makeSql.makeQueryRows(ClusterInfoRepoItem{}), &res);
+    if (OperationOK != resCode) {
+        return resCode;
+    }
+
+    while (res->next()) {
+        list->push_back(
+            ClusterInfoRepoItem(res->getString("clusterId")));
+    }
+
+    delete (res);
+    return OperationOK;
+}
+
 
 }  // namespace mds
 }  // namespace curve
