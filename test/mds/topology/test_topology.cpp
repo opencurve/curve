@@ -163,6 +163,14 @@ class TestTopology : public ::testing::Test {
 };
 
 TEST_F(TestTopology, test_init_success) {
+    std::vector<ClusterInformation> infos;
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(true)));
+
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .WillOnce(Return(true));
+
     std::unordered_map<PoolIdType, LogicalPool> logicalPoolMap_;
     std::unordered_map<PoolIdType, PhysicalPool> physicalPoolMap_;
     std::unordered_map<ZoneIdType, Zone> zoneMap_;
@@ -214,7 +222,39 @@ TEST_F(TestTopology, test_init_success) {
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 }
 
+TEST_F(TestTopology, test_init_loadClusterFail) {
+    std::vector<ClusterInformation> infos;
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(false)));
+
+    TopologyOption option;
+    int ret = topology_->init(option);
+    ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
+}
+
+TEST_F(TestTopology, test_init_StorageClusterInfoFail) {
+    std::vector<ClusterInformation> infos;
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(true)));
+
+    EXPECT_CALL(*storage_, StorageClusterInfo(_))
+        .WillOnce(Return(false));
+
+    TopologyOption option;
+    int ret = topology_->init(option);
+    ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
+}
+
 TEST_F(TestTopology, test_init_loadLogicalPoolFail) {
+    std::vector<ClusterInformation> infos;
+    ClusterInformation info("uuid1");
+    infos.push_back(info);
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(true)));
+
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(Return(false));
 
@@ -224,6 +264,13 @@ TEST_F(TestTopology, test_init_loadLogicalPoolFail) {
 }
 
 TEST_F(TestTopology, test_init_LoadPhysicalPoolFail) {
+    std::vector<ClusterInformation> infos;
+    ClusterInformation info("uuid1");
+    infos.push_back(info);
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(true)));
+
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(Return(true));
     EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
@@ -237,6 +284,13 @@ TEST_F(TestTopology, test_init_LoadPhysicalPoolFail) {
 }
 
 TEST_F(TestTopology, test_init_LoadZoneFail) {
+    std::vector<ClusterInformation> infos;
+    ClusterInformation info("uuid1");
+    infos.push_back(info);
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(true)));
+
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(Return(true));
     EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
@@ -253,6 +307,13 @@ TEST_F(TestTopology, test_init_LoadZoneFail) {
 }
 
 TEST_F(TestTopology, test_init_LoadServerFail) {
+    std::vector<ClusterInformation> infos;
+    ClusterInformation info("uuid1");
+    infos.push_back(info);
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(true)));
+
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(Return(true));
     EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
@@ -272,6 +333,13 @@ TEST_F(TestTopology, test_init_LoadServerFail) {
 }
 
 TEST_F(TestTopology, test_init_LoadChunkServerFail) {
+    std::vector<ClusterInformation> infos;
+    ClusterInformation info("uuid1");
+    infos.push_back(info);
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(true)));
+
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(Return(true));
     EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
@@ -294,6 +362,13 @@ TEST_F(TestTopology, test_init_LoadChunkServerFail) {
 }
 
 TEST_F(TestTopology, test_init_LoadCopysetFail) {
+    std::vector<ClusterInformation> infos;
+    ClusterInformation info("uuid1");
+    infos.push_back(info);
+    EXPECT_CALL(*storage_, LoadClusterInfo(_))
+        .WillOnce(DoAll(SetArgPointee<0>(infos),
+                Return(true)));
+
     EXPECT_CALL(*storage_, LoadLogicalPool(_, _))
         .WillOnce(Return(true));
     EXPECT_CALL(*storage_, LoadPhysicalPool(_, _))
