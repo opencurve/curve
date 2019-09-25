@@ -343,6 +343,14 @@ message GetCopySetsInChunkServerResponse {
     repeated CopysetInfo copysetInfos = 2;
 }
 
+message GetClusterInfoRequest {
+}
+
+message GetClusterInfoResponse {
+    required sint32 statusCode = 1;
+    optional string clusterId = 2;
+}
+
 //TODO(hzsunjianliang): update userPolicy and so on
 service TopologyService {
     rpc RegistChunkServer(ChunkServerRegistRequest) returns (ChunkServerRegistResponse);
@@ -374,5 +382,6 @@ service TopologyService {
 
     rpc GetChunkServerListInCopySets(GetChunkServerListInCopySetsRequest) returns (GetChunkServerListInCopySetsResponse);
     rpc GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest) returns (GetCopySetsInChunkServerResponse);
+    rpc GetClusterInfo(GetClusterInfoRequest) returns (GetClusterInfoResponse);
 }
 

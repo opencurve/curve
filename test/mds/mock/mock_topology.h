@@ -49,6 +49,9 @@ class MockTopology : public Topology {
     MockTopology() {}
     ~MockTopology() {}
 
+    MOCK_METHOD1(GetClusterInfo,
+        bool(ClusterInformation *info));
+
     // allocate id & token
     MOCK_METHOD0(AllocateLogicalPoolId, PoolIdType());
     MOCK_METHOD0(AllocatePhysicalPoolId, PoolIdType());
