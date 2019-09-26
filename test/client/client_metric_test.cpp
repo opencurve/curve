@@ -267,7 +267,7 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     ASSERT_GT(fm->readRPC.latency.max_latency(), 0);
 
     // read write超时重试
-    mds.EnableNetUnstable(1500);
+    mds.EnableNetUnstable(8000);
     ret = fi.Write(buffer, 0, 4096);
     ASSERT_EQ(-2, ret);
     ret = fi.Write(buffer, 0, 4096);
