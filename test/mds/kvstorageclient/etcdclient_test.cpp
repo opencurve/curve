@@ -27,15 +27,28 @@ class TestEtcdClinetImp : public ::testing::Test {
     ~TestEtcdClinetImp() {}
 
     void SetUp() override {
+        system("rm -fr testEtcdClinetImp.etcd");
+
         client_ = std::make_shared<EtcdClientImp>();
         char endpoints[] = "127.0.0.1:2377";
         EtcdConf conf = {endpoints, strlen(endpoints), 1000};
         ASSERT_EQ(EtcdErrCode::DeadlineExceeded, client_->Init(conf, 200, 3));
-        std::string runEtcd =
-            std::string("etcd --listen-client-urls 'http://localhost:2377'") +
-            std::string(" --advertise-client-urls 'http://localhost:2377'") +
-            std::string(" --listen-peer-urls 'http://localhost:2376'&");
-        system(runEtcd.c_str());
+
+        etcdPid = ::fork();
+        if (0 > etcdPid) {
+            ASSERT_TRUE(false);
+        } else if (0 == etcdPid) {
+            std::string runEtcd =
+                std::string("etcd --listen-client-urls") +
+                std::string(" 'http://localhost:2377'") +
+                std::string(" --advertise-client-urls") +
+                std::string(" 'http://localhost:2377'") +
+                std::string(" --listen-peer-urls 'http://localhost:2376'") +
+                std::string(" --name testEtcdClinetImp");
+            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+            exit(0);
+        }
+
         // 一定时间内尝试init直到etcd完全起来
         uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
@@ -56,13 +69,13 @@ class TestEtcdClinetImp : public ::testing::Test {
 
     void TearDown() override {
         client_ = nullptr;
-        system("killall etcd");
-        system("rm -fr default.etcd");
+        system(("kill " + std::to_string(etcdPid)).c_str());
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 
  protected:
     std::shared_ptr<EtcdClientImp> client_;
+    pid_t etcdPid;
 };
 
 TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
