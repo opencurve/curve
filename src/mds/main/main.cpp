@@ -529,15 +529,21 @@ int curve_main(int argc, char **argv) {
     // --graceful_quit_on_sigterm
     server.RunUntilAskedToQuit();
 
+    // 在退出之前把自己的节点删除
+    leaderElection->LeaderResign();
+    LOG(INFO) << "resign success";
+
     kCurveFS.Uninit();
     if (!cleanManger->Stop()) {
         LOG(ERROR) << "stop cleanManager fail.";
         return -1;
     }
-
-    // 在退出之前把自己的节点删除
-    leaderElection->LeaderResign();
+    heartbeatManager->Stop();
+    LOG(INFO) << "stop heartbeatManager success";
     segmentAllocStatistic->Stop();
+    LOG(INFO) << "stop segment alloc success";
+    coordinator->Stop();
+    LOG(INFO) << "stop coordinator success";
 
     return 0;
 }

@@ -11,6 +11,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <memory>
 #include "src/mds/dao/mdsRepo.h"
 #include "src/client/mds_client.h"
 #include "src/client/config_info.h"
@@ -99,6 +100,11 @@ class CurveCluster {
     void StarSingleEtcd(int id, const std::string &clientIpPort,
         const std::string &peerIpPort,
         const std::vector<std::string> &etcdConf);
+
+    /**
+     * WaitForEtcdClusterAvalible 在一定时间内等待etcd集群leader选举成功，处于可用状态
+     */
+    bool WaitForEtcdClusterAvalible(int waitSec = 20);
 
     /**
      * StopEtcd 停止指定id的etcd节点
@@ -302,7 +308,7 @@ class CurveCluster {
     std::map<int, std::string> chunkserverIpPort_;
 
     // mdsClient
-    MDSClient *mdsClient_;
+    std::shared_ptr<MDSClient> mdsClient_;
 
  public:
     // mysql数据库
