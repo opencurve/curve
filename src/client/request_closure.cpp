@@ -23,6 +23,7 @@ RequestClosure::RequestClosure(RequestContext* reqctx) {
     errcode_ = -1;
     reqCtx_ = reqctx;
     metric_ = nullptr;
+    nextTimeoutMS_ = 0;
 }
 
 IOTracker* RequestClosure::GetIOTracker() {
