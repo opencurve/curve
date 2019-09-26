@@ -19,13 +19,13 @@ cc_library(
     ]
 )
 
-cc_test(
-    name = "cluster_basic_test",
-    srcs = glob(["cluster_basic_test.cpp"]),
-    copts = ["-std=c++11"],
-    deps = [
-        "@com_google_googletest//:gtest_main",
-        "@com_google_googletest//:gtest",
-        "//test/integration/cluster_common:integration_cluster_common",
-    ]
-)
+#cc_test(
+#    name = "cluster_basic_test",
+#    srcs = glob(["cluster_basic_test.cpp"]),
+#    copts = ["-std=c++11"],
+#    deps = [
+#        "@com_google_googletest//:gtest_main",
+#        "@com_google_googletest//:gtest",
+#        "//test/integration/cluster_common:integration_cluster_common",
+#    ]
+#)
