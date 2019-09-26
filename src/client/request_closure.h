@@ -121,6 +121,20 @@ class RequestClosure : public ::google::protobuf::Closure {
      */
     void ReleaseInflightRPCToken();
 
+    /**
+     * 获取下一次rpc超时时间, rpc超时时间实现了指数退避的策略
+     */
+    uint64_t GetNextTimeoutMS() {
+       return nextTimeoutMS_;
+    }
+
+    /**
+     * 设置下次重试超时时间
+     */
+    void SetNextTimeOutMS(uint64_t timeout) {
+       nextTimeoutMS_ = timeout;
+    }
+
  private:
     // 当前request的错误码
     int  errcode_;
@@ -142,6 +156,9 @@ class RequestClosure : public ::google::protobuf::Closure {
 
     // 当前closure归属于哪个iomanager
     IOManagerID managerID_;
+
+    // 下一次rpc超时时间
+    uint64_t nextTimeoutMS_;
 
     // 读写锁用于保护map
     static RWLock rwLock_;

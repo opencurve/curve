@@ -31,8 +31,15 @@ FailureRequestOption_t  ClientClosure::failReqOpt_;
 void ClientClosure::SleepBeforeRetry(int rpcstatus, int cntlstatus) {
     uint64_t nextsleeptime = failReqOpt_.opRetryIntervalUs;
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
-    if (cntlstatus == brpc::ERPCTIMEDOUT ||
-        rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
+    if (cntlstatus == brpc::ERPCTIMEDOUT) {
+        uint64_t nextTimeout = failReqOpt_.rpcTimeoutMs
+                             * std::pow(2, reqDone->GetRetriedTimes());
+        nextTimeout = nextTimeout > failReqOpt_.maxTimeoutMS
+                    ? failReqOpt_.maxTimeoutMS : nextTimeout;
+        reqDone->SetNextTimeOutMS(nextTimeout);
+    }
+
+    if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
         std::srand(std::time(nullptr));
 
         nextsleeptime = failReqOpt_.opRetryIntervalUs
@@ -42,13 +49,13 @@ void ClientClosure::SleepBeforeRetry(int rpcstatus, int cntlstatus) {
         random_time -= nextsleeptime/10;
 
         nextsleeptime += random_time;
-    }
 
-    if (nextsleeptime > failReqOpt_.maxRetrySleepIntervalUs) {
-        nextsleeptime = failReqOpt_.maxRetrySleepIntervalUs;
-    }
+        if (nextsleeptime > failReqOpt_.maxRetrySleepIntervalUs) {
+            nextsleeptime = failReqOpt_.maxRetrySleepIntervalUs;
+        }
 
-    bthread_usleep(nextsleeptime);
+        bthread_usleep(nextsleeptime);
+    }
 }
 
 void WriteChunkClosure::Run() {
