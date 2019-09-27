@@ -1576,12 +1576,10 @@ def analysis_data(ssh):
     logger.info("512k write BW is %d MB/s"%int(write_512k_BW))
     filename = "onevolume_perf.txt"
     with open(filename,'w') as f:
-        f.write("--------------------------get one volume Perf data--------------------------------\n")
-        f.write("|  4k   |    randwrite   |   %d /s     |   基准数据  |  56000   |  \n"%int(randw_4k_iops))
-        f.write("|  4k   |    randread    |   %d /s     |   基准数据  |  75000   |  \n"%int(randr_4k_iops))
-        f.write("|  512k |    write       |   %d MB/s   |   基准数据  |  135     |  \n"%int(write_512k_BW))
-        f.write("|  512k |    read        |   %d MB/s   |   基准数据  |  450     |  \n"%int(read_512k_BW))
-        f.write("----------------------------------------------------------------------------------\n")
+        f.write("4k randwrite %d/s 56000\n"%int(randw_4k_iops))
+        f.write("4k randread %d/s 75000\n"%int(randr_4k_iops))
+        f.write("512k  write %dMB/s 135\n"%int(write_512k_BW))
+        f.write("512k  read %dMB/s 450\n"%int(read_512k_BW))
     if randr_4k_iops < 75000:
         assert float(75000 - randr_4k_iops)/75000 < 0.02,"4k_randr_iops did not meet expectations,expect more than 75000"
     if randw_4k_iops < 56000:
