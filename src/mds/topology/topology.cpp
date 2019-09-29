@@ -110,23 +110,45 @@ int TopologyImpl::AddServer(const Server &data) {
 }
 
 int TopologyImpl::AddChunkServer(const ChunkServer &data) {
-    ReadLockGuard rlockServer(serverMutex_);
-    WriteLockGuard wlockChunkServer(chunkServerMutex_);
-    auto it = serverMap_.find(data.GetServerId());
-    if (it != serverMap_.end()) {
-        if (chunkServerMap_.find(data.GetId()) == chunkServerMap_.end()) {
-            if (!storage_->StorageChunkServer(data)) {
-                return kTopoErrCodeStorgeFail;
-            }
-            it->second.AddChunkServer(data.GetId());
-            chunkServerMap_[data.GetId()] = data;
-            return kTopoErrCodeSuccess;
-        } else {
-            return kTopoErrCodeIdDuplicated;
-        }
-    } else {
-        return kTopoErrCodeServerNotFound;
+    // 先找到所属物理池
+    PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
+    int ret = GetBelongPhysicalPoolIdByServerId(
+        data.GetServerId(), &belongPhysicalPoolId);
+    if (ret != kTopoErrCodeSuccess) {
+        return ret;
     }
+    // 锁住物理池和server，chunkserver
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
+    uint64_t csCapacity = 0;
+    {
+        ReadLockGuard rlockServer(serverMutex_);
+        WriteLockGuard wlockChunkServer(chunkServerMutex_);
+        auto it = serverMap_.find(data.GetServerId());
+        if (it != serverMap_.end()) {
+            if (chunkServerMap_.find(data.GetId()) == chunkServerMap_.end()) {
+                if (!storage_->StorageChunkServer(data)) {
+                    return kTopoErrCodeStorgeFail;
+                }
+                it->second.AddChunkServer(data.GetId());
+                chunkServerMap_[data.GetId()] = data;
+                csCapacity = data.GetChunkServerState().GetDiskCapacity();
+            } else {
+                return kTopoErrCodeIdDuplicated;
+            }
+        } else {
+            return kTopoErrCodeServerNotFound;
+        }
+    }
+    // 更新物理池
+    auto it = physicalPoolMap_.find(belongPhysicalPoolId);
+    if (it != physicalPoolMap_.end()) {
+        uint64_t totalCapacity = it->second.GetDiskCapacity();
+        totalCapacity += csCapacity;
+        it->second.SetDiskCapacity(totalCapacity);
+    } else {
+        return kTopoErrCodePhysicalPoolNotFound;
+    }
+    return kTopoErrCodeSuccess;
 }
 
 int TopologyImpl::RemoveLogicalPool(PoolIdType id) {
@@ -209,6 +231,9 @@ int TopologyImpl::RemoveChunkServer(ChunkServerIdType id) {
     WriteLockGuard wlockChunkServer(chunkServerMutex_);
     auto it = chunkServerMap_.find(id);
     if (it != chunkServerMap_.end()) {
+        if (it->second.GetStatus() != ChunkServerStatus::RETIRED) {
+            return kTopoErrCodeCannotRemoveNotRetired;
+        }
         if (!storage_->DeleteChunkServer(id)) {
             return kTopoErrCodeStorgeFail;
         }
@@ -302,16 +327,98 @@ int TopologyImpl::UpdateChunkServerTopo(const ChunkServer &data) {
 
 int TopologyImpl::UpdateChunkServerRwState(const ChunkServerStatus &rwState,
                               ChunkServerIdType id) {
-    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
-    auto it = chunkServerMap_.find(id);
-    if (it != chunkServerMap_.end()) {
-        WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
-        it->second.SetStatus(rwState);
-        it->second.SetDirtyFlag(true);
-        return kTopoErrCodeSuccess;
-    } else {
+    // 先找到所属物理池
+    PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
+    int ret = GetBelongPhysicalPoolId(id, &belongPhysicalPoolId);
+    if (ret != kTopoErrCodeSuccess) {
+        return ret;
+    }
+    // 锁住物理池和chunkserver
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
+    ChunkServerStatus lastRwState;
+    uint64_t csCapacity = 0;
+    {
+        ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
+        // 更新chunkserver
+        auto it = chunkServerMap_.find(id);
+        if (it == chunkServerMap_.end()) {
+            return kTopoErrCodeChunkServerNotFound;
+        } else {
+            WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+            lastRwState = it->second.GetStatus();
+            csCapacity = it->second.GetChunkServerState().GetDiskCapacity();
+            it->second.SetStatus(rwState);
+            it->second.SetDirtyFlag(true);
+        }
+    }
+    // 更新物理池
+    switch (lastRwState) {
+        case ChunkServerStatus::READWRITE:
+        case ChunkServerStatus::PENDDING:
+            if (ChunkServerStatus::RETIRED == rwState) {
+                auto it = physicalPoolMap_.find(belongPhysicalPoolId);
+                if (it != physicalPoolMap_.end()) {
+                    uint64_t totalCapacity = it->second.GetDiskCapacity();
+                    totalCapacity = (totalCapacity > csCapacity) ?
+                        (totalCapacity - csCapacity) : 0;
+                    it->second.SetDiskCapacity(totalCapacity);
+                } else {
+                    return kTopoErrCodePhysicalPoolNotFound;
+                }
+            }
+            break;
+        case ChunkServerStatus::RETIRED:
+            if (ChunkServerStatus::READWRITE == rwState ||
+                ChunkServerStatus::PENDDING == rwState) {
+                auto it = physicalPoolMap_.find(belongPhysicalPoolId);
+                if (it != physicalPoolMap_.end()) {
+                    uint64_t totalCapacity = it->second.GetDiskCapacity();
+                    totalCapacity += csCapacity;
+                    it->second.SetDiskCapacity(totalCapacity);
+                } else {
+                    return kTopoErrCodePhysicalPoolNotFound;
+                }
+            }
+            break;
+        default:
+            return kTopoErrCodeInternalError;
+    }
+    return kTopoErrCodeSuccess;
+}
+
+int TopologyImpl::GetBelongPhysicalPoolIdByServerId(ServerIdType serverId,
+    PoolIdType *physicalPoolIdOut) {
+    *physicalPoolIdOut = UNINTIALIZE_ID;
+    Server server;
+    if (!GetServer(serverId, &server)) {
+        LOG(ERROR) << "TopologyImpl::GetBelongPhysicalPoolId "
+                   << "Fail On GetServer, "
+                   << "serverId = " << serverId;
+        return kTopoErrCodeServerNotFound;
+    }
+    Zone zone;
+    if (!GetZone(server.GetZoneId(), &zone)) {
+        LOG(ERROR) << "TopologyImpl::GetBelongPhysicalPoolId "
+                   << "Fail On GetZone, "
+                   << "zoneId = " << server.GetZoneId();
+        return kTopoErrCodeZoneNotFound;
+    }
+    *physicalPoolIdOut = zone.GetPhysicalPoolId();
+    return kTopoErrCodeSuccess;
+}
+
+int TopologyImpl::GetBelongPhysicalPoolId(ChunkServerIdType csId,
+    PoolIdType *physicalPoolIdOut) {
+    *physicalPoolIdOut = UNINTIALIZE_ID;
+    ChunkServer cs;
+    if (!GetChunkServer(csId, &cs)) {
+        LOG(ERROR) << "TopologyImpl::GetBelongPhysicalPoolId "
+                   << "Fail On GetChunkServer, "
+                   << "chunkserverId = " << csId;
         return kTopoErrCodeChunkServerNotFound;
     }
+    return GetBelongPhysicalPoolIdByServerId(
+        cs.GetServerId(), physicalPoolIdOut);
 }
 
 int TopologyImpl::UpdateChunkServerOnlineState(const OnlineState &onlineState,
@@ -330,17 +437,40 @@ int TopologyImpl::UpdateChunkServerOnlineState(const OnlineState &onlineState,
 
 int TopologyImpl::UpdateChunkServerDiskStatus(const ChunkServerState &state,
                                    ChunkServerIdType id) {
-    ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
-    auto it = chunkServerMap_.find(id);
-    if (it != chunkServerMap_.end()) {
-        WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
-        // 心跳数据，只更新内存，后台定期刷入数据库
-        it->second.SetChunkServerState(state);
-        it->second.SetDirtyFlag(true);
-        return kTopoErrCodeSuccess;
-    } else {
-        return kTopoErrCodeChunkServerNotFound;
+    // 先找到所属物理池
+    PoolIdType belongPhysicalPoolId = UNINTIALIZE_ID;
+    int ret = GetBelongPhysicalPoolId(id, &belongPhysicalPoolId);
+    if (ret != kTopoErrCodeSuccess) {
+        return ret;
     }
+
+    // 锁住物理池和chunkserver
+    WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
+    int64_t diff = 0;
+    {
+        ReadLockGuard rlockChunkServerMap(chunkServerMutex_);
+        auto it = chunkServerMap_.find(id);
+        if (it != chunkServerMap_.end()) {
+            WriteLockGuard wlockChunkServer(it->second.GetRWLockRef());
+            diff = state.GetDiskCapacity() -
+                it->second.GetChunkServerState().GetDiskCapacity();
+            // 心跳数据，只更新内存，后台定期刷入数据库
+            it->second.SetChunkServerState(state);
+            it->second.SetDirtyFlag(true);
+        } else {
+            return kTopoErrCodeChunkServerNotFound;
+        }
+    }
+    // 更新物理池
+    auto it = physicalPoolMap_.find(belongPhysicalPoolId);
+    if (it != physicalPoolMap_.end()) {
+        uint64_t totalCapacity = it->second.GetDiskCapacity();
+        totalCapacity += diff;
+        it->second.SetDiskCapacity(totalCapacity);
+    } else {
+        return kTopoErrCodePhysicalPoolNotFound;
+    }
+    return kTopoErrCodeSuccess;
 }
 
 int TopologyImpl::UpdateChunkServerStartUpTime(uint64_t time,
@@ -738,6 +868,39 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initChunkServerIdGenerator(maxChunkServerId);
+
+    // 更新物理池容量
+    for (auto pair : chunkServerMap_) {
+        ServerIdType serverId = pair.second.GetServerId();
+        auto itServer = serverMap_.find(serverId);
+        if (itServer == serverMap_.end()) {
+            LOG(ERROR) << "TopologyImpl::Init "
+                       << "Fail On Get Server, "
+                       << "serverId = " << serverId;
+            return kTopoErrCodeServerNotFound;
+        }
+        ZoneIdType zoneId = itServer->second.GetZoneId();
+        auto itZone = zoneMap_.find(zoneId);
+        if (itZone == zoneMap_.end()) {
+            LOG(ERROR) << "TopologyImpl::Init "
+                       << "Fail On Get zone, "
+                       << "zoneId = " << zoneId;
+            return kTopoErrCodeZoneNotFound;
+        }
+        PoolIdType physicalPoolId = itZone->second.GetPhysicalPoolId();
+        auto it = physicalPoolMap_.find(physicalPoolId);
+        if (it != physicalPoolMap_.end()) {
+            uint64_t totalCapacity = it->second.GetDiskCapacity();
+            totalCapacity +=
+                pair.second.GetChunkServerState().GetDiskCapacity();
+            it->second.SetDiskCapacity(totalCapacity);
+        } else {
+            LOG(ERROR) << "TopologyImpl::Init "
+                       << "Fail On Get physicalPool, "
+                       << "physicalPoolId = " << physicalPoolId;
+            return kTopoErrCodePhysicalPoolNotFound;
+        }
+    }
 
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
     if (!storage_->LoadCopySet(&copySetMap_, &copySetIdMaxMap)) {

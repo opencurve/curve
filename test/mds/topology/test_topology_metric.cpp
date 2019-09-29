@@ -11,6 +11,7 @@
 
 #include "src/mds/topology/topology_metric.h"
 #include "test/mds/topology/mock_topology.h"
+#include "test/mds/mock/mock_alloc_statistic.h"
 
 namespace curve {
 namespace mds {
@@ -36,8 +37,9 @@ class TestTopologyMetric : public ::testing::Test {
                                                storage_);
 
         topologyStat_ = std::make_shared<MockTopologyStat>();
+        allocStatistic_ = std::make_shared<MockAllocStatistic>();
         testObj_ = std::make_shared<TopologyMetricService>(
-            topology_, topologyStat_);
+            topology_, topologyStat_, allocStatistic_);
     }
 
     void TearDown() {
@@ -47,6 +49,7 @@ class TestTopologyMetric : public ::testing::Test {
 
         topology_ = nullptr;
         topologyStat_ = nullptr;
+        allocStatistic_ = nullptr;
 
         testObj_ = nullptr;
     }
@@ -166,6 +169,7 @@ class TestTopologyMetric : public ::testing::Test {
     std::shared_ptr<MockIdGenerator> idGenerator_;
     std::shared_ptr<MockTokenGenerator> tokenGenerator_;
     std::shared_ptr<MockStorage> storage_;
+    std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<Topology> topology_;
     std::shared_ptr<MockTopologyStat> topologyStat_;
     std::shared_ptr<TopologyMetricService> testObj_;
@@ -186,7 +190,12 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "127.0.0.1", 8888);
     PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "127.0.0.1", 8888);
     PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "127.0.0.1", 8888);
-    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
+
+    LogicalPool::RedundanceAndPlaceMentPolicy rap;
+    rap.pageFileRAP.replicaNum = 3;
+
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId,
+        PAGEFILE, rap);
     std::set<ChunkServerIdType> replicas;
     replicas.insert(0x41);
     replicas.insert(0x42);
@@ -213,6 +222,10 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     EXPECT_CALL(*topologyStat_, GetChunkServerStat(_, _))
         .WillRepeatedly(DoAll(SetArgPointee<1>(stat1),
             Return(true)));
+
+    EXPECT_CALL(*allocStatistic_, GetAllocByLogicalPool(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(20 * 1024),
+                Return(true)));
 
     testObj_->UpdateTopologyMetrics();
 
@@ -276,6 +289,7 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->leaderNumMin.get_value()); //NOLINT
     ASSERT_EQ(0, gLogicalPoolMetrics[logicalPoolId]->leaderNumMax.get_value()); //NOLINT
     ASSERT_EQ(100 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskCapacity.get_value()); //NOLINT
+    ASSERT_EQ(20 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskAlloc.get_value()); //NOLINT
     ASSERT_EQ(10 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskUsed.get_value()); //NOLINT
 }
 

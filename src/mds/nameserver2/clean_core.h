@@ -14,6 +14,7 @@
 #include "src/mds/nameserver2/task_progress.h"
 #include "src/mds/chunkserverclient/copyset_client.h"
 #include "src/mds/topology/topology.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 using ::curve::mds::chunkserverclient::CopysetClient;
 using ::curve::mds::topology::Topology;
@@ -24,9 +25,11 @@ namespace mds {
 class CleanCore {
  public:
     CleanCore(NameServerStorage * storage,
-        std::shared_ptr<CopysetClient> copysetClient)
+        std::shared_ptr<CopysetClient> copysetClient,
+        std::shared_ptr<AllocStatistic> allocStatistic)
         : storage_(storage),
-          copysetClient_(copysetClient) {}
+          copysetClient_(copysetClient),
+          allocStatistic_(allocStatistic) {}
 
     /**
      * @brief 删除快照文件，更新task状态
@@ -50,6 +53,7 @@ class CleanCore {
  private:
     NameServerStorage *storage_;
     std::shared_ptr<CopysetClient> copysetClient_;
+    std::shared_ptr<AllocStatistic> allocStatistic_;
 };
 
 }  // namespace mds

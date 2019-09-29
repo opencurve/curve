@@ -75,13 +75,22 @@ typedef struct LeaseOption {
  * 发送失败的chunk request处理配置
  * @opRetryIntervalUs: 相隔多久再重试
  * @opMaxRetry: 最大重试次数
+ * @maxRetrySleepIntervalUs: 最大睡眠时间
+ * @rpcTimeoutMs: 为每个rpc重试的标准配置时间
+ * @maxTimeoutMS: 为指数退避策略中最大的超时时间
  */
 typedef struct FailureRequestOption {
     uint32_t opRetryIntervalUs;
     uint32_t opMaxRetry;
+    uint32_t rpcTimeoutMs;
+    uint64_t maxTimeoutMS;
+    uint64_t maxRetrySleepIntervalUs;
     FailureRequestOption() {
+        maxRetrySleepIntervalUs = 64 * 1000 * 1000;
         opRetryIntervalUs = 200;
         opMaxRetry = 3;
+        rpcTimeoutMs = 1000;
+        maxTimeoutMS = 64000;
     }
 } FailureRequestOption_t;
 

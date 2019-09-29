@@ -37,7 +37,7 @@ class TestEtcdClinetImp : public ::testing::Test {
             std::string(" --listen-peer-urls 'http://localhost:2376'&");
         system(runEtcd.c_str());
         // 一定时间内尝试init直到etcd完全起来
-        int now = ::curve::common::TimeUtility::GetTimeofDaySec();
+        uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
         while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
             if (0 == client_->Init(conf, 0, 3)) {
@@ -334,6 +334,21 @@ TEST_F(TestEtcdClinetImp, test_ListWithLimitAndRevision) {
         std::string value = std::string("test") + std::to_string(i);
         ASSERT_EQ(value, out[i - 5]);
     }
+}
+
+TEST_F(TestEtcdClinetImp, test_return_with_revision) {
+    int64_t startRevision;
+    int res = client_->GetCurrentRevision(&startRevision);
+    ASSERT_EQ(EtcdErrCode::OK, res);
+
+    int64_t revision;
+    res = client_->PutRewithRevision("hello", "everyOne", &revision);
+    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(startRevision + 1, revision);
+
+    res = client_->DeleteRewithRevision("hello", &revision);
+    ASSERT_EQ(EtcdErrCode::OK, res);
+    ASSERT_EQ(startRevision + 2, revision);
 }
 
 TEST_F(TestEtcdClinetImp, test_CampaignLeader) {

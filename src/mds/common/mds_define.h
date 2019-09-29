@@ -73,6 +73,7 @@ const int kTopoErrCodeCannotRemoveWhenNotEmpty = -14;
 const int kTopoErrCodeIpPortDuplicated = -15;
 const int kTopoErrCodeNameDuplicated = -16;
 const int kTopoErrCodeCreateCopysetNodeOnChunkServerFail = -17;
+const int kTopoErrCodeCannotRemoveNotRetired = -18;
 
 }  // namespace topology
 }  // namespace mds
