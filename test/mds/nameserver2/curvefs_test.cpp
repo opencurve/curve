@@ -19,6 +19,7 @@
 #include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
 #include "test/mds/nameserver2/mock/mock_clean_manager.h"
 #include "test/mds/mock/mock_repo.h"
+#include "test/mds/mock/mock_alloc_statistic.h"
 
 
 using ::testing::AtLeast;
@@ -63,15 +64,20 @@ class CurveFSTest: public ::testing::Test {
 
         curvefs_ =  &kCurveFS;
 
+        allocStatistic_ = std::make_shared<MockAllocStatistic>();
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
                         mockcleanManager_,
-                        sessionManager_, sessionOptions_, authOptions_,
+                        sessionManager_,
+                        allocStatistic_,
+                        sessionOptions_,
+                        authOptions_,
                         curveFSOptions_,
                         mockRepo_);
     }
 
     void TearDown() override {
         curvefs_->Uninit();
+        allocStatistic_ = nullptr;
         delete storage_;
         delete inodeIdGenerator_;
         delete mockChunkAllocator_;
@@ -86,6 +92,7 @@ class CurveFSTest: public ::testing::Test {
     std::shared_ptr<MockCleanManager> mockcleanManager_;
 
     SessionManager *sessionManager_;
+    std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<MockRepo> mockRepo_;
     struct SessionOptions sessionOptions_;
     struct RootAuthOption authOptions_;
@@ -1313,7 +1320,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(true));
 
 
-        EXPECT_CALL(*storage_, PutSegment(_, _, _))
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1449,7 +1456,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(true));
 
 
-        EXPECT_CALL(*storage_, PutSegment(_, _, _))
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 

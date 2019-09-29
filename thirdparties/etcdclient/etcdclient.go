@@ -206,6 +206,22 @@ func EtcdClientPut(timeout C.int, key, value *C.char,
     return GetErrCode(EtcdPut, err)
 }
 
+//export EtcdClientPutRewtihRevision
+func EtcdClientPutRewtihRevision(timeout C.int, key, value *C.char,
+    keyLen, valueLen C.int) (C.enum_EtcdErrCode, int64) {
+    goKey, goValue := C.GoStringN(key, keyLen), C.GoStringN(value, valueLen)
+    ctx, cancel := context.WithTimeout(context.Background(),
+        time.Duration(int(timeout))*time.Millisecond)
+    defer cancel()
+
+    resp, err := globalClient.Put(ctx, goKey, goValue)
+
+    if err == nil {
+        return GetErrCode(EtcdPut, err), resp.Header.Revision
+    }
+    return GetErrCode(EtcdPut, err), 0
+}
+
 //export EtcdClientGet
 func EtcdClientGet(timeout C.int, key *C.char,
     keyLen C.int) (C.enum_EtcdErrCode, *C.char, int, int64) {
@@ -301,6 +317,21 @@ func EtcdClientDelete(
 
     _, err := globalClient.Delete(ctx, goKey)
     return GetErrCode(EtcdDelete, err)
+}
+
+//export EtcdClientDeleteRewithRevision
+func EtcdClientDeleteRewithRevision(
+    timeout C.int, key *C.char, keyLen C.int) (C.enum_EtcdErrCode, int64) {
+    goKey := C.GoStringN(key, keyLen)
+    ctx, cancel := context.WithTimeout(context.Background(),
+        time.Duration(int(timeout))*time.Millisecond)
+    defer cancel()
+
+    resp, err := globalClient.Delete(ctx, goKey)
+    if err == nil {
+        return GetErrCode(EtcdDelete, err), resp.Header.Revision
+    }
+    return GetErrCode(EtcdDelete, err), 0
 }
 
 //export EtcdClientTxn2

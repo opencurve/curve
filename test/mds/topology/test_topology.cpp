@@ -73,10 +73,12 @@ class TestTopology : public ::testing::Test {
 
     void PrepareAddPhysicalPool(PoolIdType id = 0x11,
                  const std::string &name = "testPhysicalPool",
-                 const std::string &desc = "descPhysicalPool") {
+                 const std::string &desc = "descPhysicalPool",
+                 uint64_t diskCapacity = 0) {
         PhysicalPool pool(id,
                 name,
                 desc);
+        pool.SetDiskCapacity(diskCapacity);
         EXPECT_CALL(*storage_, StoragePhysicalPool(_))
             .WillOnce(Return(true));
 
@@ -126,7 +128,9 @@ class TestTopology : public ::testing::Test {
                 ServerIdType serverId = 0x31,
                 const std::string &hostIp = "testInternalIp",
                 uint32_t port = 0,
-                const std::string &diskPath = "/") {
+                const std::string &diskPath = "/",
+                uint64_t diskUsed = 512,
+                uint64_t diskCapacity = 1024) {
             ChunkServer cs(id,
                     token,
                     diskType,
@@ -134,11 +138,14 @@ class TestTopology : public ::testing::Test {
                     hostIp,
                     port,
                     diskPath);
+            ChunkServerState state;
+            state.SetDiskCapacity(diskCapacity);
+            state.SetDiskUsed(diskUsed);
+            cs.SetChunkServerState(state);
             EXPECT_CALL(*storage_, StorageChunkServer(_))
                 .WillOnce(Return(true));
         int ret = topology_->AddChunkServer(cs);
-        ASSERT_EQ(kTopoErrCodeSuccess, ret)
-            << "should have PrepareAddServer()";
+        ASSERT_EQ(kTopoErrCodeSuccess, ret) << "should have PrepareAddServer()";
     }
 
     void PrepareAddCopySet(CopySetIdType copysetId,
@@ -170,11 +177,16 @@ TEST_F(TestTopology, test_init_success) {
     std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap_;
     std::map<CopySetKey, CopySetInfo> copySetMap_;
 
-    logicalPoolMap_[0x01] = LogicalPool();
-    physicalPoolMap_[0x11] = PhysicalPool();
-    zoneMap_[0x21] = Zone();
-    serverMap_[0x31] = Server();
-    chunkServerMap_[0x41] = ChunkServer();
+    logicalPoolMap_[0x01] = LogicalPool(0x01, "lpool1", 0x11, PAGEFILE,
+        LogicalPool::RedundanceAndPlaceMentPolicy(),
+        LogicalPool::UserPolicy(),
+        0, false);
+    physicalPoolMap_[0x11] = PhysicalPool(0x11, "pPool1", "des1");
+    zoneMap_[0x21] = Zone(0x21, "zone1", 0x11, "desc1");
+    serverMap_[0x31] = Server(0x31, "server1", "127.0.0.1", 8200,
+        "127.0.0.1", 8200, 0x21, 0x11, "desc1");
+    chunkServerMap_[0x41] = ChunkServer(0x41, "token", "ssd",
+        0x31, "127.0.0.1", 8200, "/");
     copySetMap_[std::pair<PoolIdType, CopySetIdType>(0x01, 0x51)] =
         CopySetInfo(0x01, 0x51);
 
@@ -617,6 +629,10 @@ TEST_F(TestTopology, test_AddChunkServers_success) {
             "ip1",
             100,
             "/");
+    ChunkServerState state;
+    state.SetDiskCapacity(1024);
+    state.SetDiskUsed(512);
+    cs.SetChunkServerState(state);
 
     EXPECT_CALL(*storage_, StorageChunkServer(_))
         .WillOnce(Return(true));
@@ -626,11 +642,15 @@ TEST_F(TestTopology, test_AddChunkServers_success) {
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
     Server server;
-    topology_->GetServer(serverId, &server);
+    ASSERT_TRUE(topology_->GetServer(serverId, &server));
     std::list<ChunkServerIdType> csList = server.GetChunkServerList();
 
     auto it = std::find(csList.begin(), csList.end(), csId);
     ASSERT_TRUE(it != csList.end());
+
+    PhysicalPool pool;
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(1024, pool.GetDiskCapacity());
 }
 
 TEST_F(TestTopology, test_AddChunkServer_IdDuplicated) {
@@ -873,11 +893,15 @@ TEST_F(TestTopology, test_RemoveChunkServer_success) {
             "ssd",
             serverId);
 
+    int ret = topology_->UpdateChunkServerRwState(
+        ChunkServerStatus::RETIRED, csId);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
     EXPECT_CALL(*storage_, DeleteChunkServer(_))
         .WillOnce(Return(true));
 
-    int ret = topology_->RemoveChunkServer(csId);
+    ret = topology_->RemoveChunkServer(csId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
 
     Server server;
@@ -907,11 +931,16 @@ TEST_F(TestTopology, test_RemoveChunkServer_StorageFail) {
             "ssd",
             serverId);
 
+    int ret = topology_->UpdateChunkServerRwState(
+        ChunkServerStatus::RETIRED, csId);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, ret);
+
 
     EXPECT_CALL(*storage_, DeleteChunkServer(_))
         .WillOnce(Return(false));
 
-    int ret = topology_->RemoveChunkServer(csId);
+    ret = topology_->RemoveChunkServer(csId);
     ASSERT_EQ(kTopoErrCodeStorgeFail, ret);
 }
 
@@ -1312,12 +1341,19 @@ TEST_F(TestTopology, UpdateChunkServerDiskStatus_success) {
             serverId,
             "/");
 
+    PhysicalPool pool;
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(1024, pool.GetDiskCapacity());
+
     ChunkServerState csState;
     csState.SetDiskState(DISKERROR);
     csState.SetDiskCapacity(100);
 
     int ret = topology_->UpdateChunkServerDiskStatus(csState,  csId);
     ASSERT_EQ(kTopoErrCodeSuccess, ret);
+
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(100, pool.GetDiskCapacity());
 
     // 只刷一次
     EXPECT_CALL(*storage_, UpdateChunkServer(_))
@@ -1339,7 +1375,7 @@ TEST_F(TestTopology, UpdateChunkServerDiskStatus_ChunkServerNotFound) {
     ASSERT_EQ(kTopoErrCodeChunkServerNotFound, ret);
 }
 
-TEST_F(TestTopology, UpdateChunkServerRwState_success) {
+TEST_F(TestTopology, UpdateChunkServerRwStateToStorage_success) {
     PoolIdType physicalPoolId = 0x11;
     ZoneIdType zoneId = 0x21;
     ServerIdType serverId = 0x31;
@@ -1365,6 +1401,73 @@ TEST_F(TestTopology, UpdateChunkServerRwState_success) {
     // sleep 等待刷数据库
     sleep(5);
     topology_->Stop();
+}
+
+TEST_F(TestTopology, UpdateChunkServerRwStateTestPhysicalPoolCapacity_success) {
+    PoolIdType physicalPoolId = 0x11;
+    ZoneIdType zoneId = 0x21;
+    ServerIdType serverId = 0x31;
+    ChunkServerIdType csId = 0x41;
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(zoneId);
+    PrepareAddServer(serverId);
+    PrepareAddChunkServer(csId,
+            "token",
+            "ssd",
+            serverId,
+            "/");
+
+    PhysicalPool pool;
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(1024, pool.GetDiskCapacity());
+
+    // READWRITE -> RETIRED
+    ASSERT_EQ(kTopoErrCodeSuccess,
+        topology_->UpdateChunkServerRwState(
+            ChunkServerStatus::RETIRED,  csId));
+
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(0, pool.GetDiskCapacity());
+
+    // RETIRED -> PENDDING
+    ASSERT_EQ(kTopoErrCodeSuccess,
+        topology_->UpdateChunkServerRwState(
+            ChunkServerStatus::PENDDING,  csId));
+
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(1024, pool.GetDiskCapacity());
+
+    // PENDDING -> RETIRED
+    ASSERT_EQ(kTopoErrCodeSuccess,
+        topology_->UpdateChunkServerRwState(
+            ChunkServerStatus::RETIRED,  csId));
+
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(0, pool.GetDiskCapacity());
+
+    // RETIRED -> READWRITE
+    ASSERT_EQ(kTopoErrCodeSuccess,
+        topology_->UpdateChunkServerRwState(
+            ChunkServerStatus::READWRITE,  csId));
+
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(1024, pool.GetDiskCapacity());
+
+    // READWRITE -> PENDDING
+    ASSERT_EQ(kTopoErrCodeSuccess,
+        topology_->UpdateChunkServerRwState(
+            ChunkServerStatus::PENDDING,  csId));
+
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(1024, pool.GetDiskCapacity());
+
+    // PENDDING -> READWRITE
+    ASSERT_EQ(kTopoErrCodeSuccess,
+        topology_->UpdateChunkServerRwState(
+            ChunkServerStatus::READWRITE,  csId));
+
+    ASSERT_TRUE(topology_->GetPhysicalPool(0x11, &pool));
+    ASSERT_EQ(1024, pool.GetDiskCapacity());
 }
 
 TEST_F(TestTopology, UpdateChunkServerRwState_ChunkServerNotFound) {
