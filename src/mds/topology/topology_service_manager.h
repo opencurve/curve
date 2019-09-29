@@ -105,6 +105,10 @@ class TopologyServiceManager {
         const GetChunkServerListInCopySetsRequest *request,
         GetChunkServerListInCopySetsResponse *response);
 
+    virtual void GetClusterInfo(
+          const GetClusterInfoRequest* request,
+          GetClusterInfoResponse* response);
+
     /**
      * @brief 调用rpc接口在chunkserver上创建copysetnode
      *

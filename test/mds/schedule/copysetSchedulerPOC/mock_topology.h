@@ -43,6 +43,7 @@ using ::curve::mds::topology::TopologyIdGenerator;
 using ::curve::mds::topology::TopologyTokenGenerator;
 using ::curve::mds::topology::TopologyStorage;
 using ::curve::mds::topology::Topology;
+using ::curve::mds::topology::ClusterInformation;
 
 namespace curve {
 namespace mds {
@@ -149,9 +150,10 @@ class MockStorage : public TopologyStorage {
     MOCK_METHOD1(UpdateCopySet, bool(
         const ::curve::mds::topology::CopySetInfo &data));
 
-    MOCK_METHOD1(SetAutoCommit, bool(const bool &autoCommit));
-    MOCK_METHOD0(Commit, bool());
-    MOCK_METHOD0(RollBack, bool());
+    MOCK_METHOD1(LoadClusterInfo,
+        bool(std::vector<ClusterInformation> *info));
+    MOCK_METHOD1(StorageClusterInfo,
+        bool(const ClusterInformation &info));
 };
 }  // namespace schedule
 }  // namespace mds
