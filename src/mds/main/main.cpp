@@ -19,7 +19,7 @@
 #include "src/mds/nameserver2/session.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/leader_election/leader_election.h"
-#include "src/mds/topology/topology_admin.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 #include "src/mds/topology/topology_service.h"
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_token_generator.h"
@@ -36,10 +36,10 @@
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
-DEFINE_string(mdsAddr, "127.0.0.1.6666", "mds listen addr");
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
+DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
 
-using ::curve::mds::topology::TopologyAdminImpl;
-using ::curve::mds::topology::TopologyAdmin;
+using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
 using ::curve::mds::topology::DefaultIdGenerator;
 using ::curve::mds::topology::DefaultTokenGenerator;
@@ -161,6 +161,12 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
     LOG_IF(FATAL, !conf->GetUInt32Value(
         "mds.topology.UpdateMetricIntervalSec",
         &topologyOption->UpdateMetricIntervalSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.topology.PoolUsagePercentLimit",
+        &topologyOption->PoolUsagePercentLimit));
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "mds.topology.choosePoolPolicy",
+        &topologyOption->choosePoolPolicy));
 }
 
 void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
@@ -212,6 +218,10 @@ void LoadConfigFromCmdline(Configuration *conf) {
     google::CommandLineFlagInfo info;
     if (GetCommandLineFlagInfo("mdsAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.listen.addr", FLAGS_mdsAddr);
+    }
+
+    if (GetCommandLineFlagInfo("etcdAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.etcd.endpoint", FLAGS_etcdAddr);
     }
 }
 
@@ -393,13 +403,16 @@ int curve_main(int argc, char **argv) {
     LOG_IF(FATAL, topologyStat->Init() < 0)
         << "init topologyStat fail.";
 
-    // init TopoAdmin
-    auto topologyAdmin =
-          std::make_shared<TopologyAdminImpl>(topology);
+    // init TopologyChunkAllocator
+    auto topologyChunkAllocator =
+          std::make_shared<TopologyChunkAllocatorImpl>(topology,
+               segmentAllocStatistic, topologyOption);
 
     // init TopologyMetricService
     auto topologyMetricService =
-        std::make_shared<TopologyMetricService>(topology, topologyStat);
+        std::make_shared<TopologyMetricService>(topology,
+            topologyStat,
+            segmentAllocStatistic);
     LOG_IF(FATAL, topologyMetricService->Init(topologyOption) < 0)
         << "init topologyMetricService fail.";
     LOG_IF(FATAL, topologyMetricService->Run() < 0)
@@ -413,7 +426,7 @@ int curve_main(int argc, char **argv) {
 
     // init ChunkSegmentAllocator
     ChunkSegmentAllocator *chunkSegmentAllocate =
-        new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
+        new ChunkSegmentAllocatorImpl(topologyChunkAllocator, chunkIdGenerator);
 
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
     // init CleanManager
@@ -421,7 +434,9 @@ int curve_main(int argc, char **argv) {
     auto copysetClient =
         std::make_shared<CopysetClient>(topology, chunkServerClientOption);
 
-    auto cleanCore = std::make_shared<CleanCore>(storage, copysetClient);
+    auto cleanCore = std::make_shared<CleanCore>(storage,
+                                                 copysetClient,
+                                                 segmentAllocStatistic);
 
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
                                                       taskManager, storage);
@@ -430,7 +445,9 @@ int curve_main(int argc, char **argv) {
     SessionManager *sessionManager = new SessionManager(mdsRepo);
     LOG_IF(FATAL, !kCurveFS.Init(storage, inodeIdGenerator.get(),
                   chunkSegmentAllocate, cleanManger,
-                  sessionManager, sessionOptions, authOptions,
+                  sessionManager,
+                  segmentAllocStatistic,
+                  sessionOptions, authOptions,
                   curveFSOptions, mdsRepo))
         << "init session manager fail";
 

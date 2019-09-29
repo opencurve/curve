@@ -45,7 +45,9 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     }
 
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    uint64_t timeout = rc->GetNextTimeoutMS() > iosenderopt_.rpcTimeoutMs
+                     ? rc->GetNextTimeoutMS() : iosenderopt_.rpcTimeoutMs;
+    cntl->set_timeout_ms(timeout);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -84,7 +86,9 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     DVLOG(9) << "Sending request, buf header: "
              << " buf: " << *(unsigned int *)buf;
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    uint64_t timeout = rc->GetNextTimeoutMS() > iosenderopt_.rpcTimeoutMs
+                     ? rc->GetNextTimeoutMS() : iosenderopt_.rpcTimeoutMs;
+    cntl->set_timeout_ms(timeout);
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
