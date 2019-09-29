@@ -150,13 +150,17 @@ class EtcdClientImp : public KVStorageClient {
 
     /**
      * @brief ListWithLimitAndRevision
+     *        获取指定个数，指定revision，[startKey, endKey)的键值对
      *
-     * @param[in] startKey
-     * @param[in] endKey
-     * @param[in] limit
+     * @param[in] startKey 起始key
+     * @param[in] endKey 终止key, 不包含
+     * @param[in] limit 最多个数
+     * @param[in] revision 获取<=revision的key
+     * @param[out] values 所有键值对的value集合
+     * @param[out] lastKey 集合的最后一个key值
      */
     virtual int ListWithLimitAndRevision(const std::string &startKey,
-        const std::string &endKey, int64_t limit, int64_t startRevision,
+        const std::string &endKey, int64_t limit, int64_t revision,
         std::vector<std::string> *values, std::string *lastKey);
 
     /**

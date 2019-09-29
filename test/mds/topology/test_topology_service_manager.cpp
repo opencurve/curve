@@ -551,6 +551,10 @@ TEST_F(TestTopologyServiceManager, test_DeleteChunkServer_success) {
     EXPECT_CALL(*storage_, DeleteChunkServer(_))
         .WillOnce(Return(true));
 
+    ASSERT_EQ(kTopoErrCodeSuccess,
+        topology_->UpdateChunkServerRwState(
+            ChunkServerStatus::RETIRED, csId1));
+
     DeleteChunkServerResponse response;
     serviceManager_->DeleteChunkServer(&request, &response);
 
