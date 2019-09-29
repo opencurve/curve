@@ -69,6 +69,8 @@ class ClientClosure : public Closure {
         return done_;
     }
 
+    void SleepBeforeRetry(int rpcstatue, int cntlstatus);
+
  protected:
     static FailureRequestOption_t  failReqOpt_;
     // 已经重试了几次

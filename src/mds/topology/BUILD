@@ -26,5 +26,6 @@ cc_library(
         "//src/mds/copyset:copyset",
         "//src/mds/dao:mdsrepo",
         "//src/common:curve_common",
+        "//src/mds/nameserver2/allocstatistic:alloc_statistic",
     ],
 )

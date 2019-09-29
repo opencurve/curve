@@ -334,11 +334,13 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
 
 TEST_F(TestNameServerStorageImp, test_putsegment) {
     PageFileSegment segment;
-    EXPECT_CALL(*client_, Put(_, _))
+    EXPECT_CALL(*client_, PutRewithRevision(_, _, _))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Canceled));
-    ASSERT_EQ(StoreStatus::OK, storage_->PutSegment(0, 0, &segment));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->PutSegment(0, 0, &segment));
+    int64_t revision;
+    ASSERT_EQ(StoreStatus::OK, storage_->PutSegment(0, 0, &segment, &revision));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->PutSegment(0, 0, &segment, &revision));
 }
 
 TEST_F(TestNameServerStorageImp, test_getSegment) {
@@ -373,11 +375,13 @@ TEST_F(TestNameServerStorageImp, test_getSegment) {
 }
 
 TEST_F(TestNameServerStorageImp, test_deleteSegment) {
-    EXPECT_CALL(*client_, Delete(_))
+    EXPECT_CALL(*client_, DeleteRewithRevision(_, _))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Aborted));
-    ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(0, 0));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteSegment(0, 0));
+    int64_t revision;
+    ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(0, 0, &revision));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->DeleteSegment(0, 0, &revision));
 }
 
 TEST_F(TestNameServerStorageImp, test_Snapshotfile) {

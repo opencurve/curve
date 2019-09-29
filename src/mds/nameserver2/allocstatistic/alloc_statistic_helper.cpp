@@ -17,7 +17,7 @@ namespace mds {
 const int GETBUNDLE = 1000;
 
 int AllocStatisticHelper::GetExistSegmentAllocValues(
-    std::map<PoolIdType, uint64_t> *out,
+    std::map<PoolIdType, int64_t> *out,
     const std::shared_ptr<EtcdClientImp> &client) {
     // 从etcd中获取logicalPool对应的segmentSize统计值
     std::vector<std::string> allocVec;
@@ -47,7 +47,7 @@ int AllocStatisticHelper::GetExistSegmentAllocValues(
 
 int AllocStatisticHelper::CalculateSegmentAlloc(
     int64_t revision, const std::shared_ptr<EtcdClientImp> &client,
-    std::map<PoolIdType, uint64_t> *out) {
+    std::map<PoolIdType, int64_t> *out) {
     LOG(INFO) << "start calculate segment alloc, revision: " << revision
               << ", buldle size: " << GETBUNDLE;
     uint64_t startTime = ::curve::common::TimeUtility::GetTimeofDayMs();

@@ -37,6 +37,9 @@ class MockEtcdClient : public EtcdClientImp {
     MOCK_METHOD6(ListWithLimitAndRevision,
         int(const std::string&, const std::string&,
         int64_t, int64_t, std::vector<std::string>*, std::string *));
+    MOCK_METHOD3(PutRewithRevision, int(const std::string &,
+        const std::string &, int64_t *));
+    MOCK_METHOD2(DeleteRewithRevision, int(const std::string &, int64_t *));
 };
 
 class MockLRUCache : public LRUCache {
