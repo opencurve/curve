@@ -111,13 +111,13 @@ def vol_write_data():
         time.sleep(5)
     if vd != "":
         logger.info("vd is %s"%vd)
-        ori_cmd = "fio -name=/dev/%s -direct=1 -iodepth=8 -rw=write -ioengine=libaio -bs=64k -size=%dG -numjobs=1 -time_based  -runtime=120"%(vd,config.snapshot_size)
+        ori_cmd = "fio -name=/dev/%s -direct=1 -iodepth=8 -rw=randwrite -ioengine=libaio -bs=4k -size=%dG -numjobs=1 -time_based  -runtime=120"%(vd,config.snapshot_size)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"write fio fail"
     else:
         assert False,"get vd fail"
 
-def creat_vol_snapshot(vol_uuid):
+def create_vol_snapshot(vol_uuid):
     snap_server = random.choice(config.snap_server_list)
     payload = {}
     payload['Action'] = 'CreateSnapshot'
@@ -402,7 +402,7 @@ def test_clone_iovol_consistency(lazy):
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     vol_id = config.snapshot_volid
     vm_id = config.snapshot_vmid 
-    snapshot_uuid = creat_vol_snapshot(vol_id)
+    snapshot_uuid = create_vol_snapshot(vol_id)
     starttime = time.time()
     final = False
     time.sleep(5)
@@ -452,7 +452,7 @@ def test_cancel_snapshot():
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     vol_id = config.snapshot_volid
     vm_id = config.snapshot_vmid
-    snapshot_uuid = creat_vol_snapshot(vol_id)
+    snapshot_uuid = create_vol_snapshot(vol_id)
     starttime = time.time()
     time.sleep(60)
     cancel_vol_snapshot(vol_id,snapshot_uuid)
@@ -465,7 +465,7 @@ def test_recover_snapshot(lazy="true"):
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     vol_id = config.snapshot_volid
     vm_id = config.snapshot_vmid
-    snapshot_uuid = creat_vol_snapshot(vol_id)
+    snapshot_uuid = create_vol_snapshot(vol_id)
     starttime = time.time()
     final = False
     time.sleep(5)
