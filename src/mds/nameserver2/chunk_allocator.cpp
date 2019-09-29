@@ -37,7 +37,8 @@ bool ChunkSegmentAllocatorImpl::AllocateChunkSegment(FileType type,
         // allocate chunks
         uint32_t chunkNum = segmentSize/chunkSize;
         std::vector<CopysetIdInfo> copysets;
-        if (!topologyAdmin_->AllocateChunkRoundRobinInSingleLogicalPool(
+        if (!topologyChunkAllocator_->
+                AllocateChunkRoundRobinInSingleLogicalPool(
                 type, chunkNum, chunkSize, &copysets)) {
             LOG(ERROR) << "AllocateChunkRoundRobinInSingleLogicalPool error";
             return false;

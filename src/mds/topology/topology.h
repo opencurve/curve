@@ -495,6 +495,28 @@ class TopologyImpl : public Topology {
         CopySetFilter filter = [](const CopySetInfo&) {
             return true;}) const override;
 
+    /**
+     * @brief 获取chunksever的所属physicalPool Id
+     *
+     * @param csId chunkserver Id
+     * @param[out] physicalPoolIdOut physicalPool Id
+     *
+     * @return 错误码
+     */
+    int GetBelongPhysicalPoolId(ChunkServerIdType csId,
+        PoolIdType *physicalPoolIdOut);
+
+    /**
+     * @brief  获取server的所属physicalPool Id
+     *
+     * @param serverId  server Id
+     * @param[out] physicalPoolIdOut physicalPool Id
+     *
+     * @return 错误码
+     */
+    int GetBelongPhysicalPoolIdByServerId(ServerIdType serverId,
+        PoolIdType *physicalPoolIdOut);
+
  private:
     int CleanInvalidLogicalPoolAndCopyset();
 

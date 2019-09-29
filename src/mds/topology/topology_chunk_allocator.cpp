@@ -5,7 +5,7 @@
  * Copyright (c) 2018 netease
  */
 
-#include "src/mds/topology/topology_admin.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 
 #include <glog/logging.h>
 
@@ -20,7 +20,7 @@ namespace curve {
 namespace mds {
 namespace topology {
 
-bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
+bool TopologyChunkAllocatorImpl::AllocateChunkRandomInSingleLogicalPool(
     curve::mds::FileType fileType,
     uint32_t chunkNumber,
     ChunkSizeType chunkSize,
@@ -54,7 +54,7 @@ bool TopologyAdminImpl::AllocateChunkRandomInSingleLogicalPool(
     return ret;
 }
 
-bool TopologyAdminImpl::AllocateChunkRoundRobinInSingleLogicalPool(
+bool TopologyChunkAllocatorImpl::AllocateChunkRoundRobinInSingleLogicalPool(
     curve::mds::FileType fileType,
     uint32_t chunkNumber,
     ChunkSizeType chunkSize,
@@ -67,7 +67,7 @@ bool TopologyAdminImpl::AllocateChunkRoundRobinInSingleLogicalPool(
     PoolIdType logicalPoolChosenId = 0;
     bool ret = ChooseSingleLogicalPool(fileType, &logicalPoolChosenId);
     if (!ret) {
-        LOG(ERROR) << "ChooseSingleLogicalPool fail, ret =  " << ret;
+        LOG(ERROR) << "ChooseSingleLogicalPool fail, ret = false.";
         return false;
     }
 
@@ -108,7 +108,8 @@ bool TopologyAdminImpl::AllocateChunkRoundRobinInSingleLogicalPool(
     return ret;
 }
 
-bool TopologyAdminImpl::ChooseSingleLogicalPool(curve::mds::FileType fileType,
+bool TopologyChunkAllocatorImpl::ChooseSingleLogicalPool(
+    curve::mds::FileType fileType,
     PoolIdType *poolOut) {
     std::vector<PoolIdType> logicalPools;
 
@@ -125,7 +126,6 @@ bool TopologyAdminImpl::ChooseSingleLogicalPool(curve::mds::FileType fileType,
         break;
     }
 
-    // TODO(xuchaojie): 还需过滤容量不足的pool
     auto logicalPoolFilter =
     [poolType] (const LogicalPool &pool) {
         return pool.GetLogicalPoolAvaliableFlag() &&
@@ -139,16 +139,55 @@ bool TopologyAdminImpl::ChooseSingleLogicalPool(curve::mds::FileType fileType,
         return false;
     }
 
-    // TODO(xuchaojie): 后续以pool剩余容量作为权值随机
     std::map<PoolIdType, double> poolWeightMap;
+    std::vector<PoolIdType> poolToChoose;
     for (auto pid : logicalPools) {
-        poolWeightMap.emplace(pid, 1);
+        LogicalPool lPool;
+        if (!topology_->GetLogicalPool(pid, &lPool)) {
+            continue;
+        }
+        PhysicalPool pPool;
+        if (!topology_->GetPhysicalPool(lPool.GetPhysicalPoolId(), &pPool)) {
+            continue;
+        }
+        uint64_t diskCapacity = pPool.GetDiskCapacity();
+        // 除去预留
+        diskCapacity = diskCapacity * poolUsagePercentLimit_ / 100;
+
+        // TODO(xuchaojie): 后续若支持同一物理池创建多个逻辑池，此处需修正
+        int64_t alloc = 0;
+        allocStatistic_->GetAllocByLogicalPool(pid, &alloc);
+
+        // 乘以副本数
+        alloc *= lPool.GetReplicaNum();
+
+        // 减去已使用
+        uint64_t diskRemainning =
+            (diskCapacity > alloc) ? diskCapacity - alloc : 0;
+
+        LOG(INFO) << "ChooseSingleLogicalPool find pool {"
+                  << "diskCapacity:" << diskCapacity
+                  << ", diskAlloc:" << alloc
+                  << ", diskRemainning:" << diskRemainning
+                  << "}";
+
+        if (ChoosePoolPolicy::kWeight == policy_) {
+            // 以剩余空间作为权值
+            poolWeightMap.emplace(pid, diskRemainning);
+        } else {
+            if (diskRemainning > 0) {
+                poolToChoose.push_back(pid);
+            }
+        }
     }
-
-    return AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
-        poolWeightMap, poolOut);
+    if (ChoosePoolPolicy::kWeight == policy_) {
+        return AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
+            poolWeightMap, poolOut);
+    } else {
+        return AllocateChunkPolicy::ChooseSingleLogicalPoolRandom(
+            poolToChoose, poolOut);
+    }
 }
-
 
 bool AllocateChunkPolicy::AllocateChunkRandomInSingleLogicalPool(
     std::vector<CopySetIdType> copySetIds,
@@ -197,6 +236,8 @@ bool AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
     const std::map<PoolIdType, double> &poolWeightMap,
     PoolIdType *poolIdOut) {
     if (poolWeightMap.empty()) {
+        LOG(ERROR) << "ChooseSingleLogicalPoolByWeight, "
+                   << "poolWeightMap is empty.";
         return false;
     }
     // 将权值累加，在(0,sum)这段区间内使用标准均匀分布取随机值，
@@ -205,19 +246,40 @@ bool AllocateChunkPolicy::ChooseSingleLogicalPoolByWeight(
     std::map<double, PoolIdType> distributionMap;
     double sum = 0;
     for (auto &v : poolWeightMap) {
-        sum += v.second;
-        distributionMap.emplace(sum, v.first);
+        if (v.second != 0) {
+            sum += v.second;
+            distributionMap.emplace(sum, v.first);
+        }
+    }
+    if (distributionMap.size() != 0 && sum > 0) {
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(0, sum);
+        double randomValue = dis(gen);
+        auto it = distributionMap.upper_bound(randomValue);
+        *poolIdOut = it->second;
+        return true;
+    } else {
+        LOG(ERROR) << "distributionMap does not have any available pool.";
+        return false;
+    }
+}
+
+bool AllocateChunkPolicy::ChooseSingleLogicalPoolRandom(
+    const std::vector<PoolIdType> &pools,
+    PoolIdType *poolIdOut) {
+    if (pools.empty()) {
+        LOG(ERROR) << "ChooseSingleLogicalPoolRandom, "
+                   << "pools is empty.";
+        return false;
     }
     static std::random_device rd;
     static std::mt19937 gen(rd());
-    std::uniform_real_distribution<> dis(0, sum);
-
-    double randomValue = dis(gen);
-    auto it = distributionMap.upper_bound(randomValue);
-    *poolIdOut = it->second;
+    std::uniform_int_distribution<> dis(0, pools.size() - 1);
+    int randomValue = dis(gen);
+    *poolIdOut = pools[randomValue];
     return true;
 }
-
 
 }  // namespace topology
 }  // namespace mds
