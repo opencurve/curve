@@ -23,6 +23,7 @@
 #include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/dao/mdsRepo.h"
 #include "src/common/authenticator.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 using curve::common::Authenticator;
 
@@ -57,6 +58,7 @@ class CurveFS {
      *         ChunkSegmentAllocator：
      *         CleanManagerInterface:
      *         sessionManager：
+     *         allocStatistic: 分配统计模块
      *         sessionOptions ：初始化所session需要的参数
      *         authOptions : 对root用户进行认认证的参数
      *         CurveFSOption : 对curvefs进行初始化需要的参数
@@ -66,6 +68,7 @@ class CurveFS {
     bool Init(NameServerStorage*, InodeIDGenerator*, ChunkSegmentAllocator*,
               std::shared_ptr<CleanManagerInterface>,
               SessionManager *sessionManager,
+              std::shared_ptr<AllocStatistic> allocStatistic,
               const struct SessionOptions &sessionOptions,
               const struct RootAuthOption &authOptions,
               const struct CurveFSOption &curveFSOptions,
@@ -480,6 +483,7 @@ class CurveFS {
     ChunkSegmentAllocator*      chunkSegAllocator_;
     SessionManager *            sessionManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;
+    std::shared_ptr<AllocStatistic> allocStatistic_;
     struct RootAuthOption       rootAuthOptions_;
     struct CurveFSOption        curveFSOptions_;
     std::shared_ptr<MdsRepo> repo_;

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
-#define SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
+#ifndef SRC_MDS_TOPOLOGY_TOPOLOGY_CHUNK_ALLOCATOR_H_
+#define SRC_MDS_TOPOLOGY_TOPOLOGY_CHUNK_ALLOCATOR_H_
 
 #include <vector>
 #include <memory>
@@ -14,19 +14,26 @@
 #include <map>
 
 #include "src/mds/topology/topology.h"
-#include "src/mds/topology/topology_stat.h"
 #include "proto/nameserver2.pb.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/mds/topology/topology_item.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 namespace curve {
 namespace mds {
 namespace topology {
 
-class TopologyAdmin {
+enum class ChoosePoolPolicy {
+    // 随机选pool
+    kRandom = 0,
+    // 剩余容量作为权值选pool
+    kWeight,
+};
+
+class TopologyChunkAllocator {
  public:
-    TopologyAdmin() {}
-    virtual ~TopologyAdmin() {}
+    TopologyChunkAllocator() {}
+    virtual ~TopologyChunkAllocator() {}
     virtual bool AllocateChunkRandomInSingleLogicalPool(
         ::curve::mds::FileType fileType,
         uint32_t chunkNumer,
@@ -39,13 +46,18 @@ class TopologyAdmin {
         std::vector<CopysetIdInfo> *infos) = 0;
 };
 
-class TopologyAdminImpl : public TopologyAdmin {
+class TopologyChunkAllocatorImpl : public TopologyChunkAllocator {
  public:
-    explicit TopologyAdminImpl(std::shared_ptr<Topology> topology)
-        : topology_(topology) {
+    TopologyChunkAllocatorImpl(std::shared_ptr<Topology> topology,
+        std::shared_ptr<AllocStatistic> allocStatistic,
+        const TopologyOption &option)
+        : topology_(topology),
+        allocStatistic_(allocStatistic),
+        poolUsagePercentLimit_(option.PoolUsagePercentLimit),
+        policy_(static_cast<ChoosePoolPolicy>(option.choosePoolPolicy)) {
         std::srand(std::time(nullptr));
     }
-    ~TopologyAdminImpl() {}
+    ~TopologyChunkAllocatorImpl() {}
 
 
     /**
@@ -98,7 +110,11 @@ class TopologyAdminImpl : public TopologyAdmin {
  private:
     std::shared_ptr<Topology> topology_;
 
-    std::shared_ptr<TopologyStat> topologyStat_;
+    // 分配统计模块
+    std::shared_ptr<AllocStatistic> allocStatistic_;
+
+    // pool使用百分比上限
+    uint32_t poolUsagePercentLimit_;
 
     /**
      * @brief RoundRobin各逻辑池起始点map
@@ -108,6 +124,8 @@ class TopologyAdminImpl : public TopologyAdmin {
      * @brief 保护上述map的锁
      */
     ::curve::common::Mutex nextIndexMapLock_;
+    // 选pool策略
+    ChoosePoolPolicy policy_;
 };
 
 /**
@@ -153,8 +171,30 @@ class AllocateChunkPolicy {
         uint32_t chunkNumber,
         std::vector<CopysetIdInfo> *infos);
 
+    /**
+     * @brief 根据权值选择单个逻辑池
+     *
+     * @param poolWeightMap 逻辑池的权值表
+     * @param[out] poolIdOut 选择的poolId
+     *
+     * @retval true 成功
+     * @retval false 失败
+     */
     static bool ChooseSingleLogicalPoolByWeight(
         const std::map<PoolIdType, double> &poolWeightMap,
+        PoolIdType *poolIdOut);
+
+    /**
+     * @brief 随机选择单个逻辑池
+     *
+     * @param pools 逻辑池列表
+     * @param[out] poolIdOut 选择的poolId
+     *
+     * @retval true 成功
+     * @retval false 失败
+     */
+    static bool ChooseSingleLogicalPoolRandom(
+        const std::vector<PoolIdType> &pools,
         PoolIdType *poolIdOut);
 };
 
@@ -164,4 +204,4 @@ class AllocateChunkPolicy {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // SRC_MDS_TOPOLOGY_TOPOLOGY_ADMIN_H_
+#endif  // SRC_MDS_TOPOLOGY_TOPOLOGY_CHUNK_ALLOCATOR_H_
