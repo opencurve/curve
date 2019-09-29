@@ -23,12 +23,12 @@ class AllocStatisticHelper {
  public:
     // 获取记录的physicalPool对应的segment的值
     static int GetExistSegmentAllocValues(
-        std::map<PoolIdType, uint64_t> *out,
+        std::map<PoolIdType, int64_t> *out,
         const std::shared_ptr<EtcdClientImp> &client);
 
     static int CalculateSegmentAlloc(
         int64_t revision, const std::shared_ptr<EtcdClientImp> &client,
-        std::map<PoolIdType, uint64_t> *out);
+        std::map<PoolIdType, int64_t> *out);
 };
 }  // namespace mds
 }  // namespace curve

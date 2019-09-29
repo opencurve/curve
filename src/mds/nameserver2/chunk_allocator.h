@@ -12,10 +12,10 @@
 #include <vector>
 #include <memory>
 #include "src/mds/common/mds_define.h"
-#include "src/mds/topology/topology_admin.h"
 #include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 
-using ::curve::mds::topology::TopologyAdmin;
+using ::curve::mds::topology::TopologyChunkAllocator;
 
 namespace curve {
 namespace mds {
@@ -35,14 +35,14 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
     using CopysetIdInfo = ::curve::mds::topology::CopysetIdInfo;
 
     explicit ChunkSegmentAllocatorImpl(
-                        std::shared_ptr<TopologyAdmin> topologyAdmin,
+                        std::shared_ptr<TopologyChunkAllocator> topologyAdmin,
                         std::shared_ptr<ChunkIDGenerator> chunkIDGenerator) {
-        topologyAdmin_ = topologyAdmin;
+        topologyChunkAllocator_ = topologyAdmin;
         chunkIDGenerator_ = chunkIDGenerator;
     }
 
     ~ChunkSegmentAllocatorImpl() {
-        topologyAdmin_ = nullptr;
+        topologyChunkAllocator_ = nullptr;
         chunkIDGenerator_ = nullptr;
     }
 
@@ -51,7 +51,7 @@ class ChunkSegmentAllocatorImpl: public ChunkSegmentAllocator {
         offset_t offset, PageFileSegment *segment) override;
 
  private:
-    std::shared_ptr<TopologyAdmin> topologyAdmin_;
+    std::shared_ptr<TopologyChunkAllocator> topologyChunkAllocator_;
     std::shared_ptr<ChunkIDGenerator> chunkIDGenerator_;
 };
 

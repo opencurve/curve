@@ -131,6 +131,7 @@ TEST(CleanTaskManger, NthSuccessTask) {
 
     // task have runed
     // wait the thread pool to run
+    std::this_thread::sleep_for(std::chrono::milliseconds(checkPeriod/2));
     LOG(INFO) << "check to see if task have runed";
     ASSERT_EQ(1, nthSuccessTask->RunTimes_);
     ASSERT_EQ(nthSuccessTask->GetTaskProgress().GetProgress(), 0);
