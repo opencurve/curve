@@ -157,6 +157,10 @@ void TopologyMetricService::UpdateTopologyMetrics() {
 
         it->second->diskCapacity.set_value(totalDiskCapacity);
         it->second->diskUsed.set_value(totalDiskUsed);
+        int64_t diskAlloc = 0;
+        allocStatistic_->GetAllocByLogicalPool(pid, &diskAlloc);
+        // 需乘以副本数
+        it->second->diskAlloc.set_value(diskAlloc * pool.GetReplicaNum());
     }
     // 移除已经不存在的逻辑池metric
     for (auto iy = gLogicalPoolMetrics.begin();
