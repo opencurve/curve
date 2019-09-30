@@ -1758,7 +1758,7 @@ create snapshot with notexist file
 create snapshot with null file
     [Tags]    P0    base    first release   test-snapshot
     ${rc}  snapshot create with empty str file
-    ${expect_rc}    evaluate    int(-17)
+    ${expect_rc}    evaluate    int(-16)
     should be equal  ${rc}  ${expect_rc}
 
 create snapshot special char file name

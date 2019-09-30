@@ -479,7 +479,7 @@ StatusCode CurveFS::CheckFileCanChange(const std::string &fileName,
     if (fileInfo.filestatus() == FileStatus::kFileBeingCloned) {
         LOG(ERROR) << "CheckFileCanChange, file is being Cloned, "
                    << "cannot delete or rename, fileName = " << fileName;
-        return StatusCode::kCommonFileDeleteError;
+        return StatusCode::kDeleteFileBeingCloned;
     }
 
     // 检查文件是否有分配出去的可用session

@@ -851,6 +851,8 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initLogicalPoolIdGenerator(maxLogicalPoolId);
+    LOG(INFO) << "[TopologyImpl::init], LoadLogicalPool success, "
+              << "logicalPool num = " << logicalPoolMap_.size();
 
     PoolIdType maxPhysicalPoolId;
     if (!storage_->LoadPhysicalPool(&physicalPoolMap_, &maxPhysicalPoolId)) {
@@ -858,6 +860,8 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initPhysicalPoolIdGenerator(maxPhysicalPoolId);
+    LOG(INFO) << "[TopologyImpl::init], LoadPhysicalPool success, "
+              << "physicalPool num = " << physicalPoolMap_.size();
 
     ZoneIdType maxZoneId;
     if (!storage_->LoadZone(&zoneMap_, &maxZoneId)) {
@@ -865,6 +869,8 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initZoneIdGenerator(maxZoneId);
+    LOG(INFO) << "[TopologyImpl::init], LoadZone success, "
+               << "zone num = " << zoneMap_.size();
 
     ServerIdType maxServerId;
     if (!storage_->LoadServer(&serverMap_, &maxServerId)) {
@@ -872,6 +878,8 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initServerIdGenerator(maxServerId);
+    LOG(INFO) << "[TopologyImpl::init], LoadServer success, "
+              << "server num = " << serverMap_.size();
 
     ChunkServerIdType maxChunkServerId;
     if (!storage_->LoadChunkServer(&chunkServerMap_, &maxChunkServerId)) {
@@ -879,6 +887,8 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initChunkServerIdGenerator(maxChunkServerId);
+    LOG(INFO) << "[TopologyImpl::init], LoadChunkServer success, "
+              << "chunkserver num = " << chunkServerMap_.size();
 
     // 更新物理池容量
     for (auto pair : chunkServerMap_) {
@@ -912,6 +922,7 @@ int TopologyImpl::init(const TopologyOption &option) {
             return kTopoErrCodePhysicalPoolNotFound;
         }
     }
+    LOG(INFO) << "Calc physicalPool capacity success.";
 
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
     if (!storage_->LoadCopySet(&copySetMap_, &copySetIdMaxMap)) {
@@ -919,6 +930,8 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initCopySetIdGenerator(copySetIdMaxMap);
+    LOG(INFO) << "[TopologyImpl::init], LoadCopySet success, "
+              << "copyset num = " << copySetMap_.size();
 
     for (auto it : zoneMap_) {
         PoolIdType poolid = it.second.GetPhysicalPoolId();
@@ -942,6 +955,7 @@ int TopologyImpl::init(const TopologyOption &option) {
         LOG(ERROR) << "CleanInvalidLogicalPoolAndCopyset error, ret = " << ret;
         return ret;
     }
+    LOG(INFO) << "Clean Invalid LogicalPool and copyset success.";
 
     return kTopoErrCodeSuccess;
 }

@@ -356,17 +356,7 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     for (std::vector<FileSnapshotInfo>::size_type i = offsetNum;
         i < info.size() && i < limitNum;
         i++) {
-        Json::Value fileSnapObj;
-        const SnapshotInfo &snap = info[i].GetSnapshotInfo();
-        fileSnapObj["UUID"] = snap.GetUuid();
-        fileSnapObj["User"] = snap.GetUser();
-        fileSnapObj["File"] = snap.GetFileName();
-        fileSnapObj["SeqNum"] = snap.GetSeqNum();
-        fileSnapObj["Name"] = snap.GetSnapshotName();
-        fileSnapObj["Time"] = snap.GetCreateTime();
-        fileSnapObj["FileLength"] = snap.GetFileLength();
-        fileSnapObj["Status"] = static_cast<int>(snap.GetStatus());
-        fileSnapObj["Progress"] = info[i].GetSnapProgress();
+        Json::Value fileSnapObj = info[i].ToJsonObj();
         listSnapObj.append(fileSnapObj);
     }
     mainObj["Snapshots"] = listSnapObj;
@@ -587,16 +577,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     for (std::vector<TaskCloneInfo>::size_type i = offsetNum;
         i < cloneTaskInfos.size() && i < limitNum;
         i++) {
-        Json::Value cloneTaskObj;
-        const TaskCloneInfo &info = cloneTaskInfos[i];
-        cloneTaskObj["UUID"] = info.GetCloneInfo().GetTaskId();
-        cloneTaskObj["User"] = info.GetCloneInfo().GetUser();
-        cloneTaskObj["File"] = info.GetCloneInfo().GetDest();
-        cloneTaskObj["TaskType"] = static_cast<int> (
-            info.GetCloneInfo().GetTaskType());
-        cloneTaskObj["TaskStatus"] = static_cast<int> (
-            info.GetCloneInfo().GetStatus());
-        cloneTaskObj["Time"] = info.GetCloneInfo().GetTime();
+        Json::Value cloneTaskObj = cloneTaskInfos[i].ToJsonObj();
         listObj.append(cloneTaskObj);
     }
     mainObj["TaskInfos"] = listObj;
@@ -608,9 +589,15 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
 
 bool SnapshotCloneServiceImpl::CheckBoolParamter(
     const std::string *param, bool *valueOut) {
-    if (*param == "true" || *param == "TRUE" || *param == "1") {
+    if (*param == "true" ||
+        *param == "True" ||
+        *param == "TRUE" ||
+        *param == "1") {
         *valueOut = true;
-    } else if (*param == "false" || *param == "FALSE" || *param == "0") {
+    } else if (*param == "false" ||
+               *param == "False" ||
+               *param == "FALSE" ||
+               *param == "0") {
         *valueOut = false;
     } else {
         return false;

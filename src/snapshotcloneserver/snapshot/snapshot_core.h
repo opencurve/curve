@@ -162,7 +162,8 @@ class SnapshotCoreImpl : public SnapshotCore {
       chunkSplitSize_(option.chunkSplitSize),
       checkSnapshotStatusIntervalMs_(option.checkSnapshotStatusIntervalMs),
       maxSnapshotLimit_(option.maxSnapshotLimit),
-      snapshotCoreThreadNum_(option.snapshotCoreThreadNum) {
+      snapshotCoreThreadNum_(option.snapshotCoreThreadNum),
+      mdsSessionTimeUs_(option.mdsSessionTimeUs) {
         threadPool_ = std::make_shared<ThreadPool>(
             option.snapshotCoreThreadNum);
     }
@@ -360,6 +361,8 @@ class SnapshotCoreImpl : public SnapshotCore {
     uint32_t maxSnapshotLimit_;
     // 线程数
     uint32_t snapshotCoreThreadNum_;
+    // session超时时间
+    uint32_t mdsSessionTimeUs_;
 };
 
 }  // namespace snapshotcloneserver

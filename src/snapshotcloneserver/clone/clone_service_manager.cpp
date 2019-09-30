@@ -154,6 +154,8 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                     info->emplace_back(cloneInfo, 100);
                     break;
                 }
+                case CloneStatus::cleaning:
+                case CloneStatus::errorCleaning:
                 case CloneStatus::error: {
                     info->emplace_back(cloneInfo, 0);
                     break;
@@ -192,7 +194,8 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                     break;
                 }
                 default:
-                    LOG(ERROR) << "can not reach here!";
+                    LOG(ERROR) << "can not reach here!, status = "
+                               << static_cast<int>(cloneInfo.GetStatus());
                     break;
             }
         }

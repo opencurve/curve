@@ -163,7 +163,7 @@ TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreInvalidUser) {
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(fInfo),
-                    Return(LIBCURVE_ERROR::OK)));
+                    Return(-LIBCURVE_ERROR::AUTHFAIL)));
     int ret = core_->CreateSnapshotPre(file, user, desc, &info);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 }

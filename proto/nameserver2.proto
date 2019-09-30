@@ -101,6 +101,9 @@ enum  StatusCode {
     kFileUnderDeleting = 131;
     // 文件长度不符合要求
     kFileLengthNotSupported = 132;
+    // 文件正在被克隆
+    kDeleteFileBeingCloned = 133;
+
     // 元数据存储错误
     kStorageError = 501;
     // 内部错误

@@ -293,12 +293,24 @@ class SnapshotInfo {
         return uuid_;
     }
 
+    void SetUser(const std::string &user) {
+        user_ = user;
+    }
+
     std::string GetUser() const {
         return user_;
     }
 
+    void SetFileName(const std::string &fileName) {
+        fileName_ = fileName;
+    }
+
     std::string GetFileName() const {
         return fileName_;
+    }
+
+    void SetSnapshotName(const std::string &snapshotName) {
+        snapshotName_ = snapshotName;
     }
 
     std::string GetSnapshotName() const {

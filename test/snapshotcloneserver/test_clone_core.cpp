@@ -1254,7 +1254,7 @@ TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreGetCloneInfoFail) {
 
     int ret = core_->CleanCloneOrRecoverTaskPre(
         user, taskId, &cloneInfoOut);
-    ASSERT_EQ(kErrCodeFileNotExist, ret);
+    ASSERT_EQ(0, ret);
 }
 
 TEST_F(TestCloneCoreImpl, TestCleanOrRecoverTaskPreInvalidUser) {
