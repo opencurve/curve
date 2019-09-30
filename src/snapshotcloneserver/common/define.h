@@ -53,7 +53,7 @@ const int kErrCodeChunkSizeNotAligned = -10;
 const int kErrCodeFileNameNotMatch = -11;
 // 错误码： 不能删除未完成的快照
 const int kErrCodeSnapshotCannotDeleteUnfinished = -12;
-// 错误码: 不能对存在异常快照的文件打快照
+// 错误码: 不能对存在异常快照的文件打快照，或不能对存在错误的目标文件克隆/恢复
 const int kErrCodeSnapshotCannotCreateWhenError = -13;
 // 错误码：取消的快照已完成
 const int kErrCodeCannotCancelFinished = -14;

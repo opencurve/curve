@@ -62,19 +62,18 @@ int SnapshotCoreImpl::CreateSnapshotPre(const std::string &file,
                        << ", user = " << user
                        << ", snapshotName = " << snapshotName;
             return kErrCodeFileNotExist;
+        case -LIBCURVE_ERROR::AUTHFAIL:
+            LOG(ERROR) << "create snapshot by invalid user"
+                       << ", file = " << file
+                       << ", user = " << user
+                       << ", snapshotName = " << snapshotName;
+            return kErrCodeInvalidUser;
         default:
             LOG(ERROR) << "GetFileInfo encounter an error"
                        << ", ret = " << ret
                        << ", file = " << file
                        << ", user = " << user;
             return kErrCodeInternalError;
-    }
-    if (fInfo.owner != user) {
-        LOG(ERROR) << "create snapshot by invalid user"
-                   << ", file = " << file
-                   << ", user = " << user
-                   << ", snapshotName = " << snapshotName;
-        return kErrCodeInvalidUser;
     }
 
     if (fInfo.filestatus != FileStatus::Created &&
@@ -387,6 +386,10 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
                    << ", fileName = " << fileName;
         return ret;
     }
+
+    // 打完快照需等待2个session时间，以保证seq同步到所有client
+    std::this_thread::sleep_for(
+        std::chrono::microseconds(mdsSessionTimeUs_ * 2));
 
     return kErrCodeSuccess;
 }

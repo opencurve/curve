@@ -76,6 +76,8 @@ enum LIBCURVE_ERROR {
     SESSION_NOT_EXIST       = 25,
     // 状态异常
     STATUS_NOT_MATCH        = 26,
+    // 删除文件正常被克隆
+    DELETE_BEING_CLONED     = 27,
     // 未知错误
     UNKNOWN                 = 100
 };

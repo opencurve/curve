@@ -156,10 +156,13 @@ class CloneCoreImpl : public CloneCore {
         mdsRootUser_(option.mdsRootUser),
         cloneCoreThreadNum_(option.cloneCoreThreadNum) {
           threadPool_ = std::make_shared<ThreadPool>(option.cloneCoreThreadNum);
+          recoverChunkPool_ =
+              std::make_shared<ThreadPool>(option.cloneCoreThreadNum);
     }
 
     ~CloneCoreImpl() {
         threadPool_->Stop();
+        recoverChunkPool_->Stop();
     }
 
     int Init();
@@ -409,6 +412,8 @@ class CloneCoreImpl : public CloneCore {
 
     // 执行并发步骤的线程池
     std::shared_ptr<ThreadPool> threadPool_;
+    // 执行RecoverChunk并发的线程池
+    std::shared_ptr<ThreadPool> recoverChunkPool_;
 
     // clone chunk分片大小
     uint64_t cloneChunkSplitSize_;
