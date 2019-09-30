@@ -22,8 +22,8 @@ class LibCurve:
         user_info_t.password = pass_word
         rc = curvefs.Create(file_path, user_info_t, size)
         if rc != 0:
-            print("create file fail! rc=%s" %rc)
-            logger.debug("create file fail! rc=%s" % rc)
+#            print("create file %s fail! rc=%s" %(file_path,rc))
+            logger.error("create file %s fail! rc=%s" % (file_path,rc))
             return rc
             #raise AssertionError
         else:
@@ -60,6 +60,7 @@ class LibCurve:
         if rc == 0:
             return file_info
         else:
+            logger.error("statfs file %s fail! rc=%s" % (file_path,rc)
             return rc
             raise AssertionError
 
@@ -103,7 +104,8 @@ class LibCurve:
         rc = curvefs.Unlink(filepath, user_info_t)
         if rc != 0:
             #print "delete file fail! rc=%s" % rc
-            logger.info("delete file fail! rc=%s" % rc)
+            logger.error("delete file %s fail! rc=%s" % (file_path,rc)
+#            logger.info("delete file fail! rc=%s" % rc)
             return rc
             #raise AssertionError
         else:
