@@ -282,7 +282,7 @@ def create_libcurve_file(file_name = config.file_name, user_name = config.user_n
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_create(file_name, user_name, size, pass_word)
     if rc != 0:
-        logger.info("create libcurve file fail. rc = %s" %rc)
+        logger.error("create libcurve file %s fail. rc = %s" %(file_name,rc))
         return rc
 
         #raise AssertionError
@@ -337,7 +337,7 @@ def statfs_libcurve_file(file_name=config.file_name, user_name=config.user_name,
     rc = curvefs.libcurve_statfs(file_name, user_name, pass_word)
 
     if rc < 0:
-        logger.info("stafs libcurve file fail. rc = %s" %rc)
+        logger.error("stafs libcurve file fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
@@ -359,7 +359,7 @@ def close_libcurve_file(fd):
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_close(fd)
     if rc != 0:
-        logger.info("close libcurve file fail. rc = %s" %rc)
+        logger.error("close libcurve file fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
@@ -370,7 +370,7 @@ def delete_libcurve_file(file_name = config.file_name, user_name = config.user_n
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_delete(file_name, user_name, pass_word)
     if rc != 0:
-        #logger.error("delete libcurve file fail. rc = %s" %rc)
+        logger.error("delete libcurve file %s fail. rc = %s" %(file_name,str(rc)))
         return rc
         #raise AssertionError
     else:
