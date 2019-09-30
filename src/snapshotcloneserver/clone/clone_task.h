@@ -133,6 +133,13 @@ class CreateCloneChunkTask : public TrackerTask {
 
     void Run() override {
         std::unique_ptr<CreateCloneChunkTask> self_guard(this);
+        LOG(INFO) << "CreateCloneChunk:"
+                  << "location = " << taskInfo_->location_
+                  << ", logicalPoolId = " << taskInfo_->chunkidinfo_.lpid_
+                  << ", copysetId = " << taskInfo_->chunkidinfo_.cpid_
+                  << ", chunkId = " << taskInfo_->chunkidinfo_.cid_
+                  << ", seqNum = " << taskInfo_->sn_
+                  << ", csn = " << taskInfo_->csn_;
         int ret  = client_->CreateCloneChunk(taskInfo_->location_,
             taskInfo_->chunkidinfo_,
             taskInfo_->sn_,
@@ -153,6 +160,76 @@ class CreateCloneChunkTask : public TrackerTask {
 
  protected:
     std::shared_ptr<CreateCloneChunkTaskInfo> taskInfo_;
+    std::shared_ptr<CurveFsClient> client_;
+};
+
+struct RecoverChunkTaskInfo : public TaskInfo {
+    ChunkIDInfo chunkidinfo_;
+    uint64_t chunkSize_;
+    uint64_t cloneChunkSplitSize_;
+
+    RecoverChunkTaskInfo(
+        const ChunkIDInfo &chunkidinfo,
+        uint64_t chunkSize,
+        uint64_t cloneChunkSplitSize)
+        : TaskInfo(),
+          chunkidinfo_(chunkidinfo),
+          chunkSize_(chunkSize),
+          cloneChunkSplitSize_(cloneChunkSplitSize) {}
+};
+
+class RecoverChunkTask : public TrackerTask {
+ public:
+     RecoverChunkTask(const TaskIdType &taskId,
+        std::shared_ptr<RecoverChunkTaskInfo> taskInfo,
+        std::shared_ptr<CurveFsClient> client)
+        : TrackerTask(taskId),
+          taskInfo_(taskInfo),
+          client_(client) {}
+
+    std::shared_ptr<RecoverChunkTaskInfo> GetTaskInfo() const {
+        return taskInfo_;
+    }
+
+    void Run() override {
+        std::unique_ptr<RecoverChunkTask> self_guard(this);
+
+        LOG(INFO) << "RecoverChunk:"
+                   << " logicalPoolId = " << taskInfo_->chunkidinfo_.lpid_
+                   << ", copysetId = " << taskInfo_->chunkidinfo_.cpid_
+                   << ", chunkId = " << taskInfo_->chunkidinfo_.cid_
+                   << ", len = " << taskInfo_->cloneChunkSplitSize_;
+
+        uint64_t splitSize = taskInfo_->chunkSize_
+            / taskInfo_->cloneChunkSplitSize_;
+
+        int ret = LIBCURVE_ERROR::OK;
+        for (uint64_t i = 0; i < splitSize; i++) {
+            if (GetTracker()->GetResult() != LIBCURVE_ERROR::OK) {
+                // 已经发现错误就不继续了
+                break;
+            }
+            uint64_t offset = i * taskInfo_->cloneChunkSplitSize_;
+            ret = client_->RecoverChunk(taskInfo_->chunkidinfo_,
+                offset,
+                taskInfo_->cloneChunkSplitSize_);
+            if (ret != LIBCURVE_ERROR::OK) {
+                LOG(ERROR) << "RecoverChunk fail"
+                           << ", ret = " << ret
+                           << ", logicalPoolId = "
+                           << taskInfo_->chunkidinfo_.lpid_
+                           << ", copysetId = " << taskInfo_->chunkidinfo_.cpid_
+                           << ", chunkId = " << taskInfo_->chunkidinfo_.cid_
+                           << ", offset = " << offset
+                           << ", len = " << taskInfo_->cloneChunkSplitSize_;
+                break;
+            }
+        }
+        GetTracker()->HandleResponse(ret);
+    }
+
+ protected:
+    std::shared_ptr<RecoverChunkTaskInfo> taskInfo_;
     std::shared_ptr<CurveFsClient> client_;
 };
 

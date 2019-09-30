@@ -70,7 +70,8 @@ class ClusterBasicTest : public ::testing::Test {
         system("rm -fr basic*");
         system("rm -fr test_multi_etcd_node*");
         system("rm -fr test_start_stop_module2.etcd");
-        system("rm -r ClusterBasicTest.test_start_stop_module2.etcd.log");
+        system("rm -fr ClusterBasicTest.test_start_stop_module2");
+        system("rm -fr ClusterBasicTest.test_multi_mds_and_etcd");
     }
 
     void TearDown() {
@@ -114,21 +115,27 @@ TEST_F(ClusterBasicTest, DISABLED_test_start_stop_module1) {
 }
 
 TEST_F(ClusterBasicTest, test_start_stop_module2) {
+    std::string commonDir = "ClusterBasicTest.test_start_stop_module2";
+    ASSERT_EQ(0, system((std::string("mkdir ") + commonDir).c_str()));
+
     // 起etcd
+    std::string etcdDir = commonDir + "/etcd.log";
     curveCluster_->StarSingleEtcd(1, "127.0.0.1:2221", "127.0.0.1:2222",
         std::vector<std::string>{
-            " --name test_start_stop_module2",
-            " --log-level 'debug'",
-            " > ClusterBasicTest.test_start_stop_module2.etcd.log 2>&1"});
+            " --name test_start_stop_module2"});
     ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
 
     // 起mds
-    curveCluster_->StartSingleMDS(1, "127.0.0.1:3333", mdsConf, true);
+    auto mdsConfbak = mdsConf;
+    auto mdsDir = commonDir + "/mds";
+    ASSERT_EQ(0, system((std::string("mkdir ") + mdsDir).c_str()));
+    mdsConfbak.emplace_back(" -log_dir=" + mdsDir);
+    curveCluster_->StartSingleMDS(1, "127.0.0.1:3333", mdsConfbak, true);
     // 初始化mdsclient
     MetaServerOption_t op;
-    op.rpcTimeoutMs = 2000;
+    op.rpcTimeoutMs = 500;
     op.rpcRetryTimes = 3;
-    op.synchronizeRPCTimeoutMS = 2000;
+    op.synchronizeRPCTimeoutMS = 500;
     op.metaaddrvec = std::vector<std::string>{"127.0.0.1:3333"};
     curveCluster_->InitMdsClient(op);
 
@@ -138,15 +145,24 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
 
     // 创建chunkserver
     auto copy1 = chunkserverConf1;
+    std::string chunkserver1Dir = commonDir + "/chunkserver1";
+    ASSERT_EQ(0, system((std::string("mkdir ") + chunkserver1Dir).c_str()));
     copy1.push_back(" -mdsListenAddr=127.0.0.1:3333");
+    copy1.push_back(" -log_dir=" + chunkserver1Dir);
     curveCluster_->StartSingleChunkServer(1, "127.0.0.1:2002", copy1);
 
     auto copy2 = chunkserverConf2;
+    std::string chunkserver2Dir = commonDir + "/chunkserver2";
+    ASSERT_EQ(0, system((std::string("mkdir ") + chunkserver2Dir).c_str()));
     copy2.push_back(" -mdsListenAddr=127.0.0.1:3333");
+    copy2.push_back(" -log_dir=" + chunkserver2Dir);
     curveCluster_->StartSingleChunkServer(2, "127.0.0.1:2003", copy2);
 
     auto copy3 = chunkserverConf3;
+    std::string chunkserver3Dir = commonDir + "/chunkserver3";
+    ASSERT_EQ(0, system((std::string("mkdir ") + chunkserver3Dir).c_str()));
     copy3.push_back(" -mdsListenAddr=127.0.0.1:3333");
+    copy3.push_back(" -log_dir=" + chunkserver3Dir);
     curveCluster_->StartSingleChunkServer(3, "127.0.0.1:2004", copy3);
 
     // 创建逻辑池和copyset
@@ -186,28 +202,55 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
 }
 
 TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
+    std::string commonDir = "ClusterBasicTest.test_multi_mds_and_etcd";
+    ASSERT_EQ(0, system((std::string("mkdir ") + commonDir).c_str()));
+
     // 起三个etcd
+    std::string etcdDir = commonDir + "/etcd";
+    ASSERT_EQ(0, system((std::string("mkdir ") + etcdDir).c_str()));
     std::string etcdcluster = std::string(" --initial-cluster ")
         + std::string("'test_multi_etcd_node1=http://127.0.0.1:2302,")
         + std::string("test_multi_etcd_node2=http://127.0.0.1:2304,")
         + std::string("test_multi_etcd_node3=http://127.0.0.1:2306'");
     curveCluster_->StarSingleEtcd(1, "127.0.0.1:2301", "127.0.0.1:2302",
-        std::vector<std::string>{" --name test_multi_etcd_node1", etcdcluster});
+        std::vector<std::string>{
+            " --name test_multi_etcd_node1",
+            etcdcluster});
     ASSERT_FALSE(curveCluster_->WaitForEtcdClusterAvalible(3));
     curveCluster_->StarSingleEtcd(2, "127.0.0.1:2303", "127.0.0.1:2304",
-        std::vector<std::string>{" --name test_multi_etcd_node2", etcdcluster});
+        std::vector<std::string>{
+            " --name test_multi_etcd_node2",
+            etcdcluster});
     curveCluster_->StarSingleEtcd(3, "127.0.0.1:2305", "127.0.0.1:2306",
-        std::vector<std::string>{" --name test_multi_etcd_node3", etcdcluster});
+        std::vector<std::string>{
+            " --name test_multi_etcd_node3",
+            etcdcluster});
     ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
 
     // 起三mds
+    std::string mds1Dir = commonDir + "/mds1";
+    std::string mds2Dir = commonDir + "/mds2";
+    std::string mds3Dir = commonDir + "/mds3";
+    ASSERT_EQ(0, system((std::string("mkdir ") + mds1Dir).c_str()));
+    ASSERT_EQ(0, system((std::string("mkdir ") + mds2Dir).c_str()));
+    ASSERT_EQ(0, system((std::string("mkdir ") + mds3Dir).c_str()));
     std::string etcdClinetAddrs("127.0.0.1:2301,127.0.0.1:2303,127.0.0.1:2305");
-    auto copy = mdsConf;
-    copy.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
-    curveCluster_->StartSingleMDS(1, "127.0.0.1:2310", copy, true);
+
+    auto copy1 = mdsConf;
+    copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
+    copy1.emplace_back(" -log_dir=" + mds1Dir);
+    curveCluster_->StartSingleMDS(1, "127.0.0.1:2310", copy1, true);
     std::this_thread::sleep_for(std::chrono::seconds(1));
-    curveCluster_->StartSingleMDS(2, "127.0.0.1:2311", copy, false);
-    curveCluster_->StartSingleMDS(3, "127.0.0.1:2312", copy, false);
+
+    auto copy2 = mdsConf;
+    copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
+    copy2.emplace_back(" -log_dir=" + mds2Dir);
+    curveCluster_->StartSingleMDS(2, "127.0.0.1:2311", copy2, false);
+
+    auto copy3 = mdsConf;
+    copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
+    copy3.emplace_back(" -log_dir=" + mds3Dir);
+    curveCluster_->StartSingleMDS(3, "127.0.0.1:2312", copy3, false);
 
     // 获取当前正在服务的mds
     int curMds;

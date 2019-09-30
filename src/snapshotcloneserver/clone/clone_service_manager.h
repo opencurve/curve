@@ -46,6 +46,33 @@ class TaskCloneInfo {
         return cloneProgress_;
     }
 
+    Json::Value ToJsonObj() const {
+        Json::Value cloneTaskObj;
+        CloneInfo info = GetCloneInfo();
+        cloneTaskObj["UUID"] = info.GetTaskId();
+        cloneTaskObj["User"] = info.GetUser();
+        cloneTaskObj["File"] = info.GetDest();
+        cloneTaskObj["TaskType"] = static_cast<int> (
+            info.GetTaskType());
+        cloneTaskObj["TaskStatus"] = static_cast<int> (
+            info.GetStatus());
+        cloneTaskObj["Time"] = info.GetTime();
+        return cloneTaskObj;
+    }
+
+    void LoadFromJsonObj(const Json::Value &jsonObj) {
+        CloneInfo info;
+        info.SetTaskId(jsonObj["UUID"].asString());
+        info.SetUser(jsonObj["User"].asString());
+        info.SetDest(jsonObj["File"].asString());
+        info.SetTaskType(static_cast<CloneTaskType>(
+            jsonObj["TaskType"].asInt()));
+        info.SetStatus(static_cast<CloneStatus>(
+            jsonObj["TaskStatus"].asInt()));
+        info.SetTime(jsonObj["Time"].asUInt64());
+        SetCloneInfo(info);
+    }
+
  private:
      CloneInfo cloneInfo_;
      uint32_t cloneProgress_;

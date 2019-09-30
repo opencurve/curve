@@ -1761,7 +1761,7 @@ void MDSClient::MDSStatusCode2LibcurveError(const curve::mds::StatusCode& status
             *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
             break;
         case ::curve::mds::StatusCode::kParaError:
-            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            *errcode = LIBCURVE_ERROR::PARAM_ERROR;
             break;
         case ::curve::mds::StatusCode::kStorageError:
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
@@ -1771,6 +1771,9 @@ void MDSClient::MDSStatusCode2LibcurveError(const curve::mds::StatusCode& status
             break;
         case ::curve::mds::StatusCode::kCloneStatusNotMatch:
             *errcode = LIBCURVE_ERROR::STATUS_NOT_MATCH;
+            break;
+        case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
+            *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
             break;
         default:
             *errcode = LIBCURVE_ERROR::UNKNOWN;

@@ -234,7 +234,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcCntlFail) {
                           brpc::ClosureGuard doneGuard(done);
                           std::this_thread::sleep_for(
                                 std::chrono::milliseconds(
-                                    option.rpcTimeoutMs + 1));
+                                    option.rpcTimeoutMs + 1000));
                     })));
 
     int ret = client_->DeleteChunkSnapshotOrCorrectSn(

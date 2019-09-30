@@ -29,6 +29,9 @@ void CurveCluster::InitDB(const std::string &mdsTable, const std::string &user,
     mdsRepo_ = new MdsRepo();
     ASSERT_EQ(0, mdsRepo_->connectDB(
         mdsTable, user, url, password, poolSize));
+    snapshotcloneRepo_ = new SnapshotCloneRepo;
+    ASSERT_EQ(0, snapshotcloneRepo_->connectDB(
+        mdsTable, user, url, password, poolSize));
 }
 
 void CurveCluster::InitMdsClient(const MetaServerOption_t& op) {
@@ -45,6 +48,7 @@ void CurveCluster::StopCluster() {
     LOG(INFO) << "stop cluster begin...";
 
     int waitStatus;
+
     for (auto it = mdsPidMap_.begin(); it != mdsPidMap_.end();) {
         LOG(INFO) << "begin to stop mds" << it->first << " " << it->second;
         int res = kill(it->second, SIGTERM);
@@ -76,6 +80,8 @@ void CurveCluster::StopCluster() {
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = chunkserverPidMap_.erase(it);
     }
+
+    StopAllSnapshotCloneServer();
 
     // 等待进程完全退出
     ::sleep(2);
@@ -143,6 +149,72 @@ void CurveCluster::StopAllMDS() {
     LOG(INFO) << "success stop all mds";
 }
 
+void CurveCluster::StartSnapshotCloneServer(int id, const std::string &ipPort,
+    const std::vector<std::string> &snapshotcloneConf) {
+    LOG(INFO) << "start snapshotcloneserver " << ipPort << " begin ...";
+    pid_t pid = ::fork();
+    if (0 > pid) {
+        LOG(ERROR) << "start snapshotcloneserver " << ipPort << " fork failed";
+        return;
+    } else if (0 == pid) {
+        // 在子进程中起一个snapshotcloneserver
+        std::string cmd_dir =
+            std::string("./bazel-bin/src/snapshotcloneserver/snapshotcloneserver --addr=") +  //NOLINT
+            ipPort;
+        for (auto &item : snapshotcloneConf) {
+            cmd_dir += item;
+        }
+        LOG(INFO) << "start exec cmd: " << cmd_dir;
+        ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
+        exit(0);
+    }
+
+    ASSERT_EQ(0, ProbePort(ipPort, 5000, true));
+    LOG(INFO) << "start snapshotcloneserver " << ipPort << " success.";
+    snapPidMap_[id] = pid;
+    snapIpPort_[id] = ipPort;
+    snapConf_[id] = snapshotcloneConf;
+}
+
+void CurveCluster::StopSnapshotCloneServer(int id) {
+    LOG(INFO) << "stop snapshotcloneserver " << snapIpPort_[id] << " begin...";
+    if (snapPidMap_.find(id) != snapPidMap_.end()) {
+        int res = kill(snapPidMap_[id], SIGTERM);
+        ASSERT_EQ(0, res);
+        ASSERT_EQ(0, ProbePort(snapIpPort_[id], 5000, false));
+        int waitStatus;
+        waitpid(snapPidMap_[id], &waitStatus, 0);
+        snapPidMap_.erase(id);
+    }
+    LOG(INFO) << "stop snapshotcloneserver " << snapIpPort_[id] << " success.";
+}
+
+void CurveCluster::RestartSnapshotCloneServer(int id) {
+    LOG(INFO) << "restart snapshotcloneserver "
+        << snapIpPort_[id] << " begin...";
+    if (snapPidMap_.find(id) != snapPidMap_.end()) {
+        int res = kill(snapPidMap_[id], SIGTERM);
+        ASSERT_EQ(0, res);
+        ASSERT_EQ(0, ProbePort(snapIpPort_[id], 5000, false));
+        int waitStatus;
+        waitpid(snapPidMap_[id], &waitStatus, 0);
+        std::string ipPort = snapIpPort_[id];
+        auto conf = snapConf_[id];
+        snapPidMap_.erase(id);
+        StartSnapshotCloneServer(id, ipPort, conf);
+    }
+    LOG(INFO) << "restart snapshotcloneserver "
+        << snapIpPort_[id] << " success.";
+}
+
+void CurveCluster::StopAllSnapshotCloneServer() {
+    LOG(INFO) << "stop all snapshotclone server begin ...";
+    auto tempMap = snapPidMap_;
+    for (auto pair : tempMap) {
+        StopSnapshotCloneServer(pair.first);
+    }
+    LOG(INFO) << "stop all snapshotcloneservver end.";
+}
 
 void CurveCluster::StarSingleEtcd(int id, const std::string &clientIpPort,
     const std::string &peerIpPort, const std::vector<std::string> &etcdConf) {
@@ -254,6 +326,26 @@ void CurveCluster::StopAllEtcd() {
 
     ::sleep(2);
     LOG(INFO) << "success stop all etcd";
+}
+
+void CurveCluster::FormatChunkFilePool(const std::string &chunkfilepooldir,
+    const std::string &chunkfilepoolmetapath,
+    const std::string &filesystempath,
+    uint32_t size) {
+    LOG(INFO) << "FormatChunkFilePool begin...";
+
+    std::string cmd =
+        std::string("./bazel-bin/src/tools/curve_format")
+        + " -chunkfilepool_dir=" + chunkfilepooldir
+        + " -chunkfilepool_metapath=" + chunkfilepoolmetapath
+        + " -filesystem_path=" + filesystempath
+        + " -allocateByPercent=false -preallocateNum="
+        + std::to_string(size * 64)
+        + " -needWriteZero=false";  // 1G = 64 chunk
+
+    ASSERT_GT(system(cmd.c_str()), -1);
+
+    LOG(INFO) << "FormatChunkFilePool end.";
 }
 
 void CurveCluster::StartSingleChunkServer(int id, const std::string &ipPort,
