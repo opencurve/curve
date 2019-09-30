@@ -337,7 +337,7 @@ def statfs_libcurve_file(file_name=config.file_name, user_name=config.user_name,
     rc = curvefs.libcurve_statfs(file_name, user_name, pass_word)
 
     if rc < 0:
-        logger.error("stafs libcurve file fail. rc = %s" %rc)
+        logger.info("stafs libcurve file fail. rc = %s" %rc)
         return rc
         #raise AssertionError
     else:
