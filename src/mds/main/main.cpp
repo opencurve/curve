@@ -265,6 +265,8 @@ int curve_main(int argc, char **argv) {
     ChunkServerClientOption chunkServerClientOption;
     InitChunkServerClientOption(&conf, &chunkServerClientOption);
 
+    LOG(INFO) << "load mds configuration success.";
+
     // ===========================init curveFs========================//
     // init EtcdClient
     auto client = std::make_shared<EtcdClientImp>();
@@ -318,6 +320,8 @@ int curve_main(int argc, char **argv) {
     LOG_IF(FATAL, res != 0) << "int segment alloc statistic fail";
     segmentAllocStatistic->Run();
 
+    LOG(INFO) << "init segmentAllocStatistic success.";
+
     // init InodeIDGenerator
     auto inodeIdGenerator = std::make_shared<InodeIdGeneratorImp>(client);
 
@@ -328,12 +332,15 @@ int curve_main(int argc, char **argv) {
     int mdsCacheCount;
     LOG_IF(FATAL, !conf.GetIntValue("mds.cache.count", &mdsCacheCount));
     auto cache = std::make_shared<LRUCache>(mdsCacheCount);
+    LOG(INFO) << "init LRUCache success.";
 
     // init NameServerStorage
     NameServerStorage *storage = new NameServerStorageImp(client, cache);
+    LOG(INFO) << "init NameServerStorage success.";
 
     // init recyclebindir
     LOG_IF(FATAL, !InitRecycleBinDir(storage)) << "init recyclebindir error";
+    LOG(INFO) << "init InitRecycleBinDir success.";
 
     // init topology
     auto topologyIdGenerator  =
@@ -374,12 +381,15 @@ int curve_main(int argc, char **argv) {
         LOG(ERROR) << "createAllTables fail";
         return -1;
     }
+    LOG(INFO) << "init mdsRepo success.";
 
     auto topologyStorage =
         std::make_shared<DefaultTopologyStorage>(mdsRepo);
 
     LOG_IF(FATAL, !topologyStorage->init(topologyOption))
         << "init topologyStorage fail.";
+
+    LOG(INFO) << "init topologyStorage success.";
 
     auto topology =
         std::make_shared<TopologyImpl>(topologyIdGenerator,
@@ -388,20 +398,26 @@ int curve_main(int argc, char **argv) {
     LOG_IF(FATAL, topology->init(topologyOption) < 0) << "init topology fail.";
     LOG_IF(FATAL, topology->Run()) << "run topology module fail";
 
+    LOG(INFO) << "init topology success.";
+
     // init CopysetManager
     auto copysetManager =
         std::make_shared<CopysetManager>(copysetOption);
+
+    LOG(INFO) << "init copysetManager success.";
 
     // init TopologyStat
     auto topologyStat =
         std::make_shared<TopologyStatImpl>(topology);
     LOG_IF(FATAL, topologyStat->Init() < 0)
         << "init topologyStat fail.";
+    LOG(INFO) << "init topologyStat success.";
 
     // init TopologyChunkAllocator
     auto topologyChunkAllocator =
           std::make_shared<TopologyChunkAllocatorImpl>(topology,
                segmentAllocStatistic, topologyOption);
+    LOG(INFO) << "init topologyChunkAllocator success.";
 
     // init TopologyMetricService
     auto topologyMetricService =
@@ -412,16 +428,19 @@ int curve_main(int argc, char **argv) {
         << "init topologyMetricService fail.";
     LOG_IF(FATAL, topologyMetricService->Run() < 0)
         << "topologyMetricService start run fail";
+    LOG(INFO) << "init topologyMetricService success.";
 
     // init TopologyServiceManager
     auto topologyServiceManager =
         std::make_shared<TopologyServiceManager>(topology,
         copysetManager);
     topologyServiceManager->Init(topologyOption);
+    LOG(INFO) << "init topologyServiceManager success.";
 
     // init ChunkSegmentAllocator
     ChunkSegmentAllocator *chunkSegmentAllocate =
         new ChunkSegmentAllocatorImpl(topologyChunkAllocator, chunkIdGenerator);
+    LOG(INFO) << "init ChunkSegmentAllocator success.";
 
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
     // init CleanManager
@@ -435,6 +454,7 @@ int curve_main(int argc, char **argv) {
 
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
                                                       taskManager, storage);
+    LOG(INFO) << "init CleanManager success.";
 
     // init SessionManager
     SessionManager *sessionManager = new SessionManager(mdsRepo);
@@ -445,12 +465,14 @@ int curve_main(int argc, char **argv) {
                   sessionOptions, authOptions,
                   curveFSOptions, mdsRepo))
         << "init session manager fail";
+    LOG(INFO) << "init SessionManager success.";
 
 
     // start clean manager
     LOG_IF(FATAL, !cleanManger->Start()) << "start cleanManager fail.";
 
     cleanManger->RecoverCleanTasks();
+    LOG(INFO) << "RecoverCleanTasks success.";
 
     // =========================init scheduler======================//
     auto scheduleMetrics = std::make_shared<ScheduleMetrics>(topology);
