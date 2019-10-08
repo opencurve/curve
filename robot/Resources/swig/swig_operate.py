@@ -60,7 +60,7 @@ class LibCurve:
         if rc == 0:
             return file_info
         else:
-            logger.error("statfs file %s fail! rc=%s" % (file_path,rc))
+            logger.error("statfs file %s fail! rc=%s" % (file_name,rc))
             return rc
             raise AssertionError
 
