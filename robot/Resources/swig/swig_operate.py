@@ -104,7 +104,7 @@ class LibCurve:
         rc = curvefs.Unlink(filepath, user_info_t)
         if rc != 0:
             #print "delete file fail! rc=%s" % rc
-            logger.error("delete file %s fail! rc=%s" % (file_path,rc))
+            logger.error("delete file %s fail! rc=%s" % (filepath,rc))
 #            logger.info("delete file fail! rc=%s" % rc)
             return rc
             #raise AssertionError
