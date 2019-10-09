@@ -431,7 +431,7 @@ test pendding host all cs
     [Teardown]	  wait iops ok   ${vm_iops_limit}
 
 test ipmitool restart chunkserver node
-   [Tags]    P1    base    first release   failover  
+   [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart chunkserver
    sleep  60
    check vm iops
@@ -439,7 +439,7 @@ test ipmitool restart chunkserver node
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
 test ipmitool restart mds node
-   [Tags]    P1    base    first release   failover   
+   [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart mds
    sleep  60
    check vm iops
