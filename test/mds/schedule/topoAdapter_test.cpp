@@ -110,7 +110,8 @@ TEST_F(TestTopoAdapterImpl, test_copysetInfo) {
         ASSERT_EQ(testcopySetInfo.peers.size(), info.peers.size());
         ASSERT_EQ(testcopySetInfo.configChangeInfo.peer().address(),
             info.configChangeInfo.peer().address());
-        ASSERT_TRUE(testcopySetInfo.logicalPoolWork);
+        ASSERT_TRUE(info.logicalPoolWork);
+        ASSERT_FALSE(testcopySetInfo.logicalPoolWork);
     }
     {
         // 3. test GetCopySetInfo cannot get Chunkserver

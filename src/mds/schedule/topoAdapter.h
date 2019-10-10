@@ -76,13 +76,21 @@ struct CopySetConf {
 
 struct CopySetInfo {
  public:
-    CopySetInfo() = default;
+    CopySetInfo() : logicalPoolWork(false) {}
     CopySetInfo(CopySetKey id,
                 EpochType epoch,
                 ChunkServerIdType leader,
                 const std::vector<PeerInfo> &peers,
                 const ConfigChangeInfo &info,
-                const CopysetStatistics &statistics);
+                const CopysetStatistics &statistics) : logicalPoolWork(false) {
+        this->id.first = id.first;
+        this->id.second = id.second;
+        this->epoch = epoch;
+        this->leader = leader;
+        this->peers = peers;
+        this->configChangeInfo = info;
+        this->statisticsInfo = statistics;
+    }
     CopySetInfo(const CopySetInfo &in);
     ~CopySetInfo();
 
