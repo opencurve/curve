@@ -228,7 +228,7 @@ def start_snapshot_server():
 
 def start_etcd():
     #try:
-    start_cmd = "nohup " + "etcd  2&>1 | tee etcd.log " + " &"
+    start_cmd = "nohup " + "etcd | tee etcd.log" + " &"
     logger.info(start_cmd)
         #start_cmd = config.mds_start + " " + config.mds_listen
     shell_operator.run_exec3(start_cmd)
@@ -563,7 +563,7 @@ def mult_thread(func,num,pre_path="/"):
     else:
         for t in thread:
             logger.debug("get result is %d"%t.get_result())
-            assert t.get_result() == 0
+            assert t.get_result() == 0,"result is %s"%str(t.get_result())
 
 
 
