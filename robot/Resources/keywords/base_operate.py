@@ -209,7 +209,7 @@ def check_process_exsits(process_name):
 
 def start_mds():
     #try:
-    start_cmd = "nohup " + config.mds_start +  " >> mds.log &"
+    start_cmd = "nohup " + config.mds_start +  " 2>&1 | tee mds.log &"
         #start_cmd = config.mds_start + " " + config.mds_listen
     shell_operator.run_exec3(start_cmd)
     #except Exception as e:
@@ -228,7 +228,7 @@ def start_snapshot_server():
 
 def start_etcd():
     #try:
-    start_cmd = "nohup " + "etcd >> etcd.log " + " &"
+    start_cmd = "nohup " + "etcd  2&>1 | tee etcd.log " + " &"
     logger.info(start_cmd)
         #start_cmd = config.mds_start + " " + config.mds_listen
     shell_operator.run_exec3(start_cmd)
