@@ -47,21 +47,6 @@ CopySetConf::CopySetConf(const CopySetKey &key, EpochType epoch,
     this->configChangeItem = item;
 }
 
-CopySetInfo::CopySetInfo(CopySetKey id,
-                         EpochType epoch,
-                         ChunkServerIdType leader,
-                         const std::vector<PeerInfo> &peers,
-                         const ConfigChangeInfo &info,
-                         const CopysetStatistics &statistics) {
-    this->id.first = id.first;
-    this->id.second = id.second;
-    this->epoch = epoch;
-    this->leader = leader;
-    this->peers = peers;
-    this->configChangeInfo = info;
-    this->statisticsInfo = statistics;
-}
-
 CopySetInfo::~CopySetInfo() {
     if (this->configChangeInfo.IsInitialized()) {
         this->configChangeInfo.Clear();
