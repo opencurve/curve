@@ -93,12 +93,12 @@ def add_config():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
         #open use snapshot
-        ori_cmd = R"sed -i 's/clone.disable_curve_client=true/clone.disable_curve_client=false/g' chunkserver.conf"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"change host %s chunkserver config fail"%host
-        ori_cmd = R"sed -i 's/clone.disable_s3_adapter=true/clone.disable_s3_adapter=false/g' chunkserver.conf"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+ #       ori_cmd = R"sed -i 's/clone.disable_curve_client=true/clone.disable_curve_client=false/g' chunkserver.conf"
+ #       rs = shell_operator.ssh_exec(ssh, ori_cmd)
+ #       assert rs[3] == 0,"change host %s chunkserver config fail"%host
+ #       ori_cmd = R"sed -i 's/clone.disable_s3_adapter=true/clone.disable_s3_adapter=false/g' chunkserver.conf"
+ #       rs = shell_operator.ssh_exec(ssh, ori_cmd)
+ #       assert rs[3] == 0,"change host %s chunkserver config fail"%host
         ori_cmd = R"sed -i 's#curve.config_path=conf/client.conf#curve.config_path=/etc/curve/conf/client.conf#g' chunkserver.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
