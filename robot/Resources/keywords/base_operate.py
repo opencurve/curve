@@ -374,6 +374,7 @@ def delete_libcurve_file(file_name = config.file_name, user_name = config.user_n
         return rc
         #raise AssertionError
     else:
+        logger.error("delete libcurve file %s success. rc = %s" %(file_name,str(rc)))
         return rc
 
 def delete_libcurve_dir(dir_path = config.dir_path, user_name = config.user_name, pass_word = config.pass_word):
