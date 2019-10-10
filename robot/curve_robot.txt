@@ -1687,7 +1687,7 @@ create max file
     mult thread   create_libcurve_file   ${num}  ${origin_dir}
     mult thread   statfs_libcurve_file   ${num}  ${origin_dir}
     mult thread   delete_libcurve_file   ${num}  ${origin_dir}
-    [Teardown]	    file clean     none
+#    [Teardown]	    file clean     none
 
 random combination thrasher
     [Tags]    P0    base    first release
