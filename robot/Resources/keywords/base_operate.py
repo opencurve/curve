@@ -559,11 +559,27 @@ def mult_thread(func,num,pre_path="/"):
             results.append(t.get_result())
             assert t.get_result() != None, "open file fd is %d"%t.get_result()
         return results
+    elif str(func) == "create_libcurve_file":
+        for t in thread:
+            rc = t.get_result()
+            logger.debug("get result is %d"%rc)
+            if rc == -1:
+                logger.error("file exist")
+            else:
+                assert rc == 0,"result is %s"%str(rc)
+    elif str(func) == "delete_libcurve_file":
+        for t in thread:
+            rc = t.get_result()
+            logger.debug("get result is %d"%rc)
+            if rc == -6:
+                logger.error("file not exist")
+            else:
+                assert rc == 0,"result is %s"%str(rc)
     else:
         for t in thread:
-            logger.debug("get result is %d"%t.get_result())
-            assert t.get_result() == 0,"result is %s"%str(t.get_result())
-
+            rc = t.get_result()
+            logger.debug("get result is %d"%rc)
+            assert rc == 0,"result is %s"%str(rc)
 
 
 def mult_thread_close_file(fd,num):
