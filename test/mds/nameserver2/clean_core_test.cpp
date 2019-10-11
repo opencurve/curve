@@ -11,10 +11,12 @@
 #include "src/mds/nameserver2/clean_core.h"
 #include "test/mds/nameserver2/mock/mock_namespace_storage.h"
 #include "test/mds/mock/mock_topology.h"
+#include "src/mds/chunkserverclient/copyset_client.h"
 
 using ::testing::_;
 using ::testing::Return;
 using curve::mds::topology::MockTopology;
+using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 
 namespace curve {
 namespace mds {
@@ -22,7 +24,9 @@ namespace mds {
 TEST(CleanCore, testcleansnapshotfile) {
     auto storage = new MockNameServerStorage();
     auto topology = std::make_shared<MockTopology>();
-    auto cleanCore = new CleanCore(storage, topology);
+    ChunkServerClientOption option;
+    auto client = std::make_shared<CopysetClient>(topology, option);
+    auto cleanCore = new CleanCore(storage, client);
 
     {
         // segment size = 0
@@ -146,7 +150,9 @@ TEST(CleanCore, testcleansnapshotfile) {
 TEST(CleanCore, testcleanfile) {
     auto storage = new MockNameServerStorage();
     auto topology = std::make_shared<MockTopology>();
-    auto cleanCore = new CleanCore(storage, topology);
+    ChunkServerClientOption option;
+    auto client = std::make_shared<CopysetClient>(topology, option);
+    auto cleanCore = new CleanCore(storage, client);
 
     {
         // segmentsize = 0

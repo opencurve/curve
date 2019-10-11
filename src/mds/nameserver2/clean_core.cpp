@@ -51,6 +51,7 @@ StatusCode CleanCore::CleanSnapShotFile(const FileInfo & fileInfo,
             if (ret != 0) {
                 LOG(ERROR) << "CleanSnapShotFile Error: "
                     << "DeleteChunkSnapshotOrCorrectSn Error"
+                    << ", ret = " << ret
                     << ", inodeid = " << fileInfo.id()
                     << ", filename = " << fileInfo.filename()
                     << ", correctSn = " << correctSn;

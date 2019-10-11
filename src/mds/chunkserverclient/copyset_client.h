@@ -13,6 +13,7 @@
 #include "src/mds/topology/topology.h"
 
 #include "src/mds/chunkserverclient/chunkserver_client.h"
+#include "src/mds/chunkserverclient/chunkserverclient_config.h"
 
 using ::curve::mds::topology::Topology;
 using ::curve::mds::topology::CopySetInfo;
@@ -28,10 +29,13 @@ class CopysetClient {
       *
       * @param topology
       */
-    explicit CopysetClient(std::shared_ptr<Topology> topo)
-        : topo_(topo) {
-        chunkserverClient_ =
-            std::make_shared<ChunkServerClient>(topo);
+    CopysetClient(std::shared_ptr<Topology> topo,
+        const ChunkServerClientOption &option)
+        : topo_(topo),
+          chunkserverClient_(
+            std::make_shared<ChunkServerClient>(topo, option)),
+          updateLeaderRetryTimes_(option.updateLeaderRetryTimes),
+          updateLeaderRetryIntervalMs_(option.updateLeaderRetryIntervalMs) {
     }
 
     void SetChunkServerClient(std::shared_ptr<ChunkServerClient> csClient) {
@@ -81,6 +85,9 @@ class CopysetClient {
  private:
     std::shared_ptr<Topology> topo_;
     std::shared_ptr<ChunkServerClient> chunkserverClient_;
+
+    uint32_t updateLeaderRetryTimes_;
+    uint32_t updateLeaderRetryIntervalMs_;
 };
 
 }  // namespace chunkserverclient
