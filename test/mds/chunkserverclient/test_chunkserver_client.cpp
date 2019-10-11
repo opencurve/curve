@@ -60,7 +60,7 @@ class TestChunkServerClient : public ::testing::Test {
     void SetUp() {
         server_ = new brpc::Server();
         topo_ = std::make_shared<MockTopology>();
-        client_ = std::make_shared<ChunkServerClient>(topo_);
+        client_ = std::make_shared<ChunkServerClient>(topo_, option);
 
         mockCliService = new MockCliService();
         chunkService = new MockChunkService();
@@ -92,6 +92,7 @@ class TestChunkServerClient : public ::testing::Test {
     brpc::Server *server_;
     MockChunkService *chunkService;
     MockCliService *mockCliService;
+    ChunkServerClientOption option;
 };
 
 TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotSuccess) {
@@ -224,15 +225,16 @@ TEST_F(TestChunkServerClient, TestDeleteChunkSnapshotRpcCntlFail) {
     ChunkResponse response;
     response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     EXPECT_CALL(*chunkService, DeleteChunkSnapshotOrCorrectSn(_, _, _, _))
-        .Times(kRpcRetryTime)
+        .Times(option.rpcRetryTimes)
         .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                Invoke([](RpcController *controller,
+                Invoke([this](RpcController *controller,
                           const ChunkRequest *request,
                           ChunkResponse *response,
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                           std::this_thread::sleep_for(
-                                std::chrono::milliseconds(kRpcTimeoutMs + 1));
+                                std::chrono::milliseconds(
+                                    option.rpcTimeoutMs + 1));
                     })));
 
     int ret = client_->DeleteChunkSnapshotOrCorrectSn(
@@ -456,15 +458,15 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcCntlFail) {
     peer->set_address(leaderPeer);
     response.set_allocated_leader(peer);
     EXPECT_CALL(*mockCliService, GetLeader(_, _, _, _))
-        .Times(kRpcRetryTime)
         .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                Invoke([](RpcController *controller,
+                Invoke([this](RpcController *controller,
                           const GetLeaderRequest2 *request,
                           GetLeaderResponse2 *response,
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                           std::this_thread::sleep_for(
-                                  std::chrono::milliseconds(kRpcTimeoutMs + 1));
+                                  std::chrono::milliseconds(
+                                      option.rpcTimeoutMs + 1));
                     })));
 
     int ret = client_->GetLeader(
@@ -688,15 +690,16 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcCntlFail) {
     ChunkResponse response;
     response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     EXPECT_CALL(*chunkService, DeleteChunk(_, _, _, _))
-        .Times(kRpcRetryTime)
+        .Times(option.rpcRetryTimes)
         .WillRepeatedly(DoAll(SetArgPointee<2>(response),
-                Invoke([](RpcController *controller,
+                Invoke([this](RpcController *controller,
                           const ChunkRequest *request,
                           ChunkResponse *response,
                           Closure *done){
                           brpc::ClosureGuard doneGuard(done);
                           std::this_thread::sleep_for(
-                                std::chrono::milliseconds(kRpcTimeoutMs + 1));
+                                std::chrono::milliseconds(
+                                    option.rpcTimeoutMs + 1));
                     })));
 
     int ret = client_->DeleteChunk(

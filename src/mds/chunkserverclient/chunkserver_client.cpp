@@ -40,6 +40,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     uint64_t correctedSn) {
     ChunkServer chunkServer;
     if (true != topology_->GetChunkServer(leaderId, &chunkServer)) {
+        LOG(ERROR) << "GetChunkServer for leader fail, leadId = " << leaderId;
         return kMdsFail;
     }
     if (chunkServer.GetOnlineState() != ONLINE) {
@@ -60,7 +61,7 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
     ChunkService_Stub stub(&channel);
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(kRpcTimeoutMs);
+    cntl.set_timeout_ms(rpcTimeoutMs_);
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
@@ -90,10 +91,10 @@ int ChunkServerClient::DeleteChunkSnapshotOrCorrectSn(
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(kRpcRetryIntervalMs));
+                std::chrono::milliseconds(rpcRetryIntervalMs_));
         }
         retry++;
-    } while (cntl.Failed() && retry < kRpcRetryTime);
+    } while (cntl.Failed() && retry < rpcRetryTimes_);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Received ChunkResponse error, retry fail,"
@@ -142,6 +143,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     uint64_t sn) {
     ChunkServer chunkServer;
     if (true != topology_->GetChunkServer(leaderId, &chunkServer)) {
+        LOG(ERROR) << "GetChunkServer for leader fail, leadId = " << leaderId;
         return kMdsFail;
     }
     if (chunkServer.GetOnlineState() != ONLINE) {
@@ -162,7 +164,7 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
     ChunkService_Stub stub(&channel);
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(kRpcTimeoutMs);
+    cntl.set_timeout_ms(rpcTimeoutMs_);
 
     ChunkRequest request;
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE);
@@ -191,10 +193,10 @@ int ChunkServerClient::DeleteChunk(ChunkServerIdType leaderId,
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(kRpcRetryIntervalMs));
+                std::chrono::milliseconds(rpcRetryIntervalMs_));
         }
         retry++;
-    } while (cntl.Failed() && retry < kRpcRetryTime);
+    } while (cntl.Failed() && retry < rpcRetryTimes_);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Received ChunkResponse error, retry fail,"
@@ -242,6 +244,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     ChunkServerIdType * leader) {
     ChunkServer chunkServer;
     if (true != topology_->GetChunkServer(csId, &chunkServer)) {
+        LOG(ERROR) << "GetChunkServer fail, csId = " << csId;
         return kMdsFail;
     }
 
@@ -264,7 +267,7 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
     CliService2_Stub stub(&channel);
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(kRpcTimeoutMs);
+    cntl.set_timeout_ms(rpcTimeoutMs_);
 
     GetLeaderRequest2 request;
     request.set_logicpoolid(logicalPoolId);
@@ -290,10 +293,10 @@ int ChunkServerClient::GetLeader(ChunkServerIdType csId,
                        << ", retry, time = "
                        << retry;
             std::this_thread::sleep_for(
-                std::chrono::milliseconds(kRpcRetryIntervalMs));
+                std::chrono::milliseconds(rpcRetryIntervalMs_));
         }
         retry++;
-    } while (cntl.Failed() && retry < kRpcRetryTime);
+    } while (cntl.Failed() && retry < rpcRetryTimes_);
 
     if (cntl.Failed()) {
         LOG(ERROR) << "Received GetLeaderResponse error, retry fail,"
