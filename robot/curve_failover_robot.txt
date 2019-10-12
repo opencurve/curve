@@ -444,6 +444,12 @@ test ipmitool restart chunkserver node
    check data consistency
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
+
+stop attach detach thread
+    [Tags]    P1    base    first release   failover
+    stop attach detach
+    [Teardown]   wait iops ok    ${vm_iops_limit}
+
 test ipmitool restart mds node
    [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart mds
@@ -451,11 +457,6 @@ test ipmitool restart mds node
    check vm iops
    check data consistency
    [Teardown]    wait iops ok   ${vm_iops_limit}
-
-stop attach detach thread
-    [Tags]    P1    base    first release   failover
-    stop attach detach
-    [Teardown]   wait iops ok    ${vm_iops_limit}
 
 inject kill all mds
     [Tags]    P1    base    first release   failover
