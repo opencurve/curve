@@ -733,7 +733,7 @@ def check_chunkserver_online(num=120):
     assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
 
 def wait_iops_ok(limit_iops=8000):
-    #check_chunkserver_online()
+    check_chunkserver_online()
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     i = 0
     while i < 300:
