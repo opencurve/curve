@@ -16,6 +16,7 @@
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
 #include "test/integration/common/peer_cluster.h"
+#include "test/integration/common/config_generator.h"
 
 namespace curve {
 namespace chunkserver {
@@ -35,7 +36,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9081/recycler",
         "-chunkFilePoolDir=./9081/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9081/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9081",
+        "-conf=./9081/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -49,7 +50,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9082/recycler",
         "-chunkFilePoolDir=./9082/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9082/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9082",
+        "-conf=./9082/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -63,7 +64,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9083/recycler",
         "-chunkFilePoolDir=./9083/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9073/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9083",
+        "-conf=./9083/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -77,7 +78,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9084/recycler",
         "-chunkFilePoolDir=./9084/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9084/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9084",
+        "-conf=./9084/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -91,7 +92,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9085/recycler",
         "-chunkFilePoolDir=./9085/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9085/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9085",
+        "-conf=./9085/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -128,6 +129,27 @@ class RaftConfigChangeTest : public testing::Test {
         snapshotIntervalS = 1;
         maxWaitInstallSnapshotMs = 5000;
         waitMultiReplicasBecomeConsistent = 3000;
+
+        ASSERT_TRUE(cg1.Init("9081"));
+        ASSERT_TRUE(cg2.Init("9082"));
+        ASSERT_TRUE(cg3.Init("9083"));
+        ASSERT_TRUE(cg4.Init("9084"));
+        ASSERT_TRUE(cg5.Init("9085"));
+        cg1.SetKV("copyset.election_timeout_ms", "3000");
+        cg1.SetKV("copyset.snapshot_interval_s", "1");
+        cg2.SetKV("copyset.election_timeout_ms", "3000");
+        cg2.SetKV("copyset.snapshot_interval_s", "1");
+        cg3.SetKV("copyset.election_timeout_ms", "3000");
+        cg3.SetKV("copyset.snapshot_interval_s", "1");
+        cg4.SetKV("copyset.election_timeout_ms", "3000");
+        cg4.SetKV("copyset.snapshot_interval_s", "1");
+        cg5.SetKV("copyset.election_timeout_ms", "3000");
+        cg5.SetKV("copyset.snapshot_interval_s", "1");
+        ASSERT_TRUE(cg1.Generate());
+        ASSERT_TRUE(cg2.Generate());
+        ASSERT_TRUE(cg3.Generate());
+        ASSERT_TRUE(cg4.Generate());
+        ASSERT_TRUE(cg5.Generate());
 
         paramsIndexs[PeerCluster::PeerToId(peer1)] = 0;
         paramsIndexs[PeerCluster::PeerToId(peer2)] = 1;
@@ -169,6 +191,11 @@ class RaftConfigChangeTest : public testing::Test {
     Peer peer3;
     Peer peer4;
     Peer peer5;
+    CSTConfigGenerator cg1;
+    CSTConfigGenerator cg2;
+    CSTConfigGenerator cg3;
+    CSTConfigGenerator cg4;
+    CSTConfigGenerator cg5;
     int electionTimeoutMs;
     int confChangeTimeoutMs;
     int snapshotIntervalS;

@@ -1,6 +1,7 @@
 cc_library(
     name = "integration-test-common",
     srcs = glob([
+        "config_generator.h",
         "peer_cluster.h",
         "peer_cluster.cpp",
     ]),

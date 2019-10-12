@@ -16,7 +16,7 @@ int DatastoreFileHelper::ListFiles(const string& baseDir,
                                    vector<string>* snapFiles) {
     vector<string> files;
     int rc = fs_->List(baseDir, &files);
-    if (rc < 0) {
+    if (rc < 0 && rc != -ENOENT) {
         LOG(ERROR) << "List " << baseDir << " failed.";
         return -1;
     }

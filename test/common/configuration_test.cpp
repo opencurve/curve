@@ -128,14 +128,52 @@ TEST_F(ConfigurationTest, ListConfig) {
     ASSERT_EQ(configs["xxx"], "");
 }
 
+// 覆盖原有配置
 TEST_F(ConfigurationTest, SaveConfig) {
     bool ret;
     Configuration conf;
-
     conf.SetConfigPath(confFile_);
+
+    // 自定义配置项并保存
+    conf.SetStringValue("test.str1", "new");
     ret = conf.SaveConfig();
-    // not implemented yet, assert false
-    ASSERT_EQ(ret, false);
+    ASSERT_EQ(ret, true);
+
+    // 重新加载配置项
+    Configuration conf2;
+    conf2.SetConfigPath(confFile_);
+    ret = conf2.LoadConfig();
+    ASSERT_EQ(ret, true);
+
+    // 可以读取自定义配置项，原有配置项被覆盖，读取不到
+    ASSERT_EQ(conf2.GetValue("test.str1"), "new");
+    ASSERT_EQ(conf2.GetValue("test.int1"), "");
+}
+
+// 读取当前配置写到其他路径
+TEST_F(ConfigurationTest, SaveConfigToFileNotExist) {
+    bool ret;
+
+    // 加载当前配置
+    Configuration conf;
+    conf.SetConfigPath(confFile_);
+    ret = conf.LoadConfig();
+    ASSERT_EQ(ret, true);
+
+    // 写配置到其他位置
+    std::string newFile("curve.conf.test2");
+    conf.SetConfigPath(newFile);
+    ret = conf.SaveConfig();
+    ASSERT_EQ(ret, true);
+
+    // 从新配置文件加载,并读取某项配置来进行校验
+    Configuration newConf;
+    newConf.SetConfigPath(newFile);
+    ret = newConf.LoadConfig();
+    ASSERT_EQ(ret, true);
+    ASSERT_EQ(newConf.GetValue("test.str1"), "teststring");
+
+    ASSERT_EQ(0, unlink(newFile.c_str()));
 }
 
 TEST_F(ConfigurationTest, GetSetValue) {

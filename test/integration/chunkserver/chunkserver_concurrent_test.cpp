@@ -18,6 +18,7 @@
 #include "src/common/concurrent/concurrent.h"
 #include "test/integration/common/peer_cluster.h"
 #include "test/chunkserver/datastore/chunkfilepool_helper.h"
+#include "test/integration/common/config_generator.h"
 
 namespace curve {
 namespace chunkserver {
@@ -38,7 +39,7 @@ static char *chunkConcurrencyParams1[1][13] = {
         "-recycleUri=local://./9076/recycler",
         "-chunkFilePoolDir=./9076/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9076/chunkfilepool.meta",
-        "-conf=test/integration/chunkserver/chunkserver.conf.9076",
+        "-conf=./9076/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -55,7 +56,7 @@ static char *chunkConcurrencyParams2[1][13] = {
         "-recycleUri=local://./9077/recycler",
         "-chunkFilePoolDir=./9077/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9077/chunkfilepool.meta",
-        "-conf=test/integration/chunkserver/chunkserver.conf.9077",
+        "-conf=./9077/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -82,6 +83,11 @@ class ChunkServerConcurrentNotFromChunkFilePoolTest : public testing::Test {
 
         electionTimeoutMs = 3000;
         snapshotIntervalS = 60;
+
+        ASSERT_TRUE(cg1.Init("9076"));
+        cg1.SetKV("copyset.election_timeout_ms", "3000");
+        cg1.SetKV("copyset.snapshot_interval_s", "60");
+        ASSERT_TRUE(cg1.Generate());
 
         logicPoolId = 1;
         copysetId = 1;
@@ -115,6 +121,7 @@ class ChunkServerConcurrentNotFromChunkFilePoolTest : public testing::Test {
 
  public:
     Peer peer1;
+    CSTConfigGenerator cg1;
     std::vector<Peer> peers;
     PeerId leaderId;
     Peer leaderPeer;
@@ -144,6 +151,13 @@ class ChunkServerConcurrentFromChunkFilePoolTest : public testing::Test {
 
         electionTimeoutMs = 3000;
         snapshotIntervalS = 60;
+
+
+        ASSERT_TRUE(cg1.Init("9077"));
+        cg1.SetKV("copyset.election_timeout_ms", "3000");
+        cg1.SetKV("copyset.snapshot_interval_s", "60");
+        cg1.SetKV("chunkfilepool.enable_get_chunk_from_pool", "true");
+        ASSERT_TRUE(cg1.Generate());
 
         logicPoolId = 1;
         copysetId = 1;
@@ -193,6 +207,7 @@ class ChunkServerConcurrentFromChunkFilePoolTest : public testing::Test {
 
  public:
     Peer peer1;
+    CSTConfigGenerator cg1;
     std::vector<Peer> peers;
     PeerId leaderId;
     Peer leaderPeer;

@@ -53,6 +53,10 @@ TEST_F(FileHelper_MockTest, ListFilesTest) {
     EXPECT_CALL(*fs_, List(_, _))
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, fileHelper_->ListFiles(baseDir, &chunkFiles, &snapFiles));
+    // 如果返回ENOENT错误,直接返回成功
+    EXPECT_CALL(*fs_, List(_, _))
+        .WillOnce(Return(-ENOENT));
+    ASSERT_EQ(0, fileHelper_->ListFiles(baseDir, &chunkFiles, &snapFiles));
 
     vector<string> files;
     string chunk1 = "chunk_1";
