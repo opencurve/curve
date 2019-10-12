@@ -300,6 +300,7 @@ cc_test(
         "raftsnapshot_chunkfilepool_integration.cpp",
         "raftsnapshot_filesystem_adaptor_mock_unittest.cpp",
         "raftsnapshot_filesystem_adaptor_unittest.cpp",
+        "raftsnapshot_attachment_test.cpp",
     ],
     copts = ["-std=c++14"],
     deps = [
