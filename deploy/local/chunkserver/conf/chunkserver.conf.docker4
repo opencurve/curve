@@ -38,7 +38,7 @@ clone.thread_num=10
 clone.queue_depth=100
 curve.root_username=root
 curve.root_password=
-curve.config_path=conf/client.conf
+curve.config_path=conf/cs_client.conf
 s3.config_path=conf/s3.conf
 
 #
