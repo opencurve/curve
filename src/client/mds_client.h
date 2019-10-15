@@ -85,6 +85,14 @@ class MDSClient {
     LIBCURVE_ERROR GetServerList(const LogicPoolID &logicPoolId,
                             const std::vector<CopysetID>& csid,
                             std::vector<CopysetInfo_t>* cpinfoVec);
+
+   /**
+    * 获取当前mds所属的集群信息
+    * @param[out]: clsctx 为要获取的集群信息
+    * @return: 成功返回LIBCURVE_ERROR::OK,否则返回LIBCURVE_ERROR::FAILED
+    */
+    LIBCURVE_ERROR GetClusterInfo(ClusterContext* clsctx);
+
     /**
      * 获取segment的chunk信息，并更新到Metacache
      * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
