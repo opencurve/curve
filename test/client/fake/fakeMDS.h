@@ -25,6 +25,7 @@
 #include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
 #include "src/client/mds_client_base.h"
+#include "src/common/uuid.h"
 
 using curve::common::Authenticator;
 
@@ -49,6 +50,8 @@ using ::curve::mds::topology::GetCopySetsInChunkServerRequest;
 using ::curve::mds::topology::GetCopySetsInChunkServerResponse;
 using ::curve::mds::topology::ListLogicalPoolRequest;
 using ::curve::mds::topology::ListLogicalPoolResponse;
+using ::curve::mds::topology::GetClusterInfoRequest;
+using ::curve::mds::topology::GetClusterInfoResponse;
 
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
@@ -792,6 +795,17 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
         auto resp = static_cast<ListLogicalPoolResponse*>(
             fakelistlogicalpoolret_->response_);
         response->CopyFrom(*resp);
+    }
+
+    void GetClusterInfo(::google::protobuf::RpcController* controller,
+                        const GetClusterInfoRequest* request,
+                        GetClusterInfoResponse* response,
+                        ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+
+        std::string uuid = curve::common::UUIDGenerator().GenerateUUID();
+        response->set_statuscode(0);
+        response->set_clusterid(uuid);
     }
 
     void SetFakeReturn(FakeReturn* fakeret) {
