@@ -86,6 +86,22 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     ASSERT_EQ(0, Init(configpath.c_str()));
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+    // test get cluster id
+    const int CLUSTERIDMAX = 256;
+    char clusterId[CLUSTERIDMAX];
+
+    ASSERT_EQ(GetClusterId(nullptr, 0), -LIBCURVE_ERROR::FAILED);
+
+    memset(clusterId, 0, sizeof(clusterId));
+    ASSERT_EQ(GetClusterId(clusterId, CLUSTERIDMAX), LIBCURVE_ERROR::OK);
+    ASSERT_GT(strlen(clusterId), 0);
+    ASSERT_EQ(strlen(clusterId), 36);
+
+    memset(clusterId, 0, sizeof(clusterId));
+    ASSERT_EQ(GetClusterId(clusterId, 0), -LIBCURVE_ERROR::FAILED);
+    ASSERT_EQ(GetClusterId(clusterId, 1), -LIBCURVE_ERROR::FAILED);
+
     // libcurve file operation
     int temp = Create(filename.c_str(), &userinfo, FLAGS_test_disk_size);
 

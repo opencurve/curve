@@ -218,6 +218,11 @@ struct ChunkServerAddr {
         return addr_ == other.addr_;
     }
 };
+
+struct ClusterContext {
+    std::string clusterId;
+};
+
 }   // namespace client
 }   // namespace curve
 
