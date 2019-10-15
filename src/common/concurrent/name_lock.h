@@ -80,7 +80,7 @@ class NameLockGuard : public Uncopyable {
 
  private:
     NameLock &lock_;
-    const std::string &lockStr_;
+    std::string lockStr_;
 };
 
 
