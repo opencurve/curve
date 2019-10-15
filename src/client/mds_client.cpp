@@ -1109,6 +1109,77 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
     return LIBCURVE_ERROR::FAILED;
 }
 
+LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
+    // 记录当前mds重试次数
+    int count = 0;
+    // 记录重试中timeOut次数
+    int timeOutTimes = 0;
+    // 记录还没重试的mds addr数量
+    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
+
+    while (count < metaServerOpt_.rpcRetryTimes) {
+        brpc::Controller cntl;
+        curve::mds::topology::GetClusterInfoResponse response;
+
+        {
+            std::unique_lock<bthread::Mutex> lk(mutex_);
+            mdsClientBase_.GetClusterInfo(&response, &cntl, channel_);
+        }
+
+        if (cntl.Failed()) {
+            LOG(ERROR)  << "get cluster info from mds failed, status code = "
+                        << response.statuscode()
+                        << ", error content: "
+                        << cntl.ErrorText()
+                        << ", retry GetClusterInfo, retry times = "
+                        << count;
+
+            // 1. 访问不存在的IP地址会报错：ETIMEDOUT
+            // 2. 访问存在的IP地址，但无人监听：ECONNREFUSED
+            // 3. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
+            // 4. 链接建立，对端主机挂掉了：brpc::ERPCTIMEDOUT
+            // 5. 对端server调用了Stop：ELOGOFF
+            // 6. 对端链接已关闭：ECONNRESET
+            // 在这几种场景下，主动切换mds。
+            // GetClusterInfo在主IO路劲上，所以即使切换mds server失败
+            // 也不能直接向上返回，也需要重试到规定次数。
+            // 因为返回失败就会导致qemu一侧磁盘IO错误，上层应用就crash了。
+            // 所以这里的rpc超时次数要设置大一点
+            if (cntl.ErrorCode() == brpc::ERPCTIMEDOUT ||
+                cntl.ErrorCode() == ETIMEDOUT) {
+                timeOutTimes++;
+            }
+
+            // rpc超时次数达到synchronizeRPCRetryTime次的时候就触发切换mds
+            if (timeOutTimes > metaServerOpt_.synchronizeRPCRetryTime ||
+                cntl.ErrorCode() == EHOSTDOWN ||
+                cntl.ErrorCode() == ECONNRESET ||
+                cntl.ErrorCode() == ECONNREFUSED ||
+                cntl.ErrorCode() == brpc::ELOGOFF) {
+                count++;
+                if (!ChangeMDServer(&mdsAddrleft)) {
+                    LOG(ERROR) << "change mds server failed!";
+                    bthread_usleep(metaServerOpt_.retryIntervalUs);
+                } else {
+                    timeOutTimes = 0;
+                }
+            } else {
+                if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {  //  NOLINT
+                    LOG(ERROR) << "UpdateRetryinfoOrChangeServer failed!";
+                }
+            }
+            continue;
+        }
+
+        if (response.statuscode() == 0) {
+            clsctx->clusterId = response.clusterid();
+            return LIBCURVE_ERROR::OK;
+        }
+        return LIBCURVE_ERROR::FAILED;
+    }
+    return LIBCURVE_ERROR::FAILED;
+}
+
 LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
                                         const UserInfo_t& userinfo,
                                         uint64_t size,

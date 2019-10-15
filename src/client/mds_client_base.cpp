@@ -264,6 +264,18 @@ void MDSClientBase::GetServerList(const LogicPoolID& logicalpooid,
     stub.GetChunkServerListInCopySets(cntl, &request, response, nullptr);
 }
 
+void MDSClientBase::GetClusterInfo(GetClusterInfoResponse* response,
+                                   brpc::Controller* cntl,
+                                   brpc::Channel* channel) {
+    GetClusterInfoRequest request;
+
+    cntl->set_log_id(GetLogId());
+    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+
+    curve::mds::topology::TopologyService_Stub stub(channel);
+    stub.GetClusterInfo(cntl, &request, response, nullptr);
+}
+
 void MDSClientBase::CreateCloneFile(const std::string &destination,
                                 const UserInfo_t& userinfo,
                                 uint64_t size,
