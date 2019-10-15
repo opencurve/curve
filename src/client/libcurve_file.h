@@ -209,6 +209,14 @@ class FileClient {
    */
   virtual void UnInit();
 
+  /**
+   * @brief: 获取集群id
+   * @param: buf存放集群id
+   * @param: buf的长度
+   * @return: 成功返回0, 失败返回-LIBCURVE_ERROR::FAILED
+   */
+  int GetClusterId(char* buf, int len);
+
  private:
   inline bool CheckAligned(off_t offset, size_t length);
 
