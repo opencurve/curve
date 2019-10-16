@@ -1,0 +1,118 @@
+syntax="proto2";
+package nebd.client;
+option cc_generic_services = true;
+enum RetCode {
+   kNoOK = -1;
+   kOK = 0;
+}
+
+message OpenFileRequest {
+   required string fileName = 1;
+}
+message OpenFileResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+   optional int32 fd = 3;
+   // ps 最好fd最为一个64位以内的随机数，发挥sessionid的作用
+}
+
+message CloseFileRequest {
+   required int32 fd = 1;
+}
+message CloseFileResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+
+message ReadRequest {
+   required int32 fd = 1;
+   required uint64 offset = 2;
+   required uint64 size = 3;
+}
+message ReadResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+// readbody in attachment
+
+message WriteRequest {
+   required int32 fd = 1;
+   required uint64 offset = 2;
+   required uint64 size = 3;
+}
+// write content in attachment
+message WriteResponse {
+   required RetCode RetCode = 1;
+   optional string RetMsg = 2;
+}
+
+message DiscardRequest {
+   required int32 fd = 1;
+   required uint64 offset = 2;
+   required uint64 size = 3;
+}
+message DiscardResponse {
+   required RetCode RetCode = 1;
+   optional string RetMsg = 2;
+}
+
+message StatFileRequest {
+   required int32 fd = 1;
+}
+message StatFileResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+   optional uint64 size = 3;
+}
+
+message ResizeRequest {
+   required int32 fd = 1;
+   required uint64 newSize = 2;
+}
+message ResizeResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+
+// 以下proto定义，仅ceph使用
+message FlushRequest {
+   required int32 fd = 1;
+}
+
+message FlushResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+
+message GetInfoRequest {
+   required int32 fd = 1;
+}
+message GetInfoResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+   optional uint64 objSize = 3;
+}
+
+message InvalidateCacheRequest {
+   required int32 fd = 1;
+}
+
+message InvalidateCacheResponse {
+   required RetCode retCode = 1;
+   optional string retMsg = 2;
+}
+
+service QemuClientService {
+   // for ceph & curve
+   rpc OpenFile(OpenFileRequest) returns (OpenFileResponse);
+   rpc CloseFile(CloseFileRequest) returns (CloseFileResponse);
+   rpc Read(ReadRequest) returns (ReadResponse);
+   rpc Write(WriteRequest) returns (WriteResponse);
+   rpc Discard(DiscardRequest) returns (DiscardResponse);
+   rpc StatFile(StatFileRequest) returns (StatFileResponse);
+   rpc ResizeFile(ResizeRequest) returns (ResizeResponse);
+   // for ceph only
+   rpc Flush(FlushRequest) returns (FlushResponse);
+   rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+   rpc InvalidateCache(InvalidateCacheRequest) returns (InvalidateCacheResponse);
+};
