@@ -1653,8 +1653,17 @@ def stress_test():
         assert rs[3] == 0,"start supervisor fail,rs is %s"%rs[2]
     start_time = time.time()
     while time.time() - start_time < 70000:
-        check_vm_iops(4)
-        time.sleep(1800)
+        num = random.randint(1,5)
+        host = test_kill_chunkserver_num(num)
+        time.sleep(30)
+        check_vm_iops(9) #打桩机iops检测，默认为10 iops
+        time.sleep(100)
+        check_chunkserver_online(120 - num) # chunkserver数量检测，初始为120个
+        test_start_chunkserver_num(num,host)
+        time.sleep(30)
+        check_vm_iops(9)
+        time.sleep(100)
+        check_chunkserver_online(120)
     ssh.close() 
 
 def thrasher_abnormal_cluster():
