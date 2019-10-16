@@ -187,7 +187,7 @@ TEST_F(TestSchedulerHelper, test_SatisfyZoneAndScatterWidthLimit) {
             topoAdapter_, target, source, copyset, 1, 0.01));
     }
 
-    PeerInfo peer4(4, 1, 1, 1, "192.168.10.1", 9001);
+    PeerInfo peer4(4, 1, 1, "192.168.10.1", 9001);
     ChunkServerInfo info4(peer4, OnlineState::ONLINE, DiskState::DISKERROR,
         ChunkServerStatus::READWRITE, 1, 1, 1, ChunkServerStatisticInfo{});
     {
@@ -432,10 +432,10 @@ TEST_F(TestSchedulerHelper,
 
 
 TEST_F(TestSchedulerHelper, test_SortChunkServerByCopySetNumAsc) {
-    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
-    PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
+    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
+    PeerInfo peer4(4, 4, 4, "192.168.10.4", 9000);
     ChunkServerInfo info1(peer1, OnlineState::ONLINE, DiskState::DISKNORMAL,
         ChunkServerStatus::READWRITE, 10, 10, 10, ChunkServerStatisticInfo{});
     ChunkServerInfo info2(peer2, OnlineState::ONLINE, DiskState::DISKNORMAL,
