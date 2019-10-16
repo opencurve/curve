@@ -364,7 +364,7 @@ def check_vm_vd(ip,nova_ssh,uuid):
         except:
             i = i + 5
             time.sleep(5)
-    assert rs[3] == 0,"start vm fail,ori_cmd is %s"%rs
+    assert rs[3] == 0,"start vm fail,ori_cmd is %s"%rs[2]
 
 def init_vm():
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
@@ -726,7 +726,7 @@ def check_chunkserver_online(num=120):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmd = "curve_status_tool status -confPath=/etc/curve/mds.conf |grep chunkserver"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"get chunkserver status fail,rs is %s"%rs
+    assert rs[3] == 0,"get chunkserver status fail,rs is %s"%rs[2]
     status = "".join(rs[1]).strip()
     online_num = re.findall(r'(?<=online = )\d+',status)
     logger.info("chunkserver online num is %s"%online_num)
@@ -1552,10 +1552,10 @@ def clean_last_data():
 def analysis_data(ssh):
     ori_cmd = "cd /root/perf/ && python gen_randrw_data.py"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"gen randrw data fail,error is %s"%rs
+    assert rs[3] == 0,"gen randrw data fail,error is %s"%rs[2]
     ori_cmd = "cat /root/perf/test.csv"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"get data fail,error is %s"%rs
+    assert rs[3] == 0,"get data fail,error is %s"%rs[2]
     for line in rs[1]:
         if 'randread,4k' in line:
             randr_4k_iops = line.split(',')[4]
@@ -1615,14 +1615,14 @@ def perf_test():
     assert final == 1,"io test have not finall"
     ori_cmd = "cp -r /root/perf/test-ssd/fiodata /root/perf"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"cp fiodata fail,error is %s"%rs
+    assert rs[3] == 0,"cp fiodata fail,error is %s"%rs[2]
     analysis_data(ssh)
 
 def stress_test():
     ori_cmd = "bash attach_thrash.sh"
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
-    assert rs[3] == 0,"attach thrash vol fail,rs is %s"%rs
+    assert rs[3] == 0,"attach thrash vol fail,rs is %s"%rs[2]
     ori_cmd = "cat thrash_vm"
     rs = shell_operator.ssh_exec(ssh,ori_cmd)
     logger.info("rs is %s"%rs[1])
@@ -1650,11 +1650,11 @@ def stress_test():
         ori_cmd = "ssh %s -o StrictHostKeyChecking=no "%ip + "\"" + " supervisorctl reload && supervisorctl start all " + "\""
         logger.info("exec cmd %s" % ori_cmd)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"start supervisor fail,rs is %s"%rs
+        assert rs[3] == 0,"start supervisor fail,rs is %s"%rs[2]
     start_time = time.time()
     while time.time() - start_time < 70000:
         check_vm_iops(4)
-        time.sleep(1800) 
+        time.sleep(1800)
     ssh.close() 
 
 def thrasher_abnormal_cluster():
