@@ -26,9 +26,9 @@ namespace schedule {
     copySetKey.second = copysetId;
     EpochType epoch = 1;
     ChunkServerIdType leader = 1;
-    PeerInfo peer1(1, 1, 1, 1, "192.168.10.1", 9000);
-    PeerInfo peer2(2, 2, 2, 1, "192.168.10.2", 9000);
-    PeerInfo peer3(3, 3, 3, 1, "192.168.10.3", 9000);
+    PeerInfo peer1(1, 1, 1, "192.168.10.1", 9000);
+    PeerInfo peer2(2, 2, 2, "192.168.10.2", 9000);
+    PeerInfo peer3(3, 3, 3, "192.168.10.3", 9000);
     std::vector<PeerInfo> peers({peer1, peer2, peer3});
 
     return ::curve::mds::schedule::CopySetInfo(
@@ -46,9 +46,9 @@ void GetCopySetInChunkServersForTest(
         copySetKey.second = copysetId;
         EpochType epoch  = 1;
         ChunkServerIdType leader = i;
-        PeerInfo peer1(i, 1, 1, 1, "192.168.10.1", 9000 + i);
-        PeerInfo peer2(i + 1, 2, 2, 1, "192.168.10.2", 9000 + i + 1);
-        PeerInfo peer3(i + 2, 3, 3, 1, "192.168.10.3", 9000 + i + 2);
+        PeerInfo peer1(i, 1, 1, "192.168.10.1", 9000 + i);
+        PeerInfo peer2(i + 1, 2, 2, "192.168.10.2", 9000 + i + 1);
+        PeerInfo peer3(i + 2, 3, 3, "192.168.10.3", 9000 + i + 2);
         std::vector<PeerInfo> peers({peer1, peer2, peer3});
         ::curve::mds::schedule::CopySetInfo copyset(copySetKey, epoch, leader,
             peers, ConfigChangeInfo{}, CopysetStatistics{});

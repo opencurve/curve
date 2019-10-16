@@ -20,6 +20,14 @@ namespace mds {
 namespace schedule {
 int LeaderScheduler::Schedule() {
     LOG(INFO) << "leaderScheduler begin.";
+
+    for (auto lid : topo_->GetLogicalpools()) {
+        DoLeaderSchedule(lid);
+    }
+    return 1;
+}
+
+int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
     int oneRoundGenOp = 0;
 
     // 找出leader数目最多和最少的chunkServer
@@ -27,7 +35,8 @@ int LeaderScheduler::Schedule() {
     int maxId = -1;
     int minLeaderCount = -1;
     int minId = -1;
-    std::vector<ChunkServerInfo> csInfos = topo_->GetChunkServerInfos();
+    std::vector<ChunkServerInfo> csInfos
+        = topo_->GetChunkServersInLogicalPool(lid);
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(csInfos.begin(), csInfos.end(), g);
@@ -69,7 +78,7 @@ int LeaderScheduler::Schedule() {
     if (maxId > 0) {
         Operator transferLeaderOutOp;
         CopySetInfo selectedCopySet;
-        if (transferLeaderOut(maxId, maxLeaderCount, &transferLeaderOutOp,
+        if (transferLeaderOut(maxId, maxLeaderCount, lid, &transferLeaderOutOp,
             &selectedCopySet)) {
             if (opController_->AddOperator(transferLeaderOutOp)) {
                 oneRoundGenOp += 1;
@@ -87,7 +96,7 @@ int LeaderScheduler::Schedule() {
     if (minId > 0) {
         Operator transferLeaderInOp;
         CopySetInfo selectedCopySet;
-        if (transferLeaderIn(minId, minLeaderCount, &transferLeaderInOp,
+        if (transferLeaderIn(minId, minLeaderCount, lid, &transferLeaderInOp,
             &selectedCopySet)) {
             if (opController_->AddOperator(transferLeaderInOp)) {
                 oneRoundGenOp += 1;
@@ -104,10 +113,10 @@ int LeaderScheduler::Schedule() {
 }
 
 bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
-    Operator *op, CopySetInfo *selectedCopySet) {
+    PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet) {
     // 找出该chunkserver上所有的leaderCopyset作为备选
     std::vector<CopySetInfo> candidateInfos;
-    for (auto &cInfo : topo_->GetCopySetInfos()) {
+    for (auto &cInfo : topo_->GetCopySetInfosInLogicalPool(lid)) {
         // 跳过follower copyset
         if (cInfo.leader != source) {
            continue;
@@ -178,10 +187,10 @@ bool LeaderScheduler::transferLeaderOut(ChunkServerIdType source, int count,
 }
 
 bool LeaderScheduler::transferLeaderIn(ChunkServerIdType target, int count,
-    Operator *op, CopySetInfo *selectedCopySet) {
+    PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet) {
     // 从target中选择follower copyset, 把它的leader迁移到target上
     std::vector<CopySetInfo> candidateInfos;
-    for (auto &cInfo : topo_->GetCopySetInfos()) {
+    for (auto &cInfo : topo_->GetCopySetInfosInLogicalPool(lid)) {
         // 跳过leader copyset
         if (cInfo.leader == target || !cInfo.ContainPeer(target)) {
             continue;
