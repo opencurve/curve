@@ -17,7 +17,7 @@ std::string metaserver_addr = "127.0.0.1:9160";                                 
 uint32_t chunk_size = 4*1024*1024;
 uint32_t segment_size = 1*1024*1024*1024;
 
-DECLARE_string(config_path);
+DECLARE_string(client_config_path);
 DECLARE_string(filename);
 DECLARE_uint64(filesize);
 DECLARE_uint64(chunksize);
@@ -31,7 +31,7 @@ class CheckFileConsistencyTest : public ::testing::Test {
     CheckFileConsistencyTest() : fakemds("test") {}
     void SetUp() {
         FLAGS_chunksize = 4*1024*1024;
-        FLAGS_config_path = "./test/tools/config/data_check.conf";
+        FLAGS_client_config_path = "./test/tools/config/data_check.conf";
         FLAGS_chunkserver_list =
             "127.0.0.1:9161:0,127.0.0.1:9162:0,127.0.0.1:9163:0";
 

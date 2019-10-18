@@ -57,3 +57,16 @@ cc_binary(
         "//test/mds/mock:common_mock"
     ],
 )
+
+cc_binary(
+    name = "curve_namespace_tool_test",
+    srcs = glob([
+                "namespace_tool_test.cpp"
+                ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:namespace_tool_lib",
+        "//test/client/fake:fake_lib",
+    ],
+)
