@@ -5,6 +5,9 @@
  * Copyright (c) 2018 netease
  */
 
+#ifndef SRC_TOOLS_CURVE_CLI_H_
+#define SRC_TOOLS_CURVE_CLI_H_
+
 #include <glog/logging.h>
 #include <gflags/gflags.h>
 #include <butil/string_splitter.h>
@@ -12,6 +15,8 @@
 #include <braft/configuration.h>
 
 #include <map>
+#include <string>
+#include <iostream>
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/cli.h"
@@ -133,6 +138,12 @@ int TransferLeader() {
     return 0;
 }
 
+void PrintHelp(const std::string &cmd) {
+    std::cout << "Examples: " << std::endl;
+    std::cout << "curve_ops_tool " << cmd << " -logic_pool_id=1 -copyset_id=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
+        "-conf=127.0.0.1:8080:0,127.0.0.1:8081:0,127.0.0.1:8082:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
+}
+
 int RunCommand(const std::string &cmd) {
     if (cmd == "add_peer") {
         return AddPeer();
@@ -150,32 +161,4 @@ int RunCommand(const std::string &cmd) {
 }  // namespace chunkserver
 }  // namespace curve
 
-int main(int argc, char *argv[]) {
-    const char *proc_name = strrchr(argv[0], '/');
-    if (proc_name == NULL) {
-        proc_name = argv[0];
-    } else {
-        ++proc_name;
-    }
-    std::string help_str;
-    butil::string_printf(
-        &help_str,
-        "Usage: %s [Command] [OPTIONS...]\n"
-        "Command:\n"
-        "  add_peer --logic_pool_id=$logic_pool_id --copyset_id=$copyset_id"
-        "--peer=$adding_peer --conf=$current_conf\n"
-        "  remove_peer --logic_pool_id=$logic_pool_id --copyset_id=$copyset_id"
-        "--peer=$removing_peer --conf=$current_conf\n"
-        "  transfer_leader --logic_pool_id=$logic_pool_id --copyset_id=$copyset_id"  //NOLINT
-        "--peer=$target_leader --conf=$current_conf\n",
-        proc_name);
-    gflags::SetUsageMessage(help_str);
-    gflags::ParseCommandLineFlags(&argc, &argv, true);
-    if (argc != 2) {
-        std::cerr << help_str;
-        return -1;
-    }
-
-    curve::chunkserver::RunCommand(argv[1]);
-    return 0;
-}
+#endif  // SRC_TOOLS_CURVE_CLI_H_
