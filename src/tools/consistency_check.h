@@ -15,6 +15,7 @@
 
 #include <vector>
 #include <string>
+#include <iostream>
 
 #include "proto/copyset.pb.h"
 #include "src/client/mds_client.h"
@@ -43,6 +44,8 @@ class CheckFileConsistency {
     bool ReplicasConsistency();
 
     void UnInit();
+
+    void PrintHelp();
 
  private:
     curve::client::LogicPoolID  lpid_;
