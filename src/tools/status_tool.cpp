@@ -11,11 +11,10 @@ namespace curve {
 namespace tool {
 
 void StatusTool::PrintHelp() {
-    std::cout << "Usage : curve_tool command [-confPath=<path>]" << std::endl;
-    std::cout << "command : " << std::endl;
-    std::cout << "  space : show curve all disk type space, include total space and used space" << std::endl;  //NOLINT
-    std::cout << "  status : show curve status, now only chunkserver status" << std::endl;  //NOLINT
-    std::cout << "  chunkserver-list : show curve chunkserver-list, list all chunkserver infomation" << std::endl;  //NOLINT
+    std::cout << "Example :" << std::endl;
+    std::cout << "curve_ops_tool " << "space" << " -mds_config_path=conf/mds.conf" << std::endl;  // NOLINT
+    std::cout << "curve_ops_tool " << "status" << " -mds_config_path=conf/mds.conf" << std::endl;  // NOLINT
+    std::cout << "curve_ops_tool " << "chunkserver-list" << " -mds_config_path=conf/mds.conf" << std::endl;  // NOLINT
 }
 
 int StatusTool::InitMdsRepo(Configuration *conf,

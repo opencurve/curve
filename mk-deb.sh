@@ -113,17 +113,22 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
+mkdir -p build/curve-tools/usr/bin
+if [ $? -ne 0 ]
+then
+	exit
+fi
 cp ./bazel-bin/src/mds/main/curvemds build/curve-mds/usr/bin/curve-mds
 if [ $? -ne 0 ]
 then
 	exit
 fi
-cp ./bazel-bin/src/tools/curve_status_tool \
-build/curve-mds/usr/bin/curve_status_tool
-if [ $? -ne 0 ]
-then
-	exit
-fi
+#cp ./bazel-bin/src/tools/curve_status_tool \
+#build/curve-mds/usr/bin/curve_status_tool
+#if [ $? -ne 0 ]
+#then
+#	exit
+#fi
 cp thirdparties/etcdclient/libetcdclient.so \
 build/curve-mds/usr/lib/libetcdclient.so
 if [ $? -ne 0 ]
@@ -136,6 +141,12 @@ fi
 #	exit
 #fi
 cp ./bazel-bin/tools/curvefsTool build/curve-mds/usr/bin/curve-tool
+if [ $? -ne 0 ]
+then
+	exit
+fi
+cp ./bazel-bin/src/tools/curve_tool \
+build/curve-tools/usr/bin/curve_ops_tool
 if [ $? -ne 0 ]
 then
 	exit
@@ -167,19 +178,7 @@ fi
 #then
 #	exit
 #fi
-cp ./bazel-bin/src/tools/checkConsistecny \
-build/curve-chunkserver/usr/bin/checkConsistecny
-if [ $? -ne 0 ]
-then
-	exit
-fi
 
-cp ./bazel-bin/src/tools/curve_format \
-build/curve-chunkserver/usr/bin/curve-format
-if [ $? -ne 0 ]
-then
-	exit
-fi
 
 mkdir -p build/curve-sdk/usr/curvefs
 if [ $? -ne 0 ]
