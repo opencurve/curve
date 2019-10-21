@@ -730,7 +730,11 @@ def check_chunkserver_online(num=120):
     status = "".join(rs[1]).strip()
     online_num = re.findall(r'(?<=online = )\d+',status)
     logger.info("chunkserver online num is %s"%online_num)
-    assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
+    if int(online_num[0]) != num:
+        ori_cmd = "curve_status_tool chunkserver-list -confPath=/etc/curve/mds.conf |grep OFFLINE"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.error("chunkserver offline list is %s"%rs[1])
+        assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
 
 def wait_iops_ok(limit_iops=8000):
     check_chunkserver_online()
