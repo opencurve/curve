@@ -39,6 +39,12 @@ do
 		echo "chunkserver$i is already active!"
 		continue
 	fi
+	mkdir -p ${DATA_DIR}/log/chunkserver$i/
+	if [ $? -ne 0 ]
+	then
+	    echo "Create log dir failed: ${DATA_DIR}/log/chunkserver$i"
+		exit
+	fi
 	curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_max_install_snapshot_tasks_num=5 -raft_sync=true  \
 		    -conf=${conf}/chunkserver.conf \
 		    -chunkFilePoolDir=${DATA_DIR}/chunkserver$i \
@@ -50,7 +56,7 @@ do
 		    -copySetUri=local:///data/chunkserver$i/copysets \
 		    -recycleUri=local:///data/chunkserver$i/recycler \
 		    -raft_sync_segments=true \
-		    2>>${DATA_DIR}/log/chunkserver$i/chunkserver.log &
+		    -log_dir=${DATA_DIR}/log/chunkserver$i/ &
 done
 exit
 fi
@@ -75,6 +81,12 @@ then
 	exit
 fi
 
+mkdir -p ${DATA_DIR}/log/chunkserver$1
+if [ $? -ne 0 ]
+then
+    echo "Create log dir failed: ${DATA_DIR}/log/chunkserver$1"
+	exit
+fi
 curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_max_install_snapshot_tasks_num=5 -raft_sync=true  \
 	    -conf=${conf}/chunkserver.conf \
 	    -chunkFilePoolDir=${DATA_DIR}/chunkserver$1 \
@@ -86,4 +98,5 @@ curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_m
 	    -copySetUri=local:///data/chunkserver$1/copysets \
 	    -recycleUri=local:///data/chunkserver$1/recycler \
 	    -raft_sync_segments=true \
-	    2>>${DATA_DIR}/log/chunkserver$1/chunkserver.log &
+	    -log_dir=${DATA_DIR}/log/chunkserver$1 &
+

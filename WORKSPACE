@@ -40,11 +40,11 @@ bind(
 )
 
 #Import the glog files.
-new_git_repository(
-    name   = "com_github_google_glog",
-    build_file = "bazel/glog.BUILD",
-    remote = "https://github.com/google/glog.git",
-    tag = "v0.3.5",
+# brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
+git_repository(
+    name = "com_github_google_glog",
+    remote = "http://gerrit.storage.netease.com/curve/curve-glog",
+    commit = "edce3dcb827d9f244cdef39d1fe0cb254c9b5d13",
 )
 
 bind(
@@ -52,10 +52,14 @@ bind(
     actual = "@com_github_google_glog//:glog"
 )
 
-git_repository(
+# glog depends on gflags-2.2.2
+http_archive(
     name = "com_github_gflags_gflags",
-    remote = "https://github.com/gflags/gflags.git",
-    tag = "v2.2.1",
+    strip_prefix = "gflags-2.2.2",
+    urls = [
+        "https://mirror.bazel.build/github.com/gflags/gflags/archive/v2.2.2.tar.gz",
+        "https://github.com/gflags/gflags/archive/v2.2.2.tar.gz",
+    ],
 )
 
 bind(
