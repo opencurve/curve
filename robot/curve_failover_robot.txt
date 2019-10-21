@@ -519,7 +519,7 @@ test one volume perf
     perf test
 
 inject cluster stress test
-    [Tags]    P1    base    first release  longtime   perf  no-need
+    [Tags]    P1    base    first release  longtime  stress   perf  no-need
     init vm
     remove vm key
     attach new vol   20   20
