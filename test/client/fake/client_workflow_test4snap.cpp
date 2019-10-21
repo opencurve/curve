@@ -56,9 +56,7 @@ using curve::client::MetaCache;
 using curve::client::LogicalPoolCopysetIDInfo;
 
 int main(int argc, char ** argv) {
-    // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
-    google::InitGoogleLogging(argv[0]);
 
     std::string filename = "/1_userinfo_test.txt";
     /*** init mds service ***/

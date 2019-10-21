@@ -606,3 +606,4 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     UnInit();
     mds.UnInitialize();
 }
+
