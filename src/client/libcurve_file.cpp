@@ -21,6 +21,7 @@
 #include "src/client/service_helper.h"
 #include "proto/nameserver2.pb.h"
 #include "src/common/net_common.h"
+#include "src/common/uuid.h"
 
 using curve::client::UserInfo;
 using curve::common::ReadLockGuard;
@@ -31,8 +32,35 @@ using curve::common::WriteLockGuard;
 bool globalclientinited_ = false;
 curve::client::FileClient* globalclient = nullptr;
 
+static const int PROCESS_NAME_MAX = 32;
+static char g_processname[PROCESS_NAME_MAX];
+static bool needShutdown = false;
+
 namespace curve {
 namespace client {
+void InitLogging(const std::string& confPath) {
+    static std::once_flag initOnceFlags;
+
+    std::call_once(initOnceFlags, [&]() {
+        curve::common::Configuration conf;
+        conf.SetConfigPath(confPath);
+
+        LOG_IF(FATAL, !conf.LoadConfig())
+            << "Load config failed, config path = " << confPath;
+        LOG_IF(FATAL, !conf.GetIntValue("loglevel", &FLAGS_minloglevel))
+            << "config no loglevel info";
+        LOG_IF(FATAL, !conf.GetStringValue("logpath", &FLAGS_log_dir))
+            << "config no logpath info";
+
+        std::string processName = std::string("libcurve-").append(
+            curve::common::UUIDGenerator().GenerateUUID().substr(0, 8));
+        snprintf(g_processname, sizeof(g_processname),
+                "%s", processName.c_str());
+        google::InitGoogleLogging(g_processname);
+        needShutdown = true;
+    });
+}
+
 FileClient::FileClient(): fdcount_(0) {
     inited_ = false;
     mdsClient_ = nullptr;
@@ -116,22 +144,6 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    FLAGS_minloglevel = clientconfig_.GetFileServiceOption().loginfo.loglevel;
-
-    /*
-    // 因为性能问题，日志目前不在本地打开
-    // jira:http://jira.netease.com/browse/CLDCFS-1476
-    google::SetLogDestination(google::INFO,
-        clientconfig_.GetFileServiceOption().loginfo.logpath.c_str());
-    // 文件只保留info级别的文件包含WANING和ERROR级别，，ERROR，WARNING不单独写文件
-    google::SetLogDestination(google::WARNING, "/dev/null");
-    google::SetLogDestination(google::ERROR, "/dev/null");
-    google::SetLogDestination(google::FATAL, "/dev/null");
-
-     std::string processname("libcurve");
-     google::InitGoogleLogging(processname.c_str());
-    */
-
     inited_ = true;
     return LIBCURVE_ERROR::OK;
 }
@@ -153,7 +165,6 @@ void FileClient::UnInit() {
         delete mdsClient_;
         mdsClient_ = nullptr;
     }
-    // google::ShutdownGoogleLogging();
     inited_ = false;
 }
 
@@ -718,7 +729,9 @@ int GlobalInit(const char* path) {
         LOG(INFO) << "global cient already inited!";
         return LIBCURVE_ERROR::OK;
     }
+
     if (globalclient == nullptr) {
+        curve::client::InitLogging(path);
         globalclient = new (std::nothrow) curve::client::FileClient();
         if (globalclient != nullptr) {
             ret = globalclient->Init(path);
@@ -745,5 +758,9 @@ void GlobalUnInit() {
         globalclient = nullptr;
         globalclientinited_ = false;
         LOG(INFO) << "destory global client instance success!";
+        if (needShutdown) {
+            google::ShutdownGoogleLogging();
+            needShutdown = false;
+        }
     }
 }
