@@ -140,13 +140,15 @@ class AsyncRequestDone: public google::protobuf::Closure {
                      uint32_t rpcTimeoutMs,
                      uint32_t rpcRetryIntervalUs,
                      uint32_t rpcRetryMaxIntervalUs,
-                     uint32_t rpcHostDownRetryIntervalUs):
+                     uint32_t rpcHostDownRetryIntervalUs,
+                     uint32_t aioRpcFailLogInterval):
                      fd_(fd),
                      aioctx_(aioctx),
                      rpcTimeoutMs_(rpcTimeoutMs),
                      rpcRetryIntervalUs_(rpcRetryIntervalUs),
                      rpcRetryMaxIntervalUs_(rpcRetryMaxIntervalUs),
-                     rpcHostDownRetryIntervalUs_(rpcHostDownRetryIntervalUs) {
+                     rpcHostDownRetryIntervalUs_(rpcHostDownRetryIntervalUs),
+                     aioRpcFailLogInterval_(aioRpcFailLogInterval) {
         cntl_.set_timeout_ms(rpcTimeoutMs);
     }
 
@@ -182,10 +184,12 @@ class ReadDone: public AsyncRequestDone {
  public:
     ReadDone(int fd, ClientAioContext* aioctx, uint32_t rpcTimeoutMs,
             uint32_t rpcRetryIntervalUs, uint32_t rpcRetryMaxIntervalUs,
-            uint32_t rpcHostDownRetryIntervalUs):
+            uint32_t rpcHostDownRetryIntervalUs,
+            uint32_t aioRpcFailLogInterval):
             AsyncRequestDone(fd, aioctx, rpcTimeoutMs,
                             rpcRetryIntervalUs, rpcRetryMaxIntervalUs,
-                            rpcHostDownRetryIntervalUs) {}
+                            rpcHostDownRetryIntervalUs,
+                            aioRpcFailLogInterval) {}
     void Run();
     nebd::client::ReadResponse response_;
 };
@@ -194,10 +198,12 @@ class WriteDone: public AsyncRequestDone {
  public:
     WriteDone(int fd, ClientAioContext* aioctx, uint32_t rpcTimeoutMs,
             uint32_t rpcRetryIntervalUs, uint32_t rpcRetryMaxIntervalUs,
-            uint32_t rpcHostDownRetryIntervalUs):
+            uint32_t rpcHostDownRetryIntervalUs,
+            uint32_t aioRpcFailLogInterval):
             AsyncRequestDone(fd, aioctx, rpcTimeoutMs,
                             rpcRetryIntervalUs, rpcRetryMaxIntervalUs,
-                            rpcHostDownRetryIntervalUs) {}
+                            rpcHostDownRetryIntervalUs,
+                            aioRpcFailLogInterval) {}
     void Run();
     nebd::client::WriteResponse response_;
 };
@@ -206,10 +212,12 @@ class DiscardDone: public AsyncRequestDone {
  public:
     DiscardDone(int fd, ClientAioContext* aioctx, uint32_t rpcTimeoutMs,
             uint32_t rpcRetryIntervalUs, uint32_t rpcRetryMaxIntervalUs,
-            uint32_t rpcHostDownRetryIntervalUs):
+            uint32_t rpcHostDownRetryIntervalUs,
+            uint32_t aioRpcFailLogInterval):
             AsyncRequestDone(fd, aioctx, rpcTimeoutMs,
                             rpcRetryIntervalUs, rpcRetryMaxIntervalUs,
-                            rpcHostDownRetryIntervalUs) {}
+                            rpcHostDownRetryIntervalUs,
+                            aioRpcFailLogInterval) {}
     void Run();
     nebd::client::DiscardResponse response_;
 };
@@ -218,10 +226,12 @@ class FlushDone: public AsyncRequestDone {
  public:
     FlushDone(int fd, ClientAioContext* aioctx, uint32_t rpcTimeoutMs,
             uint32_t rpcRetryIntervalUs, uint32_t rpcRetryMaxIntervalUs,
-            uint32_t rpcHostDownRetryIntervalUs):
+            uint32_t rpcHostDownRetryIntervalUs,
+            uint32_t aioRpcFailLogInterval):
             AsyncRequestDone(fd, aioctx, rpcTimeoutMs,
                             rpcRetryIntervalUs, rpcRetryMaxIntervalUs,
-                            rpcHostDownRetryIntervalUs) {}
+                            rpcHostDownRetryIntervalUs,
+                            aioRpcFailLogInterval) {}
     void Run();
     nebd::client::FlushResponse response_;
 };

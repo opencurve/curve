@@ -232,7 +232,8 @@ int FileClient::Discard(int fd, ClientAioContext* aioctx) {
     request.set_size(aioctx->length);
     DiscardDone *discardDone = new DiscardDone(fd, aioctx, rpcTimeoutMs_,
                             rpcRetryIntervalUs_, rpcRetryMaxIntervalUs_,
-                            rpcHostDownRetryIntervalUs_);
+                            rpcHostDownRetryIntervalUs_,
+                            aioRpcFailLogInterval_);
     stub.Discard(&discardDone->cntl_, &request,
                     &discardDone->response_, discardDone);
     return 0;
@@ -249,7 +250,8 @@ int FileClient::AioRead(int fd, ClientAioContext* aioctx) {
     request.set_size(aioctx->length);
     ReadDone *readDone = new ReadDone(fd, aioctx, rpcTimeoutMs_,
                             rpcRetryIntervalUs_, rpcRetryMaxIntervalUs_,
-                            rpcHostDownRetryIntervalUs_);
+                            rpcHostDownRetryIntervalUs_,
+                            aioRpcFailLogInterval_);
     stub.Read(&readDone->cntl_, &request, &readDone->response_, readDone);
     return 0;
 }
@@ -265,7 +267,8 @@ int FileClient::AioWrite(int fd, ClientAioContext* aioctx) {
     request.set_size(aioctx->length);
     WriteDone *writeDone = new WriteDone(fd, aioctx, rpcTimeoutMs_,
                             rpcRetryIntervalUs_, rpcRetryMaxIntervalUs_,
-                            rpcHostDownRetryIntervalUs_);
+                            rpcHostDownRetryIntervalUs_,
+                            aioRpcFailLogInterval_);
     writeDone->cntl_.request_attachment().append(aioctx->buf, aioctx->length);
     stub.Write(&writeDone->cntl_, &request, &writeDone->response_, writeDone);
     return 0;
@@ -278,7 +281,8 @@ int FileClient::Flush(int fd, ClientAioContext* aioctx) {
     request.set_fd(fd);
     FlushDone *flushDone = new FlushDone(fd, aioctx, rpcTimeoutMs_,
                             rpcRetryIntervalUs_, rpcRetryMaxIntervalUs_,
-                            rpcHostDownRetryIntervalUs_);
+                            rpcHostDownRetryIntervalUs_,
+                            aioRpcFailLogInterval_);
     stub.Flush(&flushDone->cntl_, &request, &flushDone->response_, flushDone);
     return 0;
 }
