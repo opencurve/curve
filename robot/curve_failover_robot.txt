@@ -353,9 +353,9 @@ test mds loss package 5%
     test start mds
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
-test chunkserver delay package 100ms
+test chunkserver delay package 50ms
     [Tags]    P1    base    first release   failover   
-    ${ms}  evaluate  int(100)
+    ${ms}  evaluate  int(50)
     test cs delay package  ${ms}
     sleep  5
     check vm iops
@@ -365,9 +365,9 @@ test chunkserver delay package 100ms
     sleep   5
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
-test mds delay package 100ms
+test mds delay package 50ms
     [Tags]    P1    base    first release   failover   
-    ${ms}  evaluate  int(100)
+    ${ms}  evaluate  int(50)
     test mds delay package  ${ms}
     sleep  120
     check vm iops
