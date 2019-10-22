@@ -503,31 +503,43 @@ func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
             log.Printf("Observe leaderChange, now is: %v, expect: %v",
                 resp.Kvs[0].Value, goLeaderName)
             return C.ObserverLeaderChange
-        // observe如果设置有timeout的context, 含义是observe timeout时间便退出，其次，
-        // 还是get操作的超时时间。
-        // 在应用中希望对该key一直进行检测，因此context不带超时。这样会导致etcd挂掉的时候
-        // grpc无限重试，所以需要在外部定时去检查etcd网络连接状态
         case <-ticker.C:
-            // 定期和mds通信，确认网络是否正常
-            t := time.Now()
-            ctx, cancel := context.WithTimeout(context.Background(),
-                time.Duration(int(timeout))*time.Millisecond)
-            defer cancel()
+            // 定时获取mds注册到etcd的key-value, 如果获取失败或者key
+            // 不存在，返回错误，mds需要退出
+            var lastErrorCode C.enum_EtcdErrCode
+            for retry := 0; retry < 3; retry++ {
+                lastErrorCode = C.OK
+                t := time.Now()
+                ctx, cancel := context.WithTimeout(context.Background(),
+                        time.Duration(int(timeout) / 3) * time.Millisecond)
 
-            resp, err := globalClient.Get(ctx, election.Key())
-            errCode := GetErrCode(EtcdGet, err)
-            if errCode != C.OK {
-                log.Printf("Observe can not get leader key: %v, startTime:" +
-                    " %v, spent: %v", election.Key(), t, time.Since(t))
-                return C.ObserverLeaderInternal
-            } else if len(resp.Kvs) == 0 {
-                log.Printf("Observe find leader key：%v not exist",
-                    election.Key())
-                return C.ObserverLeaderNotExist
-            } else if string(resp.Kvs[0].Key) != election.Key() {
-                log.Printf("Observe leaderChange, now is: %v, expect: %v",
-                    resp.Kvs[0].Value, goLeaderName)
-                return C.ObserverLeaderChange
+                resp, err := globalClient.Get(ctx, election.Key())
+                errCode := GetErrCode(EtcdGet, err)
+
+                if errCode != C.OK {
+                    log.Printf("Observe can not get leader key: %v," +
+                        "startTime: %v, spent: %v, etcd error: %v",
+                        election.Key(), t, time.Since(t), err)
+                    lastErrorCode =  C.ObserverLeaderInternal
+                } else if len(resp.Kvs) == 0 {
+                    log.Printf("Observe find leader key：%v not exist",
+                        election.Key())
+                    lastErrorCode = C.ObserverLeaderNotExist
+                } else if string(resp.Kvs[0].Key) != election.Key() {
+                    log.Printf("Observe leaderChange, now is: %v, expect: %v",
+                        resp.Kvs[0].Value, goLeaderName)
+                    lastErrorCode = C.ObserverLeaderChange
+                }
+
+                cancel()
+
+                if lastErrorCode == C.OK {
+                    break
+                }
+            }
+
+            if lastErrorCode != C.OK {
+                return  lastErrorCode
             }
         }
     }
@@ -547,8 +559,11 @@ func EtcdLeaderResign(leaderOid uint64, timeout uint64) C.enum_EtcdErrCode {
 
     var leader *clientv3.GetResponse
     var err error
-    if leader, err = election.Leader(ctx); err != nil {
+    if leader, err = election.Leader(ctx);
+        err != nil && err != concurrency.ErrElectionNoLeader{
         log.Printf("Leader() returned non nil err: %s", err)
+        return C.LeaderResignErr
+    } else if err == concurrency.ErrElectionNoLeader {
         return C.LeaderResignErr
     }
 

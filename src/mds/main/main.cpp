@@ -306,8 +306,7 @@ int curve_main(int argc, char **argv) {
     InitLeaderElectionOption(&conf, &leaderElectionOp);
     leaderElectionOp.etcdCli = client;
     auto leaderElection = std::make_shared<LeaderElection>(leaderElectionOp);
-    while (0 != leaderElection->CampaginLeader() ||
-        false == leaderElection->LeaderKeyExist()) {
+    while (0 != leaderElection->CampaginLeader()) {
         LOG(INFO) << leaderElectionOp.leaderUniqueName
                   << " campaign for leader again";
     }
