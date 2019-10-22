@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cassert>
 
+#include "src/chunkserver/raftsnapshot_attachment.h"
 #include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
@@ -137,6 +138,11 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
 
     nodeOptions_.snapshot_file_system_adaptor =
         new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+
+    RaftSnapshotAttachment* attachment =
+        new RaftSnapshotAttachment(chunkDataApath_, options.localFileSystem);
+    nodeOptions_.snapshot_attachment =
+        new scoped_refptr<braft::SnapshotAttachment>(attachment);
 
     /* 初始化 peer id */
     butil::ip_t ip;

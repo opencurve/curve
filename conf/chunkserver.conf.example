@@ -92,7 +92,7 @@ curve.root_username=root
 # curve密码
 curve.root_password=
 # client配置文件
-curve.config_path=conf/client.conf
+curve.config_path=conf/cs_client.conf
 # s3配置文件
 s3.config_path=conf/s3.conf
 
