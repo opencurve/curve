@@ -495,18 +495,6 @@ inject all chunkserver down 10min
 #    check copies consistency
     [Teardown]   wait iops ok    ${vm_iops_limit}
 
-test get all chunk num
-    [Tags]    P1    base    first release   failover   
-    stop rwio
-    sleep  2
-    ${begin_num}    get all chunk num
-    ${begin_num}    Convert To Integer  ${begin_num}
-    exec deleteforce
-    sleep  3
-    ${end_num}    get all chunk num
-    ${end_num}    Convert To Integer   ${end_num}
-    should be equal    ${begin_num}   ${end_num}
-
 test clone vol
     [Tags]    P1    base    first release   failover  snapshot  no-need
     test clone iovol consistency
@@ -537,6 +525,7 @@ init failover cluster
      check chunkserver online 
      init vm
      init vol
+     test get all chunk num
      begin snapshot test
      loop attach detach vol
      init rw cloud disk
@@ -561,6 +550,17 @@ init rw cloud disk
      sleep  5
      write full disk   ${fio_vdsize}
      run rwio
+
+test get all chunk num
+    stop rwio
+    sleep  2
+    ${begin_num}    get all chunk num
+    ${begin_num}    Convert To Integer  ${begin_num}
+    exec deleteforce
+    sleep  3
+    ${end_num}    get all chunk num
+    ${end_num}    Convert To Integer   ${end_num}
+    should be equal    ${begin_num}   ${end_num}
 
 clean failover env
      stop rwio
