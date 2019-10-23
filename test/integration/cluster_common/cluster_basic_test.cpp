@@ -67,7 +67,10 @@ class ClusterBasicTest : public ::testing::Test {
 
         // 清理DB数据和文件
         curveCluster_->mdsRepo_->dropDataBase();
-        system("rm -r basic*");
+        system("rm -fr basic*");
+        system("rm -fr test_multi_etcd_node*");
+        system("rm -fr test_start_stop_module2.etcd");
+        system("rm -r ClusterBasicTest.test_start_stop_module2.etcd.log");
     }
 
     void TearDown() {
@@ -113,12 +116,19 @@ TEST_F(ClusterBasicTest, DISABLED_test_start_stop_module1) {
 TEST_F(ClusterBasicTest, test_start_stop_module2) {
     // 起etcd
     curveCluster_->StarSingleEtcd(1, "127.0.0.1:2221", "127.0.0.1:2222",
-        std::vector<std::string>{" --name test_start_stop_module2"});
+        std::vector<std::string>{
+            " --name test_start_stop_module2",
+            " --log-level 'debug'",
+            " > ClusterBasicTest.test_start_stop_module2.etcd.log 2>&1"});
+    ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
 
     // 起mds
     curveCluster_->StartSingleMDS(1, "127.0.0.1:3333", mdsConf, true);
     // 初始化mdsclient
     MetaServerOption_t op;
+    op.rpcTimeoutMs = 2000;
+    op.rpcRetryTimes = 3;
+    op.synchronizeRPCTimeoutMS = 2000;
     op.metaaddrvec = std::vector<std::string>{"127.0.0.1:3333"};
     curveCluster_->InitMdsClient(op);
 
@@ -173,8 +183,6 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     curveCluster_->StopMDS(1);
     // 停掉etcd
     curveCluster_->StopEtcd(1);
-
-    system("rm -r test_start_stop_module2.etcd");
 }
 
 TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
@@ -185,10 +193,12 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
         + std::string("test_multi_etcd_node3=http://127.0.0.1:2306'");
     curveCluster_->StarSingleEtcd(1, "127.0.0.1:2301", "127.0.0.1:2302",
         std::vector<std::string>{" --name test_multi_etcd_node1", etcdcluster});
+    ASSERT_FALSE(curveCluster_->WaitForEtcdClusterAvalible(3));
     curveCluster_->StarSingleEtcd(2, "127.0.0.1:2303", "127.0.0.1:2304",
         std::vector<std::string>{" --name test_multi_etcd_node2", etcdcluster});
     curveCluster_->StarSingleEtcd(3, "127.0.0.1:2305", "127.0.0.1:2306",
         std::vector<std::string>{" --name test_multi_etcd_node3", etcdcluster});
+    ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
 
     // 起三mds
     std::string etcdClinetAddrs("127.0.0.1:2301,127.0.0.1:2303,127.0.0.1:2305");
@@ -212,7 +222,5 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     curveCluster_->StopEtcd(1);
     curveCluster_->StopEtcd(2);
     curveCluster_->StopEtcd(3);
-
-    system("rm -r test_multi_etcd_node*");
 }
 }  // namespace curve
