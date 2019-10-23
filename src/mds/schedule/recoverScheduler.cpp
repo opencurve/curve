@@ -135,7 +135,7 @@ int RecoverScheduler::Schedule() {
     }
     LOG(INFO) << "recoverScheduler generate " << oneRoundGenOp
               << " operators at this round";
-    return oneRoundGenOp;
+    return 1;
 }
 
 int64_t RecoverScheduler::GetRunningInterval() {

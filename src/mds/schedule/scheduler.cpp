@@ -65,10 +65,9 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
         return UNINTIALIZE_ID;
     }
     std::vector<ChunkServerInfo> chunkServers =
-        topo_->GetChunkServersInPhysicalPool(oldPeerInfo.info.physicalPoolId);
-
+        topo_->GetChunkServersInLogicalPool(copySetInfo.id.first);
     if (chunkServers.size() <= copySetInfo.peers.size()) {
-        LOG(ERROR) << "physicalPool " << oldPeerInfo.info.physicalPoolId
+        LOG(ERROR) << "logicalPool " << copySetInfo.id.first
                    << " has " << chunkServers.size() << " chunkservers, "
                    "not bigger than copysetInfo peers size: "
                    << copySetInfo.peers.size();

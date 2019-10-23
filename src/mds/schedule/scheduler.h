@@ -152,13 +152,22 @@ class CopySetScheduler : public Scheduler {
     int Schedule() override;
 
     /**
-     *  @brief 获取CopySetScheduler的运行间隔
+     * @brief 获取CopySetScheduler的运行间隔
      *
      * @return 时间间隔
      */
     int64_t GetRunningInterval() override;
 
  private:
+    /**
+     * @brief DoCopySetSchedule 对指定的logicalPool做copyset均衡
+     *
+     * @param[in] lid 指定逻辑池id
+     *
+     * @return 本次迁移的源节点，仅供测试使用
+     */
+    int DoCopySetSchedule(PoolIdType lid);
+
     /**
      * @brief CopySetDistribution 统计online状态chunkserver上的copyset
      *
@@ -261,26 +270,28 @@ class LeaderScheduler : public Scheduler {
      *
      * @param[in] source leader需要迁移出去的chunkserverID
      * @param[in] leaderCount source上leader的个数
+     * @param[in] lid 当前正在均衡的logicalPoolId
      * @param[out] op 生成的operator
      * @param[out] selectedCopySet 选中的需要变更的copyset
      *
      * @return 是否成功生成operator, false为没有生成
      */
     bool transferLeaderOut(ChunkServerIdType source, int leaderCount,
-        Operator *op, CopySetInfo *selectedCopySet);
+        PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet);
 
     /**
      * @brief 在target上随机选择一个follower copyset, 把leader迁移到该chunserver上
      *
      * @param[in] target 需要将该leader迁移到该chunkserverID
      * @param[in] leaderCount target上leader的个数
+     * @param[in] 当前正在均衡的逻辑池id
      * @param[out] op 生成的operator
      * @param[out] selectedCopySet 选中的需要变更的copyset
      *
      * @return 是否成功生成operator, false为没有生成
      */
     bool transferLeaderIn(ChunkServerIdType target, int leaderCount,
-        Operator *op, CopySetInfo *selectedCopySet);
+        PoolIdType lid, Operator *op, CopySetInfo *selectedCopySet);
 
     /*
     * @brief copySetHealthy检查copySet三个副本是否都在线
@@ -301,6 +312,15 @@ class LeaderScheduler : public Scheduler {
      *         true 当前时间 - aliveTime > chunkserverCoolingTimeSec_
      */
     bool coolingTimeExpired(uint64_t aliveTime);
+
+    /**
+     * @brief DoLeaderSchedule 对指定的logicalPool做leader均衡
+     *
+     * @param[in] lid 指定逻辑池id
+     *
+     * @return 本次均衡产生的有效operator个数
+     */
+    int DoLeaderSchedule(PoolIdType lid);
 
  private:
     int64_t runInterval_;
