@@ -17,6 +17,9 @@
 #include <vector>
 #include <atomic>
 
+// brpc server
+extern brpc::Server g_server;
+
 typedef struct FdImage {
     rados_t* cluster;
     rados_ioctx_t* io;

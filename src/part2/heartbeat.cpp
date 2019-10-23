@@ -134,6 +134,8 @@ int StopProc(bool need_check_qemu_proc) {
     std::string uuid_file = GetUuidFile();
     std::string uuid_lockfile = GetUuidLockfile();
 
+    g_server.Stop(0);
+    g_server.Join();
     int lockfd = LockFile(uuid_lockfile.c_str());
     if (lockfd < 0) {
         LOG(ERROR) << "add lock failed.";

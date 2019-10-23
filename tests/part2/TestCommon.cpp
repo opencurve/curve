@@ -316,6 +316,9 @@ TEST(Init, Init_5) {
     NebdServerMocker mock;
     std::string lockfile = "/tmp/unit_test";
     std::string metadata_file = "/tmp/unit_test2";
+    g_server.Stop(0);
+    g_server.Join();
+    g_server.ClearServices();
     EXPECT_CALL(mock, GetUuidFile()).WillOnce(testing::Return(metadata_file));
     EXPECT_CALL(mock, GetUuidLockfile()).WillOnce(testing::Return(lockfile));
     EXPECT_CALL(mock, CheckProc(::testing::_)).WillOnce(testing::Return(0));
@@ -335,6 +338,9 @@ TEST(Init, Init_6) {
     NebdServerMocker mock;
     std::string lockfile = "/tmp/unit_test";
     std::string metadata_file = "/tmp/unit_test2";
+    g_server.Stop(0);
+    g_server.Join();
+    g_server.ClearServices();
     EXPECT_CALL(mock, GetUuidFile()).WillOnce(testing::Return(metadata_file));
     EXPECT_CALL(mock, GetUuidLockfile()).WillOnce(testing::Return(lockfile));
     EXPECT_CALL(mock, CheckProc(::testing::_)).WillOnce(testing::Return(0));
@@ -363,6 +369,9 @@ TEST(Init, Init_7) {
     int fd = open(file_path.c_str(), O_RDWR | O_CREAT, 0644);
     std::string str = "retry_counts=0;\n";
     write(fd, str.c_str(), str.size());
+    g_server.Stop(0);
+    g_server.Join();
+    g_server.ClearServices();
     EXPECT_CALL(mock, GetUuidFile()).WillOnce(testing::Return(metadata_file));
     EXPECT_CALL(mock, GetUuidLockfile()).WillOnce(testing::Return(lockfile));
     EXPECT_CALL(mock, CheckProc(::testing::_)).WillOnce(testing::Return(0));
@@ -411,6 +420,9 @@ TEST(Init, Init_8) {
     NebdServerMocker mock;
     std::string lockfile = "/tmp/unit_test";
     std::string metadata_file = "/tmp/unit_test2";
+    g_server.Stop(0);
+    g_server.Join();
+    g_server.ClearServices();
     EXPECT_CALL(mock, GetUuidFile()).WillOnce(testing::Return(metadata_file));
     EXPECT_CALL(mock, GetUuidLockfile()).WillOnce(testing::Return(lockfile));
     EXPECT_CALL(mock, CheckProc(::testing::_)).WillOnce(testing::Return(0));
@@ -435,6 +447,9 @@ TEST(Init, Init_9) {
     NebdServerMocker mock;
     std::string lockfile = "/tmp/unit_test";
     std::string metadata_file = "/tmp/unit_test2";
+    g_server.Stop(0);
+    g_server.Join();
+    g_server.ClearServices();
     EXPECT_CALL(mock, GetUuidFile()).WillOnce(testing::Return(metadata_file));
     EXPECT_CALL(mock, GetUuidLockfile()).WillOnce(testing::Return(lockfile));
     EXPECT_CALL(mock, CheckProc(::testing::_)).WillOnce(testing::Return(0));
@@ -460,6 +475,9 @@ TEST(Init, Init_10) {
     NebdServerMocker mock;
     std::string lockfile = "/tmp/unit_test";
     std::string metadata_file = "/tmp/unit_test2";
+    g_server.Stop(0);
+    g_server.Join();
+    g_server.ClearServices();
     EXPECT_CALL(mock, GetUuidFile()).WillOnce(testing::Return(metadata_file));
     EXPECT_CALL(mock, GetUuidLockfile()).WillOnce(testing::Return(lockfile));
     EXPECT_CALL(mock, CheckProc(::testing::_)).WillOnce(testing::Return(0));

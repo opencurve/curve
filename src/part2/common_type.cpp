@@ -45,6 +45,9 @@ std::map<int, FdImage_t*> g_imageMap;
 // 保存云主机当前挂载的卷信息
 std::vector<std::string> g_qemuPoolVolumes;
 
+// brpc server
+brpc::Server g_server;
+
 // 文件锁函数
 int LockFile(const char* file) {
     int lockfd = open(file, O_RDONLY | O_CREAT, 0644);
@@ -532,9 +535,8 @@ int Init() {
     options.idle_timeout_sec = rpc_option->brpc_idle_timeout;
     options.num_threads = rpc_option->brpc_num_threads;
     delete rpc_option;
-    brpc::Server brpc_server;
     QemuClientServiceImpl* qemuclient_service_impl = new QemuClientServiceImpl;
-    if (brpc_server.AddService(qemuclient_service_impl,
+    if (g_server.AddService(qemuclient_service_impl,
                                brpc::SERVER_OWNS_SERVICE) != 0) {
         LOG(ERROR) << "Fail to add service";
         return -1;
@@ -579,7 +581,7 @@ int Init() {
     std::string ip = "127.0.0.1:";
     while (++retry <= retry_counts) {
         std::string ip_port = ip + std::to_string(g_port);
-        if (brpc_server.Start(ip_port.c_str(), &options) != 0) {
+        if (g_server.Start(ip_port.c_str(), &options) != 0) {
             LOG(ERROR) << "Fail to start QemuClientServer, retry time is: "
                        << retry;
             g_port = FindPort(cfg, g_port + 1);
@@ -621,7 +623,5 @@ int Init() {
     signal(SIGINT, SigProcess);
     signal(SIGHUP, SigLogReplace);
     bthread_join(th, NULL);
-    brpc_server.Stop(0);
-    brpc_server.Join();
     return 0;
 }
