@@ -116,7 +116,7 @@ int ReplicaScheduler::Schedule() {
     }
     LOG(INFO) << "replicaScheduelr generate "
               << oneRoundGenOp << " at this round";
-    return oneRoundGenOp;
+    return 1;
 }
 
 int64_t ReplicaScheduler::GetRunningInterval() {
