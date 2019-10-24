@@ -1140,7 +1140,7 @@ def test_round_restart_etcd():
     try:
         for etcd_host in etcd_list:
             kill_etcd_process(etcd_host)
-            time.sleep(2)
+            time.sleep(6)
             start_etcd_process(etcd_host)
             end_iops = get_cluster_iops()
             if float(end_iops)/float(start_iops) < 0.9:
