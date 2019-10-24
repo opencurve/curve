@@ -22,6 +22,8 @@ namespace nebd {
 namespace client {
 
 int LifeCycleManager::Start(common::Configuration *conf) {
+    LOG(INFO) << "start LifeCycleManager begin.";
+
     int ret = LoadConf(conf);
     if (ret != 0) {
         LOG(ERROR) << "Init4Qemu, LoadConf fail";
@@ -125,7 +127,7 @@ int LifeCycleManager::Start(common::Configuration *conf) {
 
         if (ret == 0) {
             // 找到port
-            LOG(INFO) << "get port success, port = " << port;
+            LOG(INFO) << "get port from part2 success, port = " << port;
             break;
         }
 
@@ -178,6 +180,7 @@ int LifeCycleManager::Start(common::Configuration *conf) {
     part2Port_ = port;
 
     close(fd);
+    LOG(INFO) << "start LifeCycleManager success.";
     return 0;
 }
 
@@ -286,7 +289,7 @@ int LifeCycleManager::LoadConf(common::Configuration *conf) {
         return -1;
     }
 
-    LOG(INFO) << "load conf success";
+    LOG(INFO) << "LifeCycleManager load conf success";
     return 0;
 }
 
@@ -389,7 +392,7 @@ int LifeCycleManager::CheckProcAlive(const char* uuid, const char* procName,
     // 遍历 /proc目录下的所有进程，没有找到uuid和procName对应的进程
     closedir(dir);
     *procExist = false;
-    LOG(INFO) << "CheckProcAlive not alive, uuid = " << uuid
+    LOG(INFO) << "CheckProcAlive proc not alive, uuid = " << uuid
               << ", procName = " << procName;
     return 0;
 }
@@ -421,7 +424,8 @@ int LifeCycleManager::GetPortFromPart2(uint32_t *port) {
 
     if (!value["port"].isNull() && value["port"].isString()) {
         *port = stoi(value["port"].asString());
-        LOG(INFO) << "read port from file, port = " << *port;
+        LOG(INFO) << "read port from file = " << metadataFile
+                  << ", port = " << *port;
         return 0;
     } else {
         return -1;
@@ -449,6 +453,12 @@ bool LifeCycleManager::IsPart2ConnectibleWithRetry(uint32_t retryTimes,
     while (retryCount < retryTimes) {
         if (IsPart2Connectible()) {
             return true;
+        }
+
+        // 如果检查part2不连通，再看下是否part2已经退出了
+        if (!IsPart2Alive()) {
+            LOG(WARNING) << "part2 not connectible and part2 not alive.";
+            return false;
         }
 
         retryCount++;
@@ -487,7 +497,7 @@ int LifeCycleManager::KillPart2() {
     }
 
     std::string cmd = "kill " + std::to_string(pidPart2_);
-    LOG(INFO) << "KillPart2, run cmd = " << cmd;
+    LOG(INFO) << "KillPart2, run cmd: " << cmd;
     system(cmd.c_str());
 
     // 检查part2是否已经kill
@@ -648,8 +658,8 @@ void LifeCycleManager::HeartbeatThreadFunc() {
                             lifeCycleOptions_.connectibleCheckTimes,
                             lifeCycleOptions_.connectibleCheckIntervalUs)) {
             LOG(WARNING) << "part2 is not connectible, "
-                            << "reach connectibleCheckTimes, unconnectCount = "
-                            << lifeCycleOptions_.connectibleCheckTimes;
+                         << "reach connectibleCheckTimes " << lifeCycleOptions_.connectibleCheckTimes  // NOLINT
+                         << " or part2 not alive";
 
             // 连续多次未联通，kill part2
             int ret = KillPart2();
