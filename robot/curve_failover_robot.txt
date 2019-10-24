@@ -365,16 +365,6 @@ test chunkserver delay package 50ms
     sleep   5
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
-test mds delay package 50ms
-    [Tags]    P1    base    first release   failover   
-    ${ms}  evaluate  int(50)
-    test mds delay package  ${ms}
-    sleep  120
-    check vm iops
-    check data consistency
-#    check copies consistency
-    test start mds
-    [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test out/in chunkserver recover
     [Tags]    P1    base    first release   failover  longtime
@@ -449,6 +439,18 @@ test ipmitool restart mds node
 stop snapshot test
     [Tags]    P1    base    first release   failover  
     stop snapshot test
+
+test mds delay package 50ms
+    [Tags]    P1    base    first release   failover   
+    ${ms}  evaluate  int(50)
+    test mds delay package  ${ms}
+    test start mds
+    test start etcd
+    sleep  120
+    check vm iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 inject kill all mds
     [Tags]    P1    base    first release   failover

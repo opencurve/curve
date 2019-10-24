@@ -99,7 +99,7 @@ def add_config():
         ori_cmd = R"sed -i 's/clone.disable_s3_adapter=true/clone.disable_s3_adapter=false/g' chunkserver.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
-        ori_cmd = R"sed -i 's#curve.config_path=conf/client.conf#curve.config_path=/etc/curve/conf/client.conf#g' chunkserver.conf"
+        ori_cmd = R"sed -i 's#curve.config_path=conf/cs_client.conf#curve.config_path=/etc/curve/conf/cs_client.conf#g' chunkserver.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
         ori_cmd = R"sed -i 's#s3.config_path=conf/s3.conf#s3.config_path=/etc/curve/conf/s3.conf#g' chunkserver.conf"
@@ -108,17 +108,20 @@ def add_config():
         ori_cmd = "sudo mv chunkserver.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s chunkserver conf fail"%host
-    # add s3 and client conf
+    # add s3 and client conf\cs_client conf
     client_host = random.choice(config.client_list)
     cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 %s:/etc/curve/client.conf ."%\
             (config.pravie_key_path,client_host)
     shell_operator.run_exec2(cmd)
     for host in config.chunkserver_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf %s:~/"%\
+        cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/cs_client.conf %s:~/"%\
                             (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
-        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf"
+        ori_cmd = R"sed -i 's/metaserver_addr=127.0.0.1:6666/metaserver_addr=%s/g' cs_client.conf"%(addrs)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s cs_client config fail"%host
+        ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf && sudo mv cs_client.conf /etc/curve/conf/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s s3 conf fail"%host
     for host in config.snap_server_list:
