@@ -57,12 +57,12 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(ERROR, ret == false) << "config no opMaxRetry info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("opRetryIntervalUs",
+    ret = conf_.GetUInt64Value("opRetryIntervalUs",
         &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs);
     LOG_IF(ERROR, ret == false) << "config no opRetryIntervalUs info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("rpcTimeoutMs",
+    ret = conf_.GetUInt64Value("rpcTimeoutMs",
         &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.rpcTimeoutMs);
     LOG_IF(ERROR, ret == false) << "config no rpcTimeoutMs info";
     RETURN_IF_FALSE(ret)
