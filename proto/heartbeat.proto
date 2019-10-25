@@ -99,9 +99,30 @@ message CopySetConf {
     optional common.Peer configchangeItem = 6;
 };
 
+enum HeartbeatStatusCode {
+    // 正常返回
+    hbOK = 0;
+    // 必要的参数为初始化
+    hbParamUnInitialized = 1;
+    // chunkserver不在topology中
+    hbChunkserverUnknown = 2;
+    // chunkserver状态为retired
+    hbChunkserverRetired = 3;
+    // chunkserver的ip和port与topology中的不匹配
+    hbChunkserverIpPortNotMatch = 4;
+    // chunkserver的token不匹配
+    hbChunkserverTokenNotMatch = 5;
+    // 无copyset上报
+    hbRequestNoCopyset = 6;
+    // copyset转换为topology格式失败
+    hbAnalyseCopysetError = 7;
+}
+
 message ChunkServerHeartbeatResponse {
     // 返回需要进行变更的copyset的信息
     repeated CopySetConf needUpdateCopysets = 1;
+    // 错误码
+    optional HeartbeatStatusCode statusCode = 2;
 };
 
 service HeartbeatService {
