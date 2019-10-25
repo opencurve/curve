@@ -591,17 +591,37 @@ TEST_F(nebdClientLifeCycleTest, lifecycle_kill_part2_test) {
     ASSERT_EQ(manager.IsPart2Alive(), false);
 }
 
-TEST_F(nebdClientLifeCycleTest, load_conf_fail_test) {
+TEST_F(nebdClientLifeCycleTest, lifecycle_manager_start_load_conf_fail_test) {
     ::nebd::common::Configuration conf;
     nebd::client::LifeCycleManager manager;
     ASSERT_EQ(manager.Start(&conf), -1);
 }
 
-TEST_F(nebdClientLifeCycleTest, get_uuid_fail_test) {
+TEST_F(nebdClientLifeCycleTest, lifecycle_manager_start_get_uuid_fail_test) {
     ::nebd::common::Configuration conf;
     conf.SetConfigPath(confFilename);
     ASSERT_EQ(conf.LoadConfig(), true);
     conf.SetStringValue("qemuProcName", "wrong_qemuProcName");
+
+    nebd::client::LifeCycleManager manager;
+    ASSERT_EQ(manager.Start(&conf), -1);
+}
+
+TEST_F(nebdClientLifeCycleTest, lifecycle_manager_start_start_part2_fail) {
+    ::nebd::common::Configuration conf;
+    conf.SetConfigPath(confFilename);
+    ASSERT_EQ(conf.LoadConfig(), true);
+    conf.SetStringValue("part2ProcPath", "wrong_part2ProcPath");
+
+    nebd::client::LifeCycleManager manager;
+    ASSERT_EQ(manager.Start(&conf), -1);
+}
+
+TEST_F(nebdClientLifeCycleTest, lifecycle_manager_start_read_port_fail) {
+    ::nebd::common::Configuration conf;
+    conf.SetConfigPath(confFilename);
+    ASSERT_EQ(conf.LoadConfig(), true);
+    conf.SetStringValue("metadataPrefix", "wrong_metadataPrefix");
 
     nebd::client::LifeCycleManager manager;
     ASSERT_EQ(manager.Start(&conf), -1);
