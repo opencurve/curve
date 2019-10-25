@@ -26,7 +26,7 @@ int LifeCycleManager::Start(common::Configuration *conf) {
 
     int ret = LoadConf(conf);
     if (ret != 0) {
-        LOG(ERROR) << "Init4Qemu, LoadConf fail";
+        LOG(ERROR) << "LifeCycleManager LoadConf fail";
         return -1;
     }
 
@@ -45,7 +45,7 @@ int LifeCycleManager::Start(common::Configuration *conf) {
     LOG(INFO) << "get qemu uuid = " << qemuUUID_;
 
     // open文件锁
-    int fd = open(lifeCycleOptions_.lockFile.c_str(), O_RDONLY);
+    int fd = open(lifeCycleOptions_.lockFile.c_str(), O_RDONLY | O_CREAT, 0644);
     if (fd < 0) {
         LOG(ERROR) << "open lock file fail, file = "
                    << lifeCycleOptions_.lockFile;
@@ -616,7 +616,7 @@ void LifeCycleManager::HeartbeatThreadFunc() {
     LOG(INFO) << "heartbeat check thread start.";
 
     // open文件锁
-    int fd = open(lifeCycleOptions_.lockFile.c_str(), O_RDONLY);
+    int fd = open(lifeCycleOptions_.lockFile.c_str(), O_RDONLY | O_CREAT, 0644);
     if (fd < 0) {
         LOG(ERROR) << "open lock file fail, file = "
                    << lifeCycleOptions_.lockFile;

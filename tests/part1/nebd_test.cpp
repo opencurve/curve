@@ -591,6 +591,22 @@ TEST_F(nebdClientLifeCycleTest, lifecycle_kill_part2_test) {
     ASSERT_EQ(manager.IsPart2Alive(), false);
 }
 
+TEST_F(nebdClientLifeCycleTest, load_conf_fail_test) {
+    ::nebd::common::Configuration conf;
+    nebd::client::LifeCycleManager manager;
+    ASSERT_EQ(manager.Start(&conf), -1);
+}
+
+TEST_F(nebdClientLifeCycleTest, get_uuid_fail_test) {
+    ::nebd::common::Configuration conf;
+    conf.SetConfigPath(confFilename);
+    ASSERT_EQ(conf.LoadConfig(), true);
+    conf.SetStringValue("qemuProcName", "wrong_qemuProcName");
+
+    nebd::client::LifeCycleManager manager;
+    ASSERT_EQ(manager.Start(&conf), -1);
+}
+
 int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
