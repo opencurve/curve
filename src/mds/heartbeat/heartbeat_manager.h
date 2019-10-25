@@ -112,9 +112,9 @@ class HeartbeatManager {
     /**
      * @brief CheckRequest 检查心跳上报的request内容是否合法
      *
-     * @return 合法返回true, 有非法参数返回false
+     * @return 合法返回HeartbeatStatusCode::hbOK, 否则返回对应的错误码
      */
-    bool CheckRequest(const ChunkServerHeartbeatRequest &request);
+    HeartbeatStatusCode CheckRequest(const ChunkServerHeartbeatRequest &request);  // NOLINT
 
     // TODO(lixiaocui): 优化，统一heartbeat和topology中两个CopySetInfo的名字
     /**
