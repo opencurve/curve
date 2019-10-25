@@ -80,9 +80,9 @@ typedef struct LeaseOption {
  * @maxTimeoutMS: 为指数退避策略中最大的超时时间
  */
 typedef struct FailureRequestOption {
-    uint32_t opRetryIntervalUs;
+    uint64_t opRetryIntervalUs;
     uint32_t opMaxRetry;
-    uint32_t rpcTimeoutMs;
+    uint64_t rpcTimeoutMs;
     uint64_t maxTimeoutMS;
     uint64_t maxRetrySleepIntervalUs;
     FailureRequestOption() {

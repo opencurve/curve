@@ -57,6 +57,9 @@ class ClientClosure : public Closure {
             const FailureRequestOption_t& failRequestOpt) {
         failReqOpt_ = failRequestOpt;
 
+        std::srand(std::time(nullptr));
+        SetBackoffParam();
+
         confMetric_.opMaxRetry.set_value(failReqOpt_.opMaxRetry);
         confMetric_.opRetryIntervalUs.set_value(
                     failReqOpt_.opRetryIntervalUs);
@@ -69,7 +72,57 @@ class ClientClosure : public Closure {
         return done_;
     }
 
-    void SleepBeforeRetry(int rpcstatue, int cntlstatus);
+    /**
+     * 在重试之前根据返回值进行预处理
+     * 场景1: rpc timeout，那么这时候会指数增加当前rpc的超时时间，然后直接进行重试
+     * 场景2：底层OVERLOAD，那么需要在重试之前睡眠一段时间，睡眠时间根据重试次数指数增长
+     * @param: rpcstatue为rpc返回值
+     * @param: cntlstatus为本次rpc controller返回值
+     */
+    void PreProcessBeforeRetry(int rpcstatue, int cntlstatus);
+    /**
+     * 底层chunkserver overload之后需要根据重试次数进行退避
+     * @param: currentRetryTimes为当前已重试的次数
+     * @return: 返回当前的需要睡眠的时间
+     */
+    uint64_t OverLoadBackOff(uint64_t currentRetryTimes);
+    /**
+     * rpc timeout之后需要根据重试次数进行退避
+     * @param: currentRetryTimes为当前已重试的次数
+     * @return: 返回下一次RPC 超时时间
+     */
+    uint64_t TimeoutBackOff(uint64_t currentRetryTimes);
+
+    struct BackoffParam {
+        uint64_t maxTimeoutPow;
+        uint64_t maxOverloadPow;
+        BackoffParam() {
+            maxTimeoutPow = 1;
+            maxOverloadPow = 1;
+        }
+    };
+
+    static void SetBackoffParam() {
+        uint64_t overloadTimes = failReqOpt_.maxRetrySleepIntervalUs
+                                / failReqOpt_.opRetryIntervalUs;
+        backoffParam_.maxOverloadPow = GetPowTime(overloadTimes);
+
+
+        uint64_t timeoutTimes = failReqOpt_.maxTimeoutMS
+                             / failReqOpt_.rpcTimeoutMs;
+        backoffParam_.maxTimeoutPow = GetPowTime(timeoutTimes);
+    }
+
+    static uint64_t GetPowTime(uint64_t value) {
+        int pow = 0;
+        while (value > 1) {
+            value>>=1;
+            pow++;
+        }
+        return pow;
+    }
+
+    static BackoffParam backoffParam_;
 
  protected:
     static FailureRequestOption_t  failReqOpt_;
