@@ -15,6 +15,7 @@
 #include <string>
 #include <memory>
 #include <cstdlib>
+#include <algorithm>
 
 #include "src/client/client_common.h"
 #include "src/client/request_sender.h"
@@ -27,35 +28,75 @@
 // TODO(tongguangxun) :优化重试逻辑，将重试逻辑与RPC返回逻辑拆开
 namespace curve {
 namespace client {
+ClientClosure::BackoffParam  ClientClosure::backoffParam_;
 FailureRequestOption_t  ClientClosure::failReqOpt_;
-void ClientClosure::SleepBeforeRetry(int rpcstatus, int cntlstatus) {
-    uint64_t nextsleeptime = failReqOpt_.opRetryIntervalUs;
+void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
+
+    RequestContext *reqCtx = reqDone->GetReqCtx();
+    LogicPoolID logicPoolId = reqCtx->idinfo_.lpid_;
+    CopysetID copysetId = reqCtx->idinfo_.cpid_;
+    ChunkID chunkid = reqCtx->idinfo_.cid_;
+
     if (cntlstatus == brpc::ERPCTIMEDOUT) {
-        uint64_t nextTimeout = failReqOpt_.rpcTimeoutMs
-                             * std::pow(2, reqDone->GetRetriedTimes());
-        nextTimeout = nextTimeout > failReqOpt_.maxTimeoutMS
-                    ? failReqOpt_.maxTimeoutMS : nextTimeout;
+        uint64_t nextTimeout = TimeoutBackOff(reqDone->GetRetriedTimes());
         reqDone->SetNextTimeOutMS(nextTimeout);
-    }
-
-    if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
-        std::srand(std::time(nullptr));
-
-        nextsleeptime = failReqOpt_.opRetryIntervalUs
-                      * std::pow(2, reqDone->GetRetriedTimes());
-
-        int random_time = std::rand() % (nextsleeptime/5 + 1);
-        random_time -= nextsleeptime/10;
-
-        nextsleeptime += random_time;
-
-        if (nextsleeptime > failReqOpt_.maxRetrySleepIntervalUs) {
-            nextsleeptime = failReqOpt_.maxRetrySleepIntervalUs;
-        }
-
+        LOG(INFO) << "rpc timeout, next timeout = " << nextTimeout
+                  << ", copysetid = " << copysetId
+                  << ", logicPoolId = " << logicPoolId
+                  << ", chunkid = " << chunkid
+                  << ", offset = " << reqCtx->offset_
+                  << ", reteied times = " << reqDone->GetRetriedTimes();
+        return;
+    } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
+        uint64_t nextsleeptime = OverLoadBackOff(reqDone->GetRetriedTimes());
+        LOG(INFO) << "chunkserver overload, sleep(us) = " << nextsleeptime
+                  << ", copysetid = " << copysetId
+                  << ", logicPoolId = " << logicPoolId
+                  << ", chunkid = " << chunkid
+                  << ", offset = " << reqCtx->offset_
+                  << ", reteied times = " << reqDone->GetRetriedTimes();
         bthread_usleep(nextsleeptime);
+        return;
+    } else {
+        LOG(INFO) << "rpc failed, sleep(us) = " << failReqOpt_.opRetryIntervalUs
+                    << ", copysetid = " << copysetId
+                    << ", logicPoolId = " << logicPoolId
+                    << ", chunkid = " << chunkid
+                    << ", offset = " << reqCtx->offset_
+                    << ", reteied times = " << reqDone->GetRetriedTimes();
+        bthread_usleep(failReqOpt_.opRetryIntervalUs);
     }
+}
+
+uint64_t ClientClosure::OverLoadBackOff(uint64_t currentRetryTimes) {
+    uint64_t curpowTime = std::min(currentRetryTimes,
+                          backoffParam_.maxOverloadPow);
+
+    uint64_t nextsleeptime = failReqOpt_.opRetryIntervalUs
+                           * std::pow(2, curpowTime);
+
+    int random_time = std::rand() % (nextsleeptime/5 + 1);
+    random_time -= nextsleeptime/10;
+    nextsleeptime += random_time;
+
+    nextsleeptime = std::min(nextsleeptime, failReqOpt_.maxRetrySleepIntervalUs);   // NOLINT
+    nextsleeptime = std::max(nextsleeptime, failReqOpt_.opRetryIntervalUs);
+
+    return nextsleeptime;
+}
+
+uint64_t ClientClosure::TimeoutBackOff(uint64_t currentRetryTimes) {
+    uint64_t curpowTime = std::min(currentRetryTimes,
+                          backoffParam_.maxTimeoutPow);
+
+    uint64_t nextTimeout = failReqOpt_.rpcTimeoutMs
+                         * std::pow(2, curpowTime);
+
+    nextTimeout = std::min(nextTimeout, failReqOpt_.maxTimeoutMS);
+    nextTimeout = std::max(nextTimeout, failReqOpt_.rpcTimeoutMs);
+
+    return nextTimeout;
 }
 
 void WriteChunkClosure::Run() {
@@ -204,8 +245,7 @@ write_retry:
         return;
     }
 
-    // 只要重试，就先睡眠一段时间
-    SleepBeforeRetry(status, cntlstatus);
+    PreProcessBeforeRetry(status, cntlstatus);
     client_->WriteChunk(reqCtx->idinfo_,
                         reqCtx->seq_,
                         reqCtx->writeBuffer_,
@@ -363,8 +403,7 @@ read_retry:
         return;
     }
 
-    // 重试之前先睡眠
-    SleepBeforeRetry(status, cntlstatus);
+    PreProcessBeforeRetry(status, cntlstatus);
     client_->ReadChunk(reqCtx->idinfo_,
                        reqCtx->seq_,
                        reqCtx->offset_,
