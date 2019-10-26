@@ -460,7 +460,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         common::Thread thread3(&EtcdClientImp::LeaderObserve, client1,
             targetOid, 1000, leaderName2);
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        system("killall etcd");
+        system(("kill " + std::to_string(etcdPid)).c_str());
         thread3.join();
         client1->CloseClient();
         LOG(INFO) << "thread 2 exit.";
