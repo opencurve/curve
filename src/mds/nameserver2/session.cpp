@@ -446,6 +446,10 @@ bool SessionManager::Init(const struct SessionOptions &sessionOptions) {
 
     sessionScanStop_ = false;
 
+    if (scanLatency_.expose("session_scan", "lat") != 0) {
+        LOG(ERROR) << "expose session_scan latency recorder failed";
+    }
+
     return true;
 }
 
@@ -531,7 +535,10 @@ void SessionManager::SessionScanFunc() {
     // 周期性扫描内存中的session
     while (!sessionScanStop_) {
         // 1、先扫描过期session，过期的session状态标记为kSessionStaled
+        uint64_t timeStart = ::curve::common::TimeUtility::GetTimeofDayUs();
         ScanSessionMap();
+        uint64_t timeEnd = ::curve::common::TimeUtility::GetTimeofDayUs();
+        scanLatency_ << (timeEnd - timeStart);
 
         // 2、扫描deleteSessionList_，把列表中的session从数据库中删除
         HandleDeleteSessionList();
