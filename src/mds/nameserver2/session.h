@@ -8,12 +8,13 @@
 #ifndef SRC_MDS_NAMESERVER2_SESSION_H_
 #define SRC_MDS_NAMESERVER2_SESSION_H_
 
+#include <bvar/bvar.h>
 #include <map>
 #include <list>
 #include <string>
 #include <unordered_map>
 #include <memory>
-#include <thread> //NOLINT
+
 #include "proto/nameserver2.pb.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
@@ -249,6 +250,9 @@ class SessionManager {
     curve::common::ConditionVariable exitcv_;
 
     curve::common::Atomic<uint64_t> openFileNum_;
+
+    // 定时lock住sessiontable，扫描的latency
+    ::bvar::LatencyRecorder   scanLatency_;
 };
 }  // namespace mds
 }  // namespace curve
