@@ -476,7 +476,8 @@ inject kill two etcd
 #    check vm iops
     sleep  3
     test start etcd
-#    sleep  3
+    test start mds
+    sleep  3
     check vm iops
     check data consistency
 #    check copies consistency
