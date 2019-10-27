@@ -331,11 +331,6 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
 
     stub.ChunkServerHeartbeat(&cntl, &request, response, nullptr);
     if (cntl.Failed()) {
-        LOG(ERROR) << csEp_.ip << ":" << csEp_.port
-                   << " Fail to send heartbeat to MDS "
-                   << mdsEps_[inServiceIndex_] << ","
-                   << " cntl errorCode: " << cntl.ErrorCode()
-                   << " cntl error: " << cntl.ErrorText();
         if (cntl.ErrorCode() == EHOSTDOWN ||
             cntl.ErrorCode() == ETIMEDOUT ||
             cntl.ErrorCode() == brpc::ELOGOFF ||
@@ -345,6 +340,12 @@ int Heartbeat::SendHeartbeat(const HeartbeatRequest& request,
             inServiceIndex_ = (inServiceIndex_ + 1) % mdsEps_.size();
             LOG(INFO) << "next heartbeat switch to "
                       << mdsEps_[inServiceIndex_];
+        } else {
+            LOG(ERROR) << csEp_.ip << ":" << csEp_.port
+                    << " Fail to send heartbeat to MDS "
+                    << mdsEps_[inServiceIndex_] << ","
+                    << " cntl errorCode: " << cntl.ErrorCode()
+                    << " cntl error: " << cntl.ErrorText();
         }
         return -1;
     } else {
