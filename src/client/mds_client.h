@@ -211,6 +211,7 @@ class MDSClient {
      * @param: filename是要续约的文件名
      * @param: sessionid是文件的session信息
      * @param: resp是mds端传递过来的lease信息
+     * @param[out]: lease当前文件的session信息
      * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
      *          否则返回LIBCURVE_ERROR::FAILED
      */

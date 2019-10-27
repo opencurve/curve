@@ -168,6 +168,10 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(ERROR, ret == false) << "config no registerToMDS info";
     RETURN_IF_FALSE(ret)
 
+    ret = conf_.GetStringValue("sessionMapPath",
+        &fileServiceOption_.sessionmapOpt.sessionmap_path);
+    LOG_IF(ERROR, ret == false) << "config no sessionMapPath info";
+
     return 0;
 }
 

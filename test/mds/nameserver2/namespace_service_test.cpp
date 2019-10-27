@@ -878,6 +878,7 @@ TEST_F(NameSpaceServiceTest, test1) {
     if (!cntl.Failed()) {
         ASSERT_EQ(response11.statuscode(), StatusCode::kFileOccupied);
     } else {
+        LOG(ERROR) << "error :" << cntl.ErrorText();
         ASSERT_TRUE(false);
     }
 
