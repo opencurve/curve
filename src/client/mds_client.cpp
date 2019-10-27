@@ -205,6 +205,8 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
     // 记录还没重试的mds addr数量
     int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
 
+    LIBCURVE_ERROR retcode = LIBCURVE_ERROR::FAILED;
+
     while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         bool infoComplete = false;
 
@@ -234,26 +236,31 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
                 break;
             }
             continue;
-        } else {
-            if (response.has_protosession()) {
-                infoComplete = true;
-                ::curve::mds::ProtoSession leasesession = response.protosession();  // NOLINT
-                lease->sessionID     = leasesession.sessionid();
-                lease->leaseTime     = leasesession.leasetime();
-                lease->createTime    = leasesession.createtime();
-            }
-
-            if (infoComplete && response.has_fileinfo()) {
-                curve::mds::FileInfo finfo = response.fileinfo();
-                ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
-            } else {
-                infoComplete = false;
-            }
         }
 
-        LIBCURVE_ERROR retcode;
         curve::mds::StatusCode stcode = response.statuscode();
         MDSStatusCode2LibcurveError(stcode, &retcode);
+
+        if (retcode == LIBCURVE_ERROR::FILE_OCCUPIED) {
+            count++;
+            bthread_usleep(metaServerOpt_.retryIntervalUs);
+            continue;
+        }
+
+        if (response.has_protosession()) {
+            infoComplete = true;
+            ::curve::mds::ProtoSession leasesession = response.protosession();  // NOLINT
+            lease->sessionID     = leasesession.sessionid();
+            lease->leaseTime     = leasesession.leasetime();
+            lease->createTime    = leasesession.createtime();
+        }
+
+        if (infoComplete && response.has_fileinfo()) {
+            curve::mds::FileInfo finfo = response.fileinfo();
+            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
+        } else {
+            infoComplete = false;
+        }
 
         LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
                 << "OpenFile: filename = " << filename.c_str()
@@ -262,14 +269,14 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
                 << ", error message = " << curve::mds::StatusCode_Name(stcode)
                 << ", log id = " << cntl.log_id();
 
-        if (!infoComplete) {
+        if (retcode != LIBCURVE_ERROR::FILE_OCCUPIED && !infoComplete) {
             LOG(ERROR) << "mds response has no file info!";
             return LIBCURVE_ERROR::FAILED;
         }
 
         return retcode;
     }
-    return LIBCURVE_ERROR::FAILED;
+    return retcode;
 }
 
 LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
