@@ -132,6 +132,7 @@ int CloneCore::HandleReadRequest(
         if (cloneData == nullptr) {
             SetResponse(readRequest, CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
         } else {
+            // release doneGuard，将closure交给paste请求处理
             PasteCloneData(readRequest,
                            cloneData.get(),
                            offset,
@@ -139,15 +140,16 @@ int CloneCore::HandleReadRequest(
                            doneGuard.release());
         }
     } else if (CHUNK_OP_TYPE::CHUNK_OP_READ == request->optype()) {
-        // 释放doneGuard，回调交给ReadMergeReturn处理
-        int ret = ReadMergeResponse(readRequest,
-                                    chunkInfo,
-                                    cloneData.get(),
-                                    doneGuard.release());
+        // 出错或处理结束调用closure返回给用户
+        int ret = ReadThenMerge(readRequest,
+                                chunkInfo,
+                                cloneData.get());
         if (ret < 0)
             return ret;
 
         // cloneData不为nullptr，说明有拷贝数据，需要将数据paste到chunk
+        // paste clone data是异步操作，很快就能处理完
+        // 处理完后请求就能返回给用户
         if (cloneData != nullptr) {
             PasteCloneData(readRequest,
                            cloneData.get(),
@@ -160,12 +162,9 @@ int CloneCore::HandleReadRequest(
     return 0;
 }
 
-int CloneCore::ReadMergeResponse(std::shared_ptr<ReadChunkRequest> readRequest,
-                                 const CSChunkInfo& chunkInfo,
-                                 const char* cloneData,
-                                 Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-
+int CloneCore::ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
+                             const CSChunkInfo& chunkInfo,
+                             const char* cloneData) {
     const ChunkRequest* request = readRequest->request_;
     off_t offset = request->offset();
     size_t length = request->size();
