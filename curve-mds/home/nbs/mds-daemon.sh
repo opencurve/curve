@@ -23,6 +23,22 @@ daemonLog=${HOME}/daemon.log
 
 # 启动mds
 function start_mds() {
+    # 检查logPath是否可写或者是否能够创建
+    touch ${logPath} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create mds logfile: ${logPath}"
+        exit
+    fi
+
+    # 检查daemonLog是否可写或者是否能够创建
+    touch ${daemonLog} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create daemon logfile: ${daemonLog}"
+        exit
+    fi
+
     # 检查daemon
     if ! type daemon &> /dev/null
     then
