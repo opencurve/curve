@@ -30,6 +30,18 @@ namespace curve {
 namespace client {
 ClientClosure::BackoffParam  ClientClosure::backoffParam_;
 FailureRequestOption_t  ClientClosure::failReqOpt_;
+
+// 如果chunkserver宕机或者网络不可达, 发往对应chunkserver的rpc会超时
+// 返回之后, 回去refresh leader然后再去发送请求
+// 这种情况下不同copyset上的请求，总会先rpc timedout然后重新refresh leader
+// 为了避免一次多余的rpc timedout
+// 记录一下发往同一个chunkserver上超时请求的次数
+// 如果超过一定的阈值，则通知所有leader在这台chunkserver上的copyset
+// 主动去refresh leader，而不是根据缓存的leader信息直接发送rpc
+uint64_t UnstableChunkServerHelper::maxStableChunkServerTimeoutTimes_ = 0;
+SpinLock UnstableChunkServerHelper::timeoutLock_;
+std::unordered_map<ChunkServerID, uint64_t> UnstableChunkServerHelper::timeoutTimes_;  // NOLINT
+
 void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
 
@@ -123,6 +135,8 @@ void WriteChunkClosure::Run() {
         status = cntl_->ErrorCode();
         /* 如果连接失败，再等一定时间再重试 */
         if (cntlstatus == brpc::ERPCTIMEDOUT) {
+            // 如果RPC超时, 对应的chunkserver超时请求次数+1
+            UnstableChunkServerHelper::IncreTimeout(chunkserverID_);
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::WRITE);
         }
 
@@ -136,21 +150,33 @@ void WriteChunkClosure::Run() {
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
                                       0);
-
-        if (-1 == metaCache->GetLeader(logicPoolId,
-                                    copysetId,
-                                    &leaderId,
-                                    &leaderAddr,
-                                    true,
-                                    fm)) {
-            LOG(WARNING) << "Refresh leader failed, "
-                        << "copyset id = " << copysetId
-                        << ", logicPoolId = " << logicPoolId
-                        << ", currrent op return status = " << cntlstatus;
+        if (UnstableChunkServerHelper::IsTimeoutExceed(chunkserverID_)) {
+            // chunkserver上RPC超时次数超过上限(由于宕机或网络原因导致RPC超时)
+            // 此时发往这一台chunkserver的其余RPC大概率也会超时
+            // 为了避免无效的超时请求和重试, 将这台shunkserver标记为unstable
+            // unstable chunkserver上leader所在的copyset会标记为leaderMayChange
+            // 当这些copyset再有IO请求时会先进行refresh leader
+            // 避免一次无效的RPC请求
+            metaCache->SetChunkserverUnstable(chunkserverID_);
+        } else {
+            if (-1 == metaCache->GetLeader(logicPoolId,
+                                           copysetId,
+                                           &leaderId,
+                                           &leaderAddr,
+                                           true,
+                                           fm)) {
+                LOG(WARNING) << "Refresh leader failed, "
+                            << "copyset id = " << copysetId
+                            << ", logicPoolId = " << logicPoolId
+                            << ", currrent op return status = " << cntlstatus;
+            }
         }
 
         goto write_retry;
     }
+
+    // 只要正常rpc返回，就清空超时计数
+    UnstableChunkServerHelper::ClearTimeout(chunkserverID_);
 
     /* 1. write success，返回成功 */
     status = response_->status();
@@ -279,6 +305,7 @@ void ReadChunkClosure::Run() {
         /* 如果连接失败，再等一定时间再重试*/
         status = cntl_->ErrorCode();
         if (status == brpc::ERPCTIMEDOUT) {
+            UnstableChunkServerHelper::IncreTimeout(chunkserverID_);
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::READ);
         }
 
@@ -288,20 +315,27 @@ void ReadChunkClosure::Run() {
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
 
-        if (-1 == metaCache->GetLeader(logicPoolId,
-                                       copysetId,
-                                       &leaderId,
-                                       &leaderAddr,
-                                       true,
-                                       fm)) {
+        if (UnstableChunkServerHelper::IsTimeoutExceed(chunkserverID_)) {
+            metaCache->SetChunkserverUnstable(chunkserverID_);
+        } else {
+            if (-1 == metaCache->GetLeader(logicPoolId,
+                                        copysetId,
+                                        &leaderId,
+                                        &leaderAddr,
+                                        true,
+                                        fm)) {
                 LOG(WARNING) << "Refresh leader failed, "
                             << "copyset id = " << copysetId
                             << ", logicPoolId = " << logicPoolId
                             << ", currrent op return status = " << status;
+            }
         }
 
         goto read_retry;
     }
+
+    // 只要正常rpc返回，就清空超时计数
+    UnstableChunkServerHelper::ClearTimeout(chunkserverID_);
 
     /* 1.read success，返回成功 */
     status = response_->status();
