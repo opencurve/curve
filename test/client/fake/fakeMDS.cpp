@@ -346,6 +346,13 @@ void FakeMDS::EnableNetUnstable(uint64_t waittime) {
     }
 }
 
+void FakeMDS::DisableNetUnstable() {
+    LOG(INFO) << "chunk rpc service net is stable now!";
+    for (auto c : chunkServices_) {
+        c->DisableNetUnstable();
+    }
+}
+
 void FakeMDS::CreateFakeChunkservers(bool enablecli) {
     for (unsigned i = 0; i < peers_.size(); i++) {
         if (chunkservers_[i]->AddService(chunkServices_[i],
