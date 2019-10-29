@@ -78,13 +78,19 @@ int NameSpaceTool::Init() {
     channel_ = new (std::nothrow) brpc::Channel();
     for (const auto& mdsAddr : mdsAddrVec_) {
         if (channel_->Init(mdsAddr.c_str(), nullptr) != 0) {
-            std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
             continue;
         }
         // 寻找哪个mds存活
-        FileInfo fileInfo;
-        auto ret = GetFileInfo("/", &fileInfo);
-        if (ret != 0) {
+        curve::mds::GetFileInfoRequest request;
+        curve::mds::GetFileInfoResponse response;
+        brpc::Controller cntl;
+        request.set_filename("/");
+        FillUserInfo(&request);
+        curve::mds::CurveFSService_Stub stub(channel_);
+        stub.GetFileInfo(&cntl, &request, &response, nullptr);
+
+        if (cntl.Failed()) {
+            // 多mds，前两个mds失败不应该打印错误
             continue;
         }
         return 0;
@@ -124,11 +130,11 @@ int NameSpaceTool::PrintFileInfoAndActualSize(const std::string &fileName) {
     fileInfo.set_originalfullpathname(fileName);
     int64_t size = GetActualSize(fileInfo);
     if (size < 0) {
-        std::cout << "Get actual size fail!" << std::endl;
+        std::cout << "Get allocated size fail!" << std::endl;
         return -1;
     }
     double res = static_cast<double>(size) / (1024 * 1024 * 1024);
-    std::cout << "actual size: " << res << "GB" << std::endl;
+    std::cout << "allocated size: " << res << "GB" << std::endl;
     return 0;
 }
 
