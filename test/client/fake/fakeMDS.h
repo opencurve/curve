@@ -34,6 +34,16 @@ using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using ::curve::mds::topology::ChunkServerRegistRequest;
 using ::curve::mds::topology::ChunkServerRegistResponse;
+using ::curve::mds::topology::GetChunkServerInfoRequest;
+using ::curve::mds::topology::GetChunkServerInfoResponse;
+using ::curve::mds::topology::ListChunkServerRequest;
+using ::curve::mds::topology::ListChunkServerResponse;
+using ::curve::mds::topology::ListPhysicalPoolRequest;
+using ::curve::mds::topology::ListPhysicalPoolResponse;
+using ::curve::mds::topology::ListPoolZoneRequest;
+using ::curve::mds::topology::ListPoolZoneResponse;
+using ::curve::mds::topology::ListZoneServerRequest;
+using ::curve::mds::topology::ListZoneServerResponse;
 
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
@@ -671,11 +681,89 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
         response->set_token(request->hostip());
     }
 
+    void GetChunkServer(::google::protobuf::RpcController* controller,
+                       const GetChunkServerInfoRequest* request,
+                       GetChunkServerInfoResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeret_->controller_ != nullptr
+             && fakeret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<GetChunkServerInfoResponse*>(
+            fakeret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ListChunkServer(::google::protobuf::RpcController* controller,
+                       const ListChunkServerRequest* request,
+                       ListChunkServerResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeret_->controller_ != nullptr
+             && fakeret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<ListChunkServerResponse*>(
+            fakeret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ListPhysicalPool(::google::protobuf::RpcController* controller,
+                       const ListPhysicalPoolRequest* request,
+                       ListPhysicalPoolResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakelistpoolret_->controller_ != nullptr
+             && fakelistpoolret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<ListPhysicalPoolResponse*>(
+            fakelistpoolret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ListPoolZone(::google::protobuf::RpcController* controller,
+                       const ListPoolZoneRequest* request,
+                       ListPoolZoneResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakelistzoneret_->controller_ != nullptr
+             && fakelistzoneret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<ListPoolZoneResponse*>(
+            fakelistzoneret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ListZoneServer(::google::protobuf::RpcController* controller,
+                       const ListZoneServerRequest* request,
+                       ListZoneServerResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakelistserverret_->controller_ != nullptr
+             && fakelistserverret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<ListZoneServerResponse*>(
+            fakelistserverret_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
 
     FakeReturn* fakeret_;
+    FakeReturn* fakelistpoolret_;
+    FakeReturn* fakelistzoneret_;
+    FakeReturn* fakelistserverret_;
 };
 
 typedef void (*HeartbeatCallback) (
@@ -819,6 +907,14 @@ class FakeMDS {
         return chunkServices_;
     }
 
+    std::vector<FakeRaftStateService *> GetRaftStateServie() {
+        return raftStateServices_;
+    }
+
+    FakeMDSTopologyService* GetTopologyService() {
+        return &faketopologyservice_;
+    }
+
  private:
     std::vector<CopysetCreatStruct> copysetnodeVec_;
     brpc::Server* server_;
@@ -827,6 +923,7 @@ class FakeMDS {
     std::vector<PeerId> peers_;
     std::vector<FakeChunkService *> chunkServices_;
     std::vector<FakeCreateCopysetService *> copysetServices_;
+    std::vector<FakeRaftStateService *> raftStateServices_;
     std::string filename_;
 
     uint64_t size_;
