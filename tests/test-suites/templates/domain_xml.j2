@@ -37,6 +37,9 @@
       <mac address="66:66:66:66:66:0a"/>
       <model type="virtio"/>
       <source bridge="bri"/>
+    {%- if tap == "tap0" %}
+      <target dev="{{ tap }}"/>
+    {% endif -%}
     </interface>
     <serial type="file">
       <source path="/var/log/libvirt/qemu/{{ name }}-console.log"/>

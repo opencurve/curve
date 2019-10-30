@@ -17,7 +17,7 @@ import paramiko
 import rados
 import rbd
 
-
+# 需要先在物理机上配置好网桥，名称bri，配置dhcp服务，并修改如下相关配置项
 CEPH_CONF = "/etc/ceph/ceph.conf"
 MON_HOSTS = ["10.182.30.27", "10.182.30.28", "10.182.30.29"]
 REUSE_RBD_DISK = False  # True表示测试前不创建rbd卷（使用已有的），跑完不清理rbd卷，False则相反
@@ -39,7 +39,7 @@ CEPH_CLIENT_REAL_VERSION = {  # 通过admin socket version命令获取的版本�
 CEPH_CLIENT_ASOK_DIR = "/var/run/ceph/guests/"
 
 
-VM_SSH_KEY = "/home/hzwangpan/nebd/test/id_rsa"  # 免密ssh到vm私钥（root用户600权限）
+VM_SSH_KEY = "./id_rsa"  # 免密ssh到vm私钥（root用户600权限）
 VM_HOST_IP = "192.168.10.10"  # vm的ip地址，最好配置为静态ip
 UUID1 = "5d1289be-50e1-47b7-86de-1de0ff16a9d4"
 UUID2 = "b5fdf3de-320c-41cf-80b2-acb794078012"
@@ -95,19 +95,8 @@ def ssh_exec(conn, cmd, timeout=5):
 class VMIntegTest(unittest.TestCase):
     '''热升级功能集成测试类'''
 
-    def _clear_all_vms(self):
-        print 'going to clear all vms...'
-        doms = LIBVIRT_CONN.listAllDomains()
-        for dom in doms:
-            if dom.isActive():
-                dom.destroy()
-        doms = LIBVIRT_CONN.listAllDomains()
-        for dom in doms:
-            if dom.isPersistent():
-                dom.undefine()
-
     def setUp(self):
-        self._clear_all_vms()
+        clear_all_vms()
 
     def _clear_all_metadatafiles(self):
         print 'going to clear all metadata files...'
@@ -124,7 +113,7 @@ class VMIntegTest(unittest.TestCase):
             pass
 
     def tearDown(self):
-        self._clear_all_vms()
+        clear_all_vms()
         self._killall_nebd_servers()
         self._clear_all_metadatafiles()
 
@@ -212,6 +201,62 @@ class VMIntegTest(unittest.TestCase):
             self.assertTrue(ssh is not None)
             # 关机
             self._destroy_vm(dominfo)
+
+    def test_reboot_vm_with_exist_vnet(self):
+        tap_name = "tap0"
+        rbd_vm = {"uuid": UUID1, "cpuset": '0-%d' % (MAX_CPUS - 1),
+                   "name": "test_reboot_rbd_vm_with_exist_vnet",
+                   "disk_type": "network",
+                   "protocol": "rbd",
+                   "disk_name": os.path.join(RBD_POOL, RBD_VM_IMG),
+                   "mon_hosts": MON_HOSTS,
+                   "tap": tap_name
+        }
+        local_vm = {"uuid": UUID1, "cpuset": '0-%d' % (MAX_CPUS - 1),
+                   "name": "test_reboot_local_vm_with_exist_vnet",
+                   "disk_type": "file",
+                   "disk_file": LOCAL_IMG,
+                   "tap": tap_name
+        }
+        dominfos = [rbd_vm, local_vm]
+
+        for dominfo in dominfos:
+            # 删除tap设备
+            cmd_tap = ' '.join(['/usr/sbin/tunctl', '-d', tap_name])
+            out = run(cmd_tap)
+            # 创建tap设备
+            cmd_tap = ' '.join(['/usr/sbin/tunctl', '-t', tap_name])
+            out = run(cmd_tap)
+            self.assertTrue(tap_name in out and 'persistent' in out)
+            dom = self._create_vm(dominfo)
+            if not dom.isActive():
+                self.assertFalse("Domain creates failed")
+            # 等待虚拟机操作系统启动
+            ssh = create_ssh_connect(VM_HOST_IP, timeout=120)
+            self.assertTrue(ssh is not None)
+            # 关机
+            self._destroy_vm(dominfo)
+            # 从网桥上移除tap设备
+            cmd_brctl = ' '.join(['/sbin/brctl', 'delif', 'bri', tap_name])
+            out = run(cmd_brctl)
+            self.assertFalse(out)
+            # 再启动（模拟重启）
+            dom = self._create_vm(dominfo)
+            if not dom.isActive():
+                self.assertFalse("Domain creates failed")
+            # 等待虚拟机操作系统启动
+            ssh = create_ssh_connect(VM_HOST_IP, timeout=120)
+            self.assertTrue(ssh is not None)
+            # 关机
+            self._destroy_vm(dominfo)
+            # 从网桥上移除tap设备
+            cmd_brctl = ' '.join(['/sbin/brctl', 'delif', 'bri', tap_name])
+            out = run(cmd_brctl)
+            self.assertFalse(out)
+            # 删除tap设备
+            cmd_tap = ' '.join(['/usr/sbin/tunctl', '-d', tap_name])
+            out = run(cmd_tap)
+            self.assertTrue(tap_name in out and 'nonpersistent' in out)
 
     def test_poweroff_vm_inside(self):
         rbd_vm = {"uuid": UUID1, "cpuset": '0-%d' % (MAX_CPUS - 1),
@@ -1349,6 +1394,17 @@ def prepare_rbd_disk():
         cluster.shutdown()
 
 
+def clear_all_vms():
+    print 'going to clear all vms...'
+    doms = LIBVIRT_CONN.listAllDomains()
+    for dom in doms:
+        if dom.isActive():
+            dom.destroy()
+    doms = LIBVIRT_CONN.listAllDomains()
+    for dom in doms:
+        if dom.isPersistent():
+            dom.undefine()
+
 
 def clear_rbd_disk():
     if REUSE_RBD_DISK:
@@ -1392,14 +1448,15 @@ def install_rbd_client():
 
 
 if __name__ == '__main__':
+    if LIBVIRT_CONN is None:
+        LIBVIRT_CONN = libvirt.open(None)
+    clear_all_vms()
     clear_log_dirs()
     install_rbd_client()
     prepare_rbd_disk()
     path = '{}/templates/'.format(os.path.dirname(os.path.abspath(__file__)))
     if JJ_ENV is None:
         JJ_ENV = Environment(loader=FileSystemLoader(path))
-    if LIBVIRT_CONN is None:
-        LIBVIRT_CONN = libvirt.open(None)
 
     unittest.main()
 
