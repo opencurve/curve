@@ -70,3 +70,16 @@ cc_binary(
         "//test/client/fake:fake_lib",
     ],
 )
+
+cc_binary(
+    name = "curve_copyset_check_test",
+    srcs = glob([
+                "copyset_check_test.cpp"
+                ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:copyset_check_lib",
+        "//test/client/fake:fake_lib",
+    ],
+)
