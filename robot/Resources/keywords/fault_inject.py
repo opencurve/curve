@@ -724,14 +724,14 @@ def check_vm_iops(limit_iops=3000):
 def check_chunkserver_online(num=120):
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_status_tool status -confPath=/etc/curve/mds.conf |grep chunkserver"
+    ori_cmd = "curve_ops_tool status -mds_config_path=/etc/curve/mds.conf |grep chunkserver"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"get chunkserver status fail,rs is %s"%rs[2]
     status = "".join(rs[1]).strip()
     online_num = re.findall(r'(?<=online = )\d+',status)
     logger.info("chunkserver online num is %s"%online_num)
     if int(online_num[0]) != num:
-        ori_cmd = "curve_status_tool chunkserver-list -confPath=/etc/curve/mds.conf |grep OFFLINE"
+        ori_cmd = "curve_ops_tool chunkserver-list -mds_config_path=/etc/curve/mds.conf |grep OFFLINE"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.error("chunkserver offline list is %s"%rs[1])
         assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
@@ -757,7 +757,7 @@ def check_copies_consistency():
     if config.vol_uuid == "":
         assert False,"not get vol uuid"
     filename = "volume-" + config.vol_uuid
-    ori_cmdpri = "checkConsistecny  -config_path=/etc/curve/client.conf -filename=/cinder/%s \
+    ori_cmdpri = "curve_ops_tool check-consistency -client_config_path=/etc/curve/client.conf -filename=/cinder/%s \
             -chunksize=16777216 -filesize=10737418240 -segmentsize=1073741824 -username=cinder -check_hash="%(filename)
     check_hash = "false"
     ori_cmd = ori_cmdpri + check_hash
