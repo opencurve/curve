@@ -126,7 +126,8 @@ void WriteChunkClosure::Run() {
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::WRITE);
         }
 
-        LOG(ERROR) << "write failed, error code: " << cntl_->ErrorCode()
+        LOG_EVERY_N(ERROR, 10) << "write failed, error code: "
+                   << cntl_->ErrorCode()
                    << ", error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
@@ -225,7 +226,7 @@ void WriteChunkClosure::Run() {
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "write failed, write info: "
+    LOG_EVERY_N(ERROR, 10) << "write failed, write info: "
                << "<" << logicPoolId << ", " << copysetId
                << ", " << chunkid << "> offset=" << reqCtx->offset_
                << ", length =" << reqCtx->rawlength_
@@ -281,7 +282,8 @@ void ReadChunkClosure::Run() {
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::READ);
         }
 
-        LOG(ERROR) << "read failed, error: " << cntl_->ErrorText()
+        LOG_EVERY_N(ERROR, 10) << "read failed, error: "
+                   << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
@@ -364,7 +366,7 @@ void ReadChunkClosure::Run() {
     /* 2.3.非法参数 */
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST == status) {
         reqDone->SetFailed(status);
-        LOG(ERROR) << "read failed for invalid format, read info: "
+        LOG(WARNING) << "read failed for invalid format, read info: "
                    << "<" << logicPoolId << ", " << copysetId
                    << ", " << chunkid << "> offset=" << reqCtx->offset_
                    << ", length=" << reqCtx->rawlength_
@@ -385,7 +387,7 @@ void ReadChunkClosure::Run() {
         return;
     }
     /* 2.5.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "read failed , read info: "
+    LOG_EVERY_N(ERROR, 10) << "read failed , read info: "
                << "<" << logicPoolId << ", " << copysetId
                << ", " << chunkid << "> offset=" << reqCtx->offset_
                << ", length=" << reqCtx->rawlength_
@@ -432,7 +434,7 @@ void ReadChunkSnapClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "read snapshot failed, error: " << cntl_->ErrorText()
+        LOG(WARNING) << "read snapshot failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
@@ -530,7 +532,7 @@ void ReadChunkSnapClosure::Run() {
     }
 
     /* 2.5.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "read snapshot failed for UNKNOWN reason, read info: "
+    LOG(WARNING) << "read snapshot failed for UNKNOWN reason, read info: "
                << "<" << logicPoolId << ", " << copysetId
                << ">, " << chunkid
                << ", sn=" << reqCtx->seq_
@@ -576,7 +578,7 @@ void DeleteChunkSnapClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "delete snapshot failed, error: " << cntl_->ErrorText()
+        LOG(WARNING) << "delete snapshot failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
@@ -645,7 +647,7 @@ void DeleteChunkSnapClosure::Run() {
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "delete snapshot failed for UNKNOWN reason, read info: "
+    LOG(WARNING) << "delete snapshot failed for UNKNOWN reason, read info: "
                << "<" << logicPoolId << ", " << copysetId
                << ">, " << chunkid
                << ", sn=" << reqCtx->seq_
@@ -686,7 +688,7 @@ void GetChunkInfoClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "get chunk info failed, error: " << cntl_->ErrorText()
+        LOG(WARNING) << "get chunk info failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
@@ -759,7 +761,7 @@ void GetChunkInfoClosure::Run() {
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "get chunk info failed for UNKNOWN reason, read info: "
+    LOG(WARNING) << "get chunk info failed for UNKNOWN reason, read info: "
                << "<" << logicPoolId << ", " << copysetId
                << ">, " << chunkid
                << ", status=" << status;
@@ -798,7 +800,7 @@ void CreateCloneChunkClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "create clone failed, error: " << cntl_->ErrorText()
+        LOG(WARNING) << "create clone failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
@@ -912,7 +914,7 @@ void RecoverChunkClosure::Run() {
     if (cntl_->Failed()) {
         /* 如果连接失败，再等一定时间再重试 */
         status = cntl_->ErrorCode();
-        LOG(ERROR) << "recover chunk failed, error: " << cntl_->ErrorText()
+        LOG(WARNING) << "recover chunk failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
@@ -982,7 +984,7 @@ void RecoverChunkClosure::Run() {
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
-    LOG(ERROR) << "recover chunk failed for UNKNOWN reason, read info: "
+    LOG(WARNING) << "recover chunk failed for UNKNOWN reason, read info: "
                << "<" << logicPoolId << ", " << copysetId
                << ">, " << chunkid
                << ", sn=" << reqCtx->seq_

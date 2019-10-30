@@ -106,7 +106,7 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
         MetricHelper::IncremGetLeaderRetryTime(fm);
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "GetLeader failed, "
+            LOG(WARNING) << "GetLeader failed, "
                        << cntl.ErrorText()
                        << ", copyset id = " << copysetId
                        << ", logicpool id = " << logicPoolId;
