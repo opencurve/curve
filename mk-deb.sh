@@ -179,6 +179,12 @@ fi
 #	exit
 #fi
 
+cp ./bazel-bin/src/tools/curve_format \
+build/curve-chunkserver/usr/bin/curve-format
+if [ $? -ne 0 ]
+then
+	exit
+fi
 
 mkdir -p build/curve-sdk/usr/curvefs
 if [ $? -ne 0 ]
