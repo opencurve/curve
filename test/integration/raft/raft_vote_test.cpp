@@ -88,18 +88,18 @@ class RaftVoteTest : public testing::Test {
         ::system(mkdir2.c_str());
         ::system(mkdir3.c_str());
 
-        electionTimeoutMs = 3000;
+        electionTimeoutMs = 1000;
         snapshotIntervalS = 60;
         waitMultiReplicasBecomeConsistent = 3000;
 
         ASSERT_TRUE(cg1.Init("9091"));
         ASSERT_TRUE(cg2.Init("9092"));
         ASSERT_TRUE(cg3.Init("9093"));
-        cg1.SetKV("copyset.election_timeout_ms", "3000");
+        cg1.SetKV("copyset.election_timeout_ms", "1000");
         cg1.SetKV("copyset.snapshot_interval_s", "60");
-        cg2.SetKV("copyset.election_timeout_ms", "3000");
+        cg2.SetKV("copyset.election_timeout_ms", "1000");
         cg2.SetKV("copyset.snapshot_interval_s", "60");
-        cg3.SetKV("copyset.election_timeout_ms", "3000");
+        cg3.SetKV("copyset.election_timeout_ms", "1000");
         cg3.SetKV("copyset.snapshot_interval_s", "60");
         ASSERT_TRUE(cg1.Generate());
         ASSERT_TRUE(cg2.Generate());
@@ -398,7 +398,7 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
                             ch,
                             1);
     // 等待leader step down，之后，也不支持read了
-    ::usleep(1000 * electionTimeoutMs * 1.2);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -576,7 +576,7 @@ TEST_F(RaftVoteTest, TwoNodeHangFollower) {
                             ch,
                             1);
     // 等待leader step down之后，也不支持read了
-    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -1221,7 +1221,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
     // 3. 拉起1个成员
     ASSERT_EQ(0, cluster.StartPeer(peer1,
                                    PeerCluster::PeerToId(peer1)));
-    ::usleep(1000 * electionTimeoutMs * 1.2);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(peer1,
                            logicPoolId,
                            copysetId,
@@ -1321,7 +1321,6 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeader) {
                            1);
 
     // 等待new leader产生
-    ::usleep(1.3 * electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     WriteThenReadVerify(leaderPeer,
@@ -1599,7 +1598,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
                             1);
 
     // 等待step down之后，读也不可提供服务
-    ::usleep(1000 * electionTimeoutMs * 1.2);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -1719,7 +1718,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
 
     // 3. 恢复1个成员
     ASSERT_EQ(0, cluster.SignalPeer(peer1));
-    ::usleep(1000 * electionTimeoutMs * 1.2);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
