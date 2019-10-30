@@ -4,6 +4,8 @@
  * Author: tongguangxun
  * Copyright (c)￼ 2018 netease
  */
+#ifndef SRC_TOOLS_CURVE_FORMAT_H_
+#define SRC_TOOLS_CURVE_FORMAT_H_
 
 #include <glog/logging.h>
 #include <gflags/gflags.h>
@@ -16,6 +18,9 @@
 #include <thread>   // NOLINT
 #include <atomic>
 #include <vector>
+#include <utility>
+#include <string>
+#include <iostream>
 
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
@@ -34,7 +39,7 @@ DEFINE_bool(allocateByPercent,
             true,
             "allocate chunkfilepool by percent of disk size or by chunk num!");
 
-DEFINE_uint32(chunksize,
+DEFINE_uint32(chunkSize,
               16 * 1024 * 1024,
               "chunk size");
 
@@ -91,8 +96,8 @@ struct AllocateStruct {
 };
 
 int AllocateChunks(AllocateStruct* allocatestruct) {
-    char* data = new(std::nothrow)char[FLAGS_chunksize + FLAGS_metapagsize];
-    memset(data, 0, FLAGS_chunksize + FLAGS_metapagsize);
+    char* data = new(std::nothrow)char[FLAGS_chunkSize + FLAGS_metapagsize];
+    memset(data, 0, FLAGS_chunkSize + FLAGS_metapagsize);
 
     uint64_t count = 0;
     while (count < allocatestruct->chunknum) {
@@ -116,7 +121,7 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
         int fd = ret;
 
         ret = allocatestruct->fsptr->Fallocate(fd, 0, 0,
-                                             FLAGS_chunksize+FLAGS_metapagsize);
+                                             FLAGS_chunkSize+FLAGS_metapagsize);
         if (ret < 0) {
             allocatestruct->fsptr->Close(fd);
             *allocatestruct->checkwrong = true;
@@ -125,7 +130,7 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
         }
 
         ret = allocatestruct->fsptr->Write(fd, data, 0,
-                                           FLAGS_chunksize+FLAGS_metapagsize);
+                                           FLAGS_chunkSize+FLAGS_metapagsize);
         if (ret < 0) {
             allocatestruct->fsptr->Close(fd);
             *allocatestruct->checkwrong = true;
@@ -153,11 +158,16 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
     return *allocatestruct->checkwrong == true ? 0 : -1;
 }
 
-// TODO(tongguangxun) :添加单元测试
-int main(int argc, char** argv) {
-    google::InitGoogleLogging(argv[0]);
-    google::ParseCommandLineFlags(&argc, &argv, false);
+void PrintFormatHelp() {
+    std::cout << "Example: " << std::endl;
+    std::cout << "curve_ops_tool format -allocateByPercent=true -allocatepercent=80 -filesystem_path=./ "  // NOLINT
+    "-chunkfilepool_dir=./chunkfilepool/ -chunkfilepool_metapath=./chunkfilepool.meta" << std::endl;  // NOLINT
+    std::cout << "curve_ops_tool format -preallocateNum=50 -filesystem_path=./ "
+    "-chunkfilepool_dir=./chunkfilepool/ -chunkfilepool_metapath=./chunkfilepool.meta" << std::endl;  // NOLINT
+}
 
+// TODO(tongguangxun) :添加单元测试
+int Format() {
     // load current chunkfile pool
     std::mutex mtx;
     std::shared_ptr<LocalFileSystem> fsptr = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");   // NOLINT
@@ -200,7 +210,7 @@ int main(int argc, char** argv) {
 
     if (FLAGS_allocateByPercent) {
         preAllocateChunkNum = preAllocateSize
-                              / (FLAGS_chunksize + FLAGS_metapagsize);
+                              / (FLAGS_chunkSize + FLAGS_metapagsize);
     } else {
         preAllocateChunkNum = FLAGS_preallocateNum;
     }
@@ -230,7 +240,7 @@ int main(int argc, char** argv) {
 
     int ret = curve::chunkserver::ChunkfilePoolHelper::PersistEnCodeMetaInfo(
                                                 fsptr,
-                                                FLAGS_chunksize,
+                                                FLAGS_chunkSize,
                                                 FLAGS_metapagsize,
                                                 FLAGS_chunkfilepool_dir,
                                                 FLAGS_chunkfilepool_metapath);
@@ -260,7 +270,7 @@ int main(int argc, char** argv) {
 
     bool valid = false;
     do {
-        if (chunksize != FLAGS_chunksize) {
+        if (chunksize != FLAGS_chunkSize) {
             LOG(ERROR) << "chunksize meta info persistency wrong!";
             break;
         }
@@ -288,3 +298,4 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+#endif  // SRC_TOOLS_CURVE_FORMAT_H_
