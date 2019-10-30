@@ -32,6 +32,7 @@ extern std::map<int, FdImage_t*> g_imageMap;  // fd的内存镜像
 #define FD_CEPH_MAX 1000
 #define FD_CURVE_MAX 20000
 
+int CloseParentFd();
 int LockFile(const char* file);
 void UnlockFile(int lockfd);
 std::vector<std::string> split(const std::string& str,

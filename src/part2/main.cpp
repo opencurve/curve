@@ -28,6 +28,9 @@
 #define BOOST_SPIRIT_THREADSAFE
 
 int main(int argc, char* argv[]) {
+    if (CloseParentFd() < 0) {
+        return -1;
+    }
     // 使进程为守护进程
     if (daemon(0, 0) < 0) {
         char buffer[128];

@@ -487,6 +487,34 @@ int SetCpuAffinity(pid_t qemu) {
     return 0;
 }
 
+int CloseParentFd() {
+    pid_t pid = getpid();
+    std::string pid_str = std::to_string(pid);
+    std::string proc_str = "/proc/";
+    std::string fd_str = "/fd";
+    std::string pid_proc = proc_str + pid_str + fd_str;
+
+    DIR* dir = opendir(pid_proc.c_str());
+    struct dirent* ent;
+    if (dir == NULL) {
+        return -1;
+    }
+    while ((ent = readdir(dir))) {
+        if ((ent->d_name[0] == '.' && ent->d_name[1] == '\0') ||
+            (ent->d_name[1] == '.' && ent->d_name[2] == '\0'))
+            continue;
+        int fd = atoi(ent->d_name);
+        if (fd < 3)
+            continue;
+        int ret = -1;
+        ret = close(fd);
+        if (ret < 0) {
+            return -1;
+        }
+    }
+    return 0;
+}
+
 // 初始化
 int Init() {
     // 初始化配置

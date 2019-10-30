@@ -19,6 +19,10 @@
 #include "src/part2/common_type.h"
 #include "tests/part2/test_common.h"
 
+TEST(CloseParentFd, CloseParentFd_1) {
+    EXPECT_EQ(0, CloseParentFd());
+}
+
 TEST(ReadQemuXmls, ReadQemuXmls_1) {
     NebdServerMocker mock;
 
