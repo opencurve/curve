@@ -325,14 +325,19 @@ class VMIntegTest(unittest.TestCase):
 
             is_reboot = False
             reboot_timeout = 30
+            print 'sleep 1s'
+            time.sleep(1)
             while reboot_timeout > 0:
                 ssh = create_ssh_connect(VM_HOST_IP, timeout=120)
                 if ssh is not None:
-                    _, out, err = ssh_exec(ssh, 'last reboot|head -1')
-                    print out, err
-                    if 'reboot' in out[0]:
-                        is_reboot = True
-                        break
+                    try:
+                        _, out, err = ssh_exec(ssh, 'last reboot|head -1')
+                        print out, err
+                        if 'reboot' in out[0]:
+                            is_reboot = True
+                            break
+                    except Exception:
+                        pass
                 reboot_timeout -= 1
                 print 'sleep 1s'
                 time.sleep(1)
