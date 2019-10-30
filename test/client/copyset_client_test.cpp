@@ -520,7 +520,7 @@ TEST_F(CopysetClientTest, write_error_test) {
         ASSERT_NE(0, reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayUs();
-        ASSERT_LT(end - start, 10000);
+        ASSERT_GT(end - start, 10000);
         gWriteCntlFailedCode = 0;
     }
     /* controller set timeout */
@@ -537,9 +537,9 @@ TEST_F(CopysetClientTest, write_error_test) {
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
 
-        // 配置文件设置的重试睡眠时间为5000，因为chunkserver设置返回timeout
-        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*5000
-        // 但是增加指数退避之后，超时时间将增加到10000 + 20000 + 4000 = 7000
+        // 配置文件设置的重试超时时间为5000，因为chunkserver设置返回timeout
+        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*1000
+        // 但是增加指数退避之后，超时时间将增加到1000 + 2000 + 2000 = 5000
         // 加上随机因子，三次重试时间应该大于7000, 且小于8000
         uint64_t start = TimeUtility::GetTimeofDayMs();
 
@@ -557,8 +557,8 @@ TEST_F(CopysetClientTest, write_error_test) {
         ASSERT_NE(0, reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayMs();
-        ASSERT_GT(end - start, 6500);
-        ASSERT_LT(end - start, 8000);
+        ASSERT_GT(end - start, 3000);
+        ASSERT_LT(end - start, 6000);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
         gWriteCntlFailedCode = 0;
@@ -909,6 +909,293 @@ TEST_F(CopysetClientTest, write_error_test) {
 }
 
 /**
+ * write failed testing
+ */
+TEST_F(CopysetClientTest, write_failed_test) {
+    MockChunkServiceImpl mockChunkService;
+    ASSERT_EQ(server_->AddService(&mockChunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.rpcTimeoutMs = 500;
+    ioSenderOpt.rpcRetryTimes = 3;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 50;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
+    ioSenderOpt.failRequestOpt.maxTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 100000;
+    ioSenderOpt.enableAppliedIndexRead = 1;
+
+    RequestScheduleOption_t reqopt;
+    reqopt.ioSenderOpt = ioSenderOpt;
+
+    CopysetClient copysetClient;
+    MockMetaCache mockMetaCache;
+    mockMetaCache.DelegateToFake();
+
+    RequestScheduler scheduler;
+    scheduler.Init(reqopt, &mockMetaCache);
+    scheduler.Run();
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler, nullptr);
+
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 100001;
+    ChunkID chunkId = 1;
+    size_t len = 8;
+    char buff1[8 + 1];
+    char buff2[8 + 1];
+    memset(buff1, 'a', 8);
+    memset(buff2, 'a', 8);
+    buff1[8] = '\0';
+    buff2[8] = '\0';
+    off_t offset = 0;
+
+    ChunkServerID leaderId1 = 10000;
+    butil::EndPoint leaderAdder1;
+    std::string leaderStr1 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
+    ChunkServerID leaderId2 = 10001;
+    butil::EndPoint leaderAdder2;
+    std::string leaderStr2 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
+    ChunkServerID leaderId3 = 10002;
+    butil::EndPoint leaderAdder3;
+    std::string leaderStr3 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
+    ChunkServerID leaderId4 = 10003;
+    butil::EndPoint leaderAdder4;
+    std::string leaderStr4 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
+
+    /* controller set timeout */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
+        reqCtx->writeBuffer_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
+        // 配置文件设置的重试超时时间为500，因为chunkserver设置返回timeout
+        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试50次正常只需要超时49*500
+        // 但是增加指数退避之后，超时时间将增加到49*1000 = 49000
+        uint64_t start = TimeUtility::GetTimeofDayMs();
+
+        reqCtx->done_ = reqDone;
+        gWriteCntlFailedCode = brpc::ERPCTIMEDOUT;
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(100)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
+                                  SetArgPointee<3>(leaderAdder1),
+                                  Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(50)
+            .WillRepeatedly(Invoke(WriteChunkFunc));
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0,
+                                 buff1, offset, len, reqDone);
+        cond.Wait();
+        ASSERT_NE(0, reqDone->GetErrorCode());
+
+        uint64_t end = TimeUtility::GetTimeofDayMs();
+        ASSERT_GT(end - start, 25000);
+        ASSERT_LT(end - start, 55000);
+        std::this_thread::sleep_for(std::chrono::seconds(8));
+
+        gWriteCntlFailedCode = 0;
+    }
+
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::WRITE;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
+        reqCtx->writeBuffer_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
+        // 配置文件设置的重试睡眠时间为5000us，因为chunkserver设置返回timeout
+        // 导致触发底层指数退避，每次重试间隔增大。重试50次正常只需要睡眠49*5000us
+        // 但是增加指数退避之后，睡眠间隔将增加到
+        // 10000 + 20000 + 40000... ~= 4650000
+        uint64_t start = TimeUtility::GetTimeofDayUs();
+
+        reqCtx->done_ = reqDone;
+        ChunkResponse response;
+        response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(50).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
+                                           SetArgPointee<3>(leaderAdder1),
+                                           Return(0)));
+        EXPECT_CALL(mockChunkService, WriteChunk(_, _, _, _)).Times(50)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(WriteChunkFunc)));
+        copysetClient.WriteChunk(reqCtx->idinfo_, 0,
+                                 buff1, offset, len, reqDone);
+        cond.Wait();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
+                 reqDone->GetErrorCode());
+
+        uint64_t end = TimeUtility::GetTimeofDayUs();
+        ASSERT_GT(end - start, 250000);
+        ASSERT_LT(end - start, 4650000);
+        gWriteCntlFailedCode = 0;
+    }
+    scheduler.Fini();
+}
+
+
+/**
+ * read failed testing
+ */
+TEST_F(CopysetClientTest, read_failed_test) {
+    MockChunkServiceImpl mockChunkService;
+    ASSERT_EQ(server_->AddService(&mockChunkService,
+                                  brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+    ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
+
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.rpcTimeoutMs = 500;
+    ioSenderOpt.rpcRetryTimes = 3;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 50;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
+    ioSenderOpt.failRequestOpt.maxTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 100000;
+    ioSenderOpt.enableAppliedIndexRead = 1;
+
+    RequestScheduleOption_t reqopt;
+    reqopt.ioSenderOpt = ioSenderOpt;
+
+    CopysetClient copysetClient;
+    MockMetaCache mockMetaCache;
+    mockMetaCache.DelegateToFake();
+
+    RequestScheduler scheduler;
+    scheduler.Init(reqopt, &mockMetaCache);
+    scheduler.Run();
+    copysetClient.Init(&mockMetaCache, ioSenderOpt, &scheduler, nullptr);
+
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 100001;
+    ChunkID chunkId = 1;
+    uint64_t sn = 1;
+    size_t len = 8;
+    char buff1[8 + 1];
+    char buff2[8 + 1];
+    memset(buff1, 'a', 8);
+    memset(buff2, 'a', 8);
+    buff1[8] = '\0';
+    buff2[8] = '\0';
+    off_t offset = 0;
+
+    ChunkServerID leaderId1 = 10000;
+    butil::EndPoint leaderAdder1;
+    std::string leaderStr1 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr1.c_str(), &leaderAdder1);
+    ChunkServerID leaderId2 = 10001;
+    butil::EndPoint leaderAdder2;
+    std::string leaderStr2 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr2.c_str(), &leaderAdder2);
+    ChunkServerID leaderId3 = 10002;
+    butil::EndPoint leaderAdder3;
+    std::string leaderStr3 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr3.c_str(), &leaderAdder3);
+    ChunkServerID leaderId4 = 10003;
+    butil::EndPoint leaderAdder4;
+    std::string leaderStr4 = "127.0.0.1:9109";
+    butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
+
+    /* controller set timeout */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::READ;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        // 配置文件设置的重试超时时间为500，因为chunkserver设置返回timeout
+        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试50次正常只需要50*500
+        // 但是增加指数退避之后，超时时间将增加到500 + 1000 + 2000... ~= 60000
+        uint64_t start = TimeUtility::GetTimeofDayMs();
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
+        reqCtx->done_ = reqDone;
+        gReadCntlFailedCode = brpc::ERPCTIMEDOUT;
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(100)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
+                                  SetArgPointee<3>(leaderAdder1),
+                                  Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(50)
+            .WillRepeatedly(Invoke(ReadChunkFunc));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
+                                offset, len, 0, reqDone);
+        cond.Wait();
+        ASSERT_NE(0, reqDone->GetErrorCode());
+
+        uint64_t end = TimeUtility::GetTimeofDayMs();
+        ASSERT_GT(end - start, 25000);
+        ASSERT_LT(end - start, 60000);
+
+        std::this_thread::sleep_for(std::chrono::seconds(8));
+
+        gReadCntlFailedCode = 0;
+    }
+
+    /* 设置 overload */
+    {
+        RequestContext *reqCtx = new FakeRequestContext();
+        reqCtx->optype_ = OpType::READ;
+        reqCtx->idinfo_ = ChunkIDInfo(chunkId, logicPoolId, copysetId);
+
+
+        reqCtx->readBuffer_ = buff1;
+        reqCtx->offset_ = 0;
+        reqCtx->rawlength_ = len;
+
+        curve::common::CountDownEvent cond(1);
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
+        // 配置文件设置的重试睡眠时间为5000us，因为chunkserver设置返回timeout
+        // 导致触发底层指数退避，每次重试间隔增大。重试50次正常只需要睡眠49*5000
+        // 但是增加指数退避之后，睡眠间隔将增加到
+        // 10000 + 20000 + 40000 ... = 4650000
+        // 加上随机因子，三次重试时间应该大于2900, 且小于5000
+        uint64_t start = TimeUtility::GetTimeofDayUs();
+
+        reqCtx->done_ = reqDone;
+        ChunkResponse response;
+        response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD);
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(50).WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
+                                           SetArgPointee<3>(leaderAdder1),
+                                           Return(0)));
+        EXPECT_CALL(mockChunkService, ReadChunk(_, _, _, _)).Times(50)
+            .WillRepeatedly(DoAll(SetArgPointee<2>(response),
+                                  Invoke(ReadChunkFunc)));
+        copysetClient.ReadChunk(reqCtx->idinfo_, sn,
+                                offset, len, 0, reqDone);
+        cond.Wait();
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD,
+                  reqDone->GetErrorCode());
+
+        uint64_t end = TimeUtility::GetTimeofDayUs();
+        ASSERT_GT(end - start, 250000);
+        ASSERT_LT(end - start, 4650000);
+    }
+    scheduler.Fini();
+}
+
+/**
  * read error testing
  */
 TEST_F(CopysetClientTest, read_error_test) {
@@ -1058,7 +1345,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         ASSERT_NE(0, reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayUs();
-        ASSERT_LT(end - start, 1500);
+        ASSERT_GT(end - start, 1500);
         gReadCntlFailedCode = 0;
     }
 
@@ -1072,9 +1359,9 @@ TEST_F(CopysetClientTest, read_error_test) {
         reqCtx->offset_ = 0;
         reqCtx->rawlength_ = len;
 
-                // 配置文件设置的重试睡眠时间为5000，因为chunkserver设置返回timeout
-        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*5000
-        // 但是增加指数退避之后，超时时间将增加到10000 + 20000 + 4000 = 7000
+        // 配置文件设置的超时时间为1000，因为chunkserver设置返回timeout
+        // 导致触发底层超时时间指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*1000
+        // 但是增加指数退避之后，超时时间将增加到1000 + 2000 + 2000 = 5000
         // 加上随机因子，三次重试时间应该大于7000, 且小于8000
         uint64_t start = TimeUtility::GetTimeofDayMs();
 
@@ -1095,8 +1382,8 @@ TEST_F(CopysetClientTest, read_error_test) {
         ASSERT_NE(0, reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayMs();
-        ASSERT_GT(end - start, 6500);
-        ASSERT_LT(end - start, 8000);
+        ASSERT_GT(end - start, 3000);
+        ASSERT_LT(end - start, 6000);
 
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
