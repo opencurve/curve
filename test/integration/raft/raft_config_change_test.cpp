@@ -124,7 +124,7 @@ class RaftConfigChangeTest : public testing::Test {
         ::system(mkdir4.c_str());
         ::system(mkdir5.c_str());
 
-        electionTimeoutMs = 3000;
+        electionTimeoutMs = 1000;
         confChangeTimeoutMs = 6000;
         snapshotIntervalS = 1;
         maxWaitInstallSnapshotMs = 5000;
@@ -135,15 +135,15 @@ class RaftConfigChangeTest : public testing::Test {
         ASSERT_TRUE(cg3.Init("9083"));
         ASSERT_TRUE(cg4.Init("9084"));
         ASSERT_TRUE(cg5.Init("9085"));
-        cg1.SetKV("copyset.election_timeout_ms", "3000");
+        cg1.SetKV("copyset.election_timeout_ms", "1000");
         cg1.SetKV("copyset.snapshot_interval_s", "1");
-        cg2.SetKV("copyset.election_timeout_ms", "3000");
+        cg2.SetKV("copyset.election_timeout_ms", "1000");
         cg2.SetKV("copyset.snapshot_interval_s", "1");
-        cg3.SetKV("copyset.election_timeout_ms", "3000");
+        cg3.SetKV("copyset.election_timeout_ms", "1000");
         cg3.SetKV("copyset.snapshot_interval_s", "1");
-        cg4.SetKV("copyset.election_timeout_ms", "3000");
+        cg4.SetKV("copyset.election_timeout_ms", "1000");
         cg4.SetKV("copyset.snapshot_interval_s", "1");
-        cg5.SetKV("copyset.election_timeout_ms", "3000");
+        cg5.SetKV("copyset.election_timeout_ms", "1000");
         cg5.SetKV("copyset.snapshot_interval_s", "1");
         ASSERT_TRUE(cg1.Generate());
         ASSERT_TRUE(cg2.Generate());
@@ -711,11 +711,11 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
                            ch - 1,
                            1);
 
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 4. 拉起follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
-    ::usleep(1.2 * electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
@@ -831,10 +831,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
                            ch - 1,
                            1);
 
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 4. 拉起follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.SignalPeer(hangPeer));
-    ::usleep(1.2 * electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
@@ -941,7 +941,6 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenTransferLeaderTo) {
                            ch -1,
                            1);
 
-    ::usleep(electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     ASSERT_STRNE(shutdownPeer.address().c_str(), leaderId.to_string().c_str());
@@ -1065,7 +1064,6 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenTransferLeaderTo) {
         TransferLeader(logicPoolId, copysetId, conf, hangPeer, options);
     ASSERT_TRUE(st1.ok());
 
-    ::usleep(electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     ASSERT_STRNE(hangPeer.address().c_str(), leaderId.to_string().c_str());
@@ -1707,8 +1705,6 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                            ch - 1,
                            1);
 
-    // 避免查到老leader
-    ::usleep(1.3 * electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     LOG(INFO) << "new leader is: " << leaderPeer.address();
@@ -2230,6 +2226,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
 
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
                logicPoolId,
@@ -2346,6 +2345,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     // 5. 把follower拉来
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
@@ -2465,6 +2467,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     int sleepMs2 = butil::fast_rand_less_than(1000) + 1;
     ::usleep(1000 * sleepMs2);
     ASSERT_EQ(0, cluster.SignalPeer(shutdownPeer));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
