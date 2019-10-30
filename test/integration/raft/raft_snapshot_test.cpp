@@ -88,17 +88,17 @@ class RaftSnapshotTest : public testing::Test {
         ::system(mkdir2.c_str());
         ::system(mkdir3.c_str());
 
-        electionTimeoutMs = 3000;
+        electionTimeoutMs = 1000;
         snapshotIntervalS = 60;
 
         ASSERT_TRUE(cg1.Init("9321"));
         ASSERT_TRUE(cg2.Init("9322"));
         ASSERT_TRUE(cg3.Init("9323"));
-        cg1.SetKV("copyset.election_timeout_ms", "3000");
+        cg1.SetKV("copyset.election_timeout_ms", "1000");
         cg1.SetKV("copyset.snapshot_interval_s", "60");
-        cg2.SetKV("copyset.election_timeout_ms", "3000");
+        cg2.SetKV("copyset.election_timeout_ms", "1000");
         cg2.SetKV("copyset.snapshot_interval_s", "60");
-        cg3.SetKV("copyset.election_timeout_ms", "3000");
+        cg3.SetKV("copyset.election_timeout_ms", "1000");
         cg3.SetKV("copyset.snapshot_interval_s", "60");
         ASSERT_TRUE(cg1.Generate());
         ASSERT_TRUE(cg2.Generate());

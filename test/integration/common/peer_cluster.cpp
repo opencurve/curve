@@ -194,7 +194,7 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
     /**
      * 等待选举结束
      */
-    ::usleep(2 * electionTimeoutMs_ * 1000);
+    ::usleep(3 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
     for (int i = 0; i < kMaxLoop; ++i) {
         ::usleep(100 * 1000);
@@ -204,7 +204,7 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
              * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
              * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
              */
-            usleep(electionTimeoutMs_ * 1000);
+            // usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
                       << leaderId.to_string();
             leaderPeer->set_address(leaderId.to_string());
@@ -686,7 +686,7 @@ void WriteVerifyNotAvailable(Peer leaderPeer,
                              int length,
                              char fillCh,
                              int loop) {
-    LOG(INFO) << "Write verify available: " << fillCh;
+    LOG(INFO) << "Write verify not available: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
     uint64_t sn = 1;
