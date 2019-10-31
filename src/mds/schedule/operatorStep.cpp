@@ -31,7 +31,7 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
     // maybe leader election happen before or between transferring,
     // operator should be set failed and removed
     if (originInfo.leader != to_ && originInfo.leader != from_) {
-        LOG(ERROR) << originInfo.CopySetInfoStr()
+        LOG(WARNING) << originInfo.CopySetInfoStr()
                    << " apply transfer leader from "
                    << this->from_ << " to " << this->to_
                    << " failed, current leader is " << originInfo.leader;
@@ -53,7 +53,7 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
     // may be mds reboot and drop the operator, but old operator is ongoing,
     // so the new generated operator must be failed and removed
     if (originInfo.candidatePeerInfo.id != to_) {
-        LOG(ERROR) << originInfo.CopySetInfoStr()
+        LOG(WARNING) << originInfo.CopySetInfoStr()
                    << " apply transfer leader from "
                    << this->from_ << " to " << this->to_
                    << " failed, config change item do not match, "
@@ -64,7 +64,7 @@ ApplyStatus TransferLeader::Apply(const CopySetInfo &originInfo,
 
     if (originInfo.configChangeInfo.type() !=
         ConfigChangeType::TRANSFER_LEADER) {
-        LOG(ERROR) << originInfo.CopySetInfoStr()
+        LOG(WARNING) << originInfo.CopySetInfoStr()
                    << " apply transfer leader from " << this->from_
                    << " to " << this->to_
                    << " failed, config change type do not match, "
@@ -130,7 +130,7 @@ ApplyStatus AddPeer::Apply(const CopySetInfo &originInfo,
     // may be mds reboot and drop the operator, but old operator is ongoing,
     // so the new generated operator must be failed and removed
     if (originInfo.candidatePeerInfo.id != add_) {
-        LOG(ERROR) << originInfo.CopySetInfoStr()
+        LOG(WARNING) << originInfo.CopySetInfoStr()
                    << " apply add peer " << this->add_
                    << " failed, config change item do not match, "
                       "report candidatePeerId is "
@@ -139,7 +139,7 @@ ApplyStatus AddPeer::Apply(const CopySetInfo &originInfo,
     }
 
     if (originInfo.configChangeInfo.type() != ConfigChangeType::ADD_PEER) {
-        LOG(ERROR) << originInfo.CopySetInfoStr()
+        LOG(WARNING) << originInfo.CopySetInfoStr()
                    << " apply add peer " << this->add_
                    << " failed, config change type do not match, "
                       "report type is " << originInfo.configChangeInfo.type();
@@ -193,7 +193,7 @@ ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
     // may be mds reboot and drop the operator, but old operator is ongoing,
     // so the new generated operator must be failed and removed
     if (originInfo.candidatePeerInfo.id != remove_) {
-        LOG(ERROR) << originInfo.CopySetInfoStr()
+        LOG(WARNING) << originInfo.CopySetInfoStr()
                    << " apply remove peer " << this->remove_
                    << " failed, config change item do not match, "
                       "report candidatePeerId is "
@@ -202,7 +202,7 @@ ApplyStatus RemovePeer::Apply(const CopySetInfo &originInfo,
     }
 
     if (originInfo.configChangeInfo.type() != ConfigChangeType::REMOVE_PEER) {
-        LOG(ERROR) << originInfo.CopySetInfoStr()
+        LOG(WARNING) << originInfo.CopySetInfoStr()
                    << " apply remove peer " << this->remove_
                    << " failed, config change type do not match, "
                       "report type is "
