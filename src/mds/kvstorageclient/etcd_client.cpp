@@ -73,7 +73,8 @@ int EtcdClientImp::Get(const std::string &key, std::string *out) {
         } else if (res.r0 == EtcdErrCode::KeyNotExist) {
             LOG(INFO) << "file not exist";
         } else {
-            LOG(ERROR) << "get file err: " << res.r0;
+            LOG(WARNING) << "get file err: " << res.r0
+                         << ", retry:" << retry << ", needRetry:" << retry;
         }
     } while (needRetry && ++retry <= retryTimes_);
 
@@ -96,8 +97,9 @@ int EtcdClientImp::List(const std::string &startKey, const std::string &endKey,
         errCode = res.r0;
         needRetry = NeedRetry(errCode);
         if (res.r0 != EtcdErrCode::OK) {
-            LOG(ERROR) << "list file of [start:" << startKey
-                       << ", end:" << endKey << "] err: " << res.r0;
+            LOG(WARNING) << "list file of [start:" << startKey
+                       << ", end:" << endKey << "] err: " << res.r0
+                       << ", retry: " << retry << ", needRetry: " << needRetry;
         } else {
             for (int i = 0; i < res.r2; i++) {
                 EtcdClientGetMultiObject_return objRes =
@@ -183,7 +185,9 @@ int EtcdClientImp::GetCurrentRevision(int64_t *revision) {
             *revision = res.r3;
             errCode = EtcdErrCode::OK;
         } else {
-            LOG(ERROR) << "get current revision fail, errcode: " << res.r0;
+            LOG(WARNING) << "get current revision fail, errcode: " << res.r0
+                         << ", retry: " << retry
+                         << ", needRetry: " << needRetry;
         }
     } while (needRetry && ++retry <= retryTimes_);
 
@@ -206,8 +210,9 @@ int EtcdClientImp::ListWithLimitAndRevision(const std::string &startKey,
         errCode = res.r0;
         needRetry = NeedRetry(errCode);
         if (res.r0 != EtcdErrCode::OK) {
-            LOG(ERROR) << "ListByLimitAndRevision [start:" << startKey
-                       << ", end:" << endKey << "] err: " << res.r0;
+            LOG(WARNING) << "ListByLimitAndRevision [start:" << startKey
+                       << ", end:" << endKey << "] err: " << res.r0
+                       << ", retry: " << retry << ", needRetry: " << needRetry;
         } else {
             for (int i = 0; i < res.r2; i++) {
                 EtcdClientGetMultiObject_return objRes =
