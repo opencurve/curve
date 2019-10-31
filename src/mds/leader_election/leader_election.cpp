@@ -26,7 +26,7 @@ int LeaderElection::CampaginLeader() {
         return 0;
     }
 
-    LOG(ERROR) << leaderName_ << " campaign leader err: " << resCode;
+    LOG(WARNING) << leaderName_ << " campaign leader err: " << resCode;
     return -1;
 }
 
@@ -46,7 +46,7 @@ int LeaderElection::LeaderResign() {
         return 0;
     }
 
-    LOG(ERROR) << leaderName_ << " resign leader err: " << res;
+    LOG(WARNING) << leaderName_ << " resign leader err: " << res;
     return -1;
 }
 
@@ -57,7 +57,7 @@ int LeaderElection::ObserveLeader() {
     if (resCode == EtcdErrCode::ObserverLeaderInternal) {
         LOG(ERROR) << leaderName_ << " Observer channel closed permaturely";
     } else if (resCode == EtcdErrCode::ObserverLeaderChange) {
-        LOG(ERROR) << leaderName_ << " Observer leader change";
+        LOG(WARNING) << leaderName_ << " Observer leader change";
     }
 
     // for test
