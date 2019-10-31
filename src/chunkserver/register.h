@@ -46,7 +46,6 @@ class Register {
      */
     int RegisterToMDS(ChunkServerMetadata *metadata);
 
- private:
     /**
      * @brief 持久化ChunkServer元数据
      *

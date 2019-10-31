@@ -20,6 +20,7 @@
 #include "src/mds/topology/topology.h"
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/schedule/topoAdapter.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 
 using ::curve::mds::heartbeat::ConfigChangeType;
 
@@ -102,8 +103,10 @@ class Coordinator {
      * @brief 根据配置初始化scheduler
      *
      * @param[in] conf, scheduler配置信息
+     * @param[in] metrics, scheduleMetric用于operator增加/减少时进行统计
      */
-    void InitScheduler(const ScheduleOption &conf);
+    void InitScheduler(
+        const ScheduleOption &conf, std::shared_ptr<ScheduleMetrics> metrics);
 
     /**
      * @brief 根据scheduler的配置在后台运行各种scheduler

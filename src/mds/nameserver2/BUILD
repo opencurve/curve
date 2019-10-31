@@ -11,10 +11,13 @@ cc_library(
             "//proto:nameserver2_cc_proto",
             "//src/common:curve_common",
             "//src/mds/topology:topology",
+            "//src/mds/nameserver2/allocstatistic:alloc_statistic",
             "//src/mds/chunkserverclient:chunkserverclient",
             "//src/mds/common:mds_common",
+            "//src/mds/nameserver2/helper:helper",
+            "//src/mds/nameserver2/idgenerator:idgenerator",
             "//src/common:curve_auth",
-            "//include/etcdclient:etcd_client",
+            "//src/mds/kvstorageclient:kvstorage_client",
     ],
 )
 

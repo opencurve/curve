@@ -20,6 +20,7 @@
 #include "test/mds/mock/mock_topology.h"
 #include "test/mds/mock/mock_chunkserver.h"
 #include "test/mds/chunkserverclient/mock_chunkserverclient.h"
+#include "src/mds/chunkserverclient/chunkserverclient_config.h"
 
 
 using ::curve::mds::topology::READWRITE;
@@ -57,8 +58,9 @@ class TestCopysetClient : public ::testing::Test {
         listenAddr_ = "127.0.0.1:8888";
         server_ = new brpc::Server();
         topo_ = std::make_shared<MockTopology>();
-        client_ = std::make_shared<CopysetClient>(topo_);
-        mockCsClient_ = std::make_shared<MockChunkServerClient>(topo_);
+        ChunkServerClientOption option;
+        client_ = std::make_shared<CopysetClient>(topo_, option);
+        mockCsClient_ = std::make_shared<MockChunkServerClient>(topo_, option);
         client_->SetChunkServerClient(mockCsClient_);
     }
     void TearDown() {
@@ -153,7 +155,7 @@ TEST_F(TestCopysetClient, TestDeleteChunkSnapshotOrCorrectSnRetryTimeOut) {
 
     EXPECT_CALL(*mockCsClient_, GetLeader(
         _, logicalPoolId, copysetId, _))
-        .WillRepeatedly(Return(kMdsSuccess));
+        .WillRepeatedly(DoAll(SetArgPointee<3>(0x02), Return(kMdsSuccess)));
 
     int ret = client_->DeleteChunkSnapshotOrCorrectSn(
         logicalPoolId, copysetId, chunkId, sn);
@@ -305,7 +307,7 @@ TEST_F(TestCopysetClient, TestDeleteChunkRetryTimeOut) {
 
     EXPECT_CALL(*mockCsClient_, GetLeader(
         _, logicalPoolId, copysetId, _))
-        .WillRepeatedly(Return(kMdsSuccess));
+        .WillRepeatedly(DoAll(SetArgPointee<3>(0x02), Return(kMdsSuccess)));
 
     int ret = client_->DeleteChunk(
         logicalPoolId, copysetId, chunkId, sn);

@@ -10,19 +10,23 @@
 #include "test/mds/schedule/common.h"
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/schedule/operator.h"
-#include "src/mds/schedule/schedulerMetric.h"
+#include "src/mds/schedule/scheduleMetrics.h"
+#include "test/mds/mock/mock_topology.h"
 
 using ::std::chrono::steady_clock;
 using ::curve::mds::schedule::OperatorStep;
 using ::curve::mds::schedule::Operator;
 using ::curve::mds::schedule::OperatorPriority;
 using ::curve::mds::schedule::OperatorController;
+using ::curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
 namespace schedule {
 TEST(OperatorControllerTest, test_AddGetRemove) {
-    auto opController = std::make_shared<OperatorController>(2);
+    auto topo = std::make_shared<MockTopology>();
+    auto opController = std::make_shared<OperatorController>(
+        2, std::make_shared<ScheduleMetrics>(topo));
 
     CopySetKey copySetKey;
     copySetKey.first = 1;
@@ -42,13 +46,13 @@ TEST(OperatorControllerTest, test_AddGetRemove) {
     ASSERT_FALSE(opController->AddOperator(testOperator));
     // add operator exceed concurrent
     testOperator.priority = OperatorPriority::LowPriority;
-    testOperator.copsetID.first = 2;
+    testOperator.copysetID.first = 2;
     ASSERT_TRUE(opController->AddOperator(testOperator));
-    testOperator.copsetID.first = 3;
+    testOperator.copysetID.first = 3;
     ASSERT_FALSE(opController->AddOperator(testOperator));
     // add higher operator with critical-concurrent
     testOperator.priority = OperatorPriority::HighPriority;
-    testOperator.copsetID.first = 2;
+    testOperator.copysetID.first = 2;
     ASSERT_TRUE(opController->AddOperator(testOperator));
 
     // 2. test get operator
@@ -76,7 +80,9 @@ TEST(OperatorControllerTest, test_AddGetRemove) {
 }
 
 TEST(OperatorControllerTest, test_ApplyOp) {
-    auto opController = std::make_shared<OperatorController>(2);
+    auto topo = std::make_shared<MockTopology>();
+    auto opController = std::make_shared<OperatorController>(
+        2, std::make_shared<ScheduleMetrics>(topo));
 
     CopySetKey copySetKey;
     copySetKey.first = 1;
@@ -98,11 +104,11 @@ TEST(OperatorControllerTest, test_ApplyOp) {
 
     // 3. test apply operator finished
     testOperator.createTime = steady_clock::now();
-    originCopySetinfo.peers.emplace_back(PeerInfo(5, 1, 1, 1, "", 9000));
+    originCopySetinfo.peers.emplace_back(PeerInfo(5, 1, 1, "", 9000));
     ASSERT_FALSE(opController->ApplyOperator(originCopySetinfo, &copySetConf));
 
     // 4. test apply operator failed
-    originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, 1, "", 9000);
+    originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, "", 9000);
     originCopySetinfo.configChangeInfo.set_finished(false);
     auto replica = new ::curve::common::Peer();
     replica->set_id(5);
@@ -122,7 +128,7 @@ TEST(OperatorControllerTest, test_ApplyOp) {
     originCopySetinfo.configChangeInfo.set_finished(true);
     originCopySetinfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
     originCopySetinfo.peers.emplace_back(
-        PeerInfo(5, 4, 4, 1, "192.168.10.1", 9000));
+        PeerInfo(5, 4, 4, "192.168.10.1", 9000));
     ASSERT_FALSE(opController->ApplyOperator(originCopySetinfo, &copySetConf));
     ASSERT_FALSE(opController->GetOperatorById(originCopySetinfo.id, &op));
 
@@ -134,7 +140,7 @@ TEST(OperatorControllerTest, test_ApplyOp) {
     ASSERT_EQ(5, copySetConf.configChangeItem);
 
     // 7. test apply operator not finished
-    originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, 1, "", 9000);
+    originCopySetinfo.candidatePeerInfo = PeerInfo(5, 1, 1, "", 9000);
     originCopySetinfo.configChangeInfo.set_finished(false);
     originCopySetinfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
     auto replica1 = new ::curve::common::Peer();
@@ -143,118 +149,6 @@ TEST(OperatorControllerTest, test_ApplyOp) {
     originCopySetinfo.configChangeInfo.set_allocated_peer(replica1);
     ASSERT_FALSE(opController->ApplyOperator(originCopySetinfo, &copySetConf));
     originCopySetinfo.configChangeInfo.Clear();
-}
-
-TEST(OperatorControllerTest, test_operator_metric) {
-    auto opController = std::make_shared<OperatorController>(10);
-
-    int startopNum = SchedulerMetric::GetInstance()->operatorNum.get_value();
-    int startaddOpNum = SchedulerMetric::GetInstance()->addOpNum.get_value();
-    int startremoveOpNum =
-        SchedulerMetric::GetInstance()->removeOpNum.get_value();
-    int starttransferOpNum =
-        SchedulerMetric::GetInstance()->transferOpNum.get_value();
-    int startnormalOpNum =
-        SchedulerMetric::GetInstance()->normalOpNum.get_value();
-    int starthighOpNum = SchedulerMetric::GetInstance()->highOpNum.get_value();
-
-    // 1. 加入一个add operator
-    Operator testOperator(1, CopySetKey{1, 30}, OperatorPriority::HighPriority,
-        steady_clock::now(), std::make_shared<AddPeer>(1));
-    ASSERT_TRUE(opController->AddOperator(testOperator));
-    ASSERT_EQ(startopNum + 1,
-        SchedulerMetric::GetInstance()->operatorNum.get_value());
-    ASSERT_EQ(startaddOpNum + 1,
-        SchedulerMetric::GetInstance()->addOpNum.get_value());
-    ASSERT_EQ(startremoveOpNum,
-        SchedulerMetric::GetInstance()->removeOpNum.get_value());
-    ASSERT_EQ(starttransferOpNum,
-        SchedulerMetric::GetInstance()->transferOpNum.get_value());
-    ASSERT_EQ(startnormalOpNum,
-        SchedulerMetric::GetInstance()->normalOpNum.get_value());
-    ASSERT_EQ(starthighOpNum + 1,
-        SchedulerMetric::GetInstance()->highOpNum.get_value());
-
-    // 2. 加入一个remove operator
-    Operator testOperator2(1, CopySetKey{1, 31},
-        OperatorPriority::NormalPriority, steady_clock::now(),
-        std::make_shared<RemovePeer>(1));
-    ASSERT_TRUE(opController->AddOperator(testOperator2));
-    ASSERT_EQ(startopNum + 2,
-        SchedulerMetric::GetInstance()->operatorNum.get_value());
-    ASSERT_EQ(startaddOpNum + 1,
-        SchedulerMetric::GetInstance()->addOpNum.get_value());
-    ASSERT_EQ(startremoveOpNum + 1,
-        SchedulerMetric::GetInstance()->removeOpNum.get_value());
-    ASSERT_EQ(starttransferOpNum,
-        SchedulerMetric::GetInstance()->transferOpNum.get_value());
-    ASSERT_EQ(startnormalOpNum + 1,
-        SchedulerMetric::GetInstance()->normalOpNum.get_value());
-    ASSERT_EQ(starthighOpNum + 1,
-        SchedulerMetric::GetInstance()->highOpNum.get_value());
-
-    // 3. 加入一个transfer operator
-    Operator testOperator3(1, CopySetKey{1, 32},
-        OperatorPriority::NormalPriority, steady_clock::now(),
-        std::make_shared<TransferLeader>(1, 2));
-    ASSERT_TRUE(opController->AddOperator(testOperator3));
-    ASSERT_EQ(startopNum + 3,
-        SchedulerMetric::GetInstance()->operatorNum.get_value());
-    ASSERT_EQ(startaddOpNum + 1,
-        SchedulerMetric::GetInstance()->addOpNum.get_value());
-    ASSERT_EQ(startremoveOpNum + 1,
-        SchedulerMetric::GetInstance()->removeOpNum.get_value());
-    ASSERT_EQ(starttransferOpNum + 1,
-        SchedulerMetric::GetInstance()->transferOpNum.get_value());
-    ASSERT_EQ(startnormalOpNum + 2,
-        SchedulerMetric::GetInstance()->normalOpNum.get_value());
-    ASSERT_EQ(starthighOpNum + 1,
-        SchedulerMetric::GetInstance()->highOpNum.get_value());
-
-    // 4. 移除一个add operator
-    opController->RemoveOperator(testOperator.copsetID);
-    ASSERT_EQ(startopNum + 2,
-        SchedulerMetric::GetInstance()->operatorNum.get_value());
-    ASSERT_EQ(startaddOpNum,
-        SchedulerMetric::GetInstance()->addOpNum.get_value());
-    ASSERT_EQ(startremoveOpNum + 1,
-        SchedulerMetric::GetInstance()->removeOpNum.get_value());
-    ASSERT_EQ(starttransferOpNum + 1,
-        SchedulerMetric::GetInstance()->transferOpNum.get_value());
-    ASSERT_EQ(startnormalOpNum + 2,
-        SchedulerMetric::GetInstance()->normalOpNum.get_value());
-    ASSERT_EQ(starthighOpNum,
-        SchedulerMetric::GetInstance()->highOpNum.get_value());
-
-    // 5. 移除一个remove operator
-    opController->RemoveOperator(testOperator2.copsetID);
-    ASSERT_EQ(startopNum + 1,
-        SchedulerMetric::GetInstance()->operatorNum.get_value());
-    ASSERT_EQ(startaddOpNum,
-        SchedulerMetric::GetInstance()->addOpNum.get_value());
-    ASSERT_EQ(startremoveOpNum,
-        SchedulerMetric::GetInstance()->removeOpNum.get_value());
-    ASSERT_EQ(starttransferOpNum + 1,
-        SchedulerMetric::GetInstance()->transferOpNum.get_value());
-    ASSERT_EQ(startnormalOpNum + 1,
-        SchedulerMetric::GetInstance()->normalOpNum.get_value());
-    ASSERT_EQ(starthighOpNum,
-        SchedulerMetric::GetInstance()->highOpNum.get_value());
-
-    // 6. 移除一个transfer operator
-    opController->RemoveOperator(testOperator3.copsetID);
-    ASSERT_EQ(startopNum,
-        SchedulerMetric::GetInstance()->operatorNum.get_value());
-    ASSERT_EQ(startaddOpNum,
-        SchedulerMetric::GetInstance()->addOpNum.get_value());
-    ASSERT_EQ(startremoveOpNum,
-        SchedulerMetric::GetInstance()->removeOpNum.get_value());
-    ASSERT_EQ(starttransferOpNum,
-        SchedulerMetric::GetInstance()->transferOpNum.get_value());
-    ASSERT_EQ(startnormalOpNum,
-        SchedulerMetric::GetInstance()->normalOpNum.get_value());
-    ASSERT_EQ(starthighOpNum,
-        SchedulerMetric::GetInstance()->highOpNum.get_value());
 }
 }  // namespace schedule
 }  // namespace mds

@@ -9,8 +9,10 @@
 #include "src/mds/schedule/scheduler.h"
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/topology/topology_id_generator.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 #include "src/mds/common/mds_define.h"
 #include "test/mds/schedule/mock_topoAdapter.h"
+#include "test/mds/mock/mock_topology.h"
 #include "test/mds/schedule/common.h"
 
 using ::testing::_;
@@ -20,28 +22,31 @@ using ::testing::SetArgPointee;
 using ::testing::DoAll;
 
 using ::curve::mds::topology::TopologyIdGenerator;
+using ::curve::mds::topology::MockTopology;
 
 namespace curve {
 namespace mds {
 namespace schedule {
 class TestRecoverSheduler : public ::testing::Test {
  protected:
-  TestRecoverSheduler() {}
-  ~TestRecoverSheduler() {}
+    TestRecoverSheduler() {}
+    ~TestRecoverSheduler() {}
 
-  void SetUp() override {
-      opController_ = std::make_shared<OperatorController>(2);
-      topoAdapter_ = std::make_shared<MockTopoAdapter>();
-      int64_t runInterval = 1;
-      recoverScheduler_ =
-          std::make_shared<RecoverScheduler>(opController_, runInterval,
-            10, 100, 1000, 0.2, 3, topoAdapter_);
-  }
-  void TearDown() override {
-      opController_ = nullptr;
-      topoAdapter_ = nullptr;
-      recoverScheduler_ = nullptr;
-  }
+    void SetUp() override {
+        auto topo = std::make_shared<MockTopology>();
+        auto metric = std::make_shared<ScheduleMetrics>(topo);
+        opController_ = std::make_shared<OperatorController>(2, metric);
+        topoAdapter_ = std::make_shared<MockTopoAdapter>();
+        int64_t runInterval = 1;
+        recoverScheduler_ =
+            std::make_shared<RecoverScheduler>(opController_, runInterval,
+                10, 100, 1000, 0.2, 3, topoAdapter_);
+    }
+    void TearDown() override {
+        opController_ = nullptr;
+        topoAdapter_ = nullptr;
+        recoverScheduler_ = nullptr;
+    }
 
  protected:
   std::shared_ptr<MockTopoAdapter> topoAdapter_;
@@ -62,17 +67,19 @@ TEST_F(TestRecoverSheduler, test_copySet_already_has_operator) {
     Operator testOperator(1, copySetKey, OperatorPriority::NormalPriority,
                           steady_clock::now(), std::make_shared<AddPeer>(1));
     ASSERT_TRUE(opController_->AddOperator(testOperator));
-    ASSERT_EQ(0, recoverScheduler_->Schedule());
+    recoverScheduler_->Schedule();
+    ASSERT_EQ(1, opController_->GetOperators().size());
 }
 
 TEST_F(TestRecoverSheduler, test_copySet_has_configChangeInfo) {
     auto testCopySetInfo = GetCopySetInfoForTest();
-    testCopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, 1, "", 9000);
+    testCopySetInfo.candidatePeerInfo = PeerInfo(1, 1, 1, "", 9000);
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
         .WillOnce(Return(std::vector<ChunkServerInfo>{}));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    ASSERT_EQ(0, recoverScheduler_->Schedule());
+    recoverScheduler_->Schedule();
+    ASSERT_EQ(0, opController_->GetOperators().size());
 }
 
 TEST_F(TestRecoverSheduler, test_chunkServer_cannot_get) {
@@ -83,7 +90,8 @@ TEST_F(TestRecoverSheduler, test_chunkServer_cannot_get) {
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _))
         .Times(3)
         .WillRepeatedly(Return(false));
-    ASSERT_EQ(0, recoverScheduler_->Schedule());
+    recoverScheduler_->Schedule();
+    ASSERT_EQ(0, opController_->GetOperators().size());
 }
 
 TEST_F(TestRecoverSheduler, test_server_has_more_offline_chunkserver) {
@@ -99,8 +107,8 @@ TEST_F(TestRecoverSheduler, test_server_has_more_offline_chunkserver) {
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
                             DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
-    PeerInfo peer4(4, 1, 1, 1, "192.168.10.1", 9001);
-    PeerInfo peer5(5, 1, 1, 1, "192.168.10.1", 9002);
+    PeerInfo peer4(4, 1, 1, "192.168.10.1", 9001);
+    PeerInfo peer5(5, 1, 1, "192.168.10.1", 9002);
     ChunkServerInfo csInfo4(peer4, OnlineState::OFFLINE, DiskState::DISKNORMAL,
             ChunkServerStatus::READWRITE, 2, 100, 100,
             ChunkServerStatisticInfo{});
@@ -117,7 +125,8 @@ TEST_F(TestRecoverSheduler, test_server_has_more_offline_chunkserver) {
         .WillOnce(DoAll(SetArgPointee<1>(csInfo2), Return(true)));
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(csInfo3.info.id , _))
         .WillOnce(DoAll(SetArgPointee<1>(csInfo3), Return(true)));
-    ASSERT_EQ(0, recoverScheduler_->Schedule());
+    recoverScheduler_->Schedule();
+    ASSERT_EQ(0, opController_->GetOperators().size());
 }
 
 TEST_F(TestRecoverSheduler,
@@ -134,8 +143,8 @@ TEST_F(TestRecoverSheduler,
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
                             DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
-    PeerInfo peer4(4, 1, 1, 1, "192.168.10.1", 9001);
-    PeerInfo peer5(5, 1, 1, 1, "192.168.10.1", 9002);
+    PeerInfo peer4(4, 1, 1, "192.168.10.1", 9001);
+    PeerInfo peer5(5, 1, 1, "192.168.10.1", 9002);
     ChunkServerInfo csInfo4(peer4, OnlineState::OFFLINE, DiskState::DISKNORMAL,
             ChunkServerStatus::READWRITE, 2, 100, 100,
             ChunkServerStatisticInfo{});
@@ -154,7 +163,7 @@ TEST_F(TestRecoverSheduler,
         .WillOnce(DoAll(SetArgPointee<1>(csInfo3), Return(true)));
      EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
         .WillOnce(Return(2));
-    ASSERT_EQ(1, recoverScheduler_->Schedule());
+    recoverScheduler_->Schedule();
     Operator op;
     ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
     ASSERT_TRUE(dynamic_cast<RemovePeer *>(op.step.get()) != nullptr);
@@ -176,7 +185,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
     ChunkServerInfo csInfo3(testCopySetInfo.peers[2], OnlineState::ONLINE,
                             DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
-    PeerInfo peer4(4, 4, 4, 1, "192.168.10.4", 9000);
+    PeerInfo peer4(4, 4, 4, "192.168.10.4", 9000);
     ChunkServerInfo csInfo4(peer4, OnlineState::ONLINE,
                             DiskState::DISKNORMAL, ChunkServerStatus::READWRITE,
                             2, 100, 100, ChunkServerStatisticInfo{});
@@ -198,7 +207,8 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(id3, _))
             .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo3),
                                 Return(true)));
-        ASSERT_EQ(0, recoverScheduler_->Schedule());
+        recoverScheduler_->Schedule();
+        ASSERT_EQ(0, opController_->GetOperators().size());
     }
 
     {
@@ -209,7 +219,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
                             Return(true)));
         EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
             .Times(2).WillRepeatedly(Return(2));
-        ASSERT_EQ(1, recoverScheduler_->Schedule());
+        recoverScheduler_->Schedule();
         ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
         ASSERT_TRUE(
             dynamic_cast<RemovePeer *>(op.step.get()) != nullptr);
@@ -218,7 +228,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
 
     {
         // 3. 副本数量大于标准，follower挂掉
-        opController_->RemoveOperator(op.copsetID);
+        opController_->RemoveOperator(op.copysetID);
         csInfo1.state = OnlineState::ONLINE;
         csInfo2.state = OnlineState::OFFLINE;
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(id1, _))
@@ -227,7 +237,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
         EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(id2, _))
             .WillRepeatedly(DoAll(SetArgPointee<1>(csInfo2),
                                 Return(true)));
-        ASSERT_EQ(1, recoverScheduler_->Schedule());
+        recoverScheduler_->Schedule();
         ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
         ASSERT_TRUE(dynamic_cast<RemovePeer *>(op.step.get()) != nullptr);
         ASSERT_EQ(std::chrono::seconds(100), op.timeLimit);
@@ -235,12 +245,12 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
 
     {
         // 4. 副本数目等于标准， follower挂掉
-        opController_->RemoveOperator(op.copsetID);
+        opController_->RemoveOperator(op.copysetID);
         EXPECT_CALL(*topoAdapter_, GetStandardReplicaNumInLogicalPool(_))
             .WillRepeatedly(Return(3));
         std::vector<ChunkServerInfo> chunkserverList(
             {csInfo1, csInfo2, csInfo3, csInfo4});
-        EXPECT_CALL(*topoAdapter_, GetChunkServersInPhysicalPool(_))
+        EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
             .WillOnce(Return(chunkserverList));
         EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
             .WillOnce(Return(3));
@@ -257,7 +267,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
             .WillOnce(SetArgPointee<1>(map4));
         EXPECT_CALL(*topoAdapter_, CreateCopySetAtChunkServer(_, _))
             .WillOnce(Return(true));
-        ASSERT_EQ(1, recoverScheduler_->Schedule());
+        recoverScheduler_->Schedule();
         ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
         ASSERT_TRUE(
             dynamic_cast<AddPeer *>(op.step.get()) != nullptr);
@@ -266,10 +276,11 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
 
     {
         // 5. 选不出替换chunkserver
-        opController_->RemoveOperator(op.copsetID);
-        EXPECT_CALL(*topoAdapter_, GetChunkServersInPhysicalPool(_))
+        opController_->RemoveOperator(op.copysetID);
+        EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
             .WillOnce(Return(std::vector<ChunkServerInfo>{}));
-        ASSERT_EQ(0, recoverScheduler_->Schedule());
+        recoverScheduler_->Schedule();
+        ASSERT_EQ(0, opController_->GetOperators().size());
     }
 
     {
@@ -278,7 +289,7 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
             .WillRepeatedly(Return(3));
         std::vector<ChunkServerInfo> chunkserverList(
             {csInfo1, csInfo2, csInfo3, csInfo4});
-        EXPECT_CALL(*topoAdapter_, GetChunkServersInPhysicalPool(_))
+        EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
             .WillOnce(Return(chunkserverList));
         EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
             .WillOnce(Return(3));
@@ -295,7 +306,8 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
             .WillOnce(SetArgPointee<1>(map4));
         EXPECT_CALL(*topoAdapter_, CreateCopySetAtChunkServer(_, _))
             .WillOnce(Return(false));
-        ASSERT_EQ(0, recoverScheduler_->Schedule());
+        recoverScheduler_->Schedule();
+        ASSERT_EQ(0, opController_->GetOperators().size());
     }
 }
 }  // namespace schedule

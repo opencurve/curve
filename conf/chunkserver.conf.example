@@ -57,7 +57,7 @@ copyset.check_term=true
 copyset.disable_cli=false
 copyset.log_applied_task=false
 # raft选举超时时间，一般是5000ms
-copyset.election_timeout_ms=5000
+copyset.election_timeout_ms=1000
 # raft打快照间隔，一般是1800s，也就是30分钟
 copyset.snapshot_interval_s=1800
 # 当落后节点落后日志条目超过catchup_margin，会通过install snapshot恢复

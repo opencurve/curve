@@ -15,15 +15,14 @@
 #include <map>
 #include <string>
 #include "src/mds/common/mds_define.h"
-#include "src/mds/nameserver2/inode_id_generator.h"
-#include "src/mds/nameserver2/chunk_allocator.h"
+#include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
-#include "src/mds/nameserver2/chunk_id_generator.h"
+#include "src/mds/nameserver2/idgenerator/chunk_id_generator.h"
 #include "src/mds/nameserver2/session.h"
 #include "src/mds/dao/mdsRepo.h"
-#include "src/mds/topology/topology_admin.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 
-using ::curve::mds::topology::TopologyAdmin;
+using ::curve::mds::topology::TopologyChunkAllocator;
 
 const uint64_t FACK_INODE_INITIALIZE = 0;
 const uint64_t FACK_CHUNKID_INITIALIZE = 0;
@@ -56,12 +55,12 @@ class FackChunkIDGenerator: public ChunkIDGenerator {
     std::atomic<uint64_t> value_;
 };
 
-class FackTopologyAdmin: public TopologyAdmin {
+class FackTopologyChunkAllocator: public TopologyChunkAllocator {
  public:
     using CopysetIdInfo = ::curve::mds::topology::CopysetIdInfo;
     using FileType = ::curve::mds::FileType;
 
-    FackTopologyAdmin() {}
+    FackTopologyChunkAllocator() {}
 
     bool AllocateChunkRandomInSingleLogicalPool(
             FileType fileType, uint32_t chunkNumer,
@@ -312,7 +311,8 @@ class FakeNameServerStorage : public NameServerStorage {
 
     StoreStatus PutSegment(InodeID id,
                            uint64_t off,
-                           const PageFileSegment * segment) override {
+                           const PageFileSegment * segment,
+                           int64_t *revision) override {
         std::lock_guard<std::mutex> guard(lock_);
         std::string storeKey =
             NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);
@@ -323,7 +323,8 @@ class FakeNameServerStorage : public NameServerStorage {
         return StoreStatus::OK;
     }
 
-    StoreStatus DeleteSegment(InodeID id, uint64_t off) override {
+    StoreStatus DeleteSegment(
+        InodeID id, uint64_t off, int64_t *revision) override {
         std::lock_guard<std::mutex> guard(lock_);
         std::string storeKey =
             NameSpaceStorageCodec::EncodeSegmentStoreKey(id, off);

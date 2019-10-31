@@ -15,14 +15,15 @@
 #include <thread>  //NOLINT
 #include "proto/nameserver2.pb.h"
 #include "src/mds/nameserver2/namespace_storage.h"
-#include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/async_delete_snapshot_entity.h"
 #include "src/mds/nameserver2/session.h"
+#include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/dao/mdsRepo.h"
 #include "src/common/authenticator.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 using curve::common::Authenticator;
 
@@ -32,6 +33,10 @@ namespace mds {
 struct RootAuthOption {
     std::string rootOwner;
     std::string rootPassword;
+};
+
+struct CurveFSOption {
+    uint64_t defaultChunkSize;
 };
 
 using ::curve::mds::DeleteSnapShotResponse;
@@ -53,16 +58,20 @@ class CurveFS {
      *         ChunkSegmentAllocator：
      *         CleanManagerInterface:
      *         sessionManager：
+     *         allocStatistic: 分配统计模块
      *         sessionOptions ：初始化所session需要的参数
      *         authOptions : 对root用户进行认认证的参数
+     *         CurveFSOption : 对curvefs进行初始化需要的参数
      *         repo : curvefs持久化数据所用的数据库，目前保存client注册信息使用
      *  @return 初始化是否成功
      */
     bool Init(NameServerStorage*, InodeIDGenerator*, ChunkSegmentAllocator*,
               std::shared_ptr<CleanManagerInterface>,
               SessionManager *sessionManager,
+              std::shared_ptr<AllocStatistic> allocStatistic,
               const struct SessionOptions &sessionOptions,
               const struct RootAuthOption &authOptions,
+              const struct CurveFSOption &curveFSOptions,
               std::shared_ptr<MdsRepo> repo);
 
     /**
@@ -388,6 +397,13 @@ class CurveFS {
      */
     uint64_t GetOpenFileNum();
 
+    /**
+     *  @brief 获取curvefs的defaultChunkSize信息
+     *  @param:
+     *  @return 返回获取的defaultChunkSize信息
+     */
+    uint64_t GetDefaultChunkSize();
+
  private:
     CurveFS() = default;
 
@@ -467,7 +483,9 @@ class CurveFS {
     ChunkSegmentAllocator*      chunkSegAllocator_;
     SessionManager *            sessionManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;
+    std::shared_ptr<AllocStatistic> allocStatistic_;
     struct RootAuthOption       rootAuthOptions_;
+    struct CurveFSOption        curveFSOptions_;
     std::shared_ptr<MdsRepo> repo_;
 };
 extern CurveFS &kCurveFS;

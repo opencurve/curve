@@ -15,17 +15,20 @@
 #include "src/common/timeutility.h"
 #include "src/common/configuration.h"
 #include "test/mds/nameserver2/fakes.h"
-#include "test/mds/nameserver2/mock_clean_manager.h"
+#include "test/mds/nameserver2/mock/mock_clean_manager.h"
 #include "src/mds/nameserver2/clean_manager.h"
 #include "src/mds/nameserver2/clean_core.h"
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/common/authenticator.h"
 #include "test/mds/mock/mock_topology.h"
 #include "test/mds/mock/mock_chunkserver.h"
+#include "src/mds/chunkserverclient/copyset_client.h"
+#include "test/mds/mock/mock_alloc_statistic.h"
 
 using curve::common::TimeUtility;
 using curve::common::Authenticator;
 using curve::mds::topology::MockTopology;
+using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 
 namespace curve {
 namespace mds {
@@ -38,7 +41,11 @@ class NameSpaceServiceTest : public ::testing::Test {
         inodeGenerator_ = new FakeInodeIDGenerator(0);
 
         topology_ = std::make_shared<MockTopology>();
-        cleanCore_ = std::make_shared<CleanCore>(storage_, topology_);
+        ChunkServerClientOption option;
+        auto client = std::make_shared<CopysetClient>(topology_, option);
+        allocStatistic_ = std::make_shared<MockAllocStatistic>();
+        cleanCore_ = std::make_shared<CleanCore>(
+            storage_, client, allocStatistic_);
 
         // new taskmanger for 2 worker thread, and check thread period 2 second
         cleanTaskManager_ = std::make_shared<CleanTaskManager>(2, 2000);
@@ -48,12 +55,13 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         ASSERT_EQ(cleanManager_->Start(), true);
 
-        std::shared_ptr<FackTopologyAdmin> topologyAdmin =
-                                std::make_shared<FackTopologyAdmin>();
+        std::shared_ptr<FackTopologyChunkAllocator> topologyChunkAllocator =
+                                std::make_shared<FackTopologyChunkAllocator>();
         std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
                             std::make_shared<FackChunkIDGenerator>();
         chunkSegmentAllocate_ =
-                new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
+                new ChunkSegmentAllocatorImpl(topologyChunkAllocator,
+                        chunkIdGenerator);
 
         std::shared_ptr<FakeRepoInterface> repo =
                                     std::make_shared<FakeRepoInterface>();
@@ -66,11 +74,16 @@ class NameSpaceServiceTest : public ::testing::Test {
         authOptions.rootOwner = "root";
         authOptions.rootPassword = "root_password";
 
+        curveFSOptions.defaultChunkSize = 16 * kMB;
+
         InitRecycleBinDir(storage_);
 
         kCurveFS.Init(storage_, inodeGenerator_, chunkSegmentAllocate_,
                         cleanManager_,
-                        sessionManager_, sessionOptions, authOptions, repo);
+                        sessionManager_,
+                        allocStatistic_,
+                        sessionOptions, authOptions,
+                        curveFSOptions, repo);
     }
 
     void TearDown() override {
@@ -96,6 +109,7 @@ class NameSpaceServiceTest : public ::testing::Test {
             delete sessionManager_;
             sessionManager_ = nullptr;
         }
+        allocStatistic_ = nullptr;
     }
 
  public:
@@ -107,10 +121,12 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
     std::shared_ptr<CleanManager> cleanManager_;
     std::shared_ptr<MockTopology> topology_;
+    std::shared_ptr<AllocStatistic> allocStatistic_;
 
     SessionManager *sessionManager_;
     struct SessionOptions sessionOptions;
     struct RootAuthOption authOptions;
+    struct CurveFSOption curveFSOptions;
 };
 
 TEST_F(NameSpaceServiceTest, test1) {
@@ -407,7 +423,8 @@ TEST_F(NameSpaceServiceTest, test1) {
         ASSERT_EQ(response1.fileinfo().owner(), "owner1");
         ASSERT_EQ(response1.fileinfo().parentid(), 0);
         ASSERT_EQ(response1.fileinfo().filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(response1.fileinfo().chunksize(), DefaultChunkSize);
+        ASSERT_EQ(response1.fileinfo().chunksize(),
+                            curveFSOptions.defaultChunkSize);
         ASSERT_EQ(response1.fileinfo().segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(response1.fileinfo().length(), fileLength);
     } else {
@@ -1087,7 +1104,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(file.filename(), "file1");
         ASSERT_EQ(file.parentid(), 0);
         ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.seqnum(), 1);
@@ -1140,7 +1157,7 @@ TEST_F(NameSpaceServiceTest, snapshottests) {
         ASSERT_EQ(file.id(), 1);
         ASSERT_EQ(file.filename(), "file1");
         ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.seqnum(), 2);
@@ -1369,7 +1386,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(file.filename(), "file1");
         ASSERT_EQ(file.parentid(), 0);
         ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.seqnum(), 1);
@@ -1405,7 +1422,7 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
         ASSERT_EQ(file.id(), 3);
         ASSERT_EQ(file.filename(), "file2");
         ASSERT_EQ(file.filetype(), INODE_PAGEFILE);
-        ASSERT_EQ(file.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(file.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(file.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(file.length(), fileLength);
         ASSERT_EQ(file.seqnum(), 1);
@@ -1648,8 +1665,11 @@ TEST_F(NameSpaceServiceTest, deletefiletests) {
     using ::testing::DoAll;
     using ::testing::Invoke;
 
+    CopySetInfo copyset(1, 1);
+    copyset.SetLeader(1);
     EXPECT_CALL(*topology_, GetCopySet(_, _))
-            .WillRepeatedly(Return(true));
+            .WillRepeatedly(
+                    DoAll(SetArgPointee<1>(copyset), Return(true)));
     ChunkServer chunkserver(1, "", "", 1, "127.0.0.1", listenAddr.port, "",
             ChunkServerStatus::READWRITE, OnlineState::ONLINE);
     EXPECT_CALL(*topology_, GetChunkServer(_, _))
@@ -1871,7 +1891,7 @@ TEST_F(NameSpaceServiceTest, clonetest) {
     request.set_filetype(FileType::INODE_PAGEFILE);
     request.set_filelength(kMiniFileLength);
     request.set_seq(10);
-    request.set_chunksize(DefaultChunkSize);
+    request.set_chunksize(curveFSOptions.defaultChunkSize);
     request.set_date(TimeUtility::GetTimeofDayUs());
     request.set_owner("tom");
     cntl.set_log_id(1);
@@ -1899,7 +1919,7 @@ TEST_F(NameSpaceServiceTest, clonetest) {
         ASSERT_EQ(fileInfo.filename(), "clonefile1");
         ASSERT_EQ(fileInfo.filetype(), FileType::INODE_PAGEFILE);
         ASSERT_EQ(fileInfo.owner(), "tom");
-        ASSERT_EQ(fileInfo.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(fileInfo.chunksize(), curveFSOptions.defaultChunkSize);
         ASSERT_EQ(fileInfo.segmentsize(), DefaultSegmentSize);
         ASSERT_EQ(fileInfo.length(), kMiniFileLength);
         ASSERT_EQ(fileInfo.filestatus(), FileStatus::kFileCloning);

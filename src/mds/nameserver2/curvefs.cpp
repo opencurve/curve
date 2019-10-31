@@ -66,15 +66,19 @@ bool CurveFS::Init(NameServerStorage* storage,
                 ChunkSegmentAllocator* chunkSegAllocator,
                 std::shared_ptr<CleanManagerInterface> cleanManager,
                 SessionManager *sessionManager,
+                std::shared_ptr<AllocStatistic> allocStatistic,
                 const struct SessionOptions &sessionOptions,
                 const struct RootAuthOption &authOptions,
+                const struct CurveFSOption &curveFSOptions,
                 std::shared_ptr<MdsRepo> repo) {
     storage_ = storage;
     InodeIDGenerator_ = InodeIDGenerator;
     chunkSegAllocator_ = chunkSegAllocator;
     cleanManager_ = cleanManager;
+    allocStatistic_ = allocStatistic;
     sessionManager_ = sessionManager;
     rootAuthOptions_ = authOptions;
+    curveFSOptions_ = curveFSOptions;
     repo_ = repo;
 
     InitRootFile();
@@ -230,7 +234,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_parentid(parentFileInfo.id());
         fileInfo.set_filetype(filetype);
         fileInfo.set_owner(owner);
-        fileInfo.set_chunksize(DefaultChunkSize);
+        fileInfo.set_chunksize(curveFSOptions_.defaultChunkSize);
         fileInfo.set_segmentsize(DefaultSegmentSize);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
@@ -767,7 +771,8 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
                 LOG(ERROR) << "AllocateChunkSegment error";
                 return StatusCode::kSegmentAllocateError;
             }
-            if (storage_->PutSegment(fileInfo.id(), offset, segment)
+            int64_t revision;
+            if (storage_->PutSegment(fileInfo.id(), offset, segment, &revision)
                 != StoreStatus::OK) {
                 LOG(ERROR) << "PutSegment fail, fileInfo.id() = "
                            << fileInfo.id()
@@ -775,6 +780,9 @@ StatusCode CurveFS::GetOrAllocateSegment(const std::string & filename,
                            << offset;
                 return StatusCode::kStorageError;
             }
+            allocStatistic_->AllocSpace(segment->logicalpoolid(),
+                    segment->segmentsize(),
+                    revision);
 
             LOG(INFO) << "alloc segment success, fileInfo.id() = "
                       << fileInfo.id()
@@ -1623,6 +1631,10 @@ uint64_t CurveFS::GetOpenFileNum() {
         return 0;
     }
     return sessionManager_->GetOpenFileNum();
+}
+
+uint64_t CurveFS::GetDefaultChunkSize() {
+    return curveFSOptions_.defaultChunkSize;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();

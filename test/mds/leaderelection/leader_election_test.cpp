@@ -37,6 +37,14 @@ TEST(TestLeaderElection, test_leader_election) {
         .WillOnce(Return(EtcdErrCode::CampaignInternalErr));
     ASSERT_EQ(-1, leaderElection->CampaginLeader());
 
+    EXPECT_CALL(*client, LeaderResign(_, _))
+        .WillOnce(Return(EtcdErrCode::LeaderResiginSuccess));
+    ASSERT_EQ(0, leaderElection->LeaderResign());
+
+    EXPECT_CALL(*client, LeaderResign(_, _))
+        .WillOnce(Return(EtcdErrCode::LeaderResignErr));
+    ASSERT_EQ(-1, leaderElection->LeaderResign());
+
     EXPECT_CALL(*client, LeaderObserve(_, _, _))
         .WillRepeatedly(Return(EtcdErrCode::ObserverLeaderInternal));
     ASSERT_EQ(-1, leaderElection->ObserveLeader());
@@ -44,6 +52,14 @@ TEST(TestLeaderElection, test_leader_election) {
     EXPECT_CALL(*client, LeaderObserve(_, _, _))
         .WillRepeatedly(Return(EtcdErrCode::ObserverLeaderChange));
     ASSERT_EQ(-1, leaderElection->ObserveLeader());
+
+    EXPECT_CALL(*client, LeaderKeyExist(_, _))
+        .WillOnce(Return(false));
+    ASSERT_FALSE(leaderElection->LeaderKeyExist());
+
+    EXPECT_CALL(*client, LeaderKeyExist(_, _))
+        .WillOnce(Return(true));
+    ASSERT_TRUE(leaderElection->LeaderKeyExist());
 
     fiu_disable("src/mds/leaderElection/observeLeader");
 }

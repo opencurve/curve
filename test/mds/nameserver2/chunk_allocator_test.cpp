@@ -8,8 +8,8 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include "test/mds/nameserver2/mock_chunk_id_generator.h"
-#include "test/mds/nameserver2/mock_topology_admin.h"
+#include "test/mds/nameserver2/mock/mock_chunk_id_generator.h"
+#include "test/mds/nameserver2/mock/mock_topology_chunk_allocator.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
 #include "src/mds/common/mds_define.h"
 
@@ -24,23 +24,26 @@ using ::curve::mds::topology::PoolIdType;
 namespace curve {
 namespace mds {
 
+const uint64_t DefaultChunkSize = 16 * kMB;
+
 class ChunkAllocatorTest: public ::testing::Test {
  protected:
     void SetUp() override {
         mockChunkIDGenerator_ = std::make_shared<MockChunkIDGenerator>();
-        mockTopologyAdmin_ = std::make_shared<MOCKTopologyAdmin1>();
+        mockTopologyChunkAllocator_ =
+            std::make_shared<MockTopologyChunkAllocator>();
     }
     void TearDown() override {
         mockChunkIDGenerator_ = nullptr;
-        mockTopologyAdmin_ = nullptr;
+        mockTopologyChunkAllocator_ = nullptr;
     }
     std::shared_ptr<MockChunkIDGenerator> mockChunkIDGenerator_;
-    std::shared_ptr<MOCKTopologyAdmin1> mockTopologyAdmin_;
+    std::shared_ptr<MockTopologyChunkAllocator> mockTopologyChunkAllocator_;
 };
 
 TEST_F(ChunkAllocatorTest, testcase1) {
     auto impl = std::make_shared<ChunkSegmentAllocatorImpl>(
-                                mockTopologyAdmin_,
+                                mockTopologyChunkAllocator_,
                                 mockChunkIDGenerator_);
     // test segment pointer == nullptr
     ASSERT_EQ(impl->AllocateChunkSegment(FileType::INODE_PAGEFILE,
@@ -60,7 +63,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
     {
         PageFileSegment segment;
 
-        EXPECT_CALL(*mockTopologyAdmin_,
+        EXPECT_CALL(*mockTopologyChunkAllocator_,
             AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
             .WillOnce(Return(false));
@@ -74,7 +77,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
         PageFileSegment segment;
 
         std::vector<CopysetIdInfo> copysetInfos;
-        EXPECT_CALL(*mockTopologyAdmin_,
+        EXPECT_CALL(*mockTopologyChunkAllocator_,
             AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
@@ -94,7 +97,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
             copysetInfos.push_back(info);
         }
 
-        EXPECT_CALL(*mockTopologyAdmin_,
+        EXPECT_CALL(*mockTopologyChunkAllocator_,
             AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
@@ -118,7 +121,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
             copysetInfos.push_back(info);
         }
 
-        EXPECT_CALL(*mockTopologyAdmin_,
+        EXPECT_CALL(*mockTopologyChunkAllocator_,
             AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
@@ -145,7 +148,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
             copysetInfos.push_back(info);
         }
 
-        EXPECT_CALL(*mockTopologyAdmin_,
+        EXPECT_CALL(*mockTopologyChunkAllocator_,
             AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),
@@ -169,7 +172,7 @@ TEST_F(ChunkAllocatorTest, testcase1) {
             copysetInfos.push_back(info);
         }
 
-        EXPECT_CALL(*mockTopologyAdmin_,
+        EXPECT_CALL(*mockTopologyChunkAllocator_,
             AllocateChunkRoundRobinInSingleLogicalPool(_, _,  _, _))
             .Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(copysetInfos),

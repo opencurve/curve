@@ -11,7 +11,9 @@ cc_library(
     copts = GCC_FLAGS,
     visibility = ["//visibility:public"],
     deps = [
+        "//src/mds/kvstorageclient:kvstorage_client",
         "//src/mds/nameserver2:nameserver2",
+        "//src/mds/nameserver2/helper:helper",
         "//external:glog",
         "//external:gflags"
     ],
