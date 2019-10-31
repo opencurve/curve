@@ -730,10 +730,14 @@ def check_chunkserver_online(num=120):
     status = "".join(rs[1]).strip()
     online_num = re.findall(r'(?<=online = )\d+',status)
     logger.info("chunkserver online num is %s"%online_num)
-    assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
+    if int(online_num[0]) != num:
+        ori_cmd = "curve_status_tool chunkserver-list -confPath=/etc/curve/mds.conf |grep OFFLINE"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        logger.error("chunkserver offline list is %s"%rs[1])
+        assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
 
 def wait_iops_ok(limit_iops=8000):
-    #check_chunkserver_online()
+    check_chunkserver_online()
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     i = 0
     while i < 300:
@@ -1136,7 +1140,7 @@ def test_round_restart_etcd():
     try:
         for etcd_host in etcd_list:
             kill_etcd_process(etcd_host)
-            time.sleep(2)
+            time.sleep(6)
             start_etcd_process(etcd_host)
             end_iops = get_cluster_iops()
             if float(end_iops)/float(start_iops) < 0.9:
@@ -1368,7 +1372,7 @@ def test_mds_delay_package(ms):
     try:
         package_delay_all(ssh, dev, ms)
         show_tc_inject(ssh,dev)
-        check_vm_iops(1)
+#        check_vm_iops(1)
         end_iops = get_cluster_iops()
         if float(end_iops) / float(start_iops) < 0.1:
             raise Exception("client io slow op more than 5s")
@@ -1653,8 +1657,17 @@ def stress_test():
         assert rs[3] == 0,"start supervisor fail,rs is %s"%rs[2]
     start_time = time.time()
     while time.time() - start_time < 70000:
-        check_vm_iops(4)
-        time.sleep(1800)
+        num = random.randint(1,5)
+        host = test_kill_chunkserver_num(num)
+        time.sleep(30)
+        check_vm_iops(9) #打桩机iops检测，默认为10 iops
+        time.sleep(100)
+        check_chunkserver_online(120 - num) # chunkserver数量检测，初始为120个
+        test_start_chunkserver_num(num,host)
+        time.sleep(30)
+        check_vm_iops(9)
+        time.sleep(100)
+        check_chunkserver_online(120)
     ssh.close() 
 
 def thrasher_abnormal_cluster():

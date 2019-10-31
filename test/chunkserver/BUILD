@@ -121,6 +121,21 @@ cc_test(
 )
 
 cc_test(
+    name = "cli2-test",
+    srcs = glob([
+        "cli2_test.cpp",
+        "chunkserver_test_util.h",
+        "chunkserver_test_util.cpp",
+        "fake_datastore.h",
+    ]),
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS,
+)
+
+cc_test(
     name = "braftcliservice-test",
     srcs = glob([
         "braft_cli_service_test.cpp",

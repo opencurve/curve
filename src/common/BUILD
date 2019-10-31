@@ -33,6 +33,7 @@ cc_library(
     visibility = ["//visibility:public"],
     deps = [
         "//external:glog",
+        "//external:brpc",
         "//external:butil",
         "//src/common/concurrent:curve_concurrent"
     ],

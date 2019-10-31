@@ -36,7 +36,11 @@ enum EtcdErrCode
     ObserverLeaderInternal = 23,
     ObserverLeaderChange = 24,
     LeaderResignErr = 25,
-    LeaderResiginSuccess = 26
+    LeaderResiginSuccess = 26,
+    GetLeaderKeyErr = 27,
+    GetLeaderKeyOK = 28,
+    ObserverLeaderNotExist = 29,
+    ObjectLenNotEnough = 30,
 };
 
 enum OpType {
@@ -61,7 +65,7 @@ struct Operation {
 import "C"
 import (
     "context"
-    "fmt"
+    "log"
     "errors"
     "strings"
     "time"
@@ -69,9 +73,9 @@ import (
     "go.etcd.io/etcd/clientv3/concurrency"
     "go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
     mvccpb "go.etcd.io/etcd/mvcc/mvccpb"
-
     "google.golang.org/grpc/codes"
     "google.golang.org/grpc/status"
+    "google.golang.org/grpc"
 )
 
 const (
@@ -108,7 +112,7 @@ func GenOpList(cops []C.struct_Operation) ([]clientv3.Op, error) {
                 goKey := C.GoStringN(op.key, op.keyLen)
                 res = append(res, clientv3.OpDelete(goKey))
             default:
-                fmt.Printf("opType:%v do not exist", op.opType)
+                log.Printf("opType:%v do not exist", op.opType)
                 return res, errors.New("opType do not exist")
         }
     }
@@ -128,7 +132,7 @@ func GetErrCode(op string, err error) C.enum_EtcdErrCode {
     }
 
     if codes.OK != errCode {
-        fmt.Printf("etcd do %v get err:%v, errCode:%v\n", op, err, errCode)
+        log.Printf("etcd do %v get err:%v, errCode:%v", op, err, errCode)
     }
 
     switch errCode {
@@ -178,13 +182,14 @@ func NewEtcdClientV3(conf C.struct_EtcdConf) C.enum_EtcdErrCode {
     globalClient, err = clientv3.New(clientv3.Config{
         Endpoints:   GetEndpoint(C.GoStringN(conf.Endpoints, conf.len)),
         DialTimeout: time.Duration(int(conf.DialTimeout)) * time.Millisecond,
+        DialOptions: []grpc.DialOption{grpc.WithBlock()},
     })
     return GetErrCode(EtcdNewClient, err)
 }
 
 //export EtcdCloseClient
 func EtcdCloseClient() {
-    if (globalClient != nil) {
+    if globalClient != nil {
         globalClient.Close()
     }
 }
@@ -201,9 +206,25 @@ func EtcdClientPut(timeout C.int, key, value *C.char,
     return GetErrCode(EtcdPut, err)
 }
 
+//export EtcdClientPutRewtihRevision
+func EtcdClientPutRewtihRevision(timeout C.int, key, value *C.char,
+    keyLen, valueLen C.int) (C.enum_EtcdErrCode, int64) {
+    goKey, goValue := C.GoStringN(key, keyLen), C.GoStringN(value, valueLen)
+    ctx, cancel := context.WithTimeout(context.Background(),
+        time.Duration(int(timeout))*time.Millisecond)
+    defer cancel()
+
+    resp, err := globalClient.Put(ctx, goKey, goValue)
+
+    if err == nil {
+        return GetErrCode(EtcdPut, err), resp.Header.Revision
+    }
+    return GetErrCode(EtcdPut, err), 0
+}
+
 //export EtcdClientGet
 func EtcdClientGet(timeout C.int, key *C.char,
-    keyLen C.int) (C.enum_EtcdErrCode, *C.char, int) {
+    keyLen C.int) (C.enum_EtcdErrCode, *C.char, int, int64) {
     goKey := C.GoStringN(key, keyLen)
     ctx, cancel := context.WithTimeout(context.Background(),
         time.Duration(int(timeout))*time.Millisecond)
@@ -212,17 +233,19 @@ func EtcdClientGet(timeout C.int, key *C.char,
     resp, err := globalClient.Get(ctx, goKey)
     errCode := GetErrCode(EtcdGet, err)
     if errCode != C.OK {
-        return errCode, nil, 0
+        return errCode, nil, 0, 0
     }
 
     if resp.Count <= 0 {
-        return C.KeyNotExist, nil, 0
+        return C.KeyNotExist, nil, 0, resp.Header.Revision
     }
 
     return errCode,
            C.CString(string(resp.Kvs[0].Value)),
-           len(resp.Kvs[0].Value)
+           len(resp.Kvs[0].Value),
+           resp.Header.Revision
 }
+
 
 // TODO(lixiaocui): list可能需要有长度限制
 //export EtcdClientList
@@ -239,7 +262,7 @@ func EtcdClientList(timeout C.int, startKey, endKey *C.char,
     if goEndKey == "" {
         // return keys >= start
         resp, err = globalClient.Get(
-            ctx, goStartKey, clientv3.WithFromKey());
+            ctx, goStartKey, clientv3.WithFromKey())
     } else {
         // return keys in range [start, end)
         resp, err = globalClient.Get(
@@ -251,6 +274,37 @@ func EtcdClientList(timeout C.int, startKey, endKey *C.char,
         return errCode, 0, 0
     }
     return  errCode, AddManagedObject(resp.Kvs), resp.Count
+}
+
+//export EtcdClientListWithLimitAndRevision
+func EtcdClientListWithLimitAndRevision(timeout C.uint, startKey, endKey *C.char,
+    startLen, endLen C.int, limit int64, startRevision int64)(
+    C.enum_EtcdErrCode, uint64, int, int64) {
+    goStartKey := C.GoStringN(startKey, startLen)
+    goEndKey := C.GoStringN(endKey, endLen)
+    ctx, cancle := context.WithTimeout(context.Background(),
+        time.Duration(int(timeout)) * time.Millisecond)
+    defer cancle()
+
+    var resp *clientv3.GetResponse
+    var err error
+    ops := []clientv3.OpOption{
+        clientv3.WithLimit(limit),
+        clientv3.WithRev(startRevision),
+        clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend)}
+
+    if goEndKey == "" {
+        ops = append(ops, clientv3.WithFromKey())
+    } else {
+        ops = append(ops, clientv3.WithRange(goEndKey))
+    }
+
+    resp, err = globalClient.Get(ctx, goStartKey, ops...)
+    errCode := GetErrCode(EtcdList, err)
+    if errCode != C.OK {
+        return errCode, 0, 0, 0
+    }
+    return errCode, AddManagedObject(resp.Kvs), len(resp.Kvs), resp.Header.Revision
 }
 
 //export EtcdClientDelete
@@ -265,13 +319,28 @@ func EtcdClientDelete(
     return GetErrCode(EtcdDelete, err)
 }
 
+//export EtcdClientDeleteRewithRevision
+func EtcdClientDeleteRewithRevision(
+    timeout C.int, key *C.char, keyLen C.int) (C.enum_EtcdErrCode, int64) {
+    goKey := C.GoStringN(key, keyLen)
+    ctx, cancel := context.WithTimeout(context.Background(),
+        time.Duration(int(timeout))*time.Millisecond)
+    defer cancel()
+
+    resp, err := globalClient.Delete(ctx, goKey)
+    if err == nil {
+        return GetErrCode(EtcdDelete, err), resp.Header.Revision
+    }
+    return GetErrCode(EtcdDelete, err), 0
+}
+
 //export EtcdClientTxn2
 func EtcdClientTxn2(
     timeout C.int, op1, op2 C.struct_Operation) C.enum_EtcdErrCode {
     ops := []C.struct_Operation{op1, op2}
     etcdOps, err := GenOpList(ops)
     if err != nil {
-        fmt.Printf("unknown op types, err: %v\n", err)
+        log.Printf("unknown op types, err: %v", err)
         return C.TxnUnkownOp
     }
 
@@ -289,7 +358,7 @@ func EtcdClientTxn3(
     ops := []C.struct_Operation{op1, op2, op3}
     etcdOps, err := GenOpList(ops)
     if (err != nil) {
-        fmt.Printf("unknown op types, err: %v\n", err)
+        log.Printf("unknown op types, err: %v", err)
         return C.TxnUnkownOp
     }
 
@@ -330,6 +399,7 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
     leaderName *C.char, nameLen C.int, sessionInterSec uint32,
     electionTimeoutMs uint32) (C.enum_EtcdErrCode, uint64) {
     // TODO(lixiaocui):  MDS的切换时间是否能够控制在 ms级别，比如500ms以内
+    // 在正常kill的情况下，mds的切换时间内可以控制在ms级别
     goPfx := C.GoStringN(pfx, pfxLen)
     goLeaderName := C.GoStringN(leaderName, nameLen)
 
@@ -338,7 +408,7 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
             concurrency.WithTTL(int(sessionInterSec))
     session, err := concurrency.NewSession(globalClient, sessionOpts)
     if err != nil {
-        fmt.Printf("%v new session err: %v\n", goLeaderName, err)
+        log.Printf("%v new session err: %v", goLeaderName, err)
         return C.CampaignInternalErr, 0
     }
 
@@ -356,23 +426,50 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
 
     // 获取当前leader并打印
     if leader, err := election.Leader(ctx); err == nil {
-        fmt.Printf("current leader is: %v\n", string(leader.Kvs[0].Value))
+        log.Printf("current leader is: %v", string(leader.Kvs[0].Value))
     } else {
-        fmt.Printf("get current leader err: %v\n", err)
+        log.Printf("get current leader err: %v", err)
     }
 
     // 如果contex是'context.TODO()/context.Background()', 竞选会阻塞到该key被删除,
     // 除非返回non-recoverable error(例如: ErrCompacted).
     // 如果context有超时, 在超时或者取消之前, 竞选会阻塞到当选leader
-    fmt.Printf("%v campagin for leader begin\n", goLeaderName)
+    log.Printf("%v campagin for leader begin", goLeaderName)
     if err := election.Campaign(ctx, goLeaderName); err != nil {
-        fmt.Printf("%v campaign err: %v\n", goLeaderName, err)
+        log.Printf("%v campaign err: %v", goLeaderName, err)
+        session.Close()
         return C.CampaignInternalErr, 0
     } else {
-        fmt.Printf("%v campaign for leader success\n", goLeaderName)
+        log.Printf("%v campaign for leader success", goLeaderName)
     }
     return C.CampaignLeaderSuccess, AddManagedObject(election)
 }
+
+//export EtcdElectionLeaderKeyExist
+func EtcdElectionLeaderKeyExist(
+    leaderOid uint64, timeout uint64) C.enum_EtcdErrCode   {
+    election := GetLeaderElection(leaderOid)
+    if election == nil {
+        log.Printf("EtcdElectionLeaderKeyExist can not get leader object: %v",
+            leaderOid)
+        return C.ObjectNotExist
+    }
+    ctx, cancel := context.WithTimeout(context.Background(),
+        time.Duration(int(timeout))*time.Millisecond)
+    defer cancel()
+
+    resp, err := election.Leader(ctx)
+    if err != nil {
+        log.Printf("EtcdElectionLeaderKeyExist get leader err: %v", err)
+        return C.GetLeaderKeyErr
+    } else if string(resp.Kvs[0].Key) != election.Key() {
+        log.Printf("EtcdElectionLeaderKeyExist get current " +
+            "leader key: %v, self key：%v", resp.Kvs[0].Key, election.Key())
+        return C.GetLeaderKeyErr
+    }
+    return C.GetLeaderKeyOK
+}
+
 
 //export EtcdLeaderObserve
 func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
@@ -381,11 +478,11 @@ func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
 
     election := GetLeaderElection(leaderOid)
     if election == nil {
-        fmt.Printf("can not get leader object: %v\n", leaderOid)
+        log.Printf("can not get leader object: %v", leaderOid)
         return C.ObjectNotExist
     }
 
-    fmt.Printf("start observe: %v\n", goLeaderName)
+    log.Printf("start observe: %v", goLeaderName)
     var ctx context.Context
     ctx = clientv3.WithRequireLeader(context.Background())
 
@@ -397,31 +494,52 @@ func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
         select {
         case resp, ok := <-observer:
             if !ok {
-                fmt.Printf("Observe() channel closed permaturely\n")
+                log.Printf("Observe channel closed permaturely")
                 return C.ObserverLeaderInternal
             }
             if string(resp.Kvs[0].Value) == goLeaderName {
                 continue
             }
-            fmt.Printf("Observe() leaderChange, now is: %v, expect: %v\n",
+            log.Printf("Observe leaderChange, now is: %v, expect: %v",
                 resp.Kvs[0].Value, goLeaderName)
             return C.ObserverLeaderChange
-        // observe如果设置有timeout的context, 含义是observe timeout时间便退出，其次，
-        // 还是get操作的超时时间。
-        // 在应用中希望对该key一直进行检测，因此context不带超时。这样会导致etcd挂掉的时候
-        // grpc无限重试，所以需要在外部定时去检查etcd网络连接状态
         case <-ticker.C:
-            // 定期和mds通信，确认网络是否正常
-            t := time.Now()
-            ctx, cancel := context.WithTimeout(context.Background(),
-                time.Duration(int(timeout))*time.Millisecond)
-            defer cancel()
+            // 定时获取mds注册到etcd的key-value, 如果获取失败或者key
+            // 不存在，返回错误，mds需要退出
+            var lastErrorCode C.enum_EtcdErrCode
+            for retry := 0; retry < 3; retry++ {
+                lastErrorCode = C.OK
+                t := time.Now()
+                ctx, cancel := context.WithTimeout(context.Background(),
+                        time.Duration(int(timeout) / 3) * time.Millisecond)
 
-            _, err := globalClient.Get(ctx, "observe-test")
-            errCode := GetErrCode(EtcdGet, err)
-            if errCode != C.OK {
-                fmt.Printf("Observe hung since %v\n", t)
-                return C.ObserverLeaderInternal
+                resp, err := globalClient.Get(ctx, election.Key())
+                errCode := GetErrCode(EtcdGet, err)
+
+                if errCode != C.OK {
+                    log.Printf("Observe can not get leader key: %v," +
+                        "startTime: %v, spent: %v, etcd error: %v",
+                        election.Key(), t, time.Since(t), err)
+                    lastErrorCode =  C.ObserverLeaderInternal
+                } else if len(resp.Kvs) == 0 {
+                    log.Printf("Observe find leader key：%v not exist",
+                        election.Key())
+                    lastErrorCode = C.ObserverLeaderNotExist
+                } else if string(resp.Kvs[0].Key) != election.Key() {
+                    log.Printf("Observe leaderChange, now is: %v, expect: %v",
+                        resp.Kvs[0].Value, goLeaderName)
+                    lastErrorCode = C.ObserverLeaderChange
+                }
+
+                cancel()
+
+                if lastErrorCode == C.OK {
+                    break
+                }
+            }
+
+            if lastErrorCode != C.OK {
+                return  lastErrorCode
             }
         }
     }
@@ -431,7 +549,7 @@ func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
 func EtcdLeaderResign(leaderOid uint64, timeout uint64) C.enum_EtcdErrCode {
     election := GetLeaderElection(leaderOid)
     if election == nil {
-        fmt.Printf("can not get leader object: %v\n", leaderOid)
+        log.Printf("can not get leader object: %v", leaderOid)
         return C.ObjectNotExist
     }
 
@@ -441,18 +559,21 @@ func EtcdLeaderResign(leaderOid uint64, timeout uint64) C.enum_EtcdErrCode {
 
     var leader *clientv3.GetResponse
     var err error
-    if leader, err = election.Leader(ctx); err != nil {
-        fmt.Printf("Leader() returned non nil err: %s\n", err)
+    if leader, err = election.Leader(ctx);
+        err != nil && err != concurrency.ErrElectionNoLeader{
+        log.Printf("Leader() returned non nil err: %s", err)
+        return C.LeaderResignErr
+    } else if err == concurrency.ErrElectionNoLeader {
         return C.LeaderResignErr
     }
 
     if err := election.Resign(ctx); err != nil {
-        fmt.Printf("%v resign leader err: %v\n",
+        log.Printf("%v resign leader err: %v",
             string(leader.Kvs[0].Value), err)
         return C.LeaderResignErr
     }
 
-    fmt.Printf("%v resign leader success\n", string(leader.Kvs[0].Value))
+    log.Printf("%v resign leader success", string(leader.Kvs[0].Value))
     return C.LeaderResiginSuccess
 }
 
@@ -460,26 +581,32 @@ func EtcdLeaderResign(leaderOid uint64, timeout uint64) C.enum_EtcdErrCode {
 func EtcdClientGetSingleObject(
     oid uint64) (C.enum_EtcdErrCode, *C.char, int) {
     if value, exist := GetManagedObject(oid); !exist {
-        fmt.Printf("can not get object: %v\n", oid)
+        log.Printf("can not get object: %v", oid)
         return C.ObjectNotExist, nil, 0
     } else if res, ok := value.([]*mvccpb.KeyValue); ok {
         return C.OK, C.CString(string(res[0].Value)), len(res[0].Value)
     } else {
-        fmt.Printf("object type err\n")
+        log.Printf("object type err")
         return C.ErrObjectType, nil, 0
     }
 }
 
 //export EtcdClientGetMultiObject
 func EtcdClientGetMultiObject(
-    oid uint64, serial int) (C.enum_EtcdErrCode, *C.char, int) {
+    oid uint64, serial int) (C.enum_EtcdErrCode, *C.char, int, *C.char, int) {
     if value, exist := GetManagedObject(oid); !exist {
-        return C.ObjectNotExist, nil, 0
+        return C.ObjectNotExist, nil, 0, nil, 0
     } else if res, ok := value.([]*mvccpb.KeyValue); ok {
-        return C.OK, C.CString(string(res[serial].Value)),
-            len(res[serial].Value)
+        if serial >= len(res) {
+            return C.ObjectLenNotEnough, nil, 0, nil, 0
+        }
+        return C.OK,
+            C.CString(string(res[serial].Value)),
+            len(res[serial].Value),
+            C.CString(string(res[serial].Key)),
+            len(res[serial].Key)
     } else {
-        return C.ErrObjectType, nil, 0
+        return C.ErrObjectType, nil, 0, nil, 0
     }
 }
 
@@ -492,10 +619,10 @@ func GetLeaderElection(leaderOid uint64) *concurrency.Election {
     var election *concurrency.Election
     var ok bool
     if value, exist := GetManagedObject(leaderOid); !exist {
-        fmt.Printf("can not get leader object: %v\n", leaderOid)
+        log.Printf("can not get leader object: %v", leaderOid)
         return nil
     } else if election, ok = value.(*concurrency.Election); !ok {
-        fmt.Printf("oid %v does not type of *concurrency.Election\n", leaderOid)
+        log.Printf("oid %v does not type of *concurrency.Election", leaderOid)
         return nil
     }
 

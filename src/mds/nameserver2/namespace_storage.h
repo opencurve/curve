@@ -17,8 +17,7 @@
 
 #include "src/common/encode.h"
 #include "src/mds/common/mds_define.h"
-#include "src/mds/nameserver2/etcd_client.h"
-#include "src/mds/nameserver2/namespace_helper.h"
+#include "src/mds/kvstorageclient/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 
 namespace curve {
@@ -165,22 +164,26 @@ class NameServerStorage {
      * @param[in] id为当前文件的inode
      * @param[in] off为当前segment的偏移
      * @param[out] segment segment信息
+     * @param[out] revision 本次put的版本号
      *
      * @return StoreStatus 错误码
      */
     virtual StoreStatus PutSegment(InodeID id,
                                     uint64_t off,
-                                    const PageFileSegment * segment) = 0;
+                                    const PageFileSegment * segment,
+                                    int64_t *revision) = 0;
 
     /**
      * @brief DeleteSegment 删除指定的segment元数据
      *
      * @param[in] id为当前文件的inode
      * @param[in] off为当前segment的偏移
+     * @param[out] revision 本次delete的版本号
      *
      * @return StoreStatus 错误码
      */
-    virtual StoreStatus DeleteSegment(InodeID id, uint64_t off) = 0;
+    virtual StoreStatus DeleteSegment(
+        InodeID id, uint64_t off, int64_t *revision) = 0;
 
     /**
      * @brief SnapShotFile 事务，存储snapshotFile的元数据信息，更新源文件元数据
@@ -207,7 +210,7 @@ class NameServerStorage {
 class NameServerStorageImp : public NameServerStorage {
  public:
   explicit NameServerStorageImp(
-      std::shared_ptr<StorageClient> client, std::shared_ptr<Cache> cache);
+      std::shared_ptr<KVStorageClient> client, std::shared_ptr<Cache> cache);
   ~NameServerStorageImp() {}
 
     StoreStatus PutFile(const FileInfo & fileInfo) override;
@@ -247,9 +250,11 @@ class NameServerStorageImp : public NameServerStorage {
 
     StoreStatus PutSegment(InodeID id,
                             uint64_t off,
-                            const PageFileSegment * segment) override;
+                            const PageFileSegment * segment,
+                            int64_t *revision) override;
 
-    StoreStatus DeleteSegment(InodeID id, uint64_t off) override;
+    StoreStatus DeleteSegment(
+        InodeID id, uint64_t off, int64_t *revision) override;
 
     StoreStatus SnapShotFile(const FileInfo *originalFileInfo,
                             const FileInfo * snapshotFileInfo) override;
@@ -271,7 +276,7 @@ class NameServerStorageImp : public NameServerStorage {
     std::shared_ptr<Cache> cache_;
 
     // 底层存储介质
-    std::shared_ptr<StorageClient> client_;
+    std::shared_ptr<KVStorageClient> client_;
 };
 }  // namespace mds
 }  // namespace curve

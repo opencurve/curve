@@ -12,7 +12,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <string>
-#include "src/mds/nameserver2/etcd_client.h"
+#include "src/mds/kvstorageclient/etcd_client.h"
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 
 namespace curve {
@@ -31,6 +31,15 @@ class MockEtcdClient : public EtcdClientImp {
     MOCK_METHOD5(CampaignLeader, int(const std::string&, const std::string&,
         uint32_t, uint32_t, uint64_t*));
     MOCK_METHOD3(LeaderObserve, int(uint64_t, uint64_t, const std::string&));
+    MOCK_METHOD2(LeaderKeyExist, bool(uint64_t, uint64_t));
+    MOCK_METHOD2(LeaderResign, int(uint64_t, uint64_t));
+    MOCK_METHOD1(GetCurrentRevision, int(int64_t *));
+    MOCK_METHOD6(ListWithLimitAndRevision,
+        int(const std::string&, const std::string&,
+        int64_t, int64_t, std::vector<std::string>*, std::string *));
+    MOCK_METHOD3(PutRewithRevision, int(const std::string &,
+        const std::string &, int64_t *));
+    MOCK_METHOD2(DeleteRewithRevision, int(const std::string &, int64_t *));
 };
 
 class MockLRUCache : public LRUCache {

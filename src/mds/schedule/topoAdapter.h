@@ -50,12 +50,11 @@ struct PeerInfo {
  public:
     PeerInfo() : id(UNINTIALIZE_ID), port(0) {}
     PeerInfo(ChunkServerIdType id, ZoneIdType zoneId, ServerIdType sid,
-            PhysicalPoolIDType physicalPoolId, const std::string &ip,
+            const std::string &ip,
             uint32_t port);
     ChunkServerIdType id;
     ZoneIdType zoneId;
     ServerIdType serverId;
-    PhysicalPoolIDType physicalPoolId;
     std::string ip;
     uint32_t port;
 };
@@ -76,13 +75,21 @@ struct CopySetConf {
 
 struct CopySetInfo {
  public:
-    CopySetInfo() = default;
+    CopySetInfo() : logicalPoolWork(false) {}
     CopySetInfo(CopySetKey id,
                 EpochType epoch,
                 ChunkServerIdType leader,
                 const std::vector<PeerInfo> &peers,
                 const ConfigChangeInfo &info,
-                const CopysetStatistics &statistics);
+                const CopysetStatistics &statistics) : logicalPoolWork(false) {
+        this->id.first = id.first;
+        this->id.second = id.second;
+        this->epoch = epoch;
+        this->leader = leader;
+        this->peers = peers;
+        this->configChangeInfo = info;
+        this->statisticsInfo = statistics;
+    }
     CopySetInfo(const CopySetInfo &in);
     ~CopySetInfo();
 
@@ -134,6 +141,13 @@ struct ChunkServerInfo {
 class TopoAdapter {
  public:
     /**
+     * @brief GetLogicalpools 获取集群中逻辑池集合
+     *
+     * @return 逻辑池列表
+     */
+    virtual std::vector<PoolIdType> GetLogicalpools() = 0;
+
+    /**
      * @brief GetCopySetInfo 获取指定copyset信息
      *
      * @param[in] id copysetId
@@ -161,6 +175,16 @@ class TopoAdapter {
         ChunkServerIdType id) = 0;
 
     /**
+     * @brief GetCopySetInfosInLogicalPlol获取指定逻辑池中的copyset信息
+     *
+     * @param[in] lid 指定逻辑池id
+     *
+     * @return 指定逻辑池中copyset列表
+     */
+    virtual std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
+        PoolIdType lid) = 0;
+
+    /**
      * @brief GetChunkServerInfo 获取指定chunkserver信息
      *
      * @param[in] id 指定chunkserver id
@@ -172,21 +196,21 @@ class TopoAdapter {
         ChunkServerIdType id, ChunkServerInfo *info) = 0;
 
     /**
-     * @brief GetChunkServersInPhysicalPool 获取指定物理池中所有chunkserver
-     *
-     * @param[in] id 指定物理池id
-     *
-     * @return 指定物理池中chunkserver列表
-     */
-    virtual std::vector<ChunkServerInfo> GetChunkServersInPhysicalPool(
-        PhysicalPoolIDType id) = 0;
-
-    /**
      * @brief GetChunkServerInfos 获取所有chunkserver的信息
      *
      * @return chunkserver信息列表
      */
     virtual std::vector<ChunkServerInfo> GetChunkServerInfos() = 0;
+
+    /**
+     * @brief GetChunkServersInLogicalPool 获取指定逻辑池中所有chunkserver
+     *
+     * @prarm[in] lid 指定逻辑池id
+     *
+     * @return 指定逻辑池中chunkserver列表
+     */
+    virtual std::vector<ChunkServerInfo> GetChunkServersInLogicalPool(
+        PoolIdType lid) = 0;
 
     /**
      * @brief GetStandardZoneNumInLogicalPool 获取指定逻辑池中标准zone值
@@ -276,6 +300,8 @@ class TopoAdapterImpl : public TopoAdapter {
                              std::shared_ptr<TopologyServiceManager> manager,
                              std::shared_ptr<TopologyStat> stat);
 
+    std::vector<PoolIdType> GetLogicalpools() override;
+
     bool GetCopySetInfo(
         const CopySetKey &id, CopySetInfo *info) override;
 
@@ -284,13 +310,16 @@ class TopoAdapterImpl : public TopoAdapter {
     std::vector<CopySetInfo> GetCopySetInfosInChunkServer(
         ChunkServerIdType id) override;
 
+    std::vector<CopySetInfo> GetCopySetInfosInLogicalPool(
+        PoolIdType lid) override;
+
     bool GetChunkServerInfo(
         ChunkServerIdType id, ChunkServerInfo *info) override;
 
     std::vector<ChunkServerInfo> GetChunkServerInfos() override;
 
-    std::vector<ChunkServerInfo> GetChunkServersInPhysicalPool(
-        PhysicalPoolIDType id) override;
+    std::vector<ChunkServerInfo> GetChunkServersInLogicalPool(
+        PoolIdType lid) override;
 
     int GetStandardZoneNumInLogicalPool(PoolIdType id) override;
 

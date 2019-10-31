@@ -9,8 +9,10 @@
 #include "src/mds/schedule/coordinator.h"
 #include "src/mds/common/mds_define.h"
 #include "test/mds/schedule/mock_topoAdapter.h"
+#include "test/mds/mock/mock_topology.h"
 #include "test/mds/schedule/common.h"
 
+using ::curve::mds::topology::MockTopology;
 using ::curve::mds::schedule::ScheduleOption;
 using ::testing::Return;
 using ::testing::SetArgPointee;
@@ -23,6 +25,8 @@ namespace curve {
 namespace mds {
 namespace schedule {
 TEST(CoordinatorTest, test_CopySetHeartbeat) {
+    auto topo = std::make_shared<MockTopology>();
+    auto metric = std::make_shared<ScheduleMetrics>(topo);
     auto topoAdapter = std::make_shared<MockTopoAdapter>();
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
     ScheduleOption scheduleOption;
@@ -38,7 +42,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
     scheduleOption.transferLeaderTimeLimitSec = 1;
     scheduleOption.addPeerTimeLimitSec = 1;
     scheduleOption.removePeerTimeLimitSec = 1;
-    coordinator->InitScheduler(scheduleOption);
+    coordinator->InitScheduler(scheduleOption, metric);
 
     ::curve::mds::topology::CopySetInfo testCopySetInfo(1, 1);
     testCopySetInfo.SetEpoch(1);
@@ -52,7 +56,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
     testOperator.timeLimit = std::chrono::seconds(100);
 
     auto info = GetCopySetInfoForTest();
-    PeerInfo peer(4, 1, 1, 1, "127.0.0.1", 9000);
+    PeerInfo peer(4, 1, 1, "127.0.0.1", 9000);
     ChunkServerInfo csInfo(peer, OnlineState::ONLINE, DiskState::DISKNORMAL,
                            ChunkServerStatus::READWRITE,
                            1, 10, 1, ChunkServerStatisticInfo{});
@@ -120,7 +124,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
 
     {
         // 4. test op executing and not finish
-        info.candidatePeerInfo = PeerInfo(4, 1, 1, 1, "", 9000);
+        info.candidatePeerInfo = PeerInfo(4, 1, 1, "", 9000);
         info.configChangeInfo.set_finished(false);
         info.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
         auto replica = new ::curve::common::Peer();
@@ -148,7 +152,7 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
     {
         // 6. test op success
         info.configChangeInfo.set_finished(true);
-        info.peers.emplace_back(PeerInfo(4, 4, 4, 1, "192.10.123.1", 9000));
+        info.peers.emplace_back(PeerInfo(4, 4, 4, "192.10.123.1", 9000));
         EXPECT_CALL(*topoAdapter, CopySetFromTopoToSchedule(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info), Return(true)));
         ASSERT_EQ(UNINTIALIZE_ID, coordinator->CopySetHeartbeat(
@@ -165,11 +169,13 @@ TEST(CoordinatorTest, test_CopySetHeartbeat) {
 }
 
 TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
+    auto topo = std::make_shared<MockTopology>();
     auto topoAdapter = std::make_shared<MockTopoAdapter>();
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
     ScheduleOption scheduleOption;
     scheduleOption.operatorConcurrent = 4;
-    coordinator->InitScheduler(scheduleOption);
+    coordinator->InitScheduler(
+        scheduleOption, std::make_shared<ScheduleMetrics>(topo));
 
     {
         // 1. copyset上没有要变更的operator

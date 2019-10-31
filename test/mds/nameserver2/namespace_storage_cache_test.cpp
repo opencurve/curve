@@ -11,6 +11,7 @@
 #include <string>
 #include "src/mds/nameserver2/namespace_storage_cache.h"
 #include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/timeutility.h"
 
 namespace curve {
@@ -62,6 +63,7 @@ TEST(CaCheTest, test_cache_with_capacity_no_limit) {
     ASSERT_FALSE(cache->Get("1", &res));
 }
 TEST(CaCheTest, test_cache_with_large_data_capacity_no_limit) {
+    uint64_t DefaultChunkSize = 16 * kMB;
     std::shared_ptr<LRUCache> cache = std::make_shared<LRUCache>();
 
     int i = 1;

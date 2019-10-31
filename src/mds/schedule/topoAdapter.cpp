@@ -24,13 +24,11 @@ namespace schedule {
 PeerInfo::PeerInfo(ChunkServerIdType id,
                    ZoneIdType zoneId,
                    ServerIdType sid,
-                   PhysicalPoolIDType physicalPoolId,
                    const std::string &ip,
                    uint32_t port) {
     this->id = id;
     this->zoneId = zoneId;
     this->serverId = sid;
-    this->physicalPoolId = physicalPoolId;
     this->ip = ip;
     this->port = port;
 }
@@ -45,21 +43,6 @@ CopySetConf::CopySetConf(const CopySetKey &key, EpochType epoch,
     this->peers = peers;
     this->type = type;
     this->configChangeItem = item;
-}
-
-CopySetInfo::CopySetInfo(CopySetKey id,
-                         EpochType epoch,
-                         ChunkServerIdType leader,
-                         const std::vector<PeerInfo> &peers,
-                         const ConfigChangeInfo &info,
-                         const CopysetStatistics &statistics) {
-    this->id.first = id.first;
-    this->id.second = id.second;
-    this->epoch = epoch;
-    this->leader = leader;
-    this->peers = peers;
-    this->configChangeInfo = info;
-    this->statisticsInfo = statistics;
 }
 
 CopySetInfo::~CopySetInfo() {
@@ -149,6 +132,10 @@ TopoAdapterImpl::TopoAdapterImpl(
     this->topoStat_ = stat;
 }
 
+std::vector<PoolIdType> TopoAdapterImpl::GetLogicalpools() {
+    return topo_->GetLogicalPoolInCluster();
+}
+
 bool TopoAdapterImpl::GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) {
     ::curve::mds::topology::CopySetInfo csInfo;
     // cannot get copyset info
@@ -170,6 +157,19 @@ bool TopoAdapterImpl::GetCopySetInfo(const CopySetKey &id, CopySetInfo *info) {
     return true;
 }
 
+std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfos() {
+    std::vector<CopySetInfo> infos;
+    for (auto copySetKey : topo_->GetCopySetsInCluster()) {
+        CopySetInfo copySetInfo;
+        if (GetCopySetInfo(copySetKey, &copySetInfo)) {
+            if (copySetInfo.logicalPoolWork) {
+                infos.push_back(copySetInfo);
+            }
+        }
+    }
+    return infos;
+}
+
 std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfosInChunkServer(
     ChunkServerIdType id) {
     std::vector<CopySetKey> keys = topo_->GetCopySetsInChunkServer(id);
@@ -186,16 +186,16 @@ std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfosInChunkServer(
     return out;
 }
 
-std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfos() {
+std::vector<CopySetInfo> TopoAdapterImpl::GetCopySetInfosInLogicalPool(
+    PoolIdType lid) {
     std::vector<CopySetInfo> infos;
-    for (auto copySetKey : topo_->GetCopySetsInCluster()) {
-        CopySetInfo copySetInfo;
-        if (GetCopySetInfo(copySetKey, &copySetInfo)) {
-            if (copySetInfo.logicalPoolWork) {
-                infos.push_back(copySetInfo);
-            }
+    for (auto &copysetInfo : topo_->GetCopySetInfosInLogicalPool(lid)) {
+        ::curve::mds::schedule::CopySetInfo out;
+        if (CopySetFromTopoToSchedule(copysetInfo, &out)) {
+            infos.emplace_back(out);
         }
     }
+
     return infos;
 }
 
@@ -226,10 +226,10 @@ std::vector<ChunkServerInfo> TopoAdapterImpl::GetChunkServerInfos() {
     return infos;
 }
 
-std::vector<ChunkServerInfo> TopoAdapterImpl::GetChunkServersInPhysicalPool(
-    PhysicalPoolIDType id) {
+std::vector<ChunkServerInfo> TopoAdapterImpl::GetChunkServersInLogicalPool(
+    PoolIdType lid) {
     std::vector<ChunkServerInfo> infos;
-    auto ids = topo_->GetChunkServerInPhysicalPool(id,
+    auto ids = topo_->GetChunkServerInLogicalPool(lid,
         [](const ChunkServer &chunkserver) {
             return chunkserver.GetStatus() != ChunkServerStatus::RETIRED;
         });
@@ -294,7 +294,7 @@ bool TopoAdapterImpl::GetPeerInfo(ChunkServerIdType id, PeerInfo *peerInfo) {
         (canGetServer = topo_->GetServer(cs.GetServerId(), &server))) {
         *peerInfo = PeerInfo(
             cs.GetId(), server.GetZoneId(), server.GetId(),
-            server.GetPhysicalPoolId(), cs.GetHostIp(), cs.GetPort());
+            cs.GetHostIp(), cs.GetPort());
     } else {
         LOG(ERROR) << "topoAdapter can not find chunkServer("
                    << id << ", res:" << canGetChunkServer
@@ -342,7 +342,6 @@ bool TopoAdapterImpl::ChunkServerFromTopoToSchedule(
     ::curve::mds::topology::Server server;
     if (topo_->GetServer(origin.GetServerId(), &server)) {
         out->info = PeerInfo{origin.GetId(), server.GetZoneId(), server.GetId(),
-                             server.GetPhysicalPoolId(),
                              origin.GetHostIp(), origin.GetPort()};
     } else {
         LOG(ERROR) << "can not get server:" << origin.GetId()

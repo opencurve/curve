@@ -180,12 +180,13 @@ inject loop restart one mds
     [Teardown]    test start mds
 
 inject kill one etcd     
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   
     ${host}  test kill etcd
     sleep  5
     check vm iops
     sleep  3
     test start etcd 
+    test start mds
 #    sleep  3
     check vm iops
     check data consistency
@@ -193,15 +194,16 @@ inject kill one etcd
     [Teardown]     start etcd process  ${host}
 
 test round restart etcd
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover   
     test round restart etcd
     sleep  3
     check vm iops
     check data consistency
+    test start mds
     [Teardown]    test start etcd
 
 inject loop restart one etcd
-    [Tags]    P1    base    first release   failover  no-need
+    [Tags]    P1    base    first release   failover  
     ${etcd_ip}    evaluate    str("10.182.26.16")
     :FOR   ${i}   IN RANGE   10
           kill etcd process   ${etcd_ip}
@@ -210,6 +212,7 @@ inject loop restart one etcd
           check vm iops
     END
     check data consistency
+    test start mds
     [Teardown]    test start etcd
 
 inject kill mysql
@@ -352,35 +355,28 @@ test chunkserver loss package 5%
     [Teardown]	   wait iops ok    ${vm_iops_limit}
 
 test mds loss package 5%   
-    [Tags]    P1    base    first release   failover   no-need
+    [Tags]    P1    base    first release   failover  
     ${percent}  evaluate  int(5)
     test mds loss package  ${percent}
     sleep  60
     check vm iops
     check data consistency
 #    check copies consistency
+    test start mds
     [Teardown]	   wait iops ok   ${vm_iops_limit}
 
-test chunkserver delay package 100ms
-    [Tags]    P1    base    first release   failover   no-need
-    ${ms}  evaluate  int(100)
+test chunkserver delay package 50ms
+    [Tags]    P1    base    first release   failover   
+    ${ms}  evaluate  int(50)
     test cs delay package  ${ms}
     sleep  5
     check vm iops
     check data consistency
 #    check copies consistency
+    test start mds
     sleep   5
     [Teardown]	 wait iops ok    ${vm_iops_limit}
 
-test mds delay package 100ms
-    [Tags]    P1    base    first release   failover   no-need
-    ${ms}  evaluate  int(100)
-    test mds delay package  ${ms}
-    sleep  120
-    check vm iops
-    check data consistency
-#    check copies consistency
-    [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 test out/in chunkserver recover
     [Tags]    P1    base    first release   failover  longtime
@@ -431,25 +427,38 @@ test pendding host all cs
     [Teardown]	  wait iops ok   ${vm_iops_limit}
 
 test ipmitool restart chunkserver node
-   [Tags]    P1    base    first release   failover  
+   [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart chunkserver
    sleep  60
    check vm iops
    check data consistency
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
+
+stop attach detach thread
+    [Tags]    P1    base    first release   failover
+    stop attach detach
+    [Teardown]   wait iops ok    ${vm_iops_limit}
+
 test ipmitool restart mds node
-   [Tags]    P1    base    first release   failover   
+   [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart mds
    sleep  60
    check vm iops
    check data consistency
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
-stop attach detach thread
-    [Tags]    P1    base    first release   failover
-    stop attach detach
-    [Teardown]   wait iops ok    ${vm_iops_limit}
+test mds delay package 50ms
+    [Tags]    P1    base    first release   failover   
+    ${ms}  evaluate  int(50)
+    test mds delay package  ${ms}
+    test start mds
+    test start etcd
+    sleep  120
+    check vm iops
+    check data consistency
+#    check copies consistency
+    [Teardown]	   wait iops ok   ${vm_iops_limit}
 
 inject kill all mds
     [Tags]    P1    base    first release   failover
@@ -462,14 +471,15 @@ inject kill all mds
     [Teardown]    test start mds
 
 inject kill two etcd
-    [Tags]    P1    base    first release   failover  no-need
+    [Tags]    P1    base    first release   failover  
     ${num}   evaluate  int(2)
     test kill etcd   ${num}
     sleep  5
 #    check vm iops
     sleep  3
     test start etcd
-#    sleep  3
+    test start mds
+    sleep  3
     check vm iops
     check data consistency
 #    check copies consistency
@@ -512,7 +522,7 @@ test one volume perf
     perf test
 
 inject cluster stress test
-    [Tags]    P1    base    first release  longtime   perf  no-need
+    [Tags]    P1    base    first release  longtime  stress   perf  no-need
     init vm
     remove vm key
     attach new vol   20   20
@@ -523,7 +533,7 @@ inject cluster stress test
 
 init failover cluster
      init abnormal test env
-#     check chunkserver online 
+     check chunkserver online 
      init vm
 #     init vol
      loop attach detach vol
