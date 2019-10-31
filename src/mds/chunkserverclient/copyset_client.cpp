@@ -14,7 +14,7 @@ using ::curve::mds::topology::CopySetInfo;
 using ::curve::mds::topology::CopySetKey;
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::ChunkServerIdType;
-
+using ::curve::mds::topology::UNINTIALIZE_ID;
 
 namespace curve {
 namespace mds {
@@ -23,29 +23,34 @@ int CopysetClient::DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
     CopysetID copysetId,
     ChunkID chunkId,
     uint64_t correctedSn) {
+    int ret = kMdsFail;
     CopySetInfo copyset;
     if (true != topo_->GetCopySet(
         CopySetKey(logicalPoolId, copysetId),
         &copyset)) {
+        LOG(ERROR) << "GetCopySet fail.";
         return kMdsFail;
     }
 
     ChunkServerIdType leaderId =
         copyset.GetLeader();
 
-    int ret = chunkserverClient_->DeleteChunkSnapshotOrCorrectSn(
-        leaderId, logicalPoolId, copysetId, chunkId, correctedSn);
-    if (kMdsSuccess == ret) {
-        return ret;
+    if (leaderId != UNINTIALIZE_ID) {
+        ret = chunkserverClient_->DeleteChunkSnapshotOrCorrectSn(
+            leaderId, logicalPoolId, copysetId, chunkId, correctedSn);
+        if (kMdsSuccess == ret) {
+            return ret;
+        }
     }
 
-    uint32_t retry = 1;
-    while ((retry < kUpdateLeaderRetryTime) &&
-           ((kCsClientCSOffline == ret) ||
+    uint32_t retry = 0;
+    while ((retry < updateLeaderRetryTimes_) &&
+           ((UNINTIALIZE_ID == leaderId) ||
+            (kCsClientCSOffline == ret) ||
             (kRpcFail == ret) ||
             (kCsClientNotLeader == ret))) {
         std::this_thread::sleep_for(
-                std::chrono::milliseconds(kUpdateLeaderRetryIntervalMs));
+                std::chrono::milliseconds(updateLeaderRetryIntervalMs_));
         ret = UpdateLeader(&copyset);
         if (ret < 0) {
             LOG(ERROR) << "UpdateLeader fail."
@@ -55,11 +60,17 @@ int CopysetClient::DeleteChunkSnapshotOrCorrectSn(LogicalPoolID logicalPoolId,
         }
 
         leaderId = copyset.GetLeader();
+        LOG(INFO) << "UpdateLeader success, new leaderId = " << leaderId;
 
-        ret = chunkserverClient_->DeleteChunkSnapshotOrCorrectSn(
-            leaderId, logicalPoolId, copysetId, chunkId, correctedSn);
-        if (kMdsSuccess == ret) {
-            break;
+        if (leaderId != UNINTIALIZE_ID) {
+            ret = chunkserverClient_->DeleteChunkSnapshotOrCorrectSn(
+                leaderId, logicalPoolId, copysetId, chunkId, correctedSn);
+            if (kMdsSuccess == ret) {
+                break;
+            }
+        } else {
+            LOG(ERROR) << "UpdateLeader success, but leaderId is uninit.";
+            return kMdsFail;
         }
         retry++;
     }
@@ -70,31 +81,36 @@ int CopysetClient::DeleteChunk(LogicalPoolID logicalPoolId,
                                     CopysetID copysetId,
                                     ChunkID chunkId,
                                     uint64_t sn) {
+    int ret = kMdsFail;
     CopySetInfo copyset;
     if (true != topo_->GetCopySet(
         CopySetKey(logicalPoolId, copysetId),
         &copyset)) {
+        LOG(ERROR) << "GetCopySet fail.";
         return kMdsFail;
     }
 
     ChunkServerIdType leaderId =
         copyset.GetLeader();
 
-    int ret = chunkserverClient_->DeleteChunk(
-        leaderId, logicalPoolId, copysetId, chunkId, sn);
-    if (kMdsSuccess == ret) {
-        return ret;
+    if (leaderId != UNINTIALIZE_ID) {
+        ret = chunkserverClient_->DeleteChunk(
+            leaderId, logicalPoolId, copysetId, chunkId, sn);
+        if (kMdsSuccess == ret) {
+            return ret;
+        }
     }
 
     // delete Chunk在kCsClientCSOffline、kRpcFail、kCsClientNotLeader
     // 这三种返回值时需要进行重试
-    uint32_t retry = 1;
-    while ((retry < kUpdateLeaderRetryTime) &&
-           ((kCsClientCSOffline == ret) ||
+    uint32_t retry = 0;
+    while ((retry < updateLeaderRetryTimes_) &&
+           ((UNINTIALIZE_ID == leaderId) ||
+            (kCsClientCSOffline == ret) ||
             (kRpcFail == ret) ||
             (kCsClientNotLeader == ret))) {
         std::this_thread::sleep_for(
-                std::chrono::milliseconds(kUpdateLeaderRetryIntervalMs));
+                std::chrono::milliseconds(updateLeaderRetryIntervalMs_));
         ret = UpdateLeader(&copyset);
         if (ret < 0) {
             LOG(ERROR) << "UpdateLeader fail."
@@ -104,11 +120,17 @@ int CopysetClient::DeleteChunk(LogicalPoolID logicalPoolId,
         }
 
         leaderId = copyset.GetLeader();
+        LOG(INFO) << "UpdateLeader success, new leaderId = " << leaderId;
 
-        ret = chunkserverClient_->DeleteChunk(
-            leaderId, logicalPoolId, copysetId, chunkId, sn);
-        if (kMdsSuccess == ret) {
-            break;
+        if (leaderId != UNINTIALIZE_ID) {
+            ret = chunkserverClient_->DeleteChunk(
+                leaderId, logicalPoolId, copysetId, chunkId, sn);
+            if (kMdsSuccess == ret) {
+                break;
+            }
+        } else {
+            LOG(ERROR) << "UpdateLeader success, but leaderId is uninit.";
+            return kMdsFail;
         }
         retry++;
     }

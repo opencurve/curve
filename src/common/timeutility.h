@@ -15,7 +15,7 @@
 namespace curve {
 namespace common {
 
-class TimeUtility{
+class TimeUtility {
  public:
     static inline uint64_t GetTimeofDayUs() {
         timeval now;

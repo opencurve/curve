@@ -6,19 +6,22 @@
  */
 
 #include <glog/logging.h>
+#include <memory>
 #include "src/mds/schedule/operatorController.h"
-#include "src/mds/schedule/schedulerMetric.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 
 namespace curve {
 namespace mds {
 namespace schedule {
-OperatorController::OperatorController(int concurrent) {
+OperatorController::OperatorController(
+    int concurrent, std::shared_ptr<ScheduleMetrics> metrics) {
     this->operatorConcurrent_ = concurrent;
+    this->metrics_ = metrics;
 }
 
 bool OperatorController::AddOperator(const Operator &op) {
     std::lock_guard<std::mutex> guard(mutex_);
-    auto exist = operators_.find(op.copsetID);
+    auto exist = operators_.find(op.copysetID);
     // no operator exist
     if (exist == operators_.end()) {
         // concurrency exceed
@@ -27,9 +30,9 @@ bool OperatorController::AddOperator(const Operator &op) {
                       << " fail because of oncurrency exceed";
             return false;
         }
-        operators_[op.copsetID] = op;
+        operators_[op.copysetID] = op;
         UpdateAddOpInfluenceLocked(op);
-        UpdateOperatorMetric(OperatorAction::ADD, op);
+        metrics_->UpdateAddMetric(op);
         return true;
     }
 
@@ -40,15 +43,15 @@ bool OperatorController::AddOperator(const Operator &op) {
     if (exist->second.priority < op.priority) {
         if (!ReplaceOpInfluencePreJudgeLocked(exist->second, op)) {
             LOG(ERROR) << "replace operator on copySet(logicalPoolId: "
-                       << op.copsetID.first << ", copySetId: "
-                       << op.copsetID.second
+                       << op.copysetID.first << ", copySetId: "
+                       << op.copysetID.second
                        << ") fail because do new operator "
                           "do not satisfy opInfluence condition";
             return false;
         } else {
-            operators_[op.copsetID] = op;
+            operators_[op.copysetID] = op;
             UpdateReplaceOpInfluenceLocked(exist->second, op);
-            UpdateOperatorMetric(OperatorAction::ADD, op);
+            metrics_->UpdateAddMetric(op);
             return true;
         }
     }
@@ -67,7 +70,7 @@ void OperatorController::RemoveOperatorLocked(const CopySetKey &key) {
         return;
     }
     UpdateRemoveOpInfluenceLocked(exist->second);
-    UpdateOperatorMetric(OperatorAction::REMOVE, exist->second);
+    metrics_->UpdateRemoveMetric(exist->second);
     operators_.erase(key);
 }
 
@@ -191,61 +194,6 @@ bool OperatorController::AddOpInfluencePreJudgeLocked(const Operator &op) {
         }
     }
     return true;
-}
-
-void OperatorController::UpdateOperatorMetric(
-    OperatorAction action, const Operator &op) {
-    // operator num
-    if (action == OperatorAction::REMOVE) {
-        SchedulerMetric::GetInstance()->operatorNum << -1;
-    } else {
-        SchedulerMetric::GetInstance()->operatorNum << 1;
-    }
-
-    // high operator
-    if (op.priority == OperatorPriority::HighPriority) {
-        if (action == OperatorAction::REMOVE) {
-            SchedulerMetric::GetInstance()->highOpNum << -1;
-        } else {
-            SchedulerMetric::GetInstance()->highOpNum << 1;
-        }
-    }
-
-    // normal operator
-    if (op.priority == OperatorPriority::NormalPriority) {
-        if (action == OperatorAction::REMOVE) {
-            SchedulerMetric::GetInstance()->normalOpNum << -1;
-        } else {
-            SchedulerMetric::GetInstance()->normalOpNum << 1;
-        }
-    }
-
-    // add operator
-    if (dynamic_cast<AddPeer *>(op.step.get()) != nullptr) {
-        if (action == OperatorAction::REMOVE) {
-            SchedulerMetric::GetInstance()->addOpNum << -1;
-        } else {
-            SchedulerMetric::GetInstance()->addOpNum << 1;
-        }
-    }
-
-    // remove operator
-    if (dynamic_cast<RemovePeer *>(op.step.get()) != nullptr) {
-        if (action == OperatorAction::REMOVE) {
-            SchedulerMetric::GetInstance()->removeOpNum << -1;
-        } else {
-            SchedulerMetric::GetInstance()->removeOpNum << 1;
-        }
-    }
-
-    // transfer leader operator
-    if (dynamic_cast<TransferLeader *>(op.step.get()) != nullptr) {
-        if (action == OperatorAction::REMOVE) {
-            SchedulerMetric::GetInstance()->transferOpNum << -1;
-        } else {
-            SchedulerMetric::GetInstance()->transferOpNum << 1;
-        }
-    }
 }
 }  // namespace schedule
 }  // namespace mds

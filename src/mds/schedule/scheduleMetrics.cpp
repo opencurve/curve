@@ -1,0 +1,218 @@
+/*
+ * Project: curve
+ * Created Date: 20190704
+ * Author: lixiaocui
+ * Copyright (c) 2019 netease
+ */
+
+#include <set>
+#include "src/mds/schedule/scheduleMetrics.h"
+#include "src/mds/topology/topology.h"
+
+namespace curve {
+namespace mds {
+namespace schedule {
+const char ADDPEER[] = "AddPeer";
+const char REMOVEPEER[] = "RemovePeer";
+const char TRANSFERLEADER[] = "TransferLeader";
+const char NORMAL[] = "Normal";
+const char HIGH[] = "High";
+
+void ScheduleMetrics::UpdateAddMetric(const Operator &op) {
+    // operator num
+    operatorNum << 1;
+
+    // high operator
+    if (op.priority == OperatorPriority::HighPriority) {
+        highOpNum << 1;
+    }
+
+    // normal operator
+    if (op.priority == OperatorPriority::NormalPriority) {
+        normalOpNum << 1;
+    }
+
+    // add operator
+    if (dynamic_cast<AddPeer *>(op.step.get()) != nullptr) {
+        // 更新计数
+        addOpNum << 1;
+        // 更新operators map
+        AddUpdateOperatorsMap(op, ADDPEER, op.step->GetTargetPeer());
+    }
+
+    // remove operator
+    if (dynamic_cast<RemovePeer *>(op.step.get()) != nullptr) {
+        // 更新计数
+        removeOpNum << 1;
+        // 更新operators map
+        AddUpdateOperatorsMap(op, REMOVEPEER, op.step->GetTargetPeer());
+    }
+
+    // transfer leader operator
+    if (dynamic_cast<TransferLeader *>(op.step.get()) != nullptr) {
+        // 更新计数
+        transferOpNum << 1;
+        // 更新operators map
+        AddUpdateOperatorsMap(op, TRANSFERLEADER, op.step->GetTargetPeer());
+    }
+}
+
+void ScheduleMetrics::UpdateRemoveMetric(const Operator &op) {
+    // operator num
+    operatorNum << -1;
+
+    // high operator
+    if (op.priority == OperatorPriority::HighPriority) {
+        highOpNum << -1;
+    }
+
+    // normal operator
+    if (op.priority == OperatorPriority::NormalPriority) {
+        normalOpNum << -1;
+    }
+
+    // add operator
+    if (dynamic_cast<AddPeer *>(op.step.get()) != nullptr) {
+        // 更新计数
+        addOpNum << -1;
+        // 更新operators map
+        RemoveUpdateOperatorsMap(op, ADDPEER, op.step->GetTargetPeer());
+    }
+
+    // remove operator
+    if (dynamic_cast<RemovePeer *>(op.step.get()) != nullptr) {
+        // 更新计数
+        removeOpNum << -1;
+        // 更新operators map
+        RemoveUpdateOperatorsMap(op, REMOVEPEER, op.step->GetTargetPeer());
+    }
+
+    // transfer leader operator
+    if (dynamic_cast<TransferLeader *>(op.step.get()) != nullptr) {
+        // 更新计数
+        transferOpNum << -1;
+        // 更新operators map
+        RemoveUpdateOperatorsMap(
+            op, TRANSFERLEADER, op.step->GetTargetPeer());
+    }
+}
+
+void ScheduleMetrics::RemoveUpdateOperatorsMap(
+    const Operator &op, std::string type, ChunkServerIdType target) {
+    auto findOp = operators.find(op.copysetID);
+    if (findOp == operators.end()) {
+        return;
+    }
+
+    operators.erase(findOp);
+}
+
+void ScheduleMetrics::AddUpdateOperatorsMap(
+    const Operator &op, std::string type, ChunkServerIdType target) {
+    auto findOp = operators.find(op.copysetID);
+    if (findOp != operators.end()) {
+        return;
+    }
+
+    // 加入map中
+    UpdateOperatorsMap(op, type, target);
+}
+
+void ScheduleMetrics::UpdateOperatorsMap(
+    const Operator &op, std::string type, ChunkServerIdType target) {
+
+    operators[op.copysetID].ExposeAs(ScheduleMetricsCopySetOpPrefix,
+                                 std::to_string(op.copysetID.first) +
+                                 "_" + std::to_string(op.copysetID.second));
+
+    // set logicalpoolId
+    operators[op.copysetID].Set(
+        "logicalPoolId", std::to_string(op.copysetID.first));
+    // set copysetId
+    operators[op.copysetID].Set(
+        "copySetId", std::to_string(op.copysetID.second));
+    // set operator startepoch
+    operators[op.copysetID].Set(
+        "startEpoch", std::to_string(op.startEpoch));
+
+    ::curve::mds::topology::CopySetInfo out;
+    if (!topo_->GetCopySet(op.copysetID, &out)) {
+        LOG(INFO) << "get copyset(" << op.copysetID.first << ","
+                  << op.copysetID.second << ") info error";
+        return;
+    }
+
+    // set copyset epoch
+    operators[op.copysetID].Set("copySetEpoch", std::to_string(out.GetEpoch()));
+
+    // set copysetPeers
+    std::string copysetLeaderPeer;
+    std::string copysetPeers;
+    std::set<ChunkServerIdType> members = out.GetCopySetMembers();
+    int count = 0;
+    for (auto peerId : members) {
+        count++;
+        std::string hostPort = GetHostNameAndPortById(peerId);
+        if (peerId == out.GetLeader()) {
+            copysetLeaderPeer = hostPort;
+        }
+        if (count == members.size()) {
+            copysetPeers += hostPort;
+        } else {
+            copysetPeers += hostPort + ",";
+        }
+    }
+    operators[op.copysetID].Set("copySetPeers", copysetPeers);
+
+    // set leader
+    if (copysetLeaderPeer.empty()) {
+        operators[op.copysetID].Set("copySetLeader", "UNINTIALIZE_ID");
+    } else {
+        operators[op.copysetID].Set("copySetLeader", copysetLeaderPeer);
+    }
+
+    // set operator priority
+    operators[op.copysetID].Set("opPriority", GetOpPriorityStr(op.priority));
+
+    // set operator type and item
+    operators[op.copysetID].Set("opItem", GetHostNameAndPortById(target));
+    operators[op.copysetID].Set("opType", type);
+
+    // update
+    operators[op.copysetID].Update();
+}
+
+std::string ScheduleMetrics::GetHostNameAndPortById(ChunkServerIdType csid) {
+    // 获取所在的chunkserver
+    ::curve::mds::topology::ChunkServer cs;
+    if (!topo_->GetChunkServer(csid, &cs)) {
+        LOG(INFO) << "get chunkserver " << csid << " err";
+        return "";
+    }
+
+    // 获取chunkserver所在的server
+    ::curve::mds::topology::Server server;
+    if (!topo_->GetServer(cs.GetServerId(), &server)) {
+        LOG(INFO) << "get server " << cs.GetServerId() << " err";
+        return "";
+    }
+
+    // 获取chunkserver的hostName
+    return server.GetHostName() + ":" + std::to_string(cs.GetPort());
+}
+
+std::string ScheduleMetrics::GetOpPriorityStr(OperatorPriority pri) {
+    switch (pri) {
+    case OperatorPriority::HighPriority:
+        return HIGH;
+    case OperatorPriority::NormalPriority:
+        return NORMAL;
+    default:
+        return "";
+    }
+}
+
+}  // namespace schedule
+}  // namespace mds
+}  // namespace curve
+

@@ -130,3 +130,49 @@ cc_binary(
         "//external:json"
     ],
 )
+
+cc_binary(
+    name = "curve_status_tool",
+    srcs = ["status_tool.cpp", "status_tool.h", "status_tool_main.cpp"],
+    copts = COPTS,
+    linkopts = [
+        "-lmysqlcppconn",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:protobuf",
+        "//proto:chunkserver-cc-protos",
+        "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
+        "//src/common:curve_common",
+        "//src/mds/dao:mdsrepo",
+        "//src/mds/common:mds_common",
+        "//src/repo:repo"
+    ],
+)
+
+cc_library(
+    name = "status_tool_lib",
+    srcs = glob(
+        ["status_tool.cpp", "status_tool.h"]
+    ),
+    hdrs = glob(["status_tool.h"]),
+    deps = [
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:protobuf",
+        "//proto:chunkserver-cc-protos",
+        "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
+        "//src/common:curve_common",
+        "//src/mds/dao:mdsrepo",
+        "//src/mds/common:mds_common",
+        "//src/repo:repo"
+    ],
+    visibility = ["//visibility:public"],
+    copts = COPTS
+)

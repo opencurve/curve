@@ -33,14 +33,6 @@ const int kCsClientReturnFail = -5;
 const int kCsClientCSOffline = -6;
 
 
-
-// TODO(xuchaojie): use config file instead.
-const uint32_t kRpcTimeoutMs = 1000u;
-const uint32_t kRpcRetryTime = 3u;
-const uint32_t kRpcRetryIntervalMs = 500u;
-
-const uint32_t kUpdateLeaderRetryTime = 3u;
-const uint32_t kUpdateLeaderRetryIntervalMs = 500u;
 // kStaledRequestTimeIntervalUs表示request的过期时间，防止request被截取并回放
 const uint64_t kStaledRequestTimeIntervalUs = 15 * 1000 * 1000u;
 
@@ -81,6 +73,7 @@ const int kTopoErrCodeCannotRemoveWhenNotEmpty = -14;
 const int kTopoErrCodeIpPortDuplicated = -15;
 const int kTopoErrCodeNameDuplicated = -16;
 const int kTopoErrCodeCreateCopysetNodeOnChunkServerFail = -17;
+const int kTopoErrCodeCannotRemoveNotRetired = -18;
 
 }  // namespace topology
 }  // namespace mds
@@ -100,7 +93,6 @@ const uint64_t kMB = 1024*kKB;
 const uint64_t kGB = 1024*kMB;
 const uint64_t kTB = 1024*kGB;
 
-const uint64_t DefaultChunkSize = 16 * kMB;
 const uint64_t DefaultSegmentSize = kGB * 1;
 const uint64_t kMiniFileLength = DefaultSegmentSize * 10;
 const uint64_t kMaxFileLength = 4 * kTB;

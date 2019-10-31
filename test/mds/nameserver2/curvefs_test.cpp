@@ -7,18 +7,17 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "src/mds/nameserver2/curvefs.h"
-#include "src/mds/nameserver2/inode_id_generator.h"
+#include "src/mds/nameserver2/idgenerator/inode_id_generator.h"
 #include "src/mds/nameserver2/namespace_storage.h"
 #include "src/mds/nameserver2/session.h"
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
-
-
-#include "test/mds/nameserver2/mock_namespace_storage.h"
-#include "test/mds/nameserver2/mock_inode_id_generator.h"
-#include "test/mds/nameserver2/mock_chunk_allocate.h"
-#include "test/mds/nameserver2/mock_clean_manager.h"
-#include "test/mds/nameserver2/mock_repo.h"
+#include "test/mds/nameserver2/mock/mock_namespace_storage.h"
+#include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
+#include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
+#include "test/mds/nameserver2/mock/mock_clean_manager.h"
+#include "test/mds/mock/mock_repo.h"
+#include "test/mds/mock/mock_alloc_statistic.h"
 
 
 using ::testing::AtLeast;
@@ -55,20 +54,28 @@ class CurveFSTest: public ::testing::Test {
         authOptions_.rootOwner = "root";
         authOptions_.rootPassword = "root_password";
 
+        curveFSOptions_.defaultChunkSize = 16 * kMB;
+
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
         curvefs_ =  &kCurveFS;
 
+        allocStatistic_ = std::make_shared<MockAllocStatistic>();
         curvefs_->Init(storage_, inodeIdGenerator_, mockChunkAllocator_,
                         mockcleanManager_,
-                        sessionManager_, sessionOptions_, authOptions_,
+                        sessionManager_,
+                        allocStatistic_,
+                        sessionOptions_,
+                        authOptions_,
+                        curveFSOptions_,
                         mockRepo_);
     }
 
     void TearDown() override {
         curvefs_->Uninit();
+        allocStatistic_ = nullptr;
         delete storage_;
         delete inodeIdGenerator_;
         delete mockChunkAllocator_;
@@ -83,9 +90,11 @@ class CurveFSTest: public ::testing::Test {
     std::shared_ptr<MockCleanManager> mockcleanManager_;
 
     SessionManager *sessionManager_;
+    std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<MockRepo> mockRepo_;
     struct SessionOptions sessionOptions_;
     struct RootAuthOption authOptions_;
+    struct CurveFSOption curveFSOptions_;
 };
 
 TEST_F(CurveFSTest, testCreateFile1) {
@@ -1309,7 +1318,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(true));
 
 
-        EXPECT_CALL(*storage_, PutSegment(_, _, _))
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
@@ -1445,7 +1454,7 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
         .WillOnce(Return(true));
 
 
-        EXPECT_CALL(*storage_, PutSegment(_, _, _))
+        EXPECT_CALL(*storage_, PutSegment(_, _, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::InternalError));
 
@@ -1813,7 +1822,7 @@ TEST_F(CurveFSTest, GetSnapShotFileSegment) {
         PageFileSegment expectSegment;
         expectSegment.set_logicalpoolid(1);
         expectSegment.set_segmentsize(DefaultSegmentSize);
-        expectSegment.set_chunksize(DefaultChunkSize);
+        expectSegment.set_chunksize(curvefs_->GetDefaultChunkSize());
         expectSegment.set_startoffset(0);
 
         PageFileChunkInfo *chunkInfo = expectSegment.add_chunks();
@@ -2532,11 +2541,13 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
     // test parm error
     ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
                 FileType::INODE_DIRECTORY, kMiniFileLength, kStartSeqNum,
-                DefaultChunkSize, nullptr), StatusCode::kParaError);
+                curvefs_->GetDefaultChunkSize(), nullptr),
+                StatusCode::kParaError);
 
     ASSERT_EQ(curvefs_->CreateCloneFile("/file1", "owner1",
                 FileType::INODE_PAGEFILE, kMiniFileLength - 1, kStartSeqNum,
-                DefaultChunkSize, nullptr), StatusCode::kParaError);
+                curvefs_->GetDefaultChunkSize(), nullptr),
+                StatusCode::kParaError);
 
     {
         // test file exist
@@ -2546,7 +2557,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    DefaultChunkSize, nullptr);
+                    curvefs_->GetDefaultChunkSize(), nullptr);
         ASSERT_EQ(statusCode, StatusCode::kFileExists);
     }
 
@@ -2558,7 +2569,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    DefaultChunkSize, nullptr);
+                    curvefs_->GetDefaultChunkSize(), nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -2574,7 +2585,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    DefaultChunkSize, nullptr);
+                    curvefs_->GetDefaultChunkSize(), nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
 
@@ -2594,7 +2605,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
 
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    DefaultChunkSize, nullptr);
+                    curvefs_->GetDefaultChunkSize(), nullptr);
         ASSERT_EQ(statusCode, StatusCode::kStorageError);
     }
     {
@@ -2614,7 +2625,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
         FileInfo fileInfo;
         auto statusCode = curvefs_->CreateCloneFile("/file1", "owner1",
                     FileType::INODE_PAGEFILE, kMiniFileLength, kStartSeqNum,
-                    DefaultChunkSize, &fileInfo);
+                    curvefs_->GetDefaultChunkSize(), &fileInfo);
         ASSERT_EQ(statusCode, StatusCode::kOK);
         ASSERT_EQ(fileInfo.filename(), "file1");
         ASSERT_EQ(fileInfo.owner(), "owner1");
@@ -2622,7 +2633,7 @@ TEST_F(CurveFSTest, testCreateCloneFile) {
         ASSERT_EQ(fileInfo.filestatus(), FileStatus::kFileCloning);
         ASSERT_EQ(fileInfo.length(), kMiniFileLength);
         ASSERT_EQ(fileInfo.segmentsize(), DefaultSegmentSize);
-        ASSERT_EQ(fileInfo.chunksize(), DefaultChunkSize);
+        ASSERT_EQ(fileInfo.chunksize(), curvefs_->GetDefaultChunkSize());
         ASSERT_EQ(fileInfo.seqnum(), kStartSeqNum);
     }
 }

@@ -18,27 +18,27 @@
 #include "src/mds/nameserver2/clean_task_manager.h"
 #include "src/mds/nameserver2/session.h"
 #include "src/mds/nameserver2/chunk_allocator.h"
-#include "src/mds/nameserver2/inode_id_generator.h"
 #include "src/mds/leader_election/leader_election.h"
-#include "src/mds/topology/topology_admin.h"
+#include "src/mds/topology/topology_chunk_allocator.h"
 #include "src/mds/topology/topology_service.h"
 #include "src/mds/topology/topology_id_generator.h"
 #include "src/mds/topology/topology_token_generator.h"
 #include "src/mds/topology/topology_config.h"
 #include "src/mds/topology/topology_stat.h"
 #include "src/mds/topology/topology_metric.h"
-#include "src/mds/schedule/schedulerMetric.h"
+#include "src/mds/schedule/scheduleMetrics.h"
 #include "src/mds/copyset/copyset_manager.h"
 #include "src/common/configuration.h"
 #include "src/mds/heartbeat/heartbeat_service.h"
 #include "src/mds/schedule/topoAdapter.h"
 #include "proto/heartbeat.pb.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
+#include "src/mds/chunkserverclient/chunkserverclient_config.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1.6666", "mds listen addr");
 
-using ::curve::mds::topology::TopologyAdminImpl;
-using ::curve::mds::topology::TopologyAdmin;
+using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
 using ::curve::mds::topology::DefaultIdGenerator;
 using ::curve::mds::topology::DefaultTokenGenerator;
@@ -54,7 +54,8 @@ using ::curve::mds::heartbeat::HeartbeatOption;
 using ::curve::mds::schedule::TopoAdapterImpl;
 using ::curve::mds::schedule::TopoAdapter;
 using ::curve::mds::schedule::ScheduleOption;
-using ::curve::mds::schedule::SchedulerMetric;
+using ::curve::mds::schedule::ScheduleMetrics;
+using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 using ::curve::common::Configuration;
 
 namespace curve {
@@ -74,6 +75,12 @@ void InitAuthOptions(Configuration *conf,
     authOptions->rootOwner = ROOTUSERNAME;
     LOG_IF(FATAL, !conf->GetStringValue(
         "mds.auth.rootPassword", &authOptions->rootPassword));
+}
+
+void InitCurveFSOptions(Configuration *conf,
+                     struct CurveFSOption *curveFSOptions) {
+    LOG_IF(FATAL, !conf->GetUInt64Value(
+        "mds.curvefs.defaultChunkSize", &curveFSOptions->defaultChunkSize));
 }
 
 void InitScheduleOption(
@@ -153,6 +160,12 @@ void InitTopologyOption(Configuration *conf, TopologyOption *topologyOption) {
     LOG_IF(FATAL, !conf->GetUInt32Value(
         "mds.topology.UpdateMetricIntervalSec",
         &topologyOption->UpdateMetricIntervalSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.topology.PoolUsagePercentLimit",
+        &topologyOption->PoolUsagePercentLimit));
+    LOG_IF(FATAL, !conf->GetIntValue(
+        "mds.topology.choosePoolPolicy",
+        &topologyOption->choosePoolPolicy));
 }
 
 void InitCopysetOption(Configuration *conf, CopysetOption *copysetOption) {
@@ -180,6 +193,23 @@ void InitLeaderElectionOption(
         &electionOp->sessionInterSec));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.leader.electionTimeoutMs",
         &electionOp->electionTimeoutMs));
+}
+
+void InitChunkServerClientOption(
+    Configuration *conf, ChunkServerClientOption *option) {
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.chunkserverclient.rpcTimeoutMs",
+        &option->rpcTimeoutMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.chunkserverclient.rpcRetryTimes",
+        &option->rpcRetryTimes));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.chunkserverclient.rpcRetryIntervalMs",
+        &option->rpcRetryIntervalMs));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.chunkserverclient.updateLeaderRetryTimes",
+        &option->updateLeaderRetryTimes));
+    LOG_IF(FATAL, !conf->GetUInt32Value(
+        "mds.chunkserverclient.updateLeaderRetryIntervalMs",
+        &option->updateLeaderRetryIntervalMs));
 }
 
 void LoadConfigFromCmdline(Configuration *conf) {
@@ -213,6 +243,9 @@ int curve_main(int argc, char **argv) {
     RootAuthOption authOptions;
     InitAuthOptions(&conf, &authOptions);
 
+    struct CurveFSOption curveFSOptions;
+    InitCurveFSOptions(&conf, &curveFSOptions);
+
     ScheduleOption scheduleOption;
     InitScheduleOption(&conf, &scheduleOption);
 
@@ -228,6 +261,11 @@ int curve_main(int argc, char **argv) {
 
     CopysetOption copysetOption;
     InitCopysetOption(&conf, &copysetOption);
+
+    ChunkServerClientOption chunkServerClientOption;
+    InitChunkServerClientOption(&conf, &chunkServerClientOption);
+
+    LOG(INFO) << "load mds configuration success.";
 
     // ===========================init curveFs========================//
     // init EtcdClient
@@ -265,9 +303,23 @@ int curve_main(int argc, char **argv) {
     auto leaderElection = std::make_shared<LeaderElection>(leaderElectionOp);
     while (0 != leaderElection->CampaginLeader()) {
         LOG(INFO) << leaderElectionOp.leaderUniqueName
-                  << " campaign for leader agin";
+                  << " campaign for leader again";
     }
     leaderElection->StartObserverLeader();
+
+    // init alloc staistic
+    uint64_t retryInterTimes, periodicPersistInterMs;
+    LOG_IF(FATAL, !conf.GetUInt64Value(
+        "mds.segment.alloc.periodic.persistInterMs", &periodicPersistInterMs));
+    LOG_IF(FATAL, !conf.GetUInt64Value(
+        "mds.segment.alloc.retryInterMs", &retryInterTimes));
+    auto segmentAllocStatistic = std::make_shared<AllocStatistic>(
+        periodicPersistInterMs, retryInterTimes, client);
+    res = segmentAllocStatistic->Init();
+    LOG_IF(FATAL, res != 0) << "int segment alloc statistic fail";
+    segmentAllocStatistic->Run();
+
+    LOG(INFO) << "init segmentAllocStatistic success.";
 
     // init InodeIDGenerator
     auto inodeIdGenerator = std::make_shared<InodeIdGeneratorImp>(client);
@@ -279,12 +331,15 @@ int curve_main(int argc, char **argv) {
     int mdsCacheCount;
     LOG_IF(FATAL, !conf.GetIntValue("mds.cache.count", &mdsCacheCount));
     auto cache = std::make_shared<LRUCache>(mdsCacheCount);
+    LOG(INFO) << "init LRUCache success.";
 
     // init NameServerStorage
     NameServerStorage *storage = new NameServerStorageImp(client, cache);
+    LOG(INFO) << "init NameServerStorage success.";
 
     // init recyclebindir
     LOG_IF(FATAL, !InitRecycleBinDir(storage)) << "init recyclebindir error";
+    LOG(INFO) << "init InitRecycleBinDir success.";
 
     // init topology
     auto topologyIdGenerator  =
@@ -325,12 +380,15 @@ int curve_main(int argc, char **argv) {
         LOG(ERROR) << "createAllTables fail";
         return -1;
     }
+    LOG(INFO) << "init mdsRepo success.";
 
     auto topologyStorage =
         std::make_shared<DefaultTopologyStorage>(mdsRepo);
 
     LOG_IF(FATAL, !topologyStorage->init(topologyOption))
         << "init topologyStorage fail.";
+
+    LOG(INFO) << "init topologyStorage success.";
 
     auto topology =
         std::make_shared<TopologyImpl>(topologyIdGenerator,
@@ -339,64 +397,88 @@ int curve_main(int argc, char **argv) {
     LOG_IF(FATAL, topology->init(topologyOption) < 0) << "init topology fail.";
     LOG_IF(FATAL, topology->Run()) << "run topology module fail";
 
+    LOG(INFO) << "init topology success.";
+
     // init CopysetManager
     auto copysetManager =
         std::make_shared<CopysetManager>(copysetOption);
+
+    LOG(INFO) << "init copysetManager success.";
 
     // init TopologyStat
     auto topologyStat =
         std::make_shared<TopologyStatImpl>(topology);
     LOG_IF(FATAL, topologyStat->Init() < 0)
         << "init topologyStat fail.";
+    LOG(INFO) << "init topologyStat success.";
 
-    // init TopoAdmin
-    auto topologyAdmin =
-          std::make_shared<TopologyAdminImpl>(topology);
+    // init TopologyChunkAllocator
+    auto topologyChunkAllocator =
+          std::make_shared<TopologyChunkAllocatorImpl>(topology,
+               segmentAllocStatistic, topologyOption);
+    LOG(INFO) << "init topologyChunkAllocator success.";
 
     // init TopologyMetricService
     auto topologyMetricService =
-        std::make_shared<TopologyMetricService>(topology, topologyStat);
+        std::make_shared<TopologyMetricService>(topology,
+            topologyStat,
+            segmentAllocStatistic);
     LOG_IF(FATAL, topologyMetricService->Init(topologyOption) < 0)
         << "init topologyMetricService fail.";
     LOG_IF(FATAL, topologyMetricService->Run() < 0)
         << "topologyMetricService start run fail";
+    LOG(INFO) << "init topologyMetricService success.";
 
     // init TopologyServiceManager
     auto topologyServiceManager =
         std::make_shared<TopologyServiceManager>(topology,
         copysetManager);
     topologyServiceManager->Init(topologyOption);
+    LOG(INFO) << "init topologyServiceManager success.";
 
     // init ChunkSegmentAllocator
     ChunkSegmentAllocator *chunkSegmentAllocate =
-        new ChunkSegmentAllocatorImpl(topologyAdmin, chunkIdGenerator);
+        new ChunkSegmentAllocatorImpl(topologyChunkAllocator, chunkIdGenerator);
+    LOG(INFO) << "init ChunkSegmentAllocator success.";
 
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
     // init CleanManager
     auto taskManager = std::make_shared<CleanTaskManager>();
-    auto cleanCore = std::make_shared<CleanCore>(storage, topology);
+    auto copysetClient =
+        std::make_shared<CopysetClient>(topology, chunkServerClientOption);
+
+    auto cleanCore = std::make_shared<CleanCore>(storage,
+                                                 copysetClient,
+                                                 segmentAllocStatistic);
 
     auto cleanManger = std::make_shared<CleanManager>(cleanCore,
                                                       taskManager, storage);
+    LOG(INFO) << "init CleanManager success.";
 
     // init SessionManager
     SessionManager *sessionManager = new SessionManager(mdsRepo);
     LOG_IF(FATAL, !kCurveFS.Init(storage, inodeIdGenerator.get(),
                   chunkSegmentAllocate, cleanManger,
-                  sessionManager, sessionOptions, authOptions, mdsRepo))
+                  sessionManager,
+                  segmentAllocStatistic,
+                  sessionOptions, authOptions,
+                  curveFSOptions, mdsRepo))
         << "init session manager fail";
+    LOG(INFO) << "init SessionManager success.";
 
 
     // start clean manager
     LOG_IF(FATAL, !cleanManger->Start()) << "start cleanManager fail.";
 
+    cleanManger->RecoverCleanTasks();
+    LOG(INFO) << "RecoverCleanTasks success.";
+
     // =========================init scheduler======================//
-    LOG_IF(FATAL, SchedulerMetric::GetInstance() == nullptr)
-        << "init scheduler metric fail";
+    auto scheduleMetrics = std::make_shared<ScheduleMetrics>(topology);
     auto topoAdapter = std::make_shared<TopoAdapterImpl>(
         topology, topologyServiceManager, topologyStat);
     auto coordinator = std::make_shared<Coordinator>(topoAdapter);
-    coordinator->InitScheduler(scheduleOption);
+    coordinator->InitScheduler(scheduleOption, scheduleMetrics);
     coordinator->Run();
 
     // =======================init heartbeat manager================//
@@ -437,6 +519,8 @@ int curve_main(int argc, char **argv) {
     LOG_IF(FATAL, server.Start(mdsListenAddr.c_str(), &option) != 0)
         << "start brpc server error";
 
+    // 要想实现SIGTERM的优雅退出，启动进程时需要指定参数：
+    // --graceful_quit_on_sigterm
     server.RunUntilAskedToQuit();
 
     kCurveFS.Uninit();
@@ -444,6 +528,11 @@ int curve_main(int argc, char **argv) {
         LOG(ERROR) << "stop cleanManager fail.";
         return -1;
     }
+
+    // 在退出之前把自己的节点删除
+    leaderElection->LeaderResign();
+    segmentAllocStatistic->Stop();
+
     return 0;
 }
 }  // namespace mds

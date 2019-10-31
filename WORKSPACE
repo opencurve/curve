@@ -1,13 +1,14 @@
 workspace(name = "curve")
 
-local_repository(
-    name = "com_github_brpc_braft",
-    path = "thirdparties/braft",
+git_repository(
+    name = "com_netease_storage_gerrit_curve_curve_braft",
+    remote = "http://gerrit.storage.netease.com/curve/curve-braft",
+    commit = "5a64dad6c327f68e90f6f1b1d25f440055f2b309",
 )
 
 bind(
     name = "braft",
-    actual = "@com_github_brpc_braft//:braft",
+    actual = "@com_netease_storage_gerrit_curve_curve_braft//:braft",
 )
 
 # proto_library, cc_proto_library, and java_proto_library rules implicitly
@@ -74,29 +75,30 @@ bind(
     actual = "@com_github_google_leveldb//:leveldb",
 )
 
-local_repository(
-    name = "com_github_brpc_brpc",
-    path = "thirdparties/brpc",
+git_repository(
+    name = "com_netease_storage_gerrit_curve_curve_brpc",
+    remote = "http://gerrit.storage.netease.com/curve/curve-brpc",
+    commit = "5d7dc6d53af8589d122b67ad0fc2de28f3c2ade5",
 )
 
 bind(
     name = "brpc",
-    actual = "@com_github_brpc_brpc//:brpc",
+    actual = "@com_netease_storage_gerrit_curve_curve_brpc//:brpc",
 )
 
 bind(
     name = "butil",
-    actual = "@com_github_brpc_brpc//:butil",
+    actual = "@com_netease_storage_gerrit_curve_curve_brpc//:butil",
 )
 
 bind(
     name = "bthread",
-    actual = "@com_github_brpc_brpc//:bthread",
+    actual = "@com_netease_storage_gerrit_curve_curve_brpc//:bthread",
 )
 
 bind(
     name = "bvar",
-    actual = "@com_github_brpc_brpc//:bvar",
+    actual = "@com_netease_storage_gerrit_curve_curve_brpc//:bvar",
 )
 
 # jsoncpp

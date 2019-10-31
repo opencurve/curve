@@ -10,6 +10,7 @@
 #include <glog/logging.h>
 #include <memory>
 #include "src/mds/nameserver2/namespace_storage.h"
+#include "src/mds/nameserver2/helper/namespace_helper.h"
 #include "src/common/timeutility.h"
 #include "test/mds/mock/mock_etcdclient.h"
 
@@ -38,6 +39,7 @@ class TestNameServerStorageImp : public ::testing::Test {
     }
 
     void GetFileInfoForTest(FileInfo *fileinfo) {
+        uint64_t DefaultChunkSize = 16 * kMB;
         std::string filename = "helloword-" + std::to_string(1) + ".log";
         fileinfo->set_id(1);
         fileinfo->set_filename(filename);
@@ -332,11 +334,13 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
 
 TEST_F(TestNameServerStorageImp, test_putsegment) {
     PageFileSegment segment;
-    EXPECT_CALL(*client_, Put(_, _))
+    EXPECT_CALL(*client_, PutRewithRevision(_, _, _))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Canceled));
-    ASSERT_EQ(StoreStatus::OK, storage_->PutSegment(0, 0, &segment));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->PutSegment(0, 0, &segment));
+    int64_t revision;
+    ASSERT_EQ(StoreStatus::OK, storage_->PutSegment(0, 0, &segment, &revision));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->PutSegment(0, 0, &segment, &revision));
 }
 
 TEST_F(TestNameServerStorageImp, test_getSegment) {
@@ -371,11 +375,13 @@ TEST_F(TestNameServerStorageImp, test_getSegment) {
 }
 
 TEST_F(TestNameServerStorageImp, test_deleteSegment) {
-    EXPECT_CALL(*client_, Delete(_))
+    EXPECT_CALL(*client_, DeleteRewithRevision(_, _))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Aborted));
-    ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(0, 0));
-    ASSERT_EQ(StoreStatus::InternalError, storage_->DeleteSegment(0, 0));
+    int64_t revision;
+    ASSERT_EQ(StoreStatus::OK, storage_->DeleteSegment(0, 0, &revision));
+    ASSERT_EQ(StoreStatus::InternalError,
+        storage_->DeleteSegment(0, 0, &revision));
 }
 
 TEST_F(TestNameServerStorageImp, test_Snapshotfile) {
