@@ -74,7 +74,7 @@ int ReplicaScheduler::Schedule() {
                 continue;
             // 在目标节点上创建copyset
             } else if (!topo_->CreateCopySetAtChunkServer(info.id, csId)) {
-                LOG(ERROR) << "replicaScheduler create "
+                LOG(WARNING) << "replicaScheduler create "
                                << info.CopySetInfoStr()
                                << ") on chunkServer: " << csId << " error";
                 opController_->RemoveOperator(info.id);
