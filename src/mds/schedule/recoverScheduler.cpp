@@ -123,7 +123,7 @@ int RecoverScheduler::Schedule() {
             // 添加operator成功之后，应该在target上创建copyset,
             // 如果创建失败，删除该operator
             if (!topo_->CreateCopySetAtChunkServer(copysetInfo.id, target)) {
-                LOG(ERROR) << "recoverScheduler create "
+                LOG(WARNING) << "recoverScheduler create "
                            << copysetInfo.CopySetInfoStr()
                            << " on chunkServer: " << target
                            << " error, delete operator" << fixRes.OpToString();
