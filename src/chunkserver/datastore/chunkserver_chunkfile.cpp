@@ -1,7 +1,7 @@
 /*
  * Project: curve
  * File Created: Thursday, 6th September 2018 10:49:53 am
- * Author: tongguangxun
+ * Author: yangyaokai
  * Copyright (c) 2018 NetEase
  */
 #include <fcntl.h>
