@@ -271,18 +271,9 @@ int EtcdClientImp::CampaignLeader(
     return res.r0;
 }
 
-bool EtcdClientImp::LeaderKeyExist(
-    uint64_t leaderOid, uint64_t timeoutMs) {
-    int resCode = EtcdElectionLeaderKeyExist(leaderOid, timeoutMs);
-    if (resCode == EtcdErrCode::GetLeaderKeyOK) {
-        return true;
-    }
-    return false;
-}
-
 int EtcdClientImp::LeaderObserve(
-    uint64_t leaderOid, uint64_t timeoutMs, const std::string &leaderName) {
-    return EtcdLeaderObserve(leaderOid, timeoutMs,
+    uint64_t leaderOid, const std::string &leaderName) {
+    return EtcdLeaderObserve(leaderOid,
         const_cast<char*>(leaderName.c_str()), leaderName.size());
 }
 
