@@ -22,7 +22,6 @@ TEST(TestLeaderElection, test_leader_election) {
     LeaderElectionOptions opts;
     opts.etcdCli = client;
     opts.leaderUniqueName = "leader1";
-    opts.observeTimeoutMs = 2000;
     opts.sessionInterSec = 1;
     opts.electionTimeoutMs = 0;
     auto leaderElection = std::make_shared<LeaderElection>(opts);
@@ -48,18 +47,6 @@ TEST(TestLeaderElection, test_leader_election) {
     EXPECT_CALL(*client, LeaderObserve(_, _, _))
         .WillRepeatedly(Return(EtcdErrCode::ObserverLeaderInternal));
     ASSERT_EQ(-1, leaderElection->ObserveLeader());
-
-    EXPECT_CALL(*client, LeaderObserve(_, _, _))
-        .WillRepeatedly(Return(EtcdErrCode::ObserverLeaderChange));
-    ASSERT_EQ(-1, leaderElection->ObserveLeader());
-
-    EXPECT_CALL(*client, LeaderKeyExist(_, _))
-        .WillOnce(Return(false));
-    ASSERT_FALSE(leaderElection->LeaderKeyExist());
-
-    EXPECT_CALL(*client, LeaderKeyExist(_, _))
-        .WillOnce(Return(true));
-    ASSERT_TRUE(leaderElection->LeaderKeyExist());
 
     fiu_disable("src/mds/leaderElection/observeLeader");
 }
