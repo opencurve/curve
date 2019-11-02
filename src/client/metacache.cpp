@@ -113,7 +113,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                     UpdateCopysetInfo(logicPoolId, copysetId, cpinfoVec[0]);
                     break;
                 } else {
-                    LOG(ERROR) << "get copyset server list info from mds failed"
+                    LOG(WARNING) << "get copyset server list from mds failed"
                                << ", copyset id = " << copysetId
                                << ", logicpool id = " << logicPoolId;
                 }
@@ -123,7 +123,7 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
     }
 
     if (ret == -1) {
-        LOG(ERROR) << "get leader failed after retry!"
+        LOG_EVERY_N(ERROR, 10) << "get leader failed after retry!"
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
         return -1;
@@ -146,7 +146,7 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                       fm);
 
     if (ret == -1) {
-        LOG(ERROR) << "get leader failed!"
+        LOG_EVERY_N(ERROR, 10) << "get leader failed!"
                    << ", copyset id = " << copysetId
                    << ", logicpool id = " << logicPoolId;
         return -1;
