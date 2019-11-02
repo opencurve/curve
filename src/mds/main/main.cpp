@@ -187,8 +187,6 @@ void InitLeaderElectionOption(
     Configuration *conf, LeaderElectionOptions *electionOp) {
     LOG_IF(FATAL, !conf->GetStringValue("mds.listen.addr",
         &electionOp->leaderUniqueName));
-    LOG_IF(FATAL, !conf->GetUInt32Value("mds.leader.observeTimeoutMs",
-        &electionOp->observeTimeoutMs));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.leader.sessionInterSec",
         &electionOp->sessionInterSec));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.leader.electionTimeoutMs",

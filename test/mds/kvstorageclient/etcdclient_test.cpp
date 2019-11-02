@@ -370,16 +370,6 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         uint64_t targetOid;
         std::thread thread1(&EtcdClientImp::CampaignLeader, client_, pfx,
             leaderName1, sessionnInterSec, electionTimeoutMs, &targetOid);
-        int now = ::curve::common::TimeUtility::GetTimeofDaySec();
-        bool leaderKeyExist = false;
-        while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
-            if (targetOid == 0) {
-                continue;
-            }
-            leaderKeyExist = client_->LeaderKeyExist(
-                targetOid, sessionnInterSec * 1000);
-        }
-        ASSERT_TRUE(leaderKeyExist);
         // 等待线程1执行完成, 线程1执行完成就说明竞选成功，
         // 否则electionTimeoutMs为0的情况下会一直hung在里面
         thread1.join();
@@ -394,9 +384,9 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         // 线程1退出后，leader2会当选
         thread2.join();
         LOG(INFO) << "thread 2 exit.";
-        // leader2为leader的情况下此时观察leader1的key应该发现not exist
-        ASSERT_EQ(EtcdErrCode::ObserverLeaderNotExist,
-            client2->LeaderObserve(targetOid, 1000, leaderName1));
+        // leader2为leader的情况下此时观察leader1的key应该发现session过期
+        ASSERT_EQ(EtcdErrCode::ObserverLeaderInternal,
+            client2->LeaderObserve(targetOid, leaderName1));
         client2->CloseClient();
     }
 
@@ -439,13 +429,10 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         std::thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
         thread2.join();
-        // leader1观察到leader改变
-        ASSERT_EQ(EtcdErrCode::ObserverLeaderChange,
-            client1->LeaderObserve(targetOid, 1000, leaderName1));
 
         // leader2启动线程observe
-        std::thread thread3(&EtcdClientImp::LeaderObserve, client1,
-            targetOid, 1000, leaderName2);
+        common::Thread thread3(&EtcdClientImp::LeaderObserve, client1,
+            targetOid, leaderName2);
         std::this_thread::sleep_for(std::chrono::seconds(1));
         system("killall etcd");
         thread3.join();
