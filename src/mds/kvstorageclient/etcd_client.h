@@ -183,27 +183,16 @@ class EtcdClientImp : public KVStorageClient {
         uint64_t *leaderOid);
 
     /**
-     * @brief ElectionLeaderKeyExist 判断leader注册的key-value是否还存在
-     *
-     * @brief leaderOid 指定的leader
-     * @brief timeoutMs client去etcd服务端进行get操作的超时时间
-     *
-     * @return true-当前leader写入key存在且版本号最小
-     *         false-当前leader写入的key不存在或者版本号不是最小
-     */
-    virtual bool LeaderKeyExist(uint64_t leaderOid, uint64_t timeoutMs);
-
-    /**
-     * @brief LeaderObserve 当选leader后监测注册节点是否被删除以及etcd是否internal err //NOLINT
+     * @brief LeaderObserve
+     *        监听当前mds与etcd的session情况，如果session关闭或者过期会返回错误
      *
      * @param[in] leaderOid 监测指定leader
-     * @param[in] timeout 服务端挂掉时client的watch等操作的超时时间
      * @param[in] leaderName leader竞选时用的名称
      *
-     * @return 如果函数返回，表示leader已经改变 或者 监测节点发生internal error
+     * @return 如果函数返回，mds与etcd之间的session失效
      */
-    virtual int LeaderObserve(uint64_t leaderOid, uint64_t timeoutMs,
-        const std::string &leaderName);
+    virtual int LeaderObserve(
+        uint64_t leaderOid, const std::string &leaderName);
 
     /**
      * @brief LeaderResign leader主动卸任leader，成功后其他节点可以竞选leader
