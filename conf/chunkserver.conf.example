@@ -150,3 +150,8 @@ chunkfilepool.retry_times=5
 trash.expire_afterSec=86400
 # chunkserver检查回收数据过期时间的周期
 trash.scan_periodSec=3600
+
+# common option
+#
+# chunkserver 日志存放文件夹
+chunkserver.common.logDir=./

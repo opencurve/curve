@@ -61,6 +61,7 @@ using ::curve::common::Configuration;
 
 namespace curve {
 namespace mds {
+
 void InitSessionOptions(Configuration *conf,
                         struct SessionOptions *sessionOptions) {
     LOG_IF(FATAL, !conf->GetUInt32Value(
@@ -221,6 +222,14 @@ void LoadConfigFromCmdline(Configuration *conf) {
     if (GetCommandLineFlagInfo("etcdAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.etcd.endpoint", FLAGS_etcdAddr);
     }
+
+    // 设置日志存放文件夹
+    if (FLAGS_log_dir.empty()) {
+        if (!conf->GetStringValue("mds.common.logDir", &FLAGS_log_dir)) {
+            LOG(WARNING) << "no mds.common.logDir in " << FLAGS_confPath
+                         << ", will log to /tmp";
+        }
+    }
 }
 
 int curve_main(int argc, char **argv) {
@@ -236,8 +245,12 @@ int curve_main(int argc, char **argv) {
     conf.SetConfigPath(confPath);
     LOG_IF(FATAL, !conf.LoadConfig())
         << "load mds configuration fail, conf path = " << confPath;
+
     // 命令行覆盖配置文件中的参数
     LoadConfigFromCmdline(&conf);
+
+    // 初始化日志模块
+    google::InitGoogleLogging(argv[0]);
 
     // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
@@ -541,6 +554,8 @@ int curve_main(int argc, char **argv) {
     LOG(INFO) << "stop segment alloc success";
     coordinator->Stop();
     LOG(INFO) << "stop coordinator success";
+
+    google::ShutdownGoogleLogging();
 
     return 0;
 }
