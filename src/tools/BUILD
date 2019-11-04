@@ -86,10 +86,10 @@ cc_library(
     copts = COPTS
 )
 
-cc_library(
-    name = "curve_format_lib",
+cc_binary(
+    name = "curve_format",
     srcs = [
-        "curve_format.h",
+        "curve_format_main.cpp",
     ],
     deps = [
         "//external:braft",
@@ -121,9 +121,9 @@ cc_binary(
         "//external:gflags",
         "//src/tools:status_tool_lib",
         "//src/tools:namespace_tool_lib",
-        "//src/tools:curve_format_lib",
         "//src/tools:curve_cli_lib",
         "//src/tools:consistency_check_lib",
+        "//src/tools:copyset_check_lib",
     ],
 )
 
@@ -165,5 +165,24 @@ cc_library(
         "//src/common:curve_common",
         "//src/mds/common:mds_common",
         "//src/mds/nameserver2:nameserver2",
+    ],
+)
+
+cc_library(
+    name = "copyset_check_lib",
+    srcs = glob(
+        ["copyset_check.cpp", "copyset_check.h"],
+    ),
+    hdrs = glob(["copyset_check.h"]),
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gflags",
+        "//external:protobuf",
+        "//external:brpc",
+        "//external:braft",
+        "//proto:topology_cc_proto",
+        "//src/common:curve_common",
+        "//src/mds/common:mds_common",
     ],
 )
