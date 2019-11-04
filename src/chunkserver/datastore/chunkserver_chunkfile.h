@@ -1,7 +1,7 @@
 /*
  * Project: curve
  * File Created: Thursday, 6th September 2018 10:49:30 am
- * Author: tongguangxun
+ * Author: yangyaokai
  * Copyright (c) 2018 NetEase
  */
 #ifndef SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_CHUNKFILE_H_

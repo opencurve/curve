@@ -59,6 +59,10 @@ int ChunkServer::Run(int argc, char** argv) {
     // 命令行可以覆盖配置文件中的参数
     LoadConfigFromCmdline(&conf);
 
+    // 初始化日志模块
+    google::InitGoogleLogging(argv[0]);
+
+
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
 
@@ -295,6 +299,8 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG_IF(ERROR, trash_->Fini() != 0)
         << "Failed to shutdown trash.";
     concurrentapply.Stop();
+
+    google::ShutdownGoogleLogging();
     return 0;
 }
 
@@ -526,6 +532,14 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
 
     if (GetCommandLineFlagInfo("mdsListenAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);
+    }
+
+    // 设置日志存放文件夹
+    if (FLAGS_log_dir.empty()) {
+        if (!conf->GetStringValue("chunkserver.common.logDir", &FLAGS_log_dir)) {  // NOLINT
+            LOG(WARNING) << "no chunkserver.common.logDir in " << FLAGS_conf
+                         << ", will log to /tmp";
+        }
     }
 }
 

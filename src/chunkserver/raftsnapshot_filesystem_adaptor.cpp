@@ -58,7 +58,7 @@ braft::FileAdaptor* RaftSnapshotFilesystemAdaptor::open(const std::string& path,
         int rc = chunkfilePool_->GetChunk(path, tempMetaPageContent);
         // 如果从chunkfilepool中取失败，那么就仍然用原来的逻辑，不返回错误。
         if (rc != 0) {
-            LOG(WARNING) << "get chunk from chunkfile pool failed!";
+            LOG(ERROR) << "get chunk from chunkfile pool failed!";
         } else {
             oflag &= (~O_CREAT);
             oflag &= (~O_TRUNC);
@@ -72,7 +72,14 @@ braft::FileAdaptor* RaftSnapshotFilesystemAdaptor::open(const std::string& path,
     }
 
     if (fd < 0) {
-        LOG(ERROR) << "Open " << path.c_str() << " failed, errno = " << errno;
+        if (oflag & O_CREAT) {
+            LOG(ERROR) << "snapshot create chunkfile failed, filename = "
+                << path.c_str() << ", errno = " << errno;
+        } else {
+            LOG(WARNING) << "snapshot open chunkfile failed,"
+                    << "may be deleted by user, filename = "
+                    << path.c_str() << ",errno = " << errno;
+        }
         return NULL;
     }
     if (cloexec && !local_s_support_cloexec_on_open) {
