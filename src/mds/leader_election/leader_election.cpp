@@ -26,12 +26,8 @@ int LeaderElection::CampaginLeader() {
         return 0;
     }
 
-    LOG(ERROR) << leaderName_ << " campaign leader err: " << resCode;
+    LOG(WARNING) << leaderName_ << " campaign leader err: " << resCode;
     return -1;
-}
-
-bool LeaderElection::LeaderKeyExist() {
-    return etcdCli_->LeaderKeyExist(leaderOid_, observeTimeoutMs_);
 }
 
 void LeaderElection::StartObserverLeader() {
@@ -40,31 +36,26 @@ void LeaderElection::StartObserverLeader() {
 }
 
 int LeaderElection::LeaderResign() {
-    int res = etcdCli_->LeaderResign(leaderOid_, observeTimeoutMs_);
+    int res = etcdCli_->LeaderResign(leaderOid_, 1000 * sessionInterSec_);
     if (EtcdErrCode::LeaderResiginSuccess == res) {
         LOG(INFO) << leaderName_ << " resign leader ok";
         return 0;
     }
 
-    LOG(ERROR) << leaderName_ << " resign leader err: " << res;
+    LOG(WARNING) << leaderName_ << " resign leader err: " << res;
     return -1;
 }
 
 int LeaderElection::ObserveLeader() {
     LOG(INFO) << leaderName_ << " start observe.";
-    int resCode = etcdCli_->LeaderObserve(
-        leaderOid_, observeTimeoutMs_, leaderName_);
-    if (resCode == EtcdErrCode::ObserverLeaderInternal) {
-        LOG(ERROR) << leaderName_ << " Observer channel closed permaturely";
-    } else if (resCode == EtcdErrCode::ObserverLeaderChange) {
-        LOG(ERROR) << leaderName_ << " Observer leader change";
-    }
+    int resCode = etcdCli_->LeaderObserve(leaderOid_, leaderName_);
+    LOG(ERROR) << leaderName_
+               << " mds session occur error, errcode: " << resCode;
 
     // for test
     fiu_return_on("src/mds/leaderElection/observeLeader", -1);
 
     // 退出当前进程
-    LeaderResign();
     CHECK(false) << leaderName_ << " Observer encounter error, mds exit";
 }
 }  // namespace mds

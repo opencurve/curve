@@ -1345,7 +1345,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         ASSERT_NE(0, reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayUs();
-        ASSERT_GT(end - start, 1500);
+        ASSERT_GT(end - start, 1400);
         gReadCntlFailedCode = 0;
     }
 

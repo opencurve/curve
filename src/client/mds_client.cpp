@@ -62,7 +62,7 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption_t& metaServerOpt) {
 
         channel_ = new (std::nothrow) brpc::Channel();
         if (channel_->Init(addr.c_str(), nullptr) != 0) {
-            LOG(ERROR) << "Init channel failed!";
+            LOG(WARNING) << "Init channel failed!" << addr;
             continue;
         }
         mdsClientMetric_.metaserverAddr = addr;
@@ -70,6 +70,7 @@ LIBCURVE_ERROR MDSClient::Initialize(const MetaServerOption_t& metaServerOpt) {
         return LIBCURVE_ERROR::OK;
     }
 
+    LOG(ERROR) << "init failed!";
     return LIBCURVE_ERROR::FAILED;
 }
 
@@ -89,7 +90,7 @@ bool MDSClient::ChangeMDServer(int* mdsAddrleft) {
 
     while (1) {
         if (nextMDSAddrIndex == lastWorkingMDSAddrIndex_) {
-            LOG(ERROR) << "have retried all mds address!";
+            LOG_EVERY_N(ERROR, 10) << "have retried all mds address!";
             break;
         }
 
@@ -106,7 +107,7 @@ bool MDSClient::ChangeMDServer(int* mdsAddrleft) {
             int ret = channel_->Init(metaServerOpt_.
                                 metaaddrvec[nextMDSAddrIndex].c_str(), nullptr);
             if (ret != 0) {
-                LOG(ERROR) << "Init channel failed!";
+                LOG(WARNING) << "Init channel failed!";
                 continue;
             }
 
@@ -137,7 +138,7 @@ bool MDSClient::UpdateRetryinfoOrChangeServer(int* retrycount,
             // 切换mds地址，重新在新的mds addr上重试
             *retrycount = 0;
         } else {
-            LOG(ERROR) << "retry failed!";
+            LOG(WARNING) << "retry failed!";
             bthread_usleep(metaServerOpt_.retryIntervalUs);
             return false;
         }
@@ -171,7 +172,7 @@ LIBCURVE_ERROR MDSClient::Register(const std::string& ip,
 
         if (cntl.Failed()) {
             mdsClientMetric_.registerClient.eps.count << 1;
-            LOG(ERROR) << "register client failed, errcorde = "
+            LOG(WARNING) << "register client failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -224,7 +225,7 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
 
         if (cntl.Failed()) {
             mdsClientMetric_.openFile.eps.count << 1;
-            LOG(ERROR) << "open file failed, errcorde = "
+            LOG(WARNING) << "open file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -301,7 +302,7 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
 
         if (cntl.Failed()) {
             mdsClientMetric_.createFile.eps.count << 1;
-            LOG(ERROR) << "Create file or directory failed, errcorde = "
+            LOG(WARNING) << "Create file or directory failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -358,7 +359,7 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
 
         if (cntl.Failed()) {
             mdsClientMetric_.closeFile.eps.count << 1;
-            LOG(ERROR) << "close file failed, errcorde = "
+            LOG(WARNING) << "close file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -414,7 +415,7 @@ LIBCURVE_ERROR MDSClient::GetFileInfo(const std::string& filename,
 
         if (cntl.Failed()) {
             mdsClientMetric_.getFile.eps.count << 1;
-            LOG(ERROR)  << "get file info failed, error content:"
+            LOG(WARNING)  << "get file info failed, error content:"
                         << cntl.ErrorText()
                         << ", retry GetFileInfo, retry times = "
                         << count
@@ -471,7 +472,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
         }
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "create snap file failed, errcorde = "
+            LOG(WARNING) << "create snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -497,7 +498,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
             return LIBCURVE_ERROR::OK;
         } else if (!response.has_snapshotfileinfo() &&
                    stcode == ::curve::mds::StatusCode::kOK) {
-            LOG(ERROR) << "mds side response has no snapshot file info!";
+            LOG(WARNING) << "mds side response has no snapshot file info!";
             return LIBCURVE_ERROR::FAILED;
         }
 
@@ -540,7 +541,7 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
         }
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "delete snap file failed, errcorde = "
+            LOG(WARNING) << "delete snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -596,7 +597,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         }
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "list snap file failed, errcorde = "
+            LOG(WARNING) << "list snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -673,7 +674,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
         }
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "get snap file segment info failed, errcorde = "
+            LOG(WARNING) << "get snap file segment info failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -807,7 +808,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
 
         if (cntl.Failed()) {
             mdsClientMetric_.refreshSession.eps.count << 1;
-            LOG(ERROR) << "Fail to send ReFreshSessionRequest, "
+            LOG(WARNING) << "Fail to send ReFreshSessionRequest, "
                         << cntl.ErrorText()
                         << ", retry again!";
             if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
@@ -819,7 +820,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
         curve::mds::StatusCode stcode = response.statuscode();
 
         if (stcode != curve::mds::StatusCode::kOK) {
-            LOG(ERROR) << "RefreshSession NOT OK: filename = "
+            LOG(WARNING) << "RefreshSession NOT OK: filename = "
                         << filename.c_str()
                         << ", owner = "
                         << userinfo.owner
@@ -855,7 +856,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                 ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
                 resp->status = leaseRefreshResult::Status::OK;
             } else {
-                LOG(ERROR) << "session response has no fileinfo!";
+                LOG(WARNING) << "session response has no fileinfo!";
                 return LIBCURVE_ERROR::FAILED;
             }
         }
@@ -889,7 +890,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
         }
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "check snap file failed, errcorde = "
+            LOG(WARNING) << "check snap file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText();
@@ -947,7 +948,7 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
 
         if (cntl.Failed()) {
             mdsClientMetric_.getServerList.eps.count << 1;
-            LOG(ERROR)  << "get server list from mds failed, status code = "
+            LOG(WARNING)  << "get server list from mds failed, status code = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -978,14 +979,14 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
                 cntl.ErrorCode() == brpc::ELOGOFF) {
                 count++;
                 if (!ChangeMDServer(&mdsAddrleft)) {
-                    LOG(ERROR) << "change mds server failed!";
+                    LOG(WARNING) << "change mds server failed!";
                     bthread_usleep(metaServerOpt_.retryIntervalUs);
                 } else {
                     timeOutTimes = 0;
                 }
             } else {
                 if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {  //  NOLINT
-                    LOG(ERROR) << "UpdateRetryinfoOrChangeServer failed!";
+                    LOG(WARNING) << "UpdateRetryinfoOrChangeServer failed!";
                 }
             }
             continue;
@@ -1131,7 +1132,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
         }
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "Create clone file failed, errcorde = "
+            LOG(WARNING) << "Create clone file failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -1207,7 +1208,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         }
 
         if (cntl.Failed()) {
-            LOG(ERROR) << "SetCloneFileStatus invoke failed, errcorde = "
+            LOG(WARNING) << "SetCloneFileStatus invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -1269,7 +1270,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
 
         if (cntl.Failed()) {
             mdsClientMetric_.getOrAllocateSegment.eps.count << 1;
-            LOG(ERROR)  << "allocate segment failed, error code = "
+            LOG(WARNING)  << "allocate segment failed, error code = "
                         << response.statuscode()
                         << ", error content:" << cntl.ErrorText()
                         << ", offset:" << offset
@@ -1299,14 +1300,14 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                 cntl.ErrorCode() == brpc::ELOGOFF) {
                 count++;
                 if (!ChangeMDServer(&mdsAddrleft)) {
-                    LOG(ERROR) << "change mds server failed!";
+                    LOG(WARNING) << "change mds server failed!";
                     bthread_usleep(metaServerOpt_.retryIntervalUs);
                 } else {
                     timeOutTimes = 0;
                 }
             } else {
                 if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {   //  NOLINT
-                    LOG(ERROR) << "UpdateRetryinfoOrChangeServer failed!";
+                    LOG(WARNING) << "UpdateRetryinfoOrChangeServer failed!";
                 }
             }
             continue;
@@ -1329,28 +1330,28 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                 if (pfs.has_logicalpoolid()) {
                     logicpoolid = pfs.logicalpoolid();
                 } else {
-                    LOG(ERROR) << "page file segment has no logicpool info";
+                    LOG(WARNING) << "page file segment has no logicpool info";
                     break;
                 }
 
                 if (pfs.has_segmentsize()) {
                     segInfo->segmentsize = pfs.segmentsize();
                 } else {
-                    LOG(ERROR) << "page file segment has no logicpool info";
+                    LOG(WARNING) << "page file segment has no logicpool info";
                     break;
                 }
 
                 if (pfs.has_chunksize()) {
                     segInfo->chunksize = pfs.chunksize();
                 } else {
-                    LOG(ERROR) << "page file segment has no logicpool info";
+                    LOG(WARNING) << "page file segment has no logicpool info";
                     break;
                 }
 
                 if (pfs.has_startoffset()) {
                     segInfo->startoffset = pfs.startoffset();
                 } else {
-                    LOG(ERROR) << "page file segment has no startoffset info";
+                    LOG(WARNING) << "page file segment has no startoffset info";
                     break;
                 }
 
@@ -1358,7 +1359,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
 
                 int chunksNum = pfs.chunks_size();
                 if (allocate && chunksNum <= 0) {
-                    LOG(ERROR) << "MDS allocate segment, but no chunkinfo!";
+                    LOG(WARNING) << "MDS allocate segment, but no chunkinfo!";
                     break;
                 }
 
@@ -1368,7 +1369,7 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                     if (pfs.chunks(i).has_chunkid()) {
                         chunkid = pfs.chunks(i).chunkid();
                     } else {
-                        LOG(ERROR) << "page file segment has no chunkid info";
+                        LOG(WARNING) << "page file segment has no chunkid info";
                         break;
                     }
 
@@ -1376,7 +1377,8 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                         copysetid = pfs.chunks(i).copysetid();
                         segInfo->lpcpIDInfo.cpidVec.push_back(copysetid);
                     } else {
-                        LOG(ERROR) << "page file segment has no copysetid info";
+                        LOG(WARNING)
+                        << "pagefile segment has no copysetid info";
                         break;
                     }
 
@@ -1425,7 +1427,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
 
         if (cntl.Failed()) {
             mdsClientMetric_.renameFile.eps.count << 1;
-            LOG(ERROR) << "RenameFile invoke failed, errcorde = "
+            LOG(WARNING) << "RenameFile invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -1484,7 +1486,7 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
 
         if (cntl.Failed()) {
             mdsClientMetric_.extendFile.eps.count << 1;
-            LOG(ERROR) << "ExtendFile invoke failed, errcorde = "
+            LOG(WARNING) << "ExtendFile invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -1543,7 +1545,7 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
 
         if (cntl.Failed()) {
             mdsClientMetric_.deleteFile.eps.count << 1;
-            LOG(ERROR) << "DeleteFile invoke failed, errcorde = "
+            LOG(WARNING) << "DeleteFile invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -1599,7 +1601,7 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
 
         if (cntl.Failed()) {
             mdsClientMetric_.changeOwner.eps.count << 1;
-            LOG(ERROR) << "ChangeOwner invoke failed, errcorde = "
+            LOG(WARNING) << "ChangeOwner invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
@@ -1655,7 +1657,7 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
 
         if (cntl.Failed()) {
             mdsClientMetric_.listDir.eps.count << 1;
-            LOG(ERROR) << "Listdir invoke failed, errcorde = "
+            LOG(WARNING) << "Listdir invoke failed, errcorde = "
                         << response.statuscode()
                         << ", error content:"
                         << cntl.ErrorText()
