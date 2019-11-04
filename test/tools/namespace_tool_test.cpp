@@ -12,7 +12,7 @@
 
 uint32_t segment_size = 1 << 30;   // NOLINT
 uint32_t chunk_size = 1 << 29;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:9301";   // NOLINT
+std::string metaserver_addr = "127.0.0.1:9180";   // NOLINT
 
 DECLARE_string(mds_addr);
 DECLARE_uint64(test_disk_size);
@@ -22,7 +22,7 @@ class NameSpaceToolTest : public ::testing::Test {
  protected:
     NameSpaceToolTest() : fakemds("/test") {}
     void SetUp() {
-        FLAGS_mds_addr = "127.0.0.1:9301";
+        FLAGS_mds_addr = "127.0.0.1:9999,127.0.0.1:9180";
         FLAGS_test_disk_size = 1ull << 32;
         FLAGS_isTest = true;
         fakemds.Initialize();
