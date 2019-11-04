@@ -110,8 +110,8 @@ int Ext4FileSystemImpl::Statfs(const string& path,
     struct statfs diskInfo;
     int rc = posixWrapper_->statfs(path.c_str(), &diskInfo);
     if (rc < 0) {
-        LOG(ERROR) << "fstat failed: " << strerror(errno)
-                   << ", file path = " << path.c_str();
+        LOG(WARNING) << "fstat failed: " << strerror(errno)
+                     << ", file path = " << path.c_str();
         return -errno;
     }
     info->total = diskInfo.f_blocks * diskInfo.f_bsize;
@@ -124,8 +124,8 @@ int Ext4FileSystemImpl::Statfs(const string& path,
 int Ext4FileSystemImpl::Open(const string& path, int flags) {
     int fd = posixWrapper_->open(path.c_str(), flags, 0644);
     if (fd < 0) {
-        LOG(ERROR) << "open failed: " << strerror(errno)
-                   << ", file path = " << path.c_str();
+        LOG(WARNING) << "open failed: " << strerror(errno)
+                     << ", file path = " << path.c_str();
         return -errno;
     }
     return fd;
@@ -147,7 +147,7 @@ int Ext4FileSystemImpl::Delete(const string& path) {
         vector<string> names;
         rc = List(path, &names);
         if (rc < 0) {
-            LOG(ERROR) << "List " << path << " failed.";
+            LOG(WARNING) << "List " << path << " failed.";
             return rc;
         }
         for (auto &name : names) {
@@ -155,15 +155,15 @@ int Ext4FileSystemImpl::Delete(const string& path) {
             // 递归删除子对象
             rc = Delete(subPath);
             if (rc < 0) {
-                LOG(ERROR) << "Delete " << subPath << " failed.";
+                LOG(WARNING) << "Delete " << subPath << " failed.";
                 return rc;
             }
         }
     }
     rc = posixWrapper_->remove(path.c_str());
     if (rc < 0) {
-        LOG(ERROR) << "remove failed: " << strerror(errno)
-                   << ", file path = " << path.c_str();
+        LOG(WARNING) << "remove failed: " << strerror(errno)
+                     << ", file path = " << path.c_str();
         return -errno;
     }
     return rc;
@@ -187,7 +187,7 @@ int Ext4FileSystemImpl::Mkdir(const string& dirName) {
             continue;
         // 目录需要755权限，不然会出现“Permission denied”
         if (posixWrapper_->mkdir(path.c_str(), 0755) < 0) {
-            LOG(ERROR) << "mkdir " << path << " failed. "<< strerror(errno);
+            LOG(WARNING) << "mkdir " << path << " failed. "<< strerror(errno);
             return -errno;
         }
     }
@@ -221,10 +221,10 @@ int Ext4FileSystemImpl::DoRename(const string& oldPath,
         rc = posixWrapper_->rename(oldPath.c_str(), newPath.c_str());
     }
     if (rc < 0) {
-        LOG(ERROR) << "rename failed: " << strerror(errno)
-                   << ". old path: " << oldPath
-                   << ", new path: " << newPath
-                   << ", flag: " << flags;
+        LOG(WARNING) << "rename failed: " << strerror(errno)
+                     << ". old path: " << oldPath
+                     << ", new path: " << newPath
+                     << ", flag: " << flags;
         return -errno;
     }
     return 0;
@@ -234,7 +234,7 @@ int Ext4FileSystemImpl::List(const string& dirName,
                              vector<std::string> *names) {
     DIR *dir = posixWrapper_->opendir(dirName.c_str());
     if (nullptr == dir) {
-        LOG(ERROR) << "opendir failed: " << strerror(errno);
+        LOG(WARNING) << "opendir failed: " << strerror(errno);
         return -errno;
     }
     struct dirent *dirIter;
@@ -247,7 +247,7 @@ int Ext4FileSystemImpl::List(const string& dirName,
     }
     // 可能存在其他携程改变了errno，但是只能通过此方式判断readdir是否成功
     if (errno != 0) {
-        LOG(ERROR) << "readdir failed: " << strerror(errno);
+        LOG(WARNING) << "readdir failed: " << strerror(errno);
     }
     posixWrapper_->closedir(dir);
     return -errno;

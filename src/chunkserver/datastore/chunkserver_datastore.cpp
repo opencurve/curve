@@ -1,7 +1,7 @@
 /*
  * Project: curve
  * File Created: Wednesday, 5th September 2018 8:04:03 pm
- * Author: tongguangxun
+ * Author: yangyaokai
  * Copyright (c) 2018 NetEase
  */
 

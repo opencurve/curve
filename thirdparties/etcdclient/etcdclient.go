@@ -69,6 +69,7 @@ import (
     "errors"
     "strings"
     "time"
+    "sync"
     "go.etcd.io/etcd/clientv3"
     "go.etcd.io/etcd/clientv3/concurrency"
     "go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
@@ -183,6 +184,8 @@ func NewEtcdClientV3(conf C.struct_EtcdConf) C.enum_EtcdErrCode {
         Endpoints:   GetEndpoint(C.GoStringN(conf.Endpoints, conf.len)),
         DialTimeout: time.Duration(int(conf.DialTimeout)) * time.Millisecond,
         DialOptions: []grpc.DialOption{grpc.WithBlock()},
+        DialKeepAliveTime: time.Second,
+        DialKeepAliveTimeout: time.Second,
     })
     return GetErrCode(EtcdNewClient, err)
 }
@@ -398,8 +401,6 @@ func EtcdClientCompareAndSwap(timeout C.int, key, prev, target *C.char,
 func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
     leaderName *C.char, nameLen C.int, sessionInterSec uint32,
     electionTimeoutMs uint32) (C.enum_EtcdErrCode, uint64) {
-    // TODO(lixiaocui):  MDS的切换时间是否能够控制在 ms级别，比如500ms以内
-    // 在正常kill的情况下，mds的切换时间内可以控制在ms级别
     goPfx := C.GoStringN(pfx, pfxLen)
     goLeaderName := C.GoStringN(leaderName, nameLen)
 
@@ -419,61 +420,76 @@ func EtcdElectionCampaign(pfx *C.char, pfxLen C.int,
     if electionTimeoutMs > 0 {
         ctx, cancel = context.WithTimeout(context.Background(),
             time.Duration(int(electionTimeoutMs)) * time.Millisecond)
-        defer cancel()
     } else {
-        ctx = context.Background()
+        ctx, cancel = context.WithCancel(context.Background())
     }
 
-    // 获取当前leader并打印
-    if leader, err := election.Leader(ctx); err == nil {
-        log.Printf("current leader is: %v", string(leader.Kvs[0].Value))
-    } else {
-        log.Printf("get current leader err: %v", err)
-    }
+    var wg sync.WaitGroup
+    wg.Add(2)
+    defer wg.Wait()
 
-    // 如果contex是'context.TODO()/context.Background()', 竞选会阻塞到该key被删除,
-    // 除非返回non-recoverable error(例如: ErrCompacted).
-    // 如果context有超时, 在超时或者取消之前, 竞选会阻塞到当选leader
-    log.Printf("%v campagin for leader begin", goLeaderName)
-    if err := election.Campaign(ctx, goLeaderName); err != nil {
-        log.Printf("%v campaign err: %v", goLeaderName, err)
+    // 监测当前的leader
+    obCtx, obCancel:= context.WithCancel(context.Background())
+    observer := election.Observe(obCtx)
+    defer obCancel()
+    go func() {
+        defer wg.Done()
+        for {
+            select {
+            case resp, ok := <-observer:
+                if !ok {
+                    log.Printf("watch leader channel closed permaturely[%x/%s]",
+                        session.Lease(), goLeaderName)
+                    return
+                }
+                log.Printf("current leader is: %v[%x/%s]",
+                    string(resp.Kvs[0].Value), session.Lease(), goLeaderName)
+            case <-obCtx.Done():
+                log.Printf("[%x/%s]stop watch current leader",
+                    session.Lease(), goLeaderName)
+                return
+            }
+        }
+    }()
+
+    // 监测自己key的存活状态
+    exitSignal := make(chan struct{}, 1)
+    go func(){
+        defer wg.Done()
+        for {
+            select {
+            case <- session.Done():
+                cancel()
+                log.Printf("session done[%x/%s]", session.Lease(), goLeaderName)
+                return
+            case <- exitSignal:
+                log.Printf("wait session done recieve existSignal[%x/%s]",
+                    session.Lease(), goLeaderName)
+                return
+            }
+        }
+    }()
+
+    // 1. Campaign返回nil说明当前mds持有的key版本号最小
+    // 2. Campaign返回时不检测自己持有key的状态，所以返回nil后需要监测session.Done()
+    if err := election.Campaign(ctx, goLeaderName); err == nil {
+        log.Printf("[%s/%x] campaign for leader success",
+            goLeaderName, session.Lease())
+        exitSignal <- struct{}{}
+        close(exitSignal)
+        cancel()
+        return C.CampaignLeaderSuccess, AddManagedObject(election)
+    } else {
+        log.Printf("[%s/%x] campaign err: %v",
+            goLeaderName, session.Lease(), err)
         session.Close()
         return C.CampaignInternalErr, 0
-    } else {
-        log.Printf("%v campaign for leader success", goLeaderName)
     }
-    return C.CampaignLeaderSuccess, AddManagedObject(election)
 }
-
-//export EtcdElectionLeaderKeyExist
-func EtcdElectionLeaderKeyExist(
-    leaderOid uint64, timeout uint64) C.enum_EtcdErrCode   {
-    election := GetLeaderElection(leaderOid)
-    if election == nil {
-        log.Printf("EtcdElectionLeaderKeyExist can not get leader object: %v",
-            leaderOid)
-        return C.ObjectNotExist
-    }
-    ctx, cancel := context.WithTimeout(context.Background(),
-        time.Duration(int(timeout))*time.Millisecond)
-    defer cancel()
-
-    resp, err := election.Leader(ctx)
-    if err != nil {
-        log.Printf("EtcdElectionLeaderKeyExist get leader err: %v", err)
-        return C.GetLeaderKeyErr
-    } else if string(resp.Kvs[0].Key) != election.Key() {
-        log.Printf("EtcdElectionLeaderKeyExist get current " +
-            "leader key: %v, self key：%v", resp.Kvs[0].Key, election.Key())
-        return C.GetLeaderKeyErr
-    }
-    return C.GetLeaderKeyOK
-}
-
 
 //export EtcdLeaderObserve
-func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
-    leaderName *C.char, nameLen C.int) C.enum_EtcdErrCode {
+func EtcdLeaderObserve(
+    leaderOid uint64, leaderName *C.char, nameLen C.int) C.enum_EtcdErrCode {
     goLeaderName := C.GoStringN(leaderName, nameLen)
 
     election := GetLeaderElection(leaderOid)
@@ -482,53 +498,13 @@ func EtcdLeaderObserve(leaderOid uint64, timeout uint64,
         return C.ObjectNotExist
     }
 
-    log.Printf("start observe: %v", goLeaderName)
-    var ctx context.Context
-    ctx = clientv3.WithRequireLeader(context.Background())
-
-    ticker := time.NewTicker(time.Duration(timeout / 5) * time.Millisecond)
-    defer ticker.Stop()
-
-    observer := election.Observe(ctx)
     for {
         select {
-        case resp, ok := <-observer:
-            if !ok {
-                log.Printf("Observe channel closed permaturely")
-                return C.ObserverLeaderInternal
-            }
-            if string(resp.Kvs[0].Value) == goLeaderName {
-                continue
-            }
-            log.Printf("Observe leaderChange, now is: %v, expect: %v",
-                resp.Kvs[0].Value, goLeaderName)
-            return C.ObserverLeaderChange
-        // observe如果设置有timeout的context, 含义是observe timeout时间便退出，其次，
-        // 还是get操作的超时时间。
-        // 在应用中希望对该key一直进行检测，因此context不带超时。这样会导致etcd挂掉的时候
-        // grpc无限重试，所以需要在外部定时去检查etcd网络连接状态
-        case <-ticker.C:
-            // 定期和mds通信，确认网络是否正常
-            t := time.Now()
-            ctx, cancel := context.WithTimeout(context.Background(),
-                time.Duration(int(timeout))*time.Millisecond)
-            defer cancel()
+        case <- election.Session().Done():
+            election.Session().Close()
+            log.Printf("session of current mds(%v) occur error", goLeaderName)
+            return C.ObserverLeaderInternal
 
-            resp, err := globalClient.Get(ctx, election.Key())
-            errCode := GetErrCode(EtcdGet, err)
-            if errCode != C.OK {
-                log.Printf("Observe can not get leader key: %v, startTime:" +
-                    " %v, spent: %v", election.Key(), t, time.Since(t))
-                return C.ObserverLeaderInternal
-            } else if len(resp.Kvs) == 0 {
-                log.Printf("Observe find leader key：%v not exist",
-                    election.Key())
-                return C.ObserverLeaderNotExist
-            } else if string(resp.Kvs[0].Key) != election.Key() {
-                log.Printf("Observe leaderChange, now is: %v, expect: %v",
-                    resp.Kvs[0].Value, goLeaderName)
-                return C.ObserverLeaderChange
-            }
         }
     }
 }
@@ -547,8 +523,11 @@ func EtcdLeaderResign(leaderOid uint64, timeout uint64) C.enum_EtcdErrCode {
 
     var leader *clientv3.GetResponse
     var err error
-    if leader, err = election.Leader(ctx); err != nil {
+    if leader, err = election.Leader(ctx);
+        err != nil && err != concurrency.ErrElectionNoLeader{
         log.Printf("Leader() returned non nil err: %s", err)
+        return C.LeaderResignErr
+    } else if err == concurrency.ErrElectionNoLeader {
         return C.LeaderResignErr
     }
 
