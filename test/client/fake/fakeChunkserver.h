@@ -157,6 +157,11 @@ class FakeChunkService : public ChunkService {
         waittimeMS = waittime;
     }
 
+    void DisableNetUnstable() {
+        wait4netunstable = false;
+        waittimeMS = 0;
+    }
+
     void CleanRetryTimes() {
         retryTimes.store(0);
     }

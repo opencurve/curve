@@ -12,12 +12,15 @@
 #include <brpc/controller.h>
 #include <bthread/bthread.h>
 #include <brpc/errno.pb.h>
+#include <unordered_map>  // NOLINT
+#include <unordered_set>  // NOLINT
 
 #include "proto/chunk.pb.h"
 #include "src/client/client_config.h"
 #include "src/client/client_common.h"
 #include "src/client/client_metric.h"
 #include "src/client/request_closure.h"
+#include "src/common/concurrent/concurrent.h"
 
 namespace curve {
 namespace client {
@@ -27,10 +30,48 @@ using curve::chunkserver::ChunkResponse;
 using curve::chunkserver::GetChunkInfoResponse;
 using ::google::protobuf::Message;
 using ::google::protobuf::Closure;
+using curve::common::SpinLock;
 
 class RequestSenderManager;
 class MetaCache;
 class CopysetClient;
+
+class UnstableChunkServerHelper {
+ public:
+    static void IncreTimeout(ChunkServerID csId) {
+        timeoutLock_.Lock();
+        ++timeoutTimes_[csId];
+        timeoutLock_.UnLock();
+    }
+
+    static bool IsTimeoutExceed(ChunkServerID csId) {
+        timeoutLock_.Lock();
+        auto ret = timeoutTimes_[csId] > maxStableChunkServerTimeoutTimes_;
+        timeoutLock_.UnLock();
+        return ret;
+    }
+
+    static void ClearTimeout(ChunkServerID csId) {
+        timeoutLock_.Lock();
+        timeoutTimes_[csId] = 0;
+        timeoutLock_.UnLock();
+    }
+
+    static void SetMaxStableChunkServerTimeoutTimes(
+        uint64_t maxStableChunkServerTimeoutTimes) {
+        maxStableChunkServerTimeoutTimes_ = maxStableChunkServerTimeoutTimes;  // NOLINT
+    }
+
+ private:
+    // 连续超时次数上限
+    static uint64_t maxStableChunkServerTimeoutTimes_;
+
+    // 保护timeoutTimes_;
+    static SpinLock timeoutLock_;
+
+    // 同一chunkserver连续超时请求次数
+    static std::unordered_map<ChunkServerID, uint64_t> timeoutTimes_;
+};
 
 /**
  * ClientClosure，负责保存Rpc上下文，
@@ -56,6 +97,9 @@ class ClientClosure : public Closure {
     static void SetFailureRequestOption(
             const FailureRequestOption_t& failRequestOpt) {
         failReqOpt_ = failRequestOpt;
+
+        UnstableChunkServerHelper::SetMaxStableChunkServerTimeoutTimes(
+            failReqOpt_.maxStableChunkServerTimeoutTimes);
 
         std::srand(std::time(nullptr));
         SetBackoffParam();
@@ -136,6 +180,7 @@ class ClientClosure : public Closure {
     // 这样方便在rpc closure里直接找到，当前是哪个chunkserver返回的失败
     ChunkServerID            chunkserverID_;
 };
+
 class WriteChunkClosure : public ClientClosure {
  public:
     WriteChunkClosure(CopysetClient *client, Closure *done)
