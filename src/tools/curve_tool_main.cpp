@@ -10,7 +10,7 @@
 #include "src/tools/namespace_tool.h"
 #include "src/tools/consistency_check.h"
 #include "src/tools/curve_cli.h"
-#include "src/tools/curve_format.h"
+#include "src/tools/copyset_check.h"
 
 DEFINE_string(mds_config_path, "conf/mds.conf", "mds confPath");
 DEFINE_bool(example, false, "print the example of usage");
@@ -28,10 +28,13 @@ int main(int argc, char** argv) {
         "clean-recycle : clean the RecycleBin\n"
         "create : create file\n"
         "check-consistency : check the consistency of three copies\n"
-        "format : preallocate the chunk file pool\n"
         "add_peer : add the peer to the copyset\n"
         "remove_peer : remove the peer from the copyset\n"
-        "transfer_leader : transfer the leader of the copyset to the peer\n";  //NOLINT
+        "transfer_leader : transfer the leader of the copyset to the peer\n"  //NOLINT
+        "check-copyset : check the health state of copyset\n"
+        "check-chunkserver : check the health state of the chunkserver\n"
+        "check-server : check the health state of the server\n"
+        "check-cluster : check the health state of the cluster\n";
 
     google::InitGoogleLogging(argv[0]);
     gflags::SetUsageMessage(help_str);
@@ -39,6 +42,7 @@ int main(int argc, char** argv) {
 
     if (argc < 2) {
         std::cout << help_str << std::endl;
+        return -1;
     }
 
     std::string command = argv[1];
@@ -83,16 +87,22 @@ int main(int argc, char** argv) {
                 : LOG(ERROR) << "consistency check failed!";
         cfc.UnInit();
         return rc;
-    } else if (command == "format") {
-        if (FLAGS_example) {
-            PrintFormatHelp();
-            return 0;
-        }
-        return Format();
     } else if (command == "add_peer" || command == "remove_peer"
                                      || command == "transfer_leader") {
-        curve::chunkserver::PrintHelp(command);
+        if (FLAGS_example) {
+            curve::chunkserver::PrintHelp(command);
+            return 0;
+        }
         return curve::chunkserver::RunCommand(command);
+    } else if (command == "check-copyset" || command == "check-chunkserver"
+            || command == "check-server" || command == "check-cluster") {
+        curve::tool::CopysetCheck copysetCheck;
+        if (FLAGS_example) {
+            copysetCheck.PrintHelp(command);
+            return 0;
+        }
+        LOG_IF(FATAL, copysetCheck.Init());
+        return copysetCheck.RunCommand(command);
     } else {
         std::cout << help_str << std::endl;
         return -1;

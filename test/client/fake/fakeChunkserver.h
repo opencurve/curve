@@ -13,6 +13,7 @@
 #include <brpc/server.h>
 #include <glog/logging.h>
 #include <fiu-control.h>
+#include <braft/builtin_service.pb.h>
 
 #include <thread>   // NOLINT
 
@@ -260,6 +261,31 @@ class FakeChunkServerService : public ChunkService {
  private:
     FakeReturn* fakewriteret_;
     FakeReturn* fakereadret_;
+};
+
+class FakeRaftStateService : public braft::raft_stat {
+ public:
+    void default_method(::google::protobuf::RpcController* controller,
+                        const ::braft::IndexRequest*,
+                        ::braft::IndexResponse*,
+                        ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard doneGuard(done);
+        brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);  // NOLINT
+        if (failed_) {
+            cntl->SetFailed("failed for test");
+            return;
+        }
+        cntl->response_attachment().append(buf_);
+    }
+    void SetBuf(const butil::IOBuf& iobuf) {
+        buf_ = iobuf;
+    }
+    void SetFailed(bool failed) {
+        failed_ = failed;
+    }
+ private:
+    butil::IOBuf buf_;
+    bool failed_ = false;
 };
 
 #endif  // TEST_CLIENT_FAKE_FAKECHUNKSERVER_H_
