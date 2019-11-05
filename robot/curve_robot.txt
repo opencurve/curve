@@ -994,7 +994,7 @@ open file when file is already opened
     should be equal      ${rc}       ${expect_rc}
     ${rc_first}   open libcurve file    ${origin_file}
     ${rc}   open libcurve file    ${origin_file}
-    ${expect_rc}    evaluate    int(-2)
+    ${expect_rc}    evaluate    int(-15)
     should be equal      ${rc}       ${expect_rc}
     [Teardown]	    file clean      ${rc_first}
 

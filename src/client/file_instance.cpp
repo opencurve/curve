@@ -18,6 +18,7 @@
 #include "src/client/iomanager4file.h"
 #include "src/client/request_scheduler.h"
 #include "src/client/request_sender_manager.h"
+#include "src/client/session_map.h"
 
 using curve::client::ClientConfig;
 using curve::common::TimeUtility;
@@ -115,16 +116,55 @@ int FileInstance::AioWrite(CurveAioContext* aioctx) {
     return iomanager4file_.AioWrite(aioctx, mdsclient_);
 }
 
+// 两种场景会造成在Open的时候返回LIBCURVE_ERROR::FILE_OCCUPIED
+// 1. 强制重启qemu不会调用close逻辑，然后启动的时候原来的文件sessio还没过期.
+//    导致再次去发起open的时候，返回被占用，这种情况可以通过load sessionmap
+//    拿到已有的session，再去执行refresh。
+// 2. 由于网络原因，导致open rpc超时，然后再去重试的时候就会返回FILE_OCCUPIED
+//    这时候当前还没有成功打开，所以还没有存储该session信息，所以无法通过refresh
+//    再去打开，所以这时候需要获取mds一侧session lease时长，然后在client这一侧
+//    等待一段时间再去Open，如果依然失败，就向上层返回失败。
 int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
     LeaseSession_t  lease;
-    int ret = -LIBCURVE_ERROR::FAILED;
+    int ret = LIBCURVE_ERROR::FAILED;
 
     ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
-    if (LIBCURVE_ERROR::OK == ret) {
+    if (LIBCURVE_ERROR::FILE_OCCUPIED == ret) {
+        SessionMap sm;
+        int r = 0;
+        std::string sessionid = sm.GetFileSessionID(
+            fileopt_.sessionmapOpt.sessionmap_path, filename);
+        if (sessionid.empty()) {
+            LOG(WARNING) << "get file session id failed!";
+            return -ret;
+        }
+
+        leaseRefreshResult resp;
+        r = mdsclient_->RefreshSession(filename, userinfo, sessionid, &resp);
+
+        if (r != LIBCURVE_ERROR::OK) {
+            return -ret;
+        }
+
+        r = GetFileInfo(filename, &finfo_);
+        if (r != LIBCURVE_ERROR::OK) {
+            return -ret;
+        }
+
+        ret = LIBCURVE_ERROR::OK;
+    } else if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "Open file failed! filename = " << filename;
+        return -ret;
+    }
+
+    if (ret == LIBCURVE_ERROR::OK) {
+        SessionMap sm;
+        int r = sm.PersistSessionMapWithLock(
+        fileopt_.sessionmapOpt.sessionmap_path, filename, lease.sessionID);
+        LOG_IF(WARNING, r != 0) << "persist file session id failed!";
+
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
-    } else {
-        LOG(ERROR) << "Open file failed! filename = " << filename;
     }
 
     return -ret;
@@ -144,6 +184,15 @@ int FileInstance::Close() {
     LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName,
                                 finfo_.userinfo,
                                 leaseexcutor_->GetLeaseSessionID());
+
+    if (ret == LIBCURVE_ERROR::OK) {
+        SessionMap sm;
+        int r = sm.DelSessionID(fileopt_.sessionmapOpt.sessionmap_path,
+                                finfo_.fullPathName);
+        if (r != 0) {
+            LOG(WARNING) << "session delete failed!";
+        }
+    }
     return -ret;
 }
 }   // namespace client

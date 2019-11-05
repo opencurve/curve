@@ -34,6 +34,7 @@ cc_library(
         "//external:leveldb",
         "//external:brpc",
         "//external:braft",
+        "//thirdparties/mordenjson:jsonmorden",
         "//external:protobuf",
         "//src/common:curve_common",
         "//src/common:curve_auth",
