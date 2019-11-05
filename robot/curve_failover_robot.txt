@@ -422,12 +422,6 @@ test ipmitool restart chunkserver node
    check data consistency
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
-
-stop attach detach thread
-    [Tags]    P1    base    first release   failover
-    stop attach detach
-    [Teardown]   wait iops ok    ${vm_iops_limit}
-
 test ipmitool restart mds node
    [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart mds
@@ -435,6 +429,12 @@ test ipmitool restart mds node
    check vm iops
    check data consistency
    [Teardown]    wait iops ok   ${vm_iops_limit}
+
+stop attach detach thread
+    [Tags]    P1    base    first release   failover
+    stop attach detach
+    [Teardown]   wait iops ok    ${vm_iops_limit}
+
 
 stop snapshot test
     [Tags]    P1    base    first release   failover  
@@ -534,6 +534,7 @@ init failover cluster
      init rw cloud disk
 
 init abnormal test env
+     clean env
      destroy etcd
      destroy mds
      destroy snapshotclone server
@@ -567,5 +568,6 @@ test get all chunk num
 
 clean failover env
      stop rwio
+     check io error
      check copies consistency
      detach vol
