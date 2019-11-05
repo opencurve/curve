@@ -96,7 +96,7 @@ int PeerCluster::StartPeer(const Peer &peer,
                       params_[paramsIndexs_[id]]);
         exit(0);
     }
-
+    LOG(INFO) << "start peer success, peer id = " << pid;
     peerNode->pid = pid;
     peerNode->state = PeerNodeState::RUNNING;
     peersMap_.insert(std::pair<std::string,
