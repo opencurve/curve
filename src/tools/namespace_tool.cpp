@@ -4,7 +4,6 @@
  * Author: charisu
  * Copyright (c) 2018 netease
  */
-#include <thread>
 #include "src/tools/namespace_tool.h"
 
 DEFINE_string(mds_addr, "127.0.0.1:6666", "mds addr");
@@ -71,11 +70,32 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
 
 int NameSpaceTool::Init() {
     // 初始化channel
-    if (channel_.Init(FLAGS_mds_addr.c_str(), nullptr) != 0) {
-        std::cout << "Init channel failed!" << std::endl;
+    curve::common::SplitString(FLAGS_mds_addr, ",", &mdsAddrVec_);
+    if (mdsAddrVec_.empty()) {
+        std::cout << "Split mds address fail!" << std::endl;
         return -1;
     }
-    return 0;
+    channel_ = new (std::nothrow) brpc::Channel();
+    for (const auto& mdsAddr : mdsAddrVec_) {
+        if (channel_->Init(mdsAddr.c_str(), nullptr) != 0) {
+            std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
+            continue;
+        }
+        // 寻找哪个mds存活
+        FileInfo fileInfo;
+        auto ret = GetFileInfo("/", &fileInfo);
+        if (ret != 0) {
+            continue;
+        }
+        return 0;
+    }
+    std::cout << "Init channel to all mds fail!" << std::endl;
+    return -1;
+}
+
+NameSpaceTool::~NameSpaceTool() {
+    delete channel_;
+    channel_ = nullptr;
 }
 
 void NameSpaceTool::PrintHelp(const std::string &cmd) {
@@ -120,7 +140,7 @@ int NameSpaceTool::GetFileInfo(const std::string &fileName,
     request.set_filename(fileName);
     FillUserInfo(&request);
 
-    curve::mds::CurveFSService_Stub stub(&channel_);
+    curve::mds::CurveFSService_Stub stub(channel_);
     stub.GetFileInfo(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
@@ -208,7 +228,7 @@ int NameSpaceTool::ListDir(const std::string& dirName,
     request.set_filename(dirName);
     FillUserInfo(&request);
 
-    curve::mds::CurveFSService_Stub stub(&channel_);
+    curve::mds::CurveFSService_Stub stub(channel_);
     stub.ListDir(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
@@ -275,7 +295,7 @@ int NameSpaceTool::GetSegmentInfo(const FileInfo &fileInfo,
         request.set_allocateifnotexist(false);
         FillUserInfo(&request);
 
-        curve::mds::CurveFSService_Stub stub(&channel_);
+        curve::mds::CurveFSService_Stub stub(channel_);
         stub.GetOrAllocateSegment(&cntl, &request, &response, NULL);
 
         if (cntl.Failed()) {
@@ -311,7 +331,7 @@ int NameSpaceTool::DeleteFile(const std::string& fileName, bool forcedelete) {
     request.set_forcedelete(forcedelete);
     FillUserInfo(&request);
 
-    curve::mds::CurveFSService_Stub stub(&channel_);
+    curve::mds::CurveFSService_Stub stub(channel_);
     stub.DeleteFile(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
@@ -358,7 +378,7 @@ int NameSpaceTool::CreateFile(const std::string& fileName) {
     request.set_filelength(FLAGS_fileLength);
     FillUserInfo(&request);
 
-    curve::mds::CurveFSService_Stub stub(&channel_);
+    curve::mds::CurveFSService_Stub stub(channel_);
     stub.CreateFile(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
