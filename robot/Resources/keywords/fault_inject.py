@@ -751,6 +751,14 @@ def wait_iops_ok(limit_iops=8000):
         time.sleep(2)
     assert iops >= limit_iops,"vm iops not ok in 300s"
 
+def check_io_error():
+    ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
+    ori_cmd = "grep \'I/O error\' /var/log/kern.log -R"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] != []:
+        assert False," rwio error,log is %s"%rs[1]
+    ssh.close()
+
 def check_copies_consistency():
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
@@ -969,7 +977,25 @@ def pendding_all_cs_recover():
         raise
     for cs in down_list:
         start_host_cs_process(chunkserver_host,cs)
-
+    time.sleep(60)
+    list = get_chunkserver_status(chunkserver_host)
+    up_list = list["up"]
+    for cs in up_list:
+        chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
+        assert chunkserver_id != -1
+        i = 0
+        while i < config.recover_time:
+            i = i + 10
+            time.sleep(10)
+            num = get_cs_copyset_num(chunkserver_id)
+            logger.info("cs copyset num is %d"%num)
+            if num > 0:
+                break
+        if num == 0:
+            logger.error("get host %s chunkserver %d copyset num is %d"%(chunkserver_host,chunkserver_id,num))
+            raise Exception(
+                "host %s chunkserver %d not recover to %d in %d,now is %d" % \
+            (chunkserver_host, cs,1,config.recover_time,num))
 
 
 def test_suspend_recover_copyset():
