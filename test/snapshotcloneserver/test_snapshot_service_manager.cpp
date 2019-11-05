@@ -132,7 +132,7 @@ TEST_F(TestSnapshotServiceManager,
 
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
 
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
@@ -198,7 +198,7 @@ TEST_F(TestSnapshotServiceManager,
 
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
 
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(1, snapshotMetric_->snapshotDoing.get_value());
@@ -280,7 +280,7 @@ TEST_F(TestSnapshotServiceManager,
 
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
     ASSERT_EQ(3, snapshotMetric_->snapshotSucceed.get_value());
@@ -351,7 +351,7 @@ TEST_F(TestSnapshotServiceManager,
 
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
 
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
@@ -383,7 +383,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotSuccess) {
     cond1.Wait();
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
 
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
@@ -461,7 +461,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotByCancelByDeleteSuccess) {
     cond1.Wait();
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
 
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
@@ -510,7 +510,7 @@ TEST_F(TestSnapshotServiceManager, TestDeleteSnapshotPushTaskFail) {
     ASSERT_EQ(kErrCodeInternalError, ret);
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
 
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(1, snapshotMetric_->snapshotDoing.get_value());
@@ -544,7 +544,7 @@ TEST_F(TestSnapshotServiceManager, TestCreateAndDeleteSnapshotSuccess) {
     cond1.Wait();
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
 
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
@@ -728,7 +728,7 @@ TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
 
     std::this_thread::sleep_for(
         std::chrono::milliseconds(
-            serverOption_.snapshotTaskManagerScanIntervalMs));
+            serverOption_.snapshotTaskManagerScanIntervalMs * 2));
 
     ASSERT_EQ(0, snapshotMetric_->snapshotWaiting.get_value());
     ASSERT_EQ(0, snapshotMetric_->snapshotDoing.get_value());
