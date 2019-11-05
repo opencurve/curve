@@ -241,7 +241,7 @@ def install_deb():
                   (config.pravie_key_path,config.curve_workspace,host)
             shell_operator.run_exec2(cmd)
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "sudo dpkg -i *%s* aws-sdk_1.0_amd64.deb"%version
+            ori_cmd = "sudo dpkg -i --force-overwrite  *%s* aws-sdk_1.0_amd64.deb"%version
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0,"mds install deb fail,error is %s"%rs
             rm_deb = "rm *%s*"%version
@@ -252,7 +252,7 @@ def install_deb():
                   (config.pravie_key_path,config.curve_workspace,host)
             shell_operator.run_exec2(cmd)
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "sudo dpkg -i curve-chunkserver*%s* curve-tools*%s* aws-sdk_1.0_amd64.deb"%(version,version)
+            ori_cmd = "sudo dpkg -i --force-overwrite curve-chunkserver*%s* curve-tools*%s* aws-sdk_1.0_amd64.deb"%(version,version)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0, "chunkserver install deb fail,error is %s"%rs
             rm_deb = "rm *%s*"%version
