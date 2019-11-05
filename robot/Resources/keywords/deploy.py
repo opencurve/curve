@@ -150,7 +150,19 @@ def add_config():
         ori_cmd = "sudo mv s3.conf /etc/curve/ && sudo mv client.conf /etc/curve/ && sudo mv snapshot_clone_server.conf /etc/curve/"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"mv %s snapshot_clone_server conf fail"%host
-         
+        
+def clean_env():
+    host_list = config.client_list + config.mds_list + config.chunkserver_list 
+    host_list = list(set(host_list))
+    for host in host_list:
+        ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        ori_cmd1 = "sudo tc qdisc del dev bond0.106 root"
+        shell_operator.ssh_exec(ssh, ori_cmd1)
+        ori_cmd2 = "ps -ef|grep -v grep | grep memtester | awk '{print $2}'| sudo xargs kill -9"
+        shell_operator.ssh_exec(ssh, ori_cmd2)
+        ori_cmd3 = "ps -ef|grep -v grep | grep cpu_stress.py | awk '{print $2}'| sudo xargs kill -9"
+        shell_operator.ssh_exec(ssh, ori_cmd3)
+
 def destroy_mds():
     for host in config.mds_list:
         ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
