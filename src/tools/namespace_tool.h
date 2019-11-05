@@ -21,6 +21,7 @@
 #include "proto/nameserver2.pb.h"
 #include "src/common/timeutility.h"
 #include "src/common/authenticator.h"
+#include "src/common/string_util.h"
 
 using curve::mds::FileInfo;
 using curve::mds::PageFileSegment;
@@ -32,7 +33,7 @@ namespace tool {
 class NameSpaceTool {
  public:
     NameSpaceTool() {}
-    ~NameSpaceTool() = default;
+    ~NameSpaceTool();
 
     /**
      *  @brief 初始化channel
@@ -92,7 +93,11 @@ class NameSpaceTool {
     template <class T>
     void FillUserInfo(T* request);
 
-    brpc::Channel channel_;
+    // 向mds发送RPC的channel
+    brpc::Channel* channel_;
+
+    // mds的地址
+    std::vector<std::string> mdsAddrVec_;
 };
 }  // namespace tool
 }  // namespace curve
