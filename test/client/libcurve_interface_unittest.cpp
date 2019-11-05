@@ -623,3 +623,179 @@ TEST(TestLibcurveInterface, InterfaceExceptionTest) {
     mds.UnInitialize();
 }
 
+TEST(TestLibcurveInterface, UnstableChunkserverTest) {
+    std::string filename = "/1_userinfo_";
+
+    UserInfo_t userinfo;
+    MDSClient mdsclient_;
+    FileServiceOption_t fopt;
+    FileInstance    fileinstance_;
+
+    FLAGS_chunkserver_list =
+         "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
+
+    userinfo.owner = "userinfo";
+    userinfo.password = "12345";
+    fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.rpcTimeoutMs = 500;
+    fopt.metaServerOpt.rpcRetryTimes = 3;
+    fopt.loginfo.loglevel = 0;
+    fopt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
+    fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
+    fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 1000;
+    fopt.ioOpt.ioSenderOpt.rpcRetryTimes = 3;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    fopt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
+    fopt.ioOpt.metaCacheOpt.retryIntervalUs = 500;
+    fopt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
+    fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
+    fopt.leaseOpt.refreshTimesPerLease = 4;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+
+    mdsclient_.Initialize(fopt.metaServerOpt);
+    fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
+
+    // 设置leaderid
+    EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9151, &ep);
+    PeerId pd(ep);
+
+    // init mds service
+    FakeMDS mds(filename);
+    mds.Initialize();
+    mds.StartCliService(pd);
+    mds.StartService();
+    mds.CreateCopysetNode(true);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    int fd = fileinstance_.Open(filename.c_str(), userinfo);
+
+    MetaCache* mc = fileinstance_.GetIOManager4File()->GetMetaCache();
+
+    ASSERT_NE(fd, -1);
+
+    CliServiceFake* cliservice = mds.GetCliService();
+    std::vector<FakeChunkService*> chunkservice = mds.GetFakeChunkService();
+
+    char* buffer = new char[8 * 1024];
+    uint64_t offset = 0;
+    uint64_t length = 8 * 1024;
+
+    memset(buffer, 'i', 1024);
+    memset(buffer + 1024, 'j', 1024);
+    memset(buffer + 2 * 1024, 'k', 1024);
+    memset(buffer + 3 * 1024, 'l', 1024);
+    memset(buffer + 4 * 1024, 'm', 1024);
+    memset(buffer + 5 * 1024, 'n', 1024);
+    memset(buffer + 6 * 1024, 'o', 1024);
+    memset(buffer + 7 * 1024, 'p', 1024);
+
+    ASSERT_EQ(length, fileinstance_.Write(buffer, offset, length));
+    ASSERT_EQ(length, fileinstance_.Read(buffer, offset, length));
+
+    // 正常情况下只有第一次会去get leader
+    ASSERT_EQ(1, cliservice->GetInvokeTimes());
+    // metacache中被写过的copyset leadermaychange都处于正常状态
+    ChunkIDInfo_t chunkinfo1;
+    MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
+    ASSERT_EQ(rc, MetaCacheErrorType::OK);
+    for (int i = 0; i < FLAGS_copyset_num; i++) {
+        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        if (i == chunkinfo1.cpid_) {
+            ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_FALSE(ci.LeaderMayChange());
+        } else {
+            ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_FALSE(ci.LeaderMayChange());
+        }
+    }
+
+    mds.EnableNetUnstable(8000);
+
+    // 写2次，读2次，每次请求重试3次
+    // 因为在chunkserver端设置了延迟，导致每次请求都会超时
+    // unstable阈值为10，所以第11次请求返回时，对应的chunkserver被标记为unstable
+    // leader在对应chunkserver上的copyset会设置leaderMayChange为true
+    // 下次发起请求时，会先去刷新leader信息，
+    // 由于leader没有发生改变，而且延迟仍然存在
+    // 所以第12次请求仍然超时，leaderMayChange仍然为true
+    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
+
+    // 获取第2个chunk的chunkid信息
+    ChunkIDInfo_t chunkinfo2;
+    rc = mc->GetChunkInfoByIndex(1, &chunkinfo2);
+    ASSERT_EQ(rc, MetaCacheErrorType::OK);
+    ASSERT_NE(chunkinfo2.cpid_, chunkinfo1.cpid_);
+    for (int i = 0; i < FLAGS_copyset_num; ++i) {
+        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        if (i == chunkinfo1.cpid_ || i == chunkinfo2.cpid_) {
+            ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_TRUE(ci.LeaderMayChange());
+        } else {
+            ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_TRUE(ci.LeaderMayChange());
+        }
+    }
+
+    mds.DisableNetUnstable();
+
+    // 取消延迟，再次读写第2个chunk
+    // 获取leader信息后，会将leaderMayChange置为false
+    // 第一个chunk对应的copyset依赖leaderMayChange为true
+    ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
+    for (int i = 0; i < FLAGS_copyset_num; ++i) {
+        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        if (i == chunkinfo2.cpid_) {
+            ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_FALSE(ci.LeaderMayChange());
+        } else if (i == chunkinfo1.cpid_) {
+            ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_TRUE(ci.LeaderMayChange());
+        } else {
+            ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_TRUE(ci.LeaderMayChange());
+        }
+    }
+
+    cliservice->ReSetInvokeTimes();
+    EndPoint ep2;
+    butil::str2endpoint("127.0.0.1", 9153, &ep2);
+    PeerId pd2(ep2);
+    cliservice->SetPeerID(pd2);
+
+    // 设置rcp返回失败，迫使copyset切换leader, 切换leader后读写成功
+    chunkservice[0]->SetRPCFailed();
+
+    ASSERT_EQ(8192, fileinstance_.Write(buffer, 0 * chunk_size, length));
+    ASSERT_EQ(8192, fileinstance_.Read(buffer, 0 * chunk_size, length));
+    ASSERT_EQ(8192, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(8192, fileinstance_.Read(buffer, 1 * chunk_size, length));
+
+    ASSERT_EQ(2, cliservice->GetInvokeTimes());
+
+    for (int i = 0; i < FLAGS_copyset_num; ++i) {
+        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        if (i == chunkinfo2.cpid_) {
+            ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_FALSE(ci.LeaderMayChange());
+        } else if (i == chunkinfo1.cpid_) {
+            ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_FALSE(ci.LeaderMayChange());
+        } else {
+            ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_TRUE(ci.LeaderMayChange());
+        }
+    }
+
+    mdsclient_.UnInitialize();
+    fileinstance_.UnInitialize();
+    mds.UnInitialize();
+    delete[] buffer;
+}
+

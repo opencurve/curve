@@ -886,6 +886,7 @@ class FakeMDS {
     bool StartService();
     bool CreateCopysetNode(bool enablecli = false);
     void EnableNetUnstable(uint64_t waittime);
+    void DisableNetUnstable();
     void CreateFakeChunkservers(bool enablecli);
 
     void StartCliService(PeerId leaderID);
