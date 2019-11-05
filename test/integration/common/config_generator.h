@@ -13,6 +13,7 @@
 #include "src/common/configuration.h"
 
 #define DEFAULT_CHUNKSERVER_CONF "conf/chunkserver.conf.example"
+#define DEFAULT_LOG_DIR "./runlog/"
 
 namespace curve {
 
@@ -73,6 +74,8 @@ class CSTConfigGenerator : public ConfigGenerator {
         SetKV("chunkfilepool.meta_path", cfpoolMetaPath);
 
         SetKV("chunkfilepool.enable_get_chunk_from_pool", "false");
+
+        SetKV("chunkserver.common.logDir", DEFAULT_LOG_DIR);
 
         configPath_ = "./" + port + "/chunkserver.conf";
         config_.SetConfigPath(configPath_);
