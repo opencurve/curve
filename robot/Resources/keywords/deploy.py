@@ -88,6 +88,11 @@ def add_config():
         ori_cmd = R"sed -i 's/global.ip=127.0.0.1/global.ip=%s/g' chunkserver.conf"%host
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        #change global subnet
+        subnet=host+"/24"
+        ori_cmd = R"sed -i 's#global.subnet=127.0.0.0/24#global.subnet=%s#g' chunkserver.conf"%subnet
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
         #change mds ip
         ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' chunkserver.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
@@ -327,7 +332,7 @@ def create_pool():
         assert False,"create physical fail ,msg is %s"%rs[2]
     for host in config.chunkserver_list:
         ssh2 = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "sudo nohup ./chunkserver_start.sh all %s 8200 &"%host
+        ori_cmd = "sudo nohup ./chunkserver_start.sh all &"
         shell_operator.ssh_background_exec2(ssh2, ori_cmd)
     time.sleep(120)
     logical_pool = "curve-tool -copyset_num=4000  -mds_addr=%s\
