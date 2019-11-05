@@ -472,7 +472,7 @@ def start_mult_cs_process(host,num):
              sudo rm -rf /data/chunkserver%d/recycler"%(cs,cs,cs)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
-        ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d %s 8200  &"%(cs,host)
+        ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d &"%cs
         logger.debug("exec %s"%ori_cmd)
         shell_operator.ssh_background_exec2(ssh,ori_cmd)
         time.sleep(2)
@@ -508,7 +508,7 @@ def up_all_cs():
                 sudo rm -rf /data/chunkserver%d/recycler"%(cs,cs,cs)
                 rs = shell_operator.ssh_exec(ssh, ori_cmd)
                 assert rs[3] == 0
-            ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d %s 8200 > /dev/null 2>&1 &"%(cs,host)
+            ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d > /dev/null 2>&1 &"%cs
             logger.debug("exec %s"%ori_cmd)
             shell_operator.ssh_background_exec(ssh,ori_cmd)
             time.sleep(2)
@@ -549,7 +549,7 @@ def start_host_cs_process(host,csid=-1):
 #        shell_operator.ssh_background_exec(ssh,ori_cmd)
 #        logger.debug("exec %s"%ori_cmd)
     if csid == -1:
-        ori_cmd = "sudo nohup /home/nbs/chunkserver_start.sh all %s 8200 &"%host
+        ori_cmd = "sudo nohup /home/nbs/chunkserver_start.sh all &"
     else:
         id = get_chunkserver_id(host,csid)
         if id == -1 and get_cs_copyset_num(id) == 0:
@@ -557,7 +557,7 @@ def start_host_cs_process(host,csid=-1):
              sudo rm -rf /data/chunkserver%d/recycler"%(csid,csid,csid)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
-        ori_cmd = "sudo nohup /home/nbs/chunkserver_start.sh %d %s 8200 &"%(csid,host)
+        ori_cmd = "sudo nohup /home/nbs/chunkserver_start.sh %d &" %csid
     print "test up host %s chunkserver %s"%(host, down_cs)
     shell_operator.ssh_background_exec2(ssh,ori_cmd)
     ssh.close()
@@ -584,7 +584,7 @@ def restart_mult_cs_process(host,num):
         kill_cmd = "sudo kill -9 %s" % pid_chunkserver
         rs = shell_operator.ssh_exec(ssh, kill_cmd)
         logger.debug("exec %s,stdout is %s" % (kill_cmd, "".join(rs[2])))
-        ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d %s 8200 > /dev/null 2>&1 &" % (cs, host)
+        ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d > /dev/null 2>&1 &" % cs
         shell_operator.ssh_background_exec(ssh, ori_cmd)
         logger.debug("exec %s" % ori_cmd)
         logger.info("test up host %s chunkserver %s" % (host, cs))
