@@ -70,14 +70,19 @@ class CopysetCheckTest : public ::testing::Test {
     }
 
     void GetCsInfoForTest(curve::mds::topology::ChunkServerInfo *csInfo,
-                            int port) {
+                            int port, bool retired = false) {
         csInfo->set_chunkserverid(1);
         csInfo->set_disktype("ssd");
         csInfo->set_hostip("127.0.0.1");
         csInfo->set_port(port);
-        csInfo->set_status(ChunkServerStatus::READWRITE);
+        if (retired) {
+            csInfo->set_onlinestate(OnlineState::OFFLINE);
+            csInfo->set_status(ChunkServerStatus::RETIRED);
+        } else {
+            csInfo->set_onlinestate(OnlineState::ONLINE);
+            csInfo->set_status(ChunkServerStatus::READWRITE);
+        }
         csInfo->set_diskstatus(DiskState::DISKNORMAL);
-        csInfo->set_onlinestate(OnlineState::ONLINE);
         csInfo->set_mountpoint("/test");
         csInfo->set_diskcapacity(1024);
         csInfo->set_diskused(512);
@@ -104,17 +109,22 @@ class CopysetCheckTest : public ::testing::Test {
         serverInfo->set_desc("123");
     }
 
-    void GetIoBufForTest(butil::IOBuf& buf, bool isLeader, bool snapshot, // NOLINT
-                        bool noLeader, bool peersLess, bool gapBig) {
+    void GetIoBufForTest(butil::IOBuf* buf, bool isLeader, bool snapshot,
+                         bool noLeader, bool peersLess, bool gapBig,
+                         bool parseErr) {
         butil::IOBufBuilder os;
         os << "[8589934692]\r\n";
         if (peersLess) {
-            os << "peers: 127.0.0.1:9191:0 127.0.0.1:9192:0\r\n";
+            os << "peers: \r\n";
         } else {
             os << "peers: 127.0.0.1:9191:0 127.0.0.1:9192:0 127.0.0.1:9193:0\r\n";  // NOLINT
         }
         os << "storage: [2581, 2580]\n";
-        os << "last_log_id: (index=2580,term=4)\n";
+        if (parseErr) {
+            os << "\n";
+        } else {
+            os << "last_log_id: (index=2580,term=4)\n";
+        }
         os << "state_machine: Idle\r\n";
         if (isLeader) {
             os << "state: " << "LEADER" << "\r\n";
@@ -139,7 +149,7 @@ class CopysetCheckTest : public ::testing::Test {
                 os << "leader: " << "127.0.0.1:9192:0\r\n";
             }
         }
-        os.move_to(buf);
+        os.move_to(*buf);
     }
     FakeMDS fakemds;
 };
@@ -167,9 +177,9 @@ TEST_F(CopysetCheckTest, testCheckOneCopyset) {
     copysetCheck.PrintHelp("check-copyset");
     // 设置好IOBuf
     butil::IOBuf leaderBuf;
-    GetIoBufForTest(leaderBuf, true, false, false, false, false);
+    GetIoBufForTest(&leaderBuf, true, false, false, false, false, false);
     butil::IOBuf followerBuf;
-    GetIoBufForTest(followerBuf, false, false, false, false, false);
+    GetIoBufForTest(&followerBuf, false, false, false, false, false, false);
     // 1、GetChunkServerListInCopySets失败的情况
     // 设置GetChunkServerListInCopySets的返回
     std::unique_ptr<GetChunkServerListInCopySetsResponse> response(
@@ -214,27 +224,27 @@ TEST_F(CopysetCheckTest, testCheckOneCopyset) {
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 
     // 5、peer数量不足的情况
-    GetIoBufForTest(leaderBuf, true, false, false, true, false);
-    statServices[1]->SetBuf(leaderBuf);
+    GetIoBufForTest(&leaderBuf, true, false, false, true, false, false);
+    statServices[0]->SetBuf(leaderBuf);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 
     // 6、index之间差距太大的情况
-    GetIoBufForTest(leaderBuf, true, false, false, false, true);
-    statServices[1]->SetBuf(leaderBuf);
+    GetIoBufForTest(&leaderBuf, true, false, false, false, true, false);
+    statServices[0]->SetBuf(leaderBuf);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 
     // 7、正在安装快照的情况
-    GetIoBufForTest(leaderBuf, true, true, false, false, false);
-    statServices[1]->SetBuf(leaderBuf);
+    GetIoBufForTest(&leaderBuf, true, true, false, false, false, false);
+    statServices[0]->SetBuf(leaderBuf);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 
     // 8、解析失败的情况
-    leaderBuf.pop_back(20);
-    statServices[1]->SetBuf(leaderBuf);
+    GetIoBufForTest(&leaderBuf, true, false, false, false, false, true);
+    statServices[0]->SetBuf(leaderBuf);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 
     // 9、follower中的leader为空的情况
-    GetIoBufForTest(followerBuf, false, false, true, false, false);
+    GetIoBufForTest(&followerBuf, false, false, true, false, false, false);
     statServices[0]->SetBuf(followerBuf);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 }
@@ -259,9 +269,9 @@ TEST_F(CopysetCheckTest, testCheckChunkserver) {
     copysetCheck.PrintHelp("check-chunkserver");
     // 设置好IOBuf
     butil::IOBuf leaderBuf;
-    GetIoBufForTest(leaderBuf, true, false, false, false, false);
+    GetIoBufForTest(&leaderBuf, true, false, false, false, false, false);
     butil::IOBuf followerBuf;
-    GetIoBufForTest(followerBuf, false, false, false, false, false);
+    GetIoBufForTest(&followerBuf, false, false, false, false, false, false);
     // 1、GetChunkServerInfo失败的情况
     std::unique_ptr<GetChunkServerInfoResponse> response(
                                 new GetChunkServerInfoResponse());
@@ -289,6 +299,10 @@ TEST_F(CopysetCheckTest, testCheckChunkserver) {
     statServices[0]->SetBuf(leaderBuf);
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
     FLAGS_chunkserverId = 0;
+    FLAGS_chunkserverAddr = "127.0.0.1";
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
+    FLAGS_chunkserverAddr = "127.0.0.1:%*";
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     FLAGS_chunkserverAddr = "127.0.0.1:9191";
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
 
@@ -304,33 +318,41 @@ TEST_F(CopysetCheckTest, testCheckChunkserver) {
 
     // 5、peer数量不足的情况
     butil::IOBuf leaderBuf2;
-    GetIoBufForTest(leaderBuf2, true, false, false, true, false);
+    GetIoBufForTest(&leaderBuf2, true, false, false, true, false, false);
     statServices[0]->SetBuf(followerBuf);
     statServices[1]->SetBuf(leaderBuf2);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
 
     // 6、index之间差距太大的情况
-    GetIoBufForTest(leaderBuf2, true, false, false, false, true);
-    statServices[0]->SetBuf(leaderBuf);
+    GetIoBufForTest(&leaderBuf2, true, false, false, false, true, false);
+    statServices[0]->SetBuf(followerBuf);
     statServices[1]->SetBuf(leaderBuf2);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
 
     // 7、正在安装快照的情况
-    GetIoBufForTest(leaderBuf2, true, true, false, false, false);
-    statServices[0]->SetBuf(leaderBuf);
+    GetIoBufForTest(&leaderBuf2, true, true, false, false, false, false);
+    statServices[0]->SetBuf(followerBuf);
     statServices[1]->SetBuf(leaderBuf2);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
 
     // 8、解析失败的情况
-    leaderBuf2.pop_back(20);
-    statServices[0]->SetBuf(leaderBuf);
+    GetIoBufForTest(&leaderBuf2, true, false, false, false, false, true);
+    statServices[0]->SetBuf(followerBuf);
     statServices[1]->SetBuf(leaderBuf2);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
 
     // 9、follower中的leader为空的情况
-    GetIoBufForTest(followerBuf, false, false, true, false, false);
+    GetIoBufForTest(&followerBuf, false, false, true, false, false, false);
     statServices[0]->SetBuf(followerBuf);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
+
+    // 10、chunkserver retired的情况，应该打印返回healthy
+    curve::mds::topology::ChunkServerInfo* csInfo2 =
+                    new curve::mds::topology::ChunkServerInfo();
+    GetCsInfoForTest(csInfo2, 9191, true);
+    response->set_statuscode(kTopoErrCodeSuccess);
+    response->set_allocated_chunkserverinfo(csInfo2);
+    ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
 }
 
 TEST_F(CopysetCheckTest, testCheckServer) {
@@ -349,13 +371,12 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     ASSERT_EQ(0, copysetCheck.Init());
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     FLAGS_serverId = 1;
-    FLAGS_serverIp = "127.0.0.1";
     copysetCheck.PrintHelp("check-chunkserver");
     // 设置好IOBuf
     butil::IOBuf leaderBuf;
-    GetIoBufForTest(leaderBuf, true, false, false, false, false);
+    GetIoBufForTest(&leaderBuf, true, false, false, false, false, false);
     butil::IOBuf followerBuf;
-    GetIoBufForTest(followerBuf, false, false, false, false, false);
+    GetIoBufForTest(&followerBuf, false, false, false, false, false, false);
     std::unique_ptr<ListChunkServerResponse> response(
                                 new ListChunkServerResponse());
     std::unique_ptr<brpc::Controller> cntl(new brpc::Controller());
@@ -370,9 +391,15 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     cntl->Reset();
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
 
-    // 2、正常情况
+    // 2、正常情况,中间有一个chunkserver retired了
+    FLAGS_serverId = 0;
+    FLAGS_serverIp = "127.0.0.1";
     for (int i = 0; i < 3; ++i) {
         auto csPtr = response->add_chunkserverinfos();
+        if (i == 1) {
+            GetCsInfoForTest(csPtr, 9191 + i, true);
+            continue;
+        }
         GetCsInfoForTest(csPtr, 9191 + i);
     }
     cntl->Reset();
@@ -404,9 +431,9 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
     std::unique_ptr<brpc::Controller> cntl(new brpc::Controller());
     // 设置好IOBuf
     butil::IOBuf leaderBuf;
-    GetIoBufForTest(leaderBuf, true, false, false, false, false);
+    GetIoBufForTest(&leaderBuf, true, false, false, false, false, false);
     butil::IOBuf followerBuf;
-    GetIoBufForTest(followerBuf, false, false, false, false, false);
+    GetIoBufForTest(&followerBuf, false, false, false, false, false, false);
     // 正常情况
     // 设置ListPoolZone的返回
     std::unique_ptr<ListPoolZoneResponse> listZoneResp(
