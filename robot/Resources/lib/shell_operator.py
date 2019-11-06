@@ -36,7 +36,7 @@ def run_exec(cmd, lock=None):
         return 0
     else:
         #  logger.debug("run result: %s " % err_msg.strip())
-        logger.error("run end: %s" % cmd)
+        logger.debug("run end: %s" % cmd)
         return -1
 
 def run_exec2(cmd, lock=None):
