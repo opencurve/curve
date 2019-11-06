@@ -408,7 +408,7 @@ def delete_libcurve_file_with_normal_user():
 def delete_libcurve_file_with_normal_user_and_password():
     rc = base_operate.delete_libcurve_file(config.file_name, config.user_name, config.root_password)
     if rc < 0:
-        logger.error("delete libcurve file fail. rc = %s" % rc)
+        logger.debug("delete libcurve file fail. rc = %s" % rc)
         return rc
         raise AssertionError
     else:
