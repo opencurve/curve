@@ -4,9 +4,9 @@ Library           Resources/test/curve_base_test.py
 Library           Resources/swig/swig_operate.py
 Library           Resources/keywords/snapshot_operate.py
 Library			  Collections
-Library           RequestsLibrary
+#Library           RequestsLibrary
 Library           Process
-Library           SSHLibrary
+#Library           SSHLibrary
 Library           Resources/keywords/mythread.py
 Suite Setup       init cluster
 Suite Teardown    clean env
