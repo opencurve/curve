@@ -78,13 +78,20 @@ int NameSpaceTool::Init() {
     channel_ = new (std::nothrow) brpc::Channel();
     for (const auto& mdsAddr : mdsAddrVec_) {
         if (channel_->Init(mdsAddr.c_str(), nullptr) != 0) {
-            std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
             continue;
         }
         // 寻找哪个mds存活
-        FileInfo fileInfo;
-        auto ret = GetFileInfo("/", &fileInfo);
-        if (ret != 0) {
+        curve::mds::GetFileInfoRequest request;
+        curve::mds::GetFileInfoResponse response;
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(3000);
+        request.set_filename("/");
+        FillUserInfo(&request);
+        curve::mds::CurveFSService_Stub stub(channel_);
+        stub.GetFileInfo(&cntl, &request, &response, nullptr);
+
+        if (cntl.Failed()) {
+            // 多mds，前两个mds失败不应该打印错误
             continue;
         }
         return 0;
@@ -105,7 +112,7 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
     } else if (cmd == "clean-recycle") {
         std::cout << "curve_ops_tool " << cmd << " -mds_addr=127.0.0.1:6666" << std::endl;  // NOLINT
     } else if (cmd == "create") {
-        std::cout << "curve_ops_tool " << cmd << " -mds_addr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -fileLength=1024" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -mds_addr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -fileLength=21474836480‬" << std::endl;  // NOLINT
     } else if (cmd == "delete") {
         std::cout << "curve_ops_tool " << cmd << " -mds_addr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -forcedelete=true" << std::endl;  // NOLINT
     } else {
@@ -113,22 +120,26 @@ void NameSpaceTool::PrintHelp(const std::string &cmd) {
     }
 }
 
-int NameSpaceTool::PrintFileInfoAndActualSize(const std::string &fileName) {
+int NameSpaceTool::PrintFileInfoAndActualSize(std::string fileName) {
+    // 如果最后面有/，去掉
+    if (fileName.size() > 1 && fileName.back() == '/') {
+        fileName.pop_back();
+    }
     FileInfo fileInfo;
     auto ret = GetFileInfo(fileName, &fileInfo);
     if (ret != 0) {
         return -1;
     }
     std::cout << "File info:" << std::endl;
-    std::cout << fileInfo.DebugString() << std::endl;
+    std::cout << fileInfo.DebugString();
     fileInfo.set_originalfullpathname(fileName);
     int64_t size = GetActualSize(fileInfo);
     if (size < 0) {
-        std::cout << "Get actual size fail!" << std::endl;
+        std::cout << "Get allocated size fail!" << std::endl;
         return -1;
     }
     double res = static_cast<double>(size) / (1024 * 1024 * 1024);
-    std::cout << "actual size: " << res << "GB" << std::endl;
+    std::cout << "allocated size: " << res << "GB" << std::endl;
     return 0;
 }
 
@@ -137,6 +148,7 @@ int NameSpaceTool::GetFileInfo(const std::string &fileName,
     curve::mds::GetFileInfoRequest request;
     curve::mds::GetFileInfoResponse response;
     brpc::Controller cntl;
+    cntl.set_timeout_ms(3000);
     request.set_filename(fileName);
     FillUserInfo(&request);
 
@@ -156,7 +168,7 @@ int NameSpaceTool::GetFileInfo(const std::string &fileName,
             *fileInfo = response.fileinfo();
             return 0;
         } else {
-            std::cout << "GetFileInfo fail, errCode: "
+            std::cout << "Get file fail, errCode: "
                       << response.statuscode() << std::endl;
         }
     }
@@ -199,7 +211,7 @@ int64_t NameSpaceTool::GetActualSize(const FileInfo& fileInfo) {
             file.set_originalfullpathname(fullPathName);
             int64_t tmp = GetActualSize(file);
             if (tmp < 0) {
-                std::cout << "Get actual size fail!" << std::endl;
+                std::cout << "Get allocated size fail!" << std::endl;
                 return -1;
             }
             size += tmp;
@@ -208,14 +220,34 @@ int64_t NameSpaceTool::GetActualSize(const FileInfo& fileInfo) {
     }
 }
 
-int NameSpaceTool::PrintListDir(const std::string& dirName) {
+int NameSpaceTool::PrintListDir(std::string dirName) {
+    // 如果最后面有/，去掉
+    if (dirName.size() > 1 && dirName.back() == '/') {
+        dirName.pop_back();
+    }
     std::vector<FileInfo> files;
     if (ListDir(dirName, &files) != 0) {
         std::cout << "List directory failed!" << std::endl;
         return -1;
     }
-    for (auto& file : files) {
-        std::cout << file.DebugString() << std::endl;
+    for (int i = 0; i < files.size(); ++i) {
+        if (i != 0) {
+            std::cout << std::endl;
+        }
+        std::cout << files[i].DebugString();
+        if (dirName == "/") {
+            files[i].set_originalfullpathname(dirName + files[i].filename());
+        } else {
+            files[i].set_originalfullpathname(dirName +
+                                            "/" + files[i].filename());
+        }
+        int64_t size = GetActualSize(files[i]);
+        if (size < 0) {
+            std::cout << "Get allocated size fail!" << std::endl;
+            return -1;
+        }
+        double res = static_cast<double>(size) / (1024 * 1024 * 1024);
+        std::cout << "allocated size: " << res << "GB" << std::endl;
     }
     return 0;
 }
@@ -225,6 +257,7 @@ int NameSpaceTool::ListDir(const std::string& dirName,
     curve::mds::ListDirRequest request;
     curve::mds::ListDirResponse response;
     brpc::Controller cntl;
+    cntl.set_timeout_ms(3000);
     request.set_filename(dirName);
     FillUserInfo(&request);
 
@@ -232,7 +265,7 @@ int NameSpaceTool::ListDir(const std::string& dirName,
     stub.ListDir(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        std::cout<< "ListDir fail, errCde = "
+        std::cout<< "List directory fail, errCde = "
                     << response.statuscode()
                     << ", error content:"
                     << cntl.ErrorText() << std::endl;
@@ -247,7 +280,7 @@ int NameSpaceTool::ListDir(const std::string& dirName,
             }
             return 0;
         } else {
-            std::cout << "ListDir fail, errCode: "
+            std::cout << "List directory fail, errCode: "
                       << response.statuscode() << std::endl;
         }
     }
@@ -258,7 +291,7 @@ int NameSpaceTool::PrintSegmentInfo(const std::string &fileName) {
     FileInfo fileInfo;
     int ret = GetFileInfo(fileName, &fileInfo);
     if (ret != 0) {
-        std::cout << "PrintSegmentInfo: get file info failed!" << std::endl;
+        std::cout << "Get file info failed!" << std::endl;
         return -1;
     }
     fileInfo.set_originalfullpathname(fileName);
@@ -290,6 +323,7 @@ int NameSpaceTool::GetSegmentInfo(const FileInfo &fileInfo,
         curve::mds::GetOrAllocateSegmentRequest request;
         curve::mds::GetOrAllocateSegmentResponse response;
         brpc::Controller cntl;
+        cntl.set_timeout_ms(3000);
         request.set_filename(fileName);
         request.set_offset(i*segmentSize);
         request.set_allocateifnotexist(false);
@@ -313,7 +347,7 @@ int NameSpaceTool::GetSegmentInfo(const FileInfo &fileInfo,
                             StatusCode::kSegmentNotAllocated) {
                 continue;
             } else {
-                std::cout << "GetSegmentInfo fail, offset: "
+                std::cout << "Get segment info fail, offset: "
                       << i*segmentSize << " errCode:"
                       << response.statuscode() << std::endl;
                 return -1;
@@ -327,6 +361,7 @@ int NameSpaceTool::DeleteFile(const std::string& fileName, bool forcedelete) {
     curve::mds::DeleteFileRequest request;
     curve::mds::DeleteFileResponse response;
     brpc::Controller cntl;
+    cntl.set_timeout_ms(3000);
     request.set_filename(fileName);
     request.set_forcedelete(forcedelete);
     FillUserInfo(&request);
@@ -335,7 +370,7 @@ int NameSpaceTool::DeleteFile(const std::string& fileName, bool forcedelete) {
     stub.DeleteFile(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        std::cout<< "DeleteFile fail, errCde = "
+        std::cout<< "Delete file fail, errCode = "
                     << response.statuscode()
                     << ", error content:"
                     << cntl.ErrorText() << std::endl;
@@ -344,10 +379,10 @@ int NameSpaceTool::DeleteFile(const std::string& fileName, bool forcedelete) {
 
     if (response.has_statuscode()) {
         if (response.statuscode() == StatusCode::kOK) {
-            std::cout << "DeleteFile " << fileName << " success!" << std::endl;
+            std::cout << "Delete file " << fileName << " success!" << std::endl;
             return 0;
         } else {
-            std::cout << "DeleteFile fail, errCode: "
+            std::cout << "Delete file fail, errCode: "
                       << response.statuscode() << std::endl;
         }
     }
@@ -360,11 +395,15 @@ int NameSpaceTool::CleanRecycleBin() {
         std::cout << "List RecycleBin fail!" << std::endl;
         return -1;
     }
+    bool success = true;
     for (const auto& fileInfo : files) {
         std::string fileName = "/RecycleBin/" + fileInfo.filename();
         if (DeleteFile(fileName, true) != 0) {
-            std::cout << "delete file: " << fileName << " fail!" << std::endl;
+            success = false;
         }
+    }
+    if (success) {
+        std::cout << "Clean /RecycleBin success!" << std::endl;
     }
     return 0;
 }
@@ -373,6 +412,7 @@ int NameSpaceTool::CreateFile(const std::string& fileName) {
     curve::mds:: CreateFileRequest request;
     curve::mds::CreateFileResponse response;
     brpc::Controller cntl;
+    cntl.set_timeout_ms(3000);
     request.set_filename(fileName);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
     request.set_filelength(FLAGS_fileLength);
@@ -382,7 +422,7 @@ int NameSpaceTool::CreateFile(const std::string& fileName) {
     stub.CreateFile(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        std::cout<< "CreateFile fail, errCde = "
+        std::cout<< "Create file fail, errCde = "
                     << response.statuscode()
                     << ", error content:"
                     << cntl.ErrorText() << std::endl;
@@ -391,9 +431,11 @@ int NameSpaceTool::CreateFile(const std::string& fileName) {
 
     if (response.has_statuscode()) {
         if (response.statuscode() == StatusCode::kOK) {
+            std::cout << "Create file: " << fileName
+                      << " success!" << std::endl;
             return 0;
         } else {
-            std::cout << "CreateFile fail, errCode: "
+            std::cout << "Create file fail, errCode: "
                       << response.statuscode() << std::endl;
         }
     }

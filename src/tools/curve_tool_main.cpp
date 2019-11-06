@@ -56,8 +56,11 @@ int main(int argc, char** argv) {
         std::string confPath = FLAGS_mds_config_path.c_str();
         Configuration conf;
         conf.SetConfigPath(confPath);
-        LOG_IF(FATAL, !conf.LoadConfig())
-            << "load mds configuration fail, conf path = " << confPath;
+        if (!conf.LoadConfig()) {
+            std::cout << "load mds configuration fail, conf path = "
+                      << confPath << std::endl;
+            return -1;
+        }
         statusTool.InitMdsRepo(&conf, std::make_shared<curve::mds::MdsRepo>());
         return statusTool.RunCommand(command);
     } else if (command == "get" || command == "list"
@@ -71,7 +74,10 @@ int main(int argc, char** argv) {
             namespaceTool.PrintHelp(command);
             return 0;
         }
-        LOG_IF(FATAL, namespaceTool.Init());
+        if (namespaceTool.Init() != 0) {
+            std::cout << "Init failed!" << std::endl;
+            return -1;
+        }
         return namespaceTool.RunCommand(command);
     } else if (command == "check-consistency") {
         // 检查三副本一致性
@@ -80,11 +86,20 @@ int main(int argc, char** argv) {
             cfc.PrintHelp();
             return 0;
         }
-        LOG_IF(FATAL, !cfc.Init()) << "init failed!";
-        LOG_IF(FATAL, !cfc.FetchFileCopyset()) << "FetchFileCopyset failed!";
+        if (!cfc.Init()) {
+            std::cout << "Init failed!" << std::endl;
+            return -1;
+        }
+        if (!cfc.FetchFileCopyset()) {
+            std::cout << "FetchFileCopyset failed!" << std::endl;
+            return -1;
+        }
         int rc = cfc.ReplicasConsistency() ? 0 : -1;
-        rc == 0 ? LOG(INFO) << "consistency check success!"
-                : LOG(ERROR) << "consistency check failed!";
+        if (rc == 0) {
+            std::cout << "consistency check success!" << std::endl;
+        } else {
+            std::cout << "consistency check failed!" << std::endl;
+        }
         cfc.UnInit();
         return rc;
     } else if (command == "add_peer" || command == "remove_peer"
@@ -101,7 +116,10 @@ int main(int argc, char** argv) {
             copysetCheck.PrintHelp(command);
             return 0;
         }
-        LOG_IF(FATAL, copysetCheck.Init());
+        if (copysetCheck.Init() != 0) {
+            std::cout << "Init failed!" << std::endl;
+            return -1;
+        }
         return copysetCheck.RunCommand(command);
     } else {
         std::cout << help_str << std::endl;
