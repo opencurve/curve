@@ -23,12 +23,15 @@
 #include "proto/topology.pb.h"
 #include "src/mds/common/mds_define.h"
 #include "src/common/string_util.h"
+#include "src/common/net_common.h"
 
 using curve::mds::topology::PoolIdType;
 using curve::mds::topology::CopySetIdType;
 using curve::mds::topology::ChunkServerIdType;
 using curve::mds::topology::ServerIdType;
 using curve::mds::topology::kTopoErrCodeSuccess;
+using curve::mds::topology::OnlineState;
+using curve::mds::topology::ChunkServerStatus;
 
 namespace curve {
 namespace tool {
@@ -91,6 +94,26 @@ class CopysetCheck {
     int CheckCopysetsOnChunkserver(const ChunkServerIdType& chunkserverId);
 
     /**
+    * @brief 检查某个chunkserver上的所有copyset的健康状态
+    *
+    * @param chunkserId chunkserverId
+    *
+    * @return 健康返回0，不健康返回-1
+    */
+    int CheckCopysetsOnChunkserver(const std::string& chunkserverAddr);
+
+    /**
+    * @brief 检查某个chunkserver上的所有copyset的健康状态
+    *
+    * @param chunkserId chunkserverId
+    * @param chunkserverAddr chunkserver的地址，两者指定一个就好
+    *
+    * @return 健康返回0，不健康返回-1
+    */
+    int CheckCopysetsOnChunkserver(const ChunkServerIdType& chunkserverId,
+                                   const std::string& chunkserverAddr);
+
+    /**
     * @brief 检查某个chunkserver上的copyset的健康状态
     *
     * @param chunkserAddr chunkserver的地址
@@ -101,8 +124,26 @@ class CopysetCheck {
     * @return 健康返回0，不健康返回-1
     */
     int CheckCopysetsOnChunkserver(const std::string& chunkserverAddr,
-                                   const std::set<std::string>& groupIds = {},
+                                   const std::set<std::string>& groupIds,
                                    bool queryLeader = true);
+
+    /**
+    * @brief 检查某个server上的所有copyset的健康状态
+    *
+    * @param serverId server的id
+    *
+    * @return 健康返回0，不健康返回-1
+    */
+    int CheckCopysetsOnServer(const ServerIdType& serverId);
+
+    /**
+    * @brief 检查某个server上的所有copyset的健康状态
+    *
+    * @param serverId server的ip
+    *
+    * @return 健康返回0，不健康返回-1
+    */
+    int CheckCopysetsOnServer(const std::string serverIp);
 
     /**
     * @brief 检查某个server上的所有copyset的健康状态
@@ -172,7 +213,7 @@ class CopysetCheck {
 
 
     // 打印copyset检查的详细结果
-    void PrintDetail();
+    void PrintDetail(const std::string& command);
     void PrintVec(const std::vector<std::string>& vec);
 
     // 向mds发送RPC的channel
@@ -189,6 +230,10 @@ class CopysetCheck {
     std::vector<std::string> indexGapBigCopysets_;
     // 用来保存peers数量小于3的copyset
     std::vector<std::string> peerLessCopysets_;
+    // 用来保存有问题的chunkserver
+    std::vector<std::string> unhealthyChunkservers_;
+    // 用来保存有问题的server
+    std::vector<std::string> unhealthyServers_;
 };
 }  // namespace tool
 }  // namespace curve
