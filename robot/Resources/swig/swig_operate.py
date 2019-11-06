@@ -13,7 +13,7 @@ class LibCurve:
         logger.info("init success.")
         if rc != 0:
             print ("init client fail! rc=%s" % rc)
-            logger.error("init client fail! rc=%s" % rc)
+            logger.debug("init client fail! rc=%s" % rc)
             raise AssertionError
 
     def libcurve_create(self, file_path, user_name, size, pass_word=""):
@@ -23,7 +23,7 @@ class LibCurve:
         rc = curvefs.Create(file_path, user_info_t, size)
         if rc != 0:
 #            print("create file %s fail! rc=%s" %(file_path,rc))
-            logger.error("create file %s fail! rc=%s" % (file_path,rc))
+            logger.debug("create file %s fail! rc=%s" % (file_path,rc))
             return rc
             #raise AssertionError
         else:
@@ -60,7 +60,7 @@ class LibCurve:
         if rc == 0:
             return file_info
         else:
-            logger.error("statfs file %s fail! rc=%s" % (file_name,rc))
+            logger.debug("statfs file %s fail! rc=%s" % (file_name,rc))
             return rc
             raise AssertionError
 
@@ -104,7 +104,7 @@ class LibCurve:
         rc = curvefs.Unlink(filepath, user_info_t)
         if rc != 0:
             #print "delete file fail! rc=%s" % rc
-            logger.error("delete file %s fail! rc=%s" % (filepath,rc))
+            logger.debug("delete file %s fail! rc=%s" % (filepath,rc))
 #            logger.info("delete file fail! rc=%s" % rc)
             return rc
             #raise AssertionError
@@ -141,7 +141,7 @@ def libcurve_uninit():
     rc = curvefs.UnInit()
     if rc != None:
         print "uninit  fail! rc=%s" % rc
-        logger.error("uninit file fail! rc=%s" % rc)
+        logger.debug("uninit file fail! rc=%s" % rc)
         return rc
         raise AssertionError
     else:
