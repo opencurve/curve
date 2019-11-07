@@ -19,7 +19,7 @@ forceStop=false
 pidFile=${HOME}/curve-mds.pid
 
 # daemon log
-daemonLog=${HOME}/daemon.log
+daemonLog=${HOME}/daemon-mds.log
 
 # 启动mds
 function start_mds() {
@@ -61,16 +61,11 @@ function start_mds() {
     fi
 
     # 判断是否已经通过daemon启动了curve-mds
-    if [ -f ${pidFile} ]
+    daemon --name curve-mds --pidfile ${pidFile} --running
+    if [ $? -eq 0 ]
     then
-        # 判断对应的daemon进程是否存在
-        daemonpid=$(cat ${pidFile})
-        kill -0 ${daemonpid} > /dev/null 2>&1
-        if [ $? -eq 0 ]
-        then
-            echo "Already started curve-mds by daemon"
-            return $?
-        fi
+        echo "Already started curve-mds by daemon"
+        exit
     fi
 
     # pidfile不存在 或 daemon进程不存在
