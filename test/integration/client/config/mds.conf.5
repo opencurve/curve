@@ -1,13 +1,13 @@
 #
 # mds服务端口
 #
-mds.listen.addr=127.0.0.1:6666
+mds.listen.addr=127.0.0.1:22123
 
 #
 # etcd相关配置
 #
 # etcd地址
-mds.etcd.endpoint=127.0.0.1:2379
+mds.etcd.endpoint=127.0.0.1:22233
 # client建立连接的超时时间
 mds.etcd.dailtimeoutMs=5000
 # client进行put/get/txn等操作的超时时间
@@ -16,24 +16,18 @@ mds.etcd.operation.timeoutMs=5000
 mds.etcd.retry.times=3
 
 #
-# segment分配量统计相关配置
-#
-# 将内存中的数据持久化到etcd的间隔, 单位ms
-mds.segment.alloc.periodic.persistInterMs=10000
-# 出错情况下的重试间隔,单位ms
-mds.segment.alloc.retryInterMs=1000
-
-#
 # leader election相关配置
 #
-# leader竞选时会创建session, 单位是秒(go端代码的接口这个值的单位就是s)
-# 该值和etcd集群election timeout相关.
-# etcd的server端限制了该值最小为1.5 * election timeout
-# 建议设置etcd集群election timeout为1s
-mds.leader.sessionInterSec=5
+# leader竞选成功后，会进行observe操作。observe的行为是对该leadername进行watch,
+# watch会从etcd中不断获取key-value。在服务端未挂掉的情况下，竞选的超时时间是sessionInterSec,
+# 在服务端挂掉或者网络分区的情况下，observeTimeoutMs后mds会退出进程，防止出现双主.
+# 单位是ms
+mds.leader.observeTimeoutMs=2000
+# leader竞选时会创建session, 单位是秒, 因为go端代码的接口这个值得单位就是s
+mds.leader.sessionInterSec=20
 # leader竞选的超时时间，如果为0竞选不成功会一直block, 如果大于0，在electionTimeoutMs时间
-# 内未当选leader会返回错误。
-mds.leader.electionTimeoutMs=0
+# 内未当选leader会返回错误。这里设置10分钟超时，超时后mds会继续竞选
+mds.leader.electionTimeoutMs=600000
 
 #
 # scheduler相关配置
@@ -102,22 +96,30 @@ mds.cache.count=100000
 # mysql Database config
 #
 # 数据库使用的database名称
-mds.DbName=curve_mds
+mds.DbName=module_exception_curve_chunkserver
 # 数据库用户名
 mds.DbUser=root
 # 数据库地址
 mds.DbUrl=localhost
 # 数据库登录密码
 mds.DbPassword=qwer
-mds.DbPoolSize=128
+mds.DbPoolSize=16
+
+#
+# segment分配量统计相关配置
+#
+# 将内存中的数据持久化到etcd的间隔, 单位ms
+mds.segment.alloc.periodic.persistInterMs=10000
+# 出错情况下的重试间隔,单位ms
+mds.segment.alloc.retryInterMs=1000
 
 #
 # mds.session settings
 #
 # mds.session过期时间，单位us
-mds.session.leaseTimeUs=5000000
+mds.session.leaseTimeUs=10000000
 # 能够容忍的client和mds之间的时钟不同步的时间，单位us
-mds.session.toleranceTimeUs=500000
+mds.session.toleranceTimeUs=120000000
 # mds.session后台扫描线程扫描间隔时间，单位us
 mds.session.intevalTimeUs=500000
 
@@ -146,6 +148,7 @@ mds.topology.CreateCopysetRpcRetryTimes=20
 mds.topology.CreateCopysetRpcRetrySleepTimeMs=1000
 # Topology模块刷新metric时间间隔
 mds.topology.UpdateMetricIntervalSec=60
+
 # 物理池使用百分比，即使用量超过这个值即不再往这个池分配
 mds.topology.PoolUsagePercentLimit=90
 # 多pool选pool策略 0:Random, 1:Weight
@@ -191,11 +194,4 @@ mds.chunkserverclient.updateLeaderRetryTimes=5
 #  从copyset的每个chunkserver getleader的每一轮的间隔，需大于raft选主的时间
 mds.chunkserverclient.updateLeaderRetryIntervalMs=5000
 
-#
-# common options
-#
-# 日志存放文件夹
-mds.common.logDir=./
-# 单元测试情况下
-# mds.common.logDir=./runlog/
-
+mds.common.logDir=./runlog/

@@ -105,3 +105,5 @@ chunkfilepool.retry_times=5
 #
 trash.expire_afterSec=86400
 trash.scan_periodSec=3600
+
+chunkserver.common.logDir=./runlog/

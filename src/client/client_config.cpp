@@ -69,12 +69,15 @@ int ClientConfig::Init(const char* configpath) {
 
     ret = conf_.GetUInt64Value("maxRetrySleepIntervalUs",
         &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no maxRetrySleepIntervalUs info";
 
     ret = conf_.GetUInt64Value("maxTimeoutMS",
         &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.maxTimeoutMS);
+    LOG_IF(ERROR, ret == false) << "config no maxRetrySleepIntervalUs info";
 
     ret = conf_.GetUInt64Value("maxStableChunkServerTimeoutTimes",
         &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.maxStableChunkServerTimeoutTimes);  // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no maxStableChunkServerTimeoutTimes info";   //  NOLINT
     RETURN_IF_FALSE(ret)
 
     ret = conf_.GetUInt64Value("maxInFlightRPCNum",
