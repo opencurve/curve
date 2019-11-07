@@ -15,9 +15,9 @@ namespace client {
 
 TEST(RequestSenderManagerTest, basic_test) {
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     std::unique_ptr<RequestSenderManager> senderManager(
         new RequestSenderManager());
@@ -36,9 +36,9 @@ TEST(RequestSenderManagerTest, basic_test) {
 
 TEST(RequestSenderManagerTest, fail_test) {
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     std::unique_ptr<RequestSenderManager> senderManager(
         new RequestSenderManager());

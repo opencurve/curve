@@ -25,7 +25,7 @@ using curve::client::EndPoint;
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:9104";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9104";   // NOLINT
 
 DECLARE_uint64(test_disk_size);
 DEFINE_uint32(io_time, 5, "Duration for I/O test");

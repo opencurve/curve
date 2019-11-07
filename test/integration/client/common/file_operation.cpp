@@ -31,7 +31,7 @@ int FileCommonOperation::Open(const std::string& filename,
 
     // 先创建文件
     int ret = Create(filename.c_str(), &userinfo, 100*1024*1024*1024ul);
-    if (ret != LIBCURVE_ERROR::OK) {
+    if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::EXISTS) {
         LOG(ERROR) << "file create failed! " << ret
                    << ", filename = " << filename;
         return -1;
@@ -39,7 +39,7 @@ int FileCommonOperation::Open(const std::string& filename,
 
     // 再打开文件
     int fd = ::Open(filename.c_str(), &userinfo);
-    if (fd < 0) {
+    if (fd < 0 && ret != -LIBCURVE_ERROR::FILE_OCCUPIED) {
         LOG(ERROR) << "Open file failed!";
         return -1;
     }

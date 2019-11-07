@@ -34,7 +34,7 @@
 
 DECLARE_string(chunkserver_list);
 
-extern std::string metaserver_addr;
+extern std::string mdsMetaServerAddr;
 extern uint32_t chunk_size;
 extern std::string configpath;
 
@@ -94,23 +94,24 @@ class InflightRPCTest : public ::testing::Test {
         fiu_init(0);
         FLAGS_chunkserver_list =
              "127.0.0.1:9144:0,127.0.0.1:9145:0,127.0.0.1:9146:0";
+        fopt.metaServerOpt.mdsMaxRetryMS = 1000;
         fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9143");
-        fopt.metaServerOpt.rpcTimeoutMs = 500;
-        fopt.metaServerOpt.rpcRetryTimes = 3;
-        fopt.metaServerOpt.retryIntervalUs = 50000;
-        fopt.loginfo.loglevel = 0;
-        fopt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
-        fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-        fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 10000;
-        fopt.ioOpt.ioSenderOpt.rpcRetryTimes = 3;
-        fopt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-        fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-        fopt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-        fopt.ioOpt.metaCacheOpt.retryIntervalUs = 500;
-        fopt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-        fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 1;
+        fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
+        fopt.metaServerOpt.mdsRPCRetryIntervalUS = 50000;
+        fopt.loginfo.logLevel = 0;
+        fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
+        fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+        fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 10000;
+        fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+        fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;  // NOLINT
+        fopt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+        fopt.ioOpt.metaCacheOpt.metacacheRPCRetryIntervalUS = 500;
+        fopt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+        fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 1;
+        fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+            failRequestOpt.chunkserverMaxRPCTimeoutMS = 5000;
         fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
-        fopt.leaseOpt.refreshTimesPerLease = 4;
+        fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
 
         userinfo.owner = "userinfo";
         userinfo.password = "12345";
@@ -194,9 +195,10 @@ TEST_F(InflightRPCTest, metricTest) {
 TEST_F(InflightRPCTest, inflightRPCTest) {
     // 测试inflight RPC超过限制的时候copyset client hang住request scheduler
     fileinstance_ = new FileInstance();
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 10000;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+        failRequestOpt.chunkserverRPCTimeoutMS = 10000;
     // 设置inflight RPC最大数量为1
-    fopt.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 1;
+    fopt.ioOpt.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum = 1;
     fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     auto fm = iomana->GetMetric();
@@ -261,9 +263,10 @@ TEST_F(InflightRPCTest, FileCloseTest) {
     // lease时长10s，在lease期间仅续约一次，一次失败就会调用iomanager
     // block IO，这时候其实调用的是scheduler的LeaseTimeoutBlockIO
     fileinstance_ = new FileInstance();
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 10000;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+        failRequestOpt.chunkserverRPCTimeoutMS = 10000;
     // 设置inflight RPC最大数量为1
-    fopt.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 1;
+    fopt.ioOpt.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum = 1;
 
     std::condition_variable cv;
     std::mutex mtx;
@@ -303,7 +306,7 @@ TEST_F(InflightRPCTest, FileCloseTest) {
             }
 
             LeaseOption lopt;
-            lopt.refreshTimesPerLease = 1;
+            lopt.mdsRefreshTimesPerLease = 1;
             UserInfo_t userinfo("test", "");
             LeaseExcutor lease(lopt, userinfo, &mdsclient_, iomanager);
 
@@ -338,10 +341,14 @@ TEST_F(InflightRPCTest, FileCloseTest) {
 TEST_F(InflightRPCTest, sessionNotValidhangRPCTest) {
     // session过期，重试RPC被重新放回队列，然后退出时RPC直接错误返回
     fileinstance_ = new FileInstance();
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 50;
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 5000;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+        failRequestOpt.chunkserverOPMaxRetry = 50;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+        failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+        failRequestOpt.chunkserverMaxRPCTimeoutMS = 5000;
     // 设置inflight RPC最大数量为1
-    fopt.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 100;
+    fopt.ioOpt.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum = 100;
     fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     auto fm = iomana->GetMetric();
@@ -399,10 +406,14 @@ TEST_F(InflightRPCTest, sessionNotValidhangRPCTest) {
 TEST_F(InflightRPCTest, sessionValidRPCTest) {
     // 测试session正常，RPC会一直重试到rpcRetryTimes之后然后错误返回
     fileinstance_ = new FileInstance();
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 5;
-    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 5000;
-    // 设置inflight RPC最大数量为1
-    fopt.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum = 100;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+        failRequestOpt.chunkserverOPMaxRetry = 5;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+        failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.
+        failRequestOpt.chunkserverMaxRPCTimeoutMS = 5000;
+    // 设置inflight RPC最大数量为100
+    fopt.ioOpt.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum = 100;
     fileinstance_->Initialize("/test", &mdsclient_, userinfo, fopt);
     curve::client::IOManager4File* iomana = fileinstance_->GetIOManager4File();
     auto fm = iomana->GetMetric();
@@ -459,7 +470,7 @@ TEST_F(InflightRPCTest, sessionValidRPCTest) {
 }
 
 
-std::string metaserver_addr = "127.0.0.1:9143";     // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9143";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/testConfig/client_inflightrpc.conf";   // NOLINT

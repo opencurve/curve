@@ -42,7 +42,7 @@ bool LeaseExcutor::Start(FInfo_t fi, LeaseSession_t  lease) {
         this->RefreshLease();
     };
 
-    auto Interval = leasesession_.leaseTime/leaseoption_.refreshTimesPerLease;
+    auto Interval = leasesession_.leaseTime/leaseoption_.mdsRefreshTimesPerLease;  // NOLINT
 
     refreshTask_ = new (std::nothrow) TimerTask(Interval);
     if (refreshTask_ == nullptr) {
@@ -115,7 +115,7 @@ bool LeaseExcutor::LeaseValid() {
 
 void LeaseExcutor::IncremRefreshFailed() {
     failedrefreshcount_.fetch_add(1);
-    if (failedrefreshcount_.load() >= leaseoption_.refreshTimesPerLease) {
+    if (failedrefreshcount_.load() >= leaseoption_.mdsRefreshTimesPerLease) {
         isleaseAvaliable_.store(false);
         iomanager_->LeaseTimeoutBlockIO();
         LOG(ERROR) << "session invalid now!";

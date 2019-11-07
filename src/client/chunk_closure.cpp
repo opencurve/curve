@@ -51,60 +51,65 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     CopysetID copysetId = reqCtx->idinfo_.cpid_;
     ChunkID chunkid = reqCtx->idinfo_.cid_;
 
-    if (cntlstatus == brpc::ERPCTIMEDOUT) {
-        // 如果对应的cooysetId leader可能发生变更
-        // 那么设置这次重试请求超时时间为默认值
-        // 这是为了尽快重试这次请求
-        // 从copysetleader迁移到client GetLeader获取到新的leader会有1~2s的延迟
-        // 对于一个请求来说，GetLeader仍然可能返回旧的Leader
-        // rpc timeout时间可能会被设置成2s/4s，等到超时后再去获取leader信息
-        // 为了尽快在新的Leader上重试请求，将rpc timeout时间设置为默认值
-        bool leaderMayChange = metaCache_->IsLeaderMayChange(
-            chunkIdInfo_.lpid_, chunkIdInfo_.cpid_);
-        uint64_t nextTimeout = leaderMayChange ?
-            failReqOpt_.rpcTimeoutMs :
-            TimeoutBackOff(reqDone->GetRetriedTimes());
+    // 如果对应的cooysetId leader可能发生变更
+    // 那么设置这次重试请求超时时间为默认值
+    // 这是为了尽快重试这次请求
+    // 从copysetleader迁移到client GetLeader获取到新的leader会有1~2s的延迟
+    // 对于一个请求来说，GetLeader仍然可能返回旧的Leader
+    // rpc timeout时间可能会被设置成2s/4s，等到超时后再去获取leader信息
+    // 为了尽快在新的Leader上重试请求，将rpc timeout时间设置为默认值
+    if (cntlstatus == brpc::ERPCTIMEDOUT || cntlstatus == ETIMEDOUT) {
+        auto nextTimeout = metaCache_->IsLeaderMayChange(logicPoolId, copysetId)
+        ? failReqOpt_.chunkserverRPCTimeoutMS
+        : TimeoutBackOff(reqDone->GetRetriedTimes());
+
         reqDone->SetNextTimeOutMS(nextTimeout);
-        LOG(INFO) << "rpc timeout, next timeout = " << nextTimeout
+        LOG(WARNING) << "rpc timeout, next timeout = " << nextTimeout
                   << ", " << *reqCtx
                   << ", reteied times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
                   << ", request id = " << reqCtx->id_;
         return;
-    } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
+    }
+
+    if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
         uint64_t nextsleeptime = OverLoadBackOff(reqDone->GetRetriedTimes());
-        LOG(INFO) << "chunkserver overload, sleep(us) = " << nextsleeptime
+        LOG(WARNING) << "chunkserver overload, sleep(us) = " << nextsleeptime
                   << ", " << *reqCtx
                   << ", reteied times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
                   << ", request id = " << reqCtx->id_;
         bthread_usleep(nextsleeptime);
         return;
-    } else {
-        LOG(INFO) << "rpc failed, sleep(us) = " << failReqOpt_.opRetryIntervalUs
-                  << ", " << *reqCtx
-                  << ", cntl status = " << cntlstatus
-                  << ", response status = " << rpcstatus
+    } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
+        LOG(WARNING) << "leader redirect, retry directly, " << *reqCtx
                   << ", reteied times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
                   << ", request id = " << reqCtx->id_;
-        bthread_usleep(failReqOpt_.opRetryIntervalUs);
+        return;
     }
+
+    LOG(WARNING) << "rpc failed, sleep(us) = "
+                << failReqOpt_.chunkserverOPRetryIntervalUS << ", " << *reqCtx
+                << ", reteied times = " << reqDone->GetRetriedTimes()
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
+    bthread_usleep(failReqOpt_.chunkserverOPRetryIntervalUS);
 }
 
 uint64_t ClientClosure::OverLoadBackOff(uint64_t currentRetryTimes) {
     uint64_t curpowTime = std::min(currentRetryTimes,
                           backoffParam_.maxOverloadPow);
 
-    uint64_t nextsleeptime = failReqOpt_.opRetryIntervalUs
+    uint64_t nextsleeptime = failReqOpt_.chunkserverOPRetryIntervalUS
                            * std::pow(2, curpowTime);
 
     int random_time = std::rand() % (nextsleeptime/5 + 1);
     random_time -= nextsleeptime/10;
     nextsleeptime += random_time;
 
-    nextsleeptime = std::min(nextsleeptime, failReqOpt_.maxRetrySleepIntervalUs);   // NOLINT
-    nextsleeptime = std::max(nextsleeptime, failReqOpt_.opRetryIntervalUs);
+    nextsleeptime = std::min(nextsleeptime, failReqOpt_.chunkserverMaxRetrySleepIntervalUS);   // NOLINT
+    nextsleeptime = std::max(nextsleeptime, failReqOpt_.chunkserverOPRetryIntervalUS);   // NOLINT
 
     return nextsleeptime;
 }
@@ -113,11 +118,10 @@ uint64_t ClientClosure::TimeoutBackOff(uint64_t currentRetryTimes) {
     uint64_t curpowTime = std::min(currentRetryTimes,
                           backoffParam_.maxTimeoutPow);
 
-    uint64_t nextTimeout = failReqOpt_.rpcTimeoutMs
+    uint64_t nextTimeout = failReqOpt_.chunkserverRPCTimeoutMS
                          * std::pow(2, curpowTime);
-
-    nextTimeout = std::min(nextTimeout, failReqOpt_.maxTimeoutMS);
-    nextTimeout = std::max(nextTimeout, failReqOpt_.rpcTimeoutMs);
+    nextTimeout = std::min(nextTimeout, failReqOpt_.chunkserverMaxRPCTimeoutMS);   // NOLINT
+    nextTimeout = std::max(nextTimeout, failReqOpt_.chunkserverRPCTimeoutMS);
 
     return nextTimeout;
 }
@@ -269,15 +273,10 @@ void ClientClosure::OnRedirected() {
 
     if (response_->has_redirect()) {
         braft::PeerId leader;
-        if (0 == leader.parse(response_->redirect())) {
-            /**
-             * TODO(tongguangxun): if raw copyset info is A,B,C,
-             * chunkserver side copyset info is A,B,D, and D is leader
-             * copyset client need tell cache, just insert new leader.
-             */
-            metaCache_->UpdateLeader(
-                chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                &leaderId, leader.addr);
+        int ret = leader.parse(response_->redirect());
+        if (0 == ret) {
+            metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                                    &leaderId, leader.addr);
             return;
         }
     }
@@ -298,7 +297,7 @@ void ClientClosure::OnCopysetNotExist() {
 void ClientClosure::OnRetry() {
     MetricHelper::IncremFailRPCCount(fileMetric_, reqCtx_->optype_);
 
-    if (reqDone_->GetRetriedTimes() >= failReqOpt_.opMaxRetry) {
+    if (reqDone_->GetRetriedTimes() >= failReqOpt_.chunkserverOPMaxRetry) {
         reqDone_->SetFailed(status_);
         LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
                    << " retried times exceeds"
@@ -309,14 +308,14 @@ void ClientClosure::OnRetry() {
     }
 
     if (!reqDone_->IsSuspendRPC() && reqDone_->GetRetriedTimes() >=
-        failReqOpt_.maxRetryTimesBeforeConsiderSuspend) {
+        failReqOpt_.chunkserverMaxRetryTimesBeforeConsiderSuspend) {
         reqDone_->SetSuspendRPCFlag();
         MetricHelper::IncremIOSuspendNum(fileMetric_);
         LOG(WARNING) << "IO Retried "
-                     << failReqOpt_.maxRetryTimesBeforeConsiderSuspend
-                     << " times, set suspend flag! " << *reqCtx_
-                     << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-                     << ", request id = " << reqCtx_->id_;
+                    << failReqOpt_.chunkserverMaxRetryTimesBeforeConsiderSuspend
+                    << " times, set suspend flag! " << *reqCtx_
+                    << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+                    << ", request id = " << reqCtx_->id_;
     }
 
     PreProcessBeforeRetry(status_, cntlstatus_);
@@ -444,15 +443,10 @@ void GetChunkInfoClosure::OnRedirected() {
 
     if (chunkinforesponse_->has_redirect()) {
         braft::PeerId leader;
-        if (0 == leader.parse(chunkinforesponse_->redirect())) {
-            /**
-             * TODO(tongguangxun): if raw copyset info is A,B,C,
-             * chunkserver side copyset info is A,B,D, and D is leader
-             * copyset client need tell cache, just insert new leader.
-             */
+        int ret = leader.parse(chunkinforesponse_->redirect());
+        if (0 == ret) {
             metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                                     &leaderId,
-                                     leader.addr);
+                                     &leaderId, leader.addr);
             return;
         }
     }

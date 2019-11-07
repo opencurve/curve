@@ -13,7 +13,7 @@
 #include "src/client/client_common.h"
 #include "src/tools/consistency_check.h"
 
-std::string metaserver_addr = "127.0.0.1:9160";                                  //  NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9160";                                  //  NOLINT
 uint32_t chunk_size = 4*1024*1024;
 uint32_t segment_size = 1*1024*1024*1024;
 
