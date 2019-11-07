@@ -440,7 +440,7 @@ TEST_F(MDSClientTest, Openfile) {
     curvefsservice.SetGetFileInfoFakeReturn(fakegetinfo);
 
     int fd = globalclient->Open(filename, userinfo);
-    ASSERT_EQ(fd, 1);
+    ASSERT_EQ(fd, -LIBCURVE_ERROR::FILE_OCCUPIED);
     ASSERT_EQ(LIBCURVE_ERROR::OK, Write(fd, nullptr, 0, 0));
     ASSERT_EQ(LIBCURVE_ERROR::OK, Read(fd, nullptr, 0, 0));
 

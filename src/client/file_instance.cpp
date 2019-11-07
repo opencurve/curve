@@ -129,40 +129,7 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
     int ret = LIBCURVE_ERROR::FAILED;
 
     ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
-    if (LIBCURVE_ERROR::FILE_OCCUPIED == ret) {
-        SessionMap sm;
-        int r = 0;
-        std::string sessionid = sm.GetFileSessionID(
-            fileopt_.sessionmapOpt.sessionmap_path, filename);
-        if (sessionid.empty()) {
-            LOG(WARNING) << "get file session id failed!";
-            return -ret;
-        }
-
-        leaseRefreshResult resp;
-        r = mdsclient_->RefreshSession(filename, userinfo, sessionid, &resp);
-
-        if (r != LIBCURVE_ERROR::OK) {
-            return -ret;
-        }
-
-        r = GetFileInfo(filename, &finfo_);
-        if (r != LIBCURVE_ERROR::OK) {
-            return -ret;
-        }
-
-        ret = LIBCURVE_ERROR::OK;
-    } else if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "Open file failed! filename = " << filename;
-        return -ret;
-    }
-
     if (ret == LIBCURVE_ERROR::OK) {
-        SessionMap sm;
-        int r = sm.PersistSessionMapWithLock(
-        fileopt_.sessionmapOpt.sessionmap_path, filename, lease.sessionID);
-        LOG_IF(WARNING, r != 0) << "persist file session id failed!";
-
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
     }
@@ -184,15 +151,6 @@ int FileInstance::Close() {
     LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName,
                                 finfo_.userinfo,
                                 leaseexcutor_->GetLeaseSessionID());
-
-    if (ret == LIBCURVE_ERROR::OK) {
-        SessionMap sm;
-        int r = sm.DelSessionID(fileopt_.sessionmapOpt.sessionmap_path,
-                                finfo_.fullPathName);
-        if (r != 0) {
-            LOG(WARNING) << "session delete failed!";
-        }
-    }
     return -ret;
 }
 }   // namespace client
