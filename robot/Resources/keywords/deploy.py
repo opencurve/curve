@@ -296,10 +296,6 @@ def start_abnormal_test_services():
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[1] != [], "up mds fail"
             logger.debug("mds pid is %s"%rs[1])
-        for host in config.chunkserver_list:
-            ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-            ori_cmd = "sudo nohup ./chunkserver_start.sh all %s 8200 &"%host
-            shell_operator.ssh_background_exec2(ssh, ori_cmd)
         for host in config.snap_server_list:
             ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
             ori_cmd = "cd snapshot/temp && sudo nohup ./snapshotcloneserver -conf=./snapshot_clone_server.conf &"
@@ -329,6 +325,10 @@ def create_pool():
         logger.info("create physical pool sucess")
     else:
         assert False,"create physical fail ,msg is %s"%rs[2]
+    for host in config.chunkserver_list:
+        ssh2 = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+        ori_cmd = "sudo nohup ./chunkserver_start.sh all %s 8200 &"%host
+        shell_operator.ssh_background_exec2(ssh2, ori_cmd)
     time.sleep(120)
     logical_pool = "curve-tool -copyset_num=4000  -mds_addr=%s\
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_addrs)
