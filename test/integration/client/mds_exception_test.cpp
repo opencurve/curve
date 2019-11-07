@@ -25,6 +25,7 @@
 #include "test/integration/cluster_common/cluster.h"
 
 bool resumeFlag = false;
+bool writeIOReturnFlag = false;
 uint64_t ioFailedCount = 0;
 std::mutex resumeMtx;
 std::condition_variable resumeCV;
@@ -279,6 +280,33 @@ class MDSModuleException : public ::testing::Test {
         return ret;
     }
 
+    /**下发一个写请求
+     * @param: offset是当前需要下发IO的偏移
+     * @param: size是下发IO的大小
+     * @return: IO是否下发成功
+     */
+    bool SendAioWriteRequest(uint64_t offset, uint64_t size) {
+        writeIOReturnFlag = false;
+
+        auto writeCallBack = [](CurveAioContext* context) {
+            // 无论IO是否成功，只要返回，就置为true
+            writeIOReturnFlag = true;
+            char* buffer = reinterpret_cast<char*>(context->buf);
+            delete[] buffer;
+            delete context;
+        };
+
+        char* buffer = new char[size];
+        memset(buffer, 'a', size);
+        CurveAioContext* context = new CurveAioContext();
+        context->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
+        context->offset = offset;
+        context->length = size;
+        context->buf = buffer;
+        context->cb = writeCallBack;
+
+        return AioWrite(fd, context) == 0;
+    }
 
     int fd;
 
@@ -663,9 +691,12 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     // 3. 启动后台挂卸载线程，预期挂卸载服务会受影响
     CreateOpenFileBackend();
 
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    MDS全部不在服务，读写一直异常
-    ASSERT_FALSE(MonitorResume(9*segment_size, 4096, 5));
+    // 4. 下发一个io，sleep一段时间后判断是否返回
+    //    由于从下一个segment开始写，使其触发getorallocate逻辑
+    //    MDS全部不在服务，写请求一直hang，无法返回
+    ASSERT_TRUE(SendAioWriteRequest(9*segment_size, 4096));
+    std::this_thread::sleep_for(std::chrono::seconds(30));
+    ASSERT_FALSE(writeIOReturnFlag);
 
     // 5. 等待后台挂卸载监测结束
     WaitBackendCreateDone();
@@ -675,6 +706,10 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 7. 拉起被kill的进程
     cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf, true);
+
+    // 8. 检测上次IO是否返回
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    ASSERT_TRUE(writeIOReturnFlag);
 
     // 9. 新的mds开始提供服务
     ASSERT_TRUE(MonitorResume(segment_size, 4096, 10));
@@ -708,9 +743,12 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     // 3. 启动后台挂卸载线程，预期挂卸载服务会受影响
     CreateOpenFileBackend();
 
-    // 4. 启动后台io监测, 从下一个segment开始写，使其触发getorallocate逻辑
-    //    不在服务的mds被kill对集群没有影响
-    ret = MonitorResume(10*segment_size, 4096, 10);
+    // 4. 下发一个io，sleep一段时间后判断是否返回
+    //    由于从下一个segment开始写，使其触发getorallocate逻辑
+    //    MDS全部不在服务，写请求一直hang，无法返回
+    ASSERT_TRUE(SendAioWriteRequest(10*segment_size, 4096));
+    std::this_thread::sleep_for(std::chrono::seconds(30));
+    ret = writeIOReturnFlag;
     if (ret) {
         cluster->RecoverHangMDS(3, false);
         cluster->RecoverHangMDS(2, false);
@@ -721,7 +759,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     // 5. 等待监测结束
     WaitBackendCreateDone();
 
-    // 6. 判断IO状态，预期抖一段时间
+    // 6. 判断当前挂卸载情况
     if (!createOrOpenFailed) {
         cluster->RecoverHangMDS(3, false);
         cluster->RecoverHangMDS(2, false);
@@ -732,7 +770,9 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     // 7. 拉起被hang的进程
     cluster->RecoverHangMDS(2);
 
+    // 检测上次IO是否返回
     std::this_thread::sleep_for(std::chrono::seconds(10));
+    ASSERT_TRUE(writeIOReturnFlag);
 
     // 8. 新的mds开始提供服务
     ret = MonitorResume(segment_size, 4096, 1);

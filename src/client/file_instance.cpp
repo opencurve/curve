@@ -47,7 +47,7 @@ bool FileInstance::Initialize(const std::string& filename,
 
         if (mdsclient == nullptr) {
             LOG(ERROR) << "mdsclient pointer is null!";
-            return false;
+            break;
         }
 
         finfo_.userinfo = userinfo;
@@ -120,7 +120,6 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
     }
-
     return -ret;
 }
 
@@ -131,8 +130,7 @@ int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {
 
 int FileInstance::Close() {
     LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName,
-                                finfo_.userinfo,
-                                leaseexcutor_->GetLeaseSessionID());
+                         finfo_.userinfo, leaseexcutor_->GetLeaseSessionID());
     return -ret;
 }
 }   // namespace client

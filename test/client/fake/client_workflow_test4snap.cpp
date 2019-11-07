@@ -24,7 +24,7 @@
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:6666";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:6666";   // NOLINT
 
 DECLARE_uint64(test_disk_size);
 DEFINE_uint32(io_time, 5, "Duration for I/O test");
@@ -75,17 +75,16 @@ int main(int argc, char ** argv) {
     }
 
     ClientConfigOption_t opt;
-    opt.metaServerOpt.rpcTimeoutMs = 500;
-    opt.metaServerOpt.rpcRetryTimes = 3;
+    opt.metaServerOpt.chunkserverRPCTimeoutMS = 500;
     opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:6666");
-    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
-    opt.loginfo.loglevel = 0;
+    opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
+    opt.loginfo.logLevel = 0;
 
     SnapshotClient cl;
     if (cl.Init(opt) != 0) {

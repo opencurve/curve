@@ -309,6 +309,7 @@ void NameSpaceService::GetOrAllocateSegment(
                 << ", statusCode = " << retCode
                 << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
+        response->clear_pagefilesegment();
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()
@@ -1042,7 +1043,7 @@ void NameSpaceService::GetSnapShotFileSegment(
                 << ", statusCode = " << retCode
                 << ", StatusCode_Name = " << StatusCode_Name(retCode);
         }
-
+        response->clear_pagefilesegment();
     } else {
         response->set_statuscode(StatusCode::kOK);
         LOG(INFO) << "logid = " << cntl->log_id()

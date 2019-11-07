@@ -9,6 +9,7 @@
 #define TEST_CLIENT_FAKE_FAKEMDS_H_
 #include <gtest/gtest.h>
 #include <brpc/server.h>
+#include <brpc/controller.h>
 
 #include <string>
 #include <vector>
@@ -70,7 +71,12 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         brpc::ClosureGuard done_guard(done);
         if (fakeRegisterret_->controller_ != nullptr &&
              fakeRegisterret_->controller_->Failed()) {
-            controller->SetFailed("failed");
+            auto cntl = static_cast<brpc::Controller*>(
+                        fakeRegisterret_->controller_);
+            static_cast<brpc::Controller*>(controller)->
+            SetFailed(cntl->ErrorCode(),
+            "failed");
+            LOG(ERROR) << "RegistClient set controller failed!";
         }
 
         retrytimes_++;

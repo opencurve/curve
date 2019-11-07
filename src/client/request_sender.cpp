@@ -27,8 +27,6 @@ int RequestSender::Init(IOSenderOption_t ioSenderOpt) {
     iosenderopt_ = ioSenderOpt;
     ClientClosure::SetFailureRequestOption(iosenderopt_.failRequestOpt);
 
-    confMetric_.enableAppliedIndexRead.set_value(
-                iosenderopt_.enableAppliedIndexRead);
     return 0;
 }
 
@@ -46,7 +44,8 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
-        std::max(rc->GetNextTimeoutMS(), iosenderopt_.rpcTimeoutMs));
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -59,7 +58,7 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     request.set_chunkid(idinfo.cid_);
     request.set_offset(offset);
     request.set_size(length);
-    if (iosenderopt_.enableAppliedIndexRead && appliedindex > 0) {
+    if (iosenderopt_.chunkserverEnableAppliedIndexRead && appliedindex > 0) {
         request.set_appliedindex(appliedindex);
     }
     ChunkService_Stub stub(&channel_);
@@ -84,7 +83,8 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
              << " buf: " << *(unsigned int *)buf;
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
-        std::max(rc->GetNextTimeoutMS(), iosenderopt_.rpcTimeoutMs));
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -115,7 +115,8 @@ int RequestSender::ReadChunkSnapshot(ChunkIDInfo idinfo,
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
-        std::max(rc->GetNextTimeoutMS(), iosenderopt_.rpcTimeoutMs));
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -142,7 +143,8 @@ int RequestSender::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
-        std::max(rc->GetNextTimeoutMS(), iosenderopt_.rpcTimeoutMs));
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -168,7 +170,8 @@ int RequestSender::GetChunkInfo(ChunkIDInfo idinfo,
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
-        std::max(rc->GetNextTimeoutMS(), iosenderopt_.rpcTimeoutMs));
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     GetChunkInfoResponse *response = new GetChunkInfoResponse();
     done->SetResponse(response);
@@ -193,7 +196,8 @@ int RequestSender::CreateCloneChunk(ChunkIDInfo idinfo,
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
-        std::max(rc->GetNextTimeoutMS(), iosenderopt_.rpcTimeoutMs));
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -222,7 +226,8 @@ int RequestSender::RecoverChunk(ChunkIDInfo idinfo,
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
-        std::max(rc->GetNextTimeoutMS(), iosenderopt_.rpcTimeoutMs));
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);

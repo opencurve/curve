@@ -136,9 +136,7 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     curveCluster_->StartSingleMDS(1, "127.0.0.1:3333", mdsConfbak, true);
     // 初始化mdsclient
     MetaServerOption_t op;
-    op.rpcTimeoutMs = 500;
-    op.rpcRetryTimes = 3;
-    op.synchronizeRPCTimeoutMS = 500;
+    op.mdsRPCTimeoutMs = 500;
     op.metaaddrvec = std::vector<std::string>{"127.0.0.1:3333"};
     curveCluster_->InitMdsClient(op);
 

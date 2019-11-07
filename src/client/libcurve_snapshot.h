@@ -12,6 +12,7 @@
 #include <string>
 #include <atomic>
 #include <vector>
+#include <map>
 #include <unordered_map>
 
 #include "src/client/mds_client.h"
@@ -75,7 +76,7 @@ class SnapshotClient {
   int ListSnapShot(const std::string& filename,
                             const UserInfo_t& userinfo,
                             const std::vector<uint64_t>* seqvec,
-                            std::vector<FInfo*>* snapif);
+                            std::map<uint64_t, FInfo>* snapif);
   /**
    * 获取快照数据segment信息
    * @param: userinfo是用户信息

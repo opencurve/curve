@@ -59,8 +59,8 @@ class UnstableChunkServerHelper {
     }
 
     static void SetMaxStableChunkServerTimeoutTimes(
-        uint64_t maxStableChunkServerTimeoutTimes) {
-        maxStableChunkServerTimeoutTimes_ = maxStableChunkServerTimeoutTimes;  // NOLINT
+        uint64_t chunkserverMaxStableTimeoutTimes) {
+        maxStableChunkServerTimeoutTimes_ = chunkserverMaxStableTimeoutTimes;
     }
 
  private:
@@ -138,17 +138,16 @@ class ClientClosure : public Closure {
         failReqOpt_ = failRequestOpt;
 
         UnstableChunkServerHelper::SetMaxStableChunkServerTimeoutTimes(
-            failReqOpt_.maxStableChunkServerTimeoutTimes);
+            failReqOpt_.chunkserverMaxStableTimeoutTimes);
 
         std::srand(std::time(nullptr));
         SetBackoffParam();
 
-        confMetric_.opMaxRetry.set_value(failReqOpt_.opMaxRetry);
-        confMetric_.opRetryIntervalUs.set_value(
-                    failReqOpt_.opRetryIntervalUs);
         DVLOG(9) << "Client clousre conf info: "
-              << "opRetryIntervalUs = " << failReqOpt_.opRetryIntervalUs
-              << ", opMaxRetry = " << failReqOpt_.opMaxRetry;
+              << "chunkserverOPRetryIntervalUS = "
+              << failReqOpt_.chunkserverOPRetryIntervalUS
+              << ", chunkserverOPMaxRetry = "
+              << failReqOpt_.chunkserverOPMaxRetry;
     }
 
     Closure* GetClosure() const {
@@ -190,13 +189,13 @@ class ClientClosure : public Closure {
     };
 
     static void SetBackoffParam() {
-        uint64_t overloadTimes = failReqOpt_.maxRetrySleepIntervalUs
-                                / failReqOpt_.opRetryIntervalUs;
+        uint64_t overloadTimes = failReqOpt_.chunkserverMaxRetrySleepIntervalUS
+                                / failReqOpt_.chunkserverOPRetryIntervalUS;
         backoffParam_.maxOverloadPow = GetPowTime(overloadTimes);
 
 
-        uint64_t timeoutTimes = failReqOpt_.maxTimeoutMS
-                             / failReqOpt_.rpcTimeoutMs;
+        uint64_t timeoutTimes = failReqOpt_.chunkserverMaxRPCTimeoutMS
+                             / failReqOpt_.chunkserverRPCTimeoutMS;
         backoffParam_.maxTimeoutPow = GetPowTime(timeoutTimes);
     }
 

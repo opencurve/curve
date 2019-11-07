@@ -31,7 +31,7 @@
 #include "src/client/libcurve_file.h"
 #include "test/client/fake/fakeChunkserver.h"
 
-extern std::string metaserver_addr;
+extern std::string mdsMetaServerAddr;
 extern std::string configpath;
 DECLARE_string(chunkserver_list);
 
@@ -397,7 +397,7 @@ TEST(ClientSession, LeaseTaskTest) {
     // 这时候IO被恢复了。
     sessionFlag = false;
     brpc::Controller* cntl = new brpc::Controller;
-    cntl->SetFailed(-1, "set failed!");
+    cntl->SetFailed(1, "set failed!");
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretfailed
      = new FakeReturn(cntl, static_cast<void*>(&refreshresp));
@@ -417,7 +417,7 @@ TEST(ClientSession, LeaseTaskTest) {
     }
 
     brpc::Controller* cntl2 = new brpc::Controller;
-    cntl2->SetFailed(-1, "set failed!");
+    cntl2->SetFailed(1, "set failed!");
     ::curve::mds::ReFreshSessionResponse refreshresp2;
     refreshresp2.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretfailed2
@@ -426,25 +426,8 @@ TEST(ClientSession, LeaseTaskTest) {
 
     curvefsservice2.CleanRetryTimes();
 
-    // synchronizeRPCRetryTime = 3
-    // 每个mds会重试3次，因为配置文件里的mds为127.0.0.1:9101@127.0.0.1:9102
-    // 所以两个mds在一次续约过程中会各重试3次，续约4次不成功会将IO停住，lease失效。
-    for (int i = 1;
-         i <= 4 * 2 * cc.GetFileServiceOption().
-              metaServerOpt.synchronizeRPCRetryTime + 1;
-         i++) {
-        {
-            std::unique_lock<std::mutex> lk(mtx);
-            refreshcv.wait(lk);
-        }
-
-        LOG(ERROR) << i;
-        if (i < 3 * 2 * cc.GetFileServiceOption().
-                metaServerOpt.synchronizeRPCRetryTime) {
-            ASSERT_TRUE(lease->LeaseValid());
-        }
-    }
-
+    ASSERT_TRUE(lease->LeaseValid());
+    std::this_thread::sleep_for(std::chrono::seconds(12));
     ASSERT_FALSE(lease->LeaseValid());
 
     fileinstance.UnInitialize();
@@ -453,11 +436,6 @@ TEST(ClientSession, LeaseTaskTest) {
     server2.Stop(0);
     server2.Join();
     mds.UnInitialize();
-
-    ASSERT_GT(curvefsservice->GetRetryTimes(), 2 * cc.GetFileServiceOption().
-             metaServerOpt.synchronizeRPCRetryTime - 1);
-    ASSERT_GT(curvefsservice2.GetRetryTimes(), 2 * cc.GetFileServiceOption().
-             metaServerOpt.synchronizeRPCRetryTime - 1);
 }
 
 TEST(ClientSession, AppliedIndexTest) {
@@ -592,7 +570,7 @@ TEST(ClientSession, AppliedIndexTest) {
     delete readret;
 }
 
-std::string metaserver_addr = "127.0.0.1:9101";     // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9101";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/testConfig/client_session.conf";   // NOLINT

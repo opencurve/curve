@@ -13,8 +13,11 @@
 #include <brpc/errno.pb.h>
 #include <bthread/mutex.h>
 
+#include <map>
+#include <set>
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 #include "proto/topology.pb.h"
 #include "proto/nameserver2.pb.h"
@@ -35,11 +38,14 @@ namespace curve {
 namespace client {
 class MetaCache;
 struct leaseRefreshResult;
+
 // MDSClient是client与MDS通信的唯一窗口
 class MDSClient {
  public:
     MDSClient();
     ~MDSClient() = default;
+    using RPCFunc = std::function<int(int, uint64_t,
+                    brpc::Channel*, brpc::Controller*)>;
     /**
      * 初始化函数
      * @param: metaopt为mdsclient的配置信息
@@ -183,7 +189,7 @@ class MDSClient {
     LIBCURVE_ERROR ListSnapShot(const std::string& filename,
                             const UserInfo_t& userinfo,
                             const std::vector<uint64_t>* seq,
-                            std::vector<FInfo*>* snapif);
+                            std::map<uint64_t, FInfo>* snapif);
     /**
      * 获取快照的chunk信息并更新到metacache，segInfo是出参
      * @param: filename是要快照的文件名
@@ -341,8 +347,7 @@ class MDSClient {
       * @return: 成功返回0，
       *          否则返回LIBCURVE_ERROR::FAILED,LIBCURVE_ERROR::AUTHFAILED等
       */
-    LIBCURVE_ERROR Register(const std::string& ip,
-                            uint16_t port);
+    LIBCURVE_ERROR Register(const std::string& ip, uint16_t port);
 
      /**
       * 析构，回收资源
@@ -354,40 +359,113 @@ class MDSClient {
        return &mdsClientMetric_;
     }
 
- private:
-    /**
-     * 切换MDS链接
-     * @param[in][out]: mdsAddrleft代表当前RPC调用还有多少个mdsserver可以尝试，内部
-     *                  每重试一个mds addr就将该值减一
-     * @return: 成功则true,否则false
-     */
-    bool ChangeMDServer(int* mdsAddrleft);
+ protected:
+    class MDSRPCExcutor {
+     public:
+         MDSRPCExcutor() {
+            cntlID_.store(1);
+            currentWorkingMDSAddrIndex_.store(0);
+         }
 
-    /**
-     * 当mds以集群方式部署时，其有多个server节点。client在于mds通信过程中如果
-     * RPC超时，首先选择在当前mds server上进行超时重试。如果超时重试次数超过设置
-     * 的上限范围，就从配置的集群server中切换sever节点进行重试。
-     * libcurve在调用mds服务的时候，有些接口是在用户一侧是同步接口，例如Open、
-     * GetFileInfo操作，这些操作不需要无限重试，只需要在synchronizeRPCRetryTime
-     * 以内不成功就向上返回错误。而对于GetSegment和GetServerList接口则是在IO路径
-     * 上调用的，因为IO路径上如果出现错误就一致尝试重试，重试次数很大。所以为了区分两
-     * 种类型的RPC调用，需要设置sync标志，在除GetSegment和GetServerList接口外的
-     * RPC调用都应该设置sync = true。
-     * sync主要用来判断当前RPC重试次数是否需要进行切换server，当sync = true时，重试
-     * 次数达到synchronizeRPCRetryTime时就要切换server了。当sync = false时，重试
-     * 次数达到rpcRetryTimes时就要切换server。
-     * 因为这部分逻辑在所有的RPC接口里都会用到，所以为了复用代码减少重复代码，把这部分逻辑
-     * 单独抽出来。
-     * @param[in][out] :retrycount是入参，也是出参，更新重试的次数，
-     *        如果这个次数超过设置的规定次数，那么就切换leader重试，并将该值置0
-     * @param: mdsAddrleft代表当前RPC调用还有多少个mdsserver可以尝试，如果还有server
-     *          可以重试，就调用ChangeMDServer切换server重试。
-     * @param: sync代表当前调用是否为同步调用，根据sync值选择重试次数
-     * @return: 达到重试次数且切换server失败返回false， 否则返回true
-     */
-    bool UpdateRetryinfoOrChangeServer(int* retrycount,
-                                       int* mdsAddrleft,
-                                       bool sync = true);
+         void SetOption(const MetaServerOption_t& option) {
+            metaServerOpt_ = option;
+         }
+
+         /**
+          * 将client与mds的重试相关逻辑抽离
+          * @param: task为当前要进行的具体rpc任务
+          * @param: maxRetryTimeMS是当前执行最大的重试时间
+          * @return: 返回当前RPC的结果
+          */
+         LIBCURVE_ERROR DoRPCTask(RPCFunc task, uint64_t maxRetryTimeMS);
+
+         /**
+          * 测试使用: 设置当前正在服务的mdsindex
+          */
+         void SetCurrentWorkIndex(int index) {
+            currentWorkingMDSAddrIndex_.store(index);
+         }
+
+         /**
+          * 测试使用：获取当前正在服务的mdsindex
+          */
+         int GetCurrentWorkIndex() {
+            return currentWorkingMDSAddrIndex_.load();
+         }
+
+     private:
+         /**
+          * rpc失败需要重试，根据cntl返回的不同的状态，确定应该做什么样的预处理。
+          * 主要做了以下几件事：
+          * 1. 如果上一次的RPC是超时返回，那么执行rpc 超时指数退避逻辑
+          * 2. 如果上一次rpc返回not connect等返回值，会主动触发切换mds地址重试
+          * 3. 更新重试信息，比如在当前mds上连续重试的次数
+          * @param[in]: status为当前rpc的失败返回的状态
+          * @param[in][out]: curMDSRetryCount当前mds节点上的重试次数，如果切换mds
+          *             该值会被重置为1.
+          * @param[in]: curRetryMDSIndex代表当前正在重试的mds索引
+          * @param[out]: lastWorkingMDSIndex上一次正在提供服务的mds索引
+          * @param[out]: timeOutMS根据status对rpctimeout进行调整
+          *
+          * @return: 返回下一次重试的mds索引
+          */
+         int PreProcessBeforeRetry(int status, uint64_t* curMDSRetryCount,
+                                 int curRetryMDSIndex, int* lastWorkingMDSIndex,
+                                 uint64_t* timeOutMS);
+         /**
+         * 执行rpc发送任务
+         * @param[in]: mdsindex为mds对应的地址索引
+         * @param[in]: rpcTimeOutMS是rpc超时时间
+         * @param[in]: task为待执行的任务
+         * @return: channel获取成功则返回0，否则-1
+         */
+         int ExcuteTask(int mdsindex, uint64_t rpcTimeOutMS, RPCFunc task);
+         /**
+         * 根据输入状态获取下一次需要重试的mds索引，mds切换逻辑：
+         * 记录三个状态：curRetryMDSIndex、lastWorkingMDSIndex、
+         *             currentWorkingMDSIndex
+         * 1. 开始的时候curRetryMDSIndex = currentWorkingMDSIndex
+         *            lastWorkingMDSIndex = currentWorkingMDSIndex
+         * 2. 如果rpc失败，会触发切换curRetryMDSIndex，如果这时候lastWorkingMDSIndex
+         *    与currentWorkingMDSIndex相等，这时候会顺序切换到下一个mds索引，
+         *    如果lastWorkingMDSIndex与currentWorkingMDSIndex不相等，那么
+         *    说明有其他接口更新了currentWorkingMDSAddrIndex_，那么本次切换
+         *    直接切换到currentWorkingMDSAddrIndex_
+         * @param[in]: needChangeMDS表示当前外围需不需要切换mds，这个值由
+         *              PreProcessBeforeRetry函数确定
+         * @param[in]: currentRetryIndex为当前正在重试的mds索引
+         * @param[in][out]: lastWorkingindex为上一次正在服务的mds索引，正在重试的mds
+         *              与正在服务的mds索引可能是不同的mds。
+         * @return: 返回下一次要重试的mds索引
+         */
+         int GetNextMDSIndex(bool needChangeMDS, int currentRetryIndex,
+                            int* lastWorkingindex);
+         /**
+          * 根据输入参数，决定是否继续重试，重试退出条件是重试时间超出最大允许时间
+          * IO路径上和非IO路径上的重试时间不一样，非IO路径的重试时间由配置文件的
+          * mdsMaxRetryMS参数指定，IO路径为无限循环重试。
+          * @param[in]: startTimeMS
+          * @param[in]: maxRetryTimeMS为最大重试时间
+          * @return:需要继续重试返回true， 否则返回false
+          */
+         bool GoOnRetry(uint64_t startTimeMS, uint64_t maxRetryTimeMS);
+
+         /**
+          * 递增controller id并返回id
+          */
+         inline uint64_t GetLogId() { return cntlID_.fetch_add(1); }
+
+     private:
+         // 执行rpc时必要的配置信息
+         MetaServerOption_t metaServerOpt_;
+
+         // 记录上一次重试过的leader信息
+         std::atomic<int> currentWorkingMDSAddrIndex_;
+
+         // controller id，用于trace整个rpc IO链路
+         // 这里直接用uint64即可，在可预测的范围内，不会溢出
+         std::atomic<uint64_t> cntlID_;
+    };
 
     /**
      * 将mds侧错误码对应到libcurve错误码
@@ -401,20 +479,8 @@ class MDSClient {
     // 初始化标志，放置重复初始化
     bool            inited_;
 
-    // brpc提供的mutex锁
-    mutable bthread::Mutex mutex_;
-
-    // client与mds通信的rpc channel
-    brpc::Channel*  channel_;
-
     // 当前模块的初始化option配置
     MetaServerOption_t metaServerOpt_;
-
-    // 记录上一次重试过的leader信息, 该索引对应metaServerOpt_里leader addr的索引
-    int lastWorkingMDSAddrIndex_;
-
-    // 读写锁，在切换MDS地址的时候需要暂停其他线程的RPC调用
-    RWLock rwlock_;
 
     // client与mds通信的metric统计
     MDSClientMetric_t mdsClientMetric_;
@@ -422,6 +488,8 @@ class MDSClient {
     // MDSClientBase是真正的rpc发送逻辑
     // MDSClient是在RPC上层的一些业务逻辑封装，比如metric，或者重试逻辑
     MDSClientBase mdsClientBase_;
+
+    MDSRPCExcutor rpcExcutor;
 };
 }   // namespace client
 }   // namespace curve

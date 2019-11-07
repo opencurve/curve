@@ -32,7 +32,7 @@
 #include "src/client/libcurve_file.h"
 #include "include/client/libcurve.h"
 
-std::string metaserver_addr = "127.0.0.1:9104";     // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9104";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/testConfig/client.conf";   // NOLINT
