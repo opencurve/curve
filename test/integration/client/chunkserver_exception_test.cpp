@@ -108,7 +108,8 @@ class CSModuleException : public ::testing::Test {
         + std::string(" -mds_addr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124")     //  NOLINT
         + std::string(" -op=create_physicalpool")
         + std::string(" -stderrthreshold=0")
-        + std::string(" -minloglevel=0");
+        + std::string(" -minloglevel=0")
+        + std::string(" -rpcTimeOutMs=10000");
 
         LOG(INFO) << "exec cmd: " << createPPCmd;
         int ret = 0;

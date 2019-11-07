@@ -24,13 +24,12 @@ using ::testing::AnyNumber;
 
 TEST(RequestSchedulerTest, fake_server_test) {
     RequestScheduleOption_t opt;
-    opt.queueCapacity = 4096;
-    opt.threadpoolSize = 2;
-    opt.ioSenderOpt.rpcTimeoutMs = 200;
-    opt.ioSenderOpt.rpcRetryTimes = 3;
-    opt.ioSenderOpt.failRequestOpt.opMaxRetry = 5;
-    opt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
-    opt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.scheduleQueueCapacity = 4096;
+    opt.scheduleThreadpoolSize = 2;
+    opt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 200;
+    opt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 5;
+    opt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
+    opt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     brpc::Server server;
     std::string listenAddr = "127.0.0.1:9109";
@@ -56,8 +55,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
         ASSERT_EQ(-1, requestScheduler.Init(opt, nullptr));
     }
 
-    opt.queueCapacity = 100;
-    opt.threadpoolSize = 4;
+    opt.scheduleQueueCapacity = 100;
+    opt.scheduleThreadpoolSize = 4;
     ASSERT_EQ(0, requestScheduler.Init(opt, &mockMetaCache));
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
@@ -553,29 +552,28 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
 TEST(RequestSchedulerTest, CommonTest) {
     RequestScheduleOption opt;
-    opt.queueCapacity = 4096;
-    opt.threadpoolSize = 2;
-    opt.ioSenderOpt.rpcTimeoutMs = 200;
-    opt.ioSenderOpt.rpcRetryTimes = 3;
-    opt.ioSenderOpt.failRequestOpt.opMaxRetry = 5;
-    opt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
-    opt.ioSenderOpt.enableAppliedIndexRead = 1;
+    opt.scheduleQueueCapacity = 4096;
+    opt.scheduleThreadpoolSize = 2;
+    opt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 200;
+    opt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 5;
+    opt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
+    opt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduler sche;
     MetaCache metaCache;
     FileMetric fm("test");
 
-    // queueCapacity 设置为 0
-    opt.queueCapacity = 0;
+    // scheduleQueueCapacity 设置为 0
+    opt.scheduleQueueCapacity = 0;
     ASSERT_EQ(-1, sche.Init(opt, &metaCache, &fm));
 
     // threadpoolsize 设置为 0
-    opt.queueCapacity = 4096;
-    opt.threadpoolSize = 0;
+    opt.scheduleQueueCapacity = 4096;
+    opt.scheduleThreadpoolSize = 0;
     ASSERT_EQ(-1, sche.Init(opt, &metaCache, &fm));
 
-    opt.queueCapacity = 4096;
-    opt.threadpoolSize = 2;
+    opt.scheduleQueueCapacity = 4096;
+    opt.scheduleThreadpoolSize = 2;
 
     ASSERT_EQ(0, sche.Init(opt, &metaCache, &fm));
     ASSERT_EQ(0, sche.Run());

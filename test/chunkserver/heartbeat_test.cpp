@@ -8,7 +8,18 @@
 #include <gtest/gtest.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <string>
+
 #include "test/chunkserver/heartbeat_test_common.h"
+#include "include/chunkserver/chunkserver_common.h"
+#include "src/common/configuration.h"
+#include "src/chunkserver/heartbeat.h"
+#include "src/chunkserver/cli.h"
+#include "src/chunkserver/uri_paser.h"
+
+#include "test/client/fake/fakeMDS.h"
+
+std::string mdsMetaServerAddr = "127.0.0.1:9300";   // NOLINT
 
 namespace curve {
 namespace chunkserver {

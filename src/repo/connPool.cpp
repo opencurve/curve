@@ -20,6 +20,7 @@ ConnPool::ConnPool(const std::string &url,
                    const std::string &user,
                    const std::string &passwd,
                    uint32_t capacity) {
+    size_ = 0;
     url_ = url;
     user_ = user;
     passwd_ = passwd;

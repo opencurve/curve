@@ -83,13 +83,15 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     mds.StartService();
     mds.CreateCopysetNode(true);
 
-    ASSERT_EQ(0, Init(configpath.c_str()));
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
     // test get cluster id
     const int CLUSTERIDMAX = 256;
     char clusterId[CLUSTERIDMAX];
+
+    ASSERT_EQ(GetClusterId(clusterId, CLUSTERIDMAX), -LIBCURVE_ERROR::FAILED);
+
+    ASSERT_EQ(0, Init(configpath.c_str()));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     ASSERT_EQ(GetClusterId(nullptr, 0), -LIBCURVE_ERROR::FAILED);
 
@@ -331,21 +333,19 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     userinfo.owner = "userinfo";
     userinfo.password = "12345";
     fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
-    fopt.metaServerOpt.rpcTimeoutMs = 500;
-    fopt.metaServerOpt.rpcRetryTimes = 3;
-    fopt.loginfo.loglevel = 0;
-    fopt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 1000;
-    fopt.ioOpt.ioSenderOpt.rpcRetryTimes = 3;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    fopt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    fopt.ioOpt.metaCacheOpt.retryIntervalUs = 500;
-    fopt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    fopt.metaServerOpt.chunkserverRPCTimeoutMS = 500;
+    fopt.loginfo.logLevel = 0;
+    fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
+    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+    fopt.ioOpt.ioSenderOpt.chunkserverRPCTimeoutMS = 1000;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    fopt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+    fopt.ioOpt.metaCacheOpt.metacacheRPCRetryIntervalUS = 500;
+    fopt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+    fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
-    fopt.leaseOpt.refreshTimesPerLease = 4;
+    fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
@@ -649,22 +649,20 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     userinfo.owner = "userinfo";
     userinfo.password = "12345";
     fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
-    fopt.metaServerOpt.rpcTimeoutMs = 500;
-    fopt.metaServerOpt.rpcRetryTimes = 3;
-    fopt.loginfo.loglevel = 0;
-    fopt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 1000;
-    fopt.ioOpt.ioSenderOpt.rpcRetryTimes = 3;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    fopt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    fopt.ioOpt.metaCacheOpt.retryIntervalUs = 500;
-    fopt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
+    fopt.loginfo.logLevel = 0;
+    fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
+    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    fopt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+    fopt.ioOpt.metaCacheOpt.metacacheRPCRetryIntervalUS = 500;
+    fopt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+    fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
-    fopt.leaseOpt.refreshTimesPerLease = 4;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+    fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);

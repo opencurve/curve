@@ -55,9 +55,11 @@ const std::vector<std::string> mdsConfigOpts{
 };
 
 const std::vector<std::string> clientConfigOpts{
-    std::string("metaserver_addr=") + kMdsIpPort,
+    std::string("mds.listen.addr=") + kMdsIpPort,
     std::string("maxInFlightRPCNum=") + kClientInflightNum,
-    std::string("logpath=") + kLogPath
+    std::string("global.logPath=") + kLogPath,
+    std::string("isolation.taskQueueCapacity=128"),
+    std::string("schedule.queueCapacity=128")
 };
 
 const std::vector<std::string> mdsConf{
@@ -206,9 +208,9 @@ class UnstableCSModuleException : public ::testing::Test {
     }
 
     void TearDown() {
+        UnInit();
         cluster->mdsRepo_->dropDataBase();
         cluster->StopCluster();
-
         // 清理文件夹
         system("rm -rf module_exception_curve_unstable_cs");
     }

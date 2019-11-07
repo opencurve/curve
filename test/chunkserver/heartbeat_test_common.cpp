@@ -10,7 +10,6 @@
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:9300";   // NOLINT
 
 static char* confPath[3] = {
     "test/chunkserver/chunkserver.conf.0",

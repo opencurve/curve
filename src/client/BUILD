@@ -27,8 +27,6 @@ cc_library(
         exclude = ["libcurve.h"]),
     defines = ["UNIT_TEST"],
     deps = [
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
         "//external:gflags",
         "//external:glog",
         "//external:leveldb",
@@ -87,7 +85,6 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//src/chunkserver:chunkserver-lib",
         "//proto:chunkserver-cc-protos",
         "//src/common:curve_common",
         "//src/client:curve_client",
