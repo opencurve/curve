@@ -16,19 +16,19 @@ int CurveFsClientImpl::Init(const CurveClientOptions &options) {
     ClientConfigOption_t opt;
 
     opt.metaServerOpt.metaaddrvec.push_back(options.mdsAddr);
-    opt.metaServerOpt.rpcTimeoutMs = options.requestRpcTimeOutMs;
-    opt.metaServerOpt.synchronizeRPCTimeoutMS = options.requestRpcTimeOutMs;
-    opt.ioOpt.reqSchdulerOpt.queueCapacity = options.requestQueueCap;
-    opt.ioOpt.reqSchdulerOpt.threadpoolSize = options.threadNum;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = options.requestMaxRetry;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs
+    opt.metaServerOpt.mdsRPCTimeoutMs = options.requestRpcTimeOutMs;
+    opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = options.requestQueueCap;
+    opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = options.threadNum;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry
+        = options.requestMaxRetry;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS
         = options.requestRetryIntervalUs;
-    opt.ioOpt.metaCacheOpt.getLeaderRetry = options.getLeaderRetry;
-    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = options.enableApplyIndexRead;
-    opt.ioOpt.ioSenderOpt.rpcTimeoutMs = options.requestRpcTimeOutMs;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = options.ioSplitSize;
+    opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = options.getLeaderRetry;
+    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead
+        = options.enableApplyIndexRead;
+    opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = options.ioSplitSize;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
-    opt.loginfo.loglevel = options.loglevel;
+    opt.loginfo.logLevel = options.loglevel;
 
     return client_.Init(opt);
 }

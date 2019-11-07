@@ -102,7 +102,7 @@ void Authenticator::HMacSha256(
 
 std::string Authenticator::Base64(const unsigned char *src, size_t sz) {
     unsigned char               *pp, *p, *q;
-    unsigned char *qq           = NULL;
+    unsigned char               *qq = NULL;
     size_t                      i, safe = sz;
 
     if (!src || (sz == 0))
@@ -154,7 +154,7 @@ std::string Authenticator::Base64(const unsigned char *src, size_t sz) {
     if (pp != src)
         free(pp);
 
-    std::string ret = std::string((char *)qq);    // NOLINT
+    std::string ret = std::string((char*)qq);    // NOLINT
     free(qq);
     qq = NULL;
     return ret;

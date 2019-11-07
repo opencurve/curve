@@ -27,12 +27,12 @@ int RequestScheduler::Init(const RequestScheduleOption_t& reqSchdulerOpt,
     reqschopt_ = reqSchdulerOpt;
 
     int rc = 0;
-    rc = queue_.Init(reqschopt_.queueCapacity);
+    rc = queue_.Init(reqschopt_.scheduleQueueCapacity);
     if (0 != rc) {
         return -1;
     }
 
-    rc = threadPool_.Init(reqschopt_.threadpoolSize,
+    rc = threadPool_.Init(reqschopt_.scheduleThreadpoolSize,
                           std::bind(&RequestScheduler::Process, this));
     if (0 != rc) {
         return -1;
@@ -42,12 +42,12 @@ int RequestScheduler::Init(const RequestScheduleOption_t& reqSchdulerOpt,
     if (0 != rc) {
         return -1;
     }
-    confMetric_.queueCapacity.set_value(reqschopt_.queueCapacity);
-    confMetric_.threadpoolSize.set_value(reqschopt_.threadpoolSize);
 
     LOG(INFO) << "RequestScheduler conf info: "
-              << "queueCapacity = " << reqschopt_.queueCapacity
-              << ", threadpoolSize = " << reqschopt_.threadpoolSize;
+              << "scheduleQueueCapacity = "
+              << reqschopt_.scheduleQueueCapacity
+              << ", scheduleThreadpoolSize = "
+              << reqschopt_.scheduleThreadpoolSize;
     return 0;
 }
 

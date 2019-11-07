@@ -76,8 +76,7 @@ uint64_t RequestClosure::GetStartTime() {
     return starttime_;
 }
 
-int RequestClosure::AddInflightCntl(IOManagerID id,
-                                     InFlightIOCntlInfo_t opt) {
+int RequestClosure::AddInflightCntl(IOManagerID id, InFlightIOCntlInfo_t opt) {
     WriteLockGuard lk(rwLock_);
     auto it = inflightCntlMap_.find(id);
     if (it == inflightCntlMap_.end()) {
@@ -86,7 +85,7 @@ int RequestClosure::AddInflightCntl(IOManagerID id,
             LOG(ERROR) << "InflightControl allocate failed!";
             return -1;
         }
-        cntl->SetMaxInflightNum(opt.maxInFlightRPCNum);
+        cntl->SetMaxInflightNum(opt.fileMaxInFlightRPCNum);
         inflightCntlMap_.emplace(id, cntl);
     }
     return 0;

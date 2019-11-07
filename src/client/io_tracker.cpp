@@ -43,12 +43,8 @@ IOTracker::IOTracker(IOManager* iomanager,
     opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
 }
 
-void IOTracker::StartRead(CurveAioContext* aioctx,
-                            char* buf,
-                            off_t offset,
-                            size_t length,
-                            MDSClient* mdsclient,
-                            const FInfo_t* fi) {
+void IOTracker::StartRead(CurveAioContext* aioctx, char* buf,
+    off_t offset, size_t length, MDSClient* mdsclient, const FInfo_t* fi) {
     data_   = buf;
     offset_ = offset;
     length_ = length;
@@ -79,12 +75,8 @@ void IOTracker::StartRead(CurveAioContext* aioctx,
     }
 }
 
-void IOTracker::StartWrite(CurveAioContext* aioctx,
-                            const char* buf,
-                            off_t offset,
-                            size_t length,
-                            MDSClient* mdsclient,
-                            const FInfo_t* fi) {
+void IOTracker::StartWrite(CurveAioContext* aioctx, const char* buf,
+    off_t offset, size_t length, MDSClient* mdsclient,  const FInfo_t* fi) {
     data_   = buf;
     offset_ = offset;
     length_ = length;
@@ -114,11 +106,8 @@ void IOTracker::StartWrite(CurveAioContext* aioctx,
     }
 }
 
-void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
-                              uint64_t seq,
-                              uint64_t offset,
-                              uint64_t len,
-                              char *buf) {
+void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo, uint64_t seq,
+    uint64_t offset, uint64_t len, char *buf) {
     data_   = buf;
     offset_ = offset;
     length_ = len;
@@ -141,7 +130,7 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
-                                uint64_t correctedSeq) {
+    uint64_t correctedSeq) {
     type_ = OpType::DELETE_SNAP;
 
     int ret = -1;
@@ -168,7 +157,7 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
-                            ChunkInfoDetail *chunkInfo) {
+    ChunkInfoDetail *chunkInfo) {
     type_ = OpType::GET_CHUNK_INFO;
 
     int ret = -1;
@@ -195,10 +184,8 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::CreateCloneChunk(const std::string &location,
-                                const ChunkIDInfo &cinfo,
-                                uint64_t sn,
-                                uint64_t correntSn,
-                                uint64_t chunkSize) {
+    const ChunkIDInfo &cinfo, uint64_t sn,
+    uint64_t correntSn, uint64_t chunkSize) {
     type_ = OpType::CREATE_CLONE;
 
     int ret = -1;
@@ -228,8 +215,7 @@ void IOTracker::CreateCloneChunk(const std::string &location,
 }
 
 void IOTracker::RecoverChunk(const ChunkIDInfo &cinfo,
-                                        uint64_t offset,
-                                        uint64_t len) {
+    uint64_t offset, uint64_t len) {
     type_ = OpType::RECOVER_CHUNK;
 
     int ret = -1;
@@ -319,7 +305,7 @@ void IOTracker::ReturnOnFail() {
 }
 
 void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
-                                            LIBCURVE_ERROR* errout) {
+    LIBCURVE_ERROR* errout) {
     switch (errcode) {
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
             *errout = LIBCURVE_ERROR::OK;

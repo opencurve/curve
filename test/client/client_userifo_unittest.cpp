@@ -23,7 +23,7 @@
 #include "src/client/iomanager4chunk.h"
 #include "src/client/libcurve_snapshot.h"
 
-extern std::string metaserver_addr;
+extern std::string mdsMetaServerAddr;
 extern std::string configpath;
 
 using curve::client::MDSClient;
@@ -59,9 +59,8 @@ class CurveClientUserAuthFail : public ::testing::Test {
         metaopt.metaaddrvec.push_back("127.0.0.1:9104");
 
         metaopt.metaaddrvec.push_back("127.0.0.1:9104");
-        metaopt.rpcTimeoutMs = 500;
-        metaopt.rpcRetryTimes = 5;
-        metaopt.retryIntervalUs = 200;
+        metaopt.mdsRPCTimeoutMs = 500;
+        metaopt.mdsRPCRetryIntervalUS = 200;
 
         if (server.AddService(&curvefsservice,
                             brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
@@ -80,8 +79,8 @@ class CurveClientUserAuthFail : public ::testing::Test {
 
         brpc::ServerOptions options;
         options.idle_timeout_sec = -1;
-        LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
-        ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
+        LOG(INFO) << "meta server addr = " << mdsMetaServerAddr.c_str();
+        ASSERT_EQ(server.Start(mdsMetaServerAddr.c_str(), &options), 0);
     }
 
     void TearDown() {
@@ -230,18 +229,17 @@ TEST_F(CurveClientUserAuthFail, CurveClientUserAuthFailTest) {
 
 TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     ClientConfigOption_t opt;
-    opt.metaServerOpt.rpcTimeoutMs = 500;
-    opt.metaServerOpt.rpcRetryTimes = 3;
+    opt.metaServerOpt.mdsRPCTimeoutMs = 500;
     opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
-    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
+    opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
-    opt.loginfo.loglevel = 0;
+    opt.loginfo.logLevel = 0;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
@@ -301,6 +299,10 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
     curve::mds::GetOrAllocateSegmentResponse* getresponse =
                         new curve::mds::GetOrAllocateSegmentResponse();
     curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
+    pfs->set_logicalpoolid(0);
+    pfs->set_segmentsize(16*1024*1024*1024);
+    pfs->set_chunksize(16*1024*1024);
+    pfs->set_startoffset(0);
     getresponse->set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
     getresponse->set_allocated_pagefilesegment(pfs);
     FakeReturn* getfakeret = new FakeReturn(nullptr,
@@ -345,10 +347,8 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
                                                         seq, &sinfo));
 
     std::vector<uint64_t> seqvec;
-    std::vector<curve::client::FInfo_t*> fivec;
+    std::map<uint64_t, curve::client::FInfo_t> fivec;
     seqvec.push_back(seq);
-    curve::client::FInfo_t ffinfo;
-    fivec.push_back(&ffinfo);
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
                 cl.ListSnapShot(filename, emptyuserinfo, &seqvec, &fivec));
     cl.UnInit();
@@ -362,18 +362,17 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientUserAuthFailTest) {
 // root user测试
 TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     ClientConfigOption_t opt;
-    opt.metaServerOpt.rpcTimeoutMs = 500;
-    opt.metaServerOpt.rpcRetryTimes = 3;
+    opt.metaServerOpt.mdsRPCTimeoutMs = 500;
     opt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
-    opt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    opt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    opt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    opt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    opt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    opt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
+    opt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+    opt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    opt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    opt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+    opt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+    opt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
-    opt.loginfo.loglevel = 0;
+    opt.loginfo.logLevel = 0;
 
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
@@ -435,6 +434,10 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
     curve::mds::GetOrAllocateSegmentResponse* getresponse =
                         new curve::mds::GetOrAllocateSegmentResponse();
     curve::mds::PageFileSegment* pfs = new curve::mds::PageFileSegment;
+    pfs->set_logicalpoolid(0);
+    pfs->set_segmentsize(16*1024*1024*1024);
+    pfs->set_chunksize(16*1024*1024);
+    pfs->set_startoffset(0);
     getresponse->set_statuscode(::curve::mds::StatusCode::kOwnerAuthFail);
     getresponse->set_allocated_pagefilesegment(pfs);
     FakeReturn* getfakeret = new FakeReturn(nullptr,
@@ -479,13 +482,10 @@ TEST_F(CurveClientUserAuthFail, CurveSnapClientRootUserAuthTest) {
                                                         seq, &sinfo));
 
     std::vector<uint64_t> seqvec;
-    std::vector<curve::client::FInfo_t*> fivec;
+    std::map<uint64_t, curve::client::FInfo_t> fivec;
     seqvec.push_back(seq);
-    curve::client::FInfo_t ffinfo;
-    fivec.push_back(&ffinfo);
     ASSERT_EQ(-LIBCURVE_ERROR::AUTHFAIL,
-                cl.ListSnapShot(filename, rootuserinfo,
-                                &seqvec, &fivec));
+                cl.ListSnapShot(filename, rootuserinfo, &seqvec, &fivec));
     cl.UnInit();
 
     delete fakeret;

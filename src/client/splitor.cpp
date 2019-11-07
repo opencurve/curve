@@ -21,7 +21,6 @@ namespace client {
 IOSplitOPtion_t Splitor::iosplitopt_;
 void Splitor::Init(IOSplitOPtion_t ioSplitOpt) {
     iosplitopt_ = ioSplitOpt;
-    confMetric_.ioSplitMaxSizeKB.set_value(iosplitopt_.ioSplitMaxSizeKB);
     LOG(INFO) << "io splitor init success!";
 }
 int Splitor::IO2ChunkRequests(IOTracker* iotracker,
@@ -99,7 +98,7 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
             return -1;
     }
 
-    auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSizeKB;
+    auto max_split_size_bytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
 
     uint64_t len = 0;
     uint64_t off = 0;
@@ -151,7 +150,7 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                             MDSClient* mdsclient,
                             const FInfo_t* fileinfo,
                             ChunkIndex chunkidx) {
-    auto max_split_size_bytes = 1024 * iosplitopt_.ioSplitMaxSizeKB;
+    auto max_split_size_bytes = 1024 * iosplitopt_.fileIOSplitMaxSizeKB;
 
     ChunkIDInfo_t chinfo;
     SegmentInfo segInfo;
@@ -178,13 +177,11 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
 
             std::vector<CopysetInfo_t> cpinfoVec;
             re = mdsclient->GetServerList(segInfo.lpcpIDInfo.lpid,
-                                         segInfo.lpcpIDInfo.cpidVec,
-                                         &cpinfoVec);
+                            segInfo.lpcpIDInfo.cpidVec, &cpinfoVec);
             for (auto cpinfo : cpinfoVec) {
                 for (auto peerinfo : cpinfo.csinfos_) {
                     mc->AddCopysetIDInfo(peerinfo.chunkserverid_,
-                                         CopysetIDInfo(segInfo.lpcpIDInfo.lpid,
-                                                      cpinfo.cpid_));
+                        CopysetIDInfo(segInfo.lpcpIDInfo.lpid, cpinfo.cpid_));
                 }
             }
 
