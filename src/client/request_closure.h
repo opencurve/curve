@@ -10,7 +10,7 @@
 
 // for Closure
 #include <google/protobuf/stubs/callback.h>
-
+#include <iostream>
 #include <map>
 
 #include "include/curve_compiler_specific.h"

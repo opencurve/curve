@@ -29,7 +29,7 @@ using curve::tool::GetSegmentRes;
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:9180";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9180";   // NOLINT
 std::string mdsAddr = "127.0.0.1:9999,127.0.0.1:9180";   // NOLINT
 
 DECLARE_uint64(test_disk_size);
@@ -778,7 +778,7 @@ TEST_F(ToolMDSClientTest, GetCurrentMds) {
     curve::tool::MDSClient mdsClient;
     ASSERT_EQ(0, mdsClient.Init(mdsAddr));
     // 有mds存活
-    ASSERT_EQ(metaserver_addr, mdsClient.GetCurrentMds());
+    ASSERT_EQ(mdsMetaServerAddr, mdsClient.GetCurrentMds());
     // 没有mds存活
     FakeMDSCurveFSService* curvefsservice = fakemds.GetMDSService();
     std::unique_ptr<curve::mds::GetFileInfoResponse> response(

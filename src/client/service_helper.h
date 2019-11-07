@@ -67,7 +67,8 @@ class ServiceHelper {
      * @param: finfo为proto格式的文件信息
      * @param: fi为本地格式的文件信息
      */
-    static void ProtoFileInfo2Local(curve::mds::FileInfo* finfo, FInfo_t* fi);
+    static void ProtoFileInfo2Local(const curve::mds::FileInfo* finfo,
+                                    FInfo_t* fi);
     /**
      * 从chunkserver端获取最新的leader信息
      * @param[in]: getLeaderInfo为对应copyset的信息

@@ -14,7 +14,7 @@
 namespace curve {
 namespace client {
 
-void ServiceHelper::ProtoFileInfo2Local(curve::mds::FileInfo* finfo,
+void ServiceHelper::ProtoFileInfo2Local(const curve::mds::FileInfo* finfo,
                                         FInfo_t* fi) {
     if (finfo->has_owner()) {
         fi->owner = finfo->owner();
