@@ -52,9 +52,9 @@ void LoggerGuard::InitInternal(const std::string& confPath) {
 
     FLAGS_minloglevel = 0;
     FLAGS_log_dir = "/tmp";
-    LOG_IF(WARNING, !conf.GetIntValue("loglevel", &FLAGS_minloglevel))
+    LOG_IF(WARNING, !conf.GetIntValue("global.logLevel", &FLAGS_minloglevel))
         << "config no loglevel info, using default value 0";
-    LOG_IF(WARNING, !conf.GetStringValue("logpath", &FLAGS_log_dir))
+    LOG_IF(WARNING, !conf.GetStringValue("global.logPath", &FLAGS_log_dir))
         << "config no logpath info, using default dir '/tmp'";
 
     std::string processName = std::string("libcurve-").append(
@@ -92,8 +92,9 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    if (LIBCURVE_ERROR::OK != mdsClient_->Initialize(
-            clientconfig_.GetFileServiceOption().metaServerOpt)) {
+    auto ret = mdsClient_->Initialize(clientconfig_.
+               GetFileServiceOption().metaServerOpt);
+    if (LIBCURVE_ERROR::OK != ret) {
         LOG(ERROR) << "Init global mds client failed!";
         delete mdsClient_;
         mdsClient_ = nullptr;
@@ -102,29 +103,30 @@ int FileClient::Init(const std::string& configpath) {
 
     bool rc = true;
     do {
-        if (!clientconfig_.GetFileServiceOption().commonOpt.registerToMDS) {
+        if (!clientconfig_.GetFileServiceOption().commonOpt.mdsRegisterToMDS) {
             LOG(INFO) << "do not need register to mds!";
             break;
         }
 
         // 在一个进程里只允许启动一次
-        uint16_t dummyServerStartPort = clientconfig_.GetDummyserverStartPort();
+        uint16_t metricDummyServerStartPort =
+        clientconfig_.GetDummyserverStartPort();
         static std::once_flag flag;
         std::call_once(flag, [&](){
             // 启动dummy server
             int ret = -1;
-            while (dummyServerStartPort < PORT_LIMIT) {
-                ret = brpc::StartDummyServerAt(dummyServerStartPort);
+            while (metricDummyServerStartPort < PORT_LIMIT) {
+                ret = brpc::StartDummyServerAt(metricDummyServerStartPort);
                 if (ret >= 0) {
                     LOG(INFO) << "start dummy server success, listen port = "
-                            << dummyServerStartPort;
+                            << metricDummyServerStartPort;
                     break;
                 }
-                dummyServerStartPort++;
+                metricDummyServerStartPort++;
             }
         });
 
-        if (dummyServerStartPort >= PORT_LIMIT) {
+        if (metricDummyServerStartPort >= PORT_LIMIT) {
             rc = false;
             LOG(ERROR) << "start dummy server failed!";
             break;
@@ -139,7 +141,7 @@ int FileClient::Init(const std::string& configpath) {
         }
 
         // 向mds注册
-        LIBCURVE_ERROR ret = mdsClient_->Register(ip, dummyServerStartPort);
+        auto ret = mdsClient_->Register(ip, metricDummyServerStartPort);
         if (ret != LIBCURVE_ERROR::OK) {
             rc = false;
             LOG(ERROR) << "regist client metric info to mds failed!";
@@ -201,7 +203,7 @@ int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
 }
 
 int FileClient::Open4ReadOnly(const std::string& filename,
-                              const UserInfo_t& userinfo) {
+    const UserInfo_t& userinfo) {
     FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, true);
     if (fileserv == nullptr) {
         return -1;
@@ -230,8 +232,7 @@ int FileClient::Open4ReadOnly(const std::string& filename,
 }
 
 int FileClient::Create(const std::string& filename,
-                       const UserInfo_t& userinfo,
-                       size_t size) {
+    const UserInfo_t& userinfo, size_t size) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->CreateFile(filename, userinfo, size);
@@ -325,8 +326,7 @@ int FileClient::AioWrite(int fd, CurveAioContext* aioctx) {
 }
 
 int FileClient::Rename(const UserInfo_t& userinfo,
-                                  const std::string& oldpath,
-                                  const std::string& newpath) {
+    const std::string& oldpath, const std::string& newpath) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->RenameFile(userinfo, oldpath, newpath);
@@ -338,8 +338,7 @@ int FileClient::Rename(const UserInfo_t& userinfo,
 }
 
 int FileClient::Extend(const std::string& filename,
-                                  const UserInfo_t& userinfo,
-                                  uint64_t newsize) {
+    const UserInfo_t& userinfo, uint64_t newsize) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->Extend(filename, userinfo, newsize);
@@ -351,8 +350,7 @@ int FileClient::Extend(const std::string& filename,
 }
 
 int FileClient::Unlink(const std::string& filename,
-                       const UserInfo_t& userinfo,
-                       bool deleteforce) {
+    const UserInfo_t& userinfo, bool deleteforce) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->DeleteFile(filename, userinfo, deleteforce);
@@ -364,8 +362,7 @@ int FileClient::Unlink(const std::string& filename,
 }
 
 int FileClient::StatFile(const std::string& filename,
-                         const UserInfo_t& userinfo,
-                         FileStatInfo* finfo) {
+    const UserInfo_t& userinfo, FileStatInfo* finfo) {
     FInfo_t fi;
     int ret;
     if (mdsClient_ != nullptr) {
@@ -387,8 +384,7 @@ int FileClient::StatFile(const std::string& filename,
 }
 
 int FileClient::Listdir(const std::string& dirpath,
-                        const UserInfo_t& userinfo,
-                        std::vector<FileStatInfo>* filestatVec) {
+    const UserInfo_t& userinfo, std::vector<FileStatInfo>* filestatVec) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->Listdir(dirpath, userinfo, filestatVec);
@@ -422,8 +418,7 @@ int FileClient::Rmdir(const std::string& dirpath, const UserInfo_t& userinfo) {
 }
 
 int FileClient::ChangeOwner(const std::string& filename,
-                            const std::string& newOwner,
-                            const UserInfo_t& userinfo) {
+    const std::string& newOwner, const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret;
     if (mdsClient_ != nullptr) {
         ret = mdsClient_->ChangeOwner(filename, newOwner, userinfo);
@@ -461,24 +456,25 @@ bool FileClient::CheckAligned(off_t offset, size_t length) {
 }
 
 FileInstance* FileClient::GetInitedFileInstance(const std::string& filename,
-                                          const UserInfo& userinfo,
-                                          bool readonly) {
+    const UserInfo& userinfo, bool readonly) {
     FileInstance* fileserv = new (std::nothrow) FileInstance();
-    if (fileserv == nullptr ||
-        !fileserv->Initialize(filename,
-                              mdsClient_,
-                              userinfo,
-                              clientconfig_.GetFileServiceOption(),
-                              readonly)) {
+    if (fileserv == nullptr) {
+        LOG(ERROR) << "create FileInstance failed!";
+        return nullptr;
+    }
+
+    bool ret = fileserv->Initialize(filename, mdsClient_, userinfo,
+               clientconfig_.GetFileServiceOption(), readonly);
+    if (!ret) {
         LOG(ERROR) << "FileInstance initialize failed"
             << ", filename = " << filename
             << ", ower = " << userinfo.owner
             << ", readonly = " << readonly;
         delete fileserv;
         return nullptr;
-    } else {
-        return fileserv;
     }
+
+    return fileserv;
 }
 
 int FileClient::GetClusterId(char* buf, int len) {
@@ -524,9 +520,9 @@ int Init(const char* path) {
 int Open4Qemu(const char* filename) {
     curve::client::UserInfo_t userinfo;
     std::string realname;
-    if (!curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
-                                        &realname,
-                                        &userinfo.owner)) {
+    bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
+               &realname, &userinfo.owner);
+    if (!ret) {
         LOG(ERROR) << "get user info from filename failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
@@ -542,9 +538,9 @@ int Open4Qemu(const char* filename) {
 int Extend4Qemu(const char* filename, int64_t newsize) {
     curve::client::UserInfo_t userinfo;
     std::string realname;
-    if (!curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
-                                        &realname,
-                                        &userinfo.owner)) {
+    bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
+               &realname, &userinfo.owner);
+    if (!ret) {
         LOG(ERROR) << "get user info from filename failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
@@ -568,7 +564,7 @@ int Open(const char* filename, const C_UserInfo_t* userinfo) {
     }
 
     return globalclient->Open(filename,
-                              UserInfo(userinfo->owner, userinfo->password));
+            UserInfo(userinfo->owner, userinfo->password));
 }
 
 int Read(int fd, char* buf, off_t offset, size_t length) {
@@ -625,7 +621,7 @@ int Create(const char* filename, const C_UserInfo_t* userinfo, size_t size) {
 }
 
 int Rename(const C_UserInfo_t* userinfo,
-           const char* oldpath, const char* newpath) {
+    const char* oldpath, const char* newpath) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -636,7 +632,7 @@ int Rename(const C_UserInfo_t* userinfo,
 }
 
 int Extend(const char* filename,
-           const C_UserInfo_t* userinfo, uint64_t newsize) {
+    const C_UserInfo_t* userinfo, uint64_t newsize) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -763,9 +759,9 @@ int Close(int fd) {
 int StatFile4Qemu(const char* filename, FileStatInfo* finfo) {
     curve::client::UserInfo_t userinfo;
     std::string realname;
-    if (!curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
-                                        &realname,
-                                        &userinfo.owner)) {
+    bool ret = curve::client::ServiceHelper::GetUserInfoFromFilename(filename,
+               &realname, &userinfo.owner);
+    if (!ret) {
         LOG(ERROR) << "get user info from filename failed!";
         return -LIBCURVE_ERROR::FAILED;
     }
@@ -779,7 +775,7 @@ int StatFile4Qemu(const char* filename, FileStatInfo* finfo) {
 }
 
 int StatFile(const char* filename,
-             const C_UserInfo_t* cuserinfo, FileStatInfo* finfo) {
+    const C_UserInfo_t* cuserinfo, FileStatInfo* finfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;
@@ -790,8 +786,7 @@ int StatFile(const char* filename,
 }
 
 int ChangeOwner(const char* filename,
-                const char* newOwner,
-                const C_UserInfo_t* cuserinfo) {
+    const char* newOwner, const C_UserInfo_t* cuserinfo) {
     if (globalclient == nullptr) {
         LOG(ERROR) << "not inited!";
         return -LIBCURVE_ERROR::FAILED;

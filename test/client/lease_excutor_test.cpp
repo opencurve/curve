@@ -35,7 +35,7 @@
 #include "src/common/net_common.h"
 #include "src/client/iomanager4file.h"
 
-extern std::string metaserver_addr;
+extern std::string mdsMetaServerAddr;
 extern uint32_t chunk_size;
 extern std::string configpath;
 extern curve::client::FileClient* globalclient;

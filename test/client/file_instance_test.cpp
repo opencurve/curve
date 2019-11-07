@@ -29,8 +29,8 @@ TEST(FileInstanceTest, CommonTest) {
     // iomanager4file init failed
     FileInstance fi3;
     FileServiceOption opts;
-    opts.ioOpt.taskThreadOpt.taskQueueCapacity = 0;
-    opts.ioOpt.taskThreadOpt.taskThreadPoolSize = 0;
+    opts.ioOpt.taskThreadOpt.isolationTaskQueueCapacity = 0;
+    opts.ioOpt.taskThreadOpt.isolationTaskThreadPoolSize = 0;
 
     ASSERT_FALSE(fi3.Initialize(
         "/test", &mdsClient, userInfo, opts));

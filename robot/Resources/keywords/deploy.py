@@ -69,7 +69,7 @@ def add_config():
         cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/client.conf %s:~/"%\
             (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
-        ori_cmd = R"sed -i 's/metaserver_addr=127.0.0.1:6666/metaserver_addr=%s/g' client.conf"%(addrs)
+        ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s client config fail"%host
         ori_cmd = "sudo mv client.conf /etc/curve/"

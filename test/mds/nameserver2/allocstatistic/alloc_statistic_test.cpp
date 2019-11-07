@@ -88,6 +88,8 @@ TEST_F(AllocStatisticTest, test_PeriodicPersist_CalculateSegmentAlloc) {
     PageFileSegment segment;
     segment.set_segmentsize(1 << 30);
     segment.set_logicalpoolid(1);
+    segment.set_chunksize(16*1024*1024);
+    segment.set_startoffset(0);
     std::string encodeSegment;
     values.clear();
     ASSERT_TRUE(

@@ -416,23 +416,12 @@ class MDSClientBase {
         request->set_signature(CalcSignature(userinfo, date));
     }
 
-    /**
-     * 递增controller id并返回
-     */
-    inline uint64_t GetLogId() {
-       return cntlID_.fetch_add(1);
-    }
-
  private:
     inline bool IsRootUserAndHasPassword(const UserInfo& userinfo) const {
        return userinfo.owner == kRootUserName && !userinfo.password.empty();
     }
 
     std::string CalcSignature(const UserInfo& userinfo, uint64_t date) const;
-
-    // controller id，用于trace整个rpc IO链路
-    // 这里直接用uint64即可，在可预测的范围内，不会溢出
-    std::atomic<uint64_t> cntlID_;
 
     // 当前模块的初始化option配置
     MetaServerOption_t metaServerOpt_;

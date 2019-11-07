@@ -142,7 +142,6 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
                 *id = csinfos_[leaderindex_].chunkserverid_;
                 return true;
             }
-
         } else {
             return false;
         }
@@ -156,7 +155,7 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
      * @return: 成功返回0，否则返回-1
      */
     int UpdateLeaderAndGetChunkserverID(ChunkServerID* chunkserverid,
-                                    const EndPoint& ep, bool newleader = true) {
+        const EndPoint& ep, bool newleader = true) {
         spinlock_.Lock();
 
         uint16_t tempindex = 0;
@@ -211,7 +210,6 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
         // 新的addr不在当前copyset内，如果其id合法，那么将其插入copyset
         if (!exists && id) {
             csinfos_.push_back(CopysetPeerInfo(id, addr));
-            leaderindex_++;
         } else if (exists == false) {
             LOG(WARNING) << addr.ToString() << " not in current copyset and "
                          << "its chunkserverid is not valid " << id;

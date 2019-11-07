@@ -13,7 +13,7 @@
 using curve::chunkserver::GetChunkInfoResponse;
 using curve::chunkserver::CHUNK_OP_STATUS;
 
-std::string metaserver_addr = "127.0.0.1:9170";  // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9170";  // NOLINT
 uint32_t chunk_size = 4*1024*1024;  // NOLINT
 uint32_t segment_size = 1*1024*1024*1024;  // NOLINT
 
