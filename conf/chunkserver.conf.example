@@ -155,3 +155,5 @@ trash.scan_periodSec=3600
 #
 # chunkserver 日志存放文件夹
 chunkserver.common.logDir=./
+# 单元测试情况下
+# chunkserver.common.logDir=./runlog/
