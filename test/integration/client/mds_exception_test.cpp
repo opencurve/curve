@@ -107,7 +107,7 @@ class MDSModuleException : public ::testing::Test {
         cluster->StartSingleMDS(2, "127.0.0.1:22223", mdsConf2, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         cluster->StartSingleMDS(3, "127.0.0.1:22224", mdsConf3, false);
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(8));
 
         // 3. 创建物理池
         std::string createPPCmd = std::string("./bazel-bin/tools/curvefsTool")
