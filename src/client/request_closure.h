@@ -135,7 +135,21 @@ class RequestClosure : public ::google::protobuf::Closure {
        nextTimeoutMS_ = timeout;
     }
 
+    /**
+     * 设置当前的IO为悬挂IO
+     */
+    void SetSuspendRPCFlag() {
+       suspendRPC_ = true;
+    }
+
+    bool IsSuspendRPC() {
+       return suspendRPC_;
+    }
+
  private:
+    // suspend io标志
+    bool suspendRPC_;
+
     // 当前request的错误码
     int  errcode_;
 
