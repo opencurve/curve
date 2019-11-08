@@ -14,3 +14,13 @@ cc_test(
         copts = GCC_TEST_FLAGS
         )
 
+cc_library(
+    name = "mock_repo",
+    srcs = [
+            "mock_repo.h",
+            ],
+    deps = [
+            "//src/snapshotcloneserver/dao:snapshotrepo",
+            ],
+    visibility = ["//visibility:public"],
+)
