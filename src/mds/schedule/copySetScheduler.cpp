@@ -243,6 +243,12 @@ bool CopySetScheduler::CopySetMigration(
                              << info.id.first << " is not initialized";
                 continue;
             }
+
+            // copyset有副本不在线，不考虑
+            if (!CopysetAllPeersOnline(info)) {
+                continue;
+            }
+
             // 该copyset +target,-source之后的各replica的scatter-with是否符合条件 //NOLINT
             if (!SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
                     topo_, *target, possibleSource, info,

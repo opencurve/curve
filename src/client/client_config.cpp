@@ -80,6 +80,10 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(ERROR, ret == false) << "config no maxStableChunkServerTimeoutTimes info";   //  NOLINT
     RETURN_IF_FALSE(ret)
 
+    ret = conf_.GetUInt64Value("maxRetryTimesBeforeConsiderSuspend",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.maxRetryTimesBeforeConsiderSuspend);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no maxRetryTimesBeforeConsiderSuspend info";             // NOLINT
+
     ret = conf_.GetUInt64Value("maxInFlightRPCNum",
         &fileServiceOption_.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum);
     LOG_IF(ERROR, ret == false) << "config no maxInFlightRPCNum info";
