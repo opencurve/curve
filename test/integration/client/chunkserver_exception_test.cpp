@@ -106,11 +106,24 @@ class CSModuleException : public ::testing::Test {
         cluster->StartSingleMDS(2, "127.0.0.1:22123", mdsConf5, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         cluster->StartSingleMDS(3, "127.0.0.1:22124", mdsConf6, false);
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        std::this_thread::sleep_for(std::chrono::seconds(8));
 
         // 3. 创建物理池
-        cluster->PreparePhysicalPool(
-        1, "./test/integration/client/config/topo_example_1.txt");
+        std::string createPPCmd = std::string("./bazel-bin/tools/curvefsTool")
+        + std::string(" -cluster_map=./test/integration/client/config/topo_example_1.txt")    //  NOLINT
+        + std::string(" -mds_addr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124")     //  NOLINT
+        + std::string(" -op=create_physicalpool")
+        + std::string(" -stderrthreshold=0")
+        + std::string(" -minloglevel=0");
+
+        LOG(INFO) << "exec cmd: " << createPPCmd;
+        int ret = 0;
+        int retry = 0;
+        while (retry < 5) {
+            ret = system(createPPCmd.c_str());
+            if (ret == 0) break;
+            retry++;
+        }
 
         // 4. 创建chunkserver
         cluster->StartSingleChunkServer(1, "127.0.0.1:22125", chunkserverConf4);
@@ -118,15 +131,26 @@ class CSModuleException : public ::testing::Test {
         cluster->StartSingleChunkServer(3, "127.0.0.1:22127", chunkserverConf6);
 
         std::this_thread::sleep_for(std::chrono::seconds(5));
-
         // 5. 创建逻辑池, 并睡眠一段时间让底层copyset先选主
-        cluster->PrepareLogicalPool(
-        1,
-        "./test/integration/client/config/topo_example_1.txt",
-        300, "pool1");
+        std::string createLPCmd = std::string("./bazel-bin/tools/curvefsTool")
+        + std::string(" -cluster_map=./test/integration/client/config/topo_example_1.txt")    //  NOLINT
+        + std::string(" -mds_addr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124")     //  NOLINT
+        + std::string(" -copyset_num=300")
+        + std::string(" -op=create_logicalpool")
+        + std::string(" -physicalpool_name=pool1")
+        + std::string(" -stderrthreshold=0 -minloglevel=0");
+
+        ret = 0;
+        retry = 0;
+        while (retry < 5) {
+            ret = system(createLPCmd.c_str());
+            if (ret == 0) break;
+            retry++;
+        }
+        ASSERT_EQ(ret, 0);
 
         // 6. 初始化client配置
-        int ret = Init("./test/integration/client/config/client.conf.1");
+        ret = Init("./test/integration/client/config/client.conf.1");
         ASSERT_EQ(ret, 0);
 
         // 7. 创建一个文件
