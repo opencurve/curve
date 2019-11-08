@@ -589,8 +589,8 @@ TEST_F(MDSModuleException, hangTwoNotInserviceMDSThenResumeTheMDS) {
     //    不在服务的mds被kill对集群没有影响
     auto ret = MonitorResume(segment_size, 4096, 10);
     if (!ret) {
-        cluster->RecoverHangMDS(1);
         cluster->RecoverHangMDS(2);
+        cluster->RecoverHangMDS(3);
         ASSERT_TRUE(false);
     }
 

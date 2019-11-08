@@ -658,7 +658,8 @@ TEST_F(IOTrackerSplitorTest, ExceptionTest_TEST) {
     curve::client::IOManager4File* iomana = fileserv->GetIOManager4File();
     MetaCache* mc = fileserv->GetIOManager4File()->GetMetaCache();
 
-    IOTracker* iotracker = new IOTracker(iomana, mc, mockschuler);
+    FileMetric_t fileMetric("/test");
+    IOTracker* iotracker = new IOTracker(iomana, mc, mockschuler, &fileMetric);
 
     ASSERT_NE(nullptr, iotracker);
     uint64_t offset = 4 * 1024 * 1024 - 4 * 1024;
