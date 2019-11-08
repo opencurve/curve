@@ -31,6 +31,16 @@ static uint64_t GetUnInt64Value(void* arg) {
     return *static_cast<uint64_t*>(arg);
 }
 
+// 悬挂IO统计，文件级别统计，方便定位
+typedef struct IOSuspendMetric {
+    // 当前persecond计数总数
+    bvar::Adder<uint64_t> count;
+    IOSuspendMetric(const std::string& prefix,
+                    const std::string& name) :
+                    count(prefix, name + "_total_count")
+    {}
+} IOSuspendMetric_t;
+
 // 秒级信息统计
 typedef struct PerSecondMetric {
     // 当前persecond计数总数
@@ -92,6 +102,9 @@ typedef struct FileMetric {
     // get leader失败重试qps
     PerSecondMetric_t                       getLeaderRetryQPS;
 
+    // 当前文件上的悬挂IO数量
+    IOSuspendMetric_t                       suspendRPCMetric;
+
     FileMetric(std::string name) :
           filename(name)
         , userRead(prefix, filename + "_read")
@@ -101,6 +114,7 @@ typedef struct FileMetric {
         , inflightRPCNum(prefix, filename + "_inflight_rpc_num")
         , getLeaderRetryQPS(prefix, filename + "_get_leader_retry_rpc")
         , sizeRecorder(prefix, filename + "_write_request_size_recoder")
+        , suspendRPCMetric(prefix, filename + "_suspend_io_num")
     {}
 } FileMetric_t;
 
@@ -442,6 +456,19 @@ class MetricHelper {
     static void DecremInflightRPC(FileMetric_t* fm) {
         if (fm != nullptr) {
             fm->inflightRPCNum << -1;
+        }
+    }
+
+    static void IncremIOSuspendNum(FileMetric_t* fm) {
+        if (fm != nullptr) {
+            fm->suspendRPCMetric.count << 1;
+        }
+    }
+
+    static void DecremIOSuspendNum(FileMetric_t* fm) {
+        if (fm != nullptr) {
+            fm->suspendRPCMetric.count.get_value() > 0 ?
+            fm->suspendRPCMetric.count << -1 : fm->suspendRPCMetric.count << 0;
         }
     }
 };
