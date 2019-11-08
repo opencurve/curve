@@ -89,7 +89,7 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
             response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST);
             LOG(WARNING) << "Create copyset "
                          << ToGroupIdString(copyset.logicpoolid(),
-                                            copyset.logicpoolid())
+                                            copyset.copysetid())
                          << " failed, response code: "
                          << COPYSET_OP_STATUS_Name(COPYSET_OP_STATUS::COPYSET_OP_STATUS_EXIST); //NOLINT
             return;
@@ -111,7 +111,7 @@ void CopysetServiceImpl::CreateCopysetNode2(RpcController *controller,
 
         LOG(INFO) << "Create copyset "
                   << ToGroupIdString(copyset.logicpoolid(),
-                                     copyset.logicpoolid())
+                                     copyset.copysetid())
                   << " success.";
     }
 
