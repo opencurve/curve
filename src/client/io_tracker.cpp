@@ -286,6 +286,14 @@ void IOTracker::Done() {
         MetricHelper::IncremUserQPSCount(fileMetric_, length_, type_);
     } else {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
+        if (type_ == OpType::READ || type_ == OpType::WRITE) {
+            LOG(ERROR) << "file [" << fileMetric_->filename << "]"
+                    << ", IO Error, OpType = " << static_cast<int>(type_)
+                    << ", offset = " << offset_
+                    << ", length = " << length_;
+        } else {
+            LOG(ERROR) << ", IO Error, OpType = " << static_cast<int>(type_);
+        }
     }
 
     DestoryRequestList();

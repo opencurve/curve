@@ -8,6 +8,7 @@
 #include "src/client/request_closure.h"
 #include "src/client/io_tracker.h"
 #include "src/client/request_context.h"
+#include "src/client/chunk_closure.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
@@ -18,6 +19,7 @@ RWLock RequestClosure::rwLock_;
 std::map<IOManagerID, InflightControl*> RequestClosure::inflightCntlMap_;
 
 RequestClosure::RequestClosure(RequestContext* reqctx) {
+    suspendRPC_ = false;
     managerID_ = 0;
     retryTimes_ = 0;
     errcode_ = -1;
@@ -40,6 +42,9 @@ void RequestClosure::SetFailed(int errorcode) {
 
 void RequestClosure::Run() {
     ReleaseInflightRPCToken();
+    if (suspendRPC_) {
+        MetricHelper::DecremIOSuspendNum(metric_);
+    }
     tracker_->HandleResponse(reqCtx_);
 }
 
