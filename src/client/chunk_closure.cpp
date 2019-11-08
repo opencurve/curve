@@ -140,7 +140,7 @@ void WriteChunkClosure::Run() {
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::WRITE);
         }
 
-        LOG_EVERY_N(ERROR, 10) << "write failed, error code: "
+        LOG(ERROR) << "write failed, error code: "
                    << cntl_->ErrorCode()
                    << ", error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
@@ -270,6 +270,20 @@ write_retry:
                                       0);
         LOG(ERROR) << "retried times exceeds";
         return;
+    }
+
+    if (!reqDone->IsSuspendRPC() && reqDone->GetRetriedTimes() >=
+        failReqOpt_.maxRetryTimesBeforeConsiderSuspend) {
+        reqDone->SetSuspendRPCFlag();
+        if (fm != nullptr) {
+            MetricHelper::IncremIOSuspendNum(fm);
+        }
+        LOG(WARNING) << "IO Retried "
+                     << failReqOpt_.maxRetryTimesBeforeConsiderSuspend
+                     << " times, set suspend flag!"
+                     << " <" << logicPoolId << ", " << copysetId
+                     << ", " << chunkid << "> offset=" << reqCtx->offset_
+                     << ", length =" << reqCtx->rawlength_;
     }
 
     PreProcessBeforeRetry(status, cntlstatus);
@@ -437,6 +451,20 @@ read_retry:
         reqDone->SetFailed(status);
         LOG(ERROR) << "retried times exceeds";
         return;
+    }
+
+    if (!reqDone->IsSuspendRPC() && reqDone->GetRetriedTimes() >=
+        failReqOpt_.maxRetryTimesBeforeConsiderSuspend) {
+        reqDone->SetSuspendRPCFlag();
+        if (fm != nullptr) {
+            MetricHelper::IncremIOSuspendNum(fm);
+        }
+        LOG(WARNING) << "IO Retried "
+                     << failReqOpt_.maxRetryTimesBeforeConsiderSuspend
+                     << " times, set suspend flag!"
+                     << " <" << logicPoolId << ", " << copysetId
+                     << ", " << chunkid << "> offset=" << reqCtx->offset_
+                     << ", length =" << reqCtx->rawlength_;
     }
 
     PreProcessBeforeRetry(status, cntlstatus);

@@ -116,6 +116,10 @@ class ClientClosure : public Closure {
         return done_;
     }
 
+    static FailureRequestOption_t GetFailOpt() {
+        return failReqOpt_;
+    }
+
     /**
      * 在重试之前根据返回值进行预处理
      * 场景1: rpc timeout，那么这时候会指数增加当前rpc的超时时间，然后直接进行重试
