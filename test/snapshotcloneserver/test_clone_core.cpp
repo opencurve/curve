@@ -984,6 +984,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotSuccess(
     if (CloneTaskType::kRecover == task->GetCloneInfo().GetTaskType()) {
         FInfo fInfo;
         fInfo.id = 100;
+        fInfo.seqnum = 100;
         EXPECT_CALL(*client_, GetFileInfo(_, _, _))
             .WillRepeatedly(DoAll(
                     SetArgPointee<2>(fInfo),
@@ -1004,6 +1005,7 @@ void TestCloneCoreImpl::MockBuildFileInfoFromSnapshotSuccess(
 
     FInfo fInfo;
     fInfo.id = 100;
+    fInfo.seqnum = 100;
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillRepeatedly(DoAll(
                 SetArgPointee<2>(fInfo),
@@ -1072,8 +1074,15 @@ void TestCloneCoreImpl::MockCreateCloneChunkSuccess(
                         task->GetCloneInfo().GetSrc(),
                         std::stoull("1048576"));
     }
+
+    uint32_t correctSn = 0;
+    if (CloneTaskType::kClone == task->GetCloneInfo().GetTaskType()) {
+        correctSn = 0;
+    } else {
+        correctSn = 101;
+    }
     EXPECT_CALL(*client_, CreateCloneChunk(
-         AnyOf(location1, location2), _, _, _, _))
+         AnyOf(location1, location2), _, _, correctSn, _))
         .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
 }
 
