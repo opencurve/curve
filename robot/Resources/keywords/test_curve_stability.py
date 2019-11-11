@@ -416,8 +416,9 @@ def test_clone_iovol_consistency(lazy):
     if final == True:
         clone_vol_uuid = clone_vol_snapshot(snapshot_uuid,lazy)
         time.sleep(1)
-        rc = check_clone_vol_exist(snapshot_uuid)
-        assert rc,"clone vol volume-%s not create ok in 2s"%snapshot_uuid
+        if lazy == "true":
+            rc = check_clone_vol_exist(snapshot_uuid)
+            assert rc,"clone vol volume-%s not create ok in 2s"%snapshot_uuid
     else:
         assert False,"create snapshot vol fail,status is %s"%rc
     final = False
