@@ -24,9 +24,9 @@ using curve::mds::topology::GetChunkServerInfoResponse;
 std::string metaserver_addr = "127.0.0.1:9170";  // NOLINT
 uint32_t chunk_size = 4*1024*1024;  // NOLINT
 uint32_t segment_size = 1*1024*1024*1024;  // NOLINT
+std::string mdsAddr = "127.0.0.1:9999,127.0.0.1:9170";  // NOLINT
 
 DECLARE_string(chunkserver_list);
-DECLARE_string(mdsAddr);
 DECLARE_uint32(logicalPoolId);
 DECLARE_uint32(copysetId);
 DECLARE_uint32(chunkserverId);
@@ -39,7 +39,6 @@ class CopysetCheckTest : public ::testing::Test {
  protected:
     CopysetCheckTest() : fakemds("test") {}
     void SetUp() {
-        FLAGS_mdsAddr = "127.0.0.1:9999,127.0.0.1:9170";
         FLAGS_chunkserver_list =
             "127.0.0.1:9191:0,127.0.0.1:9192:0,127.0.0.1:9193:0";
         FLAGS_detail = true;
@@ -167,7 +166,9 @@ TEST_F(CopysetCheckTest, testCheckOneCopyset) {
     std::unique_ptr<FakeReturn> fakelistpoolret(
          new FakeReturn(nullptr, static_cast<void*>(listPoolResp.get())));
     topology->fakelistpoolret_ = fakelistpoolret.get();
-    ASSERT_EQ(0, copysetCheck.Init());
+    ASSERT_EQ(-1, copysetCheck.Init(""));
+    ASSERT_EQ(-1, copysetCheck.Init("127.0.0.1:9999"));
+    ASSERT_EQ(0, copysetCheck.Init(mdsAddr));
     // 没有指定逻辑池和copyset的话返回失败
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
     FLAGS_logicalPoolId = 2;
@@ -262,7 +263,7 @@ TEST_F(CopysetCheckTest, testCheckChunkserver) {
          new FakeReturn(nullptr, static_cast<void*>(listPoolResp.get())));
     topology->fakelistpoolret_ = fakelistpoolret.get();
     curve::tool::CopysetCheck copysetCheck;
-    ASSERT_EQ(0, copysetCheck.Init());
+    ASSERT_EQ(0, copysetCheck.Init(mdsAddr));
     // 没有指定chunkserver的话报错
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     FLAGS_chunkserverId = 1;
@@ -368,7 +369,7 @@ TEST_F(CopysetCheckTest, testCheckServer) {
          new FakeReturn(nullptr, static_cast<void*>(listPoolResp.get())));
     topology->fakelistpoolret_ = fakelistpoolret.get();
     curve::tool::CopysetCheck copysetCheck;
-    ASSERT_EQ(0, copysetCheck.Init());
+    ASSERT_EQ(0, copysetCheck.Init(mdsAddr));
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     FLAGS_serverId = 1;
     copysetCheck.PrintHelp("check-chunkserver");
@@ -426,7 +427,7 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
          new FakeReturn(nullptr, static_cast<void*>(listPoolResp.get())));
     topology->fakelistpoolret_ = fakelistpoolret.get();
     curve::tool::CopysetCheck copysetCheck;
-    ASSERT_EQ(0, copysetCheck.Init());
+    ASSERT_EQ(0, copysetCheck.Init(mdsAddr));
     copysetCheck.PrintHelp("check-cluster");
     std::unique_ptr<brpc::Controller> cntl(new brpc::Controller());
     // 设置好IOBuf

@@ -14,6 +14,7 @@
 
 DEFINE_string(mds_config_path, "conf/mds.conf", "mds confPath");
 DEFINE_bool(example, false, "print the example of usage");
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 
 int main(int argc, char** argv) {
     std::string help_str = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
@@ -27,6 +28,7 @@ int main(int argc, char** argv) {
         "delete : delete the file, to force delete, should specify the --forcedelete=true\n"  //NOLINT
         "clean-recycle : clean the RecycleBin\n"
         "create : create file\n"
+        "chunk-location : query the location of the chunk corresponding to the offset\n"  //NOLINT
         "check-consistency : check the consistency of three copies\n"
         "add_peer : add the peer to the copyset\n"
         "remove_peer : remove the peer from the copyset\n"
@@ -67,14 +69,15 @@ int main(int argc, char** argv) {
                                 || command == "seginfo"
                                 || command == "delete"
                                 || command == "clean-recycle"
-                                || command == "create") {
+                                || command == "create"
+                                || command == "chunk-location") {
         // 使用namespaceTool
         curve::tool::NameSpaceTool namespaceTool;
         if (FLAGS_example) {
             namespaceTool.PrintHelp(command);
             return 0;
         }
-        if (namespaceTool.Init() != 0) {
+        if (namespaceTool.Init(FLAGS_mdsAddr) != 0) {
             std::cout << "Init failed!" << std::endl;
             return -1;
         }
@@ -116,7 +119,7 @@ int main(int argc, char** argv) {
             copysetCheck.PrintHelp(command);
             return 0;
         }
-        if (copysetCheck.Init() != 0) {
+        if (copysetCheck.Init(FLAGS_mdsAddr) != 0) {
             std::cout << "Init failed!" << std::endl;
             return -1;
         }

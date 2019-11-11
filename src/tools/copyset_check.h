@@ -46,7 +46,7 @@ enum class CheckResult {
 
 class CopysetCheck {
  public:
-    CopysetCheck() {}
+    CopysetCheck();
     ~CopysetCheck();
 
     /**
@@ -67,10 +67,15 @@ class CopysetCheck {
 
     /**
      *  @brief 初始化channel
-     *  @param 无
+     *  @param mdsAddr mds的地址，支持多地址，用","分隔
      *  @return 无
      */
-    int Init();
+    int Init(const std::string& mdsAddr);
+
+    /**
+     *  @brief 释放资源
+     */
+    void UnInit(const std::string& mdsAddr);
 
  private:
     /**
