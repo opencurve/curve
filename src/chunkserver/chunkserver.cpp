@@ -21,7 +21,7 @@
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
@@ -122,7 +122,7 @@ int ChunkServer::Run(int argc, char** argv) {
     Register registerMDS(registerOptions);
     ChunkServerMetadata metadata;
     // 从本地获取meta
-    std::string metaPath = FsAdaptorUtil::GetPathFromUri(
+    std::string metaPath = UriParser::GetPathFromUri(
         registerOptions.chunkserverMetaUri).c_str();
     if (fs->FileExists(metaPath)) {
         LOG_IF(FATAL, GetChunkServerMetaFromLocal(
@@ -548,21 +548,20 @@ int ChunkServer::GetChunkServerMetaFromLocal(
     const std::string &metaUri,
     const std::shared_ptr<LocalFileSystem> &fs,
     ChunkServerMetadata *metadata) {
-    std::string proto =
-        FsAdaptorUtil::GetProtocolFromUri(storeUri);
+    std::string proto = UriParser::GetProtocolFromUri(storeUri);
     if (proto != "local") {
         LOG(ERROR) << "Datastore protocal " << proto << " is not supported yet";
         return -1;
     }
     // 从配置文件中获取chunkserver元数据的文件路径
-    proto = FsAdaptorUtil::GetProtocolFromUri(metaUri);
+    proto = UriParser::GetProtocolFromUri(metaUri);
     if (proto != "local") {
         LOG(ERROR) << "Chunkserver meta protocal "
                    << proto << " is not supported yet";
         return -1;
     }
     // 元数据文件已经存在
-    if (fs->FileExists(FsAdaptorUtil::GetPathFromUri(metaUri).c_str())) {
+    if (fs->FileExists(UriParser::GetPathFromUri(metaUri).c_str())) {
         // 获取文件内容
         if (ReadChunkServerMeta(fs, metaUri, metadata) != 0) {
             LOG(ERROR) << "Fail to read persisted chunkserver meta data";
@@ -580,8 +579,7 @@ int ChunkServer::GetChunkServerMetaFromLocal(
 int ChunkServer::ReadChunkServerMeta(const std::shared_ptr<LocalFileSystem> &fs,
     const std::string &metaUri, ChunkServerMetadata *metadata) {
     int fd;
-    std::string metaFile =
-        FsAdaptorUtil::GetPathFromUri(metaUri);
+    std::string metaFile = UriParser::GetPathFromUri(metaUri);
 
     fd = fs->Open(metaFile.c_str(), O_RDONLY);
     if (fd < 0) {
