@@ -23,11 +23,57 @@ using curve::CurveCluster;
 using curve::client::FileClient;
 using curve::client::UserInfo_t;
 
+const char* kEtcdClientIpPort = "127.0.0.1:10011";
+const char* kEtcdPeerIpPort = "127.0.0.1:10012";
+const char* kMdsIpPort = "127.0.0.1:10013";
+const char* kChunkServerIpPort1 = "127.0.0.1:10014";
+const char* kChunkServerIpPort2 = "127.0.0.1:10015";
+const char* kChunkServerIpPort3 = "127.0.0.1:10016";
+const char* kSnapshotCloneServerIpPort = "127.0.0.1:10017";
+
+const char* kLogPath = "./runlog/ConSCSTestLog";
+const char* kMdsDbName = "ConSCSTestDB";
+const char* kMdsConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_mds.conf";   // NOLINT
+
+const char* kCSConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_chunkserver.conf";  // NOLINT
+
+const char* kCsClientConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_cs_client.conf"; // NOLINT
+
+const char* kSnapClientConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_snap_client.conf";  // NOLINT
+
+const char* kS3ConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_s3.conf";  // NOLINT
+
+const char* kSCSConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_scs.conf";  // NOLINT
+
+const char* kClientConfigPath = "./test/integration/snapshotcloneserver/config/ConSCSTest_client.conf";  // NOLINT
+
+const std::vector<std::string> mdsConfigOptions {
+    std::string("mds.listen.addr=") + kMdsIpPort,
+    std::string("mds.etcd.endpoint=") + kEtcdClientIpPort,
+    std::string("mds.DbName=") + kMdsDbName
+};
 
 const std::vector<std::string> mdsConf1{
     {" --graceful_quit_on_sigterm"},
-    {" --confPath=./test/integration/snapshotcloneserver/config/mds.conf.2"},
-    {" --log_dir=./runlog/SCSConcurrentTestLog"},
+    std::string(" --confPath=") + kMdsConfigPath,
+    std::string(" --log_dir=") + kLogPath,
+};
+
+const std::vector<std::string> chunkserverConfigOptions {
+    std::string("mds.listen.addr=") + kMdsIpPort,
+    std::string("curve.config_path=") + kCsClientConfigPath,
+    std::string("s3.config_path=") + kS3ConfigPath,
+};
+
+const std::vector<std::string> csClientConfigOptions {
+    std::string("metaserver_addr=") + kMdsIpPort,
+};
+
+const std::vector<std::string> snapClientConfigOptions {
+    std::string("metaserver_addr=") + kMdsIpPort,
+};
+
+const std::vector<std::string> s3ConfigOptions {
 };
 
 const std::vector<std::string> chunkserverConf1{
@@ -38,9 +84,9 @@ const std::vector<std::string> chunkserverConf1{
     {" -recycleUri=local://./ConSCSTest1/recycler"},
     {" -chunkFilePoolDir=./ConSCSTest1/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./ConSCSTest1/chunkfilepool.meta"},  // NOLINT
-    {" -conf=./test/integration/snapshotcloneserver/config/chunkserver.conf.2"},
+    std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/SCSConcurrentTestLog"},
+    std::string(" --log_dir=") + kLogPath,
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -51,9 +97,9 @@ const std::vector<std::string> chunkserverConf2{
     {" -recycleUri=local://./ConSCSTest2/recycler"},
     {" -chunkFilePoolDir=./ConSCSTest2/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./ConSCSTest2/chunkfilepool.meta"},  // NOLINT
-    {" -conf=./test/integration/snapshotcloneserver/config/chunkserver.conf.2"},
+    std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/SCSConcurrentTestLog"},
+    std::string(" --log_dir=") + kLogPath,
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -64,22 +110,28 @@ const std::vector<std::string> chunkserverConf3{
     {" -recycleUri=local://./ConSCSTest3/recycler"},
     {" -chunkFilePoolDir=./ConSCSTest3/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./ConSCSTest3/chunkfilepool.meta"},  // NOLINT
-    {" -conf=./test/integration/snapshotcloneserver/config/chunkserver.conf.2"},
+    std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/SCSConcurrentTestLog"},
-};
-const std::vector<std::string> snapshotcloneConf{
-    {" --conf=./test/integration/snapshotcloneserver/config/snapshot_clone_server.conf.2"},  //NOLINT
-    {" --log_dir=./runlog/SCSConcurrentTestLog"},
+    std::string(" --log_dir=") + kLogPath,
 };
 
-const char* kEtcdClientIpPort = "127.0.0.1:10011";
-const char* kEtcdPeerIpPort = "127.0.0.1:10012";
-const char* kMdsIpPort = "127.0.0.1:10013";
-const char* kChunkServerIpPort1 = "127.0.0.1:10014";
-const char* kChunkServerIpPort2 = "127.0.0.1:10015";
-const char* kChunkServerIpPort3 = "127.0.0.1:10016";
-const char* kSnapshotCloneServerIpPort = "127.0.0.1:10017";
+const std::vector<std::string> snapshotcloneserverConfigOptions {
+    std::string("client.config_path=") + kSnapClientConfigPath,
+    std::string("s3.config_path=") + kS3ConfigPath,
+    std::string("metastore.db_name=") + kMdsDbName,
+    std::string("server.snapshotPoolThreadNum=8"),
+    std::string("server.clonePoolThreadNum=8"),
+    std::string("server.maxSnapshotLimit=3"),  // 最大快照数修改为3，以测试快照达到上限的用例  // NOLINT
+};
+
+const std::vector<std::string> snapshotcloneConf{
+    std::string(" --conf=") + kSCSConfigPath,
+    std::string(" --log_dir=") + kLogPath,
+};
+
+const std::vector<std::string> clientConfigOptions {
+    std::string("metaserver_addr=") + kMdsIpPort,
+};
 
 const char* testFile1_ = "/concurrentItUser1/file1";
 const char* testFile2_ = "/concurrentItUser1/file2";  // 将在TestImage2Clone2Success中删除  //NOLINT
@@ -98,24 +150,28 @@ namespace snapshotcloneserver {
 class SnapshotCloneServerTest : public ::testing::Test {
  public:
     static void SetUpTestCase() {
-        system("mkdir -p ./runlog/SCSConcurrentTestLog");
+        std::string mkLogDirCmd = std::string("mkdir -p ") + kLogPath;
+        system(mkLogDirCmd.c_str());
 
         cluster_ = new CurveCluster();
         ASSERT_NE(nullptr, cluster_);
 
         // 初始化db
-        cluster_->InitDB("SCSConcurrentTestDB");
+        cluster_->InitDB(kMdsDbName);
         //在一开始清理数据库和文件
         cluster_->mdsRepo_->dropDataBase();
-        system("rm -rf SCSConcurrentTest.etcd");
+        system("rm -rf ConSCSTest.etcd");
         system("rm -rf ConSCSTest1");
         system("rm -rf ConSCSTest2");
         system("rm -rf ConSCSTest3");
 
-
         // 启动etcd
         cluster_->StarSingleEtcd(1, kEtcdClientIpPort, kEtcdPeerIpPort,
-        std::vector<std::string>{" --name SCSConcurrentTest"});
+        std::vector<std::string>{" --name ConSCSTest"});
+
+        cluster_->PrepareConfig<MDSConfigGenerator>(
+            kMdsConfigPath,
+            mdsConfigOptions);
 
         // 启动一个mds
         cluster_->StartSingleMDS(1, kMdsIpPort, mdsConf1, true);
@@ -123,6 +179,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         // 创建物理池
         cluster_->PreparePhysicalPool(
         1, "./test/integration/snapshotcloneserver/config/topo2.txt"); // NOLINT
+
 
         // 格式化chunkfilepool
         std::vector<std::thread> threadpool(3);
@@ -150,6 +207,18 @@ class SnapshotCloneServerTest : public ::testing::Test {
             threadpool[i].join();
         }
 
+        cluster_->PrepareConfig<CSClientConfigGenerator>(
+            kCsClientConfigPath,
+            csClientConfigOptions);
+
+        cluster_->PrepareConfig<S3ConfigGenerator>(
+            kS3ConfigPath,
+            s3ConfigOptions);
+
+        cluster_->PrepareConfig<CSConfigGenerator>(
+            kCSConfigPath,
+            chunkserverConfigOptions);
+
         // 创建chunkserver
         cluster_->StartSingleChunkServer(
             1, kChunkServerIpPort1, chunkserverConf1);
@@ -166,11 +235,23 @@ class SnapshotCloneServerTest : public ::testing::Test {
         "./test/integration/snapshotcloneserver/config/topo2.txt",  // NOLINT
         100, "pool1");
 
+        cluster_->PrepareConfig<SnapClientConfigGenerator>(
+            kSnapClientConfigPath,
+            snapClientConfigOptions);
+
+        cluster_->PrepareConfig<SCSConfigGenerator>(
+            kSCSConfigPath,
+            snapshotcloneserverConfigOptions);
+
         cluster_->StartSnapshotCloneServer(
             1, kSnapshotCloneServerIpPort, snapshotcloneConf);
 
+        cluster_->PrepareConfig<ClientConfigGenerator>(
+            kClientConfigPath,
+            clientConfigOptions);
+
         fileClient_ = new FileClient();
-        fileClient_->Init("./test/integration/snapshotcloneserver/config/client2.conf");  // NOLINT
+        fileClient_->Init(kClientConfigPath);
 
         UserInfo_t userinfo;
         userinfo.owner = "concurrentItUser1";
@@ -289,7 +370,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         cluster_->mdsRepo_->dropDataBase();
         delete cluster_;
         cluster_ = nullptr;
-        system("rm -rf SCSConcurrentTest.etcd");
+        system("rm -rf ConSCSTest.etcd");
         system("rm -rf ConSCSTest1");
         system("rm -rf ConSCSTest2");
         system("rm -rf ConSCSTest3");
