@@ -10,7 +10,7 @@
 #include <memory>
 
 #include "src/chunkserver/conf_epoch_file.h"
-#include "test/chunkserver/mock_local_file_system.h"
+#include "test/fs/mock_local_filesystem.h"
 #include "src/fs/fs_common.h"
 #include "src/chunkserver/copyset_node.h"
 
@@ -29,6 +29,7 @@ using ::testing::InSequence;
 using ::testing::AtLeast;
 using ::testing::SaveArgPointee;
 
+using curve::fs::MockLocalFileSystem;
 using curve::fs::FileSystemType;
 
 TEST(ConfEpochFileTest, load_save) {
