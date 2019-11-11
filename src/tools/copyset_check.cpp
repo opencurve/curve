@@ -6,7 +6,6 @@
  */
 #include "src/tools/copyset_check.h"
 
-DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 DEFINE_bool(detail, false, "list the copyset detail or not");
 DEFINE_uint64(margin, 1000, "The threshold of the gap between peers");
 DEFINE_uint32(logicalPoolId, 0, "logical pool id of copyset");
@@ -21,13 +20,12 @@ DEFINE_uint64(retryTimes, 3, "rpc retry times");
 namespace curve {
 namespace tool {
 
-int CopysetCheck::Init() {
-    curve::common::SplitString(FLAGS_mdsAddr, ",", &mdsAddrVec_);
+int CopysetCheck::Init(const std::string& mdsAddr) {
+    curve::common::SplitString(mdsAddr, ",", &mdsAddrVec_);
     if (mdsAddrVec_.empty()) {
         std::cout << "Split mds address fail!" << std::endl;
         return -1;
     }
-    channelToMds_ = new (std::nothrow) brpc::Channel();
     for (const auto& mdsAddr : mdsAddrVec_) {
         if (channelToMds_->Init(mdsAddr.c_str(), nullptr) != 0) {
             std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
@@ -46,6 +44,10 @@ int CopysetCheck::Init() {
     }
     std::cout << "Init channel to all mds fail!" << std::endl;
     return -1;
+}
+
+CopysetCheck::CopysetCheck() {
+    channelToMds_ = new (std::nothrow) brpc::Channel();
 }
 
 CopysetCheck::~CopysetCheck() {

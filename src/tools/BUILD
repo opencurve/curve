@@ -162,6 +162,7 @@ cc_library(
         "//external:gflags",
         "//external:protobuf",
         "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
         "//src/common:curve_common",
         "//src/mds/common:mds_common",
         "//src/mds/nameserver2:nameserver2",
