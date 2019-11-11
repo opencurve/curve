@@ -145,15 +145,16 @@ def mock_chunkserver_registe():
 
 def kill_process(process_name):
     grep_cmd = "ps -ef | grep %s | grep -v grep | awk '{print $2}' " %process_name
-    pid = shell_operator.run_exec2(grep_cmd)
-    logger.info("pid=%s" %pid)
-    if pid:
-        kill_cmd = "kill -9 %s" % pid
-        ret_code = shell_operator.run_exec(kill_cmd)
-        if ret_code == 0:
-            return 0
-        else:
-            logger.error("kill process fail %s" % process_name )
+    pids = shell_operator.run_exec2(grep_cmd)
+    logger.info("pid=%s" %pids)
+    if pids:
+        for pid in pids:
+            kill_cmd = "sudo kill -9 %s" % pid
+            ret_code = shell_operator.run_exec(kill_cmd)
+            if ret_code == 0:
+                return 0
+            else:
+                logger.error("kill process fail %s" % process_name )
     else:
         logger.debug("process %s not start." %process_name)
 
@@ -370,7 +371,7 @@ def delete_libcurve_file(file_name = config.file_name, user_name = config.user_n
     curvefs = swig_operate.LibCurve()
     rc = curvefs.libcurve_delete(file_name, user_name, pass_word)
     if rc != 0:
-        logger.error("delete libcurve file %s fail. rc = %s" %(file_name,str(rc)))
+        logger.debug("delete libcurve file %s fail. rc = %s" %(file_name,str(rc)))
         return rc
         #raise AssertionError
     else:

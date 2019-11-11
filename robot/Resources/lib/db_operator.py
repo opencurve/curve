@@ -37,7 +37,7 @@ def exec_sql(conn, sql):
         cursor.execute(sql)
         conn.commit()
     except:
-        logger.error("conn %s cmd %s failed."%(conn, sql))
+        logger.debug("conn %s cmd %s failed."%(conn, sql))
         conn.rollback()
     conn.close()
 
