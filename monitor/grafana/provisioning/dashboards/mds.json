@@ -15,8 +15,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 10,
-  "iteration": 1571796376817,
+  "id": 13,
+  "iteration": 1573439244306,
   "links": [],
   "panels": [
     {
@@ -26,6 +26,250 @@
         "w": 24,
         "x": 0,
         "y": 0
+      },
+      "id": 84,
+      "panels": [
+        {
+          "cacheTimeout": null,
+          "description": "集群总容量",
+          "gridPos": {
+            "h": 7,
+            "w": 5,
+            "x": 0,
+            "y": 1
+          },
+          "id": 86,
+          "links": [],
+          "options": {
+            "fieldOptions": {
+              "calcs": [
+                "mean"
+              ],
+              "defaults": {
+                "max": 109,
+                "min": 0,
+                "unit": "bytes"
+              },
+              "mappings": [
+                {
+                  "from": "",
+                  "id": 1,
+                  "operator": "",
+                  "text": "",
+                  "to": "",
+                  "type": 1,
+                  "value": ""
+                }
+              ],
+              "override": {},
+              "thresholds": [
+                {
+                  "color": "green",
+                  "index": 0,
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "index": 1,
+                  "value": 80
+                }
+              ],
+              "values": false
+            },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "6.2.5",
+          "targets": [
+            {
+              "expr": "topology_metric_logical_pool_default_logical_pool_disk_capacity",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "集群总容量",
+          "type": "gauge"
+        },
+        {
+          "cacheTimeout": null,
+          "description": "集群已分配的磁盘容量，物理空间",
+          "gridPos": {
+            "h": 7,
+            "w": 5,
+            "x": 5,
+            "y": 1
+          },
+          "id": 88,
+          "links": [],
+          "options": {
+            "fieldOptions": {
+              "calcs": [
+                "last"
+              ],
+              "defaults": {
+                "max": 109,
+                "min": 0,
+                "unit": "bytes"
+              },
+              "mappings": [],
+              "override": {},
+              "thresholds": [
+                {
+                  "color": "green",
+                  "index": 0,
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "index": 1,
+                  "value": 80
+                }
+              ],
+              "values": false
+            },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "6.2.5",
+          "targets": [
+            {
+              "expr": "topology_metric_logical_pool_default_logical_pool_disk_used",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "集群已使用磁盘空间",
+          "type": "gauge"
+        },
+        {
+          "cacheTimeout": null,
+          "description": "集群已分配容量，逻辑空间",
+          "gridPos": {
+            "h": 7,
+            "w": 5,
+            "x": 10,
+            "y": 1
+          },
+          "id": 87,
+          "links": [],
+          "options": {
+            "fieldOptions": {
+              "calcs": [
+                "last"
+              ],
+              "defaults": {
+                "max": 109,
+                "min": 0,
+                "unit": "bytes"
+              },
+              "mappings": [],
+              "override": {},
+              "thresholds": [
+                {
+                  "color": "green",
+                  "index": 0,
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "index": 1,
+                  "value": 80
+                }
+              ],
+              "values": false
+            },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "6.2.5",
+          "targets": [
+            {
+              "expr": "topology_metric_logical_pool_default_logical_pool_disk_alloc",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "集群已分配容量",
+          "type": "gauge"
+        },
+        {
+          "cacheTimeout": null,
+          "description": "磁盘剩余容量",
+          "gridPos": {
+            "h": 7,
+            "w": 5,
+            "x": 15,
+            "y": 1
+          },
+          "id": 89,
+          "links": [],
+          "options": {
+            "fieldOptions": {
+              "calcs": [
+                "last"
+              ],
+              "defaults": {
+                "max": 1,
+                "min": 0,
+                "unit": "percentunit"
+              },
+              "mappings": [],
+              "override": {},
+              "thresholds": [
+                {
+                  "color": "green",
+                  "index": 0,
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "index": 1,
+                  "value": 0.8
+                }
+              ],
+              "values": false
+            },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "pluginVersion": "6.2.5",
+          "targets": [
+            {
+              "expr": "1 - topology_metric_logical_pool_default_logical_pool_disk_alloc / topology_metric_logical_pool_default_logical_pool_disk_used",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "refId": "A"
+            }
+          ],
+          "timeFrom": null,
+          "timeShift": null,
+          "title": "剩余空间百分比",
+          "type": "gauge"
+        }
+      ],
+      "title": "集群信息",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 1
       },
       "id": 22,
       "panels": [
@@ -313,7 +557,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 1
+        "y": 2
       },
       "id": 33,
       "panels": [
@@ -325,7 +569,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 10
+            "y": 3
           },
           "id": 35,
           "links": [],
@@ -410,7 +654,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 2
+        "y": 3
       },
       "id": 29,
       "panels": [
@@ -424,7 +668,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 21
+            "y": 11
           },
           "id": 71,
           "legend": {
@@ -511,7 +755,7 @@
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 29
+            "y": 19
           },
           "id": 40,
           "legend": {
@@ -602,7 +846,7 @@
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 29
           },
           "id": 41,
           "legend": {
@@ -693,7 +937,7 @@
             "h": 11,
             "w": 24,
             "x": 0,
-            "y": 49
+            "y": 39
           },
           "id": 42,
           "legend": {
@@ -784,7 +1028,7 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 60
+            "y": 50
           },
           "id": 66,
           "legend": {
@@ -875,7 +1119,7 @@
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 60
+            "y": 50
           },
           "id": 67,
           "legend": {
@@ -966,7 +1210,7 @@
             "h": 10,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 60
           },
           "id": 68,
           "legend": {
@@ -1057,7 +1301,7 @@
             "h": 10,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 60
           },
           "id": 69,
           "legend": {
@@ -1146,7 +1390,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 3
+        "y": 4
       },
       "id": 77,
       "panels": [
@@ -1665,7 +1909,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 4
+        "y": 5
       },
       "id": 20,
       "panels": [
@@ -2036,7 +2280,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 6
       },
       "id": 24,
       "panels": [
@@ -2493,5 +2737,5 @@
   "timezone": "",
   "title": "MDS",
   "uid": "EpuJscnWk",
-  "version": 6
+  "version": 7
 }
