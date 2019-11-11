@@ -18,6 +18,7 @@ cc_library(
         "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-test-lib",
         "//src/common:curve_common",
+        "//test/util:test_util",
         "@com_google_googletest//:gtest",
     ],
 )

@@ -16,6 +16,7 @@
 #include "src/client/mds_client.h"
 #include "src/client/config_info.h"
 #include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
+#include "test/util/config_generator.h"
 
 using ::curve::mds::MdsRepo;
 using ::curve::client::MDSClient;
@@ -64,6 +65,22 @@ class CurveCluster {
      * StopCluster 停止该集群中所有的进程
      */
     void StopCluster();
+
+    /**
+     * @brief 生成各模块配置文件
+     *
+     * @tparam T 任一ConfigGenerator
+     * @param configPath 配置文件路径
+     * @param options 修改的配置项
+     */
+    template <class T>
+    void PrepareConfig(
+        const std::string &configPath,
+        const std::vector<std::string> &options) {
+        T gentor(configPath);
+        gentor.SetConfigOptions(options);
+        gentor.Generate();
+    }
 
     /**
      * StartSingleMDS 启动一个mds
