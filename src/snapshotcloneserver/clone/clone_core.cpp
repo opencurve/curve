@@ -534,7 +534,13 @@ int CloneCoreImpl::CreateCloneChunk(
     const CloneSegmentMap &segInfos) {
     int ret = kErrCodeSuccess;
     uint32_t chunkSize = fInfo.chunksize;
-    uint32_t correctSn = fInfo.seqnum;
+    uint32_t correctSn = 0;
+    // 克隆时correctSn为0，恢复时为新产生的文件版本
+    if (IsClone(task)) {
+        correctSn = 0;
+    } else {
+        correctSn = fInfo.seqnum;
+    }
     auto tracker = std::make_shared<TaskTracker>();
     for (auto & cloneSegmentInfo : segInfos) {
         for (auto & cloneChunkInfo : cloneSegmentInfo.second) {
