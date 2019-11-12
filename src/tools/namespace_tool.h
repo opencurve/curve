@@ -59,7 +59,7 @@ class NameSpaceTool {
 
  private:
     // 打印fileInfo和文件占用的实际空间
-    int PrintFileInfoAndActualSize(const std::string &fileName);
+    int PrintFileInfoAndActualSize(std::string fileName);
 
     // 从绝对路径中解析出parentid和fileName然后获取fileInfo
     int GetFileInfo(const std::string &fileName, FileInfo* fileInfo);
@@ -68,7 +68,7 @@ class NameSpaceTool {
     int64_t GetActualSize(const FileInfo& fileInfo);
 
     // 打印目录中的文件信息
-    int PrintListDir(const std::string &dirName);
+    int PrintListDir(std::string dirName);
 
     // 列出目录中的文件信息并输出到files里面
     int ListDir(const std::string& dirName, std::vector<FileInfo>* files);
