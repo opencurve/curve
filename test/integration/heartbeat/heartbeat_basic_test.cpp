@@ -146,8 +146,10 @@ class HeartbeatBasicTest : public ::testing::Test {
                                 ServerIdType serverId = 0x31,
                                 const std::string &hostIp = "127.0.0.1",
                                 uint32_t port = 1024,
-                                const std::string &diskPath = "/") {
+                                const std::string &diskPath = "/",
+                                OnlineState state = OnlineState::ONLINE ) {
         ChunkServer cs(id, token, diskType, serverId, hostIp, port, diskPath);
+        cs.SetOnlineState(state);
         int ret = topology_->AddChunkServer(cs);
         EXPECT_EQ(topology::kTopoErrCodeSuccess, ret)
                             << "should have PrepareAddServer()";
@@ -249,9 +251,11 @@ class HeartbeatBasicTest : public ::testing::Test {
 
     void AddOperatorToOpController(
         EpochType startEpoch, const CopySetKey &id, OperatorPriority pri,
-        std::shared_ptr<OperatorStep> step) {
+        std::shared_ptr<OperatorStep> step,
+        steady_clock::duration timeLimit = std::chrono::seconds(3)) {
         Operator op(
             startEpoch, id, pri, std::chrono::steady_clock::now(), step);
+        op.timeLimit = timeLimit;
         auto opController = coordinator_->GetOpController();
         ASSERT_TRUE(opController->AddOperator(op));
     }
@@ -385,14 +389,40 @@ class HeartbeatBasicTest : public ::testing::Test {
 
     void UpdateCopysetTopo(CopySetIdType copysetId, PoolIdType logicalPoolId,
                            uint64_t epoch, ChunkServerIdType leader,
-                           const std::set<ChunkServerIdType> &members) {
+                           const std::set<ChunkServerIdType> &members,
+                           ChunkServerIdType candidate = UNINTIALIZE_ID) {
         ::curve::mds::topology::CopySetInfo copysetInfo;
         ASSERT_TRUE(topology_->GetCopySet(
             CopySetKey{logicalPoolId, copysetId}, &copysetInfo));
         copysetInfo.SetEpoch(epoch);
         copysetInfo.SetLeader(leader);
         copysetInfo.SetCopySetMembers(members);
+        if (candidate != UNINTIALIZE_ID) {
+            copysetInfo.SetCandidate(candidate);
+        }
         ASSERT_EQ(0, topology_->UpdateCopySetTopo(copysetInfo));
+    }
+
+    void PrepareMdsWithCandidateOpOnGoing() {
+        // 构造mds中copyset当前状态
+        // copyset-1(epoch=5, peers={1,2,3}, leader=1, candidate=10);
+        PrepareAddChunkServer(10, "testtoekn", "nvme", 3, "10.198.100.3", 9001);
+        UpdateCopysetTopo(1, 1, 5, 1, std::set<ChunkServerIDType>{1, 2, 3}, 10);
+
+        // 构造scheduler当前的状态
+        AddOperatorToOpController(5, CopySetKey{1, 1},
+            OperatorPriority::NormalPriority, std::make_shared<AddPeer>(10));
+    }
+
+    void PrepareMdsNoCnandidateOpOnGoing() {
+        // 构造mds中copyset当前状态
+        // copyset-1(epoch=5, peers={1,2,3}, leader=1);
+        PrepareAddChunkServer(10, "testtoekn", "nvme", 3, "10.198.100.3", 9001);
+        UpdateCopysetTopo(1, 1, 5, 1, std::set<ChunkServerIDType>{1, 2, 3});
+
+        // 构造scheduler当前的状态
+        AddOperatorToOpController(5, CopySetKey{1, 1},
+            OperatorPriority::NormalPriority, std::make_shared<AddPeer>(10));
     }
 
     void SetUp() override {
@@ -1111,7 +1141,7 @@ TEST_F(HeartbeatBasicTest, test_other_report_consistent_with_mds) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
     UpdateCopysetTopo(1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
     PrepareAddChunkServer(4, "testtoken", "nvme", 3, "10.198.100.3", 9001);
-    // chunkserver2上报的copyset-1(epoch=2, peers={1,2,3}, leader=1)
+    // chunkserver4上报的copyset-1(epoch=2, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     BuildBasicChunkServerRequest(4, &req);
     AddCopySetToRequest(
@@ -1137,7 +1167,7 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_smaller) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
     UpdateCopysetTopo(1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
     PrepareAddChunkServer(4, "testtoken", "nvme", 3, "10.198.100.3", 9001);
-    // chunkserver2上报的copyset-1(epoch=1, peers={1,2,3}, leader=1)
+    // chunkserver4上报的copyset-1(epoch=1, peers={1,2,3}, leader=1)
     ChunkServerHeartbeatRequest req;
     BuildBasicChunkServerRequest(4, &req);
     AddCopySetToRequest(
@@ -1163,7 +1193,7 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_smaller_peers_not_same) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
     UpdateCopysetTopo(1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
     PrepareAddChunkServer(4, "testtoken", "nvme", 3, "10.198.100.3", 9001);
-    // chunkserver2上报的copyset-1(epoch=1, peers={1,2}, leader=1)
+    // chunkserver4上报的copyset-1(epoch=1, peers={1,2}, leader=1)
     ChunkServerHeartbeatRequest req;
     BuildBasicChunkServerRequest(4, &req);
     AddCopySetToRequest(
@@ -1189,7 +1219,7 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0) {
     // 更新topology中的copyset-1(epoch=2, peers={1,2,3}, leader=1)
     UpdateCopysetTopo(1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
     PrepareAddChunkServer(4, "testtoken", "nvme", 3, "10.198.100.3", 9001);
-    // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3}, leader=0)
+    // chunkserver4上报的copyset-1(epoch=0, peers={1,2,3}, leader=0)
     ChunkServerHeartbeatRequest req;
     BuildBasicChunkServerRequest(4, &req);
     AddCopySetToRequest(
@@ -1216,7 +1246,7 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0_peers_not_same) {
     UpdateCopysetTopo(1, 1, 2, 1, std::set<ChunkServerIdType>{1, 2, 3});
     PrepareAddChunkServer(4, "testtoken", "nvme", 3, "10.198.100.3", 9001);
     PrepareAddChunkServer(5, "testtoken", "nvme", 3, "10.198.100.3", 9090);
-    // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3,5}, leader=0)
+    // chunkserver4上报的copyset-1(epoch=0, peers={1,2,3,5}, leader=0)
     ChunkServerHeartbeatRequest req;
     BuildBasicChunkServerRequest(4, &req);
     AddCopySetToRequest(
@@ -1236,6 +1266,1428 @@ TEST_F(HeartbeatBasicTest, test_other_report_epoch_0_leader_0_peers_not_same) {
     ASSERT_EQ(1, copysetInfo.GetLeader());
     std::set<ChunkServerIDType> res{1, 2, 3};
     ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition1) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver1上报的copyset-1(epoch=5, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(1, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    CopySetConf conf = rep.needupdatecopysets(0);
+    ASSERT_EQ(1, conf.logicalpoolid());
+    ASSERT_EQ(1, conf.copysetid());
+    ASSERT_EQ(3, conf.peers_size());
+    ASSERT_EQ(5, conf.epoch());
+    ASSERT_EQ(ConfigChangeType::ADD_PEER, conf.type());
+    ASSERT_EQ("10.198.100.3:9001:0", conf.configchangeitem().address());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition2) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver1上报的copyset-1(epoch=5, peers={1,2,3}, leader=1)
+    // configChangeInfo={peer: 10, type: AddPeer} )
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(1, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3},
+            10, ConfigChangeType::ADD_PEER);
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition3) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver1上报的copyset-1(epoch=6, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(1, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(0, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(6, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition4) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=6, peers={1,2,3}, leader=2)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(0, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(6, copysetInfo.GetEpoch());
+    ASSERT_EQ(2, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition5) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver1上报的copyset-1(epoch=6, peers={1,2,3,10}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(1, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(0, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(6, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3, 10};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition6) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=5, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition7) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=5, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition8) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=6, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition9) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=6, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition10) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=6, peers={1,2,3,10}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition11) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=6, peers={1,2,3,10}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition12) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=4, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition13) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=4, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition14) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver2上报的copyset-1(epoch=4, peers={1,2,3,4}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition15) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver2上报的copyset-1(epoch=4, peers={1,2,3,4}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition16) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition17) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition18) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3,4}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition19) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver2上报的copyset-1(epoch=0, peers={1,2,3,4}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition20) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver10上报的copyset-1(epoch=5, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition21) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver10上报的copyset-1(epoch=5, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition22) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver10上报的copyset-1(epoch=6, peers={1,2,3,10}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition23) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver10上报的copyset-1(epoch=6, peers={1,2,3,10}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 0, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    std::set<ChunkServerIDType> res{1, 2, 3};
+    ASSERT_EQ(res, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition24) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver10上报的copyset-1(epoch=4, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition25) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver10上报的copyset-1(epoch=4, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition26) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver10上报的copyset-1(epoch=4, peers={1,2,3,4}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition27) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver10上报的copyset-1(epoch=4, peers={1,2,3,4}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition28) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver10上报的copyset-1(epoch=0, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition29) {
+    PrepareMdsNoCnandidateOpOnGoing();
+
+    // chunkserver10上报的copyset-1(epoch=0, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition30) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver10上报的copyset-1(epoch=0, peers={1,2,3,4}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 1, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition31) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver10上报的copyset-1(epoch=0, peers={1,2,3,4}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 0, std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition32) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver4上报的copyset-1(epoch=5, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(4, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    CopySetConf conf = rep.needupdatecopysets(0);
+    ASSERT_EQ(1, conf.logicalpoolid());
+    ASSERT_EQ(1, conf.copysetid());
+    ASSERT_EQ(3, conf.peers_size());
+    ASSERT_EQ(5, conf.epoch());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition33) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver4上报的copyset-1(epoch=4, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(4, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    CopySetConf conf = rep.needupdatecopysets(0);
+    ASSERT_EQ(1, conf.logicalpoolid());
+    ASSERT_EQ(1, conf.copysetid());
+    ASSERT_EQ(3, conf.peers_size());
+    ASSERT_EQ(5, conf.epoch());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition34) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+    PrepareAddChunkServer(5, "testtoekn", "nvme", 3, "10.198.100.3", 9003);
+
+    // chunkserver4上报的copyset-1(epoch=4, peers={1,2,3,5}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(4, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 4, 0, std::set<ChunkServerIdType>{1, 2, 3, 5});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    CopySetConf conf = rep.needupdatecopysets(0);
+    ASSERT_EQ(1, conf.logicalpoolid());
+    ASSERT_EQ(1, conf.copysetid());
+    ASSERT_EQ(3, conf.peers_size());
+    ASSERT_EQ(5, conf.epoch());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsNoCandidate_OpOnGoing_condition35) {
+    PrepareMdsNoCnandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver4上报的copyset-1(epoch=0, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(4, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 0, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    CopySetConf conf = rep.needupdatecopysets(0);
+    ASSERT_EQ(1, conf.logicalpoolid());
+    ASSERT_EQ(1, conf.copysetid());
+    ASSERT_EQ(3, conf.peers_size());
+    ASSERT_EQ(5, conf.epoch());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition1) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver1上报copyset-1(epoch=5, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(1, &req);
+    AddCopySetToRequest(&req, 1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    ASSERT_EQ(ConfigChangeType::ADD_PEER, rep.needupdatecopysets(0).type());
+    ASSERT_EQ("10.198.100.3:9001:0",
+        rep.needupdatecopysets(0).configchangeitem().address());
+}
+
+TEST_F(HeartbeatBasicTest, test_test_mdsWithCandidate_OpOnGoing_condition2) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver1上报
+    // copyset-1(epoch=5, peers={1,2,3}, leader=1,
+    //           configChangeInfo={peer: 10, type: AddPeer} )
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(1, &req);
+    AddCopySetToRequest(&req, 1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3},
+        10, ConfigChangeType::ADD_PEER);
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition3) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=6, peers={1,2,3}, leader=2)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 6, 2, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(0, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology中copyset的状态
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(2, copysetInfo.GetLeader());
+    ASSERT_EQ(6, copysetInfo.GetEpoch());
+    ASSERT_EQ(UNINTIALIZE_ID, copysetInfo.GetCandidate());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition4) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver1上报copyset-1(epoch=6, peers={1,2,3,10}, leader=2)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(1, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 6, 1, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(0, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology中copyset的状态
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(6, copysetInfo.GetEpoch());
+    ASSERT_EQ(UNINTIALIZE_ID, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3, 10};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition5) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=7, peers={1,2,3, 10}, leader=2)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(
+        &req, 1, 1, 7, 2, std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(0, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查topology中copyset的状态
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(2, copysetInfo.GetLeader());
+    ASSERT_EQ(7, copysetInfo.GetEpoch());
+    ASSERT_EQ(UNINTIALIZE_ID, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3, 10};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition6) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=5, peers={1,2,3}, leader=1)
+     ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition7) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=5, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 5, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition8) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=6, peers={1,2,3,10}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 6, 1,
+        std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition9) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=6, peers={1,2,3,10}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 6, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition10) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=4, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+     // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition11) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=4, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+     // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition12) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver2上报copyset-1(epoch=4, peers={1,2,3,4}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, 1,
+        std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition13) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver2上报copyset-1(epoch=4, peers={1,2,3,4}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition14) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=0, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition15) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver2上报copyset-1(epoch=0, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 0, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition16) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver2上报copyset-1(epoch=0, peers={1,2,3,4}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 0, 1,
+        std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition17) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver2上报copyset-1(epoch=0, peers={1,2,3,4}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(2, &req);
+    AddCopySetToRequest(&req, 1, 1, 0, 0,
+        std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition18) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver10上报copyset-1(epoch=5, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 5, 0, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition19) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver10上报copyset-1(epoch=5, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 5, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition20) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver10上报copyset-1(epoch=6, peers={1,2,3,10}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 6, 1,
+        std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition21) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver10上报copyset-1(epoch=6, peers={1,2,3,10}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 6, 0,
+        std::set<ChunkServerIdType>{1, 2, 3, 10});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition22) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver10上报copyset-1(epoch=4, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, 1,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition23) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver10上报copyset-1(epoch=4, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition24) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver10上报copyset-1(epoch=4, peers={1,2,3,4}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, 1,
+        std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition25) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver10上报copyset-1(epoch=4, peers={1,2,3,4}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3, 4});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition26) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver10上报copyset-1(epoch=0, peers={1,2,3}, leader=1)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 0, 1, std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition27) {
+    PrepareMdsWithCandidateOpOnGoing();
+
+    // chunkserver10上报copyset-1(epoch=0, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(10, &req);
+    AddCopySetToRequest(&req, 1, 1, 0, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(0, rep.needupdatecopysets_size());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition28) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver4上报copyset-1(epoch=5, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(4, &req);
+    AddCopySetToRequest(&req, 1, 1, 5, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    ASSERT_EQ(1, rep.needupdatecopysets(0).copysetid());
+    ASSERT_EQ(5, rep.needupdatecopysets(0).epoch());
+    ASSERT_EQ(
+        "10.198.100.1:9000:0", rep.needupdatecopysets(0).peers(0).address());
+    ASSERT_EQ(
+        "10.198.100.2:9000:0", rep.needupdatecopysets(0).peers(1).address());
+    ASSERT_EQ(
+        "10.198.100.3:9000:0", rep.needupdatecopysets(0).peers(2).address());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition29) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver4上报copyset-1(epoch=4, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(4, &req);
+    AddCopySetToRequest(&req, 1, 1, 4, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    ASSERT_EQ(1, rep.needupdatecopysets(0).copysetid());
+    ASSERT_EQ(5, rep.needupdatecopysets(0).epoch());
+    ASSERT_EQ(
+        "10.198.100.1:9000:0", rep.needupdatecopysets(0).peers(0).address());
+    ASSERT_EQ(
+        "10.198.100.2:9000:0", rep.needupdatecopysets(0).peers(1).address());
+    ASSERT_EQ(
+        "10.198.100.3:9000:0", rep.needupdatecopysets(0).peers(2).address());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
+}
+
+TEST_F(HeartbeatBasicTest, test_mdsWithCandidate_OpOnGoing_condition30) {
+    PrepareMdsWithCandidateOpOnGoing();
+    PrepareAddChunkServer(4, "testtoekn", "nvme", 3, "10.198.100.3", 9002);
+
+    // chunkserver4上报copyset-1(epoch=0, peers={1,2,3}, leader=0)
+    ChunkServerHeartbeatRequest req;
+    BuildBasicChunkServerRequest(4, &req);
+    AddCopySetToRequest(&req, 1, 1, 0, UNINTIALIZE_ID,
+        std::set<ChunkServerIdType>{1, 2, 3});
+    ChunkServerHeartbeatResponse rep;
+    SendHeartbeat(req, SENDHBOK, &rep);
+
+    // 检查sheduler中的operator
+    auto ops = coordinator_->GetOpController()->GetOperators();
+    ASSERT_EQ(1, ops.size());
+    // 检查response
+    ASSERT_EQ(1, rep.needupdatecopysets_size());
+    ASSERT_EQ(1, rep.needupdatecopysets(0).copysetid());
+    ASSERT_EQ(5, rep.needupdatecopysets(0).epoch());
+    ASSERT_EQ(
+        "10.198.100.1:9000:0", rep.needupdatecopysets(0).peers(0).address());
+    ASSERT_EQ(
+        "10.198.100.2:9000:0", rep.needupdatecopysets(0).peers(1).address());
+    ASSERT_EQ(
+        "10.198.100.3:9000:0", rep.needupdatecopysets(0).peers(2).address());
+    // 检查copyset
+    ::curve::mds::topology::CopySetInfo copysetInfo;
+    ASSERT_TRUE(topology_->GetCopySet(CopySetKey{1, 1}, &copysetInfo));
+    ASSERT_EQ(1, copysetInfo.GetLeader());
+    ASSERT_EQ(5, copysetInfo.GetEpoch());
+    ASSERT_EQ(10, copysetInfo.GetCandidate());
+    std::set<ChunkServerIdType> peers{1, 2 , 3};
+    ASSERT_EQ(peers, copysetInfo.GetCopySetMembers());
 }
 }  // namespace mds
 }  // namespace curve
