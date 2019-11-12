@@ -534,14 +534,15 @@ int curve_main(int argc, char **argv) {
     // --graceful_quit_on_sigterm
     server.RunUntilAskedToQuit();
 
+    // 在退出之前把自己的节点删除
+    leaderElection->LeaderResign();
+
     kCurveFS.Uninit();
     if (!cleanManger->Stop()) {
         LOG(ERROR) << "stop cleanManager fail.";
         return -1;
     }
 
-    // 在退出之前把自己的节点删除
-    leaderElection->LeaderResign();
     segmentAllocStatistic->Stop();
 
     google::ShutdownGoogleLogging();
