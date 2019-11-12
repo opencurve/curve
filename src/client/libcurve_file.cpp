@@ -34,31 +34,30 @@ curve::client::FileClient* globalclient = nullptr;
 
 static const int PROCESS_NAME_MAX = 32;
 static char g_processname[PROCESS_NAME_MAX];
-static bool needShutdown = false;
 
 namespace curve {
 namespace client {
+
+void LoggerGuard::InitInternal(const std::string& confPath) {
+    curve::common::Configuration conf;
+    conf.SetConfigPath(confPath);
+
+    LOG_IF(FATAL, !conf.LoadConfig())
+        << "Load config failed, config path = " << confPath;
+    LOG_IF(FATAL, !conf.GetIntValue("loglevel", &FLAGS_minloglevel))
+        << "config no loglevel info";
+    LOG_IF(FATAL, !conf.GetStringValue("logpath", &FLAGS_log_dir))
+        << "config no logpath info";
+
+    std::string processName = std::string("libcurve-").append(
+        curve::common::UUIDGenerator().GenerateUUID().substr(0, 8));
+    snprintf(g_processname, sizeof(g_processname),
+            "%s", processName.c_str());
+    google::InitGoogleLogging(g_processname);
+}
+
 void InitLogging(const std::string& confPath) {
-    static std::once_flag initOnceFlags;
-
-    std::call_once(initOnceFlags, [&]() {
-        curve::common::Configuration conf;
-        conf.SetConfigPath(confPath);
-
-        LOG_IF(FATAL, !conf.LoadConfig())
-            << "Load config failed, config path = " << confPath;
-        LOG_IF(FATAL, !conf.GetIntValue("loglevel", &FLAGS_minloglevel))
-            << "config no loglevel info";
-        LOG_IF(FATAL, !conf.GetStringValue("logpath", &FLAGS_log_dir))
-            << "config no logpath info";
-
-        std::string processName = std::string("libcurve-").append(
-            curve::common::UUIDGenerator().GenerateUUID().substr(0, 8));
-        snprintf(g_processname, sizeof(g_processname),
-                "%s", processName.c_str());
-        google::InitGoogleLogging(g_processname);
-        needShutdown = true;
-    });
+    static LoggerGuard guard(confPath);
 }
 
 FileClient::FileClient(): fdcount_(0) {
@@ -758,9 +757,5 @@ void GlobalUnInit() {
         globalclient = nullptr;
         globalclientinited_ = false;
         LOG(INFO) << "destory global client instance success!";
-        if (needShutdown) {
-            google::ShutdownGoogleLogging();
-            needShutdown = false;
-        }
     }
 }
