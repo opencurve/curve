@@ -84,14 +84,14 @@ function start_mds() {
             --pidfile ${pidFile} \
             --errlog ${daemonLog} \
             --output ${logPath} \
-            -- ${curveBin} -confPath=${confPath}
+            -- ${curveBin} -confPath=${confPath}  -graceful_quit_on_sigterm=true
     else
         daemon --name curve-mds --core \
             --respawn --attempts 100 --delay 10 \
             --pidfile ${pidFile} \
             --errlog ${daemonLog} \
             --output ${logPath} \
-            -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr}
+            -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr}  -graceful_quit_on_sigterm=true
     fi
 }
 
