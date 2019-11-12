@@ -10,10 +10,26 @@ logPath=${HOME}/etcd.log
 pidFile=${HOME}/etcd.pid
 
 # daemon log
-daemonLog=${HOME}/daemon.log
+daemonLog=${HOME}/daemon-etcd.log
 
 # 启动etcd
 function start_etcd() {
+    # 检查logPath是否可写或者是否能够创建
+    touch ${logPath} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create etcd logfile: ${logPath}"
+        exit
+    fi
+
+    # 检查daemonLog是否可写或者是否能够创建
+    touch ${daemonLog} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create daemon logfile: ${daemonLog}"
+        exit
+    fi
+
     # 检查daemon
     if ! type daemon &> /dev/null
     then
@@ -36,16 +52,11 @@ function start_etcd() {
     fi
 
     # 判断是否已经通过daemon启动了etcd
-    if [ -f ${pidFile} ]
+    daemon --name etcd --pidfile ${pidFile} --running
+    if [ $? -eq 0 ]
     then
-        # 判断对应的daemon进程是否存在
-        daemonpid=$(cat ${pidFile})
-        kill -0 ${daemonpid} > /dev/null 2>&1
-        if [ $? -eq 0 ]
-        then
-            echo "Already started etcd by daemon"
-            return $?
-        fi
+        echo "Already started etcd by daemon"
+        exit
     fi
 
     # pidfile不存在 或 daemon进程不存在
