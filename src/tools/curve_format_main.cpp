@@ -155,8 +155,8 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
 
 // TODO(tongguangxun) :添加单元测试
 int main(int argc, char** argv) {
-    google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
+    google::InitGoogleLogging(argv[0]);
 
     // load current chunkfile pool
     std::mutex mtx;
