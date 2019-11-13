@@ -96,7 +96,7 @@ class MDSModuleException : public ::testing::Test {
         std::vector<std::string>{" --name module_exception_test_mds > /var/log/etcd.log 2>&1"});    // NOLINT
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
-        cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf1, false);
+        cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf1, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
         cluster->StartSingleMDS(2, "127.0.0.1:22223", mdsConf2, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
