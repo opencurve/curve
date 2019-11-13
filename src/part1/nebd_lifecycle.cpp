@@ -58,9 +58,12 @@ int LifeCycleManager::Start(common::Configuration *conf) {
     uint32_t retryCount = 0;
     do {
         // 加文件锁
-        int lock = flock(fd, LOCK_EX | LOCK_NB);
-        if (lock < 0) {
-            LOG(ERROR) << "lock file fail, file = "
+        bool boolRet = LockFileWithRetry(fd,
+                                    lifeCycleOptions_.fileLockRetryTimes,
+                                    lifeCycleOptions_.fileLockRetryIntervalUs);
+
+        if (!boolRet) {
+            LOG(ERROR) << "lock file with retry fail, file = "
                        << lifeCycleOptions_.lockFile;
             close(fd);
             return -1;
@@ -143,9 +146,12 @@ int LifeCycleManager::Start(common::Configuration *conf) {
         usleep(lifeCycleOptions_.portGetRetryIntervalUs);
 
         // 为下一次循环，加文件锁
-        int lock = flock(fd, LOCK_EX | LOCK_NB);
-        if (lock < 0) {
-            LOG(ERROR) << "lock file fail, file = "
+        bool boolRet = LockFileWithRetry(fd,
+                                    lifeCycleOptions_.fileLockRetryTimes,
+                                    lifeCycleOptions_.fileLockRetryIntervalUs);
+
+        if (!boolRet) {
+            LOG(ERROR) << "lock file with retry fail, file = "
                        << lifeCycleOptions_.lockFile;
             close(fd);
             return -1;
@@ -154,9 +160,12 @@ int LifeCycleManager::Start(common::Configuration *conf) {
 
     // 未成功读取port信息，kill part2
     if (port == 0) {
-        int lock = flock(fd, LOCK_EX | LOCK_NB);
-        if (lock < 0) {
-            LOG(ERROR) << "lock file fail, file = "
+        bool boolRet = LockFileWithRetry(fd,
+                                    lifeCycleOptions_.fileLockRetryTimes,
+                                    lifeCycleOptions_.fileLockRetryIntervalUs);
+
+        if (!boolRet) {
+            LOG(ERROR) << "lock file with retry fail, file = "
                        << lifeCycleOptions_.lockFile;
             close(fd);
             return -1;
@@ -286,6 +295,18 @@ int LifeCycleManager::LoadConf(common::Configuration *conf) {
     if (!conf->GetUInt32Value("heartbeatIntervalUs",
                             &lifeCycleOptions_.heartbeatIntervalUs)) {
         LOG(ERROR) << "get heartbeatIntervalUs fail.";
+        return -1;
+    }
+
+    if (!conf->GetUInt32Value("fileLockRetryTimes",
+                            &lifeCycleOptions_.fileLockRetryTimes)) {
+        LOG(ERROR) << "get fileLockRetryTimes fail.";
+        return -1;
+    }
+
+    if (!conf->GetUInt32Value("fileLockRetryIntervalUs",
+                            &lifeCycleOptions_.fileLockRetryIntervalUs)) {
+        LOG(ERROR) << "get fileLockRetryIntervalUs fail.";
         return -1;
     }
 
@@ -737,6 +758,26 @@ bool LifeCycleManager::IsPart2Alive() {
 
 bool LifeCycleManager::IsHeartbeatThreadStart() {
     return isHeartbeatThreadStart_;
+}
+
+bool LifeCycleManager::LockFileWithRetry(int fd, uint32_t retryTimes,
+                                  uint32_t retryIntervalUs) {
+    uint32_t retryCount = 0;
+    while (retryCount < retryTimes) {
+        // 加文件锁
+        int lock = flock(fd, LOCK_EX | LOCK_NB);
+        if (lock < 0) {
+            LOG(WARNING) << "lock file fail, file = "
+                         << lifeCycleOptions_.lockFile
+                         << ", retryCount = " << retryCount;
+            retryCount++;
+            usleep(retryIntervalUs);
+        } else {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 }  // namespace client

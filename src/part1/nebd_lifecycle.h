@@ -40,6 +40,8 @@ typedef struct LifeCycleOptions {
     uint32_t rpcRetryIntervalUs;
     uint32_t rpcRetryMaxIntervalUs;
     uint32_t rpcTimeoutMs;
+    uint32_t fileLockRetryTimes;
+    uint32_t fileLockRetryIntervalUs;
 } LifeCycleOptions;
 
 // 负责生命周期管理服务
@@ -174,6 +176,15 @@ class LifeCycleManager {
      * @return void
      */
     void HeartbeatThreadFunc();
+    /**
+     * @brief 对文件加锁
+     * @param fd: 加文件的文件的fd
+     * @param retryTimes: 如果加锁失败最大的重试次数
+     * @param retryIntervalUs: 如果加锁失败进行重试的重试间隔
+     * @return 执行成功返回true，失败返回false
+     */
+    bool LockFileWithRetry(int fd, uint32_t retryTimes,
+                                  uint32_t retryIntervalUs);
 
  private:
     // 从配置文件中读取到的声明周期管理所需要的配置字段

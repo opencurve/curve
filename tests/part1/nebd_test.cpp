@@ -9,6 +9,7 @@
 #include <gmock/gmock.h>
 #include <gflags/gflags.h>
 #include <butil/logging.h>
+#include <sys/file.h>  // flock
 #include <condition_variable>  // NOLINT
 #include <mutex>  // NOLINT
 #include "tests/part1/mock_client_service.h"
@@ -625,6 +626,27 @@ TEST_F(nebdClientLifeCycleTest, lifecycle_manager_start_read_port_fail) {
 
     nebd::client::LifeCycleManager manager;
     ASSERT_EQ(manager.Start(&conf), -1);
+}
+
+TEST_F(nebdClientLifeCycleTest, lifecycle_manager_lock_file_fail) {
+    ::nebd::common::Configuration conf;
+    conf.SetConfigPath(confFilename);
+    ASSERT_TRUE(conf.LoadConfig());
+
+    // 先占用文件锁
+    std::string lockFile;
+    ASSERT_TRUE(conf.GetStringValue("lockFile", &lockFile));
+    int fd = open(lockFile.c_str(), O_RDONLY | O_CREAT, 0644);
+    ASSERT_GT(fd, 0);
+    ASSERT_EQ(flock(fd, LOCK_EX | LOCK_NB), 0);
+
+    // 再启lifecyclemanager，会因为文件锁被占用而失败
+    nebd::client::LifeCycleManager manager;
+    ASSERT_EQ(manager.Start(&conf), -1);
+
+    // 再释放文件锁
+    ASSERT_EQ(flock(fd, LOCK_UN), 0);
+    close(fd);
 }
 
 int main(int argc, char ** argv) {
