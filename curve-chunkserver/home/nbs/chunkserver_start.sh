@@ -56,7 +56,6 @@ do
 		    -copySetUri=local:///data/chunkserver$i/copysets \
 		    -recycleUri=local:///data/chunkserver$i/recycler \
 		    -raft_sync_segments=true \
-		    -graceful_quit_on_sigterm=true \
 		    -log_dir=${DATA_DIR}/log/chunkserver$i/ &
 done
 exit
@@ -99,6 +98,5 @@ curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_m
 	    -copySetUri=local:///data/chunkserver$1/copysets \
 	    -recycleUri=local:///data/chunkserver$1/recycler \
 	    -raft_sync_segments=true \
-	    -graceful_quit_on_sigterm=true \
 	    -log_dir=${DATA_DIR}/log/chunkserver$1 &
 
