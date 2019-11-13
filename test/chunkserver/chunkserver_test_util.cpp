@@ -282,6 +282,7 @@ int TestCluster::StartPeer(const PeerId &peerId,
         exit(0);
     }
 
+    LOG(INFO) << "Start peer success, pid: " << pid;
     peer->pid = pid;
     peer->state = PeerNodeState::RUNNING;
     peersMap_.insert(std::pair<std::string,
