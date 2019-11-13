@@ -32,22 +32,18 @@ curve::client::InflightControl inflightContl;
 
 using curve::CurveCluster;
 const std::vector<std::string> mdsConf1{
-    {" --graceful_quit_on_sigterm"},
     {" --confPath=./test/integration/client/config/mds.conf.0"},
 };
 
 const std::vector<std::string> mdsConf2{
-    {" --graceful_quit_on_sigterm"},
     {" --confPath=./test/integration/client/config/mds.conf.1"},
 };
 
 const std::vector<std::string> mdsConf3{
-    {" --graceful_quit_on_sigterm"},
     {" --confPath=./test/integration/client/config/mds.conf.2"},
 };
 
 const std::vector<std::string> chunkserverConf1{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException1/"},
     {" -chunkServerMetaUri=local://./moduleException1/chunkserver.dat"},
     {" -copySetUri=local://./moduleException1/copysets"},
@@ -59,7 +55,6 @@ const std::vector<std::string> chunkserverConf1{
 };
 
 const std::vector<std::string> chunkserverConf2{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException2/"},
     {" -chunkServerMetaUri=local://./moduleException2/chunkserver.dat"},
     {" -copySetUri=local://./moduleException2/copysets"},
@@ -71,7 +66,6 @@ const std::vector<std::string> chunkserverConf2{
 };
 
 const std::vector<std::string> chunkserverConf3{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException3/"},
     {" -chunkServerMetaUri=local://./moduleException3/chunkserver.dat"},
     {" -copySetUri=local://./moduleException3/copysets"},
