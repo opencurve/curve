@@ -761,7 +761,7 @@ def check_io_error():
 
 
 def check_copies_consistency():
-    host = random.choice(config.mds_list)
+    host = random.choice(config.client_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     if config.vol_uuid == "":
         assert False,"not get vol uuid"
@@ -775,18 +775,18 @@ def check_copies_consistency():
         stop_rwio()
         while i < 600:
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
-            if rs[1] == []:
+            if rs[1] == [u'consistency check success!\n']:
                 break
             logger.info("check_hash false return is %s,return code is %d"%(rs[1],rs[3]))
             time.sleep(3)
             i = i + 3
-        if rs[1] != []:
+        if rs[1] != [u'consistency check success!\n']:
             assert False,"exec check_hash false fail,return is %s"%rs[1]
         check_hash = "true"
         ori_cmd = ori_cmdpri + check_hash
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
         logger.debug("exec %s,stdout is %s"%(ori_cmd,"".join(rs[1])))
-        assert rs[1] == [],"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
+        assert rs[1] == [u'consistency check success!\n'],"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
 #        check_data_consistency()
     except:
         logger.error("check consistency error")
