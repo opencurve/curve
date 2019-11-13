@@ -217,6 +217,9 @@ struct ChunkServerAddr {
         return addr_ == other.addr_;
     }
 };
+
+const char* OpTypeToString(OpType optype);
+
 }   // namespace client
 }   // namespace curve
 
