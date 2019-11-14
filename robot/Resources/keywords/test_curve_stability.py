@@ -70,6 +70,14 @@ def wait_vol_status(ssh,id, status):
             print "time expired %s %s" %(id, status)
             break
 
+def check_vm_status(ssh,vm_id,vol_id):
+    status = "up"
+    cmd = "source OPENRC && nova show %s |grep os-server-status |awk \'{print $4}\'" % vm_id
+    rs = shell_operator.ssh_exec(ssh, cmd,log=False)
+    assert rs[3] == 0, "show vm %s fail" % vm_id
+    status = "".join(rs[1]).strip()
+    assert status == "up","get vm status fail,not up.is %s,current vol id is %s"%(rs[2],vol_id)
+
 def vol_deleted(ssh,vol_id):
     cmd = 'source OPENRC && cinder delete %s' % (vol_id)
     rs = shell_operator.ssh_exec(ssh, cmd)
@@ -84,11 +92,13 @@ def vol_all(vm_id):
             vol_size = random.choice(size_list)
             vol_id = cinder_vol_create(ssh,vol_size)
             logger.debug("vol id is %s"%vol_id)
+            check_vm_status(ssh,vm_id,vol_id)
             wait_vol_status(ssh,vol_id, 'available')
             nova_vol_attach(ssh,vm_id, vol_id)
             wait_vol_status(ssh,vol_id, 'in-use')
             nova_vol_detach(ssh,vm_id, vol_id)
             wait_vol_status(ssh,vol_id, 'available')
+            check_vm_status(ssh,vm_id,vol_id)
             vol_deleted(ssh,vol_id)
             thrash_time = thrash_time + 1
             logger.info("thrash_attach_detach time is %d,vol_size is %d"%(thrash_time,vol_size))
