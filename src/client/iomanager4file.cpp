@@ -54,6 +54,8 @@ bool IOManager4File::Initialize(const std::string& filename,
     if (scheduler_ == nullptr ||
         -1 == scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, fileMetric_)) {
         LOG(ERROR) << "Init scheduler_ failed!";
+        delete scheduler_;
+        scheduler_ = nullptr;
         return false;
     }
     scheduler_->Run();

@@ -444,13 +444,7 @@ void MDSClientBase::ChangeOwner(const std::string& filename,
     request.set_filename(filename);
     request.set_newowner(newOwner);
     request.set_rootowner(userinfo.owner);
-    if (!userinfo.owner.compare(kRootUserName)&&userinfo.password.compare("")) {
-        std::string str2sig = Authenticator::GetString2Signature(date,
-                                                    userinfo.owner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                    userinfo.password);
-        request.set_signature(sig);
-    }
+    request.set_signature(CalcSignature(userinfo, date));
 
     cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     cntl->set_log_id(GetLogId());
@@ -503,6 +497,19 @@ void MDSClientBase::Register(const std::string& ip,
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.RegistClient(cntl, &request, response, NULL);
+}
+
+std::string MDSClientBase::CalcSignature(const UserInfo& userinfo,
+                                         uint64_t date) const {
+    if (IsRootUserAndHasPassword(userinfo)) {
+        std::string str2sig = Authenticator::GetString2Signature(
+            date, userinfo.owner);
+        std::string sig = Authenticator::CalcString2Signature(
+            str2sig, userinfo.password);
+        return sig;
+    }
+
+    return "";
 }
 
 }   // namespace client

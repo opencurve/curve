@@ -25,14 +25,21 @@ int RequestScheduler::Init(const RequestScheduleOption_t& reqSchdulerOpt,
                            FileMetric* fm) {
     blockIO_.store(false);
     reqschopt_ = reqSchdulerOpt;
-    if (0 != queue_.Init(reqschopt_.queueCapacity)) {
+
+    int rc = 0;
+    rc = queue_.Init(reqschopt_.queueCapacity);
+    if (0 != rc) {
         return -1;
     }
-    if (0 != threadPool_.Init(reqschopt_.threadpoolSize,
-                              std::bind(&RequestScheduler::Process, this))) {
+
+    rc = threadPool_.Init(reqschopt_.threadpoolSize,
+                          std::bind(&RequestScheduler::Process, this));
+    if (0 != rc) {
         return -1;
     }
-    if (0 != client_.Init(metaCache, reqschopt_.ioSenderOpt, this, fm)) {
+
+    rc = client_.Init(metaCache, reqschopt_.ioSenderOpt, this, fm);
+    if (0 != rc) {
         return -1;
     }
     confMetric_.queueCapacity.set_value(reqschopt_.queueCapacity);

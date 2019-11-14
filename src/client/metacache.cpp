@@ -25,14 +25,6 @@ using curve::client::ClientConfig;
 
 namespace curve {
 namespace client {
-MetaCache::MetaCache() {
-}
-
-MetaCache::~MetaCache() {
-    chunkindex2idMap_.clear();
-    chunkid2chunkInfoMap_.clear();
-    lpcsid2CopsetInfoMap_.clear();
-}
 
 void MetaCache::Init(MetaCacheOption_t metaCacheOpt, MDSClient* mdsclient) {
     mdsclient_ = mdsclient;
@@ -106,12 +98,19 @@ int MetaCache::GetLeader(LogicPoolID logicPoolId,
                 ret = mdsclient_->GetServerList(logicPoolId,
                                                 copysetidvec,
                                                 &cpinfoVec);
-                if (ret == LIBCURVE_ERROR::OK && !cpinfoVec.empty()) {
-                    // 更新chunkserverid到copyset映射关系
-                    UpdateChunkserverCopysetInfo(logicPoolId, cpinfoVec[0]);
-                    // 更新logicpool和copysetid到copysetinfo的映射
-                    UpdateCopysetInfo(logicPoolId, copysetId, cpinfoVec[0]);
-                    break;
+                if (ret == LIBCURVE_ERROR::OK) {
+                    if (!cpinfoVec.empty()) {
+                        // 更新chunkserverid到copyset映射关系
+                        UpdateChunkserverCopysetInfo(logicPoolId, cpinfoVec[0]);
+                        // 更新logicpool和copysetid到copysetinfo的映射
+                        UpdateCopysetInfo(logicPoolId, copysetId, cpinfoVec[0]);
+                        break;
+                    } else {
+                        LOG(WARNING) << "get copyset server list from mds "
+                            << "return empty server list"
+                            << ", copyset id = " << copysetId
+                            << ", logicpool id = " << logicPoolId;
+                    }
                 } else {
                     LOG(WARNING) << "get copyset server list from mds failed"
                                << ", copyset id = " << copysetId
@@ -233,30 +232,30 @@ void MetaCache::UpdateChunkInfoByID(ChunkID cid, ChunkIDInfo cidinfo) {
     chunkid2chunkInfoMap_[cid] = cidinfo;
 }
 
-MetaCacheErrorType MetaCache::GetChunkInfoByID(ChunkID chunkid,
-                                ChunkIDInfo_t* chunkinfo) {
-    ReadLockGuard rdlk(rwlock4chunkInfoMap_);
-    auto iter = chunkid2chunkInfoMap_.find(chunkid);
-    if (iter != chunkid2chunkInfoMap_.end()) {
-        *chunkinfo = iter->second;
-        return MetaCacheErrorType::OK;
-    }
-    return MetaCacheErrorType::CHUNKINFO_NOT_FOUND;
-}
+// MetaCacheErrorType MetaCache::GetChunkInfoByID(ChunkID chunkid,
+//                                 ChunkIDInfo_t* chunkinfo) {
+//     ReadLockGuard rdlk(rwlock4chunkInfoMap_);
+//     auto iter = chunkid2chunkInfoMap_.find(chunkid);
+//     if (iter != chunkid2chunkInfoMap_.end()) {
+//         *chunkinfo = iter->second;
+//         return MetaCacheErrorType::OK;
+//     }
+//     return MetaCacheErrorType::CHUNKINFO_NOT_FOUND;
+// }
 
-bool MetaCache::CopysetIDInfoIn(ChunkServerID csid,
-                                LogicPoolID lpid,
-                                CopysetID cpid) {
-    std::set<CopysetIDInfo> copysetIDSet;
-    ReadLockGuard rdlk(rwlock4CSCopysetIDMap_);
-    auto iter = chunkserverCopysetIDMap_.find(csid);
-    if (iter != chunkserverCopysetIDMap_.end()) {
-        copysetIDSet = iter->second;
-        auto it = copysetIDSet.find(CopysetIDInfo(lpid, cpid));
-        return it != copysetIDSet.end();
-    }
-    return false;
-}
+// bool MetaCache::CopysetIDInfoIn(ChunkServerID csid,
+//                                 LogicPoolID lpid,
+//                                 CopysetID cpid) {
+//     std::set<CopysetIDInfo> copysetIDSet;
+//     ReadLockGuard rdlk(rwlock4CSCopysetIDMap_);
+//     auto iter = chunkserverCopysetIDMap_.find(csid);
+//     if (iter != chunkserverCopysetIDMap_.end()) {
+//         copysetIDSet = iter->second;
+//         auto it = copysetIDSet.find(CopysetIDInfo(lpid, cpid));
+//         return it != copysetIDSet.end();
+//     }
+//     return false;
+// }
 
 void MetaCache::SetChunkserverUnstable(ChunkServerID csid) {
     {
@@ -293,19 +292,8 @@ void MetaCache::SetChunkserverUnstable(ChunkServerID csid) {
 
 void MetaCache::AddCopysetIDInfo(ChunkServerID csid,
                                 const CopysetIDInfo& cpidinfo) {
-    {
-        WriteLockGuard wrlk(rwlock4CSCopysetIDMap_);
-        auto iter = chunkserverCopysetIDMap_.find(csid);
-        if (iter != chunkserverCopysetIDMap_.end()) {
-            if (iter->second.find(cpidinfo) == iter->second.end()) {
-                iter->second.insert(cpidinfo);
-            }
-        } else {
-            std::set<CopysetIDInfo> cpidinfoSet;
-            cpidinfoSet.insert(cpidinfo);
-            chunkserverCopysetIDMap_[csid] = cpidinfoSet;
-        }
-    }
+    WriteLockGuard wrlk(rwlock4CSCopysetIDMap_);
+    chunkserverCopysetIDMap_[csid].emplace(cpidinfo);
 }
 
 void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
@@ -346,17 +334,8 @@ void MetaCache::UpdateChunkserverCopysetInfo(LogicPoolID lpid,
 
         // 更新新的copyset信息到chunkserver
         for (auto chunkserverid : newID) {
-            {
-                WriteLockGuard wrlk(rwlock4CSCopysetIDMap_);
-                auto iter = chunkserverCopysetIDMap_.find(chunkserverid);
-                if (iter == chunkserverCopysetIDMap_.end()) {
-                    std::set<CopysetIDInfo> cpidinfoSet;
-                    cpidinfoSet.insert(CopysetIDInfo(lpid, cpinfo.cpid_));
-                    chunkserverCopysetIDMap_[chunkserverid] = cpidinfoSet;
-                } else {
-                    iter->second.insert(CopysetIDInfo(lpid, cpinfo.cpid_));
-                }
-            }
+            WriteLockGuard wrlk(rwlock4CSCopysetIDMap_);
+            chunkserverCopysetIDMap_[chunkserverid].emplace(lpid, cpinfo.cpid_);  // NOLINT
         }
     }
 }

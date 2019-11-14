@@ -109,10 +109,11 @@ int Splitor::SingleChunkIO2ChunkRequests(IOTracker* iotracker,
         tempoff += len;
         len = leftlength > max_split_size_bytes ? max_split_size_bytes : leftlength;    // NOLINT
 
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             return -1;
         }
+
         newreqNode->seq_         = seq;
         if (iotracker->Optype() == OpType::WRITE) {
             newreqNode->writeBuffer_ = data + off;
@@ -222,9 +223,9 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
 
             targetlist->insert(targetlist->end(), templist.begin(), templist.end());    // NOLINT
         } else {
-            RequestContext* newreqNode = new (std::nothrow) RequestContext();
-            if (newreqNode == nullptr || !newreqNode->Init()) {
-                return false;
+            RequestContext* newreqNode = GetInitedRequestContext();
+            if (newreqNode == nullptr) {
+                return -1;
             }
             newreqNode->seq_          = fileinfo->seqnum;
             if (iotracker->Optype() == OpType::WRITE) {
@@ -248,5 +249,17 @@ bool Splitor::AssignInternal(IOTracker* iotracker,
                 << ", chunk index = " << chunkidx;
     return false;
 }
+
+RequestContext* Splitor::GetInitedRequestContext() {
+    RequestContext* ctx = new (std::nothrow) RequestContext();
+    if (ctx && ctx->Init()) {
+        return ctx;
+    } else {
+        LOG(ERROR) << "Allocate RequestContext Failed!";
+        delete ctx;
+        return nullptr;
+    }
+}
+
 }   // namespace client
 }   // namespace curve

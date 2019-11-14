@@ -178,7 +178,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     /**
      * the disk is faked, the size is just = 10 * 1024 * 1024 * 1024.
      * when the offset pass the boundary, it will return failed.
-     */ 
+     */
     off_t off = 10 * 1024 * 1024 * 1024ul;
     uint64_t len = 8 * 1024;
 
@@ -223,11 +223,20 @@ TEST(TestLibcurveInterface, FileClientTest) {
 
     ASSERT_EQ(0, fc.Init(configpath));
 
+    // init twice also return 0
+    ASSERT_EQ(0, fc.Init(configpath));
+
     int fd = fc.Open4ReadOnly(filename, userinfo);
     int fd2 = fc.Open(filename, userinfo);
+    int fd3 = fc.Open(filename, UserInfo_t{});
+    int fd4 = fc.Open4ReadOnly(filename, UserInfo_t{});
 
     ASSERT_NE(fd, -1);
     ASSERT_NE(fd2, -1);
+
+    // user info invalid
+    ASSERT_EQ(-1, fd3);
+    ASSERT_EQ(-1, fd4);
 
     fiu_enable("test/client/fake/fakeMDS.GetOrAllocateSegment", 1, nullptr, 0);
 
@@ -285,6 +294,9 @@ TEST(TestLibcurveInterface, FileClientTest) {
     mds.UnInitialize();
     delete[] buffer;
     delete[] readbuffer;
+    fc.UnInit();
+
+    // uninit twice
     fc.UnInit();
 }
 
