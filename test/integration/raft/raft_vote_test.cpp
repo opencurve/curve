@@ -16,6 +16,7 @@
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
 #include "test/integration/common/peer_cluster.h"
+#include "test/integration/common/config_generator.h"
 
 namespace curve {
 namespace chunkserver {
@@ -35,7 +36,7 @@ static char* raftVoteParam[3][13] = {
         "-recycleUri=local://./9091/recycler",
         "-chunkFilePoolDir=./9091/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9091/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9091",
+        "-conf=./9091/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -49,7 +50,7 @@ static char* raftVoteParam[3][13] = {
         "-recycleUri=local://./9092/recycler",
         "-chunkFilePoolDir=./9092/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9092/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9092",
+        "-conf=./9092/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -63,7 +64,7 @@ static char* raftVoteParam[3][13] = {
         "-recycleUri=local://./9093/recycler",
         "-chunkFilePoolDir=./9093/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9093/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9093",
+        "-conf=./9093/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -90,6 +91,19 @@ class RaftVoteTest : public testing::Test {
         electionTimeoutMs = 3000;
         snapshotIntervalS = 60;
         waitMultiReplicasBecomeConsistent = 3000;
+
+        ASSERT_TRUE(cg1.Init("9091"));
+        ASSERT_TRUE(cg2.Init("9092"));
+        ASSERT_TRUE(cg3.Init("9093"));
+        cg1.SetKV("copyset.election_timeout_ms", "3000");
+        cg1.SetKV("copyset.snapshot_interval_s", "60");
+        cg2.SetKV("copyset.election_timeout_ms", "3000");
+        cg2.SetKV("copyset.snapshot_interval_s", "60");
+        cg3.SetKV("copyset.election_timeout_ms", "3000");
+        cg3.SetKV("copyset.snapshot_interval_s", "60");
+        ASSERT_TRUE(cg1.Generate());
+        ASSERT_TRUE(cg2.Generate());
+        ASSERT_TRUE(cg3.Generate());
 
         paramsIndexs[PeerCluster::PeerToId(peer1)] = 0;
         paramsIndexs[PeerCluster::PeerToId(peer2)] = 1;
@@ -119,6 +133,9 @@ class RaftVoteTest : public testing::Test {
     Peer peer1;
     Peer peer2;
     Peer peer3;
+    CSTConfigGenerator cg1;
+    CSTConfigGenerator cg2;
+    CSTConfigGenerator cg3;
     int electionTimeoutMs;
     int snapshotIntervalS;
 
