@@ -839,6 +839,13 @@ TEST_F(IOTrackerSplitorTest, InvalidParam) {
                                         length,
                                         &mdsclient_,
                                         nullptr));
+    ASSERT_EQ(-1, curve::client::Splitor::IO2ChunkRequests(iotracker, mc,
+                                        &reqlist,
+                                        buf,
+                                        offset,
+                                        length,
+                                        nullptr,
+                                        &fi));
     ASSERT_EQ(0, curve::client::Splitor::SingleChunkIO2ChunkRequests(iotracker, mc,        // NOLINT
                                         &reqlist,
                                         cid,

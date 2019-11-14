@@ -423,5 +423,19 @@ TEST(MetricTest, SuspendRPC_MetricTest) {
     mds.UnInitialize();
     mdsclient.UnInitialize();
 }
+
+TEST(MetricTest, MetricHelperTest) {
+    FileMetric* fm = nullptr;
+
+    MetricHelper::IncremUserRPSCount(fm, OpType::WRITE);
+    MetricHelper::IncremUserRPSCount(fm, OpType::READ);
+
+    MetricHelper::IncremRPCRPSCount(fm, OpType::WRITE);
+    MetricHelper::IncremRPCRPSCount(fm, OpType::READ);
+
+    MetricHelper::IncremInflightRPC(fm);
+    MetricHelper::DecremInflightRPC(fm);
+}
+
 }   //  namespace client
 }   //  namespace curve

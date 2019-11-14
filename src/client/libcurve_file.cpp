@@ -77,19 +77,17 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
+    mdsClient_ = new (std::nothrow) MDSClient();
     if (mdsClient_ == nullptr) {
-        mdsClient_ = new (std::nothrow) MDSClient();
-        if (mdsClient_ == nullptr) {
-            return -LIBCURVE_ERROR::FAILED;
-        }
+        return -LIBCURVE_ERROR::FAILED;
+    }
 
-        if (LIBCURVE_ERROR::OK != mdsClient_->Initialize(
+    if (LIBCURVE_ERROR::OK != mdsClient_->Initialize(
             clientconfig_.GetFileServiceOption().metaServerOpt)) {
-            LOG(ERROR) << "Init global mds client failed!";
-            delete mdsClient_;
-            mdsClient_ = nullptr;
-            return -LIBCURVE_ERROR::FAILED;
-        }
+        LOG(ERROR) << "Init global mds client failed!";
+        delete mdsClient_;
+        mdsClient_ = nullptr;
+        return -LIBCURVE_ERROR::FAILED;
     }
 
     bool rc = true;
@@ -171,14 +169,8 @@ void FileClient::UnInit() {
 }
 
 int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
-    FileInstance* fileserv = new (std::nothrow) FileInstance();
-    if (fileserv == nullptr ||
-        !fileserv->Initialize(filename,
-                              mdsClient_,
-                              userinfo,
-                              clientconfig_.GetFileServiceOption())) {
-        LOG(ERROR) << "FileInstance initialize failed!";
-        delete fileserv;
+    FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, false);
+    if (fileserv == nullptr) {
         return -1;
     }
 
@@ -199,16 +191,9 @@ int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
 }
 
 int FileClient::Open4ReadOnly(const std::string& filename,
-                                  const UserInfo_t& userinfo) {
-    FileInstance* fileserv = new (std::nothrow) FileInstance();
-    if (fileserv == nullptr ||
-        !fileserv->Initialize(filename,
-                              mdsClient_,
-                              userinfo,
-                              clientconfig_.GetFileServiceOption(),
-                              true)) {
-        LOG(ERROR) << "FileInstance initialize failed!";
-        delete fileserv;
+                              const UserInfo_t& userinfo) {
+    FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, true);
+    if (fileserv == nullptr) {
         return -1;
     }
 
@@ -463,6 +448,27 @@ int FileClient::Close(int fd) {
 bool FileClient::CheckAligned(off_t offset, size_t length) {
     return (offset % IO_ALIGNED_BLOCK_SIZE == 0) &&
            (length % IO_ALIGNED_BLOCK_SIZE == 0);
+}
+
+FileInstance* FileClient::GetInitedFileInstance(const std::string& filename,
+                                          const UserInfo& userinfo,
+                                          bool readonly) {
+    FileInstance* fileserv = new (std::nothrow) FileInstance();
+    if (fileserv == nullptr ||
+        !fileserv->Initialize(filename,
+                              mdsClient_,
+                              userinfo,
+                              clientconfig_.GetFileServiceOption(),
+                              readonly)) {
+        LOG(ERROR) << "FileInstance initialize failed"
+            << ", filename = " << filename
+            << ", ower = " << userinfo.owner
+            << ", readonly = " << readonly;
+        delete fileserv;
+        return nullptr;
+    } else {
+        return fileserv;
+    }
 }
 
 }   // namespace client

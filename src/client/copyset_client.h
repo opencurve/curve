@@ -48,11 +48,9 @@ class CopysetClient : public Uncopyable {
         scheduler_(nullptr),
         exitFlag_(false) {}
 
-    virtual  ~CopysetClient() {
-        if (nullptr != senderManager_) {
-            delete senderManager_;
-            senderManager_ = nullptr;
-        }
+    virtual ~CopysetClient() {
+        delete senderManager_;
+        senderManager_ = nullptr;
     }
 
     int Init(MetaCache *metaCache,

@@ -354,6 +354,29 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(fimap[1].segmentsize, 1 * 1024 * 1024 * 1024ul);
     ASSERT_EQ(fimap[1].filetype, curve::mds::FileType::INODE_PAGEFILE);
 
+    // GetSnapShot when return not equal seq num
+    ::curve::mds::ListSnapShotFileInfoResponse* listresponse_seq
+    = new ::curve::mds::ListSnapShotFileInfoResponse;
+    listresponse_seq->add_fileinfo();
+    listresponse_seq->mutable_fileinfo(0)->set_filename(filename);
+    listresponse_seq->mutable_fileinfo(0)->set_id(1);
+    listresponse_seq->mutable_fileinfo(0)->set_parentid(0);
+    listresponse_seq->mutable_fileinfo(0)->set_filetype(curve::mds::FileType::INODE_PAGEFILE);    // NOLINT
+    listresponse_seq->mutable_fileinfo(0)->set_chunksize(4 * 1024 * 1024);
+    listresponse_seq->mutable_fileinfo(0)->set_length(4 * 1024 * 1024 * 1024ul);
+    listresponse_seq->mutable_fileinfo(0)->set_ctime(12345678);
+    listresponse_seq->mutable_fileinfo(0)->set_seqnum(seq+1);
+    listresponse_seq->mutable_fileinfo(0)->set_segmentsize(1 * 1024 * 1024 * 1024ul);   //  NOLINT
+
+    listresponse_seq->set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* listfakeret_seq
+     = new FakeReturn(nullptr, static_cast<void*>(listresponse_seq));
+    curve::client::FInfo_t sinfo_seq;
+    curvefsservice.SetListSnapShot(listfakeret_seq);
+    ASSERT_EQ(-LIBCURVE_ERROR::NOTEXIST, cl.GetSnapShot(filename,
+                                                emptyuserinfo,
+                                                seq, &sinfo_seq));
+
     // rpc fail
     curvefsservice.CleanRetryTimes();
     ::curve::mds::ListSnapShotFileInfoResponse* listresponse1 =
