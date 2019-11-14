@@ -46,6 +46,13 @@ class Trash {
 
     int RecycleCopySet(const std::string &dirPath);
 
+    /*
+    * @brief 获取回收站中chunk的个数
+    *
+    * @return chunk个数
+    */
+    uint32_t GetChunkNum() {return chunkNum_.load();}
+
  private:
     /*
     * @brief DeleteEligibleFileInTrashInterval 每隔一段时间进行trash物理空间回收
@@ -63,13 +70,13 @@ class Trash {
     bool NeedDelete(const std::string &copysetDir);
 
     /*
-    * @brief IsCopySetDir 是否为copyset的目录
+    * @brief IsCopysetInTrash 是否为回收站中的copyset的目录
     *
     * @param[in] dirName 文目录路径
     *
     * @return true-符合copyset目录命名规则
     */
-    bool IsCopySetDir(const std::string &dirName);
+    bool IsCopysetInTrash(const std::string &dirName);
 
     /*
     * @brief IsChunkOrSnapShotFile 是否为chunk或snapshot文件
@@ -94,12 +101,23 @@ class Trash {
     */
     void RecycleChunks(const std::string &dataPath);
 
+    /*
+    * @brief 统计copyset目录中的chunk个数
+    *
+    * @param[in] copysetPath chunk所在目录
+    * @return 返回chunk个数
+    */
+    uint32_t CountChunkNumInCopyset(const std::string &copysetPath);
+
  private:
     // 文件在放入trash中expiredAfteSec秒后，可以被物理回收
     int expiredAfterSec_;
 
     // 扫描trash目录的时间间隔
     int scanPeriodSec_;
+
+    // 回收站中chunk的个数
+    Atomic<uint32_t> chunkNum_;
 
     // 本地文件系统
     std::shared_ptr<LocalFileSystem> localFileSystem_;
