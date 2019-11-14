@@ -24,6 +24,7 @@
 #include "src/common/timeutility.h"
 #include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
+#include "src/client/mds_client_base.h"
 
 using braft::PeerId;
 using curve::common::Authenticator;
@@ -592,10 +593,13 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                    const std::string& filename,
                    const std::string& owner,
                    uint64_t date) {
-        std::string str2sig = Authenticator::GetString2Signature(date, owner);
-        std::string sigtest = Authenticator::CalcString2Signature(str2sig,
-                                                                "123");
-        ASSERT_STREQ(sigtest.c_str(), signature.c_str());
+        if (owner == kRootUserName) {
+            std::string str2sig = Authenticator::GetString2Signature(date, owner);  // NOLINT
+            std::string sigtest = Authenticator::CalcString2Signature(str2sig, "123");  // NOLINT
+            ASSERT_STREQ(sigtest.c_str(), signature.c_str());
+        } else {
+            ASSERT_STREQ("", signature.c_str());
+        }
     }
 
     uint64_t retrytimes_;

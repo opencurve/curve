@@ -94,7 +94,6 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
        return leaseexcutor_;
     }
 
- private:
     int GetFileInfo(const std::string& filename, FInfo_t* fi);
 
  private:

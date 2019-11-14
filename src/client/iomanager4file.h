@@ -110,6 +110,12 @@ class IOManager4File : public IOManager {
   }
 
   /**
+   * lease excutor在检查到版本更新的时候，需要通知iomanager更新文件版本信息
+   * @param: fi为当前需要更新的文件信息
+   */
+  void UpdataFileInfo(const FInfo_t& fi);
+
+  /**
    * 测试使用，获取request scheduler
    */
   RequestScheduler* GetScheduler() { return scheduler_; }
@@ -132,12 +138,6 @@ class IOManager4File : public IOManager {
    * 当lesaeexcutor发现版本变更，调用该接口开始等待inflight回来，这段期间IO是hang的
    */
   void BlockIO();
-
-  /**
-   * lease excutor在检查到版本更新的时候，需要通知iomanager更新文件版本信息
-   * @param: fi为当前需要更新的文件信息
-   */
-  void UpdataFileInfo(const FInfo_t& fi);
 
   /**
    * 因为curve client底层都是异步IO，每个IO会分配一个IOtracker跟踪IO

@@ -402,15 +402,7 @@ class MDSClientBase {
         uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
         request->set_owner(userinfo.owner);
         request->set_date(date);
-
-        if (!userinfo.owner.compare(kRootUserName) &&
-             userinfo.password.compare("")) {
-            std::string str2sig = Authenticator::GetString2Signature(date,
-                                                        userinfo.owner);
-            std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                         userinfo.password);
-            request->set_signature(sig);
-        }
+        request->set_signature(CalcSignature(userinfo, date));
     }
 
     /**
@@ -421,6 +413,12 @@ class MDSClientBase {
     }
 
  private:
+    inline bool IsRootUserAndHasPassword(const UserInfo& userinfo) const {
+       return userinfo.owner == kRootUserName && !userinfo.password.empty();
+    }
+
+    std::string CalcSignature(const UserInfo& userinfo, uint64_t date) const;
+
     // controller id，用于trace整个rpc IO链路
     // 这里直接用uint64即可，在可预测的范围内，不会溢出
     std::atomic<uint64_t> cntlID_;
