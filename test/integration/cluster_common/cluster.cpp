@@ -194,10 +194,15 @@ void CurveCluster::StartSnapshotCloneServer(int id, const std::string &ipPort,
     snapConf_[id] = snapshotcloneConf;
 }
 
-void CurveCluster::StopSnapshotCloneServer(int id) {
+void CurveCluster::StopSnapshotCloneServer(int id, bool force) {
     LOG(INFO) << "stop snapshotcloneserver " << snapIpPort_[id] << " begin...";
     if (snapPidMap_.find(id) != snapPidMap_.end()) {
-        int res = kill(snapPidMap_[id], SIGTERM);
+        int res = 0;
+        if (force) {
+            res = kill(snapPidMap_[id], SIGKILL);
+        } else {
+            res = kill(snapPidMap_[id], SIGTERM);
+        }
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(snapIpPort_[id], 5000, false))
             << "when StopSnapshotCloneServer ipport:" << snapIpPort_[id];
@@ -208,11 +213,16 @@ void CurveCluster::StopSnapshotCloneServer(int id) {
     LOG(INFO) << "stop snapshotcloneserver " << snapIpPort_[id] << " success.";
 }
 
-void CurveCluster::RestartSnapshotCloneServer(int id) {
+void CurveCluster::RestartSnapshotCloneServer(int id, bool force) {
     LOG(INFO) << "restart snapshotcloneserver "
         << snapIpPort_[id] << " begin...";
     if (snapPidMap_.find(id) != snapPidMap_.end()) {
-        int res = kill(snapPidMap_[id], SIGTERM);
+        int res = 0;
+        if (force) {
+            res = kill(snapPidMap_[id], SIGKILL);
+        } else {
+            res = kill(snapPidMap_[id], SIGTERM);
+        }
         ASSERT_EQ(0, res);
         ASSERT_EQ(0, ProbePort(snapIpPort_[id], 20000, false))
             << "when RestartSnapshotCloneServer ipport:" << snapIpPort_[id];
