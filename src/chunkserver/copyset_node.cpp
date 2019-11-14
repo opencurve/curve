@@ -60,8 +60,9 @@ CopysetNode::~CopysetNode() {
     if (nodeOptions_.snapshot_file_system_adaptor != nullptr) {
         delete nodeOptions_.snapshot_file_system_adaptor;
         nodeOptions_.snapshot_file_system_adaptor = nullptr;
-        LOG(INFO) << "release raftsnapshot filesystem adaptor!";
     }
+    LOG(INFO) << "release copyset node, groupid:"
+              << ToGroupId(logicPoolId_, copysetId_);
 }
 
 int CopysetNode::Init(const CopysetNodeOptions &options) {

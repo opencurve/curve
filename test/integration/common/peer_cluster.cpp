@@ -110,6 +110,7 @@ int PeerCluster::ShutdownPeer(const Peer &peer) {
             return -1;
         }
         waitpid(it->second->pid, &waitState, 0);
+        LOG(INFO) << "shutdown pid(" << it->second->pid << ") success.";
         peersMap_.erase(peerId.to_string());
         return 0;
     } else {
@@ -135,6 +136,9 @@ int PeerCluster::HangPeer(const Peer &peer) {
                        << strerror(errno);
             return -1;
         }
+        int waitState;
+        waitpid(it->second->pid, &waitState, WUNTRACED);
+        LOG(INFO) << "hang pid(" << it->second->pid << ") success.";
         it->second->state = PeerNodeState::STOP;
         return 0;
     } else {
@@ -160,6 +164,9 @@ int PeerCluster::SignalPeer(const Peer &peer) {
                        << strerror(errno);
             return -1;
         }
+        int waitState;
+        waitpid(it->second->pid, &waitState, WCONTINUED);
+        LOG(INFO) << "continue pid(" << it->second->pid << ") success.";
         it->second->state = PeerNodeState::RUNNING;
         return 0;
     } else {
@@ -614,7 +621,7 @@ void ReadVerifyNotAvailable(Peer leaderPeer,
                             int length,
                             char fillCh,
                             int loop) {
-    LOG(INFO) << "Read verify available: " << fillCh;
+    LOG(INFO) << "Read verify not available: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
     uint64_t sn = 1;
