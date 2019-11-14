@@ -204,7 +204,7 @@ static void ReadVerifyNotAvailable(PeerId leaderId,
     for (int i = 0; i < loop; ++i) {
         // write
         brpc::Controller cntl;
-        cntl.set_timeout_ms(1000);
+        cntl.set_timeout_ms(5000);
         ChunkRequest request;
         ChunkResponse response;
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
@@ -239,7 +239,7 @@ static void CopysetStatusVerify(PeerId peerId,
     CopysetStatusRequest request;
     CopysetStatusResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(2000);
+    cntl.set_timeout_ms(5000);
     request.set_logicpoolid(logicPoolID);
     request.set_copysetid(copysetId);
     Peer *peer = new Peer();
@@ -278,7 +278,7 @@ static void CopysetStatusVerify(const std::vector<PeerId> &peerIds,
         CopysetStatusRequest request;
         CopysetStatusResponse response;
         brpc::Controller cntl;
-        cntl.set_timeout_ms(2000);
+        cntl.set_timeout_ms(5000);
         request.set_logicpoolid(logicPoolID);
         request.set_copysetid(copysetId);
         Peer *peer = new Peer();
