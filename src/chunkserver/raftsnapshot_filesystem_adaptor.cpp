@@ -26,6 +26,7 @@ RaftSnapshotFilesystemAdaptor::RaftSnapshotFilesystemAdaptor(
 RaftSnapshotFilesystemAdaptor::~RaftSnapshotFilesystemAdaptor() {
     delete[] tempMetaPageContent;
     tempMetaPageContent = nullptr;
+    LOG(INFO) << "release raftsnapshot filesystem adaptor!";
 }
 
 braft::FileAdaptor* RaftSnapshotFilesystemAdaptor::open(const std::string& path,

@@ -48,6 +48,9 @@ ChunkServerHeartbeatRequest GetChunkServerHeartbeatRequestForTest() {
     stats->set_readrate(1);
     stats->set_writeiops(1);
     stats->set_writerate(1);
+    stats->set_chunksizeusedbytes(100);
+    stats->set_chunksizeleftbytes(100);
+    stats->set_chunksizetrashedbytes(100);
     request.set_allocated_stats(stats);
 
     return request;
