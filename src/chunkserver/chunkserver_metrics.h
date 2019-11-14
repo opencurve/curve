@@ -32,6 +32,7 @@ namespace chunkserver {
 class CopysetNodeManager;
 class ChunkfilePool;
 class CSDataStore;
+class Trash;
 
 template <typename Tp>
 using PassiveStatusPtr = std::shared_ptr<bvar::PassiveStatus<Tp>>;
@@ -445,6 +446,12 @@ class ChunkServerMetric : public Uncopyable {
     void MonitorChunkFilePool(ChunkfilePool* chunkfilePool);
 
     /**
+     * 监视回收站
+     * @param trash: trash的对象指针
+     */
+    void MonitorTrash(Trash* trash);
+
+    /**
      * 增加 leader count 计数
      */
     void IncreaseLeaderCount();
@@ -480,10 +487,34 @@ class ChunkServerMetric : public Uncopyable {
         return leaderCount_->get_value();
     }
 
+    const uint32_t GetTotalChunkCount() {
+        uint32_t totalChunkCount = 0;
+        ReadLockGuard lockGuard(rwLock_);
+        for (auto& iter : copysetMetricMap_) {
+            totalChunkCount += iter.second->GetChunkCount();
+        }
+        return totalChunkCount;
+    }
+
+    const uint32_t GetTotalSnapshotCount() {
+        uint32_t totalSnapshotCount = 0;
+        ReadLockGuard lockGuard(rwLock_);
+        for (auto& iter : copysetMetricMap_) {
+            totalSnapshotCount += iter.second->GetSnapshotCount();
+        }
+        return totalSnapshotCount;
+    }
+
     const uint32_t GetChunkLeftCount() const {
         if (chunkLeft_ == nullptr)
             return 0;
         return chunkLeft_->get_value();
+    }
+
+    const uint32_t GetChunkTrashedCount() const {
+        if (chunkTrashed_ == nullptr)
+            return 0;
+        return chunkTrashed_->get_value();
     }
 
  private:
@@ -508,6 +539,8 @@ class ChunkServerMetric : public Uncopyable {
     AdderPtr<uint32_t> leaderCount_;
     // chunkfilepool 中剩余的 chunk 的数量
     PassiveStatusPtr<uint32_t> chunkLeft_;
+    // trash 中的 chunk 的数量
+    PassiveStatusPtr<uint32_t> chunkTrashed_;
     // 各复制组metric的映射表，用GroupId作为key
     CopysetMetricMap copysetMetricMap_;
     // 用于单例模式的自指指针

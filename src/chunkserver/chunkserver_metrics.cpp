@@ -222,7 +222,8 @@ ChunkServerMetric::ChunkServerMetric()
     , readMetric_(nullptr)
     , writeMetric_(nullptr)
     , leaderCount_(nullptr)
-    , chunkLeft_(nullptr) {}
+    , chunkLeft_(nullptr)
+    , chunkTrashed_(nullptr) {}
 
 ChunkServerMetric* ChunkServerMetric::self_ = nullptr;
 
@@ -278,6 +279,7 @@ int ChunkServerMetric::Fini() {
     writeMetric_ = nullptr;
     leaderCount_ = nullptr;
     chunkLeft_ = nullptr;
+    chunkTrashed_ = nullptr;
     copysetMetricMap_.clear();
     hasInited_ = false;
     return 0;
@@ -492,6 +494,16 @@ void ChunkServerMetric::MonitorChunkFilePool(ChunkfilePool* chunkfilePool) {
     std::string chunkLeftPrefix = Prefix() + "_chunkfilepool_left";
     chunkLeft_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
         chunkLeftPrefix, getChunkLeftFunc, chunkfilePool);
+}
+
+void ChunkServerMetric::MonitorTrash(Trash* trash) {
+    if (!option_.collectMetric) {
+        return;
+    }
+
+    std::string chunkTrashedPrefix = Prefix() + "_chunk_trashed";
+    chunkTrashed_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        chunkTrashedPrefix, getChunkTrashedFunc, trash);
 }
 
 void ChunkServerMetric::IncreaseLeaderCount() {
