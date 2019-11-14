@@ -65,3 +65,25 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "raft-snapshot-test",
+    srcs = glob([
+        "raft_snapshot_test.cpp",
+    ]),
+    copts = ["-std=c++14"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:bthread",
+        "//external:butil",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//proto:chunkserver-cc-protos",
+        "//src/chunkserver:chunkserver-test-lib",
+        "//src/common:curve_common",
+        "//test/integration/common:integration-test-common",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
