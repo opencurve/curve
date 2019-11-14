@@ -119,6 +119,10 @@ class PeerCluster {
     /* 返回集群当前的配置 */
     const Configuration CopysetConf() const;
 
+    const LogicPoolID GetLogicPoolId() const {return logicPoolID_;}
+
+    const CopysetID GetCopysetId() const {return copysetID_;}
+
     /* 修改 PeerNode 配置相关的接口，单位: s */
     int SetsnapshotIntervalS(int snapshotIntervalS);
     int SetElectionTimeoutMs(int electionTimeoutMs);
@@ -202,6 +206,7 @@ class PeerCluster {
  * @param length    每次 IO 的 length
  * @param fillCh    每次 IO 填充的字符
  * @param loop      重复发起 IO 的次数
+ * @param sn        本次写入的版本号
  */
 void WriteThenReadVerify(Peer leaderPeer,
                          LogicPoolID logicPoolId,
@@ -209,7 +214,8 @@ void WriteThenReadVerify(Peer leaderPeer,
                          ChunkID chunkId,
                          int length,
                          char fillCh,
-                         int loop);
+                         int loop,
+                         uint64_t sn = 1);
 
 /**
  * 正常 I/O 验证，read 数据验证
@@ -228,6 +234,24 @@ void ReadVerify(Peer leaderPeer,
                 int length,
                 char fillCh,
                 int loop);
+
+/**
+ * 读chunk的snapshot进行验证
+ * @param leaderId      主的 id
+ * @param logicPoolId   逻辑池 id
+ * @param copysetId 复制组 id
+ * @param chunkId   chunk id
+ * @param length    每次 IO 的 length
+ * @param fillCh    每次 IO 填充的字符
+ * @param loop      重复发起 IO 的次数
+ */
+void ReadSnapshotVerify(Peer leaderPeer,
+                        LogicPoolID logicPoolId,
+                        CopysetID copysetId,
+                        ChunkID chunkId,
+                        int length,
+                        char fillCh,
+                        int loop);
 
 /**
  * 异常I/O验证，read数据不符合预期
