@@ -150,7 +150,8 @@ ChunkServerMetric::ChunkServerMetric()
     , readMetric_(nullptr)
     , writeMetric_(nullptr)
     , leaderCount_(nullptr)
-    , chunkLeft_(nullptr) {}
+    , chunkLeft_(nullptr)
+    , chunkTrashed_(nullptr) {}
 
 ChunkServerMetric* ChunkServerMetric::self_ = nullptr;
 
@@ -206,8 +207,8 @@ int ChunkServerMetric::Fini() {
     writeMetric_ = nullptr;
     leaderCount_ = nullptr;
     chunkLeft_ = nullptr;
+    chunkTrashed_ = nullptr;
     copysetMetricMap_.clear();
-    configMetric_.clear();
     hasInited_ = false;
     return 0;
 }
@@ -343,6 +344,16 @@ void ChunkServerMetric::MonitorChunkFilePool(ChunkfilePool* chunkfilePool) {
         chunkLeftPrefix, getChunkLeftFunc, chunkfilePool);
 }
 
+void ChunkServerMetric::MonitorTrash(Trash* trash) {
+    if (!option_.collectMetric) {
+        return;
+    }
+
+    std::string chunkTrashedPrefix = Prefix() + "_chunk_trashed";
+    chunkTrashed_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
+        chunkTrashedPrefix, getChunkTrashedFunc, trash);
+}
+
 void ChunkServerMetric::IncreaseLeaderCount() {
     if (!option_.collectMetric) {
         return;
@@ -359,28 +370,14 @@ void ChunkServerMetric::DecreaseLeaderCount() {
     *leaderCount_ << -1;
 }
 
-void ChunkServerMetric::UpdateConfigMetric(const common::Configuration& conf) {
+void ChunkServerMetric::UpdateConfigMetric(common::Configuration* conf) {
     if (!option_.collectMetric) {
         return;
     }
 
-    std::string prefix = Prefix() + "_config";
-    std::map<std::string, std::string> configs = conf.ListConfig();
-    for (auto& config : configs) {
-        std::string configKey = config.first;
-        std::string configValue = config.second;
-        auto it = configMetric_.find(configKey);
-        // 如果配置项不存在，则新建配置项
-        if (it == configMetric_.end()) {
-            ConfigItemPtr configItem =
-                std::make_shared<bvar::Status<std::string>>(prefix,
-                                                            configKey,
-                                                            nullptr);
-            configMetric_[configKey] = configItem;
-        }
-        // 更新配置项
-        configMetric_[configKey]->set_value(configValue);
-    }
+    std::string exposeName = Prefix() + "_config";
+    conf->ExposeMetric(exposeName);
+    conf->UpdateMetric();
 }
 
 }  // namespace chunkserver
