@@ -77,19 +77,17 @@ int FileClient::Init(const std::string& configpath) {
         return -LIBCURVE_ERROR::FAILED;
     }
 
+    mdsClient_ = new (std::nothrow) MDSClient();
     if (mdsClient_ == nullptr) {
-        mdsClient_ = new (std::nothrow) MDSClient();
-        if (mdsClient_ == nullptr) {
-            return -LIBCURVE_ERROR::FAILED;
-        }
+        return -LIBCURVE_ERROR::FAILED;
+    }
 
-        if (LIBCURVE_ERROR::OK != mdsClient_->Initialize(
+    if (LIBCURVE_ERROR::OK != mdsClient_->Initialize(
             clientconfig_.GetFileServiceOption().metaServerOpt)) {
-            LOG(ERROR) << "Init global mds client failed!";
-            delete mdsClient_;
-            mdsClient_ = nullptr;
-            return -LIBCURVE_ERROR::FAILED;
-        }
+        LOG(ERROR) << "Init global mds client failed!";
+        delete mdsClient_;
+        mdsClient_ = nullptr;
+        return -LIBCURVE_ERROR::FAILED;
     }
 
     // 在一个进程里只允许启动一次
@@ -168,14 +166,8 @@ void FileClient::UnInit() {
 }
 
 int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
-    FileInstance* fileserv = new (std::nothrow) FileInstance();
-    if (fileserv == nullptr ||
-        !fileserv->Initialize(filename,
-                              mdsClient_,
-                              userinfo,
-                              clientconfig_.GetFileServiceOption())) {
-        LOG(ERROR) << "FileInstance initialize failed!";
-        delete fileserv;
+    FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, false);
+    if (fileserv == nullptr) {
         return -1;
     }
 
@@ -185,6 +177,35 @@ int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
         delete fileserv;
         return ret;
     }
+
+    int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
+
+    {
+        WriteLockGuard lk(rwlock_);
+        fileserviceMap_[fd] = fileserv;
+    }
+    return fd;
+}
+
+int FileClient::Open4ReadOnly(const std::string& filename,
+                              const UserInfo_t& userinfo) {
+    FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, true);
+    if (fileserv == nullptr) {
+        return -1;
+    }
+
+    FInfo_t finfo;
+    int ret = fileserv->GetFileInfo(filename, &finfo);
+    if (ret != 0) {
+        LOG(ERROR) << "get file info failed! Open4ReadOnly failed!";
+        fileserv->UnInitialize();
+        delete fileserv;
+        return -1;
+    }
+
+    finfo.userinfo = userinfo;
+    finfo.fullPathName = filename;
+    fileserv->GetIOManager4File()->UpdataFileInfo(finfo);
 
     int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
 
@@ -424,6 +445,26 @@ int FileClient::Close(int fd) {
 bool FileClient::CheckAligned(off_t offset, size_t length) {
     return (offset % IO_ALIGNED_BLOCK_SIZE == 0) &&
            (length % IO_ALIGNED_BLOCK_SIZE == 0);
+}
+
+FileInstance* FileClient::GetInitedFileInstance(const std::string& filename,
+                                          const UserInfo& userinfo,
+                                          bool readonly) {
+    FileInstance* fileserv = new (std::nothrow) FileInstance();
+    if (fileserv == nullptr ||
+        !fileserv->Initialize(filename,
+                              mdsClient_,
+                              userinfo,
+                              clientconfig_.GetFileServiceOption())) {
+        LOG(ERROR) << "FileInstance initialize failed"
+            << ", filename = " << filename
+            << ", ower = " << userinfo.owner
+            << ", readonly = " << readonly;
+        delete fileserv;
+        return nullptr;
+    } else {
+        return fileserv;
+    }
 }
 
 }   // namespace client

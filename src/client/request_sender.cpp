@@ -41,10 +41,8 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     brpc::ClosureGuard doneGuard(done);
 
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
-    if (rc->GetMetric() != nullptr) {
-        MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::READ);
-        rc->SetStartTime(TimeUtility::GetTimeofDayUs());
-    }
+    MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::READ);
+    rc->SetStartTime(TimeUtility::GetTimeofDayUs());
 
     brpc::Controller *cntl = new brpc::Controller();
     cntl->set_timeout_ms(
@@ -79,10 +77,8 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     brpc::ClosureGuard doneGuard(done);
 
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
-    if (rc->GetMetric() != nullptr) {
-        MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::WRITE);
-        rc->SetStartTime(TimeUtility::GetTimeofDayUs());
-    }
+    MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::WRITE);
+    rc->SetStartTime(TimeUtility::GetTimeofDayUs());
 
     DVLOG(9) << "Sending request, buf header: "
              << " buf: " << *(unsigned int *)buf;

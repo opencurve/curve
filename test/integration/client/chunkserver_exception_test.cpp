@@ -41,7 +41,6 @@ const std::vector<std::string> mdsConf{
 };
 
 const std::vector<std::string> chunkserverConf4{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException4/"},
     {" -chunkServerMetaUri=local://./moduleException4/chunkserver.dat"},
     {" -copySetUri=local://./moduleException4/copysets"},
@@ -54,7 +53,6 @@ const std::vector<std::string> chunkserverConf4{
 };
 
 const std::vector<std::string> chunkserverConf5{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException5/"},
     {" -chunkServerMetaUri=local://./moduleException5/chunkserver.dat"},
     {" -copySetUri=local://./moduleException5/copysets"},
@@ -67,7 +65,6 @@ const std::vector<std::string> chunkserverConf5{
 };
 
 const std::vector<std::string> chunkserverConf6{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException6/"},
     {" -chunkServerMetaUri=local://./moduleException6/chunkserver.dat"},
     {" -copySetUri=local://./moduleException6/copysets"},

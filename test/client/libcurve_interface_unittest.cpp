@@ -34,6 +34,7 @@ using curve::client::ClientConfig;
 using curve::client::FileInstance;
 using curve::client::CopysetInfo_t;
 using curve::client::CopysetIDInfo;
+using curve::client::FileClient;
 
 extern std::string configpath;
 extern uint32_t chunk_size;
@@ -177,7 +178,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     /**
      * the disk is faked, the size is just = 10 * 1024 * 1024 * 1024.
      * when the offset pass the boundary, it will return failed.
-     */ 
+     */
     off_t off = 10 * 1024 * 1024 * 1024ul;
     uint64_t len = 8 * 1024;
 
@@ -196,6 +197,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     delete[] readbuffer;
     UnInit();
 }
+
 /*
 TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     std::string filename = "/1_userinfo_";
