@@ -46,15 +46,13 @@ enum class PeerNodeState {
  * 一个 ChunkServer 进程，包含某个 Copyset 的某个副本
  */
 struct PeerNode {
-    PeerNode() : pid(0), options(), state(PeerNodeState::EXIT) {}
+    PeerNode() : pid(0), state(PeerNodeState::EXIT) {}
     // Peer对应的进程id
     pid_t pid;
     // Peer
     Peer peer;
     // copyset的集群配置
     Configuration conf;
-    // copyset的基本配置
-    CopysetNodeOptions options;
     // PeerNode的状态
     PeerNodeState state;
 };
@@ -122,16 +120,12 @@ class PeerCluster {
     /* 修改 PeerNode 配置相关的接口，单位: s */
     int SetsnapshotIntervalS(int snapshotIntervalS);
     int SetElectionTimeoutMs(int electionTimeoutMs);
-    int SetCatchupMargin(int catchupMargin);
 
-    static int StartPeerNode(CopysetNodeOptions options,
-                             const Configuration conf,
-                             int id,
-                             char *arg[]);
+    static int StartPeerNode(int id, char *arg[]);
 
     static int PeerToId(const Peer &peer);
 
-    static int GetFollwerPeers(std::vector<Peer> peers,
+    static int GetFollwerPeers(const std::vector<Peer>& peers,
                                Peer leader,
                                std::vector<Peer> *followers);
 
@@ -159,13 +153,13 @@ class PeerCluster {
     static int CreateCopyset(LogicPoolID logicPoolID,
                               CopysetID copysetID,
                               Peer peer,
-                              std::vector<Peer> peers);
+                              const std::vector<Peer>& peers);
 
  private:
     // 集群名字
     std::string             clusterName_;
     // 集群的peer集合
-    std::vector<Peer> peers_;
+    std::vector<Peer>       peers_;
     // peer集合的映射map
     std::unordered_map<std::string, std::unique_ptr<PeerNode>> peersMap_;
 
@@ -173,8 +167,6 @@ class PeerCluster {
     int                     snapshotIntervalS_;
     // 选举超时时间
     int                     electionTimeoutMs_;
-    // catchup margin配置
-    int                     catchupMargin_;
     // 集群成员配置
     Configuration           conf_;
 

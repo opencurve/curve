@@ -1,7 +1,7 @@
 /*
  * Project: curve
  * File Created: Thursday, 13th June 2019 4:14:55 pm
- * Author: tongguangxun
+ * Author: yangyaokai
  * Copyright (c)￼ 2018 netease
  */
 
@@ -165,7 +165,6 @@ TEST_F(RaftSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     int length = kOpRequestAlignSize;
     char ch = 'a';
     int loop = 25;
-    int snapshotTimeoutS = 2;
 
     std::vector<Peer> peers;
     peers.push_back(peer1);
@@ -178,8 +177,6 @@ TEST_F(RaftSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                         peers,
                         params,
                         paramsIndexs);
-    cluster.SetElectionTimeoutMs(electionTimeoutMs);
-    cluster.SetsnapshotIntervalS(snapshotTimeoutS);
     ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
     ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
     ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
@@ -201,7 +198,7 @@ TEST_F(RaftSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
     LOG(INFO) << "write 1 end";
     // raft内副本之间的操作并不是全部同步的，可能存在落后的副本操作
     // 所以先睡一会，防止并发统计文件信息
-    ::sleep(1*snapshotTimeoutS);
+    ::sleep(2);
 
     // shutdown 某个follower
     Peer shutdownPeer;
@@ -216,7 +213,7 @@ TEST_F(RaftSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
 
     // wait snapshot, 保证能够触发打快照
     // 此外通过增加chunk版本号，触发chunk文件产生快照文件
-    ::sleep(1.5*snapshotTimeoutS);
+    ::sleep(1.5*snapshotIntervalS);
     // 再次发起 read/write
     LOG(INFO) << "write 2 start";
     WriteThenReadVerify(leaderPeer,
@@ -238,7 +235,7 @@ TEST_F(RaftSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
                        loop);
 
     // wait snapshot, 保证能够触发打快照
-    ::sleep(1.5*snapshotTimeoutS);
+    ::sleep(1.5*snapshotIntervalS);
 
     // restart, 需要从 install snapshot 恢复
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
