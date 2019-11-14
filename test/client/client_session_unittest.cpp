@@ -278,18 +278,121 @@ TEST(ClientSession, LeaseTaskTest) {
     }
     ASSERT_TRUE(lease->LeaseValid());
 
+    // 9. set refresh AuthFail
+    refreshresp.set_statuscode(::curve::mds::kOwnerAuthFail);
+    FakeReturn* refreshFakeRetAuthFail =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshFakeRetAuthFail, refresht);
+
+    for (int i = 0; i < 5; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+
+    char* buf3 = new char[8 * 1024];
+    CurveAioContext aioctx2;
+    aioctx2.offset = 0;
+    aioctx2.length = 4 * 1024;
+    aioctx2.ret = LIBCURVE_ERROR::OK;
+    aioctx2.cb = sessioncallback;
+    aioctx2.buf = buf3;
+
+    ioSleepTime = TimeUtility::GetTimeofDayUs();
+
+    ASSERT_EQ(0, fileinstance.AioRead(&aioctx2));
+
+    std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME_S));
+
+    // 10. set refresh success
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretOK2 =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshfakeretOK2, refresht);
+
+    for (int i = 0; i < 2; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+    ASSERT_TRUE(lease->LeaseValid());
+
+    // 11. set refresh kFileNotExists
+    auto timerTask = fileinstance.GetLeaseExcutor()->GetTimerTask();
+    refreshresp.set_statuscode(::curve::mds::kFileNotExists);
+    FakeReturn* refreshFakeRetFileNotExists =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshFakeRetFileNotExists, refresht);
+
+    {
+        std::unique_lock<std::mutex> lk(mtx);
+        refreshcv.wait(lk);
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    lease = fileinstance.GetLeaseExcutor();
+    ASSERT_FALSE(lease->LeaseValid());
+
+    // 11. set refresh success
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretOK3 =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshfakeretOK3, refresht);
+    timerTask->ClearDeleteSelf();
+    fileinstance.GetLeaseExcutor()->SetTimerTask(timerTask);
+
+    for (int i = 0; i < 2; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+    ASSERT_TRUE(lease->LeaseValid());
+
+    // 12. set refresh kSessionNotExists
+    refreshresp.set_statuscode(::curve::mds::kSessionNotExist);
+    FakeReturn* refreshFakeRetSessionNotExists =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshFakeRetSessionNotExists, refresht);
+
+    {
+        std::unique_lock<std::mutex> lk(mtx);
+        refreshcv.wait(lk);
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    lease = fileinstance.GetLeaseExcutor();
+    ASSERT_FALSE(lease->LeaseValid());
+
+    // 13. set refresh success
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretOK4 =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshfakeretOK4, refresht);
+    timerTask->ClearDeleteSelf();
+    fileinstance.GetLeaseExcutor()->SetTimerTask(timerTask);
+
+    for (int i = 0; i < 2; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+    ASSERT_TRUE(lease->LeaseValid());
+
     std::unique_lock<std::mutex> lk(sessionMtx);
     sessionCV.wait(lk, [&]() { return sessionFlag; });
 
-
-    // 9. set fake close return
+    // 14. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* closefileret
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice->SetCloseFile(closefileret);
 
-    // 10. set refresh success
+    // 15. set refresh success
     // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
     // 这时候IO被恢复了。
     sessionFlag = false;

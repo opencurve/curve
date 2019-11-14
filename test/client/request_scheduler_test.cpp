@@ -551,5 +551,38 @@ TEST(RequestSchedulerTest, fake_server_test) {
     ASSERT_EQ(0, server.Join());
 }
 
+TEST(RequestSchedulerTest, CommonTest) {
+    RequestScheduleOption opt;
+    opt.queueCapacity = 4096;
+    opt.threadpoolSize = 2;
+    opt.ioSenderOpt.rpcTimeoutMs = 200;
+    opt.ioSenderOpt.rpcRetryTimes = 3;
+    opt.ioSenderOpt.failRequestOpt.opMaxRetry = 5;
+    opt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
+    opt.ioSenderOpt.enableAppliedIndexRead = 1;
+
+    RequestScheduler sche;
+    MetaCache metaCache;
+    FileMetric fm("test");
+
+    // queueCapacity 设置为 0
+    opt.queueCapacity = 0;
+    ASSERT_EQ(-1, sche.Init(opt, &metaCache, &fm));
+
+    // threadpoolsize 设置为 0
+    opt.queueCapacity = 4096;
+    opt.threadpoolSize = 0;
+    ASSERT_EQ(-1, sche.Init(opt, &metaCache, &fm));
+
+    opt.queueCapacity = 4096;
+    opt.threadpoolSize = 2;
+
+    ASSERT_EQ(0, sche.Init(opt, &metaCache, &fm));
+    ASSERT_EQ(0, sche.Run());
+    ASSERT_EQ(0, sche.Run());
+    ASSERT_EQ(0, sche.Fini());
+    ASSERT_EQ(0, sche.Fini());
+}
+
 }   // namespace client
 }   // namespace curve

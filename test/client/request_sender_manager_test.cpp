@@ -34,5 +34,22 @@ TEST(RequestSenderManagerTest, basic_test) {
     }
 }
 
+TEST(RequestSenderManagerTest, fail_test) {
+    IOSenderOption_t ioSenderOpt;
+    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
+    ioSenderOpt.enableAppliedIndexRead = 1;
+
+    std::unique_ptr<RequestSenderManager> senderManager(
+        new RequestSenderManager());
+    ChunkServerID leaderId = 123456789;
+    butil::EndPoint leaderAddr;
+    leaderAddr.ip = {0U};
+    leaderAddr.port = -1;
+
+    ASSERT_EQ(nullptr, senderManager->GetOrCreateSender(
+        leaderId, leaderAddr, ioSenderOpt));
+}
+
 }   // namespace client
 }   // namespace curve

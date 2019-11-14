@@ -212,6 +212,12 @@ class FileClient {
  private:
   inline bool CheckAligned(off_t offset, size_t length);
 
+  // 获取一个初始化的FileInstance对象
+  // return: 成功返回指向对象的指针,否则返回nullptr
+  FileInstance* GetInitedFileInstance(const std::string& filename,
+                                const UserInfo& userinfo,
+                                bool readonly);
+
  private:
   RWLock rwlock_;
 

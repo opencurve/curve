@@ -133,6 +133,8 @@ TEST_F(TestLibcbdLibcurve, ExtendTest) {
     ASSERT_EQ(ret, 0);
     ret = cbd_lib_resize(filename, NEWSIZE);
     ASSERT_EQ(ret, 0);
+    ret = cbd_lib_resize(filename, -1);
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, ret);
 
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
@@ -235,6 +237,24 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
 
     ret = cbd_lib_close(fd);
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+
+    ret = cbd_lib_fini();
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+}
+
+TEST_F(TestLibcbdLibcurve, StatFileTest) {
+    int64_t ret;
+    CurveOptions opt;
+
+    memset(&opt, 0, sizeof(opt));
+
+    // testing with conf specified
+    opt.conf = const_cast<char*>(configpath.c_str());
+    ret = cbd_lib_init(&opt);
+    ASSERT_EQ(ret, 0);
+
+    ret = cbd_lib_filesize(filename);
+    ASSERT_EQ(ret, FILESIZE);
 
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
