@@ -38,6 +38,10 @@ extern const char *kCurveConfEpochFilename;
 
 const char RAFT_DATA_DIR[] = "data";
 const char RAFT_META_DIR[] = "raft_meta";
+
+// TODO(all:fix it): RAFT_SNAP_DIR注意当前这个目录地址不能修改
+// 与当前外部依赖curve-braft代码强耦合（两边硬编码耦合）
+// 详见http://jira.netease.com/browse/CLDCFS-1937
 const char RAFT_SNAP_DIR[] = "raft_snapshot";
 const char RAFT_LOG_DIR[]  = "log";
 
