@@ -63,6 +63,16 @@ class FileClient {
   virtual int Open(const std::string& filename, const UserInfo_t& userinfo);
 
   /**
+   * 打开文件，这个打开只是创建了一个fd，并不与mds交互，没有session续约
+   * 这个Open接口主要是提供给快照克隆镜像系统做数据拷贝使用
+   * @param: filename文件名
+   * @param: userinfo当前用户信息
+   * @return: 返回文件fd
+   */
+  virtual int Open4ReadOnly(const std::string& filename,
+                                const UserInfo_t& userinfo);
+
+  /**
    * 创建文件
    * @param: filename文件名
    * @param: userinfo是当前打开或创建时携带的user信息
@@ -200,6 +210,12 @@ class FileClient {
 
  private:
   inline bool CheckAligned(off_t offset, size_t length);
+
+  // 获取一个初始化的FileInstance对象
+  // return: 成功返回指向对象的指针,否则返回nullptr
+  FileInstance* GetInitedFileInstance(const std::string& filename,
+                                const UserInfo& userinfo,
+                                bool readonly);
 
  private:
   RWLock rwlock_;

@@ -41,8 +41,8 @@ class MetaCache {
     using CopysetInfoMap             = std::unordered_map<CopysetLogicPoolIDStr, CopysetInfo_t>;            // NOLINT
     using ChunkIndexInfoMap          = std::map<ChunkIndex, ChunkIDInfo_t>;
 
-    MetaCache();
-    virtual ~MetaCache();
+    MetaCache() = default;
+    virtual ~MetaCache() = default;
 
     /**
      * 初始化函数
@@ -72,8 +72,8 @@ class MetaCache {
      * @param: chunkinfo是出参，存储chunk的版本信息
      * @param: 成功返回OK, 否则返回UNKNOWN_ERROR
      */
-    virtual MetaCacheErrorType GetChunkInfoByID(ChunkID chunkid,
-                                ChunkIDInfo_t* chunkinfo);
+    // virtual MetaCacheErrorType GetChunkInfoByID(ChunkID chunkid,
+    //                             ChunkIDInfo_t* chunkinfo);
 
     /**
      * sender发送数据的时候需要知道对应的leader然后发送给对应的chunkserver
@@ -211,9 +211,9 @@ class MetaCache {
      * 测试使用
      * 获取CopysetIDInfo_t
      */
-    virtual bool CopysetIDInfoIn(ChunkServerID csid,
-                                LogicPoolID lpid,
-                                CopysetID cpid);
+    // virtual bool CopysetIDInfoIn(ChunkServerID csid,
+    //                             LogicPoolID lpid,
+    //                             CopysetID cpid);
 
  private:
     /**

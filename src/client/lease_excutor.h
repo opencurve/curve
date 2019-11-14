@@ -86,6 +86,20 @@ class LeaseExcutor {
         }
     }
 
+    // 测试使用
+    TimerTask* GetTimerTask() const {
+        return refreshTask_;
+    }
+
+    // 测试使用
+    void SetTimerTask(TimerTask* task) {
+        timerTaskWorker_.AddTimerTask(refreshTask_);
+        LOG(INFO) << "add timer task "
+              << refreshTask_->GetTimerID()
+              << " for lease refresh!";
+        isleaseAvaliable_.store(true);
+    }
+
  private:
     /**
      * 续约任务执行者

@@ -81,12 +81,13 @@ int RequestClosure::AddInflightCntl(IOManagerID id,
     WriteLockGuard lk(rwLock_);
     auto it = inflightCntlMap_.find(id);
     if (it == inflightCntlMap_.end()) {
-        inflightCntlMap_[id] = new InflightControl;
-        if (inflightCntlMap_[id] == nullptr) {
+        auto cntl = new (std::nothrow) InflightControl();
+        if (cntl == nullptr) {
             LOG(ERROR) << "InflightControl allocate failed!";
             return -1;
         }
-        inflightCntlMap_[id]->SetMaxInflightNum(opt.maxInFlightRPCNum);
+        cntl->SetMaxInflightNum(opt.maxInFlightRPCNum);
+        inflightCntlMap_.emplace(id, cntl);
     }
     return 0;
 }

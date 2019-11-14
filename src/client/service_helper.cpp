@@ -113,11 +113,13 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
             continue;
         }
 
-        if (response.leader().has_id()) {
+        bool has_id = response.leader().has_id();
+        if (has_id) {
             *csid = response.leader().id();
         }
 
-        if (response.leader().has_address()) {
+        bool has_address = response.leader().has_address();
+        if (has_address) {
             leaderId->Parse(response.leader().address());
             return leaderId->IsEmpty() ? -1 : 0;
         }

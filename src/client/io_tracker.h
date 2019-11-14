@@ -189,6 +189,13 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     void ChunkServerErr2LibcurveErr(curve::chunkserver::CHUNK_OP_STATUS errcode,
                                     LIBCURVE_ERROR* errout);
 
+    /**
+     * 获取一个初始化后的RequestContext
+     * return: 如果分配失败或者初始化失败，返回nullptr
+     *         反之，返回一个指针
+     */
+    RequestContext* GetInitedRequestContext() const;
+
  private:
     // io 类型
     OpType  type_;
