@@ -124,15 +124,17 @@ class CurveCluster {
      * @brief 停止指定Id的snapshotcloneserver
      *
      * @param id snapshotcloneserver的id
+     * @param force 为true时使用kill -9
      */
-    void StopSnapshotCloneServer(int id);
+    void StopSnapshotCloneServer(int id, bool force = false);
 
     /**
      * @brief 重启指定Id的snapshotcloneserver
      *
      * @param id snapshotcloneserver的id
+     * @param force 为true时使用kill -9
      */
-    void RestartSnapshotCloneServer(int id);
+    void RestartSnapshotCloneServer(int id, bool force = false);
 
     /**
      * @brief 停止所有的snapshotcloneserver
