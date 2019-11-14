@@ -258,6 +258,7 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
         if (copysetNodeMap_.end() != it) {
             copysetNodeMap_.erase(it);
             ret = true;
+            LOG(INFO) << "Delete copyset success, groupid: " << groupId;
         }
     }
 
@@ -290,6 +291,7 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
                            << ", " << copysetId << "> persistently";
                 ret = false;
             }
+            LOG(INFO) << "Move copyset to trash success, groupid: " << groupId;
             copysetNodeMap_.erase(it);
             ret = true;
         }

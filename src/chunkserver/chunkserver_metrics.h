@@ -32,6 +32,7 @@ namespace chunkserver {
 class CopysetNodeManager;
 class ChunkfilePool;
 class CSDataStore;
+class Trash;
 
 template <typename Tp>
 using PassiveStatusPtr = std::shared_ptr<bvar::PassiveStatus<Tp>>;
@@ -160,10 +161,16 @@ class CSCopysetMetric {
     }
 
     const uint32_t GetChunkCount() const {
+        if (chunkCount_ == nullptr) {
+            return 0;
+        }
         return chunkCount_->get_value();
     }
 
     const uint32_t GetSnapshotCount() const {
+        if (snapshotCount_ == nullptr) {
+            return 0;
+        }
         return snapshotCount_->get_value();
     }
 
@@ -202,8 +209,6 @@ struct ChunkServerMetricOptions {
 
 using CopysetMetricPtr = std::shared_ptr<CSCopysetMetric>;
 using CopysetMetricMap = std::unordered_map<GroupId, CopysetMetricPtr>;
-using ConfigItemPtr = std::shared_ptr<bvar::Status<std::string>>;
-using ConfigMetricMap =  std::unordered_map<std::string, ConfigItemPtr>;
 
 class ChunkServerMetric : public Uncopyable {
  public:
@@ -303,6 +308,12 @@ class ChunkServerMetric : public Uncopyable {
     void MonitorChunkFilePool(ChunkfilePool* chunkfilePool);
 
     /**
+     * 监视回收站
+     * @param trash: trash的对象指针
+     */
+    void MonitorTrash(Trash* trash);
+
+    /**
      * 增加 leader count 计数
      */
     void IncreaseLeaderCount();
@@ -316,7 +327,7 @@ class ChunkServerMetric : public Uncopyable {
      * 更新配置项数据
      * @param conf: 配置内容
      */
-    void UpdateConfigMetric(const common::Configuration& conf);
+    void UpdateConfigMetric(common::Configuration* conf);
 
     // 下列函数用户获取各项metric 指标
     const IOMetricPtr GetReadMetric() const {
@@ -338,14 +349,34 @@ class ChunkServerMetric : public Uncopyable {
         return leaderCount_->get_value();
     }
 
+    const uint32_t GetTotalChunkCount() {
+        uint32_t totalChunkCount = 0;
+        ReadLockGuard lockGuard(rwLock_);
+        for (auto& iter : copysetMetricMap_) {
+            totalChunkCount += iter.second->GetChunkCount();
+        }
+        return totalChunkCount;
+    }
+
+    const uint32_t GetTotalSnapshotCount() {
+        uint32_t totalSnapshotCount = 0;
+        ReadLockGuard lockGuard(rwLock_);
+        for (auto& iter : copysetMetricMap_) {
+            totalSnapshotCount += iter.second->GetSnapshotCount();
+        }
+        return totalSnapshotCount;
+    }
+
     const uint32_t GetChunkLeftCount() const {
         if (chunkLeft_ == nullptr)
             return 0;
         return chunkLeft_->get_value();
     }
 
-    const ConfigMetricMap GetConfigMetric() const {
-        return configMetric_;
+    const uint32_t GetChunkTrashedCount() const {
+        if (chunkTrashed_ == nullptr)
+            return 0;
+        return chunkTrashed_->get_value();
     }
 
  private:
@@ -370,10 +401,10 @@ class ChunkServerMetric : public Uncopyable {
     AdderPtr<uint32_t> leaderCount_;
     // chunkfilepool 中剩余的 chunk 的数量
     PassiveStatusPtr<uint32_t> chunkLeft_;
+    // trash 中的 chunk 的数量
+    PassiveStatusPtr<uint32_t> chunkTrashed_;
     // 各复制组metric的映射表，用GroupId作为key
     CopysetMetricMap copysetMetricMap_;
-    // chunkserver配置的metric
-    ConfigMetricMap configMetric_;
     // 用于单例模式的自指指针
     static ChunkServerMetric* self_;
 };
