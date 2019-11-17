@@ -55,6 +55,7 @@ bool FakeMDS::Initialize() {
         copysetServices_.push_back(new FakeCreateCopysetService());
         raftStateServices_.push_back(new FakeRaftStateService());
     }
+    operatorNum_.expose("mds_scheduler_metric_operator_num");
     return true;
 }
 
