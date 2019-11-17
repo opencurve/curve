@@ -326,6 +326,23 @@ message GetChunkServerListInCopySetsResponse {
     repeated CopySetServerInfo csInfo = 2;
 }
 
+message CopysetInfo {
+    required uint32 logicalPoolId = 1;
+    required uint32 copysetId = 2;
+}
+
+message GetCopySetsInChunkServerRequest {
+    //use either chunkServerID  or  hostIp&port to get copusets on chunkserver
+    optional uint32 chunkServerID = 1;
+    optional string hostIp = 2;
+    optional uint32 port = 3;
+}
+
+message GetCopySetsInChunkServerResponse {
+    required sint32 statusCode = 1;
+    repeated CopysetInfo copysetInfos = 2;
+}
+
 //TODO(hzsunjianliang): update userPolicy and so on
 service TopologyService {
     rpc RegistChunkServer(ChunkServerRegistRequest) returns (ChunkServerRegistResponse);
@@ -356,5 +373,6 @@ service TopologyService {
     rpc ListLogicalPool(ListLogicalPoolRequest)         returns (ListLogicalPoolResponse);
 
     rpc GetChunkServerListInCopySets(GetChunkServerListInCopySetsRequest) returns (GetChunkServerListInCopySetsResponse);
+    rpc GetCopySetsInChunkServer(GetCopySetsInChunkServerRequest) returns (GetCopySetsInChunkServerResponse);
 }
 

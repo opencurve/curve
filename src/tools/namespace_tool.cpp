@@ -13,6 +13,7 @@ DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20*1024*1024*1024ull, "file length");
 DEFINE_bool(isTest, false, "is unit test or not");
 DEFINE_uint64(offset, 0, "offset to query chunk location");
+DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
 
 namespace curve {
 namespace tool {
@@ -87,7 +88,7 @@ int NameSpaceTool::Init(const std::string& mdsAddr) {
         curve::mds::GetFileInfoRequest request;
         curve::mds::GetFileInfoResponse response;
         brpc::Controller cntl;
-        cntl.set_timeout_ms(3000);
+        cntl.set_timeout_ms(FLAGS_rpc_timeout);
         request.set_filename("/");
         FillUserInfo(&request);
         curve::mds::CurveFSService_Stub stub(channel_);
@@ -175,7 +176,7 @@ int NameSpaceTool::GetFileInfo(const std::string &fileName,
     curve::mds::GetFileInfoRequest request;
     curve::mds::GetFileInfoResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpc_timeout);
     request.set_filename(fileName);
     FillUserInfo(&request);
 
@@ -284,7 +285,7 @@ int NameSpaceTool::ListDir(const std::string& dirName,
     curve::mds::ListDirRequest request;
     curve::mds::ListDirResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpc_timeout);
     request.set_filename(dirName);
     FillUserInfo(&request);
 
@@ -432,7 +433,7 @@ int NameSpaceTool::DeleteFile(const std::string& fileName, bool forcedelete) {
     curve::mds::DeleteFileRequest request;
     curve::mds::DeleteFileResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpc_timeout);
     request.set_filename(fileName);
     request.set_forcedelete(forcedelete);
     FillUserInfo(&request);
@@ -490,7 +491,7 @@ int NameSpaceTool::CreateFile(const std::string& fileName) {
     curve::mds:: CreateFileRequest request;
     curve::mds::CreateFileResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpc_timeout);
     request.set_filename(fileName);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
     request.set_filelength(FLAGS_fileLength);

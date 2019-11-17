@@ -183,6 +183,7 @@ cc_library(
         "//external:brpc",
         "//external:braft",
         "//proto:topology_cc_proto",
+        "//proto:chunkserver-cc-protos",
         "//src/common:curve_common",
         "//src/mds/common:mds_common",
     ],
