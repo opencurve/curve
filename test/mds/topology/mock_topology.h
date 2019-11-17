@@ -229,6 +229,10 @@ class MockTopologyServiceManager : public TopologyServiceManager {
   MOCK_METHOD2(GetChunkServerListInCopySets, void(
       const GetChunkServerListInCopySetsRequest *request,
       GetChunkServerListInCopySetsResponse *response));
+
+  MOCK_METHOD2(GetCopySetsInChunkServer, void(
+      const GetCopySetsInChunkServerRequest *request,
+      GetCopySetsInChunkServerResponse *response));
 };
 
 class MockTopologyServiceImpl : public TopologyService {

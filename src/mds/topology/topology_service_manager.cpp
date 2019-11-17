@@ -1290,6 +1290,36 @@ void TopologyServiceManager::GetChunkServerListInCopySets(
     return;
 }
 
+void TopologyServiceManager::GetCopySetsInChunkServer(
+                      const GetCopySetsInChunkServerRequest* request,
+                      GetCopySetsInChunkServerResponse* response) {
+    ChunkServer cs;
+    if (request->has_chunkserverid()) {
+        if (!topology_->GetChunkServer(request->chunkserverid(), &cs)) {
+            response->set_statuscode(kTopoErrCodeChunkServerNotFound);
+            return;
+        }
+    } else if (request->has_hostip() && request->has_port()) {
+        if (!topology_->GetChunkServerNotRetired(request->hostip(),
+                                       request->port(), &cs)) {
+            response->set_statuscode(kTopoErrCodeChunkServerNotFound);
+            return;
+        }
+    } else {
+        response->set_statuscode(kTopoErrCodeInvalidParam);
+        return;
+    }
+
+    response->set_statuscode(kTopoErrCodeSuccess);
+    std::vector<CopySetKey> copysets =
+                    topology_->GetCopySetsInChunkServer(cs.GetId());
+    for (const CopySetKey& copyset : copysets) {
+        CopysetInfo *info = response->add_copysetinfos();
+        info->set_logicalpoolid(copyset.first);
+        info->set_copysetid(copyset.second);
+    }
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
