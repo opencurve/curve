@@ -109,7 +109,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_success) {
     stub.RegistChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -141,7 +141,7 @@ TEST_F(TestTopologyService, test_RegistChunkServer_fail) {
     stub.RegistChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -170,7 +170,7 @@ TEST_F(TestTopologyService, test_ListChunkServer_success) {
     stub.ListChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -199,7 +199,7 @@ TEST_F(TestTopologyService, test_ListChunkServer_fail) {
     stub.ListChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -228,7 +228,7 @@ TEST_F(TestTopologyService, test_GetChunkServer_success) {
     stub.GetChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -257,7 +257,7 @@ TEST_F(TestTopologyService, test_GetChunkServer_fail) {
     stub.GetChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -286,7 +286,7 @@ TEST_F(TestTopologyService, test_DeleteChunkServer_success) {
     stub.DeleteChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -315,7 +315,7 @@ TEST_F(TestTopologyService, test_DeleteChunkServer_fail) {
     stub.DeleteChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -345,7 +345,7 @@ TEST_F(TestTopologyService, test_setChunkServer_success) {
     stub.SetChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -375,7 +375,7 @@ TEST_F(TestTopologyService, test_setChunkServer_fail) {
     stub.SetChunkServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -407,7 +407,7 @@ TEST_F(TestTopologyService, test_RegistServer_success) {
     stub.RegistServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -439,7 +439,7 @@ TEST_F(TestTopologyService, test_RegistServer_fail) {
     stub.RegistServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -468,7 +468,7 @@ TEST_F(TestTopologyService, test_GetServer_success) {
     stub.GetServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -497,7 +497,7 @@ TEST_F(TestTopologyService, test_GetServer_fail) {
     stub.GetServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -526,7 +526,7 @@ TEST_F(TestTopologyService, test_DeleteServer_success) {
     stub.DeleteServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -555,7 +555,7 @@ TEST_F(TestTopologyService, test_DeleteServer_fail) {
     stub.DeleteServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -584,7 +584,7 @@ TEST_F(TestTopologyService, test_ListZoneServer_success) {
     stub.ListZoneServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -613,7 +613,7 @@ TEST_F(TestTopologyService, test_ListZoneServer_fail) {
     stub.ListZoneServer(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -642,7 +642,7 @@ TEST_F(TestTopologyService, test_CreateZone_success) {
     stub.CreateZone(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -671,7 +671,7 @@ TEST_F(TestTopologyService, test_CreateZone_fail) {
     stub.CreateZone(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -700,7 +700,7 @@ TEST_F(TestTopologyService, test_DeleteZone_success) {
     stub.DeleteZone(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -729,7 +729,7 @@ TEST_F(TestTopologyService, test_DeleteZone_fail) {
     stub.DeleteZone(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -758,7 +758,7 @@ TEST_F(TestTopologyService, test_GetZone_success) {
     stub.GetZone(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -787,7 +787,7 @@ TEST_F(TestTopologyService, test_GetZone_fail) {
     stub.GetZone(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -816,7 +816,7 @@ TEST_F(TestTopologyService, test_ListPoolZone_success) {
     stub.ListPoolZone(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -845,7 +845,7 @@ TEST_F(TestTopologyService, test_ListPoolZone_fail) {
     stub.ListPoolZone(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -874,7 +874,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_success) {
     stub.CreatePhysicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -903,7 +903,7 @@ TEST_F(TestTopologyService, test_CreatePhysicalPool_fail) {
     stub.CreatePhysicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -932,7 +932,7 @@ TEST_F(TestTopologyService, test_DeletePhysicalPool_success) {
     stub.DeletePhysicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -961,7 +961,7 @@ TEST_F(TestTopologyService, test_DeletePhysicalPool_fail) {
     stub.DeletePhysicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -990,7 +990,7 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_success) {
     stub.GetPhysicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -1019,7 +1019,7 @@ TEST_F(TestTopologyService, test_GetPhysicalPool_fail) {
     stub.GetPhysicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -1047,7 +1047,7 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_success) {
     stub.ListPhysicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -1075,7 +1075,7 @@ TEST_F(TestTopologyService, test_ListPhysicalPool_fail) {
     stub.ListPhysicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -1108,7 +1108,7 @@ TEST_F(TestTopologyService, test_CreateLogicalPool_success) {
     stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -1141,7 +1141,7 @@ TEST_F(TestTopologyService, test_CreateLogicalPool_fail) {
     stub.CreateLogicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -1170,7 +1170,7 @@ TEST_F(TestTopologyService, test_DeleteLogicalPool_success) {
     stub.DeleteLogicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -1199,7 +1199,7 @@ TEST_F(TestTopologyService, test_DeleteLogicalPool_fail) {
     stub.DeleteLogicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -1228,7 +1228,7 @@ TEST_F(TestTopologyService, test_GetLogicalPool_success) {
     stub.GetLogicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -1257,7 +1257,7 @@ TEST_F(TestTopologyService, test_GetLogicalPool_fail) {
     stub.GetLogicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -1286,7 +1286,7 @@ TEST_F(TestTopologyService, test_ListLogicalPool_success) {
     stub.ListLogicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -1315,7 +1315,7 @@ TEST_F(TestTopologyService, test_ListLogicalPool_fail) {
     stub.ListLogicalPool(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
@@ -1344,7 +1344,7 @@ TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_success) {
     stub.GetChunkServerListInCopySets(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
@@ -1373,7 +1373,65 @@ TEST_F(TestTopologyService, test_GetChunkServerListInCopySets_fail) {
     stub.GetChunkServerListInCopySets(&cntl, &request, &response, nullptr);
 
     if (cntl.Failed()) {
-        LOG(ERROR) << cntl.ErrorText() << std::endl;
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_GetCopySetsInChunkServer_success) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    GetCopySetsInChunkServerRequest request;
+    request.set_chunkserverid(1);
+
+    GetCopySetsInChunkServerResponse response;
+
+    GetCopySetsInChunkServerResponse reps;
+    reps.set_statuscode(kTopoErrCodeSuccess);
+    EXPECT_CALL(*manager_, GetCopySetsInChunkServer(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.GetCopySetsInChunkServer(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
+    }
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+}
+
+TEST_F(TestTopologyService, test_GetCopySetsInChunkServer_fail) {
+    brpc::Channel channel;
+    if (channel.Init(listenAddr_, NULL) != 0) {
+        FAIL() << "Fail to init channel "
+               << std::endl;
+    }
+
+    TopologyService_Stub stub(&channel);
+
+    brpc::Controller cntl;
+    GetCopySetsInChunkServerRequest request;
+    request.set_chunkserverid(1);
+
+    GetCopySetsInChunkServerResponse response;
+
+    GetCopySetsInChunkServerResponse reps;
+    reps.set_statuscode(kTopoErrCodeInvalidParam);
+    EXPECT_CALL(*manager_, GetCopySetsInChunkServer(_, _))
+    .WillRepeatedly(SetArgPointee<1>(reps));
+
+    stub.GetCopySetsInChunkServer(&cntl, &request, &response, nullptr);
+
+    if (cntl.Failed()) {
+        FAIL() << cntl.ErrorText() << std::endl;
     }
 
     ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
