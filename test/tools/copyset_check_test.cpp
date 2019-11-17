@@ -20,6 +20,11 @@ using curve::mds::topology::ListPoolZoneResponse;
 using curve::mds::topology::ListZoneServerResponse;
 using curve::mds::topology::ListChunkServerResponse;
 using curve::mds::topology::GetChunkServerInfoResponse;
+using curve::mds::topology::GetCopySetsInChunkServerRequest;
+using curve::mds::topology::GetCopySetsInChunkServerResponse;
+using curve::mds::topology::LogicalPoolType;
+using curve::mds::topology::AllocateStatus;
+using curve::chunkserver::GetChunkInfoResponse;
 
 std::string metaserver_addr = "127.0.0.1:9170";  // NOLINT
 uint32_t chunk_size = 4*1024*1024;  // NOLINT
@@ -108,13 +113,27 @@ class CopysetCheckTest : public ::testing::Test {
         serverInfo->set_desc("123");
     }
 
+    void GetLogicalPoolForTest(curve::mds::topology::LogicalPoolInfo *lpInfo) {
+        lpInfo->set_logicalpoolid(1);
+        lpInfo->set_logicalpoolname("defaultLogicalPool");
+        lpInfo->set_physicalpoolid(1);
+        lpInfo->set_type(LogicalPoolType::PAGEFILE);
+        lpInfo->set_createtime(1574218021);
+        lpInfo->set_redundanceandplacementpolicy(
+            "{\"zoneNum\": 3, \"copysetNum\": 4000, \"replicaNum\": 3}");
+        lpInfo->set_userpolicy("{\"policy\": 1}");
+        lpInfo->set_allocatestatus(AllocateStatus::ALLOW);
+    }
+
     void GetIoBufForTest(butil::IOBuf* buf, bool isLeader, bool snapshot,
                          bool noLeader, bool peersLess, bool gapBig,
-                         bool parseErr) {
+                         bool parseErr, bool peerOffline = false) {
         butil::IOBufBuilder os;
         os << "[8589934692]\r\n";
         if (peersLess) {
             os << "peers: \r\n";
+        } else if (peerOffline) {
+            os << "peers: 127.0.0.1:9191:0 127.0.0.1:9192:0 127.0.0.1:9194:0\r\n";  // NOLINT
         } else {
             os << "peers: 127.0.0.1:9191:0 127.0.0.1:9192:0 127.0.0.1:9193:0\r\n";  // NOLINT
         }
@@ -204,7 +223,7 @@ TEST_F(CopysetCheckTest, testCheckOneCopyset) {
     infoPtr->CopyFrom(csInfo);
     // 设置chunkserver的返回
     std::vector<FakeRaftStateService *> statServices =
-                                    fakemds.GetRaftStateServie();
+                                    fakemds.GetRaftStateService();
     statServices[0]->SetBuf(followerBuf);
     statServices[1]->SetBuf(leaderBuf);
     statServices[2]->SetBuf(followerBuf);
@@ -214,6 +233,16 @@ TEST_F(CopysetCheckTest, testCheckOneCopyset) {
     for (auto service : statServices) {
         service->SetFailed(true);
     }
+    // chunkserver不在线的话会调用topologyService获取上面的所有copyset
+    std::unique_ptr<GetCopySetsInChunkServerResponse> resp(
+                                    new GetCopySetsInChunkServerResponse());
+    resp->set_statuscode(kTopoErrCodeSuccess);
+    auto copysetInfo1 = resp->add_copysetinfos();
+    copysetInfo1->set_logicalpoolid(1);
+    copysetInfo1->set_copysetid(1000);
+    std::unique_ptr<FakeReturn> fakegetcopysetincsret(
+         new FakeReturn(nullptr, static_cast<void*>(resp.get())));
+    topology->fakegetcopysetincsret_ = fakegetcopysetincsret.get();
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
 
     // 4、iobuf没找到copyset的情况
@@ -289,7 +318,7 @@ TEST_F(CopysetCheckTest, testCheckChunkserver) {
     // 2、正常情况
     // 设置GetChunkServerInfo的返回
     std::vector<FakeRaftStateService *> statServices =
-                                    fakemds.GetRaftStateServie();
+                                    fakemds.GetRaftStateService();
     FLAGS_chunkserverId = 1;
     curve::mds::topology::ChunkServerInfo* csInfo =
                     new curve::mds::topology::ChunkServerInfo();
@@ -299,8 +328,9 @@ TEST_F(CopysetCheckTest, testCheckChunkserver) {
     // 设置chunkserver的返回
     statServices[0]->SetBuf(leaderBuf);
     ASSERT_EQ(0, copysetCheck.RunCommand("check-chunkserver"));
-    FLAGS_chunkserverId = 0;
     FLAGS_chunkserverAddr = "127.0.0.1";
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
+    FLAGS_chunkserverId = 0;
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     FLAGS_chunkserverAddr = "127.0.0.1:%*";
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
@@ -309,6 +339,15 @@ TEST_F(CopysetCheckTest, testCheckChunkserver) {
 
     // 3、获取chunkserver状态失败的情况
     statServices[0]->SetFailed(true);
+    std::unique_ptr<GetCopySetsInChunkServerResponse> resp(
+                                    new GetCopySetsInChunkServerResponse());
+    resp->set_statuscode(kTopoErrCodeSuccess);
+    auto copysetInfo1 = resp->add_copysetinfos();
+    copysetInfo1->set_logicalpoolid(1);
+    copysetInfo1->set_copysetid(1000);
+    std::unique_ptr<FakeReturn> fakegetcopysetincsret(
+         new FakeReturn(nullptr, static_cast<void*>(resp.get())));
+    topology->fakegetcopysetincsret_ = fakegetcopysetincsret.get();
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
 
     // 4、iobuf没找到copyset的情况
@@ -342,12 +381,17 @@ TEST_F(CopysetCheckTest, testCheckChunkserver) {
     statServices[1]->SetBuf(leaderBuf2);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
 
-    // 9、follower中的leader为空的情况
+    // 9、有一个副本掉线的情况
+    GetIoBufForTest(&leaderBuf2, true, false, false, false, false, false, true);
+    statServices[1]->SetBuf(leaderBuf2);
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
+
+    // 10、follower中的leader为空的情况
     GetIoBufForTest(&followerBuf, false, false, true, false, false, false);
     statServices[0]->SetBuf(followerBuf);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
 
-    // 10、chunkserver retired的情况，应该打印返回healthy
+    // 11、chunkserver retired的情况，应该打印返回healthy
     curve::mds::topology::ChunkServerInfo* csInfo2 =
                     new curve::mds::topology::ChunkServerInfo();
     GetCsInfoForTest(csInfo2, 9191, true);
@@ -370,9 +414,9 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     topology->fakelistpoolret_ = fakelistpoolret.get();
     curve::tool::CopysetCheck copysetCheck;
     ASSERT_EQ(0, copysetCheck.Init(mdsAddr));
-    ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
     FLAGS_serverId = 1;
-    copysetCheck.PrintHelp("check-chunkserver");
+    copysetCheck.PrintHelp("check-server");
     // 设置好IOBuf
     butil::IOBuf leaderBuf;
     GetIoBufForTest(&leaderBuf, true, false, false, false, false, false);
@@ -393,8 +437,9 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
 
     // 2、正常情况,中间有一个chunkserver retired了
-    FLAGS_serverId = 0;
     FLAGS_serverIp = "127.0.0.1";
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
+    FLAGS_serverId = 0;
     for (int i = 0; i < 3; ++i) {
         auto csPtr = response->add_chunkserverinfos();
         if (i == 1) {
@@ -407,11 +452,28 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     response->set_statuscode(kTopoErrCodeSuccess);
     // 设置chunkserver的返回
     std::vector<FakeRaftStateService *> statServices =
-                                    fakemds.GetRaftStateServie();
+                                    fakemds.GetRaftStateService();
     statServices[0]->SetBuf(followerBuf);
     statServices[1]->SetBuf(leaderBuf);
     statServices[2]->SetBuf(followerBuf);
     ASSERT_EQ(0, copysetCheck.RunCommand("check-server"));
+
+    // 有chunkserver不健康
+    GetIoBufForTest(&followerBuf, false, false, true, false, false, false);
+    statServices[0]->SetBuf(followerBuf);
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
+    // 有一个chunkserver掉线了
+    statServices[1]->SetFailed(true);
+    std::unique_ptr<GetCopySetsInChunkServerResponse> resp(
+                                    new GetCopySetsInChunkServerResponse());
+    resp->set_statuscode(kTopoErrCodeSuccess);
+    auto copysetInfo1 = resp->add_copysetinfos();
+    copysetInfo1->set_logicalpoolid(1);
+    copysetInfo1->set_copysetid(1000);
+    std::unique_ptr<FakeReturn> fakegetcopysetincsret(
+         new FakeReturn(nullptr, static_cast<void*>(resp.get())));
+    topology->fakegetcopysetincsret_ = fakegetcopysetincsret.get();
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
 }
 
 TEST_F(CopysetCheckTest, testCheckCluster) {
@@ -466,13 +528,41 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
     cntl->Reset();
     listCsResp->set_statuscode(kTopoErrCodeSuccess);
     topology->SetFakeReturn(fakeRet.get());
+    // 设置ListLogicalPool的返回
+    std::unique_ptr<ListLogicalPoolResponse> listLpResp(
+                    new ListLogicalPoolResponse());
+    listLpResp->set_statuscode(kTopoErrCodeSuccess);
+    auto lpPtr = listLpResp->add_logicalpoolinfos();
+    GetLogicalPoolForTest(lpPtr);
+    std::unique_ptr<FakeReturn>  fakelistlogicalpoolret(
+         new FakeReturn(nullptr, static_cast<void*>(listLpResp.get())));
+    topology->fakelistlogicalpoolret_ = fakelistlogicalpoolret.get();
     // 设置chunkserver的返回
     std::vector<FakeRaftStateService *> statServices =
-                                    fakemds.GetRaftStateServie();
+                                    fakemds.GetRaftStateService();
     statServices[0]->SetBuf(followerBuf);
     statServices[1]->SetBuf(leaderBuf);
     statServices[2]->SetBuf(followerBuf);
     ASSERT_EQ(0, copysetCheck.RunCommand("check-cluster"));
+
+    // operator大于0的情况
+    fakemds.SetOperatorNum(10);
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-cluster"));
+
+    fakemds.SetOperatorNum(0);
+
+    // 有chunkserver不在线的情况
+    statServices[1]->SetFailed(true);
+    std::unique_ptr<GetCopySetsInChunkServerResponse> resp(
+                                    new GetCopySetsInChunkServerResponse());
+    resp->set_statuscode(kTopoErrCodeSuccess);
+    auto copysetInfo1 = resp->add_copysetinfos();
+    copysetInfo1->set_logicalpoolid(1);
+    copysetInfo1->set_copysetid(1000);
+    std::unique_ptr<FakeReturn> fakegetcopysetincsret(
+         new FakeReturn(nullptr, static_cast<void*>(resp.get())));
+    topology->fakegetcopysetincsret_ = fakegetcopysetincsret.get();
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-cluster"));
 
     // 发送RPC失败的情况
     // ListZoneServer失败的情况
@@ -485,6 +575,11 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
     listZoneResp->set_statuscode(-1);
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-cluster"));
     fakelistzoneret->controller_ = cntl.get();
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-cluster"));
+    // ListLogicalPool失败的情况
+    listLpResp->set_statuscode(-1);
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-cluster"));
+    fakelistlogicalpoolret->controller_ = cntl.get();
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-cluster"));
     // ListPysicalPool失败的情况
     listPoolResp->set_statuscode(-1);
