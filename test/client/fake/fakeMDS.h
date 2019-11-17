@@ -44,6 +44,10 @@ using ::curve::mds::topology::ListPoolZoneRequest;
 using ::curve::mds::topology::ListPoolZoneResponse;
 using ::curve::mds::topology::ListZoneServerRequest;
 using ::curve::mds::topology::ListZoneServerResponse;
+using ::curve::mds::topology::GetCopySetsInChunkServerRequest;
+using ::curve::mds::topology::GetCopySetsInChunkServerResponse;
+using ::curve::mds::topology::ListLogicalPoolRequest;
+using ::curve::mds::topology::ListLogicalPoolResponse;
 
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
@@ -756,6 +760,36 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
         response->CopyFrom(*resp);
     }
 
+    void GetCopySetsInChunkServer(::google::protobuf::RpcController* controller,
+                       const GetCopySetsInChunkServerRequest* request,
+                       GetCopySetsInChunkServerResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakegetcopysetincsret_->controller_ != nullptr
+             && fakegetcopysetincsret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<GetCopySetsInChunkServerResponse*>(
+            fakegetcopysetincsret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ListLogicalPool(::google::protobuf::RpcController* controller,
+                       const ListLogicalPoolRequest* request,
+                       ListLogicalPoolResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakelistlogicalpoolret_->controller_ != nullptr
+             && fakelistlogicalpoolret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<ListLogicalPoolResponse*>(
+            fakelistlogicalpoolret_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
@@ -764,6 +798,8 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
     FakeReturn* fakelistpoolret_;
     FakeReturn* fakelistzoneret_;
     FakeReturn* fakelistserverret_;
+    FakeReturn* fakegetcopysetincsret_;
+    FakeReturn* fakelistlogicalpoolret_;
 };
 
 typedef void (*HeartbeatCallback) (
@@ -908,12 +944,16 @@ class FakeMDS {
         return chunkServices_;
     }
 
-    std::vector<FakeRaftStateService *> GetRaftStateServie() {
+    std::vector<FakeRaftStateService *> GetRaftStateService() {
         return raftStateServices_;
     }
 
     FakeMDSTopologyService* GetTopologyService() {
         return &faketopologyservice_;
+    }
+
+    void SetOperatorNum(uint64_t opNum) {
+        operatorNum_ << opNum;
     }
 
  private:
@@ -932,6 +972,8 @@ class FakeMDS {
     FakeMDSCurveFSService fakecurvefsservice_;
     FakeMDSTopologyService faketopologyservice_;
     FakeMDSHeartbeatService fakeHeartbeatService_;
+
+    bvar::Adder<uint32_t> operatorNum_;
 };
 
 #endif   // TEST_CLIENT_FAKE_FAKEMDS_H_
