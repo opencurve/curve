@@ -209,14 +209,14 @@ int ChunkServer::Run(int argc, char** argv) {
     // =======================启动各模块==================================//
     LOG(INFO) << "ChunkServer starts.";
 
+    LOG_IF(FATAL, trash_->Run() != 0)
+        << "Failed to start trash.";
+    LOG_IF(FATAL, cloneManager_.Run() != 0)
+        << "Failed to start clone manager.";
     LOG_IF(FATAL, copysetNodeManager_.Run() != 0)
         << "Failed to start CopysetNodeManager.";
     LOG_IF(FATAL, heartbeat_.Run() != 0)
         << "Failed to start heartbeat manager.";
-    LOG_IF(FATAL, cloneManager_.Run() != 0)
-        << "Failed to start clone manager.";
-    LOG_IF(FATAL, trash_->Run() != 0)
-        << "Failed to start trash.";
 
     // ========================添加rpc服务===============================//
     // TODO(lixiaocui): rpc中各接口添加上延迟metric
@@ -293,12 +293,12 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG(INFO) << "ChunkServer is going to quit.";
     LOG_IF(ERROR, heartbeat_.Fini() != 0)
         << "Failed to shutdown heartbeat manager.";
+    LOG_IF(ERROR, copysetNodeManager_.Fini() != 0)
+        << "Failed to shutdown CopysetNodeManager.";
     LOG_IF(ERROR, cloneManager_.Fini() != 0)
         << "Failed to shutdown clone manager.";
     LOG_IF(ERROR, copyer->Fini() != 0)
         << "Failed to shutdown clone copyer.";
-    LOG_IF(ERROR, copysetNodeManager_.Fini() != 0)
-        << "Failed to shutdown CopysetNodeManager.";
     LOG_IF(ERROR, trash_->Fini() != 0)
         << "Failed to shutdown trash.";
     concurrentapply.Stop();
