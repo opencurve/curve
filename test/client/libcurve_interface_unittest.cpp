@@ -696,7 +696,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
         }
     }
 
-    mds.EnableNetUnstable(8000);
+    mds.EnableNetUnstable(10000);
 
     // 写2次，读2次，每次请求重试3次
     // 因为在chunkserver端设置了延迟，导致每次请求都会超时
