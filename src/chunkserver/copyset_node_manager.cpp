@@ -40,6 +40,10 @@ int CopysetNodeManager::Run() {
 }
 
 int CopysetNodeManager::Fini() {
+    for (auto& copysetNode : copysetNodeMap_) {
+        copysetNode.second->Fini();
+    }
+    copysetNodeMap_.clear();
     return 0;
 }
 
