@@ -80,7 +80,8 @@ do
 		    -copySetUri=local:///data/chunkserver$i/copysets \
 		    -recycleUri=local:///data/chunkserver$i/recycler \
 		    -raft_sync_segments=true \
-		    -log_dir=${DATA_DIR}/log/chunkserver$i/ > /dev/null 2>&1 &
+		    -graceful_quit_on_sigterm=true \
+            -log_dir=${DATA_DIR}/log/chunkserver$i/ > /dev/null 2>&1 &
 done
 exit
 fi
@@ -124,4 +125,5 @@ LD_PRELOAD=/lib/x86_64-linux-gnu/libjemalloc.so.1 curve-chunkserver \
 	    -copySetUri=local:///data/chunkserver$1/copysets \
 	    -recycleUri=local:///data/chunkserver$1/recycler \
 	    -raft_sync_segments=true \
-	    -log_dir=${DATA_DIR}/log/chunkserver$1 > /dev/null 2>&1 &
+        -graceful_quit_on_sigterm=true \
+        -log_dir=${DATA_DIR}/log/chunkserver$1 > /dev/null 2>&1 &
