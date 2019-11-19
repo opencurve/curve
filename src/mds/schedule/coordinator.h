@@ -148,8 +148,9 @@ class Coordinator {
      * @brief 定时任务, 运行不同的scheduler
      *
      * @param[in] s 定时运行scheduler
+     * @param[in] type scheduler类型
      */
-    void RunScheduler(const std::shared_ptr<Scheduler> &s);
+    void RunScheduler(const std::shared_ptr<Scheduler> &s, SchedulerType type);
 
     /**
      * @brief BuildCopySetConf 构建下发给chunkserver的copyset配置
@@ -161,6 +162,15 @@ class Coordinator {
      */
     bool BuildCopySetConf(
         const CopySetConf &res, ::curve::mds::heartbeat::CopySetConf *out);
+
+    /**
+     * @brief ScheduleNeedRun 指定类型的调度器是否允许运行
+     *
+     * @param[in] type 调度器类型
+     *
+     * @return true-允许运行, false-不允许运行
+     */
+    bool ScheduleNeedRun(SchedulerType type);
 
  private:
     std::shared_ptr<TopoAdapter> topo_;

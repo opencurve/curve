@@ -125,8 +125,8 @@ class RaftLogReplicationTest : public testing::Test {
         ::system(mkdir4.c_str());
         ::system(mkdir5.c_str());
 
-        electionTimeoutMs = 3000;
-        snapshotIntervalS = 1;
+        electionTimeoutMs = 1000;
+        snapshotIntervalS = 20;
         waitMultiReplicasBecomeConsistent = 3000;
 
         ASSERT_TRUE(cg1.Init("9071"));
@@ -134,16 +134,26 @@ class RaftLogReplicationTest : public testing::Test {
         ASSERT_TRUE(cg3.Init("9073"));
         ASSERT_TRUE(cg4.Init("9074"));
         ASSERT_TRUE(cg5.Init("9075"));
-        cg1.SetKV("copyset.election_timeout_ms", "3000");
-        cg1.SetKV("copyset.snapshot_interval_s", "1");
-        cg2.SetKV("copyset.election_timeout_ms", "3000");
-        cg2.SetKV("copyset.snapshot_interval_s", "1");
-        cg3.SetKV("copyset.election_timeout_ms", "3000");
-        cg3.SetKV("copyset.snapshot_interval_s", "1");
-        cg4.SetKV("copyset.election_timeout_ms", "3000");
-        cg4.SetKV("copyset.snapshot_interval_s", "1");
-        cg5.SetKV("copyset.election_timeout_ms", "3000");
-        cg5.SetKV("copyset.snapshot_interval_s", "1");
+        cg1.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg1.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg2.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg2.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg3.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg3.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg4.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg4.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg5.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg5.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
         ASSERT_TRUE(cg1.Generate());
         ASSERT_TRUE(cg2.Generate());
         ASSERT_TRUE(cg3.Generate());
@@ -264,8 +274,8 @@ TEST_F(RaftLogReplicationTest, ThreeNodeImplicitCommit) {
                             ch ++,
                             1);
 
-    // 3. 等待step down
-    ::usleep(1000 * electionTimeoutMs * 1.3);
+    // 3. 等待step down,等待2个选举超时，保证一定step down
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -411,8 +421,8 @@ TEST_F(RaftLogReplicationTest, ThreeNodeTruncateLog) {
  * 验证3个节点的复制组，测试向落后多个term的follower复制日志
  * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
  * 2. 挂掉一个follower
- * 3. 挂掉leader，等待1个ET重启
- * 4. 挂掉leader，等待1个ET重启
+ * 3. 挂掉leader，等待2个ET重启
+ * 4. 挂掉leader，等待2个ET重启
  * 3. 拉起挂掉的follower
  */
 TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
@@ -466,9 +476,9 @@ TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
                         ch++,
                         loop);
 
-    // 3. 挂掉leader，等待1个ET重启
+    // 3. 挂掉leader，等待2个ET重启
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
-    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
                                    PeerCluster::PeerToId(leaderPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -481,9 +491,9 @@ TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
                         ch++,
                         loop);
 
-    // 4. 挂掉leader，等待1个ET重启
+    // 4. 挂掉leader，等待2个ET重启
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
-    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
                                    PeerCluster::PeerToId(leaderPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -692,7 +702,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
                            ch - 1,
                            1);
 
-    ::usleep(1000 * electionTimeoutMs * 1.5);
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 11. 逐个拉起来
     ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
                                    PeerCluster::PeerToId(leaderPeer)));
@@ -740,8 +750,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
                             ch++,  // j
                             1);
 
-
-    ::usleep(1000 * electionTimeoutMs * 1.5);
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 13. 逐个拉起来
     ASSERT_EQ(0, cluster.StartPeer(followerPeers3[0],
                                    PeerCluster::PeerToId(followerPeers3[0])));
@@ -956,9 +965,9 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
                            ch - 1,
                            1);
 
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 11. 逐个恢复
     ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
-    ::usleep(1000 * electionTimeoutMs * 1.5);
     ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
@@ -1003,8 +1012,8 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
 
 
     // 13. 逐个恢复
+    ::usleep(1000 * electionTimeoutMs * 2);
     ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[0]));
-    ::usleep(1000 * electionTimeoutMs * 1.5);
     ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,

@@ -190,6 +190,11 @@ void CopysetNode::Fini() {
         // 等待所有的正在处理的task结束
         raftNode_->join();
     }
+    if (nullptr != concurrentapply_) {
+        // 将未刷盘的数据落盘，如果不刷盘
+        // 迁移copyset时，copyset移除后再去执行WriteChunk操作可能出错
+        concurrentapply_->Flush();
+    }
 }
 
 void CopysetNode::on_apply(::braft::Iterator &iter) {
