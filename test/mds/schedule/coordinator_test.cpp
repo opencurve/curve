@@ -222,6 +222,41 @@ TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
         ASSERT_TRUE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 4}));
     }
 }
+
+TEST(CoordinatorTest, test_SchedulerSwitch) {
+    auto topo = std::make_shared<MockTopology>();
+    auto metric = std::make_shared<ScheduleMetrics>(topo);
+    auto topoAdapter = std::make_shared<MockTopoAdapter>();
+    auto coordinator = std::make_shared<Coordinator>(topoAdapter);
+    ScheduleOption scheduleOption;
+    scheduleOption.enableCopysetScheduler = true;
+    scheduleOption.enableLeaderScheduler = true;
+    scheduleOption.enableRecoverScheduler = true;
+    scheduleOption.enableReplicaScheduler = true;
+    scheduleOption.copysetSchedulerIntervalSec = 0;
+    scheduleOption.leaderSchedulerIntervalSec = 0;
+    scheduleOption.recoverSchedulerIntervalSec = 0;
+    scheduleOption.replicaSchedulerIntervalSec = 0;
+    scheduleOption.operatorConcurrent = 2;
+    scheduleOption.transferLeaderTimeLimitSec = 1;
+    scheduleOption.addPeerTimeLimitSec = 1;
+    scheduleOption.removePeerTimeLimitSec = 1;
+    coordinator->InitScheduler(scheduleOption, metric);
+
+    EXPECT_CALL(*topoAdapter, GetCopySetInfos()).Times(0);
+    EXPECT_CALL(*topoAdapter, GetLogicalpools()).Times(0);
+    EXPECT_CALL(*topoAdapter, GetChunkServerInfos()).Times(0);
+
+    // 设置flag都为false
+    gflags::SetCommandLineOption("enableCopySetScheduler", "false");
+    gflags::SetCommandLineOption("enableLeaderScheduler", "false");
+    gflags::SetCommandLineOption("enableReplicaScheduler", "false");
+    gflags::SetCommandLineOption("enableRecoverScheduler", "false");
+
+    coordinator->Run();
+    ::sleep(1);
+    coordinator->Stop();
+}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
