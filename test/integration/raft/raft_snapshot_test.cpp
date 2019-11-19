@@ -106,7 +106,7 @@ class RaftSnapshotTest : public testing::Test {
         ::system(mkdir3.c_str());
         ::system(mkdir4.c_str());
 
-        electionTimeoutMs_ = 3000;
+        electionTimeoutMs_ = 1000;
         snapshotIntervalS_ = 60;
 
         ASSERT_TRUE(cg1_.Init("9321"));
