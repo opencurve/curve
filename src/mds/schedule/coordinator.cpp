@@ -15,6 +15,20 @@
 namespace curve {
 namespace mds {
 namespace schedule {
+/**
+ * 使用curl -L mdsIp:port/flags/enableCopySetScheduler?setvalue=true
+ * 可以实现动态修改参数
+ */
+static bool pass_bool(const char*, bool) { return true; }
+DEFINE_bool(enableCopySetScheduler, true, "switch of copyset scheduler");
+DEFINE_validator(enableCopySetScheduler, &pass_bool);
+DEFINE_bool(enableLeaderScheduler, true, "switch of leader scheduler");
+DEFINE_validator(enableLeaderScheduler, &pass_bool);
+DEFINE_bool(enableReplicaScheduler, true, "switch of replica scheduler");
+DEFINE_validator(enableReplicaScheduler, &pass_bool);
+DEFINE_bool(enableRecoverScheduler, true, "switch of recover scheduler");
+DEFINE_validator(enableRecoverScheduler, &pass_bool);
+
 Coordinator::Coordinator(const std::shared_ptr<TopoAdapter> &topo) {
     this->topo_ = topo;
     schedulerRunning_ = false;
@@ -86,7 +100,7 @@ void Coordinator::Run() {
     // run different scheduler at interval in different threads
     for (auto &v : schedulerController_) {
         runSchedulerThreads_[v.first] = common::Thread(
-            &Coordinator::RunScheduler, this, v.second);
+            &Coordinator::RunScheduler, this, v.second, v.first);
     }
 }
 
@@ -172,14 +186,17 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
     return ::curve::mds::topology::UNINTIALIZE_ID;
 }
 
-void Coordinator::RunScheduler(const std::shared_ptr<Scheduler> &s) {
+void Coordinator::RunScheduler(
+    const std::shared_ptr<Scheduler> &s, SchedulerType type) {
     while (schedulerRunning_) {
         std::this_thread::
         sleep_for(std::chrono::seconds(s->GetRunningInterval()));
 
-        s->Schedule();
+        if (ScheduleNeedRun(type)) {
+            s->Schedule();
+        }
     }
-    LOG(INFO) << "scheduler exist.";
+    LOG(INFO) << "scheduler exit.";
 }
 
 bool Coordinator::BuildCopySetConf(
@@ -239,6 +256,22 @@ bool Coordinator::ChunkserverGoingToAdd(
 void Coordinator::SetSchedulerRunning(bool flag) {
     common::LockGuard guard(mutex_);
     schedulerRunning_ = flag;
+}
+
+bool Coordinator::ScheduleNeedRun(SchedulerType type) {
+    switch (type) {
+        case SchedulerType::CopySetSchedulerType:
+            return FLAGS_enableCopySetScheduler;
+
+        case SchedulerType::LeaderSchedulerType:
+            return FLAGS_enableLeaderScheduler;
+
+        case SchedulerType::RecoverSchedulerType:
+            return FLAGS_enableRecoverScheduler;
+
+        case SchedulerType::ReplicaSchedulerType:
+            return FLAGS_enableReplicaScheduler;
+    }
 }
 
 std::shared_ptr<OperatorController> Coordinator::GetOpController() {
