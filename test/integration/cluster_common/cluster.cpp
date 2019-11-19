@@ -424,12 +424,16 @@ void CurveCluster::RecoverHangChunkServer(int id) {
 void CurveCluster::HangProcess(pid_t pid) {
     LOG(INFO) << "hang pid: " << pid << " begin...";
     ASSERT_EQ(0, kill(pid, SIGSTOP));
+    int waitStatus;
+    waitpid(pid, &waitStatus, WUNTRACED);
     LOG(INFO) << "success hang pid: " << pid;
 }
 
 void CurveCluster::RecoverHangProcess(pid_t pid) {
     LOG(INFO) << "recover hang pid: " << pid << " begin...";
     ASSERT_EQ(0, kill(pid, SIGCONT));
+    int waitStatus;
+    waitpid(pid, &waitStatus, WCONTINUED);
     LOG(INFO) << "success recover hang pid: " << pid;
 }
 
