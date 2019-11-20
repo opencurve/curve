@@ -197,6 +197,9 @@ TEST_F(CopysetClientTest, normal_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     // write success
     for (int i = 0; i < 10; ++i) {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -209,7 +212,9 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);;
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         ChunkResponse response;
@@ -240,6 +245,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -273,6 +280,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -311,6 +320,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -341,6 +352,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -374,6 +387,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -459,6 +474,9 @@ TEST_F(CopysetClientTest, write_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -472,6 +490,9 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -505,6 +526,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = -1;
@@ -536,6 +559,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试超时时间为5000，因为chunkserver设置返回timeout
         // 导致触发底层超时时间指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*1000
@@ -578,6 +603,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试睡眠时间为5000，因为chunkserver设置返回timeout
         // 导致触发底层指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*5000
@@ -620,6 +647,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -650,6 +679,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -690,6 +721,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -731,6 +764,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -772,6 +807,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -821,6 +858,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -877,6 +916,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -968,6 +1009,9 @@ TEST_F(CopysetClientTest, write_failed_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* controller set timeout */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -981,6 +1025,8 @@ TEST_F(CopysetClientTest, write_failed_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试超时时间为500，因为chunkserver设置返回timeout
         // 导致触发底层超时时间指数退避，每次重试间隔增大。重试50次正常只需要超时49*500
@@ -1021,6 +1067,8 @@ TEST_F(CopysetClientTest, write_failed_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试睡眠时间为5000us，因为chunkserver设置返回timeout
         // 导致触发底层指数退避，每次重试间隔增大。重试50次正常只需要睡眠49*5000us
@@ -1113,6 +1161,9 @@ TEST_F(CopysetClientTest, read_failed_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* controller set timeout */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -1130,6 +1181,8 @@ TEST_F(CopysetClientTest, read_failed_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = brpc::ERPCTIMEDOUT;
@@ -1167,6 +1220,8 @@ TEST_F(CopysetClientTest, read_failed_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试睡眠时间为5000us，因为chunkserver设置返回timeout
         // 导致触发底层指数退避，每次重试间隔增大。重试50次正常只需要睡眠49*5000
@@ -1259,6 +1314,9 @@ TEST_F(CopysetClientTest, read_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -1272,6 +1330,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1302,6 +1362,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1333,6 +1395,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -1371,6 +1435,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = brpc::ERPCTIMEDOUT;
@@ -1408,6 +1474,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试睡眠时间为500，因为chunkserver设置返回timeout
         // 导致触发底层指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*500
@@ -1449,6 +1517,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1479,6 +1549,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1519,6 +1591,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1560,6 +1634,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1601,6 +1677,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1650,6 +1728,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1706,6 +1786,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1790,6 +1872,9 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -1804,6 +1889,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1835,6 +1922,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1865,6 +1954,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -1894,6 +1985,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1925,6 +2018,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1966,6 +2061,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2007,6 +2104,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2048,6 +2147,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2098,6 +2199,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2155,6 +2258,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2197,6 +2302,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2267,6 +2374,9 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -2278,6 +2388,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2307,6 +2419,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -2334,6 +2448,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2363,6 +2479,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2402,6 +2520,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2441,6 +2561,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2480,6 +2602,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2528,6 +2652,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2583,6 +2709,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2623,6 +2751,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2694,6 +2824,9 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -2705,6 +2838,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2733,6 +2868,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -2759,6 +2896,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2787,6 +2926,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
 
@@ -2819,6 +2960,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2857,6 +3000,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2895,6 +3040,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2942,6 +3089,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2996,6 +3145,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3035,6 +3186,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -3106,6 +3259,9 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -3117,6 +3273,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -3144,6 +3302,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -3169,6 +3329,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -3196,6 +3358,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3229,6 +3393,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3266,6 +3432,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3303,6 +3471,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3349,6 +3519,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3402,6 +3574,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3440,6 +3614,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -3508,6 +3684,9 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -3518,6 +3697,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -3543,6 +3724,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
@@ -3566,6 +3749,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -3591,6 +3776,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -3626,6 +3813,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -3661,6 +3850,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -3696,6 +3887,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -3740,6 +3933,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -3791,6 +3986,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -3827,6 +4024,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
