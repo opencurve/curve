@@ -21,6 +21,8 @@ using curve::chunkserver::CHUNK_OP_STATUS;
 namespace curve {
 namespace client {
 
+std::atomic<uint64_t> IOTracker::tracekerID_(1);
+
 IOTracker::IOTracker(IOManager* iomanager,
                         MetaCache* mc,
                         RequestScheduler* scheduler,
@@ -29,6 +31,7 @@ IOTracker::IOTracker(IOManager* iomanager,
                         iomanager_(iomanager),
                         scheduler_(scheduler),
                         fileMetric_(clientMetric) {
+    id_         = tracekerID_.fetch_add(1);
     aioctx_     = nullptr;
     data_       = nullptr;
     type_       = OpType::UNKNOWN;

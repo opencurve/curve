@@ -75,6 +75,9 @@ TEST(RequestSchedulerTest, fake_server_test) {
     cmpbuff[8] = '\0';
     off_t offset = 0;
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* error request schedule test when scheduler not run */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -86,6 +89,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(0);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -102,6 +107,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(0);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         ASSERT_EQ(-1, requestScheduler.ScheduleRequest(reqCtx));
     }
@@ -137,6 +144,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -157,6 +166,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -181,6 +192,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -202,6 +215,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -244,6 +259,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -266,6 +283,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -288,6 +307,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -309,6 +330,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -331,6 +354,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -358,6 +383,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -380,6 +407,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -404,6 +433,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -426,6 +457,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -448,6 +481,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         std::list<RequestContext *> reqCtxs;
@@ -471,6 +506,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
             reqCtx->rawlength_ = len;
 
             RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+            reqDone->SetFileMetric(&fm);
+            reqDone->SetIOTracker(&iot);
             reqCtx->done_ = reqDone;
             ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtx));
         }
@@ -500,6 +537,8 @@ TEST(RequestSchedulerTest, fake_server_test) {
         reqCtx->rawlength_ = len;
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         ASSERT_EQ(0, requestScheduler.ScheduleRequest(reqCtx));
         cond.Wait();
