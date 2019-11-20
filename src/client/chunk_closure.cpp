@@ -24,6 +24,7 @@
 #include "src/client/metacache.h"
 #include "src/client/request_closure.h"
 #include "src/client/request_context.h"
+#include "src/client/io_tracker.h"
 
 // TODO(tongguangxun) :优化重试逻辑，将重试逻辑与RPC返回逻辑拆开
 namespace curve {
@@ -58,7 +59,9 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
                   << ", logicPoolId = " << logicPoolId
                   << ", chunkid = " << chunkid
                   << ", offset = " << reqCtx->offset_
-                  << ", reteied times = " << reqDone->GetRetriedTimes();
+                  << ", reteied times = " << reqDone->GetRetriedTimes()
+                  << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                  << ", request id = " << reqCtx->id_;
         return;
     } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
         uint64_t nextsleeptime = OverLoadBackOff(reqDone->GetRetriedTimes());
@@ -67,16 +70,20 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
                   << ", logicPoolId = " << logicPoolId
                   << ", chunkid = " << chunkid
                   << ", offset = " << reqCtx->offset_
-                  << ", reteied times = " << reqDone->GetRetriedTimes();
+                  << ", reteied times = " << reqDone->GetRetriedTimes()
+                  << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                  << ", request id = " << reqCtx->id_;
         bthread_usleep(nextsleeptime);
         return;
     } else {
         LOG(INFO) << "rpc failed, sleep(us) = " << failReqOpt_.opRetryIntervalUs
-                    << ", copysetid = " << copysetId
-                    << ", logicPoolId = " << logicPoolId
-                    << ", chunkid = " << chunkid
-                    << ", offset = " << reqCtx->offset_
-                    << ", reteied times = " << reqDone->GetRetriedTimes();
+                  << ", copysetid = " << copysetId
+                  << ", logicPoolId = " << logicPoolId
+                  << ", chunkid = " << chunkid
+                  << ", offset = " << reqCtx->offset_
+                  << ", reteied times = " << reqDone->GetRetriedTimes()
+                  << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                  << ", request id = " << reqCtx->id_;
         bthread_usleep(failReqOpt_.opRetryIntervalUs);
     }
 }
@@ -140,12 +147,15 @@ void WriteChunkClosure::Run() {
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::WRITE);
         }
 
-        LOG(ERROR) << "write failed, error code: "
+        LOG_EVERY_N(ERROR, 10) << "file [" << fm->filename << "]"
+                   << ", write failed, error code: "
                    << cntl_->ErrorCode()
                    << ", error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
-                   << ", logicpool id = " << logicPoolId;
+                   << ", logicpool id = " << logicPoolId
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         /* It will be invoked in brpc's bthread, so */
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
@@ -168,7 +178,9 @@ void WriteChunkClosure::Run() {
                 LOG(WARNING) << "Refresh leader failed, "
                             << "copyset id = " << copysetId
                             << ", logicPoolId = " << logicPoolId
-                            << ", currrent op return status = " << cntlstatus;
+                            << ", currrent op return status = " << cntlstatus
+                            << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                            << ", request id = " << reqCtx->id_;
             }
         }
 
@@ -221,7 +233,9 @@ void WriteChunkClosure::Run() {
             LOG(WARNING) << "Refresh leader failed, "
                          << "copyset id = " << copysetId
                          << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
+                         << ", currrent op return status = " << status
+                         << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                         << ", request id = " << reqCtx->id_;
         }
         goto write_retry;
     }
@@ -236,29 +250,37 @@ void WriteChunkClosure::Run() {
             LOG(WARNING) << "Refresh leader failed, "
                          << "copyset id = " << copysetId
                          << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
+                         << ", currrent op return status = " << status
+                         << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                         << ", request id = " << reqCtx->id_;
         }
         goto write_retry;
     }
     /* 2.3.非法参数 */
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST == status) {
         reqDone->SetFailed(status);
-        LOG(ERROR) << "write failed for invalid format, write info: "
+        LOG(ERROR) << "file [" << fm->filename << "]"
+                   << ", write failed for invalid format, write info: "
                    << "<" << logicPoolId << ", " << copysetId
                    << ", " << chunkid << "> offset=" << reqCtx->offset_
                    << ", length=" << reqCtx->rawlength_
-                   << ", status=" << status;
+                   << ", status=" << status
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         MetricHelper::IncremFailRPCCount(fm, OpType::WRITE);
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
-    LOG_EVERY_N(ERROR, 10) << "write failed, write info: "
+    LOG_EVERY_N(ERROR, 10) << "file [" << fm->filename << "]"
+               << ", write failed, write info: "
                << "<" << logicPoolId << ", " << copysetId
                << ", " << chunkid << "> offset=" << reqCtx->offset_
                << ", length =" << reqCtx->rawlength_
                << ", status ="
                << curve::chunkserver::CHUNK_OP_STATUS_Name(
-                   static_cast<CHUNK_OP_STATUS>(status));
+                   static_cast<CHUNK_OP_STATUS>(status))
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
     goto write_retry;
 
 write_retry:
@@ -268,7 +290,10 @@ write_retry:
         metaCache->UpdateAppliedIndex(logicPoolId,
                                       copysetId,
                                       0);
-        LOG(ERROR) << "retried times exceeds";
+        LOG(ERROR) << "file [" << fm->filename << "]"
+                   << ", retried times exceeds"
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -283,7 +308,9 @@ write_retry:
                      << " times, set suspend flag!"
                      << " <" << logicPoolId << ", " << copysetId
                      << ", " << chunkid << "> offset=" << reqCtx->offset_
-                     << ", length =" << reqCtx->rawlength_;
+                     << ", length =" << reqCtx->rawlength_
+                     << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                     << ", request id = " << reqCtx->id_;
     }
 
     PreProcessBeforeRetry(status, cntlstatus);
@@ -323,11 +350,14 @@ void ReadChunkClosure::Run() {
             MetricHelper::IncremTimeOutRPCCount(fm, OpType::READ);
         }
 
-        LOG_EVERY_N(ERROR, 10) << "read failed, error: "
+        LOG_EVERY_N(ERROR, 10) << "file [" << fm->filename << "]"
+                   << ", read failed, error: "
                    << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
-                   << ", logicpool id = " << logicPoolId;
+                   << ", logicpool id = " << logicPoolId
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
 
         if (UnstableChunkServerHelper::IsTimeoutExceed(chunkserverID_)) {
             metaCache->SetChunkserverUnstable(chunkserverID_);
@@ -341,7 +371,9 @@ void ReadChunkClosure::Run() {
                 LOG(WARNING) << "Refresh leader failed, "
                             << "copyset id = " << copysetId
                             << ", logicPoolId = " << logicPoolId
-                            << ", currrent op return status = " << status;
+                            << ", currrent op return status = " << status
+                            << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                            << ", request id = " << reqCtx->id_;
             }
         }
 
@@ -392,7 +424,9 @@ void ReadChunkClosure::Run() {
             LOG(WARNING) << "Refresh leader failed, "
                          << "copyset id = " << copysetId
                          << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
+                         << ", currrent op return status = " << status
+                        << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                        << ", request id = " << reqCtx->id_;
         }
         goto read_retry;
     }
@@ -407,18 +441,23 @@ void ReadChunkClosure::Run() {
             LOG(WARNING) << "Refresh leader failed, "
                          << "copyset id = " << copysetId
                          << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
+                         << ", currrent op return status = " << status
+                        << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                        << ", request id = " << reqCtx->id_;
         }
         goto read_retry;
     }
     /* 2.3.非法参数 */
     if (CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST == status) {
         reqDone->SetFailed(status);
-        LOG(WARNING) << "read failed for invalid format, read info: "
+        LOG(WARNING) << "file [" << fm->filename << "]"
+                   << ", read failed for invalid format, read info: "
                    << "<" << logicPoolId << ", " << copysetId
                    << ", " << chunkid << "> offset=" << reqCtx->offset_
                    << ", length=" << reqCtx->rawlength_
-                   << ", status=" << status;
+                   << ", status=" << status
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         MetricHelper::IncremFailRPCCount(fm, OpType::READ);
         return;
     }
@@ -435,13 +474,16 @@ void ReadChunkClosure::Run() {
         return;
     }
     /* 2.5.其他错误，过一段时间再重试 */
-    LOG_EVERY_N(ERROR, 10) << "read failed , read info: "
-               << "<" << logicPoolId << ", " << copysetId
-               << ", " << chunkid << "> offset=" << reqCtx->offset_
-               << ", length=" << reqCtx->rawlength_
-               << ", status="
-               << curve::chunkserver::CHUNK_OP_STATUS_Name(
-                   static_cast<CHUNK_OP_STATUS>(status));
+    LOG_EVERY_N(ERROR, 10) << "file [" << fm->filename << "]"
+                << ", read failed , read info: "
+                << "<" << logicPoolId << ", " << copysetId
+                << ", " << chunkid << "> offset=" << reqCtx->offset_
+                << ", length=" << reqCtx->rawlength_
+                << ", status="
+                << curve::chunkserver::CHUNK_OP_STATUS_Name(
+                   static_cast<CHUNK_OP_STATUS>(status))
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
     goto read_retry;
 
 read_retry:
@@ -449,7 +491,10 @@ read_retry:
 
     if (reqDone->GetRetriedTimes() >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
-        LOG(ERROR) << "retried times exceeds";
+        LOG(ERROR) << "file [" << fm->filename << "]"
+                    << ", retried times exceeds"
+                    << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                    << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -464,7 +509,9 @@ read_retry:
                      << " times, set suspend flag!"
                      << " <" << logicPoolId << ", " << copysetId
                      << ", " << chunkid << "> offset=" << reqCtx->offset_
-                     << ", length =" << reqCtx->rawlength_;
+                     << ", length =" << reqCtx->rawlength_
+                     << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                     << ", request id = " << reqCtx->id_;
     }
 
     PreProcessBeforeRetry(status, cntlstatus);
@@ -499,7 +546,9 @@ void ReadChunkSnapClosure::Run() {
         LOG(WARNING) << "read snapshot failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
-                   << ", logicpool id = " << logicPoolId;
+                   << ", logicpool id = " << logicPoolId
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -512,7 +561,9 @@ void ReadChunkSnapClosure::Run() {
             LOG(WARNING) << "Refresh leader failed, "
                          << "copyset id = " << copysetId
                          << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
+                         << ", currrent op return status = " << status
+                        << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                        << ", request id = " << reqCtx->id_;
         }
         goto read_retry;
     }
@@ -546,9 +597,11 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             LOG(WARNING) << "Refresh leader failed, "
-                         << "copyset id = " << copysetId
-                         << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
+                << "copyset id = " << copysetId
+                << ", logicPoolId = " << logicPoolId
+                << ", currrent op return status = " << status
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
         }
 
         goto read_retry;
@@ -561,9 +614,11 @@ void ReadChunkSnapClosure::Run() {
                                        &leaderAddr,
                                        true)) {
             LOG(WARNING) << "Refresh leader failed, "
-                         << "copyset id = " << copysetId
-                         << ", logicPoolId = " << logicPoolId
-                         << ", currrent op return status = " << status;
+                << "copyset id = " << copysetId
+                << ", logicPoolId = " << logicPoolId
+                << ", currrent op return status = " << status
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
         }
         goto read_retry;
     }
@@ -576,7 +631,9 @@ void ReadChunkSnapClosure::Run() {
                    << ", sn=" << reqCtx->seq_
                    << ", offset=" << reqCtx->offset_
                    << ", length=" << reqCtx->rawlength_
-                   << ", status=" << status;
+                   << ", status=" << status
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -589,24 +646,30 @@ void ReadChunkSnapClosure::Run() {
                    << ", sn=" << reqCtx->seq_
                    << ", offset=" << reqCtx->offset_
                    << ", length=" << reqCtx->rawlength_
-                   << ", status=" << status;
+                   << ", status=" << status
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
 
     /* 2.5.其他错误，过一段时间再重试 */
     LOG(WARNING) << "read snapshot failed for UNKNOWN reason, read info: "
-               << "<" << logicPoolId << ", " << copysetId
-               << ">, " << chunkid
-               << ", sn=" << reqCtx->seq_
-               << ", offset=" << reqCtx->offset_
-               << ", length=" << reqCtx->rawlength_
-               << ", status=" << status;
+                << "<" << logicPoolId << ", " << copysetId
+                << ">, " << chunkid
+                << ", sn=" << reqCtx->seq_
+                << ", offset=" << reqCtx->offset_
+                << ", length=" << reqCtx->rawlength_
+                << ", status=" << status
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
     goto read_retry;
 
 read_retry:
     if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
-        LOG(ERROR) << "read snapshot retried times exceeds";
+        LOG(ERROR) << "read snapshot retried times exceeds"
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -643,7 +706,9 @@ void DeleteChunkSnapClosure::Run() {
         LOG(WARNING) << "delete snapshot failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
-                   << ", logicpool id = " << logicPoolId;
+                   << ", logicpool id = " << logicPoolId
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -705,22 +770,28 @@ void DeleteChunkSnapClosure::Run() {
                    << "<" << logicPoolId << ", " << copysetId
                    << ">, " << chunkid
                    << ", sn=" << reqCtx->seq_
-                   << ", status=" << status;
+                   << ", status=" << status
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
     LOG(WARNING) << "delete snapshot failed for UNKNOWN reason, read info: "
-               << "<" << logicPoolId << ", " << copysetId
-               << ">, " << chunkid
-               << ", sn=" << reqCtx->seq_
-               << ", status=" << status;
+                << "<" << logicPoolId << ", " << copysetId
+                << ">, " << chunkid
+                << ", sn=" << reqCtx->seq_
+                << ", status=" << status
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
     bthread_usleep(failReqOpt_.opRetryIntervalUs);
     goto delete_retry;
 
 delete_retry:
     if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
-        LOG(ERROR) << "delete snapshot retried times exceeds";
+        LOG(ERROR) << "delete snapshot retried times exceeds"
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -753,7 +824,9 @@ void GetChunkInfoClosure::Run() {
         LOG(WARNING) << "get chunk info failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
-                   << ", logicpool id = " << logicPoolId;
+                   << ", logicpool id = " << logicPoolId
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -819,21 +892,27 @@ void GetChunkInfoClosure::Run() {
         LOG(ERROR) << "get chunk info failed for invalid format, write info: "
                    << "<" << logicPoolId << ", " << copysetId
                    << ">, " << chunkid
-                   << ", status=" << status;
+                   << ", status=" << status
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
     LOG(WARNING) << "get chunk info failed for UNKNOWN reason, read info: "
-               << "<" << logicPoolId << ", " << copysetId
-               << ">, " << chunkid
-               << ", status=" << status;
+                << "<" << logicPoolId << ", " << copysetId
+                << ">, " << chunkid
+                << ", status=" << status
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
     bthread_usleep(failReqOpt_.opRetryIntervalUs);
     goto get_retry;
 
 get_retry:
     if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
-        LOG(ERROR) << "get chunk info retried times exceeds";
+        LOG(ERROR) << "get chunk info retried times exceeds"
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -865,7 +944,9 @@ void CreateCloneChunkClosure::Run() {
         LOG(WARNING) << "create clone failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
-                   << ", logicpool id = " << logicPoolId;
+                   << ", logicpool id = " << logicPoolId
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -928,22 +1009,28 @@ void CreateCloneChunkClosure::Run() {
                    << "<" << logicPoolId << ", " << copysetId
                    << ">, " << chunkid
                    << ", sn=" << reqCtx->seq_
-                   << ", status=" << status;
+                   << ", status=" << status
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
     LOG(ERROR) << "create clone failed for UNKNOWN reason, read info: "
-               << "<" << logicPoolId << ", " << copysetId
-               << ">, " << chunkid
-               << ", sn=" << reqCtx->seq_
-               << ", status=" << status;
+                << "<" << logicPoolId << ", " << copysetId
+                << ">, " << chunkid
+                << ", sn=" << reqCtx->seq_
+                << ", status=" << status
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
     bthread_usleep(failReqOpt_.opRetryIntervalUs);
     goto create_retry;
 
 create_retry:
     if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
-        LOG(ERROR) << "create clone retried times exceeds";
+        LOG(ERROR) << "create clone retried times exceeds"
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -979,7 +1066,9 @@ void RecoverChunkClosure::Run() {
         LOG(WARNING) << "recover chunk failed, error: " << cntl_->ErrorText()
                    << ", chunk id = " << chunkid
                    << ", copyset id = " << copysetId
-                   << ", logicpool id = " << logicPoolId;
+                   << ", logicpool id = " << logicPoolId
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         /**
          * 考虑到 leader 可能挂了，所以会尝试去获取新 leader，保证 client 端
          * 能够自动切换到新的 leader 上面
@@ -1042,22 +1131,28 @@ void RecoverChunkClosure::Run() {
                    << "<" << logicPoolId << ", " << copysetId
                    << ">, " << chunkid
                    << ", sn=" << reqCtx->seq_
-                   << ", status=" << status;
+                   << ", status=" << status
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
     /* 2.4.其他错误，过一段时间再重试 */
     LOG(WARNING) << "recover chunk failed for UNKNOWN reason, read info: "
-               << "<" << logicPoolId << ", " << copysetId
-               << ">, " << chunkid
-               << ", sn=" << reqCtx->seq_
-               << ", status=" << status;
+                << "<" << logicPoolId << ", " << copysetId
+                << ">, " << chunkid
+                << ", sn=" << reqCtx->seq_
+                << ", status=" << status
+                << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                << ", request id = " << reqCtx->id_;
     bthread_usleep(failReqOpt_.opRetryIntervalUs);
     goto recover_retry;
 
 recover_retry:
     if (unsigned(retriedTimes_ + 1) >= failReqOpt_.opMaxRetry) {
         reqDone->SetFailed(status);
-        LOG(ERROR) << "recover chunk retried times exceeds";
+        LOG(ERROR) << "recover chunk retried times exceeds"
+                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                   << ", request id = " << reqCtx->id_;
         return;
     }
     client_->RecoverChunk(reqCtx->idinfo_,
