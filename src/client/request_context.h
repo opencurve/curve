@@ -52,6 +52,12 @@ class RequestContext {
     std::string         location_;
     // create clone chunk时候用于修改chunk的correctedSn
     uint64_t            correctedSeq_;
+
+    // 当前request context id
+    uint64_t            id_;
+
+    // request context id生成器
+    static std::atomic<uint64_t> reqCtxID_;
 };
 }  // namespace client
 }  // namespace curve
