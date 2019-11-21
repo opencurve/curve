@@ -93,6 +93,7 @@ class MDSClientTest : public ::testing::Test {
         LOG(INFO) << "meta server addr = " << metaserver_addr.c_str();
         ASSERT_EQ(server.Start(metaserver_addr.c_str(), &options), 0);
 
+        LOG(INFO) << configpath.c_str();
         if (Init(configpath.c_str()) != 0) {
             LOG(ERROR) << "Fail to init config";
         }
@@ -387,10 +388,97 @@ TEST_F(MDSClientTest, Openfile) {
     ASSERT_EQ(LIBCURVE_ERROR::OK, Write(0, nullptr, 0, 0));
     ASSERT_EQ(LIBCURVE_ERROR::OK, Read(0, nullptr, 0, 0));
 
+    ::curve::mds::ProtoSession* socupied = new ::curve::mds::ProtoSession;
+    socupied->set_sessionid("1");
+    socupied->set_createtime(12345);
+    socupied->set_leasetime(10000000);
+    socupied->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
+
+    ::curve::mds::FileInfo* focupied = new ::curve::mds::FileInfo;
+    focupied->set_filename("_filename_");
+    focupied->set_id(1);
+    focupied->set_parentid(0);
+    focupied->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    focupied->set_chunksize(4 * 1024 * 1024);
+    focupied->set_length(1 * 1024 * 1024 * 1024ul);
+    focupied->set_ctime(12345678);
+    focupied->set_seqnum(0);
+    focupied->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+
+    ::curve::mds::OpenFileResponse responseOccupied;
+    responseOccupied.set_statuscode(::curve::mds::StatusCode::kFileOccupied);
+    responseOccupied.set_allocated_protosession(socupied);
+    responseOccupied.set_allocated_fileinfo(focupied);
+
+    curve::mds::ReFreshSessionResponse refreshresponse;
+    refreshresponse.set_statuscode(::curve::mds::StatusCode::kOK);
+    refreshresponse.set_sessionid("2");
+
+    FakeReturn* r
+     = new FakeReturn(nullptr, static_cast<void*>(&responseOccupied));
+    curvefsservice.SetOpenFile(r);
+    FakeReturn* refreshret =
+    new FakeReturn(nullptr, static_cast<void*>(&refreshresponse));
+    curvefsservice.SetRefreshSession(refreshret, [](){});
+
+    curve::mds::FileInfo * info = new curve::mds::FileInfo;
+    ::curve::mds::GetFileInfoResponse getinforesponse;
+    info->set_filename("_filename_");
+    info->set_id(1);
+    info->set_parentid(0);
+    info->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
+    info->set_chunksize(4 * 1024 * 1024);
+    info->set_length(4 * 1024 * 1024 * 1024ul);
+    info->set_ctime(12345678);
+    info->set_segmentsize(1 * 1024 * 1024 * 1024ul);
+
+    getinforesponse.set_allocated_fileinfo(info);
+    getinforesponse.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakegetinfo =
+        new FakeReturn(nullptr, static_cast<void*>(&getinforesponse));
+    curvefsservice.SetGetFileInfoFakeReturn(fakegetinfo);
+
+    int fd = globalclient->Open(filename, userinfo);
+    ASSERT_EQ(fd, -LIBCURVE_ERROR::FILE_OCCUPIED);
+    ASSERT_EQ(LIBCURVE_ERROR::OK, Write(fd, nullptr, 0, 0));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, Read(fd, nullptr, 0, 0));
+
+    // 打开一个文件, 如果返回的是occupied，那么会重试到重试次数用完
+    uint64_t starttime = TimeUtility::GetTimeofDayUs();
+    ::curve::mds::ProtoSession* socupied1 = new ::curve::mds::ProtoSession;
+    socupied1->set_sessionid("1");
+    socupied1->set_createtime(12345);
+    socupied1->set_leasetime(5000000);
+    socupied1->set_sessionstatus(::curve::mds::SessionStatus::kSessionOK);
+
+    ::curve::mds::OpenFileResponse responseOccupied1;
+    responseOccupied1.set_statuscode(::curve::mds::StatusCode::kFileOccupied);
+    responseOccupied1.set_allocated_protosession(socupied1);
+
+    FakeReturn* r1
+     = new FakeReturn(nullptr, static_cast<void*>(&responseOccupied1));
+    curvefsservice.SetOpenFile(r1);
+
+    int retcode = globalclient->Open(filename + "test", userinfo);
+    uint64_t end = TimeUtility::GetTimeofDayUs();
+    ASSERT_EQ(retcode, -LIBCURVE_ERROR::FILE_OCCUPIED);
+    ASSERT_GT(end - starttime, 200 * 3);
+
+    // 测试关闭文件
+    ::curve::mds::CloseFileResponse closeresp;
+    closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
+
+    FakeReturn* fakecloseret
+                = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
+    curvefsservice.SetCloseFile(fakecloseret);
+
+    globalclient->Close(fd);
+
     CurveAioContext aioctx;
     aioctx.length = 0;
-    ASSERT_EQ(LIBCURVE_ERROR::OK, AioWrite(0, &aioctx));
-    ASSERT_EQ(LIBCURVE_ERROR::OK, AioRead(0, &aioctx));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, AioWrite(fd, &aioctx));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, AioRead(fd, &aioctx));
 
     // 设置rpc失败，触发重试
     brpc::Controller cntl;
@@ -413,8 +501,7 @@ TEST_F(MDSClientTest, Openfile) {
                 = new FakeReturn(nullptr, static_cast<void*>(&response2));
     curvefsservice.SetCloseFile(fakeret4);
 
-    ASSERT_EQ(LIBCURVE_ERROR::OK, Close(0));
-
+    globalclient->Close(0);
     delete fakeret;
     delete fakeret1;
     delete fakeret2;

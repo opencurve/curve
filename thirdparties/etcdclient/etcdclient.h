@@ -204,9 +204,7 @@ struct EtcdElectionCampaign_return {
 
 extern struct EtcdElectionCampaign_return EtcdElectionCampaign(char* p0, int p1, char* p2, int p3, GoUint32 p4, GoUint32 p5);
 
-extern GoUint32 EtcdElectionLeaderKeyExist(GoUint64 p0, GoUint64 p1);
-
-extern GoUint32 EtcdLeaderObserve(GoUint64 p0, GoUint64 p1, char* p2, int p3);
+extern GoUint32 EtcdLeaderObserve(GoUint64 p0, char* p1, int p2);
 
 extern GoUint32 EtcdLeaderResign(GoUint64 p0, GoUint64 p1);
 

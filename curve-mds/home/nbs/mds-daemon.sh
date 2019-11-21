@@ -7,7 +7,7 @@ curveBin=/usr/bin/curve-mds
 confPath=/etc/curve/mds.conf
 
 # 日志文件路径
-logPath=${HOME}/nohup.out
+logPath=${HOME}
 
 # mdsAddr
 mdsAddr=
@@ -19,15 +19,36 @@ forceStop=false
 pidFile=${HOME}/curve-mds.pid
 
 # daemon log
-daemonLog=${HOME}/daemon.log
+daemonLog=${HOME}/daemon-mds.log
+
+# console output
+consoleLog=${HOME}/mds-console.log
 
 # 启动mds
 function start_mds() {
-    # 检查logPath是否可写或者是否能够创建
-    touch ${logPath} > /dev/null 2>&1
+    # 创建logPath
+    mkdir -p ${logPath} > /dev/null 2>&1
     if [ $? -ne 0 ]
     then
-        echo "Can't Write or Create mds logfile: ${logPath}"
+        echo "Create mds log dir failed: ${logPath}"
+        exit
+    fi
+
+    # 检查logPath是否有写权限
+    touch ${logPath}/dummy-file > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Write permission denied: ${logPath}"
+        rm -f ${logPath}/dummy-file > /dev/null 2>&1
+        exit
+    fi
+    rm -f ${logPath}/dummy-file > /dev/null 2>&1
+
+    # 检查consoleLog是否可写或者是否能够创建
+    touch ${consoleLog} > /dev/null 2>&1
+    if [ $? -ne 0 ]
+    then
+        echo "Can't Write or Create console Log: ${consoleLog}"
         exit
     fi
 
@@ -61,16 +82,11 @@ function start_mds() {
     fi
 
     # 判断是否已经通过daemon启动了curve-mds
-    if [ -f ${pidFile} ]
+    daemon --name curve-mds --pidfile ${pidFile} --running
+    if [ $? -eq 0 ]
     then
-        # 判断对应的daemon进程是否存在
-        daemonpid=$(cat ${pidFile})
-        kill -0 ${daemonpid} > /dev/null 2>&1
-        if [ $? -eq 0 ]
-        then
-            echo "Already started curve-mds by daemon"
-            return $?
-        fi
+        echo "Already started curve-mds by daemon"
+        exit
     fi
 
     # pidfile不存在 或 daemon进程不存在
@@ -79,19 +95,19 @@ function start_mds() {
     # 未指定mdsAddr
     if [ -z ${mdsAddr} ]
     then
-        daemon --name curve-mds --core \
+        daemon --name curve-mds --core --inherit \
             --respawn --attempts 100 --delay 10 \
             --pidfile ${pidFile} \
             --errlog ${daemonLog} \
-            --output ${logPath} \
-            -- ${curveBin} -confPath=${confPath}
+            --output ${consoleLog} \
+            -- ${curveBin} -confPath=${confPath} -log_dir=${logPath} -graceful_quit_on_sigterm=true
     else
-        daemon --name curve-mds --core \
+        daemon --name curve-mds --core --inherit \
             --respawn --attempts 100 --delay 10 \
             --pidfile ${pidFile} \
             --errlog ${daemonLog} \
-            --output ${logPath} \
-            -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr}
+            --output ${consoleLog} \
+            -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr} -log_dir=${logPath} -graceful_quit_on_sigterm=true
     fi
 }
 
@@ -119,7 +135,7 @@ function usage() {
     echo "  mds-daemon stop  -- stop daemon process but curve-mds still running"
     echo "        [-f]  also stop curve-mds process"
     echo "Examples:"
-    echo "  mds-daemon start -c /etc/curve/mds.conf -l ${HOME}/nohup.out -a 127.0.0.1:6666"
+    echo "  mds-daemon start -c /etc/curve/mds.conf -l ${HOME}/ -a 127.0.0.1:6666"
 }
 
 # 检查参数启动参数，最少1个

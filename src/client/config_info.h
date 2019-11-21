@@ -78,6 +78,7 @@ typedef struct LeaseOption {
  * @maxRetrySleepIntervalUs: 最大睡眠时间
  * @rpcTimeoutMs: 为每个rpc重试的标准配置时间
  * @maxTimeoutMS: 为指数退避策略中最大的超时时间
+ * @maxStableChunkServerTimeoutTimes: 一个chunkserver连续超时请求的阈值, 超过之后会标记为unstable
  */
 typedef struct FailureRequestOption {
     uint64_t opRetryIntervalUs;
@@ -85,12 +86,14 @@ typedef struct FailureRequestOption {
     uint64_t rpcTimeoutMs;
     uint64_t maxTimeoutMS;
     uint64_t maxRetrySleepIntervalUs;
+    uint64_t maxStableChunkServerTimeoutTimes;
     FailureRequestOption() {
         maxRetrySleepIntervalUs = 64 * 1000 * 1000;
         opRetryIntervalUs = 200;
         opMaxRetry = 3;
         rpcTimeoutMs = 1000;
         maxTimeoutMS = 64000;
+        maxStableChunkServerTimeoutTimes = 10;
     }
 } FailureRequestOption_t;
 
@@ -201,6 +204,13 @@ typedef struct ClientConfigOption {
 } ClientConfigOption_t;
 
 /**
+ * session id file option
+ */
+typedef struct SessionIDMapOption {
+    std::string sessionmap_path;
+} SessionIDMapOption_t;
+
+/**
  * FileServiceOption是QEMU侧总体配置信息
  */
 typedef struct FileServiceOption {
@@ -209,6 +219,7 @@ typedef struct FileServiceOption {
     LeaseOption_t             leaseOpt;
     CommonConfigOpt_t         commonOpt;
     MetaServerOption_t        metaServerOpt;
+    SessionIDMapOption_t      sessionmapOpt;
 } FileServiceOption_t;
 
 #endif  // SRC_CLIENT_CONFIG_INFO_H_

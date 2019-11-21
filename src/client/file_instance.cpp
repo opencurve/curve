@@ -18,6 +18,7 @@
 #include "src/client/iomanager4file.h"
 #include "src/client/request_scheduler.h"
 #include "src/client/request_sender_manager.h"
+#include "src/client/session_map.h"
 
 using curve::client::ClientConfig;
 using curve::common::TimeUtility;
@@ -49,7 +50,7 @@ bool FileInstance::Initialize(const std::string& filename,
             return false;
         }
 
-        userinfo_ = userinfo;
+        finfo_.userinfo = userinfo;
         mdsclient_ = mdsclient;
 
         if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt, mdsclient_)) {
@@ -58,7 +59,7 @@ bool FileInstance::Initialize(const std::string& filename,
         }
 
         leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
-                                userinfo_, mdsclient_, &iomanager4file_);
+                                finfo_.userinfo, mdsclient_, &iomanager4file_);
         if (CURVE_UNLIKELY(leaseexcutor_ == nullptr)) {
             LOG(ERROR) << "allocate lease excutor failed!";
             break;
@@ -101,29 +102,36 @@ int FileInstance::AioWrite(CurveAioContext* aioctx) {
     return iomanager4file_.AioWrite(aioctx, mdsclient_);
 }
 
+// 两种场景会造成在Open的时候返回LIBCURVE_ERROR::FILE_OCCUPIED
+// 1. 强制重启qemu不会调用close逻辑，然后启动的时候原来的文件sessio还没过期.
+//    导致再次去发起open的时候，返回被占用，这种情况可以通过load sessionmap
+//    拿到已有的session，再去执行refresh。
+// 2. 由于网络原因，导致open rpc超时，然后再去重试的时候就会返回FILE_OCCUPIED
+//    这时候当前还没有成功打开，所以还没有存储该session信息，所以无法通过refresh
+//    再去打开，所以这时候需要获取mds一侧session lease时长，然后在client这一侧
+//    等待一段时间再去Open，如果依然失败，就向上层返回失败。
 int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
     LeaseSession_t  lease;
-    int ret = -LIBCURVE_ERROR::FAILED;
+    int ret = LIBCURVE_ERROR::FAILED;
 
-    ret = mdsclient_->OpenFile(filename, userinfo_, &finfo_, &lease);
-    if (LIBCURVE_ERROR::OK == ret) {
+    ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
+    if (ret == LIBCURVE_ERROR::OK) {
         finfo_.fullPathName = filename;
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
-    } else {
-        LOG(ERROR) << "Open file failed!";
     }
 
     return -ret;
 }
 
 int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {
-    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, userinfo_, fi);
+    LIBCURVE_ERROR ret = mdsclient_->GetFileInfo(filename, finfo_.userinfo, fi);
     return -ret;
 }
 
 int FileInstance::Close() {
-    LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName, userinfo_,
+    LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName,
+                                finfo_.userinfo,
                                 leaseexcutor_->GetLeaseSessionID());
     return -ret;
 }

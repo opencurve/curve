@@ -545,7 +545,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = brpc::ERPCTIMEDOUT;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(3))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));
@@ -988,7 +989,8 @@ TEST_F(CopysetClientTest, write_failed_test) {
 
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = brpc::ERPCTIMEDOUT;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(100)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(50))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));
@@ -1131,7 +1133,8 @@ TEST_F(CopysetClientTest, read_failed_test) {
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = brpc::ERPCTIMEDOUT;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(100)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(50))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));
@@ -1333,7 +1336,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(3))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));
@@ -1345,7 +1349,7 @@ TEST_F(CopysetClientTest, read_error_test) {
         ASSERT_NE(0, reqDone->GetErrorCode());
 
         uint64_t end = TimeUtility::GetTimeofDayUs();
-        ASSERT_GT(end - start, 1500);
+        ASSERT_GT(end - start, 1400);
         gReadCntlFailedCode = 0;
     }
 
@@ -1370,7 +1374,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = brpc::ERPCTIMEDOUT;
-        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
+        EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _))
+            .Times(AtLeast(3))
             .WillRepeatedly(DoAll(SetArgPointee<2>(leaderId1),
                                   SetArgPointee<3>(leaderAdder1),
                                   Return(0)));

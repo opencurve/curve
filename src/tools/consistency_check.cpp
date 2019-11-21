@@ -9,7 +9,7 @@
 
 #include "src/tools/consistency_check.h"
 
-DEFINE_string(config_path, "./conf/client.conf", "config path");
+DEFINE_string(client_config_path, "./conf/client.conf", "config path");
 DEFINE_string(filename, "", "filename to check consistency");
 DEFINE_uint64(filesize, 10*1024*1024*1024ul, "filesize");
 DEFINE_uint64(chunksize, 16*1024*1024, "chunksize");
@@ -25,8 +25,8 @@ DEFINE_bool(check_hash, true, R"(用户需要先确认copyset的applyindex一致
 
 bool CheckFileConsistency::Init() {
     curve::client::ClientConfig cc;
-    LOG(INFO) << "config path = " << FLAGS_config_path.c_str();
-    if (cc.Init(FLAGS_config_path.c_str()) != 0) {
+    LOG(INFO) << "config path = " << FLAGS_client_config_path.c_str();
+    if (cc.Init(FLAGS_client_config_path.c_str()) != 0) {
         LOG(ERROR) << "load config failed!";
         return false;
     }
@@ -39,6 +39,12 @@ bool CheckFileConsistency::Init() {
     }
 
     return true;
+}
+
+void CheckFileConsistency::PrintHelp() {
+    std::cout << "Example: " << std::endl;
+    std::cout << "curve_ops_tool check-consistency -client_config_path=conf/client.conf -filename=test -filesize=12345678 "  // NOLINT
+    "-chunksize=1234 -segmentsize=123456 -retry_times=3 -username=test -check_hash=false"  << std::endl;  // NOLINT
 }
 
 bool CheckFileConsistency::FetchFileCopyset() {

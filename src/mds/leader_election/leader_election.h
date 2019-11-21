@@ -23,9 +23,6 @@ struct LeaderElectionOptions {
     // leader名称，建议使用ip+port以示区分
     std::string leaderUniqueName;
 
-    // client observe操作的超时时间
-    uint32_t observeTimeoutMs;
-
     // 带ttl的session，ttl超时时间内
     uint32_t sessionInterSec;
 
@@ -38,7 +35,6 @@ class LeaderElection {
     explicit LeaderElection(LeaderElectionOptions opt) {
         this->etcdCli_ = opt.etcdCli;
         this->leaderName_ = opt.leaderUniqueName;
-        this->observeTimeoutMs_ = opt.observeTimeoutMs;
         this->sessionInterSec_ = opt.sessionInterSec;
         this->electionTimeoutMs_ = opt.electionTimeoutMs;
     }
@@ -54,11 +50,6 @@ class LeaderElection {
      * @brief StartObserverLeader 启动leader节点监测线程
      */
     void StartObserverLeader();
-
-    /**
-     * @brief StartObserverLeader etcd server中leader key是否还存在
-     */
-    bool LeaderKeyExist();
 
     /**
      * @brief LeaderResign leader主动卸任leader，卸任成功后其他节点可以竞选leader
@@ -78,8 +69,6 @@ class LeaderElection {
     std::shared_ptr<EtcdClientImp> etcdCli_;
     // leader名称，建议使用ip+port以示区分
     std::string leaderName_;
-    // client observe操作的超时时间
-    uint32_t observeTimeoutMs_;
     // 带ttl的session，ttl超时时间内
     uint32_t sessionInterSec_;
     // 竞选leader的超时时间
