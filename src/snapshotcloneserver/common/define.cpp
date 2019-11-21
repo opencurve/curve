@@ -32,7 +32,8 @@ std::map<int, std::string> code2Msg = {
     {kErrCodeSnapshotCannotDeleteCloning, "Cannot delete when using."},
     {kErrCodeCannotCleanCloneUnfinished, "Cannot clean task unfinished."},
     {kErrCodeSnapshotCountReachLimit, "Snapshot count reach the limit."},
-    {kErrCodeFileExist, "File exist."}
+    {kErrCodeFileExist, "File exist."},
+    {kErrCodeTaskIsFull, "Task is full."}
 };
 
 std::string BuildErrorMessage(

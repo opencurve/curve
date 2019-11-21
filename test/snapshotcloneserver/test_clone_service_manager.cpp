@@ -39,7 +39,7 @@ class TestCloneServiceManager : public ::testing::Test {
         std::shared_ptr<CloneTaskManager> cloneTaskMgr_ =
             std::make_shared<CloneTaskManager>(cloneMetric_);
 
-        option_.clonePoolThreadNum = 8;
+        option_.clonePoolThreadNum = 3;
         option_.cloneTaskManagerScanIntervalMs = 100;
 
         manager_ = std::make_shared<CloneServiceManager>(
@@ -189,6 +189,91 @@ TEST_F(TestCloneServiceManager,
     ASSERT_EQ(1, cloneMetric_->cloneDoing.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneSucceed.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
+}
+
+// 测试克隆任务满的情况
+TEST_F(TestCloneServiceManager,
+    TestCloneFileTaskIsFull) {
+    const UUID source = "uuid1";
+    const std::string user = "user1";
+    bool lazyFlag = true;
+
+    CloneInfo cloneInfo1("uuid1", user, CloneTaskType::kClone,
+        source, "file1", CloneFileType::kSnapshot, lazyFlag);
+    CloneInfo cloneInfo2("uuid1", user, CloneTaskType::kClone,
+        source, "file2", CloneFileType::kSnapshot, lazyFlag);
+    CloneInfo cloneInfo3("uuid1", user, CloneTaskType::kClone,
+        source, "file3", CloneFileType::kSnapshot, lazyFlag);
+    CloneInfo cloneInfo4("uuid1", user, CloneTaskType::kClone,
+        source, "file4", CloneFileType::kSnapshot, lazyFlag);
+
+    EXPECT_CALL(*cloneCore_, CloneOrRecoverPre(
+            source, user, _, lazyFlag, CloneTaskType::kClone, _))
+        .Times(4)
+        .WillOnce(DoAll(
+            SetArgPointee<5>(cloneInfo1),
+            Return(kErrCodeSuccess)))
+        .WillOnce(DoAll(
+            SetArgPointee<5>(cloneInfo2),
+            Return(kErrCodeSuccess)))
+        .WillOnce(DoAll(
+            SetArgPointee<5>(cloneInfo3),
+            Return(kErrCodeSuccess)))
+        .WillOnce(DoAll(
+            SetArgPointee<5>(cloneInfo4),
+            Return(kErrCodeSuccess)));
+
+    CountDownEvent cond1(3), cond2(1);
+
+    EXPECT_CALL(*cloneCore_, HandleCloneOrRecoverTask(_))
+        .Times(3)
+        .WillRepeatedly(Invoke([&cond1, &cond2]
+                (std::shared_ptr<CloneTaskInfo> task) {
+                task->GetCloneInfo().SetStatus(CloneStatus::done);
+                                cond2.Wait();
+                                cond1.Signal();
+                            }));
+
+    TaskIdType taskId;
+    auto closure = std::make_shared<CloneClosure>();
+    int ret = manager_->CloneFile(
+        source,
+        user,
+        "file1",
+        lazyFlag,
+        closure,
+        &taskId);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+
+    ret = manager_->CloneFile(
+        source,
+        user,
+        "file2",
+        lazyFlag,
+        closure,
+        &taskId);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+
+    ret = manager_->CloneFile(
+        source,
+        user,
+        "file3",
+        lazyFlag,
+        closure,
+        &taskId);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+
+    ret = manager_->CloneFile(
+        source,
+        user,
+        "file4",
+        lazyFlag,
+        closure,
+        &taskId);
+    ASSERT_EQ(kErrCodeTaskIsFull, ret);
+
+    cond2.Signal();
+    cond1.Wait();
 }
 
 TEST_F(TestCloneServiceManager,

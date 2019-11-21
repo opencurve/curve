@@ -827,7 +827,9 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
     }
     if (snapShotFiles.size() != 0) {
         LOG(INFO) << fileName << " exist snapshotfile, num = "
-            << snapShotFiles.size();
+            << snapShotFiles.size()
+            << ", snapShotFiles[0].seqNum = " << snapShotFiles[0].seqnum();
+        *snapshotFileInfo = snapShotFiles[0];
         return StatusCode::kFileUnderSnapShot;
     }
 
