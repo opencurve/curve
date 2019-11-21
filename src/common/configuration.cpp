@@ -55,9 +55,13 @@ bool Configuration::SaveConfig() {
     return true;
 }
 
-std::string Configuration::DumpConfig() {
-    // TODO(wenyu): to implement
-    return "";
+void Configuration::PrintConfig() {
+    LOG(INFO) << std::string(30, '=') << "BEGIN" << std::string(30, '=');
+    for (auto &item : config_) {
+        LOG(INFO) << item.first << std::string(60 - item.first.size(), ' ')
+                  << ": " << item.second;
+    }
+    LOG(INFO) << std::string(31, '=') << "END" << std::string(31, '=');
 }
 
 
