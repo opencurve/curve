@@ -6,6 +6,7 @@
  *          2018/08/30  Wenyu Zhou   Initial version
  */
 
+#include <glog/logging.h>
 #include <string>
 #include <map>
 
@@ -22,7 +23,7 @@ class Configuration {
 
     bool LoadConfig();
     bool SaveConfig();
-    std::string DumpConfig();
+    void PrintConfig();
     std::map<std::string, std::string> ListConfig() const;
 
     void SetConfigPath(const std::string &path);

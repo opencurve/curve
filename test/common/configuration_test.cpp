@@ -104,14 +104,6 @@ TEST_F(ConfigurationTest, LoadNormalConfigFile) {
     ASSERT_EQ(ret, true);
 }
 
-TEST_F(ConfigurationTest, DumpConfig) {
-    Configuration conf;
-
-    conf.SetConfigPath(confFile_);
-    // not implemented yet, assert null returned
-    ASSERT_EQ(conf.DumpConfig(), "");
-}
-
 TEST_F(ConfigurationTest, ListConfig) {
     Configuration conf;
 
