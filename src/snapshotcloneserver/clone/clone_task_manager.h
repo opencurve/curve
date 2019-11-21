@@ -35,7 +35,8 @@ class CloneTaskManager {
     explicit CloneTaskManager(std::shared_ptr<CloneMetric> cloneMetric)
         : isStop_(true),
           cloneMetric_(cloneMetric),
-          cloneTaskManagerScanIntervalMs_(0) {}
+          cloneTaskManagerScanIntervalMs_(0),
+          clonePoolThreadNum_(0) {}
 
     ~CloneTaskManager() {
         Stop();
@@ -45,6 +46,8 @@ class CloneTaskManager {
         const SnapshotCloneServerOptions &option) {
         cloneTaskManagerScanIntervalMs_ =
             option.cloneTaskManagerScanIntervalMs;
+        clonePoolThreadNum_ =
+            option.clonePoolThreadNum;
         threadpool_ = pool;
         return kErrCodeSuccess;
     }
@@ -85,6 +88,8 @@ class CloneTaskManager {
 
     // CloneTaskManager 后台线程扫描间隔
     uint32_t cloneTaskManagerScanIntervalMs_;
+    // 克隆恢复工作线程数
+    int clonePoolThreadNum_;
 };
 
 }  // namespace snapshotcloneserver

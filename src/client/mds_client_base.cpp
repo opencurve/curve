@@ -169,7 +169,15 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
 
     LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq
+                << ", seqnum = " << [seq] () {
+                    std::string data("[ ");
+                    for (uint64_t v : *seq) {
+                        data += std::to_string(v);
+                        data += " ";
+                    }
+                    data += "]";
+                    return data;
+                } ()
                 << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);

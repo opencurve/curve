@@ -46,6 +46,14 @@ int CloneTaskManager::PushTask(std::shared_ptr<CloneTaskBase> task) {
     std::lock_guard<std::mutex>
         workingTasksLockGuard(cloningTasksLock_);
 
+    // TODO(xuchaojie): 目前超过线程数的克隆任务由于得不到调度，
+    // 对上层来说都是卡住了，不如直接返回失败，下个版本解决这一问题。
+    if (cloningTasks_.size() >= clonePoolThreadNum_) {
+        LOG(ERROR) << "CloneTaskManager::PushTask fail, "
+                   << "current task is full, num = " << cloningTasks_.size();
+        return kErrCodeTaskIsFull;
+    }
+
     std::string destination =
         task->GetTaskInfo()->GetCloneInfo().GetDest();
     auto ret = cloningTasks_.emplace(

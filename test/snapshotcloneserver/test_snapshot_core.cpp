@@ -38,6 +38,7 @@ class TestSnapshotCoreImpl : public ::testing::Test {
         metaStore_ = std::make_shared<MockSnapshotCloneMetaStore>();
         dataStore_ = std::make_shared<MockSnapshotDataStore>();
 
+        option.mdsSessionTimeUs = 0;
         option.chunkSplitSize = 1024u * 1024u;
         option.checkSnapshotStatusIntervalMs = 1000u;
         option.maxSnapshotLimit = 64;

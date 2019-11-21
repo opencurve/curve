@@ -482,8 +482,18 @@ int CloneCoreImpl::CreateCloneFile(
     FInfo fInfoOut;
     int ret = client_->CreateCloneFile(fileName,
         mdsRootUser_, fileLength, seqNum, chunkSize, &fInfoOut);
-    if (ret != LIBCURVE_ERROR::OK &&
-        ret != -LIBCURVE_ERROR::EXISTS) {
+    if (ret == LIBCURVE_ERROR::OK) {
+        // nothing
+    } else if (ret == -LIBCURVE_ERROR::EXISTS) {
+        ret = client_->GetFileInfo(fileName,
+            mdsRootUser_, &fInfoOut);
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "GetFileInfo fail"
+                       << ", ret = " << ret
+                       << ", fileName = " << fileName;
+            return kErrCodeInternalError;
+        }
+    } else {
         LOG(ERROR) << "CreateCloneFile file"
                    << ", ret = " << ret
                    << ", destination = " << fileName
@@ -956,7 +966,29 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
     std::string user = fInfo->owner;
     FInfo fInfoOut;
     int ret = client_->GetFileInfo(newFileName, mdsRootUser_, &fInfoOut);
-    if (ret != LIBCURVE_ERROR::OK) {
+    if (LIBCURVE_ERROR::OK == ret) {
+        // nothing
+    } else if (-LIBCURVE_ERROR::NOTEXIST == ret) {
+        // 可能已经rename过了
+        newFileName = task->GetCloneInfo().GetDest();
+        ret = client_->GetFileInfo(newFileName, mdsRootUser_, &fInfoOut);
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "File is missing, "
+                       << "when CreateOrUpdateCloneMeta, "
+                       << "GetFileInfo fail, ret = " << ret
+                       << ", filename = " << newFileName;
+            return kErrCodeInternalError;
+        }
+        // 如果是已经rename过，那么id应该一致
+        uint64_t originId = task->GetCloneInfo().GetOriginId();
+        if (fInfoOut.id != originId) {
+            LOG(ERROR) << "File is missing, "
+                       << "when CreateOrUpdateCloneMeta, "
+                       << "originId = " << originId
+                       << ", filename = " << newFileName;
+            return kErrCodeInternalError;
+        }
+    } else {
         LOG(ERROR) << "GetFileInfo fail"
                    << ", ret = " << ret
                    << ", filename = " << newFileName
