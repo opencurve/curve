@@ -131,7 +131,7 @@ int CopysetClient::ReadChunk(ChunkIDInfo idinfo,
             break;
         } else {
             // 如果建立连接失败，再等一定时间再重试
-            LOG(ERROR) << "create or reset sender failed (read <"
+            LOG(WARNING) << "create or reset sender failed (read <"
                        << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
             bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
             continue;
@@ -202,7 +202,7 @@ int CopysetClient::WriteChunk(ChunkIDInfo idinfo,
             break;
         } else {
             // 如果建立连接失败，再等一定时间再重试
-            LOG(ERROR) << "create or reset sender failed (write <"
+            LOG(WARNING) << "create or reset sender failed (write <"
                        << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
             bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
             continue;
@@ -332,7 +332,7 @@ int CopysetClient::GetChunkInfo(ChunkIDInfo idinfo,
             break;
         } else {
             /* 如果建立连接失败，再等一定时间再重试 */
-            LOG(ERROR) << "create or reset sender failed (write <"
+            LOG(WARNING) << "create or reset sender failed (write <"
                        << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
             bthread_usleep(iosenderopt_.failRequestOpt.
                             opRetryIntervalUs);
@@ -380,7 +380,7 @@ int CopysetClient::CreateCloneChunk(ChunkIDInfo idinfo,
             break;
         } else {
             /* 如果建立连接失败，再等一定时间再重试 */
-            LOG(ERROR) << "create or reset sender failed (write <"
+            LOG(WARNING) << "create or reset sender failed (write <"
                        << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
             bthread_usleep(iosenderopt_.failRequestOpt.
                             opRetryIntervalUs);
@@ -424,7 +424,7 @@ int CopysetClient::RecoverChunk(ChunkIDInfo idinfo,
             break;
         } else {
             /* 如果建立连接失败，再等一定时间再重试 */
-            LOG(ERROR) << "create or reset sender failed (write <"
+            LOG(WARNING) << "create or reset sender failed (write <"
                        << idinfo.lpid_ << ", " << idinfo.cpid_ << ">)";
             bthread_usleep(iosenderopt_.failRequestOpt.
                             opRetryIntervalUs);

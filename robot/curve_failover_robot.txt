@@ -539,6 +539,7 @@ init failover cluster
      loop attach detach vol
 
 init abnormal test env
+     clean env
      destroy etcd
      destroy mds
      destroy snapshotclone server
@@ -561,5 +562,6 @@ init rw cloud disk
 
 clean failover env
      stop rwio
+     check io error
      check copies consistency
      detach vol

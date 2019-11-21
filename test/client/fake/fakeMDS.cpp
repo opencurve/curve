@@ -53,6 +53,7 @@ bool FakeMDS::Initialize() {
         chunkservers_.push_back(new brpc::Server());
         chunkServices_.push_back(new FakeChunkService());
         copysetServices_.push_back(new FakeCreateCopysetService());
+        raftStateServices_.push_back(new FakeRaftStateService());
     }
     return true;
 }
@@ -345,6 +346,13 @@ void FakeMDS::EnableNetUnstable(uint64_t waittime) {
     }
 }
 
+void FakeMDS::DisableNetUnstable() {
+    LOG(INFO) << "chunk rpc service net is stable now!";
+    for (auto c : chunkServices_) {
+        c->DisableNetUnstable();
+    }
+}
+
 void FakeMDS::CreateFakeChunkservers(bool enablecli) {
     for (unsigned i = 0; i < peers_.size(); i++) {
         if (chunkservers_[i]->AddService(chunkServices_[i],
@@ -357,6 +365,10 @@ void FakeMDS::CreateFakeChunkservers(bool enablecli) {
         }
 
         if (enablecli && chunkservers_[i]->AddService(&fakeCliService_,
+                              brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
+            LOG(FATAL) << "Fail to add service";
+        }
+        if (chunkservers_[i]->AddService(raftStateServices_[i],
                               brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
             LOG(FATAL) << "Fail to add service";
         }

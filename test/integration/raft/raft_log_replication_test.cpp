@@ -17,6 +17,7 @@
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
 #include "test/integration/common/peer_cluster.h"
+#include "test/integration/common/config_generator.h"
 
 namespace curve {
 namespace chunkserver {
@@ -36,7 +37,7 @@ static char* raftLogParam[5][13] = {
         "-recycleUri=local://./9071/recycler",
         "-chunkFilePoolDir=./9071/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9071/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9071",
+        "-conf=./9071/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -50,7 +51,7 @@ static char* raftLogParam[5][13] = {
         "-recycleUri=local://./9072/recycler",
         "-chunkFilePoolDir=./9072/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9072/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9072",
+        "-conf=./9072/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -64,7 +65,7 @@ static char* raftLogParam[5][13] = {
         "-recycleUri=local://./9073/recycler",
         "-chunkFilePoolDir=./9073/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9073/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9073",
+        "-conf=./9073/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -78,7 +79,7 @@ static char* raftLogParam[5][13] = {
         "-recycleUri=local://./9074/recycler",
         "-chunkFilePoolDir=./9074/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9074/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9074",
+        "-conf=./9074/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -92,7 +93,7 @@ static char* raftLogParam[5][13] = {
         "-recycleUri=local://./9075/recycler",
         "-chunkFilePoolDir=./9075/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9075/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9075",
+        "-conf=./9075/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -124,9 +125,40 @@ class RaftLogReplicationTest : public testing::Test {
         ::system(mkdir4.c_str());
         ::system(mkdir5.c_str());
 
-        electionTimeoutMs = 3000;
-        snapshotIntervalS = 1;
+        electionTimeoutMs = 1000;
+        snapshotIntervalS = 20;
         waitMultiReplicasBecomeConsistent = 3000;
+
+        ASSERT_TRUE(cg1.Init("9071"));
+        ASSERT_TRUE(cg2.Init("9072"));
+        ASSERT_TRUE(cg3.Init("9073"));
+        ASSERT_TRUE(cg4.Init("9074"));
+        ASSERT_TRUE(cg5.Init("9075"));
+        cg1.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg1.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg2.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg2.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg3.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg3.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg4.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg4.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg5.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg5.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        ASSERT_TRUE(cg1.Generate());
+        ASSERT_TRUE(cg2.Generate());
+        ASSERT_TRUE(cg3.Generate());
+        ASSERT_TRUE(cg4.Generate());
+        ASSERT_TRUE(cg5.Generate());
 
         paramsIndexs[PeerCluster::PeerToId(peer1)] = 0;
         paramsIndexs[PeerCluster::PeerToId(peer2)] = 1;
@@ -168,6 +200,11 @@ class RaftLogReplicationTest : public testing::Test {
     Peer peer3;
     Peer peer4;
     Peer peer5;
+    CSTConfigGenerator cg1;
+    CSTConfigGenerator cg2;
+    CSTConfigGenerator cg3;
+    CSTConfigGenerator cg4;
+    CSTConfigGenerator cg5;
     int electionTimeoutMs;
     int snapshotIntervalS;
     std::map<int, int> paramsIndexs;
@@ -237,8 +274,8 @@ TEST_F(RaftLogReplicationTest, ThreeNodeImplicitCommit) {
                             ch ++,
                             1);
 
-    // 3. 等待step down
-    ::usleep(1000 * electionTimeoutMs * 1.3);
+    // 3. 等待step down,等待2个选举超时，保证一定step down
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -384,8 +421,8 @@ TEST_F(RaftLogReplicationTest, ThreeNodeTruncateLog) {
  * 验证3个节点的复制组，测试向落后多个term的follower复制日志
  * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
  * 2. 挂掉一个follower
- * 3. 挂掉leader，等待1个ET重启
- * 4. 挂掉leader，等待1个ET重启
+ * 3. 挂掉leader，等待2个ET重启
+ * 4. 挂掉leader，等待2个ET重启
  * 3. 拉起挂掉的follower
  */
 TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
@@ -439,9 +476,9 @@ TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
                         ch++,
                         loop);
 
-    // 3. 挂掉leader，等待1个ET重启
+    // 3. 挂掉leader，等待2个ET重启
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
-    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
                                    PeerCluster::PeerToId(leaderPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -454,9 +491,9 @@ TEST_F(RaftLogReplicationTest, ThreeNodeLogReplicationToOldFollwer) {
                         ch++,
                         loop);
 
-    // 4. 挂掉leader，等待1个ET重启
+    // 4. 挂掉leader，等待2个ET重启
     ASSERT_EQ(0, cluster.ShutdownPeer(leaderPeer));
-    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
                                    PeerCluster::PeerToId(leaderPeer)));
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
@@ -665,7 +702,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
                            ch - 1,
                            1);
 
-    ::usleep(1000 * electionTimeoutMs * 1.5);
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 11. 逐个拉起来
     ASSERT_EQ(0, cluster.StartPeer(leaderPeer,
                                    PeerCluster::PeerToId(leaderPeer)));
@@ -713,8 +750,7 @@ TEST_F(RaftLogReplicationTest, FourNodeKill) {
                             ch++,  // j
                             1);
 
-
-    ::usleep(1000 * electionTimeoutMs * 1.5);
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 13. 逐个拉起来
     ASSERT_EQ(0, cluster.StartPeer(followerPeers3[0],
                                    PeerCluster::PeerToId(followerPeers3[0])));
@@ -929,9 +965,9 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
                            ch - 1,
                            1);
 
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 11. 逐个恢复
     ASSERT_EQ(0, cluster.SignalPeer(leaderPeer));
-    ::usleep(1000 * electionTimeoutMs * 1.5);
     ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
@@ -976,8 +1012,8 @@ TEST_F(RaftLogReplicationTest, FourNodeHang) {
 
 
     // 13. 逐个恢复
+    ::usleep(1000 * electionTimeoutMs * 2);
     ASSERT_EQ(0, cluster.SignalPeer(followerPeers3[0]));
-    ::usleep(1000 * electionTimeoutMs * 1.5);
     ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,

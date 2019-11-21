@@ -724,14 +724,14 @@ def check_vm_iops(limit_iops=3000):
 def check_chunkserver_online(num=120):
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_status_tool status -confPath=/etc/curve/mds.conf |grep chunkserver"
+    ori_cmd = "curve_ops_tool status -mds_config_path=/etc/curve/mds.conf |grep chunkserver"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[3] == 0,"get chunkserver status fail,rs is %s"%rs[2]
     status = "".join(rs[1]).strip()
     online_num = re.findall(r'(?<=online = )\d+',status)
     logger.info("chunkserver online num is %s"%online_num)
     if int(online_num[0]) != num:
-        ori_cmd = "curve_status_tool chunkserver-list -confPath=/etc/curve/mds.conf |grep OFFLINE"
+        ori_cmd = "curve_ops_tool chunkserver-list -mds_config_path=/etc/curve/mds.conf |grep OFFLINE"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.error("chunkserver offline list is %s"%rs[1])
         assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
@@ -751,13 +751,22 @@ def wait_iops_ok(limit_iops=8000):
         time.sleep(2)
     assert iops >= limit_iops,"vm iops not ok in 300s"
 
+def check_io_error():
+    ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
+    ori_cmd = "grep \'I/O error\' /var/log/kern.log -R"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    if rs[1] != []:
+        assert False," rwio error,log is %s"%rs[1]
+    ssh.close()
+
+
 def check_copies_consistency():
-    host = random.choice(config.mds_list)
+    host = random.choice(config.client_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     if config.vol_uuid == "":
         assert False,"not get vol uuid"
     filename = "volume-" + config.vol_uuid
-    ori_cmdpri = "checkConsistecny  -config_path=/etc/curve/client.conf -filename=/cinder/%s \
+    ori_cmdpri = "curve_ops_tool check-consistency -client_config_path=/etc/curve/client.conf -filename=/cinder/%s \
             -chunksize=16777216 -filesize=10737418240 -segmentsize=1073741824 -username=cinder -check_hash="%(filename)
     check_hash = "false"
     ori_cmd = ori_cmdpri + check_hash
@@ -766,18 +775,18 @@ def check_copies_consistency():
         stop_rwio()
         while i < 600:
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
-            if rs[1] == []:
+            if rs[1] == [u'consistency check success!\n']:
                 break
             logger.info("check_hash false return is %s,return code is %d"%(rs[1],rs[3]))
             time.sleep(3)
             i = i + 3
-        if rs[1] != []:
+        if rs[1] != [u'consistency check success!\n']:
             assert False,"exec check_hash false fail,return is %s"%rs[1]
         check_hash = "true"
         ori_cmd = ori_cmdpri + check_hash
         rs = shell_operator.ssh_exec(ssh,ori_cmd)
         logger.debug("exec %s,stdout is %s"%(ori_cmd,"".join(rs[1])))
-        assert rs[1] == [],"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
+        assert rs[1] == [u'consistency check success!\n'],"checkconsistecny fail,error is %s"%("".join(rs[1]).strip())
 #        check_data_consistency()
     except:
         logger.error("check consistency error")
@@ -969,7 +978,25 @@ def pendding_all_cs_recover():
         raise
     for cs in down_list:
         start_host_cs_process(chunkserver_host,cs)
-
+    time.sleep(60)
+    list = get_chunkserver_status(chunkserver_host)
+    up_list = list["up"]
+    for cs in up_list:
+        chunkserver_id = get_chunkserver_id(chunkserver_host,cs)
+        assert chunkserver_id != -1
+        i = 0
+        while i < config.recover_time:
+            i = i + 10
+            time.sleep(10)
+            num = get_cs_copyset_num(chunkserver_id)
+            logger.info("cs copyset num is %d"%num)
+            if num > 0:
+                break
+        if num == 0:
+            logger.error("get host %s chunkserver %d copyset num is %d"%(chunkserver_host,chunkserver_id,num))
+            raise Exception(
+                "host %s chunkserver %d not recover to %d in %d,now is %d" % \
+            (chunkserver_host, cs,1,config.recover_time,num))
 
 
 def test_suspend_recover_copyset():

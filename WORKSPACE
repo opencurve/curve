@@ -3,7 +3,7 @@ workspace(name = "curve")
 git_repository(
     name = "com_netease_storage_gerrit_curve_curve_braft",
     remote = "http://gerrit.storage.netease.com/curve/curve-braft",
-    commit = "5a64dad6c327f68e90f6f1b1d25f440055f2b309",
+    commit = "3ec98d4030f8f7a7951042843885f99811aae457",
 )
 
 bind(
@@ -40,11 +40,11 @@ bind(
 )
 
 #Import the glog files.
-new_git_repository(
-    name   = "com_github_google_glog",
-    build_file = "bazel/glog.BUILD",
-    remote = "https://github.com/google/glog.git",
-    tag = "v0.3.5",
+# brpc内BUILD文件在依赖glog时, 直接指定的依赖是"@com_github_google_glog//:glog"
+git_repository(
+    name = "com_github_google_glog",
+    remote = "http://gerrit.storage.netease.com/curve/curve-glog",
+    commit = "761f06d4c5c73d35eb5ee050fb048067f931d520",
 )
 
 bind(
@@ -52,10 +52,14 @@ bind(
     actual = "@com_github_google_glog//:glog"
 )
 
-git_repository(
+# glog depends on gflags-2.2.2
+http_archive(
     name = "com_github_gflags_gflags",
-    remote = "https://github.com/gflags/gflags.git",
-    tag = "v2.2.1",
+    strip_prefix = "gflags-2.2.2",
+    urls = [
+        "https://mirror.bazel.build/github.com/gflags/gflags/archive/v2.2.2.tar.gz",
+        "https://github.com/gflags/gflags/archive/v2.2.2.tar.gz",
+    ],
 )
 
 bind(

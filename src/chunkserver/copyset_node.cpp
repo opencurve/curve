@@ -190,6 +190,11 @@ void CopysetNode::Fini() {
         // 等待所有的正在处理的task结束
         raftNode_->join();
     }
+    if (nullptr != concurrentapply_) {
+        // 将未刷盘的数据落盘，如果不刷盘
+        // 迁移copyset时，copyset移除后再去执行WriteChunk操作可能出错
+        concurrentapply_->Flush();
+    }
 }
 
 void CopysetNode::on_apply(::braft::Iterator &iter) {
@@ -450,6 +455,7 @@ std::string CopysetNode::GetCopysetDir() const {
 }
 
 uint64_t CopysetNode::GetConfEpoch() const {
+    std::lock_guard<std::mutex> lockguard(confLock_);
     return epoch_.load(std::memory_order_relaxed);
 }
 
@@ -482,10 +488,12 @@ int CopysetNode::SaveConfEpoch(const std::string &filePath) {
 }
 
 void CopysetNode::ListPeers(std::vector<Peer>* peers) {
-    std::unique_lock<std::mutex> lock_guard(confLock_);
-
     std::vector<PeerId> tempPeers;
-    conf_.list_peers(&tempPeers);
+
+    {
+        std::lock_guard<std::mutex> lockguard(confLock_);
+        conf_.list_peers(&tempPeers);
+    }
 
     for (auto it = tempPeers.begin(); it != tempPeers.end(); ++it) {
         Peer peer;

@@ -16,6 +16,7 @@
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
 #include "test/integration/common/peer_cluster.h"
+#include "test/integration/common/config_generator.h"
 
 namespace curve {
 namespace chunkserver {
@@ -35,7 +36,7 @@ static char* raftVoteParam[3][13] = {
         "-recycleUri=local://./9091/recycler",
         "-chunkFilePoolDir=./9091/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9091/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9091",
+        "-conf=./9091/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -49,7 +50,7 @@ static char* raftVoteParam[3][13] = {
         "-recycleUri=local://./9092/recycler",
         "-chunkFilePoolDir=./9092/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9092/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9092",
+        "-conf=./9092/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -63,7 +64,7 @@ static char* raftVoteParam[3][13] = {
         "-recycleUri=local://./9093/recycler",
         "-chunkFilePoolDir=./9093/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9093/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9093",
+        "-conf=./9093/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -87,9 +88,28 @@ class RaftVoteTest : public testing::Test {
         ::system(mkdir2.c_str());
         ::system(mkdir3.c_str());
 
-        electionTimeoutMs = 3000;
+        electionTimeoutMs = 1000;
         snapshotIntervalS = 60;
         waitMultiReplicasBecomeConsistent = 3000;
+
+        ASSERT_TRUE(cg1.Init("9091"));
+        ASSERT_TRUE(cg2.Init("9092"));
+        ASSERT_TRUE(cg3.Init("9093"));
+        cg1.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg1.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg2.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg2.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg3.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg3.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        ASSERT_TRUE(cg1.Generate());
+        ASSERT_TRUE(cg2.Generate());
+        ASSERT_TRUE(cg3.Generate());
 
         paramsIndexs[PeerCluster::PeerToId(peer1)] = 0;
         paramsIndexs[PeerCluster::PeerToId(peer2)] = 1;
@@ -119,6 +139,9 @@ class RaftVoteTest : public testing::Test {
     Peer peer1;
     Peer peer2;
     Peer peer3;
+    CSTConfigGenerator cg1;
+    CSTConfigGenerator cg2;
+    CSTConfigGenerator cg3;
     int electionTimeoutMs;
     int snapshotIntervalS;
 
@@ -381,7 +404,7 @@ TEST_F(RaftVoteTest, TwoNodeKillFollower) {
                             ch,
                             1);
     // 等待leader step down，之后，也不支持read了
-    ::usleep(1000 * electionTimeoutMs * 1.2);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -559,7 +582,7 @@ TEST_F(RaftVoteTest, TwoNodeHangFollower) {
                             ch,
                             1);
     // 等待leader step down之后，也不支持read了
-    ::usleep(1000 * electionTimeoutMs * 1.3);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -1204,7 +1227,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
     // 3. 拉起1个成员
     ASSERT_EQ(0, cluster.StartPeer(peer1,
                                    PeerCluster::PeerToId(peer1)));
-    ::usleep(1000 * electionTimeoutMs * 1.2);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(peer1,
                            logicPoolId,
                            copysetId,
@@ -1304,7 +1327,6 @@ TEST_F(RaftVoteTest, ThreeNodeHangLeader) {
                            1);
 
     // 等待new leader产生
-    ::usleep(1.3 * electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     WriteThenReadVerify(leaderPeer,
@@ -1582,7 +1604,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangTwoFollower) {
                             1);
 
     // 等待step down之后，读也不可提供服务
-    ::usleep(1000 * electionTimeoutMs * 1.2);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
@@ -1702,7 +1724,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
 
     // 3. 恢复1个成员
     ASSERT_EQ(0, cluster.SignalPeer(peer1));
-    ::usleep(1000 * electionTimeoutMs * 1.2);
+    ::usleep(1000 * electionTimeoutMs * 2);
     ReadVerifyNotAvailable(leaderPeer,
                            logicPoolId,
                            copysetId,
