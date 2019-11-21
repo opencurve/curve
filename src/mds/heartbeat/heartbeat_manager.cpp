@@ -241,7 +241,8 @@ HeartbeatStatusCode HeartbeatManager::CheckRequest(
     if (!topology_->GetChunkServer(request.chunkserverid(), &chunkServer)) {
         LOG(ERROR) << "heartbeatManager receive heartbeat from chunkServer: "
                    << request.chunkserverid()
-                   << "but topology do not contain this one";
+                   << ", ip:"<< request.ip() << ", port:" << request.port()
+                   << ", but topology do not contain this one";
         return HeartbeatStatusCode::hbChunkserverUnknown;
     }
 

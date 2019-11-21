@@ -252,6 +252,9 @@ int curve_main(int argc, char **argv) {
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
 
+    // 打印参数
+    conf.PrintConfig();
+
     // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
     InitSessionOptions(&conf, &sessionOptions);
