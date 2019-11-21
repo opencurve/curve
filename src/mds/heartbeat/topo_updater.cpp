@@ -71,7 +71,7 @@ void TopoUpdater::UpdateTopo(const CopySetInfo &reportCopySetInfo) {
             // report信息中不含变更项，但mds上有
             if (recordCopySetInfo.HasCandidate()) {
                 LOG(WARNING) << "topoUpdater find report"
-                             " CopySet(logicalPoolId"
+                             " CopySet(logicalPoolId: "
                              << reportCopySetInfo.GetLogicalPoolId()
                              << ", copySetId: " << reportCopySetInfo.GetId()
                              << ") no candidate but record has candidate: "

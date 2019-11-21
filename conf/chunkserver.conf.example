@@ -60,8 +60,12 @@ copyset.log_applied_task=false
 copyset.election_timeout_ms=1000
 # raft打快照间隔，一般是1800s，也就是30分钟
 copyset.snapshot_interval_s=1800
-# 当落后节点落后日志条目超过catchup_margin，会通过install snapshot恢复
-copyset.catchup_margin=20000
+# add一个节点，add的节点首先以类似learner的角色拷贝数据
+# 在跟leader差距catchup_margin个entry的时候，leader
+# 会尝试将配置变更的entry进行提交(一般来说提交的entry肯定
+# 会commit&apply，catchup_margin较小可以大概率确保learner
+# 后续很快可以加入复制组
+copyset.catchup_margin=1000
 # copyset chunk数据目录
 copyset.chunk_data_uri=local://./0/copysets
 # raft wal log目录
@@ -146,3 +150,10 @@ chunkfilepool.retry_times=5
 trash.expire_afterSec=86400
 # chunkserver检查回收数据过期时间的周期
 trash.scan_periodSec=3600
+
+# common option
+#
+# chunkserver 日志存放文件夹
+chunkserver.common.logDir=./
+# 单元测试情况下
+# chunkserver.common.logDir=./runlog/

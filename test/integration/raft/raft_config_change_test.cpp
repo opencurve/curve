@@ -16,6 +16,7 @@
 #include "src/fs/fs_common.h"
 #include "src/fs/local_filesystem.h"
 #include "test/integration/common/peer_cluster.h"
+#include "test/integration/common/config_generator.h"
 
 namespace curve {
 namespace chunkserver {
@@ -35,7 +36,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9081/recycler",
         "-chunkFilePoolDir=./9081/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9081/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9081",
+        "-conf=./9081/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -49,7 +50,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9082/recycler",
         "-chunkFilePoolDir=./9082/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9082/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9082",
+        "-conf=./9082/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -63,7 +64,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9083/recycler",
         "-chunkFilePoolDir=./9083/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9073/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9083",
+        "-conf=./9083/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -77,7 +78,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9084/recycler",
         "-chunkFilePoolDir=./9084/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9084/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9084",
+        "-conf=./9084/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -91,7 +92,7 @@ static char* raftConfigParam[5][13] = {
         "-recycleUri=local://./9085/recycler",
         "-chunkFilePoolDir=./9085/chunkfilepool/",
         "-chunkFilePoolMetaPath=./9085/chunkfilepool.meta",
-        "-conf=test/integration/raft/chunkserver.conf.9085",
+        "-conf=./9085/chunkserver.conf",
         "-raft_sync_segments=true",
         NULL
     },
@@ -123,11 +124,42 @@ class RaftConfigChangeTest : public testing::Test {
         ::system(mkdir4.c_str());
         ::system(mkdir5.c_str());
 
-        electionTimeoutMs = 3000;
+        electionTimeoutMs = 1000;
         confChangeTimeoutMs = 6000;
         snapshotIntervalS = 1;
         maxWaitInstallSnapshotMs = 5000;
         waitMultiReplicasBecomeConsistent = 3000;
+
+        ASSERT_TRUE(cg1.Init("9081"));
+        ASSERT_TRUE(cg2.Init("9082"));
+        ASSERT_TRUE(cg3.Init("9083"));
+        ASSERT_TRUE(cg4.Init("9084"));
+        ASSERT_TRUE(cg5.Init("9085"));
+        cg1.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg1.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg2.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg2.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg3.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg3.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg4.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg4.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        cg5.SetKV("copyset.election_timeout_ms",
+            std::to_string(electionTimeoutMs));
+        cg5.SetKV("copyset.snapshot_interval_s",
+            std::to_string(snapshotIntervalS));
+        ASSERT_TRUE(cg1.Generate());
+        ASSERT_TRUE(cg2.Generate());
+        ASSERT_TRUE(cg3.Generate());
+        ASSERT_TRUE(cg4.Generate());
+        ASSERT_TRUE(cg5.Generate());
 
         paramsIndexs[PeerCluster::PeerToId(peer1)] = 0;
         paramsIndexs[PeerCluster::PeerToId(peer2)] = 1;
@@ -169,6 +201,11 @@ class RaftConfigChangeTest : public testing::Test {
     Peer peer3;
     Peer peer4;
     Peer peer5;
+    CSTConfigGenerator cg1;
+    CSTConfigGenerator cg2;
+    CSTConfigGenerator cg3;
+    CSTConfigGenerator cg4;
+    CSTConfigGenerator cg5;
     int electionTimeoutMs;
     int confChangeTimeoutMs;
     int snapshotIntervalS;
@@ -684,11 +721,11 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenRemoveLeader) {
                            ch - 1,
                            1);
 
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 4. 拉起follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
-    ::usleep(1.2 * electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
@@ -804,10 +841,10 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenRemoveLeader) {
                            ch - 1,
                            1);
 
+    ::usleep(1000 * electionTimeoutMs * 2);
     // 4. 拉起follower
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.SignalPeer(hangPeer));
-    ::usleep(1.2 * electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
@@ -914,7 +951,6 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerThenTransferLeaderTo) {
                            ch -1,
                            1);
 
-    ::usleep(electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     ASSERT_STRNE(shutdownPeer.address().c_str(), leaderId.to_string().c_str());
@@ -1038,7 +1074,6 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerThenTransferLeaderTo) {
         TransferLeader(logicPoolId, copysetId, conf, hangPeer, options);
     ASSERT_TRUE(st1.ok());
 
-    ::usleep(electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     ASSERT_STRNE(hangPeer.address().c_str(), leaderId.to_string().c_str());
@@ -1680,8 +1715,6 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
                            ch - 1,
                            1);
 
-    // 避免查到老leader
-    ::usleep(1.3 * electionTimeoutMs * 1000);
     ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
     LOG(INFO) << "new leader is: " << leaderPeer.address();
@@ -2203,6 +2236,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
 
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
+
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
                logicPoolId,
@@ -2319,6 +2355,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     // 5. 把follower拉来
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
@@ -2438,6 +2477,9 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButFollo
     int sleepMs2 = butil::fast_rand_less_than(1000) + 1;
     ::usleep(1000 * sleepMs2);
     ASSERT_EQ(0, cluster.SignalPeer(shutdownPeer));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    ASSERT_EQ(0, leaderId.parse(leaderPeer.address()));
 
     // read之前写入的数据验证
     ReadVerify(leaderPeer,

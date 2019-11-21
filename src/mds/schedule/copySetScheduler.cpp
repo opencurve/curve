@@ -212,7 +212,7 @@ bool CopySetScheduler::CopySetMigration(
     *target = desc[desc.size() - 1].first;
     if (opController_->ChunkServerExceed(*target)) {
         LOG(INFO) << "copysetScheduler found target:"
-                  << target << " operator exceed";
+                  << *target << " operator exceed";
         return false;
     }
 
@@ -233,11 +233,6 @@ bool CopySetScheduler::CopySetMigration(
             // copyset的replica不是标准数量，不考虑
             if (info.peers.size() !=
                 topo_->GetStandardReplicaNumInLogicalPool(info.id.first)) {
-                continue;
-            }
-
-            // 超过concurrent的不考虑
-            if (opController_->ChunkServerExceed(info.id.first)) {
                 continue;
             }
 

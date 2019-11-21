@@ -1,8 +1,8 @@
 # tools
-cc_binary(
-    name = "curve-cli",
+cc_library(
+    name = "curve_cli_lib",
     srcs = [
-        "curve_cli.cpp",
+        "curve_cli.h",
     ],
     deps = [
         "//external:braft",
@@ -87,29 +87,6 @@ cc_library(
 )
 
 cc_binary(
-    name = "checkConsistecny",
-    srcs = ["curve_data_check_main.cpp"],
-    copts = COPTS,
-    visibility = ["//visibility:public"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//include/client:include_client",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//src/client:curve_client",
-        "//src/common:curve_common",
-        "//src/tools:consistency_check_lib",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_binary(
     name = "curve_format",
     srcs = [
         "curve_format_main.cpp",
@@ -132,25 +109,21 @@ cc_binary(
 )
 
 cc_binary(
-    name = "curve_status_tool",
-    srcs = ["status_tool.cpp", "status_tool.h", "status_tool_main.cpp"],
+    name = "curve_tool",
+    srcs = ["curve_tool_main.cpp"],
+
     copts = COPTS,
     linkopts = [
         "-lmysqlcppconn",
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//external:brpc",
         "//external:gflags",
-        "//external:glog",
-        "//external:protobuf",
-        "//proto:chunkserver-cc-protos",
-        "//proto:nameserver2_cc_proto",
-        "//proto:topology_cc_proto",
-        "//src/common:curve_common",
-        "//src/mds/dao:mdsrepo",
-        "//src/mds/common:mds_common",
-        "//src/repo:repo"
+        "//src/tools:status_tool_lib",
+        "//src/tools:namespace_tool_lib",
+        "//src/tools:curve_cli_lib",
+        "//src/tools:consistency_check_lib",
+        "//src/tools:copyset_check_lib",
     ],
 )
 
@@ -175,4 +148,41 @@ cc_library(
     ],
     visibility = ["//visibility:public"],
     copts = COPTS
+)
+
+cc_library(
+    name = "namespace_tool_lib",
+    srcs = glob(
+        ["namespace_tool.cpp", "namespace_tool.h"],
+    ),
+    hdrs = glob(["namespace_tool.h"]),
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gflags",
+        "//external:protobuf",
+        "//proto:nameserver2_cc_proto",
+        "//src/common:curve_common",
+        "//src/mds/common:mds_common",
+        "//src/mds/nameserver2:nameserver2",
+    ],
+)
+
+cc_library(
+    name = "copyset_check_lib",
+    srcs = glob(
+        ["copyset_check.cpp", "copyset_check.h"],
+    ),
+    hdrs = glob(["copyset_check.h"]),
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gflags",
+        "//external:protobuf",
+        "//external:brpc",
+        "//external:braft",
+        "//proto:topology_cc_proto",
+        "//src/common:curve_common",
+        "//src/mds/common:mds_common",
+    ],
 )

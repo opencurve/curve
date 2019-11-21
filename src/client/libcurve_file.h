@@ -26,8 +26,24 @@ using curve::common::RWLock;
 // TODO(tongguangxun) :添加关键函数trace功能
 namespace curve {
 namespace client {
-// FileClient是vdisk的管理类，一个QEMU对应多个vdisk
 
+void InitLogging(const std::string& confpath);
+
+class LoggerGuard {
+ public:
+  explicit LoggerGuard(const std::string& confpath) {
+    InitInternal(confpath);
+  }
+
+  ~LoggerGuard() {
+    google::ShutdownGoogleLogging();
+  }
+
+ private:
+  static void InitInternal(const std::string& confpath);
+};
+
+// FileClient是vdisk的管理类，一个QEMU对应多个vdisk
 class FileClient {
  public:
   FileClient();

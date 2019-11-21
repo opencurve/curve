@@ -13,6 +13,7 @@
 
 #include <map>
 #include <utility>
+#include <algorithm>
 
 #include "src/chunkserver/cli.h"
 #include "src/chunkserver/register.h"
@@ -95,7 +96,7 @@ int PeerCluster::StartPeer(const Peer &peer,
                       params_[paramsIndexs_[id]]);
         exit(0);
     }
-
+    LOG(INFO) << "start peer success, peer id = " << pid;
     peerNode->pid = pid;
     peerNode->state = PeerNodeState::RUNNING;
     peersMap_.insert(std::pair<std::string,
@@ -128,6 +129,7 @@ int PeerCluster::ShutdownPeer(const Peer &peer) {
             return -1;
         }
         waitpid(it->second->pid, &waitState, 0);
+        LOG(INFO) << "shutdown pid(" << it->second->pid << ") success.";
         peersMap_.erase(peerId.to_string());
         return 0;
     } else {
@@ -153,6 +155,9 @@ int PeerCluster::HangPeer(const Peer &peer) {
                        << strerror(errno);
             return -1;
         }
+        int waitState;
+        waitpid(it->second->pid, &waitState, WUNTRACED);
+        LOG(INFO) << "hang pid(" << it->second->pid << ") success.";
         it->second->state = PeerNodeState::STOP;
         return 0;
     } else {
@@ -178,6 +183,9 @@ int PeerCluster::SignalPeer(const Peer &peer) {
                        << strerror(errno);
             return -1;
         }
+        int waitState;
+        waitpid(it->second->pid, &waitState, WCONTINUED);
+        LOG(INFO) << "continue pid(" << it->second->pid << ") success.";
         it->second->state = PeerNodeState::RUNNING;
         return 0;
     } else {
@@ -193,7 +201,7 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
     /**
      * 等待选举结束
      */
-    ::usleep(2 * electionTimeoutMs_ * 1000);
+    ::usleep(3 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
     for (int i = 0; i < kMaxLoop; ++i) {
         ::usleep(100 * 1000);
@@ -203,7 +211,7 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
              * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
              * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
              */
-            usleep(electionTimeoutMs_ * 1000);
+            // usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
                       << leaderId.to_string();
             leaderPeer->set_address(leaderId.to_string());
@@ -391,6 +399,7 @@ std::shared_ptr<LocalFileSystem> PeerCluster::fs_
  * @param length    每次 IO 的 length
  * @param fillCh    每次 IO 填充的字符
  * @param loop      重复发起 IO 的次数
+ * @param sn        本次写入的版本号
  */
 void WriteThenReadVerify(Peer leaderPeer,
                          LogicPoolID logicPoolId,
@@ -398,12 +407,12 @@ void WriteThenReadVerify(Peer leaderPeer,
                          ChunkID chunkId,
                          int length,
                          char fillCh,
-                         int loop) {
+                         int loop,
+                         uint64_t sn) {
     LOG(INFO) << "Write then read verify: " << fillCh;
 
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
-    uint64_t sn = 1;
     ASSERT_EQ(0, channel.Init(leaderId.addr, NULL));
     ChunkService_Stub stub(&channel);
     for (int i = 0; i < loop; ++i) {
@@ -492,6 +501,76 @@ void ReadVerify(Peer leaderPeer,
         request.set_size(length);
         request.set_sn(sn);
         stub.ReadChunk(&cntl, &request, &response, nullptr);
+        LOG_IF(INFO, cntl.Failed()) << "error msg: "
+                                    << cntl.ErrorCode() << " : "
+                                    << cntl.ErrorText();
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  response.status());
+        std::string expectRead(length, fillCh);
+        ASSERT_STREQ(expectRead.c_str(),
+                     cntl.response_attachment().to_string().c_str());
+    }
+}
+
+/**
+ * 读chunk的snapshot进行验证
+ * @param leaderId      主的 id
+ * @param logicPoolId   逻辑池 id
+ * @param copysetId 复制组 id
+ * @param chunkId   chunk id
+ * @param length    每次 IO 的 length
+ * @param fillCh    每次 IO 填充的字符
+ * @param loop      重复发起 IO 的次数
+ */
+void ReadSnapshotVerify(Peer leaderPeer,
+                        LogicPoolID logicPoolId,
+                        CopysetID copysetId,
+                        ChunkID chunkId,
+                        int length,
+                        char fillCh,
+                        int loop) {
+    LOG(INFO) << "Read snapshot verify: " << fillCh;
+    PeerId leaderId(leaderPeer.address());
+    brpc::Channel channel;
+    ASSERT_EQ(0, channel.Init(leaderId.addr, NULL));
+
+    ChunkService_Stub stub(&channel);
+
+    // 获取chunk的快照版本
+    uint64_t snapSn;
+    {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(5000);
+        GetChunkInfoRequest request;
+        GetChunkInfoResponse response;
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        stub.GetChunkInfo(&cntl, &request, &response, nullptr);
+        LOG_IF(INFO, cntl.Failed()) << "error msg: "
+                                    << cntl.ErrorCode() << " : "
+                                    << cntl.ErrorText();
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
+                  response.status());
+        ASSERT_EQ(2, response.chunksn_size());
+        snapSn = std::min(response.chunksn(0), response.chunksn(1));
+    }
+
+    for (int i = 0; i < loop; ++i) {
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(5000);
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(length*i);
+        request.set_size(length);
+        request.set_sn(snapSn);
+        stub.ReadChunkSnapshot(&cntl, &request, &response, nullptr);
         LOG_IF(INFO, cntl.Failed()) << "error msg: "
                                     << cntl.ErrorCode() << " : "
                                     << cntl.ErrorText();
@@ -614,7 +693,7 @@ void WriteVerifyNotAvailable(Peer leaderPeer,
                              int length,
                              char fillCh,
                              int loop) {
-    LOG(INFO) << "Write verify available: " << fillCh;
+    LOG(INFO) << "Write verify not available: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
     uint64_t sn = 1;
