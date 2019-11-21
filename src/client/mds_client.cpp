@@ -495,14 +495,19 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         ::curve::mds::StatusCode stcode = response.statuscode();
 
-        if (stcode == ::curve::mds::StatusCode::kOK &&
+        if ((stcode == ::curve::mds::StatusCode::kOK ||
+             stcode == ::curve::mds::StatusCode::kFileUnderSnapShot) &&
             response.has_snapshotfileinfo()) {
             FInfo_t* fi = new (std::nothrow) FInfo_t;
             curve::mds::FileInfo finfo = response.snapshotfileinfo();
             ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
             *seq = fi->seqnum;
             delete fi;
-            return LIBCURVE_ERROR::OK;
+            if (stcode == ::curve::mds::StatusCode::kOK) {
+                return LIBCURVE_ERROR::OK;
+            } else {
+                return LIBCURVE_ERROR::UNDER_SNAPSHOT;
+            }
         } else if (!response.has_snapshotfileinfo() &&
                    stcode == ::curve::mds::StatusCode::kOK) {
             LOG(WARNING) << "mds side response has no snapshot file info!";

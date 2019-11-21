@@ -355,11 +355,12 @@ int SnapshotCoreImpl::CreateSnapshotOnCurvefs(
     uint64_t seqNum = 0;
     int ret =
         client_->CreateSnapshot(fileName, info->GetUser(), &seqNum);
-    if (ret != LIBCURVE_ERROR::OK) {
+    if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::UNDER_SNAPSHOT) {
         LOG(ERROR) << "CreateSnapshot on curvefs fail, "
                    << " ret = " << ret;
         return kErrCodeInternalError;
     }
+    LOG(INFO) << "CreateSnapshot on curvefs success, seq = " << seqNum;
 
     FInfo snapInfo;
     ret = client_->GetSnapshot(fileName,
