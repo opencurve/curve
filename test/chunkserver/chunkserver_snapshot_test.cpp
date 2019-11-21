@@ -218,7 +218,9 @@ static void ReadVerifyNotAvailable(PeerId leaderId,
         LOG_IF(INFO, cntl.Failed()) << "error msg: "
                                     << cntl.ErrorCode() << " : "
                                     << cntl.ErrorText();
-        ASSERT_TRUE(cntl.Failed());
+        LOG(INFO) << "read: " << CHUNK_OP_STATUS_Name(response.status());
+        ASSERT_TRUE(cntl.Failed() ||
+            response.status() != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     }
 }
 
