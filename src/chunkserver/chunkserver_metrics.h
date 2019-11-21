@@ -278,8 +278,6 @@ struct ChunkServerMetricOptions {
 
 using CopysetMetricPtr = std::shared_ptr<CSCopysetMetric>;
 using CopysetMetricMap = std::unordered_map<GroupId, CopysetMetricPtr>;
-using ConfigItemPtr = std::shared_ptr<bvar::Status<std::string>>;
-using ConfigMetricMap =  std::unordered_map<std::string, ConfigItemPtr>;
 
 class ChunkServerMetric : public Uncopyable {
  public:
@@ -460,7 +458,7 @@ class ChunkServerMetric : public Uncopyable {
      * 更新配置项数据
      * @param conf: 配置内容
      */
-    void UpdateConfigMetric(const common::Configuration& conf);
+    void UpdateConfigMetric(common::Configuration* conf);
 
     // 下列函数用户获取各项metric 指标
     const IOMetricPtr GetReadMetric() const {
@@ -488,10 +486,6 @@ class ChunkServerMetric : public Uncopyable {
         return chunkLeft_->get_value();
     }
 
-    const ConfigMetricMap GetConfigMetric() const {
-        return configMetric_;
-    }
-
  private:
     ChunkServerMetric();
 
@@ -516,8 +510,6 @@ class ChunkServerMetric : public Uncopyable {
     PassiveStatusPtr<uint32_t> chunkLeft_;
     // 各复制组metric的映射表，用GroupId作为key
     CopysetMetricMap copysetMetricMap_;
-    // chunkserver配置的metric
-    ConfigMetricMap configMetric_;
     // 用于单例模式的自指指针
     static ChunkServerMetric* self_;
 };

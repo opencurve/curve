@@ -429,21 +429,24 @@ TEST_F(CSMetricTest, ConfigTest) {
     conf.SetConfigPath(confFile_);
     int ret = conf.LoadConfig();
     ASSERT_EQ(ret, true);
-    metric_->UpdateConfigMetric(conf);
-    ConfigMetricMap configs = metric_->GetConfigMetric();
-    // 验证配置信息
-    ASSERT_EQ(configs["chunksize"]->get_value(), "1234");
-    ASSERT_EQ(configs["timeout"]->get_value(), "100");
-    ASSERT_EQ(configs["port"], nullptr);
+    metric_->UpdateConfigMetric(&conf);
+
+    std::string prefix = "chunkserver_127_0_0_1_9401_config_";
+    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "chunksize").c_str(),
+                 "{\"conf_name\":\"chunksize\",\"conf_value\":\"1234\"}");
+    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "timeout").c_str(),
+                 "{\"conf_name\":\"timeout\",\"conf_value\":\"100\"}");
     // 修改新增配置信息
     conf.SetStringValue("chunksize", "4321");
     conf.SetStringValue("port", "9999");
-    metric_->UpdateConfigMetric(conf);
-    // 验证修改后信息
-    configs = metric_->GetConfigMetric();
-    ASSERT_EQ(configs["chunksize"]->get_value(), "4321");
-    ASSERT_EQ(configs["timeout"]->get_value(), "100");
-    ASSERT_EQ(configs["port"]->get_value(), "9999");
+    metric_->UpdateConfigMetric(&conf);
+    // // 验证修改后信息
+    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "chunksize").c_str(),
+                 "{\"conf_name\":\"chunksize\",\"conf_value\":\"4321\"}");
+    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "timeout").c_str(),
+                 "{\"conf_name\":\"timeout\",\"conf_value\":\"100\"}");
+    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "port").c_str(),
+                 "{\"conf_name\":\"port\",\"conf_value\":\"9999\"}");
 }
 
 TEST_F(CSMetricTest, OnOffTest) {
@@ -460,7 +463,7 @@ TEST_F(CSMetricTest, OnOffTest) {
         conf.SetConfigPath(confFile_);
         int ret = conf.LoadConfig();
         ASSERT_EQ(ret, true);
-        metric_->UpdateConfigMetric(conf);
+        metric_->UpdateConfigMetric(&conf);
     }
     // 初始化后获取所有指标项都为空
     {
@@ -469,8 +472,6 @@ TEST_F(CSMetricTest, OnOffTest) {
         ASSERT_EQ(metric_->GetCopysetCount(), 0);
         ASSERT_EQ(metric_->GetLeaderCount(), 0);
         ASSERT_EQ(metric_->GetChunkLeftCount(), 0);
-        ConfigMetricMap configs = metric_->GetConfigMetric();
-        ASSERT_EQ(configs.size(), 0);
     }
     // 创建copyset的metric返回成功，但实际并未创建
     {
