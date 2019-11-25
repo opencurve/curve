@@ -472,9 +472,11 @@ class CurveFS {
     /**
      *  @brief 判断文件是否进行更改，目前删除、rename、changeowner时需要判断
      *  @param: fileName
+     *  @param: fileInfo 文件信息结构
      *  @return: 正常返回kOK，否则返回错误码
      */
-    StatusCode CheckFileCanChange(const std::string &fileName);
+    StatusCode CheckFileCanChange(const std::string &fileName,
+        const FileInfo &fileInfo);
 
  private:
     FileInfo rootFileInfo_;

@@ -217,6 +217,20 @@ class SnapshotClient {
                                 const UserInfo_t& userinfo);
 
   /**
+   * 设置clone文件状态
+   * @param: filename 目标文件
+   * @param: filestatus为要设置的目标状态
+   * @param: userinfo用户信息
+   * @param: fileId为文件ID信息，非必填
+   *
+   * @return 错误码
+   */
+  int SetCloneFileStatus(const std::string &filename,
+                          const FileStatus& filestatus,
+                          const UserInfo_t& userinfo,
+                          uint64_t fileID = 0);
+
+  /**
    * @brief 获取文件信息
    *
    * @param:filename 文件名

@@ -71,6 +71,8 @@ class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
             std::vector<SnapshotInfo> *v));
     MOCK_METHOD1(GetSnapshotList,
         int(std::vector<SnapshotInfo> *list));
+    MOCK_METHOD0(GetSnapshotCount,
+        uint32_t());
     MOCK_METHOD1(AddCloneInfo, int(const CloneInfo &info));
     MOCK_METHOD1(DeleteCloneInfo, int(const std::string &taskID));
     MOCK_METHOD1(UpdateCloneInfo, int(const CloneInfo &info));
@@ -192,6 +194,11 @@ class MockCurveFsClient : public CurveFsClient {
         int(const std::string &filename,
         const std::string &user));
 
+    MOCK_METHOD3(SetCloneFileStatus,
+        int(const std::string &filename,
+        const FileStatus& filestatus,
+        const std::string &user));
+
     MOCK_METHOD3(GetFileInfo,
         int(const std::string &filename,
         const std::string &user,
@@ -256,18 +263,20 @@ class MockCloneServiceManager : public CloneServiceManager {
         CloneServiceManager(nullptr, nullptr) {}
     ~MockCloneServiceManager() {}
 
-    MOCK_METHOD5(CloneFile,
+    MOCK_METHOD6(CloneFile,
         int(const UUID &source,
         const std::string &user,
         const std::string &destination,
         bool lazyFlag,
+        std::shared_ptr<CloneClosure> entity,
         TaskIdType *taskId));
 
-    MOCK_METHOD5(RecoverFile,
+    MOCK_METHOD6(RecoverFile,
         int(const UUID &source,
         const std::string &user,
         const std::string &destination,
         bool lazyFlag,
+        std::shared_ptr<CloneClosure> entity,
         TaskIdType *taskId));
 
     MOCK_METHOD3(GetCloneTaskInfo,
@@ -309,6 +318,9 @@ class MockCloneCore : public CloneCore {
 
     MOCK_METHOD0(GetSnapshotRef,
         std::shared_ptr<SnapshotReference>());
+
+    MOCK_METHOD0(GetCloneRef,
+        std::shared_ptr<CloneReference>());
 };
 }  // namespace snapshotcloneserver
 }  // namespace curve

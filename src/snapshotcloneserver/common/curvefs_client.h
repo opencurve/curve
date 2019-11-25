@@ -243,6 +243,20 @@ class CurveFsClient {
         const std::string &user) = 0;
 
     /**
+     * @brief 设置clone文件状态
+     *
+     * @param filename 文件名
+     * @param filestatus 要设置的目标状态
+     * @param user 用户名
+     *
+     * @return 错误码
+     */
+    virtual int SetCloneFileStatus(
+        const std::string &filename,
+        const FileStatus& filestatus,
+        const std::string &user) = 0;
+
+    /**
      * @brief 获取文件信息
      *
      * @param filename 文件名
@@ -402,6 +416,11 @@ class CurveFsClientImpl : public CurveFsClient {
 
     int CompleteCloneFile(
         const std::string &filename,
+        const std::string &user) override;
+
+    int SetCloneFileStatus(
+        const std::string &filename,
+        const FileStatus& filestatus,
         const std::string &user) override;
 
     int GetFileInfo(
