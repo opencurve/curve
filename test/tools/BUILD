@@ -83,3 +83,48 @@ cc_binary(
         "//test/client/fake:fake_lib",
     ],
 )
+
+cc_library(
+    name = "tools_mock",
+    srcs = [
+            "mock_snapshot_read.h",
+            ],
+    deps = [
+            "//src/tools:snapshot_tool_lib",
+            ],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "curve_snapshot_read_test",
+    srcs = glob([
+                "snapshot_read_test.cpp"
+                ]),
+    linkopts = [
+        "-lmysqlcppconn",
+    ],
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:snapshot_tool_lib",
+        "//test/common:common_mock",
+        "//test/snapshotcloneserver:mock_repo",
+    ],
+)
+
+cc_binary(
+    name = "curve_snapshot_check_test",
+    srcs = glob([
+                "snapshot_check_test.cpp"
+                ]),
+    linkopts = [
+        "-lmysqlcppconn",
+    ],
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:snapshot_tool_lib",
+        "//test/client:client_mock",
+        "//test/tools:tools_mock",
+    ],
+)

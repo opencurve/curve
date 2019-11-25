@@ -32,6 +32,7 @@ namespace chunkserver {
 class CopysetNodeManager;
 class ChunkfilePool;
 class CSDataStore;
+class Trash;
 
 template <typename Tp>
 using PassiveStatusPtr = std::shared_ptr<bvar::PassiveStatus<Tp>>;
@@ -99,8 +100,12 @@ class CSCopysetMetric {
         , copysetId_(0)
         , readMetric_(nullptr)
         , writeMetric_(nullptr)
+        , recoverMetric_(nullptr)
+        , pasteMetric_(nullptr)
+        , downloadMetric_(nullptr)
         , chunkCount_(nullptr)
-        , snapshotCount_(nullptr) {}
+        , snapshotCount_(nullptr)
+        , cloneChunkCount_(nullptr) {}
 
     ~CSCopysetMetric() {}
 
@@ -121,6 +126,21 @@ class CSCopysetMetric {
      * 记录WriteChunk请求
      */
     void OnRequestWrite();
+
+    /**
+     * 记录RecoverChunk请求
+     */
+    void OnRequestRecover();
+
+    /**
+     * 记录PasteChunk请求
+     */
+    void OnRequestPaste();
+
+    /**
+     * 记录下载请求
+     */
+    void OnRequestDownload();
 
     /**
      * ReadChunk结束时记录该次IO指标
@@ -145,6 +165,39 @@ class CSCopysetMetric {
                          bool hasError);
 
     /**
+     * RecoverChunk结束时记录该次IO指标
+     * 错误的io不会计入iops和bps统计
+     * @param size: 此次io数据的大小
+     * @param latUS: 此次io的延时
+     * @param hasError: 此次io是否有错误产生
+     */
+    void OnResponseRecover(size_t size,
+                           int64_t latUs,
+                           bool hasError);
+
+    /**
+     * PasteChunk结束时记录该次IO指标
+     * 错误的io不会计入iops和bps统计
+     * @param size: 此次io数据的大小
+     * @param latUS: 此次io的延时
+     * @param hasError: 此次io是否有错误产生
+     */
+    void OnResponsePaste(size_t size,
+                         int64_t latUs,
+                         bool hasError);
+
+    /**
+     * 下载结束时记录该次IO指标
+     * 错误的io不会计入iops和bps统计
+     * @param size: 此次io数据的大小
+     * @param latUS: 此次io的延时
+     * @param hasError: 此次io是否有错误产生
+     */
+    void OnResponseDownload(size_t size,
+                            int64_t latUs,
+                            bool hasError);
+
+    /**
      * 监控DataStore指标，主要包括chunk的数量、快照的数量等
      * @param datastore: 该copyset下的datastore指针
      */
@@ -159,12 +212,37 @@ class CSCopysetMetric {
         return writeMetric_;
     }
 
+    const IOMetricPtr GetRecoverMetric() const {
+        return recoverMetric_;
+    }
+
+    const IOMetricPtr GetPasteMetric() const {
+        return pasteMetric_;
+    }
+
+    const IOMetricPtr GetDownloadMetric() const {
+        return downloadMetric_;
+    }
+
     const uint32_t GetChunkCount() const {
+        if (chunkCount_ == nullptr) {
+            return 0;
+        }
         return chunkCount_->get_value();
     }
 
     const uint32_t GetSnapshotCount() const {
+        if (snapshotCount_ == nullptr) {
+            return 0;
+        }
         return snapshotCount_->get_value();
+    }
+
+    const uint32_t GetCloneChunkCount() const {
+        if (cloneChunkCount_ == nullptr) {
+            return 0;
+        }
+        return cloneChunkCount_->get_value();
     }
 
  private:
@@ -184,10 +262,18 @@ class CSCopysetMetric {
     IOMetricPtr readMetric_;
     // 通过ChunkService进来的写io统计
     IOMetricPtr writeMetric_;
+    // 通过ChunkService进来的recover io统计
+    IOMetricPtr recoverMetric_;
+    // 统计pastechunk的io信息
+    IOMetricPtr pasteMetric_;
+    // clone chunk从源端拷贝数据的io统计
+    IOMetricPtr downloadMetric_;
     // copyset上的 chunk 的数量
     PassiveStatusPtr<uint32_t> chunkCount_;
     // copyset上的 快照文件 的数量
     PassiveStatusPtr<uint32_t> snapshotCount_;
+    // copyset上的 clone chunk 的数量
+    PassiveStatusPtr<uint32_t> cloneChunkCount_;
 };
 
 struct ChunkServerMetricOptions {
@@ -202,8 +288,6 @@ struct ChunkServerMetricOptions {
 
 using CopysetMetricPtr = std::shared_ptr<CSCopysetMetric>;
 using CopysetMetricMap = std::unordered_map<GroupId, CopysetMetricPtr>;
-using ConfigItemPtr = std::shared_ptr<bvar::Status<std::string>>;
-using ConfigMetricMap =  std::unordered_map<std::string, ConfigItemPtr>;
 
 class ChunkServerMetric : public Uncopyable {
  public:
@@ -239,6 +323,29 @@ class ChunkServerMetric : public Uncopyable {
                         const CopysetID& copysetId);
 
     /**
+     * 记录RecoverChunk请求
+     * @param logicPoolId: 此次io操作所在的逻辑池id
+     * @param copysetId: 此次io操作所在的copysetid
+     */
+    void OnRequestRecover(const LogicPoolID& logicPoolId,
+                          const CopysetID& copysetId);
+    /**
+     * 记录PasteChunk请求
+     * @param logicPoolId: 此次io操作所在的逻辑池id
+     * @param copysetId: 此次io操作所在的copysetid
+     */
+    void OnRequestPaste(const LogicPoolID& logicPoolId,
+                        const CopysetID& copysetId);
+
+    /**
+     * 记录下载请求
+     * @param logicPoolId: 此次io操作所在的逻辑池id
+     * @param copysetId: 此次io操作所在的copysetid
+     */
+    void OnRequestDownload(const LogicPoolID& logicPoolId,
+                           const CopysetID& copysetId);
+
+    /**
      * ReadChunk结束时记录该次IO指标
      * 错误的io不会计入iops和bps统计
      * @param logicPoolId: 此次io操作所在的逻辑池id
@@ -267,6 +374,51 @@ class ChunkServerMetric : public Uncopyable {
                          size_t size,
                          int64_t latUs,
                          bool hasError);
+
+    /**
+     * RecoverChunk结束时记录该次IO指标
+     * 错误的io不会计入iops和bps统计
+     * @param logicPoolId: 此次io操作所在的逻辑池id
+     * @param copysetId: 此次io操作所在的copysetid
+     * @param size: 此次io数据的大小
+     * @param latUS: 此次io的延时
+     * @param hasError: 此次io是否有错误产生
+     */
+    void OnResponseRecover(const LogicPoolID& logicPoolId,
+                           const CopysetID& copysetId,
+                           size_t size,
+                           int64_t latUs,
+                           bool hasError);
+
+    /**
+     * PasteChunk结束时记录该次IO指标
+     * 错误的io不会计入iops和bps统计
+     * @param logicPoolId: 此次io操作所在的逻辑池id
+     * @param copysetId: 此次io操作所在的copysetid
+     * @param size: 此次io数据的大小
+     * @param latUS: 此次io的延时
+     * @param hasError: 此次io是否有错误产生
+     */
+    void OnResponsePaste(const LogicPoolID& logicPoolId,
+                         const CopysetID& copysetId,
+                         size_t size,
+                         int64_t latUs,
+                         bool hasError);
+
+    /**
+     * 下载结束时记录该次IO指标
+     * 错误的io不会计入iops和bps统计
+     * @param logicPoolId: 此次io操作所在的逻辑池id
+     * @param copysetId: 此次io操作所在的copysetid
+     * @param size: 此次io数据的大小
+     * @param latUS: 此次io的延时
+     * @param hasError: 此次io是否有错误产生
+     */
+    void OnResponseDownload(const LogicPoolID& logicPoolId,
+                            const CopysetID& copysetId,
+                            size_t size,
+                            int64_t latUs,
+                            bool hasError);
 
     /**
      * 创建指定copyset的metric
@@ -303,6 +455,12 @@ class ChunkServerMetric : public Uncopyable {
     void MonitorChunkFilePool(ChunkfilePool* chunkfilePool);
 
     /**
+     * 监视回收站
+     * @param trash: trash的对象指针
+     */
+    void MonitorTrash(Trash* trash);
+
+    /**
      * 增加 leader count 计数
      */
     void IncreaseLeaderCount();
@@ -316,7 +474,7 @@ class ChunkServerMetric : public Uncopyable {
      * 更新配置项数据
      * @param conf: 配置内容
      */
-    void UpdateConfigMetric(const common::Configuration& conf);
+    void UpdateConfigMetric(common::Configuration* conf);
 
     // 下列函数用户获取各项metric 指标
     const IOMetricPtr GetReadMetric() const {
@@ -338,14 +496,34 @@ class ChunkServerMetric : public Uncopyable {
         return leaderCount_->get_value();
     }
 
+    const uint32_t GetTotalChunkCount() {
+        uint32_t totalChunkCount = 0;
+        ReadLockGuard lockGuard(rwLock_);
+        for (auto& iter : copysetMetricMap_) {
+            totalChunkCount += iter.second->GetChunkCount();
+        }
+        return totalChunkCount;
+    }
+
+    const uint32_t GetTotalSnapshotCount() {
+        uint32_t totalSnapshotCount = 0;
+        ReadLockGuard lockGuard(rwLock_);
+        for (auto& iter : copysetMetricMap_) {
+            totalSnapshotCount += iter.second->GetSnapshotCount();
+        }
+        return totalSnapshotCount;
+    }
+
     const uint32_t GetChunkLeftCount() const {
         if (chunkLeft_ == nullptr)
             return 0;
         return chunkLeft_->get_value();
     }
 
-    const ConfigMetricMap GetConfigMetric() const {
-        return configMetric_;
+    const uint32_t GetChunkTrashedCount() const {
+        if (chunkTrashed_ == nullptr)
+            return 0;
+        return chunkTrashed_->get_value();
     }
 
  private:
@@ -370,10 +548,10 @@ class ChunkServerMetric : public Uncopyable {
     AdderPtr<uint32_t> leaderCount_;
     // chunkfilepool 中剩余的 chunk 的数量
     PassiveStatusPtr<uint32_t> chunkLeft_;
+    // trash 中的 chunk 的数量
+    PassiveStatusPtr<uint32_t> chunkTrashed_;
     // 各复制组metric的映射表，用GroupId作为key
     CopysetMetricMap copysetMetricMap_;
-    // chunkserver配置的metric
-    ConfigMetricMap configMetric_;
     // 用于单例模式的自指指针
     static ChunkServerMetric* self_;
 };

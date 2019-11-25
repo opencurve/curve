@@ -67,7 +67,9 @@ do
 	    echo "Create log dir failed: ${DATA_DIR}/log/chunkserver$i"
 		exit
 	fi
-	curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_max_install_snapshot_tasks_num=5 -raft_sync=true  \
+    LD_PRELOAD=/lib/x86_64-linux-gnu/libjemalloc.so.1 curve-chunkserver \
+	        -bthread_concurrency=18 -raft_max_segment_size=8388608 \
+            -raft_max_install_snapshot_tasks_num=5 -raft_sync=true  \
 		    -conf=${conf}/chunkserver.conf \
 		    -chunkFilePoolDir=${DATA_DIR}/chunkserver$i \
 		    -chunkFilePoolMetaPath=${DATA_DIR}/chunkserver$i/chunkfilepool.meta \
@@ -86,14 +88,14 @@ fi
 num=`lsblk|grep chunkserver|wc -l`
 if [ $1 -lt 0 ]
 then
-	echo "chunkserver num $1 is not ok"
-	exit
+    echo "chunkserver num $1 is not ok"
+    exit
 fi
 
 if [[ $1 -gt $num ]]
 then
-	echo "chunkserver num $1 is not ok"
-	exit
+    echo "chunkserver num $1 is not ok"
+    exit
 fi
 
 ps -efl|grep -w "/data/chunkserver$1"|grep -v grep
@@ -107,9 +109,11 @@ mkdir -p ${DATA_DIR}/log/chunkserver$1
 if [ $? -ne 0 ]
 then
     echo "Create log dir failed: ${DATA_DIR}/log/chunkserver$1"
-	exit
+    exit
 fi
-curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_max_install_snapshot_tasks_num=5 -raft_sync=true  \
+LD_PRELOAD=/lib/x86_64-linux-gnu/libjemalloc.so.1 curve-chunkserver \
+        -bthread_concurrency=18 -raft_max_segment_size=8388608 \
+        -raft_max_install_snapshot_tasks_num=5 -raft_sync=true  \
 	    -conf=${conf}/chunkserver.conf \
 	    -chunkFilePoolDir=${DATA_DIR}/chunkserver$1 \
 	    -chunkFilePoolMetaPath=${DATA_DIR}/chunkserver$1/chunkfilepool.meta \

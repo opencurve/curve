@@ -66,6 +66,10 @@ DEFINE_uint32(allocatepercent,
               80,
               "preallocate storage percent of total disk");
 
+// 测试情况下置为false，加快测试速度
+DEFINE_bool(needWriteZero,
+        true,
+        "not write zero for test.");
 
 using curve::fs::FileSystemType;
 using curve::fs::LocalFsFactory;
@@ -124,13 +128,15 @@ int AllocateChunks(AllocateStruct* allocatestruct) {
             break;
         }
 
-        ret = allocatestruct->fsptr->Write(fd, data, 0,
-                                           FLAGS_chunksize+FLAGS_metapagsize);
-        if (ret < 0) {
-            allocatestruct->fsptr->Close(fd);
-            *allocatestruct->checkwrong = true;
-            LOG(ERROR) << "write failed, " << tmpchunkfilepath.c_str();
-            break;
+        if (FLAGS_needWriteZero) {
+            ret = allocatestruct->fsptr->Write(fd, data, 0,
+                FLAGS_chunksize+FLAGS_metapagsize);
+            if (ret < 0) {
+                allocatestruct->fsptr->Close(fd);
+                *allocatestruct->checkwrong = true;
+                LOG(ERROR) << "write failed, " << tmpchunkfilepath.c_str();
+                break;
+            }
         }
 
         ret = allocatestruct->fsptr->Fsync(fd);

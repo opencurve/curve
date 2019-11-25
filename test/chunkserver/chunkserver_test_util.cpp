@@ -282,6 +282,7 @@ int TestCluster::StartPeer(const PeerId &peerId,
         exit(0);
     }
 
+    LOG(INFO) << "Start peer success, pid: " << pid;
     peer->pid = pid;
     peer->state = PeerNodeState::RUNNING;
     peersMap_.insert(std::pair<std::string,
@@ -362,7 +363,7 @@ int TestCluster::WaitLeader(PeerId *leaderId) {
     /**
      * 等待选举结束
      */
-    ::usleep(2 * electionTimeoutMs_);
+    ::usleep(2 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
     for (int i = 0; i < kMaxLoop; ++i) {
         ::usleep(100 * 1000);
@@ -372,7 +373,7 @@ int TestCluster::WaitLeader(PeerId *leaderId) {
              * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
              * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
              */
-            usleep(electionTimeoutMs_ * 1000);
+            // usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
                       << leaderId->to_string();
             return 0;

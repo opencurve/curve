@@ -38,14 +38,17 @@ class TestSnapshotCoreImpl : public ::testing::Test {
         metaStore_ = std::make_shared<MockSnapshotCloneMetaStore>();
         dataStore_ = std::make_shared<MockSnapshotDataStore>();
 
+        option.mdsSessionTimeUs = 0;
         option.chunkSplitSize = 1024u * 1024u;
         option.checkSnapshotStatusIntervalMs = 1000u;
         option.maxSnapshotLimit = 64;
+        option.snapshotCoreThreadNum = 1;
         core_ = std::make_shared<SnapshotCoreImpl>(client_,
                 metaStore_,
                 dataStore_,
                 snapshotRef_,
                 option);
+        ASSERT_EQ(core_->Init(), 0);
     }
 
     virtual void TearDown() {
@@ -161,7 +164,7 @@ TEST_F(TestSnapshotCoreImpl, TestCreateSnapshotPreInvalidUser) {
     EXPECT_CALL(*client_, GetFileInfo(_, _, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(fInfo),
-                    Return(LIBCURVE_ERROR::OK)));
+                    Return(-LIBCURVE_ERROR::AUTHFAIL)));
     int ret = core_->CreateSnapshotPre(file, user, desc, &info);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 }
@@ -350,8 +353,10 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -485,8 +490,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -512,8 +518,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -550,9 +557,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
-
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(seqNum),
@@ -591,9 +598,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
-
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
                     SetArgPointee<2>(seqNum),
@@ -631,8 +638,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
@@ -679,9 +687,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
-
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -761,8 +769,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
@@ -850,8 +859,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
@@ -964,8 +974,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -1081,8 +1092,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
@@ -1208,8 +1220,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
@@ -1338,8 +1351,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
@@ -1475,8 +1489,9 @@ TEST_F(TestSnapshotCoreImpl,
     info.SetFileLength(8 * option.chunkSplitSize);
     info.SetStatus(Status::pending);
 
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*dataStore_, ChunkIndexDataExist(_))
         .WillOnce(Return(true));
@@ -1599,8 +1614,9 @@ TEST_F(TestSnapshotCoreImpl,
     info.SetSegmentSize(4 * option.chunkSplitSize);
     info.SetFileLength(8 * option.chunkSplitSize);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*dataStore_, ChunkIndexDataExist(_))
         .WillOnce(Return(true));
@@ -1700,8 +1716,9 @@ TEST_F(TestSnapshotCoreImpl,
     info.SetSegmentSize(4 * option.chunkSplitSize);
     info.SetFileLength(8 * option.chunkSplitSize);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*dataStore_, ChunkIndexDataExist(_))
         .WillOnce(Return(true));
@@ -1776,8 +1793,9 @@ TEST_F(TestSnapshotCoreImpl,
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetSeqNum(seqNum);
     info.SetStatus(Status::deleting);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     UUID uuid2 = "uuid2";
     std::string desc2 = "desc2";
@@ -1836,8 +1854,9 @@ TEST_F(TestSnapshotCoreImpl,
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetSeqNum(seqNum);
     info.SetStatus(Status::deleting);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     UUID uuid2 = "uuid2";
     std::string desc2 = "desc2";
@@ -1887,8 +1906,9 @@ TEST_F(TestSnapshotCoreImpl,
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetSeqNum(seqNum);
     info.SetStatus(Status::deleting);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     UUID uuid2 = "uuid2";
     std::string desc2 = "desc2";
@@ -1947,8 +1967,9 @@ TEST_F(TestSnapshotCoreImpl,
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetSeqNum(seqNum);
     info.SetStatus(Status::deleting);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     UUID uuid2 = "uuid2";
     std::string desc2 = "desc2";
@@ -2009,8 +2030,9 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -2165,8 +2187,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -2218,8 +2241,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -2323,8 +2347,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -2470,8 +2495,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(
@@ -2621,8 +2647,9 @@ TEST_F(TestSnapshotCoreImpl,
 
     SnapshotInfo info(uuid, user, fileName, desc);
     info.SetStatus(Status::pending);
+    auto snapshotInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> task =
-        std::make_shared<SnapshotTaskInfo>(info);
+        std::make_shared<SnapshotTaskInfo>(info, snapshotInfoMetric);
 
     EXPECT_CALL(*client_, CreateSnapshot(fileName, user, _))
         .WillOnce(DoAll(

@@ -15,6 +15,7 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/common/uuid.h"
 #include "src/common/string_util.h"
+#include "src/snapshotcloneserver/clone/clone_closure.h"
 
 using ::curve::common::UUIDGenerator;
 
@@ -56,11 +57,13 @@ void SnapshotCloneServiceImpl::default_method(RpcController* cntl,
         return;
     }
     if (*action == "Clone") {
-        HandleCloneAction(bcntl, requestId);
+        HandleCloneAction(bcntl, requestId, done);
+        done_guard.release();
         return;
     }
     if (*action == "Recover") {
-        HandleRecoverAction(bcntl, requestId);
+        HandleRecoverAction(bcntl, requestId, done);
+        done_guard.release();
         return;
     }
     if (*action == "GetCloneTasks") {
@@ -353,17 +356,7 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     for (std::vector<FileSnapshotInfo>::size_type i = offsetNum;
         i < info.size() && i < limitNum;
         i++) {
-        Json::Value fileSnapObj;
-        const SnapshotInfo &snap = info[i].GetSnapshotInfo();
-        fileSnapObj["UUID"] = snap.GetUuid();
-        fileSnapObj["User"] = snap.GetUser();
-        fileSnapObj["File"] = snap.GetFileName();
-        fileSnapObj["SeqNum"] = snap.GetSeqNum();
-        fileSnapObj["Name"] = snap.GetSnapshotName();
-        fileSnapObj["Time"] = snap.GetCreateTime();
-        fileSnapObj["FileLength"] = snap.GetFileLength();
-        fileSnapObj["Status"] = static_cast<int>(snap.GetStatus());
-        fileSnapObj["Progress"] = info[i].GetSnapProgress();
+        Json::Value fileSnapObj = info[i].ToJsonObj();
         listSnapObj.append(fileSnapObj);
     }
     mainObj["Snapshots"] = listSnapObj;
@@ -374,7 +367,9 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
 
 void SnapshotCloneServiceImpl::HandleCloneAction(
     brpc::Controller* bcntl,
-    const std::string &requestId) {
+    const std::string &requestId,
+    Closure* done) {
+    brpc::ClosureGuard done_guard(done);
     const std::string *version =
         bcntl->http_request().uri().GetQuery("Version");
     const std::string *user =
@@ -425,33 +420,18 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
 
 
     TaskIdType taskId;
-    int ret = cloneManager_->CloneFile(
-        *source, *user, *destination, lazyFlag, &taskId);
-    if (ret < 0) {
-        bcntl->http_response().set_status_code(
-            brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        butil::IOBufBuilder os;
-        std::string msg = BuildErrorMessage(ret,
-            requestId);
-        os << msg;
-        os.move_to(bcntl->response_attachment());
-        return;
-    }
-    bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
-    butil::IOBufBuilder os;
-    Json::Value mainObj;
-    mainObj["Code"] = std::to_string(kErrCodeSuccess);
-    mainObj["Message"] = code2Msg[kErrCodeSuccess];
-    mainObj["RequestId"] = requestId;
-    mainObj["UUID"] = taskId;
-    os << mainObj.toStyledString();
-    os.move_to(bcntl->response_attachment());
+    auto closure = std::make_shared<CloneClosure>(bcntl, done);
+    cloneManager_->CloneFile(
+    *source, *user, *destination, lazyFlag, closure, &taskId);
+    done_guard.release();
     return;
 }
 
 void SnapshotCloneServiceImpl::HandleRecoverAction(
     brpc::Controller* bcntl,
-    const std::string &requestId) {
+    const std::string &requestId,
+    Closure* done) {
+    brpc::ClosureGuard done_guard(done);
     const std::string *version =
         bcntl->http_request().uri().GetQuery("Version");
     const std::string *user =
@@ -501,27 +481,10 @@ void SnapshotCloneServiceImpl::HandleRecoverAction(
               << " Lazy = " << *lazy;
 
     TaskIdType taskId;
-    int ret = cloneManager_->RecoverFile(
-        *source, *user, *destination, lazyFlag, &taskId);
-    if (ret < 0) {
-        bcntl->http_response().set_status_code(
-            brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
-        butil::IOBufBuilder os;
-        std::string msg = BuildErrorMessage(ret,
-            requestId);
-        os << msg;
-        os.move_to(bcntl->response_attachment());
-        return;
-    }
-    bcntl->http_response().set_status_code(brpc::HTTP_STATUS_OK);
-    butil::IOBufBuilder os;
-    Json::Value mainObj;
-    mainObj["Code"] = std::to_string(kErrCodeSuccess);
-    mainObj["Message"] = code2Msg[kErrCodeSuccess];
-    mainObj["RequestId"] = requestId;
-    mainObj["UUID"] = taskId;
-    os << mainObj.toStyledString();
-    os.move_to(bcntl->response_attachment());
+    auto closure = std::make_shared<CloneClosure>(bcntl, done);
+    cloneManager_->RecoverFile(
+    *source, *user, *destination, lazyFlag, closure, &taskId);
+    done_guard.release();
     return;
 }
 
@@ -614,16 +577,7 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     for (std::vector<TaskCloneInfo>::size_type i = offsetNum;
         i < cloneTaskInfos.size() && i < limitNum;
         i++) {
-        Json::Value cloneTaskObj;
-        const TaskCloneInfo &info = cloneTaskInfos[i];
-        cloneTaskObj["UUID"] = info.GetCloneInfo().GetTaskId();
-        cloneTaskObj["User"] = info.GetCloneInfo().GetUser();
-        cloneTaskObj["File"] = info.GetCloneInfo().GetDest();
-        cloneTaskObj["TaskType"] = static_cast<int> (
-            info.GetCloneInfo().GetTaskType());
-        cloneTaskObj["TaskStatus"] = static_cast<int> (
-            info.GetCloneInfo().GetStatus());
-        cloneTaskObj["Time"] = info.GetCloneInfo().GetTime();
+        Json::Value cloneTaskObj = cloneTaskInfos[i].ToJsonObj();
         listObj.append(cloneTaskObj);
     }
     mainObj["TaskInfos"] = listObj;
@@ -635,24 +589,20 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
 
 bool SnapshotCloneServiceImpl::CheckBoolParamter(
     const std::string *param, bool *valueOut) {
-    if (*param == "true" || *param == "TRUE" || *param == "1") {
+    if (*param == "true" ||
+        *param == "True" ||
+        *param == "TRUE" ||
+        *param == "1") {
         *valueOut = true;
-    } else if (*param == "false" || *param == "FALSE" || *param == "0") {
+    } else if (*param == "false" ||
+               *param == "False" ||
+               *param == "FALSE" ||
+               *param == "0") {
         *valueOut = false;
     } else {
         return false;
     }
     return true;
-}
-
-std::string SnapshotCloneServiceImpl::BuildErrorMessage(
-    int errCode,
-    const std::string &requestId) {
-    Json::Value mainObj;
-    mainObj["Code"] = std::to_string(errCode);
-    mainObj["Message"] = code2Msg[errCode];
-    mainObj["RequestId"] = requestId;
-    return mainObj.toStyledString();
 }
 
 void SnapshotCloneServiceImpl::HandleCleanCloneTaskAction(

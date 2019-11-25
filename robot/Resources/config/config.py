@@ -121,7 +121,9 @@ vm_stability_host = "60.191.82.86"
 vm_user = "root"
 vm_iosize = "4" #4k
 
-
+# snapshot test param
+snapshot_file_name = "/lc"
+snapshot_s3_object_location = "snapshot_test_chunk_data@s3"
 
 
 
