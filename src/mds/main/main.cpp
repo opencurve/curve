@@ -547,16 +547,8 @@ int curve_main(int argc, char **argv) {
     LOG(INFO) << "resign success";
 
     kCurveFS.Uninit();
-    if (!cleanManger->Stop()) {
-        LOG(ERROR) << "stop cleanManager fail.";
-        return -1;
-    }
-    heartbeatManager->Stop();
-    LOG(INFO) << "stop heartbeatManager success";
-    segmentAllocStatistic->Stop();
-    LOG(INFO) << "stop segment alloc success";
-    coordinator->Stop();
-    LOG(INFO) << "stop coordinator success";
+
+    cleanManger->Stop();
 
     google::ShutdownGoogleLogging();
 

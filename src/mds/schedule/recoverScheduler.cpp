@@ -95,10 +95,6 @@ int RecoverScheduler::Schedule() {
         // 修复副本失败
         if (!FixOfflinePeer(
                 copysetInfo, *offlinelists.begin(), &fixRes, &target)) {
-            LOG(WARNING) << "recoverScheduler can not find a healthy"
-                          " chunkServer to fix offline one "
-                         << *offlinelists.begin() << " in "
-                         << copysetInfo.CopySetInfoStr();
             continue;
         // 修复副本成功，但加入到controller失败
         } else if (!opController_->AddOperator(fixRes)) {

@@ -26,11 +26,15 @@ void WaitInterval::WaitForNextExcution() {
 
     int rest = intevalMs_ - (now - lastSend_);
     rest = (rest < 0) ? 0 : rest;
-    std::this_thread::sleep_for(std::chrono::milliseconds(rest));
+
+    sleeper_.wait_for(std::chrono::milliseconds(rest));
 
     lastSend_ = TimeUtility::GetTimeofDayMs();
 }
 
+void WaitInterval::StopWait() {
+    sleeper_.interrupt();
+}
 }  // namespace common
 }  // namespace curve
 
