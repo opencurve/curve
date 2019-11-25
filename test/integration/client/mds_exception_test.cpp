@@ -55,7 +55,8 @@ const std::vector<std::string> chunkserverConf1{
     {" -chunkFilePoolMetaPath=./moduleException1/chunkfilepool.meta"},
     {" -conf=./test/integration/client/config/chunkserver.conf.0"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/MDSExceptionTest"}
+    {" --log_dir=./runlog/MDSExceptionTest"},
+    {" --graceful_quit_on_sigterm"},
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -67,7 +68,8 @@ const std::vector<std::string> chunkserverConf2{
     {" -chunkFilePoolMetaPath=./moduleException2/chunkfilepool.meta"},
     {" -conf=./test/integration/client/config/chunkserver.conf.1"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/MDSExceptionTest"}
+    {" --log_dir=./runlog/MDSExceptionTest"},
+    {" --graceful_quit_on_sigterm"},
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -79,7 +81,8 @@ const std::vector<std::string> chunkserverConf3{
     {" -chunkFilePoolMetaPath=./moduleException3/chunkfilepool.meta"},
     {" -conf=./test/integration/client/config/chunkserver.conf.2"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/MDSExceptionTest"}
+    {" --log_dir=./runlog/MDSExceptionTest"},
+    {" --graceful_quit_on_sigterm"},
 };
 
 class MDSModuleException : public ::testing::Test {

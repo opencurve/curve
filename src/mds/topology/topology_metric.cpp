@@ -271,10 +271,9 @@ void TopologyMetricService::CalcLogicalPoolMetrics(
 }
 
 void TopologyMetricService::BackEndFunc() {
-    while (!isStop_.load()) {
+    while (sleeper_.wait_for(
+        std::chrono::seconds(option_.UpdateMetricIntervalSec))) {
         UpdateTopologyMetrics();
-        std::this_thread::sleep_for(
-            std::chrono::seconds(option_.UpdateMetricIntervalSec));
     }
 }
 
@@ -294,7 +293,10 @@ int TopologyMetricService::Run() {
 
 int TopologyMetricService::Stop() {
     if (!isStop_.exchange(true)) {
+        LOG(INFO) << "stop TopologyMetricService...";
+        sleeper_.interrupt();
         backEndThread_.join();
+        LOG(INFO) << "stop TopologyMetricService ok.";
     }
     return 0;
 }

@@ -31,7 +31,6 @@ DEFINE_validator(enableRecoverScheduler, &pass_bool);
 
 Coordinator::Coordinator(const std::shared_ptr<TopoAdapter> &topo) {
     this->topo_ = topo;
-    schedulerRunning_ = false;
 }
 
 Coordinator::~Coordinator() {
@@ -96,7 +95,6 @@ void Coordinator::InitScheduler(
 }
 
 void Coordinator::Run() {
-    SetSchedulerRunning(true);
     // run different scheduler at interval in different threads
     for (auto &v : schedulerController_) {
         runSchedulerThreads_[v.first] = common::Thread(
@@ -105,11 +103,13 @@ void Coordinator::Run() {
 }
 
 void Coordinator::Stop() {
-    if (schedulerRunning_) {
-        SetSchedulerRunning(false);
-        for (auto &v : schedulerController_) {
-            runSchedulerThreads_[v.first].join();
+    sleeper_.interrupt();
+    for (auto &v : schedulerController_) {
+        if (runSchedulerThreads_.find(v.first) == runSchedulerThreads_.end()) {
+            continue;
         }
+        runSchedulerThreads_[v.first].join();
+        runSchedulerThreads_.erase(v.first);
     }
 }
 
@@ -188,15 +188,12 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
 
 void Coordinator::RunScheduler(
     const std::shared_ptr<Scheduler> &s, SchedulerType type) {
-    while (schedulerRunning_) {
-        std::this_thread::
-        sleep_for(std::chrono::seconds(s->GetRunningInterval()));
-
+    while (sleeper_.wait_for(std::chrono::seconds(s->GetRunningInterval()))) {
         if (ScheduleNeedRun(type)) {
             s->Schedule();
         }
     }
-    LOG(INFO) << "scheduler exit.";
+    LOG(INFO) << ScheduleName(type) << " exit.";
 }
 
 bool Coordinator::BuildCopySetConf(
@@ -252,12 +249,6 @@ bool Coordinator::ChunkserverGoingToAdd(
     return false;
 }
 
-
-void Coordinator::SetSchedulerRunning(bool flag) {
-    common::LockGuard guard(mutex_);
-    schedulerRunning_ = flag;
-}
-
 bool Coordinator::ScheduleNeedRun(SchedulerType type) {
     switch (type) {
         case SchedulerType::CopySetSchedulerType:
@@ -271,6 +262,22 @@ bool Coordinator::ScheduleNeedRun(SchedulerType type) {
 
         case SchedulerType::ReplicaSchedulerType:
             return FLAGS_enableReplicaScheduler;
+    }
+}
+
+std::string Coordinator::ScheduleName(SchedulerType type) {
+    switch (type) {
+        case SchedulerType::CopySetSchedulerType:
+            return "CopySetScheduler";
+
+        case SchedulerType::LeaderSchedulerType:
+            return "LeaderScheduler";
+
+        case SchedulerType::RecoverSchedulerType:
+            return "RecoverScheduler";
+
+        case SchedulerType::ReplicaSchedulerType:
+            return "ReplicaScheduler";
     }
 }
 
