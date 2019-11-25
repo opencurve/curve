@@ -15,12 +15,14 @@
 #include "src/mds/kvstorageclient/etcd_client.h"
 #include "src/mds/common/mds_define.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/interruptible_sleeper.h"
 
 using ::curve::mds::topology::PoolIdType;
 using ::curve::common::Atomic;
 using ::curve::common::Mutex;
 using ::curve::common::RWLock;
 using ::curve::common::Thread;
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -60,6 +62,10 @@ class AllocStatistic {
         stop_(true),
         periodicPersistInterMs_(periodicPersistInterMs),
         retryInterMs_(retryInterMs) {}
+
+    ~AllocStatistic() {
+        Stop();
+    }
 
     /**
      * @brief Init 从etcd中获取定期持久化的每个physical-pool对应的已分配的segment信息
@@ -191,6 +197,8 @@ class AllocStatistic {
 
     // stop_为true的时候停止持久化线程和统计etcd中segment分配量的统计线程
     Atomic<bool> stop_;
+
+    InterruptibleSleeper sleeper_;
 
     // 定期持久化每个逻辑池已分配的segment大小的线程
     Thread periodicPersist_;

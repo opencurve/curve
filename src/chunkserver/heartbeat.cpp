@@ -86,11 +86,12 @@ int Heartbeat::Run() {
 
 int Heartbeat::Stop() {
     LOG(INFO) << "Stopping Heartbeat manager.";
+
+    waitInterval_.StopWait();
     toStop_.store(true, std::memory_order_release);
-
     hbThread_.join();
-    LOG(INFO) << "Stopped Heartbeat manager.";
 
+    LOG(INFO) << "Stopped Heartbeat manager.";
     return 0;
 }
 

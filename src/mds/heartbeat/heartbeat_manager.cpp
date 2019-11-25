@@ -66,18 +66,17 @@ void HeartbeatManager::Run() {
 void HeartbeatManager::Stop() {
     if (!isStop_.exchange(true)) {
         LOG(INFO) << "stop heartbeatManager...";
+        sleeper_.interrupt();
         backEndThread_.join();
-        LOG(INFO) << "stop heartbeatManager ok!";
+        LOG(INFO) << "stop heartbeatManager ok.";
     } else {
         LOG(INFO) << "heartbeatManager not running.";
     }
 }
 
 void HeartbeatManager::ChunkServerHealthyChecker() {
-    while (!isStop_) {
-        std::this_thread::
-        sleep_for(
-            std::chrono::milliseconds(chunkserverHealthyCheckerRunInter_));
+    while (sleeper_.wait_for(
+        std::chrono::milliseconds(chunkserverHealthyCheckerRunInter_))) {
         healthyChecker_->CheckHeartBeatInterval();
     }
 }

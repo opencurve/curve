@@ -21,6 +21,7 @@
 #include "src/mds/heartbeat/chunkserver_healthy_checker.h"
 #include "src/mds/schedule/coordinator.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/interruptible_sleeper.h"
 #include "proto/heartbeat.pb.h"
 #include "src/mds/topology/topology_stat.h"
 
@@ -34,6 +35,7 @@ using ::curve::mds::schedule::Coordinator;
 using ::curve::common::Thread;
 using ::curve::common::Atomic;
 using ::curve::common::RWLock;
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -160,6 +162,7 @@ class HeartbeatManager {
     // 管理chunkserverHealthyChecker线程
     Thread backEndThread_;
     Atomic<bool> isStop_;
+    InterruptibleSleeper sleeper_;
     int chunkserverHealthyCheckerRunInter_;
 };
 

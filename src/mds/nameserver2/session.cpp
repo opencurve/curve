@@ -444,16 +444,17 @@ bool SessionManager::Init(const struct SessionOptions &sessionOptions) {
               << ", toleranceTime_ = " << toleranceTime_
               << ", intevalTime_ = " << intevalTime_;
 
-    sessionScanStop_ = false;
-
     if (scanLatency_.expose("session_scan", "lat") != 0) {
         LOG(ERROR) << "expose session_scan latency recorder failed";
     }
+
+    sessionScanStop_ = true;
 
     return true;
 }
 
 void SessionManager::Start() {
+    sessionScanStop_ = false;
     scanThread = new common::Thread(&SessionManager::SessionScanFunc, this);
     return;
 }
@@ -533,7 +534,7 @@ void SessionManager::SessionScanFunc() {
     LOG(INFO) << "start session scan thread.";
 
     // 周期性扫描内存中的session
-    while (!sessionScanStop_) {
+    while (sleeper_.wait_for(std::chrono::microseconds(intevalTime_))) {
         // 1、先扫描过期session，过期的session状态标记为kSessionStaled
         uint64_t timeStart = ::curve::common::TimeUtility::GetTimeofDayUs();
         ScanSessionMap();
@@ -542,33 +543,24 @@ void SessionManager::SessionScanFunc() {
 
         // 2、扫描deleteSessionList_，把列表中的session从数据库中删除
         HandleDeleteSessionList();
-
-        // 3、睡眠一段时间
-        common::UniqueLock lk(exitmtx_);
-        exitcv_.wait_for(lk, std::chrono::microseconds(intevalTime_),
-                         [&]()->bool{ return sessionScanStop_;});
     }
 
     // 退出之前，过期的session状态更新，需要删除的session都从数据库中删除
     ScanSessionMap();
     HandleDeleteSessionList();
-
-    LOG(INFO) << "stop session scan thread.";
-    return;
 }
 
 void SessionManager::Stop() {
-    sessionScanStop_ = true;
-    LOG(INFO) << "stop SessionManager, join thread.";
+    if (!sessionScanStop_) {
+        LOG(INFO) << "stop SessionManager...";
+        sessionScanStop_ = true;
+        sleeper_.interrupt();
+        scanThread->join();
 
-    // 通过信号量快速唤醒处在睡眠过程中的线程，以实现快速退出
-    exitcv_.notify_one();
-
-    scanThread->join();
-
-    // 退出之前，更新session在数据库的状态
-    UpdateRepoSesssions();
-    return;
+        // 退出之前，更新session在数据库的状态
+        UpdateRepoSesssions();
+        LOG(INFO) << "stop SessionManager ok.";
+    }
 }
 }  // namespace mds
 }  // namespace curve
