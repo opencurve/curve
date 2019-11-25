@@ -55,7 +55,6 @@ bool FakeMDS::Initialize() {
         copysetServices_.push_back(new FakeCreateCopysetService());
         raftStateServices_.push_back(new FakeRaftStateService());
     }
-    operatorNum_.expose("mds_scheduler_metric_operator_num");
     return true;
 }
 
@@ -72,6 +71,12 @@ void FakeMDS::UnInitialize() {
         delete copysetServices_[i];
     }
     delete server_;
+}
+
+void FakeMDS::ExposeMetric() {
+    for (const auto& item : metrics_) {
+        item.second->expose(item.first);
+    }
 }
 
 bool FakeMDS::StartService() {

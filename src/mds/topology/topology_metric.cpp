@@ -184,7 +184,7 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         // 需乘以副本数
         it->second->diskAlloc.set_value(diskAlloc * pool.GetReplicaNum());
 
-        it->second->chunkSizeUsedBytes.set_value(totalChunkSizeLeftBytes);
+        it->second->chunkSizeUsedBytes.set_value(totalChunkSizeUsedBytes);
         it->second->chunkSizeLeftBytes.set_value(totalChunkSizeLeftBytes);
         it->second->chunkSizeTrashedBytes.set_value(totalChunkSizeTrashedBytes);
         it->second->chunkSizeTotalBytes.set_value(totalChunkSizeBytes);

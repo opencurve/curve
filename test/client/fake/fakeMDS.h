@@ -14,6 +14,7 @@
 #include <vector>
 #include <functional>
 #include <utility>
+#include <map>
 #include "src/client/client_common.h"
 #include "test/client/fake/mockMDS.h"
 #include "test/client/fake/fakeChunkserver.h"
@@ -970,9 +971,11 @@ class FakeMDS {
         return &faketopologyservice_;
     }
 
-    void SetOperatorNum(uint64_t opNum) {
-        operatorNum_ << opNum;
+    void SetMetric(const std::string& metricName, bvar::Variable* var) {
+        metrics_[metricName] = var;
     }
+
+    void ExposeMetric();
 
  private:
     std::vector<CopysetCreatStruct> copysetnodeVec_;
@@ -991,7 +994,7 @@ class FakeMDS {
     FakeMDSTopologyService faketopologyservice_;
     FakeMDSHeartbeatService fakeHeartbeatService_;
 
-    bvar::Adder<uint32_t> operatorNum_;
+    std::map<std::string, bvar::Variable*>  metrics_;
 };
 
 #endif   // TEST_CLIENT_FAKE_FAKEMDS_H_
