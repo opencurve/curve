@@ -9,6 +9,7 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/common/concurrent/concurrent.h"
 
+
 using curve::common::LockGuard;
 
 namespace curve {
@@ -55,6 +56,7 @@ int SnapshotTaskManager::PushTask(std::shared_ptr<SnapshotTask> task) {
         }
         waitingTasks_.push_back(task);
     }
+    snapshotMetric_->snapshotWaiting << 1;
 
     // 立即执行task
     ScanWaitingTask();
@@ -97,13 +99,6 @@ void SnapshotTaskManager::BackEndThreadFunc() {
 void SnapshotTaskManager::ScanWaitingTask() {
     LockGuard waitingTasksLock(waitingTasksLock_);
     LockGuard workingTasksLock(workingTasksLock_);
-    uint32_t waitingNum = waitingTasks_.size();
-    uint32_t workingNum = workingTasks_.size();
-    VLOG(0) << "SnapshotTaskManager::ScanWaitingTask: "
-              << " working task num = "
-              << workingNum
-              << " waiting task num = "
-              << waitingNum;
     for (auto it = waitingTasks_.begin();
         it != waitingTasks_.end();) {
         if (workingTasks_.find((*it)->GetTaskInfo()->GetFileName())
@@ -111,6 +106,8 @@ void SnapshotTaskManager::ScanWaitingTask() {
             workingTasks_.emplace((*it)->GetTaskInfo()->GetFileName(),
                 *it);
             threadpool_->PushTask(*it);
+            snapshotMetric_->snapshotDoing << 1;
+            snapshotMetric_->snapshotWaiting << -1;
             it = waitingTasks_.erase(it);
         } else {
             it++;
@@ -121,17 +118,17 @@ void SnapshotTaskManager::ScanWaitingTask() {
 void SnapshotTaskManager::ScanWorkingTask() {
     WriteLockGuard taskMapWlock(taskMapLock_);
     LockGuard workingTasksLock(workingTasksLock_);
-    uint32_t waitingNum = waitingTasks_.size();
-    uint32_t workingNum = workingTasks_.size();
-    VLOG(0) << "SnapshotTaskManager::ScanWorkingTask: "
-              << " working task num = "
-              << workingNum
-              << " waiting task num = "
-              << waitingNum;
     for (auto it = workingTasks_.begin();
             it != workingTasks_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
         if (taskInfo->IsFinish()) {
+            snapshotMetric_->snapshotDoing << -1;
+            if (taskInfo->GetSnapshotInfo().GetStatus()
+                != Status::done) {
+                snapshotMetric_->snapshotFailed << 1;
+            } else {
+                snapshotMetric_->snapshotSucceed << 1;
+            }
             taskMap_.erase(it->second->GetTaskId());
             it = workingTasks_.erase(it);
         } else {

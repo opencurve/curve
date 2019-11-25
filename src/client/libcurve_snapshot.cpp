@@ -218,6 +218,15 @@ int SnapshotClient::CompleteCloneFile(const std::string &destination,
     return -ret;
 }
 
+int SnapshotClient::SetCloneFileStatus(const std::string &filename,
+                          const FileStatus& filestatus,
+                          const UserInfo_t& userinfo,
+                          uint64_t fileID) {
+    LIBCURVE_ERROR ret = mdsclient_.SetCloneFileStatus(filename, filestatus,
+                                                       userinfo, fileID);
+    return -ret;
+}
+
 int SnapshotClient::DeleteFile(const std::string& filename,
                                const UserInfo_t& userinfo,
                                uint64_t id) {

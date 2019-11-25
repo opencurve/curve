@@ -202,6 +202,9 @@ class HeartbeatBasicTest : public ::testing::Test {
         stats->set_writerate(100);
         stats->set_readiops(100);
         stats->set_writeiops(100);
+        stats->set_chunksizeusedbytes(100);
+        stats->set_chunksizeleftbytes(100);
+        stats->set_chunksizetrashedbytes(100);
         req->set_allocated_stats(stats);
     }
 

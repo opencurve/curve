@@ -130,6 +130,7 @@ CURVE_ERROR_LENGTH_NOT_SUPPORT = _curvefs.CURVE_ERROR_LENGTH_NOT_SUPPORT
 CURVE_ERROR_UNKNOWN = _curvefs.CURVE_ERROR_UNKNOWN
 CURVE_OP_READ = _curvefs.CURVE_OP_READ
 CURVE_OP_WRITE = _curvefs.CURVE_OP_WRITE
+CLUSTERIDMAX = _curvefs.CLUSTERIDMAX
 class AioContext_t(_object):
     __swig_setmethods__ = {}
     __setattr__ = lambda self, name, value: _swig_setattr(self, AioContext_t, name, value)
@@ -358,6 +359,10 @@ Rmdir = _curvefs.Rmdir
 def UnInit():
     return _curvefs.UnInit()
 UnInit = _curvefs.UnInit
+
+def GetClusterId(buf=None, len=0):
+    return _curvefs.GetClusterId(buf, len)
+GetClusterId = _curvefs.GetClusterId
 # This file is compatible with both classic and new-style classes.
 
 

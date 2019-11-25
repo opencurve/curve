@@ -163,6 +163,20 @@ int CurveFsClientImpl::CompleteCloneFile(
         UserInfo(user, ""));
 }
 
+int CurveFsClientImpl::SetCloneFileStatus(
+    const std::string &filename,
+    const FileStatus& filestatus,
+    const std::string &user) {
+    if (user == mdsRootUser_) {
+        return client_.SetCloneFileStatus(filename,
+            filestatus,
+            UserInfo(mdsRootUser_, mdsRootPassword_));
+    }
+    return client_.SetCloneFileStatus(filename,
+            filestatus,
+            UserInfo(user, ""));
+}
+
 int CurveFsClientImpl::GetFileInfo(
     const std::string &filename,
     const std::string &user,

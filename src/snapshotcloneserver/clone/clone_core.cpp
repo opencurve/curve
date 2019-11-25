@@ -14,9 +14,11 @@
 #include "src/snapshotcloneserver/clone/clone_task.h"
 #include "src/common/location_operator.h"
 #include "src/common/uuid.h"
+#include "src/common/concurrent/name_lock.h"
 
 using ::curve::common::UUIDGenerator;
 using ::curve::common::LocationOperator;
+using ::curve::common::NameLockGuard;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -28,6 +30,17 @@ int CloneCoreImpl::Init() {
         LOG(ERROR) << "Mkdir fail, ret = " << ret
                    << ", dirpath = " << cloneTempDir_;
         return kErrCodeServerInitFail;
+    }
+    ret = threadPool_->Start();
+    if (ret < 0) {
+        LOG(ERROR) << "CloneCoreImpl, thread start fail, ret = " << ret;
+        return ret;
+    }
+    ret = recoverChunkPool_->Start();
+    if (ret < 0) {
+        LOG(ERROR) << "CloneCoreImpl, recoverChunkPool start fail,"
+                   << " ret = " << ret;
+        return ret;
     }
     return kErrCodeSuccess;
 }
@@ -82,7 +95,28 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
     //是否为快照
     SnapshotInfo snapInfo;
     CloneFileType fileType;
-    ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
+
+    {
+        NameLockGuard lockSnapGuard(snapshotRef_->GetSnapshotLock(), source);
+        ret = metaStore_->GetSnapshotInfo(source, &snapInfo);
+        if (0 == ret) {
+            if (snapInfo.GetStatus() != Status::done) {
+                LOG(ERROR) << "Can not clone by snapshot has status:"
+                           << static_cast<int>(snapInfo.GetStatus());
+                return kErrCodeInvalidSnapshot;
+            }
+            if (snapInfo.GetUser() != user) {
+                LOG(ERROR) << "Clone snapshot by invalid user"
+                           << ", source = " << source
+                           << ", user = " << user
+                           << ", destination = " << destination
+                           << ", snapshot.user = " << snapInfo.GetUser();
+                return kErrCodeInvalidUser;
+            }
+            fileType = CloneFileType::kSnapshot;
+            snapshotRef_->IncrementSnapshotRef(source);
+        }
+    }
     if (ret < 0) {
         FInfo fInfo;
         ret = client_->GetFileInfo(source, mdsRootUser_, &fInfo);
@@ -91,6 +125,7 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                 fileType = CloneFileType::kFile;
                 break;
             case -LIBCURVE_ERROR::NOTEXIST:
+            case -LIBCURVE_ERROR::PARAM_ERROR:
                 LOG(ERROR) << "Clone source file not exist"
                            << ", source = " << source
                            << ", user = " << user
@@ -103,28 +138,28 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                            << ", user = " << user;
                 return kErrCodeInternalError;
         }
+        if (fInfo.filestatus != FileStatus::Created &&
+            fInfo.filestatus != FileStatus::Cloned &&
+            fInfo.filestatus != FileStatus::BeingCloned) {
+            LOG(ERROR) << "Can not clone when file status = "
+                       << static_cast<int>(fInfo.filestatus);
+            return kErrCodeFileStatusInvalid;
+        }
+
         // TODO(镜像克隆的用户认证待完善)
-    } else {
-        if (snapInfo.GetStatus() != Status::done) {
-            LOG(ERROR) << "Can not clone by snapshot has status:"
-                       << static_cast<int>(snapInfo.GetStatus());
-            return kErrCodeInvalidSnapshot;
-        }
-        if (snapInfo.GetUser() != user) {
-            LOG(ERROR) << "Clone snapshot by invalid user"
-                       << ", source = " << source
-                       << ", user = " << user
-                       << ", destination = " << destination
-                       << ", snapshot.user = " << snapInfo.GetUser();
-            return kErrCodeInvalidUser;
-        }
-        fileType = CloneFileType::kSnapshot;
     }
 
     UUID uuid = UUIDGenerator().GenerateUUID();
     CloneInfo info(uuid, user, taskType,
         source, destination, fileType, lazyFlag);
-    info.SetStatus(CloneStatus::cloning);
+    if (CloneTaskType::kClone == taskType) {
+        info.SetStatus(CloneStatus::cloning);
+    } else {
+        info.SetStatus(CloneStatus::recovering);
+    }
+    // 这里必须先AddCloneInfo， 因为如果先SetCloneFileStatus，然后AddCloneInfo，
+    // 如果AddCloneInfo失败又意外重启，将没人知道SetCloneFileStatus调用过，造成
+    // 镜像无法删除
     ret = metaStore_->AddCloneInfo(info);
     if (ret < 0) {
         LOG(ERROR) << "AddCloneInfo error"
@@ -133,39 +168,59 @@ int CloneCoreImpl::CloneOrRecoverPre(const UUID &source,
                    << ", user = " << user
                    << ", source = " << source
                    << ", destination = " << destination;
+        if (CloneFileType::kSnapshot == fileType) {
+            snapshotRef_->DecrementSnapshotRef(source);
+        }
         return ret;
     }
-    *cloneInfo = info;
-    if (CloneFileType::kSnapshot == fileType) {
-        snapshotRef_->IncrementSnapshotRef(source);
-    } else {
-        // TODO(xuchaojie): 非快照情况下，需提供措施防止被克隆文件被删除
+    if (CloneFileType::kFile == fileType) {
+        NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+        ret = client_->SetCloneFileStatus(source,
+            FileStatus::BeingCloned,
+            mdsRootUser_);
+        if (ret < 0) {
+            // 这里不处理SetCloneFileStatus的错误，
+            // 因为SetCloneFileStatus失败的所有结果都是可接受的，
+            // 相比于处理SetCloneFileStatus失败的情况更直接:
+            // 比如调用DeleteCloneInfo删除任务，
+            // 一旦DeleteCloneInfo失败，给用户返回error之后，
+            // 重启服务将造成Clone继续进行,
+            // 跟用户结果返回的结果不一致，造成用户的困惑
+            LOG(WARNING) << "SetCloneFileStatus encounter an error"
+                         << ", ret = " << ret
+                         << ", source = " << source
+                         << ", user = " << user;
+        }
+        cloneRef_->IncrementRef(source);
     }
+
+    *cloneInfo = info;
     return kErrCodeSuccess;
 }
 
-constexpr uint32_t kProgressCreateCloneFile = 10;
-constexpr uint32_t kProgressCreateCloneMeta = 20;
-constexpr uint32_t kProgressCreateCloneChunk = 50;
+constexpr uint32_t kProgressCreateCloneFile = 1;
+constexpr uint32_t kProgressCreateCloneMeta = 2;
+constexpr uint32_t kProgressCreateCloneChunk = 5;
 constexpr uint32_t kProgressRecoverChunkBegin = kProgressCreateCloneChunk;
-constexpr uint32_t kProgressRecoverChunkEnd = 90;
+constexpr uint32_t kProgressRecoverChunkEnd = 95;
 constexpr uint32_t kProgressCloneComplete = 100;
 
 void CloneCoreImpl::HandleCloneOrRecoverTask(
     std::shared_ptr<CloneTaskInfo> task) {
+    brpc::ClosureGuard doneGuard(task->GetClosure().get());
     int ret = kErrCodeSuccess;
     FInfo newFileInfo;
     CloneSegmentMap segInfos;
     if (IsSnapshot(task)) {
         ret = BuildFileInfoFromSnapshot(task, &newFileInfo, &segInfos);
         if (ret < 0) {
-            HandleCloneError(task);
+            HandleCloneError(task, ret);
             return;
         }
     } else {
         ret = BuildFileInfoFromFile(task, &newFileInfo, &segInfos);
         if (ret < 0) {
-            HandleCloneError(task);
+            HandleCloneError(task, ret);
             return;
         }
     }
@@ -174,9 +229,16 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
     if (NeedUpdateCloneMeta(task)) {
         ret = CreateOrUpdateCloneMeta(task, &newFileInfo, &segInfos);
         if (ret < 0) {
-            HandleCloneError(task);
+            HandleCloneError(task, ret);
             return;
         }
+    }
+
+    // 非lazy直接返回rpc
+    if (!IsLazy(task)) {
+        task->GetClosure()->SetErrCode(ret);
+        task->GetClosure()->Run();
+        doneGuard.release();
     }
 
     CloneStep step = task->GetCloneInfo().GetNextStep();
@@ -185,7 +247,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
             case CloneStep::kCreateCloneFile:
                 ret = CreateCloneFile(task, newFileInfo);
                 if (ret < 0) {
-                    HandleCloneError(task);
+                    HandleCloneError(task, ret);
                     return;
                 }
                 task->SetProgress(kProgressCreateCloneFile);
@@ -193,7 +255,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
             case CloneStep::kCreateCloneMeta:
                 ret = CreateCloneMeta(task, &newFileInfo, &segInfos);
                 if (ret < 0) {
-                    HandleCloneError(task);
+                    HandleCloneError(task, ret);
                     return;
                 }
                 task->SetProgress(kProgressCreateCloneMeta);
@@ -201,7 +263,7 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
             case CloneStep::kCreateCloneChunk:
                 ret = CreateCloneChunk(task, newFileInfo, segInfos);
                 if (ret < 0) {
-                    HandleCloneError(task);
+                    HandleCloneError(task, ret);
                     return;
                 }
                 task->SetProgress(kProgressCreateCloneChunk);
@@ -209,43 +271,49 @@ void CloneCoreImpl::HandleCloneOrRecoverTask(
             case CloneStep::kCompleteCloneMeta:
                 ret = CompleteCloneMeta(task, newFileInfo, segInfos);
                 if (ret < 0) {
-                    HandleCloneError(task);
+                    HandleCloneError(task, ret);
                     return;
                 }
                 break;
             case CloneStep::kRecoverChunk:
                 ret = RecoverChunk(task, newFileInfo, segInfos);
                 if (ret < 0) {
-                    HandleCloneError(task);
+                    HandleCloneError(task, ret);
                     return;
                 }
                 break;
             case CloneStep::kChangeOwner:
                 ret = ChangeOwner(task, newFileInfo);
                 if (ret < 0) {
-                    HandleCloneError(task);
+                    HandleCloneError(task, ret);
                     return;
                 }
                 break;
             case CloneStep::kRenameCloneFile:
                 ret = RenameCloneFile(task, newFileInfo);
                 if (ret < 0) {
-                    HandleCloneError(task);
+                    HandleCloneError(task, ret);
                     return;
+                }
+                if (IsLazy(task)) {
+                    task->GetClosure()->SetErrCode(ret);
+                    task->GetClosure()->Run();
+                    doneGuard.release();
                 }
                 break;
             case CloneStep::kCompleteCloneFile:
                 ret = CompleteCloneFile(task, newFileInfo, segInfos);
                 if (ret < 0) {
-                    HandleCloneError(task);
+                    HandleCloneError(task, ret);
                     return;
                 }
                 break;
             default:
                 LOG(ERROR) << "can not reach here.";
-                HandleCloneError(task);
+                HandleCloneError(task, ret);
                 return;
         }
+        task->UpdateMetric();
         step = task->GetCloneInfo().GetNextStep();
     }
     HandleCloneSuccess(task);
@@ -414,8 +482,18 @@ int CloneCoreImpl::CreateCloneFile(
     FInfo fInfoOut;
     int ret = client_->CreateCloneFile(fileName,
         mdsRootUser_, fileLength, seqNum, chunkSize, &fInfoOut);
-    if (ret != LIBCURVE_ERROR::OK &&
-        ret != -LIBCURVE_ERROR::EXISTS) {
+    if (ret == LIBCURVE_ERROR::OK) {
+        // nothing
+    } else if (ret == -LIBCURVE_ERROR::EXISTS) {
+        ret = client_->GetFileInfo(fileName,
+            mdsRootUser_, &fInfoOut);
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "GetFileInfo fail"
+                       << ", ret = " << ret
+                       << ", fileName = " << fileName;
+            return kErrCodeInternalError;
+        }
+    } else {
         LOG(ERROR) << "CreateCloneFile file"
                    << ", ret = " << ret
                    << ", destination = " << fileName
@@ -431,6 +509,7 @@ int CloneCoreImpl::CreateCloneFile(
         // 克隆情况下destinationId = originId;
         task->GetCloneInfo().SetDestId(fInfoOut.id);
     }
+    task->GetCloneInfo().SetTime(fInfoOut.ctime);
     task->GetCloneInfo().SetNextStep(CloneStep::kCreateCloneMeta);
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
@@ -465,7 +544,14 @@ int CloneCoreImpl::CreateCloneChunk(
     const CloneSegmentMap &segInfos) {
     int ret = kErrCodeSuccess;
     uint32_t chunkSize = fInfo.chunksize;
-    uint32_t correctSn = fInfo.seqnum;
+    uint32_t correctSn = 0;
+    // 克隆时correctSn为0，恢复时为新产生的文件版本
+    if (IsClone(task)) {
+        correctSn = 0;
+    } else {
+        correctSn = fInfo.seqnum;
+    }
+    auto tracker = std::make_shared<TaskTracker>();
     for (auto & cloneSegmentInfo : segInfos) {
         for (auto & cloneChunkInfo : cloneSegmentInfo.second) {
             std::string location;
@@ -478,24 +564,37 @@ int CloneCoreImpl::CreateCloneChunk(
                     std::stoull(cloneChunkInfo.second.location));
             }
             ChunkIDInfo cidInfo = cloneChunkInfo.second.chunkIdInfo;
-            ret = client_->CreateCloneChunk(location,
+
+            auto taskInfo = std::make_shared<CreateCloneChunkTaskInfo>(location,
                 cidInfo,
                 cloneChunkInfo.second.seqNum,
                 correctSn,
                 chunkSize);
+            UUID taskId = UUIDGenerator().GenerateUUID();
+            auto task = new CreateCloneChunkTask(
+                taskId, taskInfo, client_);
+            tracker->AddTask(task);
+            threadPool_->PushTask(task);
+            if (tracker->GetTaskNum() >= cloneCoreThreadNum_) {
+                tracker->WaitSome(1);
+            }
+            ret = tracker->GetResult();
             if (ret != LIBCURVE_ERROR::OK) {
-                LOG(ERROR) << "CreateCloneChunk fail"
-                           << ", ret = " << ret
-                           << ", location = " << location
-                           << ", logicalPoolId = " << cidInfo.lpid_
-                           << ", copysetId = " << cidInfo.cpid_
-                           << ", chunkId = " << cidInfo.cid_
-                           << ", seqNum = " << cloneChunkInfo.second.seqNum
-                           << ", csn = " << correctSn;
-                return kErrCodeInternalError;
+                LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
+                           << ", ret = " << ret;
+                return ret;
             }
         }
     }
+    // 最后剩余数量不足的任务
+    tracker->Wait();
+    ret = tracker->GetResult();
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
+                   << ", ret = " << ret;
+        return ret;
+    }
+
     task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
@@ -550,37 +649,46 @@ int CloneCoreImpl::RecoverChunk(
     double progressPerData = static_cast<double>(totalProgress) / segNum;
     uint32_t index = 0;
 
+    if (0 == cloneChunkSplitSize_ ||
+        chunkSize % cloneChunkSplitSize_ != 0) {
+        LOG(ERROR) << "chunk is not align to cloneChunkSplitSize";
+        return kErrCodeChunkSizeNotAligned;
+    }
+
+    auto tracker = std::make_shared<TaskTracker>();
     for (auto & cloneSegmentInfo : segInfos) {
         for (auto & cloneChunkInfo : cloneSegmentInfo.second) {
-            ChunkIDInfo cidInfo = cloneChunkInfo.second.chunkIdInfo;
-
-            if (0 == cloneChunkSplitSize_ ||
-                chunkSize % cloneChunkSplitSize_ != 0) {
-                LOG(ERROR) << "chunk is not align to cloneChunkSplitSize";
-                return kErrCodeChunkSizeNotAligned;
+            auto taskInfo = std::make_shared<RecoverChunkTaskInfo>(
+                cloneChunkInfo.second.chunkIdInfo,
+                chunkSize,
+                cloneChunkSplitSize_);
+            UUID taskId = UUIDGenerator().GenerateUUID();
+            auto task = new RecoverChunkTask(
+                taskId, taskInfo, client_);
+            tracker->AddTask(task);
+            recoverChunkPool_->PushTask(task);
+            if (tracker->GetTaskNum() >= cloneCoreThreadNum_) {
+                tracker->WaitSome(1);
             }
-            uint64_t splitSize = chunkSize / cloneChunkSplitSize_;
-            for (uint64_t i = 0; i < splitSize; i++) {
-                uint64_t offset = i * cloneChunkSplitSize_;
-                ret = client_->RecoverChunk(cidInfo,
-                    offset,
-                    cloneChunkSplitSize_);
-                if (ret != LIBCURVE_ERROR::OK) {
-                    LOG(ERROR) << "RecoverChunk fail"
-                               << ", ret = " << ret
-                               << ", logicalPoolId = " << cidInfo.lpid_
-                               << ", copysetId = " << cidInfo.cpid_
-                               << ", chunkId = " << cidInfo.cid_
-                               << ", offset = " << offset
-                               << ", len = " << cloneChunkSplitSize_;
-                    return kErrCodeInternalError;
-                }
+            ret = tracker->GetResult();
+            if (ret != LIBCURVE_ERROR::OK) {
+                LOG(ERROR) << "RecoverChunk tracker GetResult fail"
+                           << ", ret = " << ret;
+                return ret;
             }
         }
         task->SetProgress(static_cast<uint32_t>(
             kProgressRecoverChunkBegin + index * progressPerData));
         index++;
     }
+    tracker->Wait();
+    ret = tracker->GetResult();
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "RecoverChunk tracker GetResult fail"
+                   << ", ret = " << ret;
+        return ret;
+    }
+
     task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneFile);
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     if (ret < 0) {
@@ -723,28 +831,62 @@ int CloneCoreImpl::CompleteCloneFile(
 void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
     if (IsSnapshot(task)) {
         snapshotRef_->DecrementSnapshotRef(task->GetCloneInfo().GetSrc());
+    } else {
+        std::string source = task->GetCloneInfo().GetSrc();
+        cloneRef_->DecrementRef(source);
+        NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+        if (cloneRef_->GetRef(source) == 0) {
+            int ret = client_->SetCloneFileStatus(source,
+                    FileStatus::Created, mdsRootUser_);
+            if (ret < 0) {
+                LOG(ERROR) << "SetCloneFileStatus fail, ret = " << ret;
+
+                task->GetCloneInfo().SetStatus(CloneStatus::error);
+                metaStore_->UpdateCloneInfo(task->GetCloneInfo());
+                LOG(ERROR) << "Task Fail"
+                           << ", taskid = " << task->GetCloneInfo().GetTaskId()
+                           << ", step = "
+                           << static_cast<int>(
+                                   task->GetCloneInfo().GetNextStep());
+                task->Finish();
+                return;
+            }
+        }
     }
     task->GetCloneInfo().SetStatus(CloneStatus::done);
     metaStore_->UpdateCloneInfo(task->GetCloneInfo());
     task->SetProgress(kProgressCloneComplete);
 
-    task->Finish();
     LOG(INFO) << "Task Success"
               << ", taskid = " << task->GetCloneInfo().GetTaskId();
+    task->Finish();
     return;
 }
 
-void CloneCoreImpl::HandleCloneError(std::shared_ptr<CloneTaskInfo> task) {
+void CloneCoreImpl::HandleCloneError(std::shared_ptr<CloneTaskInfo> task,
+    int retCode) {
+    task->GetClosure()->SetErrCode(retCode);
     if (IsSnapshot(task)) {
         snapshotRef_->DecrementSnapshotRef(task->GetCloneInfo().GetSrc());
+    } else {
+        std::string source = task->GetCloneInfo().GetSrc();
+        cloneRef_->DecrementRef(source);
+        NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+        if (cloneRef_->GetRef(source) == 0) {
+            int ret = client_->SetCloneFileStatus(source,
+                    FileStatus::Created, mdsRootUser_);
+            if (ret < 0) {
+                LOG(ERROR) << "SetCloneFileStatus fail, ret = " << ret;
+            }
+        }
     }
     task->GetCloneInfo().SetStatus(CloneStatus::error);
     metaStore_->UpdateCloneInfo(task->GetCloneInfo());
-    task->Finish();
     LOG(ERROR) << "Task Fail"
                << ", taskid = " << task->GetCloneInfo().GetTaskId()
                << ", step = "
                << static_cast<int>(task->GetCloneInfo().GetNextStep());
+    task->Finish();
     return;
 }
 
@@ -768,9 +910,9 @@ void CloneCoreImpl::HandleCleanSuccess(std::shared_ptr<CloneTaskInfo> task) {
 void CloneCoreImpl::HandleCleanError(std::shared_ptr<CloneTaskInfo> task) {
     task->GetCloneInfo().SetStatus(CloneStatus::error);
     metaStore_->UpdateCloneInfo(task->GetCloneInfo());
-    task->Finish();
     LOG(ERROR) << "Clean Clone Or Recover Task Fail"
                << ", taskid = " << task->GetCloneInfo().GetTaskId();
+    task->Finish();
     return;
 }
 
@@ -824,7 +966,29 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
     std::string user = fInfo->owner;
     FInfo fInfoOut;
     int ret = client_->GetFileInfo(newFileName, mdsRootUser_, &fInfoOut);
-    if (ret != LIBCURVE_ERROR::OK) {
+    if (LIBCURVE_ERROR::OK == ret) {
+        // nothing
+    } else if (-LIBCURVE_ERROR::NOTEXIST == ret) {
+        // 可能已经rename过了
+        newFileName = task->GetCloneInfo().GetDest();
+        ret = client_->GetFileInfo(newFileName, mdsRootUser_, &fInfoOut);
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "File is missing, "
+                       << "when CreateOrUpdateCloneMeta, "
+                       << "GetFileInfo fail, ret = " << ret
+                       << ", filename = " << newFileName;
+            return kErrCodeInternalError;
+        }
+        // 如果是已经rename过，那么id应该一致
+        uint64_t originId = task->GetCloneInfo().GetOriginId();
+        if (fInfoOut.id != originId) {
+            LOG(ERROR) << "File is missing, "
+                       << "when CreateOrUpdateCloneMeta, "
+                       << "originId = " << originId
+                       << ", filename = " << newFileName;
+            return kErrCodeInternalError;
+        }
+    } else {
         LOG(ERROR) << "GetFileInfo fail"
                    << ", ret = " << ret
                    << ", filename = " << newFileName
@@ -876,7 +1040,8 @@ int CloneCoreImpl::CleanCloneOrRecoverTaskPre(const std::string &user,
     CloneInfo *cloneInfo) {
     int ret = metaStore_->GetCloneInfo(taskId, cloneInfo);
     if (ret < 0) {
-        return kErrCodeFileNotExist;
+        // 不存在时直接返回成功，使接口幂等
+        return kErrCodeSuccess;
     }
     if (cloneInfo->GetUser() != user) {
         LOG(ERROR) << "CleanCloneOrRecoverTaskPre by Invalid user";
@@ -913,6 +1078,21 @@ void CloneCoreImpl::HandleCleanCloneOrRecoverTask(
     std::shared_ptr<CloneTaskInfo> task) {
     // 只有错误的clone/recover任务才清理临时文件
     if (CloneStatus::errorCleaning == task->GetCloneInfo().GetStatus()) {
+        // 错误情况下可能未清除镜像被克隆标志
+        if (IsFile(task)) {
+            //重新发送
+            std::string source = task->GetCloneInfo().GetSrc();
+            NameLockGuard lockGuard(cloneRef_->GetLock(), source);
+            if (cloneRef_->GetRef(source) == 0) {
+                int ret = client_->SetCloneFileStatus(source,
+                        FileStatus::Created, mdsRootUser_);
+                if (ret < 0) {
+                    LOG(ERROR) << "SetCloneFileStatus fail, ret = " << ret;
+                    HandleCleanError(task);
+                    return;
+                }
+            }
+        }
         std::string tempFileName =
             cloneTempDir_ + "/" + task->GetCloneInfo().GetTaskId();
         std::string destFileName =

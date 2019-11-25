@@ -580,8 +580,16 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCreateSnapShotBadRequest) {
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
     UUID uuid = "uuid1";
 
-    EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _, _))
-        .WillOnce(Return(kErrCodeSuccess));
+    EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _, _, _))
+        .WillOnce(Invoke([](const UUID &source,
+        const std::string &user,
+        const std::string &destination,
+        bool lazyFlag,
+        std::shared_ptr<CloneClosure> closure,
+        TaskIdType *taskId){
+            brpc::ClosureGuard guard(closure.get());
+            return kErrCodeSuccess;
+                    }));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -589,7 +597,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -609,8 +617,16 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileSuccess) {
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileSuccess) {
     UUID uuid = "uuid1";
 
-    EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _, _))
-        .WillOnce(Return(kErrCodeSuccess));
+    EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _, _, _))
+        .WillOnce(Invoke([](const UUID &source,
+        const std::string &user,
+        const std::string &destination,
+        bool lazyFlag,
+        std::shared_ptr<CloneClosure> closure,
+        TaskIdType *taskId){
+            brpc::ClosureGuard guard(closure.get());
+            return kErrCodeSuccess;
+                    }));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -840,8 +856,16 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskMissingParam) {
 TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
     UUID uuid = "uuid1";
 
-    EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _, _))
-        .WillOnce(Return(kErrCodeInternalError));
+    EXPECT_CALL(*cloneManager_, CloneFile(_, _, _, _, _, _))
+        .WillOnce(Invoke([](const UUID &source,
+        const std::string &user,
+        const std::string &destination,
+        bool lazyFlag,
+        std::shared_ptr<CloneClosure> closure,
+        TaskIdType *taskId){
+            brpc::ClosureGuard guard(closure.get());
+            return kErrCodeInternalError;
+                    }));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -849,7 +873,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+                    + "/SnapshotCloneService?Action=Clone&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
@@ -869,8 +893,16 @@ TEST_F(TestSnapshotCloneServiceImpl, TestCloneFileFail) {
 TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
     UUID uuid = "uuid1";
 
-    EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _, _))
-        .WillOnce(Return(kErrCodeInternalError));
+    EXPECT_CALL(*cloneManager_, RecoverFile(_, _, _, _, _, _))
+        .WillOnce(Invoke([](const UUID &source,
+        const std::string &user,
+        const std::string &destination,
+        bool lazyFlag,
+        std::shared_ptr<CloneClosure> closure,
+        TaskIdType *taskId){
+            brpc::ClosureGuard guard(closure.get());
+            return kErrCodeInternalError;
+                    }));
 
     brpc::Channel channel;
     brpc::ChannelOptions option;
@@ -878,7 +910,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
 
     std::string url = std::string("http://127.0.0.1:")
                     + std::to_string(listenAddr_.port)
-                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=true"; //NOLINT
+                    + "/SnapshotCloneService?Action=Recover&Version=1&User=test&Source=abc&Destination=file1&Lazy=false"; //NOLINT
 
     if (channel.Init(url.c_str(), "", &option) != 0) {
         FAIL() << "Fail to init channel"
