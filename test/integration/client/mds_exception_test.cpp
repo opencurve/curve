@@ -262,7 +262,7 @@ class MDSModuleException : public ::testing::Test {
         bool ret = false;
         {
             std::unique_lock<std::mutex> lk(resumeMtx);
-            resumeCV.wait_for(lk, std::chrono::seconds(2*predictTimeS + 10));
+            resumeCV.wait_for(lk, std::chrono::seconds(2*predictTimeS + 30));
             ret = resumeFlag;
         }
 
