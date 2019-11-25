@@ -110,7 +110,7 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
     }
 
 
-    ASSERT_EQ(0, ProbePort(ipPort, 10000, expectLeader));
+    ASSERT_EQ(0, ProbePort(ipPort, 20000, expectLeader));
     LOG(INFO) << "start mds " << ipPort << " success";
     mdsPidMap_[id] = pid;
     mdsIpPort_[id] = ipPort;
@@ -169,7 +169,7 @@ void CurveCluster::StartSnapshotCloneServer(int id, const std::string &ipPort,
         exit(0);
     }
 
-    ASSERT_EQ(0, ProbePort(ipPort, 5000, true));
+    ASSERT_EQ(0, ProbePort(ipPort, 20000, true));
     LOG(INFO) << "start snapshotcloneserver " << ipPort << " success.";
     snapPidMap_[id] = pid;
     snapIpPort_[id] = ipPort;
@@ -195,7 +195,7 @@ void CurveCluster::RestartSnapshotCloneServer(int id) {
     if (snapPidMap_.find(id) != snapPidMap_.end()) {
         int res = kill(snapPidMap_[id], SIGTERM);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(snapIpPort_[id], 5000, false));
+        ASSERT_EQ(0, ProbePort(snapIpPort_[id], 20000, false));
         int waitStatus;
         waitpid(snapPidMap_[id], &waitStatus, 0);
         std::string ipPort = snapIpPort_[id];
@@ -247,7 +247,7 @@ void CurveCluster::StarSingleEtcd(int id, const std::string &clientIpPort,
         exit(0);
     }
 
-    ASSERT_EQ(0, ProbePort(clientIpPort, 10000, true));
+    ASSERT_EQ(0, ProbePort(clientIpPort, 20000, true));
     LOG(INFO) << "start etcd " << clientIpPort << " success";
     etcdPidMap_[id] = pid;
     etcdClientIpPort_[id] = clientIpPort;
@@ -373,7 +373,7 @@ void CurveCluster::StartSingleChunkServer(int id, const std::string &ipPort,
         exit(0);
     }
 
-    ASSERT_EQ(0, ProbePort(ipPort, 10000, true));
+    ASSERT_EQ(0, ProbePort(ipPort, 20000, true));
     LOG(INFO) << "start chunkserver " << ipPort << " success";
     chunkserverPidMap_[id] = pid;
     chunkserverIpPort_[id] = ipPort;
@@ -406,7 +406,7 @@ void CurveCluster::StartSingleChunkServerInBackground(
         exit(0);
     }
 
-    ASSERT_EQ(0, ProbePort(ChunkServerIpPortInBackground(id), 10000, true));
+    ASSERT_EQ(0, ProbePort(ChunkServerIpPortInBackground(id), 20000, true));
     LOG(INFO) << "start chunkserver " << id << " in background success";
     chunkserverPidMap_[id] = pid;
     chunkserverIpPort_[id] = ChunkServerIpPortInBackground(id);
@@ -565,7 +565,7 @@ void CurveCluster::PrepareLogicalPool(int mdsId, const std::string &clusterMap,
 
 bool CurveCluster::CurrentServiceMDS(int *curId) {
     for (auto mdsId : mdsPidMap_) {
-        if (0 == ProbePort(mdsIpPort_[mdsId.first], 10000, true)) {
+        if (0 == ProbePort(mdsIpPort_[mdsId.first], 20000, true)) {
             *curId = mdsId.first;
             LOG(INFO) << "mds" << mdsId.first << ": "
                       << mdsIpPort_[mdsId.first] << "is in service";
