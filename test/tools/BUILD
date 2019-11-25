@@ -37,7 +37,7 @@ cc_binary(
         "//proto:chunkserver-cc-protos",
         "//src/client:curve_client",
         "//test/client/fake:fake_lib",
-        "//src/tools:consistency_check_lib"
+        "//src/tools:curve_tool_lib"
     ],
     copts = COPTS
 )
@@ -53,8 +53,8 @@ cc_binary(
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//src/tools:status_tool_lib",
-        "//test/mds/mock:common_mock"
+        "//src/tools:curve_tool_lib",
+        "//test/tools:tools_mock",
     ],
 )
 
@@ -66,8 +66,8 @@ cc_binary(
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//src/tools:namespace_tool_lib",
-        "//test/client/fake:fake_lib",
+        "//src/tools:curve_tool_lib",
+        "//test/tools:tools_mock",
     ],
 )
 
@@ -79,7 +79,82 @@ cc_binary(
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//src/tools:copyset_check_lib",
+        "//src/tools:curve_tool_lib",
+	"//test/tools:tools_mock",
+    ],
+)
+
+cc_binary(
+    name = "curve_mds_client_test",
+    srcs = glob([
+        "mds_client_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
         "//test/client/fake:fake_lib",
     ],
+)
+
+cc_binary(
+    name = "curve_chunkserver_client_test",
+    srcs = glob([
+        "chunkserver_client_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
+        "//test/client/fake:fake_lib",
+    ],
+)
+
+cc_binary(
+    name = "curve_copyset_check_core_test",
+    srcs = glob([
+        "copyset_check_core_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
+        "//test/tools:tools_mock",
+    ],
+)
+
+cc_binary(
+    name = "curve_namespace_tool_core_test",
+    srcs = glob([
+        "namespace_tool_core_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
+        "//test/tools:tools_mock",
+    ],
+)
+
+cc_binary(
+    name = "curve_etcd_client_test",
+    srcs = glob([
+        "etcd_client_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
+    ],
+)
+
+cc_library(
+    name = "tools_mock",
+    srcs = glob([
+        "mock_*.h",
+    ]),
+    deps = [
+            "//src/tools:curve_tool_lib",
+            ],
+    visibility = ["//visibility:public"],
 )

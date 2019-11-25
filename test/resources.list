@@ -55,5 +55,5 @@ Used port list:
 
 # tools
     data check:             9160 9161 9162 9163
-    nameSpaceTool:          9180
-    copyset check:          9170 9191 9192 9193
+    mds client:             9180
+    chunkserver client:     9191
