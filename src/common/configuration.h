@@ -9,19 +9,12 @@
 #include <glog/logging.h>
 #include <string>
 #include <map>
-#include <memory>
-#include <unordered_map>
-
-#include "src/common/stringstatus.h"
 
 #ifndef SRC_COMMON_CONFIGURATION_H_
 #define SRC_COMMON_CONFIGURATION_H_
 
 namespace curve {
 namespace common {
-
-using ConfigItemPtr = std::shared_ptr<StringStatus>;
-using ConfigMetricMap =  std::unordered_map<std::string, ConfigItemPtr>;
 
 class Configuration {
  public:
@@ -32,17 +25,6 @@ class Configuration {
     bool SaveConfig();
     void PrintConfig();
     std::map<std::string, std::string> ListConfig() const;
-    /**
-     * 暴露config的metric供采集
-     * 如果metric已经暴露，则直接返回
-     * @param exposeName: 对外暴露的metric的名字
-     */
-    void ExposeMetric(const std::string& exposeName);
-
-    /**
-     * 更新新的配置到metric
-     */
-    void UpdateMetric();
 
     void SetConfigPath(const std::string &path);
     std::string GetConfigPath();
@@ -116,10 +98,6 @@ class Configuration {
  private:
     std::string                         confFile_;
     std::map<std::string, std::string>  config_;
-    // metric对外暴露的名字
-    std::string                         exposeName_;
-    // 每一个配置项使用单独的一个metric，用map管理
-    ConfigMetricMap                     configMetric_;
 };
 
 }  // namespace common

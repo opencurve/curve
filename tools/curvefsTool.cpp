@@ -47,7 +47,7 @@ DEFINE_int32(chunkserver_id, -1, "chunkserver id for set chunkserver status.");
 DEFINE_string(chunkserver_status, "readwrite",
     "chunkserver status: readwrite, pendding, retired.");
 
-const uint32_t rpcTimeOutMs = 5000u;
+const uint32_t rpcTimeOutMs = 2000u;
 const uint32_t createLogicalPoolRpcTimeOutMs = 30000u;
 
 const int kRetCodeCommonErr = -1;

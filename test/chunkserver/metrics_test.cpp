@@ -17,7 +17,6 @@
 
 #include "src/common/configuration.h"
 #include "src/chunkserver/chunkserver_metrics.h"
-#include "src/chunkserver/trash.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 #include "src/fs/local_filesystem.h"
@@ -32,7 +31,7 @@ butil::AtExitManager atExitManager;
 #define PORT 9401
 
 const uint64_t kMB = 1024 * 1024;
-const ChunkSizeType CHUNK_SIZE = 4 * kMB;
+const ChunkSizeType CHUNK_SIZE = 16 * kMB;
 const PageSizeType PAGE_SIZE = 4 * 1024;
 const int chunkNum = 10;
 const LogicPoolID logicId = 1;
@@ -41,7 +40,6 @@ const string baseDir = "./data_csmetric";    // NOLINT
 const string copysetDir = "local://./data_csmetric";  // NOLINT
 const string poolDir = "./chunkfilepool_csmetric";  // NOLINT
 const string poolMetaPath = "./chunkfilepool_csmetric.meta";  // NOLINT
-const string trashPath = "./trash_csmetric";  // NOLINT
 
 class CSMetricTest : public ::testing::Test {
  public:
@@ -61,19 +59,9 @@ class CSMetricTest : public ::testing::Test {
 
         if (lfs_->DirExists(poolDir))
             lfs_->Delete(poolDir);
-        allocateChunk(lfs_, chunkNum, poolDir, CHUNK_SIZE);
+        allocateChunk(lfs_, chunkNum, poolDir);
         ASSERT_TRUE(chunkfilePool_->Initialize(cfop));
         ASSERT_EQ(chunkNum, chunkfilePool_->Size());
-    }
-
-    void InitTrash() {
-        TrashOptions ops;
-        ops.localFileSystem = lfs_;
-        ops.chunkfilePool = chunkfilePool_;
-        ops.trashPath = "local://./trash_csmetric";
-        ops.expiredAfterSec = 1;
-        ops.scanPeriodSec = 1;
-        trash_->Init(ops);
     }
 
     void InitCopysetManager() {
@@ -82,16 +70,14 @@ class CSMetricTest : public ::testing::Test {
         copysetNodeOptions.port = PORT;
         copysetNodeOptions.snapshotIntervalS = 30;
         copysetNodeOptions.catchupMargin = 50;
-        copysetNodeOptions.chunkDataUri = copysetDir;
-        copysetNodeOptions.chunkSnapshotUri = copysetDir;
-        copysetNodeOptions.logUri = copysetDir;
-        copysetNodeOptions.raftMetaUri = copysetDir;
-        copysetNodeOptions.raftSnapshotUri = copysetDir;
+        copysetNodeOptions.chunkDataUri = "local://./data_csmetric";
+        copysetNodeOptions.chunkSnapshotUri = "local://./data_csmetric";
+        copysetNodeOptions.logUri = "local://./data_csmetric";
+        copysetNodeOptions.raftMetaUri = "local://./data_csmetric";
+        copysetNodeOptions.raftSnapshotUri = "local://./data_csmetric";
         copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
         copysetNodeOptions.localFileSystem = lfs_;
         copysetNodeOptions.chunkfilePool = chunkfilePool_;
-        copysetNodeOptions.maxChunkSize = CHUNK_SIZE;
-        copysetNodeOptions.trash = trash_;
         ASSERT_EQ(0, copysetMgr_->Init(copysetNodeOptions));
         ASSERT_EQ(0, copysetMgr_->Run());
 
@@ -110,7 +96,6 @@ class CSMetricTest : public ::testing::Test {
         metric_ = ChunkServerMetric::GetInstance();
         metric_->Init(metricOptions);
         metric_->MonitorChunkFilePool(chunkfilePool_.get());
-        metric_->MonitorTrash(trash_.get());
     }
 
     void CreateConfigFile() {
@@ -129,13 +114,10 @@ class CSMetricTest : public ::testing::Test {
         copysetMgr_ = &CopysetNodeManager::GetInstance();
         lfs_ = LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
         ASSERT_NE(lfs_, nullptr);
-        trash_ = std::make_shared<Trash>();
-        ASSERT_NE(trash_, nullptr);
         chunkfilePool_ = std::make_shared<ChunkfilePool>(lfs_);
         ASSERT_NE(chunkfilePool_, nullptr);
 
         InitChunkFilePool();
-        InitTrash();
         InitCopysetManager();
         InitChunkServerMetric();
         CreateConfigFile();
@@ -145,7 +127,6 @@ class CSMetricTest : public ::testing::Test {
         ASSERT_EQ(0, metric_->Fini());
         lfs_->Delete(poolDir);
         lfs_->Delete(baseDir);
-        lfs_->Delete(trashPath);
         lfs_->Delete(poolMetaPath);
         lfs_->Delete(confFile_);
         chunkfilePool_->UnInitialize();
@@ -156,7 +137,6 @@ class CSMetricTest : public ::testing::Test {
 
  protected:
     brpc::Server server_;
-    std::shared_ptr<Trash> trash_;
     CopysetNodeManager* copysetMgr_;
     std::shared_ptr<ChunkfilePool> chunkfilePool_;
     std::shared_ptr<LocalFileSystem> lfs_;
@@ -199,9 +179,6 @@ TEST_F(CSMetricTest, OnRequestTest) {
     const IOMetricPtr serverReadMetric = metric_->GetReadMetric();
     const IOMetricPtr cpWriteMetric = copysetMetric->GetWriteMetric();
     const IOMetricPtr cpReadMetric = copysetMetric->GetReadMetric();
-    const IOMetricPtr cpRecoverMetric = copysetMetric->GetRecoverMetric();
-    const IOMetricPtr cpPasteMetric = copysetMetric->GetPasteMetric();
-    const IOMetricPtr cpDownloadMetric = copysetMetric->GetDownloadMetric();
 
     // 统计写入成功的情况
     metric_->OnRequestWrite(logicId, copysetId);
@@ -224,27 +201,6 @@ TEST_F(CSMetricTest, OnRequestTest) {
     ASSERT_EQ(0, cpReadMetric->ioNum_.get_value());
     ASSERT_EQ(0, cpReadMetric->ioBytes_.get_value());
     ASSERT_EQ(0, cpReadMetric->errorNum_.get_value());
-
-    // 统计恢复成功的情况
-    metric_->OnRequestRecover(logicId, copysetId);
-    ASSERT_EQ(1, cpRecoverMetric->reqNum_.get_value());
-    ASSERT_EQ(0, cpRecoverMetric->ioNum_.get_value());
-    ASSERT_EQ(0, cpRecoverMetric->ioBytes_.get_value());
-    ASSERT_EQ(0, cpRecoverMetric->errorNum_.get_value());
-
-    // 统计paste成功的情况
-    metric_->OnRequestPaste(logicId, copysetId);
-    ASSERT_EQ(1, cpPasteMetric->reqNum_.get_value());
-    ASSERT_EQ(0, cpPasteMetric->ioNum_.get_value());
-    ASSERT_EQ(0, cpPasteMetric->ioBytes_.get_value());
-    ASSERT_EQ(0, cpPasteMetric->errorNum_.get_value());
-
-    // 统计下载成功的情况
-    metric_->OnRequestDownload(logicId, copysetId);
-    ASSERT_EQ(1, cpDownloadMetric->reqNum_.get_value());
-    ASSERT_EQ(0, cpDownloadMetric->ioNum_.get_value());
-    ASSERT_EQ(0, cpDownloadMetric->ioBytes_.get_value());
-    ASSERT_EQ(0, cpDownloadMetric->errorNum_.get_value());
 }
 
 TEST_F(CSMetricTest, OnResponseTest) {
@@ -259,9 +215,6 @@ TEST_F(CSMetricTest, OnResponseTest) {
     const IOMetricPtr serverReadMetric = metric_->GetReadMetric();
     const IOMetricPtr cpWriteMetric = copysetMetric->GetWriteMetric();
     const IOMetricPtr cpReadMetric = copysetMetric->GetReadMetric();
-    const IOMetricPtr cpRecoverMetric = copysetMetric->GetRecoverMetric();
-    const IOMetricPtr cpPasteMetric = copysetMetric->GetPasteMetric();
-    const IOMetricPtr cpDownloadMetric = copysetMetric->GetDownloadMetric();
 
     size_t size = PAGE_SIZE;
     int64_t latUs = 100;
@@ -288,27 +241,6 @@ TEST_F(CSMetricTest, OnResponseTest) {
     ASSERT_EQ(PAGE_SIZE, cpReadMetric->ioBytes_.get_value());
     ASSERT_EQ(0, cpReadMetric->errorNum_.get_value());
 
-    // 统计恢复成功的情况
-    metric_->OnResponseRecover(logicId, copysetId, size, latUs, hasError);
-    ASSERT_EQ(0, cpRecoverMetric->reqNum_.get_value());
-    ASSERT_EQ(1, cpRecoverMetric->ioNum_.get_value());
-    ASSERT_EQ(PAGE_SIZE, cpRecoverMetric->ioBytes_.get_value());
-    ASSERT_EQ(0, cpRecoverMetric->errorNum_.get_value());
-
-    // 统计paste成功的情况
-    metric_->OnResponsePaste(logicId, copysetId, size, latUs, hasError);
-    ASSERT_EQ(0, cpPasteMetric->reqNum_.get_value());
-    ASSERT_EQ(1, cpPasteMetric->ioNum_.get_value());
-    ASSERT_EQ(PAGE_SIZE, cpPasteMetric->ioBytes_.get_value());
-    ASSERT_EQ(0, cpPasteMetric->errorNum_.get_value());
-
-    // 统计下载成功的情况
-    metric_->OnResponseDownload(logicId, copysetId, size, latUs, hasError);
-    ASSERT_EQ(0, cpDownloadMetric->reqNum_.get_value());
-    ASSERT_EQ(1, cpDownloadMetric->ioNum_.get_value());
-    ASSERT_EQ(PAGE_SIZE, cpDownloadMetric->ioBytes_.get_value());
-    ASSERT_EQ(0, cpDownloadMetric->errorNum_.get_value());
-
     hasError = true;
     // 统计写入失败的情况，错误数增加，其他不变
     metric_->OnResponseWrite(logicId, copysetId, size, latUs, hasError);
@@ -331,27 +263,6 @@ TEST_F(CSMetricTest, OnResponseTest) {
     ASSERT_EQ(1, cpReadMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, cpReadMetric->ioBytes_.get_value());
     ASSERT_EQ(1, cpReadMetric->errorNum_.get_value());
-
-     // 统计恢复失败的情况
-    metric_->OnResponseRecover(logicId, copysetId, size, latUs, hasError);
-    ASSERT_EQ(0, cpRecoverMetric->reqNum_.get_value());
-    ASSERT_EQ(1, cpRecoverMetric->ioNum_.get_value());
-    ASSERT_EQ(PAGE_SIZE, cpRecoverMetric->ioBytes_.get_value());
-    ASSERT_EQ(1, cpRecoverMetric->errorNum_.get_value());
-
-    // 统计paste失败的情况
-    metric_->OnResponsePaste(logicId, copysetId, size, latUs, hasError);
-    ASSERT_EQ(0, cpPasteMetric->reqNum_.get_value());
-    ASSERT_EQ(1, cpPasteMetric->ioNum_.get_value());
-    ASSERT_EQ(PAGE_SIZE, cpPasteMetric->ioBytes_.get_value());
-    ASSERT_EQ(1, cpPasteMetric->errorNum_.get_value());
-
-    // 统计下载失败的情况
-    metric_->OnResponseDownload(logicId, copysetId, size, latUs, hasError);
-    ASSERT_EQ(0, cpDownloadMetric->reqNum_.get_value());
-    ASSERT_EQ(1, cpDownloadMetric->ioNum_.get_value());
-    ASSERT_EQ(PAGE_SIZE, cpDownloadMetric->ioBytes_.get_value());
-    ASSERT_EQ(1, cpDownloadMetric->errorNum_.get_value());
 }
 
 TEST_F(CSMetricTest, CountTest) {
@@ -368,13 +279,11 @@ TEST_F(CSMetricTest, CountTest) {
     CopysetMetricPtr copysetMetric = metric_->GetCopysetMetric(logicId, copysetId);  // NOLINT
     ASSERT_EQ(0, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
-    ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
-    ASSERT_EQ(0, metric_->GetTotalChunkCount());
-    ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
 
     // 写入数据生成chunk
-    std::shared_ptr<CSDataStore> datastore =
-        copysetMgr_->GetCopysetNode(logicId, copysetId)->GetDataStore();
+    std::shared_ptr<CopysetNode> node =
+        copysetMgr_->GetCopysetNode(logicId, copysetId);
+    std::shared_ptr<CSDataStore> datastore = node->GetDataStore();
     ChunkID id = 1;
     SequenceNum seq = 1;
     char buf[PAGE_SIZE] = {0};
@@ -384,68 +293,12 @@ TEST_F(CSMetricTest, CountTest) {
               datastore->WriteChunk(id, seq, buf, offset, length, nullptr));
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
-    ASSERT_EQ(1, metric_->GetTotalChunkCount());
-    ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
-    ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
-
-    // 增加版本号，生成快照
-    seq = 2;
-    ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id, seq, buf, offset, length, nullptr));
-    ASSERT_EQ(1, copysetMetric->GetChunkCount());
-    ASSERT_EQ(1, copysetMetric->GetSnapshotCount());
-    ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
-
-    // 删除快照
-    ASSERT_EQ(CSErrorCode::Success,
-              datastore->DeleteSnapshotChunkOrCorrectSn(id, seq));
-    ASSERT_EQ(1, copysetMetric->GetChunkCount());
-    ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
-    ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
-
-    // 创建 clone chunk
-    ChunkID id2 = 2;
-    ChunkID id3 = 3;
-    std::string location = "test@cs";
-    ASSERT_EQ(CSErrorCode::Success,
-              datastore->CreateCloneChunk(id2, 1, 0, CHUNK_SIZE, location));
-    ASSERT_EQ(CSErrorCode::Success,
-              datastore->CreateCloneChunk(id3, 1, 0, CHUNK_SIZE, location));
-    ASSERT_EQ(3, copysetMetric->GetChunkCount());
-    ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
-    ASSERT_EQ(2, copysetMetric->GetCloneChunkCount());
-
-    // clone chunk被覆盖写一遍,clone chun转成普通chunk
-    char* buf2 = new char[CHUNK_SIZE];
-    ASSERT_EQ(CSErrorCode::Success,
-              datastore->WriteChunk(id2, 1, buf2, 0, CHUNK_SIZE, nullptr));
-    delete[] buf2;
-    ASSERT_EQ(3, copysetMetric->GetChunkCount());
-    ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
-    ASSERT_EQ(1, copysetMetric->GetCloneChunkCount());
-
-    // 删除上面的chunk
-    ASSERT_EQ(CSErrorCode::Success,
-              datastore->DeleteChunk(id2, 1));
-    ASSERT_EQ(2, copysetMetric->GetChunkCount());
-    ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
-    ASSERT_EQ(1, copysetMetric->GetCloneChunkCount());
 
     // 模拟copyset重新加载datastore,重新初始化后，chunk数量不变
     // for bug fix: CLDCFS-1473
     datastore->Initialize();
-    ASSERT_EQ(2, copysetMetric->GetChunkCount());
+    ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
-    ASSERT_EQ(1, copysetMetric->GetCloneChunkCount());
-    ASSERT_EQ(2, metric_->GetTotalChunkCount());
-    ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
-
-    // 模拟copyset放入回收站测试
-    ASSERT_TRUE(copysetMgr_->PurgeCopysetNodeData(logicId, copysetId));
-    ASSERT_EQ(nullptr, metric_->GetCopysetMetric(logicId, copysetId));
-    ASSERT_EQ(0, metric_->GetTotalChunkCount());
-    ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
-    ASSERT_EQ(2, metric_->GetChunkTrashedCount());
 
     // 测试leader count计数
     ASSERT_EQ(0, metric_->GetLeaderCount());
@@ -460,24 +313,21 @@ TEST_F(CSMetricTest, ConfigTest) {
     conf.SetConfigPath(confFile_);
     int ret = conf.LoadConfig();
     ASSERT_EQ(ret, true);
-    metric_->UpdateConfigMetric(&conf);
-
-    std::string prefix = "chunkserver_127_0_0_1_9401_config_";
-    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "chunksize").c_str(),
-                 "{\"conf_name\":\"chunksize\",\"conf_value\":\"1234\"}");
-    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "timeout").c_str(),
-                 "{\"conf_name\":\"timeout\",\"conf_value\":\"100\"}");
+    metric_->UpdateConfigMetric(conf);
+    ConfigMetricMap configs = metric_->GetConfigMetric();
+    // 验证配置信息
+    ASSERT_EQ(configs["chunksize"]->get_value(), "1234");
+    ASSERT_EQ(configs["timeout"]->get_value(), "100");
+    ASSERT_EQ(configs["port"], nullptr);
     // 修改新增配置信息
     conf.SetStringValue("chunksize", "4321");
     conf.SetStringValue("port", "9999");
-    metric_->UpdateConfigMetric(&conf);
-    // // 验证修改后信息
-    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "chunksize").c_str(),
-                 "{\"conf_name\":\"chunksize\",\"conf_value\":\"4321\"}");
-    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "timeout").c_str(),
-                 "{\"conf_name\":\"timeout\",\"conf_value\":\"100\"}");
-    ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "port").c_str(),
-                 "{\"conf_name\":\"port\",\"conf_value\":\"9999\"}");
+    metric_->UpdateConfigMetric(conf);
+    // 验证修改后信息
+    configs = metric_->GetConfigMetric();
+    ASSERT_EQ(configs["chunksize"]->get_value(), "4321");
+    ASSERT_EQ(configs["timeout"]->get_value(), "100");
+    ASSERT_EQ(configs["port"]->get_value(), "9999");
 }
 
 TEST_F(CSMetricTest, OnOffTest) {
@@ -494,7 +344,7 @@ TEST_F(CSMetricTest, OnOffTest) {
         conf.SetConfigPath(confFile_);
         int ret = conf.LoadConfig();
         ASSERT_EQ(ret, true);
-        metric_->UpdateConfigMetric(&conf);
+        metric_->UpdateConfigMetric(conf);
     }
     // 初始化后获取所有指标项都为空
     {
@@ -503,8 +353,8 @@ TEST_F(CSMetricTest, OnOffTest) {
         ASSERT_EQ(metric_->GetCopysetCount(), 0);
         ASSERT_EQ(metric_->GetLeaderCount(), 0);
         ASSERT_EQ(metric_->GetChunkLeftCount(), 0);
-        ASSERT_EQ(metric_->GetTotalChunkCount(), 0);
-        ASSERT_EQ(metric_->GetTotalSnapshotCount(), 0);
+        ConfigMetricMap configs = metric_->GetConfigMetric();
+        ASSERT_EQ(configs.size(), 0);
     }
     // 创建copyset的metric返回成功，但实际并未创建
     {

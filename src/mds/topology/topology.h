@@ -43,8 +43,6 @@ class Topology {
     Topology() {}
     virtual ~Topology() {}
 
-    virtual bool GetClusterInfo(ClusterInformation *info) = 0;
-
     virtual PoolIdType AllocateLogicalPoolId() = 0;
     virtual PoolIdType AllocatePhysicalPoolId() = 0;
     virtual ZoneIdType AllocateZoneId() = 0;
@@ -310,8 +308,6 @@ class TopologyImpl : public Topology {
     int Run();
     int Stop();
 
-    bool GetClusterInfo(ClusterInformation *info) override;
-
     PoolIdType AllocateLogicalPoolId() override;
     PoolIdType AllocatePhysicalPoolId() override;
     ZoneIdType AllocateZoneId() override;
@@ -522,8 +518,6 @@ class TopologyImpl : public Topology {
         PoolIdType *physicalPoolIdOut);
 
  private:
-    int LoadClusterInfo();
-
     int CleanInvalidLogicalPoolAndCopyset();
 
     void BackEndFunc();
@@ -540,9 +534,6 @@ class TopologyImpl : public Topology {
     std::unordered_map<ChunkServerIdType, ChunkServer> chunkServerMap_;
 
     std::map<CopySetKey, CopySetInfo> copySetMap_;
-
-    // 集群信息
-    ClusterInformation clusterInfo;
 
     std::shared_ptr<TopologyIdGenerator> idGenerator_;
     std::shared_ptr<TopologyTokenGenerator> tokenGenerator_;

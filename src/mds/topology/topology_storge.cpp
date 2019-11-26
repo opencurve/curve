@@ -527,35 +527,6 @@ bool DefaultTopologyStorage::UpdateCopySet(const CopySetInfo &data) {
     }
     return true;
 }
-
-bool DefaultTopologyStorage::LoadClusterInfo(
-    std::vector<ClusterInformation> *info) {
-    std::vector<ClusterInfoRepoItem> repos;
-    if (repo_->LoadClusterInfoRepoItems(&repos) != OperationOK) {
-        LOG(ERROR) << "[DefaultTopologyStorage::LoadClusterInfo]: "
-                   << "LoadClusterInfoRepoItems fail.";
-        return false;
-    }
-    info->clear();
-
-    for (auto &rp : repos) {
-        ClusterInformation data(rp.clusterId);
-        info->push_back(data);
-    }
-    return true;
-}
-
-bool DefaultTopologyStorage::StorageClusterInfo(
-    const ClusterInformation &info) {
-    ClusterInfoRepoItem rp(info.clusterId);
-    if (repo_->InsertClusterInfoRepoItem(rp) != OperationOK) {
-        LOG(ERROR) << "[DefaultTopologyStorage::StorageClusterInfo]:"
-                   << "InsertClusterInfoRepoItem fail.";
-        return false;
-    }
-    return true;
-}
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

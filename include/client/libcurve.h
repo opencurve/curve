@@ -221,14 +221,6 @@ int Close(int fd);
 
 void UnInit();
 
-/**
- * @brief: 获取集群id, id用UUID标识
- * @param: buf存放集群id
- * @param: buf的长度
- * @return: 成功返回0, 否则返回-LIBCURVE_ERROR::FAILED
- */
-int GetClusterId(char* buf, int len);
-
 #ifdef __cplusplus
 }
 #endif

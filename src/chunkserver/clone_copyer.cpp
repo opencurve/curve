@@ -71,9 +71,9 @@ int OriginCopyer::Download(const string& location,
 }
 
 int OriginCopyer::DownloadFromS3(const string& objectName,
-                                 off_t off,
-                                 size_t size,
-                                 char* buf) {
+                                     off_t off,
+                                     size_t size,
+                                     char* buf) {
     if (s3Client_ == nullptr) {
         LOG(ERROR) << "Failed to get s3 object."
                    << "s3 adapter is disabled";
@@ -89,9 +89,9 @@ int OriginCopyer::DownloadFromS3(const string& objectName,
 }
 
 int OriginCopyer::DownloadFromCurve(const string& fileName,
-                                    off_t off,
-                                    size_t size,
-                                    char* buf) {
+                                        off_t off,
+                                        size_t size,
+                                        char* buf) {
     if (curveClient_ == nullptr) {
         LOG(ERROR) << "Failed to read curve file."
                    << "curve client is disabled";

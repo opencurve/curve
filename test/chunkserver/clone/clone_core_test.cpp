@@ -26,19 +26,6 @@ using curve::chunkserver::CHUNK_OP_TYPE;
 using curve::fs::LocalFsFactory;
 using curve::fs::FileSystemType;
 
-ACTION_TEMPLATE(SaveBraftTask,
-                HAS_1_TEMPLATE_PARAMS(int, k),
-                AND_1_VALUE_PARAMS(value)) {
-    auto input = static_cast<braft::Task>(::testing::get<k>(args));
-    auto output = static_cast<braft::Task*>(value);
-    output->data->swap(*input.data);
-    output->done = input.done;
-}
-
-const LogicPoolID LOGICPOOL_ID = 1;
-const CopysetID COPYSET_ID = 1;
-const ChunkID CHUNK_ID = 1;
-
 class CloneCoreTest : public testing::Test {
  public:
     void SetUp() {
@@ -68,15 +55,15 @@ class CloneCoreTest : public testing::Test {
                                                           off_t offset,
                                                           size_t length) {
         ChunkRequest* readRequest = new ChunkRequest();
-        readRequest->set_logicpoolid(LOGICPOOL_ID);
-        readRequest->set_copysetid(COPYSET_ID);
-        readRequest->set_chunkid(CHUNK_ID);
+        readRequest->set_logicpoolid(1);
+        readRequest->set_copysetid(1);
+        readRequest->set_chunkid(1);
         readRequest->set_optype(optype);
         readRequest->set_offset(offset);
         readRequest->set_size(length);
         brpc::Controller *cntl = new brpc::Controller();
         ChunkResponse *response = new ChunkResponse();
-        FakeChunkClosure *closure = new FakeChunkClosure();
+        UnitTestClosure *closure = new UnitTestClosure();
         closure->SetCntl(cntl);
         closure->SetRequest(readRequest);
         closure->SetResponse(response);
@@ -88,24 +75,6 @@ class CloneCoreTest : public testing::Test {
                                                response,
                                                closure);
         return req;
-    }
-
-    void CheckTask(const braft::Task& task,
-                   off_t offset,
-                   size_t length,
-                   char* buf) {
-        butil::IOBuf data;
-        ChunkRequest request;
-        auto req = ChunkOpRequest::Decode(*task.data, &request, &data);
-        auto preq = dynamic_cast<PasteChunkInternalRequest*>(req.get());
-        ASSERT_TRUE(preq != nullptr);
-
-        ASSERT_EQ(LOGICPOOL_ID, request.logicpoolid());
-        ASSERT_EQ(COPYSET_ID, request.copysetid());
-        ASSERT_EQ(CHUNK_ID, request.chunkid());
-        ASSERT_EQ(offset, request.offset());
-        ASSERT_EQ(length, request.size());
-        ASSERT_EQ(memcmp(buf, data.to_string().c_str(), length), 0);
     }
 
  protected:
@@ -146,12 +115,12 @@ TEST_F(CloneCoreTest, ReadChunkTest1) {
 
     ASSERT_EQ(0, core_->HandleReadRequest(readRequest,
                                           readRequest->Closure()));
-    FakeChunkClosure* closure =
-        reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+    UnitTestClosure* closure =
+        reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
     ASSERT_TRUE(closure->isDone_);
-    ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+    ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
     ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-              closure->resContent_.status);
+              closure->response_->status());
 }
 
 /**
@@ -199,14 +168,14 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
             .Times(0);
         ASSERT_EQ(0, core_->HandleReadRequest(readRequest,
                                               readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                  closure->resContent_.status);
+                  closure->response_->status());
         ASSERT_EQ(memcmp(chunkData,
-                         closure->resContent_.attachment.to_string().c_str(),  //NOLINT
+                         closure->cntl_->response_attachment().to_string().c_str(),  //NOLINT
                          length), 0);
     }
 
@@ -216,11 +185,11 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
-        char cloneData[length]= {0};
-        memset(cloneData, 'b', length);
-        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
+        char cloneData[SLICE_SIZE]= {0};
+        memset(cloneData, 'b', SLICE_SIZE);
+        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
             .WillOnce(DoAll(SetArrayArgument<3>(cloneData,
-                                                cloneData + length),
+                                                cloneData + SLICE_SIZE),
                             Return(0)));
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
@@ -233,27 +202,23 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
             .Times(1);
         // 产生PasteChunkRequest
         braft::Task task;
-        butil::IOBuf iobuf;
-        task.data = &iobuf;
         EXPECT_CALL(*node_, Propose(_))
-            .WillOnce(SaveBraftTask<0>(&task));
+            .WillOnce(SaveArg<0>(&task));
 
         ASSERT_EQ(0, core_->HandleReadRequest(readRequest,
                                               readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                closure->resContent_.status);
-
-        CheckTask(task, offset, length, cloneData);
+                closure->response_->status());
         // 正常propose后，会将closure交给并发层处理，
         // 由于这里node是mock的，因此需要主动来执行task.done.Run来释放资源
         ASSERT_NE(nullptr, task.done);
         task.done->Run();
         ASSERT_EQ(memcmp(cloneData,
-                         closure->resContent_.attachment.to_string().c_str(),  //NOLINT
+                         closure->cntl_->response_attachment().to_string().c_str(),  //NOLINT
                          length), 0);
     }
 
@@ -264,11 +229,11 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_READ, offset, length);
-        char cloneData[length]= {0};
-        memset(cloneData, 'b', length);
-        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
+        char cloneData[SLICE_SIZE]= {0};
+        memset(cloneData, 'b', SLICE_SIZE);
+        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
             .WillOnce(DoAll(SetArrayArgument<3>(cloneData,
-                                                cloneData + length),
+                                                cloneData + SLICE_SIZE),
                             Return(0)));
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
@@ -285,30 +250,26 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
             .Times(1);
         // 产生PasteChunkRequest
         braft::Task task;
-        butil::IOBuf iobuf;
-        task.data = &iobuf;
         EXPECT_CALL(*node_, Propose(_))
-            .WillOnce(SaveBraftTask<0>(&task));
+            .WillOnce(SaveArg<0>(&task));
 
         ASSERT_EQ(0, core_->HandleReadRequest(readRequest,
                                               readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                closure->resContent_.status);
-
-        CheckTask(task, offset, length, cloneData);
+                closure->response_->status());
         // 正常propose后，会将closure交给并发层处理，
         // 由于这里node是mock的，因此需要主动来执行task.done.Run来释放资源
         ASSERT_NE(nullptr, task.done);
         task.done->Run();
         ASSERT_EQ(memcmp(chunkData,
-                         closure->resContent_.attachment.to_string().c_str(),  //NOLINT
+                         closure->cntl_->response_attachment().to_string().c_str(),  //NOLINT
                          3 * PAGE_SIZE), 0);
         ASSERT_EQ(memcmp(cloneData,
-                         closure->resContent_.attachment.to_string().c_str()  + 3 * PAGE_SIZE,  //NOLINT
+                         closure->cntl_->response_attachment().to_string().c_str()  + 3 * PAGE_SIZE,  //NOLINT
                          2 * PAGE_SIZE), 0);
     }
     // case4
@@ -332,19 +293,19 @@ TEST_F(CloneCoreTest, ReadChunkTest2) {
         // 更新 applied index
         EXPECT_CALL(*node_, UpdateAppliedIndex(_))
             .Times(0);
-        // 不产生PasteChunkRequest
+        // 产生PasteChunkRequest
         braft::Task task;
         EXPECT_CALL(*node_, Propose(_))
             .Times(0);
 
         ASSERT_EQ(-1, core_->HandleReadRequest(readRequest,
                                                readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
-                closure->resContent_.status);
+                closure->response_->status());
     }
 }
 
@@ -383,12 +344,12 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
 
         ASSERT_EQ(-1, core_->HandleReadRequest(readRequest,
                                                readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
-                  closure->resContent_.status);
+                  closure->response_->status());
     }
     // case2
     {
@@ -398,7 +359,7 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
+        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
             .WillOnce(Return(-1));
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .Times(0);
@@ -407,12 +368,12 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
 
         ASSERT_EQ(-1, core_->HandleReadRequest(readRequest,
                                                readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
-                  closure->resContent_.status);
+                  closure->response_->status());
     }
     // case3
     {
@@ -422,7 +383,7 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
                             Return(CSErrorCode::Success)));
-        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
+        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
             .WillOnce(Return(0));
         EXPECT_CALL(*datastore_, ReadChunk(_, _, _, _, _))
             .WillOnce(Return(CSErrorCode::InternalError));
@@ -431,12 +392,12 @@ TEST_F(CloneCoreTest, ReadChunkErrorTest) {
 
         ASSERT_EQ(-1, core_->HandleReadRequest(readRequest,
                                                readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
-                  closure->resContent_.status);
+                  closure->response_->status());
     }
 }
 
@@ -468,12 +429,12 @@ TEST_F(CloneCoreTest, RecoverChunkTest1) {
 
     ASSERT_EQ(0, core_->HandleReadRequest(readRequest,
                                           readRequest->Closure()));
-    FakeChunkClosure* closure =
-        reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+    UnitTestClosure* closure =
+        reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
     ASSERT_TRUE(closure->isDone_);
-    ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+    ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
     ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-              closure->resContent_.status);
+              closure->response_->status());
 }
 
 /**
@@ -510,12 +471,12 @@ TEST_F(CloneCoreTest, RecoverChunkTest2) {
             .Times(0);
         ASSERT_EQ(0, core_->HandleReadRequest(readRequest,
                                               readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(LAST_INDEX, closure->resContent_.appliedindex);
+        ASSERT_EQ(LAST_INDEX, closure->response_->appliedindex());
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
-                  closure->resContent_.status);
+                  closure->response_->status());
     }
 
     // case2
@@ -524,11 +485,11 @@ TEST_F(CloneCoreTest, RecoverChunkTest2) {
         // 每次调HandleReadRequest后会被closure释放
         std::shared_ptr<ReadChunkRequest> readRequest
             = GenerateReadRequest(CHUNK_OP_TYPE::CHUNK_OP_RECOVER, offset, length);  //NOLINT
-        char cloneData[length]= {0};
-        memset(cloneData, 'b', length);
-        EXPECT_CALL(*copyer_, Download(_, offset, length, _))
+        char cloneData[SLICE_SIZE]= {0};
+        memset(cloneData, 'b', SLICE_SIZE);
+        EXPECT_CALL(*copyer_, Download(_, offset, SLICE_SIZE, _))
             .WillOnce(DoAll(SetArrayArgument<3>(cloneData,
-                                                cloneData + length),
+                                                cloneData + SLICE_SIZE),
                             Return(0)));
         EXPECT_CALL(*datastore_, GetChunkInfo(_, _))
             .WillOnce(DoAll(SetArgPointee<1>(info),
@@ -538,27 +499,23 @@ TEST_F(CloneCoreTest, RecoverChunkTest2) {
             .Times(0);
         // 产生PasteChunkRequest
         braft::Task task;
-        butil::IOBuf iobuf;
-        task.data = &iobuf;
         EXPECT_CALL(*node_, Propose(_))
-            .WillOnce(SaveBraftTask<0>(&task));
+            .WillOnce(SaveArg<0>(&task));
 
         ASSERT_EQ(0, core_->HandleReadRequest(readRequest,
                                               readRequest->Closure()));
-        FakeChunkClosure* closure =
-            reinterpret_cast<FakeChunkClosure*>(readRequest->Closure());
+        UnitTestClosure* closure =
+            reinterpret_cast<UnitTestClosure*>(readRequest->Closure());
         // closure被转交给PasteRequest处理，这里closure还未执行
         ASSERT_FALSE(closure->isDone_);
-
-        CheckTask(task, offset, length, cloneData);
+        ASSERT_EQ(0, closure->response_->appliedindex());
+        ASSERT_EQ(0, closure->response_->status());
         // 正常propose后，会将closure交给并发层处理，
         // 由于这里node是mock的，因此需要主动来执行task.done.Run来释放资源
         ASSERT_NE(nullptr, task.done);
 
         task.done->Run();
         ASSERT_TRUE(closure->isDone_);
-        ASSERT_EQ(0, closure->resContent_.appliedindex);
-        ASSERT_EQ(0, closure->resContent_.status);
     }
 }
 

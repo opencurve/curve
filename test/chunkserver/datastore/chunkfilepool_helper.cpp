@@ -9,10 +9,9 @@
 
 void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr,
                    uint32_t num,
-                   std::string poolDir,
-                   uint32_t chunkSize) {
-    char* data = new (std::nothrow) char[chunkSize + 4096];              // NOLINT
-    memset(data, '0', chunkSize + 4096);
+                   std::string poolDir) {
+    char* data = new (std::nothrow) char[16 * 1024 * 1024 + 4096];              // NOLINT
+    memset(data, '0', 16 * 1024 * 1024 + 4096);
 
     fsptr->Mkdir(poolDir);
     uint32_t count = 0;
@@ -28,14 +27,14 @@ void allocateChunk(std::shared_ptr<LocalFileSystem> fsptr,
         }
         int fd = ret;
 
-        ret = fsptr->Fallocate(fd, 0, 0, chunkSize + 4096);              //NOLINT
+        ret = fsptr->Fallocate(fd, 0, 0, 16 * 1024 * 1024 + 4096);              //NOLINT
         if (ret < 0) {
             fsptr->Close(fd);
             LOG(ERROR) << "Fallocate failed, " << tmpchunkfilepath.c_str();
             break;
         }
 
-        ret = fsptr->Write(fd, data, 0, chunkSize + 4096);               //NOLINT
+        ret = fsptr->Write(fd, data, 0, 16 * 1024 * 1024 + 4096);               //NOLINT
         if (ret < 0) {
             fsptr->Close(fd);
             LOG(ERROR) << "write failed, " << tmpchunkfilepath.c_str();

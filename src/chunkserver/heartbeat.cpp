@@ -206,27 +206,19 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     diskState->set_errmsg("");
     req->set_allocated_diskstate(diskState);
 
-    ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
     curve::mds::heartbeat::ChunkServerStatisticInfo* stats =
         new curve::mds::heartbeat::ChunkServerStatisticInfo();
-    IOMetricPtr readMetric = metric->GetReadMetric();
-    IOMetricPtr writeMetric = metric->GetWriteMetric();
+    IOMetricPtr readMetric =
+        ChunkServerMetric::GetInstance()->GetReadMetric();
+    IOMetricPtr writeMetric =
+        ChunkServerMetric::GetInstance()->GetWriteMetric();
     if (readMetric != nullptr && writeMetric != nullptr) {
         stats->set_readrate(readMetric->bps_.get_value(1));
         stats->set_writerate(writeMetric->bps_.get_value(1));
         stats->set_readiops(readMetric->iops_.get_value(1));
         stats->set_writeiops(writeMetric->iops_.get_value(1));
+        req->set_allocated_stats(stats);
     }
-    CopysetNodeOptions opt = copysetMan_->GetCopysetNodeOptions();
-    uint64_t chunkFileSize = opt.maxChunkSize;
-    uint64_t usedChunkSize = metric->GetTotalSnapshotCount() * chunkFileSize
-                           + metric->GetTotalChunkCount() * chunkFileSize;
-    uint64_t trashedChunkSize = metric->GetChunkTrashedCount() * chunkFileSize;
-    uint64_t leftChunkSize = metric->GetChunkLeftCount() * chunkFileSize;
-    stats->set_chunksizeusedbytes(usedChunkSize);
-    stats->set_chunksizeleftbytes(leftChunkSize);
-    stats->set_chunksizetrashedbytes(trashedChunkSize);
-    req->set_allocated_stats(stats);
 
     size_t cap, avail;
     ret = GetFileSystemSpaces(&cap, &avail);

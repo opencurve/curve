@@ -1320,19 +1320,6 @@ void TopologyServiceManager::GetCopySetsInChunkServer(
     }
 }
 
-void TopologyServiceManager::GetClusterInfo(
-    const GetClusterInfoRequest* request,
-    GetClusterInfoResponse* response) {
-    ClusterInformation info;
-    if (topology_->GetClusterInfo(&info)) {
-        response->set_statuscode(kTopoErrCodeSuccess);
-        response->set_clusterid(info.clusterId);
-    } else {
-        LOG(ERROR) << "Topology GetClusterInfo fail.";
-        response->set_statuscode(kTopoErrCodeInternalError);
-    }
-}
-
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

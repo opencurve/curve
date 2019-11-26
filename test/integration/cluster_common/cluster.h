@@ -15,12 +15,9 @@
 #include "src/mds/dao/mdsRepo.h"
 #include "src/client/mds_client.h"
 #include "src/client/config_info.h"
-#include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
-#include "test/util/config_generator.h"
 
 using ::curve::mds::MdsRepo;
 using ::curve::client::MDSClient;
-using ::curve::snapshotcloneserver::SnapshotCloneRepo;
 
 namespace curve {
 class CurveCluster {
@@ -67,22 +64,6 @@ class CurveCluster {
     void StopCluster();
 
     /**
-     * @brief 生成各模块配置文件
-     *
-     * @tparam T 任一ConfigGenerator
-     * @param configPath 配置文件路径
-     * @param options 修改的配置项
-     */
-    template <class T>
-    void PrepareConfig(
-        const std::string &configPath,
-        const std::vector<std::string> &options) {
-        T gentor(configPath);
-        gentor.SetConfigOptions(options);
-        gentor.Generate();
-    }
-
-    /**
      * StartSingleMDS 启动一个mds
      *                如果需要不同ip的chunkserver,ipPort请设置为192.168.200.1:XXXX
      *
@@ -107,35 +88,6 @@ class CurveCluster {
      * StopAllMDS 停止所有mds
      */
     void StopAllMDS();
-
-    /**
-     * @brief 启动一个snapshotcloneserver
-     *
-     * @param id snapshotcloneserver 的Id
-     * @param ipPort ip端口
-     * @param snapshotcloneConf 参数项
-     */
-    void StartSnapshotCloneServer(int id, const std::string &ipPort,
-        const std::vector<std::string> &snapshotcloneConf);
-
-    /**
-     * @brief 停止指定Id的snapshotcloneserver
-     *
-     * @param id snapshotcloneserver的id
-     */
-    void StopSnapshotCloneServer(int id);
-
-    /**
-     * @brief 重启指定Id的snapshotcloneserver
-     *
-     * @param id snapshotcloneserver的id
-     */
-    void RestartSnapshotCloneServer(int id);
-
-    /**
-     * @brief 停止所有的snapshotcloneserver
-     */
-    void StopAllSnapshotCloneServer();
 
     /**
      * StarSingleEtcd 启动一个etcd节点
@@ -163,19 +115,6 @@ class CurveCluster {
      * StopAllEtcd 停止所有etcd节点
      */
     void StopAllEtcd();
-
-    /**
-     * @brief 格式化chunkfilepool
-     *
-     * @param chunkfilepooldir chunkfilepool目录
-     * @param chunkfilepoolmetapath chunkfilepool元数据目录
-     * @param filesystem_path 文件系统目录
-     * @param size chunkfilepool size (GB)
-     */
-    void FormatChunkFilePool(const std::string &chunkfilepooldir,
-        const std::string &chunkfilepoolmetapath,
-        const std::string &filesystem_path,
-        uint32_t size);
 
     /**
      * StartSingleChunkServer 启动一个chunkserver节点
@@ -353,15 +292,6 @@ class CurveCluster {
     // mds的id对应的ipport
     std::map<int, std::string> mdsIpPort_;
 
-    // snapshotcloneserver id对应的pid
-    std::map<int, pid_t> snapPidMap_;
-
-    // snapshotcloneserver id对应的ipPort
-    std::map<int, std::string> snapIpPort_;
-
-    // snapshotcloneserver id对应的conf
-    std::map<int, std::vector<std::string> > snapConf_;
-
     // etcd的id对应的进程号
     std::map<int, pid_t> etcdPidMap_;
 
@@ -383,8 +313,6 @@ class CurveCluster {
  public:
     // mysql数据库
     MdsRepo *mdsRepo_;
-    // snapshotcloneserver数据库
-    SnapshotCloneRepo *snapshotcloneRepo_;
 };
 }  // namespace curve
 

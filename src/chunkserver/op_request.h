@@ -300,27 +300,30 @@ class PasteChunkInternalRequest : public ChunkOpRequest {
  public:
     PasteChunkInternalRequest() :
         ChunkOpRequest() {}
-    PasteChunkInternalRequest(std::shared_ptr<CopysetNode> nodePtr,
+    PasteChunkInternalRequest(std::shared_ptr<ReadChunkRequest> readRequest,
+                              std::shared_ptr<CopysetNode> nodePtr,
                               const ChunkRequest *request,
-                              ChunkResponse *response,
                               const char* data,
                               ::google::protobuf::Closure *done) :
         ChunkOpRequest(nodePtr,
                        nullptr,
                        request,
-                       response,
-                       done) {
+                       nullptr,
+                       done),
+        readRequest_(readRequest) {
             data_.append(data, request->size());
         }
     virtual ~PasteChunkInternalRequest() = default;
 
     void Process() override;
+    void RedirectChunkRequest() override;
     void OnApply(uint64_t index, ::google::protobuf::Closure *done) override;
     void OnApplyFromLog(std::shared_ptr<CSDataStore> datastore,
                         const ChunkRequest &request,
                         const butil::IOBuf &data) override;
 
  private:
+    std::shared_ptr<ReadChunkRequest> readRequest_;
     butil::IOBuf data_;
 };
 

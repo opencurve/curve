@@ -5600,58 +5600,6 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_GetClusterId(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  char *arg1 = (char *) nullptr ;
-  int arg2 = (int) 0 ;
-  int res1 ;
-  char *buf1 = 0 ;
-  int alloc1 = 0 ;
-  int val2 ;
-  int ecode2 = 0 ;
-  PyObject * obj0 = 0 ;
-  PyObject * obj1 = 0 ;
-  int result;
-  int retlen;
-  
-  if (!PyArg_ParseTuple(args,(char *)"|OO:GetClusterId",&obj0,&obj1)) SWIG_fail;
-  if (obj0) {
-    res1 = SWIG_AsCharPtrAndSize(obj0, &buf1, NULL, &alloc1);
-    if (!SWIG_IsOK(res1)) {
-      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "GetClusterId" "', argument " "1"" of type '" "char *""'");
-    }
-    arg1 = reinterpret_cast< char * >(buf1);
-  }
-  if (obj1) {
-    ecode2 = SWIG_AsVal_int(obj1, &val2);
-    if (!SWIG_IsOK(ecode2)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "GetClusterId" "', argument " "2"" of type '" "int""'");
-    } 
-    arg2 = static_cast< int >(val2);
-  }
-  if (arg2 == 0) {
-    arg2 = CLUSTERIDMAX;
-  }
-  arg1 = new char[arg2];
-  result = (int)GetClusterId(arg1,arg2);
-  if (result < 0 ) {
-    resultobj = SWIG_From_int(static_cast< int >(result));
-    if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
-    delete[] arg1;
-    return resultobj;
-  }
-  retlen = strlen(arg1);
-  resultobj = SWIG_Python_AppendOutput(resultobj, SWIG_FromCharPtrAndSize(arg1, retlen));
-  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
-  delete[] arg1;
-  return resultobj;
-fail:
-  if (alloc1 == SWIG_NEWOBJ) delete[] buf1;
-  delete[] arg1;
-  return NULL;
-}
-
-
 static PyMethodDef SwigMethods[] = {
 	 { (char *)"SWIG_PyInstanceMethod_New", (PyCFunction)SWIG_PyInstanceMethod_New, METH_O, NULL},
 	 { (char *)"AioContext_t_offset_set", _wrap_AioContext_t_offset_set, METH_VARARGS, NULL},
@@ -5726,7 +5674,6 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"Mkdir", _wrap_Mkdir, METH_VARARGS, NULL},
 	 { (char *)"Rmdir", _wrap_Rmdir, METH_VARARGS, NULL},
 	 { (char *)"UnInit", _wrap_UnInit, METH_VARARGS, NULL},
-	 { (char *)"GetClusterId", _wrap_GetClusterId, METH_VARARGS, NULL},
 	 { NULL, NULL, 0, NULL }
 };
 
@@ -6525,7 +6472,6 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "CURVE_ERROR_UNKNOWN",SWIG_From_int(static_cast< int >(100)));
   SWIG_Python_SetConstant(d, "CURVE_OP_READ",SWIG_From_int(static_cast< int >(0)));
   SWIG_Python_SetConstant(d, "CURVE_OP_WRITE",SWIG_From_int(static_cast< int >(1)));
-  SWIG_Python_SetConstant(d, "CLUSTERIDMAX",SWIG_From_int(static_cast< int >(256)));
 #if PY_VERSION_HEX >= 0x03000000
   return m;
 #else
