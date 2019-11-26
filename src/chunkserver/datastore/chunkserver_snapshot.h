@@ -16,6 +16,7 @@
 #include "src/common/bitmap.h"
 #include "src/common/crc32.h"
 #include "src/chunkserver/datastore/filename_operator.h"
+#include "src/chunkserver/datastore/chunkserver_chunkfile.h"
 #include "src/chunkserver/datastore/define.h"
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
@@ -29,7 +30,6 @@ using curve::fs::LocalFileSystem;
 class ChunkfilePool;
 class CSChunkFile;
 struct ChunkOptions;
-struct DataStoreMetric;
 
 /**
  * Snapshot Metapage Format
@@ -168,8 +168,6 @@ class CSSnapshot {
     std::shared_ptr<LocalFileSystem> lfs_;
     // 依赖chunkfilepool创建删除文件
     std::shared_ptr<ChunkfilePool> chunkfilePool_;
-    // datastore内部统计指标
-    std::shared_ptr<DataStoreMetric> metric_;
 };
 
 }  // namespace chunkserver

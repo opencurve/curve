@@ -90,7 +90,7 @@ SnapshotMetaPage& SnapshotMetaPage::operator =(
 }
 
 CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
-                       std::shared_ptr<ChunkfilePool> chunkfilePool,
+                       std::shared_ptr<ChunkfilePool> ChunkfilePool,
                        const ChunkOptions& options)
     : fd_(-1),
       chunkId_(options.id),
@@ -98,25 +98,17 @@ CSSnapshot::CSSnapshot(std::shared_ptr<LocalFileSystem> lfs,
       pageSize_(options.pageSize),
       baseDir_(options.baseDir),
       lfs_(lfs),
-      chunkfilePool_(chunkfilePool),
-      metric_(options.metric) {
+      chunkfilePool_(ChunkfilePool) {
     CHECK(!baseDir_.empty()) << "Create snapshot failed";
     CHECK(lfs_ != nullptr) << "Create snapshot failed";
     uint32_t bits = size_ / pageSize_;
     metaPage_.bitmap = std::make_shared<Bitmap>(bits);
     metaPage_.sn = options.sn;
-    if (metric_ != nullptr) {
-        metric_->snapshotCount << 1;
-    }
 }
 
 CSSnapshot::~CSSnapshot() {
     if (fd_ >= 0) {
         lfs_->Close(fd_);
-    }
-
-    if (metric_ != nullptr) {
-        metric_->snapshotCount << -1;
     }
 }
 

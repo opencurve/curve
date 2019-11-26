@@ -26,12 +26,6 @@ const char SessionTable[] = "curve_session";
 const char SnapshotTable[] = "snapshot";
 const char CloneTable[] = "clone";
 const char ClientInfoTable[] = "client_info";
-const char ClusterInfoTable[] = "curve_clusterInfo";
-
-const char CreateClusterInfoTable[] =
-    "create table if not exists `curve_clusterInfo` (\n"  //NOLINT
-    "    `clusterId`        varchar(128)    NOT NULL PRIMARY KEY COMMENT 'clusterId'\n"  //NOLINT
-    ")COMMENT='clusterInfo';";  //NOLINT
 
 const char CreateChunkServerTable[] =
     "create table if not exists `curve_chunkserver` (\n"
@@ -182,7 +176,6 @@ const char Update[] = "update %s set %s where %s";
 const size_t UpdateLen = strlen(Update) - 6;
 
 const std::map<std::string, std::string> CurveMDSTables = {
-    {ClusterInfoTable, CreateClusterInfoTable},
     {ChunkServerTable, CreateChunkServerTable},
     {ServerTable, CreateServerTable},
     {ZoneTable, CreateZoneTable},

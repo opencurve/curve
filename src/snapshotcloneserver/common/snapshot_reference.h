@@ -14,7 +14,6 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
-#include "src/common/concurrent/name_lock.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -22,10 +21,6 @@ namespace snapshotcloneserver {
 class SnapshotReference {
  public:
     SnapshotReference() {}
-
-    curve::common::NameLock& GetSnapshotLock() {
-        return snapshotLock_;
-    }
 
     void IncrementSnapshotRef(const UUID &snapshotId);
     void DecrementSnapshotRef(const UUID &snapshotId);
@@ -35,8 +30,6 @@ class SnapshotReference {
  private:
     std::map<UUID, curve::common::Atomic<int> > refMap_;
     curve::common::RWLock refMapLock_;
-
-    curve::common::NameLock snapshotLock_;
 };
 
 }  // namespace snapshotcloneserver

@@ -117,9 +117,9 @@ TEST(ChunkOpRequestTest, encode) {
     request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_PASTE);
     {
         ChunkOpRequest *opReq
-            = new PasteChunkInternalRequest(nodePtr,
+            = new PasteChunkInternalRequest(nullptr,
+                                            nodePtr,
                                             &request,
-                                            nullptr,
                                             nullptr,
                                             nullptr);
 
@@ -463,7 +463,11 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
                                                        nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
-        ASSERT_DEATH(opReq->OnApply(appliedIndex, &done), "");
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                  response.status());
         delete opReq;
         delete cntl;
     }
@@ -484,7 +488,11 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
                                                        nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
-        ASSERT_DEATH(opReq->OnApply(appliedIndex, &done), "");
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                  response.status());
         delete opReq;
         delete cntl;
     }

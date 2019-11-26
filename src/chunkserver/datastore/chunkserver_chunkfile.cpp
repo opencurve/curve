@@ -114,18 +114,16 @@ CSErrorCode ChunkFileMetaPage::decode(const char* buf) {
 }
 
 CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
-                         std::shared_ptr<ChunkfilePool> chunkfilePool,
+                         std::shared_ptr<ChunkfilePool> ChunkfilePool,
                          const ChunkOptions& options)
     : fd_(-1),
       size_(options.chunkSize),
       pageSize_(options.pageSize),
       chunkId_(options.id),
       baseDir_(options.baseDir),
-      isCloneChunk_(false),
       snapshot_(nullptr),
-      chunkfilePool_(chunkfilePool),
-      lfs_(lfs),
-      metric_(options.metric) {
+      chunkfilePool_(ChunkfilePool),
+      lfs_(lfs) {
     CHECK(!baseDir_.empty()) << "Create chunk file failed";
     CHECK(lfs_ != nullptr) << "Create chunk file failed";
     metaPage_.sn = options.sn;
@@ -135,9 +133,6 @@ CSChunkFile::CSChunkFile(std::shared_ptr<LocalFileSystem> lfs,
     if (!metaPage_.location.empty()) {
         uint32_t bits = size_ / pageSize_;
         metaPage_.bitmap = std::make_shared<Bitmap>(bits);
-    }
-    if (metric_ != nullptr) {
-        metric_->chunkFileCount << 1;
     }
 }
 
@@ -149,13 +144,6 @@ CSChunkFile::~CSChunkFile() {
 
     if (fd_ >= 0) {
         lfs_->Close(fd_);
-    }
-
-    if (metric_ != nullptr) {
-        metric_->chunkFileCount << -1;
-        if (isCloneChunk_) {
-            metric_->cloneChunkCount << -1;
-        }
     }
 }
 
@@ -174,7 +162,6 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
         int rc = chunkfilePool_->GetChunk(chunkFilePath, buf);
         // 并发创建文件时，可能前面线程已经创建成功，那么这里会返回-EEXIST
         // 此时可以继续open已经生成的文件
-        // 不过当前同一个chunk的操作是串行的，不会出现这个问题
         if (rc != 0  && rc != -EEXIST) {
             LOG(ERROR) << "Error occured when create file."
                    << " filepath = " << chunkFilePath;
@@ -199,20 +186,10 @@ CSErrorCode CSChunkFile::Open(bool createFile) {
     if (fileInfo.st_size != fileSize()) {
         LOG(ERROR) << "Wrong file size."
                    << " filepath = " << chunkFilePath
-                   << ", real filesize = " << fileInfo.st_size
-                   << ", expect filesize = " << fileSize();
+                   << ",filesize = " << fileInfo.st_size;
         return CSErrorCode::FileFormatError;
     }
-
-    CSErrorCode errCode = loadMetaPage();
-    // 重启后，只有重新open加载metapage后，才能知道是否为clone chunk
-    if (!metaPage_.location.empty() && !isCloneChunk_) {
-        if (metric_ != nullptr) {
-            metric_->cloneChunkCount << 1;
-        }
-        isCloneChunk_ = true;
-    }
-    return errCode;
+    return loadMetaPage();
 }
 
 CSErrorCode CSChunkFile::LoadSnapshot(SequenceNum sn) {
@@ -230,7 +207,6 @@ CSErrorCode CSChunkFile::LoadSnapshot(SequenceNum sn) {
     options.baseDir = baseDir_;
     options.chunkSize = size_;
     options.pageSize = pageSize_;
-    options.metric = metric_;
     snapshot_ = new(std::nothrow) CSSnapshot(lfs_,
                                             chunkfilePool_,
                                             options);
@@ -266,11 +242,11 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
     // 用户快照以后会保证之前的请求全部到达或者超时以后才会下发新的请求
     // 因此此处只可能是日志恢复的请求，且一定已经执行，此处可返回错误码
     if (sn < metaPage_.sn || sn < metaPage_.correctedSn) {
-        LOG(WARNING) << "Backward write request."
-                     << "ChunkID: " << chunkId_
-                     << ",request sn: " << sn
-                     << ",chunk sn: " << metaPage_.sn
-                     << ",correctedSn: " << metaPage_.correctedSn;
+        LOG(ERROR) << "Backward write request."
+                   << "ChunkID: " << chunkId_
+                   << ",request sn: " << sn
+                   << ",chunk sn: " << metaPage_.sn
+                   << ",correctedSn: " << metaPage_.correctedSn;
         return CSErrorCode::BackwardRequestError;
     }
     // 判断是否需要创建快照文件
@@ -287,7 +263,7 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
         }
 
         // clone chunk不允许创建快照
-        if (isCloneChunk_) {
+        if (isCloneChunk()) {
             LOG(ERROR) << "Clone chunk can't create snapshot."
                        << "ChunkID: " << chunkId_
                        << ",request sn: " << sn
@@ -302,7 +278,6 @@ CSErrorCode CSChunkFile::Write(SequenceNum sn,
         options.baseDir = baseDir_;
         options.chunkSize = size_;
         options.pageSize = pageSize_;
-        options.metric = metric_;
         snapshot_ = new(std::nothrow) CSSnapshot(lfs_,
                                                  chunkfilePool_,
                                                  options);
@@ -375,7 +350,7 @@ CSErrorCode CSChunkFile::Paste(const char * buf, off_t offset, size_t length) {
         return CSErrorCode::InvalidArgError;
     }
     // 如果不是clone chunk直接返回成功
-    if (!isCloneChunk_) {
+    if (!isCloneChunk()) {
         return CSErrorCode::Success;
     }
 
@@ -432,7 +407,7 @@ CSErrorCode CSChunkFile::Read(char * buf, off_t offset, size_t length) {
     }
 
     // 如果是 clonechunk ,要保证读取区域已经被写过，否则返回错误
-    if (isCloneChunk_) {
+    if (isCloneChunk()) {
         // 上面下来的请求必须是pagesize对齐的
         // 请求paste区域的起始page索引号
         uint32_t beginIndex = offset / pageSize_;
@@ -537,10 +512,10 @@ CSErrorCode CSChunkFile::Delete(SequenceNum sn)  {
     WriteLockGuard writeGuard(rwLock_);
     // 如果 sn 小于当前chunk的版本号，不允许删除
     if (sn < metaPage_.sn) {
-        LOG(WARNING) << "Delete chunk failed, backward request."
-                     << "ChunkID: " << chunkId_
-                     << ", request sn: " << sn
-                     << ", chunk sn: " << metaPage_.sn;
+        LOG(ERROR) << "Delete chunk failed, backward request."
+                   << "ChunkID: " << chunkId_
+                   << ", request sn: " << sn
+                   << ", chunk sn: " << metaPage_.sn;
         return CSErrorCode::BackwardRequestError;
     }
 
@@ -581,7 +556,7 @@ CSErrorCode CSChunkFile::DeleteSnapshotOrCorrectSn(SequenceNum correctedSn)  {
     WriteLockGuard writeGuard(rwLock_);
 
     // 如果是clone chunk， 理论上不应该会调这个接口，返回错误
-    if (isCloneChunk_) {
+    if (isCloneChunk()) {
         LOG(ERROR) << "Delete snapshot failed, this is a clone chunk."
                    << "ChunkID: " << chunkId_;
         return CSErrorCode::StatusConflictError;
@@ -590,23 +565,25 @@ CSErrorCode CSChunkFile::DeleteSnapshotOrCorrectSn(SequenceNum correctedSn)  {
     // 如果correctedSn小于当前chunk的sn或者correctedSn
     // 那么该请求要么是游离请求，要么是已经执行过了然后日志恢复时重放了
     if (correctedSn < metaPage_.sn || correctedSn < metaPage_.correctedSn) {
-        LOG(WARNING) << "Backward delete snapshot request."
-                     << "ChunkID: " << chunkId_
-                     << ", correctedSn: " << correctedSn
-                     << ", chunk.sn: " << metaPage_.sn
-                     << ", chunk.correctedSn: " << metaPage_.correctedSn;
+        LOG(ERROR) << "Backward delete snapshot request."
+                   << "ChunkID: " << chunkId_
+                   << ", correctedSn: " << correctedSn
+                   << ", chunk.sn: " << metaPage_.sn
+                   << ", chunk.correctedSn: " << metaPage_.correctedSn;
         return CSErrorCode::BackwardRequestError;
     }
 
     /*
-     * 由于上一步的判断，此时correctedSn>=metaPage_.sn && metaPage_.correctedSn
-     * 此时通过版本判断当前快照文件与当前chunk文件的关系
-     * 如果chunk.sn>snap.sn，那么这个快照要么就是历史快照，
-     * 要么就是当前版本chunk的快照，这种情况允许删除快照
-     * 如果chunk.sn<=snap.sn，则这个快照一定是在当前删除操作之后产生的
-     * 当前的删除操作时回放的历史日志，这种情况不允许删除
+     * 如果快照存在时需要根据correctedSn与当前sn_的大小判断是否可以删除快照
+     * 1.正常情况下correctedSn等于sn_,表示当前chunk的快照是此次转储过程中产生的
+     *   此时需要删除快照文件
+     * 2.特殊情况下如果correctedSn大于sn_,说明快照是历史快照产生的没有删除掉
+     *   此时也可以删除快照文件
+     * 3.如果correctedSn小于sn_，一般发生在日志恢复的时候，
+     *   且恢复之前有一个版本号更加新的写请求，那么快照文件应当是在删除操作后产生的
+     *   此时不能删除快照文件
      */
-    if (snapshot_ != nullptr && metaPage_.sn > snapshot_->GetSn()) {
+    if (snapshot_ != nullptr && correctedSn >= metaPage_.sn) {
         CSErrorCode errorCode = snapshot_->Delete();
         if (errorCode != CSErrorCode::Success) {
             LOG(ERROR) << "Delete snapshot failed."
@@ -655,7 +632,7 @@ void CSChunkFile::GetInfo(CSChunkInfo* info)  {
     info->snapSn = (snapshot_ == nullptr
                         ? 0
                         : snapshot_->GetSn());
-    info->isClone = isCloneChunk_;
+    info->isClone = isCloneChunk();
     info->location = metaPage_.location;
     // 这里会有一次memcpy，否则需要对bitmap操作加锁
     // 这一步存在ReadChunk关键路径上，对性能会有一定要求
@@ -703,16 +680,12 @@ bool CSChunkFile::needCreateSnapshot(SequenceNum sn) {
     // 之前必然已经生成过快照文件，因此也不需要创建新的快照
     if (sn <= chunkSn)
         return false;
-    // 请求版本大于chunk，且chunk存在快照文件，可能有多种原因：
+    // 请求版本大于chunk，且chunk存在快照文件，可能有两种原因：
     // 1.上次写请求产生了快照文件，但是metapage更新失败；
     // 2.有以前的历史快照文件未被删除
-    // 3.raft的follower恢复时从leader下载raft快照，同时chunk也在做快照
-    //   由于先下载的chunk文件，下载过程中chunk可能做了多次快照
-    //   下载以后follower做日志恢复，可能出现
     // 对于第1种情况，sn_一定等于快照的版本号，可以直接使用当前快照文件
     // 对于第2种情况，理论不会发生，应当报错
-    // 对于第3种情况，快照的版本一定大于或者等于chunk的版本
-    if (nullptr != snapshot_ && metaPage_.sn <= snapshot_->GetSn()) {
+    if (nullptr != snapshot_ && metaPage_.sn == snapshot_->GetSn()) {
         return false;
     }
     return true;
@@ -729,15 +702,11 @@ bool CSChunkFile::needCow(SequenceNum sn) {
     // 前面的逻辑保证了这里的sn一定是等于metaPage.sn的
     // 因为sn<metaPage_.sn时，请求会被拒绝
     // sn>metaPage_.sn时，前面会先更新metaPage.sn为sn
-    // 又因为snapSn正常情况下是小于metaPage_.sn，所以snapSn也应当小于sn
-    // 有几种情况可能出现metaPage_.sn <= snap.sn
-    // 场景一：DataStore重启恢复历史日志，可能出现metaPage_.sn==snap.sn
+    // 又因为snapSn正常情况下是小与metaPage_.sn，所以snapSn也应当小于sn
+    // 有一种情况会出现sn==snap.sn，就是DataStore重启恢复历史日志
     // 重启前有一个请求产生了快照文件，但是还没更新metapage时就重启了
     // 重启后又回放了先前的一个操作，这个操作的sn等于当前chunk的sn
-    // 场景二：follower在做raft的恢复时通过leader下载raft快照
-    // 下载过程中，Leader上的chunk也在做chunk的快照，下载以后follower再做日志恢复
-    // 由于follower先下载chunk文件，后下载快照文件，所以此时metaPage_.sn<=snap.sn
-    if (sn != metaPage_.sn || metaPage_.sn <= snapshot_->GetSn()) {
+    if (sn != metaPage_.sn || sn <= snapshot_->GetSn()) {
         LOG(WARNING) << "May be a log repaly opt after an unexpected restart."
                      << "Request sn: " << sn
                      << ", chunk sn: " << metaPage_.sn
@@ -826,17 +795,15 @@ CSErrorCode CSChunkFile::copy2Snapshot(off_t offset, size_t length) {
 CSErrorCode CSChunkFile::flush() {
     ChunkFileMetaPage tempMeta = metaPage_;
     bool needUpdateMeta = dirtyPages_.size() > 0;
-    bool clearClone = false;
     for (auto pageIndex : dirtyPages_) {
         tempMeta.bitmap->Set(pageIndex);
     }
-    if (isCloneChunk_) {
+    if (isCloneChunk()) {
         // 如果所有的page都被写过,将Chunk标记为非clone chunk
         if (tempMeta.bitmap->NextClearBit(0) == Bitmap::NO_POS) {
             tempMeta.location = "";
             tempMeta.bitmap = nullptr;
             needUpdateMeta = true;
-            clearClone = true;
         }
     }
     if (needUpdateMeta) {
@@ -850,12 +817,6 @@ CSErrorCode CSChunkFile::flush() {
         metaPage_.bitmap = tempMeta.bitmap;
         metaPage_.location = tempMeta.location;
         dirtyPages_.clear();
-        if (clearClone) {
-            if (metric_ != nullptr) {
-                metric_->cloneChunkCount << -1;
-            }
-            isCloneChunk_ = false;
-        }
     }
     return CSErrorCode::Success;
 }

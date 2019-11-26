@@ -304,10 +304,5 @@ int DBSnapshotCloneMetaStore::GetSnapshotList(std::vector<SnapshotInfo> *list) {
     }
     return 0;
 }
-
-uint32_t DBSnapshotCloneMetaStore::GetSnapshotCount() {
-    return snapInfos_.size();
-}
-
 }  // namespace snapshotcloneserver
 }  // namespace curve

@@ -77,8 +77,6 @@ extern "C" {
 #define CURVE_OP_READ 0
 #define CURVE_OP_WRITE 1
 
-#define CLUSTERIDMAX 256
-
 
 typedef void (*AioCallBack)(struct AioContext* context);
 typedef struct AioContext {
@@ -142,8 +140,6 @@ int Mkdir(const char* dirpath, UserInfo_t* info);
 int Rmdir(const char* dirpath, UserInfo_t* info);
 
 void UnInit();
-
-int GetClusterId(char* buf = nullptr, int len = 0);
 
 #ifdef __cplusplus
 }

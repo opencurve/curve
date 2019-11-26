@@ -13,7 +13,6 @@
 #include <string>
 #include <memory>
 #include <map>
-#include <vector>
 
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/dao/mdsRepo.h"
@@ -67,9 +66,6 @@ class TopologyStorage {
     virtual bool UpdateServer(const Server &data) = 0;
     virtual bool UpdateChunkServer(const ChunkServer &data) = 0;
     virtual bool UpdateCopySet(const CopySetInfo &data) = 0;
-
-    virtual bool LoadClusterInfo(std::vector<ClusterInformation> *info) = 0;
-    virtual bool StorageClusterInfo(const ClusterInformation &info) = 0;
 };
 
 class DefaultTopologyStorage : public TopologyStorage {
@@ -118,9 +114,6 @@ class DefaultTopologyStorage : public TopologyStorage {
     bool UpdateServer(const Server &data) override;
     bool UpdateChunkServer(const ChunkServer &data) override;
     bool UpdateCopySet(const CopySetInfo &data) override;
-
-    bool LoadClusterInfo(std::vector<ClusterInformation> *info) override;
-    bool StorageClusterInfo(const ClusterInformation &info) override;
 
  private:
     std::shared_ptr<MdsRepo> repo_;

@@ -20,7 +20,6 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
-#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
@@ -38,11 +37,8 @@ class SnapshotTaskManager {
      /**
       * @brief 默认构造函数
       */
-    explicit SnapshotTaskManager(
-        std::shared_ptr<SnapshotMetric> snapshotMetric)
-        : isStop_(true),
-          snapshotMetric_(snapshotMetric),
-          snapshotTaskManagerScanIntervalMs_(0) {}
+    SnapshotTaskManager()
+        : isStop_(true) {}
 
     /**
      * @brief 析构函数
@@ -143,9 +139,6 @@ class SnapshotTaskManager {
 
     // 当前任务管理是否停止，用于支持start，stop功能
     std::atomic_bool isStop_;
-
-    // metric
-    std::shared_ptr<SnapshotMetric> snapshotMetric_;
 
     // 快照后台线程扫描等待队列和工作队列的扫描周期(单位：ms)
     int snapshotTaskManagerScanIntervalMs_;

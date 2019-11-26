@@ -89,7 +89,7 @@ class DatastoreIntegrationBase : public testing::Test {
 
         if (lfs_->DirExists(poolDir))
             lfs_->Delete(poolDir);
-        allocateChunk(lfs_, chunkNum, poolDir, CHUNK_SIZE);
+        allocateChunk(lfs_, chunkNum, poolDir);
         ASSERT_TRUE(filePool_->Initialize(cfop));
         ASSERT_EQ(chunkNum, filePool_->Size());
     }

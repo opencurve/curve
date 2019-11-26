@@ -24,6 +24,7 @@ services:
     network_mode: host
     volumes:
       - ./grafana/data:/var/lib/grafana:rw
+      - ./grafana/provisioning/:/etc/grafana/provisioning/:rw
       - ./grafana/grafana.ini:/etc/grafana/grafana.ini:rw
     environment:
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
@@ -37,11 +38,3 @@ services:
     network_mode: host
     command:
       - '--web.listen-address=:9104'
-
-  reporter:
-    image: promoon/reporter:latest
-    volumes:
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-      - ./grafana/report:/tmp/report:rw
-    network_mode: host
