@@ -54,7 +54,8 @@ void CurveCluster::StopCluster() {
         int res = kill(it->second, SIGTERM);
         waitpid(it->second, &waitStatus, 0);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(mdsIpPort_[it->first], 10000, false));
+        ASSERT_EQ(0, ProbePort(mdsIpPort_[it->first], 10000, false))
+            << "when stop mds ipport:" << mdsIpPort_[it->first];
         LOG(INFO) << "success stop mds" << it->first << " " << it->second;
         it = mdsPidMap_.erase(it);
     }
@@ -64,7 +65,8 @@ void CurveCluster::StopCluster() {
         int res = kill(it->second, SIGKILL);
         waitpid(it->second, &waitStatus, 0);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(etcdClientIpPort_[it->first], 10000, false));
+        ASSERT_EQ(0, ProbePort(etcdClientIpPort_[it->first], 10000, false))
+            << "when stop etcd ipport:" << etcdClientIpPort_[it->first];
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = etcdPidMap_.erase(it);
     }
@@ -76,7 +78,8 @@ void CurveCluster::StopCluster() {
         int res = kill(it->second, SIGTERM);
         waitpid(it->second, &waitStatus, 0);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(chunkserverIpPort_[it->first], 10000, false));
+        ASSERT_EQ(0, ProbePort(chunkserverIpPort_[it->first], 10000, false))
+            << "when stop chunkserver ipport:" << chunkserverIpPort_[it->first];
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = chunkserverPidMap_.erase(it);
     }
@@ -115,7 +118,8 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
     }
 
     if (expectAssert) {
-        ASSERT_EQ(0, ProbePort(ipPort, 20000, expectLeader));
+        ASSERT_EQ(0, ProbePort(ipPort, 20000, expectLeader))
+            << "when start mds ipport:" << ipPort;
     }
 
     LOG(INFO) << "start mds " << ipPort << " success";
@@ -134,7 +138,8 @@ void CurveCluster::StopMDS(int id) {
         int waitStatus;
         waitpid(mdsPidMap_[id], &waitStatus, 0);
         // ASSERT_EQ(0, res);
-        // ASSERT_EQ(0, ProbePort(MDSIpPort(id), 10000, false));
+        ASSERT_EQ(0, ProbePort(MDSIpPort(id), 10000, false))
+            << "when stop mds ipport:" << MDSIpPort(id);
         mdsPidMap_.erase(id);
     }
 
@@ -151,7 +156,8 @@ void CurveCluster::StopAllMDS() {
         int waitStatus;
         waitpid(it->second, &waitStatus, 0);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(mdsIpPort_[it->first], 10000, false));
+        ASSERT_EQ(0, ProbePort(mdsIpPort_[it->first], 10000, false))
+            << "when stop mds ipport:" << mdsIpPort_[it->first];
         LOG(INFO) << "success stop mds" << it->first << " " << it->second;
         it = mdsPidMap_.erase(it);
     }
@@ -180,7 +186,8 @@ void CurveCluster::StartSnapshotCloneServer(int id, const std::string &ipPort,
         exit(0);
     }
 
-    ASSERT_EQ(0, ProbePort(ipPort, 20000, true));
+    ASSERT_EQ(0, ProbePort(ipPort, 20000, true))
+        << "when start snapshotcloneserver ipport:" << ipPort;
     LOG(INFO) << "start snapshotcloneserver " << ipPort << " success.";
     snapPidMap_[id] = pid;
     snapIpPort_[id] = ipPort;
@@ -192,7 +199,8 @@ void CurveCluster::StopSnapshotCloneServer(int id) {
     if (snapPidMap_.find(id) != snapPidMap_.end()) {
         int res = kill(snapPidMap_[id], SIGTERM);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(snapIpPort_[id], 5000, false));
+        ASSERT_EQ(0, ProbePort(snapIpPort_[id], 5000, false))
+            << "when StopSnapshotCloneServer ipport:" << snapIpPort_[id];
         int waitStatus;
         waitpid(snapPidMap_[id], &waitStatus, 0);
         snapPidMap_.erase(id);
@@ -206,7 +214,8 @@ void CurveCluster::RestartSnapshotCloneServer(int id) {
     if (snapPidMap_.find(id) != snapPidMap_.end()) {
         int res = kill(snapPidMap_[id], SIGTERM);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(snapIpPort_[id], 20000, false));
+        ASSERT_EQ(0, ProbePort(snapIpPort_[id], 20000, false))
+            << "when RestartSnapshotCloneServer ipport:" << snapIpPort_[id];
         int waitStatus;
         waitpid(snapPidMap_[id], &waitStatus, 0);
         std::string ipPort = snapIpPort_[id];
@@ -258,7 +267,8 @@ void CurveCluster::StarSingleEtcd(int id, const std::string &clientIpPort,
         exit(0);
     }
 
-    ASSERT_EQ(0, ProbePort(clientIpPort, 20000, true));
+    ASSERT_EQ(0, ProbePort(clientIpPort, 60000, true))
+        << "when start etcd ipport:" << clientIpPort;
     LOG(INFO) << "start etcd " << clientIpPort << " success";
     etcdPidMap_[id] = pid;
     etcdClientIpPort_[id] = clientIpPort;
@@ -310,8 +320,10 @@ void CurveCluster::StopEtcd(int id) {
         int waitStatus;
         waitpid(etcdPidMap_[id], &waitStatus, 0);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(etcdClientIpPort_[id], 10000, false));
-        ASSERT_EQ(0, ProbePort(etcdPeersIpPort_[id], 10000, false));
+        ASSERT_EQ(0, ProbePort(etcdClientIpPort_[id], 10000, false))
+            << "when stop etcd client ipport:" << etcdClientIpPort_[id];
+        ASSERT_EQ(0, ProbePort(etcdPeersIpPort_[id], 10000, false))
+            << "when stop etcd peer ipport:" << etcdPeersIpPort_[id];
         LOG(INFO) << "stop etcd " << etcdClientIpPort_[id]
                   << ", " << etcdPidMap_[id] << " success";
         etcdPidMap_.erase(id);
@@ -331,7 +343,8 @@ void CurveCluster::StopAllEtcd() {
         int res = kill(it->second, SIGKILL);
         waitpid(it->second, &waitStatus, 0);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(etcdClientIpPort_[it->first], 10000, false));
+        ASSERT_EQ(0, ProbePort(etcdClientIpPort_[it->first], 10000, false))
+            << "when stop etcd client ipport:" << etcdClientIpPort_[it->first];
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = etcdPidMap_.erase(it);
     }
@@ -385,7 +398,8 @@ void CurveCluster::StartSingleChunkServer(int id, const std::string &ipPort,
         exit(0);
     }
 
-    ASSERT_EQ(0, ProbePort(ipPort, 20000, true));
+    ASSERT_EQ(0, ProbePort(ipPort, 20000, true))
+        << "when start chunkserver ipport:" << ipPort;
     LOG(INFO) << "start chunkserver " << ipPort << " success";
     chunkserverPidMap_[id] = pid;
     chunkserverIpPort_[id] = ipPort;
@@ -418,7 +432,9 @@ void CurveCluster::StartSingleChunkServerInBackground(
         exit(0);
     }
 
-    ASSERT_EQ(0, ProbePort(ChunkServerIpPortInBackground(id), 20000, true));
+    ASSERT_EQ(0, ProbePort(ChunkServerIpPortInBackground(id), 20000, true))
+        << "when start chunkserver ipport:"
+        << ChunkServerIpPortInBackground(id);
     LOG(INFO) << "start chunkserver " << id << " in background success";
     chunkserverPidMap_[id] = pid;
     chunkserverIpPort_[id] = ChunkServerIpPortInBackground(id);
@@ -434,7 +450,8 @@ void CurveCluster::StopChunkServer(int id) {
         ASSERT_EQ(0, system(killCmd.c_str()));
         int waitStatus;
         waitpid(chunkserverPidMap_[id], &waitStatus, 0);
-        ASSERT_EQ(0, ProbePort(chunkserverIpPort_[id], 10000, false));
+        ASSERT_EQ(0, ProbePort(chunkserverIpPort_[id], 10000, false))
+            << "when stop chunkserver ipport:" << chunkserverIpPort_[id];
         chunkserverPidMap_.erase(id);
         LOG(INFO) << "stop chunkserver "
                   << chunkserverIpPort_[id] << " success";
@@ -457,7 +474,8 @@ void  CurveCluster::StopAllChunkServer() {
         int waitStatus;
         waitpid(it->second, &waitStatus, 0);
         ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(chunkserverIpPort_[it->first], 10000, false));
+        ASSERT_EQ(0, ProbePort(chunkserverIpPort_[it->first], 10000, false))
+            << "when stop chunkserver ipport:" << chunkserverIpPort_[it->first];
         LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
         it = chunkserverPidMap_.erase(it);
     }
@@ -561,6 +579,7 @@ void CurveCluster::PreparePhysicalPool(
         + std::string(" -mds_addr=") + MDSIpPort(mdsId)
         + std::string(" -op=create_physicalpool")
         + std::string(" -stderrthreshold=0")
+        + std::string(" -rpcTimeOutMs=20000")
         + std::string(" -minloglevel=0");
 
     LOG(INFO) << "exec cmd: " << createPPCmd;

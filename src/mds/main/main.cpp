@@ -39,6 +39,13 @@ DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
 
+using ::curve::mds::kMB;
+using ::curve::mds::kGB;
+
+DEFINE_uint64(chunkSize, 16 * kMB, "chunk size");
+DEFINE_uint64(segmentSize, 1 * kGB, "segment size");
+DEFINE_uint64(minFileLength, 10 * kGB, "min filglength");
+
 using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
 using ::curve::mds::topology::DefaultIdGenerator;
@@ -221,6 +228,18 @@ void LoadConfigFromCmdline(Configuration *conf) {
 
     if (GetCommandLineFlagInfo("etcdAddr", &info) && !info.is_default) {
         conf->SetStringValue("mds.etcd.endpoint", FLAGS_etcdAddr);
+    }
+
+    if (GetCommandLineFlagInfo("chunkSize", &info) && !info.is_default) {
+        conf->SetUInt64Value("mds.curvefs.defaultChunkSize", FLAGS_chunkSize);
+    }
+
+    if (GetCommandLineFlagInfo("segmentSize", &info) && !info.is_default) {
+        DefaultSegmentSize = FLAGS_segmentSize;
+    }
+
+    if (GetCommandLineFlagInfo("minFileLength", &info) && !info.is_default) {
+        kMiniFileLength = FLAGS_minFileLength;
     }
 
     // 设置日志存放文件夹

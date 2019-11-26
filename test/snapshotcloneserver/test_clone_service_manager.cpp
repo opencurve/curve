@@ -105,7 +105,7 @@ TEST_F(TestCloneServiceManager,
     cond1.Wait();
 
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs * 2));
     ASSERT_EQ(0, cloneMetric_->cloneDoing.get_value());
     ASSERT_EQ(1, cloneMetric_->cloneSucceed.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
@@ -185,7 +185,7 @@ TEST_F(TestCloneServiceManager,
     cond1.Wait();
 
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs * 2));
     ASSERT_EQ(1, cloneMetric_->cloneDoing.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneSucceed.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
@@ -315,7 +315,7 @@ TEST_F(TestCloneServiceManager,
     cond1.Wait();
 
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs * 2));
     ASSERT_EQ(0, cloneMetric_->recoverDoing.get_value());
     ASSERT_EQ(1, cloneMetric_->recoverSucceed.get_value());
     ASSERT_EQ(0, cloneMetric_->recoverFailed.get_value());
@@ -395,7 +395,7 @@ TEST_F(TestCloneServiceManager,
     cond1.Wait();
 
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs * 2));
     ASSERT_EQ(1, cloneMetric_->recoverDoing.get_value());
     ASSERT_EQ(0, cloneMetric_->recoverSucceed.get_value());
     ASSERT_EQ(0, cloneMetric_->recoverFailed.get_value());
@@ -507,7 +507,7 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskSuccess) {
     cond1.Wait();
 
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs * 2));
     ASSERT_EQ(0, cloneMetric_->cloneDoing.get_value());
     ASSERT_EQ(1, cloneMetric_->cloneSucceed.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());
@@ -774,7 +774,7 @@ TEST_F(TestCloneServiceManager, TestRecoverCloneTaskPushTaskFail) {
     ASSERT_EQ(kErrCodeServiceIsStop, ret);
 
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs));
+        std::chrono::milliseconds(option_.cloneTaskManagerScanIntervalMs * 2));
     ASSERT_EQ(0, cloneMetric_->cloneDoing.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneSucceed.get_value());
     ASSERT_EQ(0, cloneMetric_->cloneFailed.get_value());

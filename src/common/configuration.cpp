@@ -159,6 +159,11 @@ void Configuration::SetIntValue(const std::string &key, const int value) {
     SetValue(key, std::to_string(value));
 }
 
+void Configuration::SetUInt64Value(
+    const std::string &key, const uint64_t value) {
+    SetValue(key, std::to_string(value));
+}
+
 double Configuration::GetDoubleValue(
     const std::string &key,
     double defaultvalue) {
