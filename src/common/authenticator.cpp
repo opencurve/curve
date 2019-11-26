@@ -100,15 +100,11 @@ void Authenticator::HMacSha256(
     SHA256(bufferOut, 64 + SHA256_DIGEST_LENGTH, (unsigned char*)digest);
 }
 
-char* Authenticator::Base64(const unsigned char *src, size_t sz) {
+std::string Authenticator::Base64(const unsigned char *src, size_t sz) {
     unsigned char               *pp, *p, *q;
-    static unsigned char *qq = NULL;
+    unsigned char *qq           = NULL;
     size_t                      i, safe = sz;
 
-    if (qq) {
-        free(qq);
-        qq = NULL;
-    }
     if (!src || (sz == 0))
         return (NULL);
 
@@ -157,7 +153,11 @@ char* Authenticator::Base64(const unsigned char *src, size_t sz) {
 
     if (pp != src)
         free(pp);
-    return ((char *)qq);    // NOLINT
+
+    std::string ret = std::string((char *)qq);    // NOLINT
+    free(qq);
+    qq = NULL;
+    return ret;
 }
 }   // namespace common
 }   // namespace curve
