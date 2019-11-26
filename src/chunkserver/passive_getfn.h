@@ -8,7 +8,6 @@
 #ifndef SRC_CHUNKSERVER_PASSIVE_GETFN_H_
 #define SRC_CHUNKSERVER_PASSIVE_GETFN_H_
 
-#include "src/chunkserver/trash.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 
@@ -30,16 +29,6 @@ namespace chunkserver {
      * @param arg: datastore的对象指针
      */
     uint32_t getDatastoreSnapshotCountFunc(void* arg);
-    /**
-     * 获取datastore中clone chunk的数量
-     * @param arg: datastore的对象指针
-     */
-    uint32_t getDatastoreCloneChunkCountFunc(void* arg);
-    /**
-     * 获取trash中chunk的数量
-     * @param arg: trash的对象指针
-     */
-    uint32_t getChunkTrashedFunc(void* arg);
 
 }  // namespace chunkserver
 }  // namespace curve

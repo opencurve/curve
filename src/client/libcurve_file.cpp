@@ -465,34 +465,6 @@ bool FileClient::CheckAligned(off_t offset, size_t length) {
            (length % IO_ALIGNED_BLOCK_SIZE == 0);
 }
 
-int FileClient::GetClusterId(char* buf, int len) {
-    if (mdsClient_ == nullptr) {
-        LOG(ERROR) << "global mds client not inited!";
-        return -LIBCURVE_ERROR::FAILED;
-    }
-
-    if (buf == nullptr) {
-        LOG(ERROR) << "invalid argument: buffer is nullptr";
-        return -LIBCURVE_ERROR::FAILED;
-    }
-
-    ClusterContext clsctx;
-    int ret = mdsClient_->GetClusterInfo(&clsctx);
-    if (ret == LIBCURVE_ERROR::OK) {
-        if (len >= clsctx.clusterId.size() + 1) {
-            snprintf(buf, len, "%s", clsctx.clusterId.c_str());
-            return LIBCURVE_ERROR::OK;
-        }
-
-        LOG(ERROR) << "buffer length is too small, "
-            << "cluster id length is "
-            << clsctx.clusterId.size() + 1;
-        return -LIBCURVE_ERROR::FAILED;
-    }
-
-    return -LIBCURVE_ERROR::FAILED;
-}
-
 }   // namespace client
 }   // namespace curve
 
@@ -787,15 +759,6 @@ int ChangeOwner(const char* filename,
 
 void UnInit() {
     GlobalUnInit();
-}
-
-int GetClusterId(char* buf, int len) {
-    if (globalclient == nullptr) {
-        LOG(ERROR) << "not inited!";
-        return -LIBCURVE_ERROR::FAILED;
-    }
-
-    return globalclient->GetClusterId(buf, len);
 }
 
 int GlobalInit(const char* path) {

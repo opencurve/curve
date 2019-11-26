@@ -38,10 +38,7 @@ struct SnapshotCloneServerOptions {
     uint32_t checkSnapshotStatusIntervalMs;
     // 最大快照数
     uint32_t maxSnapshotLimit;
-    // snapshotcore threadpool threadNum
-    uint32_t snapshotCoreThreadNum;
-    // mdsSessionTimeUs
-    uint32_t mdsSessionTimeUs;
+
 
     // 克隆恢复工作线程数
     int clonePoolThreadNum;
@@ -53,8 +50,6 @@ struct SnapshotCloneServerOptions {
     std::string cloneTempDir;
     // mds root user
     std::string mdsRootUser;
-    // clonecore threadPool threadNum
-    uint32_t cloneCoreThreadNum;
 };
 
 // metastore options

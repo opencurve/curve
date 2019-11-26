@@ -53,7 +53,7 @@ const int kErrCodeChunkSizeNotAligned = -10;
 const int kErrCodeFileNameNotMatch = -11;
 // 错误码： 不能删除未完成的快照
 const int kErrCodeSnapshotCannotDeleteUnfinished = -12;
-// 错误码: 不能对存在异常快照的文件打快照，或不能对存在错误的目标文件克隆/恢复
+// 错误码: 不能对存在异常快照的文件打快照
 const int kErrCodeSnapshotCannotCreateWhenError = -13;
 // 错误码：取消的快照已完成
 const int kErrCodeCannotCancelFinished = -14;
@@ -67,14 +67,8 @@ const int kErrCodeCannotCleanCloneUnfinished = -17;
 const int kErrCodeSnapshotCountReachLimit = -18;
 // 错误码：文件已存在
 const int kErrCodeFileExist = -19;
-// 错误码：克隆任务已满
-const int kErrCodeTaskIsFull = -20;
 
 extern std::map<int, std::string> code2Msg;
-
-std::string BuildErrorMessage(
-    int errCode,
-    const std::string &requestId);
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

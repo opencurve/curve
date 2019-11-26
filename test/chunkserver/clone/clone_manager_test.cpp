@@ -105,6 +105,7 @@ TEST_F(CloneManagerTest, TaskTest) {
         // 启动以后就可以发布任务
         ASSERT_EQ(cloneMgr.Run(), 0);
         ASSERT_TRUE(cloneMgr.IssueCloneTask(task));
+        ASSERT_EQ(task.use_count(), 2);
         // 等待一点时间，任务执行完成，检查任务状态以及是否从队列中移除
         std::this_thread::sleep_for(
             std::chrono::milliseconds(200));

@@ -68,8 +68,6 @@ using curve::mds::GetOrAllocateSegmentRequest;
 using curve::mds::GetOrAllocateSegmentResponse;
 using curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
-using curve::mds::topology::GetClusterInfoRequest;
-using curve::mds::topology::GetClusterInfoResponse;
 
 extern const char* kRootUserName;
 
@@ -247,17 +245,6 @@ class MDSClientBase {
                     GetChunkServerListInCopySetsResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
-
-    /**
-     * 获取mds对应的cluster id
-     * @param[out]: response为该rpc的respoonse，提供给外部处理
-     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
-     * @param[in]: channel是当前与mds建立的通道
-     */
-    void GetClusterInfo(GetClusterInfoResponse* response,
-                        brpc::Controller* cntl,
-                        brpc::Channel* channel);
-
     /**
      * 创建clone文件
      * @param:destination clone目标文件名

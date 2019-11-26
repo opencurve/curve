@@ -8,7 +8,6 @@
 #ifndef SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_DATASTORE_H_
 #define SRC_CHUNKSERVER_DATASTORE_CHUNKSERVER_DATASTORE_H_
 
-#include <bvar/bvar.h>
 #include <glog/logging.h>
 #include <string>
 #include <vector>
@@ -43,38 +42,21 @@ struct DataStoreOptions {
 };
 
 /**
- * DataStore的内部状态,用于返回给上层
+ * DataStore的内部状态信息
  * chunkFileCount:DataStore中chunk的数量
  * snapshotCount:DataStore中快照的数量
- * cloneChunkCount:clone chunk的数量
  */
 struct DataStoreStatus {
     uint32_t chunkFileCount;
     uint32_t snapshotCount;
-    uint32_t cloneChunkCount;
-    DataStoreStatus() : chunkFileCount(0)
-                    , snapshotCount(0)
-                    , cloneChunkCount(0) {}
+    DataStoreStatus() : chunkFileCount(0), snapshotCount(0) {}
 };
-
-/**
- * DataStore的内部状态信息
- * chunkFileCount:DataStore中chunk的数量
- * snapshotCount:DataStore中快照的数量
- * cloneChunkCount:clone chunk的数量
- */
-struct DataStoreMetric {
-    bvar::Adder<uint32_t> chunkFileCount;
-    bvar::Adder<uint32_t> snapshotCount;
-    bvar::Adder<uint32_t> cloneChunkCount;
-};
-using DataStoreMetricPtr = std::shared_ptr<DataStoreMetric>;
 
 using ChunkMap = std::unordered_map<ChunkID, CSChunkFilePtr>;
 // 为chunkid到chunkfile的映射，使用读写锁对map的操作进行保护
 class CSMetaCache {
  public:
-    CSMetaCache() {}
+    CSMetaCache() : size_(0) {}
     virtual ~CSMetaCache() {}
 
     ChunkMap GetMap() {
@@ -95,6 +77,7 @@ class CSMetaCache {
         // 当两个写请求并发去创建chunk文件时，返回先Set的chunkFile
         if (chunkMap_.find(id) == chunkMap_.end()) {
             chunkMap_[id] = chunkFile;
+            size_.fetch_add(1);
         }
         return chunkMap_[id];
     }
@@ -103,17 +86,27 @@ class CSMetaCache {
         WriteLockGuard writeGuard(rwLock_);
         if (chunkMap_.find(id) != chunkMap_.end()) {
             chunkMap_.erase(id);
+            size_.fetch_sub(1);
         }
     }
 
     void Clear() {
         WriteLockGuard writeGuard(rwLock_);
         chunkMap_.clear();
+        size_.store(0);
+    }
+
+    uint64_t Size() {
+        // 这里使用原子变量而不直接用chunkmap.size是为了避免加锁
+        // 获取chunk size的metric类型用的PassiveStatus，会调用此方法
+        // promethues导出时应避免在PassiveStatus的方法里加锁
+        return size_.load(std::memory_order_acquire);
     }
 
  private:
     RWLock      rwLock_;
     ChunkMap    chunkMap_;
+    Atomic<uint64_t> size_;
 };
 
 class CSDataStore {
@@ -238,8 +231,8 @@ class CSDataStore {
                                      off_t offset,
                                      size_t length,
                                      std::string* hash);
-    /** 获取DataStore的内部统计信息
-     * @return：datastore的内部统计信息
+    /** 获取DataStore的瞬时状态信息
+     * @return：datastore的状态信息
      */
     virtual DataStoreStatus GetStatus();
 
@@ -259,8 +252,6 @@ class CSDataStore {
     std::shared_ptr<ChunkfilePool>          chunkfilePool_;
     // 本地文件系统
     std::shared_ptr<LocalFileSystem>        lfs_;
-    // datastore的内部统计信息
-    DataStoreMetricPtr metric_;
 };
 
 }  // namespace chunkserver

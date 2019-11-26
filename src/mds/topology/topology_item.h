@@ -21,18 +21,6 @@ namespace curve {
 namespace mds {
 namespace topology {
 
-/**
- * @brief 集群信息结构, 目前暂时只有clusterId
- */
-struct ClusterInformation {
-    // 集群的唯一Id
-    std::string clusterId;
-
-    ClusterInformation() = default;
-    explicit ClusterInformation(const std::string &clusterId)
-        : clusterId(clusterId) {}
-};
-
 class LogicalPool {
  public:
     enum LogicalPoolStatus {

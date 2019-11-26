@@ -9,10 +9,6 @@
 #include <glog/logging.h>
 #include <chrono>  //NOLINT
 
-#include "src/common/uuid.h"
-
-using ::curve::common::UUIDGenerator;
-
 namespace curve {
 namespace mds {
 namespace topology {
@@ -831,13 +827,6 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInLogicalPool(PoolIdType id,
 
 int TopologyImpl::init(const TopologyOption &option) {
     option_ = option;
-
-    int ret = LoadClusterInfo();
-    if (ret != kTopoErrCodeSuccess) {
-        LOG(ERROR) << "[TopologyImpl::init], LoadClusterInfo fail.";
-        return ret;
-    }
-
     WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     WriteLockGuard wlockZone(zoneMutex_);
@@ -851,8 +840,6 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initLogicalPoolIdGenerator(maxLogicalPoolId);
-    LOG(INFO) << "[TopologyImpl::init], LoadLogicalPool success, "
-              << "logicalPool num = " << logicalPoolMap_.size();
 
     PoolIdType maxPhysicalPoolId;
     if (!storage_->LoadPhysicalPool(&physicalPoolMap_, &maxPhysicalPoolId)) {
@@ -860,8 +847,6 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initPhysicalPoolIdGenerator(maxPhysicalPoolId);
-    LOG(INFO) << "[TopologyImpl::init], LoadPhysicalPool success, "
-              << "physicalPool num = " << physicalPoolMap_.size();
 
     ZoneIdType maxZoneId;
     if (!storage_->LoadZone(&zoneMap_, &maxZoneId)) {
@@ -869,8 +854,6 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initZoneIdGenerator(maxZoneId);
-    LOG(INFO) << "[TopologyImpl::init], LoadZone success, "
-               << "zone num = " << zoneMap_.size();
 
     ServerIdType maxServerId;
     if (!storage_->LoadServer(&serverMap_, &maxServerId)) {
@@ -878,8 +861,6 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initServerIdGenerator(maxServerId);
-    LOG(INFO) << "[TopologyImpl::init], LoadServer success, "
-              << "server num = " << serverMap_.size();
 
     ChunkServerIdType maxChunkServerId;
     if (!storage_->LoadChunkServer(&chunkServerMap_, &maxChunkServerId)) {
@@ -887,8 +868,6 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initChunkServerIdGenerator(maxChunkServerId);
-    LOG(INFO) << "[TopologyImpl::init], LoadChunkServer success, "
-              << "chunkserver num = " << chunkServerMap_.size();
 
     // 更新物理池容量
     for (auto pair : chunkServerMap_) {
@@ -922,7 +901,6 @@ int TopologyImpl::init(const TopologyOption &option) {
             return kTopoErrCodePhysicalPoolNotFound;
         }
     }
-    LOG(INFO) << "Calc physicalPool capacity success.";
 
     std::map<PoolIdType, CopySetIdType> copySetIdMaxMap;
     if (!storage_->LoadCopySet(&copySetMap_, &copySetIdMaxMap)) {
@@ -930,8 +908,6 @@ int TopologyImpl::init(const TopologyOption &option) {
         return kTopoErrCodeStorgeFail;
     }
     idGenerator_->initCopySetIdGenerator(copySetIdMaxMap);
-    LOG(INFO) << "[TopologyImpl::init], LoadCopySet success, "
-              << "copyset num = " << copySetMap_.size();
 
     for (auto it : zoneMap_) {
         PoolIdType poolid = it.second.GetPhysicalPoolId();
@@ -949,13 +925,12 @@ int TopologyImpl::init(const TopologyOption &option) {
     }
 
     // remove invalid copyset and logicalPool
-    ret = CleanInvalidLogicalPoolAndCopyset();
+    int ret = CleanInvalidLogicalPoolAndCopyset();
 
     if (kTopoErrCodeSuccess != ret) {
         LOG(ERROR) << "CleanInvalidLogicalPoolAndCopyset error, ret = " << ret;
         return ret;
     }
-    LOG(INFO) << "Clean Invalid LogicalPool and copyset success.";
 
     return kTopoErrCodeSuccess;
 }
@@ -1176,28 +1151,6 @@ void TopologyImpl::FlushChunkServerToStorage() {
     }
 }
 
-int TopologyImpl::LoadClusterInfo() {
-    std::vector<ClusterInformation> infos;
-    if (!storage_->LoadClusterInfo(&infos)) {
-        return kTopoErrCodeStorgeFail;
-    }
-    if (infos.empty()) {
-        std::string uuid = UUIDGenerator().GenerateUUID();
-        ClusterInformation info(uuid);
-        if (!storage_->StorageClusterInfo(info)) {
-            return kTopoErrCodeStorgeFail;
-        }
-        clusterInfo = info;
-    } else {
-        clusterInfo = infos[0];
-    }
-    return kTopoErrCodeSuccess;
-}
-
-bool TopologyImpl::GetClusterInfo(ClusterInformation *info) {
-    *info = clusterInfo;
-    return true;
-}
 
 }  // namespace topology
 }  // namespace mds

@@ -46,14 +46,6 @@ int CloneTaskManager::PushTask(std::shared_ptr<CloneTaskBase> task) {
     std::lock_guard<std::mutex>
         workingTasksLockGuard(cloningTasksLock_);
 
-    // TODO(xuchaojie): 目前超过线程数的克隆任务由于得不到调度，
-    // 对上层来说都是卡住了，不如直接返回失败，下个版本解决这一问题。
-    if (cloningTasks_.size() >= clonePoolThreadNum_) {
-        LOG(ERROR) << "CloneTaskManager::PushTask fail, "
-                   << "current task is full, num = " << cloningTasks_.size();
-        return kErrCodeTaskIsFull;
-    }
-
     std::string destination =
         task->GetTaskInfo()->GetCloneInfo().GetDest();
     auto ret = cloningTasks_.emplace(
@@ -67,12 +59,6 @@ int CloneTaskManager::PushTask(std::shared_ptr<CloneTaskBase> task) {
     }
     threadpool_->PushTask(task);
     cloneTaskMap_.emplace(task->GetTaskId(), task);
-    if (task->GetTaskInfo()->GetCloneInfo().GetTaskType() ==
-        CloneTaskType::kClone) {
-        cloneMetric_->cloneDoing << 1;
-    } else {
-        cloneMetric_->recoverDoing << 1;
-    }
     return kErrCodeSuccess;
 }
 
@@ -98,28 +84,14 @@ void CloneTaskManager::ScanWorkingTask() {
     WriteLockGuard taskMapWlock(cloneTaskMapLock_);
     std::lock_guard<std::mutex>
         workingTasksLock(cloningTasksLock_);
+    uint32_t workingNum = cloningTasks_.size();
+    VLOG(0) << "CloneTaskManager::ScanWorkingTask: "
+              << " working task num = "
+              << workingNum;
     for (auto it = cloningTasks_.begin();
             it != cloningTasks_.end();) {
         auto taskInfo = it->second->GetTaskInfo();
         if (taskInfo->IsFinish()) {
-            if (taskInfo->GetCloneInfo().GetTaskType() ==
-                CloneTaskType::kClone) {
-                cloneMetric_->cloneDoing << -1;
-                if (CloneStatus::done !=
-                    taskInfo->GetCloneInfo().GetStatus()) {
-                    cloneMetric_->cloneFailed << 1;
-                } else {
-                    cloneMetric_->cloneSucceed << 1;
-                }
-            } else {
-                cloneMetric_->recoverDoing << -1;
-                if (CloneStatus::done !=
-                    taskInfo->GetCloneInfo().GetStatus()) {
-                    cloneMetric_->recoverFailed << 1;
-                } else {
-                    cloneMetric_->recoverSucceed << 1;
-                }
-            }
             cloneTaskMap_.erase(it->second->GetTaskId());
             it = cloningTasks_.erase(it);
         } else {

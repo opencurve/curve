@@ -58,12 +58,6 @@ message ChunkServerStatisticInfo {
     required uint32 writeRate = 2;
     required uint32 readIOPS = 3;
     required uint32 writeIOPS = 4;
-    // 已使用的chunk占用的磁盘空间
-    required uint64 chunkSizeUsedBytes = 5;
-    // chunkfilepool中未使用的chunk占用的磁盘空间
-    required uint64 chunkSizeLeftBytes = 6;
-    // 回收站中chunk占用的磁盘空间
-    required uint64 chunkSizeTrashedBytes = 7;
 };
 
 message ChunkServerHeartbeatRequest {

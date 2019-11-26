@@ -83,9 +83,9 @@ copyset.max_inflight_requests=5000
 # Clone settings
 #
 # 禁止使用curveclient
-clone.disable_curve_client=false
+clone.disable_curve_client=true
 # 禁止使用s3adapter
-clone.disable_s3_adapter=false
+clone.disable_s3_adapter=true
 # 克隆的分片大小，一般1MB
 clone.slice_size=1048576
 # 克隆的线程数量
@@ -95,9 +95,9 @@ clone.queue_depth=100
 # curve用户名
 curve.root_username=root
 # curve密码
-curve.root_password=root_password
+curve.root_password=
 # client配置文件
-curve.config_path=conf/cs_client.conf
+curve.config_path=conf/client.conf
 # s3配置文件
 s3.config_path=conf/s3.conf
 

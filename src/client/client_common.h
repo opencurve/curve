@@ -51,8 +51,7 @@ enum class FileStatus {
     Deleting,
     Cloning,
     CloneMetaInstalled,
-    Cloned,
-    BeingCloned,
+    Cloned
 };
 
 typedef struct ChunkIDInfo {
@@ -220,9 +219,6 @@ struct ChunkServerAddr {
 };
 
 const char* OpTypeToString(OpType optype);
-struct ClusterContext {
-    std::string clusterId;
-};
 
 }   // namespace client
 }   // namespace curve

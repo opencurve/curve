@@ -385,21 +385,15 @@ int curve_main(int argc, char **argv) {
         return -1;
     }
 
-    LOG(INFO) << "connectDB success.";
-
     if (mdsRepo->createDatabase() != OperationOK) {
         LOG(ERROR) << "createDatabase fail";
         return -1;
     }
 
-    LOG(INFO) << "createDatabase success.";
-
     if (mdsRepo->useDataBase() != OperationOK) {
         LOG(ERROR) << "useDataBase fail";
         return -1;
     }
-
-    LOG(INFO) << "useDatabase success.";
 
     if (mdsRepo->createAllTables() != OperationOK) {
         LOG(ERROR) << "createAllTables fail";

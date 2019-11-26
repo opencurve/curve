@@ -282,9 +282,9 @@ TEST_F(OpRequestTest, PasteChunkTest) {
     closure->SetRequest(request);
     closure->SetResponse(response);
     std::shared_ptr<PasteChunkInternalRequest> opReq =
-        std::make_shared<PasteChunkInternalRequest>(node_,
+        std::make_shared<PasteChunkInternalRequest>(readChunkRequest,
+                                                    node_,
                                                     request,
-                                                    response,
                                                     str.c_str(),
                                                     closure);
     /**

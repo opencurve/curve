@@ -5,7 +5,6 @@
  * Copyright (c) 2019 netease
  */
 
-#include <json/json.h>
 
 #include "src/snapshotcloneserver/common/define.h"
 
@@ -31,20 +30,8 @@ std::map<int, std::string> code2Msg = {
     {kErrCodeInvalidSnapshot, "Invalid snapshot."},
     {kErrCodeSnapshotCannotDeleteCloning, "Cannot delete when using."},
     {kErrCodeCannotCleanCloneUnfinished, "Cannot clean task unfinished."},
-    {kErrCodeSnapshotCountReachLimit, "Snapshot count reach the limit."},
-    {kErrCodeFileExist, "File exist."},
-    {kErrCodeTaskIsFull, "Task is full."}
+    {kErrCodeSnapshotCountReachLimit, "Snapshot count reach the limit."}
 };
-
-std::string BuildErrorMessage(
-    int errCode,
-    const std::string &requestId) {
-    Json::Value mainObj;
-    mainObj["Code"] = std::to_string(errCode);
-    mainObj["Message"] = code2Msg[errCode];
-    mainObj["RequestId"] = requestId;
-    return mainObj.toStyledString();
-}
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

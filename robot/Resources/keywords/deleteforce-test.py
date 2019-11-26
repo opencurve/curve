@@ -3,7 +3,6 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
 import curvefs
-import time
 FILENAME = "/cyh"
 
 curvefs.Init("/etc/curve/client.conf")
@@ -36,13 +35,3 @@ for i in recycleBin_dirs:
         id = i.split("-",1)[1]
         print "file id is %s"%id
 curvefs.DeleteForce("/RecycleBin"+FILENAME+"-"+id, user1)
-delete_success = 0
-for i in range(1,10):
-    recycleBin_dirs = curvefs.Listdir("/RecycleBin", user1)
-    if "cyh-"+ id not in   recycleBin_dirs:
-        delete_success = 1
-        print "file id is %s"%id
-    else:
-        print "delete file success in time %d"%i
-        time.sleep(1)
-assert delete_success == 1,"deleteforce %s timeout 10s"%recycleBin_dirs

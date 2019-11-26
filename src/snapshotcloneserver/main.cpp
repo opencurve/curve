@@ -27,10 +27,8 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 #include "src/snapshotcloneserver/common/config.h"
-#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 DEFINE_string(conf, "conf/snapshot_clone_server.conf", "snapshot&clone server config file path");  //NOLINT
-DEFINE_string(addr, "127.0.0.1:5555", "snapshotcloneserver address");
 
 using ::curve::common::Configuration;
 
@@ -77,11 +75,6 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
                &serverOption->checkSnapshotStatusIntervalMs));
     LOG_IF(FATAL, !conf->GetUInt32Value("server.maxSnapshotLimit",
                                         &serverOption->maxSnapshotLimit));
-    LOG_IF(FATAL, !conf->GetUInt32Value("server.snapshotCoreThreadNum",
-                                        &serverOption->snapshotCoreThreadNum));
-    LOG_IF(FATAL, !conf->GetUInt32Value("server.mdsSessionTimeUs",
-                                        &serverOption->mdsSessionTimeUs));
-
     LOG_IF(FATAL, !conf->GetIntValue("server.clonePoolThreadNum",
                                      &serverOption->clonePoolThreadNum));
     LOG_IF(FATAL, !conf->GetUInt32Value(
@@ -93,23 +86,6 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
                                         &serverOption->cloneTempDir));
     LOG_IF(FATAL, !conf->GetStringValue("mds.rootUser",
                                         &serverOption->mdsRootUser));
-    LOG_IF(FATAL, !conf->GetUInt32Value("server.cloneCoreThreadNum",
-                                        &serverOption->cloneCoreThreadNum));
-}
-
-void LoadConfigFromCmdline(Configuration *conf) {
-    // 如果命令行有设置, 命令行覆盖配置文件中的字段
-    google::CommandLineFlagInfo info;
-    if (GetCommandLineFlagInfo("addr", &info) && !info.is_default) {
-        conf->SetStringValue("server.address", FLAGS_addr);
-    }
-    // 设置日志存放文件夹
-    if (FLAGS_log_dir.empty()) {
-        if (!conf->GetStringValue("log.dir", &FLAGS_log_dir)) {
-            LOG(WARNING) << "no log.dir in " << FLAGS_conf
-                         << ", will log to /tmp";
-        }
-    }
 }
 
 int snapshotcloneserver_main(int argc, char* argv[]) {
@@ -124,12 +100,6 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
         LOG(ERROR) << "Failed to open config file: " << conf_.GetConfigPath();
         return kErrCodeServerInitFail;
     }
-
-    // 命令行覆盖配置文件中的参数
-    LoadConfigFromCmdline(&conf_);
-
-    // 初始化日志模块
-    google::InitGoogleLogging(argv[0]);
 
     // init client options
     CurveClientOptions clientOption_;
@@ -169,24 +139,15 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
     std::shared_ptr<SnapshotReference> snapshotRef_ =
         std::make_shared<SnapshotReference>();
 
-    auto snapshotMetric = std::make_shared<SnapshotMetric>(metaStore);
-
-    auto cloneRef_ =
-        std::make_shared<CloneReference>();
-
     std::shared_ptr<SnapshotTaskManager> taskMgr =
-        std::make_shared<SnapshotTaskManager>(snapshotMetric);
-    auto core =
+        std::make_shared<SnapshotTaskManager>();
+    std::shared_ptr<SnapshotCore> core =
         std::make_shared<SnapshotCoreImpl>(
             client,
             metaStore,
             dataStore,
             snapshotRef_,
             serverOption_);
-    if (core->Init() < 0) {
-        LOG(ERROR) << "SnapshotCore init fail.";
-        return kErrCodeServerInitFail;
-    }
     std::shared_ptr<SnapshotServiceManager> snapshotServiceManager_ =
         std::make_shared<SnapshotServiceManager>(taskMgr,
                 core);
@@ -195,17 +156,14 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
         return kErrCodeServerInitFail;
     }
 
-    auto cloneMetric = std::make_shared<CloneMetric>();
-
     std::shared_ptr<CloneTaskManager> cloneTaskMgr =
-        std::make_shared<CloneTaskManager>(cloneMetric);
+        std::make_shared<CloneTaskManager>();
 
     auto cloneCore = std::make_shared<CloneCoreImpl>(
                          client,
                          metaStore,
                          dataStore,
                          snapshotRef_,
-                         cloneRef_,
                          serverOption_);
     if (cloneCore->Init() < 0) {
         LOG(ERROR) << "CloneCore init fail.";
@@ -264,11 +222,7 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
         return kErrCodeServerStartFail;
     }
 
-    LOG(INFO) << "snapshorcloneserver start success, begin working ...";
-
     server_->RunUntilAskedToQuit();
-
-    LOG(INFO) << "snapshorcloneserver stopping ...";
 
     server_->Stop(0);
     server_->Join();

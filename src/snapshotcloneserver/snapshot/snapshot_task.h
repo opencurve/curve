@@ -15,7 +15,6 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/task.h"
 #include "src/snapshotcloneserver/common/task_info.h"
-#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -30,11 +29,9 @@ class SnapshotTaskInfo : public TaskInfo {
       *
       * @param snapInfo 快照信息
       */
-    explicit SnapshotTaskInfo(const SnapshotInfo &snapInfo,
-        std::shared_ptr<SnapshotInfoMetric> metric)
+    explicit SnapshotTaskInfo(const SnapshotInfo &snapInfo)
         : TaskInfo(),
-          snapshotInfo_(snapInfo),
-          metric_(metric) {}
+          snapshotInfo_(snapInfo) {}
 
     /**
      * @brief 获取快照信息
@@ -63,15 +60,9 @@ class SnapshotTaskInfo : public TaskInfo {
         return snapshotInfo_.GetFileName();
     }
 
-    void UpdateMetric() {
-        metric_->Update(this);
-    }
-
  private:
     // 快照信息
     SnapshotInfo snapshotInfo_;
-    // metric 信息
-    std::shared_ptr<SnapshotInfoMetric> metric_;
 };
 
 
@@ -154,57 +145,6 @@ class SnapshotDeleteTask : public SnapshotTask {
     void Run() override {
         core_->HandleDeleteSnapshotTask(taskInfo_);
     }
-};
-
-struct TransferSnapshotDataChunkTaskInfo : public TaskInfo {
-    ChunkDataName name_;
-    uint64_t chunkSize_;
-    ChunkIDInfo cidInfo_;
-    uint64_t chunkSplitSize_;
-
-    TransferSnapshotDataChunkTaskInfo(const ChunkDataName &name,
-        uint64_t chunkSize,
-        const ChunkIDInfo &cidInfo,
-        uint64_t chunkSplitSize)
-        : name_(name),
-          chunkSize_(chunkSize),
-          cidInfo_(cidInfo),
-          chunkSplitSize_(chunkSplitSize) {}
-};
-
-class TransferSnapshotDataChunkTask : public TrackerTask {
- public:
-    TransferSnapshotDataChunkTask(const TaskIdType &taskId,
-        std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo,
-        std::shared_ptr<CurveFsClient> client,
-        std::shared_ptr<SnapshotDataStore> dataStore)
-        : TrackerTask(taskId),
-          taskInfo_(taskInfo),
-          client_(client),
-          dataStore_(dataStore) {}
-
-    std::shared_ptr<TransferSnapshotDataChunkTaskInfo> GetTaskInfo() const {
-        return taskInfo_;
-    }
-
-    void Run() override {
-        std::unique_ptr<TransferSnapshotDataChunkTask> self_guard(this);
-        int ret = TransferSnapshotDataChunk();
-        GetTracker()->HandleResponse(ret);
-    }
-
- private:
-    /**
-     * @brief 转储快照单个chunk
-     *
-     * @return 错误码
-     */
-    int TransferSnapshotDataChunk();
-
- protected:
-    std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo_;
-    std::shared_ptr<CurveFsClient> client_;
-    std::shared_ptr<SnapshotDataStore> dataStore_;
 };
 
 
