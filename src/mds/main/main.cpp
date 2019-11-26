@@ -262,7 +262,6 @@ int curve_main(int argc, char **argv) {
 
     HeartbeatOption heartbeatOption;
     InitHeartbeatOption(&conf, &heartbeatOption);
-    heartbeatOption.mdsStartTime = steady_clock::now();
 
     EtcdConf etcdConf;
     InitEtcdConf(&conf, &etcdConf);
@@ -493,6 +492,7 @@ int curve_main(int argc, char **argv) {
     coordinator->Run();
 
     // =======================init heartbeat manager================//
+    heartbeatOption.mdsStartTime = steady_clock::now();
     auto heartbeatManager = std::make_shared<HeartbeatManager>(
         heartbeatOption, topology, topologyStat, coordinator);
     heartbeatManager->Init();
