@@ -192,7 +192,7 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
              * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
              * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
              */
-            // usleep(electionTimeoutMs_ * 1000);
+            usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
                       << leaderId.to_string();
             leaderPeer->set_address(leaderId.to_string());

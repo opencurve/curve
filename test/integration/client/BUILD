@@ -17,64 +17,64 @@ COPTS = [
     "-Wno-missing-field-initializers"
 ]
 
-#cc_test(
-#    name = "client_integration_test_mds",
-#    srcs = glob([
-#        "*.h",
-#        "mds_exception_test.cpp"],
-#    ),
-#    copts = COPTS,
-#    defines = ["FIU_ENABLE"],
-#    linkopts = ["-lfiu",
-#        "-lmysqlcppconn",
-#    ],
-#    visibility = ["//visibility:public"],
-#    deps = [
-#        "//external:braft",
-#        "//external:brpc",
-#        "//external:gflags",
-#        "//external:glog",
-#        "//external:leveldb",
-#        "//external:protobuf",
-#        "//include/client:include_client",
-#        "//src/client:curve_client",
-#        "//src/common:curve_common",
-#        "//src/common/concurrent:curve_concurrent",
-#        "//test/integration/client/common:client_integration_common_lib",
-#        "//test/integration/cluster_common:integration_cluster_common",
-#        "@com_google_googletest//:gtest",
-#        "@com_google_googletest//:gtest_main",
-#    ],
-#)
-#
-#
-#cc_test(
-#    name = "client_integration_test_chunkserver",
-#    srcs = glob([
-#        "*.h",
-#        "chunkserver_exception_test.cpp"
-#        ],
-#    ),
-#    copts = COPTS,
-#    defines = ["FIU_ENABLE"],
-#    linkopts = ["-lfiu",
-#        "-lmysqlcppconn",
-#    ],
-#    visibility = ["//visibility:public"],
-#    deps = [
-#        "//external:braft",
-#        "//external:brpc",
-#        "//external:gflags",
-#        "//external:glog",
-#        "//external:leveldb",
-#        "//external:protobuf",
-#        "//include/client:include_client",
-#        "//src/client:curve_client",
-#        "//src/common:curve_common",
-#        "//src/common/concurrent:curve_concurrent",
-#        "//test/integration/client/common:client_integration_common_lib",
-#        "//test/integration/cluster_common:integration_cluster_common",
-#        "@com_google_googletest//:gtest",
-#        "@com_google_googletest//:gtest_main",
-#    ],
-#)
+cc_test(
+    name = "client_integration_test_mds",
+    srcs = glob([
+        "*.h",
+        "mds_exception_test.cpp"],
+    ),
+    copts = COPTS,
+    defines = ["FIU_ENABLE"],
+    linkopts = ["-lfiu",
+        "-lmysqlcppconn",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//include/client:include_client",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
+        "//test/integration/client/common:client_integration_common_lib",
+        "//test/integration/cluster_common:integration_cluster_common",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+
+cc_test(
+    name = "client_integration_test_chunkserver",
+    srcs = glob([
+        "*.h",
+        "chunkserver_exception_test.cpp"
+        ],
+    ),
+    copts = COPTS,
+    defines = ["FIU_ENABLE"],
+    linkopts = ["-lfiu",
+        "-lmysqlcppconn",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:braft",
+        "//external:brpc",
+        "//external:gflags",
+        "//external:glog",
+        "//external:leveldb",
+        "//external:protobuf",
+        "//include/client:include_client",
+        "//src/client:curve_client",
+        "//src/common:curve_common",
+        "//src/common/concurrent:curve_concurrent",
+        "//test/integration/client/common:client_integration_common_lib",
+        "//test/integration/cluster_common:integration_cluster_common",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

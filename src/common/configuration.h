@@ -72,6 +72,7 @@ class Configuration {
     bool GetUInt32Value(const std::string &key, uint32_t *out);
     bool GetUInt64Value(const std::string &key, uint64_t *out);
     void SetIntValue(const std::string &key, const int value);
+    void SetUInt64Value(const std::string &key, const uint64_t value);
 
     double GetDoubleValue(const std::string &key, double defaultvalue = 0.0);
     /*

@@ -23,6 +23,11 @@ using curve::CurveCluster;
 using curve::client::FileClient;
 using curve::client::UserInfo_t;
 
+const uint64_t chunkSize = 16ULL * 1024 * 1024;
+const uint64_t segmentSize = 32ULL * 1024 * 1024;
+const uint64_t chunkGap = 1;
+
+
 const char* kEtcdClientIpPort = "127.0.0.1:10001";
 const char* kEtcdPeerIpPort = "127.0.0.1:10002";
 const char* kMdsIpPort = "127.0.0.1:10003";
@@ -57,6 +62,8 @@ const std::vector<std::string> mdsConf1{
     {" --graceful_quit_on_sigterm"},
     std::string(" --confPath=") + kMdsConfigPath,
     std::string(" --log_dir=") + kLogPath,
+    std::string(" --segmentSize=") + std::to_string(segmentSize),
+    {" --stderrthreshold=3"},
 };
 
 const std::vector<std::string> chunkserverConfigOptions {
@@ -87,6 +94,8 @@ const std::vector<std::string> chunkserverConf1{
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
+    {" --stderrthreshold=3"},
+    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -100,6 +109,8 @@ const std::vector<std::string> chunkserverConf2{
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
+    {" --stderrthreshold=3"},
+    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -113,6 +124,8 @@ const std::vector<std::string> chunkserverConf3{
     std::string(" -conf=") + kCSConfigPath,
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
+    {" --stderrthreshold=3"},
+    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> snapshotcloneserverConfigOptions {
@@ -120,12 +133,15 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("s3.config_path=") + kS3ConfigPath,
     std::string("metastore.db_name=") + kMdsDbName,
     std::string("server.snapshotPoolThreadNum=8"),
+    std::string("snapshotCoreThreadNum=2"),
     std::string("server.clonePoolThreadNum=8"),
+    std::string("cloneCoreThreadNum=2"),
 };
 
 const std::vector<std::string> snapshotcloneConf{
     std::string(" --conf=") + kSCSConfigPath,
     std::string(" --log_dir=") + kLogPath,
+    {" --stderrthreshold=3"},
 };
 
 const std::vector<std::string> clientConfigOptions {
@@ -139,16 +155,15 @@ const char* testFile4_ = "/ItUser1/file3";
 const char* testUser1_ = "ItUser1";
 const char* testUser2_ = "ItUser2";
 
-const uint64_t chunkSize = 16ULL * 1024 * 1024;
-const uint64_t segmentSize = 1ULL * 1024 * 1024 * 1024;
-const uint64_t chunkGap = 8;
-
 namespace curve {
 namespace snapshotcloneserver {
 
 class SnapshotCloneServerTest : public ::testing::Test {
  public:
     static void SetUpTestCase() {
+        // sleep 防止timewait造成端口失败
+        std::this_thread::sleep_for(std::chrono::seconds(60));
+
         std::string mkLogDirCmd = std::string("mkdir -p ") + kLogPath;
         system(mkLogDirCmd.c_str());
 
@@ -188,19 +203,19 @@ class SnapshotCloneServerTest : public ::testing::Test {
             "./SCSTest1/chunkfilepool/",
             "./SCSTest1/chunkfilepool.meta",
             "./SCSTest1/",
-            20);
+            1);
         threadpool[1] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
             "./SCSTest2/chunkfilepool/",
             "./SCSTest2/chunkfilepool.meta",
             "./SCSTest2/",
-            20);
+            1);
         threadpool[2] = std::thread(&CurveCluster::FormatChunkFilePool,
             cluster_,
             "./SCSTest3/chunkfilepool/",
             "./SCSTest3/chunkfilepool.meta",
             "./SCSTest3/",
-            20);
+            1);
 
         for (int i = 0; i < 3; i++) {
             threadpool[i].join();
