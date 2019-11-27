@@ -957,7 +957,7 @@ def pendding_all_cs_recover():
             rs = shell_operator.ssh_exec(ssh_mds,pendding_cmd)
             assert rs[3] == 0,"pendding chunkserver %d fail,rs is %s"%(cs,rs)
         time.sleep(180)
-        test_round_restart_mds()
+        test_kill_mds(2)
         i = 0
         while i < config.recover_time:
             check_vm_iops()
@@ -975,8 +975,10 @@ def pendding_all_cs_recover():
     except Exception as e:
         #        raise AssertionError()
         logger.error("error is %s" % e)
+        test_start_mds()
         cs_list = start_host_cs_process(chunkserver_host)
         raise
+    test_start_mds()
     for cs in down_list:
         start_host_cs_process(chunkserver_host,cs)
     time.sleep(60)
