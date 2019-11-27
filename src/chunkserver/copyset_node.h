@@ -136,6 +136,13 @@ class CopysetNode : public braft::StateMachine,
     butil::Status RemovePeer(const Peer& peer);
 
     /**
+     * @brief 变更复制组成员
+     * @param[in] newPeers 新的复制组成员
+     * @return 心跳任务的引用
+     */
+    butil::Status ChangePeer(const std::vector<Peer>& newPeers);
+
+    /**
      * 返回copyset的配置版本
      * @return
      */

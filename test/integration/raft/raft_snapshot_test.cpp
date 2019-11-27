@@ -168,29 +168,6 @@ class RaftSnapshotTest : public testing::Test {
         ::usleep(100 * 1000);
     }
 
-    void TransferLeaderAssertSuccess(PeerCluster *cluster,
-                                     const Peer &targetLeader) {
-        Peer leaderPeer;
-        const int kMaxLoop = 10;
-        butil::Status status;
-        for (int i = 0; i < kMaxLoop; ++i) {
-            status = TransferLeader(cluster->GetLogicPoolId(),
-                                    cluster->GetCopysetId(),
-                                    cluster->CopysetConf(),
-                                    targetLeader,
-                                    defaultCliOpt_);
-            if (0 == status.error_code()) {
-                cluster->WaitLeader(&leaderPeer);
-                if (leaderPeer.address() == targetLeader.address()) {
-                    break;
-                }
-            }
-            ::sleep(1);
-        }
-        ASSERT_STREQ(targetLeader.address().c_str(),
-                     leaderPeer.address().c_str());
-    }
-
  public:
     Peer peer1_;
     Peer peer2_;
@@ -281,7 +258,7 @@ TEST_F(RaftSnapshotTest, ConsecutiveRecoverFromSnapshot) {
 
     // Wait shutdown peer recovery, and then transfer leader to it
     ::sleep(3);
-    TransferLeaderAssertSuccess(&cluster, shutdownPeer);
+    TransferLeaderAssertSuccess(&cluster, shutdownPeer, defaultCliOpt_);
     leaderPeer = shutdownPeer;
     // 读数据验证
     ReadVerify(leaderPeer, logicPoolId, copysetId, chunkId,
@@ -301,7 +278,7 @@ TEST_F(RaftSnapshotTest, ConsecutiveRecoverFromSnapshot) {
     status = AddPeer(logicPoolId, copysetId, conf, peer4_, defaultCliOpt_);
     ASSERT_TRUE(status.ok());
     // transfer leader 到peer4_，并读出来验证
-    TransferLeaderAssertSuccess(&cluster, peer4_);
+    TransferLeaderAssertSuccess(&cluster, peer4_, defaultCliOpt_);
     leaderPeer = peer4_;
     // 读数据验证
     ReadVerify(leaderPeer, logicPoolId, copysetId, chunkId,

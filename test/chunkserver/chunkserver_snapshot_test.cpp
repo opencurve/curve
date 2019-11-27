@@ -1217,6 +1217,7 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
     // add 一个 peer
     {
         ASSERT_EQ(0, cluster.StartPeer(peer4, true));
+        ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
         Configuration conf = cluster.CopysetConf();
         braft::cli::CliOptions options;
         options.max_retry = 3;

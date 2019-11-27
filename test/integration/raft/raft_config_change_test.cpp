@@ -126,7 +126,7 @@ class RaftConfigChangeTest : public testing::Test {
 
         electionTimeoutMs = 1000;
         confChangeTimeoutMs = 6000;
-        snapshotIntervalS = 20;
+        snapshotIntervalS = 5;
         maxWaitInstallSnapshotMs = 5000;
         waitMultiReplicasBecomeConsistent = 3000;
 
@@ -2752,6 +2752,448 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
 
     ::usleep(1.6 * waitMultiReplicasBecomeConsistent * 1000);
     CopysetStatusVerify(peers, logicPoolId, copysetId, 1);
+}
+
+/**
+ * 验证3个节点的复制组{A、B、C}，并挂掉follower
+ * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
+ * 2. 挂掉follower
+ * 3. 变更配置为{A、B、D}
+ * 4. transfer leader 到 D，并读取数据验证
+ */
+TEST_F(RaftConfigChangeTest, ThreeNodeKillFollowerThenChangePeers) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 25;
+
+    // 1. 启动3个成员的复制组
+    LOG(INFO) << "start 3 chunkservers";
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,   // a
+                        loop);
+
+    // 2. 挂掉1个follower
+    LOG(INFO) << "shutdown 1 follower";
+    std::vector<Peer> followerPeers;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
+    ASSERT_GE(followerPeers.size(), 1);
+    Peer shutdownPeer = followerPeers[0];
+    ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,   // b
+                        loop);
+
+    // 3.拉起peer4并变更配置
+    ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
+    ::sleep(2);
+
+    Configuration conf = cluster.CopysetConf();
+    braft::cli::CliOptions options;
+    options.max_retry = 3;
+    options.timeout_ms = confChangeTimeoutMs;
+    Configuration newConf = conf;
+    newConf.remove_peer(PeerId(shutdownPeer.address()));
+    newConf.add_peer(PeerId(peer4.address()));
+    butil::Status st = ChangePeers(logicPoolId,
+                                   copysetId,
+                                   conf,
+                                   newConf,
+                                   options);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    // read之前写入的数据验证
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,  // b
+               loop);
+
+    // transfer leader 到新加入的节点
+    TransferLeaderAssertSuccess(&cluster, peer4, options);
+    leaderPeer = peer4;
+    // read之前写入的数据验证
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,  // b
+               loop);
+
+    ::usleep(1.3 * waitMultiReplicasBecomeConsistent * 1000);
+    peers.push_back(peer4);
+    std::vector<Peer> newPeers;
+    for (Peer peer : peers) {
+        if (peer.address() != shutdownPeer.address()) {
+            newPeers.push_back(peer);
+        }
+    }
+    CopysetStatusVerify(newPeers, logicPoolId, copysetId, 3);
+}
+
+/**
+ * 验证3个节点的复制组{A、B、C}，并Hang follower
+ * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
+ * 2. hang follower
+ * 3. 变更配置为{A、B、D}
+ * 4. transfer leader 到 D，并读取数据验证
+ */
+TEST_F(RaftConfigChangeTest, ThreeNodeHangFollowerThenChangePeers) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 25;
+
+    // 1. 启动3个成员的复制组
+    LOG(INFO) << "start 3 chunkservers";
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,   // a
+                        loop);
+
+    // 2. 挂掉1个follower
+    LOG(INFO) << "hang 1 follower";
+    std::vector<Peer> followerPeers;
+    PeerCluster::GetFollwerPeers(peers, leaderPeer, &followerPeers);
+    ASSERT_GE(followerPeers.size(), 1);
+    Peer hangPeer = followerPeers[0];
+    ASSERT_EQ(0, cluster.HangPeer(hangPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,   // b
+                        loop);
+
+    // 3.拉起peer4并变更配置
+    ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
+    ::sleep(2);
+
+    Configuration conf = cluster.CopysetConf();
+    braft::cli::CliOptions options;
+    options.max_retry = 3;
+    options.timeout_ms = confChangeTimeoutMs;
+    Configuration newConf = conf;
+    newConf.remove_peer(PeerId(hangPeer.address()));
+    newConf.add_peer(PeerId(peer4.address()));
+    butil::Status st = ChangePeers(logicPoolId,
+                                   copysetId,
+                                   conf,
+                                   newConf,
+                                   options);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    // read之前写入的数据验证
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,  // b
+               loop);
+
+    // transfer leader 到新加入的节点
+    TransferLeaderAssertSuccess(&cluster, peer4, options);
+    leaderPeer = peer4;
+    // read之前写入的数据验证
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,  // b
+               loop);
+
+    ::usleep(1.3 * waitMultiReplicasBecomeConsistent * 1000);
+    peers.push_back(peer4);
+    std::vector<Peer> newPeers;
+    for (Peer peer : peers) {
+        if (peer.address() != hangPeer.address()) {
+            newPeers.push_back(peer);
+        }
+    }
+    CopysetStatusVerify(newPeers, logicPoolId, copysetId, 3);
+}
+
+/**
+ * 验证3个节点的复制组{A、B、C}，并挂掉leader
+ * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
+ * 2. 挂掉leader
+ * 3. 变更配置为{A、B、D}
+ * 4. transfer leader 到 D，并读取数据验证
+ */
+TEST_F(RaftConfigChangeTest, ThreeNodeKillLeaderThenChangePeers) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 25;
+
+    // 1. 启动3个成员的复制组
+    LOG(INFO) << "start 3 chunkservers";
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,   // a
+                        loop);
+
+    // 2. 挂掉leader
+    LOG(INFO) << "shutdown 1 leader";
+    Peer shutdownPeer = leaderPeer;
+    ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeer));
+    // 等待新的leader产生
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,   // b
+                        loop);
+
+    // 3.拉起peer4并变更配置
+    ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
+    ::sleep(2);
+
+    Configuration conf = cluster.CopysetConf();
+    braft::cli::CliOptions options;
+    options.max_retry = 3;
+    options.timeout_ms = confChangeTimeoutMs;
+    Configuration newConf = conf;
+    newConf.remove_peer(PeerId(shutdownPeer.address()));
+    newConf.add_peer(PeerId(peer4.address()));
+    butil::Status st = ChangePeers(logicPoolId,
+                                   copysetId,
+                                   conf,
+                                   newConf,
+                                   options);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    // read之前写入的数据验证
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,  // b
+               loop);
+
+    // transfer leader 到新加入的节点
+    TransferLeaderAssertSuccess(&cluster, peer4, options);
+    leaderPeer = peer4;
+    // read之前写入的数据验证
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,  // b
+               loop);
+
+    ::usleep(1.3 * waitMultiReplicasBecomeConsistent * 1000);
+    peers.push_back(peer4);
+    std::vector<Peer> newPeers;
+    for (Peer peer : peers) {
+        if (peer.address() != shutdownPeer.address()) {
+            newPeers.push_back(peer);
+        }
+    }
+    CopysetStatusVerify(newPeers, logicPoolId, copysetId, 3);
+}
+
+/**
+ * 验证3个节点的复制组{A、B、C}，并Hang leader
+ * 1. 创建3个成员的复制组，等待leader产生，write数据，然后read出来验证一遍
+ * 2. hang leader
+ * 3. 变更配置为{A、B、D}
+ * 4. transfer leader 到 D，并读取数据验证
+ */
+TEST_F(RaftConfigChangeTest, ThreeNodeHangLeaderThenChangePeers) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 25;
+
+    // 1. 启动3个成员的复制组
+    LOG(INFO) << "start 3 chunkservers";
+    Peer leaderPeer;
+    std::vector<Peer> peers;
+    peers.push_back(peer1);
+    peers.push_back(peer2);
+    peers.push_back(peer3);
+    PeerCluster cluster("InitShutdown-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params,
+                        paramsIndexs);
+    cluster.SetElectionTimeoutMs(electionTimeoutMs);
+    cluster.SetsnapshotIntervalS(snapshotIntervalS);
+    ASSERT_EQ(0, cluster.StartPeer(peer1, PeerCluster::PeerToId(peer1)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2, PeerCluster::PeerToId(peer2)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3, PeerCluster::PeerToId(peer3)));
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,   // a
+                        loop);
+
+    // 2. 挂掉1个follower
+    LOG(INFO) << "hang 1 leader";
+    Peer hangPeer = leaderPeer;
+    ASSERT_EQ(0, cluster.HangPeer(hangPeer));
+    // 等待新的leader产生
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch++,   // b
+                        loop);
+
+    // 3.拉起peer4并变更配置
+    ASSERT_EQ(0, cluster.StartPeer(peer4, PeerCluster::PeerToId(peer4)));
+    ::sleep(2);
+
+    Configuration conf = cluster.CopysetConf();
+    braft::cli::CliOptions options;
+    options.max_retry = 3;
+    options.timeout_ms = confChangeTimeoutMs;
+    Configuration newConf = conf;
+    newConf.remove_peer(PeerId(hangPeer.address()));
+    newConf.add_peer(PeerId(peer4.address()));
+    butil::Status st = ChangePeers(logicPoolId,
+                                   copysetId,
+                                   conf,
+                                   newConf,
+                                   options);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    // read之前写入的数据验证
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,  // b
+               loop);
+
+    // transfer leader 到新加入的节点
+    TransferLeaderAssertSuccess(&cluster, peer4, options);
+    leaderPeer = peer4;
+    // read之前写入的数据验证
+    ReadVerify(leaderPeer,
+               logicPoolId,
+               copysetId,
+               chunkId,
+               length,
+               ch - 1,  // b
+               loop);
+
+    ::usleep(1.3 * waitMultiReplicasBecomeConsistent * 1000);
+    peers.push_back(peer4);
+    std::vector<Peer> newPeers;
+    for (Peer peer : peers) {
+        if (peer.address() != hangPeer.address()) {
+            newPeers.push_back(peer);
+        }
+    }
+    CopysetStatusVerify(newPeers, logicPoolId, copysetId, 3);
 }
 
 }  // namespace chunkserver

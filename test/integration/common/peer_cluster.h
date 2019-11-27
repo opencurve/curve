@@ -11,6 +11,7 @@
 #include <butil/status.h>
 #include <gtest/gtest.h>
 #include <unistd.h>
+#include <braft/cli.h>
 
 #include <string>
 #include <vector>
@@ -309,6 +310,16 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
                          LogicPoolID logicPoolID,
                          CopysetID copysetId,
                          uint64_t expectEpoch = 0);
+
+/**
+ * transfer leader，并且预期能够成功
+ * @param cluster: 集群的指针
+ * @param targetLeader: 期望tranfer的目标节点
+ * @param opt: tranfer 请求使用的 clioption
+ */
+void TransferLeaderAssertSuccess(PeerCluster *cluster,
+                                 const Peer &targetLeader,
+                                 braft::cli::CliOptions opt);
 
 }  // namespace chunkserver
 }  // namespace curve
