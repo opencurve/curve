@@ -625,6 +625,20 @@ butil::Status CopysetNode::RemovePeer(const Peer& peer) {
     return butil::Status::OK();
 }
 
+butil::Status CopysetNode::ChangePeer(const std::vector<Peer>& newPeers) {
+    std::vector<PeerId> newPeerIds;
+    for (auto& peer : newPeers) {
+        newPeerIds.emplace_back(peer.address());
+    }
+    Configuration newConf(newPeerIds);
+
+    braft::Closure* changePeerDone = braft::NewCallback(DummyFunc,
+            reinterpret_cast<void *>(0));
+    raftNode_->change_peers(newConf, changePeerDone);
+
+    return butil::Status::OK();
+}
+
 void CopysetNode::UpdateAppliedIndex(uint64_t index) {
     uint64_t curIndex = appliedIndex_.load(std::memory_order_acquire);
     // 只更新比自己大的 index
