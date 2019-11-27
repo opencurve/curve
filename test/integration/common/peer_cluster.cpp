@@ -15,7 +15,7 @@
 #include <utility>
 #include <algorithm>
 
-#include "src/chunkserver/cli.h"
+#include "src/chunkserver/cli2.h"
 #include "src/chunkserver/register.h"
 #include "proto/copyset.pb.h"
 #include "src/chunkserver/chunkserver_helper.h"
@@ -177,7 +177,6 @@ int PeerCluster::SignalPeer(const Peer &peer) {
 }
 
 int PeerCluster::WaitLeader(Peer *leaderPeer) {
-    PeerId leaderId;
     butil::Status status;
     /**
      * 等待选举结束
@@ -186,7 +185,7 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
     for (int i = 0; i < kMaxLoop; ++i) {
         ::usleep(100 * 1000);
-        status = GetLeader(logicPoolID_, copysetID_, conf_, &leaderId);
+        status = GetLeader(logicPoolID_, copysetID_, conf_, leaderPeer);
         if (status.ok()) {
             /**
              * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
@@ -194,8 +193,7 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
              */
             usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
-                      << leaderId.to_string();
-            leaderPeer->set_address(leaderId.to_string());
+                      << leaderPeer->address();
             return 0;
         } else {
             LOG(WARNING) << "Get leader failed, error: " << status.error_str()
@@ -747,6 +745,32 @@ void CopysetStatusVerify(const std::vector<Peer> &peers,
                          resps[i].DebugString().c_str());
         }
     }
+}
+
+
+
+void TransferLeaderAssertSuccess(PeerCluster *cluster,
+                                 const Peer &targetLeader,
+                                 braft::cli::CliOptions opt) {
+    Peer leaderPeer;
+    const int kMaxLoop = 10;
+    butil::Status status;
+    for (int i = 0; i < kMaxLoop; ++i) {
+        status = TransferLeader(cluster->GetLogicPoolId(),
+                                cluster->GetCopysetId(),
+                                cluster->CopysetConf(),
+                                targetLeader,
+                                opt);
+        if (0 == status.error_code()) {
+            cluster->WaitLeader(&leaderPeer);
+            if (leaderPeer.address() == targetLeader.address()) {
+                break;
+            }
+        }
+        ::sleep(1);
+    }
+    ASSERT_STREQ(targetLeader.address().c_str(),
+                 leaderPeer.address().c_str());
 }
 
 }  // namespace chunkserver
