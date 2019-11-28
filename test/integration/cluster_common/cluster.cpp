@@ -83,7 +83,8 @@ void CurveCluster::StopCluster() {
 }
 
 void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
-    const std::vector<std::string> &mdsConf, bool expectLeader) {
+                                const std::vector<std::string> &mdsConf,
+                                bool expectLeader, bool expectAssert) {
     LOG(INFO) << "start mds " << ipPort << " begin...";
     pid_t pid = ::fork();
     if (0 > pid) {
@@ -99,15 +100,25 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
             cmd_dir += item;
         }
         LOG(INFO) << "start exec cmd: " << cmd_dir;
-        ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
+        if (expectAssert) {
+            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
+        } else {
+            execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
+        }
         exit(0);
     }
 
+    if (expectAssert) {
+        ASSERT_EQ(0, ProbePort(ipPort, 20000, expectLeader));
+    }
 
-    ASSERT_EQ(0, ProbePort(ipPort, 10000, expectLeader));
     LOG(INFO) << "start mds " << ipPort << " success";
     mdsPidMap_[id] = pid;
     mdsIpPort_[id] = ipPort;
+
+    for (auto it : mdsPidMap_) {
+        LOG(INFO) << "mds pid = " << it.second;
+    }
 }
 
 void CurveCluster::StopMDS(int id) {
@@ -116,8 +127,8 @@ void CurveCluster::StopMDS(int id) {
         int res = kill(mdsPidMap_[id], SIGTERM);
         int waitStatus;
         waitpid(mdsPidMap_[id], &waitStatus, 0);
-        ASSERT_EQ(0, res);
-        ASSERT_EQ(0, ProbePort(MDSIpPort(id), 10000, false));
+        // ASSERT_EQ(0, res);
+        // ASSERT_EQ(0, ProbePort(MDSIpPort(id), 10000, false));
         mdsPidMap_.erase(id);
     }
 
@@ -396,9 +407,9 @@ void CurveCluster::HangMDS(int id) {
     HangProcess(mdsPidMap_[id]);
 }
 
-void CurveCluster::RecoverHangMDS(int id) {
+void CurveCluster::RecoverHangMDS(int id, bool expected) {
     ASSERT_TRUE(mdsPidMap_.find(id) != mdsPidMap_.end());
-    RecoverHangProcess(mdsPidMap_[id]);
+    return RecoverHangProcess(mdsPidMap_[id], expected);
 }
 
 void CurveCluster::HangEtcd(int id) {
@@ -408,7 +419,7 @@ void CurveCluster::HangEtcd(int id) {
 
 void CurveCluster::RecoverHangEtcd(int id) {
     ASSERT_TRUE(etcdPidMap_.find(id) != etcdPidMap_.end());
-    RecoverHangProcess(etcdPidMap_[id]);
+    RecoverHangProcess(etcdPidMap_[id], true);
 }
 
 void CurveCluster::HangChunkServer(int id) {
@@ -418,7 +429,7 @@ void CurveCluster::HangChunkServer(int id) {
 
 void CurveCluster::RecoverHangChunkServer(int id) {
     ASSERT_TRUE(chunkserverPidMap_.find(id) != chunkserverPidMap_.end());
-    RecoverHangProcess(chunkserverPidMap_[id]);
+    RecoverHangProcess(chunkserverPidMap_[id], true);
 }
 
 void CurveCluster::HangProcess(pid_t pid) {
@@ -429,12 +440,20 @@ void CurveCluster::HangProcess(pid_t pid) {
     LOG(INFO) << "success hang pid: " << pid;
 }
 
-void CurveCluster::RecoverHangProcess(pid_t pid) {
-    LOG(INFO) << "recover hang pid: " << pid << " begin...";
-    ASSERT_EQ(0, kill(pid, SIGCONT));
-    int waitStatus;
-    waitpid(pid, &waitStatus, WCONTINUED);
-    LOG(INFO) << "success recover hang pid: " << pid;
+void CurveCluster::RecoverHangProcess(pid_t pid, bool expected) {
+    if (expected) {
+        LOG(INFO) << "recover hang pid: " << pid << " begin...";
+        ASSERT_EQ(0, kill(pid, SIGCONT));
+        int waitStatus;
+        waitpid(pid, &waitStatus, WCONTINUED);
+        LOG(INFO) << "success recover hang pid: " << pid;
+    } else {
+        LOG(INFO) << "recover hang pid: " << pid << " begin...";
+        kill(pid, SIGCONT);
+        int waitStatus;
+        waitpid(pid, &waitStatus, WCONTINUED);
+        LOG(INFO) << "success recover hang pid: " << pid;
+    }
 }
 
 std::string CurveCluster::ChunkServerIpPortInBackground(int id) {
