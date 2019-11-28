@@ -13,11 +13,11 @@
 #include "include/chunkserver/chunkserver_common.h"
 #include "src/chunkserver/chunkserver.h"
 #include "src/chunkserver/heartbeat.h"
-#include "test/chunkserver/heartbeat_test.h"
+#include "test/chunkserver/heartbeat_test_common.h"
 
-static char* param[3][10] = {
+static char* param[3][11] = {
     {
-        "",
+        "heartbeat_test",
         "-chunkServerIp=127.0.0.1",
         "-chunkServerPort=8200",
         "-chunkServerStoreUri=local://./0/",
@@ -27,9 +27,10 @@ static char* param[3][10] = {
         "-chunkFilePoolDir=./0/chunkfilepool/",
         "-chunkFilePoolMetaPath=./0/chunkfilepool.meta",
         "-conf=test/chunkserver/chunkserver.conf.0",
+        "-graceful_quit_on_sigterm",
     },
     {
-        "",
+        "heartbeat_test",
         "-chunkServerIp=127.0.0.1",
         "-chunkServerPort=8201",
         "-chunkServerStoreUri=local://./1/",
@@ -39,9 +40,10 @@ static char* param[3][10] = {
         "-chunkFilePoolDir=./1/chunkfilepool/",
         "-chunkFilePoolMetaPath=./1/chunkfilepool.meta",
         "-conf=test/chunkserver/chunkserver.conf.1",
+        "-graceful_quit_on_sigterm",
     },
     {
-        "",
+        "heartbeat_test",
         "-chunkServerIp=127.0.0.1",
         "-chunkServerPort=8202",
         "-chunkServerStoreUri=local://./2/",
@@ -51,6 +53,7 @@ static char* param[3][10] = {
         "-chunkFilePoolDir=./2/chunkfilepool/",
         "-chunkFilePoolMetaPath=./2/chunkfilepool.meta",
         "-conf=test/chunkserver/chunkserver.conf.2",
+        "-graceful_quit_on_sigterm",
     },
 };
 
@@ -118,7 +121,7 @@ int main(int argc, char* argv[]) {
 
         LOG(INFO) << "Stop all chunkserver";
         for (int i = 0; i < 3; i++) {
-            kill(pids[i], SIGINT);
+            kill(pids[i], SIGTERM);
             waitpid(pids[i], &ret, 0);
         }
         LOG(INFO) << "Stop all chunkserver success";
@@ -132,7 +135,7 @@ int main(int argc, char* argv[]) {
             return ret;
         }
         sleep(2);
-        kill(pid, SIGINT);
+        kill(pid, SIGTERM);
         waitpid(pid, &ret, 0);
         LOG(INFO) << "Stop restart chunkserver 1 ok. Return code: " << ret;
 

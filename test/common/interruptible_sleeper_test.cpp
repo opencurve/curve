@@ -39,7 +39,7 @@ TEST(InterruptibleSleeperTest, test_interruptible_sleeper) {
     int waitstatus;
     kill(pid, SIGTERM);
     waitpid(pid, &waitstatus, 0);
-    ASSERT_GT(5000, TimeUtility::GetTimeofDayMs() - startKill);
+    ASSERT_GT(8000, TimeUtility::GetTimeofDayMs() - startKill);
 }
 }  // namespace common
 }  // namespace curve
