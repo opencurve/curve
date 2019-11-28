@@ -30,9 +30,10 @@ int FileCommonOperation::Open(const std::string& filename,
     memcpy(userinfo.owner, owner.c_str(), owner.size());
 
     // 先创建文件
-    int ret = Create(filename.c_str(), &userinfo, 10*1024*1024*1024ul);
-    if (ret != LIBCURVE_ERROR::OK && ret != -LIBCURVE_ERROR::EXISTS) {
-        LOG(ERROR) << "file create failed! " << ret;
+    int ret = Create(filename.c_str(), &userinfo, 100*1024*1024*1024ul);
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "file create failed! " << ret
+                   << ", filename = " << filename;
         return -1;
     }
 
