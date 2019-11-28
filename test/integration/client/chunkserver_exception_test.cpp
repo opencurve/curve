@@ -33,14 +33,17 @@ curve::client::InflightControl inflightContl;
 using curve::CurveCluster;
 const std::vector<std::string> mdsConf4{
     {" --confPath=./test/integration/client/config/mds.conf.3"},
+    {" --log_dir=./runlog/ChunkserverException"}
 };
 
 const std::vector<std::string> mdsConf5{
     {" --confPath=./test/integration/client/config/mds.conf.4"},
+    {" --log_dir=./runlog/ChunkserverException"}
 };
 
 const std::vector<std::string> mdsConf6{
     {" --confPath=./test/integration/client/config/mds.conf.5"},
+    {" --log_dir=./runlog/ChunkserverException"}
 };
 
 const std::vector<std::string> chunkserverConf4{
@@ -52,6 +55,7 @@ const std::vector<std::string> chunkserverConf4{
     {" -chunkFilePoolMetaPath=./moduleException4/chunkfilepool.meta"},
     {" -conf=./test/integration/client/config/chunkserver.conf.3"},
     {" -raft_sync_segments=true"},
+    {" --log_dir=./runlog/ChunkserverException"}
 };
 
 const std::vector<std::string> chunkserverConf5{
@@ -63,6 +67,7 @@ const std::vector<std::string> chunkserverConf5{
     {" -chunkFilePoolMetaPath=./moduleException5/chunkfilepool.meta"},
     {" -conf=./test/integration/client/config/chunkserver.conf.4"},
     {" -raft_sync_segments=true"},
+    {" --log_dir=./runlog/ChunkserverException"}
 };
 
 const std::vector<std::string> chunkserverConf6{
@@ -74,16 +79,18 @@ const std::vector<std::string> chunkserverConf6{
     {" -chunkFilePoolMetaPath=./moduleException6/chunkfilepool.meta"},
     {" -conf=./test/integration/client/config/chunkserver.conf.5"},
     {" -raft_sync_segments=true"},
+    {" --log_dir=./runlog/ChunkserverException"}
 };
 
 class CSModuleException : public ::testing::Test {
  public:
     void SetUp() {
-        system("mkdir mds_4 mds_5 mds_6");
-        system("mkdir chunkserver_4 chunkserver_5 chunkserver_6");
+        std::this_thread::sleep_for(std::chrono::seconds(60));
 
+        system("mkdir ./runlog/ChunkserverException");
         system("rm -rf module_exception_test_chunkserver.etcd");
         system("rm -rf moduleException4 moduleException5 moduleException6");
+
         cluster = new CurveCluster();
         ASSERT_NE(nullptr, cluster);
 
@@ -273,13 +280,15 @@ class CSModuleException : public ::testing::Test {
 
 // 测试环境拓扑：在单节点上启动一个client、三个chunkserver、三个mds、一个etcd
 
-// 1. 测试重启一个chunkserver
-// 2.预期：
-//    a. 集群状态正常时：client读写请求可以正常下发
-//    b. kill一台chunkserver：client 读写请求最多卡顿
-//       election_timeout*2s可以正常读写
-//    c. 恢复chunkserver：client 读写请求无影响
-TEST_F(CSModuleException, KillOneChunkserverThenRestartTheChunkserver) {
+TEST_F(CSModuleException, ChunkserverException) {
+    LOG(INFO) << "current case: KillOneChunkserverThenRestartTheChunkserver";
+    /********* KillOneChunkserverThenRestartTheChunkserver **********/
+    // 1. 测试重启一个chunkserver
+    // 2.预期：
+    //    a. 集群状态正常时：client读写请求可以正常下发
+    //    b. kill一台chunkserver：client 读写请求最多卡顿
+    //       election_timeout*2s可以正常读写
+    //    c. 恢复chunkserver：client 读写请求无影响
     // 1. 集群最初状态，io正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
@@ -294,15 +303,15 @@ TEST_F(CSModuleException, KillOneChunkserverThenRestartTheChunkserver) {
 
     // 5. 重新拉起对client IO没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
-}
 
-// 1. hang一台chunkserver，然后恢复hang的chunkserver
-// 2.预期
-//    a. 集群状态正常时：client读写请求可以正常下发
-//    b. hang一台chunkserver：client
-//       读写请求最多卡顿election_timeout*2s可以正常读写
-//    c. 恢复chunkserver：client 读写请求无影响
-TEST_F(CSModuleException, HangOneChunkserverThenResumeTheChunkserver) {
+    LOG(INFO) << "current case: HangOneChunkserverThenResumeTheChunkserver";
+    /********* HangOneChunkserverThenResumeTheChunkserver ***********/
+    // 1. hang一台chunkserver，然后恢复hang的chunkserver
+    // 2.预期
+    //    a. 集群状态正常时：client读写请求可以正常下发
+    //    b. hang一台chunkserver：client
+    //       读写请求最多卡顿election_timeout*2s可以正常读写
+    //    c. 恢复chunkserver：client 读写请求无影响
     // 1. 集群最初状态，io正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
@@ -317,16 +326,16 @@ TEST_F(CSModuleException, HangOneChunkserverThenResumeTheChunkserver) {
 
     // 5. 重新拉起对client IO没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
-}
 
-// 1. 测试重启两个chunkserver
-// 2.预期：
-//    a. 集群状态正常时：client读写请求可以正常下发
-//    b. kill两台chunkserver：预期client IO持续hang，新写IO和覆盖写都hang
-//       拉起被kill中的一台chunkserver：client IO预期在最多在
-//      （chunkserver启动回放数据+2*election_timeout）时间内恢复读写
-//    c. 拉起另外一台kill的chunkserver：client IO无影响
-TEST_F(CSModuleException, KillTwoChunkserverThenRestartTheChunkserver) {
+    LOG(INFO) << "current case: KillTwoChunkserverThenRestartTheChunkserver";
+    /******** KillTwoChunkserverThenRestartTheChunkserver *********/
+    // 1. 测试重启两个chunkserver
+    // 2.预期：
+    //    a. 集群状态正常时：client读写请求可以正常下发
+    //    b. kill两台chunkserver：预期client IO持续hang，新写IO和覆盖写都hang
+    //       拉起被kill中的一台chunkserver：client IO预期在最多在
+    //      （chunkserver启动回放数据+2*election_timeout）时间内恢复读写
+    //    c. 拉起另外一台kill的chunkserver：client IO无影响
     // 1. 集群最初状态，io正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
@@ -349,16 +358,16 @@ TEST_F(CSModuleException, KillTwoChunkserverThenRestartTheChunkserver) {
 
     // 7. 集群io不影响，正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
-}
 
-// 1. hang两台chunkserver，然后恢复hang的chunkserver
-// 2.预期
-//    a. 集群状态正常时：client读写请求可以正常下发
-//    b. hang两台chunkserver：client IO持续hang，新写IO和覆盖写都hang
-//    c. 恢复其中的一台chunkserver：client IO 恢复读写，
-//       从恢复chunkserver到client IO恢复时间在election_timeout*2
-//    d. 恢复另外一台hang的chunkserver：client IO无影响
-TEST_F(CSModuleException, HangTwoChunkserverThenResumeTheChunkserver) {
+    LOG(INFO) << "current case: HangTwoChunkserverThenResumeTheChunkserver";
+    /******* HangTwoChunkserverThenResumeTheChunkserver **********/
+    // 1. hang两台chunkserver，然后恢复hang的chunkserver
+    // 2.预期
+    //    a. 集群状态正常时：client读写请求可以正常下发
+    //    b. hang两台chunkserver：client IO持续hang，新写IO和覆盖写都hang
+    //    c. 恢复其中的一台chunkserver：client IO 恢复读写，
+    //       从恢复chunkserver到client IO恢复时间在election_timeout*2
+    //    d. 恢复另外一台hang的chunkserver：client IO无影响
     // 1. 集群最初状态，io正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
@@ -381,18 +390,18 @@ TEST_F(CSModuleException, HangTwoChunkserverThenResumeTheChunkserver) {
 
     // 7. 集群io不影响，正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
-}
 
-// 1. 测试重启三个chunkserver
-// 2.预期：
-//    a. 集群状态正常时：client读写请求可以正常下发
-//    b. 关闭三台chunkserver：client IO hang
-//    c. 重启一台chunkserver：client IO hang
-//    d. 重启第二台chunkserver：client IO hang，
-//       直到chunkserver完全恢复，IO恢复。
-//       恢复时间约等于（chunkserver启动回放数据+2*election_timeout）
-//    e. 重启第三台chunkserver：client IO无影响
-TEST_F(CSModuleException, KillThreeChunkserverThenRestartTheChunkserver) {
+    LOG(INFO) << "current case: KillThreeChunkserverThenRestartTheChunkserver";
+    /******** KillThreeChunkserverThenRestartTheChunkserver ******/
+    // 1. 测试重启三个chunkserver
+    // 2.预期：
+    //    a. 集群状态正常时：client读写请求可以正常下发
+    //    b. 关闭三台chunkserver：client IO hang
+    //    c. 重启一台chunkserver：client IO hang
+    //    d. 重启第二台chunkserver：client IO hang，
+    //       直到chunkserver完全恢复，IO恢复。
+    //       恢复时间约等于（chunkserver启动回放数据+2*election_timeout）
+    //    e. 重启第三台chunkserver：client IO无影响
     // 1. 集群最初状态，io正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
@@ -413,19 +422,22 @@ TEST_F(CSModuleException, KillThreeChunkserverThenRestartTheChunkserver) {
     // 6. 拉起刚才被kill的chunkserver的第二个
     cluster->StartSingleChunkServer(2, "127.0.0.1:22126", chunkserverConf5);
 
-    // 6. client的io恢复
+    // 7. client的io恢复
     ASSERT_TRUE(MonitorResume(0, 4096, 2 * 5));
-}
 
-// 1. hang三台chunkserver，然后恢复hang的chunkserver
-// 2.预期
-//    a. 集群状态正常时：client读写请求可以正常下发
-//    b. hang三台chunkserver：client IO hang
-//    c. 恢复一台chunkserver：client IO hang
-//    d. 再恢复一台chunkserver：预期在
-//       election_timeout*2左右的时间，client IO恢复
-//    e. 恢复最后一台chunkserver：预期client IO无影响
-TEST_F(CSModuleException, HangThreeChunkserverThenResumeTheChunkserver) {
+    // 8. 拉起其他被kil的chunkserver
+    cluster->StartSingleChunkServer(3, "127.0.0.1:22127", chunkserverConf6);
+
+    LOG(INFO) << "current case: HangThreeChunkserverThenResumeTheChunkserver";
+    /******** HangThreeChunkserverThenResumeTheChunkserver **********/
+    // 1. hang三台chunkserver，然后恢复hang的chunkserver
+    // 2.预期
+    //    a. 集群状态正常时：client读写请求可以正常下发
+    //    b. hang三台chunkserver：client IO hang
+    //    c. 恢复一台chunkserver：client IO hang
+    //    d. 再恢复一台chunkserver：预期在
+    //       election_timeout*2左右的时间，client IO恢复
+    //    e. 恢复最后一台chunkserver：预期client IO无影响
     // 1. 集群最初状态，io正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
