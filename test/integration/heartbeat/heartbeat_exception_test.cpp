@@ -42,6 +42,7 @@ class HeartbeatExceptionTest : public ::testing::Test {
         conf->SetIntValue("mds.leader.scheduler.intervalSec", 300);
         conf->SetIntValue("mds.recover.scheduler.intervalSec", 300);
         conf->SetIntValue("mds.replica.scheduler.intervalSec", 300);
+        conf->SetIntValue("mds.scheduler.change.limitSec", 300);
 
         conf->SetIntValue("mds.schduler.operator.concurrent", 4);
         conf->SetIntValue("mds.schduler.transfer.limitSec", 10);
