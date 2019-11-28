@@ -112,6 +112,8 @@ void InitScheduleOption(
         &scheduleOption->addPeerTimeLimitSec));
     LOG_IF(FATAL, !conf->GetUInt32Value("mds.scheduler.remove.limitSec",
         &scheduleOption->removePeerTimeLimitSec));
+    LOG_IF(FATAL, !conf->GetUInt32Value("mds.scheduler.change.limitSec",
+        &scheduleOption->changePeerTimeLimitSec));
 
     LOG_IF(FATAL, !conf->GetFloatValue("mds.scheduler.copysetNumRangePercent",
         &scheduleOption->copysetNumRangePercent));

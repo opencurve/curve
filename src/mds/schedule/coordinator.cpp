@@ -50,6 +50,7 @@ void Coordinator::InitScheduler(
                                               conf.transferLeaderTimeLimitSec,
                                               conf.removePeerTimeLimitSec,
                                               conf.addPeerTimeLimitSec,
+                                              conf.changePeerTimeLimitSec,
                                               conf.scatterWithRangePerent,
                                               topo_);
         LOG(INFO) << "init leader scheduler ok!";
@@ -62,6 +63,7 @@ void Coordinator::InitScheduler(
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
+                                               conf.changePeerTimeLimitSec,
                                                conf.copysetNumRangePercent,
                                                conf.scatterWithRangePerent,
                                                topo_);
@@ -75,6 +77,7 @@ void Coordinator::InitScheduler(
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
+                                               conf.changePeerTimeLimitSec,
                                                conf.scatterWithRangePerent,
                                                conf.chunkserverFailureTolerance,
                                                topo_);
@@ -88,6 +91,7 @@ void Coordinator::InitScheduler(
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
+                                               conf.changePeerTimeLimitSec,
                                                conf.scatterWithRangePerent,
                                                topo_);
         LOG(INFO) << "init replica scheduler ok!";

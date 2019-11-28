@@ -111,6 +111,33 @@ class RemovePeer : public OperatorStep {
  private:
     ChunkServerIdType remove_;
 };
+
+class ChangePeer : public OperatorStep {
+ public:
+    ChangePeer(ChunkServerIdType oldOne, ChunkServerIdType newOne);
+
+    /**
+     * @brief Apply
+     * 1. new_是复制组成员，old_不是复制组成员，变更成功
+     * 2. 上报的信息没有configchangeItem, 下发变更命令
+     * 3. 上报的信息有candidate, 但是和new_不匹配, 说明有正在执行的operator,可能由于
+     *    mds重启丢掉了, 此时应该直接让新的operator失败并移除
+     * 4. 上报配置变更失败, changePeer失败并移除
+     * 5. 正在配置变更过程中, 不做任何操作
+     */
+    ApplyStatus Apply(
+        const CopySetInfo &originInfo, CopySetConf *newConf) override;
+
+    std::string OperatorStepToString() override;
+
+    ChunkServerIdType GetTargetPeer() const override;
+
+    ChunkServerIdType GetOldPeer() const;
+
+ private:
+    ChunkServerIdType old_;
+    ChunkServerIdType new_;
+};
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

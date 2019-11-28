@@ -232,6 +232,79 @@ std::string RemovePeer::OperatorStepToString() {
 ChunkServerIdType RemovePeer::GetTargetPeer() const {
     return remove_;
 }
+
+ChangePeer::ChangePeer(ChunkServerIdType oldOne, ChunkServerIdType newOne) {
+    old_ = oldOne;
+    new_ = newOne;
+}
+
+std::string ChangePeer::OperatorStepToString() {
+    return "change peer from " + std::to_string(old_)
+        + " to " + std::to_string(new_);
+}
+
+ChunkServerIdType ChangePeer::GetTargetPeer() const {
+    return new_;
+}
+
+ChunkServerIdType ChangePeer::GetOldPeer() const {
+    return old_;
+}
+
+ApplyStatus ChangePeer::Apply(
+    const CopySetInfo &originInfo, CopySetConf *newConf) {
+    assert(newConf != nullptr);
+
+    // 如果info中已经包含new_, 说明变更成功
+    if (originInfo.ContainPeer(new_) &&
+        !originInfo.ContainPeer(old_)) {
+        return ApplyStatus::Finished;
+    }
+
+    // 如果没有candidate信息，下发该operator
+    if (!originInfo.configChangeInfo.IsInitialized()) {
+        newConf->id.first = originInfo.id.first;
+        newConf->id.second = originInfo.id.second;
+        newConf->epoch = originInfo.epoch;
+        newConf->peers = originInfo.peers;
+        newConf->type = ConfigChangeType::CHANGE_PEER;
+        newConf->configChangeItem = new_;
+        newConf->oldOne = old_;
+        return ApplyStatus::Ordered;
+    }
+
+    // 如果上报上来的configchange item与记录的不符合，则移除
+    if (originInfo.candidatePeerInfo.id != new_) {
+        LOG(WARNING) << originInfo.CopySetInfoStr()
+            << " apply change peer from " << old_ << " to " << new_
+            << " failed, config change item do not match, "
+                        "report candidatePeerId is "
+            << originInfo.candidatePeerInfo.id;
+        return ApplyStatus::Failed;
+    }
+
+    // 上报上来的变更类型与mds中记录的不同
+    if (originInfo.configChangeInfo.type() !=  ConfigChangeType::CHANGE_PEER) {
+        LOG(WARNING) << originInfo.CopySetInfoStr()
+            << " apply chane peer from " << old_ << " to " << new_
+            << " failed, config change type do not match, report type is "
+            << originInfo.configChangeInfo.type();
+        return ApplyStatus::Failed;
+    }
+
+    // 上报失败信息
+    if (!originInfo.configChangeInfo.finished() &&
+        originInfo.configChangeInfo.has_err()) {
+        LOG(ERROR) << originInfo.CopySetInfoStr()
+                   << " apply chane peer from " << old_ << " to " << new_
+                   << " failed, report err: "
+                   << originInfo.configChangeInfo.err().errmsg();
+        return ApplyStatus::Failed;
+    }
+
+    // 变更未完成，继续
+    return ApplyStatus::OnGoing;
+}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
