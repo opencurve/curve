@@ -58,6 +58,8 @@ struct ScheduleOption {
     uint32_t addPeerTimeLimitSec;
     // 移除节点时间限制, 大于该时间mds认为超时，移除相关operator
     uint32_t removePeerTimeLimitSec;
+    // change节点时间限制，大于该时间mds认为超时，移除相关operator
+    uint32_t changePeerTimeLimitSec;
 
     // 供copysetScheduler使用, [chunkserver上copyset数量的极差]不能超过
     // [chunkserver上copyset数量均值] * copysetNumRangePercent
