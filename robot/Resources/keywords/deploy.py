@@ -217,7 +217,7 @@ def initial_chunkserver(host):
         logger.debug("stop host %s chunkserver" % host)
         rs = shell_operator.ssh_exec(ssh, kill_cmd)
 #        assert rs[3] == 0
-        time.sleep(2)
+        time.sleep(8)
         ori_cmd = "ps -ef|grep -v grep | grep -w curve-chunkserver | awk '{print $2}'"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[1] == [], "kill chunkserver fail"
