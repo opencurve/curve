@@ -262,7 +262,8 @@ cc_test(
     name = "heartbeat_test",
     srcs = [
         "heartbeat_test.cpp",
-        "heartbeat_test.h",
+        "heartbeat_test_common.h",
+        "heartbeat_test_common.cpp",
         "heartbeat_test_main.cpp",
     ],
     deps = [
@@ -277,6 +278,18 @@ cc_test(
         "//src/chunkserver:chunkserver-test-lib",
         "//src/common:curve_common",
         "//test/client/fake:fake_lib",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "heartbeat_helper_test",
+    srcs = [
+        "heartbeat_helper_test.cpp",
+    ],
+    deps = [
+        "//src/chunkserver:chunkserver-test-lib",
+        "//test/chunkserver:chunkserver_mock",
         "@com_google_googletest//:gtest_main",
     ],
 )

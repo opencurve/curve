@@ -267,10 +267,9 @@ bool CopySetScheduler::CopySetMigration(
     }
 
     if (*source != UNINTIALIZE_ID) {
-        *op = operatorFactory.CreateAddPeerOperator(
-            *choose, *target, OperatorPriority::NormalPriority);
-        op->timeLimit =
-            std::chrono::seconds(addTimeSec_);
+        *op = operatorFactory.CreateChangePeerOperator(
+            *choose, *source, *target, OperatorPriority::NormalPriority);
+        op->timeLimit = std::chrono::seconds(changeTimeSec_);
         LOG(INFO) << "copyset scheduler gen " << op->OpToString() << " on "
                   << choose->CopySetInfoStr();
         return true;

@@ -628,7 +628,7 @@ class CopysetSchedulerPOC : public testing::Test {
         topo_->UpdateChunkServerOnlineState(OnlineState::ONLINE, id);
     }
 
-    void SetChunkServerOnline(const std::vector<ChunkServerIdType> &list) {
+    void SetChunkServerOnline(const std::set<ChunkServerIdType> &list) {
         for (auto id : list) {
             SetChunkServerOnline(id);
         }
@@ -643,7 +643,7 @@ class CopysetSchedulerPOC : public testing::Test {
                 opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
         leaderScheduler_ = std::make_shared<LeaderScheduler>(
-            opController_, 1000, 0, 10, 100, 1000,
+            opController_, 1000, 0, 10, 100, 1000, 1000,
             scatterwidthPercent_, topoAdapter_);
     }
 
@@ -656,26 +656,28 @@ class CopysetSchedulerPOC : public testing::Test {
                 opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
         recoverScheduler_ = std::make_shared<RecoverScheduler>(
-            opController_, 1000, 10, 100, 1000,
+            opController_, 1000, 10, 100, 1000, 1000,
             scatterwidthPercent_, offlineTolerent_, topoAdapter_);
     }
 
     void BuildCopySetScheduler(int opConcurrent) {
         copySetScheduler_ = std::make_shared<CopySetScheduler>(
-            opController_, 1000, 10, 100, 1000, copysetNumPercent_,
+            opController_, 1000, 10, 100, 1000, 1000, copysetNumPercent_,
             scatterwidthPercent_, topoAdapter_);
     }
 
-    void ApplyOperatorsInOpController(int choose) {
+    void ApplyOperatorsInOpController(
+        const std::set<ChunkServerIdType> &list) {
         std::vector<CopySetKey> keys;
         for (auto op : opController_->GetOperators()) {
-            auto type = dynamic_cast<AddPeer *>(op.step.get());
+            auto type = dynamic_cast<ChangePeer *>(op.step.get());
             ASSERT_TRUE(type != nullptr);
+            ASSERT_TRUE(list.end() != list.find(type->GetOldPeer()));
 
             ::curve::mds::topology::CopySetInfo info;
             ASSERT_TRUE(topo_->GetCopySet(op.copysetID, &info));
             auto members = info.GetCopySetMembers();
-            auto it = members.find(choose);
+            auto it = members.find(type->GetOldPeer());
             if (it == members.end()) {
                 continue;
             }
@@ -693,13 +695,6 @@ class CopysetSchedulerPOC : public testing::Test {
         }
     }
 
-    void ApplyOperatorsInOpController(
-        const std::vector<ChunkServerIdType> &list) {
-        for (auto id : list) {
-            ApplyOperatorsInOpController(id);
-        }
-    }
-
     void ApplyTranferLeaderOperator() {
         for (auto op : opController_->GetOperators()) {
             auto type = dynamic_cast<TransferLeader *>(op.step.get());
@@ -714,7 +709,7 @@ class CopysetSchedulerPOC : public testing::Test {
 
     // 有两个chunkserver offline的停止条件:
     // 所有copyset均有两个及以上的副本offline
-    bool SatisfyStopCondition(const std::vector<ChunkServerIdType> &idList) {
+    bool SatisfyStopCondition(const std::set<ChunkServerIdType> &idList) {
         std::vector<::curve::mds::topology::CopySetKey> copysetList;
         for (auto id : idList) {
             auto list = topo_->GetCopySetsInChunkServer(id);
@@ -770,7 +765,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_1) {
     do {
         recoverScheduler_->Schedule();
         // update copyset to topology
-        ApplyOperatorsInOpController(choose);
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{choose});
     } while (topo_->GetCopySetsInChunkServer(choose).size() > 0);
 
     // 4. 打印最终的scatter-with
@@ -802,11 +797,11 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_2) {
     BuilRecoverScheduler(1);
 
     // 2. 任意选择两个chunkserver处于offline状态
-    std::vector<ChunkServerIdType> idlist;
+    std::set<ChunkServerIdType> idlist;
     ChunkServerIdType choose1 = 0;
     ChunkServerIdType choose2 = 0;
     choose1 = RandomOfflineOneChunkServer();
-    idlist.emplace_back(choose1);
+    idlist.emplace(choose1);
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
@@ -814,12 +809,12 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_2) {
 
         if (choose2 == 0) {
             choose2 = RandomOfflineOneChunkServer();
-            idlist.emplace_back(choose2);
+            idlist.emplace(choose2);
         }
 
         // update copyset to topology
-        ApplyOperatorsInOpController(choose1);
-        ApplyOperatorsInOpController(choose2);
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{choose1});
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{choose2});
     } while (!SatisfyStopCondition(idlist));
 
     // 4. 打印最终的scatter-with
@@ -851,14 +846,14 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_3) {
      BuilRecoverScheduler(1);
 
     // 2. 任意选择两个chunkserver处于offline状态
-    std::vector<ChunkServerIdType> idlist;
-       std::vector<ChunkServerIdType> origin;
+    std::set<ChunkServerIdType> idlist;
+    std::vector<ChunkServerIdType> origin;
     for (int i = 0; i < 6; i++) {
         origin.emplace_back(0);
     }
 
     origin[0] = RandomOfflineOneChunkServer();
-    idlist.emplace_back(origin[0]);
+    idlist.emplace(origin[0]);
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
@@ -867,7 +862,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_3) {
         for (int i = 1; i < 6; i++) {
             if (origin[i] == 0) {
                 origin[i] = RandomOfflineOneChunkServer();
-                idlist.emplace_back(origin[i]);
+                idlist.emplace(origin[i]);
                 ApplyOperatorsInOpController(idlist);
                 break;
             }
@@ -905,14 +900,14 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_4) {
      BuilRecoverScheduler(1);
 
     // 2. 任意选择两个chunkserver处于offline状态
-    std::vector<ChunkServerIdType> idlist;
+    std::set<ChunkServerIdType> idlist;
     std::vector<ChunkServerIdType> origin;
     for (int i = 0; i < 20; i++) {
         origin.emplace_back(0);
     }
 
     origin[0] = RandomOfflineOneChunkServer();
-    idlist.emplace_back(origin[0]);
+    idlist.emplace(origin[0]);
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
@@ -921,7 +916,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_4) {
         for (int i = 1; i < 20; i++) {
             if (origin[i] == 0) {
                 origin[i] = RandomOfflineOneChunkServer();
-                idlist.emplace_back(origin[i]);
+                idlist.emplace(origin[i]);
                 ApplyOperatorsInOpController(idlist);
                 break;
             }
@@ -955,8 +950,8 @@ TEST_F(CopysetSchedulerPOC, test_chunkserver_offline_over_concurrency) {
     do {
         recoverScheduler_->Schedule();
         opNum += opController_->GetOperators().size();
-        // update copyset to topology
-        ApplyOperatorsInOpController(target);
+        // apply operator, 把copyset更新到topology
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{target});
     } while (topo_->GetCopySetsInChunkServer(target).size() > 0);
 
     ASSERT_EQ(targetOpNum, opNum);
@@ -970,8 +965,8 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
     ChunkServerIdType choose = RandomOfflineOneChunkServer();
     do {
         recoverScheduler_->Schedule();
-        // update copyset to topology
-        ApplyOperatorsInOpController(choose);
+        // apply operator, 把copyset更新到topology
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{choose});
     } while (topo_->GetCopySetsInChunkServer(choose).size() > 0);
 
     PrintScatterWithInOnlineChunkServer();
@@ -994,13 +989,13 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_1) { //NOLIN
     // ###print copyset-num in cluster###
     // 均值：100, 方差：57.4222, 标准差： 7.57774, 最大值： 107, 最小值：0
 
-    // 2. cchunkserver恢复成online状态
+    // 2. chunkserver-choose恢复成online状态
     SetChunkServerOnline(choose);
     BuildCopySetScheduler(1);
     int removeOne = 0;
     do {
         removeOne = copySetScheduler_->Schedule();
-        ApplyOperatorsInOpController(removeOne);
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{removeOne});
     } while (removeOne > 0);
     PrintScatterWithInLogicalPool();
     PrintCopySetNumInLogicalPool();
@@ -1023,22 +1018,22 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
 
     // 1. chunkserver offline后恢复
     BuilRecoverScheduler(1);
-    std::vector<ChunkServerIdType> idlist;
+    std::set<ChunkServerIdType> idlist;
     ChunkServerIdType choose1 = 0;
     ChunkServerIdType choose2 = 0;
     choose1 = RandomOfflineOneChunkServer();
-    idlist.emplace_back(choose1);
+    idlist.emplace(choose1);
     do {
         recoverScheduler_->Schedule();
 
         if (choose2 == 0) {
             choose2 = RandomOfflineOneChunkServer();
-            idlist.emplace_back(choose2);
+            idlist.emplace(choose2);
         }
 
         // update copyset to topology
-        ApplyOperatorsInOpController(choose1);
-        ApplyOperatorsInOpController(choose2);
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{choose1});
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{choose2});
     } while (!SatisfyStopCondition(idlist));
     PrintScatterWithInOnlineChunkServer();
     PrintScatterWithInLogicalPool();
@@ -1068,7 +1063,7 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_copysetRebalance_2) 
     int removeOne = 0;
     do {
         removeOne = copySetScheduler_->Schedule();
-        ApplyOperatorsInOpController(removeOne);
+        ApplyOperatorsInOpController(std::set<ChunkServerIdType>{removeOne});
     } while (removeOne > 0);
     PrintScatterWithInLogicalPool();
     PrintCopySetNumInLogicalPool();
@@ -1086,14 +1081,14 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
 
     // 1. chunkserver offline后恢复
     BuilRecoverScheduler(1);
-    std::vector<ChunkServerIdType> idlist;
-       std::vector<ChunkServerIdType> origin;
+    std::set<ChunkServerIdType> idlist;
+    std::vector<ChunkServerIdType> origin;
     for (int i = 0; i < 6; i++) {
         origin.emplace_back(0);
     }
 
     origin[0] = RandomOfflineOneChunkServer();
-    idlist.emplace_back(origin[0]);
+    idlist.emplace(origin[0]);
 
     // 3. 生成operator直到choose上没有copyset为止
     do {
@@ -1102,8 +1097,9 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
         for (int i = 1; i < 6; i++) {
             if (origin[i] == 0) {
                 origin[i] = RandomOfflineOneChunkServer();
-                idlist.emplace_back(origin[i]);
-                ApplyOperatorsInOpController(idlist);
+                idlist.emplace(origin[i]);
+                ApplyOperatorsInOpController(
+                    std::set<ChunkServerIdType>{idlist});
                 break;
             }
         }
@@ -1138,7 +1134,8 @@ TEST_F(CopysetSchedulerPOC, test_scatterwith_after_copysetRebalance_3) { //NOLIN
     do {
         removeOne = copySetScheduler_->Schedule();
         if (removeOne > 0) {
-            ApplyOperatorsInOpController(removeOne);
+            ApplyOperatorsInOpController(
+                std::set<ChunkServerIdType>{removeOne});
         }
     } while (removeOne > 0);
     PrintScatterWithInLogicalPool();

@@ -151,7 +151,6 @@ class Heartbeat {
     // 使用定时器
     ::curve::common::WaitInterval waitInterval_;
 
-
     // Copyset管理模块
     CopysetNodeManager* copysetMan_;
 
