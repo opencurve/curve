@@ -38,18 +38,25 @@ class Scheduler {
      * @param[in] transTimeLimitSec leader变更mds端认为的超时时间
      * @param[in] removeTimeLimitSec 减一个副本mds端认为的超时时间
      * @param[in] addTimeLimtSec 增加一个副本mds端认为的超时时间
+     * @param[in] changeTimeLimitSec change一个副本mds端认为的超时时间
      * @param[in] scatterWithRangePerent scatter-width不能超过
      *            (1 + scatterWithRangePerent) * minScatterWdith
      * @param[in] topo 提供拓扑逻辑信息
      * @param[in] opController operator管理模块
      */
-    Scheduler(int transTimeLimitSec, int removeTimeLimitSec, int addTimeLimtSec,
+    Scheduler(
+        int transTimeLimitSec,
+        int removeTimeLimitSec,
+        int addTimeLimtSec,
+        int changeTimeLimitSec,
         float scatterWidthRangePerent,
         const std::shared_ptr<TopoAdapter> &topo,
         const std::shared_ptr<OperatorController> &opController) {
         this->transTimeSec_ = transTimeLimitSec;
         this->removeTimeSec_ = removeTimeLimitSec;
+        this->changeTimeSec_ = changeTimeLimitSec;
         this->addTimeSec_ = addTimeLimtSec;
+
         this->scatterWidthRangePerent_ = scatterWidthRangePerent;
         this->topo_ = topo;
         this->opController_ = opController;
@@ -120,6 +127,8 @@ class Scheduler {
     int addTimeSec_;
     // remove peer的最大预计时间，超过需要报警
     int removeTimeSec_;
+    // change peer的最大预计时间，超过需要报警
+    int changeTimeSec_;
 };
 
 // copyset数量和chunkserver scatter-with均衡
@@ -144,11 +153,12 @@ class CopySetScheduler : public Scheduler {
                     int transTimeLimitSec,
                     int removeTimeLimitSec,
                     int addTimeLimitSec,
+                    int changeTimeLimitSec,
                     float copysetNumRangePercent,
                     float scatterWithRangePerent,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWithRangePerent, topo, opController) {
+            changeTimeLimitSec, scatterWithRangePerent, topo, opController) {
         this->runInterval_ = interSec;
         this->copysetNumRangePercent_ = copysetNumRangePercent;
     }
@@ -250,10 +260,11 @@ class LeaderScheduler : public Scheduler {
                     int transTimeLimitSec,
                     int addTimeLimitSec,
                     int removeTimeLimitSec,
+                    int changeTimeLimitSec,
                     float scatterWidthRangePerent,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWidthRangePerent, topo, opController) {
+            changeTimeLimitSec, scatterWidthRangePerent, topo, opController) {
         this->runInterval_ = interSec;
         this->chunkserverCoolingTimeSec_ = chunkserverCoolingTimeSec;
     }
@@ -349,11 +360,12 @@ class RecoverScheduler : public Scheduler {
                     int transTimeLimitSec,
                     int removeTimeLimitSec,
                     int addTimeLimitSec,
+                    int changeTimeLimitSec,
                     float scatterWithRangePerent,
                     int chunkserverFailureTolerance,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWithRangePerent, topo, opController) {
+            changeTimeLimitSec, scatterWithRangePerent, topo, opController) {
         this->runInterval_ = interSec;
         this->chunkserverFailureTolerance_ = chunkserverFailureTolerance;
     }
@@ -421,10 +433,11 @@ class ReplicaScheduler : public Scheduler {
                    int transTimeLimitSec,
                    int removeTimeLimitSec,
                    int addTimeLimitSec,
+                   int changeTimeLimitSec,
                    float scatterWidthRangePerent,
                    const std::shared_ptr<TopoAdapter> &topo)
       : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-        scatterWidthRangePerent, topo, opController) {
+            changeTimeLimitSec, scatterWidthRangePerent, topo, opController) {
     this->opController_ = opController;
     this->runInterval_ = interSec;
     }

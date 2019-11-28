@@ -71,6 +71,7 @@ struct CopySetConf {
     std::vector<PeerInfo> peers;
     ConfigChangeType type;
     ChunkServerIdType configChangeItem;
+    ChunkServerIdType oldOne;
 };
 
 struct CopySetInfo {

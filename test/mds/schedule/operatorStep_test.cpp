@@ -215,6 +215,74 @@ TEST(OperatorStepTest, OperatorStepTest_RemovePeer_Test) {
     ASSERT_EQ(ApplyStatus::Failed,
               removePeer->Apply(testCopySetInfo, &copySetConf));
 }
+
+TEST(OperatorStepTest, OperatorStepTest_ChangePeer_Test) {
+    auto originCopySetInfo = GetCopySetInfoForTest();
+    std::shared_ptr<OperatorStep>
+        changePeer = std::make_shared<ChangePeer>(3, 4);
+
+    CopySetConf copySetConf;
+    // 1. change peer还未开始
+    {
+        ASSERT_EQ(ApplyStatus::Ordered,
+            changePeer->Apply(originCopySetInfo, &copySetConf));
+        ASSERT_EQ(4, copySetConf.configChangeItem);
+        ASSERT_EQ(3, copySetConf.oldOne);
+        ASSERT_EQ(ConfigChangeType::CHANGE_PEER, copySetConf.type);
+    }
+
+    auto testCopySetInfo = originCopySetInfo;
+    // 2. change peer完成
+    {
+        auto testCopySetInfo = originCopySetInfo;
+        testCopySetInfo.peers.erase(testCopySetInfo.peers.begin() + 2);
+        testCopySetInfo.peers.emplace_back(
+        PeerInfo(4, 3, 4, "192.168.10.4", 9000));
+        ASSERT_EQ(ApplyStatus::Finished,
+              changePeer->Apply(testCopySetInfo, &copySetConf));
+    }
+
+    // 3. change peer失败
+    {
+        testCopySetInfo = originCopySetInfo;
+        testCopySetInfo.candidatePeerInfo = PeerInfo(4, 1, 1, "", 9000);
+        auto replica = new ::curve::common::Peer();
+        replica->set_id(4);
+        replica->set_address("192.10.12.4:9000:0");
+        testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
+        testCopySetInfo.configChangeInfo.set_type(
+            ConfigChangeType::CHANGE_PEER);
+        testCopySetInfo.configChangeInfo.set_finished(false);
+        std::string *errMsg = new std::string("add peer failed");
+        CandidateError *candidateError = new CandidateError();
+        candidateError->set_errtype(2);
+        candidateError->set_allocated_errmsg(errMsg);
+        testCopySetInfo.configChangeInfo.set_allocated_err(candidateError);
+        ASSERT_EQ(ApplyStatus::Failed,
+              changePeer->Apply(testCopySetInfo, &copySetConf));
+    }
+
+    // 4. 上报未完成
+    {
+        testCopySetInfo.configChangeInfo.set_finished(false);
+        testCopySetInfo.configChangeInfo.release_err();
+        ASSERT_EQ(ApplyStatus::OnGoing,
+              changePeer->Apply(testCopySetInfo, &copySetConf));
+    }
+
+    // 5. 上报的变更类型和mds中的oprator不相符合
+    {
+        testCopySetInfo.configChangeInfo.set_type(ConfigChangeType::ADD_PEER);
+        testCopySetInfo.configChangeInfo.set_finished(true);
+        testCopySetInfo.candidatePeerInfo = PeerInfo(5, 1, 1, "", 9000);
+        auto replica = new ::curve::common::Peer();
+        replica->set_id(5);
+        replica->set_address("192.10.12.5:9000:0");
+        testCopySetInfo.configChangeInfo.set_allocated_peer(replica);
+        ASSERT_EQ(ApplyStatus::Failed,
+                changePeer->Apply(testCopySetInfo, &copySetConf));
+    }
+}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

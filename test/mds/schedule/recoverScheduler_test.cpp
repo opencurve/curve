@@ -40,7 +40,7 @@ class TestRecoverSheduler : public ::testing::Test {
         int64_t runInterval = 1;
         recoverScheduler_ =
             std::make_shared<RecoverScheduler>(opController_, runInterval,
-                10, 100, 1000, 0.2, 3, topoAdapter_);
+                10, 100, 1000, 1000, 0.2, 3, topoAdapter_);
     }
     void TearDown() override {
         opController_ = nullptr;
@@ -270,7 +270,8 @@ TEST_F(TestRecoverSheduler, test_all_chunkServer_online_offline) {
         recoverScheduler_->Schedule();
         ASSERT_TRUE(opController_->GetOperatorById(testCopySetInfo.id, &op));
         ASSERT_TRUE(
-            dynamic_cast<AddPeer *>(op.step.get()) != nullptr);
+            dynamic_cast<ChangePeer *>(op.step.get()) != nullptr);
+        ASSERT_EQ(4, op.step.get()->GetTargetPeer());
         ASSERT_EQ(std::chrono::seconds(1000), op.timeLimit);
     }
 
