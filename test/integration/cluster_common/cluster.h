@@ -69,6 +69,7 @@ class CurveCluster {
      *
      * @param[in] id mdsId
      * @param[in] ipPort 指定mds的ipPort
+     * @param expectAssert是否期望使用assert判断
      * @param[in] mdsConf mds启动参数项, 示例：
      *   const std::vector<std::string> mdsConf{
             {" --graceful_quit_on_sigterm"},
@@ -77,7 +78,8 @@ class CurveCluster {
      * @pram[in] expectLeader 是否希望成为leader
      */
     void StartSingleMDS(int id, const std::string &ipPort,
-        const std::vector<std::string> &mdsConf, bool expectLeader);
+                        const std::vector<std::string> &mdsConf,
+                        bool expectLeader, bool expectAssert = true);
 
     /**
      * StopMDS 停止指定id的mds
@@ -201,7 +203,7 @@ class CurveCluster {
     /**
      * RecoverHangMDS 恢复hang住的mds进程
      */
-    void RecoverHangMDS(int id);
+    void RecoverHangMDS(int id, bool expectOK = true);
 
     /**
      * HangEtcd hang住指定etcd进程
@@ -276,8 +278,9 @@ class CurveCluster {
      * RecoverHangProcess 恢复hang住的进程
      *
      * @param pid 进程id
+     * @param expected是否期望使用ASSERT判断
      */
-    void RecoverHangProcess(pid_t pid);
+    void RecoverHangProcess(pid_t pid, bool expected);
 
  private:
     // 网络号
