@@ -217,7 +217,7 @@ def destroy_snapshotclone_server():
 def initial_chunkserver(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     try:
-        kill_cmd = "sudo ./chunkserver_stop.sh all"
+        kill_cmd = "ps -ef|grep -v grep | grep -w chunkserver |grep -v sudo | awk '{print $2}' | sudo xargs kill -9"
         logger.debug("stop host %s chunkserver" % host)
         rs = shell_operator.ssh_exec(ssh, kill_cmd)
 #        assert rs[3] == 0
