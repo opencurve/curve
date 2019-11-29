@@ -71,7 +71,7 @@ TEST_F(FileLockManagerTest, Basic) {
 }
 
 TEST_F(FileLockManagerTest, RandomReadWriteLock) {
-    std::vector<std::thread> threads;
+    std::vector<common::Thread> threads;
     std::srand(std::time(nullptr));
     std::string filePath = "/home/dir1/file1";
     for (int i = 0; i < 10; i++) {
@@ -94,7 +94,7 @@ TEST_F(FileLockManagerTest, RandomReadWriteLock) {
 
 TEST_F(FileLockManagerTest, UnlockInAnotherThread) {
     std::string filePath = "/home/dir1/file1";
-    std::thread t1(std::bind(WriteLock, filePath, false));
+    common::Thread t1(std::bind(WriteLock, filePath, false));
     // wait for task to be executed
     t1.join();
     Unlock(filePath);

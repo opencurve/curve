@@ -454,7 +454,7 @@ bool SessionManager::Init(const struct SessionOptions &sessionOptions) {
 }
 
 void SessionManager::Start() {
-    scanThread = new std::thread(&SessionManager::SessionScanFunc, this);
+    scanThread = new common::Thread(&SessionManager::SessionScanFunc, this);
     return;
 }
 
@@ -544,7 +544,7 @@ void SessionManager::SessionScanFunc() {
         HandleDeleteSessionList();
 
         // 3、睡眠一段时间
-        std::unique_lock<std::mutex> lk(exitmtx_);
+        common::UniqueLock lk(exitmtx_);
         exitcv_.wait_for(lk, std::chrono::microseconds(intevalTime_),
                          [&]()->bool{ return sessionScanStop_;});
     }

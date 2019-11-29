@@ -27,381 +27,394 @@ typedef uint16_t LogicalPoolIDType;
 typedef uint16_t PhysicalPoolIDType;
 typedef uint32_t CopySetIDType;
 
+struct ClusterInfoRepoItem : public RepoItem {
+    std::string clusterId;
+
+    ClusterInfoRepoItem() = default;
+    explicit ClusterInfoRepoItem(const std::string &clusterId)
+    : clusterId(clusterId) {}
+
+    void getKV(std::map<std::string, std::string> *kv) const override;
+
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
+
+    std::string getTable() const override;
+};
+
 struct ChunkServerRepoItem : public RepoItem {
- public:
-  uint32_t chunkServerID;
-  std::string token;
-  std::string diskType;
-  std::string internalHostIP;
-  uint32_t port;
-  uint32_t serverID;
-  uint8_t rwstatus;
-  uint8_t diskState;
-  uint8_t onlineState;
-  std::string mountPoint;
-  int64_t capacity;
-  int64_t used;
+    uint32_t chunkServerID;
+    std::string token;
+    std::string diskType;
+    std::string internalHostIP;
+    uint32_t port;
+    uint32_t serverID;
+    uint8_t rwstatus;
+    uint8_t diskState;
+    uint8_t onlineState;
+    std::string mountPoint;
+    int64_t capacity;
+    int64_t used;
 
- public:
-  ChunkServerRepoItem() = default;
+    ChunkServerRepoItem() = default;
 
-  explicit ChunkServerRepoItem(uint32_t id);
+    explicit ChunkServerRepoItem(uint32_t id);
 
-  ChunkServerRepoItem(uint32_t id,
-                  const std::string &token,
-                  const std::string &diskType,
-                  const std::string &ip,
-                  uint32_t port,
-                  uint32_t serverID,
-                  uint8_t status,
-                  uint8_t diskState,
-                  uint8_t onlineState,
-                  const std::string &mountPoint,
-                  int64_t diskCapacity,
-                  int64_t diskUsed);
+    ChunkServerRepoItem(uint32_t id,
+                        const std::string &token,
+                        const std::string &diskType,
+                        const std::string &ip,
+                        uint32_t port,
+                        uint32_t serverID,
+                        uint8_t status,
+                        uint8_t diskState,
+                        uint8_t onlineState,
+                        const std::string &mountPoint,
+                        int64_t diskCapacity,
+                        int64_t diskUsed);
 
-  bool operator==(const ChunkServerRepoItem &r);
+    bool operator==(const ChunkServerRepoItem &r);
 
-  void getKV(std::map<std::string, std::string> *kv) const override;
+    void getKV(std::map<std::string, std::string> *kv) const override;
 
-  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
 
-  std::string getTable() const override;
+    std::string getTable() const override;
 };
 
 struct ServerRepoItem : public RepoItem {
- public:
-  uint32_t serverID;
-  std::string hostName;
-  std::string internalHostIP;
-  uint32_t internalPort;
-  std::string externalHostIP;
-  uint32_t externalPort;
-  uint16_t zoneID;
-  uint16_t poolID;
-  std::string desc;
+    uint32_t serverID;
+    std::string hostName;
+    std::string internalHostIP;
+    uint32_t internalPort;
+    std::string externalHostIP;
+    uint32_t externalPort;
+    uint16_t zoneID;
+    uint16_t poolID;
+    std::string desc;
 
- public:
-  ServerRepoItem() = default;
+    ServerRepoItem() = default;
 
-  explicit ServerRepoItem(uint32_t id);
+    explicit ServerRepoItem(uint32_t id);
 
-  ServerRepoItem(uint32_t id,
-                const std::string &host,
-                const std::string &inIp,
-                uint32_t inPort,
-                const std::string &exIp,
-                uint32_t exPort,
-                uint16_t zoneID,
-                uint16_t poolID,
-                const std::string &desc);
+    ServerRepoItem(uint32_t id,
+                   const std::string &host,
+                   const std::string &inIp,
+                   uint32_t inPort,
+                   const std::string &exIp,
+                   uint32_t exPort,
+                   uint16_t zoneID,
+                   uint16_t poolID,
+                   const std::string &desc);
 
-  bool operator==(const ServerRepoItem &s);
+    bool operator==(const ServerRepoItem &s);
 
-  void getKV(std::map<std::string, std::string> *kv) const override;
+    void getKV(std::map<std::string, std::string> *kv) const override;
 
-  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
 
-  std::string getTable() const override;
+    std::string getTable() const override;
 };
 
 struct ZoneRepoItem : public RepoItem {
- public:
-  uint32_t zoneID;
-  std::string zoneName;
-  uint16_t poolID;
-  std::string desc;
+    uint32_t zoneID;
+    std::string zoneName;
+    uint16_t poolID;
+    std::string desc;
 
- public:
-  ZoneRepoItem() = default;
+    ZoneRepoItem() = default;
 
-  explicit ZoneRepoItem(uint32_t id);
+    explicit ZoneRepoItem(uint32_t id);
 
-  ZoneRepoItem(uint32_t zoneID,
-           const std::string &name,
-           uint16_t poolID,
-           const std::string &desc);
+    ZoneRepoItem(uint32_t zoneID,
+                 const std::string &name,
+                 uint16_t poolID,
+                 const std::string &desc);
 
-  bool operator==(const ZoneRepoItem &r);
+    bool operator==(const ZoneRepoItem &r);
 
-  void getKV(std::map<std::string, std::string> *kv) const override;
+    void getKV(std::map<std::string, std::string> *kv) const override;
 
-  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
 
-  std::string getTable() const override;
+    std::string getTable() const override;
 };
 
 struct LogicalPoolRepoItem : public RepoItem {
- public:
-  uint16_t logicalPoolID;
-  std::string logicalPoolName;
-  uint16_t physicalPoolID;
-  uint8_t type;
-  uint32_t initialScatterWidth;
-  int64_t createTime;
-  uint8_t status;
-  std::string redundanceAndPlacementPolicy;
-  std::string userPolicy;
-  bool availFlag;;
+    uint16_t logicalPoolID;
+    std::string logicalPoolName;
+    uint16_t physicalPoolID;
+    uint8_t type;
+    uint32_t initialScatterWidth;
+    int64_t createTime;
+    uint8_t status;
+    std::string redundanceAndPlacementPolicy;
+    std::string userPolicy;
+    bool availFlag;;
 
- public:
-  LogicalPoolRepoItem() = default;
+    LogicalPoolRepoItem() = default;
 
-  explicit LogicalPoolRepoItem(uint16_t id);
+    explicit LogicalPoolRepoItem(uint16_t id);
 
-  LogicalPoolRepoItem(uint16_t logicalID,
-                  const std::string &logicalName,
-                  uint16_t physicalID,
-                  uint8_t type,
-                  uint32_t initialScatterWidth,
-                  int64_t createTime,
-                  uint8_t status,
-                  const std::string &reduancePolicy,
-                  const std::string &userPolicy,
-                  bool availFlag);
+    LogicalPoolRepoItem(uint16_t logicalID,
+                        const std::string &logicalName,
+                        uint16_t physicalID,
+                        uint8_t type,
+                        uint32_t initialScatterWidth,
+                        int64_t createTime,
+                        uint8_t status,
+                        const std::string &reduancePolicy,
+                        const std::string &userPolicy,
+                        bool availFlag);
 
-  bool operator==(const LogicalPoolRepoItem &r);
+    bool operator==(const LogicalPoolRepoItem &r);
 
-  void getKV(std::map<std::string, std::string> *kv) const override;
+    void getKV(std::map<std::string, std::string> *kv) const override;
 
-  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
 
-  std::string getTable() const override;
+    std::string getTable() const override;
 };
 
 struct PhysicalPoolRepoItem : public RepoItem {
-  uint16_t physicalPoolID;
-  std::string physicalPoolName;
-  std::string desc;
+    uint16_t physicalPoolID;
+    std::string physicalPoolName;
+    std::string desc;
 
- public:
-  PhysicalPoolRepoItem() = default;
+    PhysicalPoolRepoItem() = default;
 
-  explicit PhysicalPoolRepoItem(uint16_t id);
+    explicit PhysicalPoolRepoItem(uint16_t id);
 
-  PhysicalPoolRepoItem(uint16_t id,
-                   const std::string &name,
-                   const std::string &desc);
+    PhysicalPoolRepoItem(uint16_t id,
+                         const std::string &name,
+                         const std::string &desc);
 
-  bool operator==(const PhysicalPoolRepoItem &r);
+    bool operator==(const PhysicalPoolRepoItem &r);
 
- public:
-  void getKV(std::map<std::string, std::string> *kv) const override;
+    void getKV(std::map<std::string, std::string> *kv) const override;
 
-  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
 
-  std::string getTable() const override;
+    std::string getTable() const override;
 };
 
 struct CopySetRepoItem : public RepoItem {
- public:
-  uint32_t copySetID;
-  uint16_t logicalPoolID;
-  uint64_t epoch;
-  std::string chunkServerIDList;
+    uint32_t copySetID;
+    uint16_t logicalPoolID;
+    uint64_t epoch;
+    std::string chunkServerIDList;
 
- public:
-  CopySetRepoItem() = default;
+    CopySetRepoItem() = default;
 
-  CopySetRepoItem(uint32_t id, uint16_t logicalPoolID);
+    CopySetRepoItem(uint32_t id, uint16_t logicalPoolID);
 
-  CopySetRepoItem(uint32_t id, uint16_t poolID,
-                  const std::string &chunkServerList);
+    CopySetRepoItem(uint32_t id, uint16_t poolID,
+                    const std::string &chunkServerList);
 
-  CopySetRepoItem(uint32_t id,
-              uint16_t poolID,
-              uint64_t epoch,
-              const std::string &chunkServerList);
+    CopySetRepoItem(uint32_t id,
+                    uint16_t poolID,
+                    uint64_t epoch,
+                    const std::string &chunkServerList);
 
-  bool operator==(const CopySetRepoItem &r);
+    bool operator==(const CopySetRepoItem &r);
 
-  void getKV(std::map<std::string, std::string> *kv) const override;
+    void getKV(std::map<std::string, std::string> *kv) const override;
 
-  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
 
-  std::string getTable() const override;
+    std::string getTable() const override;
 };
 
 struct SessionRepoItem : public RepoItem {
- public:
-  uint32_t entryID;
-  std::string sessionID;
-  std::string fileName;
-  uint32_t leaseTime;
-  uint16_t sessionStatus;
-  uint64_t createTime;
-  uint64_t updateTime;
-  std::string clientIP;
+    uint32_t entryID;
+    std::string sessionID;
+    std::string fileName;
+    uint32_t leaseTime;
+    uint16_t sessionStatus;
+    uint64_t createTime;
+    uint64_t updateTime;
+    std::string clientIP;
 
- public:
-  SessionRepoItem() = default;
+    SessionRepoItem() = default;
 
-  SessionRepoItem(std::string fileName, std::string sessionID,
-              uint32_t leaseTime,
-              uint16_t sessionStatus, uint64_t createTime,
-              std::string clientIP);
+    SessionRepoItem(std::string fileName, std::string sessionID,
+                    uint32_t leaseTime,
+                    uint16_t sessionStatus, uint64_t createTime,
+                    std::string clientIP);
 
-  explicit SessionRepoItem(std::string sessionID);
+    explicit SessionRepoItem(std::string sessionID);
 
-  bool operator==(const SessionRepoItem &r);
+    bool operator==(const SessionRepoItem &r);
 
-  void getKV(std::map<std::string, std::string> *kv) const override;
+    void getKV(std::map<std::string, std::string> *kv) const override;
 
-  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
 
-  std::string getTable() const override;
+    std::string getTable() const override;
 
-  uint16_t GetSessionStatus();
+    uint16_t GetSessionStatus();
 
-  void SetSessionStatus(uint16_t sessionStatus);
+    void SetSessionStatus(uint16_t sessionStatus);
 };
 
 struct ClientInfoRepoItem : public RepoItem {
- public:
-  std::string clientIp;
-  uint32_t clientPort;
+    std::string clientIp;
+    uint32_t clientPort;
 
- public:
-  ClientInfoRepoItem() = default;
+    ClientInfoRepoItem() = default;
 
-  ClientInfoRepoItem(const std::string &clientIp, uint32_t clientPort);
+    ClientInfoRepoItem(const std::string &clientIp, uint32_t clientPort);
 
-  bool operator==(const ClientInfoRepoItem &r);
+    bool operator==(const ClientInfoRepoItem &r);
 
-  void getKV(std::map<std::string, std::string> *kv) const override;
+    void getKV(std::map<std::string, std::string> *kv) const override;
 
-  void getPrimaryKV(std::map<std::string, std::string> *primary) const override;
+    void getPrimaryKV(
+        std::map<std::string, std::string> *primary) const override;
 
-  std::string getTable() const override;
+    std::string getTable() const override;
 
-  std::string GetClientIp();
+    std::string GetClientIp();
 
-  uint32_t GetClientPort();
+    uint32_t GetClientPort();
 };
 
 class MdsRepo : public RepoInterface {
  public:
-  // constructor: open db
-  // destructtor: close db
-  MdsRepo() = default;
+    // constructor: open db
+    // destructtor: close db
+    MdsRepo() = default;
 
-  ~MdsRepo() {}
+    ~MdsRepo() {}
 
-  int connectDB(const std::string &dbName, const std::string &user,
-                const std::string &url, const std::string &password,
-                uint32_t poolSize) override;
+    int connectDB(const std::string &dbName, const std::string &user,
+                  const std::string &url, const std::string &password,
+                  uint32_t poolSize) override;
 
-  int createAllTables() override;
+    int createAllTables() override;
 
-  int createDatabase() override;
+    int createDatabase() override;
 
-  int useDataBase() override;
+    int useDataBase() override;
 
-  int dropDataBase() override;
+    int dropDataBase() override;
 
-  std::shared_ptr<curve::repo::DataBase> getDataBase();
+    std::shared_ptr<curve::repo::DataBase> getDataBase();
 
-  // chunkServerRepo operation
-  virtual int InsertChunkServerRepoItem(const ChunkServerRepoItem &cr);
+    // chunkServerRepo operation
+    virtual int InsertChunkServerRepoItem(const ChunkServerRepoItem &cr);
 
-  virtual int LoadChunkServerRepoItems(
-      std::vector<ChunkServerRepoItem> *chunkServerRepoList);
+    virtual int LoadChunkServerRepoItems(
+        std::vector<ChunkServerRepoItem> *chunkServerRepoList);
 
-  virtual int DeleteChunkServerRepoItem(ChunkServerIDType id);
+    virtual int DeleteChunkServerRepoItem(ChunkServerIDType id);
 
-  virtual int UpdateChunkServerRepoItem(const ChunkServerRepoItem &cr);
+    virtual int UpdateChunkServerRepoItem(const ChunkServerRepoItem &cr);
 
-  virtual int QueryChunkServerRepoItem(ChunkServerIDType id,
-                           ChunkServerRepoItem *repo);
+    virtual int QueryChunkServerRepoItem(ChunkServerIDType id,
+                                         ChunkServerRepoItem *repo);
 
-  // server operation
-  virtual int InsertServerRepoItem(const ServerRepoItem &sr);
+    // server operation
+    virtual int InsertServerRepoItem(const ServerRepoItem &sr);
 
-  virtual int LoadServerRepoItems(std::vector<ServerRepoItem> *serverList);
+    virtual int LoadServerRepoItems(std::vector<ServerRepoItem> *serverList);
 
-  virtual int DeleteServerRepoItem(ServerIDType id);
+    virtual int DeleteServerRepoItem(ServerIDType id);
 
-  virtual int UpdateServerRepoItem(const ServerRepoItem &sr);
+    virtual int UpdateServerRepoItem(const ServerRepoItem &sr);
 
-  virtual int QueryServerRepoItem(ServerIDType id, ServerRepoItem *repo);
+    virtual int QueryServerRepoItem(ServerIDType id, ServerRepoItem *repo);
 
-  // zone operation
-  virtual int InsertZoneRepoItem(const ZoneRepoItem &zr);
+    // zone operation
+    virtual int InsertZoneRepoItem(const ZoneRepoItem &zr);
 
-  virtual int LoadZoneRepoItems(std::vector<ZoneRepoItem> *zonevector);
+    virtual int LoadZoneRepoItems(std::vector<ZoneRepoItem> *zonevector);
 
-  virtual int DeleteZoneRepoItem(ZoneIDType id);
+    virtual int DeleteZoneRepoItem(ZoneIDType id);
 
-  virtual int UpdateZoneRepoItem(const ZoneRepoItem &zr);
+    virtual int UpdateZoneRepoItem(const ZoneRepoItem &zr);
 
-  virtual int QueryZoneRepoItem(ZoneIDType id, ZoneRepoItem *repo);
+    virtual int QueryZoneRepoItem(ZoneIDType id, ZoneRepoItem *repo);
 
-  // physical pool operation
-  virtual int InsertPhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr);
+    // physical pool operation
+    virtual int InsertPhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr);
 
-  virtual int LoadPhysicalPoolRepoItems(
-      std::vector<PhysicalPoolRepoItem> *physicalPoolvector);
+    virtual int LoadPhysicalPoolRepoItems(
+        std::vector<PhysicalPoolRepoItem> *physicalPoolvector);
 
-  virtual int DeletePhysicalPoolRepoItem(PhysicalPoolIDType id);
+    virtual int DeletePhysicalPoolRepoItem(PhysicalPoolIDType id);
 
-  virtual int UpdatePhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr);
+    virtual int UpdatePhysicalPoolRepoItem(const PhysicalPoolRepoItem &pr);
 
-  virtual int QueryPhysicalPoolRepoItem(PhysicalPoolIDType id,
-                            PhysicalPoolRepoItem *repo);
+    virtual int QueryPhysicalPoolRepoItem(PhysicalPoolIDType id,
+                                          PhysicalPoolRepoItem *repo);
 
-  // logical pool operation
-  virtual int InsertLogicalPoolRepoItem(const LogicalPoolRepoItem &lr);
+    // logical pool operation
+    virtual int InsertLogicalPoolRepoItem(const LogicalPoolRepoItem &lr);
 
-  virtual int LoadLogicalPoolRepoItems(
-      std::vector<LogicalPoolRepoItem> *logicalPoolList);
+    virtual int LoadLogicalPoolRepoItems(
+        std::vector<LogicalPoolRepoItem> *logicalPoolList);
 
-  virtual int DeleteLogicalPoolRepoItem(LogicalPoolIDType id);
+    virtual int DeleteLogicalPoolRepoItem(LogicalPoolIDType id);
 
-  virtual int UpdateLogicalPoolRepoItem(const LogicalPoolRepoItem &lr);
+    virtual int UpdateLogicalPoolRepoItem(const LogicalPoolRepoItem &lr);
 
-  virtual int QueryLogicalPoolRepoItem(LogicalPoolIDType id,
-                           LogicalPoolRepoItem *repo);
+    virtual int QueryLogicalPoolRepoItem(LogicalPoolIDType id,
+                                         LogicalPoolRepoItem *repo);
 
-  // copyset operation
-  virtual int InsertCopySetRepoItem(const CopySetRepoItem &cr);
+    // copyset operation
+    virtual int InsertCopySetRepoItem(const CopySetRepoItem &cr);
 
-  virtual int LoadCopySetRepoItems(std::vector<CopySetRepoItem> *copySetList);
+    virtual int LoadCopySetRepoItems(std::vector<CopySetRepoItem> *copySetList);
 
-  virtual int DeleteCopySetRepoItem(CopySetIDType id, LogicalPoolIDType lid);
+    virtual int DeleteCopySetRepoItem(CopySetIDType id, LogicalPoolIDType lid);
 
-  virtual int UpdateCopySetRepoItem(const CopySetRepoItem &cr);
+    virtual int UpdateCopySetRepoItem(const CopySetRepoItem &cr);
 
-  virtual int QueryCopySetRepoItem(CopySetIDType id,
-                       LogicalPoolIDType lid,
-                       CopySetRepoItem *repo);
+    virtual int QueryCopySetRepoItem(CopySetIDType id,
+                                     LogicalPoolIDType lid,
+                                     CopySetRepoItem *repo);
 
-  // session operation
-  virtual int InsertSessionRepoItem(const SessionRepoItem &r);
+    // session operation
+    virtual int InsertSessionRepoItem(const SessionRepoItem &r);
 
-  virtual int LoadSessionRepoItems(std::vector<SessionRepoItem> *sessionList);
+    virtual int LoadSessionRepoItems(std::vector<SessionRepoItem> *sessionList);
 
-  virtual int DeleteSessionRepoItem(const std::string &sessionID);
+    virtual int DeleteSessionRepoItem(const std::string &sessionID);
 
-  virtual int UpdateSessionRepoItem(const SessionRepoItem &r);
+    virtual int UpdateSessionRepoItem(const SessionRepoItem &r);
 
-  virtual int QuerySessionRepoItem(
-      const std::string &sessionID, SessionRepoItem *r);
+    virtual int QuerySessionRepoItem(
+        const std::string &sessionID, SessionRepoItem *r);
 
-  // client info operation
-  virtual int InsertClientInfoRepoItem(const ClientInfoRepoItem &r);
+    // client info operation
+    virtual int InsertClientInfoRepoItem(const ClientInfoRepoItem &r);
 
-  virtual int LoadClientInfoRepoItems(
-                       std::vector<ClientInfoRepoItem> *clientList);
+    virtual int LoadClientInfoRepoItems(
+        std::vector<ClientInfoRepoItem> *clientList);
 
-  virtual int DeleteClientInfoRepoItem(const std::string &clientIp,
-                                      uint32_t clientPort);
+    virtual int DeleteClientInfoRepoItem(const std::string &clientIp,
+                                         uint32_t clientPort);
 
-  virtual int QueryClientInfoRepoItem(const std::string &clientIp,
-                            uint32_t clientPort, ClientInfoRepoItem *r);
+    virtual int QueryClientInfoRepoItem(const std::string &clientIp,
+                                        uint32_t clientPort,
+                                        ClientInfoRepoItem *r);
+
+    virtual int InsertClusterInfoRepoItem(const ClusterInfoRepoItem &r);
+
+    virtual int LoadClusterInfoRepoItems(
+        std::vector<ClusterInfoRepoItem> *list);
 
  private:
-  std::shared_ptr<curve::repo::DataBase> db_;
-  std::string dbName_;
+    std::shared_ptr<curve::repo::DataBase> db_;
+    std::string dbName_;
 };
 }  // namespace mds
 }  // namespace curve

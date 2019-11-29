@@ -79,6 +79,7 @@ typedef struct LeaseOption {
  * @rpcTimeoutMs: 为每个rpc重试的标准配置时间
  * @maxTimeoutMS: 为指数退避策略中最大的超时时间
  * @maxStableChunkServerTimeoutTimes: 一个chunkserver连续超时请求的阈值, 超过之后会标记为unstable
+ * @maxRetryTimesBeforeConsiderSuspend: rpc重试超过这个次数后被认为是悬挂IO
  */
 typedef struct FailureRequestOption {
     uint64_t opRetryIntervalUs;
@@ -87,6 +88,7 @@ typedef struct FailureRequestOption {
     uint64_t maxTimeoutMS;
     uint64_t maxRetrySleepIntervalUs;
     uint64_t maxStableChunkServerTimeoutTimes;
+    uint64_t maxRetryTimesBeforeConsiderSuspend;
     FailureRequestOption() {
         maxRetrySleepIntervalUs = 64 * 1000 * 1000;
         opRetryIntervalUs = 200;
@@ -94,6 +96,7 @@ typedef struct FailureRequestOption {
         rpcTimeoutMs = 1000;
         maxTimeoutMS = 64000;
         maxStableChunkServerTimeoutTimes = 10;
+        maxRetryTimesBeforeConsiderSuspend = 20;
     }
 } FailureRequestOption_t;
 

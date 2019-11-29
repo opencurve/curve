@@ -28,7 +28,7 @@ enum class CloneStatus {
     recovering = 2,
     cleaning = 3,
     errorCleaning = 4,
-    error
+    error = 5,
 };
 
 enum class CloneFileType {
@@ -42,6 +42,7 @@ enum class CloneStep {
     kCreateCloneChunk,
     kCompleteCloneMeta,
     kRecoverChunk,
+    kChangeOwner,
     kRenameCloneFile,
     kCompleteCloneFile,
     kEnd
@@ -60,7 +61,7 @@ class CloneInfo {
           nextStep_(CloneStep::kCreateCloneFile),
           status_(CloneStatus::error) {}
 
-  CloneInfo(const std::string &taskId,
+  CloneInfo(const TaskIdType &taskId,
         const std::string &user,
         CloneTaskType type,
         const std::string &source,
@@ -80,7 +81,7 @@ class CloneInfo {
           nextStep_(CloneStep::kCreateCloneFile),
           status_(CloneStatus::cloning) {}
 
-  CloneInfo(const std::string &taskId,
+  CloneInfo(const TaskIdType &taskId,
         const std::string &user,
         CloneTaskType type,
         const std::string &source,
@@ -105,11 +106,11 @@ class CloneInfo {
           nextStep_(nextStep),
           status_(status) {}
 
-  std::string GetTaskId() const {
+  TaskIdType GetTaskId() const {
       return taskId_;
   }
 
-  void SetTaskId(const std::string &taskId) {
+  void SetTaskId(const TaskIdType &taskId) {
       taskId_ = taskId;
   }
 
@@ -202,7 +203,7 @@ class CloneInfo {
 
  private:
     // 任务Id
-    std::string  taskId_;
+    TaskIdType  taskId_;
     // 用户
     std::string user_;
     // 克隆或恢复
@@ -284,16 +285,32 @@ class SnapshotInfo {
         time_(time),
         status_(status) {}
 
+    void SetUuid(const UUID &uuid) {
+        uuid_ = uuid;
+    }
+
     UUID GetUuid() const {
         return uuid_;
+    }
+
+    void SetUser(const std::string &user) {
+        user_ = user;
     }
 
     std::string GetUser() const {
         return user_;
     }
 
+    void SetFileName(const std::string &fileName) {
+        fileName_ = fileName;
+    }
+
     std::string GetFileName() const {
         return fileName_;
+    }
+
+    void SetSnapshotName(const std::string &snapshotName) {
+        snapshotName_ = snapshotName;
     }
 
     std::string GetSnapshotName() const {
@@ -420,6 +437,14 @@ class SnapshotCloneMetaStore {
      * @return: 0 获取成功/ -1 获取失败
      */
     virtual int GetSnapshotList(std::vector<SnapshotInfo> *list) = 0;
+
+    /**
+     * @brief 获取快照总数
+     *
+     * @return 快照总数
+     */
+    virtual uint32_t GetSnapshotCount() = 0;
+
     /**
      * @brief 插入一条clone任务记录到metastore
      * @param clone记录信息
@@ -467,6 +492,7 @@ class DBSnapshotCloneMetaStore : public SnapshotCloneMetaStore{
     int GetSnapshotList(const std::string &filename,
                         std::vector<SnapshotInfo> *v) override;
     int GetSnapshotList(std::vector<SnapshotInfo> *list) override;
+    uint32_t GetSnapshotCount() override;
 
     int AddCloneInfo(const CloneInfo &cloneInfo) override;
 

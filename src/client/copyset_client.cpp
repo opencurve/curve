@@ -110,7 +110,7 @@ int CopysetClient::ReadChunk(ChunkIDInfo idinfo,
     butil::EndPoint leaderAddr;
 
     while (reqclosure->GetRetriedTimes() <
-          iosenderopt_.failRequestOpt.opMaxRetry) {
+           iosenderopt_.failRequestOpt.opMaxRetry) {
         reqclosure->IncremRetriedTimes();
         if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
                                     &leaderId, &leaderAddr)) {
@@ -183,7 +183,7 @@ int CopysetClient::WriteChunk(ChunkIDInfo idinfo,
     }
 
     while (reqclosure->GetRetriedTimes() <
-         iosenderopt_.failRequestOpt.opMaxRetry) {
+           iosenderopt_.failRequestOpt.opMaxRetry) {
         reqclosure->IncremRetriedTimes();
         if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
                                     &leaderId, &leaderAddr)) {
@@ -216,16 +216,17 @@ int CopysetClient::ReadChunkSnapshot(ChunkIDInfo idinfo,
                                      uint64_t sn,
                                      off_t offset,
                                      size_t length,
-                                     Closure *done,
-                                     uint64_t retriedTimes) {
+                                     Closure *done) {
+    RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
     brpc::ClosureGuard doneGuard(done);
 
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
-    for (unsigned int i = retriedTimes;
-        i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
+    while (reqclosure->GetRetriedTimes() <
+           iosenderopt_.failRequestOpt.opMaxRetry) {
+        reqclosure->IncremRetriedTimes();
         if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
                                     &leaderId, &leaderAddr)) {
             bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
@@ -240,7 +241,6 @@ int CopysetClient::ReadChunkSnapshot(ChunkIDInfo idinfo,
             /* 如果建立连接成功 */
             ReadChunkSnapClosure *readDone =
                 new ReadChunkSnapClosure(this, doneGuard.release());
-            readDone->SetRetriedTimes(i);
             senderPtr->ReadChunkSnapshot(idinfo, sn, offset, length, readDone);
             /**
              * 成功发起 read snapshot，break出去，
@@ -260,16 +260,17 @@ int CopysetClient::ReadChunkSnapshot(ChunkIDInfo idinfo,
 
 int CopysetClient::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
                                                   uint64_t correctedSn,
-                                                  Closure *done,
-                                                  uint64_t retriedTimes) {
+                                                  Closure *done) {
+    RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
     brpc::ClosureGuard doneGuard(done);
 
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
-    for (unsigned int i = retriedTimes;
-         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
+    while (reqclosure->GetRetriedTimes() <
+           iosenderopt_.failRequestOpt.opMaxRetry) {
+        reqclosure->IncremRetriedTimes();
         if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
                                     &leaderId, &leaderAddr)) {
             bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
@@ -284,7 +285,6 @@ int CopysetClient::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
             /* 如果建立连接成功 */
             DeleteChunkSnapClosure *deleteDone =
                 new DeleteChunkSnapClosure(this, doneGuard.release());
-            deleteDone->SetRetriedTimes(i);
             senderPtr->DeleteChunkSnapshotOrCorrectSn(idinfo,
                                                       correctedSn,
                                                       deleteDone);
@@ -305,15 +305,17 @@ int CopysetClient::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
 }
 
 int CopysetClient::GetChunkInfo(ChunkIDInfo idinfo,
-                                Closure *done,
-                                uint64_t retriedTimes) {
+                                Closure *done) {
+    RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
+
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
     brpc::ClosureGuard doneGuard(done);
 
-    for (unsigned int i = retriedTimes;
-         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
+    while (reqclosure->GetRetriedTimes() <
+           iosenderopt_.failRequestOpt.opMaxRetry) {
+        reqclosure->IncremRetriedTimes();
         if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
                                     &leaderId, &leaderAddr)) {
             bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
@@ -326,7 +328,6 @@ int CopysetClient::GetChunkInfo(ChunkIDInfo idinfo,
         if (nullptr != senderPtr) {
             GetChunkInfoClosure *chunkInfoDone
                 = new GetChunkInfoClosure(this, doneGuard.release());
-            chunkInfoDone->SetRetriedTimes(i);
             senderPtr->GetChunkInfo(idinfo, chunkInfoDone);
             /* 成功发起，break出去，重试逻辑进入GetChunkInfoClosure回调 */
             break;
@@ -348,15 +349,17 @@ int CopysetClient::CreateCloneChunk(ChunkIDInfo idinfo,
                                     uint64_t sn,
                                     uint64_t correntSn,
                                     uint64_t chunkSize,
-                                    Closure *done,
-                                    uint64_t retriedTimes) {
+                                    Closure *done) {
+    RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
+
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
     brpc::ClosureGuard doneGuard(done);
 
-    for (unsigned int i = retriedTimes;
-         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
+    while (reqclosure->GetRetriedTimes() <
+           iosenderopt_.failRequestOpt.opMaxRetry) {
+        reqclosure->IncremRetriedTimes();
         if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
                                     &leaderId, &leaderAddr)) {
             bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
@@ -369,7 +372,6 @@ int CopysetClient::CreateCloneChunk(ChunkIDInfo idinfo,
         if (nullptr != senderPtr) {
             CreateCloneChunkClosure *createCloneDone
                 = new CreateCloneChunkClosure(this, doneGuard.release());
-            createCloneDone->SetRetriedTimes(i);
             senderPtr->CreateCloneChunk(idinfo,
                                     createCloneDone,
                                     location,
@@ -394,15 +396,17 @@ int CopysetClient::CreateCloneChunk(ChunkIDInfo idinfo,
 int CopysetClient::RecoverChunk(ChunkIDInfo idinfo,
                                     uint64_t offset,
                                     uint64_t len,
-                                    Closure *done,
-                                    uint64_t retriedTimes) {
+                                    Closure *done) {
+    RequestClosure* reqclosure = static_cast<RequestClosure*>(done);
+
     std::shared_ptr<RequestSender> senderPtr = nullptr;
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
     brpc::ClosureGuard doneGuard(done);
 
-    for (unsigned int i = retriedTimes;
-         i < iosenderopt_.failRequestOpt.opMaxRetry; ++i) {
+    while (reqclosure->GetRetriedTimes() <
+           iosenderopt_.failRequestOpt.opMaxRetry) {
+        reqclosure->IncremRetriedTimes();
         if (false == FetchLeader(idinfo.lpid_, idinfo.cpid_,
                                     &leaderId, &leaderAddr)) {
             bthread_usleep(iosenderopt_.failRequestOpt.opRetryIntervalUs);
@@ -415,7 +419,6 @@ int CopysetClient::RecoverChunk(ChunkIDInfo idinfo,
         if (nullptr != senderPtr) {
             RecoverChunkClosure *recoverChunkDone
                 = new RecoverChunkClosure(this, doneGuard.release());
-            recoverChunkDone->SetRetriedTimes(i);
             senderPtr->RecoverChunk(idinfo,
                                     recoverChunkDone,
                                     offset,

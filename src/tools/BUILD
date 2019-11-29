@@ -124,6 +124,7 @@ cc_binary(
         "//src/tools:curve_cli_lib",
         "//src/tools:consistency_check_lib",
         "//src/tools:copyset_check_lib",
+        "//src/tools:snapshot_tool_lib",
     ],
 )
 
@@ -162,6 +163,7 @@ cc_library(
         "//external:gflags",
         "//external:protobuf",
         "//proto:nameserver2_cc_proto",
+        "//proto:topology_cc_proto",
         "//src/common:curve_common",
         "//src/mds/common:mds_common",
         "//src/mds/nameserver2:nameserver2",
@@ -182,7 +184,31 @@ cc_library(
         "//external:brpc",
         "//external:braft",
         "//proto:topology_cc_proto",
+        "//proto:chunkserver-cc-protos",
         "//src/common:curve_common",
         "//src/mds/common:mds_common",
+    ],
+)
+
+cc_library(
+    name = "snapshot_tool_lib",
+    srcs = glob(
+        [
+            "snapshot_read.cpp",
+            "snapshot_read.h",
+            "snapshot_check.cpp",
+            "snapshot_check.h",
+        ],
+    ),
+    hdrs = glob(["snapshot_read.h", "snapshot_check.h"]),
+    copts = COPTS,
+    visibility = ["//visibility:public"],
+    deps = [
+        "//external:gflags",
+        "//external:protobuf",
+        "//proto:snapshotcloneserver_cc_proto",
+        "//src/snapshotcloneserver/dao:snapshotrepo",
+        "//src/common:curve_common",
+        "//src/client:curve_client",
     ],
 )

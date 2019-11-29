@@ -40,6 +40,32 @@ int SnapshotClient::Init(ClientConfigOption_t clientopt) {
     return ret;
 }
 
+int SnapshotClient::Init(const std::string& configpath) {
+    if (-1 == clientconfig_.Init(configpath.c_str())) {
+        LOG(ERROR) << "config init failed!";
+        return -LIBCURVE_ERROR::FAILED;
+    }
+
+    int ret = -LIBCURVE_ERROR::FAILED;
+    do {
+        if (mdsclient_.Initialize(
+            clientconfig_.GetFileServiceOption().metaServerOpt)
+            != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "MDSClient init failed!";
+            break;
+        }
+
+        if (!iomanager4chunk_.Initialize(
+            clientconfig_.GetFileServiceOption().ioOpt, &mdsclient_)) {
+            LOG(ERROR) << "Init io context manager failed!";
+            break;
+        }
+        ret = LIBCURVE_ERROR::OK;
+    } while (0);
+
+    return ret;
+}
+
 void SnapshotClient::UnInit() {
     iomanager4chunk_.UnInitialize();
     mdsclient_.UnInitialize();
@@ -63,15 +89,26 @@ int SnapshotClient::GetSnapShot(const std::string& filename,
                                         const UserInfo_t& userinfo,
                                         uint64_t seq,
                                         FInfo* snapinfo) {
-    LIBCURVE_ERROR ret = mdsclient_.GetSnapShot(filename, userinfo,
-                                                seq, snapinfo);
+    std::map<uint64_t, FInfo> infomap;
+    std::vector<uint64_t> seqvec;
+    seqvec.push_back(seq);
+    LIBCURVE_ERROR ret = mdsclient_.ListSnapShot(filename, userinfo,
+                                                 &seqvec, &infomap);
+    if (ret == LIBCURVE_ERROR::OK && !infomap.empty()) {
+        auto it = infomap.begin();
+        if (it->first != seq) {
+            LOG(ERROR) << "Snapshot info not found with seqnum = " << seq;
+            return -LIBCURVE_ERROR::NOTEXIST;
+        }
+        *snapinfo = it->second;
+    }
     return -ret;
 }
 
 int SnapshotClient::ListSnapShot(const std::string& filename,
                                         const UserInfo_t& userinfo,
                                         const std::vector<uint64_t>* seq,
-                                        std::vector<FInfo*>* snapif) {
+                                        std::map<uint64_t, FInfo>* snapif) {
     LIBCURVE_ERROR ret = mdsclient_.ListSnapShot(filename, userinfo,
                                                     seq, snapif);
     return -ret;
@@ -86,7 +123,7 @@ int SnapshotClient::GetSnapshotSegmentInfo(const std::string& filename,
                                         seq, offset, segInfo);
 
     if (ret != LIBCURVE_ERROR::OK) {
-        LOG(INFO) << "GetSnapshotSegmentInfo failed, ret = " << ret;
+        LOG(ERROR) << "GetSnapshotSegmentInfo failed, ret = " << ret;
         return -ret;
     }
 
@@ -140,10 +177,8 @@ int SnapshotClient::GetFileInfo(const std::string &filename,
 int SnapshotClient::GetOrAllocateSegmentInfo(bool allocate,
                                         uint64_t offset,
                                         const FInfo_t* fi,
-                                        const UserInfo_t& userinfo,
                                         SegmentInfo *segInfo) {
-    int ret = mdsclient_.GetOrAllocateSegment(allocate, userinfo,
-                                        offset, fi, segInfo);
+    int ret = mdsclient_.GetOrAllocateSegment(allocate, offset, fi, segInfo);
 
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(INFO) << "GetSnapshotSegmentInfo failed, ret = " << ret;
@@ -180,6 +215,15 @@ int SnapshotClient::CompleteCloneMeta(const std::string &destination,
 int SnapshotClient::CompleteCloneFile(const std::string &destination,
                                         const UserInfo_t& userinfo) {
     LIBCURVE_ERROR ret = mdsclient_.CompleteCloneFile(destination, userinfo);
+    return -ret;
+}
+
+int SnapshotClient::SetCloneFileStatus(const std::string &filename,
+                          const FileStatus& filestatus,
+                          const UserInfo_t& userinfo,
+                          uint64_t fileID) {
+    LIBCURVE_ERROR ret = mdsclient_.SetCloneFileStatus(filename, filestatus,
+                                                       userinfo, fileID);
     return -ret;
 }
 

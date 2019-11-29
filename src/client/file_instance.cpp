@@ -36,7 +36,9 @@ FileInstance::FileInstance() {
 bool FileInstance::Initialize(const std::string& filename,
                               MDSClient* mdsclient,
                               const UserInfo_t& userinfo,
-                              FileServiceOption_t fileservicopt) {
+                              FileServiceOption_t fileservicopt,
+                              bool readonly) {
+    readonly_ = readonly;
     fileopt_ = fileservicopt;
     bool ret = false;
     do {
@@ -53,10 +55,14 @@ bool FileInstance::Initialize(const std::string& filename,
         finfo_.userinfo = userinfo;
         mdsclient_ = mdsclient;
 
+        finfo_.fullPathName = filename;
+
         if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt, mdsclient_)) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }
+
+        iomanager4file_.UpdataFileInfo(finfo_);
 
         leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
                                 finfo_.userinfo, mdsclient_, &iomanager4file_);
@@ -91,6 +97,10 @@ int FileInstance::Read(char* buf, off_t offset, size_t length) {
 }
 
 int FileInstance::Write(const char* buf, off_t offset, size_t len) {
+    if (readonly_) {
+        DVLOG(9) << "open with read only, do not support write!";
+        return -1;
+    }
     return iomanager4file_.Write(buf, offset, len, mdsclient_);
 }
 
@@ -99,6 +109,10 @@ int FileInstance::AioRead(CurveAioContext* aioctx) {
 }
 
 int FileInstance::AioWrite(CurveAioContext* aioctx) {
+    if (readonly_) {
+        DVLOG(9) << "open with read only, do not support write!";
+        return -1;
+    }
     return iomanager4file_.AioWrite(aioctx, mdsclient_);
 }
 
@@ -116,7 +130,6 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
 
     ret = mdsclient_->OpenFile(filename, finfo_.userinfo, &finfo_, &lease);
     if (ret == LIBCURVE_ERROR::OK) {
-        finfo_.fullPathName = filename;
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
     }
@@ -130,6 +143,11 @@ int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {
 }
 
 int FileInstance::Close() {
+    if (readonly_) {
+        LOG(INFO) << "close read only file!" << finfo_.fullPathName;
+        return 0;
+    }
+
     LIBCURVE_ERROR ret = mdsclient_->CloseFile(finfo_.fullPathName,
                                 finfo_.userinfo,
                                 leaseexcutor_->GetLeaseSessionID());

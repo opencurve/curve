@@ -32,6 +32,8 @@ class PasteChunkInternalRequest;
 class CloneClosure : public Closure {
  public:
     CloneClosure() : request_(nullptr)
+                   , response_(nullptr)
+                   , userResponse_(nullptr)
                    , done_(nullptr) {}
 
     void Run();
@@ -41,9 +43,21 @@ class CloneClosure : public Closure {
     void SetRequest(Message* request) {
         request_ = dynamic_cast<ChunkRequest *>(request);
     }
+    void SetResponse(Message* response) {
+        response_ = dynamic_cast<ChunkResponse *>(response);
+    }
+    void SetUserResponse(Message* response) {
+        userResponse_ = dynamic_cast<ChunkResponse *>(response);
+    }
 
  private:
+    // paste chunk的请求结构体
     ChunkRequest        *request_;
+    // paste chunk的响应结构体
+    ChunkResponse       *response_;
+    // 真正要返回给用户的响应结构体
+    ChunkResponse       *userResponse_;
+    // CloneClosure生命周期结束后需要执行的回调
     Closure             *done_;
 };
 
@@ -66,17 +80,15 @@ class CloneCore {
  private:
     /**
      * 从本地chunk中读取已被写过的区域，未写过的区域从克隆下来的数据中获取
-     * 将数据在内存中merge以后，将请求返回给用户
+     * 然后将数据在内存中merge
      * @param readRequest: 用户的ReadRequest
      * @param chunkInfo: 本地chunk的信息
      * @param cloneData: 从源端拷贝下来的数据，数据起始偏移同请求中的偏移
-     * @param done:任务完成后要执行的closure
      * @return: 成功返回0，失败返回-1
      */
-    int ReadMergeResponse(std::shared_ptr<ReadChunkRequest> readRequest,
-                          const CSChunkInfo& chunkInfo,
-                          const char* cloneData,
-                          Closure* done);
+    int ReadThenMerge(std::shared_ptr<ReadChunkRequest> readRequest,
+                      const CSChunkInfo& chunkInfo,
+                      const char* cloneData);
 
     /**
      * 将从源端下载下来的数据paste到本地chunk文件中

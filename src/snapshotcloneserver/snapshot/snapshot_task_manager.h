@@ -20,10 +20,12 @@
 #include "src/common/concurrent/rw_lock.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
 
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
+using ::curve::common::Mutex;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -36,8 +38,11 @@ class SnapshotTaskManager {
      /**
       * @brief 默认构造函数
       */
-    SnapshotTaskManager()
-        : isStop_(true) {}
+    explicit SnapshotTaskManager(
+        std::shared_ptr<SnapshotMetric> snapshotMetric)
+        : isStop_(true),
+          snapshotMetric_(snapshotMetric),
+          snapshotTaskManagerScanIntervalMs_(0) {}
 
     /**
      * @brief 析构函数
@@ -128,16 +133,19 @@ class SnapshotTaskManager {
 
     // 快照等待队列
     std::list<std::shared_ptr<SnapshotTask> > waitingTasks_;
-    mutable std::mutex waitingTasksLock_;
+    mutable Mutex waitingTasksLock_;
 
     // 快照工作队列,实际是个map，其中key是文件名，以便于查询
     std::map<std::string, std::shared_ptr<SnapshotTask> > workingTasks_;
-    mutable std::mutex workingTasksLock_;
+    mutable Mutex workingTasksLock_;
 
     std::shared_ptr<ThreadPool> threadpool_;
 
     // 当前任务管理是否停止，用于支持start，stop功能
     std::atomic_bool isStop_;
+
+    // metric
+    std::shared_ptr<SnapshotMetric> snapshotMetric_;
 
     // 快照后台线程扫描等待队列和工作队列的扫描周期(单位：ms)
     int snapshotTaskManagerScanIntervalMs_;

@@ -20,8 +20,8 @@
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/copyset_service.h"
 #include "src/chunkserver/braft_cli_service.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "src/chunkserver/braft_cli_service2.h"
+#include "src/chunkserver/uri_paser.h"
 
 
 namespace curve {
@@ -40,12 +40,16 @@ int CopysetNodeManager::Run() {
 }
 
 int CopysetNodeManager::Fini() {
+    for (auto& copysetNode : copysetNodeMap_) {
+        copysetNode.second->Fini();
+    }
+    copysetNodeMap_.clear();
     return 0;
 }
 
 int CopysetNodeManager::ReloadCopysets() {
     std::string datadir =
-        FsAdaptorUtil::GetPathFromUri(copysetNodeOptions_.chunkDataUri);
+        UriParser::GetPathFromUri(copysetNodeOptions_.chunkDataUri);
     if (!copysetNodeOptions_.localFileSystem->DirExists(datadir)) {
         LOG(INFO) << datadir << " not exist. copysets was never created";
         return 0;
@@ -254,6 +258,7 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
         if (copysetNodeMap_.end() != it) {
             copysetNodeMap_.erase(it);
             ret = true;
+            LOG(INFO) << "Delete copyset success, groupid: " << groupId;
         }
     }
 
@@ -286,6 +291,7 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
                            << ", " << copysetId << "> persistently";
                 ret = false;
             }
+            LOG(INFO) << "Move copyset to trash success, groupid: " << groupId;
             copysetNodeMap_.erase(it);
             ret = true;
         }

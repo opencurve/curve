@@ -45,8 +45,11 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
         return ret;
     }
     *uuid = snapInfo.GetUuid();
+
+    auto snapInfoMetric = std::make_shared<SnapshotInfoMetric>(*uuid);
     std::shared_ptr<SnapshotTaskInfo> taskInfo =
-        std::make_shared<SnapshotTaskInfo>(snapInfo);
+        std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
+    taskInfo->UpdateMetric();
     std::shared_ptr<SnapshotCreateTask> task =
         std::make_shared<SnapshotCreateTask>(
             snapInfo.GetUuid(), taskInfo, core_);
@@ -96,6 +99,22 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
     int ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
     if (kErrCodeTaskExist == ret) {
         return kErrCodeSuccess;
+    } else if (kErrCodeSnapshotCannotDeleteUnfinished == ret) {
+        // 转Cancel
+        ret = CancelSnapshot(uuid, user, file);
+        if (kErrCodeCannotCancelFinished == ret) {
+            // 防止这一过程中又执行完了
+            ret = core_->DeleteSnapshotPre(uuid, user, file, &snapInfo);
+            if (ret < 0) {
+                LOG(ERROR) << "DeleteSnapshotPre fail"
+                           << ", ret = " << ret
+                           << ", uuid = " << uuid
+                           << ", file =" << file;
+                return ret;
+            }
+        } else {
+            return ret;
+        }
     } else if (ret < 0) {
         LOG(ERROR) << "DeleteSnapshotPre fail"
                    << ", ret = " << ret
@@ -103,8 +122,10 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
                    << ", file =" << file;
         return ret;
     }
+    auto snapInfoMetric = std::make_shared<SnapshotInfoMetric>(uuid);
     std::shared_ptr<SnapshotTaskInfo> taskInfo =
-        std::make_shared<SnapshotTaskInfo>(snapInfo);
+        std::make_shared<SnapshotTaskInfo>(snapInfo, snapInfoMetric);
+    taskInfo->UpdateMetric();
     std::shared_ptr<SnapshotDeleteTask> task =
         std::make_shared<SnapshotDeleteTask>(
             snapInfo.GetUuid(), taskInfo, core_);
@@ -119,15 +140,37 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
 
 int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
     const std::string &user,
+    const UUID *uuid,
     std::vector<FileSnapshotInfo> *info) {
+    int ret = kErrCodeSuccess;
     std::vector<SnapshotInfo> snapInfos;
-    int ret = core_->GetFileSnapshotInfo(file, &snapInfos);
-    if (ret < 0) {
-        LOG(ERROR) << "GetFileSnapshotInfo error, "
-                   << " ret = " << ret
-                   << ", file = " << file;
-        return ret;
+    if (uuid != nullptr) {
+        SnapshotInfo snap;
+        ret = core_->GetSnapshotInfo(*uuid, &snap);
+        if (ret < 0) {
+            LOG(ERROR) << "GetSnapshotInfo error, "
+                       << " ret = " << ret
+                       << ", file = " << file
+                       << ", uuid = " << *uuid;
+            return kErrCodeFileNotExist;
+        }
+        if (snap.GetUser() != user) {
+            return kErrCodeInvalidUser;
+        }
+        if (snap.GetFileName() != file) {
+            return kErrCodeFileNameNotMatch;
+        }
+        snapInfos.push_back(snap);
+    } else {
+        ret = core_->GetFileSnapshotInfo(file, &snapInfos);
+        if (ret < 0) {
+            LOG(ERROR) << "GetFileSnapshotInfo error, "
+                       << " ret = " << ret
+                       << ", file = " << file;
+            return ret;
+        }
     }
+
     for (auto &snap : snapInfos) {
         if (snap.GetUser() == user) {
             Status st = snap.GetStatus();
@@ -196,8 +239,11 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
         Status st = snap.GetStatus();
         switch (st) {
             case Status::pending : {
+                auto snapInfoMetric =
+                    std::make_shared<SnapshotInfoMetric>(snap.GetUuid());
                 std::shared_ptr<SnapshotTaskInfo> taskInfo =
-                    std::make_shared<SnapshotTaskInfo>(snap);
+                    std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
+                taskInfo->UpdateMetric();
                 std::shared_ptr<SnapshotCreateTask> task =
                     std::make_shared<SnapshotCreateTask>(
                         snap.GetUuid(),
@@ -217,8 +263,11 @@ int SnapshotServiceManager::RecoverSnapshotTask() {
             case Status::canceling :
             case Status::deleting :
             case Status::errorDeleting : {
+                auto snapInfoMetric =
+                    std::make_shared<SnapshotInfoMetric>(snap.GetUuid());
                 std::shared_ptr<SnapshotTaskInfo> taskInfo =
-                    std::make_shared<SnapshotTaskInfo>(snap);
+                    std::make_shared<SnapshotTaskInfo>(snap, snapInfoMetric);
+                taskInfo->UpdateMetric();
                 std::shared_ptr<SnapshotDeleteTask> task =
                     std::make_shared<SnapshotDeleteTask>(
                         snap.GetUuid(),

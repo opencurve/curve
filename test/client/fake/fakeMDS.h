@@ -24,6 +24,9 @@
 #include "src/common/timeutility.h"
 #include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
+#include "src/common/uuid.h"
+
+using curve::common::Authenticator;
 
 using braft::PeerId;
 using curve::common::Authenticator;
@@ -32,6 +35,8 @@ using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using ::curve::mds::topology::ChunkServerRegistRequest;
 using ::curve::mds::topology::ChunkServerRegistResponse;
+using ::curve::mds::topology::GetClusterInfoRequest;
+using ::curve::mds::topology::GetClusterInfoResponse;
 using ::curve::mds::topology::GetChunkServerInfoRequest;
 using ::curve::mds::topology::GetChunkServerInfoResponse;
 using ::curve::mds::topology::ListChunkServerRequest;
@@ -42,6 +47,10 @@ using ::curve::mds::topology::ListPoolZoneRequest;
 using ::curve::mds::topology::ListPoolZoneResponse;
 using ::curve::mds::topology::ListZoneServerRequest;
 using ::curve::mds::topology::ListZoneServerResponse;
+using ::curve::mds::topology::GetCopySetsInChunkServerRequest;
+using ::curve::mds::topology::GetCopySetsInChunkServerResponse;
+using ::curve::mds::topology::ListLogicalPoolRequest;
+using ::curve::mds::topology::ListLogicalPoolResponse;
 
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
@@ -116,7 +125,27 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
             controller->SetFailed("failed");
         }
 
+        if (!strcmp(request->owner().c_str(), "root")) {
+            // 当user为root用户的时候需要检查其signature信息
+            std::string str2sig = Authenticator::GetString2Signature(
+                                                        request->date(),
+                                                        request->owner());
+            std::string sig = Authenticator::CalcString2Signature(str2sig,
+                                                         "root_password");
+            ASSERT_STREQ(request->signature().c_str(), sig.c_str());
+            LOG(INFO) << "GetOrAllocateSegment with password!";
+        }
+
         retrytimes_++;
+
+        // 检查请求内容是全路径
+        auto checkFullpath = [&]() {
+            LOG(INFO) << "request filename = " << request->filename();
+            ASSERT_EQ(request->filename()[0], '/');
+        };
+
+        fiu_do_on("test/client/fake/fakeMDS.GetOrAllocateSegment",
+                 checkFullpath());
 
         auto resp = static_cast<::curve::mds::GetOrAllocateSegmentResponse*>(
                     fakeGetOrAllocateSegmentret_->response_);
@@ -659,6 +688,17 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
         response->set_token(request->hostip());
     }
 
+    void GetClusterInfo(::google::protobuf::RpcController* controller,
+                        const GetClusterInfoRequest* request,
+                        GetClusterInfoResponse* response,
+                        ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+
+        std::string uuid = curve::common::UUIDGenerator().GenerateUUID();
+        response->set_statuscode(0);
+        response->set_clusterid(uuid);
+    }
+
     void GetChunkServer(::google::protobuf::RpcController* controller,
                        const GetChunkServerInfoRequest* request,
                        GetChunkServerInfoResponse* response,
@@ -734,6 +774,36 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
         response->CopyFrom(*resp);
     }
 
+    void GetCopySetsInChunkServer(::google::protobuf::RpcController* controller,
+                       const GetCopySetsInChunkServerRequest* request,
+                       GetCopySetsInChunkServerResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakegetcopysetincsret_->controller_ != nullptr
+             && fakegetcopysetincsret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<GetCopySetsInChunkServerResponse*>(
+            fakegetcopysetincsret_->response_);
+        response->CopyFrom(*resp);
+    }
+
+    void ListLogicalPool(::google::protobuf::RpcController* controller,
+                       const ListLogicalPoolRequest* request,
+                       ListLogicalPoolResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakelistlogicalpoolret_->controller_ != nullptr
+             && fakelistlogicalpoolret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<ListLogicalPoolResponse*>(
+            fakelistlogicalpoolret_->response_);
+        response->CopyFrom(*resp);
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
@@ -742,6 +812,8 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
     FakeReturn* fakelistpoolret_;
     FakeReturn* fakelistzoneret_;
     FakeReturn* fakelistserverret_;
+    FakeReturn* fakegetcopysetincsret_;
+    FakeReturn* fakelistlogicalpoolret_;
 };
 
 typedef void (*HeartbeatCallback) (
@@ -886,12 +958,16 @@ class FakeMDS {
         return chunkServices_;
     }
 
-    std::vector<FakeRaftStateService *> GetRaftStateServie() {
+    std::vector<FakeRaftStateService *> GetRaftStateService() {
         return raftStateServices_;
     }
 
     FakeMDSTopologyService* GetTopologyService() {
         return &faketopologyservice_;
+    }
+
+    void SetOperatorNum(uint64_t opNum) {
+        operatorNum_ << opNum;
     }
 
  private:
@@ -910,6 +986,8 @@ class FakeMDS {
     FakeMDSCurveFSService fakecurvefsservice_;
     FakeMDSTopologyService faketopologyservice_;
     FakeMDSHeartbeatService fakeHeartbeatService_;
+
+    bvar::Adder<uint32_t> operatorNum_;
 };
 
 #endif   // TEST_CLIENT_FAKE_FAKEMDS_H_

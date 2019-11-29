@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <string>
 #include <vector>
 
 namespace curve {
@@ -33,6 +34,16 @@ class TimeUtility {
         timeval tm;
         gettimeofday(&tm, NULL);
         return tm.tv_sec;
+    }
+
+    // 时间戳转成标准时间输出在standard里面,时间戳单位为秒
+    static inline void TimeStampToStandard(time_t timeStamp,
+                                           std::string* standard) {
+        char now[64];
+        struct tm p;
+        p = *localtime_r(&timeStamp, &p);
+        strftime(now, 64, "%Y-%m-%d %H:%M:%S", &p);
+        *standard = std::string(now);
     }
 };
 

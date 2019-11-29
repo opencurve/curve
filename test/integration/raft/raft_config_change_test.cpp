@@ -126,7 +126,7 @@ class RaftConfigChangeTest : public testing::Test {
 
         electionTimeoutMs = 1000;
         confChangeTimeoutMs = 6000;
-        snapshotIntervalS = 1;
+        snapshotIntervalS = 5;
         maxWaitInstallSnapshotMs = 5000;
         waitMultiReplicasBecomeConsistent = 3000;
 

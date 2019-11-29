@@ -7,6 +7,7 @@
 #include <glog/logging.h>
 #include <bthread/bthread.h>
 
+#include <utility>
 #include <thread>   // NOLINT
 #include <chrono>   // NOLINT
 
@@ -494,14 +495,19 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         ::curve::mds::StatusCode stcode = response.statuscode();
 
-        if (stcode == ::curve::mds::StatusCode::kOK &&
+        if ((stcode == ::curve::mds::StatusCode::kOK ||
+             stcode == ::curve::mds::StatusCode::kFileUnderSnapShot) &&
             response.has_snapshotfileinfo()) {
             FInfo_t* fi = new (std::nothrow) FInfo_t;
             curve::mds::FileInfo finfo = response.snapshotfileinfo();
             ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
             *seq = fi->seqnum;
             delete fi;
-            return LIBCURVE_ERROR::OK;
+            if (stcode == ::curve::mds::StatusCode::kOK) {
+                return LIBCURVE_ERROR::OK;
+            } else {
+                return LIBCURVE_ERROR::UNDER_SNAPSHOT;
+            }
         } else if (!response.has_snapshotfileinfo() &&
                    stcode == ::curve::mds::StatusCode::kOK) {
             LOG(WARNING) << "mds side response has no snapshot file info!";
@@ -578,84 +584,10 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
     return LIBCURVE_ERROR::FAILED;
 }
 
-LIBCURVE_ERROR MDSClient::GetSnapShot(const std::string& filename,
-                                        const UserInfo_t& userinfo,
-                                        uint64_t seq,
-                                        FInfo* fi) {
-    // 记录当前mds重试次数
-    int count = 0;
-    // 记录还没重试的mds addr数量
-    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
-
-    std::vector<uint64_t> seqVec;
-    seqVec.push_back(seq);
-
-    LIBCURVE_ERROR ret = LIBCURVE_ERROR::FAILED;
-    while (count < metaServerOpt_.synchronizeRPCRetryTime) {
-        brpc::Controller cntl;
-        ::curve::mds::ListSnapShotFileInfoResponse response;
-
-        {
-            std::unique_lock<bthread::Mutex> lk(mutex_);
-            mdsClientBase_.ListSnapShot(filename,
-                                        userinfo,
-                                        &seqVec,
-                                        &response,
-                                        &cntl,
-                                        channel_);
-        }
-
-        if (cntl.Failed()) {
-            LOG(ERROR) << "list snap file failed, errcorde = "
-                        << response.statuscode()
-                        << ", error content:"
-                        << cntl.ErrorText()
-                        << ", retry GetSnapShot, retry times = "
-                        << count
-                        << ", log id = " << cntl.log_id();
-
-            if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft)) {
-                break;
-            }
-            continue;
-        }
-
-        ::curve::mds::StatusCode stcode = response.statuscode();
-
-        if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            LOG(ERROR) << "auth failed!";
-            return LIBCURVE_ERROR::AUTHFAIL;
-        }
-
-        LOG_IF(ERROR, stcode != ::curve::mds::StatusCode::kOK)
-        << "list snap file failed, errcode = " << stcode;
-
-        auto size = response.fileinfo_size();
-        for (int i = 0; i < size; i++) {
-            curve::mds::FileInfo finfo = response.fileinfo(i);
-            ServiceHelper::ProtoFileInfo2Local(&finfo, fi);
-        }
-
-        LIBCURVE_ERROR retcode;
-        MDSStatusCode2LibcurveError(stcode, &retcode);
-
-        LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "GetSnapShot: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq
-                << ", errocde = " << retcode
-                << ", error message = " << curve::mds::StatusCode_Name(stcode)
-                << ", log id = " << cntl.log_id();
-
-        return retcode;
-    }
-    return LIBCURVE_ERROR::FAILED;
-}
-
 LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
                                         const UserInfo_t& userinfo,
                                         const std::vector<uint64_t>* seq,
-                                        std::vector<FInfo*>* snapif) {
+                                        std::map<uint64_t, FInfo>* snapif) {
     // 记录当前mds重试次数
     int count = 0;
     // 记录还没重试的mds addr数量
@@ -665,10 +597,6 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
     while (count < metaServerOpt_.synchronizeRPCRetryTime) {
         brpc::Controller cntl;
         ::curve::mds::ListSnapShotFileInfoResponse response;
-        if ((*seq).size() > (*snapif).size()) {
-            LOG(ERROR) << "resource not enough!";
-            return LIBCURVE_ERROR::FAILED;
-        }
 
         {
             std::unique_lock<bthread::Mutex> lk(mutex_);
@@ -705,9 +633,17 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
         << "list snap file failed, errcode = " << stcode;
 
         auto size = response.fileinfo_size();
+
         for (int i = 0; i < size; i++) {
+            FInfo_t tempInfo;
             curve::mds::FileInfo finfo = response.fileinfo(i);
-            ServiceHelper::ProtoFileInfo2Local(&finfo, (*snapif)[i]);
+            ServiceHelper::ProtoFileInfo2Local(&finfo, &tempInfo);
+            snapif->insert(std::make_pair(tempInfo.seqnum, tempInfo));
+        }
+
+        if (size != seq->size()) {
+            LOG(ERROR) << "target seq snapshot not found!";
+            return LIBCURVE_ERROR::NOTEXIST;
         }
 
         LIBCURVE_ERROR retcode;
@@ -1109,6 +1045,77 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
     return LIBCURVE_ERROR::FAILED;
 }
 
+LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
+    // 记录当前mds重试次数
+    int count = 0;
+    // 记录重试中timeOut次数
+    int timeOutTimes = 0;
+    // 记录还没重试的mds addr数量
+    int mdsAddrleft = metaServerOpt_.metaaddrvec.size() - 1;
+
+    while (count < metaServerOpt_.rpcRetryTimes) {
+        brpc::Controller cntl;
+        curve::mds::topology::GetClusterInfoResponse response;
+
+        {
+            std::unique_lock<bthread::Mutex> lk(mutex_);
+            mdsClientBase_.GetClusterInfo(&response, &cntl, channel_);
+        }
+
+        if (cntl.Failed()) {
+            LOG(ERROR)  << "get cluster info from mds failed, status code = "
+                        << response.statuscode()
+                        << ", error content: "
+                        << cntl.ErrorText()
+                        << ", retry GetClusterInfo, retry times = "
+                        << count;
+
+            // 1. 访问不存在的IP地址会报错：ETIMEDOUT
+            // 2. 访问存在的IP地址，但无人监听：ECONNREFUSED
+            // 3. 正常发送RPC情况下，对端进程挂掉了：EHOSTDOWN
+            // 4. 链接建立，对端主机挂掉了：brpc::ERPCTIMEDOUT
+            // 5. 对端server调用了Stop：ELOGOFF
+            // 6. 对端链接已关闭：ECONNRESET
+            // 在这几种场景下，主动切换mds。
+            // GetClusterInfo在主IO路劲上，所以即使切换mds server失败
+            // 也不能直接向上返回，也需要重试到规定次数。
+            // 因为返回失败就会导致qemu一侧磁盘IO错误，上层应用就crash了。
+            // 所以这里的rpc超时次数要设置大一点
+            if (cntl.ErrorCode() == brpc::ERPCTIMEDOUT ||
+                cntl.ErrorCode() == ETIMEDOUT) {
+                timeOutTimes++;
+            }
+
+            // rpc超时次数达到synchronizeRPCRetryTime次的时候就触发切换mds
+            if (timeOutTimes > metaServerOpt_.synchronizeRPCRetryTime ||
+                cntl.ErrorCode() == EHOSTDOWN ||
+                cntl.ErrorCode() == ECONNRESET ||
+                cntl.ErrorCode() == ECONNREFUSED ||
+                cntl.ErrorCode() == brpc::ELOGOFF) {
+                count++;
+                if (!ChangeMDServer(&mdsAddrleft)) {
+                    LOG(ERROR) << "change mds server failed!";
+                    bthread_usleep(metaServerOpt_.retryIntervalUs);
+                } else {
+                    timeOutTimes = 0;
+                }
+            } else {
+                if (!UpdateRetryinfoOrChangeServer(&count, &mdsAddrleft, false)) {  //  NOLINT
+                    LOG(ERROR) << "UpdateRetryinfoOrChangeServer failed!";
+                }
+            }
+            continue;
+        }
+
+        if (response.statuscode() == 0) {
+            clsctx->clusterId = response.clusterid();
+            return LIBCURVE_ERROR::OK;
+        }
+        return LIBCURVE_ERROR::FAILED;
+    }
+    return LIBCURVE_ERROR::FAILED;
+}
+
 LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
                                         const UserInfo_t& userinfo,
                                         uint64_t size,
@@ -1232,7 +1239,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
         MDSStatusCode2LibcurveError(stcode, &retcode);
 
         LOG_IF(ERROR, retcode != LIBCURVE_ERROR::OK)
-                << "CreateCloneFile failed, filename = " << filename.c_str()
+                << "SetCloneFileStatus failed, filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner.c_str()
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID
@@ -1247,7 +1254,6 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
 }
 
 LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
-                                        const UserInfo_t& userinfo,
                                         uint64_t offset,
                                         const FInfo_t* fi,
                                         SegmentInfo *segInfo) {
@@ -1267,7 +1273,6 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
             LatencyGuard lg(&mdsClientMetric_.getOrAllocateSegment.latency);    // NOLINT
             std::unique_lock<bthread::Mutex> lk(mutex_);
             mdsClientBase_.GetOrAllocateSegment(allocate,
-                                                userinfo,
                                                 offset,
                                                 fi,
                                                 &response,
@@ -1283,7 +1288,6 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate,
                         << ", offset:" << offset
                         << ", retry allocate, retry times = "
                         << count;
-
 
             // 1. 访问不存在的IP地址会报错：ETIMEDOUT
             // 2. 访问存在的IP地址，但无人监听：ECONNREFUSED
@@ -1762,13 +1766,19 @@ void MDSClient::MDSStatusCode2LibcurveError(const curve::mds::StatusCode& status
             *errcode = LIBCURVE_ERROR::SESSION_NOT_EXIST;
             break;
         case ::curve::mds::StatusCode::kParaError:
-            *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
+            *errcode = LIBCURVE_ERROR::PARAM_ERROR;
             break;
         case ::curve::mds::StatusCode::kStorageError:
             *errcode = LIBCURVE_ERROR::INTERNAL_ERROR;
             break;
         case ::curve::mds::StatusCode::kFileLengthNotSupported:
             *errcode = LIBCURVE_ERROR::LENGTH_NOT_SUPPORT;
+            break;
+        case ::curve::mds::StatusCode::kCloneStatusNotMatch:
+            *errcode = LIBCURVE_ERROR::STATUS_NOT_MATCH;
+            break;
+        case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
+            *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
             break;
         default:
             *errcode = LIBCURVE_ERROR::UNKNOWN;

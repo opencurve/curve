@@ -53,22 +53,27 @@ class SnapshotCloneServiceImpl : public SnapshotCloneService {
                         Closure* done);
 
  private:
-    void HandleCreateSnapshotAction(brpc::Controller* bcntl);
-    void HandleDeleteSnapshotAction(brpc::Controller* bcntl);
-    void HandleCancelSnapshotAction(brpc::Controller* bcntl);
-    void HandleGetFileSnapshotInfoAction(brpc::Controller* bcntl);
-    void HandleCloneAction(brpc::Controller* bcntl);
-    void HandleRecoverAction(brpc::Controller* bcntl);
-    void HandleGetCloneTasksAction(brpc::Controller* bcntl);
-    void HandleCleanCloneTaskAction(brpc::Controller* bcntl);
+    void HandleCreateSnapshotAction(brpc::Controller* bcntl,
+        const std::string &requestId);
+    void HandleDeleteSnapshotAction(brpc::Controller* bcntl,
+        const std::string &requestId);
+    void HandleCancelSnapshotAction(brpc::Controller* bcntl,
+        const std::string &requestId);
+    void HandleGetFileSnapshotInfoAction(brpc::Controller* bcntl,
+        const std::string &requestId);
+    void HandleCloneAction(brpc::Controller* bcntl,
+        const std::string &requestId,
+        Closure* done);
+    void HandleRecoverAction(brpc::Controller* bcntl,
+        const std::string &requestId,
+        Closure* done);
+    void HandleGetCloneTasksAction(brpc::Controller* bcntl,
+        const std::string &requestId);
+    void HandleCleanCloneTaskAction(brpc::Controller* bcntl,
+        const std::string &requestId);
 
     bool CheckBoolParamter(
         const std::string *param, bool *valueOut);
-
-    std::string BuildErrorMessage(
-        int errCode,
-        const std::string &errMsg,
-        uint64_t requestId);
 
  private:
     // 快照转储服务管理对象

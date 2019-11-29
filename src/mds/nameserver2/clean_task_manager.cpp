@@ -20,7 +20,7 @@ CleanTaskManager::CleanTaskManager(int threadNum, int checkPeriod) {
 void CleanTaskManager::CheckCleanResult(void) {
     while (true) {
         {
-            std::lock_guard<std::mutex> lck(mutex_);
+            common::LockGuard lck(mutex_);
             for (auto iter = cleanTasks_.begin();
                 stopFlag_ != true && iter != cleanTasks_.end();) {
                 auto taskProgress = iter->second->GetTaskProgress();
@@ -61,7 +61,8 @@ bool CleanTaskManager::Start(void) {
     }
 
     // start check thread
-    checkThread_ = new std::thread(&CleanTaskManager::CheckCleanResult, this);
+    checkThread_ = new common::Thread(&CleanTaskManager::CheckCleanResult,
+                                        this);
     LOG(INFO) << "TaskManger check thread started";
     return true;
 }
@@ -81,7 +82,7 @@ bool CleanTaskManager::Stop(void) {
 }
 
 bool CleanTaskManager::PushTask(std::shared_ptr<Task> task) {
-    std::lock_guard<std::mutex> lck(mutex_);
+    common::LockGuard lck(mutex_);
     if (stopFlag_) {
         LOG(ERROR) << "task manager not started, taskID = "
             << task->GetTaskID();
@@ -100,7 +101,7 @@ bool CleanTaskManager::PushTask(std::shared_ptr<Task> task) {
 }
 
 std::shared_ptr<Task> CleanTaskManager::GetTask(TaskIDType id) {
-    std::lock_guard<std::mutex> lck(mutex_);
+    common::LockGuard lck(mutex_);
 
     auto iter = cleanTasks_.begin();
     if ((iter = cleanTasks_.find(id)) == cleanTasks_.end()) {

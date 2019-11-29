@@ -17,10 +17,10 @@
 #include <string>
 #include <cstdlib>
 
+#include "test/fs/mock_local_filesystem.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/copyset_node.h"
 #include "test/chunkserver/fake_datastore.h"
-#include "test/fs/mock_local_filesystem.h"
 #include "test/chunkserver/mock_node.h"
 #include "src/chunkserver/conf_epoch_file.h"
 #include "proto/heartbeat.pb.h"
@@ -40,6 +40,7 @@ using ::testing::InSequence;
 using ::testing::AtLeast;
 using ::testing::SaveArgPointee;
 
+using curve::fs::MockLocalFileSystem;
 using curve::fs::FileSystemType;
 using curve::fs::MockLocalFileSystem;
 
@@ -517,6 +518,18 @@ TEST(CopysetNodeTest, get_conf_change) {
     conf1.add_peer(peer);
     conf1.add_peer(peer1);
 
+    // leader还没开始提供服务
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        Peer alterPeer;
+
+        EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+        EXPECT_EQ(ConfigChangeType::NONE, type);
+    }
+
     // 当前没有在做配置变更
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -528,6 +541,8 @@ TEST(CopysetNodeTest, get_conf_change) {
         ConfigChangeType type;
         Configuration oldConf;
         Peer alterPeer;
+
+        copysetNode.on_leader_start(8);
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(Return(false));
@@ -545,6 +560,8 @@ TEST(CopysetNodeTest, get_conf_change) {
         ConfigChangeType type;
         Configuration oldConf;
         Peer alterPeer;
+
+        copysetNode.on_leader_start(8);
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(conf),
@@ -564,6 +581,8 @@ TEST(CopysetNodeTest, get_conf_change) {
         Configuration oldConf;
         Peer alterPeer;
 
+        copysetNode.on_leader_start(8);
+
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(conf),
                             Return(true)));
@@ -581,6 +600,8 @@ TEST(CopysetNodeTest, get_conf_change) {
         ConfigChangeType type;
         Configuration oldConf;
         Peer alterPeer;
+
+        copysetNode.on_leader_start(8);
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(peer),
@@ -600,6 +621,8 @@ TEST(CopysetNodeTest, get_conf_change) {
         Configuration oldConf;
         Peer alterPeer;
 
+        copysetNode.on_leader_start(8);
+
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(Return(true));
         EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
@@ -615,6 +638,8 @@ TEST(CopysetNodeTest, get_conf_change) {
         ConfigChangeType type;
         Configuration oldConf;
         Peer alterPeer;
+
+        copysetNode.on_leader_start(8);
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<1>(conf1),
@@ -633,6 +658,8 @@ TEST(CopysetNodeTest, get_conf_change) {
         Configuration oldConf;
         Peer alterPeer;
 
+        copysetNode.on_leader_start(8);
+
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(conf1),
                             Return(true)));
@@ -649,6 +676,8 @@ TEST(CopysetNodeTest, get_conf_change) {
         ConfigChangeType type;
         Configuration oldConf;
         Peer alterPeer;
+
+        copysetNode.on_leader_start(8);
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(emptyPeer),

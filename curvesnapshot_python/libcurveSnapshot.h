@@ -28,6 +28,14 @@ typedef struct CUserInfo {
     char password[256];
 } CUserInfo_t;
 
+enum CFileType {
+    INODE_DIRECTORY_C = 0,
+    INODE_PAGEFILE_C = 1,
+    INODE_APPENDFILE_C = 2,
+    INODE_APPENDECFILE_C = 3,
+    INODE_SNAPSHOT_PAGEFILE_C = 4
+};
+
 typedef struct FileInfo {
     type_uInt64_t      id;
     type_uInt64_t      parentid;
@@ -42,13 +50,6 @@ enum CFileStatus {
     Cloning,
     CloneMetaInstalled,
     Cloned
-};
-
-enum CFileType {
-    INODE_DIRECTORY_C = 0,
-    INODE_PAGEFILE_C = 1,
-    INODE_APPENDFILE_C = 2,
-    INODE_APPENDECFILE_C = 3,
 };
 
 typedef struct CChunkIDInfo {

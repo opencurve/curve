@@ -139,7 +139,7 @@ mds.segment.alloc.retryInterMs=1000
 # topology config
 #
 # Toplogy 定期刷新入数据库的时间间隔
-mds.topology.TopologyUpdateToRepoSec=60
+mds.topology.TopologyUpdateToRepoSec=5
 # 请求chunkserver上创建全部copyset的超时时间
 mds.topology.CreateCopysetRpcTimeoutMs=10000
 # 请求chunkserver上创建copyset重试次数

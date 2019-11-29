@@ -93,8 +93,8 @@ const uint64_t kMB = 1024*kKB;
 const uint64_t kGB = 1024*kMB;
 const uint64_t kTB = 1024*kGB;
 
-const uint64_t DefaultSegmentSize = kGB * 1;
-const uint64_t kMiniFileLength = DefaultSegmentSize * 10;
+extern uint64_t DefaultSegmentSize;
+extern uint64_t kMiniFileLength;
 const uint64_t kMaxFileLength = 4 * kTB;
 
 // curve默认root目录&inodeid

@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 #include <brpc/server.h>
 #include <brpc/channel.h>
+#include <butil/endpoint.h>
 
 #include <fstream>
 #include <map>
@@ -46,8 +47,7 @@ DEFINE_int32(chunkserver_id, -1, "chunkserver id for set chunkserver status.");
 DEFINE_string(chunkserver_status, "readwrite",
     "chunkserver status: readwrite, pendding, retired.");
 
-const uint32_t rpcTimeOutMs = 2000u;
-const uint32_t createLogicalPoolRpcTimeOutMs = 30000u;
+DEFINE_uint32(rpcTimeOutMs, 5000u, "rpc time out");
 
 const int kRetCodeCommonErr = -1;
 const int kRetCodeRedirectMds = -2;
@@ -203,7 +203,8 @@ int CurvefsTools::HandleCreateLogicalPool() {
     CreateLogicalPoolResponse response;
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(createLogicalPoolRpcTimeOutMs);
+    cntl.set_max_retry(0);
+    cntl.set_timeout_ms(-1);
     cntl.set_log_id(1);
 
     LOG(INFO) << "CreateLogicalPool, second request: "
@@ -345,6 +346,15 @@ int CurvefsTools::ReadClusterMap() {
                                << ", ipPort string error: "
                                << ipPort;
                 }
+                butil::ip_t ip;
+                if (butil::str2ip(info.internalIp.c_str(), &ip) != 0) {
+                    LOG(ERROR) << "parse cluster map error in line, context: \""
+                               << line
+                               << "\", line No: "
+                               << lineNo
+                               << ", invalid ip adress, ipPort str: "
+                               << ipPort;
+                }
                 index++;
                 colNo += strList[index].size();
             } else {
@@ -378,6 +388,15 @@ int CurvefsTools::ReadClusterMap() {
                                << "\", line No: "
                                << lineNo
                                << ", ipPort string error: "
+                               << ipPort;
+                }
+                butil::ip_t ip;
+                if (butil::str2ip(info.externalIp.c_str(), &ip) != 0) {
+                    LOG(ERROR) << "parse cluster map error in line, context: \""
+                               << line
+                               << "\", line No: "
+                               << lineNo
+                               << ", invalid ip adress, ipPort str: "
                                << ipPort;
                 }
                 index++;
@@ -447,7 +466,7 @@ int CurvefsTools::ListPhysicalPool(
     ListPhysicalPoolRequest request;
     ListPhysicalPoolResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeOutMs);
+    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
 
     LOG(INFO) << "ListPhysicalPool send request: "
@@ -495,7 +514,7 @@ int CurvefsTools::AddListPoolZone(PoolIdType poolid,
     request.set_physicalpoolid(poolid);
 
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeOutMs);
+    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
 
     LOG(INFO) << "ListPoolZone, send request: "
@@ -540,7 +559,7 @@ int CurvefsTools::AddListZoneServer(ZoneIdType zoneid,
     ListZoneServerResponse response;
     request.set_zoneid(zoneid);
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeOutMs);
+    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
 
     LOG(INFO) << "ListZoneServer, send request: "
@@ -748,7 +767,7 @@ int CurvefsTools::CreatePhysicalPool() {
         PhysicalPoolResponse response;
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "CreatePhysicalPool, send request: "
@@ -794,7 +813,7 @@ int CurvefsTools::CreateZone() {
         ZoneResponse response;
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "CreateZone, send request: "
@@ -845,7 +864,7 @@ int CurvefsTools::CreateServer() {
         ServerRegistResponse response;
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "CreateServer, send request: "
@@ -889,7 +908,7 @@ int CurvefsTools::ClearPhysicalPool() {
         PhysicalPoolResponse response;
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "DeletePhysicalPool, send request: "
@@ -933,7 +952,7 @@ int CurvefsTools::ClearZone() {
         ZoneResponse response;
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "DeleteZone, send request: "
@@ -979,7 +998,7 @@ int CurvefsTools::ClearServer() {
         DeleteServerResponse response;
 
         brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
+        cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
         cntl.set_log_id(1);
 
         LOG(INFO) << "DeleteServer, send request: "
@@ -1031,7 +1050,7 @@ int CurvefsTools::SetChunkServer() {
     SetChunkServerStatusResponse response;
     TopologyService_Stub stub(&channel_);
     brpc::Controller cntl;
-    cntl.set_timeout_ms(rpcTimeOutMs);
+    cntl.set_timeout_ms(FLAGS_rpcTimeOutMs);
     cntl.set_log_id(1);
 
     LOG(INFO) << "SetChunkServerStatusRequest, send request: "

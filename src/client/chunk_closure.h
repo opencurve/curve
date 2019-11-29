@@ -14,6 +14,7 @@
 #include <brpc/errno.pb.h>
 #include <unordered_map>  // NOLINT
 #include <unordered_set>  // NOLINT
+#include <memory>
 
 #include "proto/chunk.pb.h"
 #include "src/client/client_config.h"
@@ -79,19 +80,57 @@ class UnstableChunkServerHelper {
  */
 class ClientClosure : public Closure {
  public:
-    ClientClosure(CopysetClient *client, Closure *done):
-                                        client_(client),
-                                        done_(done) {
+    ClientClosure(CopysetClient *client, Closure *done)
+     : client_(client), done_(done) {}
+
+    virtual ~ClientClosure() = default;
+
+    void SetCntl(brpc::Controller* cntl) {
+        cntl_ = cntl;
     }
-    virtual void SetCntl(brpc::Controller* cntl) = 0;
-    virtual void SetResponse(Message* response) = 0;
-    virtual void SetRetriedTimes(uint16_t retriedTimes) = 0;
-    virtual void SetChunkServerID(ChunkServerID csid) {
+
+    virtual void SetResponse(Message* response) {
+        response_.reset(dynamic_cast<ChunkResponse*>(response));
+    }
+
+    void SetChunkServerID(ChunkServerID csid) {
         chunkserverID_ = csid;
     }
 
-    virtual ChunkServerID GetChunkServerID() {
+    ChunkServerID GetChunkServerID() const {
         return chunkserverID_;
+    }
+
+    // 统一Run函数入口
+    void Run() override;
+
+    // 重试请求
+    void OnRetry();
+
+    // Rpc Failed 处理函数
+    void OnRpcFailed();
+
+    // 返回成功 处理函数
+    virtual void OnSuccess();
+
+    // 返回重定向 处理函数
+    virtual void OnRedirected();
+
+    // copyset不存在
+    void OnCopysetNotExist();
+
+    // 返回chunk不存在 处理函数
+    virtual void OnChunkNotExist();
+
+    // 非法参数
+    void OnInvalidRequest();
+
+    // 发送重试请求
+    virtual void SendRetryRequest() = 0;
+
+    // 获取response返回的状态码
+    virtual CHUNK_OP_STATUS GetResponseStatus() const {
+        return response_->status();
     }
 
     static void SetFailureRequestOption(
@@ -112,8 +151,12 @@ class ClientClosure : public Closure {
               << ", opMaxRetry = " << failReqOpt_.opMaxRetry;
     }
 
-    Closure* GetClosure() {
+    Closure* GetClosure() const {
         return done_;
+    }
+
+    static FailureRequestOption_t GetFailOpt() {
+        return failReqOpt_;
     }
 
     /**
@@ -169,141 +212,103 @@ class ClientClosure : public Closure {
     static BackoffParam backoffParam_;
 
  protected:
-    static FailureRequestOption_t  failReqOpt_;
-    // 已经重试了几次
-    uint64_t                 retriedTimes_;
-    brpc::Controller*        cntl_;
-    ChunkResponse*           response_;
-    CopysetClient*           client_;
-    Closure*                 done_;
+    void RefreshLeader() const;
+
+    static FailureRequestOption_t       failReqOpt_;
+
+    brpc::Controller*                   cntl_;
+    std::unique_ptr<ChunkResponse>      response_;
+    CopysetClient*                      client_;
+    Closure*                            done_;
     // 这里保存chunkserverID，是为了区别当前这个rpc是发给哪个chunkserver的
     // 这样方便在rpc closure里直接找到，当前是哪个chunkserver返回的失败
-    ChunkServerID            chunkserverID_;
+    ChunkServerID                       chunkserverID_;
+
+    // 记录当前请求的相关信息
+    MetaCache*                          metaCache_;
+    RequestClosure*                     reqDone_;
+    FileMetric*                         fileMetric_;
+    RequestContext*                     reqCtx_;
+    ChunkIDInfo                         chunkIdInfo_;
+
+    // response 状态码
+    int                                 status_;
+
+    // rpc 状态码
+    int                                 cntlstatus_;
 };
 
 class WriteChunkClosure : public ClientClosure {
  public:
     WriteChunkClosure(CopysetClient *client, Closure *done)
-        : ClientClosure(client, done) {}
+     : ClientClosure(client, done) {}
 
-    void Run();
-    void SetCntl(brpc::Controller* cntl) {
-        cntl_ = cntl;
-    }
-    void SetResponse(Message* response) {
-        response_ = dynamic_cast<ChunkResponse *>(response);
-    }
-    void SetRetriedTimes(uint16_t retriedTimes) {
-        retriedTimes_ = retriedTimes;
-    }
+    void OnSuccess() override;
+    void SendRetryRequest() override;
 };
 
 class ReadChunkClosure : public ClientClosure {
  public:
     ReadChunkClosure(CopysetClient *client, Closure *done)
-        : ClientClosure(client, done) {}
+     : ClientClosure(client, done) {}
 
-    void Run();
-    void SetCntl(brpc::Controller* cntl) {
-        cntl_ = cntl;
-    }
-    void SetResponse(Message* response) {
-        response_ = dynamic_cast<ChunkResponse *>(response);
-    }
-    void SetRetriedTimes(uint16_t retriedTimes) {
-        retriedTimes_ = retriedTimes;
-    }
+    void OnSuccess() override;
+    void OnChunkNotExist() override;
+    void SendRetryRequest() override;
 };
 
 class ReadChunkSnapClosure : public ClientClosure {
  public:
     ReadChunkSnapClosure(CopysetClient *client, Closure *done)
-        : ClientClosure(client, done) {}
+     : ClientClosure(client, done) {}
 
-    void Run();
-    void SetCntl(brpc::Controller* cntl) {
-        cntl_ = cntl;
-    }
-    void SetResponse(Message* response) {
-        response_ = dynamic_cast<ChunkResponse *>(response);
-    }
-    void SetRetriedTimes(uint16_t retriedTimes) {
-        retriedTimes_ = retriedTimes;
-    }
+    void OnSuccess() override;
+    void SendRetryRequest() override;
 };
 
 class DeleteChunkSnapClosure : public ClientClosure {
  public:
     DeleteChunkSnapClosure(CopysetClient *client, Closure *done)
-        : ClientClosure(client, done) {}
+     : ClientClosure(client, done) {}
 
-    void Run();
-    void SetCntl(brpc::Controller* cntl) {
-        cntl_ = cntl;
-    }
-    void SetResponse(Message* response) {
-        response_ = dynamic_cast<ChunkResponse *>(response);
-    }
-    void SetRetriedTimes(uint16_t retriedTimes) {
-        retriedTimes_ = retriedTimes;
-    }
+    void SendRetryRequest() override;
 };
 
 class GetChunkInfoClosure : public ClientClosure {
  public:
-    GetChunkInfoClosure(CopysetClient *client,
-                        Closure *done)
-        : ClientClosure(client, done) {}
+    GetChunkInfoClosure(CopysetClient *client, Closure *done)
+     : ClientClosure(client, done) {}
 
-    void Run();
-    void SetCntl(brpc::Controller* cntl) {
-        cntl_ = cntl;
+    void SetResponse(Message* message) override {
+        chunkinforesponse_.reset(dynamic_cast<GetChunkInfoResponse*>(message));
     }
-    void SetResponse(Message* response) {
-        chunkinforesponse_ = dynamic_cast<GetChunkInfoResponse *> (response);
+
+    CHUNK_OP_STATUS GetResponseStatus() const override {
+        return chunkinforesponse_->status();
     }
-    void SetRetriedTimes(uint16_t retriedTimes) {
-        retriedTimes_ = retriedTimes;
-    }
+
+    void OnSuccess() override;
+    void OnRedirected() override;
+    void SendRetryRequest() override;
 
  private:
-    GetChunkInfoResponse*    chunkinforesponse_;
+    std::unique_ptr<GetChunkInfoResponse> chunkinforesponse_;
 };
 
 class CreateCloneChunkClosure : public ClientClosure {
  public:
-    CreateCloneChunkClosure(CopysetClient *client,
-                        Closure *done)
-        : ClientClosure(client, done) {}
+    CreateCloneChunkClosure(CopysetClient *client, Closure *done)
+     : ClientClosure(client, done) {}
 
-    void Run();
-    void SetCntl(brpc::Controller* cntl) {
-        cntl_ = cntl;
-    }
-    void SetResponse(Message* response) {
-        response_ = dynamic_cast<ChunkResponse *> (response);
-    }
-    void SetRetriedTimes(uint16_t retriedTimes) {
-        retriedTimes_ = retriedTimes;
-    }
+    void SendRetryRequest() override;
 };
 
 class RecoverChunkClosure : public ClientClosure {
  public:
-    RecoverChunkClosure(CopysetClient *client,
-                        Closure *done)
-        : ClientClosure(client, done) {}
+    RecoverChunkClosure(CopysetClient *client, Closure *done)
+     : ClientClosure(client, done) {}
 
-    void Run();
-    void SetCntl(brpc::Controller* cntl) {
-        cntl_ = cntl;
-    }
-    void SetResponse(Message* response) {
-        response_ = dynamic_cast<ChunkResponse *> (response);
-    }
-    void SetRetriedTimes(uint16_t retriedTimes) {
-        retriedTimes_ = retriedTimes;
-    }
+    void SendRetryRequest() override;
 };
 
 }   // namespace client

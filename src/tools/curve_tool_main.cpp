@@ -11,9 +11,11 @@
 #include "src/tools/consistency_check.h"
 #include "src/tools/curve_cli.h"
 #include "src/tools/copyset_check.h"
+#include "src/tools/snapshot_check.h"
 
 DEFINE_string(mds_config_path, "conf/mds.conf", "mds confPath");
 DEFINE_bool(example, false, "print the example of usage");
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 
 int main(int argc, char** argv) {
     std::string help_str = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
@@ -27,6 +29,7 @@ int main(int argc, char** argv) {
         "delete : delete the file, to force delete, should specify the --forcedelete=true\n"  //NOLINT
         "clean-recycle : clean the RecycleBin\n"
         "create : create file\n"
+        "chunk-location : query the location of the chunk corresponding to the offset\n"  //NOLINT
         "check-consistency : check the consistency of three copies\n"
         "add_peer : add the peer to the copyset\n"
         "remove_peer : remove the peer from the copyset\n"
@@ -34,11 +37,12 @@ int main(int argc, char** argv) {
         "check-copyset : check the health state of copyset\n"
         "check-chunkserver : check the health state of the chunkserver\n"
         "check-server : check the health state of the server\n"
-        "check-cluster : check the health state of the cluster\n";
+        "check-cluster : check the health state of the cluster\n"
+        "snapshot-check : check the consistency of the snapshot and the file\n";  //NOLINT
 
-    google::InitGoogleLogging(argv[0]);
     gflags::SetUsageMessage(help_str);
     google::ParseCommandLineFlags(&argc, &argv, true);
+    google::InitGoogleLogging(argv[0]);
 
     if (argc < 2) {
         std::cout << help_str << std::endl;
@@ -67,14 +71,15 @@ int main(int argc, char** argv) {
                                 || command == "seginfo"
                                 || command == "delete"
                                 || command == "clean-recycle"
-                                || command == "create") {
+                                || command == "create"
+                                || command == "chunk-location") {
         // 使用namespaceTool
         curve::tool::NameSpaceTool namespaceTool;
         if (FLAGS_example) {
             namespaceTool.PrintHelp(command);
             return 0;
         }
-        if (namespaceTool.Init() != 0) {
+        if (namespaceTool.Init(FLAGS_mdsAddr) != 0) {
             std::cout << "Init failed!" << std::endl;
             return -1;
         }
@@ -116,11 +121,26 @@ int main(int argc, char** argv) {
             copysetCheck.PrintHelp(command);
             return 0;
         }
-        if (copysetCheck.Init() != 0) {
+        if (copysetCheck.Init(FLAGS_mdsAddr) != 0) {
             std::cout << "Init failed!" << std::endl;
             return -1;
         }
         return copysetCheck.RunCommand(command);
+    } else if (command == "snapshot-check") {
+        std::shared_ptr<curve::tool::SnapshotRead> snapshotRead =
+                    std::make_shared<curve::tool::SnapshotRead>(
+                        std::make_shared<SnapshotCloneRepo>(),
+                        std::make_shared<curve::common::S3Adapter>());
+        curve::tool::SnapshotCheck snapshotCheck(
+            std::make_shared<curve::client::FileClient>(), snapshotRead);
+        if (FLAGS_example) {
+            snapshotCheck.PrintHelp();
+            return 0;
+        }
+        LOG_IF(FATAL, snapshotCheck.Init() != 0) << "init failed!";
+        int ret = snapshotCheck.Check();
+        snapshotCheck.UnInit();
+        return ret;
     } else {
         std::cout << help_str << std::endl;
         return -1;

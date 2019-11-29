@@ -13,6 +13,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #include "src/common/configuration.h"
 
@@ -102,14 +103,6 @@ TEST_F(ConfigurationTest, LoadNormalConfigFile) {
     conf.SetConfigPath(confFile_);
     ret = conf.LoadConfig();
     ASSERT_EQ(ret, true);
-}
-
-TEST_F(ConfigurationTest, DumpConfig) {
-    Configuration conf;
-
-    conf.SetConfigPath(confFile_);
-    // not implemented yet, assert null returned
-    ASSERT_EQ(conf.DumpConfig(), "");
 }
 
 TEST_F(ConfigurationTest, ListConfig) {
@@ -308,6 +301,22 @@ TEST_F(ConfigurationTest, GetSetDoubleAndFloatValue) {
     ASSERT_TRUE(conf.GetFloatValue("no.exist", &outf));
     ASSERT_EQ(0.009, out);
     ASSERT_EQ(0.009f, outf);
+}
+
+TEST_F(ConfigurationTest, TestMetric) {
+    Configuration conf;
+    conf.SetIntValue("key1", 123);
+    conf.SetFloatValue("key2", 1.23);
+    conf.SetBoolValue("key3", true);
+
+    conf.ExposeMetric("conf_metric");
+    conf.UpdateMetric();
+    ASSERT_STREQ(bvar::Variable::describe_exposed("conf_metric_key1").c_str(),
+                 "{\"conf_name\":\"key1\",\"conf_value\":\"123\"}");
+    ASSERT_STREQ(bvar::Variable::describe_exposed("conf_metric_key2").c_str(),
+                 "{\"conf_name\":\"key2\",\"conf_value\":\"1.230000\"}");
+    ASSERT_STREQ(bvar::Variable::describe_exposed("conf_metric_key3").c_str(),
+                 "{\"conf_name\":\"key3\",\"conf_value\":\"1\"}");
 }
 
 }  // namespace common

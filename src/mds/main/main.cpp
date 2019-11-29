@@ -32,11 +32,19 @@
 #include "src/mds/heartbeat/heartbeat_service.h"
 #include "src/mds/schedule/topoAdapter.h"
 #include "proto/heartbeat.pb.h"
-#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
+#include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
-DEFINE_string(mdsAddr, "127.0.0.1.6666", "mds listen addr");
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
+DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
+
+using ::curve::mds::kMB;
+using ::curve::mds::kGB;
+
+DEFINE_uint64(chunkSize, 16 * kMB, "chunk size");
+DEFINE_uint64(segmentSize, 1 * kGB, "segment size");
+DEFINE_uint64(minFileLength, 10 * kGB, "min filglength");
 
 using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
@@ -218,6 +226,22 @@ void LoadConfigFromCmdline(Configuration *conf) {
         conf->SetStringValue("mds.listen.addr", FLAGS_mdsAddr);
     }
 
+    if (GetCommandLineFlagInfo("etcdAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.etcd.endpoint", FLAGS_etcdAddr);
+    }
+
+    if (GetCommandLineFlagInfo("chunkSize", &info) && !info.is_default) {
+        conf->SetUInt64Value("mds.curvefs.defaultChunkSize", FLAGS_chunkSize);
+    }
+
+    if (GetCommandLineFlagInfo("segmentSize", &info) && !info.is_default) {
+        DefaultSegmentSize = FLAGS_segmentSize;
+    }
+
+    if (GetCommandLineFlagInfo("minFileLength", &info) && !info.is_default) {
+        kMiniFileLength = FLAGS_minFileLength;
+    }
+
     // 设置日志存放文件夹
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("mds.common.logDir", &FLAGS_log_dir)) {
@@ -246,6 +270,9 @@ int curve_main(int argc, char **argv) {
 
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
+
+    // 打印参数
+    conf.PrintConfig();
 
     // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
@@ -377,15 +404,21 @@ int curve_main(int argc, char **argv) {
         return -1;
     }
 
+    LOG(INFO) << "connectDB success.";
+
     if (mdsRepo->createDatabase() != OperationOK) {
         LOG(ERROR) << "createDatabase fail";
         return -1;
     }
 
+    LOG(INFO) << "createDatabase success.";
+
     if (mdsRepo->useDataBase() != OperationOK) {
         LOG(ERROR) << "useDataBase fail";
         return -1;
     }
+
+    LOG(INFO) << "useDatabase success.";
 
     if (mdsRepo->createAllTables() != OperationOK) {
         LOG(ERROR) << "createAllTables fail";
@@ -536,14 +569,19 @@ int curve_main(int argc, char **argv) {
 
     // 在退出之前把自己的节点删除
     leaderElection->LeaderResign();
+    LOG(INFO) << "resign success";
 
     kCurveFS.Uninit();
     if (!cleanManger->Stop()) {
         LOG(ERROR) << "stop cleanManager fail.";
         return -1;
     }
-
+    heartbeatManager->Stop();
+    LOG(INFO) << "stop heartbeatManager success";
     segmentAllocStatistic->Stop();
+    LOG(INFO) << "stop segment alloc success";
+    coordinator->Stop();
+    LOG(INFO) << "stop coordinator success";
 
     google::ShutdownGoogleLogging();
 

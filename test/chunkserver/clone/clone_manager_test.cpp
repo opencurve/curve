@@ -105,12 +105,10 @@ TEST_F(CloneManagerTest, TaskTest) {
         // 启动以后就可以发布任务
         ASSERT_EQ(cloneMgr.Run(), 0);
         ASSERT_TRUE(cloneMgr.IssueCloneTask(task));
-        ASSERT_EQ(task.use_count(), 2);
         // 等待一点时间，任务执行完成，检查任务状态以及是否从队列中移除
         std::this_thread::sleep_for(
             std::chrono::milliseconds(200));
         ASSERT_TRUE(task->IsComplete());
-        ASSERT_EQ(task.use_count(), 1);
 
         // 无法发布空任务
         ASSERT_FALSE(cloneMgr.IssueCloneTask(nullptr));
@@ -132,36 +130,24 @@ TEST_F(CloneManagerTest, TaskTest) {
         ASSERT_FALSE(task1->IsComplete());
         ASSERT_FALSE(task2->IsComplete());
         ASSERT_FALSE(task3->IsComplete());
-        ASSERT_EQ(task1.use_count(), 2);
-        ASSERT_EQ(task2.use_count(), 2);
-        ASSERT_EQ(task3.use_count(), 2);
         // 等待220ms，task1执行成功，其他还没完成;220ms基本可以保证task1执行完
         std::this_thread::sleep_for(
             std::chrono::milliseconds(220));
         ASSERT_TRUE(task1->IsComplete());
         ASSERT_FALSE(task2->IsComplete());
         ASSERT_FALSE(task3->IsComplete());
-        ASSERT_EQ(task1.use_count(), 1);
-        ASSERT_EQ(task2.use_count(), 2);
-        ASSERT_EQ(task3.use_count(), 2);
         // 再等待200ms，task2执行成功，task3还在执行中
         std::this_thread::sleep_for(
             std::chrono::milliseconds(200));
         ASSERT_TRUE(task1->IsComplete());
         ASSERT_TRUE(task2->IsComplete());
         ASSERT_FALSE(task3->IsComplete());
-        ASSERT_EQ(task1.use_count(), 1);
-        ASSERT_EQ(task2.use_count(), 1);
-        ASSERT_EQ(task3.use_count(), 2);
         // 再等待200ms，所有任务执行成功，任务全被移出队列
         std::this_thread::sleep_for(
             std::chrono::milliseconds(200));
         ASSERT_TRUE(task1->IsComplete());
         ASSERT_TRUE(task2->IsComplete());
         ASSERT_TRUE(task3->IsComplete());
-        ASSERT_EQ(task1.use_count(), 1);
-        ASSERT_EQ(task2.use_count(), 1);
-        ASSERT_EQ(task3.use_count(), 1);
     }
 }
 

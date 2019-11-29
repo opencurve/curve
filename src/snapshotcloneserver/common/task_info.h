@@ -13,6 +13,8 @@
 #include <memory>
 #include <mutex> //NOLINT
 
+#include "src/common/concurrent/concurrent.h"
+
 namespace curve {
 namespace snapshotcloneserver {
 
@@ -82,7 +84,7 @@ class TaskInfo {
     }
 
     /**
-     * @brief 锁定任务
+     * @brief 获取任务锁的引用，以便使用LockGuard加锁解锁
      *
      *  用于同步任务完成和取消功能
      *  1. 任务完成前，先锁定任务，然后判断任务是否取消，
@@ -92,15 +94,8 @@ class TaskInfo {
      *  若已完成，则释放锁，
      *  否则执行任务取消逻辑之后释放锁。
      */
-    void Lock() {
-        lock_.lock();
-    }
-
-    /**
-     * @brief 释放锁定任务
-     */
-    void UnLock() {
-        lock_.unlock();
+    curve::common::Mutex& GetLockRef() {
+        return lock_;
     }
 
  private:
@@ -110,7 +105,7 @@ class TaskInfo {
     bool isFinish_;
     // 任务是否被取消
     bool isCanceled_;
-    mutable std::mutex lock_;
+    mutable curve::common::Mutex lock_;
 };
 
 }  // namespace snapshotcloneserver

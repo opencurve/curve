@@ -131,11 +131,11 @@ TEST_F(TestEtcdIdGenerator, test_multiclient) {
         storeKey_, strAlloc2, NameSpaceStorageCodec::EncodeID(alloc3)))
         .WillOnce(Return(EtcdErrCode::OK));
 
-    std::thread thread1 = std::thread(
+    common::Thread thread1 = common::Thread(
         &TestEtcdIdGenerator::GenID1000Times, this);
-    std::thread thread2 = std::thread(
+    common::Thread thread2 = common::Thread(
         &TestEtcdIdGenerator::GenID1000Times, this);
-    std::thread thread3 = std::thread(
+    common::Thread thread3 = common::Thread(
         &TestEtcdIdGenerator::GenID500Times, this);
     thread1.join();
     thread2.join();

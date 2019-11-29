@@ -27,17 +27,30 @@ class TestEtcdClinetImp : public ::testing::Test {
     ~TestEtcdClinetImp() {}
 
     void SetUp() override {
+        system("rm -fr testEtcdClinetImp.etcd");
+
         client_ = std::make_shared<EtcdClientImp>();
         char endpoints[] = "127.0.0.1:2377";
         EtcdConf conf = {endpoints, strlen(endpoints), 1000};
         ASSERT_EQ(EtcdErrCode::DeadlineExceeded, client_->Init(conf, 200, 3));
-        std::string runEtcd =
-            std::string("etcd --listen-client-urls 'http://localhost:2377'") +
-            std::string(" --advertise-client-urls 'http://localhost:2377'") +
-            std::string(" --listen-peer-urls 'http://localhost:2376'&");
-        system(runEtcd.c_str());
+
+        etcdPid = ::fork();
+        if (0 > etcdPid) {
+            ASSERT_TRUE(false);
+        } else if (0 == etcdPid) {
+            std::string runEtcd =
+                std::string("etcd --listen-client-urls") +
+                std::string(" 'http://localhost:2377'") +
+                std::string(" --advertise-client-urls") +
+                std::string(" 'http://localhost:2377'") +
+                std::string(" --listen-peer-urls 'http://localhost:2376'") +
+                std::string(" --name testEtcdClinetImp");
+            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
+            exit(0);
+        }
+
         // 一定时间内尝试init直到etcd完全起来
-        int now = ::curve::common::TimeUtility::GetTimeofDaySec();
+        uint64_t now = ::curve::common::TimeUtility::GetTimeofDaySec();
         bool initSuccess = false;
         while (::curve::common::TimeUtility::GetTimeofDaySec() - now <= 5) {
             if (0 == client_->Init(conf, 0, 3)) {
@@ -56,13 +69,13 @@ class TestEtcdClinetImp : public ::testing::Test {
 
     void TearDown() override {
         client_ = nullptr;
-        system("killall etcd");
-        system("rm -fr default.etcd");
+        system(("kill " + std::to_string(etcdPid)).c_str());
         std::this_thread::sleep_for(std::chrono::seconds(2));
     }
 
  protected:
     std::shared_ptr<EtcdClientImp> client_;
+    pid_t etcdPid;
 };
 
 TEST_F(TestEtcdClinetImp, test_EtcdClientInterface) {
@@ -368,7 +381,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         // 启动一个线程竞选leader
         int electionTimeoutMs = 0;
         uint64_t targetOid;
-        std::thread thread1(&EtcdClientImp::CampaignLeader, client_, pfx,
+        common::Thread thread1(&EtcdClientImp::CampaignLeader, client_, pfx,
             leaderName1, sessionnInterSec, electionTimeoutMs, &targetOid);
         // 等待线程1执行完成, 线程1执行完成就说明竞选成功，
         // 否则electionTimeoutMs为0的情况下会一直hung在里面
@@ -379,7 +392,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         // 启动第二个线程竞选leader
         auto client2 = std::make_shared<EtcdClientImp>();
         ASSERT_EQ(0, client2->Init(conf, dialtTimeout, retryTimes));
-        std::thread thread2(&EtcdClientImp::CampaignLeader, client2, pfx,
+        common::Thread thread2(&EtcdClientImp::CampaignLeader, client2, pfx,
             leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
         // 线程1退出后，leader2会当选
         thread2.join();
@@ -396,13 +409,13 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         int electionTimeoutMs = 1000;
         auto client1 = std::make_shared<EtcdClientImp>();
         ASSERT_EQ(0, client1->Init(conf, dialtTimeout, retryTimes));
-        std::thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
+        common::Thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName1, sessionnInterSec, electionTimeoutMs, &leaderOid);
         thread1.join();
         LOG(INFO) << "thread 1 exit.";
 
         // leader2再次竞选
-        std::thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
+        common::Thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
         thread2.join();
         client1->CloseClient();
@@ -417,7 +430,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         int electionTimeoutMs = 0;
         auto client1 = std::make_shared<EtcdClientImp>();
         ASSERT_EQ(0, client1->Init(conf, dialtTimeout, retryTimes));
-        std::thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
+        common::Thread thread1(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName1, sessionnInterSec, electionTimeoutMs, &targetOid);
         thread1.join();
         LOG(INFO) << "thread 1 exit.";
@@ -426,7 +439,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
             client1->LeaderResign(targetOid, 1000));
 
         // leader2当选
-        std::thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
+        common::Thread thread2(&EtcdClientImp::CampaignLeader, client1, pfx,
             leaderName2, sessionnInterSec, electionTimeoutMs, &leaderOid);
         thread2.join();
 
@@ -434,7 +447,7 @@ TEST_F(TestEtcdClinetImp, test_CampaignLeader) {
         common::Thread thread3(&EtcdClientImp::LeaderObserve, client1,
             targetOid, leaderName2);
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        system("killall etcd");
+        system(("kill " + std::to_string(etcdPid)).c_str());
         thread3.join();
         client1->CloseClient();
         LOG(INFO) << "thread 2 exit.";
