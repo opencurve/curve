@@ -40,6 +40,7 @@ class ServiceHelper {
      * @param: currentleaderIndex是当前集群中使用的索引信息，在重新找leader时，
      *         需要跳过这个index，以提高查找leader的效率
      * @param: rpcTimeoutMs超时时间，默认500ms
+     * @param: backupRequestMs超时时间，默认100ms
      * @param[out]: csid在变更
      * @param: fm是用于metric的记录
      * @return: 成功返回0，否则返回-1
@@ -50,6 +51,7 @@ class ServiceHelper {
                         ChunkServerAddr *leaderId,
                         int16_t currentleaderIndex,
                         uint32_t rpcTimeoutMs = 500,
+                        uint32_t backupRequestMs = 100,
                         ChunkServerID* csid = nullptr,
                         FileMetric_t* fm = nullptr);
     /**

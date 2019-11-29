@@ -10,6 +10,9 @@
 #include <glog/logging.h>
 #include <fiu.h>
 
+#include <thread>   // NOLINT
+#include <chrono>   // NOLINT
+
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
 #include "proto/cli2.pb.h"
@@ -358,9 +361,8 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
 
 class FakeCliService : public curve::chunkserver::CliService2 {
  public:
-    FakeCliService() {
-        invoketimes_ = 0;
-    }
+    FakeCliService() : waitMs_(0), invoketimes_(0), fakeret_(nullptr) {}
+
     void GetLeader(::google::protobuf::RpcController* controller,
                     const curve::chunkserver::GetLeaderRequest2* request,
                     curve::chunkserver::GetLeaderResponse2* response,
@@ -376,6 +378,12 @@ class FakeCliService : public curve::chunkserver::CliService2 {
         response->CopyFrom(*resp);
 
         invoketimes_++;
+
+        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
+
+        if (waitMs_ != 0) {
+            std::this_thread::sleep_for(std::chrono::microseconds(waitMs_));
+        }
     }
 
     int GetInvokeTimes() {
@@ -390,7 +398,16 @@ class FakeCliService : public curve::chunkserver::CliService2 {
         fakeret_ = fakeret;
     }
 
+    void SetDelayMs(uint64_t waitMs) {
+        waitMs_ = waitMs;
+    }
+
+    void ClearDelay() {
+        waitMs_ = 0;
+    }
+
  private:
+    uint64_t waitMs_;
     int invoketimes_;
     FakeReturn* fakeret_;
 };
