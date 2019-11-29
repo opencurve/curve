@@ -5,6 +5,8 @@
  * Copyright (c)￼ 2018 netease
  */
 
+#include <ostream>
+
 #include "src/client/client_config.h"
 #include "src/client/service_helper.h"
 #include "src/client/client_metric.h"
@@ -58,6 +60,7 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
                             ChunkServerAddr *leaderId,
                             int16_t currentleaderIndex,
                             uint32_t rpcTimeOutMs,
+                            uint32_t backupRequestMs,
                             ChunkServerID* csid,
                             FileMetric_t* fm) {
     if (conf.empty()) {
@@ -67,6 +70,11 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
 
     int16_t index = -1;
     leaderId->Reset();
+
+    // os中存放copyset所在的chunkserver的地址(不包括leader所在的chunkserver)
+    // list://127.0.0.1:12345,127.0.0.1:12346,127.0.0.1:12347,
+    std::ostringstream os;
+    os << "list://";
     for (auto iter = conf.begin(); iter != conf.end(); ++iter) {
         ++index;
         if (index == currentleaderIndex) {
@@ -77,52 +85,51 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
             continue;
         }
 
-        brpc::Channel channel;
-        if (channel.Init(iter->csaddr_.addr_, NULL) != 0) {
-            LOG(ERROR) << "Fail to init channel to"
-                        << iter->csaddr_.ToString().c_str();
-            return -1;
-        }
-        curve::chunkserver::CliService2_Stub stub(&channel);
-        curve::chunkserver::GetLeaderRequest2 request;
-        curve::chunkserver::GetLeaderResponse2 response;
-        curve::common::Peer* peer = new (std::nothrow) curve::common::Peer;
-        if (peer == nullptr) {
-            LOG(ERROR) << "allocate peer failed!";
-            return -1;
-        }
+        os << iter->csaddr_.addr_ << ",";
+    }
 
-        peer->set_id(iter->chunkserverid_);
-        peer->set_address(iter->csaddr_.ToString());
+    LOG(INFO) << "Send GetLeader request to " << os.str()
+        << " logicpool id = " << logicPoolId
+        << ", copyset id = " << copysetId;
 
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(rpcTimeOutMs);
+    brpc::Channel channel;
+    brpc::ChannelOptions opts;
+    opts.backup_request_ms = backupRequestMs;
 
-        request.set_logicpoolid(logicPoolId);
-        request.set_copysetid(copysetId);
-        request.set_allocated_peer(peer);
+    if (channel.Init(os.str().c_str(), "rr", &opts) != 0) {
+        LOG(ERROR) << "Fail to init channel to " << os.str();
+        return -1;
+    }
+    curve::chunkserver::CliService2_Stub stub(&channel);
+    curve::chunkserver::GetLeaderRequest2 request;
+    curve::chunkserver::GetLeaderResponse2 response;
 
-        stub.GetLeader(&cntl, &request, &response, NULL);
-        MetricHelper::IncremGetLeaderRetryTime(fm);
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(rpcTimeOutMs);
 
-        if (cntl.Failed()) {
-            LOG(WARNING) << "GetLeader failed, "
-                       << cntl.ErrorText()
-                       << ", copyset id = " << copysetId
-                       << ", logicpool id = " << logicPoolId;
-            continue;
-        }
+    request.set_logicpoolid(logicPoolId);
+    request.set_copysetid(copysetId);
 
-        bool has_id = response.leader().has_id();
-        if (has_id) {
-            *csid = response.leader().id();
-        }
+    stub.GetLeader(&cntl, &request, &response, NULL);
+    MetricHelper::IncremGetLeaderRetryTime(fm);
 
-        bool has_address = response.leader().has_address();
-        if (has_address) {
-            leaderId->Parse(response.leader().address());
-            return leaderId->IsEmpty() ? -1 : 0;
-        }
+    if (cntl.Failed()) {
+        LOG(WARNING) << "GetLeader failed, "
+                     << cntl.ErrorText()
+                     << ", copyset id = " << copysetId
+                     << ", logicpool id = " << logicPoolId;
+        return -1;
+    }
+
+    bool has_id = response.leader().has_id();
+    if (has_id) {
+        *csid = response.leader().id();
+    }
+
+    bool has_address = response.leader().has_address();
+    if (has_address) {
+        leaderId->Parse(response.leader().address());
+        return leaderId->IsEmpty() ? -1 : 0;
     }
 
     return -1;
