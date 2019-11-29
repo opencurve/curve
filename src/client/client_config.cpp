@@ -104,6 +104,10 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(ERROR, ret == false) << "config no getLeaderTimeOutMs info";
     RETURN_IF_FALSE(ret)
 
+    ret = conf_.GetUInt32Value("getLeaderBackupRequestMs",
+        &fileServiceOption_.ioOpt.metaCacheOpt.getLeaderBackupRequestMs);
+    LOG_IF(ERROR, ret == false) << "config no getLeaderBackupRequestMs info, using default value";  // NOLINT
+
     ret = conf_.GetUInt32Value("queueCapacity",
         &fileServiceOption_.ioOpt.reqSchdulerOpt.queueCapacity);
     LOG_IF(ERROR, ret == false) << "config no queueCapacity info";
