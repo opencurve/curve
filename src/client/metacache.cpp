@@ -141,6 +141,7 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                       toupdateCopyset->csinfos_, &leaderaddr,
                                       toupdateCopyset->GetCurrentLeaderIndex(),
                                       metacacheopt_.getLeaderTimeOutMs,
+                                      metacacheopt_.getLeaderBackupRequestMs,
                                       &csid,
                                       fm);
 

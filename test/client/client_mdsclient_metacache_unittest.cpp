@@ -1300,14 +1300,14 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     curve::chunkserver::GetLeaderResponse2 response2;
     curve::common::Peer *peer2 = new curve::common::Peer();
-    peer2->set_address(pd2.ToString());
+    peer2->set_address(pd1.ToString());
     response2.set_allocated_leader(peer2);
     FakeReturn fakeret2(nullptr, static_cast<void*>(&response2));
     cliservice2.SetFakeReturn(&fakeret2);
 
     curve::chunkserver::GetLeaderResponse2 response3;
     curve::common::Peer *peer3 = new curve::common::Peer();
-    peer3->set_address(pd2.ToString());
+    peer3->set_address(pd1.ToString());
     response3.set_allocated_leader(peer3);
     FakeReturn fakeret3(nullptr, static_cast<void*>(&response3));
     cliservice3.SetFakeReturn(&fakeret3);
@@ -1321,9 +1321,9 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice2.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice1.GetInvokeTimes() +
+                 cliservice2.GetInvokeTimes() +
+                 cliservice3.GetInvokeTimes());
 
     ASSERT_EQ(ckid, 1);
     ASSERT_EQ(ep1, leaderep);
@@ -1333,48 +1333,63 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     cliservice2.CleanInvokeTimes();
     cliservice3.CleanInvokeTimes();
 
+    peer2 = new curve::common::Peer();
+    peer2->set_address(pd2.ToString());
+    response2.set_allocated_leader(peer2);
+    fakeret2 = FakeReturn(nullptr, static_cast<void*>(&response2));
+    cliservice2.SetFakeReturn(&fakeret2);
+
+    peer3 = new curve::common::Peer();
+    peer3->set_address(pd2.ToString());
+    response3.set_allocated_leader(peer3);
+    fakeret3 = FakeReturn(nullptr, static_cast<void*>(&response3));
+    cliservice3.SetFakeReturn(&fakeret3);
+
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
     ASSERT_EQ(0, cliservice1.GetInvokeTimes());
-    ASSERT_EQ(1, cliservice2.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice2.GetInvokeTimes() + cliservice3.GetInvokeTimes());
 
     ASSERT_EQ(ckid, 2);
     ASSERT_EQ(ep2, leaderep);
 
     // 测试第三次拉取新的leader，会跳过第二个index，重试1，3
-    brpc::Controller controller1;
-    controller1.SetFailed(-1, "error");
-    curve::common::Peer *peer4 = new curve::common::Peer();
-    peer4->set_address(pd3.ToString());
-    response1.set_allocated_leader(peer4);
-    FakeReturn fakeret11(&controller1, static_cast<void*>(&response1));
-    cliservice1.SetFakeReturn(&fakeret11);
-
-    curve::common::Peer *peer5 = new curve::common::Peer();
-    peer5->set_address(pd2.ToString());
-    response2.set_allocated_leader(peer5);
-    FakeReturn fakeret22(nullptr, static_cast<void*>(&response2));
-    cliservice2.SetFakeReturn(&fakeret22);
-
-    curve::common::Peer *peer6 = new curve::common::Peer();
-    peer6->set_address(pd3.ToString());
-    response3.set_allocated_leader(peer6);
-    FakeReturn fakeret33(nullptr, static_cast<void*>(&response3));
-    cliservice3.SetFakeReturn(&fakeret33);
-
     cliservice1.CleanInvokeTimes();
     cliservice2.CleanInvokeTimes();
     cliservice3.CleanInvokeTimes();
 
+    peer1 = new curve::common::Peer();
+    peer1->set_address(pd3.ToString());
+    response1.set_allocated_leader(peer1);
+    fakeret1 = FakeReturn(nullptr, static_cast<void*>(&response1));
+    cliservice1.SetFakeReturn(&fakeret1);
+
+    peer3 = new curve::common::Peer();
+    peer3->set_address(pd3.ToString());
+    response3.set_allocated_leader(peer3);
+    fakeret3 = FakeReturn(nullptr, static_cast<void*>(&response3));
+    cliservice3.SetFakeReturn(&fakeret3);
+
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice1.GetInvokeTimes() + cliservice3.GetInvokeTimes());
     ASSERT_EQ(0, cliservice2.GetInvokeTimes());
-    ASSERT_EQ(1, cliservice3.GetInvokeTimes());
 
-    ASSERT_EQ(ckid, 3);
+    ASSERT_EQ(3, ckid);
     ASSERT_EQ(ep3, leaderep);
+
+    // 当前新leader是3，尝试再刷新leader，这个时候会从1， 2获取leader
+    // 在service中添加sleep，让GetLeader发送多个请求
+    cliservice1.SetDelayMs(150);
+    cliservice2.SetDelayMs(150);
+    mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
+    ASSERT_EQ(2, cliservice1.GetInvokeTimes() + cliservice3.GetInvokeTimes());
+    ASSERT_EQ(0, cliservice2.GetInvokeTimes());
+
+    ASSERT_EQ(3, ckid);
+    ASSERT_EQ(ep3, leaderep);
+
+    cliservice1.ClearDelay();
+    cliservice2.ClearDelay();
 
     // 测试拉取新leader失败，需要到mds重新fetch新的serverlist
     // 当前新leader是3，尝试再刷新leader，这个时候会从1， 2获取leader
@@ -1432,11 +1447,21 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     // 向当前集群中拉取leader，然后会从mds一侧获取新server list
     ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
 
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes());
-    ASSERT_EQ(1, cliservice2.GetInvokeTimes());
+    // 从1,2获取leader, 但是controller返回错误, 所以会去mds获取新的server list
+    ASSERT_EQ(1, cliservice1.GetInvokeTimes() + cliservice2.GetInvokeTimes());
     ASSERT_EQ(0, cliservice3.GetInvokeTimes());
 
     // 获取新新的leader，这时候会从1，2，4这三个server拉取新leader，并成功获取新leader
+    peer1 = new curve::common::Peer();
+    peer1->set_address(pd4.ToString());
+    peer1->set_id(4321);
+    response1.set_allocated_leader(peer1);
+    fakeret1 = FakeReturn(nullptr, static_cast<void*>(&response1));
+
+    cliservice1.SetFakeReturn(&fakeret1);
+    cliservice2.SetFakeReturn(&fakeret1);
+    cliservice2.SetFakeReturn(&fakeret1);
+
     brpc::Controller controller44;
     curve::chunkserver::GetLeaderResponse2 response4;
     curve::common::Peer *peer12 = new curve::common::Peer();
@@ -1454,10 +1479,10 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     ASSERT_EQ(0, mc.GetLeader(1234, 1234, &ckid, &leaderep, true));
     ASSERT_EQ(leaderep, ep4);
 
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes());
-    ASSERT_EQ(1, cliservice2.GetInvokeTimes());
-    ASSERT_EQ(1, cliservice3.GetInvokeTimes());
-    ASSERT_EQ(1, cliservice4.GetInvokeTimes());
+    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice1.GetInvokeTimes() +
+                 cliservice2.GetInvokeTimes() +
+                 cliservice4.GetInvokeTimes());
 
     // 直接获取新的leader信息
     cliservice1.CleanInvokeTimes();
@@ -1489,9 +1514,9 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice2.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice1.GetInvokeTimes() +
+                 cliservice2.GetInvokeTimes() +
+                 cliservice3.GetInvokeTimes());
 
     CopysetInfo_t cpinfo = mc.GetServerList(1234, 1234);
     // 新的leader因为没有id，所以并没有被添加到copyset中
@@ -1509,6 +1534,8 @@ TEST_F(MDSClientTest, GetLeaderTest) {
     response1.set_allocated_leader(peer8);
     FakeReturn fakeret55(nullptr, static_cast<void*>(&response1));
     cliservice1.SetFakeReturn(&fakeret55);
+    cliservice2.SetFakeReturn(&fakeret55);
+    cliservice3.SetFakeReturn(&fakeret55);
 
     cliservice1.CleanInvokeTimes();
     cliservice2.CleanInvokeTimes();
@@ -1516,9 +1543,9 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
 
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice2.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice3.GetInvokeTimes());
+    ASSERT_EQ(1, cliservice1.GetInvokeTimes() +
+                 cliservice2.GetInvokeTimes() +
+                 cliservice3.GetInvokeTimes());
 
     cpinfo = mc.GetServerList(1234, 1234);
     ASSERT_EQ(cpinfo.csinfos_.size(), 5);
