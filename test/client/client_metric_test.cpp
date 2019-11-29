@@ -11,6 +11,8 @@
 
 #include <chrono>   //  NOLINT
 #include <thread>   //  NOLINT
+#include <mutex>    //  NOLINT
+#include <condition_variable>   // NOLINT
 
 #include "include/client/libcurve.h"
 #include "src/client/client_metric.h"
@@ -300,6 +302,123 @@ TEST(MetricTest, ChunkServer_MetricTest) {
     ASSERT_EQ(fm->readRPC.latency.count(), 2);
 
     delete[] buffer;
+    fi.UnInitialize();
+    mds.UnInitialize();
+    mdsclient.UnInitialize();
+}
+
+bool flag = false;
+std::mutex mtx;
+std::condition_variable cv;
+void cb(CurveAioContext* ctx) {
+    std::unique_lock<std::mutex> lk(mtx);
+    flag = true;
+    cv.notify_one();
+}
+
+TEST(MetricTest, SuspendRPC_MetricTest) {
+    MetaServerOption_t  metaopt;
+    metaopt.metaaddrvec.push_back(metaserver_addr);
+    metaopt.rpcTimeoutMs = 500;
+    metaopt.rpcRetryTimes = 5;
+    metaopt.retryIntervalUs = 200;
+
+    MDSClient  mdsclient;
+    ASSERT_EQ(0, mdsclient.Initialize(metaopt));
+
+    FLAGS_chunkserver_list = "127.0.0.1:9130:0,127.0.0.1:9131:0,127.0.0.1:9132:0";   // NOLINT
+
+    // filename必须是全路径
+    std::string filename = "/1_userinfo_";
+
+    // init mds service
+    FakeMDS mds(filename);
+    mds.Initialize();
+    mds.StartService();
+    // 设置leaderid
+    EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9130, &ep);
+    PeerId pd(ep);
+    mds.StartCliService(pd);
+    mds.CreateCopysetNode(true);
+
+    UserInfo_t userinfo;
+    userinfo.owner = "test";
+
+    FileServiceOption_t opt;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt.rpcTimeoutMs = 50;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 50;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.rpcTimeoutMs = 50;
+    opt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.maxTimeoutMS = 50;
+
+    FileInstance fi;
+    ASSERT_TRUE(fi.Initialize(filename.c_str(), &mdsclient, userinfo, opt));
+
+    FileMetric_t* fm = fi.GetIOManager4File()->GetMetric();
+
+    char* buffer;
+
+    buffer = new char[8 * 1024];
+    memset(buffer, 'a', 1024);
+    memset(buffer + 1024, 'b', 1024);
+    memset(buffer + 2 * 1024, 'c', 1024);
+    memset(buffer + 3 * 1024, 'd', 1024);
+    memset(buffer + 4 * 1024, 'e', 1024);
+    memset(buffer + 5 * 1024, 'f', 1024);
+    memset(buffer + 6 * 1024, 'g', 1024);
+    memset(buffer + 7 * 1024, 'h', 1024);
+
+    int ret = fi.Write(buffer, 0, 8192);
+    ASSERT_EQ(8192, ret);
+    ret = fi.Write(buffer, 0, 4096);
+    ASSERT_EQ(4096, ret);
+
+    ret = fi.Read(buffer, 0, 8192);
+    ASSERT_EQ(8192, ret);
+    ret = fi.Read(buffer, 0, 4096);
+    ASSERT_EQ(4096, ret);
+
+    // 先睡眠，确保采样
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ASSERT_GT(fm->writeRPC.latency.max_latency(), 0);
+    ASSERT_GT(fm->readRPC.latency.max_latency(), 0);
+
+    // read write超时重试
+    mds.EnableNetUnstable(100);
+    ret = fi.Write(buffer, 0, 4096);
+    ASSERT_EQ(-2, ret);
+    ret = fi.Write(buffer, 0, 4096);
+    ASSERT_EQ(-2, ret);
+
+    ret = fi.Read(buffer, 0, 4096);
+    ASSERT_EQ(-2, ret);
+    ret = fi.Read(buffer, 0, 4096);
+    ASSERT_EQ(-2, ret);
+
+    ASSERT_EQ(fm->suspendRPCMetric.count.get_value(), 0);
+
+    mds.EnableNetUnstable(100);
+
+    char* buf1 = new char[4 * 1024];
+    CurveAioContext* aioctx = new CurveAioContext;
+    aioctx->buf = buf1;
+    aioctx->offset = 0;
+    aioctx->op = LIBCURVE_OP_WRITE;
+    aioctx->length = 4 * 1024;
+    aioctx->cb = cb;
+    fi.AioWrite(aioctx);
+
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+    ASSERT_EQ(fm->suspendRPCMetric.count.get_value(), 1);
+
+    {
+        std::unique_lock<std::mutex> lk(mtx);
+        cv.wait(lk, [](){return flag;});
+    }
+
+    delete[] buffer;
+    delete[] buf1;
     fi.UnInitialize();
     mds.UnInitialize();
     mdsclient.UnInitialize();

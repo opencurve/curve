@@ -8,6 +8,7 @@
 
 #include "src/common/configuration.h"
 
+#include <glog/logging.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -55,11 +56,46 @@ bool Configuration::SaveConfig() {
     return true;
 }
 
-std::string Configuration::DumpConfig() {
-    // TODO(wenyu): to implement
-    return "";
+void Configuration::PrintConfig() {
+    LOG(INFO) << std::string(30, '=') << "BEGIN" << std::string(30, '=');
+    for (auto &item : config_) {
+        LOG(INFO) << item.first << std::string(60 - item.first.size(), ' ')
+                  << ": " << item.second;
+    }
+    LOG(INFO) << std::string(31, '=') << "END" << std::string(31, '=');
 }
 
+
+void Configuration::ExposeMetric(const std::string& exposeName) {
+    if (exposeName_.empty()) {
+        exposeName_ = exposeName;
+    } else {
+        LOG(WARNING) << "Config metric has been exposed.";
+    }
+}
+
+void Configuration::UpdateMetric() {
+    if (exposeName_.empty()) {
+        LOG(WARNING) << "Config metric is not been exposed, update failed.";
+        return;
+    }
+
+    for (auto& config : config_) {
+        std::string configKey = config.first;
+        std::string configValue = config.second;
+        auto it = configMetric_.find(configKey);
+        // 如果配置项不存在，则新建配置项
+        if (it == configMetric_.end()) {
+            ConfigItemPtr configItem = std::make_shared<StringStatus>();
+            configItem->ExposeAs(exposeName_, configKey);
+            configMetric_[configKey] = configItem;
+        }
+        // 更新配置项
+        configMetric_[configKey]->Set("conf_name", configKey);
+        configMetric_[configKey]->Set("conf_value", configValue);
+        configMetric_[configKey]->Update();
+    }
+}
 
 std::map<std::string, std::string> Configuration::ListConfig() const {
     return config_;
@@ -120,6 +156,11 @@ bool Configuration::GetUInt64Value(const std::string &key, uint64_t *out) {
 
 
 void Configuration::SetIntValue(const std::string &key, const int value) {
+    SetValue(key, std::to_string(value));
+}
+
+void Configuration::SetUInt64Value(
+    const std::string &key, const uint64_t value) {
     SetValue(key, std::to_string(value));
 }
 

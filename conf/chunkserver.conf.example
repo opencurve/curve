@@ -3,6 +3,7 @@
 #
 # log等级INFO=0/WARNING=1/ERROR=2/FATAL=3
 global.ip=127.0.0.1
+global.subnet=127.0.0.0/24
 global.port=8200
 # chunk大小，一般16MB
 global.chunk_size=16777216
@@ -82,9 +83,9 @@ copyset.max_inflight_requests=5000
 # Clone settings
 #
 # 禁止使用curveclient
-clone.disable_curve_client=true
+clone.disable_curve_client=false
 # 禁止使用s3adapter
-clone.disable_s3_adapter=true
+clone.disable_s3_adapter=false
 # 克隆的分片大小，一般1MB
 clone.slice_size=1048576
 # 克隆的线程数量
@@ -94,9 +95,9 @@ clone.queue_depth=100
 # curve用户名
 curve.root_username=root
 # curve密码
-curve.root_password=
+curve.root_password=root_password
 # client配置文件
-curve.config_path=conf/client.conf
+curve.config_path=conf/cs_client.conf
 # s3配置文件
 s3.config_path=conf/s3.conf
 

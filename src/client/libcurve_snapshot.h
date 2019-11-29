@@ -9,6 +9,8 @@
 #define SRC_CLIENT_LIBCURVE_SNAPSHOT_H_
 
 #include <unistd.h>
+
+#include <map>
 #include <string>
 #include <atomic>
 #include <vector>
@@ -32,6 +34,13 @@ class SnapshotClient {
    * @return：0为成功，-1为失败
    */
   int Init(ClientConfigOption_t opt);
+
+  /**
+   * file对象初始化函数
+   * @param: 配置文件路径
+   */
+  int Init(const std::string& configpath);
+
   /**
    * 创建快照
    * @param: userinfo是用户信息
@@ -75,7 +84,7 @@ class SnapshotClient {
   int ListSnapShot(const std::string& filename,
                             const UserInfo_t& userinfo,
                             const std::vector<uint64_t>* seqvec,
-                            std::vector<FInfo*>* snapif);
+                            std::map<uint64_t, FInfo>* snapif);
   /**
    * 获取快照数据segment信息
    * @param: userinfo是用户信息
@@ -208,6 +217,20 @@ class SnapshotClient {
                                 const UserInfo_t& userinfo);
 
   /**
+   * 设置clone文件状态
+   * @param: filename 目标文件
+   * @param: filestatus为要设置的目标状态
+   * @param: userinfo用户信息
+   * @param: fileId为文件ID信息，非必填
+   *
+   * @return 错误码
+   */
+  int SetCloneFileStatus(const std::string &filename,
+                          const FileStatus& filestatus,
+                          const UserInfo_t& userinfo,
+                          uint64_t fileID = 0);
+
+  /**
    * @brief 获取文件信息
    *
    * @param:filename 文件名
@@ -232,7 +255,6 @@ class SnapshotClient {
   int GetOrAllocateSegmentInfo(bool allocate,
                                 uint64_t offset,
                                 const FInfo_t* fi,
-                                const UserInfo_t& userinfo,
                                 SegmentInfo *segInfo);
 
   /**
@@ -287,6 +309,9 @@ class SnapshotClient {
 
   // IOManager4Chunk用于管理发向chunkserver端的IO
   IOManager4Chunk         iomanager4chunk_;
+
+  // 用于client 配置读取
+  ClientConfig clientconfig_;
 };
 }   // namespace client
 }   // namespace curve

@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <glog/logging.h>
 #include <string>
 #include <vector>
@@ -64,6 +65,29 @@ static bool StringToUll(const std::string &value, uint64_t *out) {
         LOG(ERROR) << "decode string:{" << value << "} to number err:"
                    << e.what();
         return false;
+    }
+}
+
+
+// 将命名转换为bvar中对应的下划线方式，小写字母和数字不变，大写转小写，其他分隔符转
+// 为下划线，驼峰转为下划线
+static void ToUnderScored(const std::string &hump, std::string* out) {
+    out->clear();
+    for (int i = 0; i < hump.size(); ++i) {
+        if (isalpha(hump[i])) {
+            if (hump[i] < 'a') {  // upper cases
+                if (i != 0 && !isupper(hump[i - 1]) && out->back() != '_') {
+                    out->push_back('_');
+                }
+                out->push_back(hump[i] - 'A' + 'a');
+            } else {
+                out->push_back(hump[i]);
+            }
+        } else if (isdigit(hump[i])) {
+            out->push_back(hump[i]);
+        } else if (out->empty() || out->back() != '_') {
+            out->push_back('_');
+        }
     }
 }
 }  // namespace common

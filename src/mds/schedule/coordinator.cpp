@@ -254,7 +254,7 @@ bool Coordinator::ChunkserverGoingToAdd(
 
 
 void Coordinator::SetSchedulerRunning(bool flag) {
-    std::lock_guard<std::mutex> guard(mutex_);
+    common::LockGuard guard(mutex_);
     schedulerRunning_ = flag;
 }
 

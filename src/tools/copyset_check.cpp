@@ -6,7 +6,6 @@
  */
 #include "src/tools/copyset_check.h"
 
-DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 DEFINE_bool(detail, false, "list the copyset detail or not");
 DEFINE_uint64(margin, 1000, "The threshold of the gap between peers");
 DEFINE_uint32(logicalPoolId, 0, "logical pool id of copyset");
@@ -17,18 +16,19 @@ DEFINE_uint32(serverId, 0, "server id");
 DEFINE_string(serverIp, "", "server ip");
 DEFINE_uint32(replicasNum, 3, "the number of replicas that required");
 DEFINE_uint64(retryTimes, 3, "rpc retry times");
+DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
 
 namespace curve {
 namespace tool {
 
-int CopysetCheck::Init() {
-    curve::common::SplitString(FLAGS_mdsAddr, ",", &mdsAddrVec_);
-    if (mdsAddrVec_.empty()) {
+int CopysetCheck::Init(const std::string& mdsAddr) {
+    std::vector<std::string> mdsAddrVec;
+    curve::common::SplitString(mdsAddr, ",", &mdsAddrVec);
+    if (mdsAddrVec.empty()) {
         std::cout << "Split mds address fail!" << std::endl;
         return -1;
     }
-    channelToMds_ = new (std::nothrow) brpc::Channel();
-    for (const auto& mdsAddr : mdsAddrVec_) {
+    for (const auto& mdsAddr : mdsAddrVec) {
         if (channelToMds_->Init(mdsAddr.c_str(), nullptr) != 0) {
             std::cout << "Init channel to " << mdsAddr << "fail!" << std::endl;
             continue;
@@ -37,15 +37,20 @@ int CopysetCheck::Init() {
         curve::mds::topology::ListPhysicalPoolRequest request;
         curve::mds::topology::ListPhysicalPoolResponse response;
         brpc::Controller cntl;
-        cntl.set_timeout_ms(3000);
+        cntl.set_timeout_ms(FLAGS_rpcTimeout);
         topo_stub.ListPhysicalPool(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
             continue;
         }
+        mdsAddr_ = mdsAddr;
         return 0;
     }
     std::cout << "Init channel to all mds fail!" << std::endl;
     return -1;
+}
+
+CopysetCheck::CopysetCheck() {
+    channelToMds_ = new (std::nothrow) brpc::Channel();
 }
 
 CopysetCheck::~CopysetCheck() {
@@ -81,6 +86,7 @@ int CopysetCheck::RunCommand(std::string command) {
         } else {
             res = CheckCopysetsOnChunkserver(FLAGS_chunkserverAddr);
         }
+        PrintStatistic();
         std::cout << "Chunkserver ";
     } else if (command == "check-server") {
         if (FLAGS_serverIp.empty() && FLAGS_serverId == 0) {
@@ -98,9 +104,11 @@ int CopysetCheck::RunCommand(std::string command) {
         } else {
             res = CheckCopysetsOnServer(FLAGS_serverIp);
         }
+        PrintStatistic();
         std::cout << "Server ";
     } else if (command == "check-cluster") {
         res = CheckCopysetsInCluster();
+        PrintStatistic();
         std::cout << "Cluster ";
     } else {
         PrintHelp(command);
@@ -131,7 +139,7 @@ void CopysetCheck::PrintHelp(std::string command) {
         std::cout << "curve_ops_tool check-server -mdsAddr=127.0.0.1:6666 -serverId=1 [-margin=1000]" << std::endl;  // NOLINT
         std::cout << "curve_ops_tool check-server -mdsAddr=127.0.0.1:6666 -serverIp=127.0.0.1 [-margin=1000]" << std::endl;  // NOLINT
     } else if (command == "check-cluster") {
-        std::cout << "curve_ops_tool check-cluster -mdsAddr=127.0.0.1:6666 [-margin=1000]" << std::endl << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool check-cluster -mdsAddr=127.0.0.1:6666 [-margin=1000] [-copysetRange=10] [-leaderRange=10]" << std::endl << std::endl;  // NOLINT
     } else {
         std::cout << "Command not supported! Supported commands: " << std::endl;
         std::cout << "check-copyset" << std::endl;
@@ -141,12 +149,15 @@ void CopysetCheck::PrintHelp(std::string command) {
     }
     std::cout << std::endl;
     std::cout << "Standard of healthy is no copyset in the following state:" << std::endl;  // NOLINT
-    std::cout << "1、installing snapshot" << std::endl;
-    std::cout << "2、gap of log index between peers exceed margin" << std::endl;
-    std::cout << "3、copyset has no leader" << std::endl;
-    std::cout << "4、number of replicas less than expected" << std::endl;
+    std::cout << "1、copyset has no leader" << std::endl;
+    std::cout << "2、number of replicas less than expected" << std::endl;
+    std::cout << "3、some replicas not online" << std::endl;
+    std::cout << "4、installing snapshot" << std::endl;
+    std::cout << "5、gap of log index between peers exceed margin" << std::endl;
+    std::cout << "6、for check-cluster, the range of copyset number and leader number on chunkserver also should be considered" << std::endl;  // NOLINT
     std::cout << "By default, if the number of replicas is less than 3, it is considered unhealthy, "   // NOLINT
                  "you can change it by specify -replicasNum" << std::endl;
+    std::cout << "The order is sorted by priority, if the former is satisfied, the rest will not be checked" << std::endl;  // NOLINT
 }
 
 int CopysetCheck::CheckOneCopyset(const PoolIdType& logicalPoolId,
@@ -154,7 +165,7 @@ int CopysetCheck::CheckOneCopyset(const PoolIdType& logicalPoolId,
     curve::mds::topology::GetChunkServerListInCopySetsRequest mdsRequest;
     curve::mds::topology::GetChunkServerListInCopySetsResponse mdsResponse;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpcTimeout);
     mdsRequest.set_logicalpoolid(logicalPoolId);
     mdsRequest.add_copysetid(copysetId);
     curve::mds::topology::TopologyService_Stub topo_stub(channelToMds_);
@@ -175,72 +186,36 @@ int CopysetCheck::CheckOneCopyset(const PoolIdType& logicalPoolId,
         }
     }
 
-    // 先向第一个chunkserver发送请求，如果是follower且leader不为空就向leader
-    // 发请求。如果没有leader，认为不健康
     curve::mds::topology::CopySetServerInfo info = mdsResponse.csinfo(0);
-    int chunkServerNum = info.cslocs_size();
-    if (chunkServerNum < 3) {
-        std::cout << "Number of chunkserver less than 3" << std::endl;
-        return -1;
-    }
-    curve::mds::topology::ChunkServerLocation csl = info.cslocs(0);
-    std::string hostIp = csl.hostip();
-    uint64_t port = csl.port();
-    std::string csAddr = hostIp + ":" + std::to_string(port);
-    while (true) {
-        butil::IOBuf iobuf;
-        // copyset不会包含retired的chunkserver，如果chunkserver连接失败，
-        // 认为不健康
-        if (QueryChunkserver(csAddr, &iobuf) != 0) {
-            std::cout << "Send RPC to chunkserver " << csAddr
-                      << " fail!" << std::endl;
-            return -1;
-        }
-        // 从response_attachment里面解析出copyset信息存到map里面
-        std::vector<std::map<std::string, std::string>> copysetInfos;
+    // 保存三个副本的地址，这样的话三个副本都不在线的情况也能知道有哪些peers
+    std::vector<std::string> peers;
+    for (int i = 0; i < info.cslocs_size(); ++i) {
+        curve::mds::topology::ChunkServerLocation csl = info.cslocs(i);
+        std::string hostIp = csl.hostip();
+        uint64_t port = csl.port();
+        std::string csAddr = hostIp + ":" + std::to_string(port);
         std::string groupId = ToGroupId(logicalPoolId, copysetId);
-        std::set<std::string> groupIds = {groupId};
-        ParseResponseAttachment(groupIds, &iobuf, &copysetInfos);
-        // 从map根据状态做出判断
-        // 1.如果是leader，调用CheckHealthOnLeader从map分析是否健康
-        if (copysetInfos.empty()) {
-            std::cout << "Copyset not found on chunkserver!" << std::endl;
+        ChunkserverHealthStatus res =
+                            CheckCopysetsOnChunkserver(csAddr, {groupId});
+        peers.push_back(csAddr);
+        // 根据chunkserver检查的结果，健康返回0，不健康返回-1，不在线则继续查询
+        if (res == ChunkserverHealthStatus::kHealthy) {
+            return 0;
+        } else if (res == ChunkserverHealthStatus::kNotHealthy) {
             return -1;
         }
-        auto map = copysetInfos[0];
-        if (map["state"] == "LEADER") {
-            CheckResult res = CheckHealthOnLeader(&map);
-            switch (res) {
-                case CheckResult::kPeersNoSufficient:
-                    std::cout << "Numbser of peers not sufficient!" << std::endl;  //NOLINT
-                    return -1;
-                case CheckResult::kLogIndexGapTooBig:
-                    std::cout << "Gap between log index exceed margin!"
-                          << std::endl;
-                    return -1;
-                case CheckResult::kInstallingSnapshot:
-                    std::cout << "Copyset is installing snapshot!"
-                              << std::endl;
-                    return -1;
-                case CheckResult::kParseError:
-                    std::cout << "Parse the result fail!" << std::endl;
-                    return -1;
-                case CheckResult::kHealthy:
-                    return 0;
-                default:
-                    break;
-            }
-        } else  {
-            // 2.如果没有leader，返回不健康
-            if (map["leader"] == "0.0.0.0:0:0") {
-                std::cout << "Copyset has no leader!" << std::endl;
-                return -1;
-            }
-            // 3.向leader发送rpc请求
-            auto pos = map["leader"].rfind(":");
-            csAddr = map["leader"].substr(0, pos);
-        }
     }
+    // 三个副本都不在线
+    // TODO(charisu) : 查询层和展示层分开
+    std::cout << "All chunkservers not online!" << std::endl;
+    if (FLAGS_detail) {
+        std::cout << "Chunkservers in copyset: {";
+        std::ostream_iterator<std::string> out(std::cout, ", ");
+        std::copy(peers.begin(),
+                        peers.end(), out);
+        std::cout << "}" << std::endl;
+    }
+    return -1;
 }
 
 int CopysetCheck::CheckCopysetsOnChunkserver(
@@ -260,11 +235,11 @@ int CopysetCheck::CheckCopysetsOnChunkserver(
     curve::mds::topology::GetChunkServerInfoRequest mdsRequest;
     curve::mds::topology::GetChunkServerInfoResponse mdsResponse;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpcTimeout);
     if (chunkserverId > 0) {
         mdsRequest.set_chunkserverid(chunkserverId);
     }
-    if (chunkserverAddr != "") {
+    if (!chunkserverAddr.empty()) {
         if (!curve::common::NetCommon::CheckAddressValid(chunkserverAddr)) {
             std::cout << "chunkserverAddr invalid!" << std::endl;
             return -1;
@@ -304,31 +279,37 @@ int CopysetCheck::CheckCopysetsOnChunkserver(
     std::string hostIp = csinfo.hostip();
     uint64_t port = csinfo.port();
     std::string csAddr = hostIp + ":" + std::to_string(port);
-    int res = CheckCopysetsOnChunkserver(csAddr, {});
-    return res;
+    ChunkserverHealthStatus res = CheckCopysetsOnChunkserver(csAddr, {});
+    if (res == ChunkserverHealthStatus::kHealthy) {
+        return 0;
+    } else {
+        return -1;
+    }
 }
 
-int CopysetCheck::CheckCopysetsOnChunkserver(
+ChunkserverHealthStatus CopysetCheck::CheckCopysetsOnChunkserver(
                     const std::string& chunkserverAddr,
                     const std::set<std::string>& groupIds,
                     bool queryLeader) {
     bool isHealthy = true;
     butil::IOBuf iobuf;
     if (QueryChunkserver(chunkserverAddr, &iobuf) != 0) {
-        std::cout << "Send RPC to chunkserver " << chunkserverAddr
-                  << " fail!" << std::endl;
-        return -1;
+        // 如果查询chunkserver失败，认为不在线，把它上面所有的
+        // copyset都添加到peerNotOnlineCopysets_里面
+        UpdatePeerNotOnlineCopysets(chunkserverAddr);
+        serviceExceptionChunkservers_.emplace(chunkserverAddr);
+        return ChunkserverHealthStatus::kNotOnline;
     }
     // 存储每一个copyset的详细信息
     std::vector<std::map<std::string, std::string>> copysetInfos;
     ParseResponseAttachment(groupIds, &iobuf, &copysetInfos);
     // 对应的chunkserver上没有要找的leader的copyset，可能已经迁移出去了，
-    // 但是follower这边还没更新，这种情况也chunkserver认为不健康
+    // 但是follower这边还没更新，这种情况也认为chunkserver不健康
     if (copysetInfos.empty() ||
             (!groupIds.empty() && copysetInfos.size() != groupIds.size())) {
         std::cout << "Some copysets not found on chunkserver, may be tranfered"
                   << std::endl;
-        return -1;
+        return ChunkserverHealthStatus::kNotHealthy;
     }
     // 存储需要发送消息的chunkserver的地址和对应的groupId
     // key是chunkserver地址，value是groupId的列表
@@ -338,15 +319,19 @@ int CopysetCheck::CheckCopysetsOnChunkserver(
             CheckResult res = CheckHealthOnLeader(&copysetInfo);
             switch (res) {
                 case CheckResult::kPeersNoSufficient:
-                    peerLessCopysets_.push_back(copysetInfo["groupId"]);
+                    peerLessCopysets_.emplace(copysetInfo["groupId"]);
                     isHealthy = false;
                     break;
                 case CheckResult::kLogIndexGapTooBig:
-                    indexGapBigCopysets_.push_back(copysetInfo["groupId"]);
+                    indexGapBigCopysets_.emplace(copysetInfo["groupId"]);
                     isHealthy = false;
                     break;
                 case CheckResult::kInstallingSnapshot:
-                    installSnapshotCopysets_.push_back(copysetInfo["groupId"]);
+                    installSnapshotCopysets_.emplace(copysetInfo["groupId"]);
+                    isHealthy = false;
+                    break;
+                case CheckResult::kPeerNotOnline:
+                    peerNotOnlineCopysets_.emplace(copysetInfo["groupId"]);
                     isHealthy = false;
                     break;
                 case CheckResult::kParseError:
@@ -359,7 +344,7 @@ int CopysetCheck::CheckCopysetsOnChunkserver(
         } else {
             // 如果没有leader，返回不健康
             if (copysetInfo["leader"] == "0.0.0.0:0:0") {
-                noLeaderCopysets_.push_back(copysetInfo["groupId"]);
+                noLeaderCopysets_.emplace(copysetInfo["groupId"]);
                 isHealthy = false;
                 continue;
             }
@@ -367,20 +352,21 @@ int CopysetCheck::CheckCopysetsOnChunkserver(
                 // 向leader发送rpc请求
                 auto pos = copysetInfo["leader"].rfind(":");
                 auto csAddr = copysetInfo["leader"].substr(0, pos);
-                csAddrMap[csAddr].insert(copysetInfo["groupId"]);
+                csAddrMap[csAddr].emplace(copysetInfo["groupId"]);
             }
         }
     }
     // 遍历chunkserver发送请求
     for (const auto& item : csAddrMap) {
-        if (CheckCopysetsOnChunkserver(item.first, item.second) != 0) {
+        if (CheckCopysetsOnChunkserver(item.first, item.second)
+                                != ChunkserverHealthStatus::kHealthy) {
             isHealthy = false;
         }
     }
     if (isHealthy) {
-        return 0;
+        return ChunkserverHealthStatus::kHealthy;
     } else {
-        return -1;
+        return ChunkserverHealthStatus::kNotHealthy;
     }
 }
 
@@ -400,7 +386,7 @@ int CopysetCheck::CheckCopysetsOnServer(const ServerIdType& serverId,
     curve::mds::topology::ListChunkServerRequest mdsRequest;
     curve::mds::topology::ListChunkServerResponse mdsResponse;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpcTimeout);
     if (serverId > 0) {
         mdsRequest.set_serverid(serverId);
     }
@@ -432,9 +418,13 @@ int CopysetCheck::CheckCopysetsOnServer(const ServerIdType& serverId,
         if (info.status() == ChunkServerStatus::RETIRED) {
             continue;
         }
-        if (CheckCopysetsOnChunkserver(csAddr, {}, queryLeader) != 0) {
-            unhealthyChunkservers_.push_back(csAddr);
+        ChunkserverHealthStatus res = CheckCopysetsOnChunkserver(csAddr,
+                                                    {}, queryLeader);
+        if (res != ChunkserverHealthStatus::kHealthy) {
             isHealthy = false;
+            if (res == ChunkserverHealthStatus::kNotHealthy) {
+                unhealthyChunkservers_.emplace(csAddr);
+            }
         }
     }
     if (isHealthy) {
@@ -451,7 +441,7 @@ int CopysetCheck::CheckCopysetsInCluster() {
     curve::mds::topology::ListPhysicalPoolRequest request1;
     curve::mds::topology::ListPhysicalPoolResponse response1;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpcTimeout);
     topo_stub.ListPhysicalPool(&cntl, &request1, &response1, nullptr);
     if (cntl.Failed()) {
         std::cout << "ListPhysicalPool fail, errCode = "
@@ -474,15 +464,15 @@ int CopysetCheck::CheckCopysetsInCluster() {
         curve::mds::topology::ListPoolZoneRequest request2;
         curve::mds::topology::ListPoolZoneResponse response2;
         cntl.Reset();
-        cntl.set_timeout_ms(3000);
+        cntl.set_timeout_ms(FLAGS_rpcTimeout);
         request2.set_physicalpoolid(poolId);
         topo_stub.ListPoolZone(&cntl, &request2, &response2, nullptr);
         if (cntl.Failed()) {
-        std::cout << "ListPoolZone fail, errCode = "
-                  << response2.statuscode()
-                  << ", error content:"
-                  << cntl.ErrorText() << std::endl;
-        return -1;
+            std::cout << "ListPoolZone fail, errCode = "
+                      << response2.statuscode()
+                      << ", error content:"
+                      << cntl.ErrorText() << std::endl;
+            return -1;
         }
         if (response2.has_statuscode()) {
             if (response2.statuscode() != kTopoErrCodeSuccess) {
@@ -498,7 +488,7 @@ int CopysetCheck::CheckCopysetsInCluster() {
             curve::mds::topology::ListZoneServerRequest request3;
             curve::mds::topology::ListZoneServerResponse response3;
             cntl.Reset();
-            cntl.set_timeout_ms(3000);
+            cntl.set_timeout_ms(FLAGS_rpcTimeout);
             request3.set_zoneid(zoneId);
             topo_stub.ListZoneServer(&cntl, &request3, &response3, nullptr);
             if (cntl.Failed()) {
@@ -519,18 +509,72 @@ int CopysetCheck::CheckCopysetsInCluster() {
                 const auto& serverInfo = response3.serverinfo(i);
                 const auto& serverId = serverInfo.serverid();
                 if (CheckCopysetsOnServer(serverId, "", false) != 0) {
-                    unhealthyServers_.push_back(serverInfo.hostname());
                     isHealthy = false;
                 }
             }
         }
     }
-
+    uint64_t opNum = 0;
+    if (!GetOperatorNum(&opNum)) {
+        std::cout << "Get oparator num from mds fail!" << std::endl;
+        return -1;
+    }
     if (isHealthy) {
+        if (opNum != 0) {
+            std::cout << "Exists operators on mds, scheduling!" << std::endl;
+            return -1;
+        }
         return 0;
     }  else {
         return -1;
     }
+}
+
+bool CopysetCheck::GetOperatorNum(uint64_t* opNum) {
+    brpc::Channel httpChannel;
+    brpc::ChannelOptions options;
+    brpc::Controller cntl;
+    options.protocol = brpc::PROTOCOL_HTTP;
+    if (httpChannel.Init(mdsAddr_.c_str(), &options) != 0) {
+        std::cout << "Fail to initialize http channel";
+        return false;
+    }
+    std::string metricName = "mds_scheduler_metric_operator_num";
+    cntl.Reset();
+    // 查询copysetnum_range
+    cntl.http_request().uri() = mdsAddr_ + "/vars/" + metricName;
+    httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    if (cntl.Failed()) {
+        std::cout << "Get metric from mds fail!"
+                  << std::endl;
+        return false;
+    }
+    std::vector<std::string> strs;
+    curve::common::SplitString(cntl.response_attachment().to_string(),
+                                                            ":", &strs);
+    if (!curve::common::StringToUll(strs[1], opNum)) {
+        std::cout << "parse operator num fail!" << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void CopysetCheck::PrintStatistic() {
+    // 打印统计信息
+    uint64_t unhealthyNum = peerLessCopysets_.size()
+                            + installSnapshotCopysets_.size()
+                            + noLeaderCopysets_.size()
+                            + indexGapBigCopysets_.size()
+                            + peerNotOnlineCopysets_.size();
+    double unhealthyRatio = 0;
+    if (totalCopysets_.size() != 0) {
+        unhealthyRatio =
+                static_cast<double>(unhealthyNum) / totalCopysets_.size();
+    }
+    std::cout << "total copysets: " << totalCopysets_.size()
+              << ", unhealthy copysets: " << unhealthyNum
+              << ", unhealthy_ratio: "
+              << unhealthyRatio * 100 << "%" << std::endl;
 }
 
 std::string CopysetCheck::ToGroupId(const PoolIdType& logicPoolId,
@@ -572,6 +616,10 @@ void CopysetCheck::ParseResponseAttachment(const std::set<std::string>& gIds,
                     }
                     temp.clear();
                     map["groupId"] = gid;
+                    if (gIds.empty()) {
+                        // 查询chunkserver上所有copyset的时候保存，避免重复
+                        totalCopysets_.emplace(gid);
+                    }
                     continue;
                 }
             }
@@ -623,6 +671,7 @@ int CopysetCheck::QueryChunkserver(const std::string& chunkserverAddr,
         raft_stub.default_method(&cntl, &idxRequest, &idxResponse, nullptr);
         if (!cntl.Failed()) {
             iobuf->append(cntl.response_attachment());
+            chunkserverStatus_[chunkserverAddr] = true;
             return 0;
         }
         retryTimes++;
@@ -630,7 +679,42 @@ int CopysetCheck::QueryChunkserver(const std::string& chunkserverAddr,
     // 为了方便起见，只打印最后一次失败的error text
     std::cout << "Send RPC to chunkserver fail, error content: "
               << cntl.ErrorText() << std::endl;
+    chunkserverStatus_[chunkserverAddr] = false;
     return -1;
+}
+
+bool CopysetCheck::CheckChunkserverOnline(const std::string& chunkserverAddr) {
+    // 如果已经查询过，就直接返回结果，每次查询的总时间很短，
+    // 假设这段时间内chunkserver不会恢复
+    if (chunkserverStatus_.find(chunkserverAddr) != chunkserverStatus_.end()) {
+        return chunkserverStatus_[chunkserverAddr];
+    }
+    brpc::Channel channel;
+    if (channel.Init(chunkserverAddr.c_str(), nullptr) != 0) {
+        return false;
+    }
+    curve::chunkserver::GetChunkInfoRequest request;
+    curve::chunkserver::GetChunkInfoResponse response;
+    request.set_logicpoolid(1);
+    request.set_copysetid(1);
+    request.set_chunkid(1);
+    brpc::Controller cntl;
+    int retryTimes = 0;
+    curve::chunkserver::ChunkService_Stub stub(&channel);
+    while (retryTimes < FLAGS_retryTimes) {
+        cntl.Reset();
+        stub.GetChunkInfo(&cntl, &request, &response, nullptr);
+        if (!cntl.Failed()) {
+            chunkserverStatus_[chunkserverAddr] = true;
+            return true;
+        }
+        retryTimes++;
+    }
+    // 为了方便起见，只打印最后一次失败的error text
+    std::cout << "Send RPC to chunkserver fail, error content: "
+              << cntl.ErrorText() << std::endl;
+    chunkserverStatus_[chunkserverAddr] = false;
+    return false;
 }
 
 CheckResult CopysetCheck::CheckHealthOnLeader(
@@ -640,6 +724,19 @@ CheckResult CopysetCheck::CheckHealthOnLeader(
     curve::common::SplitString((*map)["peers"], " ", &peers);
     if (peers.size() < FLAGS_replicasNum) {
         return CheckResult::kPeersNoSufficient;
+    }
+    // 检查三个peers是否都在线
+    for (const auto& peer : peers) {
+        auto pos = peer.rfind(":");
+        if (pos == peer.npos) {
+            std::cout << "parse peer fail!" << std::endl;
+            return CheckResult::kParseError;
+        }
+        std::string csAddr = peer.substr(0, pos);
+        if (!CheckChunkserverOnline(csAddr)) {
+            serviceExceptionChunkservers_.emplace(csAddr);
+            return CheckResult::kPeerNotOnline;
+        }
     }
     // 根据replicator的情况判断log index之间的差距
     uint64_t lastLogId;
@@ -694,58 +791,58 @@ CheckResult CopysetCheck::CheckHealthOnLeader(
 
 void CopysetCheck::PrintDetail(const std::string& command) {
     // 如果是检查单个copyset则不打印以下信息
+    std::ostream_iterator<std::string> out(std::cout, ", ");
     if (command == "check-copyset") {
+        std::cout << "service-exception chunkservers (total: "
+                  << serviceExceptionChunkservers_.size() << "): {";
+        std::copy(serviceExceptionChunkservers_.begin(),
+                            serviceExceptionChunkservers_.end(), out);
+        std::cout << "}" << std::endl;
         return;
     }
-    std::cout << "Unhealthy copysets statistic:" << std::endl;
+    std::cout << "unhealthy copysets statistic: {";
     std::cout << "peers not sufficient: " << peerLessCopysets_.size()
-              << " index gap too big: " << indexGapBigCopysets_.size()
-              << " installing snapshot: " << installSnapshotCopysets_.size()
-              << " no leader: " << noLeaderCopysets_.size() << std::endl;
-    std::cout << "Unhealthy copysets list: " << std::endl;
-    std::cout << "peers not sufficient: " << std::endl;
-    PrintVec(peerLessCopysets_);
-    std::cout << "index gap too big: " << std::endl;
-    PrintVec(indexGapBigCopysets_);
-    std::cout << "installing snapshot: " << std::endl;
-    PrintVec(installSnapshotCopysets_);
-    std::cout << "no leader: " << std::endl;
-    PrintVec(noLeaderCopysets_);
-    // 如果是检查单个chunkserver则不打印以下信息
-    if (command == "check-chunkserver") {
-        return;
-    }
+              << ", index gap too big: " << indexGapBigCopysets_.size()
+              << ", installing snapshot: " << installSnapshotCopysets_.size()
+              << ", no leader: " << noLeaderCopysets_.size()
+              << ", peer not online: " << peerNotOnlineCopysets_.size() << "}"
+              << std::endl << std::endl;
+    std::cout << "unhealthy copysets list: " << std::endl;
+    std::cout << "peers not sufficient: ";
+    PrintSet(peerLessCopysets_);
     std::cout << std::endl;
-    std::cout << "Unhealthy chunkserver list: {";
-    for (uint32_t i = 0; i < unhealthyChunkservers_.size(); ++i) {
-        if (i != 0) {
-            std::cout << ", ";
-        }
-        std::cout << unhealthyChunkservers_[i];
-    }
-    std::cout << "}" << std::endl;
-    // 如果是检查单个server则不打印以下信息
+    std::cout << "index gap too big: ";
+    PrintSet(indexGapBigCopysets_);
+    std::cout << std::endl;
+    std::cout << "installing snapshot: ";
+    PrintSet(installSnapshotCopysets_);
+    std::cout << std::endl;
+    std::cout << "no leader: ";
+    PrintSet(noLeaderCopysets_);
+    std::cout << std::endl;
+    std::cout << "peer not online: ";
+    PrintSet(peerNotOnlineCopysets_);
+    std::cout << std::endl;
+    // 打印offline的chunkserver，这里不能严格说它offline，
+    // 有可能是chunkserver起来了但无法提供服务,所以叫Service-exception
+    std::cout << "service-exception chunkserver list (total: "
+              << serviceExceptionChunkservers_.size() <<"): {";
+    std::copy(serviceExceptionChunkservers_.begin(),
+                        serviceExceptionChunkservers_.end(), out);
+    std::cout << "}" << std::endl << std::endl;
     if (command == "check-server") {
-        return;
+        std::cout << "unhealthy chunkserver list (total: "
+                  << unhealthyChunkservers_.size() << "): {";
     }
-    std::cout << std::endl;
-    std::cout << "Unhealthy server list: {";
-    for (uint32_t i = 0; i < unhealthyServers_.size(); ++i) {
-        if (i != 0) {
-            std::cout << ",";
-        }
-        std::cout << unhealthyServers_[i];
-    }
-    std::cout << "}" << std::endl;
 }
 
-void CopysetCheck::PrintVec(const std::vector<std::string>& vec) {
+void CopysetCheck::PrintSet(const std::set<std::string>& set) {
     std::cout << "{";
-    for (uint32_t i = 0; i < vec.size(); ++i) {
-        if (i != 0) {
+    for (auto iter = set.begin(); iter != set.end(); ++iter) {
+        if (iter != set.begin()) {
             std::cout << ",";
         }
-        std::string gid = vec[i];
+        std::string gid = *iter;
         uint64_t groupId;
         if (!curve::common::StringToUll(gid, &groupId)) {
             std::cout << "parse group id fail: " << groupId << std::endl;
@@ -759,5 +856,50 @@ void CopysetCheck::PrintVec(const std::vector<std::string>& vec) {
     }
     std::cout << "}" << std::endl;
 }
+
+void CopysetCheck::UpdatePeerNotOnlineCopysets(const std::string& csAddr) {
+    curve::mds::topology::GetCopySetsInChunkServerRequest mdsRequest;
+    curve::mds::topology::GetCopySetsInChunkServerResponse mdsResponse;
+    brpc::Controller cntl;
+    if (!curve::common::NetCommon::CheckAddressValid(csAddr)) {
+        std::cout << "chunkserverAddr invalid!" << std::endl;
+        return;
+    }
+    std::vector<std::string> strs;
+    curve::common::SplitString(csAddr, ":", &strs);
+    std::string ip = strs[0];
+    uint64_t port;
+    curve::common::StringToUll(strs[1], &port);
+    mdsRequest.set_hostip(ip);
+    mdsRequest.set_port(port);
+    curve::mds::topology::TopologyService_Stub topo_stub(channelToMds_);
+    cntl.set_timeout_ms(FLAGS_rpcTimeout);
+    topo_stub.GetCopySetsInChunkServer(&cntl, &mdsRequest,
+                                            &mdsResponse, nullptr);
+    if (cntl.Failed()) {
+        std::cout << "GetCopySetsInChunkServer fail, errCode = "
+                  << mdsResponse.statuscode()
+                  << ", error content:"
+                  << cntl.ErrorText() << std::endl;
+        return;
+    }
+    if (mdsResponse.has_statuscode()) {
+        if (mdsResponse.statuscode() != kTopoErrCodeSuccess) {
+            std::cout << "GetCopySetsInChunkServer fail, errCode: "
+                      << mdsResponse.statuscode() << std::endl;
+            return;
+        }
+    }
+    for (int i = 0; i < mdsResponse.copysetinfos_size(); ++i) {
+        const auto& csInfo = mdsResponse.copysetinfos(i);
+        PoolIdType logicalPoolId = csInfo.logicalpoolid();
+        CopySetIdType copysetId = csInfo.copysetid();
+        std::string groupId = ToGroupId(logicalPoolId,
+                                        copysetId);
+        peerNotOnlineCopysets_.emplace(groupId);
+        totalCopysets_.emplace(groupId);
+    }
+}
+
 }  // namespace tool
 }  // namespace curve

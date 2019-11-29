@@ -12,6 +12,8 @@
 #include "src/mds/nameserver2/session.h"
 #include "src/common/timeutility.h"
 #include "src/mds/common/mds_define.h"
+
+
 #include "test/mds/nameserver2/mock/mock_namespace_storage.h"
 #include "test/mds/nameserver2/mock/mock_inode_id_generator.h"
 #include "test/mds/nameserver2/mock/mock_chunk_allocate.h"
@@ -2723,12 +2725,30 @@ TEST_F(CurveFSTest, testSetCloneFileStatus) {
                 StatusCode::kOK, 1},
             {FileStatus::kFileCloned, FileStatus::kFileCloned,
                 StatusCode::kOK, 1},
+            {FileStatus::kFileCreated, FileStatus::kFileBeingCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileBeingCloned, FileStatus::kFileCreated,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileBeingCloned, FileStatus::kFileBeingCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCloned, FileStatus::kFileBeingCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileBeingCloned, FileStatus::kFileCloned,
+                StatusCode::kOK, 1},
+            {FileStatus::kFileCreated, FileStatus::kFileCreated,
+                StatusCode::kOK, 1},
             {FileStatus::kFileCloning, FileStatus::kFileCloned,
                 StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileCloning,
                 StatusCode::kCloneStatusNotMatch, 0},
             {FileStatus::kFileCreated, FileStatus::kFileCloned,
                 StatusCode::kCloneStatusNotMatch, 0},
+            {FileStatus::kFileDeleting, FileStatus::kFileBeingCloned,
+                StatusCode::kCloneStatusNotMatch, 0},
+            {FileStatus::kFileCloning, FileStatus::kFileBeingCloned,
+                StatusCode::kCloneStatusNotMatch, 0},
+            {FileStatus::kFileCloneMetaInstalled, FileStatus::kFileBeingCloned,
+                StatusCode::kCloneStatusNotMatch, 0}
         };
 
         for (int i = 0; i < sizeof(testCases) / sizeof(testCases[0]); i++) {

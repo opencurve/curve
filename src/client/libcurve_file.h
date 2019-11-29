@@ -58,9 +58,20 @@ class FileClient {
   /**
    * 打开或创建文件
    * @param: filename文件名
+   * @param: userinfo是操作文件的用户信息
    * @return: 返回文件fd
    */
   virtual int Open(const std::string& filename, const UserInfo_t& userinfo);
+
+  /**
+   * 打开文件，这个打开只是创建了一个fd，并不与mds交互，没有session续约
+   * 这个Open接口主要是提供给快照克隆镜像系统做数据拷贝使用
+   * @param: filename文件名
+   * @param: userinfo当前用户信息
+   * @return: 返回文件fd
+   */
+  virtual int Open4ReadOnly(const std::string& filename,
+                                const UserInfo_t& userinfo);
 
   /**
    * 创建文件
@@ -197,6 +208,14 @@ class FileClient {
    * 析构，回收资源
    */
   virtual void UnInit();
+
+  /**
+   * @brief: 获取集群id
+   * @param: buf存放集群id
+   * @param: buf的长度
+   * @return: 成功返回0, 失败返回-LIBCURVE_ERROR::FAILED
+   */
+  int GetClusterId(char* buf, int len);
 
  private:
   inline bool CheckAligned(off_t offset, size_t length);

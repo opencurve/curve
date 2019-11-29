@@ -2545,6 +2545,129 @@ TEST_F(TestTopologyServiceManager,
     ASSERT_EQ(kTopoErrCodeInternalError, response.statuscode());
 }
 
+TEST_F(TestTopologyServiceManager,
+    test_GetCopySetsInChunkServer_ByIdSuccess) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddZone(0x22, "zone2", physicalPoolId);
+    PrepareAddZone(0x23, "zone3", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.0.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "10.187.0.2", "10.187.0.2", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "10.187.0.3", "10.187.0.3", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1", 8200);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "10.187.0.2", 8200);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "10.187.0.3", 8200);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
+
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(0x51, logicalPoolId, replicas);
+
+    GetCopySetsInChunkServerRequest request;
+    request.set_chunkserverid(0x41);
+
+    GetCopySetsInChunkServerResponse response;
+    serviceManager_->GetCopySetsInChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_EQ(1, response.copysetinfos_size());
+    ASSERT_EQ(0x51, response.copysetinfos(0).copysetid());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_GetCopySetsInChunkServer_ByIpSuccess) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddZone(0x22, "zone2", physicalPoolId);
+    PrepareAddZone(0x23, "zone3", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.0.1", 0x21, 0x11);
+    PrepareAddServer(0x32, "server2", "10.187.0.2", "10.187.0.2", 0x22, 0x11);
+    PrepareAddServer(0x33, "server3", "10.187.0.3", "10.187.0.3", 0x23, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1", 8888);
+    PrepareAddChunkServer(0x42, "token2", "nvme", 0x32, "10.187.0.2", 8888);
+    PrepareAddChunkServer(0x43, "token3", "nvme", 0x33, "10.187.0.3", 8888);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
+
+    std::set<ChunkServerIdType> replicas;
+    replicas.insert(0x41);
+    replicas.insert(0x42);
+    replicas.insert(0x43);
+    PrepareAddCopySet(0x51, logicalPoolId, replicas);
+
+    GetCopySetsInChunkServerRequest request;
+    request.set_hostip("10.187.0.1");
+    request.set_port(8888);
+
+    GetCopySetsInChunkServerResponse response;
+    serviceManager_->GetCopySetsInChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeSuccess, response.statuscode());
+    ASSERT_EQ(1, response.copysetinfos_size());
+    ASSERT_EQ(0x51, response.copysetinfos(0).copysetid());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_GetCopySetsInChunkServer_ByIdChunkserverNotFound) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.0.1", 0x21, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1", 8888);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
+
+    GetCopySetsInChunkServerRequest request;
+    request.set_chunkserverid(0x42);
+
+    GetCopySetsInChunkServerResponse response;
+    serviceManager_->GetCopySetsInChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeChunkServerNotFound, response.statuscode());
+    ASSERT_EQ(0, response.copysetinfos_size());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_GetCopySetsInChunkServer_ByIpChunkserverNotFound) {
+    PoolIdType logicalPoolId = 0x01;
+    PoolIdType physicalPoolId = 0x11;
+
+    PrepareAddPhysicalPool(physicalPoolId);
+    PrepareAddZone(0x21, "zone1", physicalPoolId);
+    PrepareAddServer(0x31, "server1", "10.187.0.1", "10.187.0.1", 0x21, 0x11);
+    PrepareAddChunkServer(0x41, "token1", "nvme", 0x31, "10.187.0.1", 8888);
+    PrepareAddLogicalPool(logicalPoolId, "logicalPool1", physicalPoolId);
+
+    GetCopySetsInChunkServerRequest request;
+    request.set_hostip("10.187.0.1");
+    request.set_port(9999);
+
+    GetCopySetsInChunkServerResponse response;
+    serviceManager_->GetCopySetsInChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeChunkServerNotFound, response.statuscode());
+    ASSERT_EQ(0, response.copysetinfos_size());
+}
+
+TEST_F(TestTopologyServiceManager,
+    test_GetCopySetsInChunkServer_InvalidParam) {
+    GetCopySetsInChunkServerRequest request;
+
+    GetCopySetsInChunkServerResponse response;
+    serviceManager_->GetCopySetsInChunkServer(&request, &response);
+
+    ASSERT_EQ(kTopoErrCodeInvalidParam, response.statuscode());
+    ASSERT_EQ(0, response.copysetinfos_size());
+}
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve
