@@ -362,7 +362,7 @@ int TestCluster::WaitLeader(PeerId *leaderId) {
     /**
      * 等待选举结束
      */
-    ::usleep(2 * electionTimeoutMs_);
+    ::usleep(2 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
     for (int i = 0; i < kMaxLoop; ++i) {
         ::usleep(100 * 1000);
