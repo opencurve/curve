@@ -19,6 +19,10 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/common/snapshot_reference.h"
+#include "src/common/concurrent/name_lock.h"
+#include "src/snapshotcloneserver/common/thread_pool.h"
+
+using ::curve::common::NameLock;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -157,7 +161,18 @@ class SnapshotCoreImpl : public SnapshotCore {
       snapshotRef_(snapshotRef),
       chunkSplitSize_(option.chunkSplitSize),
       checkSnapshotStatusIntervalMs_(option.checkSnapshotStatusIntervalMs),
-      maxSnapshotLimit_(option.maxSnapshotLimit) {}
+      maxSnapshotLimit_(option.maxSnapshotLimit),
+      snapshotCoreThreadNum_(option.snapshotCoreThreadNum),
+      mdsSessionTimeUs_(option.mdsSessionTimeUs) {
+        threadPool_ = std::make_shared<ThreadPool>(
+            option.snapshotCoreThreadNum);
+    }
+
+    int Init();
+
+    ~SnapshotCoreImpl() {
+        threadPool_->Stop();
+    }
 
     // 公有接口定义见SnapshotCore接口注释
     int CreateSnapshotPre(const std::string &file,
@@ -208,7 +223,7 @@ class SnapshotCoreImpl : public SnapshotCore {
      */
     int BuildSegmentInfo(
         const SnapshotInfo &info,
-        std::vector<SegmentInfo> *segInfos);
+        std::map<uint64_t, SegmentInfo> *segInfos);
 
     /**
      * @brief 在curvefs上创建快照
@@ -246,7 +261,7 @@ class SnapshotCoreImpl : public SnapshotCore {
     int BuildChunkIndexData(
         const SnapshotInfo &info,
         ChunkIndexData *indexData,
-        std::vector<SegmentInfo> *segInfos,
+        std::map<uint64_t, SegmentInfo> *segInfos,
         std::shared_ptr<SnapshotTaskInfo> task);
 
     using ChunkDataExistFilter =
@@ -266,23 +281,9 @@ class SnapshotCoreImpl : public SnapshotCore {
     int TransferSnapshotData(
         const ChunkIndexData indexData,
         const SnapshotInfo &info,
-        const std::vector<SegmentInfo> &segInfos,
+        const std::map<uint64_t, SegmentInfo> &segInfos,
         const ChunkDataExistFilter &filter,
         std::shared_ptr<SnapshotTaskInfo> task);
-
-    /**
-     * @brief 转储快照子过程，即chunk数据的转储
-     *
-     * @param name chunk数据名
-     * @param chunkSize chunk的size
-     * @param cidInfo chunk的id数据
-     *
-     * @return 错误码
-     */
-    int TransferSnapshotDataChunk(
-        const ChunkDataName &name,
-        uint64_t chunkSize,
-        const ChunkIDInfo &cidInfo);
 
     /**
      * @brief 转储数据之后取消快照过程
@@ -346,12 +347,22 @@ class SnapshotCoreImpl : public SnapshotCore {
     // 快照引用计数管理模块
     std::shared_ptr<SnapshotReference> snapshotRef_;
 
+    // 执行并发步骤的线程池
+    std::shared_ptr<ThreadPool> threadPool_;
+
+    // 锁住打快照的文件名，防止并发同时对其打快照，同一文件的快照需排队
+    NameLock snapshotNameLock_;
+
     // 转储chunk分片大小
     uint64_t chunkSplitSize_;
     // CheckSnapShotStatus调用间隔
     uint32_t checkSnapshotStatusIntervalMs_;
     // 最大快照数
     uint32_t maxSnapshotLimit_;
+    // 线程数
+    uint32_t snapshotCoreThreadNum_;
+    // session超时时间
+    uint32_t mdsSessionTimeUs_;
 };
 
 }  // namespace snapshotcloneserver

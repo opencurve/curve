@@ -16,12 +16,15 @@
 #include "src/snapshotcloneserver/clone/clone_task_manager.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
+#include "src/snapshotcloneserver/clone/clone_closure.h"
 
 namespace curve {
 namespace snapshotcloneserver {
 
 class TaskCloneInfo {
  public:
+    TaskCloneInfo() = default;
+
     TaskCloneInfo(const CloneInfo &cloneInfo,
         uint32_t progress)
         : cloneInfo_(cloneInfo),
@@ -41,6 +44,33 @@ class TaskCloneInfo {
 
     uint32_t GetCloneProgress() const {
         return cloneProgress_;
+    }
+
+    Json::Value ToJsonObj() const {
+        Json::Value cloneTaskObj;
+        CloneInfo info = GetCloneInfo();
+        cloneTaskObj["UUID"] = info.GetTaskId();
+        cloneTaskObj["User"] = info.GetUser();
+        cloneTaskObj["File"] = info.GetDest();
+        cloneTaskObj["TaskType"] = static_cast<int> (
+            info.GetTaskType());
+        cloneTaskObj["TaskStatus"] = static_cast<int> (
+            info.GetStatus());
+        cloneTaskObj["Time"] = info.GetTime();
+        return cloneTaskObj;
+    }
+
+    void LoadFromJsonObj(const Json::Value &jsonObj) {
+        CloneInfo info;
+        info.SetTaskId(jsonObj["UUID"].asString());
+        info.SetUser(jsonObj["User"].asString());
+        info.SetDest(jsonObj["File"].asString());
+        info.SetTaskType(static_cast<CloneTaskType>(
+            jsonObj["TaskType"].asInt()));
+        info.SetStatus(static_cast<CloneStatus>(
+            jsonObj["TaskStatus"].asInt()));
+        info.SetTime(jsonObj["Time"].asUInt64());
+        SetCloneInfo(info);
     }
 
  private:
@@ -84,13 +114,17 @@ class CloneServiceManager {
      * @param user  文件或快照的用户
      * @param destination 目标文件
      * @param lazyFlag  是否lazy模式
+     * @param closure 异步回调实体
+     * @param[out] taskId 任务ID
      *
      * @return 错误码
      */
     virtual int CloneFile(const UUID &source,
         const std::string &user,
         const std::string &destination,
-        bool lazyFlag);
+        bool lazyFlag,
+        std::shared_ptr<CloneClosure> closure,
+        TaskIdType *taskId);
 
     /**
      * @brief 从文件或快照恢复一个文件
@@ -99,23 +133,29 @@ class CloneServiceManager {
      * @param user  文件或快照的用户
      * @param destination 目标文件名
      * @param lazyFlag  是否lazy模式
+     * @param closure 异步回调实体
+     * @param[out] taskId 任务ID
      *
      * @return 错误码
      */
     virtual int RecoverFile(const UUID &source,
         const std::string &user,
         const std::string &destination,
-        bool lazyFlag);
+        bool lazyFlag,
+        std::shared_ptr<CloneClosure> closure,
+        TaskIdType *taskId);
 
     /**
      * @brief 查询某个用户的克隆/恢复任务信息
      *
      * @param user 用户名
+     * @param taskId 指定的任务Id, 为nullptr时不指定
      * @param info 克隆/恢复任务信息
      *
      * @return 错误码
      */
     virtual int GetCloneTaskInfo(const std::string &user,
+        const TaskIdType *taskId,
         std::vector<TaskCloneInfo> *info);
 
 

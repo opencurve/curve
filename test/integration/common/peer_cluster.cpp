@@ -35,7 +35,6 @@ PeerCluster::PeerCluster(const std::string &clusterName,
     clusterName_(clusterName),
     snapshotIntervalS_(1),
     electionTimeoutMs_(1000),
-    catchupMargin_(10),
     params_(params),
     paramsIndexs_(paramsIndexs) {
     logicPoolID_ = logicPoolID;
@@ -67,22 +66,7 @@ int PeerCluster::StartPeer(const Peer &peer,
     }
     peerNode->conf = conf;
 
-    CopysetNodeOptions options;
     PeerId peerId(peer.address());
-    options.ip = butil::ip2str(peerId.addr.ip).c_str();
-    options.port = peerId.addr.port;
-    std::string copysetdir = CopysetDirWithProtocol(peer);
-    options.chunkDataUri = copysetdir;
-    options.chunkSnapshotUri = copysetdir;
-    options.logUri = copysetdir;
-    options.raftMetaUri = copysetdir;
-    options.raftSnapshotUri = copysetdir;
-
-    options.snapshotIntervalS = snapshotIntervalS_;
-    options.electionTimeoutMs = electionTimeoutMs_;
-    options.catchupMargin = catchupMargin_;
-
-    peerNode->options = options;
 
     pid_t pid = ::fork();
     if (0 > pid) {
@@ -90,10 +74,7 @@ int PeerCluster::StartPeer(const Peer &peer,
         return -1;
     } else if (0 == pid) {
         /* 在子进程起一个 ChunkServer */
-        StartPeerNode(peerNode->options,
-                      peerNode->conf,
-                      id,
-                      params_[paramsIndexs_[id]]);
+        StartPeerNode(id, params_[paramsIndexs_[id]]);
         exit(0);
     }
     LOG(INFO) << "start peer success, peer id = " << pid;
@@ -211,7 +192,7 @@ int PeerCluster::WaitLeader(Peer *leaderPeer) {
              * 由于选举之后还需要提交应用 noop entry 之后才能提供服务，
              * 所以这里需要等待 noop apply，这里等太短，可能容易失败，后期改进
              */
-            // usleep(electionTimeoutMs_ * 1000);
+            usleep(electionTimeoutMs_ * 1000);
             LOG(INFO) << "Wait leader success, leader is: "
                       << leaderId.to_string();
             leaderPeer->set_address(leaderId.to_string());
@@ -245,20 +226,12 @@ int PeerCluster::SetsnapshotIntervalS(int snapshotIntervalS) {
     return 0;
 }
 
-int PeerCluster::SetCatchupMargin(int catchupMargin) {
-    catchupMargin_ = catchupMargin;
-    return 0;
-}
-
 int PeerCluster::SetElectionTimeoutMs(int electionTimeoutMs) {
     electionTimeoutMs_ = electionTimeoutMs;
     return 0;
 }
 
-int PeerCluster::StartPeerNode(CopysetNodeOptions options,
-                               const Configuration conf,
-                               int id,
-                               char *arg[]) {
+int PeerCluster::StartPeerNode(int id, char *arg[]) {
     struct RegisterOptions opt;
     opt.chunkserverMetaUri = "local://./" + std::to_string(id) +
                              "/chunkserver.dat";
@@ -322,9 +295,9 @@ const std::string PeerCluster::RemoveCopysetLogDirCmd(const Peer &peer,
 }
 
 int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
-                                CopysetID copysetID,
-                                Peer peer,
-                                std::vector<Peer> peers) {
+                               CopysetID copysetID,
+                               Peer peer,
+                               const std::vector<Peer>& peers) {
     LOG(INFO) << "PeerCluster begin create copyset: "
               << ToGroupIdString(logicPoolID, copysetID);
 
@@ -336,7 +309,7 @@ int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
         CopysetResponse response;
         request.set_logicpoolid(logicPoolID);
         request.set_copysetid(copysetID);
-        for (Peer peer : peers) {
+        for (auto& peer : peers) {
             request.add_peerid(peer.address());
         }
 
@@ -371,10 +344,10 @@ int PeerCluster::PeerToId(const Peer &peer) {
     return peerId.addr.port;
 }
 
-int PeerCluster::GetFollwerPeers(std::vector<Peer> peers,
+int PeerCluster::GetFollwerPeers(const std::vector<Peer>& peers,
                                  Peer leader,
                                  std::vector<Peer> *followers) {
-    for (Peer peer : peers) {
+    for (auto& peer : peers) {
         if (leader.address() != peer.address()) {
             followers->push_back(peer);
         }
@@ -648,7 +621,7 @@ void ReadVerifyNotAvailable(Peer leaderPeer,
                             int length,
                             char fillCh,
                             int loop) {
-    LOG(INFO) << "Read verify available: " << fillCh;
+    LOG(INFO) << "Read verify not available: " << fillCh;
     PeerId leaderId(leaderPeer.address());
     brpc::Channel channel;
     uint64_t sn = 1;

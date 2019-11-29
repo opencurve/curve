@@ -103,14 +103,12 @@ class CopysetClient : public Uncopyable {
      * @param offset:读的偏移
      * @param length:读的长度
      * @param done:上一层异步回调的closure
-     * @param retriedTimes:已经重试了几次
      */
     int ReadChunkSnapshot(ChunkIDInfo idinfo,
                   uint64_t sn,
                   off_t offset,
                   size_t length,
-                  Closure *done,
-                  uint64_t retriedTimes = 0);
+                  Closure *done);
 
     /**
      * 删除此次转储时产生的或者历史遗留的快照
@@ -118,22 +116,18 @@ class CopysetClient : public Uncopyable {
      * @param idinfo为chunk相关的id信息
      * @param correctedSn:需要修正的版本号
      * @param done:上一层异步回调的closure
-     * @param retriedTimes:已经重试了几次
      */
     int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
                   uint64_t correctedSn,
-                  Closure *done,
-                  uint64_t retriedTimes = 0);
+                  Closure *done);
 
     /**
      * 获取chunk文件的信息
      * @param idinfo为chunk相关的id信息
      * @param done:上一层异步回调的closure
-     * @param retriedTimes:已经重试了几次
      */
     int GetChunkInfo(ChunkIDInfo idinfo,
-                  Closure *done,
-                  uint64_t retriedTimes = 0);
+                  Closure *done);
 
     /**
     * @brief lazy 创建clone chunk
@@ -157,8 +151,7 @@ class CopysetClient : public Uncopyable {
                   uint64_t sn,
                   uint64_t correntSn,
                   uint64_t chunkSize,
-                  Closure *done,
-                  uint64_t retriedTimes = 0);
+                  Closure *done);
 
    /**
     * @brief 实际恢复chunk数据
@@ -173,8 +166,7 @@ class CopysetClient : public Uncopyable {
     int RecoverChunk(ChunkIDInfo idinfo,
                   uint64_t offset,
                   uint64_t len,
-                  Closure *done,
-                  uint64_t retriedTimes = 0);
+                  Closure *done);
 
     /**
      * session过期，需要将重试RPC停住

@@ -18,7 +18,7 @@
 #include "src/fs/fs_common.h"
 #include "src/common/timeutility.h"
 #include "src/chunkserver/heartbeat.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 
 using curve::fs::FileSystemInfo;
 
@@ -43,7 +43,7 @@ int Heartbeat::Init(const HeartbeatOptions &options) {
     options_ = options;
 
     butil::ip_t csIp;
-    storePath_ = FsAdaptorUtil::GetPathFromUri(options_.storeUri);
+    storePath_ = UriParser::GetPathFromUri(options_.storeUri);
     if (butil::str2ip(options_.ip.c_str(), &csIp) < 0) {
         LOG(ERROR) << "Invalid Chunkserver IP provided: " << options_.ip;
         return -1;
@@ -206,19 +206,27 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     diskState->set_errmsg("");
     req->set_allocated_diskstate(diskState);
 
+    ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
     curve::mds::heartbeat::ChunkServerStatisticInfo* stats =
         new curve::mds::heartbeat::ChunkServerStatisticInfo();
-    IOMetricPtr readMetric =
-        ChunkServerMetric::GetInstance()->GetReadMetric();
-    IOMetricPtr writeMetric =
-        ChunkServerMetric::GetInstance()->GetWriteMetric();
+    IOMetricPtr readMetric = metric->GetReadMetric();
+    IOMetricPtr writeMetric = metric->GetWriteMetric();
     if (readMetric != nullptr && writeMetric != nullptr) {
         stats->set_readrate(readMetric->bps_.get_value(1));
         stats->set_writerate(writeMetric->bps_.get_value(1));
         stats->set_readiops(readMetric->iops_.get_value(1));
         stats->set_writeiops(writeMetric->iops_.get_value(1));
-        req->set_allocated_stats(stats);
     }
+    CopysetNodeOptions opt = copysetMan_->GetCopysetNodeOptions();
+    uint64_t chunkFileSize = opt.maxChunkSize;
+    uint64_t usedChunkSize = metric->GetTotalSnapshotCount() * chunkFileSize
+                           + metric->GetTotalChunkCount() * chunkFileSize;
+    uint64_t trashedChunkSize = metric->GetChunkTrashedCount() * chunkFileSize;
+    uint64_t leftChunkSize = metric->GetChunkLeftCount() * chunkFileSize;
+    stats->set_chunksizeusedbytes(usedChunkSize);
+    stats->set_chunksizeleftbytes(leftChunkSize);
+    stats->set_chunksizetrashedbytes(trashedChunkSize);
+    req->set_allocated_stats(stats);
 
     size_t cap, avail;
     ret = GetFileSystemSpaces(&cap, &avail);
@@ -244,7 +252,7 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
             LOG(ERROR) << "Failed to build heartbeat information of copyset "
                        << ToGroupIdStr(copyset->GetLogicPoolId(),
                                      copyset->GetCopysetId());
-            return -1;
+            continue;
         }
         if (copyset->IsLeaderTerm()) {
             ++leaders;

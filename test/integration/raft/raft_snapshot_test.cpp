@@ -308,5 +308,147 @@ TEST_F(RaftSnapshotTest, ConsecutiveRecoverFromSnapshot) {
                length, ch, loop);
 }
 
+/**
+ * 验证3个节点的关闭非 leader 节点，重启，控制让其从 install snapshot 恢复
+ * 1. 创建3个副本的复制组
+ * 2. 等待 leader 产生，write 数据，然后 read 出来验证一遍
+ * 3. shutdown 非 leader
+ * 4. 然后 sleep 超过一个 snapshot interval，write read 数据,
+ * 5. 然后再 sleep 超过一个 snapshot interval，write read 数据；4,5两步
+ *    是为了保证打至少两次快照，这样，节点再重启的时候必须通过 install snapshot
+ * 6. 等待 leader 产生，然后 read 之前写入的数据验证一遍
+ * 7. transfer leader 到shut down 的peer 上
+ * 8. 在 read 之前写入的数据验证
+ * 9. 再 write 数据，再 read 出来验证一遍
+ */
+TEST_F(RaftSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    uint64_t initsn = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 25;
+
+    std::vector<Peer> peers;
+    peers.push_back(peer1_);
+    peers.push_back(peer2_);
+    peers.push_back(peer3_);
+
+    PeerCluster cluster("ThreeNode-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params_,
+                        paramsIndexs_);
+    ASSERT_EQ(0, cluster.StartPeer(peer1_, PeerCluster::PeerToId(peer1_)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2_, PeerCluster::PeerToId(peer2_)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3_, PeerCluster::PeerToId(peer3_)));
+
+    Peer leaderPeer;
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    LOG(INFO) << "write 1 start";
+    // 发起 read/write,产生chunk文件
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch,
+                        loop,
+                        initsn);
+
+    LOG(INFO) << "write 1 end";
+    // raft内副本之间的操作并不是全部同步的，可能存在落后的副本操作
+    // 所以先睡一会，防止并发统计文件信息
+    ::sleep(2);
+
+    // shutdown 某个follower
+    Peer shutdownPeer;
+    if (leaderPeer.address() == peer1_.address()) {
+        shutdownPeer = peer2_;
+    } else {
+        shutdownPeer = peer1_;
+    }
+    LOG(INFO) << "shutdown peer: " << shutdownPeer.address();
+    LOG(INFO) << "leader peer: " << leaderPeer.address();
+    ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeer));
+
+    // wait snapshot, 保证能够触发打快照
+    // 此外通过增加chunk版本号，触发chunk文件产生快照文件
+    ::sleep(1.5*snapshotIntervalS_);
+    // 再次发起 read/write
+    LOG(INFO) << "write 2 start";
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch + 1,
+                        loop,
+                        initsn + 1);
+    LOG(INFO) << "write 2 end";
+    // 验证chunk快照数据正确性
+    ReadSnapshotVerify(leaderPeer,
+                       logicPoolId,
+                       copysetId,
+                       chunkId,
+                       length,
+                       ch,
+                       loop);
+
+    // wait snapshot, 保证能够触发打快照
+    ::sleep(1.5*snapshotIntervalS_);
+
+    // restart, 需要从 install snapshot 恢复
+    ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
+                                   PeerCluster::PeerToId(shutdownPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    LOG(INFO) << "write 3 start";
+    // 再次发起 read/write
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch + 2,
+                        loop,
+                        initsn + 1);
+
+    LOG(INFO) << "write 3 end";
+
+    // Wait shutdown peer recovery, and then transfer leader to it
+    ::sleep(3);
+    Configuration conf = cluster.CopysetConf();
+    braft::cli::CliOptions options;
+    options.max_retry = 3;
+    options.timeout_ms = 3000;
+    const int kMaxLoop = 10;
+    butil::Status status;
+    for (int i = 0; i < kMaxLoop; ++i) {
+        status = TransferLeader(logicPoolId,
+                                copysetId,
+                                conf,
+                                shutdownPeer,
+                                options);
+        if (0 == status.error_code()) {
+            cluster.WaitLeader(&leaderPeer);
+            if (leaderPeer.address() == shutdownPeer.address()) {
+                break;
+            }
+        }
+        ::sleep(1);
+    }
+
+    ASSERT_STREQ(shutdownPeer.address().c_str(), leaderPeer.address().c_str());
+
+    ReadVerify(leaderPeer, logicPoolId, copysetId, chunkId,
+               length, ch + 2, loop);
+    ReadSnapshotVerify(leaderPeer, logicPoolId, copysetId, chunkId,
+                       length, ch, loop);
+}
+
 }  // namespace chunkserver
 }  // namespace curve

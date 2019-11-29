@@ -6,13 +6,14 @@
  */
 #include "src/tools/namespace_tool.h"
 
-DEFINE_string(mds_addr, "127.0.0.1:6666", "mds addr");
 DEFINE_string(fileName, "", "file name");
 DEFINE_string(userName, "root", "owner of the file");
 DEFINE_string(password, "root_password", "password of administrator");
 DEFINE_bool(forcedelete, false, "force delete file or not");
 DEFINE_uint64(fileLength, 20*1024*1024*1024ull, "file length");
 DEFINE_bool(isTest, false, "is unit test or not");
+DEFINE_uint64(offset, 0, "offset to query chunk location");
+DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
 
 namespace curve {
 namespace tool {
@@ -56,6 +57,8 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
         }
     } else if (cmd == "create") {
         return CreateFile(FLAGS_fileName);
+    } else if (cmd == "chunk-location") {
+        return QueryChunkLocation(FLAGS_fileName, FLAGS_offset);
     } else {
         std::cout << "Command not support!" << std::endl;
         PrintHelp("get");
@@ -64,19 +67,20 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
         PrintHelp("delete");
         PrintHelp("clean-recycle");
         PrintHelp("create");
+        PrintHelp("chunk-location");
         return -1;
     }
 }
 
-int NameSpaceTool::Init() {
+int NameSpaceTool::Init(const std::string& mdsAddr) {
     // 初始化channel
-    curve::common::SplitString(FLAGS_mds_addr, ",", &mdsAddrVec_);
-    if (mdsAddrVec_.empty()) {
+    std::vector<std::string> mdsAddrVec;
+    curve::common::SplitString(mdsAddr, ",", &mdsAddrVec);
+    if (mdsAddrVec.empty()) {
         std::cout << "Split mds address fail!" << std::endl;
         return -1;
     }
-    channel_ = new (std::nothrow) brpc::Channel();
-    for (const auto& mdsAddr : mdsAddrVec_) {
+    for (const auto& mdsAddr : mdsAddrVec) {
         if (channel_->Init(mdsAddr.c_str(), nullptr) != 0) {
             continue;
         }
@@ -84,7 +88,7 @@ int NameSpaceTool::Init() {
         curve::mds::GetFileInfoRequest request;
         curve::mds::GetFileInfoResponse response;
         brpc::Controller cntl;
-        cntl.set_timeout_ms(3000);
+        cntl.set_timeout_ms(FLAGS_rpc_timeout);
         request.set_filename("/");
         FillUserInfo(&request);
         curve::mds::CurveFSService_Stub stub(channel_);
@@ -100,6 +104,10 @@ int NameSpaceTool::Init() {
     return -1;
 }
 
+NameSpaceTool::NameSpaceTool() {
+    channel_ = new (std::nothrow) brpc::Channel();
+}
+
 NameSpaceTool::~NameSpaceTool() {
     delete channel_;
     channel_ = nullptr;
@@ -108,13 +116,16 @@ NameSpaceTool::~NameSpaceTool() {
 void NameSpaceTool::PrintHelp(const std::string &cmd) {
     std::cout << "Example: " << std::endl;
     if (cmd == "get" || cmd == "list" || cmd == "seginfo") {
-        std::cout << "curve_ops_tool " << cmd << " -mds_addr=127.0.0.1:6666 -fileName=/test" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test" << std::endl;  // NOLINT
     } else if (cmd == "clean-recycle") {
-        std::cout << "curve_ops_tool " << cmd << " -mds_addr=127.0.0.1:6666" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 [-fileName=/cinder]" << std::endl;  // NOLINT
+        std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
     } else if (cmd == "create") {
-        std::cout << "curve_ops_tool " << cmd << " -mds_addr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -fileLength=21474836480‬" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -fileLength=21474836480‬" << std::endl;  // NOLINT
     } else if (cmd == "delete") {
-        std::cout << "curve_ops_tool " << cmd << " -mds_addr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -forcedelete=true" << std::endl;  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -forcedelete=true" << std::endl;  // NOLINT
+    } else if (cmd == "chunk-location") {
+        std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -offset=16777216" << std::endl;  // NOLINT
     } else {
         std::cout << "command not found!" << std::endl;
     }
@@ -131,7 +142,7 @@ int NameSpaceTool::PrintFileInfoAndActualSize(std::string fileName) {
         return -1;
     }
     std::cout << "File info:" << std::endl;
-    std::cout << fileInfo.DebugString();
+    PrintFileInfo(fileInfo);
     fileInfo.set_originalfullpathname(fileName);
     int64_t size = GetActualSize(fileInfo);
     if (size < 0) {
@@ -143,12 +154,29 @@ int NameSpaceTool::PrintFileInfoAndActualSize(std::string fileName) {
     return 0;
 }
 
+void NameSpaceTool::PrintFileInfo(const FileInfo& fileInfo) {
+    std::string fileInfoStr = fileInfo.DebugString();
+    std::vector<std::string> items;
+    curve::common::SplitString(fileInfoStr, "\n", &items);
+    for (const auto& item : items) {
+        if (item.compare(0, 5, "ctime") == 0) {
+            // ctime是微妙，打印的时候只打印到秒
+            time_t ctime = fileInfo.ctime() / 1000000;
+            std::string standard;
+            curve::common::TimeUtility::TimeStampToStandard(ctime, &standard);
+            std::cout << "ctime: " << standard << std::endl;
+            continue;
+        }
+        std::cout << item << std::endl;
+    }
+}
+
 int NameSpaceTool::GetFileInfo(const std::string &fileName,
                                FileInfo* fileInfo) {
     curve::mds::GetFileInfoRequest request;
     curve::mds::GetFileInfoResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpc_timeout);
     request.set_filename(fileName);
     FillUserInfo(&request);
 
@@ -180,7 +208,7 @@ int64_t NameSpaceTool::GetActualSize(const FileInfo& fileInfo) {
     // 如果是文件的话，直接获取segment信息，然后计算空间即可
     if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY) {
         std::vector<PageFileSegment> segments;
-        if (GetSegmentInfo(fileInfo, &segments) != 0) {
+        if (GetFileSegments(fileInfo, &segments) != 0) {
             std::cout << "Get segment info fail, parent id: "
                       << fileInfo.parentid()
                       << " filename: " << fileInfo.filename()
@@ -234,7 +262,7 @@ int NameSpaceTool::PrintListDir(std::string dirName) {
         if (i != 0) {
             std::cout << std::endl;
         }
-        std::cout << files[i].DebugString();
+        PrintFileInfo(files[i]);
         if (dirName == "/") {
             files[i].set_originalfullpathname(dirName + files[i].filename());
         } else {
@@ -257,7 +285,7 @@ int NameSpaceTool::ListDir(const std::string& dirName,
     curve::mds::ListDirRequest request;
     curve::mds::ListDirResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpc_timeout);
     request.set_filename(dirName);
     FillUserInfo(&request);
 
@@ -296,21 +324,49 @@ int NameSpaceTool::PrintSegmentInfo(const std::string &fileName) {
     }
     fileInfo.set_originalfullpathname(fileName);
     std::vector<PageFileSegment> segments;
-    if (GetSegmentInfo(fileInfo, &segments) != 0) {
+    if (GetFileSegments(fileInfo, &segments) != 0) {
         std::cout << "Get segment info fail!" << std::endl;
         return -1;
     }
     for (auto& segment : segments) {
-        std::cout << segment.DebugString() << std::endl;
+        PrintSegment(segment);
     }
     return 0;
 }
 
-int NameSpaceTool::GetSegmentInfo(const FileInfo &fileInfo,
+void NameSpaceTool::PrintSegment(const PageFileSegment& segment) {
+    if (segment.has_logicalpoolid()) {
+        std::cout << "logicalPoolID: " << segment.logicalpoolid() << std::endl;
+    }
+    if (segment.has_startoffset()) {
+        std::cout << "startOffset: " << segment.startoffset() << std::endl;
+    }
+    if (segment.has_segmentsize()) {
+        std::cout << "segmentSize: " << segment.segmentsize() << std::endl;
+    }
+    if (segment.has_chunksize()) {
+        std::cout << "chunkSize: " << segment.chunksize() << std::endl;
+    }
+    std::cout << "chunks: " << std::endl;
+    for (int i = 0; i < segment.chunks_size(); ++i) {
+        uint64_t chunkId = 0;
+        uint32_t copysetId = 0;
+        if (segment.chunks(i).has_chunkid()) {
+            chunkId = segment.chunks(i).chunkid();
+        }
+        if (segment.chunks(i).has_copysetid()) {
+            copysetId = segment.chunks(i).copysetid();
+        }
+        std::cout << "chunkID: " << chunkId << ", copysetID: "
+                                 << copysetId << std::endl;
+    }
+}
+
+int NameSpaceTool::GetFileSegments(const FileInfo &fileInfo,
                                   std::vector<PageFileSegment>* segments) {
-    // 如果是目录，不能计算segmentsize
-    if (fileInfo.filetype() == curve::mds::FileType::INODE_DIRECTORY) {
-        std::cout << "It is a directory!" << std::endl;
+    // 只能获取page file的segment
+    if (fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) {
+        std::cout << "It is not a page file!" << std::endl;
         return -1;
     }
 
@@ -318,50 +374,66 @@ int NameSpaceTool::GetSegmentInfo(const FileInfo &fileInfo,
     int segmentNum = fileInfo.length() / fileInfo.segmentsize();
     uint64_t segmentSize = fileInfo.segmentsize();
     std::string fileName = fileInfo.originalfullpathname();
-    for (int i = 0; i != segmentNum; i++) {
+    for (uint64_t i = 0; i < segmentNum; i++) {
         // load  segment
-        curve::mds::GetOrAllocateSegmentRequest request;
-        curve::mds::GetOrAllocateSegmentResponse response;
-        brpc::Controller cntl;
-        cntl.set_timeout_ms(3000);
-        request.set_filename(fileName);
-        request.set_offset(i*segmentSize);
-        request.set_allocateifnotexist(false);
-        FillUserInfo(&request);
-
-        curve::mds::CurveFSService_Stub stub(channel_);
-        stub.GetOrAllocateSegment(&cntl, &request, &response, NULL);
-
-        if (cntl.Failed()) {
-            std::cout<< "Get segment info fail, errCde = "
-                    << response.statuscode()
-                    << ", error content:"
-                    << cntl.ErrorText() << std::endl;
+        PageFileSegment segment;
+        GetSegmentRes res = GetSegmentInfo(fileName,
+                                    i * segmentSize, &segment);
+        if (res == GetSegmentRes::kOK) {
+            segments->emplace_back(segment);
+        } else if (res == GetSegmentRes::kSegmentNotAllocated) {
+            continue;
+        } else {
+            std::cout << "Get segment info from mds fail!" << std::endl;
             return -1;
-        }
-
-        if (response.has_statuscode()) {
-            if (response.statuscode() == StatusCode::kOK) {
-                segments->push_back(response.pagefilesegment());
-            } else if (response.statuscode() ==
-                            StatusCode::kSegmentNotAllocated) {
-                continue;
-            } else {
-                std::cout << "Get segment info fail, offset: "
-                      << i*segmentSize << " errCode:"
-                      << response.statuscode() << std::endl;
-                return -1;
-            }
         }
     }
     return 0;
+}
+
+GetSegmentRes NameSpaceTool::GetSegmentInfo(std::string fileName,
+                                         uint64_t offset,
+                                         PageFileSegment* segment) {
+    curve::mds::GetOrAllocateSegmentRequest request;
+    curve::mds::GetOrAllocateSegmentResponse response;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(3000);
+    request.set_filename(fileName);
+    request.set_offset(offset);
+    request.set_allocateifnotexist(false);
+    FillUserInfo(&request);
+
+    curve::mds::CurveFSService_Stub stub(channel_);
+    stub.GetOrAllocateSegment(&cntl, &request, &response, NULL);
+    if (cntl.Failed()) {
+        std::cout << "Get segment info fail, errCde = "
+                  << response.statuscode()
+                  << ", error content:"
+                  << cntl.ErrorText() << std::endl;
+        return GetSegmentRes::kOtherError;
+    }
+
+    if (response.has_statuscode()) {
+        if (response.statuscode() == StatusCode::kOK) {
+            *segment = response.pagefilesegment();
+        } else if (response.statuscode() ==
+                StatusCode::kSegmentNotAllocated) {
+            return GetSegmentRes::kSegmentNotAllocated;
+        } else {
+            std::cout << "Get segment info fail, offset: "
+                      << offset << " errCode:"
+                      << response.statuscode() << std::endl;
+            return GetSegmentRes::kOtherError;;
+        }
+    }
+    return GetSegmentRes::kOK;
 }
 
 int NameSpaceTool::DeleteFile(const std::string& fileName, bool forcedelete) {
     curve::mds::DeleteFileRequest request;
     curve::mds::DeleteFileResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpc_timeout);
     request.set_filename(fileName);
     request.set_forcedelete(forcedelete);
     FillUserInfo(&request);
@@ -398,6 +470,13 @@ int NameSpaceTool::CleanRecycleBin() {
     bool success = true;
     for (const auto& fileInfo : files) {
         std::string fileName = "/RecycleBin/" + fileInfo.filename();
+        // 如果指定了-fileName，就只删除原来在这个目录下的文件
+        if (!FLAGS_fileName.empty()) {
+            std::string originPath = fileInfo.originalfullpathname();
+            if (originPath.find(FLAGS_fileName) != 0) {
+                continue;
+            }
+        }
         if (DeleteFile(fileName, true) != 0) {
             success = false;
         }
@@ -412,7 +491,7 @@ int NameSpaceTool::CreateFile(const std::string& fileName) {
     curve::mds:: CreateFileRequest request;
     curve::mds::CreateFileResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(3000);
+    cntl.set_timeout_ms(FLAGS_rpc_timeout);
     request.set_filename(fileName);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
     request.set_filelength(FLAGS_fileLength);
@@ -440,6 +519,88 @@ int NameSpaceTool::CreateFile(const std::string& fileName) {
         }
     }
     return -1;
+}
+
+int NameSpaceTool::QueryChunkLocation(const std::string& fileName,
+                                     uint64_t offset) {
+    FileInfo fileInfo;
+    int ret = GetFileInfo(fileName, &fileInfo);
+    if (ret != 0) {
+        std::cout << "Get file info failed!" << std::endl;
+        return -1;
+    }
+    if (fileInfo.filetype() != curve::mds::FileType::INODE_PAGEFILE) {
+        std::cout << "It is not a page file!" << std::endl;
+        return -1;
+    }
+    uint64_t segmentSize = fileInfo.segmentsize();
+    // segment对齐的offset
+    uint64_t segOffset = (offset / segmentSize) * segmentSize;
+    PageFileSegment segment;
+    GetSegmentRes res = GetSegmentInfo(fileName, segOffset, &segment);
+    if (res != GetSegmentRes::kOK) {
+        if (res == GetSegmentRes::kSegmentNotAllocated) {
+            std::cout << "Chunk has not been allocated!" << std::endl;
+            return -1;
+        } else {
+            std::cout << "Get segment info from mds fail!" << std::endl;
+            return -1;
+        }
+    }
+    // 在segment里面的chunk的索引
+    uint64_t chunkIndex = (offset - segOffset) / segment.chunksize();
+    if (chunkIndex >= segment.chunks_size()) {
+        std::cout << "ChunkIndex exceed chunks num in segment!" << std::endl;
+        return -1;
+    }
+    PageFileChunkInfo chunk = segment.chunks(chunkIndex);
+    uint64_t chunkId = chunk.chunkid();
+    uint32_t logicPoolId = segment.logicalpoolid();
+    uint32_t copysetId = chunk.copysetid();
+    uint64_t groupId = (static_cast<uint64_t>(logicPoolId) << 32) | copysetId;
+    std::cout << "chunkId: " << chunkId
+              << ", logicalPoolId: " << logicPoolId
+              << ", copysetId: " << copysetId
+              << ", groupId: " << groupId << std::endl;
+    return PrintCopysetMembers(segment.logicalpoolid(), copysetId);
+}
+
+int NameSpaceTool::PrintCopysetMembers(uint32_t logicalPoolId,
+                                       uint32_t copysetId) {
+    curve::mds::topology::GetChunkServerListInCopySetsRequest request;
+    curve::mds::topology::GetChunkServerListInCopySetsResponse response;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(3000);
+    request.set_logicalpoolid(logicalPoolId);
+    request.add_copysetid(copysetId);
+    curve::mds::topology::TopologyService_Stub topo_stub(channel_);
+    topo_stub.GetChunkServerListInCopySets(&cntl,
+                            &request, &response, nullptr);
+    if (cntl.Failed()) {
+        std::cout << "GetChunkServerListInCopySets fail, errCode = "
+                    << response.statuscode()
+                    << ", error content:"
+                    << cntl.ErrorText() << std::endl;
+        return -1;
+    }
+    if (response.has_statuscode()) {
+        if (response.statuscode() != kTopoErrCodeSuccess) {
+            std::cout << "GetChunkServerListInCopySets fail, errCode: "
+                      << response.statuscode() << std::endl;
+            return -1;
+        }
+    }
+    std::cout << "location: {";
+    for (int i = 0; i < response.csinfo(0).cslocs_size(); ++i) {
+        if (i != 0) {
+            std::cout << ", ";
+        }
+        auto location = response.csinfo(0).cslocs(i);
+        std::cout << location.hostip() << ":"
+                  << std::to_string(location.port());
+    }
+    std::cout << "}" << std::endl;
+    return 0;
 }
 
 template <class T>

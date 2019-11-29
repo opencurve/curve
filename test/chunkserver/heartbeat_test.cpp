@@ -18,8 +18,8 @@
 #include "src/common/configuration.h"
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/cli.h"
+#include "src/chunkserver/uri_paser.h"
 
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "test/client/fake/fakeMDS.h"
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
@@ -43,7 +43,7 @@ static char* confPath[3] = {
 
 int RmDirData(std::string uri) {
     char cmd[1024] = "";
-    std::string dir = FsAdaptorUtil::GetPathFromUri(uri);
+    std::string dir = UriParser::GetPathFromUri(uri);
     CHECK(dir != "") << "rmdir got empty dir string, halting immediately.";
     snprintf(cmd, sizeof(cmd) - 1, "rm -rf %s/*", dir.c_str());
 
@@ -54,7 +54,7 @@ int RmDirData(std::string uri) {
 
 int RmFile(std::string uri) {
     char cmd[1024] = "";
-    std::string path = FsAdaptorUtil::GetPathFromUri(uri);
+    std::string path = UriParser::GetPathFromUri(uri);
 
     snprintf(cmd, sizeof(cmd) - 1, "rm -f %s", path.c_str());
 

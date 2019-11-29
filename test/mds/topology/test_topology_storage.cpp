@@ -769,6 +769,41 @@ TEST_F(TestTopologyStorage, test_UpdateCopySet_fail) {
     ASSERT_FALSE(ret);
 }
 
+TEST_F(TestTopologyStorage, test_LoadClusterInfo_success) {
+    EXPECT_CALL(*repo_, LoadClusterInfoRepoItems(_))
+        .WillOnce(Return(OperationOK));
+
+    std::vector<ClusterInformation> infos;
+    int ret = storage_->LoadClusterInfo(&infos);
+    ASSERT_TRUE(ret);
+}
+
+TEST_F(TestTopologyStorage, test_LoadClusterInfo_fail) {
+    EXPECT_CALL(*repo_, LoadClusterInfoRepoItems(_))
+        .WillOnce(Return(SqlException));
+
+    std::vector<ClusterInformation> infos;
+    int ret = storage_->LoadClusterInfo(&infos);
+    ASSERT_FALSE(ret);
+}
+
+TEST_F(TestTopologyStorage, test_StorageClusterInfoSuccess) {
+    EXPECT_CALL(*repo_, InsertClusterInfoRepoItem(_))
+        .WillOnce(Return(OperationOK));
+    ClusterInformation info;
+    int ret = storage_->StorageClusterInfo(info);
+    ASSERT_TRUE(ret);
+}
+
+TEST_F(TestTopologyStorage, test_StorageClusterInfoFail) {
+    EXPECT_CALL(*repo_, InsertClusterInfoRepoItem(_))
+        .WillOnce(Return(SqlException));
+    ClusterInformation info;
+    int ret = storage_->StorageClusterInfo(info);
+    ASSERT_FALSE(ret);
+}
+
+
 }  // namespace topology
 }  // namespace mds
 }  // namespace curve

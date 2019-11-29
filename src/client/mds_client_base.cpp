@@ -169,7 +169,15 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
 
     LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq
+                << ", seqnum = " << [seq] () {
+                    std::string data("[ ");
+                    for (uint64_t v : *seq) {
+                        data += std::to_string(v);
+                        data += " ";
+                    }
+                    data += "]";
+                    return data;
+                } ()
                 << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
@@ -264,6 +272,18 @@ void MDSClientBase::GetServerList(const LogicPoolID& logicalpooid,
     stub.GetChunkServerListInCopySets(cntl, &request, response, nullptr);
 }
 
+void MDSClientBase::GetClusterInfo(GetClusterInfoResponse* response,
+                                   brpc::Controller* cntl,
+                                   brpc::Channel* channel) {
+    GetClusterInfoRequest request;
+
+    cntl->set_log_id(GetLogId());
+    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+
+    curve::mds::topology::TopologyService_Stub stub(channel);
+    stub.GetClusterInfo(cntl, &request, response, nullptr);
+}
+
 void MDSClientBase::CreateCloneFile(const std::string &destination,
                                 const UserInfo_t& userinfo,
                                 uint64_t size,
@@ -311,7 +331,7 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
     cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<SetCloneFileStatusRequest>(&request, userinfo);
 
-    LOG(INFO) << "CreateCloneFile: filename = " << filename.c_str()
+    LOG(INFO) << "SetCloneFileStatus: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner.c_str()
                 << ", filestatus = " << static_cast<int>(filestatus)
                 << ", fileID = " << fileID
@@ -322,7 +342,6 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
 }
 
 void MDSClientBase::GetOrAllocateSegment(bool allocate,
-                                const UserInfo_t& userinfo,
                                 uint64_t offset,
                                 const FInfo_t* fi,
                                 GetOrAllocateSegmentResponse* response,
@@ -341,10 +360,10 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
 
     cntl->set_log_id(GetLogId());
     cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
-    FillUserInfo<GetOrAllocateSegmentRequest>(&request, userinfo);
+    FillUserInfo<GetOrAllocateSegmentRequest>(&request, fi->userinfo);
 
     LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
-                << ", owner = " << userinfo.owner.c_str()
+                << ", owner = " << fi->owner.c_str()
                 << ", offset = " << offset
                 << ", segment offset = " << seg_offset
                 << ", log id = " << cntl->log_id();

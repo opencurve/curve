@@ -13,6 +13,7 @@
 #include <brpc/errno.pb.h>
 #include <bthread/mutex.h>
 
+#include <map>
 #include <vector>
 #include <string>
 
@@ -84,10 +85,17 @@ class MDSClient {
     LIBCURVE_ERROR GetServerList(const LogicPoolID &logicPoolId,
                             const std::vector<CopysetID>& csid,
                             std::vector<CopysetInfo_t>* cpinfoVec);
+
+   /**
+    * 获取当前mds所属的集群信息
+    * @param[out]: clsctx 为要获取的集群信息
+    * @return: 成功返回LIBCURVE_ERROR::OK,否则返回LIBCURVE_ERROR::FAILED
+    */
+    LIBCURVE_ERROR GetClusterInfo(ClusterContext* clsctx);
+
     /**
      * 获取segment的chunk信息，并更新到Metacache
      * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
-     * @param: userinfo为user信息
      * @param: offset为文件整体偏移
      * @param: fi是当前文件的基本信息
      * @param[out]: segInfoh获取当前segment的内部chunk信息
@@ -95,7 +103,6 @@ class MDSClient {
      *          否则返回LIBCURVE_ERROR::FAILED
      */
     LIBCURVE_ERROR GetOrAllocateSegment(bool allocate,
-                            const UserInfo_t& userinfo,
                             uint64_t offset,
                             const FInfo_t* fi,
                             SegmentInfo *segInfo);
@@ -152,19 +159,7 @@ class MDSClient {
     LIBCURVE_ERROR DeleteSnapShot(const std::string& filename,
                             const UserInfo_t& userinfo,
                             uint64_t seq);
-    /**
-     * 获取版本号为seq的snapshot文件信息，snapif是出参
-     * @param: filename是要快照的文件名
-     * @param: userinfo是用户信息
-     * @param: seq是创建快照时文件的版本信息
-     * @param: snapif是出参，保存文件的基本信息
-     * @return: 成功返回LIBCURVE_ERROR::OK,如果认证失败返回LIBCURVE_ERROR::AUTHFAIL，
-     *          否则返回LIBCURVE_ERROR::FAILED
-     */
-    LIBCURVE_ERROR GetSnapShot(const std::string& filename,
-                            const UserInfo_t& userinfo,
-                            uint64_t seq,
-                            FInfo* snapif);
+
     /**
      * 以列表的形式获取版本号为seq的snapshot文件信息，snapif是出参
      * @param: filename是要快照的文件名
@@ -177,7 +172,7 @@ class MDSClient {
     LIBCURVE_ERROR ListSnapShot(const std::string& filename,
                             const UserInfo_t& userinfo,
                             const std::vector<uint64_t>* seq,
-                            std::vector<FInfo*>* snapif);
+                            std::map<uint64_t, FInfo>* snapif);
     /**
      * 获取快照的chunk信息并更新到metacache，segInfo是出参
      * @param: filename是要快照的文件名

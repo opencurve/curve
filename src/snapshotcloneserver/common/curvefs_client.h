@@ -16,6 +16,7 @@
 
 #include "src/client/client_common.h"
 #include "src/client/libcurve_snapshot.h"
+#include "src/client/libcurve_file.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
 
@@ -42,8 +43,6 @@ class CurveFsClient {
      * @return 错误码
      */
     virtual int Init(const CurveClientOptions &options) = 0;
-    // TODO(xuchaojie): 后续考虑支持用户登录的方式，接口不传user。
-
     /**
      * @brief client 资源回收
      *
@@ -133,7 +132,7 @@ class CurveFsClient {
      *
      * @return 错误码
      */
-    virtual int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
+    virtual int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo &cidinfo,
         uint64_t correctedSeq) = 0;
 
     /**
@@ -156,7 +155,7 @@ class CurveFsClient {
      *
      * @return 错误码
      */
-    virtual int GetChunkInfo(ChunkIDInfo cidinfo,
+    virtual int GetChunkInfo(const ChunkIDInfo &cidinfo,
         ChunkInfoDetail *chunkInfo) = 0;
 
     /**
@@ -244,6 +243,20 @@ class CurveFsClient {
         const std::string &user) = 0;
 
     /**
+     * @brief 设置clone文件状态
+     *
+     * @param filename 文件名
+     * @param filestatus 要设置的目标状态
+     * @param user 用户名
+     *
+     * @return 错误码
+     */
+    virtual int SetCloneFileStatus(
+        const std::string &filename,
+        const FileStatus& filestatus,
+        const std::string &user) = 0;
+
+    /**
      * @brief 获取文件信息
      *
      * @param filename 文件名
@@ -271,8 +284,8 @@ class CurveFsClient {
     virtual int GetOrAllocateSegmentInfo(
         bool allocate,
         uint64_t offset,
-        const FInfo* fileInfo,
-        const std::string user,
+        FInfo* fileInfo,
+        const std::string &user,
         SegmentInfo *segInfo) = 0;
 
     /**
@@ -307,6 +320,28 @@ class CurveFsClient {
             const std::string &fileName,
             const std::string &user,
             uint64_t fileId) = 0;
+
+    /**
+     * @brief 创建目录
+     *
+     * @param dirpath 目录名
+     * @param user 用户名
+     *
+     * @return 错误码
+     */
+    virtual int Mkdir(const std::string& dirpath,
+        const std::string &user) = 0;
+
+    /**
+     * @brief 变更文件的owner
+     *
+     * @param filename 文件名
+     * @param newOwner 新的owner
+     *
+     * @return 错误码
+     */
+    virtual int ChangeOwner(const std::string& filename,
+        const std::string& newOwner) = 0;
 };
 
 class CurveFsClientImpl : public CurveFsClient {
@@ -344,7 +379,7 @@ class CurveFsClientImpl : public CurveFsClient {
                         uint64_t len,
                         char *buf) override;
 
-    int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo cidinfo,
+    int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo &cidinfo,
         uint64_t seq) override;
 
     int CheckSnapShotStatus(std::string filename,
@@ -352,7 +387,7 @@ class CurveFsClientImpl : public CurveFsClient {
                             uint64_t seq,
                             FileStatus* filestatus) override;
 
-    int GetChunkInfo(ChunkIDInfo cidinfo,
+    int GetChunkInfo(const ChunkIDInfo &cidinfo,
         ChunkInfoDetail *chunkInfo) override;
 
     int CreateCloneFile(
@@ -383,6 +418,11 @@ class CurveFsClientImpl : public CurveFsClient {
         const std::string &filename,
         const std::string &user) override;
 
+    int SetCloneFileStatus(
+        const std::string &filename,
+        const FileStatus& filestatus,
+        const std::string &user) override;
+
     int GetFileInfo(
         const std::string &filename,
         const std::string &user,
@@ -391,8 +431,8 @@ class CurveFsClientImpl : public CurveFsClient {
     int GetOrAllocateSegmentInfo(
         bool allocate,
         uint64_t offset,
-        const FInfo* fileInfo,
-        const std::string user,
+        FInfo* fileInfo,
+        const std::string &user,
         SegmentInfo *segInfo) override;
 
     int RenameCloneFile(
@@ -407,8 +447,18 @@ class CurveFsClientImpl : public CurveFsClient {
         const std::string &user,
         uint64_t fileId) override;
 
+    int Mkdir(const std::string& dirpath,
+        const std::string &user) override;
+
+    int ChangeOwner(const std::string& filename,
+                    const std::string& newOwner) override;
+
  private:
     ::curve::client::SnapshotClient client_;
+    ::curve::client::FileClient fileClient_;
+
+    std::string mdsRootUser_;
+    std::string mdsRootPassword_;
 };
 
 }  // namespace snapshotcloneserver

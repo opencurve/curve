@@ -68,6 +68,8 @@ using curve::mds::GetOrAllocateSegmentRequest;
 using curve::mds::GetOrAllocateSegmentResponse;
 using curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
+using curve::mds::topology::GetClusterInfoRequest;
+using curve::mds::topology::GetClusterInfoResponse;
 
 extern const char* kRootUserName;
 
@@ -245,6 +247,17 @@ class MDSClientBase {
                     GetChunkServerListInCopySetsResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
+
+    /**
+     * 获取mds对应的cluster id
+     * @param[out]: response为该rpc的respoonse，提供给外部处理
+     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
+     * @param[in]: channel是当前与mds建立的通道
+     */
+    void GetClusterInfo(GetClusterInfoResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel);
+
     /**
      * 创建clone文件
      * @param:destination clone目标文件名
@@ -284,7 +297,6 @@ class MDSClientBase {
     /**
      * 获取segment的chunk信息，并更新到Metacache
      * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
-     * @param: userinfo为user信息
      * @param: offset为文件整体偏移
      * @param: fi是当前文件的基本信息
      * @param[out]: response为该rpc的response，提供给外部处理
@@ -292,7 +304,6 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void GetOrAllocateSegment(bool allocate,
-                    const UserInfo_t& userinfo,
                     uint64_t offset,
                     const FInfo_t* fi,
                     GetOrAllocateSegmentResponse* response,

@@ -13,6 +13,8 @@
 #include <memory>
 #include <vector>
 
+#include "src/snapshotcloneserver/common/snapshotclone_metric.h"
+
 namespace curve {
 namespace snapshotcloneserver {
 
@@ -33,7 +35,10 @@ void CloneServiceManager::Stop() {
 int CloneServiceManager::CloneFile(const UUID &source,
     const std::string &user,
     const std::string &destination,
-    bool lazyFlag) {
+    bool lazyFlag,
+    std::shared_ptr<CloneClosure> closure,
+    TaskIdType *taskId) {
+    brpc::ClosureGuard guard(closure.get());
     CloneInfo cloneInfo;
     int ret = cloneCore_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -45,10 +50,18 @@ int CloneServiceManager::CloneFile(const UUID &source,
                    << ", user = " << user
                    << ", destination = " << destination
                    << ", lazyFlag = " << lazyFlag;
+        closure->SetErrCode(ret);
         return ret;
     }
+    *taskId = cloneInfo.GetTaskId();
+
+    auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(*taskId);
+    closure->SetTaskId(cloneInfo.GetTaskId());
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(cloneInfo);
+        std::make_shared<CloneTaskInfo>(cloneInfo,
+                cloneInfoMetric, closure);
+    taskInfo->UpdateMetric();
+
     std::shared_ptr<CloneTask> task =
         std::make_shared<CloneTask>(
             cloneInfo.GetTaskId(), taskInfo, cloneCore_);
@@ -56,15 +69,20 @@ int CloneServiceManager::CloneFile(const UUID &source,
     if (ret < 0) {
         LOG(ERROR) << "CloneTaskMgr Push Task error"
                    << ", ret = " << ret;
+        closure->SetErrCode(ret);
         return ret;
     }
+    guard.release();
     return kErrCodeSuccess;
 }
 
 int CloneServiceManager::RecoverFile(const UUID &source,
     const std::string &user,
     const std::string &destination,
-    bool lazyFlag) {
+    bool lazyFlag,
+    std::shared_ptr<CloneClosure> closure,
+    TaskIdType *taskId) {
+    brpc::ClosureGuard guard(closure.get());
     CloneInfo cloneInfo;
     int ret = cloneCore_->CloneOrRecoverPre(
         source, user, destination, lazyFlag,
@@ -76,10 +94,18 @@ int CloneServiceManager::RecoverFile(const UUID &source,
                    << ", user = " << user
                    << ", destination = " << destination
                    << ", lazyFlag = " << lazyFlag;
+        closure->SetErrCode(ret);
         return ret;
     }
+    *taskId = cloneInfo.GetTaskId();
+
+    auto cloneInfoMetric = std::make_shared<CloneInfoMetric>(*taskId);
+    closure->SetTaskId(cloneInfo.GetTaskId());
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(cloneInfo);
+        std::make_shared<CloneTaskInfo>(cloneInfo,
+            cloneInfoMetric, closure);
+    taskInfo->UpdateMetric();
+
     std::shared_ptr<CloneTask> task =
         std::make_shared<CloneTask>(
             cloneInfo.GetTaskId(), taskInfo, cloneCore_);
@@ -87,20 +113,40 @@ int CloneServiceManager::RecoverFile(const UUID &source,
     if (ret < 0) {
         LOG(ERROR) << "CloneTaskMgr Push Task error"
                    << ", ret = " << ret;
+        closure->SetErrCode(ret);
         return ret;
     }
+    guard.release();
     return kErrCodeSuccess;
 }
 
 int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
+    const TaskIdType *taskId,
     std::vector<TaskCloneInfo> *info) {
+    int ret = kErrCodeSuccess;
     std::vector<CloneInfo> cloneInfos;
-    int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
-    if (ret < 0) {
-        LOG(ERROR) << "GetCloneInfoList fail"
-                   << ", ret = " << ret;
-        return ret;
+    if (taskId != nullptr) {
+        CloneInfo cloneInfo;
+        ret = cloneCore_->GetCloneInfo(*taskId, &cloneInfo);
+        if (ret < 0) {
+            LOG(ERROR) << "GetCloneInfo fail"
+                       << ", ret = " << ret
+                       << ", taskId = " << *taskId;
+            return kErrCodeFileNotExist;
+        }
+        if (cloneInfo.GetUser() != user) {
+            return kErrCodeInvalidUser;
+        }
+        cloneInfos.push_back(cloneInfo);
+    } else {
+        ret = cloneCore_->GetCloneInfoList(&cloneInfos);
+        if (ret < 0) {
+            LOG(ERROR) << "GetCloneInfoList fail"
+                       << ", ret = " << ret;
+            return ret;
+        }
     }
+
     for (auto &cloneInfo : cloneInfos) {
         if (cloneInfo.GetUser() == user) {
             switch (cloneInfo.GetStatus()) {
@@ -108,6 +154,8 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                     info->emplace_back(cloneInfo, 100);
                     break;
                 }
+                case CloneStatus::cleaning:
+                case CloneStatus::errorCleaning:
                 case CloneStatus::error: {
                     info->emplace_back(cloneInfo, 0);
                     break;
@@ -146,7 +194,8 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                     break;
                 }
                 default:
-                    LOG(ERROR) << "can not reach here!";
+                    LOG(ERROR) << "can not reach here!, status = "
+                               << static_cast<int>(cloneInfo.GetStatus());
                     break;
             }
         }
@@ -168,7 +217,7 @@ int CloneServiceManager::CleanCloneTask(const std::string &user,
         return ret;
     }
     std::shared_ptr<CloneTaskInfo> taskInfo =
-        std::make_shared<CloneTaskInfo>(cloneInfo);
+        std::make_shared<CloneTaskInfo>(cloneInfo, nullptr, nullptr);
     std::shared_ptr<CloneCleanTask> task =
         std::make_shared<CloneCleanTask>(
             cloneInfo.GetTaskId(), taskInfo, cloneCore_);
@@ -192,8 +241,13 @@ int CloneServiceManager::RecoverCloneTask() {
         switch (cloneInfo.GetStatus()) {
             case CloneStatus::cloning:
             case CloneStatus::recovering: {
+                auto cloneInfoMetric =
+                    std::make_shared<CloneInfoMetric>(cloneInfo.GetTaskId());
+                auto closure = std::make_shared<CloneClosure>();
                 std::shared_ptr<CloneTaskInfo> taskInfo =
-                    std::make_shared<CloneTaskInfo>(cloneInfo);
+                    std::make_shared<CloneTaskInfo>(
+                        cloneInfo, cloneInfoMetric, closure);
+                taskInfo->UpdateMetric();
                 std::shared_ptr<CloneTask> task =
                     std::make_shared<CloneTask>(
                         cloneInfo.GetTaskId(), taskInfo, cloneCore_);
@@ -202,7 +256,8 @@ int CloneServiceManager::RecoverCloneTask() {
                     cloneCore_->GetSnapshotRef()->IncrementSnapshotRef(
                         taskInfo->GetCloneInfo().GetSrc());
                 } else {
-                    // TODO(xuchaojie): 镜像管理
+                    cloneCore_->GetCloneRef()->IncrementRef(
+                        taskInfo->GetCloneInfo().GetSrc());
                 }
                 ret = cloneTaskMgr_->PushTask(task);
                 if (ret < 0) {
@@ -215,7 +270,8 @@ int CloneServiceManager::RecoverCloneTask() {
             case CloneStatus::cleaning:
             case CloneStatus::errorCleaning: {
                 std::shared_ptr<CloneTaskInfo> taskInfo =
-                    std::make_shared<CloneTaskInfo>(cloneInfo);
+                    std::make_shared<CloneTaskInfo>(
+                        cloneInfo, nullptr, nullptr);
                 std::shared_ptr<CloneTask> task =
                     std::make_shared<CloneTask>(
                         cloneInfo.GetTaskId(), taskInfo, cloneCore_);

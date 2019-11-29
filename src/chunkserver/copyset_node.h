@@ -154,7 +154,7 @@ class CopysetNode : public braft::StateMachine,
     virtual uint64_t GetAppliedIndex() const;
 
     /**
-     * @brief: 查询配置变更的状态，TODO(wudemiao): 后面修改braft再补充单测
+     * @brief: 查询配置变更的状态
      * @param type[out]: 配置变更类型
      * @param oldConf[out]: 老的配置
      * @param alterPeer[out]: 变更的peer

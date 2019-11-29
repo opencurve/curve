@@ -17,6 +17,7 @@
 #include "src/snapshotcloneserver/snapshot/snapshot_task_manager.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
+#include "json/json.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -26,6 +27,8 @@ namespace snapshotcloneserver {
  */
 class FileSnapshotInfo {
  public:
+    FileSnapshotInfo() = default;
+
      /**
       * @brief 构造函数
       *
@@ -51,6 +54,35 @@ class FileSnapshotInfo {
 
     uint32_t GetSnapProgress() const {
         return snapProgress_;
+    }
+
+    Json::Value ToJsonObj() const {
+        Json::Value fileSnapObj;
+        SnapshotInfo snap = GetSnapshotInfo();
+        fileSnapObj["UUID"] = snap.GetUuid();
+        fileSnapObj["User"] = snap.GetUser();
+        fileSnapObj["File"] = snap.GetFileName();
+        fileSnapObj["SeqNum"] = snap.GetSeqNum();
+        fileSnapObj["Name"] = snap.GetSnapshotName();
+        fileSnapObj["Time"] = snap.GetCreateTime();
+        fileSnapObj["FileLength"] = snap.GetFileLength();
+        fileSnapObj["Status"] = static_cast<int>(snap.GetStatus());
+        fileSnapObj["Progress"] = GetSnapProgress();
+        return fileSnapObj;
+    }
+
+    void LoadFromJsonObj(const Json::Value &jsonObj) {
+        SnapshotInfo snapInfo;
+        snapInfo.SetUuid(jsonObj["UUID"].asString());
+        snapInfo.SetUser(jsonObj["User"].asString());
+        snapInfo.SetFileName(jsonObj["File"].asString());
+        snapInfo.SetSeqNum(jsonObj["SeqNum"].asUInt64());
+        snapInfo.SetSnapshotName(jsonObj["Name"].asString());
+        snapInfo.SetCreateTime(jsonObj["Time"].asUInt64());
+        snapInfo.SetFileLength(jsonObj["FileLength"].asUInt64());
+        snapInfo.SetStatus(static_cast<Status>(jsonObj["Status"].asUInt()));
+        SetSnapshotInfo(snapInfo);
+        SetSnapProgress(jsonObj["Progress"].asUInt());
     }
 
  private:
@@ -142,12 +174,14 @@ class SnapshotServiceManager {
      *
      * @param file 文件名
      * @param user 用户名
+     * @param uuid 指定uuid，为nullptr时不指定
      * @param info 快照信息列表
      *
      * @return 错误码
      */
     virtual int GetFileSnapshotInfo(const std::string &file,
         const std::string &user,
+        const UUID *uuid,
         std::vector<FileSnapshotInfo> *info);
 
     /**

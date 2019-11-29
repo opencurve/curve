@@ -21,7 +21,7 @@
 #include "src/chunkserver/braft_cli_service.h"
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
@@ -40,6 +40,7 @@ DEFINE_string(chunkFilePoolDir, "./0/", "chunk file pool location");
 DEFINE_string(chunkFilePoolMetaPath,
     "./chunkfilepool.meta", "chunk file pool meta path");
 DEFINE_string(logPath, "./0/chunkserver.log-", "log file path");
+DEFINE_string(mdsListenAddr, "127.0.0.1:6666", "mds listen addr");
 
 namespace curve {
 namespace chunkserver {
@@ -61,6 +62,8 @@ int ChunkServer::Run(int argc, char** argv) {
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
 
+    // 打印参数
+    conf.PrintConfig();
 
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";
@@ -121,7 +124,7 @@ int ChunkServer::Run(int argc, char** argv) {
     Register registerMDS(registerOptions);
     ChunkServerMetadata metadata;
     // 从本地获取meta
-    std::string metaPath = FsAdaptorUtil::GetPathFromUri(
+    std::string metaPath = UriParser::GetPathFromUri(
         registerOptions.chunkserverMetaUri).c_str();
     if (fs->FileExists(metaPath)) {
         LOG_IF(FATAL, GetChunkServerMetaFromLocal(
@@ -199,20 +202,21 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to init Heartbeat manager.";
 
     // 监控部分模块的metric指标
+    metric->MonitorTrash(trash_.get());
     metric->MonitorChunkFilePool(chunkfilePool.get());
-    metric->UpdateConfigMetric(conf);
+    metric->UpdateConfigMetric(&conf);
 
     // =======================启动各模块==================================//
     LOG(INFO) << "ChunkServer starts.";
 
+    LOG_IF(FATAL, trash_->Run() != 0)
+        << "Failed to start trash.";
+    LOG_IF(FATAL, cloneManager_.Run() != 0)
+        << "Failed to start clone manager.";
     LOG_IF(FATAL, copysetNodeManager_.Run() != 0)
         << "Failed to start CopysetNodeManager.";
     LOG_IF(FATAL, heartbeat_.Run() != 0)
         << "Failed to start heartbeat manager.";
-    LOG_IF(FATAL, cloneManager_.Run() != 0)
-        << "Failed to start clone manager.";
-    LOG_IF(FATAL, trash_->Run() != 0)
-        << "Failed to start trash.";
 
     // ========================添加rpc服务===============================//
     // TODO(lixiaocui): rpc中各接口添加上延迟metric
@@ -289,12 +293,12 @@ int ChunkServer::Run(int argc, char** argv) {
     LOG(INFO) << "ChunkServer is going to quit.";
     LOG_IF(ERROR, heartbeat_.Fini() != 0)
         << "Failed to shutdown heartbeat manager.";
+    LOG_IF(ERROR, copysetNodeManager_.Fini() != 0)
+        << "Failed to shutdown CopysetNodeManager.";
     LOG_IF(ERROR, cloneManager_.Fini() != 0)
         << "Failed to shutdown clone manager.";
     LOG_IF(ERROR, copyer->Fini() != 0)
         << "Failed to shutdown clone copyer.";
-    LOG_IF(ERROR, copysetNodeManager_.Fini() != 0)
-        << "Failed to shutdown CopysetNodeManager.";
     LOG_IF(ERROR, trash_->Fini() != 0)
         << "Failed to shutdown trash.";
     concurrentapply.Stop();
@@ -529,6 +533,10 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
         << "chunkFilePoolMetaPath must be set when run chunkserver in command.";
     }
 
+    if (GetCommandLineFlagInfo("mdsListenAddr", &info) && !info.is_default) {
+        conf->SetStringValue("mds.listen.addr", FLAGS_mdsListenAddr);
+    }
+
     // 设置日志存放文件夹
     if (FLAGS_log_dir.empty()) {
         if (!conf->GetStringValue("chunkserver.common.logDir", &FLAGS_log_dir)) {  // NOLINT
@@ -543,21 +551,20 @@ int ChunkServer::GetChunkServerMetaFromLocal(
     const std::string &metaUri,
     const std::shared_ptr<LocalFileSystem> &fs,
     ChunkServerMetadata *metadata) {
-    std::string proto =
-        FsAdaptorUtil::GetProtocolFromUri(storeUri);
+    std::string proto = UriParser::GetProtocolFromUri(storeUri);
     if (proto != "local") {
         LOG(ERROR) << "Datastore protocal " << proto << " is not supported yet";
         return -1;
     }
     // 从配置文件中获取chunkserver元数据的文件路径
-    proto = FsAdaptorUtil::GetProtocolFromUri(metaUri);
+    proto = UriParser::GetProtocolFromUri(metaUri);
     if (proto != "local") {
         LOG(ERROR) << "Chunkserver meta protocal "
                    << proto << " is not supported yet";
         return -1;
     }
     // 元数据文件已经存在
-    if (fs->FileExists(FsAdaptorUtil::GetPathFromUri(metaUri).c_str())) {
+    if (fs->FileExists(UriParser::GetPathFromUri(metaUri).c_str())) {
         // 获取文件内容
         if (ReadChunkServerMeta(fs, metaUri, metadata) != 0) {
             LOG(ERROR) << "Fail to read persisted chunkserver meta data";
@@ -575,8 +582,7 @@ int ChunkServer::GetChunkServerMetaFromLocal(
 int ChunkServer::ReadChunkServerMeta(const std::shared_ptr<LocalFileSystem> &fs,
     const std::string &metaUri, ChunkServerMetadata *metadata) {
     int fd;
-    std::string metaFile =
-        FsAdaptorUtil::GetPathFromUri(metaUri);
+    std::string metaFile = UriParser::GetPathFromUri(metaUri);
 
     fd = fs->Open(metaFile.c_str(), O_RDONLY);
     if (fd < 0) {
