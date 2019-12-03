@@ -114,6 +114,9 @@ void HeartbeatManager::UpdateChunkServerStatistics(
         stat.writeRate = request.stats().writerate();
         stat.readIOPS = request.stats().readiops();
         stat.writeIOPS = request.stats().writeiops();
+        stat.chunkSizeUsedBytes = request.stats().chunksizeusedbytes();
+        stat.chunkSizeLeftBytes = request.stats().chunksizeleftbytes();
+        stat.chunkSizeTrashedBytes = request.stats().chunksizetrashedbytes();
 
         for (int i = 0; i < request.copysetinfos_size(); i++) {
             CopysetStat cstat;
