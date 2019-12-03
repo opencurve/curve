@@ -53,6 +53,14 @@ struct ChunkServerMetric {
     bvar::Status<uint32_t> readIOPS;
     // 写iops
     bvar::Status<uint32_t> writeIOPS;
+    // 已使用的chunk占用的磁盘空间
+    bvar::Status<uint64_t> chunkSizeUsedBytes;
+    // chunkfilepool中未使用的chunk占用的磁盘空间
+    bvar::Status<uint64_t> chunkSizeLeftBytes;
+    // 回收站中chunk占用的磁盘空间
+    bvar::Status<uint64_t> chunkSizeTrashedBytes;
+    // 总容量
+    bvar::Status<uint64_t> chunkSizeTotalBytes;
 
     explicit ChunkServerMetric(ChunkServerIdType csId) :
         scatterWidth(kTopologyChunkServerMetricPrefix,
@@ -76,7 +84,15 @@ struct ChunkServerMetric {
         readIOPS(kTopologyChunkServerMetricPrefix,
             std::to_string(csId) + "_readIOPS", 0),
         writeIOPS(kTopologyChunkServerMetricPrefix,
-            std::to_string(csId) + "_writeIOPS", 0) {}
+            std::to_string(csId) + "_writeIOPS", 0),
+        chunkSizeUsedBytes(kTopologyChunkServerMetricPrefix,
+            std::to_string(csId) + "_chunkSizeUsedBytes", 0),
+        chunkSizeLeftBytes(kTopologyChunkServerMetricPrefix,
+            std::to_string(csId) + "_chunkSizeLeftBytes", 0),
+        chunkSizeTrashedBytes(kTopologyChunkServerMetricPrefix,
+            std::to_string(csId) + "_chunkSizeTrashedBytes", 0),
+        chunkSizeTotalBytes(kTopologyChunkServerMetricPrefix,
+            std::to_string(csId) + "_chunkSizeTotalBytes", 0) {}
 };
 using ChunkServerMetricPtr = std::unique_ptr<ChunkServerMetric>;
 
@@ -131,6 +147,15 @@ struct LogicalPoolMetric {
     // 整个逻辑池的使用量,即对应物理池的使用量
     bvar::Status<uint64_t> diskUsed;
 
+    // 已使用的chunk占用的磁盘空间
+    bvar::Status<uint64_t> chunkSizeUsedBytes;
+    // chunkfilepool中未使用的chunk占用的磁盘空间
+    bvar::Status<uint64_t> chunkSizeLeftBytes;
+    // 回收站中chunk占用的磁盘空间
+    bvar::Status<uint64_t> chunkSizeTrashedBytes;
+    // 总容量
+    bvar::Status<uint64_t> chunkSizeTotalBytes;
+
     explicit LogicalPoolMetric(const std::string &logicalPoolName) :
         chunkServerNum(kTopologyLogicalPoolMetricPrefix,
             logicalPoolName + "_chunkserver_num", 0),
@@ -177,7 +202,15 @@ struct LogicalPoolMetric {
         diskAlloc(kTopologyLogicalPoolMetricPrefix,
             logicalPoolName + "_diskAlloc", 0),
         diskUsed(kTopologyLogicalPoolMetricPrefix,
-            logicalPoolName + "_diskUsed", 0) {}
+            logicalPoolName + "_diskUsed", 0),
+        chunkSizeUsedBytes(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_chunkSizeUsedBytes", 0),
+        chunkSizeLeftBytes(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_chunkSizeLeftBytes", 0),
+        chunkSizeTrashedBytes(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_chunkSizeTrashedBytes", 0),
+        chunkSizeTotalBytes(kTopologyLogicalPoolMetricPrefix,
+            logicalPoolName + "_chunkSizeTotalBytes", 0) {}
 };
 using LogicalPoolMetricPtr = std::unique_ptr<LogicalPoolMetric>;
 
@@ -193,6 +226,7 @@ class TopologyMetricService {
         uint32_t copysetNum;
         // leader Num
         uint32_t leaderNum;
+
         ChunkServerMetricInfo() :
             scatterWidth(0),
             copysetNum(0),
