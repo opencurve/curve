@@ -58,6 +58,16 @@ void TopologyMetricService::UpdateTopologyMetrics() {
                 csStat.readIOPS);
             it->second->writeIOPS.set_value(
                 csStat.writeIOPS);
+            it->second->chunkSizeUsedBytes.set_value(
+                csStat.chunkSizeUsedBytes);
+            it->second->chunkSizeLeftBytes.set_value(
+                csStat.chunkSizeLeftBytes);
+            it->second->chunkSizeTrashedBytes.set_value(
+                csStat.chunkSizeTrashedBytes);
+            it->second->chunkSizeTotalBytes.set_value(
+                csStat.chunkSizeUsedBytes +
+                csStat.chunkSizeLeftBytes +
+                csStat.chunkSizeTrashedBytes);
         }
     }
 
@@ -135,6 +145,10 @@ void TopologyMetricService::UpdateTopologyMetrics() {
 
         uint64_t totalDiskCapacity = 0;
         uint64_t totalDiskUsed = 0;
+        uint64_t totalChunkSizeUsedBytes = 0;
+        uint64_t totalChunkSizeLeftBytes = 0;
+        uint64_t totalChunkSizeTrashedBytes = 0;
+        uint64_t totalChunkSizeBytes = 0;
 
         // 处理chunkserver的metric,
         // 目前只考虑一个物理池只对应一个逻辑池的情况
@@ -153,6 +167,14 @@ void TopologyMetricService::UpdateTopologyMetrics() {
 
             totalDiskCapacity += ix->second->diskCapacity.get_value();
             totalDiskUsed += ix->second->diskUsed.get_value();
+            totalChunkSizeUsedBytes +=
+                ix->second->chunkSizeUsedBytes.get_value();
+            totalChunkSizeLeftBytes +=
+                ix->second->chunkSizeLeftBytes.get_value();
+            totalChunkSizeTrashedBytes +=
+                ix->second->chunkSizeTrashedBytes.get_value();
+            totalChunkSizeBytes +=
+                ix->second->chunkSizeTotalBytes.get_value();
         }
 
         it->second->diskCapacity.set_value(totalDiskCapacity);
@@ -161,6 +183,11 @@ void TopologyMetricService::UpdateTopologyMetrics() {
         allocStatistic_->GetAllocByLogicalPool(pid, &diskAlloc);
         // 需乘以副本数
         it->second->diskAlloc.set_value(diskAlloc * pool.GetReplicaNum());
+
+        it->second->chunkSizeUsedBytes.set_value(totalChunkSizeLeftBytes);
+        it->second->chunkSizeLeftBytes.set_value(totalChunkSizeLeftBytes);
+        it->second->chunkSizeTrashedBytes.set_value(totalChunkSizeTrashedBytes);
+        it->second->chunkSizeTotalBytes.set_value(totalChunkSizeBytes);
     }
     // 移除已经不存在的逻辑池metric
     for (auto iy = gLogicalPoolMetrics.begin();
