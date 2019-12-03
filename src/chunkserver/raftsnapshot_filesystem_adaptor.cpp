@@ -131,6 +131,7 @@ bool RaftSnapshotFilesystemAdaptor::RecycleDirRecursive(
             // 如果在过滤名单里，就直接删除
             if (NeedFilter(todeletePath)) {
                 if (lfs_->Delete(todeletePath) != 0) {
+                    LOG(ERROR) << "delete " << todeletePath << ", failed!";
                     rc = false;
                     break;
                 }
