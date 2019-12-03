@@ -211,6 +211,10 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     stat1.writeRate = 1;
     stat1.readIOPS = 1;
     stat1.writeIOPS = 1;
+    stat1.chunkSizeUsedBytes = 1024;
+    stat1.chunkSizeLeftBytes = 1024;
+    stat1.chunkSizeTrashedBytes = 1024;
+
     cstat1.logicalPoolId = logicalPoolId;
     cstat1.copysetId = copysetId;
     cstat1.readRate = 1;
@@ -242,6 +246,12 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(1, gChunkServerMetrics[0x41]->writeRate.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x41]->readIOPS.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x41]->writeIOPS.get_value());
+    ASSERT_EQ(1024, gChunkServerMetrics[0x41]->chunkSizeUsedBytes.get_value());
+    ASSERT_EQ(1024, gChunkServerMetrics[0x41]->chunkSizeLeftBytes.get_value());
+    ASSERT_EQ(1024,
+        gChunkServerMetrics[0x41]->chunkSizeTrashedBytes.get_value());
+    ASSERT_EQ(1024 * 3,
+        gChunkServerMetrics[0x41]->chunkSizeTotalBytes.get_value());
 
     ASSERT_EQ(2, gChunkServerMetrics[0x42]->scatterWidth.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x42]->copysetNum.get_value());
@@ -254,6 +264,12 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(1, gChunkServerMetrics[0x42]->writeRate.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x42]->readIOPS.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x42]->writeIOPS.get_value());
+    ASSERT_EQ(1024, gChunkServerMetrics[0x42]->chunkSizeUsedBytes.get_value());
+    ASSERT_EQ(1024, gChunkServerMetrics[0x42]->chunkSizeLeftBytes.get_value());
+    ASSERT_EQ(1024,
+        gChunkServerMetrics[0x42]->chunkSizeTrashedBytes.get_value());
+    ASSERT_EQ(1024 * 3,
+        gChunkServerMetrics[0x42]->chunkSizeTotalBytes.get_value());
 
     ASSERT_EQ(2, gChunkServerMetrics[0x43]->scatterWidth.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x43]->copysetNum.get_value());
@@ -266,6 +282,12 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(1, gChunkServerMetrics[0x43]->writeRate.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x43]->readIOPS.get_value());
     ASSERT_EQ(1, gChunkServerMetrics[0x43]->writeIOPS.get_value());
+    ASSERT_EQ(1024, gChunkServerMetrics[0x43]->chunkSizeUsedBytes.get_value());
+    ASSERT_EQ(1024, gChunkServerMetrics[0x43]->chunkSizeLeftBytes.get_value());
+    ASSERT_EQ(1024,
+        gChunkServerMetrics[0x43]->chunkSizeTrashedBytes.get_value());
+    ASSERT_EQ(1024 * 3,
+        gChunkServerMetrics[0x43]->chunkSizeTotalBytes.get_value());
 
     ASSERT_EQ(1, gLogicalPoolMetrics.size());
     ASSERT_EQ(3, gLogicalPoolMetrics[logicalPoolId]->chunkServerNum.get_value()); //NOLINT
@@ -291,6 +313,15 @@ TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsOneLogicalPool) {
     ASSERT_EQ(100 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskCapacity.get_value()); //NOLINT
     ASSERT_EQ(20 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskAlloc.get_value()); //NOLINT
     ASSERT_EQ(10 * 1024 * 3, gLogicalPoolMetrics[logicalPoolId]->diskUsed.get_value()); //NOLINT
+
+    ASSERT_EQ(1024 * 3,
+        gLogicalPoolMetrics[logicalPoolId]->chunkSizeUsedBytes.get_value());
+    ASSERT_EQ(1024 * 3,
+        gLogicalPoolMetrics[logicalPoolId]->chunkSizeLeftBytes.get_value());
+    ASSERT_EQ(1024 * 3,
+        gLogicalPoolMetrics[logicalPoolId]->chunkSizeTrashedBytes.get_value());
+    ASSERT_EQ(1024 * 9,
+        gLogicalPoolMetrics[logicalPoolId]->chunkSizeTotalBytes.get_value());
 }
 
 TEST_F(TestTopologyMetric,  TestUpdateTopologyMetricsCleanRetired) {
