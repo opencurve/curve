@@ -582,7 +582,7 @@ int CloneCoreImpl::CreateCloneChunk(
                            << ", chunkId = " << cidInfo.cid_
                            << ", seqNum = " << cloneChunkInfo.second.seqNum
                            << ", csn = " << correctSn;
-                return ret;
+                return kErrCodeInternalError;
             }
 
             if (tracker->GetTaskNum() >= createCloneChunkConcurrency_) {
@@ -593,7 +593,7 @@ int CloneCoreImpl::CreateCloneChunk(
                 LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
                            << ", ret = " << ret
                            << ", taskid = " << task->GetTaskId();
-                return ret;
+                return kErrCodeInternalError;
             }
         }
     }
@@ -604,7 +604,7 @@ int CloneCoreImpl::CreateCloneChunk(
         LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
                    << ", ret = " << ret
                    << ", taskid = " << task->GetTaskId();
-        return ret;
+        return kErrCodeInternalError;
     }
 
     task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
@@ -613,7 +613,7 @@ int CloneCoreImpl::CreateCloneChunk(
         LOG(ERROR) << "UpdateCloneInfo after CreateCloneChunk error."
                    << " ret = " << ret
                    << ", taskid = " << task->GetTaskId();
-        return ret;
+        return kErrCodeInternalError;
     }
     return kErrCodeSuccess;
 }
@@ -682,7 +682,7 @@ int CloneCoreImpl::RecoverChunk(
                     tracker,
                     &workingChunkNum);
                 if (ret < 0) {
-                    return ret;
+                    return kErrCodeInternalError;
                 }
             }
             // 加入新的工作的chunk
@@ -702,7 +702,7 @@ int CloneCoreImpl::RecoverChunk(
 
             ret = StartAsyncRecoverChunkPart(task, tracker, context);
             if (ret < 0) {
-                return ret;
+                return kErrCodeInternalError;
             }
         }
         task->SetProgress(static_cast<uint32_t>(
@@ -716,7 +716,7 @@ int CloneCoreImpl::RecoverChunk(
             tracker,
             &workingChunkNum);
         if (ret < 0) {
-            return ret;
+            return kErrCodeInternalError;
         }
     }
 
@@ -726,7 +726,7 @@ int CloneCoreImpl::RecoverChunk(
         LOG(ERROR) << "UpdateCloneInfo after RecoverChunk error."
                    << " ret = " << ret
                    << ", taskid = " << task->GetTaskId();
-        return ret;
+        return kErrCodeInternalError;
     }
     return kErrCodeSuccess;
 }
@@ -813,7 +813,7 @@ int CloneCoreImpl::ChangeOwner(
                    << ", fileName = " << origin
                    << ", newOwner = " << user
                    << ", taskid = " << task->GetTaskId();
-        return ret;
+        return kErrCodeInternalError;
     }
 
     task->GetCloneInfo().SetNextStep(CloneStep::kRenameCloneFile);
@@ -822,7 +822,7 @@ int CloneCoreImpl::ChangeOwner(
         LOG(ERROR) << "UpdateCloneInfo after ChangeOwner error."
                    << " ret = " << ret
                    << ", taskid = " << task->GetTaskId();
-        return ret;
+        return kErrCodeInternalError;
     }
     return kErrCodeSuccess;
 }

@@ -74,7 +74,8 @@ extern std::map<int, std::string> code2Msg;
 
 std::string BuildErrorMessage(
     int errCode,
-    const std::string &requestId);
+    const std::string &requestId,
+    const std::string &uuid = "");
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

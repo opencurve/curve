@@ -10,12 +10,6 @@
 #include <string>
 #include <vector>
 
-extern const char* kEtcdClientIpPort;
-extern const char* kEtcdPeerIpPort;
-extern const char* kMdsIpPort;
-extern const char* kChunkServerIpPort1;
-extern const char* kChunkServerIpPort2;
-extern const char* kChunkServerIpPort3;
 extern const char* kSnapshotCloneServerIpPort;
 
 
@@ -205,9 +199,7 @@ int CloneOrRecover(
     }
 
     ret = std::stoi(jsonObj["Code"].asString());
-    if (ret == 0) {
-        *uuidOut =  jsonObj["UUID"].asString();
-    }
+    *uuidOut =  jsonObj["UUID"].asString();
     return ret;
 }
 
