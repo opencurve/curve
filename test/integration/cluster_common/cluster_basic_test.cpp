@@ -85,7 +85,7 @@ class ClusterBasicTest : public ::testing::Test {
 // TODO(lixiaocui): 需要sudo运行，ci变更后打开
 TEST_F(ClusterBasicTest, DISABLED_test_start_stop_module1) {
     // 起etcd
-    curveCluster_->StarSingleEtcd(1, "127.0.0.1:2221", "127.0.0.1:2222",
+    curveCluster_->StartSingleEtcd(1, "127.0.0.1:2221", "127.0.0.1:2222",
         std::vector<std::string>{" --name basic_test_start_stop_module1"});
     // 起mds
     curveCluster_->StartSingleMDS(1, "192.168.200.1:3333", mdsConf, true);
@@ -123,7 +123,7 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
 
     // 起etcd
     std::string etcdDir = commonDir + "/etcd.log";
-    curveCluster_->StarSingleEtcd(1, "127.0.0.1:2221", "127.0.0.1:2222",
+    curveCluster_->StartSingleEtcd(1, "127.0.0.1:2221", "127.0.0.1:2222",
         std::vector<std::string>{" --name test_start_stop_module2"});
     ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
 
@@ -217,14 +217,12 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
         + std::string("'test_multi_etcd_node1=http://127.0.0.1:2302,")
         + std::string("test_multi_etcd_node2=http://127.0.0.1:2304,")
         + std::string("test_multi_etcd_node3=http://127.0.0.1:2306'");
-    curveCluster_->StarSingleEtcd(1, "127.0.0.1:2301", "127.0.0.1:2302",
+    curveCluster_->StartSingleEtcd(1, "127.0.0.1:2301", "127.0.0.1:2302",
         std::vector<std::string>{" --name test_multi_etcd_node1", etcdcluster});
     ASSERT_FALSE(curveCluster_->WaitForEtcdClusterAvalible(3));
-    curveCluster_->StarSingleEtcd(2, "127.0.0.1:2303", "127.0.0.1:2304",
-        std::vector<std::string>{
-            " --name test_multi_etcd_node2",
-            etcdcluster});
-    curveCluster_->StarSingleEtcd(3, "127.0.0.1:2305", "127.0.0.1:2306",
+    curveCluster_->StartSingleEtcd(2, "127.0.0.1:2303", "127.0.0.1:2304",
+        std::vector<std::string>{" --name test_multi_etcd_node2", etcdcluster});
+    curveCluster_->StartSingleEtcd(3, "127.0.0.1:2305", "127.0.0.1:2306",
         std::vector<std::string>{" --name test_multi_etcd_node3", etcdcluster});
     ASSERT_TRUE(curveCluster_->WaitForEtcdClusterAvalible());
 

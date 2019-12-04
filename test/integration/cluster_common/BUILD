@@ -12,6 +12,7 @@ cc_library(
         "//src/client:curve_client",
         "//external:gflags",
         "//external:glog",
+        "//test/util:test_util",
         "@com_google_googletest//:gtest",
     ],
     linkopts = [
