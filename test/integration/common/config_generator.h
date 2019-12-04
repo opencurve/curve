@@ -11,37 +11,13 @@
 #include <string>
 
 #include "src/common/configuration.h"
-
-#define DEFAULT_CHUNKSERVER_CONF "conf/chunkserver.conf.example"
-#define DEFAULT_LOG_DIR "./runlog/"
+#include "test/util/config_generator.h"
 
 namespace curve {
 
-using curve::common::Configuration;
+#define DEFAULT_LOG_DIR "./runlog/"
 
-// 各模块继承该接口，实现自己的初始化配置函数
-class ConfigGenerator {
- public:
-    ConfigGenerator() = default;
-    virtual ~ConfigGenerator() = default;
-    // 设置配置项
-    virtual void SetKV(const std::string& key, const std::string& value) {
-        config_.SetValue(key, value);
-    }
-    // 用于生成配置文件
-    virtual bool Generate() {
-        return config_.SaveConfig();
-    }
-    // 删除配置文件
-    virtual int Remove() {
-        return ::remove(configPath_.c_str());
-    }
- protected:
-    // 配置文件路径
-    std::string configPath_;
-    // 配置器
-    Configuration config_;
-};
+using curve::common::Configuration;
 
 // chunkserver test config
 class CSTConfigGenerator : public ConfigGenerator {

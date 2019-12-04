@@ -78,7 +78,8 @@ void CurveCluster::StopCluster() {
         ASSERT_EQ(0, ProbePort(chunkserverIpPort_[it->first], 20000, false))
             << "probe chunkserver port: " << chunkserverIpPort_[it->first]
             << "expect false";
-        LOG(INFO) << "success stop etcd" << it->first << " " << it->second;
+        LOG(INFO) << "success stop chunkserver"
+            << it->first << " " << it->second;
         it = chunkserverPidMap_.erase(it);
     }
 
@@ -163,7 +164,7 @@ void CurveCluster::StopAllMDS() {
 }
 
 
-void CurveCluster::StarSingleEtcd(int id, const std::string &clientIpPort,
+void CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
     const std::string &peerIpPort, const std::vector<std::string> &etcdConf) {
     LOG(INFO) << "start etcd" << clientIpPort << " begin...";
 
@@ -172,7 +173,7 @@ void CurveCluster::StarSingleEtcd(int id, const std::string &clientIpPort,
         LOG(ERROR) << "start etcd " << id << " fork failed";
         return;
     } else if (0 == pid) {
-        // 在子进程中起一个mds
+        // 在子进程中起一个etcd
         // ip netns exec integ_etcd1 etcd
         std::string cmd_dir = std::string(" etcd --listen-peer-urls http://")
             + peerIpPort
