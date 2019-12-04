@@ -91,7 +91,7 @@ class CSModuleException : public ::testing::Test {
         cluster->mdsRepo_->dropDataBase();
 
         // 1. 启动etcd
-        cluster->StarSingleEtcd(1, "127.0.0.1:22233", "127.0.0.1:22234",
+        cluster->StartSingleEtcd(1, "127.0.0.1:22233", "127.0.0.1:22234",
         std::vector<std::string>{" --name module_exception_test_chunkserver"});
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点

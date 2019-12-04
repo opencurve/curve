@@ -15,6 +15,7 @@
 #include "src/mds/dao/mdsRepo.h"
 #include "src/client/mds_client.h"
 #include "src/client/config_info.h"
+#include "test/util/config_generator.h"
 
 using ::curve::mds::MdsRepo;
 using ::curve::client::MDSClient;
@@ -64,6 +65,22 @@ class CurveCluster {
     void StopCluster();
 
     /**
+     * @brief 生成各模块配置文件
+     *
+     * @tparam T 任一ConfigGenerator
+     * @param configPath 配置文件路径
+     * @param options 修改的配置项
+     */
+    template <class T>
+    void PrepareConfig(
+        const std::string &configPath,
+        const std::vector<std::string> &options) {
+        T gentor(configPath);
+        gentor.SetConfigOptions(options);
+        gentor.Generate();
+    }
+
+    /**
      * StartSingleMDS 启动一个mds
      *                如果需要不同ip的chunkserver,ipPort请设置为192.168.200.1:XXXX
      *
@@ -92,14 +109,14 @@ class CurveCluster {
     void StopAllMDS();
 
     /**
-     * StarSingleEtcd 启动一个etcd节点
+     * StarrSingleEtcd 启动一个etcd节点
      *
      * @param clientIpPort
      * @param peerIpPort
      * @param etcdConf etcd启动项参数, 建议按照模块指定name,防止并发运行时冲突
      *      std::vector<std::string>{" --name basic_test_start_stop_module1"}
      */
-    void StarSingleEtcd(int id, const std::string &clientIpPort,
+    void StartSingleEtcd(int id, const std::string &clientIpPort,
         const std::string &peerIpPort,
         const std::vector<std::string> &etcdConf);
 

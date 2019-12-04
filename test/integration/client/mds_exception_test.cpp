@@ -93,7 +93,7 @@ class MDSModuleException : public ::testing::Test {
         cluster->mdsRepo_->dropDataBase();
 
         // 1. 启动etcd
-        cluster->StarSingleEtcd(1, "127.0.0.1:22230", "127.0.0.1:22231",
+        cluster->StartSingleEtcd(1, "127.0.0.1:22230", "127.0.0.1:22231",
         std::vector<std::string>{" --name module_exception_test_mds"});
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
