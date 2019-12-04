@@ -121,7 +121,8 @@ void SnapshotCloneServiceImpl::HandleCreateSnapshotAction(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
         butil::IOBufBuilder os;
         std::string msg = BuildErrorMessage(ret,
-            requestId);
+            requestId,
+            uuid);
         os << msg;
         os.move_to(bcntl->response_attachment());
         return;
