@@ -571,7 +571,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
 
     // 操作1: ItUser1 clone快照snap2，fileName=clone1
     // 预期1：返回快照不存在
-    std::string uuid1;
+    std::string uuid1, uuid2, uuid3, uuid4, uuid5;
     int ret;
     ret = CloneOrRecover(
         "Clone", testUser1_, "UnExistSnapId", "/ItUser1/SnapLazyClone1", true,
@@ -582,7 +582,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
     // 预期2:  返回用户认证失败
     ret = CloneOrRecover("Clone", testUser2_,
         snapId, "/ItUser2/SnapLazyClone1", true,
-        &uuid1);
+        &uuid2);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
     // 操作3：ItUser1 clone 快照snap1，fileName=clone1
@@ -590,19 +590,19 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
     std::string dstFile = "/ItUser1/SnapLazyClone1";
     ret = CloneOrRecover("Clone", testUser1_,
         snapId, dstFile, true,
-        &uuid1);
+        &uuid3);
     ASSERT_EQ(0, ret);
 
     // 操作4： ItUser1 clone 块照snap1，fileName=clone1 （重复克隆）
     // 预期4：返回文件已存在
     ret = CloneOrRecover("Clone", testUser1_,
         snapId, "/ItUser1/SnapLazyClone1", true,
-        &uuid1);
+        &uuid4);
     ASSERT_EQ(kErrCodeFileExist, ret);
 
     // 操作5： ItUser1 GetCloneTask
     // 预期5：返回clone1的clone 任务
-    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
+    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid3, true);
     ASSERT_TRUE(success1);
 
     // 操作6： ItUser2 GetCloneTask
@@ -615,12 +615,12 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
 
     // 操作7： ItUser2 CleanCloneTask UUID为clone1的UUID
     // 预期7：返回用户认证失败
-    ret = CleanCloneTask(testUser2_, uuid1);
+    ret = CleanCloneTask(testUser2_, uuid3);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
     // 操作8： ItUser1 CleanCloneTask UUID为clone1的UUID
     // 预期8：返回执行成功
-    ret = CleanCloneTask(testUser1_, uuid1);
+    ret = CleanCloneTask(testUser1_, uuid3);
     ASSERT_EQ(0, ret);
 
     // 等待清理完成
@@ -628,13 +628,13 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
 
     // 操作9： ItUser1 CleanCloneTask UUID为clone1的UUID（重复执行）
     // 预期9：返回执行成功
-    ret = CleanCloneTask(testUser1_, uuid1);
+    ret = CleanCloneTask(testUser1_, uuid3);
     ASSERT_EQ(0, ret);
 
     // 操作10：ItUser1 GetCloneTask
     // 预期10：返回空
     TaskCloneInfo info;
-    ret = GetCloneTaskInfo(testUser1_, uuid1, &info);
+    ret = GetCloneTaskInfo(testUser1_, uuid3, &info);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
     // 验证数据正确性
@@ -777,7 +777,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapNotLazyRecover) {
 TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
     // 操作1: ItUser1 clone不存在的镜像，fileName=clone1
     // 预期1：返回文件不存在
-    std::string uuid1;
+    std::string uuid1, uuid2, uuid3, uuid4;
     int ret;
     ret = CloneOrRecover(
         "Clone", testUser1_, "/UnExistFile", "/ItUser1/ImageLazyClone1", true,
@@ -789,27 +789,26 @@ TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
     std::string dstFile = "/ItUser1/ImageLazyClone1";
     ret = CloneOrRecover("Clone", testUser1_,
         testFile1_, dstFile, true,
-        &uuid1);
+        &uuid2);
     ASSERT_EQ(0, ret);
 
     // 操作3： ItUser1 clone 镜像file1，fileName=clone1 （重复克隆）
     // 预期3：返回文件已存在
     ret = CloneOrRecover("Clone", testUser1_,
         testFile1_, "/ItUser1/ImageLazyClone1", true,
-        &uuid1);
+        &uuid3);
     ASSERT_EQ(kErrCodeFileExist, ret);
 
     // 操作4：对未完成lazy克隆的文件clone1打快照snap1
     // 预期4：返回文件状态异常
-    std::string uuid2;
-    ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid2);
+    ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid4);
     ASSERT_EQ(kErrCodeFileStatusInvalid, ret);
     FileSnapshotInfo info2;
     int retCode = GetSnapshotInfo(
-        testUser1_, testFile1_, uuid2, &info2);
+        testUser1_, testFile1_, uuid4, &info2);
     ASSERT_EQ(kErrCodeFileNotExist, retCode);
 
-    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
+    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid2, true);
     ASSERT_TRUE(success1);
 
     // 验证数据正确性

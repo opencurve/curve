@@ -56,7 +56,8 @@ class CloneClosure : public Closure {
                     brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
                 butil::IOBufBuilder os;
                 std::string msg = BuildErrorMessage(retCode_,
-                                                    requestId_);
+                                                    requestId_,
+                                                    taskId_);
                 os << msg;
                 os.move_to(bcntl_->response_attachment());
             } else {
