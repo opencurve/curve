@@ -320,37 +320,30 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     std::string snapshotChunkDataDir;
     snapshotChunkDataDir.append(snapshotPath);
     snapshotChunkDataDir.append("/").append(chunkDataRpath_);
-
+    LOG(INFO) << "load snapshot data path: " << snapshotChunkDataDir;
     // 如果数据目录不存在，那么说明 load snapshot 数据部分就不需要处理
     if (fs_->DirExists(snapshotChunkDataDir)) {
-        std::vector<std::string> files;
-        if (0 == fs_->List(snapshotChunkDataDir, &files)) {
-            for (auto it = files.begin(); it != files.end(); ++it) {
-                // /mnt/sda/1-10001/raft_snapshot/snapshot_0043/data/100001.chunk
-                std::string snapshotFilename;
-                snapshotFilename.append(snapshotChunkDataDir).append("/")
-                    .append(*it);
-                // /mnt/sda/1-10001/data/100001.chunk
-                std::string dataFilename;
-                dataFilename.append(chunkDataApath_);
-                dataFilename.append("/").append(*it);
-                // 这里用RaftSnapshotFilesystemAdaptor提供的rename接口
-                // 因为rename原来已经存在的chunk文件会导致原来的chunk文件
-                // 无法被chunkfilepool回收，那么chunkfilepool的存量会越来
-                // 越少，所以这里采用RaftSnapshotFilesystemAdaptor里的
-                // rename接口，在回收之前先检查是否可以回收，如果可以，先回收
-                if (false == nodeOptions_.snapshot_file_system_adaptor->get()->
-                    rename(snapshotFilename, dataFilename)) {
-                    LOG(ERROR) << "rename " << snapshotFilename << " to "
-                               << dataFilename << " failed";
-                    return -1;
-                }
-            }
-        } else {
-            LOG(ERROR) << "dir reader failed, path " << snapshotChunkDataDir
-                       << ", error message: " << strerror(errno);
+        // 加载快照数据前，要先清理copyset data目录下的文件
+        // 否则可能导致快照加载以后存在一些残留的数据
+        // 如果delete_file失败或者rename失败，当前node状态会置为ERROR
+        // 如果delete_file或者rename期间进程重启，copyset起来后会加载快照
+        // 由于rename可以保证原子性，所以起来加载快照后，data目录一定能还原
+        bool ret = nodeOptions_.snapshot_file_system_adaptor->get()->
+                                delete_file(chunkDataApath_, true);
+        if (!ret) {
+            LOG(ERROR) << "delete chunk data dir failed: " << chunkDataApath_;
             return -1;
         }
+        LOG(INFO) << "delete chunk data dir success: " << chunkDataApath_;
+        ret = nodeOptions_.snapshot_file_system_adaptor->get()->
+                           rename(snapshotChunkDataDir, chunkDataApath_);
+        if (!ret) {
+            LOG(ERROR) << "rename snapshot data dir " << snapshotChunkDataDir
+                       << "to chunk data dir " << chunkDataApath_ << " failed.";
+            return -1;
+        }
+        LOG(INFO) << "rename snapshot data dir " << snapshotChunkDataDir
+                  << "to chunk data dir " << chunkDataApath_ << " success.";
     } else {
         LOG(INFO) << "load snapshot  data path: "
                   << snapshotChunkDataDir << " not exist.";
@@ -380,7 +373,7 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
      * 文件只有等data store close老的文件才能删除，所以需要重新init data
      * store，并且close的文件的fd，然后重新open新的文件，不然data store
      * 会一直是操作的老的文件，而一旦data store close相应的fd一次之后，
-     * 后面的write的数据就会丢，除此之外，如果 打他store init没有重新open
+     * 后面的write的数据就会丢，除此之外，如果 datastore init没有重新open
      * 文件，也将导致read不到恢复过来的数据，而是read到老的数据。
      */
     if (!dataStore_->Initialize()) {
