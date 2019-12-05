@@ -246,6 +246,20 @@ void ReadSnapshotVerify(Peer leaderPeer,
                         int loop);
 
 /**
+ * 删除chunk的snapshot进行验证
+ * @param leaderId      主的 id
+ * @param logicPoolId   逻辑池 id
+ * @param copysetId     复制组 id
+ * @param chunkId       chunk id
+ * @param csn           corrected sn
+ */
+void DeleteSnapshotVerify(Peer leaderPeer,
+                          LogicPoolID logicPoolId,
+                          CopysetID copysetId,
+                          ChunkID chunkId,
+                          uint64_t csn);
+
+/**
  * 异常I/O验证，read数据不符合预期
  * @param leaderId      主的 id
  * @param logicPoolId   逻辑池 id
