@@ -332,14 +332,14 @@ def create_pool():
         assert False,"create physical fail ,msg is %s"%rs[2]
     for host in config.chunkserver_list:
         ssh2 = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-        ori_cmd = "sudo nohup ./chunkserver_start.sh all &"
+        ori_cmd = "sudo nohup ./chunkserver_ctl.sh start all &"
         shell_operator.ssh_background_exec2(ssh2, ori_cmd)
     time.sleep(120)
     logical_pool = "curve-tool -copyset_num=4000  -mds_addr=%s\
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_addrs)
     rs = shell_operator.ssh_exec(ssh, logical_pool)
     i = 0
-    while i < 300: 
+    while i < 300:
        num = get_copyset_num()
        if num == 4000:
            break
