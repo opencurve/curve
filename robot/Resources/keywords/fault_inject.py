@@ -410,7 +410,7 @@ def check_host_connect(ip):
 
 def get_chunkserver_status(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    grep_cmd = "bash /home/nbs/chunkserver_status.sh"
+    grep_cmd = "bash /home/nbs/chunkserver_ctl.sh status all"
     rs = shell_operator.ssh_exec(ssh,grep_cmd)
     chunkserver_lines = rs[1]
     logger.debug("get lines is %s"%chunkserver_lines)
@@ -472,7 +472,7 @@ def start_mult_cs_process(host,num):
              sudo rm -rf /data/chunkserver%d/recycler"%(cs,cs,cs)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
-        ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d &"%cs
+        ori_cmd = "sudo /home/nbs/chunkserver_ctl.sh start %d &"%cs
         logger.debug("exec %s"%ori_cmd)
         shell_operator.ssh_background_exec2(ssh,ori_cmd)
         time.sleep(2)
@@ -508,7 +508,7 @@ def up_all_cs():
                 sudo rm -rf /data/chunkserver%d/recycler"%(cs,cs,cs)
                 rs = shell_operator.ssh_exec(ssh, ori_cmd)
                 assert rs[3] == 0
-            ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d > /dev/null 2>&1 &"%cs
+            ori_cmd = "sudo /home/nbs/chunkserver_ctl.sh start %d > /dev/null 2>&1 &"%cs
             logger.debug("exec %s"%ori_cmd)
             shell_operator.ssh_background_exec(ssh,ori_cmd)
             time.sleep(2)
@@ -542,14 +542,14 @@ def start_host_cs_process(host,csid=-1):
     cs_status = get_chunkserver_status(host)
     down_cs = cs_status["down"]
     if down_cs == []:
-        return 
+        return
 #    for cs in down_cs:
 #        ori_cmd = "sudo nohup curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_sync=true\
 #                     -conf=/etc/curve/chunkserver.conf.%d 2>/data/log/chunkserver%d/chunkserver.err &"%(cs,cs)
 #        shell_operator.ssh_background_exec(ssh,ori_cmd)
 #        logger.debug("exec %s"%ori_cmd)
     if csid == -1:
-        ori_cmd = "sudo nohup /home/nbs/chunkserver_start.sh all &"
+        ori_cmd = "sudo nohup /home/nbs/chunkserver_ctl.sh start all &"
     else:
         id = get_chunkserver_id(host,csid)
         if id == -1 and get_cs_copyset_num(id) == 0:
@@ -557,7 +557,7 @@ def start_host_cs_process(host,csid=-1):
              sudo rm -rf /data/chunkserver%d/recycler"%(csid,csid,csid)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
-        ori_cmd = "sudo nohup /home/nbs/chunkserver_start.sh %d &" %csid
+        ori_cmd = "sudo nohup /home/nbs/chunkserver_ctl.sh start %d &" %csid
     print "test up host %s chunkserver %s"%(host, down_cs)
     shell_operator.ssh_background_exec2(ssh,ori_cmd)
     ssh.close()
@@ -584,7 +584,7 @@ def restart_mult_cs_process(host,num):
         kill_cmd = "sudo kill -9 %s" % pid_chunkserver
         rs = shell_operator.ssh_exec(ssh, kill_cmd)
         logger.debug("exec %s,stdout is %s" % (kill_cmd, "".join(rs[2])))
-        ori_cmd = "sudo /home/nbs/chunkserver_start.sh %d > /dev/null 2>&1 &" % cs
+        ori_cmd = "sudo /home/nbs/chunkserver_ctl.sh start %d > /dev/null 2>&1 &" % cs
         shell_operator.ssh_background_exec(ssh, ori_cmd)
         logger.debug("exec %s" % ori_cmd)
         logger.info("test up host %s chunkserver %s" % (host, cs))
