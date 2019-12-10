@@ -299,9 +299,9 @@ int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
     LOG(INFO) << "PeerCluster begin create copyset: "
               << ToGroupIdString(logicPoolID, copysetID);
 
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 5; ++i) {
         brpc::Controller cntl;
-        cntl.set_timeout_ms(3000);
+        cntl.set_timeout_ms(5000);
 
         CopysetRequest request;
         CopysetResponse response;
@@ -319,8 +319,10 @@ int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
         CopysetService_Stub stub(&channel);
         stub.CreateCopysetNode(&cntl, &request, &response, nullptr);
         if (cntl.Failed()) {
-            std::cout << "failed create copsyet, "
-                      << cntl.ErrorText() << std::endl;
+            LOG(ERROR) << "failed create copsyet, "
+                       << cntl.ErrorText() << std::endl;
+            ::usleep(1000 * 1000);
+            continue;
         }
 
         if (response.status() == COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS
@@ -331,7 +333,7 @@ int PeerCluster::CreateCopyset(LogicPoolID logicPoolID,
             return 0;
         }
 
-        ::usleep(200 * 1000);
+        ::usleep(1000 * 1000);
     }
 
     return -1;
