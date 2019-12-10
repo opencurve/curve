@@ -1,5 +1,4 @@
 Package: curve-monitor
-Version: 1.0
 Section:
 Priority: optional
 Depends:
@@ -9,4 +8,3 @@ Installed-Size:
 Maintainer: curve-dev
 Provides:
 Description: curve monitor
-
