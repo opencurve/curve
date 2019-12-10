@@ -21,7 +21,7 @@ class TestS3Adapter : public ::testing::Test {
     void SetUp() {
         adapter_ = new S3Adapter();
         adapter_->Init("./conf/s3_test.conf");
-        adapter_->SetBucketName("curve-s3-test");
+        adapter_->SetBucketName("curve-s3-utest");
     }
     void TearDown() {
         adapter_->Deinit();
