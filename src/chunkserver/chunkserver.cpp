@@ -41,6 +41,7 @@ DEFINE_string(chunkFilePoolMetaPath,
     "./chunkfilepool.meta", "chunk file pool meta path");
 DEFINE_string(logPath, "./0/chunkserver.log-", "log file path");
 DEFINE_string(mdsListenAddr, "127.0.0.1:6666", "mds listen addr");
+DEFINE_bool(enableChunkfilepool, true, "enable chunkfilepool");
 
 namespace curve {
 namespace chunkserver {
@@ -543,6 +544,12 @@ void ChunkServer::LoadConfigFromCmdline(common::Configuration *conf) {
             LOG(WARNING) << "no chunkserver.common.logDir in " << FLAGS_conf
                          << ", will log to /tmp";
         }
+    }
+
+    if (GetCommandLineFlagInfo("enableChunkfilepool", &info) &&
+        !info.is_default) {
+        conf->SetBoolValue("chunkfilepool.enable_get_chunk_from_pool",
+            FLAGS_enableChunkfilepool);
     }
 }
 
