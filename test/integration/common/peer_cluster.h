@@ -121,6 +121,8 @@ class PeerCluster {
 
     const CopysetID GetCopysetId() const {return copysetID_;}
 
+    void SetWorkingCopyset(CopysetID copysetID) {copysetID_ = copysetID;}
+
     /* 修改 PeerNode 配置相关的接口，单位: s */
     int SetsnapshotIntervalS(int snapshotIntervalS);
     int SetElectionTimeoutMs(int electionTimeoutMs);
@@ -153,11 +155,10 @@ class PeerCluster {
                                                     LogicPoolID logicPoolID,
                                                     CopysetID copysetID);
 
- private:
     static int CreateCopyset(LogicPoolID logicPoolID,
-                              CopysetID copysetID,
-                              Peer peer,
-                              const std::vector<Peer>& peers);
+                             CopysetID copysetID,
+                             Peer peer,
+                             const std::vector<Peer>& peers);
 
  private:
     // 集群名字
@@ -175,9 +176,9 @@ class PeerCluster {
     Configuration           conf_;
 
     // 逻辑池id
-    static LogicPoolID      logicPoolID_;
+    LogicPoolID             logicPoolID_;
     // 复制组id
-    static CopysetID        copysetID_;
+    CopysetID               copysetID_;
     // chunkserver id
     static ChunkServerID    chunkServerId_;
     // 文件系统适配层

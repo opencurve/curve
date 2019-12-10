@@ -22,6 +22,7 @@
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
 #include "src/chunkserver/uri_paser.h"
+#include "src/chunkserver/raftsnapshot_attachment.h"
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
@@ -272,6 +273,9 @@ int ChunkServer::Run(int argc, char** argv) {
     CHECK(0 == ret) << "Fail to add RaftStatService";
 
     // braft file service
+    scoped_refptr<braft::SnapshotAttachment> attach(
+        new RaftSnapshotAttachment(fs));
+    braft::file_service_set_snapshot_attachment(&attach);
     ret = server.AddService(braft::file_service(),
         brpc::SERVER_DOESNT_OWN_SERVICE);
     CHECK(0 == ret) << "Fail to add FileService";
