@@ -22,6 +22,7 @@
 #include "proto/nameserver2.pb.h"
 #include "src/common/net_common.h"
 #include "src/common/uuid.h"
+#include "src/common/curve_version.h"
 
 using curve::client::UserInfo;
 using curve::common::ReadLockGuard;
@@ -71,6 +72,8 @@ int FileClient::Init(const std::string& configpath) {
         LOG(WARNING) << "already inited!";
         return 0;
     }
+
+    curve::common::ExposeCurveVersion();
 
     if (-1 == clientconfig_.Init(configpath.c_str())) {
         LOG(ERROR) << "config init failed!";
