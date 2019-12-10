@@ -16,7 +16,8 @@
 namespace curve {
 const std::vector<std::string> mdsConf{
     {" --graceful_quit_on_sigterm"},
-    {" --confPath=./test/integration/cluster_common/mds.basic.conf"},
+    {" --confPath=./conf/mds.conf"},
+    {" --mdsDbName=cluster_common_curve_mds"},
 };
 
 const std::vector<std::string> chunkserverConf1{
@@ -27,8 +28,9 @@ const std::vector<std::string> chunkserverConf1{
     {" -recycleUri=local://./basic1/recycler"},
     {" -chunkFilePoolDir=./basic1/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./basic1/chunkfilepool.meta"},
-    {" -conf=./test/integration/cluster_common/chunkserver.basic.conf"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
+    {" -enableChunkfilepool=false"}
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -39,8 +41,9 @@ const std::vector<std::string> chunkserverConf2{
     {" -recycleUri=local://./basic2/recycler"},
     {" -chunkFilePoolDir=./basic2/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./basic2/chunkfilepool.meta"},
-    {" -conf=./test/integration/cluster_common/chunkserver.basic.conf"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
+    {" -enableChunkfilepool=false"}
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -51,8 +54,9 @@ const std::vector<std::string> chunkserverConf3{
     {" -recycleUri=local://./basic3/recycler"},
     {" -chunkFilePoolDir=./basic3/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./basic3/chunkfilepool.meta"},
-    {" -conf=./test/integration/cluster_common/chunkserver.basic.conf"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
+    {" -enableChunkfilepool=false"}
 };
 
 class ClusterBasicTest : public ::testing::Test {
@@ -111,6 +115,7 @@ TEST_F(ClusterBasicTest, DISABLED_test_start_stop_module1) {
 
 TEST_F(ClusterBasicTest, test_start_stop_module2) {
     std::string commonDir = "./runlog/ClusterBasicTest.test_start_stop_module2";
+    ASSERT_EQ(0, system((std::string("rm -fr ") + commonDir).c_str()));
     ASSERT_EQ(0, system("rm -fr test_start_stop_module2.etcd"));
     ASSERT_EQ(0, system("rm -fr basic*"));
     ASSERT_EQ(0, system((std::string("mkdir ") + commonDir).c_str()));
@@ -126,6 +131,7 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     auto mdsDir = commonDir + "/mds";
     ASSERT_EQ(0, system((std::string("mkdir ") + mdsDir).c_str()));
     mdsConfbak.emplace_back(" -log_dir=" + mdsDir);
+    mdsConfbak.emplace_back(" --etcdAddr=127.0.0.1:2221");
     curveCluster_->StartSingleMDS(1, "127.0.0.1:3333", mdsConfbak, true);
     // 初始化mdsclient
     MetaServerOption_t op;
@@ -199,6 +205,7 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
 
 TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     std::string commonDir = "./runlog/ClusterBasicTest.test_multi_mds_and_etcd";
+    ASSERT_EQ(0, system((std::string("rm -fr ") + commonDir).c_str()));
     ASSERT_EQ(0, system("rm -fr test_multi_etcd_node*.etcd"));
     ASSERT_EQ(0, system((std::string("mkdir ") + commonDir).c_str()));
 
