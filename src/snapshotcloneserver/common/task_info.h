@@ -84,6 +84,15 @@ class TaskInfo {
     }
 
     /**
+     * @brief 重置任务
+     */
+    void Reset() {
+        progress_ = 0;
+        isFinish_ = false;
+        isCanceled_ = false;
+    }
+
+    /**
      * @brief 获取任务锁的引用，以便使用LockGuard加锁解锁
      *
      *  用于同步任务完成和取消功能

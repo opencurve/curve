@@ -104,24 +104,44 @@ void CloneTaskManager::ScanWorkingTask() {
         if (taskInfo->IsFinish()) {
             if (taskInfo->GetCloneInfo().GetTaskType() ==
                 CloneTaskType::kClone) {
-                cloneMetric_->cloneDoing << -1;
-                if (CloneStatus::done !=
+                if (CloneStatus::done ==
                     taskInfo->GetCloneInfo().GetStatus()) {
-                    cloneMetric_->cloneFailed << 1;
-                } else {
+                    cloneMetric_->cloneDoing << -1;
                     cloneMetric_->cloneSucceed << 1;
+                    cloneTaskMap_.erase(it->second->GetTaskId());
+                    it = cloningTasks_.erase(it);
+                } else if (CloneStatus::retrying ==
+                    taskInfo->GetCloneInfo().GetStatus()) {
+                    taskInfo->GetCloneInfo().
+                        SetStatus(CloneStatus::cloning);
+                    taskInfo->Reset();
+                    threadpool_->PushTask(it->second);
+                } else {
+                    cloneMetric_->cloneDoing << -1;
+                    cloneMetric_->cloneFailed << 1;
+                    cloneTaskMap_.erase(it->second->GetTaskId());
+                    it = cloningTasks_.erase(it);
                 }
             } else {
-                cloneMetric_->recoverDoing << -1;
-                if (CloneStatus::done !=
+                if (CloneStatus::done ==
                     taskInfo->GetCloneInfo().GetStatus()) {
-                    cloneMetric_->recoverFailed << 1;
-                } else {
+                    cloneMetric_->recoverDoing << -1;
                     cloneMetric_->recoverSucceed << 1;
+                    cloneTaskMap_.erase(it->second->GetTaskId());
+                    it = cloningTasks_.erase(it);
+                } else if (CloneStatus::retrying ==
+                    taskInfo->GetCloneInfo().GetStatus()) {
+                    taskInfo->GetCloneInfo().
+                        SetStatus(CloneStatus::recovering);
+                    taskInfo->Reset();
+                    threadpool_->PushTask(it->second);
+                } else {
+                    cloneMetric_->recoverDoing << -1;
+                    cloneMetric_->recoverFailed << 1;
+                    cloneTaskMap_.erase(it->second->GetTaskId());
+                    it = cloningTasks_.erase(it);
                 }
             }
-            cloneTaskMap_.erase(it->second->GetTaskId());
-            it = cloningTasks_.erase(it);
         } else {
             it++;
         }

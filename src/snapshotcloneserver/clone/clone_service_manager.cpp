@@ -156,7 +156,8 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                 }
                 case CloneStatus::cleaning:
                 case CloneStatus::errorCleaning:
-                case CloneStatus::error: {
+                case CloneStatus::error:
+                case CloneStatus::retrying: {
                     info->emplace_back(cloneInfo, 0);
                     break;
                 }
@@ -182,7 +183,8 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                                 info->emplace_back(newInfo, 100);
                                 break;
                             }
-                            case CloneStatus::error: {
+                            case CloneStatus::error:
+                            case CloneStatus::retrying: {
                                 info->emplace_back(newInfo, 0);
                                 break;
                             }
@@ -239,6 +241,13 @@ int CloneServiceManager::RecoverCloneTask() {
     }
     for (auto &cloneInfo : list) {
         switch (cloneInfo.GetStatus()) {
+            case CloneStatus::retrying: {
+                if (cloneInfo.GetTaskType() == CloneTaskType::kClone) {
+                    cloneInfo.SetStatus(CloneStatus::cloning);
+                } else {
+                    cloneInfo.SetStatus(CloneStatus::recovering);
+                }
+            }
             case CloneStatus::cloning:
             case CloneStatus::recovering: {
                 auto cloneInfoMetric =
