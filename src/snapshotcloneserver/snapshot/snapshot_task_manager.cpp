@@ -74,6 +74,21 @@ std::shared_ptr<SnapshotTask> SnapshotTaskManager::GetTask(
 }
 
 int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
+    {
+        // 还在等待队列的Cancel直接移除
+        WriteLockGuard taskMapWlock(taskMapLock_);
+        LockGuard waitingTasksLock(waitingTasksLock_);
+        for (auto it = waitingTasks_.begin();
+            it != waitingTasks_.end();
+            it++) {
+            if ((*it)->GetTaskId() == taskId) {
+                waitingTasks_.erase(it);
+                taskMap_.erase(taskId);
+                return kErrCodeSuccess;
+            }
+        }
+    }
+
     ReadLockGuard taskMapRlock(taskMapLock_);
     auto it = taskMap_.find(taskId);
     if (it != taskMap_.end()) {

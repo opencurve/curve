@@ -29,6 +29,7 @@ enum class CloneStatus {
     cleaning = 3,
     errorCleaning = 4,
     error = 5,
+    retrying = 6,
 };
 
 enum class CloneFileType {
