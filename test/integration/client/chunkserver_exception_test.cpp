@@ -31,19 +31,13 @@ std::condition_variable resumeCV;
 curve::client::InflightControl inflightContl;
 
 using curve::CurveCluster;
-const std::vector<std::string> mdsConf4{
-    {" --confPath=./test/integration/client/config/mds.conf.3"},
-    {" --log_dir=./runlog/ChunkserverException"}
-};
-
-const std::vector<std::string> mdsConf5{
-    {" --confPath=./test/integration/client/config/mds.conf.4"},
-    {" --log_dir=./runlog/ChunkserverException"}
-};
-
-const std::vector<std::string> mdsConf6{
-    {" --confPath=./test/integration/client/config/mds.conf.5"},
-    {" --log_dir=./runlog/ChunkserverException"}
+const std::vector<std::string> mdsConf{
+    {" --confPath=./conf/mds.conf"},
+    {" --log_dir=./runlog/ChunkserverException"},
+    {" --mdsDbName=module_exception_curve_chunkserver"},
+    {" --sessionInterSec=20"},
+    {" --etcdAddr=127.0.0.1:22233"},
+    {" --updateToRepoSec=5"},
 };
 
 const std::vector<std::string> chunkserverConf4{
@@ -85,8 +79,6 @@ const std::vector<std::string> chunkserverConf6{
 class CSModuleException : public ::testing::Test {
  public:
     void SetUp() {
-        std::this_thread::sleep_for(std::chrono::seconds(60));
-
         system("mkdir ./runlog/ChunkserverException");
         system("rm -rf module_exception_test_chunkserver.etcd");
         system("rm -rf moduleException4 moduleException5 moduleException6");
@@ -96,17 +88,18 @@ class CSModuleException : public ::testing::Test {
 
         // 0. 初始化db
         cluster->InitDB("module_exception_curve_chunkserver");
+        cluster->mdsRepo_->dropDataBase();
 
         // 1. 启动etcd
         cluster->StarSingleEtcd(1, "127.0.0.1:22233", "127.0.0.1:22234",
         std::vector<std::string>{" --name module_exception_test_chunkserver"});
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
-        cluster->StartSingleMDS(1, "127.0.0.1:22122", mdsConf4, true);
+        cluster->StartSingleMDS(1, "127.0.0.1:22122", mdsConf, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(2, "127.0.0.1:22123", mdsConf5, false);
+        cluster->StartSingleMDS(2, "127.0.0.1:22123", mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(3, "127.0.0.1:22124", mdsConf6, false);
+        cluster->StartSingleMDS(3, "127.0.0.1:22124", mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
         // 3. 创建物理池

@@ -31,19 +31,12 @@ std::condition_variable resumeCV;
 curve::client::InflightControl inflightContl;
 
 using curve::CurveCluster;
-const std::vector<std::string> mdsConf1{
-    {" --confPath=./test/integration/client/config/mds.conf.0"},
-    {" --log_dir=./runlog/MDSExceptionTest"}
-};
-
-const std::vector<std::string> mdsConf2{
-    {" --confPath=./test/integration/client/config/mds.conf.1"},
-    {" --log_dir=./runlog/MDSExceptionTest"}
-};
-
-const std::vector<std::string> mdsConf3{
-    {" --confPath=./test/integration/client/config/mds.conf.2"},
-    {" --log_dir=./runlog/MDSExceptionTest"}
+const std::vector<std::string> mdsConf{
+    {" --confPath=./conf/mds.conf"},
+    {" --log_dir=./runlog/MDSExceptionTest"},
+    {" --mdsDbName=module_exception_curve_mds"},
+    {" --sessionInterSec=20"},
+    {" --etcdAddr=127.0.0.1:22230"},
 };
 
 const std::vector<std::string> chunkserverConf1{
@@ -88,8 +81,6 @@ const std::vector<std::string> chunkserverConf3{
 class MDSModuleException : public ::testing::Test {
  public:
     void SetUp() {
-        std::this_thread::sleep_for(std::chrono::seconds(60));
-
         system("mkdir ./runlog/MDSExceptionTest");
         system("rm -rf module_exception_test_mds.etcd");
         system("rm -rf moduleException1 moduleException2 moduleException3");
@@ -105,11 +96,11 @@ class MDSModuleException : public ::testing::Test {
         std::vector<std::string>{" --name module_exception_test_mds"});
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
-        cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf1, true);
+        cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(2, "127.0.0.1:22223", mdsConf2, false);
+        cluster->StartSingleMDS(2, "127.0.0.1:22223", mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(3, "127.0.0.1:22224", mdsConf3, false);
+        cluster->StartSingleMDS(3, "127.0.0.1:22224", mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
         // 3. 创建物理池
@@ -170,9 +161,9 @@ class MDSModuleException : public ::testing::Test {
         ipmap[2] = "127.0.0.1:22223";
         ipmap[3] = "127.0.0.1:22224";
 
-        configmap[1] = mdsConf1;
-        configmap[2] = mdsConf2;
-        configmap[3] = mdsConf3;
+        configmap[1] = mdsConf;
+        configmap[2] = mdsConf;
+        configmap[3] = mdsConf;
     }
 
     void TearDown() {
@@ -684,19 +675,19 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(createOrOpenFailed);
 
     // 7. 拉起被kill的进程
-    cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf1, true);
+    cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf, true);
 
     // 9. 新的mds开始提供服务
     ASSERT_TRUE(MonitorResume(segment_size, 4096, 10));
 
     // 10. 再拉起被kill的进程
-    cluster->StartSingleMDS(2, "127.0.0.1:22223", mdsConf2, false);
+    cluster->StartSingleMDS(2, "127.0.0.1:22223", mdsConf, false);
 
     // 11. 对集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 12. 拉起其他被kill的mds
-    cluster->StartSingleMDS(3, "127.0.0.1:22224", mdsConf3, false);
+    cluster->StartSingleMDS(3, "127.0.0.1:22224", mdsConf, false);
 
     LOG(INFO) << "current case: hangThreeMDSThenResumeTheMDS";
     /********** hangThreeMDSThenResumeTheMDS **************/

@@ -38,6 +38,9 @@
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
+DEFINE_string(mdsDbName, "curve_mds", "mds db name");
+DEFINE_int32(sessionInterSec, 5, "mds session expired second");
+DEFINE_int32(updateToRepoSec, 5, "interval of update data in mds to repo");
 
 using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
@@ -231,6 +234,23 @@ void LoadConfigFromCmdline(Configuration *conf) {
             LOG(WARNING) << "no mds.common.logDir in " << FLAGS_confPath
                          << ", will log to /tmp";
         }
+    }
+
+    // 设置dbname
+    if (GetCommandLineFlagInfo("mdsDbName", &info) && !info.is_default) {
+        conf->SetStringValue("mds.DbName", FLAGS_mdsDbName);
+    }
+
+    // 设置mds和etcd之间session的过期时间
+    if (GetCommandLineFlagInfo("sessionInterSec", &info) && !info.is_default) {
+        conf->SetIntValue(
+            "mds.leader.sessionInterSec", FLAGS_sessionInterSec);
+    }
+
+    // 设置mds将内存中topology的数据持久化到repo中的时间
+    if (GetCommandLineFlagInfo("updateToRepoSec", &info) && !info.is_default) {
+        conf->SetIntValue(
+            "mds.topology.TopologyUpdateToRepoSec", FLAGS_updateToRepoSec);
     }
 }
 
