@@ -22,6 +22,7 @@
 #include "src/chunkserver/braft_cli_service2.h"
 #include "src/chunkserver/chunkserver_helper.h"
 #include "src/chunkserver/uri_paser.h"
+#include "src/common/curve_version.h"
 
 using ::curve::fs::LocalFileSystem;
 using ::curve::fs::LocalFileSystemOption;
@@ -65,6 +66,7 @@ int ChunkServer::Run(int argc, char** argv) {
 
     // 打印参数
     conf.PrintConfig();
+    curve::common::ExposeCurveVersion();
 
     // ============================初始化各模块==========================//
     LOG(INFO) << "Initializing ChunkServer modules";

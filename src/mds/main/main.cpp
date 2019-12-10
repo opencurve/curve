@@ -34,6 +34,7 @@
 #include "proto/heartbeat.pb.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
+#include "src/common/curve_version.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
@@ -276,6 +277,7 @@ int curve_main(int argc, char **argv) {
 
     // 打印参数
     conf.PrintConfig();
+    curve::common::ExposeCurveVersion();
 
     // ========================初始化各配置项==========================//
     SessionOptions sessionOptions;
