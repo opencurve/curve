@@ -36,6 +36,10 @@ class CloneTaskInfo : public TaskInfo {
         return cloneInfo_;
     }
 
+    TaskIdType GetTaskId() const {
+        return cloneInfo_.GetTaskId();
+    }
+
     void UpdateMetric() {
         metric_->Update(this);
     }

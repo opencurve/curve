@@ -384,6 +384,13 @@ class CloneCoreImpl : public CloneCore {
         int retCode);
 
     /**
+     * @brief Lazy Clone 情况下处理Clone任务失败重试
+     *
+     * @param task 任务信息
+     */
+    void HandleCloneToRetry(std::shared_ptr<CloneTaskInfo> task);
+
+    /**
      * @brief 处理清理克隆或恢复任务成功
      *
      * @param task 任务信息
