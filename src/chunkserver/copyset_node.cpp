@@ -18,13 +18,13 @@
 #include <algorithm>
 #include <cassert>
 
-#include "src/chunkserver/raftsnapshot_attachment.h"
 #include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
 #include "src/chunkserver/chunk_closure.h"
 #include "src/chunkserver/op_request.h"
 #include "src/fs/fs_common.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/datastore/define.h"
+#include "src/chunkserver/datastore/datastore_file_helper.h"
 #include "src/chunkserver/uri_paser.h"
 #include "src/common/crc32.h"
 
@@ -139,11 +139,6 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
 
     nodeOptions_.snapshot_file_system_adaptor =
         new scoped_refptr<braft::FileSystemAdaptor>(rfa);
-
-    RaftSnapshotAttachment* attachment =
-        new RaftSnapshotAttachment(chunkDataApath_, options.localFileSystem);
-    nodeOptions_.snapshot_attachment =
-        new scoped_refptr<braft::SnapshotAttachment>(attachment);
 
     /* 初始化 peer id */
     butil::ip_t ip;
@@ -283,18 +278,26 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
      */
     std::vector<std::string> files;
     if (0 == fs_->List(chunkDataApath_, &files)) {
-        for (auto it = files.begin(); it != files.end(); ++it) {
-            std::string filename;
+        for (const auto& fileName : files) {
+            // raft保存快照时，meta信息中不用保存快照文件列表
+            // raft下载快照的时候，在下载完chunk以后，会单独获取snapshot列表
+            // 这种设计是考虑到快照的一致性问题，设计文档参考：
+            // http://doc.hz.netease.com/pages/viewpage.action?pageId=210690233
+            bool isSnapshot = DatastoreFileHelper::IsSnapshotFile(fileName);
+            if (isSnapshot) {
+                continue;
+            }
+            std::string filePath;
             // 不是conf epoch文件，保存绝对路径和相对路径
             // 1. 添加绝对路径
-            filename.append(chunkDataApath_);
-            filename.append("/").append(*it);
+            filePath.append(chunkDataApath_);
+            filePath.append("/").append(fileName);
             // 2. 添加分隔符
-            filename.append(":");
+            filePath.append(":");
             // 3. 添加相对路径
-            filename.append(chunkDataRpath_);
-            filename.append("/").append(*it);
-            writer->add_file(filename);
+            filePath.append(chunkDataRpath_);
+            filePath.append("/").append(fileName);
+            writer->add_file(filePath);
         }
     } else {
         done->status().set_error(errno, "invalid: %s", strerror(errno));

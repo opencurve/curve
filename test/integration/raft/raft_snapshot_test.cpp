@@ -107,7 +107,7 @@ class RaftSnapshotTest : public testing::Test {
         ::system(mkdir4.c_str());
 
         electionTimeoutMs_ = 1000;
-        snapshotIntervalS_ = 30;
+        snapshotIntervalS_ = 20;
 
         ASSERT_TRUE(cg1_.Init("9321"));
         ASSERT_TRUE(cg2_.Init("9322"));
@@ -221,7 +221,7 @@ class RaftSnapshotTest : public testing::Test {
  * 7.添加新的peer，使其通过快照加载数据
  * 8.transfer leader到新加入的peer，读数据验证
  */
-TEST_F(RaftSnapshotTest, ConsecutiveRecoverFromSnapshot) {
+TEST_F(RaftSnapshotTest, AddPeerRecoverFromSnapshot) {
     LogicPoolID logicPoolId = 2;
     CopysetID copysetId = 100001;
     uint64_t chunkId = 1;
@@ -421,29 +421,8 @@ TEST_F(RaftSnapshotTest, ShutdownOnePeerRestartFromInstallSnapshot) {
 
     // Wait shutdown peer recovery, and then transfer leader to it
     ::sleep(3);
-    Configuration conf = cluster.CopysetConf();
-    braft::cli::CliOptions options;
-    options.max_retry = 3;
-    options.timeout_ms = 3000;
-    const int kMaxLoop = 10;
-    butil::Status status;
-    for (int i = 0; i < kMaxLoop; ++i) {
-        status = TransferLeader(logicPoolId,
-                                copysetId,
-                                conf,
-                                shutdownPeer,
-                                options);
-        if (0 == status.error_code()) {
-            cluster.WaitLeader(&leaderPeer);
-            if (leaderPeer.address() == shutdownPeer.address()) {
-                break;
-            }
-        }
-        ::sleep(1);
-    }
-
-    ASSERT_STREQ(shutdownPeer.address().c_str(), leaderPeer.address().c_str());
-
+    TransferLeaderAssertSuccess(&cluster, shutdownPeer);
+    leaderPeer = shutdownPeer;
     ReadVerify(leaderPeer, logicPoolId, copysetId, chunkId,
                length, ch + 2, loop);
     ReadSnapshotVerify(leaderPeer, logicPoolId, copysetId, chunkId,
@@ -579,29 +558,144 @@ TEST_F(RaftSnapshotTest, DoCurveSnapshotAfterShutdownPeerThenRestart) {
 
     // Wait shutdown peer recovery, and then transfer leader to it
     ::sleep(3);
-    Configuration conf = cluster.CopysetConf();
-    braft::cli::CliOptions options;
-    options.max_retry = 3;
-    options.timeout_ms = 3000;
-    const int kMaxLoop = 10;
-    butil::Status status;
-    for (int i = 0; i < kMaxLoop; ++i) {
-        status = TransferLeader(logicPoolId,
-                                copysetId,
-                                conf,
-                                shutdownPeer,
-                                options);
-        if (0 == status.error_code()) {
-            cluster.WaitLeader(&leaderPeer);
-            if (leaderPeer.address() == shutdownPeer.address()) {
-                break;
-            }
-        }
-        ::sleep(1);
+    TransferLeaderAssertSuccess(&cluster, shutdownPeer);
+    leaderPeer = shutdownPeer;
+    ReadVerify(leaderPeer, logicPoolId, copysetId, chunkId,
+               length, ch, loop);
+    ReadSnapshotVerify(leaderPeer, logicPoolId, copysetId, chunkId,
+                       length, ch-1, loop);
+}
+
+/**
+ * 验证curve快照转储过程当中，chunkserver存在多个copyset情况下，
+ * 发生copyset迁移的场景，主要用于验证下面的bug：
+ * http://jira.netease.com/browse/CLDCFS-2049
+ * 1. 创建3个副本的复制组
+ * 2. 为每个复制组的chunkserver生成新的copyset，并作为后续操作对象
+ * 3. 等待 leader 产生，write 数据
+ * 4. sleep 超过一个 snapshot interval，确保产生raft快照
+ * 5. 更新写版本，产生chunk快照
+ * 6. 然后 sleep 超过一个 snapshot interval，确保产生raft快照
+ * 7. shutdown 非 leader
+ * 8. AddPeer添加一个新节点使其通过加载快照恢复，然后remove掉shutdown的peer
+ * 9. 切换leader到新添加的peer
+ * 10. 等待 leader 产生，然后 read 之前产生的数据和chunk快照进行验证
+ */
+TEST_F(RaftSnapshotTest, AddPeerWhenDoingCurveSnapshotWithMultiCopyset) {
+    LogicPoolID logicPoolId = 2;
+    CopysetID copysetId = 100001;
+    uint64_t chunkId = 1;
+    uint64_t initsn = 1;
+    int length = kOpRequestAlignSize;
+    char ch = 'a';
+    int loop = 25;
+
+    std::vector<Peer> peers;
+    peers.push_back(peer1_);
+    peers.push_back(peer2_);
+    peers.push_back(peer3_);
+
+    PeerCluster cluster("ThreeNode-cluster",
+                        logicPoolId,
+                        copysetId,
+                        peers,
+                        params_,
+                        paramsIndexs_);
+    ASSERT_EQ(0, cluster.StartPeer(peer1_, PeerCluster::PeerToId(peer1_)));
+    ASSERT_EQ(0, cluster.StartPeer(peer2_, PeerCluster::PeerToId(peer2_)));
+    ASSERT_EQ(0, cluster.StartPeer(peer3_, PeerCluster::PeerToId(peer3_)));
+
+    // 创建新的copyset
+    LOG(INFO) << "create new copyset.";
+    ++copysetId;
+    int ret = cluster.CreateCopyset(logicPoolId, copysetId, peer1_, peers);
+    ASSERT_EQ(0, ret);
+    ret = cluster.CreateCopyset(logicPoolId, copysetId, peer2_, peers);
+    ASSERT_EQ(0, ret);
+    ret = cluster.CreateCopyset(logicPoolId, copysetId, peer3_, peers);
+    ASSERT_EQ(0, ret);
+
+    // 使用新的copyset作为操作对象
+    cluster.SetWorkingCopyset(copysetId);
+
+    Peer leaderPeer;
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
+
+    LOG(INFO) << "write 1 start";
+    // 发起 read/write,产生chunk文件
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ch,  // a
+                        loop,
+                        initsn);
+
+    LOG(INFO) << "write 1 end";
+
+    // wait snapshot, 保证能够触发打快照
+    ::sleep(1.5*snapshotIntervalS_);
+
+    LOG(INFO) << "write 2 start";
+    // 发起 read/write,产生chunk文件,并产生快照文件
+    WriteThenReadVerify(leaderPeer,
+                        logicPoolId,
+                        copysetId,
+                        chunkId,
+                        length,
+                        ++ch,  // b
+                        loop,
+                        initsn+1);  // sn = 2
+    // 验证chunk快照数据正确性
+    ReadSnapshotVerify(leaderPeer,
+                       logicPoolId,
+                       copysetId,
+                       chunkId,
+                       length,
+                       ch-1,  // a
+                       loop);
+
+    LOG(INFO) << "write 2 end";
+    // raft内副本之间的操作并不是全部同步的，可能存在落后的副本操作
+    // 所以先睡一会，防止并发统计文件信息
+    ::sleep(2);
+
+    // wait snapshot, 保证能够触发打快照
+    // 通过至少两次快照，保证新加的peer通过下载快照安装
+    ::sleep(1.5*snapshotIntervalS_);
+
+    // shutdown 某个follower
+    Peer shutdownPeer;
+    if (leaderPeer.address() == peer1_.address()) {
+        shutdownPeer = peer2_;
+    } else {
+        shutdownPeer = peer1_;
     }
+    LOG(INFO) << "shutdown peer: " << shutdownPeer.address();
+    LOG(INFO) << "leader peer: " << leaderPeer.address();
+    ASSERT_EQ(0, cluster.ShutdownPeer(shutdownPeer));
 
-    ASSERT_STREQ(shutdownPeer.address().c_str(), leaderPeer.address().c_str());
+    // 添加新的peer，并移除shutdown的peer
+    Configuration conf = cluster.CopysetConf();
+    ASSERT_EQ(0, cluster.StartPeer(peer4_,
+                                   PeerCluster::PeerToId(peer4_)));
+    butil::Status status =
+        AddPeer(logicPoolId, copysetId, conf, peer4_, defaultCliOpt_);
+    ASSERT_TRUE(status.ok());
 
+    // 删除旧leader及其目录
+    status =
+        RemovePeer(logicPoolId, copysetId, conf, shutdownPeer, defaultCliOpt_);
+    ASSERT_TRUE(status.ok());
+    std::string rmdir("rm -fr ");
+        rmdir += std::to_string(PeerCluster::PeerToId(shutdownPeer));
+    ::system(rmdir.c_str());
+
+    // transfer leader 到peer4_，并读出来验证
+    TransferLeaderAssertSuccess(&cluster, peer4_);
+    leaderPeer = peer4_;
+    // 读数据验证
     ReadVerify(leaderPeer, logicPoolId, copysetId, chunkId,
                length, ch, loop);
     ReadSnapshotVerify(leaderPeer, logicPoolId, copysetId, chunkId,
