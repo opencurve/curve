@@ -358,8 +358,6 @@ int PeerCluster::GetFollwerPeers(const std::vector<Peer>& peers,
     return 0;
 }
 
-LogicPoolID PeerCluster::logicPoolID_ = 0;
-CopysetID   PeerCluster::copysetID_ = 0;
 ChunkServerID PeerCluster::chunkServerId_ = 0;
 
 std::shared_ptr<LocalFileSystem> PeerCluster::fs_
