@@ -97,9 +97,9 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         return;
     } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED) {
         LOG(WARNING) << "leader redirect, retry directly, " << *reqCtx
-                  << ", reteied times = " << reqDone->GetRetriedTimes()
-                  << ", IO id = " << reqDone->GetIOTracker()->GetID()
-                  << ", request id = " << reqCtx->id_;
+                     << ", reteied times = " << reqDone->GetRetriedTimes()
+                     << ", IO id = " << reqDone->GetIOTracker()->GetID()
+                     << ", request id = " << reqCtx->id_;
         return;
     }
 
@@ -197,6 +197,25 @@ void ClientClosure::Run() {
         // 2.4 非法参数，直接返回，不用重试
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST:
             OnInvalidRequest();
+            break;
+
+        // 2.5 返回backward
+        case CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD:
+            if (reqCtx_->optype_ == OpType::WRITE) {
+                needRetry = true;
+                OnBackward();
+            } else {
+                LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
+                    << " return backward, op info: "
+                    << "<" << chunkIdInfo_.lpid_ << ", " << chunkIdInfo_.cpid_
+                    << ">, " << chunkIdInfo_.cid_
+                    << ", sn=" << reqCtx_->seq_
+                    << ", offset=" << reqCtx_->offset_
+                    << ", length=" << reqCtx_->rawlength_
+                    << ", status=" << status_
+                    << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+                    << ", request id = " << reqCtx_->id_;
+            }
             break;
 
         default:
@@ -362,6 +381,24 @@ void ClientClosure::RefreshLeader() const {
             << ", IO id = " << reqDone_->GetIOTracker()->GetID()
             << ", request id = " << reqCtx_->id_;
     }
+}
+
+void ClientClosure::OnBackward() {
+    const auto latestSn = metaCache_->GetLatestFileSn();
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
+        << " return BACKWARD"
+        << ", logicpool id = " << chunkIdInfo_.lpid_
+        << ", copyset id = " << chunkIdInfo_.cpid_
+        << ", chunk id = " << chunkIdInfo_.cid_
+        << ", sn = " << reqCtx_->seq_
+        << ", set sn = " << latestSn
+        << ", offset = " << reqCtx_->offset_
+        << ", length = " << reqCtx_->rawlength_
+        << ", status = " << status_
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_;
+
+    reqCtx_->seq_ = latestSn;
 }
 
 void ClientClosure::OnInvalidRequest() {
