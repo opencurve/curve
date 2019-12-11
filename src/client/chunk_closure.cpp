@@ -52,7 +52,18 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     ChunkID chunkid = reqCtx->idinfo_.cid_;
 
     if (cntlstatus == brpc::ERPCTIMEDOUT) {
-        uint64_t nextTimeout = TimeoutBackOff(reqDone->GetRetriedTimes());
+        // 如果对应的cooysetId leader可能发生变更
+        // 那么设置这次重试请求超时时间为默认值
+        // 这是为了尽快重试这次请求
+        // 从copysetleader迁移到client GetLeader获取到新的leader会有1~2s的延迟
+        // 对于一个请求来说，GetLeader仍然可能返回旧的Leader
+        // rpc timeout时间可能会被设置成2s/4s，等到超时后再去获取leader信息
+        // 为了尽快在新的Leader上重试请求，将rpc timeout时间设置为默认值
+        bool leaderMayChange = metaCache_->IsLeaderMayChange(
+            chunkIdInfo_.lpid_, chunkIdInfo_.cpid_);
+        uint64_t nextTimeout = leaderMayChange ?
+            failReqOpt_.rpcTimeoutMs :
+            TimeoutBackOff(reqDone->GetRetriedTimes());
         reqDone->SetNextTimeOutMS(nextTimeout);
         LOG(INFO) << "rpc timeout, next timeout = " << nextTimeout
                   << ", copysetid = " << copysetId
