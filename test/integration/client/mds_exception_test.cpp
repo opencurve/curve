@@ -174,7 +174,6 @@ class MDSModuleException : public ::testing::Test {
         system("rm -rf module_exception_test_mds.etcd");
         system("rm -rf moduleException1 moduleException2 moduleException3");
 
-        cluster->mdsRepo_->dropDataBase();
         cluster->StopEtcd(1);
         cluster->StopCluster();
         delete cluster;
