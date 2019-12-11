@@ -54,6 +54,21 @@ MetaCacheErrorType MetaCache::GetChunkInfoByIndex(ChunkIndex chunkidx, ChunkIDIn
     return MetaCacheErrorType::CHUNKINFO_NOT_FOUND;
 }
 
+bool MetaCache::IsLeaderMayChange(LogicPoolID logicPoolId,
+                                  CopysetID copysetId) {
+    rwlock4ChunkInfo_.RDLock();
+    auto iter = lpcsid2CopsetInfoMap_.find(
+        LogicPoolCopysetID2Str(logicPoolId, copysetId));
+    if (iter == lpcsid2CopsetInfoMap_.end()) {
+        rwlock4ChunkInfo_.Unlock();
+        return false;
+    }
+
+    bool flag = iter->second.LeaderMayChange();
+    rwlock4ChunkInfo_.Unlock();
+    return flag;
+}
+
 int MetaCache::GetLeader(LogicPoolID logicPoolId,
                         CopysetID copysetId,
                         ChunkServerID* serverId,
