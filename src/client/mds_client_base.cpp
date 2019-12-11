@@ -196,7 +196,8 @@ void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
     LOG(INFO) << "GetSnapshotSegmentInfo: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner
                 << ", offset = " << offset
-                << ", seqnum = " << seq;
+                << ", seqnum = " << seq
+                << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.GetSnapShotFileSegment(cntl, &request, response, nullptr);
@@ -218,7 +219,8 @@ void MDSClientBase::RefreshSession(const std::string& filename,
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner
-                  << ", sessionid = " << sessionid;
+                  << ", sessionid = " << sessionid
+                  << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
@@ -240,7 +242,8 @@ void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
 
     LOG(INFO) << "CheckSnapShotStatus: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq;
+                << ", seqnum = " << seq
+                << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.CheckSnapShotStatus(cntl, &request, response, nullptr);
@@ -253,12 +256,18 @@ void MDSClientBase::GetServerList(const LogicPoolID& logicalpooid,
                                 brpc::Channel* channel) {
     GetChunkServerListInCopySetsRequest request;
     request.set_logicalpoolid(logicalpooid);
+    std::string requestCopysets;
     for (auto copysetid : copysetidvec) {
         request.add_copysetid(copysetid);
+        requestCopysets.append(std::to_string(copysetid)).append(" ");
     }
 
     cntl->set_log_id(GetLogId());
     cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+
+    LOG(INFO) << "GetServerList: logicpool id = " << logicalpooid
+        << ", copyset list = " << requestCopysets
+        << ", log id = " << cntl->log_id();
 
     curve::mds::topology::TopologyService_Stub stub(channel);
     stub.GetChunkServerListInCopySets(cntl, &request, response, nullptr);
@@ -271,6 +280,8 @@ void MDSClientBase::GetClusterInfo(GetClusterInfoResponse* response,
 
     cntl->set_log_id(GetLogId());
     cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
+
+    LOG(INFO) << "GetClusterInfo: log id = " << cntl->log_id();
 
     curve::mds::topology::TopologyService_Stub stub(channel);
     stub.GetClusterInfo(cntl, &request, response, nullptr);
@@ -299,7 +310,8 @@ void MDSClientBase::CreateCloneFile(const std::string &destination,
               << ", owner = " << userinfo.owner.c_str()
               << ", seqnum = " << sn
               << ", size = " << size
-              << ", chunksize = " << chunksize;
+              << ", chunksize = " << chunksize
+              << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.CreateCloneFile(cntl, &request, response, NULL);
@@ -505,7 +517,8 @@ void MDSClientBase::Register(const std::string& ip,
 
     LOG(INFO) << "client regist info to mds: "
               << "ip = " << ip
-              << "port = " << port;
+              << ", uport = " << port
+              << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.RegistClient(cntl, &request, response, NULL);

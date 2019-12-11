@@ -368,9 +368,15 @@ class FakeCliService : public curve::chunkserver::CliService2 {
                     curve::chunkserver::GetLeaderResponse2* response,
                     ::google::protobuf::Closure* done) {
         brpc::ClosureGuard done_guard(done);
-        if (fakeret_->controller_ != nullptr
-         && fakeret_->controller_->Failed()) {
-            controller->SetFailed("failed");
+        if (fakeret_->controller_ != nullptr &&
+            fakeret_->controller_->Failed()) {
+            brpc::Controller* cntl =
+                static_cast<brpc::Controller*>(controller);
+            if (errCode_ != 0) {
+                cntl->SetFailed(errCode_, "failed");
+            } else {
+                cntl->SetFailed("failed");
+            }
         }
 
         auto resp = static_cast<curve::chunkserver::GetLeaderResponse2*>(
@@ -379,10 +385,8 @@ class FakeCliService : public curve::chunkserver::CliService2 {
 
         invoketimes_++;
 
-        brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-
         if (waitMs_ != 0) {
-            std::this_thread::sleep_for(std::chrono::microseconds(waitMs_));
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitMs_));
         }
     }
 
@@ -406,8 +410,17 @@ class FakeCliService : public curve::chunkserver::CliService2 {
         waitMs_ = 0;
     }
 
+    void SetErrorCode(int errCode) {
+        errCode_ = errCode;
+    }
+
+    void ClearErrorCode() {
+        errCode_ = 0;
+    }
+
  private:
     uint64_t waitMs_;
+    int errCode_;
     int invoketimes_;
     FakeReturn* fakeret_;
 };
