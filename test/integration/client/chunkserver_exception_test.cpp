@@ -158,7 +158,6 @@ class CSModuleException : public ::testing::Test {
     void TearDown() {
         ::Close(fd);
         UnInit();
-        cluster->mdsRepo_->dropDataBase();
         cluster->StopCluster();
         delete cluster;
         system("rm -rf moduleException6 moduleException4 moduleException5");
