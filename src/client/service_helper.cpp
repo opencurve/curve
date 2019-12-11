@@ -113,6 +113,11 @@ int ServiceHelper::GetLeader(const LogicPoolID &logicPoolId,
             continue;
         }
 
+        LOG(INFO) << "GetLeader returned from " << cntl.remote_side()
+            << ", logicpool id = " << logicPoolId
+            << ", copyset id = " << copysetId
+            << ", response = " << response.ShortDebugString();
+
         if (response.leader().has_id()) {
             *csid = response.leader().id();
         }
