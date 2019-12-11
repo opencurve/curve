@@ -10,6 +10,7 @@
 
 #include <gmock/gmock.h>
 #include <memory>
+#include <string>
 
 #include "src/chunkserver/copyset_node.h"
 
@@ -29,6 +30,10 @@ class MockCopysetNode : public CopysetNode {
     MOCK_CONST_METHOD0(GetConfEpoch, uint64_t());
     MOCK_METHOD1(UpdateAppliedIndex, void(uint64_t));
     MOCK_CONST_METHOD0(GetAppliedIndex, uint64_t());
+    MOCK_METHOD3(GetConfChange, int(ConfigChangeType*, Configuration*, Peer*));
+    MOCK_METHOD1(GetHash, int(std::string*));
+    MOCK_METHOD1(GetStatus, void(NodeStatus*));
+    MOCK_METHOD0(GetLeaderCommittedIndex, int64_t());
     MOCK_CONST_METHOD0(GetDataStore, std::shared_ptr<CSDataStore>());
     MOCK_CONST_METHOD0(GetConcurrentApplyModule, ConcurrentApplyModule*());
     MOCK_METHOD1(Propose, void(const braft::Task&));

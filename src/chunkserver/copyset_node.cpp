@@ -791,5 +791,45 @@ void CopysetNode::GetStatus(NodeStatus *status) {
     raftNode_->get_status(status);
 }
 
+int64_t CopysetNode::GetLeaderCommittedIndex() {
+    NodeStatus status;
+    GetStatus(&status);
+    if (status.leader_id.is_empty()) {
+        return -1;
+    }
+    if (status.leader_id == status.peer_id) {
+        return status.known_applied_index;
+    }
+
+    // get committed index from remote leader
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(500);
+    brpc::Channel channel;
+    if (channel.Init(status.leader_id.addr, nullptr) !=0) {
+        LOG(WARNING) << "can not create channel to "
+                     << status.leader_id.addr;
+        return -1;
+    }
+
+    CopysetStatusRequest request;
+    CopysetStatusResponse response;
+    curve::common::Peer *peer = new curve::common::Peer();
+    peer->set_address(status.leader_id.to_string());
+    request.set_logicpoolid(logicPoolId_);
+    request.set_copysetid(copysetId_);
+    request.set_allocated_peer(peer);
+    request.set_queryhash(false);
+
+    CopysetService_Stub stub(&channel);
+    stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
+    if (cntl.Failed()) {
+        LOG(WARNING) << cntl.ErrorText();
+        return -1;
+    } else {
+        return response.committedindex();
+    }
+    return -1;
+}
+
 }  // namespace chunkserver
 }  // namespace curve

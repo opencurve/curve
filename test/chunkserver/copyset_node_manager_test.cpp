@@ -14,74 +14,88 @@
 
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/copyset_node.h"
+#include "test/chunkserver/mock_copyset_node.h"
 
 namespace curve {
 namespace chunkserver {
 
+using ::testing::_;
+using ::testing::Return;
+using ::testing::NotNull;
+using ::testing::Mock;
+using ::testing::DoAll;
+using ::testing::ReturnArg;
+using ::testing::SetArgPointee;
+
+butil::AtExitManager atExitManager;
+
 using curve::fs::FileSystemType;
 
-TEST(CopysetNodeManager, basic) {
-    /* for is exist */
+const char copysetUri[] = "local://./node_manager_test";
+const int port = 9043;
+
+class CopysetNodeManagerTest : public ::testing::Test {
+ protected:
+    void SetUp() {
+        defaultOptions_.ip = "127.0.0.1";
+        defaultOptions_.port = port;
+        defaultOptions_.electionTimeoutMs = 1000;
+        defaultOptions_.snapshotIntervalS = 30;
+        defaultOptions_.catchupMargin = 50;
+        defaultOptions_.chunkDataUri = copysetUri;
+        defaultOptions_.chunkSnapshotUri = copysetUri;
+        defaultOptions_.logUri = copysetUri;
+        defaultOptions_.raftMetaUri = copysetUri;
+        defaultOptions_.raftSnapshotUri = copysetUri;
+        defaultOptions_.loadConcurrency = 5;
+        defaultOptions_.checkRetryTimes = 3;
+        defaultOptions_.finishLoadMargin = 1000;
+
+        defaultOptions_.concurrentapply = &concurrentModule_;
+        std::shared_ptr<LocalFileSystem> fs =
+            LocalFsFactory::CreateFs(FileSystemType::EXT4, "");
+        ASSERT_TRUE(nullptr != fs);
+        defaultOptions_.localFileSystem = fs;
+        defaultOptions_.chunkfilePool =
+            std::make_shared<ChunkfilePool>(fs);
+        defaultOptions_.trash = std::make_shared<Trash>();
+    }
+
+    void TearDown() {
+        ::system("rm -rf node_manager_test");
+    }
+
+ protected:
+    CopysetNodeOptions  defaultOptions_;
+    ConcurrentApplyModule concurrentModule_;
+};
+
+TEST_F(CopysetNodeManagerTest, ErrorOptionsTest) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 10001;
     Configuration conf;
-    GroupId groupId = ToGroupId(logicPoolId, copysetId).c_str();
     CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
 
-    ASSERT_FALSE(copysetNodeManager->IsExist(logicPoolId, copysetId));
-    std::shared_ptr<LocalFileSystem> fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));    //NOLINT
-    ASSERT_TRUE(nullptr != fs);
-    /* error copyset node options test */
-    {
-        int port = 9000;
-        CopysetNodeOptions copysetNodeOptions;
-        copysetNodeOptions.ip = "127.0.0.1";
-        copysetNodeOptions.port = port;
-        copysetNodeOptions.snapshotIntervalS = 30;
-        copysetNodeOptions.catchupMargin = 50;
-        copysetNodeOptions.chunkDataUri = "//.";
-        copysetNodeOptions.chunkSnapshotUri = "local://.";
-        copysetNodeOptions.logUri = "//.";
-        copysetNodeOptions.raftMetaUri = "local://.";
-        copysetNodeOptions.raftSnapshotUri = "local://.";
+    defaultOptions_.chunkDataUri = "//.";
+    defaultOptions_.logUri = "//.";
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
 
-        copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
-        copysetNodeOptions.localFileSystem = fs;
-        copysetNodeOptions.chunkfilePool =
-            std::make_shared<ChunkfilePool>(fs);
-        ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
+    ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                       copysetId,
+                                                       conf));
+}
 
-        ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
-                                                           copysetId,
-                                                           conf));
-        delete copysetNodeOptions.concurrentapply;
-    }
-    /* raft node init failed, since the rpc service not have been add */
-    {
-        int port = 9000;
-        CopysetNodeOptions copysetNodeOptions;
-        copysetNodeOptions.ip = "127.0.0.1";
-        copysetNodeOptions.port = port;
-        copysetNodeOptions.snapshotIntervalS = 30;
-        copysetNodeOptions.catchupMargin = 50;
-        copysetNodeOptions.chunkDataUri = "local://.";
-        copysetNodeOptions.chunkSnapshotUri = "local://.";
-        copysetNodeOptions.logUri = "local://.";
-        copysetNodeOptions.raftMetaUri = "local://.";
-        copysetNodeOptions.raftSnapshotUri = "local://.";
-        copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
-        copysetNodeOptions.localFileSystem = fs;
-        copysetNodeOptions.chunkfilePool =
-            std::make_shared<ChunkfilePool>(fs);
+TEST_F(CopysetNodeManagerTest, ServiceNotStartTest) {
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 10001;
+    Configuration conf;
+    CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
 
-        ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
-        ASSERT_EQ(0, copysetNodeManager->Run());
-
-        ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
-                                                           copysetId,
-                                                           conf));
-        delete copysetNodeOptions.concurrentapply;
-    }
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+    ASSERT_EQ(0, copysetNodeManager->Run());
+    ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                       copysetId,
+                                                       conf));
 
     /* null server */
     {
@@ -90,65 +104,186 @@ TEST(CopysetNodeManager, basic) {
         butil::EndPoint addr(butil::IP_ANY, port);
         ASSERT_EQ(-1, copysetNodeManager->AddService(server, addr));
     }
+}
 
-    /* normal test */
-    {
-        int port = 9043;
-        CopysetNodeOptions copysetNodeOptions;
-        copysetNodeOptions.ip = "127.0.0.1";
-        copysetNodeOptions.port = port;
-        copysetNodeOptions.snapshotIntervalS = 30;
-        copysetNodeOptions.catchupMargin = 50;
-        copysetNodeOptions.chunkDataUri = "local://.";
-        copysetNodeOptions.chunkSnapshotUri = "local://.";
-        copysetNodeOptions.logUri = "local://.";
-        copysetNodeOptions.raftMetaUri = "local://.";
-        copysetNodeOptions.raftSnapshotUri = "local://.";
-        copysetNodeOptions.concurrentapply = new ConcurrentApplyModule();
-        copysetNodeOptions.localFileSystem = fs;
-        copysetNodeOptions.chunkfilePool =
-            std::make_shared<ChunkfilePool>(fs);
+TEST_F(CopysetNodeManagerTest, NormalTest) {
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 10001;
+    Configuration conf;
+    CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
 
-        ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
-        ASSERT_EQ(0, copysetNodeManager->Run());
-
-        brpc::Server server;
-        butil::EndPoint addr(butil::IP_ANY, port);
-        ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
-        if (server.Start(port, NULL) != 0) {
-            LOG(FATAL) << "Fail to start Server";
-        }
-        ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolId,
-                                                          copysetId,
-                                                          conf));
-        ASSERT_TRUE(copysetNodeManager->IsExist(logicPoolId, copysetId));
-        ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
-                                                           copysetId,
-                                                           conf));
-
-        auto copysetNode1 =
-            copysetNodeManager->GetCopysetNode(logicPoolId, copysetId);
-        ASSERT_TRUE(nullptr != copysetNode1);
-        auto copysetNode2 =
-            copysetNodeManager->GetCopysetNode(logicPoolId + 1, copysetId + 1);
-        ASSERT_TRUE(nullptr == copysetNode2);
-        ASSERT_EQ(false,
-                  copysetNodeManager->DeleteCopysetNode(logicPoolId + 1,
-                                                        copysetId + 1));
-        std::vector<std::shared_ptr<CopysetNode>> copysetNodes;
-        copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
-        ASSERT_EQ(1, copysetNodes.size());
-
-        ASSERT_TRUE(copysetNodeManager->DeleteCopysetNode(logicPoolId,
-                                                          copysetId));
-        ASSERT_FALSE(copysetNodeManager->IsExist(logicPoolId, copysetId));
-
-        ASSERT_EQ(0, copysetNodeManager->Fini());
-        ASSERT_EQ(0, server.Stop(0));
-        ASSERT_EQ(0, server.Join());
-
-        delete copysetNodeOptions.concurrentapply;
+    // start server
+    brpc::Server server;
+    butil::EndPoint addr(butil::IP_ANY, port);
+    ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
+    if (server.Start(port, NULL) != 0) {
+        LOG(FATAL) << "Fail to start Server";
     }
+
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+    ASSERT_EQ(0, copysetNodeManager->Run());
+    ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                       copysetId,
+                                                       conf));
+    ASSERT_TRUE(copysetNodeManager->IsExist(logicPoolId, copysetId));
+    // 重复创建
+    ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                       copysetId,
+                                                       conf));
+    auto copysetNode1 =
+            copysetNodeManager->GetCopysetNode(logicPoolId, copysetId);
+    ASSERT_TRUE(nullptr != copysetNode1);
+    auto copysetNode2 =
+        copysetNodeManager->GetCopysetNode(logicPoolId + 1, copysetId + 1);
+    ASSERT_TRUE(nullptr == copysetNode2);
+    ASSERT_EQ(false, copysetNodeManager->DeleteCopysetNode(logicPoolId + 1,
+                                                           copysetId + 1));
+    std::vector<std::shared_ptr<CopysetNode>> copysetNodes;
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(1, copysetNodes.size());
+
+    ASSERT_TRUE(copysetNodeManager->DeleteCopysetNode(logicPoolId,
+                                                      copysetId));
+    ASSERT_FALSE(copysetNodeManager->IsExist(logicPoolId, copysetId));
+
+    ASSERT_EQ(0, copysetNodeManager->Fini());
+    ASSERT_EQ(0, server.Stop(0));
+    ASSERT_EQ(0, server.Join());
+}
+
+TEST_F(CopysetNodeManagerTest, CheckCopysetTest) {
+    CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
+
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+
+    std::shared_ptr<MockCopysetNode> mockNode
+        = std::make_shared<MockCopysetNode>();
+
+    // 测试copyset node manager还没运行
+    EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
+    EXPECT_CALL(*mockNode, GetLeaderCommittedIndex()).Times(0);
+    ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
+
+    // 启动copyset node manager
+    ASSERT_EQ(0, copysetNodeManager->Run());
+
+    // 测试node为空
+    EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
+    EXPECT_CALL(*mockNode, GetLeaderCommittedIndex()).Times(0);
+    ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(nullptr));
+
+    // 测试无法获取到leader committed_index 的情况
+    EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
+    EXPECT_CALL(*mockNode, GetLeaderCommittedIndex())
+    .Times(defaultOptions_.checkRetryTimes)
+    .WillRepeatedly(Return(-1));
+    ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
+
+    // 测试可以获取到leader committed_index 的情况
+    int leaderCommittedIndex = 2000;
+    NodeStatus status1;
+    NodeStatus status2;
+    NodeStatus status3;
+    NodeStatus status4;
+    status1.known_applied_index = 100;
+    status2.known_applied_index = 999;
+    status3.known_applied_index = 1000;
+    status4.known_applied_index = 1001;
+    EXPECT_CALL(*mockNode, GetStatus(_))
+    .Times(4)
+    .WillOnce(SetArgPointee<0>(status1))
+    .WillOnce(SetArgPointee<0>(status2))
+    .WillOnce(SetArgPointee<0>(status3))
+    .WillOnce(SetArgPointee<0>(status4));
+    EXPECT_CALL(*mockNode, GetLeaderCommittedIndex())
+    .Times(4)
+    .WillRepeatedly(Return(leaderCommittedIndex));
+    ASSERT_TRUE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
+}
+
+TEST_F(CopysetNodeManagerTest, ReloadTest) {
+    LogicPoolID logicPoolId = 1;
+    CopysetID copysetId = 10001;
+    Configuration conf;
+    CopysetNodeManager *copysetNodeManager = &CopysetNodeManager::GetInstance();
+
+    // start server
+    brpc::Server server;
+    butil::EndPoint addr(butil::IP_ANY, port);
+    ASSERT_EQ(0, copysetNodeManager->AddService(&server, addr));
+    if (server.Start(port, NULL) != 0) {
+        LOG(FATAL) << "Fail to start Server";
+    }
+
+    // 构造初始环境
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+    ASSERT_EQ(0, copysetNodeManager->Run());
+    // 创建多个copyset
+    int copysetNum = 5;
+    for (int i = 0; i < copysetNum; ++i) {
+        ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                          copysetId + i,
+                                                          conf));
+    }
+    std::vector<std::shared_ptr<CopysetNode>> copysetNodes;
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(5, copysetNodes.size());
+    ASSERT_EQ(0, copysetNodeManager->Fini());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(0, copysetNodes.size());
+
+    // reload copysets when loadConcurrency < copysetNum
+    std::cout << "Test ReloadCopysets when loadConcurrency=3" << std::endl;
+    defaultOptions_.loadConcurrency = 3;
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+    ASSERT_EQ(0, copysetNodeManager->Run());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(5, copysetNodes.size());
+    ASSERT_EQ(0, copysetNodeManager->Fini());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(0, copysetNodes.size());
+
+    // reload copysets when loadConcurrency == copysetNum
+    std::cout << "Test ReloadCopysets when loadConcurrency=5" << std::endl;
+    defaultOptions_.loadConcurrency = 5;
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+    ASSERT_EQ(0, copysetNodeManager->Run());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(5, copysetNodes.size());
+    ASSERT_EQ(0, copysetNodeManager->Fini());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(0, copysetNodes.size());
+
+    // reload copysets when loadConcurrency > copysetNum
+    std::cout << "Test ReloadCopysets when loadConcurrency=10" << std::endl;
+    defaultOptions_.loadConcurrency = 10;
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+    ASSERT_EQ(0, copysetNodeManager->Run());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(5, copysetNodes.size());
+    ASSERT_EQ(0, copysetNodeManager->Fini());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(0, copysetNodes.size());
+
+    // reload copysets when loadConcurrency == 0
+    std::cout << "Test ReloadCopysets when loadConcurrency=0" << std::endl;
+    defaultOptions_.loadConcurrency = 0;
+    ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+    ASSERT_EQ(0, copysetNodeManager->Run());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(5, copysetNodes.size());
+    ASSERT_EQ(0, copysetNodeManager->Fini());
+    copysetNodes.clear();
+    copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
+    ASSERT_EQ(0, copysetNodes.size());
 }
 
 }  // namespace chunkserver

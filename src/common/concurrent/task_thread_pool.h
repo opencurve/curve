@@ -31,7 +31,7 @@ class TaskThreadPool : public Uncopyable {
     using Task = std::function<void()>;
 
     TaskThreadPool();
-    ~TaskThreadPool();
+    virtual ~TaskThreadPool();
 
     /**
      * 启动一个线程池
@@ -64,14 +64,15 @@ class TaskThreadPool : public Uncopyable {
     /* 返回线程池的线程数 */
     int ThreadOfNums() const;
 
- private:
-    void ThreadFunc();
+ protected:
+    /*线程工作时执行的函数*/
+    virtual void ThreadFunc();
     /* 判断线程池 queue 是否已经满了, 非线程安全，私有内部使用 */
     bool IsFullUnlock() const;
     /* 从线程池的 queue 中取一个 task 线程安全 */
     Task Take();
 
- private:
+ protected:
     mutable std::mutex      mutex_;
     std::condition_variable notEmpty_;
     std::condition_variable notFull_;
