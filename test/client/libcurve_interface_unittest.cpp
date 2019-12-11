@@ -754,6 +754,18 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
         }
     }
 
+    // 当copyset处于unstable状态时
+    // 不进入超时时间指数退避逻辑，rpc超时时间设置为默认值
+    // 所以每个请求总时间为3s，4个请求需要12s
+    auto start = TimeUtility::GetTimeofDayMs();
+    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
+    auto end = TimeUtility::GetTimeofDayMs();
+    ASSERT_GT(end - start, 11 * 1000);
+    ASSERT_LT(end - start, 13 * 1000);
+
     mds.DisableNetUnstable();
 
     // 取消延迟，再次读写第2个chunk

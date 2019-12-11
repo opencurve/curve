@@ -43,12 +43,19 @@ void LoggerGuard::InitInternal(const std::string& confPath) {
     curve::common::Configuration conf;
     conf.SetConfigPath(confPath);
 
-    LOG_IF(FATAL, !conf.LoadConfig())
-        << "Load config failed, config path = " << confPath;
-    LOG_IF(FATAL, !conf.GetIntValue("loglevel", &FLAGS_minloglevel))
-        << "config no loglevel info";
-    LOG_IF(FATAL, !conf.GetStringValue("logpath", &FLAGS_log_dir))
-        << "config no logpath info";
+    bool rc = conf.LoadConfig();
+    if (!rc) {
+        LOG(ERROR) << "Load config failed, config path = " << confPath
+                   << ", not init glog";
+        return;
+    }
+
+    FLAGS_minloglevel = 0;
+    FLAGS_log_dir = "/tmp";
+    LOG_IF(WARNING, !conf.GetIntValue("loglevel", &FLAGS_minloglevel))
+        << "config no loglevel info, using default value 0";
+    LOG_IF(WARNING, !conf.GetStringValue("logpath", &FLAGS_log_dir))
+        << "config no logpath info, using default dir '/tmp'";
 
     std::string processName = std::string("libcurve-").append(
         curve::common::UUIDGenerator().GenerateUUID().substr(0, 8));
