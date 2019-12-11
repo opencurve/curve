@@ -58,6 +58,7 @@ using curve::mds::CurveFSService;
 using curve::mds::topology::TopologyService;
 using curve::mds::RegistClientResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
+using curve::client::GetLeaderInfo;
 
 class MDSClientTest : public ::testing::Test {
  public:
@@ -1102,7 +1103,8 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     curve::client::CopysetID copyid = 0;
     curve::client::ChunkServerAddr pid;
     std::vector<CopysetPeerInfo> conf;
-    ASSERT_EQ(-1, ServiceHelper::GetLeader(lpid, copyid, conf, &pid, 10));
+    GetLeaderInfo getLeaderInfo(lpid, copyid, conf, 10);
+    ASSERT_EQ(-1, ServiceHelper::GetLeader(getLeaderInfo, &pid));
 
     curve::client::EndPoint ep11, ep22, ep33;
     butil::str2endpoint("127.0.0.1", 7777, &ep11);
@@ -1115,7 +1117,8 @@ TEST_F(MDSClientTest, GetOrAllocateSegment) {
     conf.push_back(CopysetPeerInfo(1, pd11));
     conf.push_back(CopysetPeerInfo(2, pd22));
     conf.push_back(CopysetPeerInfo(3, pd33));
-    ASSERT_EQ(-1, ServiceHelper::GetLeader(lpid, copyid, conf, &pid, 10));
+    GetLeaderInfo getLeaderInfo2(lpid, copyid, conf, 10);
+    ASSERT_EQ(-1, ServiceHelper::GetLeader(getLeaderInfo2, &pid));
 
     delete fakeret;
     delete faktopologyeret;
@@ -1290,24 +1293,24 @@ TEST_F(MDSClientTest, GetLeaderTest) {
 
     mc.UpdateCopysetInfo(1234, 1234, cslist);
 
-    // 测试复制组里第一个addr为leader
+    // 测试复制组里第三个addr为leader
     curve::chunkserver::GetLeaderResponse2 response1;
     curve::common::Peer *peer1 = new curve::common::Peer();
-    peer1->set_address(pd1.ToString());
+    peer1->set_address(pd3.ToString());
     response1.set_allocated_leader(peer1);
     FakeReturn fakeret1(nullptr, static_cast<void*>(&response1));
     cliservice1.SetFakeReturn(&fakeret1);
 
     curve::chunkserver::GetLeaderResponse2 response2;
     curve::common::Peer *peer2 = new curve::common::Peer();
-    peer2->set_address(pd1.ToString());
+    peer2->set_address(pd3.ToString());
     response2.set_allocated_leader(peer2);
     FakeReturn fakeret2(nullptr, static_cast<void*>(&response2));
     cliservice2.SetFakeReturn(&fakeret2);
 
     curve::chunkserver::GetLeaderResponse2 response3;
     curve::common::Peer *peer3 = new curve::common::Peer();
-    peer3->set_address(pd1.ToString());
+    peer3->set_address(pd3.ToString());
     response3.set_allocated_leader(peer3);
     FakeReturn fakeret3(nullptr, static_cast<void*>(&response3));
     cliservice3.SetFakeReturn(&fakeret3);
@@ -1325,71 +1328,8 @@ TEST_F(MDSClientTest, GetLeaderTest) {
                  cliservice2.GetInvokeTimes() +
                  cliservice3.GetInvokeTimes());
 
-    ASSERT_EQ(ckid, 1);
-    ASSERT_EQ(ep1, leaderep);
-
-    // 测试第二次拉取新的leader，直接跳过第一个index，查找第2，3两个
-    cliservice1.CleanInvokeTimes();
-    cliservice2.CleanInvokeTimes();
-    cliservice3.CleanInvokeTimes();
-
-    peer2 = new curve::common::Peer();
-    peer2->set_address(pd2.ToString());
-    response2.set_allocated_leader(peer2);
-    fakeret2 = FakeReturn(nullptr, static_cast<void*>(&response2));
-    cliservice2.SetFakeReturn(&fakeret2);
-
-    peer3 = new curve::common::Peer();
-    peer3->set_address(pd2.ToString());
-    response3.set_allocated_leader(peer3);
-    fakeret3 = FakeReturn(nullptr, static_cast<void*>(&response3));
-    cliservice3.SetFakeReturn(&fakeret3);
-
-    mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-
-    ASSERT_EQ(0, cliservice1.GetInvokeTimes());
-    ASSERT_EQ(1, cliservice2.GetInvokeTimes() + cliservice3.GetInvokeTimes());
-
-    ASSERT_EQ(ckid, 2);
-    ASSERT_EQ(ep2, leaderep);
-
-    // 测试第三次拉取新的leader，会跳过第二个index，重试1，3
-    cliservice1.CleanInvokeTimes();
-    cliservice2.CleanInvokeTimes();
-    cliservice3.CleanInvokeTimes();
-
-    peer1 = new curve::common::Peer();
-    peer1->set_address(pd3.ToString());
-    response1.set_allocated_leader(peer1);
-    fakeret1 = FakeReturn(nullptr, static_cast<void*>(&response1));
-    cliservice1.SetFakeReturn(&fakeret1);
-
-    peer3 = new curve::common::Peer();
-    peer3->set_address(pd3.ToString());
-    response3.set_allocated_leader(peer3);
-    fakeret3 = FakeReturn(nullptr, static_cast<void*>(&response3));
-    cliservice3.SetFakeReturn(&fakeret3);
-
-    mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-    ASSERT_EQ(1, cliservice1.GetInvokeTimes() + cliservice3.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice2.GetInvokeTimes());
-
-    ASSERT_EQ(3, ckid);
+    ASSERT_EQ(ckid, 3);
     ASSERT_EQ(ep3, leaderep);
-
-    // 当前新leader是3，尝试再刷新leader，这个时候会从1， 2获取leader
-    // 在service中添加sleep，让GetLeader发送多个请求
-    cliservice1.SetDelayMs(150);
-    cliservice2.SetDelayMs(150);
-    mc.GetLeader(1234, 1234, &ckid, &leaderep, true);
-    ASSERT_EQ(2, cliservice1.GetInvokeTimes() + cliservice3.GetInvokeTimes());
-    ASSERT_EQ(0, cliservice2.GetInvokeTimes());
-
-    ASSERT_EQ(3, ckid);
-    ASSERT_EQ(ep3, leaderep);
-
-    cliservice1.ClearDelay();
-    cliservice2.ClearDelay();
 
     // 测试拉取新leader失败，需要到mds重新fetch新的serverlist
     // 当前新leader是3，尝试再刷新leader，这个时候会从1， 2获取leader
@@ -2063,4 +2003,298 @@ TEST(LibcurveInterface, InvokeWithOutInit) {
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Close(0));
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, StatFile(nullptr, ui, nullptr));
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, ChangeOwner(nullptr, nullptr, nullptr));
+}
+
+class ServiceHelperGetLeaderTest : public MDSClientTest {
+ public:
+    using GetLeaderResponse2 = curve::chunkserver::GetLeaderResponse2;
+
+    void SetUp() override {
+        // 添加service，并启动server
+        for (int i = 0; i < kChunkServerNum; ++i) {
+            auto& chunkserver = chunkServers[i];
+            auto& fakeCliService = fakeCliServices[i];
+            ASSERT_EQ(0, chunkserver.AddService(&fakeCliService,
+                brpc::SERVER_DOESNT_OWN_SERVICE)) << "Fail to add service";
+
+            brpc::ServerOptions options;
+            options.idle_timeout_sec = -1;
+
+            const auto& ipPort =
+                "127.0.0.1:" + std::to_string(chunkserverPorts[i]);
+            ASSERT_EQ(0, chunkserver.Start(
+                ipPort.c_str(), &options)) << "Fail to start server";
+        }
+
+        endPoints.resize(kChunkServerNum);
+        chunkserverAddrs.resize(kChunkServerNum);
+        for (int i = 0; i < kChunkServerNum; ++i) {
+            butil::str2endpoint("127.0.0.1",
+                                chunkserverPorts[i],
+                                &endPoints[i]);
+
+            chunkserverAddrs[i] = ChunkServerAddr(endPoints[i]);
+        }
+
+        // 设置copyset peer信息
+        for (int i = 0; i < kChunkServerNum; ++i) {
+            curve::client::CopysetPeerInfo peerinfo;
+            peerinfo.chunkserverid_ = i + 1;
+            peerinfo.csaddr_ = chunkserverAddrs[i];
+            copysetInfo.AddCopysetPeerInfo(peerinfo);
+            copysetPeerInfos.push_back(peerinfo);
+        }
+
+        ResetAllFakeCliService();
+    }
+
+    void ResetAllFakeCliService() {
+        for (auto& cliService : fakeCliServices) {
+            cliService.CleanInvokeTimes();
+            cliService.ClearDelay();
+            cliService.ClearErrorCode();
+        }
+    }
+
+    int GetAllInvokeTimes() {
+        int total = 0;
+        for (auto& cliService : fakeCliServices) {
+            total += cliService.GetInvokeTimes();
+        }
+
+        return total;
+    }
+
+    void TearDown() override {
+        for (auto& server : chunkServers) {
+            server.Stop(0);
+            server.Join();
+        }
+    }
+
+    GetLeaderResponse2 MakeResponse(
+        const curve::client::ChunkServerAddr& addr) {
+        GetLeaderResponse2 response;
+        curve::common::Peer* peer = new curve::common::Peer();
+        peer->set_address(addr.ToString());
+        response.set_allocated_leader(peer);
+
+        return response;
+    }
+
+    void SetGetLeaderResponse(const curve::client::ChunkServerAddr& addr) {
+        static GetLeaderResponse2 response;
+        response = MakeResponse(addr);
+
+        static FakeReturn fakeret(nullptr, static_cast<void*>(&response));
+
+        for (auto& cliService : fakeCliServices) {
+            cliService.SetFakeReturn(&fakeret);
+        }
+
+        GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
+            copysetPeerInfos, -1);
+        ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo,
+            &leaderAddr, &leaderId, nullptr));
+
+        ResetAllFakeCliService();
+    }
+
+    static const int kChunkServerNum = 3;
+    static const int kLogicPoolId = 1234;
+    static const int kCopysetId = 1234;
+
+    std::vector<int> chunkserverPorts{9120, 9121, 9122};
+    brpc::Server chunkServers[kChunkServerNum];
+    FakeCliService fakeCliServices[kChunkServerNum];
+
+    std::vector<curve::client::EndPoint> endPoints;
+    std::vector<curve::client::ChunkServerAddr> chunkserverAddrs;
+    std::vector<CopysetPeerInfo> copysetPeerInfos;
+
+    curve::client::CopysetInfo copysetInfo;
+
+    curve::client::ChunkServerID leaderId;
+    curve::client::EndPoint leaderEndPoint;
+    curve::client::ChunkServerAddr leaderAddr;
+};
+
+TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
+    // 测试复制组里第一个chunkserver为leader
+    GetLeaderResponse2 response = MakeResponse(chunkserverAddrs[0]);
+
+    FakeReturn fakeret0(nullptr, static_cast<void*>(&response));
+    fakeCliServices[0].SetFakeReturn(&fakeret0);
+
+    FakeReturn fakeret1(nullptr, static_cast<void*>(&response));
+    fakeCliServices[1].SetFakeReturn(&fakeret1);
+
+    FakeReturn fakeret2(nullptr, static_cast<void*>(&response));
+    fakeCliServices[2].SetFakeReturn(&fakeret2);
+
+    GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
+        copysetPeerInfos, -1);
+    ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
+        &leaderId, nullptr));
+    ASSERT_EQ(1, GetAllInvokeTimes());
+    ASSERT_EQ(chunkserverAddrs[0], leaderAddr);
+
+    ResetAllFakeCliService();
+
+    // 测试第二次拉取新的leader，直接跳过第一个chunkserver，查找第2，3两个
+    int32_t currentLeaderIndex = 0;
+    curve::client::ChunkServerAddr currentLeader =
+        chunkserverAddrs[currentLeaderIndex];
+
+    response = MakeResponse(currentLeader);
+    fakeret1 = FakeReturn(nullptr, static_cast<void*>(&response));
+    fakeCliServices[1].SetFakeReturn(&fakeret1);
+    fakeret2 = FakeReturn(nullptr, static_cast<void*>(&response));
+    fakeCliServices[2].SetFakeReturn(&fakeret2);
+
+    getLeaderInfo = GetLeaderInfo(kLogicPoolId, kCopysetId,
+        copysetPeerInfos, currentLeaderIndex);
+    ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
+        &leaderId, nullptr));
+
+    ASSERT_EQ(0, fakeCliServices[0].GetInvokeTimes());
+    ASSERT_EQ(1, fakeCliServices[1].GetInvokeTimes() +
+                 fakeCliServices[2].GetInvokeTimes());
+    ASSERT_EQ(currentLeader, leaderAddr);
+
+    ResetAllFakeCliService();
+
+    // 测试第三次获取leader，会跳过第二个chunkserver，重试1/3
+    currentLeaderIndex = 1;
+    currentLeader = chunkserverAddrs[currentLeaderIndex];
+
+    response = MakeResponse(currentLeader);
+
+    fakeret1 = FakeReturn(nullptr, static_cast<void*>(&response));
+    fakeCliServices[1].SetFakeReturn(&fakeret1);
+    fakeret2 = FakeReturn(nullptr, static_cast<void*>(&response));
+    fakeCliServices[2].SetFakeReturn(&fakeret2);
+
+    getLeaderInfo = GetLeaderInfo(kLogicPoolId, kCopysetId,
+        copysetPeerInfos, currentLeaderIndex);
+    ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
+        &leaderId, nullptr));
+
+    ASSERT_EQ(0, fakeCliServices[1].GetInvokeTimes());
+    ASSERT_EQ(1, fakeCliServices[0].GetInvokeTimes() +
+                 fakeCliServices[2].GetInvokeTimes());
+    ASSERT_EQ(currentLeader, leaderAddr);
+
+    ResetAllFakeCliService();
+}
+
+TEST_F(ServiceHelperGetLeaderTest, RpcDelayTest) {
+    // 设置第三个chunkserver为leader
+    const auto currentLeaderIndex = 2;
+    const auto& currentLeader = chunkserverAddrs[2];
+    SetGetLeaderResponse(currentLeader);
+
+    // 再次GetLeader会向chunkserver 1/2 发送请求
+    // 在chunksever GetLeader service 中加入sleep，触发backup request
+    fakeCliServices[0].SetDelayMs(200);
+    fakeCliServices[1].SetDelayMs(200);
+
+    GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
+        copysetPeerInfos, currentLeaderIndex);
+    ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
+        &leaderId, nullptr));
+    ASSERT_EQ(0, fakeCliServices[2].GetInvokeTimes());
+    ASSERT_EQ(2, fakeCliServices[0].GetInvokeTimes() +
+                 fakeCliServices[1].GetInvokeTimes());
+    ASSERT_EQ(currentLeader, leaderAddr);
+
+    fakeCliServices[0].ClearDelay();
+    fakeCliServices[1].ClearDelay();
+}
+
+TEST_F(ServiceHelperGetLeaderTest, RpcDelayAndExceptionTest) {
+    std::vector<int> exceptionErrCodes{
+        ENOENT, EAGAIN, EHOSTDOWN,
+        ECONNREFUSED, ECONNRESET, brpc::ELOGOFF};
+
+    // 设置第三个chunkserver为leader，GetLeader会向chunkserver 1/2发送请求
+    const auto currentLeaderIndex = 2;
+    const auto& currentLeader = chunkserverAddrs[currentLeaderIndex];
+    SetGetLeaderResponse(currentLeader);
+
+    // 设置第一个chunkserver GetLeader service 延迟
+    fakeCliServices[0].SetDelayMs(200);
+
+    // 设置第二个chunkserver 返回对应的错误码
+    for (auto errCode : exceptionErrCodes) {
+        fakeCliServices[1].SetErrorCode(errCode);
+        brpc::Controller controller;
+        controller.SetFailed(errCode, "Failed");
+        curve::common::Peer* peer = new curve::common::Peer();
+        peer->set_address(currentLeader.ToString());
+        GetLeaderResponse2 response;
+        response.set_allocated_leader(peer);
+
+        FakeReturn fakeret(&controller, static_cast<void*>(&response));
+        fakeCliServices[1].SetFakeReturn(&fakeret);
+
+        GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
+            copysetPeerInfos, currentLeaderIndex);
+        ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
+            &leaderId, nullptr));
+        ASSERT_EQ(0, fakeCliServices[2].GetInvokeTimes());
+
+        // 总共两种情况
+        // 1. 第一次先访问宕机节点，返回cntl failed，删除当前节点后进行重试
+        //    第二次访问延迟节点，返回结果
+        // 2. 第一次先访问延迟节点，超过backup时间，然后访问cntl failed节点，删除当前节点后进行重试  // NOLINT
+        //    第二次访问延迟节点
+        // 但是brpc内部会针对错误码进行重试，所以这里判断调用次数 >= 2
+        ASSERT_GE(fakeCliServices[0].GetInvokeTimes() +
+                  fakeCliServices[1].GetInvokeTimes(), 2);
+        ASSERT_EQ(currentLeader, leaderAddr);
+
+        for (auto& cliservice : fakeCliServices) {
+            cliservice.CleanInvokeTimes();
+        }
+    }
+}
+
+TEST_F(ServiceHelperGetLeaderTest, AllChunkServerExceptionTest) {
+    std::vector<int> exceptionErrCodes{
+        ENOENT, EAGAIN, EHOSTDOWN,
+        ECONNREFUSED, ECONNRESET, brpc::ELOGOFF};
+
+    // 设置第三个chunkserver为leader
+    const auto currentLeaderIndex = 2;
+    const auto& currentLeader = chunkserverAddrs[currentLeaderIndex];
+
+    SetGetLeaderResponse(currentLeader);
+
+    // 另外两个chunkserver都返回对应的错误码
+    for (auto errCode : exceptionErrCodes) {
+        fakeCliServices[0].SetErrorCode(errCode);
+        fakeCliServices[1].SetErrorCode(errCode);
+
+        brpc::Controller controller;
+        controller.SetFailed(errCode, "Failed");
+        curve::common::Peer* peer = new curve::common::Peer();
+        peer->set_address(currentLeader.ToString());
+        GetLeaderResponse2 response;
+        response.set_allocated_leader(peer);
+
+        FakeReturn fakeret(&controller, static_cast<void*>(&response));
+
+        fakeCliServices[0].SetFakeReturn(&fakeret);
+        fakeCliServices[1].SetFakeReturn(&fakeret);
+
+        GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
+            copysetPeerInfos, currentLeaderIndex);
+        ASSERT_EQ(-1, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
+            &leaderId, nullptr));
+        ASSERT_GE(fakeCliServices[0].GetInvokeTimes() +
+                  fakeCliServices[1].GetInvokeTimes(), 2);
+
+        ResetAllFakeCliService();
+    }
 }

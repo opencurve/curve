@@ -66,10 +66,7 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
             TimeoutBackOff(reqDone->GetRetriedTimes());
         reqDone->SetNextTimeOutMS(nextTimeout);
         LOG(INFO) << "rpc timeout, next timeout = " << nextTimeout
-                  << ", copysetid = " << copysetId
-                  << ", logicPoolId = " << logicPoolId
-                  << ", chunkid = " << chunkid
-                  << ", offset = " << reqCtx->offset_
+                  << ", " << *reqCtx
                   << ", reteied times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
                   << ", request id = " << reqCtx->id_;
@@ -77,10 +74,7 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     } else if (rpcstatus == CHUNK_OP_STATUS::CHUNK_OP_STATUS_OVERLOAD) {
         uint64_t nextsleeptime = OverLoadBackOff(reqDone->GetRetriedTimes());
         LOG(INFO) << "chunkserver overload, sleep(us) = " << nextsleeptime
-                  << ", copysetid = " << copysetId
-                  << ", logicPoolId = " << logicPoolId
-                  << ", chunkid = " << chunkid
-                  << ", offset = " << reqCtx->offset_
+                  << ", " << *reqCtx
                   << ", reteied times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
                   << ", request id = " << reqCtx->id_;
@@ -88,10 +82,9 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
         return;
     } else {
         LOG(INFO) << "rpc failed, sleep(us) = " << failReqOpt_.opRetryIntervalUs
-                  << ", copysetid = " << copysetId
-                  << ", logicPoolId = " << logicPoolId
-                  << ", chunkid = " << chunkid
-                  << ", offset = " << reqCtx->offset_
+                  << ", " << *reqCtx
+                  << ", cntl status = " << cntlstatus
+                  << ", response status = " << rpcstatus
                   << ", reteied times = " << reqDone->GetRetriedTimes()
                   << ", IO id = " << reqDone->GetIOTracker()->GetID()
                   << ", request id = " << reqCtx->id_;
@@ -188,10 +181,7 @@ void ClientClosure::Run() {
         default:
             needRetry = true;
             LOG_EVERY_N(ERROR, 10) << OpTypeToString(reqCtx_->optype_)
-                << " failed for UNKNOWN reason , op info: "
-                << "<" << chunkIdInfo_.lpid_ << ", " << chunkIdInfo_.cpid_
-                << ", " << chunkIdInfo_.cid_ << "> offset=" << reqCtx_->offset_
-                << ", length=" << reqCtx_->rawlength_
+                << " failed for UNKNOWN reason, " << *reqCtx_
                 << ", status="
                 << curve::chunkserver::CHUNK_OP_STATUS_Name(
                         static_cast<CHUNK_OP_STATUS>(status_))
@@ -220,9 +210,7 @@ void ClientClosure::OnRpcFailed() {
         << " failed, error code: "
         << cntl_->ErrorCode()
         << ", error: " << cntl_->ErrorText()
-        << ", chunk id = " << chunkIdInfo_.cid_
-        << ", copyset id = " << chunkIdInfo_.cpid_
-        << ", logicpool id = " << chunkIdInfo_.lpid_
+        << ", " << *reqCtx_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_;
 
@@ -257,13 +245,8 @@ void ClientClosure::OnSuccess() {
 void ClientClosure::OnChunkNotExist() {
     reqDone_->SetFailed(status_);
 
-    LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
-        << " not exists, op info: "
-        << "<" << chunkIdInfo_.lpid_ << ", " << chunkIdInfo_.cpid_
-        << ">, " << chunkIdInfo_.cid_
-        << ", sn=" << reqCtx_->seq_
-        << ", offset=" << reqCtx_->offset_
-        << ", length=" << reqCtx_->rawlength_
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
+        << " not exists, " << *reqCtx_
         << ", status=" << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_;
@@ -275,6 +258,12 @@ void ClientClosure::OnChunkNotExist() {
 }
 
 void ClientClosure::OnRedirected() {
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_) << " redirected, "
+        << *reqCtx_
+        << ", status = " << status_
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_;
+
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
@@ -297,6 +286,12 @@ void ClientClosure::OnRedirected() {
 }
 
 void ClientClosure::OnCopysetNotExist() {
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_) << " copyset not exists, "
+        << *reqCtx_
+        << ", status = " << status_
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_;
+
     RefreshLeader();
 }
 
@@ -319,11 +314,7 @@ void ClientClosure::OnRetry() {
         MetricHelper::IncremIOSuspendNum(fileMetric_);
         LOG(WARNING) << "IO Retried "
                      << failReqOpt_.maxRetryTimesBeforeConsiderSuspend
-                     << " times, set suspend flag!"
-                     << " <" << chunkIdInfo_.lpid_ << ", " << chunkIdInfo_.cpid_
-                     << ", " << chunkIdInfo_.cpid_ << ">"
-                     << " offset=" << reqCtx_->offset_
-                     << ", length =" << reqCtx_->rawlength_
+                     << " times, set suspend flag! " << *reqCtx_
                      << ", IO id = " << reqDone_->GetIOTracker()->GetID()
                      << ", request id = " << reqCtx_->id_;
     }
@@ -340,8 +331,8 @@ void ClientClosure::RefreshLeader() const {
             chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
             &leaderId, &leaderAddr, true, fileMetric_)) {
         LOG(WARNING) << "Refresh leader failed, "
-            << "copyset id = " << chunkIdInfo_.cpid_
-            << ", logicpool id = " << chunkIdInfo_.lpid_
+            << "logicpool id = " << chunkIdInfo_.lpid_
+            << ", copyset id = " << chunkIdInfo_.cpid_
             << ", current op return status = "
             << status_
             << ", IO id = " << reqDone_->GetIOTracker()->GetID()
@@ -352,10 +343,7 @@ void ClientClosure::RefreshLeader() const {
 void ClientClosure::OnInvalidRequest() {
     reqDone_->SetFailed(status_);
     LOG(ERROR) << OpTypeToString(reqCtx_->optype_)
-        << " failed for invalid format, op info: "
-        << "<" << chunkIdInfo_.lpid_ << ", " << chunkIdInfo_.cpid_
-        << ", " << chunkIdInfo_.cid_ << "> offset=" << reqCtx_->offset_
-        << ", length=" << reqCtx_->rawlength_
+        << " failed for invalid format, " << *reqCtx_
         << ", status=" << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
         << ", request id = " << reqCtx_->id_;
@@ -445,6 +433,12 @@ void GetChunkInfoClosure::OnSuccess() {
 }
 
 void GetChunkInfoClosure::OnRedirected() {
+    LOG(WARNING) << OpTypeToString(reqCtx_->optype_)
+        << " redirected, " << *reqCtx_
+        << ", status = " << status_
+        << ", IO id = " << reqDone_->GetIOTracker()->GetID()
+        << ", request id = " << reqCtx_->id_;
+
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
 
