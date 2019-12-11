@@ -202,6 +202,12 @@ class MetaCache {
                                               const CopysetInfo_t& cpinfo);
 
     /**
+     * 获取对应的copyset的LeaderMayChange标志
+     */
+    virtual bool IsLeaderMayChange(LogicPoolID logicpoolId,
+                                   CopysetID copysetId);
+
+    /**
      * 测试使用
      * 获取copysetinfo信息
      */
