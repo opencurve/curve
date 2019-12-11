@@ -169,6 +169,9 @@ class ClientClosure : public Closure {
     // copyset不存在
     void OnCopysetNotExist();
 
+    // 返回backward
+    void OnBackward();
+
     // 返回chunk不存在 处理函数
     virtual void OnChunkNotExist();
 
