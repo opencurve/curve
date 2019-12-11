@@ -26,7 +26,7 @@ using curve::common::RWLock;
 
 namespace curve {
 namespace client {
-enum MetaCacheErrorType {
+enum class MetaCacheErrorType {
     OK = 0,
     CHUNKINFO_NOT_FOUND = 1,
     LEADERINFO_NOT_FOUND = 2,
@@ -201,6 +201,22 @@ class MetaCache {
     virtual void UpdateChunkserverCopysetInfo(LogicPoolID lpid,
                                               const CopysetInfo_t& cpinfo);
 
+    void UpdateFileInfo(const FInfo& fileInfo) {
+        fileInfo_ = fileInfo;
+    }
+
+    const FInfo* GetFileInfo() const {
+        return &fileInfo_;
+    }
+
+    uint64_t GetLatestFileSn() const {
+        return fileInfo_.seqnum;
+    }
+
+    void SetLatestFileSn(uint64_t newSn) {
+        fileInfo_.seqnum = newSn;
+    }
+
     /**
      * 测试使用
      * 获取copysetinfo信息
@@ -254,6 +270,9 @@ class MetaCache {
     std::unordered_map<ChunkServerID, std::set<CopysetIDInfo_t>> chunkserverCopysetIDMap_;  // NOLINT
     // 读写锁保护unStableCSMap
     CURVE_CACHELINE_ALIGNMENT RWLock    rwlock4CSCopysetIDMap_;
+
+    // 当前文件信息
+    FInfo fileInfo_;
 };
 
 }   // namespace client

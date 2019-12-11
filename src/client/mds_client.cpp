@@ -796,7 +796,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
 LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
                                 const UserInfo_t& userinfo,
                                 const std::string& sessionid,
-                                leaseRefreshResult* resp) {
+                                LeaseRefreshResult* resp) {
     // 记录当前mds重试次数
     int count = 0;
     // 记录还没重试的mds addr数量
@@ -843,7 +843,7 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
         }
 
         if (curve::mds::StatusCode::kOwnerAuthFail == stcode) {
-            resp->status = leaseRefreshResult::Status::FAILED;
+            resp->status = LeaseRefreshResult::Status::FAILED;
             return LIBCURVE_ERROR::AUTHFAIL;
         }
 
@@ -858,15 +858,15 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
 
         if (stcode == curve::mds::StatusCode::kSessionNotExist
             || stcode == curve::mds::StatusCode::kFileNotExists) {
-            resp->status = leaseRefreshResult::Status::NOT_EXIST;
+            resp->status = LeaseRefreshResult::Status::NOT_EXIST;
         } else if (stcode != curve::mds::StatusCode::kOK) {
-            resp->status = leaseRefreshResult::Status::FAILED;
+            resp->status = LeaseRefreshResult::Status::FAILED;
             return LIBCURVE_ERROR::FAILED;
         } else {
             if (response.has_fileinfo()) {
                 curve::mds::FileInfo finfo = response.fileinfo();
                 ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
-                resp->status = leaseRefreshResult::Status::OK;
+                resp->status = LeaseRefreshResult::Status::OK;
             } else {
                 LOG(WARNING) << "session response has no fileinfo!";
                 return LIBCURVE_ERROR::FAILED;
