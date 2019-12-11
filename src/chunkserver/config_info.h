@@ -87,6 +87,18 @@ struct CopysetNodeOptions {
     // snapshot流控
     scoped_refptr<SnapshotThrottle> *snapshotThrottle;
 
+    // 限制chunkserver启动时copyset并发恢复加载的数量,为0表示不限制
+    uint32_t loadConcurrency = 0;
+    // 检查copyset是否加载完成出现异常时的最大重试次数
+    // 可能的异常：1.当前大多数副本还没起来；2.网络问题等导致无法获取leader
+    // 3.其他的原因导致无法获取到leader的committed index
+    uint32_t checkRetryTimes = 3;
+    // 当前peer的applied_index与leader上的committed_index差距小于该值
+    // 则判定copyset已经加载完成
+    uint32_t finishLoadMargin = 2000;
+    // 循环判定copyset是否加载完成的内部睡眠时间
+    uint32_t checkLoadMarginIntervalMs = 1000;
+
     CopysetNodeOptions();
 };
 

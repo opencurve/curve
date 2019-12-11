@@ -16,6 +16,7 @@
 #include <utility>
 
 #include "src/common/string_util.h"
+#include "src/common/timeutility.h"
 #include "src/chunkserver/chunk_service.h"
 #include "src/chunkserver/op_request.h"
 #include "src/chunkserver/copyset_service.h"
@@ -27,19 +28,51 @@
 namespace curve {
 namespace chunkserver {
 
+using curve::common::TimeUtility;
+
 std::once_flag addServiceFlag;
 
 int CopysetNodeManager::Init(const CopysetNodeOptions &copysetNodeOptions) {
     copysetNodeOptions_ = copysetNodeOptions;
+    if (copysetNodeOptions_.loadConcurrency > 0) {
+        copysetLoader_ = std::make_shared<TaskThreadPool>();
+    } else {
+        copysetLoader_ = nullptr;
+    }
     return 0;
 }
 
 int CopysetNodeManager::Run() {
-    /* TODO(wudemiao): 后期有线程池了之后还需要启动线程池等 */
-    return 0;
+    if (running_.exchange(true, std::memory_order_acq_rel)) {
+        return 0;
+    }
+
+    int ret = 0;
+    // 启动线程池
+    if (copysetLoader_ != nullptr) {
+        ret = copysetLoader_->Start(
+            copysetNodeOptions_.loadConcurrency);
+        if (ret < 0) {
+            LOG(ERROR) << "CopysetLoadThrottle start error. ThreadNum: "
+                       << copysetNodeOptions_.loadConcurrency;
+            return -1;
+        }
+    }
+
+    // 启动加载已有的copyset
+    return ReloadCopysets();
 }
 
 int CopysetNodeManager::Fini() {
+    if (!running_.exchange(false, std::memory_order_acq_rel)) {
+        return 0;
+    }
+
+    if (copysetLoader_ != nullptr) {
+        copysetLoader_->Stop();
+        copysetLoader_ = nullptr;
+    }
+
     for (auto& copysetNode : copysetNodeMap_) {
         copysetNode.second->Fini();
     }
@@ -64,10 +97,6 @@ int CopysetNodeManager::ReloadCopysets() {
 
     vector<std::string>::iterator it = items.begin();
     for (; it != items.end(); ++it) {
-        if (*it == "." || *it == "..") {
-            continue;
-        }
-
         LOG(INFO) << "Found copyset dir " << *it;
 
         uint64_t groupId;
@@ -78,19 +107,96 @@ int CopysetNodeManager::ReloadCopysets() {
         uint64_t poolId = GetPoolID(groupId);
         uint64_t copysetId = GetCopysetID(groupId);
         LOG(INFO) << "Parsed groupid " << groupId
-                  << "as " << ToGroupIdStr(poolId, copysetId);
+                  << " as " << ToGroupIdStr(poolId, copysetId);
 
-        std::vector<Peer> peers;
-        if (!CreateCopysetNode(poolId, copysetId, peers)) {
-            LOG(ERROR) << "Failed to recreate copyset: <"
-                      << poolId << "," << copysetId << ">";
-            return -1;
+        if (copysetLoader_ == nullptr) {
+            LoadCopyset(poolId, copysetId, false);
+        } else {
+            copysetLoader_->Enqueue(
+                std::bind(&CopysetNodeManager::LoadCopyset,
+                          this,
+                          poolId,
+                          copysetId,
+                          true));
         }
+    }
 
-        LOG(INFO) << "Created copyset: <" << poolId << "," << copysetId << ">";
+    // 如果加载成功，则等待所有copyset加载完成，关闭线程池
+    if (copysetLoader_ != nullptr) {
+        while (copysetLoader_->QueueSize() != 0) {
+            ::sleep(1);
+        }
+        // queue size为0，但是线程池中的线程仍然可能还在执行
+        // stop内部会去join thread，以此保证所有任务执行完以后再退出
+        copysetLoader_->Stop();
+        copysetLoader_ = nullptr;
     }
 
     return 0;
+}
+
+void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
+                                     const CopysetID &copysetId,
+                                     bool needCheckLoadFinished) {
+    LOG(INFO) << "Begin to load copyset: <"
+              << logicPoolId << "," << copysetId << ">, "
+              << "check load finished?: "
+              << (needCheckLoadFinished ? "Yes." : "No.");
+
+    uint64_t beginTime = TimeUtility::GetTimeofDayMs();
+    std::vector<Peer> peers;
+    if (!CreateCopysetNode(logicPoolId, copysetId, peers)) {
+        LOG(ERROR) << "Failed to load copyset: <"
+                   << logicPoolId << "," << copysetId << ">";
+        return;
+    }
+    if (needCheckLoadFinished) {
+        std::shared_ptr<CopysetNode> node =
+            GetCopysetNode(logicPoolId, copysetId);
+        CheckCopysetUntilLoadFinished(node);
+    }
+    LOG(INFO) << "Load copyset: <" << logicPoolId
+              << "," << copysetId << "> end, time used (ms): "
+              <<  TimeUtility::GetTimeofDayMs() - beginTime;
+}
+
+bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
+    std::shared_ptr<CopysetNode> node) {
+    if (node == nullptr) {
+        LOG(WARNING) << "CopysetNode ptr is null.";
+        return false;
+    }
+    uint32_t retryTimes = 0;
+
+    while (retryTimes < copysetNodeOptions_.checkRetryTimes) {
+        if (!running_.load(std::memory_order_acquire)) {
+            return false;
+        }
+        int64_t leaderCommittedIndex = node->GetLeaderCommittedIndex();
+        // 小于0一般还没选出leader或者leader心跳还未发送到当前节点
+        // 正常通过几次重试可以获取到leader信息，如果重试多次都未获取到
+        // 则认为copyset当前可能无法选出leader，直接退出
+        if (leaderCommittedIndex < 0) {
+            ++retryTimes;
+            ::usleep(1000 * copysetNodeOptions_.electionTimeoutMs);
+            continue;
+        }
+        NodeStatus status;
+        node->GetStatus(&status);
+        int64_t margin = leaderCommittedIndex - status.known_applied_index;
+        if (margin < (int64_t)copysetNodeOptions_.finishLoadMargin) {
+            LOG(INFO) << "Load copyset: <" << node->GetLogicPoolId()
+                      << "," << node->GetCopysetId() << "> finished, "
+                      << "leader CommittedIndex: " << leaderCommittedIndex
+                      << ", node appliedIndex: " << status.known_applied_index;
+            return true;
+        }
+        retryTimes = 0;
+        ::usleep(1000 * copysetNodeOptions_.checkLoadMarginIntervalMs);
+    }
+    LOG(WARNING) << "check copyset: <" << node->GetLogicPoolId()
+                 << "," << node->GetCopysetId() << "> failed.";
+    return false;
 }
 
 std::shared_ptr<CopysetNode> CopysetNodeManager::GetCopysetNode(
