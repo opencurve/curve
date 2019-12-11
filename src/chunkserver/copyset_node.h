@@ -185,6 +185,12 @@ class CopysetNode : public braft::StateMachine,
     virtual void GetStatus(NodeStatus *status);
 
     /**
+     * 获取此copyset的leader上的committed_index
+     * @return 获取失败返回-1，成功返回leader的committed_index
+     */
+    virtual int64_t GetLeaderCommittedIndex();
+
+    /**
      * 返回data store指针
      * @return
      */

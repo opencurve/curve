@@ -77,7 +77,7 @@ class ChunkServer {
     volatile bool toStop_;
 
     // copysetNodeManager_ 管理chunkserver上所有copysetNode
-    CopysetNodeManager copysetNodeManager_;
+    CopysetNodeManager* copysetNodeManager_;
 
     // cloneManager_ 管理克隆任务
     CloneManager cloneManager_;

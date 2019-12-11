@@ -3,7 +3,7 @@ workspace(name = "curve")
 git_repository(
     name = "com_netease_storage_gerrit_curve_curve_braft",
     remote = "http://gerrit.storage.netease.com/curve/curve-braft",
-    commit = "3ec98d4030f8f7a7951042843885f99811aae457",
+    commit = "fc5fcd32dad4d830e4f4962dda6683dc8a4ce33b",
 )
 
 bind(

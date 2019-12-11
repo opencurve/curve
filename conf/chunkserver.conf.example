@@ -78,6 +78,15 @@ copyset.raft_snapshot_uri=local://./0/copysets
 # copyset回收目录
 copyset.recycler_uri=local://./0/recycler
 copyset.max_inflight_requests=5000
+# chunkserver启动时，copyset并发加载的阈值,为0则表示不做限制
+copyset.load_concurrency=5
+# 检查copyset是否加载完成出现异常时的最大重试次数
+copyset.check_retrytimes=3
+# 当前peer的applied_index与leader上的committed_index差距小于该值
+# 则判定copyset已经加载完成
+copyset.finishload_margin=2000
+# 循环判定copyset是否加载完成的内部睡眠时间
+copyset.check_loadmargin_interval_ms=1000
 
 #
 # Clone settings
