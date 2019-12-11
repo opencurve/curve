@@ -118,7 +118,7 @@ bool CheckFileConsistency::ReplicasConsistency() {
 
                 request.set_logicpoolid(lpid_);
                 request.set_copysetid(cpinfo.cpid_);
-                request.set_allocated_peer(peer);;
+                request.set_allocated_peer(peer);
                 request.set_queryhash(FLAGS_check_hash);
 
                 curve::chunkserver::CopysetService_Stub stub(&channel);
