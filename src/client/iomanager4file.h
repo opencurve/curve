@@ -113,7 +113,25 @@ class IOManager4File : public IOManager {
    * lease excutor在检查到版本更新的时候，需要通知iomanager更新文件版本信息
    * @param: fi为当前需要更新的文件信息
    */
-  void UpdataFileInfo(const FInfo_t& fi);
+  void UpdateFileInfo(const FInfo_t& fi);
+
+  const FInfo* GetFileInfo() const {
+    return mc_.GetFileInfo();
+  }
+
+  /**
+   * 返回文件最新版本号
+   */
+  uint64_t GetLatestFileSn() const {
+    return mc_.GetLatestFileSn();
+  }
+
+  /**
+   * 更新文件最新版本号
+   */
+  void SetLatestFileSn(uint64_t newSn) {
+    mc_.SetLatestFileSn(newSn);
+  }
 
   /**
    * 测试使用，获取request scheduler
@@ -163,9 +181,6 @@ class IOManager4File : public IOManager {
   };
 
  private:
-  // 当前文件的信息
-  FInfo_t fi_;
-
   // 每个IOManager都有其IO配置，保存在iooption里
   IOOption_t  ioopt_;
 

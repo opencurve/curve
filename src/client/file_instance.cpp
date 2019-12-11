@@ -58,6 +58,8 @@ bool FileInstance::Initialize(const std::string& filename,
             break;
         }
 
+        iomanager4file_.UpdateFileInfo(finfo_);
+
         leaseexcutor_ = new (std::nothrow) LeaseExcutor(fileopt_.leaseOpt,
                                 finfo_.userinfo, mdsclient_, &iomanager4file_);
         if (CURVE_UNLIKELY(leaseexcutor_ == nullptr)) {
