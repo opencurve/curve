@@ -254,7 +254,7 @@ int FileClient::Open4ReadOnly(const std::string& filename,
 
     finfo.userinfo = userinfo;
     finfo.fullPathName = filename;
-    fileserv->GetIOManager4File()->UpdataFileInfo(finfo);
+    fileserv->GetIOManager4File()->UpdateFileInfo(finfo);
 
     int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
 

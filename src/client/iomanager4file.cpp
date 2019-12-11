@@ -123,7 +123,8 @@ int IOManager4File::Read(char* buf, off_t offset,
     FlightIOGuard guard(this);
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
-    temp.StartRead(nullptr, buf, offset, length, mdsclient, &fi_);
+    temp.StartRead(nullptr, buf, offset, length, mdsclient,
+                   this->GetFileInfo());
 
     int rc = temp.Wait();
     return rc;
@@ -135,7 +136,8 @@ int IOManager4File::Write(const char* buf, off_t offset,
     FlightIOGuard guard(this);
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
-    temp.StartWrite(nullptr, buf, offset, length, mdsclient, &fi_);
+    temp.StartWrite(nullptr, buf, offset, length, mdsclient,
+                    this->GetFileInfo());
 
     int rc = temp.Wait();
     return rc;
@@ -156,7 +158,8 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient) {
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
         temp->StartRead(ctx, static_cast<char*>(ctx->buf),
-                        ctx->offset, ctx->length, mdsclient, &this->fi_);
+                        ctx->offset, ctx->length, mdsclient,
+                        this->GetFileInfo());
     };
 
     taskPool_.Enqueue(task);
@@ -178,15 +181,16 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient) {
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
         temp->StartWrite(ctx, static_cast<const char*>(ctx->buf),
-                         ctx->offset, ctx->length, mdsclient, &this->fi_);
+                         ctx->offset, ctx->length, mdsclient,
+                         this->GetFileInfo());
     };
 
     taskPool_.Enqueue(task);
     return LIBCURVE_ERROR::OK;
 }
 
-void IOManager4File::UpdataFileInfo(const FInfo_t& fi) {
-    fi_ = fi;
+void IOManager4File::UpdateFileInfo(const FInfo_t& fi) {
+    mc_.UpdateFileInfo(fi);
 }
 
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {
