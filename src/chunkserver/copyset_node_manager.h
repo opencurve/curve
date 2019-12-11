@@ -16,6 +16,7 @@
 #include "src/chunkserver/copyset_node.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/uncopyable.h"
+#include "src/common/concurrent/task_thread_pool.h"
 
 namespace curve {
 namespace chunkserver {
@@ -23,6 +24,7 @@ namespace chunkserver {
 using curve::common::RWLock;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
+using curve::common::TaskThreadPool;
 
 class ChunkOpRequest;
 
@@ -125,6 +127,27 @@ class CopysetNodeManager : public curve::common::Uncopyable {
         return copysetNodeOptions_;
     }
 
+    /**
+     * 加载copyset，包括新建一个copyset或者重启一个copyset
+     * @param logicPoolId: 逻辑池id
+     * @param copysetId: copyset id
+     * @param needCheckLoadFinished: 是否需要判断copyset加载完成
+     */
+    void LoadCopyset(const LogicPoolID &logicPoolId,
+                     const CopysetID &copysetId,
+                     bool needCheckLoadFinished);
+    /**
+     * 检测指定的copyset状态，直到copyset加载完成或出现异常
+     * @param node: 指定的copyset node
+     * @return true表示加载成功，false表示检测过程中出现异常
+     */
+    bool CheckCopysetUntilLoadFinished(std::shared_ptr<CopysetNode> node);
+
+ private:
+    CopysetNodeManager()
+        : copysetLoader_(nullptr)
+        , running_(false) {}
+
  private:
     using CopysetNodeMap = std::unordered_map<GroupId,
                                               std::shared_ptr<CopysetNode>>;
@@ -134,6 +157,10 @@ class CopysetNodeManager : public curve::common::Uncopyable {
     CopysetNodeMap copysetNodeMap_;
     // 复制组配置选项
     CopysetNodeOptions copysetNodeOptions_;
+    // 控制copyset并发启动的数量
+    std::shared_ptr<TaskThreadPool> copysetLoader_;
+    // 表示copyset node manager当前是否正在运行
+    Atomic<bool> running_;
 };
 
 }  // namespace chunkserver

@@ -8,8 +8,8 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include "src/chunkserver/trash.h"
-#include "test/chunkserver/mock_local_file_system.h"
-#include "test/chunkserver/mock_chunkfile_pool.h"
+#include "test/fs/mock_local_filesystem.h"
+#include "test/chunkserver/datastore/mock_chunkfile_pool.h"
 #include "src/chunkserver/copyset_node.h"
 
 using ::testing::_;
@@ -25,6 +25,8 @@ using ::testing::ElementsAre;
 using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+
+using curve::fs::MockLocalFileSystem;
 
 namespace curve {
 namespace chunkserver {
