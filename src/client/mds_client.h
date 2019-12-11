@@ -35,7 +35,7 @@ using curve::common::Authenticator;
 namespace curve {
 namespace client {
 class MetaCache;
-struct leaseRefreshResult;
+struct LeaseRefreshResult;
 // MDSClient是client与MDS通信的唯一窗口
 class MDSClient {
  public:
@@ -202,7 +202,7 @@ class MDSClient {
 
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
-     * 续约结果将会通过leaseRefreshResult* resp返回给调用层
+     * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
      * @param: filename是要续约的文件名
      * @param: sessionid是文件的session信息
      * @param: resp是mds端传递过来的lease信息
@@ -213,7 +213,7 @@ class MDSClient {
     LIBCURVE_ERROR RefreshSession(const std::string& filename,
                             const UserInfo_t& userinfo,
                             const std::string& sessionid,
-                            leaseRefreshResult* resp);
+                            LeaseRefreshResult* resp);
     /**
      * 关闭文件，需要携带sessionid，这样mds端会在数据库删除该session信息
      * @param: filename是要续约的文件名
