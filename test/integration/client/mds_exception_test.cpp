@@ -90,6 +90,7 @@ class MDSModuleException : public ::testing::Test {
 
         // 0. 初始化db
         cluster->InitDB("module_exception_curve_mds");
+        cluster->mdsRepo_->dropDataBase();
 
         // 1. 启动etcd
         cluster->StarSingleEtcd(1, "127.0.0.1:22230", "127.0.0.1:22231",
