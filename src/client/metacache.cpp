@@ -152,13 +152,16 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
                                     FileMetric_t* fm) {
     ChunkServerID csid = 0;
     ChunkServerAddr  leaderaddr;
-    int ret = ServiceHelper::GetLeader(logicPoolId, copysetId,
-                                      toupdateCopyset->csinfos_, &leaderaddr,
-                                      toupdateCopyset->GetCurrentLeaderIndex(),
-                                      metacacheopt_.getLeaderTimeOutMs,
-                                      metacacheopt_.getLeaderBackupRequestMs,
-                                      &csid,
-                                      fm);
+    GetLeaderRpcOption rpcOption(metacacheopt_.getLeaderTimeOutMs,
+                                 metacacheopt_.getLeaderBackupRequestMs,
+                                 metacacheopt_.getLeaderBackupRequestLbName);
+    GetLeaderInfo getLeaderInfo(logicPoolId,
+                                copysetId,
+                                toupdateCopyset->csinfos_,
+                                toupdateCopyset->GetCurrentLeaderIndex(),
+                                rpcOption);
+    int ret = ServiceHelper::GetLeader(
+        getLeaderInfo, &leaderaddr, &csid, fm);
 
     if (ret == -1) {
         LOG_EVERY_N(ERROR, 10) << "get leader failed!"

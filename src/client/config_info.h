@@ -145,11 +145,13 @@ typedef struct MetaCacheOption {
     uint32_t retryIntervalUs;
     uint32_t getLeaderTimeOutMs;
     uint32_t getLeaderBackupRequestMs;
+    std::string getLeaderBackupRequestLbName;
     MetaCacheOption() {
         getLeaderRetry = 3;
         retryIntervalUs = 500;
         getLeaderTimeOutMs = 1000;
         getLeaderBackupRequestMs = 100;
+        getLeaderBackupRequestLbName = "rr";
         maxUnStableDurationMs = 30000;  // 30s
     }
 } MetaCacheOption_t;
