@@ -11,7 +11,9 @@
 #include <string>
 #include <list>
 #include <map>
+#include <memory>
 #include "src/common/concurrent/concurrent.h"
+#include "src/mds/nameserver2/nameserverMetrics.h"
 
 namespace curve {
 namespace mds {
@@ -50,12 +52,17 @@ class Cache {
 
 class LRUCache : public Cache {
  public:
-    LRUCache() : maxCount_(0) {}
-    explicit LRUCache(int maxCount) : maxCount_(maxCount) {}
+    LRUCache() : maxCount_(0) {
+        cacheMetrics_ = std::make_shared<NameserverCacheMetrics>();
+    }
+    explicit LRUCache(int maxCount) : maxCount_(maxCount) {
+        cacheMetrics_ = std::make_shared<NameserverCacheMetrics>();
+    }
 
     void Put(const std::string &key, const std::string &value) override;
     bool Get(const std::string &key, std::string *value) override;
     void Remove(const std::string &key) override;
+    std::shared_ptr<NameserverCacheMetrics> GetCacheMetrics() const;
 
  private:
     /*
@@ -101,6 +108,9 @@ class LRUCache : public Cache {
     std::list<Item> ll_;
     // 记录key对应的Item在双向列表中的位置
     std::map<std::string, std::list<Item>::iterator> cache_;
+
+    // cache相关metric统计
+    std::shared_ptr<NameserverCacheMetrics> cacheMetrics_;
 };
 
 }  // namespace mds
