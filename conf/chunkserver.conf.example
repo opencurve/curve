@@ -157,9 +157,9 @@ chunkfilepool.retry_times=5
 # trash settings
 #
 # chunkserver回收数据彻底删除的过期时间
-trash.expire_afterSec=86400
+trash.expire_afterSec=300
 # chunkserver检查回收数据过期时间的周期
-trash.scan_periodSec=3600
+trash.scan_periodSec=120
 
 # common option
 #
