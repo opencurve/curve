@@ -18,6 +18,7 @@ const std::vector<std::string> mdsConf{
     {" --graceful_quit_on_sigterm"},
     {" --confPath=./conf/mds.conf"},
     {" --mdsDbName=cluster_common_curve_mds"},
+    {" --sessionInterSec=30"},
 };
 
 const std::vector<std::string> chunkserverConf1{
