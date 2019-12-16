@@ -120,7 +120,9 @@ function start_one() {
         echo "Create log dir failed: ${DATA_DIR}/log/chunkserver$1"
         return 1
     fi
-    curve-chunkserver -bthread_concurrency=18 -raft_max_segment_size=8388608 -raft_max_install_snapshot_tasks_num=5 -raft_sync=true  \
+    LD_PRELOAD=/lib/x86_64-linux-gnu/libjemalloc.so.1 curve-chunkserver \
+            -bthread_concurrency=18 -raft_max_segment_size=8388608 \
+            -raft_max_install_snapshot_tasks_num=5 -raft_sync=true  \
             -conf=${confPath} \
             -chunkFilePoolDir=${DATA_DIR}/chunkserver$1 \
             -chunkFilePoolMetaPath=${DATA_DIR}/chunkserver$1/chunkfilepool.meta \
