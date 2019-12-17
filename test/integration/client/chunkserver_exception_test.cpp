@@ -345,7 +345,7 @@ TEST_F(CSModuleException, ChunkserverException) {
     //    client的io预期最多会在2*electtime后恢复
     // 如果配置了慢启动，则需要等待
     // (copysetNum / load_concurrency) * election_timeout
-    ASSERT_TRUE(MonitorResume(0, 4096, 60));
+    ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
     // 6. 拉起刚才被kill的chunkserver的第二个
     cluster->StartSingleChunkServer(2, "127.0.0.1:22126", chunkserverConf5);
@@ -379,7 +379,7 @@ TEST_F(CSModuleException, ChunkserverException) {
     //    client的io预期最多会在2*electtime后恢复
     // 如果配置了慢启动，则需要等待
     // (copysetNum / load_concurrency) * election_timeout
-    ASSERT_TRUE(MonitorResume(0, 4096, 60));
+    ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
     // 6. 拉起刚才被hang的chunkserver的第二个
     cluster->RecoverHangChunkServer(2);
@@ -413,13 +413,13 @@ TEST_F(CSModuleException, ChunkserverException) {
     cluster->StartSingleChunkServer(1, "127.0.0.1:22125", chunkserverConf4);
 
     // 5. 只有一个chunkserver工作, io无法正常下发
-    ASSERT_FALSE(MonitorResume(0, 4096, 60));
+    ASSERT_FALSE(MonitorResume(0, 4096, 80));
 
     // 6. 拉起刚才被kill的chunkserver的第二个
     cluster->StartSingleChunkServer(2, "127.0.0.1:22126", chunkserverConf5);
 
     // 7. client的io恢复
-    ASSERT_TRUE(MonitorResume(0, 4096, 60));
+    ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
     // 8. 拉起其他被kil的chunkserver
     cluster->StartSingleChunkServer(3, "127.0.0.1:22127", chunkserverConf6);
@@ -449,7 +449,7 @@ TEST_F(CSModuleException, ChunkserverException) {
     cluster->RecoverHangChunkServer(1);
 
     // 5. 只有一个chunkserver工作, io无法正常下发
-    ASSERT_FALSE(MonitorResume(0, 4096, 60));
+    ASSERT_FALSE(MonitorResume(0, 4096, 80));
 
     // 6. 拉起刚才被hang的chunkserver的第二个
     cluster->RecoverHangChunkServer(2);
@@ -458,5 +458,5 @@ TEST_F(CSModuleException, ChunkserverException) {
     // 6. client的io预期最多会在2*electtime s内恢复
     // 如果配置了慢启动，则需要等待
     // (copysetNum / load_concurrency) * election_timeout
-    ASSERT_TRUE(MonitorResume(0, 4096, 60));
+    ASSERT_TRUE(MonitorResume(0, 4096, 80));
 }
