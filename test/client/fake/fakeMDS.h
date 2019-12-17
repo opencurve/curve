@@ -877,6 +877,11 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
                    ::curve::chunkserver::CopysetStatusResponse *response,
                    google::protobuf::Closure *done) {
         brpc::ClosureGuard doneGuard(done);
+        if (fakeret_->controller_ != nullptr
+         && fakeret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
 
         response->set_state("state");
         curve::common::Peer *peer = new curve::common::Peer();
@@ -897,7 +902,7 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
         response->set_diskindex(1);
         response->set_epoch(1);
         response->set_hash(std::to_string(hash_));
-        response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+        response->set_status(status_);
     }
 
     void SetHash(uint64_t hash) {
@@ -908,6 +913,10 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
         applyindex_ = index;
     }
 
+    void SetStatus(const COPYSET_OP_STATUS& status) {
+        status_ = status;
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
@@ -915,6 +924,7 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
  public:
     uint64_t applyindex_;
     uint64_t hash_;
+    COPYSET_OP_STATUS status_ = COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS;
     FakeReturn* fakeret_;
 };
 
