@@ -99,19 +99,21 @@ int CloneCore::HandleReadRequest(
             != Bitmap::NO_POS) {
             cloneData = std::unique_ptr<char[]>(new char[length]);
             ChunkServerMetric* csMetric = ChunkServerMetric::GetInstance();
-            csMetric->OnRequestDownload(request->logicpoolid(),
-                                        request->copysetid());
+            csMetric->OnRequest(request->logicpoolid(),
+                                request->copysetid(),
+                                CSIOMetricType::DOWNLOAD);
             uint64_t startTimeUs = TimeUtility::GetTimeofDayUs();
             int ret = copyer_->Download(chunkInfo.location,
                                         offset,
                                         length,
                                         cloneData.get());
             uint64_t latencyUs = TimeUtility::GetTimeofDayUs() - startTimeUs;
-            csMetric->OnResponseDownload(request->logicpoolid(),
-                                         request->copysetid(),
-                                         length,
-                                         latencyUs,
-                                         ret < 0);
+            csMetric->OnResponse(request->logicpoolid(),
+                                 request->copysetid(),
+                                 CSIOMetricType::DOWNLOAD,
+                                 length,
+                                 latencyUs,
+                                 ret < 0);
             // 从源端拷贝数据失败
             if (ret < 0) {
                 LOG(ERROR) << "download origin data failed: "
