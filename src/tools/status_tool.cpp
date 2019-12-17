@@ -265,7 +265,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             return -1;
         }
         if (leftSizeNum.count(size) == 0) {
-            leftSizeNum[size] = 0;
+            leftSizeNum[size] = 1;
         } else {
             leftSizeNum[size]++;
         }
