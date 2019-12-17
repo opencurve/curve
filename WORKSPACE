@@ -44,7 +44,7 @@ bind(
 git_repository(
     name = "com_github_google_glog",
     remote = "http://gerrit.storage.netease.com/curve/curve-glog",
-    commit = "fc3e4f7666f2f4e637ba307dad1f31d4059e775f",
+    commit = "fa4439bd6a4aae0486fe1b4e9ba7f2b761976ac2",
 )
 
 bind(
