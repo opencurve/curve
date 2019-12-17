@@ -145,8 +145,10 @@ int Heartbeat::BuildCopysetInfo(curve::mds::heartbeat::CopySetInfo* info,
     CopysetMetricPtr copysetMetric =
         ChunkServerMetric::GetInstance()->GetCopysetMetric(poolId, copysetId);
     if (copysetMetric != nullptr) {
-        IOMetricPtr readMetric = copysetMetric->GetReadMetric();
-        IOMetricPtr writeMetric = copysetMetric->GetWriteMetric();
+        IOMetricPtr readMetric =
+            copysetMetric->GetIOMetric(CSIOMetricType::READ_CHUNK);
+        IOMetricPtr writeMetric =
+            copysetMetric->GetIOMetric(CSIOMetricType::WRITE_CHUNK);
         if (readMetric != nullptr && writeMetric != nullptr) {
             stats->set_readrate(readMetric->bps_.get_value(1));
             stats->set_writerate(writeMetric->bps_.get_value(1));
@@ -209,8 +211,8 @@ int Heartbeat::BuildRequest(HeartbeatRequest* req) {
     ChunkServerMetric* metric = ChunkServerMetric::GetInstance();
     curve::mds::heartbeat::ChunkServerStatisticInfo* stats =
         new curve::mds::heartbeat::ChunkServerStatisticInfo();
-    IOMetricPtr readMetric = metric->GetReadMetric();
-    IOMetricPtr writeMetric = metric->GetWriteMetric();
+    IOMetricPtr readMetric = metric->GetIOMetric(CSIOMetricType::READ_CHUNK);
+    IOMetricPtr writeMetric = metric->GetIOMetric(CSIOMetricType::WRITE_CHUNK);
     if (readMetric != nullptr && writeMetric != nullptr) {
         stats->set_readrate(readMetric->bps_.get_value(1));
         stats->set_writerate(writeMetric->bps_.get_value(1));
