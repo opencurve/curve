@@ -67,11 +67,12 @@ void Configuration::PrintConfig() {
 
 
 void Configuration::ExposeMetric(const std::string& exposeName) {
-    if (exposeName_.empty()) {
-        exposeName_ = exposeName;
-    } else {
+    if (!exposeName_.empty()) {
         LOG(WARNING) << "Config metric has been exposed.";
+        return;
     }
+    exposeName_ = exposeName;
+    UpdateMetric();
 }
 
 void Configuration::UpdateMetric() {
