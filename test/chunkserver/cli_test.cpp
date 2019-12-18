@@ -315,7 +315,6 @@ TEST_F(CliTest, basic) {
             ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
         }
     }
-
     /* 异常分支测试 */
     /* get leader - conf empty */
     {
