@@ -51,6 +51,7 @@ bool FileInstance::Initialize(const std::string& filename,
         }
 
         finfo_.userinfo = userinfo;
+        finfo_.fullPathName = filename;
         mdsclient_ = mdsclient;
 
         if (!iomanager4file_.Initialize(filename, fileopt_.ioOpt, mdsclient_)) {

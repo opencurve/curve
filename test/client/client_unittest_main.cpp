@@ -31,6 +31,8 @@
 #include "src/client/splitor.h"
 #include "src/client/libcurve_file.h"
 #include "include/client/libcurve.h"
+#include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 std::string mdsMetaServerAddr = "127.0.0.1:9104";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
@@ -38,10 +40,28 @@ uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/testConfig/client.conf";   // NOLINT
 using curve::client::FileClient;
 
+const std::vector<std::string> clientConf {
+    std::string("mds.listen.addr=127.0.0.1:9104,127.0.0.1:9104"),
+    std::string("global.logPath=./runlog/"),
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=3"),
+    std::string("metacache.getLeaderRetry=3"),
+    std::string("metacache.getLeaderTimeOutMS=1000"),
+    std::string("global.fileMaxInFlightRPCNum=2048"),
+    std::string("metacache.rpcRetryIntervalUS=500"),
+    std::string("mds.rpcRetryIntervalUS=500"),
+    std::string("schedule.threadpoolSize=2"),
+};
+
 int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::InitGoogleMock(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
+
+    curve::CurveCluster* cluster = new curve::CurveCluster();
+
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(
+        configpath, clientConf);
 
     int ret = RUN_ALL_TESTS();
 
