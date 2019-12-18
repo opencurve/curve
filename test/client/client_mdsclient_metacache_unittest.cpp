@@ -34,6 +34,8 @@
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/metacache_struct.h"
 #include "src/common/net_common.h"
+#include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 extern std::string mdsMetaServerAddr;
 extern uint32_t chunk_size;
