@@ -61,9 +61,9 @@ int main(int argc, char** argv) {
         "create : create file\n"
         "chunk-location : query the location of the chunk corresponding to the offset\n"  //NOLINT
         "check-consistency : check the consistency of three copies\n"
-        "add_peer : add the peer to the copyset\n"
-        "remove_peer : remove the peer from the copyset\n"
-        "transfer_leader : transfer the leader of the copyset to the peer\n"  //NOLINT
+        "remove-peer : remove the peer from the copyset\n"
+        "transfer-leader : transfer the leader of the copyset to the peer\n"  //NOLINT
+        "reset-peer : reset the configuration of copyset, only reset to one peer is supported\n" //NOLINT
         "check-copyset : check the health state of copyset\n"
         "check-chunkserver : check the health state of the chunkserver\n"
         "check-server : check the health state of the server\n"
@@ -161,13 +161,14 @@ int main(int argc, char** argv) {
         }
         cfc.UnInit();
         return rc;
-    } else if (command == "add_peer" || command == "remove_peer"
-                                     || command == "transfer_leader") {
+    } else if (command == "reset-peer" || command == "remove-peer"
+                                     || command == "transfer-leader") {
+        curve::tool::CurveCli curveCli;
         if (FLAGS_example) {
-            curve::chunkserver::PrintHelp(command);
+            curveCli.PrintHelp(command);
             return 0;
         }
-        return curve::chunkserver::RunCommand(command);
+        return curveCli.RunCommand(command);
     } else if (command == "check-copyset" || command == "check-chunkserver"
             || command == "check-server" || command == "check-cluster") {
         auto mdsClient = std::make_shared<curve::tool::MDSClient>();
