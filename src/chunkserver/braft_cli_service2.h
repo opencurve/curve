@@ -57,6 +57,12 @@ class BRaftCliServiceImpl2 : public CliService2 {
                         TransferLeaderResponse2 *response,
                         Closure *done);
 
+    // 重置复制组成员
+    void ResetPeer(RpcController* controller,
+                   const ResetPeerRequest2* request,
+                   ResetPeerResponse2* response,
+                   Closure* done);
+
  private:
     /**
      * @brief: 查询指定的raft node

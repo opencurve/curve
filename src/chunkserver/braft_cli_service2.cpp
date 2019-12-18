@@ -286,5 +286,42 @@ void BRaftCliServiceImpl2::TransferLeader(
     }
 }
 
+void BRaftCliServiceImpl2::ResetPeer(RpcController* controller,
+                                     const ResetPeerRequest2* request,
+                                     ResetPeerResponse2* response,
+                                     Closure* done) {
+    brpc::Controller* cntl = (brpc::Controller*)controller;
+    brpc::ClosureGuard done_guard(done);
+    scoped_refptr<braft::NodeImpl> node;
+    LogicPoolID logicPoolId = request->logicpoolid();
+    CopysetID copysetId = request->copysetid();
+    butil::Status st =
+        get_node(&node, logicPoolId, copysetId,
+                                request->requestpeer().address());
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+        return;
+    }
+
+    Configuration conf;
+    for (int i = 0; i < request->newpeers_size(); ++i) {
+        PeerId peer;
+        if (peer.parse(request->newpeers(i).address()) != 0) {
+            cntl->SetFailed(EINVAL, "Fail to p2arse %s",
+                            request->newpeers(i).address().c_str());
+            return;
+        }
+        conf.add_peer(peer);
+    }
+    LOG(WARNING) << "Receive ResetPeerRequest to " << node->node_id()
+                 << " from " << cntl->remote_side()
+                 << ", new conf: " << conf;
+
+    st = node->reset_peers(conf);
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+    }
+}
+
 }  // namespace chunkserver
 }  // namespace curve
