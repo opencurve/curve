@@ -148,6 +148,19 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "curve_cli_test",
+    srcs = glob([
+        "curve_cli_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
+        "//test/tools:tools_mock",
+    ],
+)
+
 cc_library(
     name = "tools_mock",
     srcs = glob([
@@ -155,6 +168,7 @@ cc_library(
     ]),
     deps = [
             "//src/tools:curve_tool_lib",
+            "//proto:chunkserver-cc-protos",
             ],
     visibility = ["//visibility:public"],
 )
