@@ -23,6 +23,7 @@
 #include "src/client/inflight_controller.h"
 #include "test/integration/client/common/file_operation.h"
 #include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 bool resumeFlag = false;
 bool writeIOReturnFlag = false;
@@ -47,10 +48,14 @@ const std::vector<std::string> chunkserverConf1{
     {" -recycleUri=local://./moduleException1/recycler"},
     {" -chunkFilePoolDir=./moduleException1/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException1/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.0"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
     {" --log_dir=./runlog/MDSExceptionTest"},
     {" --graceful_quit_on_sigterm"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22225"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224"}
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -60,10 +65,14 @@ const std::vector<std::string> chunkserverConf2{
     {" -recycleUri=local://./moduleException2/recycler"},
     {" -chunkFilePoolDir=./moduleException2/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException2/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.1"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
     {" --log_dir=./runlog/MDSExceptionTest"},
     {" --graceful_quit_on_sigterm"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22226"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224"}
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -73,21 +82,39 @@ const std::vector<std::string> chunkserverConf3{
     {" -recycleUri=local://./moduleException3/recycler"},
     {" -chunkFilePoolDir=./moduleException3/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException3/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.2"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
     {" --log_dir=./runlog/MDSExceptionTest"},
     {" --graceful_quit_on_sigterm"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22227"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224"}
+};
+
+std::string mdsaddr = "127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224";    // NOLINT
+std::string logpath = "./runlog/MDSExceptionTest";  // NOLINT
+
+const std::vector<std::string> clientConf {
+    std::string("mds.listen.addr=") + mdsaddr,
+    std::string("global.logPath=") + logpath,
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=10"),
 };
 
 class MDSModuleException : public ::testing::Test {
  public:
     void SetUp() {
+        std::string confPath = "./test/integration/client/config/client.conf";
         system("mkdir ./runlog/MDSExceptionTest");
         system("rm -rf module_exception_test_mds.etcd");
         system("rm -rf moduleException1 moduleException2 moduleException3");
 
         cluster = new CurveCluster();
         ASSERT_NE(nullptr, cluster);
+
+        cluster->PrepareConfig<curve::ClientConfigGenerator>(
+            confPath, clientConf);
 
         // 0. 初始化db
         cluster->InitDB("module_exception_curve_mds");
@@ -150,7 +177,7 @@ class MDSModuleException : public ::testing::Test {
         ASSERT_EQ(ret, 0);
 
         // 6. 初始化client配置
-        ret = Init("./test/integration/client/config/client.conf");
+        ret = Init(confPath.c_str());
         ASSERT_EQ(ret, 0);
 
         // 7. 创建一个文件
