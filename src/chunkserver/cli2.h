@@ -55,6 +55,13 @@ butil::Status TransferLeader(const LogicPoolID &logicPoolId,
                              const Peer &peer,
                              const braft::cli::CliOptions &options);
 
+// 重置复制组
+butil::Status ResetPeer(const LogicPoolID &logicPoolId,
+                        const CopysetID &copysetId,
+                        const Configuration& newPeers,
+                        const Peer& requestPeer,
+                        const braft::cli::CliOptions& options);
+
 }  // namespace chunkserver
 }  // namespace curve
 
