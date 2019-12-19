@@ -151,10 +151,9 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
 
     // 2. open flag带CREAT, 从chunkfilepool取文件，但是chunkfilepool打开文件失败
     // 所以还是走原有逻辑，本地创建文件成功
-    EXPECT_CALL(*lfs, Open(_, _)).Times(4).WillOnce(Return(-1))
+    EXPECT_CALL(*lfs, Open(_, _)).Times(3).WillOnce(Return(-1))
                                           .WillOnce(Return(-1))
-                                          .WillOnce(Return(-1))
-                                          .WillOnce(Return(0));
+                                          .WillOnce(Return(-1));
     EXPECT_CALL(*lfs, FileExists(_)).Times(1).WillRepeatedly(Return(0));
     ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
     path = "./11";
@@ -163,7 +162,7 @@ TEST_F(RaftSnapshotFilesystemAdaptorMockTest, open_file_mock_test) {
     ASSERT_TRUE(fsptr->FileExists("./10"));
     ASSERT_EQ(0, fsptr->Delete("./10"));
     ASSERT_FALSE(fsptr->FileExists("./10"));
-    ASSERT_NE(nullptr, fa);
+    ASSERT_EQ(nullptr, fa);
 
     // 3. 待创建文件在Filter中，但是直接本地创建该文件，创建成功
     EXPECT_CALL(*lfs, Open(_, _)).Times(1).WillOnce(Return(0));
