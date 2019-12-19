@@ -81,19 +81,21 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
     }
 
     void TearDown() {
+        fsptr->Delete("./raftsnap");
+        ChunkfilepoolPtr_->UnInitialize();
+        fsadaptor->Release();
+    }
+
+    void ClearChunkFilepool() {
         std::vector<std::string> filename;
         fsptr->List("./raftsnap/chunkfilepool", &filename);
-        for (auto iter : filename) {
+        for (auto& iter : filename) {
             auto path = "./raftsnap/chunkfilepool/" + iter;
             int err = fsptr->Delete(path.c_str());
             if (err) {
                 LOG(INFO) << "unlink file failed!, errno = " << errno;
             }
         }
-        fsptr->Delete("./raftsnap/chunkfilepool");
-        fsptr->Delete("./raftsnap/chunkfilepool.meta");
-        ChunkfilepoolPtr_->UnInitialize();
-        fsadaptor->Release();
     }
 
     void CreateChunkFile(const std::string& filepath) {
@@ -112,7 +114,7 @@ class RaftSnapshotFilesystemAdaptorTest : public testing::Test {
 
 TEST_F(RaftSnapshotFilesystemAdaptorTest, open_file_test) {
     // 1. open flag不带CREAT
-    std::string path = "./10";
+    std::string path = "./raftsnap/10";
     butil::File::Error e;
     ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
     braft::FileAdaptor* fa = fsadaptor->open(path,
@@ -120,17 +122,23 @@ TEST_F(RaftSnapshotFilesystemAdaptorTest, open_file_test) {
                                              nullptr,
                                              &e);
     ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
-    ASSERT_FALSE(fsptr->FileExists("./10"));
+    ASSERT_FALSE(fsptr->FileExists("./raftsnap/10"));
     ASSERT_EQ(nullptr, fa);
 
     // 2. open flag待CREAT, 从chunkfilepool取文件
     ASSERT_EQ(ChunkfilepoolPtr_->Size(), 3);
     fa = fsadaptor->open(path, O_RDONLY | O_CLOEXEC | O_CREAT, nullptr, &e);
     ASSERT_EQ(ChunkfilepoolPtr_->Size(), 2);
-    ASSERT_TRUE(fsptr->FileExists("./10"));
-    ASSERT_EQ(0, fsptr->Delete("./10"));
-    ASSERT_FALSE(fsptr->FileExists("./10"));
+    ASSERT_TRUE(fsptr->FileExists("./raftsnap/10"));
     ASSERT_NE(nullptr, fa);
+
+    // 3. open flag待CREAT,chunkfilepool为空时，从chunkfilepool取文件
+    ClearChunkFilepool();
+    fa = fsadaptor->open("./raftsnap/11",
+                         O_RDONLY | O_CLOEXEC | O_CREAT,
+                         nullptr,
+                         &e);
+    ASSERT_EQ(nullptr, fa);
 }
 
 TEST_F(RaftSnapshotFilesystemAdaptorTest, delete_file_test) {
