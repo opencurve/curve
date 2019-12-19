@@ -715,13 +715,6 @@ void TopologyServiceImpl::GetChunkServerListInCopySets(
     brpc::Controller* cntl =
         static_cast<brpc::Controller*>(cntl_base);
 
-    LOG(INFO) << "Received request[log_id=" << cntl->log_id()
-              << "] from " << cntl->remote_side()
-              << " to " << cntl->local_side()
-              << ". [GetChunkServerListInCopySetsRequest]"
-              << " logicalpoolid = " << request->logicalpoolid()
-              << ", copysetid_size = " << request->copysetid_size();
-
     topology_->GetChunkServerListInCopySets(request, response);
 
     if (kTopoErrCodeSuccess != response->statuscode()) {
@@ -730,13 +723,6 @@ void TopologyServiceImpl::GetChunkServerListInCopySets(
                    << " to " << cntl->remote_side()
                    << ". [GetChunkServerListInCopySetsResponse] "
                    << response->DebugString();
-    } else {
-        LOG(INFO) << "Send response[log_id=" << cntl->log_id()
-                  << "] from " << cntl->local_side()
-                  << " to " << cntl->remote_side()
-                  << ". [GetChunkServerListInCopySetsResponse]"
-                  << " statuscode = " << response->statuscode()
-                  << ", csinfo_size =" << response->csinfo_size();
     }
 }
 
