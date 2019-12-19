@@ -25,8 +25,8 @@ class HeartbeatExceptionTest : public ::testing::Test {
 
         // heartbeat相关配置设置
         conf->SetIntValue("mds.heartbeat.intervalMs", 100);
-        conf->SetIntValue("mds.heartbeat.misstimeoutMs", 300);
-        conf->SetIntValue("mds.heartbeat.offlinetimeoutMs", 500);
+        conf->SetIntValue("mds.heartbeat.misstimeoutMs", 3000);
+        conf->SetIntValue("mds.heartbeat.offlinetimeoutMs", 5000);
         conf->SetIntValue("mds.heartbeat.clean_follower_afterMs", sleepTimeMs_);
 
         // mds监听端口号
