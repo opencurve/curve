@@ -250,6 +250,15 @@ bool Coordinator::ChunkserverGoingToAdd(
         return true;
     }
 
+    // 该operator是change类型, 并且target=csId
+    ChangePeer *cres = dynamic_cast<ChangePeer *>(op.step.get());
+    LOG(INFO) << "find operator " << op.OpToString();
+    if (cres != nullptr && csId == cres->GetTargetPeer()) {
+        LOG(INFO) << "chunkserver " << csId
+                  << " is target of pending operator " << op.OpToString();
+        return true;
+    }
+
     return false;
 }
 

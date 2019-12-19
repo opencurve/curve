@@ -4,6 +4,8 @@ dir=`pwd`
 bazel clean
 rm -rf curvefs_python/BUILD
 rm -rf curvefs_python/tmplib/
+rm -rf curvesnapshot_python/BUILD
+rm -rf curvesnapshot_python/tmplib/
 rm -rf *.deb
 rm -rf build
 
@@ -276,7 +278,6 @@ echo ${version} >> build/curve-sdk/DEBIAN/control
 echo ${version} >> build/curve-chunkserver/DEBIAN/control
 echo ${version} >> build/curve-tools/DEBIAN/control
 echo ${version} >> build/curve-monitor/DEBIAN/control
-echo ${version} >> build/curve-snapshotcloneserver/DEBIAN/control
 
 #step5 打包debian包
 dpkg-deb -b build/curve-mds .
