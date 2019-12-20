@@ -702,7 +702,7 @@ TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoFailCanNotReach) {
     std::vector<TaskCloneInfo> infos;
     int ret = manager_->GetCloneTaskInfo(user, nullptr, &infos);
 
-    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestCloneServiceManager, TestGetCloneTaskInfoFailOnGetCloneInfo) {

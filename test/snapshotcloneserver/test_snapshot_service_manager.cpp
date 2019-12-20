@@ -680,7 +680,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail2) {
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
     int ret = manager_->GetFileSnapshotInfo(file, user, nullptr, &fileSnapInfo);
-    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {

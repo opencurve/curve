@@ -131,6 +131,9 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
 
+    // 暴露配置metric
+    conf_.ExposeMetric("snapshotclone_config");
+
     // init client options
     CurveClientOptions clientOption_;
     InitClientOption(&conf_, &clientOption_);
