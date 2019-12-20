@@ -431,7 +431,7 @@ TEST_F(CSModuleException, ChunkserverException) {
     cluster->RecoverHangChunkServer(2);
     cluster->RecoverHangChunkServer(3);
 
-    // 6. client的io预期最多会在2*electtime s内恢复
+    // 7. client的io预期最多会在2*electtime s内恢复
     // 如果配置了慢启动，则需要等待
     // (copysetNum / load_concurrency) * election_timeout
     ASSERT_TRUE(MonitorResume(0, 4096, 80));

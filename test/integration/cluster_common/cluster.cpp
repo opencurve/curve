@@ -487,7 +487,8 @@ void CurveCluster::PreparePhysicalPool(
         + std::string(" -mds_addr=") + MDSIpPort(mdsId)
         + std::string(" -op=create_physicalpool")
         + std::string(" -stderrthreshold=0")
-        + std::string(" -minloglevel=0");
+        + std::string(" -minloglevel=0")
+        + std::string(" -rpcTimeOutMs=10000");
 
     LOG(INFO) << "exec cmd: " << createPPCmd;
     ASSERT_EQ(0, system(createPPCmd.c_str()));

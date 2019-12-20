@@ -689,19 +689,29 @@ int CopysetNode::GetConfChange(ConfigChangeType *type,
         return 0;
     }
 
-    // 目前仅支持单个成员的配置变更
-    if (1 == adding.size()) {
+    // change_peer场景，目前只支持从{ABC}变更到{ABD}的情况
+    if (1 == adding.size() && 1 == removing.size()) {
+        *type = ConfigChangeType::CHANGE_PEER;
+        // add的peer为target peer
+        alterPeer->set_address(adding.begin()->to_string());
+        return 0;
+    }
+
+    // add_peer场景
+    if (1 == adding.size() && 0 == removing.size()) {
         *type = ConfigChangeType::ADD_PEER;
         alterPeer->set_address(adding.begin()->to_string());
         return 0;
     }
 
-    if (1 == removing.size()) {
+    // remove_peer场景
+    if (1 == removing.size() && 0 == adding.size()) {
         *type = ConfigChangeType::REMOVE_PEER;
         alterPeer->set_address(removing.begin()->to_string());
         return 0;
     }
 
+    // transfer_leader场景
     if (!transferee.is_empty()) {
         *type = ConfigChangeType::TRANSFER_LEADER;
         alterPeer->set_address(transferee.to_string());
