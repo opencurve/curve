@@ -63,12 +63,7 @@ int StatusTool::ChunkServerListCmd() {
     for (const auto& chunkserver : chunkservers) {
         auto csId = chunkserver.chunkserverid();
         double unhealthyRatio;
-        // 跳过retired状态的chunkserver
-        if (chunkserver.status() == ChunkServerStatus::RETIRED) {
-            continue;
-        }
         if (chunkserver.onlinestate() != OnlineState::ONLINE) {
-            // 如果是retired，则unhealthyRatio为0，否则为1
             unhealthyRatio = 1;
             offline++;
         } else {
@@ -234,10 +229,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     uint64_t offline = 0;
     std::map<uint64_t, int> leftSizeNum;
     for (const auto& chunkserver : chunkservers) {
-        // 检查每个chunkserver上的剩余空间，跳过retired状态的chunkserver
-        if (chunkserver.status() == ChunkServerStatus::RETIRED) {
-            continue;
-        } else if (chunkserver.onlinestate() == OnlineState::ONLINE) {
+        if (chunkserver.onlinestate() == OnlineState::ONLINE) {
             online++;
         } else {
             offline++;
@@ -246,7 +238,6 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         if (!checkLeftSize) {
             continue;
         }
-
         auto csId = chunkserver.chunkserverid();
         std::string metricName = GetCSLeftBytesName(csId);
         uint64_t size;

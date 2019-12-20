@@ -236,7 +236,7 @@ TEST_F(NameSpaceToolCoreTest, GetAllocatedSize) {
     // 1、计算pageFile的大小
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(fileInfo1),
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
                         Return(0)));
     EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
         .Times(5)
@@ -279,7 +279,7 @@ TEST_F(NameSpaceToolCoreTest, GetAllocatedSize) {
                         Return(0)));
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+        .WillOnce(DoAll(SetArgPointee<1>(files),
                         Return(0)));
     EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
         .Times(11)
@@ -292,12 +292,10 @@ TEST_F(NameSpaceToolCoreTest, GetAllocatedSize) {
     EXPECT_CALL(*client_, GetFileInfo(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
-                        Return(0)))
-        .WillRepeatedly(DoAll(SetArgPointee<1>(fileInfo1),
                         Return(0)));
     EXPECT_CALL(*client_, ListDir(_, _))
         .Times(1)
-        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+        .WillOnce(DoAll(SetArgPointee<1>(files),
                         Return(0)));
     EXPECT_CALL(*client_, GetSegmentInfo(_, _, _))
         .Times(15)
@@ -404,5 +402,56 @@ TEST_F(NameSpaceToolCoreTest, GetFileSegments) {
     ASSERT_EQ(-1, namespaceTool.GetFileSegments(fileName, &segments));
 
     // 4、获取segment的时候
+}
+
+TEST_F(NameSpaceToolCoreTest, GetFileSize) {
+    curve::tool::NameSpaceToolCore namespaceTool(client_);
+    std::string fileName = "/testdir/";
+    uint64_t size;
+    FileInfo fileInfo1;
+    GetFileInfoForTest(&fileInfo1);
+    std::vector<FileInfo> files;
+    for (uint64_t i = 0; i < 3; ++i) {
+        files.emplace_back(fileInfo1);
+    }
+
+    // 1、计算文件的fileSize
+    EXPECT_CALL(*client_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo1),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.GetFileSize(fileName, &size));
+    ASSERT_EQ(5 * segmentSize, size);
+    // 2、计算目录的fileSize
+    FileInfo fileInfo2;
+    GetFileInfoForTest(&fileInfo2);
+    fileInfo2.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
+    EXPECT_CALL(*client_, GetFileInfo(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(0)));
+    EXPECT_CALL(*client_, ListDir(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.GetFileSize(fileName, &size));
+    ASSERT_EQ(15 * segmentSize, size);
+    // 计算根目录的fileSize
+    ASSERT_EQ(0, namespaceTool.GetFileSize("/", &size));
+    ASSERT_EQ(15 * segmentSize, size);
+    // GetFileInfo失败
+    EXPECT_CALL(*client_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.GetFileSize("/", &size));
+    // ListDir
+    EXPECT_CALL(*client_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo2),
+                        Return(0)));
+    EXPECT_CALL(*client_, ListDir(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.GetFileSize("/", &size));
 }
 

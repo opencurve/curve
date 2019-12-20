@@ -202,14 +202,10 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
                             nameSpaceTool_, copysetCheck_);
     statusTool.PrintHelp("chunkserver-list");
     std::vector<ChunkServerInfo> chunkservers;
-    // 加入5个chunkserver，其中1个retired，1个offline
+    // 加入5个chunkserver，2个offline
     ChunkServerInfo csInfo;
-    GetCsInfoForTest(&csInfo, 1, false, true);
-    chunkservers.emplace_back(csInfo);
-    GetCsInfoForTest(&csInfo, 2, true);
-    chunkservers.emplace_back(csInfo);
-    for (uint64_t i = 3; i <= 5; ++i) {
-        GetCsInfoForTest(&csInfo, i);
+    for (uint64_t i = 1; i <= 5; ++i) {
+        GetCsInfoForTest(&csInfo, i, i <= 2);
         chunkservers.emplace_back(csInfo);
     }
 

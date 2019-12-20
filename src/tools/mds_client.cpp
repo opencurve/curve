@@ -428,7 +428,12 @@ int MDSClient::ListChunkServersOnServer(ListChunkServerRequest* request,
     if (response.has_statuscode() &&
                 response.statuscode() == kTopoErrCodeSuccess) {
         for (int i = 0; i < response.chunkserverinfos_size(); ++i) {
-            chunkservers->emplace_back(response.chunkserverinfos(i));
+            const auto& chunkserver = response.chunkserverinfos(i);
+            // 跳过retired状态的chunkserver
+            if (chunkserver.status() == ChunkServerStatus::RETIRED) {
+                continue;
+            }
+            chunkservers->emplace_back(chunkserver);
         }
         return 0;
     }
