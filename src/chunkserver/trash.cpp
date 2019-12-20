@@ -56,7 +56,8 @@ int Trash::Init(TrashOptions options) {
         uint32_t chunkNum = CountChunkNumInCopyset(copysetDir);
         chunkNum_.fetch_add(chunkNum);
     }
-
+    LOG(INFO) << "Init trash success. "
+              << "Current num of chunks in trash: " << chunkNum_.load();
     return 0;
 }
 
@@ -110,6 +111,8 @@ int Trash::RecycleCopySet(const std::string &dirPath) {
     }
     uint32_t chunkNum = CountChunkNumInCopyset(dst);
     chunkNum_.fetch_add(chunkNum);
+    LOG(INFO) << "Recycle copyset success. Copyset path: " << dst
+              << ", current num of chunks in trash: " << chunkNum_.load();
     return 0;
 }
 
@@ -227,6 +230,8 @@ void Trash::CleanCopySet(const std::string &copysetPath) {
             LOG(ERROR) << "Trash find unknown file " << filePath;
         }
     }
+    LOG(INFO) << "Clean copyset success. Copyset path: " << copysetPath
+              << ", current num of chunks in trash: " << chunkNum_.load();
 }
 
 void Trash::RecycleChunks(const std::string &dataPath) {
