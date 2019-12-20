@@ -144,9 +144,9 @@ int CopysetNodeManager::ReloadCopysets() {
 void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
                                      const CopysetID &copysetId,
                                      bool needCheckLoadFinished) {
-    LOG(INFO) << "Begin to load copyset: <"
-              << logicPoolId << "," << copysetId << ">, "
-              << "check load finished?: "
+    LOG(INFO) << "Begin to load copyset "
+              << ToGroupIdString(logicPoolId, copysetId)
+              << ". check load finished? : "
               << (needCheckLoadFinished ? "Yes." : "No.");
 
     uint64_t beginTime = TimeUtility::GetTimeofDayMs();
@@ -156,13 +156,13 @@ void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
     std::shared_ptr<CopysetNode> copysetNode =
         CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
     if (copysetNode == nullptr) {
-        LOG(ERROR) << "Failed to create copyset: <"
-                   << logicPoolId << "," << copysetId << ">";
+        LOG(ERROR) << "Failed to create copyset "
+                   << ToGroupIdString(logicPoolId, copysetId);
         return;
     }
     if (!InsertCopysetNodeIfNotExist(logicPoolId, copysetId, copysetNode)) {
-        LOG(ERROR) << "Failed to insert copyset: <"
-                   << logicPoolId << "," << copysetId << ">";
+        LOG(ERROR) << "Failed to insert copyset "
+                   << ToGroupIdString(logicPoolId, copysetId);
         return;
     }
     if (needCheckLoadFinished) {
@@ -170,8 +170,8 @@ void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
             GetCopysetNode(logicPoolId, copysetId);
         CheckCopysetUntilLoadFinished(node);
     }
-    LOG(INFO) << "Load copyset: <" << logicPoolId
-              << "," << copysetId << "> end, time used (ms): "
+    LOG(INFO) << "Load copyset " << ToGroupIdString(logicPoolId, copysetId)
+              << " end, time used (ms): "
               <<  TimeUtility::GetTimeofDayMs() - beginTime;
 }
 
@@ -182,7 +182,8 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
         return false;
     }
     uint32_t retryTimes = 0;
-
+    LogicPoolID logicPoolId = node->GetLogicPoolId();
+    CopysetID copysetId = node->GetCopysetId();
     while (retryTimes < copysetNodeOptions_.checkRetryTimes) {
         if (!running_.load(std::memory_order_acquire)) {
             return false;
@@ -200,8 +201,9 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
         node->GetStatus(&status);
         int64_t margin = leaderCommittedIndex - status.known_applied_index;
         if (margin < (int64_t)copysetNodeOptions_.finishLoadMargin) {
-            LOG(INFO) << "Load copyset: <" << node->GetLogicPoolId()
-                      << "," << node->GetCopysetId() << "> finished, "
+            LOG(INFO) << "Load copyset "
+                      << ToGroupIdString(logicPoolId, copysetId)
+                      << " finished, "
                       << "leader CommittedIndex: " << leaderCommittedIndex
                       << ", node appliedIndex: " << status.known_applied_index;
             return true;
@@ -209,8 +211,9 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
         retryTimes = 0;
         ::usleep(1000 * copysetNodeOptions_.checkLoadMarginIntervalMs);
     }
-    LOG(WARNING) << "check copyset: <" << node->GetLogicPoolId()
-                 << "," << node->GetCopysetId() << "> failed.";
+    LOG(WARNING) << "check copyset "
+                 << ToGroupIdString(logicPoolId, copysetId)
+                 << " failed.";
     return false;
 }
 
@@ -241,8 +244,8 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
     // 如果本地copyset还未全部加载完成，不允许外部创建copyset
     if (!loadFinished_.load(std::memory_order_acquire)) {
-        LOG(WARNING) << "Create copyset failed: load unfinished, groupid: "
-                     << groupId;
+        LOG(WARNING) << "Create copyset failed: load unfinished "
+                     << ToGroupIdString(logicPoolId, copysetId);
         return false;
     }
     /* 加写锁 */
@@ -251,17 +254,19 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
         std::shared_ptr<CopysetNode> copysetNode =
             CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
         if (copysetNode == nullptr) {
-            LOG(ERROR) << "Fail to create copyset, groupid: "
-                       << groupId;
+            LOG(ERROR) << "Fail to create copyset "
+                       << ToGroupIdString(logicPoolId, copysetId);
             return false;
         }
         copysetNodeMap_.insert(std::pair<GroupId, std::shared_ptr<CopysetNode>>(
             groupId,
             copysetNode));
-        LOG(INFO) << "Create copyset success, groupid: " << groupId;
+        LOG(INFO) << "Create copyset success "
+                  << ToGroupIdString(logicPoolId, copysetId);
         return true;
     }
-    LOG(WARNING) << "Copyset node is already exists, groupid: " << groupId;
+    LOG(WARNING) << "Copyset node is already exists "
+                 << ToGroupIdString(logicPoolId, copysetId);
     return false;
 }
 
@@ -285,13 +290,13 @@ std::shared_ptr<CopysetNode> CopysetNodeManager::CreateCopysetNodeUnlocked(
                                         copysetId,
                                         conf);
     if (0 != copysetNode->Init(copysetNodeOptions_)) {
-        LOG(ERROR) << "Copyset (" << logicPoolId << "," << copysetId << ")"
+        LOG(ERROR) << "Copyset " << ToGroupIdString(logicPoolId, copysetId)
                    << " init failed";
         return nullptr;
     }
     if (0 != copysetNode->Run()) {
         copysetNode->Fini();
-        LOG(ERROR) << "copyset (" << logicPoolId << "," << copysetId << ")"
+        LOG(ERROR) << "Copyset " << ToGroupIdString(logicPoolId, copysetId)
                    << " run failed";
         return nullptr;
     }
@@ -369,7 +374,9 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
         if (copysetNodeMap_.end() != it) {
             copysetNodeMap_.erase(it);
             ret = true;
-            LOG(INFO) << "Delete copyset success, groupid: " << groupId;
+            LOG(INFO) << "Delete copyset "
+                      << ToGroupIdString(logicPoolId, copysetId)
+                      <<" success.";
         }
     }
 
@@ -399,11 +406,14 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
         if (copysetNodeMap_.end() != it) {
             if (0 != copysetNodeOptions_.trash->RecycleCopySet(
                 it->second->GetCopysetDir())) {
-                LOG(ERROR) << "Failed to remove copyset <" << logicPoolId
-                           << ", " << copysetId << "> persistently";
+                LOG(ERROR) << "Failed to remove copyset "
+                           << ToGroupIdString(logicPoolId, copysetId)
+                           << " persistently.";
                 ret = false;
             }
-            LOG(INFO) << "Move copyset to trash success, groupid: " << groupId;
+            LOG(INFO) << "Move copyset"
+                      << ToGroupIdString(logicPoolId, copysetId)
+                      << "to trash success.";
             copysetNodeMap_.erase(it);
             ret = true;
         }
@@ -430,10 +440,12 @@ bool CopysetNodeManager::InsertCopysetNodeIfNotExist(
     if (copysetNodeMap_.end() == it) {
         copysetNodeMap_.insert(
             std::pair<GroupId, std::shared_ptr<CopysetNode>>(groupId, node));
-        LOG(INFO) << "Insert copyset success, groupid: " << groupId;
+        LOG(INFO) << "Insert copyset success "
+                  << ToGroupIdString(logicPoolId, copysetId);
         return true;
     }
-    LOG(WARNING) << "Copyset node is already exists, groupid: " << groupId;
+    LOG(WARNING) << "Copyset node is already exists "
+                 << ToGroupIdString(logicPoolId, copysetId);
     return false;
 }
 
