@@ -251,10 +251,6 @@ int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
         std::string ip = info.hostip();
         uint64_t port = info.port();
         std::string csAddr = ip + ":" + std::to_string(port);
-        // 跳过retired状态的chunkserver
-        if (info.status() == ChunkServerStatus::RETIRED) {
-            continue;
-        }
         ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(csAddr,
                                                     {}, queryLeader);
         if (res != ChunkServerHealthStatus::kHealthy) {

@@ -505,13 +505,9 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
     std::string serverIp = "127.0.0.1";
     std::vector<ChunkServerInfo> chunkservers;
     std::vector<std::string> unhealthyCs;
-    for (uint64_t i = 1; i <= 3; ++i) {
+    for (uint64_t i = 1; i <= 2; ++i) {
         ChunkServerInfo csInfo;
-        if (i == 2) {
-            GetCsInfoForTest(&csInfo, i, false, true);
-        } else {
-            GetCsInfoForTest(&csInfo, i);
-        }
+        GetCsInfoForTest(&csInfo, i);
         chunkservers.emplace_back(csInfo);
     }
     std::map<std::string, std::set<std::string>> expectedRes;
@@ -528,7 +524,6 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
     GetIoBufForTest(&iobuf2, groupId, "LEADER", false, false, false,
                                                     false, false, false);
 
-    // 一个chunkserver retired，剩余的健康，返回健康
     // 通过id查询
     EXPECT_CALL(*mdsClient_, ListChunkServersOnServer(serverId, _))
         .Times(1)
