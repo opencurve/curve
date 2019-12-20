@@ -516,12 +516,14 @@ TEST_F(CopysetNodeTest, get_conf_change) {
     CopysetID copysetID = 1;
     Configuration conf;
     Configuration conf1;
+    Configuration conf2;
     PeerId peer("127.0.0.1:3200:0");
     PeerId peer1("127.0.0.1:3201:0");
     PeerId emptyPeer;
     conf.add_peer(peer);
     conf1.add_peer(peer);
     conf1.add_peer(peer1);
+    conf2.add_peer(peer1);
 
     // leader还没开始提供服务
     {
@@ -614,6 +616,28 @@ TEST_F(CopysetNodeTest, get_conf_change) {
         EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
         EXPECT_EQ(ConfigChangeType::TRANSFER_LEADER, type);
     }
+    // 当前正在Change Peer
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        Peer alterPeer;
+
+        copysetNode.on_leader_start(8);
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<1>(conf),
+                            SetArgPointee<2>(conf2),
+                            Return(true)));
+        EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+        EXPECT_EQ(ConfigChangeType::CHANGE_PEER, type);
+        EXPECT_EQ(alterPeer.address(), peer.to_string());
+    }
     // 异常，braft::node配置变更返回true，但是没有正在进行配置变更的成员
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
@@ -686,6 +710,32 @@ TEST_F(CopysetNodeTest, get_conf_change) {
 
         EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<3>(emptyPeer),
+                            Return(true)));
+        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+    }
+    // 当前正在Change Peer，但是change peer有多个成员
+    {
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        std::shared_ptr<MockNode> mockNode
+            = std::make_shared<MockNode>(logicPoolID,
+                                         copysetID);
+        copysetNode.SetCopysetNode(mockNode);
+
+        ConfigChangeType type;
+        Configuration oldConf;
+        Peer alterPeer;
+
+        copysetNode.on_leader_start(8);
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<1>(conf),
+                            SetArgPointee<2>(conf1),
+                            Return(true)));
+        EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
+
+        EXPECT_CALL(*mockNode, conf_changes(_, _, _, _)).Times(1)
+            .WillOnce(DoAll(SetArgPointee<1>(conf1),
+                            SetArgPointee<2>(conf),
                             Return(true)));
         EXPECT_EQ(-1, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
     }
