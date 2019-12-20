@@ -307,14 +307,21 @@ TEST_F(ConfigurationTest, TestMetric) {
     Configuration conf;
     conf.SetIntValue("key1", 123);
     conf.SetFloatValue("key2", 1.23);
-    conf.SetBoolValue("key3", true);
 
     conf.ExposeMetric("conf_metric");
-    conf.UpdateMetric();
     ASSERT_STREQ(bvar::Variable::describe_exposed("conf_metric_key1").c_str(),
                  "{\"conf_name\":\"key1\",\"conf_value\":\"123\"}");
     ASSERT_STREQ(bvar::Variable::describe_exposed("conf_metric_key2").c_str(),
                  "{\"conf_name\":\"key2\",\"conf_value\":\"1.230000\"}");
+    // 还未设置时，返回空
+    ASSERT_STREQ(bvar::Variable::describe_exposed("conf_metric_key3").c_str(),
+                 "");
+
+    // 支持自动更新metric
+    conf.SetIntValue("key1", 234);
+    ASSERT_STREQ(bvar::Variable::describe_exposed("conf_metric_key1").c_str(),
+                 "{\"conf_name\":\"key1\",\"conf_value\":\"234\"}");
+    conf.SetBoolValue("key3", true);
     ASSERT_STREQ(bvar::Variable::describe_exposed("conf_metric_key3").c_str(),
                  "{\"conf_name\":\"key3\",\"conf_value\":\"1\"}");
 }

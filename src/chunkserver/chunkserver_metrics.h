@@ -374,7 +374,7 @@ class ChunkServerMetric : public Uncopyable {
      * 更新配置项数据
      * @param conf: 配置内容
      */
-    void UpdateConfigMetric(common::Configuration* conf);
+    void ExposeConfigMetric(common::Configuration* conf);
 
     /**
      * 获取指定类型的IOMetric

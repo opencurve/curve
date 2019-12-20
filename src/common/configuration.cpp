@@ -32,7 +32,7 @@ bool Configuration::LoadConfig() {
             int delimiterPos = line.find("=");
             std::string key = line.substr(0, delimiterPos);
             std::string value = line.substr(delimiterPos + 1);
-            config_[key] = value;
+            SetValue(key, value);
         }
     } else {
         return false;
@@ -72,30 +72,29 @@ void Configuration::ExposeMetric(const std::string& exposeName) {
         return;
     }
     exposeName_ = exposeName;
-    UpdateMetric();
+
+    for (auto& config : config_) {
+        UpdateMetricIfExposed(config.first, config.second);
+    }
 }
 
-void Configuration::UpdateMetric() {
+void Configuration::UpdateMetricIfExposed(const std::string &key,
+                                          const std::string &value) {
     if (exposeName_.empty()) {
-        LOG(WARNING) << "Config metric is not been exposed, update failed.";
         return;
     }
 
-    for (auto& config : config_) {
-        std::string configKey = config.first;
-        std::string configValue = config.second;
-        auto it = configMetric_.find(configKey);
-        // 如果配置项不存在，则新建配置项
-        if (it == configMetric_.end()) {
-            ConfigItemPtr configItem = std::make_shared<StringStatus>();
-            configItem->ExposeAs(exposeName_, configKey);
-            configMetric_[configKey] = configItem;
-        }
-        // 更新配置项
-        configMetric_[configKey]->Set("conf_name", configKey);
-        configMetric_[configKey]->Set("conf_value", configValue);
-        configMetric_[configKey]->Update();
+    auto it = configMetric_.find(key);
+    // 如果配置项不存在，则新建配置项
+    if (it == configMetric_.end()) {
+        ConfigItemPtr configItem = std::make_shared<StringStatus>();
+        configItem->ExposeAs(exposeName_, key);
+        configMetric_[key] = configItem;
     }
+    // 更新配置项
+    configMetric_[key]->Set("conf_name", key);
+    configMetric_[key]->Set("conf_value", value);
+    configMetric_[key]->Update();
 }
 
 std::map<std::string, std::string> Configuration::ListConfig() const {
@@ -255,6 +254,7 @@ bool Configuration::GetValue(const std::string &key, std::string *out) {
 
 void Configuration::SetValue(const std::string &key, const std::string &value) {
     config_[key] = value;
+    UpdateMetricIfExposed(key, value);
 }
 
 }  // namespace common
