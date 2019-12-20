@@ -30,13 +30,17 @@ class EtcdClientTest : public ::testing::Test {
             ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", runEtcd.c_str(), NULL));
             exit(0);
         }
+        running = true;
     }
 
     void TearDown() {
-        system(("kill " + std::to_string(etcdPid)).c_str());
-        std::this_thread::sleep_for(std::chrono::seconds(2));
+        if (running) {
+            system(("kill " + std::to_string(etcdPid)).c_str());
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+        }
     }
 
+    bool running;
     pid_t etcdPid;
     const std::string etcdAddr = "127.0.0.1:2366,127.0.0.1:2368";
 };
@@ -51,10 +55,11 @@ TEST_F(EtcdClientTest, GetEtcdClusterStatus) {
     std::map<std::string, bool> onlineState;
 
     // 正常情况
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     ASSERT_EQ(0, client.GetEtcdClusterStatus(&leaderAddr, &onlineState));
     std::map<std::string, bool> expected = {{"127.0.0.1:2366", true},
                                             {"127.0.0.1:2368", false}};
+    ASSERT_EQ(expected, onlineState);
     ASSERT_EQ("127.0.0.1:2366", leaderAddr);
 
     // 宕掉节点
@@ -62,7 +67,9 @@ TEST_F(EtcdClientTest, GetEtcdClusterStatus) {
     std::this_thread::sleep_for(std::chrono::seconds(2));
     ASSERT_EQ(0, client.GetEtcdClusterStatus(&leaderAddr, &onlineState));
     expected = {{"127.0.0.1:2366", false}, {"127.0.0.1:2368", false}};
+    ASSERT_EQ(expected, onlineState);
     ASSERT_EQ("", leaderAddr);
+    running = false;
 
     // 空指针错误
     ASSERT_EQ(-1, client.GetEtcdClusterStatus(nullptr, &onlineState));

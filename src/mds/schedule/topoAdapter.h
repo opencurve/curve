@@ -63,15 +63,16 @@ struct CopySetConf {
  public:
     CopySetConf() = default;
     CopySetConf(const CopySetKey &key, EpochType epoch,
-                const std::vector<PeerInfo> &peers, ConfigChangeType type,
-                ChunkServerIdType item);
+        const std::vector<PeerInfo> &peers, ConfigChangeType type,
+        ChunkServerIdType item,
+        ChunkServerIdType oldOne = ::curve::mds::topology::UNINTIALIZE_ID);
 
     CopySetKey id;
     EpochType epoch;
     std::vector<PeerInfo> peers;
     ConfigChangeType type;
     ChunkServerIdType configChangeItem;
-    ChunkServerIdType oldOne;
+    ChunkServerIdType oldOne = ::curve::mds::topology::UNINTIALIZE_ID;
 };
 
 struct CopySetInfo {
