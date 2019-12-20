@@ -124,13 +124,18 @@ class ToolMDSClientTest : public ::testing::Test {
     }
 
     void GetChunkServerInfoForTest(ChunkServerIdType id,
-                                   ChunkServerInfo *csInfo) {
+                                   ChunkServerInfo *csInfo,
+                                   bool retired = false) {
         csInfo->set_chunkserverid(id);
         csInfo->set_disktype("ssd");
         csInfo->set_hostip("127.0.0.1");
         csInfo->set_port(8200 + id);
         csInfo->set_onlinestate(OnlineState::ONLINE);
-        csInfo->set_status(ChunkServerStatus::READWRITE);
+        if (retired) {
+            csInfo->set_status(ChunkServerStatus::RETIRED);
+        } else {
+            csInfo->set_status(ChunkServerStatus::READWRITE);
+        }
         csInfo->set_diskstatus(DiskState::DISKNORMAL);
         csInfo->set_mountpoint("/test");
         csInfo->set_diskcapacity(1024);
@@ -559,15 +564,15 @@ TEST_F(ToolMDSClientTest, ListChunkServersOnServer) {
     response->set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     ASSERT_EQ(-1, mdsClient.ListChunkServersOnServer(serverId, &chunkservers));
 
-    // 正常情况
+    // 正常情况,两个chunkserver正常，一个chunkserver retired
     response->set_statuscode(kTopoErrCodeSuccess);
     for (int i = 0; i < 3; i++) {
         auto csInfo = response->add_chunkserverinfos();
-        GetChunkServerInfoForTest(i, csInfo);
+        GetChunkServerInfoForTest(i, csInfo, i == 2);
     }
     ASSERT_EQ(0, mdsClient.ListChunkServersOnServer(serverId, &chunkservers));
-    ASSERT_EQ(3, chunkservers.size());
-    for (int i = 0; i < 3; ++i) {
+    ASSERT_EQ(2, chunkservers.size());
+    for (int i = 0; i < 2; ++i) {
         ChunkServerInfo expected;
         GetChunkServerInfoForTest(i, &expected);
         ASSERT_EQ(expected.DebugString(), chunkservers[i].DebugString());
@@ -740,11 +745,11 @@ TEST_F(ToolMDSClientTest, GetServerOrChunkserverInCluster) {
     response4->set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
     ASSERT_EQ(-1, mdsClient.ListChunkServersInCluster(&chunkservers));
 
-    // 5、正常情况
+    // 5、正常情况，有一个chunkserverretired
     response4->set_statuscode(curve::mds::topology::kTopoErrCodeSuccess);
     for (int i = 0; i < 3; ++i) {
         auto chunkserver = response4->add_chunkserverinfos();
-        GetChunkServerInfoForTest(i, chunkserver);
+        GetChunkServerInfoForTest(i, chunkserver, i == 2);
     }
     ASSERT_EQ(0, mdsClient.ListServersInCluster(&servers));
     ASSERT_EQ(1, servers.size());
@@ -752,8 +757,8 @@ TEST_F(ToolMDSClientTest, GetServerOrChunkserverInCluster) {
     GetServerInfoForTest(1, &expected);
     ASSERT_EQ(expected.DebugString(), servers[0].DebugString());
     ASSERT_EQ(0, mdsClient.ListChunkServersInCluster(&chunkservers));
-    ASSERT_EQ(3, chunkservers.size());
-    for (int i = 0; i < 3; ++i) {
+    ASSERT_EQ(2, chunkservers.size());
+    for (int i = 0; i < 2; ++i) {
         ChunkServerInfo expected2;
         GetChunkServerInfoForTest(i, &expected2);
         ASSERT_EQ(expected2.DebugString(), chunkservers[i].DebugString());
