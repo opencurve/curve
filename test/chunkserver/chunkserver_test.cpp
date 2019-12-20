@@ -81,7 +81,7 @@ TEST(ChunkserverCommonTest, GroupIdTest) {
     CopysetID copysetId = 8888;
     GroupNid groupId0 = 42949672968888;  // (10000 << 32) | 8888;
     GroupId groupIdStr0 = "42949672968888";
-    std::string groupIdViewStr0 = "(10000, 8888)";
+    std::string groupIdViewStr0 = "(10000, 8888, 42949672968888)";
 
     GroupNid groupId = ToGroupNid(poolId, copysetId);
     GroupId groupIdStr = ToGroupId(poolId, copysetId);
@@ -89,6 +89,7 @@ TEST(ChunkserverCommonTest, GroupIdTest) {
 
     ASSERT_EQ(groupId0, groupId);
     ASSERT_EQ(groupIdStr0, groupIdStr);
+    ASSERT_EQ(groupIdViewStr0, groupIdViewStr);
     ASSERT_EQ(poolId, GetPoolID(groupId));
     ASSERT_EQ(copysetId, GetCopysetID(groupId));
 }
