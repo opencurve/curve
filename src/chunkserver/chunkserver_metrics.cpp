@@ -396,14 +396,13 @@ void ChunkServerMetric::DecreaseLeaderCount() {
     *leaderCount_ << -1;
 }
 
-void ChunkServerMetric::UpdateConfigMetric(common::Configuration* conf) {
+void ChunkServerMetric::ExposeConfigMetric(common::Configuration* conf) {
     if (!option_.collectMetric) {
         return;
     }
 
     std::string exposeName = Prefix() + "_config";
     conf->ExposeMetric(exposeName);
-    conf->UpdateMetric();
 }
 
 }  // namespace chunkserver

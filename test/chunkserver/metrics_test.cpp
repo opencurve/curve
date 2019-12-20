@@ -535,7 +535,7 @@ TEST_F(CSMetricTest, ConfigTest) {
     conf.SetConfigPath(confFile_);
     int ret = conf.LoadConfig();
     ASSERT_EQ(ret, true);
-    metric_->UpdateConfigMetric(&conf);
+    metric_->ExposeConfigMetric(&conf);
 
     std::string prefix = "chunkserver_127_0_0_1_9401_config_";
     ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "chunksize").c_str(),
@@ -545,7 +545,7 @@ TEST_F(CSMetricTest, ConfigTest) {
     // 修改新增配置信息
     conf.SetStringValue("chunksize", "4321");
     conf.SetStringValue("port", "9999");
-    metric_->UpdateConfigMetric(&conf);
+    metric_->ExposeConfigMetric(&conf);
     // // 验证修改后信息
     ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "chunksize").c_str(),
                  "{\"conf_name\":\"chunksize\",\"conf_value\":\"4321\"}");
@@ -569,7 +569,7 @@ TEST_F(CSMetricTest, OnOffTest) {
         conf.SetConfigPath(confFile_);
         int ret = conf.LoadConfig();
         ASSERT_EQ(ret, true);
-        metric_->UpdateConfigMetric(&conf);
+        metric_->ExposeConfigMetric(&conf);
     }
     // 初始化后获取所有指标项都为空
     {
