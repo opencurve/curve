@@ -323,6 +323,15 @@ class CopysetNode : public braft::StateMachine,
     int SaveConfEpoch(const std::string &filePath);
 
  private:
+    inline std::string GroupId() {
+        return ToGroupId(logicPoolId_, copysetId_);
+    }
+
+    inline std::string GroupIdString() {
+        return ToGroupIdString(logicPoolId_, copysetId_);
+    }
+
+ private:
     // 逻辑池 id
     LogicPoolID logicPoolId_;
     // 复制组 id

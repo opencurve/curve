@@ -60,19 +60,20 @@ CopysetNode::~CopysetNode() {
         delete nodeOptions_.snapshot_file_system_adaptor;
         nodeOptions_.snapshot_file_system_adaptor = nullptr;
     }
-    LOG(INFO) << "release copyset node, groupid:"
-              << ToGroupId(logicPoolId_, copysetId_);
+    LOG(INFO) << "release copyset node: "
+              << GroupIdString();
 }
 
 int CopysetNode::Init(const CopysetNodeOptions &options) {
-    std::string groupId = ToGroupId(logicPoolId_, copysetId_);
+    std::string groupId = GroupId();
 
     std::string protocol = UriParser::ParseUri(options.chunkDataUri,
                                                 &copysetDirPath_);
     if (protocol.empty()) {
         // TODO(wudemiao): 增加必要的错误码并返回
         LOG(ERROR) << "not support chunk data uri's protocol"
-                   << " error chunkDataDir is: " << options.chunkDataUri;
+                   << " error chunkDataDir is: " << options.chunkDataUri
+                   << ". Copyset: " << GroupIdString();
         return -1;
     }
 
@@ -98,8 +99,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     CHECK(nullptr != dataStore_);
     if (false == dataStore_->Initialize()) {
         // TODO(wudemiao): 增加必要的错误码并返回
-        LOG(ERROR) << "data store init failed, "
-                   << errno << " : " << strerror(errno);
+        LOG(ERROR) << "data store init failed. "
+                   << "Copyset: " << GroupIdString();
         return -1;
     }
 
@@ -157,9 +158,8 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
     int ret = ChunkServerMetric::GetInstance()->CreateCopysetMetric(
         logicPoolId_, copysetId_);
     if (ret != 0) {
-        LOG(ERROR) << "create copyset metric failed, "
-                   << "logicPool id : " <<  logicPoolId_
-                   << ", copyset id : " << copysetId_;
+        LOG(ERROR) << "Create copyset metric failed. "
+                   << "Copyset: " << GroupIdString();
         return -1;
     }
     metric_ = ChunkServerMetric::GetInstance()->GetCopysetMetric(
@@ -175,12 +175,12 @@ int CopysetNode::Init(const CopysetNodeOptions &options) {
 int CopysetNode::Run() {
     // raft node的初始化实际上让起run起来
     if (0 != raftNode_->init(nodeOptions_)) {
-        LOG(ERROR) << "Fail to init raft node "
-                   << ToGroupIdString(logicPoolId_, copysetId_);
+        LOG(ERROR) << "Fail to init raft node. "
+                   << "Copyset: " << GroupIdString();
         return -1;
     }
-    LOG(INFO) << "init copyset:(" << logicPoolId_ << ", " << copysetId_ << ") "
-              << "success";
+    LOG(INFO) << "Run copyset success."
+              << "Copyset: " << GroupIdString();
     return 0;
 }
 
@@ -247,7 +247,7 @@ void CopysetNode::on_apply(::braft::Iterator &iter) {
 }
 
 void CopysetNode::on_shutdown() {
-    LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_) << ") is shutdown";
+    LOG(INFO) << GroupIdString() << " is shutdown";
 }
 
 void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
@@ -266,9 +266,10 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
         filePathTemp = writer->get_path() + "/" + kCurveConfEpochFilename;
     if (0 != SaveConfEpoch(filePathTemp)) {
         done->status().set_error(errno, "invalid: %s", strerror(errno));
-        LOG(ERROR) << "SaveConfEpoch failed, "
-                   << "errno: " << errno << ", "
-                   << "error message: " << strerror(errno);
+        LOG(ERROR) << "SaveConfEpoch failed. "
+                   << "Copyset: " << GroupIdString()
+                   << ", errno: " << errno << ", "
+                   << ", error message: " << strerror(errno);
         return;
     }
 
@@ -292,8 +293,9 @@ void CopysetNode::on_snapshot_save(::braft::SnapshotWriter *writer,
         }
     } else {
         done->status().set_error(errno, "invalid: %s", strerror(errno));
-        LOG(ERROR) << "dir reader failed, maybe no exist or permission. path "
-                   << chunkDataApath_;
+        LOG(ERROR) << "dir reader failed, maybe no exist or permission. "
+                   << "Copyset: " << GroupIdString()
+                   << ", path: " << chunkDataApath_;
         return;
     }
 
@@ -336,18 +338,21 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
                 if (false == nodeOptions_.snapshot_file_system_adaptor->get()->
                     rename(snapshotFilename, dataFilename)) {
                     LOG(ERROR) << "rename " << snapshotFilename << " to "
-                               << dataFilename << " failed";
+                               << dataFilename << " failed."
+                               << "Copyset: " << GroupIdString();
                     return -1;
                 }
             }
         } else {
             LOG(ERROR) << "dir reader failed, path " << snapshotChunkDataDir
-                       << ", error message: " << strerror(errno);
+                       << ", error message: " << strerror(errno)
+                       << ", Copyset: " << GroupIdString();
             return -1;
         }
     } else {
-        LOG(INFO) << "load snapshot  data path: "
-                  << snapshotChunkDataDir << " not exist.";
+        LOG(INFO) << "load snapshot data path: "
+                  << snapshotChunkDataDir << " not exist. "
+                  << "Copyset: " << GroupIdString();
     }
 
     /**
@@ -356,7 +361,9 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
     std::string filePath = reader->get_path() + "/" + kCurveConfEpochFilename;
     if (fs_->FileExists(filePath)) {
         if (0 != LoadConfEpoch(filePath)) {
-            LOG(ERROR) << "load conf.epoch failed: " << filePath;
+            LOG(ERROR) << "load conf.epoch failed. "
+                       << "path:" << filePath
+                       << ", Copyset: " << GroupIdString();
             return -1;
         }
     }
@@ -378,7 +385,8 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
      * 文件，也将导致read不到恢复过来的数据，而是read到老的数据。
      */
     if (!dataStore_->Initialize()) {
-        LOG(ERROR) << "data store init failed in on snapshot load";
+        LOG(ERROR) << "data store init failed in on snapshot load. "
+                   << "Copyset: " << GroupIdString();
         return -1;
     }
 
@@ -401,7 +409,7 @@ int CopysetNode::on_snapshot_load(::braft::SnapshotReader *reader) {
 void CopysetNode::on_leader_start(int64_t term) {
     leaderTerm_.store(term, std::memory_order_release);
     ChunkServerMetric::GetInstance()->IncreaseLeaderCount();
-    LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
+    LOG(INFO) << "Copyset: " << GroupIdString()
               << ", peer id: " << peerId_.to_string()
               << " become leader, term is: " << leaderTerm_;
 }
@@ -409,12 +417,12 @@ void CopysetNode::on_leader_start(int64_t term) {
 void CopysetNode::on_leader_stop(const butil::Status &status) {
     leaderTerm_.store(-1, std::memory_order_release);
     ChunkServerMetric::GetInstance()->DecreaseLeaderCount();
-    LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
+    LOG(INFO) << "Copyset: " << GroupIdString()
               << ", peer id: " << peerId_.to_string() << " stepped down";
 }
 
 void CopysetNode::on_error(const ::braft::Error &e) {
-    LOG(ERROR) << ToGroupIdString(logicPoolId_, copysetId_)
+    LOG(ERROR) << "Copyset: " << GroupIdString()
                << ", peer id: " << peerId_.to_string()
                << " meet raft error: " << e;
 }
@@ -425,20 +433,21 @@ void CopysetNode::on_configuration_committed(const Configuration &conf) {
         conf_ = conf;
         epoch_.fetch_add(1, std::memory_order_acq_rel);
     }
-    LOG(INFO) << "peer id: " << peerId_.to_string()
+    LOG(INFO) << "Copyset: " << GroupIdString()
+              << ", peer id: " << peerId_.to_string()
               << ", leader id: " << raftNode_->leader_id()
               << ", Configuration of this group is" << conf
               << ", epoch: " << epoch_.load(std::memory_order_acquire);
 }
 
 void CopysetNode::on_stop_following(const ::braft::LeaderChangeContext &ctx) {
-    LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
+    LOG(INFO) << "Copyset: " << GroupIdString()
               << ", peer id: " << peerId_.to_string()
               << " stops following" << ctx;
 }
 
 void CopysetNode::on_start_following(const ::braft::LeaderChangeContext &ctx) {
-    LOG(INFO) << ToGroupIdString(logicPoolId_, copysetId_)
+    LOG(INFO) << "Copyset: " << GroupIdString()
               << ", peer id: " << peerId_.to_string()
               << "start following" << ctx;
 }
@@ -474,7 +483,8 @@ int CopysetNode::LoadConfEpoch(const std::string &filePath) {
             LOG(ERROR) << "logic pool id or copyset id not fit, "
                        << "(" << logicPoolId_ << "," << copysetId_ << ")"
                        << "not same with conf.epoch file: "
-                       << "(" << loadLogicPoolID << "," << loadCopysetID << ")";
+                       << "(" << loadLogicPoolID << "," << loadCopysetID << ")"
+                       << ", Copyset: " << GroupIdString();
             ret = -1;
         } else {
             epoch_.store(loadEpoch, std::memory_order_relaxed);
@@ -542,7 +552,9 @@ butil::Status CopysetNode::TransferLeader(const Peer& peer) {
 
     if (raftNode_->leader_id() == peerId) {
         butil::Status status = butil::Status::OK();
-        DVLOG(6) << "Skipped transferring leader to leader itself: " << peerId;
+        DVLOG(6) << "Skipped transferring leader to leader itself. "
+                 << "peerid: " << peerId
+                 << ", Copyset: " << GroupIdString();
 
         return status;
     }
@@ -550,8 +562,8 @@ butil::Status CopysetNode::TransferLeader(const Peer& peer) {
     int rc = raftNode_->transfer_leadership_to(peerId);
     if (rc != 0) {
         status = butil::Status(rc, "Failed to transfer leader of copyset "
-                               "<%u, %u> to peer %s, error: %s",
-                               logicPoolId_, copysetId_,
+                               "%s to peer %s, error: %s",
+                               GroupIdString().c_str(),
                                peerId.to_string().c_str(), berror(rc));
         LOG(ERROR) << status.error_str();
 
@@ -560,7 +572,7 @@ butil::Status CopysetNode::TransferLeader(const Peer& peer) {
 
     status = butil::Status::OK();
     LOG(INFO) << "Transferred leader of copyset "
-              << ToGroupIdStr(logicPoolId_, copysetId_)
+              << GroupIdString()
               << " to peer " <<  peerId;
 
     return status;
@@ -579,7 +591,7 @@ butil::Status CopysetNode::AddPeer(const Peer& peer) {
         if (peer == peerId) {
             butil::Status status = butil::Status::OK();
             DVLOG(6) << peerId << " is already a member of copyset "
-                     << ToGroupIdStr(logicPoolId_, copysetId_)
+                     << GroupIdString()
                      << ", skip adding peer";
 
             return status;
@@ -613,7 +625,7 @@ butil::Status CopysetNode::RemovePeer(const Peer& peer) {
     if (!peerValid) {
         butil::Status status = butil::Status::OK();
         DVLOG(6) << peerId << " is not a member of copyset "
-                 << ToGroupIdStr(logicPoolId_, copysetId_) << ", skip removing";
+                 << GroupIdString() << ", skip removing";
 
         return status;
     }
