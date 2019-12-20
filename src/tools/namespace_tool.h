@@ -56,10 +56,14 @@ class NameSpaceTool {
 
  private:
     // 打印fileInfo和文件占用的实际空间
-    int PrintFileInfoAndActualSize(std::string fileName);
+    int PrintFileInfoAndActualSize(const std::string& fileName);
+
+    // 打印fileInfo和文件占用的实际空间
+    int PrintFileInfoAndActualSize(const std::string& fullName,
+                                   const FileInfo& fileInfo);
 
     // 打印目录中的文件信息
-    int PrintListDir(std::string dirName);
+    int PrintListDir(const std::string& dirName);
 
     // 打印出文件的segment信息
     int PrintSegmentInfo(const std::string &fileName);
@@ -73,6 +77,15 @@ class NameSpaceTool {
     // 打印chunk的位置信息
     int PrintChunkLocation(const std::string& fileName,
                                      uint64_t offset);
+
+    // 打印文件的分配大小
+    int GetAndPrintAllocSize(const std::string& fileName);
+
+    // 打印目录的file size
+    int GetAndPrintFileSize(const std::string& fileName);
+
+    // 目前curve mds不支持/test/格式的文件名，需要把末尾的/去掉
+    void TrimEndingSlash(std::string* fileName);
 
     // 向mds发送RPC的client
     std::shared_ptr<NameSpaceToolCore> core_;

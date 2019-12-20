@@ -18,12 +18,12 @@ NameSpaceToolCore::NameSpaceToolCore(std::shared_ptr<MDSClient> client) :
     client_->SetPassword(FLAGS_password);
 }
 
-int NameSpaceToolCore::GetFileInfo(const std::string &fileName,
+int NameSpaceToolCore::GetFileInfo(std::string fileName,
                                    FileInfo* fileInfo) {
     return client_->GetFileInfo(fileName, fileInfo);
 }
 
-int NameSpaceToolCore::ListDir(const std::string& dirName,
+int NameSpaceToolCore::ListDir(std::string dirName,
                                std::vector<FileInfo>* files) {
     return client_->ListDir(dirName, files);
 }
@@ -36,7 +36,7 @@ int NameSpaceToolCore::GetChunkServerListInCopySets(
                                                 copysetId, csLocs);
 }
 
-int NameSpaceToolCore::DeleteFile(const std::string& fileName,
+int NameSpaceToolCore::DeleteFile(std::string fileName,
                                   bool forcedelete) {
     return client_->DeleteFile(fileName, forcedelete);
 }
@@ -47,10 +47,6 @@ int NameSpaceToolCore::CreateFile(const std::string& fileName,
 }
 
 int NameSpaceToolCore::GetAllocatedSize(std::string fileName, uint64_t* size) {
-    // 如果最后面有/，去掉
-    if (fileName.size() > 1 && fileName.back() == '/') {
-        fileName.pop_back();
-    }
     FileInfo fileInfo;
     if (GetFileInfo(fileName, &fileInfo) != 0) {
         std::cout << "GetFileInfo fail!" << std::endl;
@@ -61,9 +57,9 @@ int NameSpaceToolCore::GetAllocatedSize(std::string fileName, uint64_t* size) {
 
 int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
                                         const FileInfo& fileInfo,
-                                        uint64_t* size) {
+                                        uint64_t* allocSize) {
     // 如果是文件的话，直接获取segment信息，然后计算空间即可
-    *size = 0;
+    *allocSize = 0;
     if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY) {
         std::vector<PageFileSegment> segments;
         if (GetFileSegments(fileName, fileInfo, &segments) != 0) {
@@ -76,7 +72,7 @@ int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
         for (auto& segment : segments) {
             int64_t chunkSize = segment.chunksize();
             int64_t chunkNum = segment.chunks().size();
-            *size += chunkNum * chunkSize;
+            *allocSize += chunkNum * chunkSize;
         }
         return 0;
     } else {  // 如果是目录，则list dir，并递归计算每个文件的大小最后加起来
@@ -92,13 +88,55 @@ int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
             } else {
                 fullPathName = fileName + "/" + file.filename();
             }
-            uint64_t tmp;
-            if (GetAllocatedSize(fullPathName, file, &tmp) != 0) {
+            uint64_t size;
+            if (GetAllocatedSize(fullPathName, file, &size) != 0) {
                 std::cout << "Get allocated size of " << fullPathName
                           << " fail!" << std::endl;
                 continue;
             }
-            *size += tmp;
+            *allocSize += size;
+        }
+        return 0;
+    }
+}
+
+int NameSpaceToolCore::GetFileSize(std::string fileName, uint64_t* fileSize) {
+    FileInfo fileInfo;
+    if (GetFileInfo(fileName, &fileInfo) != 0) {
+        std::cout << "GetFileInfo fail!" << std::endl;
+        return -1;
+    }
+    return GetFileSize(fileName, fileInfo, fileSize);
+}
+
+int NameSpaceToolCore::GetFileSize(const std::string& fileName,
+                                   const FileInfo& fileInfo,
+                                   uint64_t* fileSize) {
+    // 如果是文件的话直接返回file size
+    *fileSize = 0;
+    if (fileInfo.filetype() != curve::mds::FileType::INODE_DIRECTORY) {
+        *fileSize = fileInfo.length();
+        return 0;
+    } else {  // 如果是目录，则list dir，并递归计算file size
+        std::vector<FileInfo> files;
+        if (client_->ListDir(fileName, &files) != 0) {
+            std::cout << "List directory failed!" << std::endl;
+            return -1;
+        }
+        for (auto& file : files) {
+            std::string fullPathName;
+            if (fileName == "/") {
+                fullPathName = fileName + file.filename();
+            } else {
+                fullPathName = fileName + "/" + file.filename();
+            }
+            uint64_t size;
+            if (GetFileSize(fullPathName, file, &size) != 0) {
+                std::cout << "Get file size of " << fullPathName
+                          << " fail!" << std::endl;
+                continue;
+            }
+            *fileSize += size;
         }
         return 0;
     }
