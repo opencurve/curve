@@ -214,14 +214,15 @@ int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
                             }
                             default:
                                 LOG(ERROR) << "can not reach here!";
-                                break;
+                                // 当更新数据库失败时，有可能进入这里
+                                return kErrCodeInternalError;
                         }
                     }
                     break;
                 }
                 default:
                     LOG(ERROR) << "can not reach here!";
-                    break;
+                    return kErrCodeInternalError;
             }
         }
     }
