@@ -112,6 +112,7 @@ class MDSModuleException : public ::testing::Test {
         + std::string(" -mds_addr=127.0.0.1:22222,127.0.0.1:22223,127.0.0.1:22224")     //  NOLINT
         + std::string(" -op=create_physicalpool")
         + std::string(" -stderrthreshold=0")
+        + std::string(" -rpcTimeOutMs=10000")
         + std::string(" -minloglevel=0");
 
         LOG(INFO) << "exec cmd: " << createPPCmd;
@@ -708,7 +709,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf, true);
 
     // 8. 检测上次IO是否返回
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(20));
     ASSERT_TRUE(writeIOReturnFlag);
 
     // 9. 新的mds开始提供服务
@@ -771,7 +772,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     cluster->RecoverHangMDS(2);
 
     // 检测上次IO是否返回
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    std::this_thread::sleep_for(std::chrono::seconds(20));
     ASSERT_TRUE(writeIOReturnFlag);
 
     // 8. 新的mds开始提供服务
