@@ -40,6 +40,7 @@ using curve::mds::topology::ZoneIdType;
 using curve::mds::topology::PoolIdType;
 using curve::mds::topology::CopySetIdType;
 using curve::mds::topology::ChunkServerIdType;
+using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::ListChunkServerRequest;
 using curve::mds::topology::GetChunkServerInfoRequest;
 using curve::mds::topology::GetCopySetsInChunkServerRequest;
