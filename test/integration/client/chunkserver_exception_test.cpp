@@ -99,6 +99,7 @@ class CSModuleException : public ::testing::Test {
 
         // 0. 初始化db
         cluster->InitDB("module_exception_curve_chunkserver");
+        cluster->mdsRepo_->dropDataBase();
 
         // 1. 启动etcd
         cluster->StarSingleEtcd(1, "127.0.0.1:22233", "127.0.0.1:22234",

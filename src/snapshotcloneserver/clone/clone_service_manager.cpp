@@ -190,7 +190,8 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                             }
                             default:
                                 LOG(ERROR) << "can not reach here!";
-                                break;
+                                // 当更新数据库失败时，有可能进入这里
+                                return kErrCodeInternalError;
                         }
                     }
                     break;
@@ -198,7 +199,7 @@ int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
                 default:
                     LOG(ERROR) << "can not reach here!, status = "
                                << static_cast<int>(cloneInfo.GetStatus());
-                    break;
+                    return kErrCodeInternalError;
             }
         }
     }
