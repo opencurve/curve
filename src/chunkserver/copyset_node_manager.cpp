@@ -78,16 +78,17 @@ int CopysetNodeManager::ReloadCopysets() {
         uint64_t poolId = GetPoolID(groupId);
         uint64_t copysetId = GetCopysetID(groupId);
         LOG(INFO) << "Parsed groupid " << groupId
-                  << "as " << ToGroupIdStr(poolId, copysetId);
+                  << " as " << ToGroupIdString(poolId, copysetId);
 
         std::vector<Peer> peers;
         if (!CreateCopysetNode(poolId, copysetId, peers)) {
-            LOG(ERROR) << "Failed to recreate copyset: <"
-                      << poolId << "," << copysetId << ">";
+            LOG(ERROR) << "Failed to recreate copyset: "
+                       << ToGroupIdString(poolId, copysetId);
             return -1;
         }
 
-        LOG(INFO) << "Created copyset: <" << poolId << "," << copysetId << ">";
+        LOG(INFO) << "Created copyset success: "
+                  << ToGroupIdString(poolId, copysetId);
     }
 
     return 0;
@@ -125,18 +126,18 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
             std::make_shared<CopysetNode>(logicPoolId,
                                           copysetId,
                                           conf);
-        CHECK(nullptr != copysetNode) << "new copyset node <"
-                                      << logicPoolId << ","
-                                      << copysetId << "> failed ";
+        CHECK(nullptr != copysetNode) << "new copyset node "
+                                      << ToGroupIdString(logicPoolId, copysetId)
+                                      << " failed.";
         if (0 != copysetNode->Init(copysetNodeOptions_)) {
-            LOG(ERROR) << "Copyset (" << logicPoolId << "," << copysetId << ")"
-                       << " init failed";
+            LOG(ERROR) << "Copyset " << ToGroupIdString(logicPoolId, copysetId)
+                       << " init failed.";
             return false;
         }
         if (0 != copysetNode->Run()) {
             copysetNode->Fini();
-            LOG(ERROR) << "copyset (" << logicPoolId << "," << copysetId << ")"
-                       << " run failed";
+            LOG(ERROR) << "Copyset " << ToGroupIdString(logicPoolId, copysetId)
+                       << " run failed.";
             return false;
         }
         copysetNodeMap_.insert(std::pair<GroupId, std::shared_ptr<CopysetNode>>(
@@ -165,18 +166,18 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
             std::make_shared<CopysetNode>(logicPoolId,
                                           copysetId,
                                           conf);
-        CHECK(nullptr != copysetNode) << "new copyset node <"
-                                      << logicPoolId << ","
-                                      << copysetId << "> failed ";
+        CHECK(nullptr != copysetNode) << "new copyset node "
+                                      << ToGroupIdString(logicPoolId, copysetId)
+                                      << " failed.";
         if (0 != copysetNode->Init(copysetNodeOptions_)) {
-            LOG(ERROR) << "Copyset (" << logicPoolId << "," << copysetId << ")"
-                       << " init failed";
+            LOG(ERROR) << "Copyset " << ToGroupIdString(logicPoolId, copysetId)
+                       << " init failed.";
             return false;
         }
         if (0 != copysetNode->Run()) {
             copysetNode->Fini();
-            LOG(ERROR) << "copyset (" << logicPoolId << "," << copysetId << ")"
-                       << " run failed";
+            LOG(ERROR) << "Copyset " << ToGroupIdString(logicPoolId, copysetId)
+                       << " run failed.";
             return false;
         }
         copysetNodeMap_.insert(std::pair<GroupId, std::shared_ptr<CopysetNode>>(
@@ -258,7 +259,9 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
         if (copysetNodeMap_.end() != it) {
             copysetNodeMap_.erase(it);
             ret = true;
-            LOG(INFO) << "Delete copyset success, groupid: " << groupId;
+            LOG(INFO) << "Delete copyset "
+                      << ToGroupIdString(logicPoolId, copysetId)
+                      <<" success.";
         }
     }
 
@@ -287,11 +290,14 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
         if (copysetNodeMap_.end() != it) {
             if (0 != copysetNodeOptions_.trash->RecycleCopySet(
                 it->second->GetCopysetDir())) {
-                LOG(ERROR) << "Failed to remove copyset <" << logicPoolId
-                           << ", " << copysetId << "> persistently";
+                LOG(ERROR) << "Failed to remove copyset "
+                           << ToGroupIdString(logicPoolId, copysetId)
+                           << " persistently.";
                 ret = false;
             }
-            LOG(INFO) << "Move copyset to trash success, groupid: " << groupId;
+            LOG(INFO) << "Move copyset"
+                      << ToGroupIdString(logicPoolId, copysetId)
+                      << "to trash success.";
             copysetNodeMap_.erase(it);
             ret = true;
         }
