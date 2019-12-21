@@ -233,6 +233,18 @@ class MetaCache {
                              CopysetInfo* toupdateCopyset,
                              FileMetric_t* fm = nullptr);
 
+    /**
+     * 从mds拉去复制组信息，如果当前leader在复制组中
+     * 则更新本地缓存，反之则不更新
+     * @param: logicPoolId 逻辑池id
+     * @param: copysetId 复制组id
+     * @param: leaderAddr 当前的leader address
+     */
+    void UpdateCopysetInfoIfMatchCurrentLeader(
+       LogicPoolID logicPoolId,
+       CopysetID copysetId,
+       const ChunkServerAddr& leaderAddr);
+
  private:
     MDSClient*          mdsclient_;
     MetaCacheOption_t   metacacheopt_;
