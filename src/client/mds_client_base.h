@@ -70,6 +70,7 @@ using curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using curve::mds::topology::GetClusterInfoRequest;
 using curve::mds::topology::GetClusterInfoResponse;
+using curve::mds::topology::GetChunkServerInfoResponse;
 
 extern const char* kRootUserName;
 
@@ -400,6 +401,20 @@ class MDSClientBase {
     void Register(const std::string& ip,
                     uint16_t port,
                     RegistClientResponse* reponse,
+                    brpc::Controller* cntl,
+                    brpc::Channel* channel);
+
+    /**
+     * 获取chunkserverID信息
+     * @param[in]: ip为当前client的监听地址
+     * @param[in]: port为监听端口
+     * @param[out]: response为该rpc的response，提供给外部处理
+     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
+     * @param[in]:channel是当前与mds建立的通道
+     */
+    void GetChunkServerInfo(const std::string& ip,
+                    uint16_t port,
+                    GetChunkServerInfoResponse* reponse,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
 
