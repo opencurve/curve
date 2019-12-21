@@ -107,7 +107,8 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         }
         LOG(INFO) << "start exec cmd: " << cmd_dir;
         if (expectAssert) {
-            ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
+            int ret = execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
+            ASSERT_NE(ret, -1) << "exec failed, errno = " << errno;
         } else {
             execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
         }
