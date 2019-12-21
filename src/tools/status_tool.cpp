@@ -60,16 +60,13 @@ int StatusTool::ChunkServerListCmd() {
     for (const auto& chunkserver : chunkservers) {
         auto csId = chunkserver.chunkserverid();
         double unhealthyRatio;
+        // 跳过retired状态的chunkserver
+        if (chunkserver.status() == ChunkServerStatus::RETIRED) {
+            continue;
+        }
         if (chunkserver.onlinestate() != OnlineState::ONLINE) {
             // 如果是retired，则unhealthyRatio为0，否则为1
-            if (chunkserver.status() == ChunkServerStatus::RETIRED) {
-                unhealthyRatio = 0;
-            } else {
-                unhealthyRatio = 1;
-            }
-            if (FLAGS_unhealthy && unhealthyRatio == 0) {
-                continue;
-            }
+            unhealthyRatio = 1;
             offline++;
         } else {
             if (FLAGS_offline) {
@@ -238,7 +235,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         std::cout << "ListChunkServersInCluster fail!" << std::endl;
         return -1;
     }
-    uint64_t total = chunkservers.size();
+    uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
     std::map<uint64_t, int> leftSizeNum;
@@ -251,6 +248,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         } else {
             offline++;
         }
+        total++;
         if (!checkLeftSize) {
             continue;
         }
