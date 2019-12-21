@@ -343,8 +343,8 @@ class MDSClient {
       * @param[out]: 待获取的chunkserverid
       * @return：成功返回ok
       */
-    LIBCURVE_ERROR GetChunkServerInfo(const ChunkServerAddr& addr,
-                                      ChunkServerID* id);
+    LIBCURVE_ERROR GetChunkServerID(const ChunkServerAddr& addr,
+                                    ChunkServerID* id);
 
      /**
       * 析构，回收资源

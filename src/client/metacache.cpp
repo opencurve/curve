@@ -165,7 +165,7 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
 
     // 如果更新失败，说明chunksderverid不合法，就从mds拉取当前chunkserver的id信息
     if (ret == -1 && !leaderaddr.IsEmpty()) {
-        ret = mdsclient_->GetChunkServerInfo(leaderaddr, &csid);
+        ret = mdsclient_->GetChunkServerID(leaderaddr, &csid);
 
         if (ret != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "get chunkserver id from mds failed, addr = "
