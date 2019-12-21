@@ -392,14 +392,14 @@ test out/in chunkserver recover
 #    check copies consistency
     [Teardown]	   wait iops ok    ${vm_iops_limit}
 
-test suspend up recover chunkserver
-    [Tags]    P1    base    first release   failover  longtime
-    test suspend recover copyset
-#    check vm iops
-    check data consistency
-#    check copies consistency
-    [Teardown]	   wait iops ok   ${vm_iops_limit}
-
+#test suspend up recover chunkserver
+#    [Tags]    P1    base    first release   failover  longtime
+#    test suspend recover copyset
+##    check vm iops
+#    check data consistency
+##    check copies consistency
+#    [Teardown]	   wait iops ok   ${vm_iops_limit}
+#
 test suspend delete and up recover chunkserver
     [Tags]    P1    base    first release   failover  longtime  no-need
     test suspend delete recover copyset
@@ -424,7 +424,7 @@ test pendding host all cs
    check vm iops 
    check data consistency
 #   check copies consistency
-    [Teardown]	  wait iops ok   ${vm_iops_limit}
+   [Teardown]	  wait iops ok   ${vm_iops_limit}
 
 test ipmitool restart chunkserver node
    [Tags]    P1    base    first release   failover  ipmitool
@@ -432,6 +432,7 @@ test ipmitool restart chunkserver node
    sleep  60
    check vm iops
    check data consistency
+   sleep  300
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
 
@@ -489,7 +490,7 @@ inject all chunkserver down
     [Tags]    P1    base    first release   failover
     test stop all chunkserver
     test start all chunkserver
-    sleep   60
+    sleep   300
     check vm iops
     check data consistency
 #    check copies consistency
@@ -500,7 +501,7 @@ inject all chunkserver down 10min
     test stop all chunkserver
     sleep   600
     test start all chunkserver
-    sleep   80
+    sleep   300
     check vm iops
     check data consistency
 #    check copies consistency
