@@ -64,6 +64,7 @@ using curve::mds::topology::TopologyService;
 using curve::mds::RegistClientResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using curve::client::GetLeaderInfo;
+using curve::client::GetLeaderRpcOption;
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
 using curve::mds::topology::OnlineState;
@@ -2105,8 +2106,10 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
     FakeReturn fakeret2(nullptr, static_cast<void*>(&response));
     fakeCliServices[2].SetFakeReturn(&fakeret2);
 
+    GetLeaderRpcOption rpcOption;
+    rpcOption.rpcTimeoutMs = 1000;
     GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
-        copysetPeerInfos, -1);
+        copysetPeerInfos, -1, rpcOption);
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
     ASSERT_EQ(1, GetAllInvokeTimes());
@@ -2126,7 +2129,7 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
     fakeCliServices[2].SetFakeReturn(&fakeret2);
 
     getLeaderInfo = GetLeaderInfo(kLogicPoolId, kCopysetId,
-        copysetPeerInfos, currentLeaderIndex);
+        copysetPeerInfos, currentLeaderIndex, rpcOption);
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
 
@@ -2149,7 +2152,7 @@ TEST_F(ServiceHelperGetLeaderTest, NormalTest) {
     fakeCliServices[2].SetFakeReturn(&fakeret2);
 
     getLeaderInfo = GetLeaderInfo(kLogicPoolId, kCopysetId,
-        copysetPeerInfos, currentLeaderIndex);
+        copysetPeerInfos, currentLeaderIndex, rpcOption);
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
 
@@ -2172,8 +2175,10 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayTest) {
     fakeCliServices[0].SetDelayMs(300);
     fakeCliServices[1].SetDelayMs(300);
 
+    GetLeaderRpcOption rpcOption;
+    rpcOption.rpcTimeoutMs = 1000;
     GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
-        copysetPeerInfos, currentLeaderIndex);
+        copysetPeerInfos, currentLeaderIndex, rpcOption);
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
 
@@ -2214,8 +2219,10 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayAndExceptionTest) {
         FakeReturn fakeret(&controller, static_cast<void*>(&response));
         fakeCliServices[1].SetFakeReturn(&fakeret);
 
+        GetLeaderRpcOption rpcOption;
+        rpcOption.rpcTimeoutMs = 1000;
         GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
-            copysetPeerInfos, currentLeaderIndex);
+            copysetPeerInfos, currentLeaderIndex, rpcOption);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
@@ -2267,8 +2274,10 @@ TEST_F(ServiceHelperGetLeaderTest, AllChunkServerExceptionTest) {
         fakeCliServices[0].SetFakeReturn(&fakeret);
         fakeCliServices[1].SetFakeReturn(&fakeret);
 
+        GetLeaderRpcOption rpcOption;
+        rpcOption.rpcTimeoutMs = 1000;
         GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
-            copysetPeerInfos, currentLeaderIndex);
+            copysetPeerInfos, currentLeaderIndex, rpcOption);
         ASSERT_EQ(-1, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
             &leaderId, nullptr));
         ASSERT_GE(fakeCliServices[0].GetInvokeTimes() +

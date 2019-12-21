@@ -1059,7 +1059,7 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
-LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
+LIBCURVE_ERROR MDSClient::GetChunkServerID(const ChunkServerAddr& csAddr,
     ChunkServerID* id) {
     if (!id) {
         LOG(ERROR) << "id pointer is null!";
@@ -1068,7 +1068,8 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
 
     bool valid = NetCommon::CheckAddressValid(csAddr.ToString());
     if (!valid) {
-        LOG(ERROR) << "chunkserver address invalid!";
+        LOG(ERROR) << "chunkserver address "
+                   << csAddr.ToString() << " invalid!";
         return LIBCURVE_ERROR::FAILED;
     }
 
@@ -1076,7 +1077,7 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
         curve::mds::topology::GetChunkServerInfoResponse response;
         std::vector<std::string> strs;
         curve::common::SplitString(csAddr.ToString(), ":", &strs);
-        std::string ip = strs[0];
+        const std::string& ip = strs[0];
         uint64_t port;
         curve::common::StringToUll(strs[1], &port);
         mdsClientBase_.GetChunkServerInfo(ip, port, &response, cntl, channel);
@@ -1088,15 +1089,17 @@ LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
             return -cntl->ErrorCode();
         }
 
-        uint32_t stcode = response.statuscode();
-        LOG_IF(ERROR, stcode != 0)
-                << "GetChunkServerInfo: errocde = " << stcode
+        int statusCode = response.statuscode();
+        LOG_IF(ERROR, statusCode != 0)
+                << "GetChunkServerInfo: errocde = " << statusCode
                 << ", log id = " << cntl->log_id();
 
-        if (stcode == 0) {
+        if (statusCode == 0) {
             *id = response.chunkserverinfo().chunkserverid();
+            return LIBCURVE_ERROR::OK;
+        } else {
+            return LIBCURVE_ERROR::FAILED;
         }
-        return stcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
