@@ -4,6 +4,8 @@ dir=`pwd`
 bazel clean
 rm -rf curvefs_python/BUILD
 rm -rf curvefs_python/tmplib/
+rm -rf curvesnapshot_python/BUILD
+rm -rf curvesnapshot_python/tmplib/
 rm -rf *.deb
 rm -rf build
 
@@ -103,11 +105,6 @@ then
 	exit
 fi
 cp -r curve-monitor build/
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp -r curve-snapshotcloneserver build/
 if [ $? -ne 0 ]
 then
 	exit
@@ -267,17 +264,6 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-mkdir -p build/curve-snapshotcloneserver/usr/bin
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp ./bazel-bin/src/snapshotcloneserver/snapshotcloneserver \
-build/curve-snapshotcloneserver/usr/bin/curve-snapshotcloneserver
-if [ $? -ne 0 ]
-then
-	exit
-fi
 
 #step4 获取git提交版本信息，记录到debian包的配置文件
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
@@ -293,7 +279,6 @@ echo ${version} >> build/curve-sdk/DEBIAN/control
 echo ${version} >> build/curve-chunkserver/DEBIAN/control
 echo ${version} >> build/curve-tools/DEBIAN/control
 echo ${version} >> build/curve-monitor/DEBIAN/control
-echo ${version} >> build/curve-snapshotcloneserver/DEBIAN/control
 
 #step5 打包debian包
 dpkg-deb -b build/curve-mds .
@@ -301,7 +286,6 @@ dpkg-deb -b build/curve-sdk .
 dpkg-deb -b build/curve-chunkserver .
 dpkg-deb -b build/curve-tools .
 dpkg-deb -b build/curve-monitor .
-dpkg-deb -b build/curve-snapshotcloneserver .
 #aws-c-common(commit=0302570a3cbabd98293ee03971e0867f28355086)
 #aws-checksums(commit=78be31b81a2b0445597e60ecb2412bc44e762a99)
 #aws-c-event-stream(commit=ad9a8b2a42d6c6ef07ccf251b5038b89487eacb3)

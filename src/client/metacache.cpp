@@ -160,7 +160,50 @@ int MetaCache::UpdateLeaderInternal(LogicPoolID logicPoolId,
             << ", logicpool id = " << logicPoolId;
         return -1;
     }
-    return toupdateCopyset->UpdateLeaderInfo(csid, leaderaddr);
+
+    ret = toupdateCopyset->UpdateLeaderInfo(csid, leaderaddr);
+
+    // 如果更新失败，说明chunksderverid不合法，就从mds拉取当前chunkserver的id信息
+    if (ret == -1 && !leaderaddr.IsEmpty()) {
+        ret = mdsclient_->GetChunkServerInfo(leaderaddr, &csid);
+
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "get chunkserver id from mds failed, addr = "
+                       << leaderaddr.ToString();
+            return -1;
+        }
+
+        UpdateCopysetInfoIfMatchCurrentLeader(
+            logicPoolId, copysetId, leaderaddr);
+        *toupdateCopyset = GetCopysetinfo(logicPoolId, copysetId);
+        ret = toupdateCopyset->UpdateLeaderInfo(csid, leaderaddr);
+    }
+
+    return ret;
+}
+
+void MetaCache::UpdateCopysetInfoIfMatchCurrentLeader(
+    LogicPoolID logicPoolId,
+    CopysetID copysetId,
+    const ChunkServerAddr& leaderAddr) {
+    std::vector<CopysetInfo> copysetInfos;
+    int ret = mdsclient_->GetServerList(logicPoolId,
+                                        {copysetId},
+                                        &copysetInfos);
+
+    bool needUpdate = (!copysetInfos.empty()) &&
+                      (copysetInfos[0].HasChunkServerInCopyset(leaderAddr));
+    if (needUpdate) {
+        LOG(INFO) << "Update copyset info"
+            << ", logicpool id = " << logicPoolId
+            << ", copyset id = " << copysetId
+            << ", current leader = " << leaderAddr.ToString();
+
+        // 更新chunkserverid到copyset的映射关系
+        UpdateChunkserverCopysetInfo(logicPoolId, copysetInfos[0]);
+        // 更新logicpool和copysetid到copysetinfo的映射
+        UpdateCopysetInfo(logicPoolId, copysetId, copysetInfos[0]);
+    }
 }
 
 CopysetInfo_t MetaCache::GetServerList(LogicPoolID logicPoolId,
