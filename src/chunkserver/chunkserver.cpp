@@ -289,10 +289,7 @@ int ChunkServer::Run(int argc, char** argv) {
         return -1;
     }
 
-    toStop_ = false;
-    while (!toStop_ && !brpc::IsAskedToQuit()) {
-        sleep(1);
-    }
+    server.RunUntilAskedToQuit();
 
     LOG(INFO) << "ChunkServer is going to quit.";
     LOG_IF(ERROR, heartbeat_.Fini() != 0)
@@ -312,7 +309,7 @@ int ChunkServer::Run(int argc, char** argv) {
 }
 
 void ChunkServer::Stop() {
-    toStop_ = true;
+    brpc::AskToQuit();
 }
 
 void ChunkServer::InitChunkFilePoolOptions(
