@@ -73,9 +73,6 @@ class ChunkServer {
         const std::string &metaUri, ChunkServerMetadata *metadata);
 
  private:
-    // false-停止运行
-    volatile bool toStop_;
-
     // copysetNodeManager_ 管理chunkserver上所有copysetNode
     CopysetNodeManager* copysetNodeManager_;
 
