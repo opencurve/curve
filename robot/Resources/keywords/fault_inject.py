@@ -1248,6 +1248,14 @@ def test_restart_chunkserver_num(num):
     except Exception as e:
         raise e
 
+def stop_scheduler():
+    ssh = shell_operator.create_ssh_connect(config.mds_list[0], 1046, config.abnormal_user)
+    for mds_host in config.mds_list:
+        logger.info("|------begin stop copyset scheduler %s------|"%(mds_host))
+        cmd = "curl -L %s:6666/flags/enableCopySetScheduler?setvalue=false"%mds_host
+        rs = shell_operator.ssh_exec(ssh,cmd)
+    time.sleep(180)
+
 def test_start_all_chunkserver():
     start_iops = get_cluster_iops()
     try:
