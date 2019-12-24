@@ -24,6 +24,7 @@ DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
 DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
 DECLARE_bool(showAllocSize);
 DECLARE_bool(showFileSize);
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 
 class NameSpaceToolTest : public ::testing::Test {
  protected:
@@ -70,16 +71,37 @@ class NameSpaceToolTest : public ::testing::Test {
     std::shared_ptr<curve::tool::MockNameSpaceToolCore> core_;
 };
 
+TEST_F(NameSpaceToolTest, SupportCommand) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    ASSERT_TRUE(namespaceTool.SupportCommand("get"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("list"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("seginfo"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("delete"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("clean-recycle"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("create"));
+    ASSERT_TRUE(namespaceTool.SupportCommand("chunk-location"));
+    ASSERT_FALSE(namespaceTool.SupportCommand("none"));
+}
+
 TEST_F(NameSpaceToolTest, GetFile) {
     curve::tool::NameSpaceTool namespaceTool(core_);
     namespaceTool.PrintHelp("abc");
-    ASSERT_EQ(-1, namespaceTool.RunCommand("abc"));
     namespaceTool.PrintHelp("get");
     FileInfo fileInfo;
     GetFileInfoForTest(&fileInfo);
     PageFileSegment segment;
     GetSegmentForTest(&segment);
     FLAGS_fileName = "/test/";
+    // 0、Init失败
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("get"));
+
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("abc"));
 
     // 1、正常情况
     EXPECT_CALL(*core_, GetFileInfo(_, _))
@@ -151,6 +173,9 @@ TEST_F(NameSpaceToolTest, ListDir) {
     GetFileInfoForTest(&fileInfo);
     PageFileSegment segment;
     GetSegmentForTest(&segment);
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     std::vector<FileInfo> files;
@@ -230,6 +255,9 @@ TEST_F(NameSpaceToolTest, SegInfo) {
         segments.emplace_back(segment);
     }
     FLAGS_fileName = "/test";
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, GetFileSegments(_, _))
@@ -248,6 +276,9 @@ TEST_F(NameSpaceToolTest, SegInfo) {
 TEST_F(NameSpaceToolTest, CreateFile) {
     curve::tool::NameSpaceTool namespaceTool(core_);
     namespaceTool.PrintHelp("create");
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, CreateFile(_, _))
@@ -265,6 +296,9 @@ TEST_F(NameSpaceToolTest, CreateFile) {
 TEST_F(NameSpaceToolTest, DeleteFile) {
     curve::tool::NameSpaceTool namespaceTool(core_);
     namespaceTool.PrintHelp("delete");
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, DeleteFile(_, _))
@@ -282,6 +316,9 @@ TEST_F(NameSpaceToolTest, DeleteFile) {
 TEST_F(NameSpaceToolTest, CleanRecycle) {
     curve::tool::NameSpaceTool namespaceTool(core_);
     namespaceTool.PrintHelp("clean-recycle");
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, CleanRecycleBin(_))
@@ -307,6 +344,9 @@ TEST_F(NameSpaceToolTest, PrintChunkLocation) {
     }
     uint64_t chunkId = 2001;
     std::pair<uint32_t, uint32_t> copyset = {1, 101};
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*core_, QueryChunkCopyset(_, _, _, _))

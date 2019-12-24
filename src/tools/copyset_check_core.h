@@ -81,6 +81,13 @@ class CopysetCheckCore {
     virtual ~CopysetCheckCore() = default;
 
     /**
+     *  @brief 初始化mds client
+     *  @param mdsAddr mds的地址，支持多地址，用","分隔
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int Init(const std::string& mdsAddr);
+
+    /**
     * @brief 检查单个copyset的健康状态
     *
     * @param logicalPoolId 逻辑池Id

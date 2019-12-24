@@ -25,21 +25,22 @@ class MockNameSpaceToolCore : public NameSpaceToolCore {
     MockNameSpaceToolCore() : NameSpaceToolCore(
                         std::make_shared<MDSClient>()) {}
     ~MockNameSpaceToolCore() {}
-    MOCK_METHOD2(GetFileInfo, int(std::string, FileInfo*));
-    MOCK_METHOD2(ListDir, int(std::string, std::vector<FileInfo>*));
+    MOCK_METHOD1(Init, int(const std::string&));
+    MOCK_METHOD2(GetFileInfo, int(const std::string&, FileInfo*));
+    MOCK_METHOD2(ListDir, int(const std::string&, std::vector<FileInfo>*));
     MOCK_METHOD3(GetChunkServerListInCopySets, int(const PoolIdType&,
                                      const CopySetIdType&,
                                      std::vector<ChunkServerLocation>*));
-    MOCK_METHOD2(DeleteFile, int(std::string, bool));
+    MOCK_METHOD2(DeleteFile, int(const std::string&, bool));
     MOCK_METHOD2(CreateFile, int(const std::string&, uint64_t));
-    MOCK_METHOD2(GetAllocatedSize, int(std::string, uint64_t*));
-    MOCK_METHOD2(GetFileSegments, int(const std::string& fileName,
-                                  std::vector<PageFileSegment>* segments));
+    MOCK_METHOD2(GetAllocatedSize, int(const std::string&, uint64_t*));
+    MOCK_METHOD2(GetFileSegments, int(const std::string&,
+                                  std::vector<PageFileSegment>*));
     MOCK_METHOD4(QueryChunkCopyset, int(const std::string&, uint64_t,
                           uint64_t*,
                           std::pair<uint32_t, uint32_t>*));
     MOCK_METHOD1(CleanRecycleBin, int(const std::string&));
-    MOCK_METHOD2(GetFileSize, int(std::string, uint64_t*));
+    MOCK_METHOD2(GetFileSize, int(const std::string&, uint64_t*));
 };
 }  // namespace tool
 }  // namespace curve
