@@ -25,6 +25,7 @@ DECLARE_uint32(serverId);
 DECLARE_string(serverIp);
 DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
 DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 
 class CopysetCheckTest : public ::testing::Test {
  protected:
@@ -108,6 +109,15 @@ class CopysetCheckTest : public ::testing::Test {
     std::shared_ptr<curve::tool::MockCopysetCheckCore> core_;
 };
 
+TEST_F(CopysetCheckTest, SupportCommand) {
+    curve::tool::CopysetCheck copysetCheck(core_);
+    ASSERT_TRUE(copysetCheck.SupportCommand("check-copyset"));
+    ASSERT_TRUE(copysetCheck.SupportCommand("check-chunkserver"));
+    ASSERT_TRUE(copysetCheck.SupportCommand("check-server"));
+    ASSERT_TRUE(copysetCheck.SupportCommand("check-cluster"));
+    ASSERT_FALSE(copysetCheck.SupportCommand("check-nothing"));
+}
+
 TEST_F(CopysetCheckTest, CheckOneCopyset) {
     curve::tool::CopysetCheck copysetCheck(core_);
     butil::IOBuf iobuf;
@@ -116,6 +126,15 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
             {"127.0.0.1:9091", "127.0.0.1:9092", "127.0.0.1:9093"};
     std::string copysetDetail = iobuf.to_string();
 
+    // Init失败的情况
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, copysetCheck.RunCommand("check-copyset"));
+
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
     // 不支持的命令
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-nothings"));
     copysetCheck.PrintHelp("check-nothins");
@@ -152,7 +171,9 @@ TEST_F(CopysetCheckTest, CheckOneCopyset) {
 
 TEST_F(CopysetCheckTest, testCheckChunkServer) {
     curve::tool::CopysetCheck copysetCheck(core_);
-
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
     // 没有指定chunkserver的话报错
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-chunkserver"));
     copysetCheck.PrintHelp("check-chunkserver");
@@ -212,6 +233,9 @@ TEST_F(CopysetCheckTest, testCheckServer) {
     curve::tool::CopysetCheck copysetCheck(core_);
     std::vector<std::string> chunkservers =
             {"127.0.0.1:9091", "127.0.0.1:9092", "127.0.0.1:9093"};
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 没有指定server的话报错
     ASSERT_EQ(-1, copysetCheck.RunCommand("check-server"));
@@ -272,6 +296,10 @@ TEST_F(CopysetCheckTest, testCheckServer) {
 
 TEST_F(CopysetCheckTest, testCheckCluster) {
     curve::tool::CopysetCheck copysetCheck(core_);
+    EXPECT_CALL(*core_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+
     // 健康的情况
     EXPECT_CALL(*core_, CheckCopysetsInCluster())
         .Times(1)

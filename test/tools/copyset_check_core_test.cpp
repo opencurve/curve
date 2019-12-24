@@ -142,6 +142,16 @@ class CopysetCheckCoreTest : public ::testing::Test {
     std::shared_ptr<curve::tool::MockChunkServerClient> csClient_;
 };
 
+TEST_F(CopysetCheckCoreTest, Init) {
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(2)
+        .WillOnce(Return(0))
+        .WillOnce(Return(-1));
+    curve::tool::CopysetCheckCore copysetCheck(mdsClient_, csClient_);
+    ASSERT_EQ(0, copysetCheck.Init("127.0.0.1:6666"));
+    ASSERT_EQ(-1, copysetCheck.Init("127.0.0.1:6666"));
+}
+
 // CheckOneCopyset正常情况
 TEST_F(CopysetCheckCoreTest, CheckOneCopysetNormal) {
     std::vector<ChunkServerLocation> csLocs;
@@ -162,7 +172,7 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetNormal) {
     EXPECT_CALL(*csClient_, Init(_))
         .Times(5)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(3)
         .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
                         Return(0)))
@@ -216,7 +226,7 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetError) {
     EXPECT_CALL(*csClient_, Init(_))
         .Times(3)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)));
@@ -232,7 +242,7 @@ TEST_F(CopysetCheckCoreTest, CheckOneCopysetError) {
         .Times(3)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
     .Times(2)
     .WillOnce(DoAll(SetArgPointee<0>(leaderBuf),
                         Return(0)))
@@ -277,7 +287,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerHealthy) {
     EXPECT_CALL(*csClient_, Init(_))
         .Times(3)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(2)
         .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)))
@@ -299,7 +309,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerHealthy) {
     EXPECT_CALL(*csClient_, Init(_))
         .Times(3)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(2)
         .WillOnce(DoAll(SetArgPointee<0>(followerBuf),
                         Return(0)))
@@ -355,7 +365,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerError) {
         .Times(2)
         .WillOnce(Return(-1))
         .WillOnce(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(1)
         .WillOnce(Return(-1));
     EXPECT_CALL(*mdsClient_, GetCopySetsInChunkServer(csAddr, _))
@@ -482,7 +492,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerUnhealthy) {
         .WillRepeatedly(Return(0));
     EXPECT_CALL(*csClient_, Init(csAddr))
         .WillOnce(Return(-1));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
@@ -532,7 +542,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
     EXPECT_CALL(*csClient_, Init(_))
         .Times(4)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(2)
         .WillOnce(DoAll(SetArgPointee<0>(iobuf1),
                         Return(0)))
@@ -555,7 +565,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
     EXPECT_CALL(*csClient_, Init(_))
         .Times(4)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(2)
         .WillOnce(DoAll(SetArgPointee<0>(iobuf1),
                         Return(0)))
@@ -619,7 +629,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerError) {
         .Times(2)
         .WillOnce(Return(-1))
         .WillOnce(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
@@ -664,7 +674,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterNormal) {
     EXPECT_CALL(*csClient_, Init(_))
         .Times(3)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));
@@ -727,7 +737,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
     EXPECT_CALL(*csClient_, Init(_))
         .Times(6)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*csClient_, GetCopysetStatus(_))
+    EXPECT_CALL(*csClient_, GetRaftStatus(_))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>(iobuf),
                         Return(0)));

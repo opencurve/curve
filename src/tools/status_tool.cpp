@@ -12,21 +12,64 @@ DEFINE_bool(unhealthy, false, "if true, only list chunkserver that unhealthy "
                               "ratio greater than 0");
 DEFINE_bool(checkHealth, true, "if true, it will check the health "
                                 "state of chunkserver in chunkserver-list");
+DECLARE_string(mdsAddr);
+DECLARE_string(etcdAddr);
 
 namespace curve {
 namespace tool {
 
+int StatusTool::Init(const std::string& command) {
+    if (CommandNeedMds(command) && !mdsInited_) {
+        if (mdsClient_->Init(FLAGS_mdsAddr) != 0) {
+            std::cout << "Init mdsClient failed!" << std::endl;
+            return -1;
+        }
+        if (nameSpaceToolCore_->Init(FLAGS_mdsAddr) != 0) {
+            std::cout << "Init nameSpaceToolCore failed!" << std::endl;
+            return -1;
+        }
+        if (copysetCheckCore_->Init(FLAGS_mdsAddr) != 0) {
+            std::cout << "Init copysetCheckCore failed!" << std::endl;
+            return -1;
+        }
+        mdsInited_ = true;
+    }
+    if (CommandNeedEtcd(command) && !etcdInited_) {
+        if (etcdClient_->Init(FLAGS_etcdAddr) != 0) {
+            std::cout << "Init etcdClient failed!" << std::endl;
+            return -1;
+        }
+        etcdInited_ = true;
+    }
+    return 0;
+}
+
+bool StatusTool::CommandNeedEtcd(const std::string& command) {
+    return (command == kEtcdStatusCmd || command == kStatusCmd);
+}
+
+bool StatusTool::CommandNeedMds(const std::string& command) {
+    return (command != kEtcdStatusCmd);
+}
+
+bool StatusTool::SupportCommand(const std::string& command) {
+    return (command == kSpaceCmd || command == kStatusCmd
+                                 || command == kChunkserverListCmd
+                                 || command == kChunkserverStatusCmd
+                                 || command == kMdsStatusCmd
+                                 || command == kEtcdStatusCmd);
+}
+
 void StatusTool::PrintHelp(const std::string& cmd) {
     std::cout << "Example :" << std::endl;
-    if (cmd == "etcd-status") {
-        std::cout << "curve_ops_tool " << cmd
-                  << " -etcdAddr=127.0.0.1:6666" << std::endl;
-        return;
+    std::cout << "curve_ops_tool " << cmd;
+    if (CommandNeedMds(cmd)) {
+        std::cout << " -mdsAddr=127.0.0.1:6666";
     }
-    std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666";
-    if (cmd == "status") {
+    if (CommandNeedEtcd(cmd)) {
         std::cout << " -etcdAddr=127.0.0.1:6666";
-    } else if (cmd == "chunkserver-list") {
+    }
+    if (cmd == kChunkserverListCmd) {
         std::cout << " [-offline] [-unhealthy] [-checkHealth=false]";
     }
     std::cout << std::endl;
@@ -71,8 +114,9 @@ int StatusTool::ChunkServerListCmd() {
                 continue;
             }
             if (FLAGS_checkHealth) {
-                copysetCheck_->CheckCopysetsOnChunkServer(csId);
-                const auto& statistics = copysetCheck_->GetCopysetStatistics();
+                copysetCheckCore_->CheckCopysetsOnChunkServer(csId);
+                const auto& statistics =
+                                copysetCheckCore_->GetCopysetStatistics();
                 unhealthyRatio = statistics.unhealthyRatio;
                 if (FLAGS_unhealthy && unhealthyRatio == 0) {
                     continue;
@@ -145,13 +189,13 @@ int StatusTool::ChunkServerStatusCmd() {
 
 int StatusTool::PrintClusterStatus() {
     std::cout << "Cluster status:" << std::endl;
-    int res = copysetCheck_->CheckCopysetsInCluster();
+    int res = copysetCheckCore_->CheckCopysetsInCluster();
     if (res == 0) {
         std::cout << "cluster is healthy!" << std::endl;
     } else {
         std::cout << "cluster is not healthy!" << std::endl;
     }
-    const auto& statistics = copysetCheck_->GetCopysetStatistics();
+    const auto& statistics = copysetCheckCore_->GetCopysetStatistics();
     std::cout << "total copysets: " << statistics.totalNum
               << ", unhealthy copysets: " << statistics.unhealthyNum
               << ", unhealthy_ratio: "
@@ -322,7 +366,7 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
         spaceInfo->physicalUsed += size;
     }
     // 通过NameSpace工具获取RecycleBin的大小
-    res = nameSpaceTool_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
+    res = nameSpaceToolCore_->GetAllocatedSize(curve::mds::RECYCLEBINDIR,
                                          &spaceInfo->canBeRecycled);
     if (res != 0) {
         std::cout << "GetAllocatedSize of RecycleBin fail!" << std::endl;
@@ -332,17 +376,21 @@ int StatusTool::GetSpaceInfo(SpaceInfo* spaceInfo) {
 }
 
 int StatusTool::RunCommand(const std::string &cmd) {
-    if (cmd == "space") {
+    if (Init(cmd) != 0) {
+        std::cout << "Init StatusTool failed" << std::endl;
+        return -1;
+    }
+    if (cmd == kSpaceCmd) {
         return SpaceCmd();
-    } else if (cmd == "status") {
+    } else if (cmd == kStatusCmd) {
         return StatusCmd();
-    } else if (cmd == "chunkserver-list") {
+    } else if (cmd == kChunkserverListCmd) {
         return ChunkServerListCmd();
-    } else if (cmd == "chunkserver-status") {
+    } else if (cmd == kChunkserverStatusCmd) {
         return ChunkServerStatusCmd();
-    } else if (cmd == "mds-status") {
+    } else if (cmd == kMdsStatusCmd) {
         return PrintMdsStatus();
-    } else if (cmd == "etcd-status") {
+    } else if (cmd == kEtcdStatusCmd) {
         return PrintEtcdStatus();
     } else {
         std::cout << "Command not supported!" << std::endl;
