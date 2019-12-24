@@ -18,8 +18,10 @@
 #include "src/client/metacache.h"
 #include "src/client/mds_client.h"
 #include "src/common/timeutility.h"
+#include "src/common/string_util.h"
 #include "src/client/lease_excutor.h"
 
+using curve::common::NetCommon;
 using curve::common::TimeUtility;
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
@@ -1053,6 +1055,48 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
             }
         }
         return retcode;
+    };
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
+LIBCURVE_ERROR MDSClient::GetChunkServerInfo(const ChunkServerAddr& csAddr,
+    ChunkServerID* id) {
+    if (!id) {
+        LOG(ERROR) << "id pointer is null!";
+        return LIBCURVE_ERROR::FAILED;
+    }
+
+    bool valid = NetCommon::CheckAddressValid(csAddr.ToString());
+    if (!valid) {
+        LOG(ERROR) << "chunkserver address invalid!";
+        return LIBCURVE_ERROR::FAILED;
+    }
+
+    auto task = RPCTaskDefine {
+        curve::mds::topology::GetChunkServerInfoResponse response;
+        std::vector<std::string> strs;
+        curve::common::SplitString(csAddr.ToString(), ":", &strs);
+        std::string ip = strs[0];
+        uint64_t port;
+        curve::common::StringToUll(strs[1], &port);
+        mdsClientBase_.GetChunkServerInfo(ip, port, &response, cntl, channel);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "GetChunkServerInfo invoke failed, errcorde = "
+                << response.statuscode() << ", error content:"
+                << cntl->ErrorText() << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        uint32_t stcode = response.statuscode();
+        LOG_IF(ERROR, stcode != 0)
+                << "GetChunkServerInfo: errocde = " << stcode
+                << ", log id = " << cntl->log_id();
+
+        if (stcode == 0) {
+            *id = response.chunkserverinfo().chunkserverid();
+        }
+        return stcode;
     };
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }

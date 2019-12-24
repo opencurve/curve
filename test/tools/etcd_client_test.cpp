@@ -54,7 +54,7 @@ TEST_F(EtcdClientTest, GetEtcdClusterStatus) {
     std::map<std::string, bool> onlineState;
 
     // 正常情况
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     ASSERT_EQ(0, client.GetEtcdClusterStatus(&leaderAddr, &onlineState));
     std::map<std::string, bool> expected = {{"127.0.0.1:2366", true},
                                             {"127.0.0.1:2368", false}};

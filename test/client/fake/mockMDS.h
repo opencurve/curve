@@ -343,8 +343,37 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
         response->CopyFrom(*resp);
     }
 
+    void GetChunkServer(
+            ::google::protobuf::RpcController* controller,
+            const curve::mds::topology::GetChunkServerInfoRequest* request,
+            curve::mds::topology::GetChunkServerInfoResponse* response,
+            ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (getidfakeret_->controller_ != nullptr
+         && getidfakeret_->controller_->Failed()) {
+            auto cntl = static_cast<brpc::Controller*>(
+                getidfakeret_->controller_);
+            auto brpccntl = static_cast<brpc::Controller*>(controller);
+            brpccntl->SetFailed(cntl->ErrorCode(), "failed");
+        }
+
+        retrytimes_++;
+
+        LOG(INFO) << "GetChunkServerInfo";
+
+        auto resp = static_cast<
+            curve::mds::topology::GetChunkServerInfoResponse*>(
+            getidfakeret_->response_);
+
+        response->CopyFrom(*resp);
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
+    }
+
+    void SetGetChunkserveridFakeReturn(FakeReturn* fakeret) {
+        getidfakeret_ = fakeret;
     }
 
     void CleanRetryTimes() {
@@ -357,6 +386,7 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
 
     uint64_t retrytimes_;
     FakeReturn* fakeret_;
+    FakeReturn* getidfakeret_;
 };
 
 class FakeCliService : public curve::chunkserver::CliService2 {

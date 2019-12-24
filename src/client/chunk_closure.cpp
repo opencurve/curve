@@ -91,6 +91,8 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
 
     LOG(WARNING) << "rpc failed, sleep(us) = "
                 << failReqOpt_.chunkserverOPRetryIntervalUS << ", " << *reqCtx
+                << ", cntl status = " << cntlstatus
+                << ", response status = " << rpcstatus
                 << ", reteied times = " << reqDone->GetRetriedTimes()
                 << ", IO id = " << reqDone->GetIOTracker()->GetID()
                 << ", request id = " << reqCtx->id_;

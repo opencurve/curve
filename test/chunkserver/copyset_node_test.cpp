@@ -525,18 +525,6 @@ TEST_F(CopysetNodeTest, get_conf_change) {
     conf1.add_peer(peer1);
     conf2.add_peer(peer1);
 
-    // leader还没开始提供服务
-    {
-        CopysetNode copysetNode(logicPoolID, copysetID, conf);
-
-        ConfigChangeType type;
-        Configuration oldConf;
-        Peer alterPeer;
-
-        EXPECT_EQ(0, copysetNode.GetConfChange(&type, &oldConf, &alterPeer));
-        EXPECT_EQ(ConfigChangeType::NONE, type);
-    }
-
     // 当前没有在做配置变更
     {
         CopysetNode copysetNode(logicPoolID, copysetID, conf);
