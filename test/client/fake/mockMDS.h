@@ -397,6 +397,8 @@ class FakeCliService : public curve::chunkserver::CliService2 {
                     const curve::chunkserver::GetLeaderRequest2* request,
                     curve::chunkserver::GetLeaderResponse2* response,
                     ::google::protobuf::Closure* done) {
+        invoketimes_++;
+
         brpc::ClosureGuard done_guard(done);
         if (fakeret_->controller_ != nullptr &&
             fakeret_->controller_->Failed()) {
@@ -413,10 +415,9 @@ class FakeCliService : public curve::chunkserver::CliService2 {
             fakeret_->response_);
         response->CopyFrom(*resp);
 
-        invoketimes_++;
-
         if (waitMs_ != 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(waitMs_));
+            LOG(INFO) << "Get leader will sleep " << waitMs_ << " ms";
         }
     }
 
