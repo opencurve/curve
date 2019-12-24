@@ -162,6 +162,7 @@ int StartChunkserver(const char *ip,
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
+    CopysetNodeManager::GetInstance().Run();
     CHECK(CopysetNodeManager::GetInstance().CreateCopysetNode(logicPoolId,
                                                               copysetId,
                                                               peers));
