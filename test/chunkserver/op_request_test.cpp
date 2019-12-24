@@ -477,14 +477,116 @@ TEST(ChunkOpContextTest, OnApplyErrorTest) {
         request.set_chunkid(chunkId);
         request.set_correctedsn(sn);
         brpc::Controller *cntl = new brpc::Controller();
-        ChunkOpRequest *opReq = new DeleteChunkRequest(nodePtr,
-                                                       cntl,
-                                                       &request,
-                                                       &response,
-                                                       nullptr);
+        ChunkOpRequest *opReq = new DeleteSnapshotRequest(nodePtr,
+                                                          cntl,
+                                                          &request,
+                                                          &response,
+                                                          nullptr);
         dataStore->InjectError();
         OpFakeClosure done;
         ASSERT_DEATH(opReq->OnApply(appliedIndex, &done), "");
+        delete opReq;
+        delete cntl;
+    }
+    // delete snapshot: backward request error
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_DELETE_SNAP);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_correctedsn(sn);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq = new DeleteSnapshotRequest(nodePtr,
+                                                          cntl,
+                                                          &request,
+                                                          &response,
+                                                          nullptr);
+        dataStore->InjectError(CSErrorCode::BackwardRequestError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD,
+                  response.status());
+        delete opReq;
+        delete cntl;
+    }
+    // write: data store error
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq = new WriteChunkRequest(nodePtr,
+                                                      cntl,
+                                                      &request,
+                                                      &response,
+                                                      nullptr);
+        dataStore->InjectError();
+        OpFakeClosure done;
+        ASSERT_DEATH(opReq->OnApply(appliedIndex, &done), "");
+        delete opReq;
+        delete cntl;
+    }
+    // write: backward request
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq = new WriteChunkRequest(nodePtr,
+                                                      cntl,
+                                                      &request,
+                                                      &response,
+                                                      nullptr);
+        dataStore->InjectError(CSErrorCode::BackwardRequestError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD,
+                  response.status());
+        delete opReq;
+        delete cntl;
+    }
+    // write: other failed
+    {
+        ChunkRequest request;
+        ChunkResponse response;
+        request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_WRITE);
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_chunkid(chunkId);
+        request.set_offset(offset);
+        request.set_size(size);
+        request.set_sn(sn);
+        brpc::Controller *cntl = new brpc::Controller();
+        ChunkOpRequest *opReq = new WriteChunkRequest(nodePtr,
+                                                      cntl,
+                                                      &request,
+                                                      &response,
+                                                      nullptr);
+        dataStore->InjectError(CSErrorCode::InvalidArgError);
+        OpFakeClosure done;
+        opReq->OnApply(appliedIndex, &done);
+        ASSERT_FALSE(cntl->Failed());
+        ASSERT_EQ(0, cntl->ErrorCode());
+        ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
+                  response.status());
         delete opReq;
         delete cntl;
     }
