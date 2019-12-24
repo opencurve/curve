@@ -195,15 +195,10 @@ int main(int argc, char *argv[]) {
                                                         peers);
 
     /* Wait until 'CTRL-C' is pressed. then Stop() and Join() the service */
-    while (!brpc::IsAskedToQuit()) {
-        sleep(1);
-    }
+    server.RunUntilAskedToQuit();
 
     LOG(INFO) << "server test service is going to quit";
     CopysetNodeManager::GetInstance().DeleteCopysetNode(logicPoolId, copysetId);
-
-    server.Stop(0);
-    server.Join();
 
     return 0;
 }
