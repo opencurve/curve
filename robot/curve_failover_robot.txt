@@ -565,5 +565,6 @@ init rw cloud disk
 clean failover env
      stop rwio
      check io error
+     stop scheduler
      check copies consistency
      detach vol
