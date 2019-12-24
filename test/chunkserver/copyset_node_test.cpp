@@ -957,6 +957,7 @@ TEST_F(CopysetNodeTest, get_leader_committed_index) {
         CopysetNodeManager* copysetNodeManager
             = &CopysetNodeManager::GetInstance();
         ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+        ASSERT_EQ(0, copysetNodeManager->Run());
         PeerId leader_peer("127.0.0.1:9044:0");
         brpc::Server server;
         ASSERT_EQ(0, copysetNodeManager->AddService(&server, leader_peer.addr));

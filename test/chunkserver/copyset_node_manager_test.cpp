@@ -62,6 +62,9 @@ class CopysetNodeManagerTest : public ::testing::Test {
     }
 
     void TearDown() {
+        CopysetNodeManager *copysetNodeManager =
+            &CopysetNodeManager::GetInstance();
+        copysetNodeManager->Fini();
         ::system("rm -rf node_manager_test");
     }
 
@@ -121,6 +124,11 @@ TEST_F(CopysetNodeManagerTest, NormalTest) {
     }
 
     ASSERT_EQ(0, copysetNodeManager->Init(defaultOptions_));
+
+    // 本地 copyset 未加载完成，则无法创建新的copyset
+    ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                       copysetId,
+                                                       conf));
     ASSERT_EQ(0, copysetNodeManager->Run());
     ASSERT_TRUE(copysetNodeManager->CreateCopysetNode(logicPoolId,
                                                        copysetId,
@@ -232,6 +240,12 @@ TEST_F(CopysetNodeManagerTest, ReloadTest) {
     copysetNodes.clear();
     copysetNodeManager->GetAllCopysetNodes(&copysetNodes);
     ASSERT_EQ(0, copysetNodes.size());
+
+
+    // 本地 copyset 未加载完成，则无法创建新的copyset
+    ASSERT_FALSE(copysetNodeManager->CreateCopysetNode(logicPoolId,
+                                                       copysetId + 5,
+                                                       conf));
 
     // reload copysets when loadConcurrency < copysetNum
     std::cout << "Test ReloadCopysets when loadConcurrency=3" << std::endl;
