@@ -2167,13 +2167,16 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayTest) {
 
     // 再次GetLeader会向chunkserver 1/2 发送请求
     // 在chunksever GetLeader service 中加入sleep，触发backup request
-    fakeCliServices[0].SetDelayMs(200);
-    fakeCliServices[1].SetDelayMs(200);
+    fakeCliServices[0].SetDelayMs(300);
+    fakeCliServices[1].SetDelayMs(300);
 
     GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
         copysetPeerInfos, currentLeaderIndex);
     ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
         &leaderId, nullptr));
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
     ASSERT_EQ(0, fakeCliServices[2].GetInvokeTimes());
     ASSERT_EQ(2, fakeCliServices[0].GetInvokeTimes() +
                  fakeCliServices[1].GetInvokeTimes());
@@ -2194,7 +2197,7 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayAndExceptionTest) {
     SetGetLeaderResponse(currentLeader);
 
     // 设置第一个chunkserver GetLeader service 延迟
-    fakeCliServices[0].SetDelayMs(200);
+    fakeCliServices[0].SetDelayMs(300);
 
     // 设置第二个chunkserver 返回对应的错误码
     for (auto errCode : exceptionErrCodes) {
@@ -2211,6 +2214,9 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayAndExceptionTest) {
 
         GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
             copysetPeerInfos, currentLeaderIndex);
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
         ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
             &leaderId, nullptr));
         ASSERT_EQ(0, fakeCliServices[2].GetInvokeTimes());
