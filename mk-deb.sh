@@ -4,6 +4,8 @@ dir=`pwd`
 bazel clean
 rm -rf curvefs_python/BUILD
 rm -rf curvefs_python/tmplib/
+rm -rf curvesnapshot_python/BUILD
+rm -rf curvesnapshot_python/tmplib/
 rm -rf *.deb
 rm -rf build
 
