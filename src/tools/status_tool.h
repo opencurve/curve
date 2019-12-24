@@ -24,6 +24,8 @@
 #include "src/tools/namespace_tool_core.h"
 #include "src/tools/copyset_check_core.h"
 #include "src/tools/etcd_client.h"
+#include "src/tools/curve_tool.h"
+#include "src/tools/curve_tool_define.h"
 
 using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::DiskState;
@@ -42,14 +44,16 @@ struct SpaceInfo{
     uint64_t canBeRecycled = 0;
 };
 
-class StatusTool {
+class StatusTool : public CurveTool {
  public:
     StatusTool(std::shared_ptr<MDSClient> mdsClient,
                std::shared_ptr<EtcdClient> etcdClient,
-               std::shared_ptr<NameSpaceToolCore> nameSpaceTool,
-               std::shared_ptr<CopysetCheckCore> copysetCheck) :
+               std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore,
+               std::shared_ptr<CopysetCheckCore> copysetCheckCore) :
                   mdsClient_(mdsClient), etcdClient_(etcdClient),
-                  nameSpaceTool_(nameSpaceTool), copysetCheck_(copysetCheck) {}
+                  nameSpaceToolCore_(nameSpaceToolCore),
+                  copysetCheckCore_(copysetCheckCore),
+                  mdsInited_(false), etcdInited_(false) {}
     ~StatusTool() = default;
 
     /**
@@ -57,16 +61,24 @@ class StatusTool {
      *  @param cmd：执行的命令
      *  @return 无
      */
-    void PrintHelp(const std::string &cmd);
+    void PrintHelp(const std::string &command) override;
 
     /**
      *  @brief 执行命令
      *  @param cmd：执行的命令
      *  @return 成功返回0，失败返回-1
      */
-    int RunCommand(const std::string &cmd);
+    int RunCommand(const std::string &command) override;
+
+    /**
+     *  @brief 返回是否支持该命令
+     *  @param command：执行的命令
+     *  @return true / false
+     */
+    static bool SupportCommand(const std::string& command);
 
  private:
+    int Init(const std::string& command);
     int SpaceCmd();
     int StatusCmd();
     int ChunkServerListCmd();
@@ -78,15 +90,34 @@ class StatusTool {
     int PrintMdsStatus();
     int PrintEtcdStatus();
     int PrintChunkserverStatus(bool checkLeftSize = true);
+    /**
+     *  @brief 判断命令是否需要和etcd交互
+     *  @param command：执行的命令
+     *  @return 需要返回true，否则返回false
+     */
+    bool CommandNeedEtcd(const std::string& command);
 
+
+    /**
+     *  @brief 判断命令是否需要和mds
+     *  @param command：执行的命令
+     *  @return 需要返回true，否则返回false
+     */
+    bool CommandNeedMds(const std::string& command);
+
+ private:
     // 向mds发送RPC的client
     std::shared_ptr<MDSClient> mdsClient_;
     // NameSpace工具，用于获取recycleBin的大小
-    std::shared_ptr<NameSpaceToolCore> nameSpaceTool_;
+    std::shared_ptr<NameSpaceToolCore> nameSpaceToolCore_;
     // Copyset检查工具，用于检查集群和chunkserver的健康状态
-    std::shared_ptr<CopysetCheckCore> copysetCheck_;
+    std::shared_ptr<CopysetCheckCore> copysetCheckCore_;
     // etcd client，用于调etcd API获取状态
     std::shared_ptr<EtcdClient> etcdClient_;
+    // mds是否初始化过
+    bool mdsInited_;
+    // etcd是否初始化过
+    bool etcdInited_;
 };
 }  // namespace tool
 }  // namespace curve

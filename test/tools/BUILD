@@ -25,19 +25,8 @@ cc_binary(
     deps = [
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:brpc",
-        "//external:braft",
-        "//external:protobuf",
-        "//src/common:curve_common",
-        "//include/client:include_client",
-        "//proto:nameserver2_cc_proto",
-        "//proto:chunkserver-cc-protos",
-        "//src/client:curve_client",
-        "//test/client/fake:fake_lib",
-        "//src/tools:curve_tool_lib"
+        "//src/tools:curve_tool_lib",
+        "//test/tools:tools_mock",
     ],
     copts = COPTS
 )
@@ -145,6 +134,7 @@ cc_binary(
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "//src/tools:curve_tool_lib",
+        "//src/common:curve_common",
     ],
 )
 
@@ -158,6 +148,18 @@ cc_binary(
         "@com_google_googletest//:gtest_main",
         "//src/tools:curve_tool_lib",
         "//test/tools:tools_mock",
+    ],
+)
+
+cc_binary(
+    name = "curve_tool_factory_test",
+    srcs = glob([
+        "curve_tool_factory_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
     ],
 )
 

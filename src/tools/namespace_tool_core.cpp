@@ -18,12 +18,16 @@ NameSpaceToolCore::NameSpaceToolCore(std::shared_ptr<MDSClient> client) :
     client_->SetPassword(FLAGS_password);
 }
 
-int NameSpaceToolCore::GetFileInfo(std::string fileName,
+int NameSpaceToolCore::Init(const std::string& mdsAddr) {
+    return client_->Init(mdsAddr);
+}
+
+int NameSpaceToolCore::GetFileInfo(const std::string &fileName,
                                    FileInfo* fileInfo) {
     return client_->GetFileInfo(fileName, fileInfo);
 }
 
-int NameSpaceToolCore::ListDir(std::string dirName,
+int NameSpaceToolCore::ListDir(const std::string& dirName,
                                std::vector<FileInfo>* files) {
     return client_->ListDir(dirName, files);
 }
@@ -36,7 +40,7 @@ int NameSpaceToolCore::GetChunkServerListInCopySets(
                                                 copysetId, csLocs);
 }
 
-int NameSpaceToolCore::DeleteFile(std::string fileName,
+int NameSpaceToolCore::DeleteFile(const std::string& fileName,
                                   bool forcedelete) {
     return client_->DeleteFile(fileName, forcedelete);
 }
@@ -46,7 +50,8 @@ int NameSpaceToolCore::CreateFile(const std::string& fileName,
     return client_->CreateFile(fileName, length);
 }
 
-int NameSpaceToolCore::GetAllocatedSize(std::string fileName, uint64_t* size) {
+int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
+                                        uint64_t* size) {
     FileInfo fileInfo;
     if (GetFileInfo(fileName, &fileInfo) != 0) {
         std::cout << "GetFileInfo fail!" << std::endl;
@@ -100,7 +105,8 @@ int NameSpaceToolCore::GetAllocatedSize(const std::string& fileName,
     }
 }
 
-int NameSpaceToolCore::GetFileSize(std::string fileName, uint64_t* fileSize) {
+int NameSpaceToolCore::GetFileSize(const std::string& fileName,
+                                   uint64_t* fileSize) {
     FileInfo fileInfo;
     if (GetFileInfo(fileName, &fileInfo) != 0) {
         std::cout << "GetFileInfo fail!" << std::endl;
