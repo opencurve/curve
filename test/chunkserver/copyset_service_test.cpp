@@ -82,7 +82,8 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.chunkfilePool =
         std::make_shared<ChunkfilePool>(fs);
-    copysetNodeManager->Init(copysetNodeOptions);
+    ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
+    ASSERT_EQ(0, copysetNodeManager->Run());
 
     brpc::Channel channel;
     PeerId peerId("127.0.0.1:9040:0");
@@ -187,7 +188,8 @@ TEST_F(CopysetServiceTest, basic2) {
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.chunkfilePool =
         std::make_shared<ChunkfilePool>(fs);
-    copysetNodeManager->Init(copysetNodeOptions);
+    ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
+    ASSERT_EQ(0, copysetNodeManager->Run());
 
     brpc::Channel channel;
     PeerId peerId("127.0.0.1:9040:0");
