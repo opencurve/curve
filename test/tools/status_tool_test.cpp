@@ -24,6 +24,8 @@ DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
 DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
 DECLARE_bool(offline);
 DECLARE_bool(unhealthy);
+DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
+DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
 
 class StatusToolTest : public ::testing::Test {
  protected:
@@ -96,11 +98,73 @@ class StatusToolTest : public ::testing::Test {
     std::shared_ptr<curve::tool::MockEtcdClient> etcdClient_;
 };
 
+TEST_F(StatusToolTest, InitAndSupportCommand) {
+    curve::tool::StatusTool statusTool(mdsClient_, etcdClient_,
+                            nameSpaceTool_, copysetCheck_);
+    ASSERT_TRUE(statusTool.SupportCommand("status"));
+    ASSERT_TRUE(statusTool.SupportCommand("space"));
+    ASSERT_TRUE(statusTool.SupportCommand("mds-status"));
+    ASSERT_TRUE(statusTool.SupportCommand("chunkserver-status"));
+    ASSERT_TRUE(statusTool.SupportCommand("chunkserver-list"));
+    ASSERT_TRUE(statusTool.SupportCommand("etcd-status"));
+    ASSERT_FALSE(statusTool.SupportCommand("none"));
+}
+
+TEST_F(StatusToolTest, InitFail) {
+    curve::tool::StatusTool statusTool1(mdsClient_, etcdClient_,
+                            nameSpaceTool_, copysetCheck_);
+    // 1、status命令需要所有的init
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(4)
+        .WillOnce(Return(-1))
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*nameSpaceTool_, Init(_))
+        .Times(3)
+        .WillOnce(Return(-1))
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(2)
+        .WillOnce(Return(-1))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*etcdClient_, Init(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, statusTool1.RunCommand("status"));
+    ASSERT_EQ(-1, statusTool1.RunCommand("status"));
+    ASSERT_EQ(-1, statusTool1.RunCommand("status"));
+    ASSERT_EQ(-1, statusTool1.RunCommand("status"));
+
+    // 2、etcd-status命令只需要初始化etcdClinet
+    curve::tool::StatusTool statusTool2(mdsClient_, etcdClient_,
+                            nameSpaceTool_, copysetCheck_);
+    EXPECT_CALL(*etcdClient_, Init(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, statusTool2.RunCommand("etcd-status"));
+
+    // 3、space和其他命令不需要初始化etcdClient
+    curve::tool::StatusTool statusTool3(mdsClient_, etcdClient_,
+                            nameSpaceTool_, copysetCheck_);
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(3)
+        .WillOnce(Return(-1))
+        .WillRepeatedly(Return(0));
+    EXPECT_CALL(*nameSpaceTool_, Init(_))
+        .Times(2)
+        .WillOnce(Return(-1))
+        .WillOnce(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, statusTool3.RunCommand("space"));
+    ASSERT_EQ(-1, statusTool3.RunCommand("chunkserver-list"));
+    ASSERT_EQ(-1, statusTool3.RunCommand("chunkserver-status"));
+}
+
 TEST_F(StatusToolTest, SpaceCmd) {
     curve::tool::StatusTool statusTool(mdsClient_, etcdClient_,
                             nameSpaceTool_, copysetCheck_);
     statusTool.PrintHelp("space");
-    ASSERT_EQ(-1, statusTool.RunCommand("123"));
     statusTool.PrintHelp("123");
     LogicalPoolInfo lgPool;
     PhysicalPoolInfo phyPool;
@@ -110,6 +174,17 @@ TEST_F(StatusToolTest, SpaceCmd) {
     lgPools.emplace_back(lgPool);
     std::vector<PhysicalPoolInfo> phyPools;
     phyPools.emplace_back(phyPool);
+
+    // 设置Init的期望
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*nameSpaceTool_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 1、正常情况
     EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
@@ -133,6 +208,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
         .WillOnce(DoAll(SetArgPointee<1>(14646106914816),
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("space"));
+    ASSERT_EQ(-1, statusTool.RunCommand("123"));
 
     // 2、ListPhysicalPoolsInCluster失败的情况
     EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
@@ -208,6 +284,16 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
         GetCsInfoForTest(&csInfo, i, i <= 2);
         chunkservers.emplace_back(csInfo);
     }
+    // 设置Init的期望
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*nameSpaceTool_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 正常情况，有一个chunkserver的UnhealthyRatio大于0
     EXPECT_CALL(*mdsClient_, ListChunkServersInCluster(_))
@@ -283,6 +369,20 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         GetCsInfoForTest(&csInfo, i);
         chunkservers.emplace_back(csInfo);
     }
+
+    // 设置Init的期望
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*nameSpaceTool_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*etcdClient_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
 
     // 正常情况
     // 1、设置cluster的输出
@@ -373,6 +473,18 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
 TEST_F(StatusToolTest, StatusCmdError) {
     curve::tool::StatusTool statusTool(mdsClient_, etcdClient_,
                             nameSpaceTool_, copysetCheck_);
+
+    // 设置Init的期望
+    EXPECT_CALL(*mdsClient_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*nameSpaceTool_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*copysetCheck_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+
     // 1、cluster unhealthy
     EXPECT_CALL(*copysetCheck_, CheckCopysetsInCluster())
         .Times(1)

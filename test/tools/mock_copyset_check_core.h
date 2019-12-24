@@ -26,6 +26,7 @@ class MockCopysetCheckCore : public CopysetCheckCore {
     MockCopysetCheckCore() : CopysetCheckCore(std::make_shared<MDSClient>(),
                                     std::make_shared<ChunkServerClient>()) {}
     ~MockCopysetCheckCore() {}
+    MOCK_METHOD1(Init, int(const std::string&));
     MOCK_METHOD2(CheckOneCopyset, int(const PoolIdType&,
                                       const CopySetIdType&));
     MOCK_METHOD1(CheckCopysetsOnChunkServer, int(const ChunkServerIdType&));

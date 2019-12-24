@@ -19,24 +19,33 @@
 
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/cli2.h"
+#include "src/tools/curve_tool.h"
+#include "src/tools/curve_tool_define.h"
 
 namespace curve {
 namespace tool {
-class CurveCli {
+class CurveCli : public CurveTool {
  public:
     /**
      *  @brief 打印help信息
      *  @param 无
      *  @return 无
      */
-    void PrintHelp(const std::string &cmd);
+    void PrintHelp(const std::string &cmd) override;
 
     /**
      *  @brief 执行命令
      *  @param cmd：执行的命令
      *  @return 成功返回0，失败返回-1
      */
-    int RunCommand(const std::string &cmd);
+    int RunCommand(const std::string &cmd) override;
+
+    /**
+     *  @brief 返回是否支持该命令
+     *  @param command：执行的命令
+     *  @return true / false
+     */
+    static bool SupportCommand(const std::string& command);
 
  private:
     /**
