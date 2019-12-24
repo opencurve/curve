@@ -16,6 +16,10 @@ DEFINE_bool(checkOperator, false, "if true, the operator number of "
 namespace curve {
 namespace tool {
 
+int CopysetCheckCore::Init(const std::string& mdsAddr) {
+    return mdsClient_->Init(mdsAddr);
+}
+
 CopysetStatistics::CopysetStatistics(uint64_t total, uint64_t unhealthy)
             : totalNum(total), unhealthyNum(unhealthy) {
     if (total != 0) {
@@ -410,7 +414,7 @@ int CopysetCheckCore::QueryChunkServer(const std::string& chunkserverAddr,
         chunkserverStatus_.emplace(chunkserverAddr, false);
         return -1;
     }
-    res = csClient_->GetCopysetStatus(iobuf);
+    res = csClient_->GetRaftStatus(iobuf);
     if (res == 0) {
         chunkserverStatus_.emplace(chunkserverAddr, true);
     } else {

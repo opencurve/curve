@@ -45,7 +45,7 @@ TEST_F(ChunkServerClientTest, Init) {
     ASSERT_EQ(-1, client.Init("1235"));
 }
 
-TEST_F(ChunkServerClientTest, GetCopysetStatus) {
+TEST_F(ChunkServerClientTest, GetRaftStatus) {
     std::vector<FakeRaftStateService *> statServices =
                                     fakemds.GetRaftStateService();
     // 正常情况
@@ -53,14 +53,14 @@ TEST_F(ChunkServerClientTest, GetCopysetStatus) {
     iobuf.append("test");
     statServices[0]->SetBuf(iobuf);
     ASSERT_EQ(0, client.Init("127.0.0.1:9191"));
-    ASSERT_EQ(0, client.GetCopysetStatus(&iobuf));
+    ASSERT_EQ(0, client.GetRaftStatus(&iobuf));
 
     // 传入空指针
-    ASSERT_EQ(-1, client.GetCopysetStatus(nullptr));
+    ASSERT_EQ(-1, client.GetRaftStatus(nullptr));
 
     // RPC失败的情况
     statServices[0]->SetFailed(true);
-    ASSERT_EQ(-1, client.GetCopysetStatus(&iobuf));
+    ASSERT_EQ(-1, client.GetRaftStatus(&iobuf));
 }
 
 TEST_F(ChunkServerClientTest, CheckChunkServerOnline) {
@@ -79,5 +79,32 @@ TEST_F(ChunkServerClientTest, CheckChunkServerOnline) {
     // RPC失败的情况
     cntl.SetFailed("fail for test");
     ASSERT_EQ(false, client.CheckChunkServerOnline());
+}
+
+TEST_F(ChunkServerClientTest, GetCopysetStatus2) {
+    auto copysetServices = fakemds.GetCreateCopysetService();
+    CopysetStatusRequest request;
+    CopysetStatusResponse response;
+    curve::common::Peer *peer = new curve::common::Peer();
+    peer->set_address("127.0.0.1:9191");
+    request.set_logicpoolid(1);
+    request.set_copysetid(1001);
+    request.set_allocated_peer(peer);
+    request.set_queryhash(true);
+
+    // 正常情况
+    ASSERT_EQ(0, client.Init("127.0.0.1:9191"));
+    ASSERT_EQ(0, client.GetCopysetStatus(request, &response));
+
+    // 返回码不ok的情况
+    copysetServices[0]->SetStatus(
+        COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);
+    ASSERT_EQ(-1, client.GetCopysetStatus(request, &response));
+
+    // RPC失败的情况
+    brpc::Controller cntl;
+    std::unique_ptr<FakeReturn> fakeret(new FakeReturn(&cntl, nullptr));
+    copysetServices[0]->SetFakeReturn(fakeret.get());
+    ASSERT_EQ(-1, client.GetCopysetStatus(request, &response));
 }
 

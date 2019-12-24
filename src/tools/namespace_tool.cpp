@@ -14,21 +14,47 @@ DEFINE_uint64(offset, 0, "offset to query chunk location");
 DEFINE_uint64(rpc_timeout, 3000, "millisecond for rpc timeout");
 DEFINE_bool(showAllocSize, true, "If specified, the allocated size will not be computed");  // NOLINT
 DEFINE_bool(showFileSize, true, "If specified, the file size will not be computed");  // NOLINT
+DECLARE_string(mdsAddr);
 
 namespace curve {
 namespace tool {
 
+int NameSpaceTool::Init() {
+    if (!inited_) {
+        int res = core_->Init(FLAGS_mdsAddr);
+        if (res != 0) {
+            std::cout << "Init nameSpaceToolCore fail!" << std::endl;
+            return -1;
+        }
+        inited_ = true;
+    }
+    return 0;
+}
+
+bool NameSpaceTool::SupportCommand(const std::string& command) {
+    return (command == kGetCmd || command == kListCmd
+                               || command == kSegInfoCmd
+                               || command == kDeleteCmd
+                               || command == kCreateCmd
+                               || command == kCleanRecycleCmd
+                               || command == kChunkLocatitonCmd);
+}
+
 // 根据命令行参数选择对应的操作
 int NameSpaceTool::RunCommand(const std::string &cmd) {
+    if (Init() != 0) {
+        std::cout << "Init NameSpaceTool failed" << std::endl;
+        return -1;
+    }
     std::string fileName = FLAGS_fileName;
     TrimEndingSlash(&fileName);
-    if (cmd == "get") {
+    if (cmd == kGetCmd) {
         return PrintFileInfoAndActualSize(fileName);
-    } else if (cmd == "list") {
+    } else if (cmd == kListCmd) {
         return PrintListDir(fileName);
-    } else if (cmd == "seginfo") {
+    } else if (cmd == kSegInfoCmd) {
         return PrintSegmentInfo(fileName);
-    } else if (cmd == "delete") {
+    } else if (cmd == kDeleteCmd) {
         // 单元测试不判断输入
         if (FLAGS_isTest) {
             return core_->DeleteFile(fileName, FLAGS_forcedelete);
@@ -43,7 +69,7 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             std::cout << "Delete cancled!" << std::endl;
             return 0;
         }
-    } else if (cmd == "clean-recycle") {
+    } else if (cmd == kCleanRecycleCmd) {
         if (FLAGS_isTest) {
             return core_->CleanRecycleBin(fileName);
         }
@@ -57,38 +83,31 @@ int NameSpaceTool::RunCommand(const std::string &cmd) {
             std::cout << "Clean RecycleBin cancled!" << std::endl;
             return 0;
         }
-    } else if (cmd == "create") {
+    } else if (cmd == kCreateCmd) {
         return core_->CreateFile(fileName, FLAGS_fileLength);
-    } else if (cmd == "chunk-location") {
+    } else if (cmd == kChunkLocatitonCmd) {
         return PrintChunkLocation(fileName, FLAGS_offset);
     } else {
         std::cout << "Command not support!" << std::endl;
-        PrintHelp("get");
-        PrintHelp("list");
-        PrintHelp("seginfo");
-        PrintHelp("delete");
-        PrintHelp("clean-recycle");
-        PrintHelp("create");
-        PrintHelp("chunk-location");
         return -1;
     }
 }
 
 void NameSpaceTool::PrintHelp(const std::string &cmd) {
     std::cout << "Example: " << std::endl;
-    if (cmd == "get" || cmd == "list") {
+    if (cmd == kGetCmd || cmd == kListCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test"  // NOLINT
                             " [-showAllocSize=false] [-showFileSize=false]" << std::endl;  // NOLINT
-    } else if (cmd == "seginfo") {
+    } else if (cmd == kSegInfoCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test" << std::endl;  // NOLINT
-    } else if (cmd == "clean-recycle") {
+    } else if (cmd == kCleanRecycleCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 [-fileName=/cinder]" << std::endl;  // NOLINT
         std::cout << "If -fileName is specified, delete the files in recyclebin that the original directory is fileName" << std::endl;  // NOLINT
-    } else if (cmd == "create") {
+    } else if (cmd == kCreateCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -fileLength=21474836480‬" << std::endl;  // NOLINT
-    } else if (cmd == "delete") {
+    } else if (cmd == kDeleteCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -userName=test -password=123 -forcedelete=true" << std::endl;  // NOLINT
-    } else if (cmd == "chunk-location") {
+    } else if (cmd == kChunkLocatitonCmd) {
         std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666 -fileName=/test -offset=16777216" << std::endl;  // NOLINT
     } else {
         std::cout << "command not found!" << std::endl;
