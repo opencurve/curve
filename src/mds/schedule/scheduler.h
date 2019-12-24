@@ -103,6 +103,15 @@ class Scheduler {
      */
     int GetMinScatterWidth(PoolIdType lpid);
 
+    /**
+     * @brief CopysetAllPeersOnline 指定copyset的所有副本是否在线
+     *
+     * @param[in] copySetInfo 指定copyset
+     *
+     * @return true-所有副本都在线 false-有副本不在线
+     */
+    bool CopysetAllPeersOnline(const CopySetInfo &copySetInfo);
+
  protected:
     // chunkserver的scatter-width不能超过
     // (1 + minScatterWdith_) * scatterWidthRangePerent_

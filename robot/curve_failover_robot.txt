@@ -110,7 +110,7 @@ inject restart two chunkserver
 inject kill diff host chunkserver
     [Tags]    P1    base    first release   failover
     test kill diff host chunkserver
-    sleep   5
+    sleep   300
     check vm iops
     check data consistency
 #    check copies consistency
@@ -447,6 +447,7 @@ test ipmitool restart mds node
    sleep  60
    check vm iops
    check data consistency
+   sleep  240
    [Teardown]    wait iops ok   ${vm_iops_limit}
 
 test mds delay package 50ms

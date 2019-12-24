@@ -97,16 +97,20 @@ void CopySetScheduler::StatsCopysetDistribute(
     int num = 0;
     int max = -1;
     int min = -1;
+    ChunkServerIdType maxcsId = UNINTIALIZE_ID;
+    ChunkServerIdType mincsId = UNINTIALIZE_ID;
     float variance = 0;
     for (auto &item : distribute) {
         num += item.second.size();
 
         if (max == -1 || item.second.size() > max) {
             max = item.second.size();
+            maxcsId = item.first;
         }
 
         if (min == -1 || item.second.size() < min) {
             min = item.second.size();
+            mincsId = item.first;
         }
     }
 
@@ -124,9 +128,10 @@ void CopySetScheduler::StatsCopysetDistribute(
     variance /= distribute.size();
     *stdvariance = std::sqrt(variance);
     LOG(INFO) << "copyset schduler stats copyset distribute (avg:"
-              << *avg << ", range:" << *range
-              << ", stdvariance:" << *stdvariance << ", variance:"
-              << variance << ")";
+              << *avg << ", max:" << max << ", maxCsId:" << maxcsId
+              << ", min:" << min << ", minCsId:" << mincsId
+              << ", range:" << *range << ", stdvariance:" << *stdvariance
+              << ", variance:" << variance << ")";
 }
 
 void CopySetScheduler::CopySetDistributionInOnlineChunkServer(
@@ -243,6 +248,12 @@ bool CopySetScheduler::CopySetMigration(
                              << info.id.first << " is not initialized";
                 continue;
             }
+
+            // copyset有副本不在线，不考虑
+            if (!CopysetAllPeersOnline(info)) {
+                continue;
+            }
+
             // 该copyset +target,-source之后的各replica的scatter-with是否符合条件 //NOLINT
             if (!SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
                     topo_, *target, possibleSource, info,

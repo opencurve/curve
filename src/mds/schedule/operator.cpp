@@ -37,6 +37,12 @@ std::vector<ChunkServerIdType> Operator::AffectedChunkServers() const {
     if (instance != nullptr) {
         affects.emplace_back(instance->GetTargetPeer());
     }
+
+    auto cinstance = dynamic_cast<ChangePeer *>(step.get());
+    if (cinstance != nullptr) {
+        affects.emplace_back(cinstance->GetTargetPeer());
+    }
+
     return affects;
 }
 

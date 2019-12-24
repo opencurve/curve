@@ -260,6 +260,21 @@ typedef struct CURVE_CACHELINE_ALIGNMENT CopysetInfo {
     void UpdateLeaderIndex(int index) {
         leaderindex_ = index;
     }
+
+    /**
+     * 当前copyset是否存在对应的chunkserver address
+     * @param: addr需要检测的chunkserver
+     * @return: true存在；false不存在
+     */
+    bool HasChunkServerInCopyset(const ChunkServerAddr& addr) const {
+        for (const auto& peer : csinfos_) {
+            if (peer.csaddr_ == addr) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 } CopysetInfo_t;
 
 typedef struct CopysetIDInfo {

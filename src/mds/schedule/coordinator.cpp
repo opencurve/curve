@@ -157,7 +157,7 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
 
-        // 如果addOperator或者transferLeader的candidate是offline状态，operator不应该下发 //NOLINT
+        // 如果addpeer或者transferLeader或者changepeer的candidate是offline状态，operator不应该下发 //NOLINT
         ChunkServerInfo chunkServer;
         if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
             LOG(ERROR) << "coordinator can not get chunkServer "
@@ -166,7 +166,8 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
         bool needCheckType = (res.type == ConfigChangeType::ADD_PEER ||
-            res.type == ConfigChangeType::TRANSFER_LEADER);
+            res.type == ConfigChangeType::TRANSFER_LEADER ||
+            res.type == ConfigChangeType::CHANGE_PEER);
         if (needCheckType && chunkServer.IsOffline()) {
             LOG(WARNING) << "candidate chunkserver " << chunkServer.info.id
                        << " is offline, abort config change";
@@ -221,6 +222,21 @@ bool Coordinator::BuildCopySetConf(
     replica->set_address(::curve::mds::topology::BuildPeerId(
         chunkServer.info.ip, chunkServer.info.port, 0));
     out->set_allocated_configchangeitem(replica);
+
+    // set old
+    if (res.oldOne != ::curve::mds::topology::UNINTIALIZE_ID) {
+        if (!topo_->GetChunkServerInfo(res.oldOne, &chunkServer)) {
+            LOG(ERROR) << "coordinator can not get chunkServer "
+                    << res.oldOne << " from topology";
+            return false;
+        }
+
+        auto replica = new ::curve::common::Peer();
+        replica->set_id(res.oldOne);
+        replica->set_address(::curve::mds::topology::BuildPeerId(
+            chunkServer.info.ip, chunkServer.info.port, 0));
+        out->set_allocated_oldpeer(replica);
+    }
 
     // set 副本
     for (auto peer : res.peers) {
