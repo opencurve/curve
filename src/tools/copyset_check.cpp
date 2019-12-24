@@ -13,13 +13,47 @@ DEFINE_uint32(chunkserverId, 0, "chunkserver id");
 DEFINE_string(chunkserverAddr, "", "if specified, chunkserverId is not required");  // NOLINT
 DEFINE_uint32(serverId, 0, "server id");
 DEFINE_string(serverIp, "", "server ip");
+DECLARE_string(mdsAddr);
 
 namespace curve {
 namespace tool {
+#define CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(flagname1, flagname2)             \
+    do {                                                                     \
+        if ((FLAGS_ ## flagname1).empty() && (FLAGS_ ## flagname2) == 0) {   \
+            std::cout << # flagname1 << " OR " << # flagname2                \
+                      " should be secified!" << std::endl;                   \
+            return -1;                                                       \
+        }                                                                    \
+        if (!(FLAGS_ ## flagname1).empty() && (FLAGS_ ## flagname2) != 0) {  \
+            std::cout << "Only one of " # flagname1 << " OR " << # flagname2 \
+                      " should be secified!" << std::endl;                   \
+            return -1;                                                       \
+        }                                                                    \
+    } while (0);                                                             \
+
+bool CopysetCheck::SupportCommand(const std::string& command) {
+    return (command == kCheckCopysetCmd || command == kCheckChunnkServerCmd
+            || command == kCheckServerCmd || command == kCheckClusterCmd);
+}
+
+int CopysetCheck::Init() {
+    if (!inited_) {
+        int res = core_->Init(FLAGS_mdsAddr);
+        if (res != 0) {
+            std::cout << "Init copysetCheckCore fail!" << std::endl;
+            return -1;
+        }
+        inited_ = true;
+    }
+    return 0;
+}
 
 int CopysetCheck::RunCommand(const std::string& command) {
-    int res = 0;
-    if (command == "check-copyset") {
+    if (Init() != 0) {
+        std::cout << "Init CopysetCheck failed" << std::endl;
+        return -1;
+    }
+    if (command == kCheckCopysetCmd) {
         // 检查某个copyset的状态
         if (FLAGS_logicalPoolId == 0 || FLAGS_copysetId == 0) {
             std::cout << "logicalPoolId AND copysetId should be specified!"
@@ -27,32 +61,14 @@ int CopysetCheck::RunCommand(const std::string& command) {
             return -1;
         }
         return CheckCopyset();
-    } else if (command == "check-chunkserver") {
+    } else if (command == kCheckChunnkServerCmd) {
         // 检查某个chunkserver上的所有copyset
-        if (FLAGS_chunkserverAddr.empty() && FLAGS_chunkserverId == 0) {
-            std::cout << "chunkserverId OR chunkserverAddr should be secified!"
-                      << std::endl;
-            return -1;
-        }
-        if (!FLAGS_chunkserverAddr.empty() && FLAGS_chunkserverId != 0) {
-            std::cout << "Only one of chunkserverId OR "
-                         "chunkserverAddr should be secified!" << std::endl;
-            return -1;
-        }
+        CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(chunkserverAddr, chunkserverId);
         return CheckChunkServer();
-    } else if (command == "check-server") {
-        if (FLAGS_serverIp.empty() && FLAGS_serverId == 0) {
-            std::cout << "serverId OR serverIp should be secified!"
-                      << std::endl;
-            return -1;
-        }
-        if (!FLAGS_serverIp.empty() && FLAGS_serverId != 0) {
-            std::cout << "Only one of serverId OR serverIp should be secified!"
-                      << std::endl;
-            return -1;
-        }
+    } else if (command == kCheckServerCmd) {
+        CHECK_ONLY_ONE_SHOULD_BE_SPECIFIED(serverIp, serverId);
         return CheckServer();
-    } else if (command == "check-cluster") {
+    } else if (command == kCheckClusterCmd) {
         return CheckCluster();
     } else {
         PrintHelp(command);
@@ -143,25 +159,21 @@ int CopysetCheck::CheckCluster() {
 
 void CopysetCheck::PrintHelp(const std::string& command) {
     std::cout << "Example: " << std::endl << std::endl;
-    if (command == "check-copyset") {
+    if (command == kCheckCopysetCmd) {
          std::cout << "curve_ops_tool check-copyset -mdsAddr=127.0.0.1:6666 "
          "-logicalPoolId=2 -copysetId=101 [-margin=1000]" << std::endl << std::endl;  // NOLINT
-    } else if (command == "check-chunkserver") {
+    } else if (command == kCheckChunnkServerCmd) {
         std::cout << "curve_ops_tool check-chunkserver -mdsAddr=127.0.0.1:6666 "
         "-chunkserverId=1 [-margin=1000]" << std::endl;
         std::cout << "curve_ops_tool check-chunkserver -mdsAddr=127.0.0.1:6666 "
         "-chunkserverAddr=127.0.0.1:8200 [-margin=1000]" << std::endl << std::endl;  // NOLINT
-    } else if (command == "check-server") {
+    } else if (command == kCheckServerCmd) {
         std::cout << "curve_ops_tool check-server -mdsAddr=127.0.0.1:6666 -serverId=1 [-margin=1000]" << std::endl;  // NOLINT
         std::cout << "curve_ops_tool check-server -mdsAddr=127.0.0.1:6666 -serverIp=127.0.0.1 [-margin=1000]" << std::endl;  // NOLINT
-    } else if (command == "check-cluster") {
+    } else if (command == kCheckClusterCmd) {
         std::cout << "curve_ops_tool check-cluster -mdsAddr=127.0.0.1:6666 [-margin=1000] [-operatorMaxPeriod=30] [-checkOperator]" << std::endl << std::endl;  // NOLINT
     } else {
-        std::cout << "Command not supported! Supported commands: " << std::endl;
-        std::cout << "check-copyset" << std::endl;
-        std::cout << "check-chunkserver" << std::endl;
-        std::cout << "check-server" << std::endl;
-        std::cout << "check-cluster" << std::endl;
+        std::cout << "Command not supported!" << std::endl;
     }
     std::cout << std::endl;
     std::cout << "Standard of healthy is no copyset in the following state:" << std::endl;  // NOLINT

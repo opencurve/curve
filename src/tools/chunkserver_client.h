@@ -16,7 +16,11 @@
 #include <iostream>
 
 #include "proto/chunk.pb.h"
+#include "proto/copyset.pb.h"
 
+using curve::chunkserver::CopysetStatusRequest;
+using curve::chunkserver::CopysetStatusResponse;
+using curve::chunkserver::COPYSET_OP_STATUS;
 
 namespace curve {
 namespace tool {
@@ -36,13 +40,22 @@ class ChunkServerClient {
     *  @param iobuf 复制组详细信息，返回值为0时有效
     *  @return 成功返回0，失败返回-1
     */
-    virtual int GetCopysetStatus(butil::IOBuf* iobuf);
+    virtual int GetRaftStatus(butil::IOBuf* iobuf);
 
     /**
     *  @brief 检查chunkserver是否在线，只检查controller，不检查response
     *  @return 在线返回true，不在线返回false
     */
     virtual bool CheckChunkServerOnline();
+
+    /**
+    *  @brief 调用chunkserver的GetCopysetStatus接口
+    &  @param request 查询copyset的request
+    *  @param response 返回的response，里面有复制组详细信息，返回值为0时有效
+    *  @return 成功返回0，失败返回-1
+    */
+    virtual int GetCopysetStatus(const CopysetStatusRequest& request,
+                                 CopysetStatusResponse* response);
 
  private:
     brpc::Channel channel_;

@@ -56,6 +56,14 @@ class CurveCliTest : public ::testing::Test {
     const std::string peer = "127.0.0.1:9192:0";
 };
 
+TEST_F(CurveCliTest, SupportCommand) {
+    curve::tool::CurveCli curveCli;
+    ASSERT_TRUE(curveCli.SupportCommand("remove-peer"));
+    ASSERT_TRUE(curveCli.SupportCommand("reset-peer"));
+    ASSERT_TRUE(curveCli.SupportCommand("transfer-leader"));
+    ASSERT_FALSE(curveCli.SupportCommand("add-peer"));
+}
+
 TEST_F(CurveCliTest, RemovePeer) {
     curve::tool::CurveCli curveCli;
     curveCli.PrintHelp("remove-peer");

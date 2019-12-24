@@ -41,12 +41,19 @@ class NameSpaceToolCore {
     virtual ~NameSpaceToolCore() = default;
 
     /**
+     *  @brief 初始化mds client
+     *  @param mdsAddr mds的地址，支持多地址，用","分隔
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int Init(const std::string& mdsAddr);
+
+    /**
      *  @brief 获取文件fileInfo
      *  @param fileName 文件名
      *  @param[out] fileInfo 文件fileInfo，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetFileInfo(std::string fileName, FileInfo* fileInfo);
+    virtual int GetFileInfo(const std::string& fileName, FileInfo* fileInfo);
 
     /**
      *  @brief 将目录下所有的fileInfo列出来
@@ -54,7 +61,7 @@ class NameSpaceToolCore {
      *  @param[out] files 目录下的所有文件fileInfo，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int ListDir(std::string dirName,
+    virtual int ListDir(const std::string& dirName,
                         std::vector<FileInfo>* files);
 
     /**
@@ -74,7 +81,7 @@ class NameSpaceToolCore {
      *  @param forcedelete 是否强制删除
      *  @return 成功返回0，失败返回-1
      */
-    virtual int DeleteFile(std::string fileName,
+    virtual int DeleteFile(const std::string& fileName,
                            bool forcedelete = false);
 
     /**
@@ -91,7 +98,8 @@ class NameSpaceToolCore {
      *  @param[out] allocSize 文件或目录已分配大小，返回值为0是有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetAllocatedSize(std::string fileName, uint64_t* allocSize);
+    virtual int GetAllocatedSize(const std::string& fileName,
+                                 uint64_t* allocSize);
 
     /**
      *  @brief 返回文件或目录的中的文件的用户申请的大小
@@ -99,7 +107,7 @@ class NameSpaceToolCore {
      *  @param[out] fileSize 文件或目录中用户申请的大小，返回值为0是有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetFileSize(std::string fileName, uint64_t* fileSize);
+    virtual int GetFileSize(const std::string& fileName, uint64_t* fileSize);
 
     /**
      *  @brief 获取文件的segment信息并输出到segments里面

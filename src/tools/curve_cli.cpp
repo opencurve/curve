@@ -39,6 +39,11 @@ namespace tool {
     } while (0);                                                        \
 
 
+bool CurveCli::SupportCommand(const std::string& command) {
+    return  (command == kResetPeerCmd || command == kRemovePeerCmd
+                                      || command == kTransferLeaderCmd);
+}
+
 int CurveCli::RemovePeer() {
     CHECK_FLAG(conf);
     CHECK_FLAG(peer);
@@ -191,10 +196,10 @@ int CurveCli::ResetPeer() {
 
 void CurveCli::PrintHelp(const std::string &cmd) {
     std::cout << "Example " << std::endl;
-    if (cmd == "reset-peer") {
+    if (cmd == kResetPeerCmd) {
         std::cout << "curve_ops_tool " << cmd << " -logic_pool_id=1 -copyset_id=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
         "-new_conf=127.0.0.1:8080:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
-    } else if (cmd == "remove-peer" || cmd == "transfer-leader") {
+    } else if (cmd == kRemovePeerCmd || cmd == kTransferLeaderCmd) {
         std::cout << "curve_ops_tool " << cmd << " -logic_pool_id=1 -copyset_id=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
         "-conf=127.0.0.1:8080:0,127.0.0.1:8081:0,127.0.0.1:8082:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
     } else {
@@ -203,13 +208,13 @@ void CurveCli::PrintHelp(const std::string &cmd) {
 }
 
 int CurveCli::RunCommand(const std::string &cmd) {
-    if (cmd == "remove-peer") {
+    if (cmd == kRemovePeerCmd) {
         return RemovePeer();
     }
-    if (cmd == "transfer-leader") {
+    if (cmd == kTransferLeaderCmd) {
         return TransferLeader();
     }
-    if (cmd == "reset-peer") {
+    if (cmd == kResetPeerCmd) {
         return ResetPeer();
     }
     std::cout << "Command not supported!" << std::endl;
