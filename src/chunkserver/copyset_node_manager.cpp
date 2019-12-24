@@ -60,13 +60,19 @@ int CopysetNodeManager::Run() {
     }
 
     // 启动加载已有的copyset
-    return ReloadCopysets();
+    ret = ReloadCopysets();
+    if (ret == 0) {
+        loadFinished_.exchange(true, std::memory_order_acq_rel);
+        LOG(INFO) << "Reload copysets success.";
+    }
+    return ret;
 }
 
 int CopysetNodeManager::Fini() {
     if (!running_.exchange(false, std::memory_order_acq_rel)) {
         return 0;
     }
+    loadFinished_.exchange(false, std::memory_order_acq_rel);
 
     if (copysetLoader_ != nullptr) {
         copysetLoader_->Stop();
@@ -144,9 +150,18 @@ void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
               << (needCheckLoadFinished ? "Yes." : "No.");
 
     uint64_t beginTime = TimeUtility::GetTimeofDayMs();
-    std::vector<Peer> peers;
-    if (!CreateCopysetNode(logicPoolId, copysetId, peers)) {
-        LOG(ERROR) << "Failed to load copyset: <"
+    // chunkserver启动加载copyset阶段，会拒绝外部的创建copyset请求
+    // 因此不会有其他线程加载或者创建相同copyset，此时不需要加锁
+    Configuration conf;
+    std::shared_ptr<CopysetNode> copysetNode =
+        CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
+    if (copysetNode == nullptr) {
+        LOG(ERROR) << "Failed to create copyset: <"
+                   << logicPoolId << "," << copysetId << ">";
+        return;
+    }
+    if (!InsertCopysetNodeIfNotExist(logicPoolId, copysetId, copysetNode)) {
+        LOG(ERROR) << "Failed to insert copyset: <"
                    << logicPoolId << "," << copysetId << ">";
         return;
     }
@@ -224,74 +239,64 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
                                            const CopysetID &copysetId,
                                            const Configuration &conf) {
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
+    // 如果本地copyset还未全部加载完成，不允许外部创建copyset
+    if (!loadFinished_.load(std::memory_order_acquire)) {
+        LOG(WARNING) << "Create copyset failed: load unfinished, groupid: "
+                     << groupId;
+        return false;
+    }
     /* 加写锁 */
     WriteLockGuard writeLockGuard(rwLock_);
     if (copysetNodeMap_.end() == copysetNodeMap_.find(groupId)) {
         std::shared_ptr<CopysetNode> copysetNode =
-            std::make_shared<CopysetNode>(logicPoolId,
-                                          copysetId,
-                                          conf);
-        CHECK(nullptr != copysetNode) << "new copyset node <"
-                                      << logicPoolId << ","
-                                      << copysetId << "> failed ";
-        if (0 != copysetNode->Init(copysetNodeOptions_)) {
-            LOG(ERROR) << "Copyset (" << logicPoolId << "," << copysetId << ")"
-                       << " init failed";
-            return false;
-        }
-        if (0 != copysetNode->Run()) {
-            copysetNode->Fini();
-            LOG(ERROR) << "copyset (" << logicPoolId << "," << copysetId << ")"
-                       << " run failed";
+            CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
+        if (copysetNode == nullptr) {
+            LOG(ERROR) << "Fail to create copyset, groupid: "
+                       << groupId;
             return false;
         }
         copysetNodeMap_.insert(std::pair<GroupId, std::shared_ptr<CopysetNode>>(
             groupId,
             copysetNode));
-
+        LOG(INFO) << "Create copyset success, groupid: " << groupId;
         return true;
     }
+    LOG(WARNING) << "Copyset node is already exists, groupid: " << groupId;
     return false;
 }
 
 bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
                                            const CopysetID &copysetId,
                                            const std::vector<Peer> peers) {
-    GroupId groupId = ToGroupId(logicPoolId, copysetId);
-
     Configuration conf;
     for (Peer peer : peers) {
         conf.add_peer(PeerId(peer.address()));
     }
 
-    /* 加写锁 */
-    WriteLockGuard writeLockGuard(rwLock_);
-    if (copysetNodeMap_.end() == copysetNodeMap_.find(groupId)) {
-        std::shared_ptr<CopysetNode> copysetNode =
-            std::make_shared<CopysetNode>(logicPoolId,
-                                          copysetId,
-                                          conf);
-        CHECK(nullptr != copysetNode) << "new copyset node <"
-                                      << logicPoolId << ","
-                                      << copysetId << "> failed ";
-        if (0 != copysetNode->Init(copysetNodeOptions_)) {
-            LOG(ERROR) << "Copyset (" << logicPoolId << "," << copysetId << ")"
-                       << " init failed";
-            return false;
-        }
-        if (0 != copysetNode->Run()) {
-            copysetNode->Fini();
-            LOG(ERROR) << "copyset (" << logicPoolId << "," << copysetId << ")"
-                       << " run failed";
-            return false;
-        }
-        copysetNodeMap_.insert(std::pair<GroupId, std::shared_ptr<CopysetNode>>(
-            groupId,
-            copysetNode));
+    return CreateCopysetNode(logicPoolId, copysetId, conf);
+}
 
-        return true;
+std::shared_ptr<CopysetNode> CopysetNodeManager::CreateCopysetNodeUnlocked(
+    const LogicPoolID &logicPoolId,
+    const CopysetID &copysetId,
+    const Configuration &conf) {
+    std::shared_ptr<CopysetNode> copysetNode =
+        std::make_shared<CopysetNode>(logicPoolId,
+                                        copysetId,
+                                        conf);
+    if (0 != copysetNode->Init(copysetNodeOptions_)) {
+        LOG(ERROR) << "Copyset (" << logicPoolId << "," << copysetId << ")"
+                   << " init failed";
+        return nullptr;
     }
-    return false;
+    if (0 != copysetNode->Run()) {
+        copysetNode->Fini();
+        LOG(ERROR) << "copyset (" << logicPoolId << "," << copysetId << ")"
+                   << " run failed";
+        return nullptr;
+    }
+
+    return copysetNode;
 }
 
 int CopysetNodeManager::AddService(brpc::Server *server,
@@ -300,7 +305,6 @@ int CopysetNodeManager::AddService(brpc::Server *server,
     uint64_t maxInflight = 100;
     std::shared_ptr<InflightThrottle> inflightThrottle
         = std::make_shared<InflightThrottle>(maxInflight);
-    CHECK(nullptr != inflightThrottle) << "new inflight throttle failed";
     CopysetNodeManager *copysetNodeManager = this;
     ChunkServiceOptions chunkServiceOptions;
     chunkServiceOptions.copysetNodeManager = copysetNodeManager;
@@ -352,6 +356,7 @@ bool CopysetNodeManager::DeleteCopysetNode(const LogicPoolID &logicPoolId,
         ReadLockGuard readLockGuard(rwLock_);
         auto it = copysetNodeMap_.find(groupId);
         if (copysetNodeMap_.end() != it) {
+            // TODO(yyk) 这部分可能存在死锁的风险，后续需要评估
             it->second->Fini();
             ret = true;
         }
@@ -381,6 +386,7 @@ bool CopysetNodeManager::PurgeCopysetNodeData(const LogicPoolID &logicPoolId,
         ReadLockGuard readLockGuard(rwLock_);
         auto it = copysetNodeMap_.find(groupId);
         if (copysetNodeMap_.end() != it) {
+            // TODO(yyk) 这部分可能存在死锁的风险，后续需要评估
             it->second->Fini();
             ret = true;
         }
@@ -412,6 +418,23 @@ bool CopysetNodeManager::IsExist(const LogicPoolID &logicPoolId,
     ReadLockGuard readLockGuard(rwLock_);
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
     return copysetNodeMap_.end() != copysetNodeMap_.find(groupId);
+}
+
+bool CopysetNodeManager::InsertCopysetNodeIfNotExist(
+    const LogicPoolID &logicPoolId, const CopysetID &copysetId,
+    std::shared_ptr<CopysetNode> node) {
+    /* 加写锁 */
+    WriteLockGuard writeLockGuard(rwLock_);
+    GroupId groupId = ToGroupId(logicPoolId, copysetId);
+    auto it = copysetNodeMap_.find(groupId);
+    if (copysetNodeMap_.end() == it) {
+        copysetNodeMap_.insert(
+            std::pair<GroupId, std::shared_ptr<CopysetNode>>(groupId, node));
+        LOG(INFO) << "Insert copyset success, groupid: " << groupId;
+        return true;
+    }
+    LOG(WARNING) << "Copyset node is already exists, groupid: " << groupId;
+    return false;
 }
 
 }  // namespace chunkserver
