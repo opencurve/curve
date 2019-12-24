@@ -118,17 +118,19 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<LocalFileSystem>
         fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
+    // TODO(yyk) 这部分实现不太优雅，后续进行重构
+    std::string copysetUri = FLAGS_copyset_dir + "/copysets";
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = FLAGS_ip;
     copysetNodeOptions.port = FLAGS_port;
     copysetNodeOptions.snapshotIntervalS = FLAGS_snapshot_interval_s;
     copysetNodeOptions.electionTimeoutMs = FLAGS_election_timeout_ms;
     copysetNodeOptions.catchupMargin = FLAGS_catchup_margin;
-    copysetNodeOptions.chunkDataUri = FLAGS_copyset_dir;
-    copysetNodeOptions.chunkSnapshotUri = FLAGS_copyset_dir;
-    copysetNodeOptions.logUri = FLAGS_copyset_dir;
-    copysetNodeOptions.raftMetaUri = FLAGS_copyset_dir;
-    copysetNodeOptions.raftSnapshotUri = FLAGS_copyset_dir;
+    copysetNodeOptions.chunkDataUri = copysetUri;
+    copysetNodeOptions.chunkSnapshotUri = copysetUri;
+    copysetNodeOptions.logUri = copysetUri;
+    copysetNodeOptions.raftMetaUri = copysetUri;
+    copysetNodeOptions.raftSnapshotUri = copysetUri;
     copysetNodeOptions.pageSize = 4 * 1024;
     copysetNodeOptions.maxChunkSize = kMaxChunkSize;
 
@@ -190,6 +192,7 @@ int main(int argc, char *argv[]) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
+    CopysetNodeManager::GetInstance().Run();
     CopysetNodeManager::GetInstance().CreateCopysetNode(FLAGS_logic_pool_id,
                                                         FLAGS_copyset_id,
                                                         peers);
