@@ -29,6 +29,7 @@ cc_test(
         "concurrent_apply_unittest.cpp",
         "mock_local_file_system.h",
         "mock_node.h",
+        "mock_raftsnapshot_filesystem_adaptor.h",
         "fake_datastore.h",
     ]),
     copts = ["-std=c++14"],

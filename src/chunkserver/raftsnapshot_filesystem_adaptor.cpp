@@ -23,9 +23,15 @@ RaftSnapshotFilesystemAdaptor::RaftSnapshotFilesystemAdaptor(
     memset(tempMetaPageContent, 0, metapageSize);
 }
 
+RaftSnapshotFilesystemAdaptor::RaftSnapshotFilesystemAdaptor()
+    : tempMetaPageContent(nullptr) {
+}
+
 RaftSnapshotFilesystemAdaptor::~RaftSnapshotFilesystemAdaptor() {
-    delete[] tempMetaPageContent;
-    tempMetaPageContent = nullptr;
+    if (tempMetaPageContent != nullptr) {
+        delete[] tempMetaPageContent;
+        tempMetaPageContent = nullptr;
+    }
     LOG(INFO) << "release raftsnapshot filesystem adaptor!";
 }
 

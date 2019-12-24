@@ -25,6 +25,7 @@
 #include "src/chunkserver/conf_epoch_file.h"
 #include "proto/heartbeat.pb.h"
 #include "src/chunkserver/raftsnapshot_filesystem_adaptor.h"
+#include "test/chunkserver/mock_raftsnapshot_filesystem_adaptor.h"
 
 namespace curve {
 namespace chunkserver {
@@ -291,7 +292,7 @@ TEST(CopysetNodeTest, error_test) {
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
     }
 
-    // on_snapshot_load: Dir exist, List failed
+    // on_snapshot_load: Dir exist, delete failed
     {
         LogicPoolID logicPoolID = 123;
         CopysetID copysetID = 1345;
@@ -303,15 +304,47 @@ TEST(CopysetNodeTest, error_test) {
             mockfs = std::make_shared<MockLocalFileSystem>();
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
+        MockRaftSnapshotFilesystemAdaptor* rfa =
+            new MockRaftSnapshotFilesystemAdaptor();
+        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1).WillOnce(Return(-1));
+        EXPECT_CALL(*rfa,
+                    delete_file(_, _)).Times(1).WillOnce(Return(false));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
     }
 
-    // on_snapshot_load: Dir exist, List success, rename success
+    // on_snapshot_load: Dir exist, delete success, rename failed
+    {
+        LogicPoolID logicPoolID = 123;
+        CopysetID copysetID = 1345;
+        Configuration conf;
+        CopysetNode copysetNode(logicPoolID, copysetID, conf);
+        FakeClosure closure;
+        FakeSnapshotReader reader;
+        std::shared_ptr<MockLocalFileSystem>
+            mockfs = std::make_shared<MockLocalFileSystem>();
+        std::unique_ptr<ConfEpochFile>
+            epochFile = std::make_unique<ConfEpochFile>(mockfs);
+        MockRaftSnapshotFilesystemAdaptor* rfa =
+            new MockRaftSnapshotFilesystemAdaptor();
+        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
+        copysetNode.SetSnapshotFileSystem(sfs);
+        copysetNode.SetLocalFileSystem(mockfs);
+        copysetNode.SetConfEpochFile(std::move(epochFile));
+        EXPECT_CALL(*mockfs, DirExists(_)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*rfa,
+                    delete_file(_, _)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*rfa,
+                    rename(_, _)).Times(1).WillOnce(Return(false));
+
+        ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
+    }
+
+    // on_snapshot_load: Dir exist, rename success
     // file exist, open failed
     {
         LogicPoolID logicPoolID = 1;
@@ -328,61 +361,25 @@ TEST(CopysetNodeTest, error_test) {
         std::unique_ptr<ConfEpochFile>
             epochFile = std::make_unique<ConfEpochFile>(mockfs);
         copysetNodeOptions.localFileSystem = mockfs;
-        RaftSnapshotFilesystemAdaptor* rfa =
-            new RaftSnapshotFilesystemAdaptor(copysetNodeOptions.chunkfilePool,
-                                              copysetNodeOptions.localFileSystem);  // NOLINT
+        MockRaftSnapshotFilesystemAdaptor* rfa =
+            new MockRaftSnapshotFilesystemAdaptor();
         auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
         copysetNode.SetSnapshotFileSystem(sfs);
         copysetNode.SetLocalFileSystem(mockfs);
         copysetNode.SetConfEpochFile(std::move(epochFile));
         EXPECT_CALL(*mockfs, DirExists(_)).Times(1)
             .WillOnce(Return(true));
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1)
-            .WillOnce(Return(0));
-        EXPECT_CALL(*mockfs, FileExists(_)).Times(2)
-            .WillOnce(Return(true))
+        EXPECT_CALL(*rfa,
+                    delete_file(_, _)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*rfa,
+                    rename(_, _)).Times(1).WillOnce(Return(true));
+        EXPECT_CALL(*mockfs, FileExists(_)).Times(1)
             .WillOnce(Return(true));
         EXPECT_CALL(*mockfs, Open(_, _)).Times(1)
             .WillOnce(Return(-1));
 
         ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
         LOG(INFO) << "OK";
-    }
-    // on_snapshot_load: Dir exist, List success, rename failed
-    {
-        LogicPoolID logicPoolID = 1;
-        CopysetID copysetID = 1;
-        Configuration conf;
-        std::vector<std::string> files;
-        files.push_back("test-1.txt");
-
-        CopysetNode copysetNode(logicPoolID, copysetID, conf);
-        FakeClosure closure;
-        FakeSnapshotReader reader;
-        std::shared_ptr<MockLocalFileSystem>
-            mockfs = std::make_shared<MockLocalFileSystem>();
-        std::unique_ptr<ConfEpochFile>
-            epochFile = std::make_unique<ConfEpochFile>(mockfs);
-        copysetNodeOptions.localFileSystem = mockfs;
-        RaftSnapshotFilesystemAdaptor* rfa =
-            new RaftSnapshotFilesystemAdaptor(copysetNodeOptions.chunkfilePool,
-                                              copysetNodeOptions.localFileSystem);  // NOLINT
-        auto sfs = new scoped_refptr<braft::FileSystemAdaptor>(rfa);
-        copysetNode.SetSnapshotFileSystem(sfs);
-        copysetNode.SetLocalFileSystem(mockfs);
-        copysetNode.SetConfEpochFile(std::move(epochFile));
-        EXPECT_CALL(*mockfs, DirExists(_)).Times(1)
-            .WillOnce(Return(true));
-        EXPECT_CALL(*mockfs, List(_, _)).Times(1)
-            .WillOnce(DoAll(SetArgPointee<1>(files), Return(0)));
-        EXPECT_CALL(*mockfs, FileExists(_)).Times(1)
-            .WillOnce(Return(false));
-        EXPECT_CALL(*mockfs, Rename(_, _, 0)).Times(1)
-            .WillOnce(Return(-1));
-
-        ASSERT_EQ(-1, copysetNode.on_snapshot_load(&reader));
     }
     /* on_error */
     {
