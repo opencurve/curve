@@ -74,7 +74,8 @@ int StatusTool::ChunkServerListCmd() {
             }
             if (FLAGS_checkHealth) {
                 copysetCheck_->CheckCopysetsOnChunkServer(csId);
-                unhealthyRatio = copysetCheck_->GetUnhealthyRatio();
+                const auto& statistics = copysetCheck_->GetCopysetStatistics();
+                unhealthyRatio = statistics.unhealthyRatio;
                 if (FLAGS_unhealthy && unhealthyRatio == 0) {
                     continue;
                 }
@@ -152,21 +153,11 @@ int StatusTool::PrintClusterStatus() {
     } else {
         std::cout << "cluster is not healthy!" << std::endl;
     }
-    auto copysets = copysetCheck_->GetCopysetsRes();
-    uint64_t unhealthyNum = 0;
-    uint64_t total = 0;
-    for (const auto& item : copysets) {
-        if (item.first == kTotal) {
-            total = item.second.size();
-        } else {
-            unhealthyNum += item.second.size();
-        }
-    }
-    double unhealthyRatio = copysetCheck_->GetUnhealthyRatio();
-    std::cout << "total copysets: " << total
-              << ", unhealthy copysets: " << unhealthyNum
+    const auto& statistics = copysetCheck_->GetCopysetStatistics();
+    std::cout << "total copysets: " << statistics.totalNum
+              << ", unhealthy copysets: " << statistics.unhealthyNum
               << ", unhealthy_ratio: "
-              << unhealthyRatio * 100 << "%" << std::endl;
+              << statistics.unhealthyRatio * 100 << "%" << std::endl;
     std::vector<PhysicalPoolInfo> phyPools;
     std::vector<LogicalPoolInfo> lgPools;
     res = GetPoolsInCluster(&phyPools, &lgPools);

@@ -108,7 +108,7 @@ TEST(MetricTest, MDS_MetricTest) {
     mdsclient.CloseFile(filename.c_str(), userinfo,  "sessid");
 
     // 共调用6次，1次成功，5次重试
-    ASSERT_GT(mdsmetric->closeFile.qps.count.get_value(), 1000);
+    ASSERT_GT(mdsmetric->closeFile.qps.count.get_value(), 100);
     ASSERT_GT(mdsmetric->closeFile.eps.count.get_value(), 3);
 
     // file open ok

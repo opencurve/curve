@@ -35,7 +35,7 @@ class MockCopysetCheckCore : public CopysetCheckCore {
     MOCK_METHOD2(CheckCopysetsOnServer, int(const std::string&,
                                             std::vector<std::string>*));
     MOCK_METHOD0(CheckCopysetsInCluster, int());
-    MOCK_METHOD0(GetUnhealthyRatio, double());
+    MOCK_METHOD0(GetCopysetStatistics, CopysetStatistics());
     MOCK_CONST_METHOD0(GetCopysetsRes,
                     const std::map<std::string, std::set<std::string>>&());
     MOCK_CONST_METHOD0(GetCopysetDetail, const std::string&());
