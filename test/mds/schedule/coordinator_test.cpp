@@ -372,6 +372,26 @@ TEST(CoordinatorTest, test_ChunkserverGoingToAdd) {
         ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
         ASSERT_TRUE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 4}));
     }
+
+    {
+        // 6. copyset上有change peer操作，target不是1
+        Operator testOperator(1, CopySetKey{1, 5},
+                          OperatorPriority::NormalPriority,
+                          steady_clock::now(),
+                          std::make_shared<ChangePeer>(4, 2));
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        ASSERT_FALSE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 5}));
+    }
+
+    {
+        // 7. copyset上有change peer操作，target是1
+        Operator testOperator(1, CopySetKey{1, 6},
+                          OperatorPriority::NormalPriority,
+                          steady_clock::now(),
+                          std::make_shared<ChangePeer>(4, 1));
+        ASSERT_TRUE(coordinator->GetOpController()->AddOperator(testOperator));
+        ASSERT_TRUE(coordinator->ChunkserverGoingToAdd(1, CopySetKey{1, 6}));
+    }
 }
 
 TEST(CoordinatorTest, test_SchedulerSwitch) {
