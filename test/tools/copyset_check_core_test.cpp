@@ -264,7 +264,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerHealthy) {
                         Return(0)));
     curve::tool::CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck1.CheckCopysetsOnChunkServer(csId));
-    ASSERT_DOUBLE_EQ(0, copysetCheck1.GetUnhealthyRatio());
+    ASSERT_DOUBLE_EQ(0, copysetCheck1.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck1.GetCopysetsRes());
 
     expectedRes[kTotal].insert(gId);
@@ -288,7 +288,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerHealthy) {
         .WillRepeatedly(Return(true));
     curve::tool::CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck2.CheckCopysetsOnChunkServer(csId));
-    ASSERT_DOUBLE_EQ(0, copysetCheck2.GetUnhealthyRatio());
+    ASSERT_DOUBLE_EQ(0, copysetCheck2.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck2.GetCopysetsRes());
 
     // 通过地址查询
@@ -310,7 +310,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerHealthy) {
         .WillRepeatedly(Return(true));
     curve::tool::CopysetCheckCore copysetCheck3(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck3.CheckCopysetsOnChunkServer(csAddr));
-    ASSERT_DOUBLE_EQ(0, copysetCheck3.GetUnhealthyRatio());
+    ASSERT_DOUBLE_EQ(0, copysetCheck3.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck3.GetCopysetsRes());
 }
 
@@ -338,27 +338,12 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerError) {
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, copysetCheck1.CheckCopysetsOnChunkServer(csId));
-    ASSERT_DOUBLE_EQ(0, copysetCheck1.GetUnhealthyRatio());
+    ASSERT_DOUBLE_EQ(0, copysetCheck1.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck1.GetCopysetsRes());
 
-    // 2、mds返回Chunkserver offline的情况
     expectedRes[kPeerNotOnline] = gIds;
     expectedRes[kTotal] = gIds;
     std::set<std::string> expectedExcepCs = {csAddr};
-    GetCsInfoForTest(&csInfo, csId, true);
-    EXPECT_CALL(*mdsClient_, GetChunkServerInfo(csId, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(csInfo),
-                        Return(0)));
-    EXPECT_CALL(*mdsClient_, GetCopySetsInChunkServer(csAddr, _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(copysets),
-                        Return(0)));
-    curve::tool::CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
-    ASSERT_EQ(-1, copysetCheck2.CheckCopysetsOnChunkServer(csId));
-    ASSERT_DOUBLE_EQ(1, copysetCheck2.GetUnhealthyRatio());
-    ASSERT_EQ(expectedExcepCs, copysetCheck2.GetServiceExceptionChunkServer());
-    ASSERT_EQ(expectedRes, copysetCheck2.GetCopysetsRes());
 
     // 3、向chunkserver发送RPC失败的情况,一次是Init失败，一次是发送RPC失败
     GetCsInfoForTest(&csInfo, csId);
@@ -380,13 +365,13 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerError) {
     // Init失败的情况
     curve::tool::CopysetCheckCore copysetCheck3(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck3.CheckCopysetsOnChunkServer(csId));
-    ASSERT_DOUBLE_EQ(1, copysetCheck3.GetUnhealthyRatio());
+    ASSERT_DOUBLE_EQ(1, copysetCheck3.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedExcepCs, copysetCheck3.GetServiceExceptionChunkServer());
     ASSERT_EQ(expectedRes, copysetCheck3.GetCopysetsRes());
     // 发送RPC失败的情况
     curve::tool::CopysetCheckCore copysetCheck4(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck4.CheckCopysetsOnChunkServer(csId));
-    ASSERT_DOUBLE_EQ(1, copysetCheck4.GetUnhealthyRatio());
+    ASSERT_DOUBLE_EQ(1, copysetCheck4.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedExcepCs, copysetCheck4.GetServiceExceptionChunkServer());
     ASSERT_EQ(expectedRes, copysetCheck4.GetCopysetsRes());
 }
@@ -509,7 +494,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnChunkServerUnhealthy) {
     std::set<std::string> expectedExcepCs = {csAddr};
     curve::tool::CopysetCheckCore copysetCheck(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck.CheckCopysetsOnChunkServer(csId));
-    ASSERT_DOUBLE_EQ(0.5, copysetCheck.GetUnhealthyRatio());
+    ASSERT_DOUBLE_EQ(0.5, copysetCheck.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck.GetCopysetsRes());
     ASSERT_EQ(expectedExcepCs, copysetCheck.GetServiceExceptionChunkServer());
 }
@@ -564,7 +549,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
     curve::tool::CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck1.CheckCopysetsOnServer(serverId, &unhealthyCs));
     ASSERT_EQ(0, unhealthyCs.size());
-    ASSERT_EQ(0, copysetCheck1.GetUnhealthyRatio());
+    ASSERT_EQ(0, copysetCheck1.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck1.GetCopysetsRes());
 
     // 通过ip查询
@@ -588,7 +573,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerNormal) {
     curve::tool::CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck2.CheckCopysetsOnServer(serverIp, &unhealthyCs));
     ASSERT_EQ(0, unhealthyCs.size());
-    ASSERT_EQ(0, copysetCheck2.GetUnhealthyRatio());
+    ASSERT_EQ(0, copysetCheck2.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck2.GetCopysetsRes());
 }
 
@@ -599,13 +584,9 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerError) {
     std::string groupId = "4294967396";
     std::vector<ChunkServerInfo> chunkservers;
     std::map<std::string, std::set<std::string>> expectedRes;
-    for (uint64_t i = 1; i <= 3; ++i) {
+    for (uint64_t i = 1; i <= 2; ++i) {
         ChunkServerInfo csInfo;
-        if (i == 1) {
-            GetCsInfoForTest(&csInfo, i, true);
-        } else {
-            GetCsInfoForTest(&csInfo, i);
-        }
+        GetCsInfoForTest(&csInfo, i);
         chunkservers.emplace_back(csInfo);
     }
     std::vector<CopysetInfo> copysets;
@@ -625,11 +606,10 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerError) {
         .WillOnce(Return(-1));
     curve::tool::CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck1.CheckCopysetsOnServer(serverId));
-    ASSERT_EQ(0, copysetCheck1.GetUnhealthyRatio());
+    ASSERT_EQ(0, copysetCheck1.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck1.GetCopysetsRes());
 
-    // 3、一个chunkserver offline，一个chunkserver访问失败，
-    // 一个chunkserver不健康的情况
+    // 3、一个chunkserver访问失败，一个chunkserver不健康的情况
     GetIoBufForTest(&iobuf, groupId, "FOLLOWER", true, false, false,
                                                  false, false, false);
     expectedRes[kTotal] = gIds;
@@ -653,20 +633,15 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsOnServerError) {
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(copysets),
                         Return(0)));
-    EXPECT_CALL(*mdsClient_,
-                    GetCopySetsInChunkServer("127.0.0.1:9192", _))
-        .Times(1)
-        .WillOnce(DoAll(SetArgPointee<1>(copysets),
-                        Return(0)));
     std::vector<std::string> unhealthyCs;
     curve::tool::CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck2.CheckCopysetsOnServer(serverId, &unhealthyCs));
-    ASSERT_EQ(1, copysetCheck2.GetUnhealthyRatio());
+    ASSERT_EQ(1, copysetCheck2.GetCopysetStatistics().unhealthyRatio);
     std::vector<std::string> unhealthyCsExpected =
-                {"127.0.0.1:9191", "127.0.0.1:9192", "127.0.0.1:9193"};
+                {"127.0.0.1:9191", "127.0.0.1:9192"};
     ASSERT_EQ(unhealthyCsExpected, unhealthyCs);
     std::set<std::string> expectedExcepCs =
-                    {"127.0.0.1:9191", "127.0.0.1:9192"};
+                    {"127.0.0.1:9191"};
     ASSERT_EQ(expectedExcepCs, copysetCheck2.GetServiceExceptionChunkServer());
 }
 
@@ -707,7 +682,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterNormal) {
                         Return(0)));
     curve::tool::CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
     ASSERT_EQ(0, copysetCheck1.CheckCopysetsInCluster());
-    ASSERT_EQ(0, copysetCheck1.GetUnhealthyRatio());
+    ASSERT_EQ(0, copysetCheck1.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck1.GetCopysetsRes());
 }
 
@@ -728,7 +703,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
         .WillOnce(Return(-1));
     curve::tool::CopysetCheckCore copysetCheck1(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck1.CheckCopysetsInCluster());
-    ASSERT_EQ(0, copysetCheck1.GetUnhealthyRatio());
+    ASSERT_EQ(0, copysetCheck1.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck1.GetCopysetsRes());
 
     // 2、CheckCopysetsOnServer返回不为0
@@ -741,7 +716,7 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
         .WillOnce(Return(-1));
     curve::tool::CopysetCheckCore copysetCheck2(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck2.CheckCopysetsInCluster());
-    ASSERT_EQ(0, copysetCheck2.GetUnhealthyRatio());
+    ASSERT_EQ(0, copysetCheck2.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck2.GetCopysetsRes());
 
     // 3、GetMetric失败
@@ -772,11 +747,11 @@ TEST_F(CopysetCheckCoreTest, CheckCopysetsInClusterError) {
     // 获取operator失败
     curve::tool::CopysetCheckCore copysetCheck3(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck3.CheckCopysetsInCluster());
-    ASSERT_EQ(0, copysetCheck3.GetUnhealthyRatio());
+    ASSERT_EQ(0, copysetCheck3.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck3.GetCopysetsRes());
     // operator数量大于0
     curve::tool::CopysetCheckCore copysetCheck4(mdsClient_, csClient_);
     ASSERT_EQ(-1, copysetCheck4.CheckCopysetsInCluster());
-    ASSERT_EQ(0, copysetCheck4.GetUnhealthyRatio());
+    ASSERT_EQ(0, copysetCheck4.GetCopysetStatistics().unhealthyRatio);
     ASSERT_EQ(expectedRes, copysetCheck4.GetCopysetsRes());
 }
