@@ -167,7 +167,9 @@ int NameSpaceTool::PrintListDir(std::string dirName) {
         double allocSize = static_cast<double>(size) / mds::kGB;
         std::cout << "allocated size: " << allocSize << "GB" << std::endl;
     }
-    std::cout << std::endl;
+    if (!files.empty()) {
+        std::cout << std::endl;
+    }
     std::cout << "Total file number: " << files.size() << std::endl;
     return 0;
 }
