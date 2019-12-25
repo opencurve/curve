@@ -28,21 +28,24 @@ def add_config():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
         #change offline time
-        ori_cmd = R"sed -i 's/mds.heartbeat.offlinetimeoutMs=1800000/mds.heartbeat.offlinetimeoutMs=%d/g' mds.conf"%(config.offline_timeout*1000)
+        ori_cmd = R"sed -i 's/mds.heartbeat.offlinetimeoutMs=.*/mds.heartbeat.offlinetimeoutMs=%d/g' mds.conf"%(config.offline_timeout*1000)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
         #change scheduler time
-        ori_cmd = R"sed -i 's/mds.copyset.scheduler.intervalSec=30/mds.copyset.scheduler.intervalSec=5/g' mds.conf"
+        ori_cmd = R"sed -i 's/mds.copyset.scheduler.intervalSec=.*/mds.copyset.scheduler.intervalSec=0/g' mds.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
-        ori_cmd = R"sed -i 's/mds.replica.scheduler.intervalSec=30/mds.replica.scheduler.intervalSec=5/g' mds.conf"
+        ori_cmd = R"sed -i 's/mds.replica.scheduler.intervalSec=.*/mds.replica.scheduler.intervalSec=0/g' mds.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
-        ori_cmd = R"sed -i 's/mds.recover.scheduler.intervalSec=30/mds.recover.scheduler.intervalSec=5/g' mds.conf"
+        ori_cmd = R"sed -i 's/mds.recover.scheduler.intervalSec=.*/mds.recover.scheduler.intervalSec=0/g' mds.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s mds config fail"%host
+        ori_cmd = R"sed -i 's/mds.leader.scheduler.intervalSec=.*/mds.leader.scheduler.intervalSec=5/g' mds.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
         # change topology update time
-        ori_cmd = R"sed -i 's/mds.topology.TopologyUpdateToRepoSec=60/mds.topology.TopologyUpdateToRepoSec=1/g' mds.conf"
+        ori_cmd = R"sed -i 's/mds.topology.TopologyUpdateToRepoSec=.*/mds.topology.TopologyUpdateToRepoSec=1/g' mds.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
         #add mysql conf
@@ -95,6 +98,18 @@ def add_config():
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
         #change mds ip
         ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' chunkserver.conf"%(addrs)
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+ 
+        ori_cmd = R"sed -i 's/chunkserver.snapshot_throttle_throughput_bytes=.*/chunkserver.snapshot_throttle_throughput_bytes=104857600/g' chunkserver.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+        
+        ori_cmd = R"sed -i 's/trash.expire_afterSec=.*/trash.expire_afterSec=0/g' chunkserver.conf"
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"change host %s chunkserver config fail"%host
+         
+        ori_cmd = R"sed -i 's/trash.scan_periodSec=.*/trash.scan_periodSec=10/g' chunkserver.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s chunkserver config fail"%host
         #open use snapshot

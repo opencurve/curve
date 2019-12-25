@@ -207,6 +207,29 @@ def detach_vol():
     logger.info("exec cmd %s"%ori_cmd)
     ssh.close()
 
+def clear_RecycleBin():
+    mds_addrs = []
+    for host in config.mds_list:
+        mds_addrs.append(host + ":6666")
+    addrs = ",".join(mds_addrs)
+    host = random.choice(config.mds_list)
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "curve_ops_tool clean-recycle  -mdsAddr=%s --isTest"%addrs
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    assert rs[3] == 0,"clean RecyclenBin失败，msg is %s"%rs[1]
+    starttime = time.time()
+    ori_cmd = "curve_ops_tool list  -mdsAddr=%s -fileName=/RecycleBin |grep fileName"%addrs
+    while time.time() - starttime < 180:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        if rs[1] == [] and rs[3] == 0:
+            break
+        else:
+            logger.debug("删除中")
+            if rs[3] != 0:
+                logger.debug("list /RecycleBin 失败,error is %s"%rs[1])
+            time.sleep(3) 
+    assert rs[1] == [],"删除/RecycleBin 失败，error is %s"%rs[1]
+
 def loop_attach_detach_vol():
     ori_cmd = "source OPENRC && nova list |grep %s | awk '{print $2}'"%config.vm_stability_host
     ssh = shell_operator.create_ssh_connect(config.nova_host, 1046, config.nova_user)
@@ -468,8 +491,7 @@ def start_mult_cs_process(host,num):
         cs = random.choice(down_cs)
         id = get_chunkserver_id(host,cs)
         if id == -1 and get_cs_copyset_num(id) == 0:
-            ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat;sudo rm -rf /data/chunkserver%d/copysets;\
-             sudo rm -rf /data/chunkserver%d/recycler"%(cs,cs,cs)
+            ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat"%(cs)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
         ori_cmd = "sudo /home/nbs/chunkserver_ctl.sh start %d &"%cs
@@ -553,8 +575,7 @@ def start_host_cs_process(host,csid=-1):
     else:
         id = get_chunkserver_id(host,csid)
         if id == -1 and get_cs_copyset_num(id) == 0:
-            ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat;sudo rm -rf /data/chunkserver%d/copysets;\
-             sudo rm -rf /data/chunkserver%d/recycler"%(csid,csid,csid)
+            ori_cmd = "sudo rm -rf /data/chunkserver%d/chunkserver.dat"%(csid)
             rs = shell_operator.ssh_exec(ssh, ori_cmd)
             assert rs[3] == 0
         ori_cmd = "sudo nohup /home/nbs/chunkserver_ctl.sh start %d &" %csid
@@ -729,19 +750,52 @@ def check_chunkserver_online(num=120):
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmd = "curve_ops_tool chunkserver-status -mdsAddr=%s |grep chunkserver"%addrs
-    rs = shell_operator.ssh_exec(ssh, ori_cmd)
-    assert rs[3] == 0,"get chunkserver status fail,rs is %s"%rs[2]
-    status = "".join(rs[1]).strip()
-    online_num = re.findall(r'(?<=online = )\d+',status)
-    logger.info("chunkserver online num is %s"%online_num)
+    
+    starttime = time.time()
+    i = 0
+    while time.time() - starttime < 300:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        assert rs[3] == 0,"get chunkserver status fail,rs is %s"%rs[2]
+        status = "".join(rs[1]).strip()
+        online_num = re.findall(r'(?<=online = )\d+',status)
+        logger.info("chunkserver online num is %s"%online_num)
+        if int(online_num[0]) != num:
+            logger.debug("chunkserver online num is  %s"%online_num)
+            time.sleep(10)
+        else:
+            break
     if int(online_num[0]) != num:
         ori_cmd = "curve_ops_tool chunkserver-list -mdsAddr=%s -checkHealth=false |grep OFFLINE"%addrs
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         logger.error("chunkserver offline list is %s"%rs[1])
         assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
 
-def wait_iops_ok(limit_iops=8000):
+def wait_cluster_healthy(limit_iops=8000):
     check_chunkserver_online()
+    #检测集群整体状态
+    mds_addrs = []
+    for host in config.mds_list:
+        mds_addrs.append(host + ":6666")
+    addrs = ",".join(mds_addrs)
+    host = random.choice(config.mds_list)
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "curve_ops_tool check-cluster -mdsAddr=%s | grep \"Cluster is\""%addrs
+    starttime = time.time()
+    check = 0
+    while time.time() - starttime < config.recover_time:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        health = "".join(rs[1]).strip()
+        if health == "Cluster is healthy!" and rs[3] == 0:
+            check = 1
+            break
+        else:
+            ori_cmd2 = "curve_ops_tool check-cluster -mdsAddr=%s -detail | grep \"peers not sufficient\""%addrs
+            rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
+            health = "".join(rs2[1]).strip()
+            logger.debug("cluster is %s"%health)
+            time.sleep(30)
+    assert check == 1,"cluster is not healthy in %d s"%config.recover_time
+#检测云主机iops    
     ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
     i = 0
     while i < 300:
