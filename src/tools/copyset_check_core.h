@@ -57,6 +57,15 @@ enum class ChunkServerHealthStatus {
     kNotOnline = -2  // chunkserver不在线
 };
 
+struct CopysetStatistics {
+    CopysetStatistics() :
+        totalNum(0), unhealthyNum(0), unhealthyRatio(0) {}
+    CopysetStatistics(uint64_t total, uint64_t unhealthy);
+    uint64_t totalNum;
+    uint64_t unhealthyNum;
+    double unhealthyRatio;
+};
+
 const char kTotal[] = "total";
 const char kInstallingSnapshot[] = "installing snapshot";
 const char kNoLeader[] = "no leader";
@@ -134,7 +143,7 @@ class CopysetCheckCore {
      *  @brief 计算不健康的copyset的比例，检查后调用
      *  @return 不健康的copyset的比例
      */
-    virtual double GetUnhealthyRatio();
+    virtual CopysetStatistics GetCopysetStatistics();
 
     /**
      *  @brief 获取copyset的列表，通常检查后会调用，然后打印出来

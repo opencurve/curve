@@ -27,6 +27,10 @@ DECLARE_bool(unhealthy);
 
 class StatusToolTest : public ::testing::Test {
  protected:
+    StatusToolTest() {
+        statistics1 = curve::tool::CopysetStatistics(2, 0);
+        statistics2 = curve::tool::CopysetStatistics(10, 5);
+    }
     void SetUp() {
         mdsClient_ = std::make_shared<curve::tool::MockMDSClient>();
         nameSpaceTool_ =
@@ -83,19 +87,8 @@ class StatusToolTest : public ::testing::Test {
         csInfo->set_diskcapacity(1024);
         csInfo->set_diskused(512);
     }
-
-    std::map<std::string, std::set<std::string>> res1 =
-                    {{"total", {"4294967396", "4294967397"}}};
-    std::map<std::string, std::set<std::string>> res2 =
-                    {{"total", {"4294967396", "4294967397", "4294967398",
-                               "4294967399", "4294967400", "4294967401",
-                               "4294967402", "4294967403", "4294967403",
-                               "4294967404"}},
-                     {"installing snapshot", {"4294967397"}},
-                     {"no leader", {"4294967398"}},
-                     {"index gap too big", {"4294967399"}},
-                     {"peers not sufficient", {"4294967400"}},
-                     {"peer not online", {"4294967401"}}};
+    curve::tool::CopysetStatistics statistics1;
+    curve::tool::CopysetStatistics statistics2;
 
     std::shared_ptr<curve::tool::MockMDSClient> mdsClient_;
     std::shared_ptr<curve::tool::MockNameSpaceToolCore> nameSpaceTool_;
@@ -225,10 +218,10 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
                 An<const ChunkServerIdType&>()))
         .Times(3)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*copysetCheck_, GetUnhealthyRatio())
+    EXPECT_CALL(*copysetCheck_, GetCopysetStatistics())
         .Times(3)
-        .WillOnce(Return(0.15))
-        .WillRepeatedly(Return(0));
+        .WillOnce(Return(statistics2))
+        .WillRepeatedly(Return(statistics1));
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-list"));
 
     // 只显示offline的
@@ -248,10 +241,10 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
                 An<const ChunkServerIdType&>()))
         .Times(3)
         .WillRepeatedly(Return(0));
-    EXPECT_CALL(*copysetCheck_, GetUnhealthyRatio())
+    EXPECT_CALL(*copysetCheck_, GetCopysetStatistics())
         .Times(3)
-        .WillOnce(Return(0.15))
-        .WillRepeatedly(Return(0));
+        .WillOnce(Return(statistics2))
+        .WillRepeatedly(Return(statistics1));
     FLAGS_offline = false;
     FLAGS_unhealthy = true;
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-list"));
@@ -292,12 +285,9 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     EXPECT_CALL(*copysetCheck_, CheckCopysetsInCluster())
         .Times(1)
         .WillOnce(Return(0));
-    EXPECT_CALL(*copysetCheck_, GetCopysetsRes())
+    EXPECT_CALL(*copysetCheck_, GetCopysetStatistics())
         .Times(1)
-        .WillOnce(ReturnRef(res1));
-    EXPECT_CALL(*copysetCheck_, GetUnhealthyRatio())
-        .Times(1)
-        .WillOnce(Return(0));
+        .WillOnce(Return(statistics1));
     EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<0>(phyPools),
@@ -366,12 +356,9 @@ TEST_F(StatusToolTest, StatusCmdError) {
     EXPECT_CALL(*copysetCheck_, CheckCopysetsInCluster())
         .Times(1)
         .WillOnce(Return(-1));
-    EXPECT_CALL(*copysetCheck_, GetCopysetsRes())
+    EXPECT_CALL(*copysetCheck_, GetCopysetStatistics())
         .Times(1)
-        .WillOnce(ReturnRef(res2));
-    EXPECT_CALL(*copysetCheck_, GetUnhealthyRatio())
-        .Times(1)
-        .WillOnce(Return(0.5));
+        .WillOnce(Return(statistics2));
     // 列出物理池失败
     EXPECT_CALL(*mdsClient_, ListPhysicalPoolsInCluster(_))
         .Times(1)
