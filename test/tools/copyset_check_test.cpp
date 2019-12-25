@@ -7,6 +7,7 @@
 
 #include <gtest/gtest.h>
 #include "src/tools/copyset_check.h"
+#include "src/tools/copyset_check_core.h"
 #include "test/tools/mock_copyset_check_core.h"
 
 using ::testing::_;
@@ -27,6 +28,10 @@ DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
 
 class CopysetCheckTest : public ::testing::Test {
  protected:
+    CopysetCheckTest() {
+        statistics1 = curve::tool::CopysetStatistics(2, 0);
+        statistics2 = curve::tool::CopysetStatistics(6, 5);
+    }
     void SetUp() {
         core_ = std::make_shared<curve::tool::MockCopysetCheckCore>();
         FLAGS_detail = true;
@@ -98,6 +103,8 @@ class CopysetCheckTest : public ::testing::Test {
     std::set<std::string> serviceExcepCs = {"127.0.0.1:9092"};
     std::set<std::string> emptySet;
 
+    curve::tool::CopysetStatistics statistics1;
+    curve::tool::CopysetStatistics statistics2;
     std::shared_ptr<curve::tool::MockCopysetCheckCore> core_;
 };
 
@@ -157,8 +164,11 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*core_, GetCopysetsRes())
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(ReturnRef(res1));
+    EXPECT_CALL(*core_, GetCopysetStatistics())
+        .Times(1)
+        .WillRepeatedly(Return(statistics1));
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
@@ -172,8 +182,11 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*core_, GetCopysetsRes())
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(ReturnRef(res1));
+    EXPECT_CALL(*core_, GetCopysetStatistics())
+        .Times(1)
+        .WillRepeatedly(Return(statistics1));
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
@@ -184,8 +197,11 @@ TEST_F(CopysetCheckTest, testCheckChunkServer) {
         .Times(1)
         .WillOnce(Return(-1));
     EXPECT_CALL(*core_, GetCopysetsRes())
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(ReturnRef(res2));
+    EXPECT_CALL(*core_, GetCopysetStatistics())
+        .Times(1)
+        .WillRepeatedly(Return(statistics2));
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(serviceExcepCs));
@@ -209,8 +225,11 @@ TEST_F(CopysetCheckTest, testCheckServer) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkservers),
                         Return(0)));
     EXPECT_CALL(*core_, GetCopysetsRes())
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(ReturnRef(res1));
+    EXPECT_CALL(*core_, GetCopysetStatistics())
+        .Times(1)
+        .WillRepeatedly(Return(statistics1));
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
@@ -225,8 +244,11 @@ TEST_F(CopysetCheckTest, testCheckServer) {
         .WillOnce(DoAll(SetArgPointee<1>(chunkservers),
                         Return(0)));
     EXPECT_CALL(*core_, GetCopysetsRes())
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(ReturnRef(res1));
+    EXPECT_CALL(*core_, GetCopysetStatistics())
+        .Times(1)
+        .WillRepeatedly(Return(statistics1));
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
@@ -237,8 +259,11 @@ TEST_F(CopysetCheckTest, testCheckServer) {
         .Times(1)
         .WillOnce(Return(-1));
     EXPECT_CALL(*core_, GetCopysetsRes())
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(ReturnRef(res2));
+    EXPECT_CALL(*core_, GetCopysetStatistics())
+        .Times(1)
+        .WillRepeatedly(Return(statistics2));
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(serviceExcepCs));
@@ -252,8 +277,11 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*core_, GetCopysetsRes())
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(ReturnRef(res1));
+    EXPECT_CALL(*core_, GetCopysetStatistics())
+        .Times(1)
+        .WillRepeatedly(Return(statistics1));
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(emptySet));
@@ -264,8 +292,11 @@ TEST_F(CopysetCheckTest, testCheckCluster) {
         .Times(1)
         .WillOnce(Return(-1));
     EXPECT_CALL(*core_, GetCopysetsRes())
-        .Times(2)
+        .Times(1)
         .WillRepeatedly(ReturnRef(res2));
+    EXPECT_CALL(*core_, GetCopysetStatistics())
+        .Times(1)
+        .WillRepeatedly(Return(statistics2));
     EXPECT_CALL(*core_, GetServiceExceptionChunkServer())
         .Times(1)
         .WillOnce(ReturnRef(serviceExcepCs));

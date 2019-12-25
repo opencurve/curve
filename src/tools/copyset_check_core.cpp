@@ -16,6 +16,16 @@ DEFINE_bool(checkOperator, false, "if true, the operator number of "
 namespace curve {
 namespace tool {
 
+CopysetStatistics::CopysetStatistics(uint64_t total, uint64_t unhealthy)
+            : totalNum(total), unhealthyNum(unhealthy) {
+    if (total != 0) {
+        unhealthyRatio =
+            static_cast<double>(unhealthyNum) / totalNum;
+    } else {
+        unhealthyRatio = 0;
+    }
+}
+
 int CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
                                   const CopySetIdType& copysetId) {
     Clear();
@@ -102,13 +112,6 @@ int CopysetCheckCore::CheckCopysetsOnChunkServer(
     std::string hostIp = csInfo.hostip();
     uint64_t port = csInfo.port();
     std::string csAddr = hostIp + ":" + std::to_string(port);
-    // 如果offline的话，不发送请求，直接把copysets更新到peerNotOnline
-    if (csInfo.onlinestate() == OnlineState::OFFLINE) {
-        std::cout << "ChunkServer is offline!" << std::endl;
-        UpdatePeerNotOnlineCopysets(csAddr);
-        serviceExceptionChunkServers_.emplace(csAddr);
-        return -1;
-    }
     // 向chunkserver发送RPC请求获取raft state
     ChunkServerHealthStatus csStatus = CheckCopysetsOnChunkServer(csAddr, {});
     if (csStatus == ChunkServerHealthStatus::kHealthy) {
@@ -250,17 +253,6 @@ int CopysetCheckCore::CheckCopysetsOnServer(const ServerIdType& serverId,
         std::string csAddr = ip + ":" + std::to_string(port);
         // 跳过retired状态的chunkserver
         if (info.status() == ChunkServerStatus::RETIRED) {
-            continue;
-        }
-        // 如果chunkserver已经offline了，则不发送请求，直接更新peerNotOnline
-        if (info.onlinestate() == OnlineState::OFFLINE) {
-            std::cout << "ChunkServer " << csAddr
-                      << " is offline!" << std::endl;
-            UpdatePeerNotOnlineCopysets(csAddr);
-            serviceExceptionChunkServers_.emplace(csAddr);
-            if (unhealthyChunkServers) {
-                unhealthyChunkServers->emplace_back(csAddr);
-            }
             continue;
         }
         ChunkServerHealthStatus res = CheckCopysetsOnChunkServer(csAddr,
@@ -543,22 +535,21 @@ void CopysetCheckCore::UpdatePeerNotOnlineCopysets(const std::string& csAddr) {
     }
 }
 
-double CopysetCheckCore::GetUnhealthyRatio() {
-    uint64_t unhealthyNum = 0;
+CopysetStatistics CopysetCheckCore::GetCopysetStatistics() {
     uint64_t total = 0;
+    std::set<std::string> unhealthyCopysets;
     for (const auto& item : copysets_) {
         if (item.first == kTotal) {
             total = item.second.size();
         } else {
-            unhealthyNum += item.second.size();
+            // 求并集
+            unhealthyCopysets.insert(item.second.begin(),
+                                     item.second.end());
         }
     }
-    double unhealthyRatio = 0;
-    if (total != 0) {
-        unhealthyRatio =
-                static_cast<double>(unhealthyNum) / total;
-    }
-    return unhealthyRatio;
+    uint64_t unhealthyNum = unhealthyCopysets.size();
+    CopysetStatistics statistics(total, unhealthyNum);
+    return statistics;
 }
 
 void CopysetCheckCore::Clear() {

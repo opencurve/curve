@@ -179,25 +179,11 @@ void CopysetCheck::PrintHelp(const std::string& command) {
 
 
 void CopysetCheck::PrintStatistic() {
-    auto copysets = core_->GetCopysetsRes();
-    uint64_t unhealthyNum = 0;
-    uint64_t total = 0;
-    for (const auto& item : copysets) {
-        if (item.first == kTotal) {
-            total = item.second.size();
-        } else {
-            unhealthyNum += item.second.size();
-        }
-    }
-    double unhealthyRatio = 0;
-    if (total != 0) {
-        unhealthyRatio =
-                static_cast<double>(unhealthyNum) / total;
-    }
-    std::cout << "total copysets: " << total
-              << ", unhealthy copysets: " << unhealthyNum
+    const auto& statistics = core_->GetCopysetStatistics();
+    std::cout << "total copysets: " << statistics.totalNum
+              << ", unhealthy copysets: " << statistics.unhealthyNum
               << ", unhealthy_ratio: "
-              << unhealthyRatio * 100 << "%" << std::endl;
+              << statistics.unhealthyRatio * 100 << "%" << std::endl;
 }
 
 void CopysetCheck::PrintDetail() {
