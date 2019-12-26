@@ -73,6 +73,12 @@ int ClientConfig::Init(const char* configpath) {
     LOG_IF(ERROR, ret == false) << "config no chunkserver.maxStableTimeoutTimes info";   //  NOLINT
     RETURN_IF_FALSE(ret)
 
+    ret = conf_.GetUInt64Value("chunkserver.minRetryTimesForceTimeoutBackoff",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMinRetryTimesForceTimeoutBackoff);  // NOLINT
+    LOG_IF(ERROR, ret == false)
+        << "config no chunkserver.minRetryTimesForceTimeoutBackoff "
+        << "using default value";
+
     ret = conf_.GetUInt64Value("chunkserver.maxRetryTimesBeforeConsiderSuspend",
         &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRetryTimesBeforeConsiderSuspend);   // NOLINT
     LOG_IF(ERROR, ret == false) << "config no chunkserver.maxRetryTimesBeforeConsiderSuspend info";             // NOLINT

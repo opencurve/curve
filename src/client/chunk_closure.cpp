@@ -59,9 +59,23 @@ void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     // rpc timeout时间可能会被设置成2s/4s，等到超时后再去获取leader信息
     // 为了尽快在新的Leader上重试请求，将rpc timeout时间设置为默认值
     if (cntlstatus == brpc::ERPCTIMEDOUT || cntlstatus == ETIMEDOUT) {
-        auto nextTimeout = metaCache_->IsLeaderMayChange(logicPoolId, copysetId)
-        ? failReqOpt_.chunkserverRPCTimeoutMS
-        : TimeoutBackOff(reqDone->GetRetriedTimes());
+        uint64_t nextTimeout = 0;
+        uint64_t retriedTimes = reqDone->GetRetriedTimes();
+        bool leaderMayChange = metaCache_->IsLeaderMayChange(
+            logicPoolId, copysetId);
+
+        // 当某一个IO重试超过一定次数后，超时时间一定进行指数退避
+        // 当底层chunkserver压力大时，可能也会触发unstable
+        // 由于copyset leader may change，会导致请求超时时间设置为默认值
+        // 而chunkserver在这个时间内处理不了，导致IO hang
+        // 真正宕机的情况下，请求重试一定次数后会处理完成
+        // 如果一直重试，则不是宕机情况，这时候超时时间还是要进入指数退避逻辑
+        if (retriedTimes < failReqOpt_.chunkserverMinRetryTimesForceTimeoutBackoff &&  // NOLINT
+            leaderMayChange) {
+            nextTimeout = failReqOpt_.chunkserverRPCTimeoutMS;
+        } else {
+            nextTimeout = TimeoutBackOff(retriedTimes);
+        }
 
         reqDone->SetNextTimeOutMS(nextTimeout);
         LOG(WARNING) << "rpc timeout, next timeout = " << nextTimeout
