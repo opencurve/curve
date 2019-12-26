@@ -54,10 +54,10 @@ class StatusTool {
 
     /**
      *  @brief 打印help信息
-     *  @param 无
+     *  @param cmd：执行的命令
      *  @return 无
      */
-    void PrintHelp();
+    void PrintHelp(const std::string &cmd);
 
     /**
      *  @brief 执行命令
