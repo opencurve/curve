@@ -127,10 +127,10 @@ void CopySetScheduler::StatsCopysetDistribute(
     // 均方差
     variance /= distribute.size();
     *stdvariance = std::sqrt(variance);
-    LOG(INFO) << "copyset schduler stats copyset distribute (avg:"
-              << *avg << ", max:" << max << ", maxCsId:" << maxcsId
-              << ", min:" << min << ", minCsId:" << mincsId
-              << ", range:" << *range << ", stdvariance:" << *stdvariance
+    LOG(INFO) << "copyset scheduler stats copyset distribute (avg:"
+              << *avg << ", {max:" << max << ",maxCsId:" << maxcsId
+              << "}, {min:" << min << ",minCsId:" << mincsId
+              << "}, range:" << *range << ", stdvariance:" << *stdvariance
               << ", variance:" << variance << ")";
 }
 
@@ -214,7 +214,12 @@ bool CopySetScheduler::CopySetMigration(
     SchedulerHelper::SortDistribute(distribute, &desc);
 
     // 选择copyset数量最少的作为target, 并获取 info 和 target scatter-with_map
+    LOG(INFO) << "copyset schduler after sort (max:" << desc[0].second.size()
+        << ",maxCsId:" << desc[0].first
+        << "), (min:" << desc[desc.size() - 1].second.size()
+        << ",minCsId:" << desc[desc.size() - 1].second.size() << ")";
     *target = desc[desc.size() - 1].first;
+    int copysetNumInTarget = desc[desc.size() - 1].second.size();
     if (opController_->ChunkServerExceed(*target)) {
         LOG(INFO) << "copysetScheduler found target:"
                   << *target << " operator exceed";
@@ -224,40 +229,24 @@ bool CopySetScheduler::CopySetMigration(
     // 筛选copyset和source
     *source = UNINTIALIZE_ID;
     for (auto it = desc.begin(); it != desc.end()--; it++) {
+        // possible souce 和 target上copyset数量相差1, 不应该迁移
         ChunkServerIdType possibleSource = it->first;
+        int copysetNumInPossible = it->second.size();
+        if (possibleSource - copysetNumInTarget <= 1) {
+            continue;
+        }
+
         for (auto info : it->second) {
-            // copyset上存在operator，不考虑
-            Operator exist;
-            if (opController_->GetOperatorById(info.id, &exist)) {
-                continue;
-            }
-            if (info.HasCandidate()) {
-                continue;
-            }
-
-            // copyset的replica不是标准数量，不考虑
-            if (info.peers.size() !=
-                topo_->GetStandardReplicaNumInLogicalPool(info.id.first)) {
-                continue;
-            }
-
-            // scatter-width在topology中还未设置
-            int minScatterWidth = GetMinScatterWidth(info.id.first);
-            if (minScatterWidth <= 0) {
-                LOG(WARNING) << "minScatterWith in logical pool "
-                             << info.id.first << " is not initialized";
-                continue;
-            }
-
-            // copyset有副本不在线，不考虑
-            if (!CopysetAllPeersOnline(info)) {
+            // 不满足基本迁移条件
+            if (!CopySetSatisfiyBasicMigrationCond(info)) {
                 continue;
             }
 
             // 该copyset +target,-source之后的各replica的scatter-with是否符合条件 //NOLINT
             if (!SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
                     topo_, *target, possibleSource, info,
-                    minScatterWidth, scatterWidthRangePerent_)) {
+                    GetMinScatterWidth(info.id.first),
+                    scatterWidthRangePerent_)) {
                 continue;
             }
 
@@ -280,6 +269,41 @@ bool CopySetScheduler::CopySetMigration(
         return true;
     }
     return false;
+}
+
+bool CopySetScheduler::CopySetSatisfiyBasicMigrationCond(
+    const CopySetInfo &info) {
+    // copyset上存在operator，不考虑
+    Operator exist;
+    if (opController_->GetOperatorById(info.id, &exist)) {
+        return false;
+    }
+    if (info.HasCandidate()) {
+        LOG(WARNING) << info.CopySetInfoStr()
+            << " already has candidate: " << info.candidatePeerInfo.id;
+        return false;
+    }
+
+    // copyset的replica不是标准数量，不考虑
+    if (info.peers.size() !=
+        topo_->GetStandardReplicaNumInLogicalPool(info.id.first)) {
+        return false;
+    }
+
+    // scatter-width在topology中还未设置
+    int minScatterWidth = GetMinScatterWidth(info.id.first);
+    if (minScatterWidth <= 0) {
+        LOG(WARNING) << "minScatterWith in logical pool "
+                        << info.id.first << " is not initialized";
+        return false;
+    }
+
+    // copyset有副本不在线，不考虑
+    if (!CopysetAllPeersOnline(info)) {
+        return false;
+    }
+
+    return true;
 }
 
 int64_t CopySetScheduler::GetRunningInterval() {
