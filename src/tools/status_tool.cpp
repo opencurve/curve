@@ -16,17 +16,20 @@ DEFINE_bool(checkHealth, true, "if true, it will check the health "
 namespace curve {
 namespace tool {
 
-void StatusTool::PrintHelp() {
+void StatusTool::PrintHelp(const std::string& cmd) {
     std::cout << "Example :" << std::endl;
-    std::cout << "curve_ops_tool " << "space" << " -mdsAddr=127.0.0.1:6666"
-              << std::endl;
-    std::cout << "curve_ops_tool " << "status" << " -mdsAddr=127.0.0.1:6666"
-                 " -etcdAddr=127.0.0.1:6666" << std::endl;
-    std::cout << "curve_ops_tool " << "chunkserver-status"
-              << " -mdsAddr=127.0.0.1:6666" << std::endl;
-    std::cout << "curve_ops_tool " << "chunkserver-list"
-              << " -mdsAddr=127.0.0.1:6666"
-              << " [-offline] [-unhealthy] [-checkHealth=false]" << std::endl;
+    if (cmd == "etcd-status") {
+        std::cout << "curve_ops_tool " << cmd
+                  << " -etcdAddr=127.0.0.1:6666" << std::endl;
+        return;
+    }
+    std::cout << "curve_ops_tool " << cmd << " -mdsAddr=127.0.0.1:6666";
+    if (cmd == "status") {
+        std::cout << " -etcdAddr=127.0.0.1:6666";
+    } else if (cmd == "chunkserver-list") {
+        std::cout << " [-offline] [-unhealthy] [-checkHealth=false]";
+    }
+    std::cout << std::endl;
 }
 
 int StatusTool::SpaceCmd() {
@@ -346,8 +349,13 @@ int StatusTool::RunCommand(const std::string &cmd) {
         return ChunkServerListCmd();
     } else if (cmd == "chunkserver-status") {
         return ChunkServerStatusCmd();
+    } else if (cmd == "mds-status") {
+        return PrintMdsStatus();
+    } else if (cmd == "etcd-status") {
+        return PrintEtcdStatus();
     } else {
-        PrintHelp();
+        std::cout << "Command not supported!" << std::endl;
+        return -1;
     }
 
     return 0;

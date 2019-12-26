@@ -50,6 +50,8 @@ int main(int argc, char** argv) {
         "space : show curve all disk type space, include total space and used space\n"  //NOLINT
         "status : show the total status of the cluster\n"
         "chunkserver-status : show the chunkserver online status\n"
+        "mds-status : show the mds status\n"
+        "etcd-status : show the etcd status\n"
         "chunkserver-list : show curve chunkserver-list, list all chunkserver infomation\n"  //NOLINT
         "get : show the file info and the actual space of file\n"
         "list : list the file info of files in the directory\n"
@@ -86,7 +88,9 @@ int main(int argc, char** argv) {
     std::string command = argv[1];
     if (command == "space" || command == "status"
                            || command == "chunkserver-list"
-                           || command == "chunkserver-status") {
+                           || command == "chunkserver-status"
+                           || command == "mds-status"
+                           || command == "etcd-status") {
         auto mdsClient = std::make_shared<curve::tool::MDSClient>();
         auto etcdClient = std::make_shared<curve::tool::EtcdClient>();
         auto nameSpaceTool =
@@ -97,16 +101,22 @@ int main(int argc, char** argv) {
         curve::tool::StatusTool statusTool(mdsClient, etcdClient,
                                            nameSpaceTool, copysetCheck);
         if (FLAGS_example) {
-            statusTool.PrintHelp();
+            statusTool.PrintHelp(command);
             return 0;
         }
-        if (mdsClient->Init(FLAGS_mdsAddr) != 0) {
-            std::cout << "Init mdsClient failed!" << std::endl;
-            return -1;
+        if (command != "etcd-status") {
+            if (mdsClient->Init(FLAGS_mdsAddr) != 0) {
+                std::cout << "Init mdsClient failed!" << std::endl;
+                return -1;
+            }
         }
-        if (etcdClient->Init(FLAGS_etcdAddr) != 0) {
-            std::cout << "Init etcdClient failed!" << std::endl;
-            return -1;
+        // 不是所有命令都需要etcd地址
+        bool needEtcd = (command == "etcd-status" || command == "status");
+        if (needEtcd) {
+            if (etcdClient->Init(FLAGS_etcdAddr) != 0) {
+                std::cout << "Init etcdClient failed!" << std::endl;
+                return -1;
+            }
         }
         return statusTool.RunCommand(command);
     } else if (command == "get" || command == "list"
