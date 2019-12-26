@@ -58,8 +58,8 @@ const std::vector<std::string> clientConfigOpts{
     std::string("mds.listen.addr=") + kMdsIpPort,
     std::string("maxInFlightRPCNum=") + kClientInflightNum,
     std::string("global.logPath=") + kLogPath,
-    std::string("isolation.taskQueueCapacity=128"),
-    std::string("schedule.queueCapacity=128")
+    std::string("isolation.taskQueueCapacity=5000"),
+    std::string("schedule.queueCapacity=5000"),
 };
 
 const std::vector<std::string> mdsConf{
@@ -170,6 +170,7 @@ class UnstableCSModuleException : public ::testing::Test {
 
         // 0. 初始化db
         cluster->InitDB(kDbName);
+        cluster->mdsRepo_->dropDataBase();
 
         // 1. 启动etcd
         cluster->StartSingleEtcd(
