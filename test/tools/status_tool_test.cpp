@@ -99,6 +99,9 @@ class StatusToolTest : public ::testing::Test {
 TEST_F(StatusToolTest, SpaceCmd) {
     curve::tool::StatusTool statusTool(mdsClient_, etcdClient_,
                             nameSpaceTool_, copysetCheck_);
+    statusTool.PrintHelp("space");
+    ASSERT_EQ(-1, statusTool.RunCommand("123"));
+    statusTool.PrintHelp("123");
     LogicalPoolInfo lgPool;
     PhysicalPoolInfo phyPool;
     GetLogicalPoolForTest(1, &lgPool);
@@ -197,6 +200,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
 TEST_F(StatusToolTest, ChunkServerCmd) {
     curve::tool::StatusTool statusTool(mdsClient_, etcdClient_,
                             nameSpaceTool_, copysetCheck_);
+    statusTool.PrintHelp("chunkserver-list");
     std::vector<ChunkServerInfo> chunkservers;
     // 加入5个chunkserver，其中1个retired，1个offline
     ChunkServerInfo csInfo;
@@ -259,6 +263,10 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
 TEST_F(StatusToolTest, StatusCmdCommon) {
     curve::tool::StatusTool statusTool(mdsClient_, etcdClient_,
                             nameSpaceTool_, copysetCheck_);
+    statusTool.PrintHelp("status");
+    statusTool.PrintHelp("chunkserver-status");
+    statusTool.PrintHelp("mds-status");
+    statusTool.PrintHelp("etcd-status");
     LogicalPoolInfo lgPool;
     PhysicalPoolInfo phyPool;
     GetLogicalPoolForTest(1, &lgPool);
@@ -347,6 +355,23 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
         .WillOnce(DoAll(SetArgPointee<0>(chunkservers),
                         Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("chunkserver-status"));
+
+    // 6、设置mds status的输出
+    EXPECT_CALL(*mdsClient_, GetCurrentMds())
+        .Times(1)
+        .WillOnce(Return(mdsAddr));
+    EXPECT_CALL(*mdsClient_, GetMdsAddrVec())
+        .Times(1)
+        .WillOnce(ReturnRef(mdsAddrVec));
+    ASSERT_EQ(0, statusTool.RunCommand("mds-status"));
+
+    // 7、设置etcd status的输出
+    EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(leaderAddr),
+                        SetArgPointee<1>(onlineState),
+                        Return(0)));
+    ASSERT_EQ(0, statusTool.RunCommand("etcd-status"));
 }
 
 TEST_F(StatusToolTest, StatusCmdError) {
