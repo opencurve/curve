@@ -230,6 +230,20 @@ class CopySetScheduler : public Scheduler {
         Operator *op, ChunkServerIdType *source, ChunkServerIdType *target,
         CopySetInfo *choose);
 
+    /**
+     * @brief CopySetSatisfiyBasicMigrationCond
+     *        指定copyset是否符合下列条件：
+     *        1. copyset上没有正在进行的变更
+     *        2. copyset的副本数目与标准一致
+     *        3. topology初始化已完成
+     *        4. copyset的所有副本均在线
+     *
+     * @param[info] info 指定copyset
+     *
+     * @return true-符合所有条件 false-其中有条件不符合
+     */
+    bool CopySetSatisfiyBasicMigrationCond(const CopySetInfo &info);
+
  private:
     // CopySetScheduler运行时间间隔
     int64_t runInterval_;
