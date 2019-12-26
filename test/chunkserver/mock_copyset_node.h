@@ -33,7 +33,7 @@ class MockCopysetNode : public CopysetNode {
     MOCK_METHOD3(GetConfChange, int(ConfigChangeType*, Configuration*, Peer*));
     MOCK_METHOD1(GetHash, int(std::string*));
     MOCK_METHOD1(GetStatus, void(NodeStatus*));
-    MOCK_METHOD0(GetLeaderCommittedIndex, int64_t());
+    MOCK_METHOD1(GetLeaderStatus, bool(NodeStatus*));
     MOCK_CONST_METHOD0(GetDataStore, std::shared_ptr<CSDataStore>());
     MOCK_CONST_METHOD0(GetConcurrentApplyModule, ConcurrentApplyModule*());
     MOCK_METHOD1(Propose, void(const braft::Task&));
