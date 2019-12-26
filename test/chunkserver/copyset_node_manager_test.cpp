@@ -169,7 +169,7 @@ TEST_F(CopysetNodeManagerTest, CheckCopysetTest) {
 
     // 测试copyset node manager还没运行
     EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
-    EXPECT_CALL(*mockNode, GetLeaderCommittedIndex()).Times(0);
+    EXPECT_CALL(*mockNode, GetLeaderStatus(_)).Times(0);
     ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
 
     // 启动copyset node manager
@@ -177,25 +177,42 @@ TEST_F(CopysetNodeManagerTest, CheckCopysetTest) {
 
     // 测试node为空
     EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
-    EXPECT_CALL(*mockNode, GetLeaderCommittedIndex()).Times(0);
+    EXPECT_CALL(*mockNode, GetLeaderStatus(_)).Times(0);
     ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(nullptr));
 
-    // 测试无法获取到leader committed_index 的情况
+    // 测试无法获取到leader status的情况
     EXPECT_CALL(*mockNode, GetStatus(_)).Times(0);
-    EXPECT_CALL(*mockNode, GetLeaderCommittedIndex())
+    NodeStatus leaderStatus;
+    EXPECT_CALL(*mockNode, GetLeaderStatus(_))
     .Times(defaultOptions_.checkRetryTimes)
-    .WillRepeatedly(Return(-1));
+    .WillRepeatedly(DoAll(SetArgPointee<0>(leaderStatus), Return(false)));
     ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
 
-    // 测试可以获取到leader committed_index 的情况
-    int leaderCommittedIndex = 2000;
+    leaderStatus.leader_id.parse("127.0.0.1:9043:0");
+    // 测试leader first_index 大于 follower last_index的情况
+    leaderStatus.first_index = 1000;
+    NodeStatus followerStatus;
+    followerStatus.last_index = 999;
+    EXPECT_CALL(*mockNode, GetStatus(_)).Times(1)
+    .WillOnce(SetArgPointee<0>(followerStatus));
+    EXPECT_CALL(*mockNode, GetLeaderStatus(_))
+    .WillOnce(DoAll(SetArgPointee<0>(leaderStatus), Return(true)));
+    ASSERT_FALSE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
+
+    // 测试可以获取到leader status,且follower当前不在安装快照 的情况
+    leaderStatus.first_index = 1;
+    leaderStatus.committed_index = 2000;
     NodeStatus status1;
     NodeStatus status2;
     NodeStatus status3;
     NodeStatus status4;
+    status1.last_index = 1666;
     status1.known_applied_index = 100;
+    status2.last_index = 1666;
     status2.known_applied_index = 999;
+    status3.last_index = 1666;
     status3.known_applied_index = 1000;
+    status4.last_index = 1666;
     status4.known_applied_index = 1001;
     EXPECT_CALL(*mockNode, GetStatus(_))
     .Times(4)
@@ -203,9 +220,9 @@ TEST_F(CopysetNodeManagerTest, CheckCopysetTest) {
     .WillOnce(SetArgPointee<0>(status2))
     .WillOnce(SetArgPointee<0>(status3))
     .WillOnce(SetArgPointee<0>(status4));
-    EXPECT_CALL(*mockNode, GetLeaderCommittedIndex())
+    EXPECT_CALL(*mockNode, GetLeaderStatus(_))
     .Times(4)
-    .WillRepeatedly(Return(leaderCommittedIndex));
+    .WillRepeatedly(DoAll(SetArgPointee<0>(leaderStatus), Return(true)));
     ASSERT_TRUE(copysetNodeManager->CheckCopysetUntilLoadFinished(mockNode));
 }
 

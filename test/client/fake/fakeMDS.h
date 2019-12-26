@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 #include <brpc/server.h>
 #include <brpc/controller.h>
+#include <braft/raft.h>
 
 #include <string>
 #include <vector>
@@ -889,7 +890,7 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
             return;
         }
 
-        response->set_state("state");
+        response->set_state(::braft::State::STATE_LEADER);
         curve::common::Peer *peer = new curve::common::Peer();
         response->set_allocated_peer(peer);
         peer->set_address("127.0.0.1:1111");

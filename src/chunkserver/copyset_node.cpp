@@ -813,14 +813,15 @@ void CopysetNode::GetStatus(NodeStatus *status) {
     raftNode_->get_status(status);
 }
 
-int64_t CopysetNode::GetLeaderCommittedIndex() {
+bool CopysetNode::GetLeaderStatus(NodeStatus *leaderStaus) {
     NodeStatus status;
     GetStatus(&status);
     if (status.leader_id.is_empty()) {
-        return -1;
+        return false;
     }
     if (status.leader_id == status.peer_id) {
-        return status.known_applied_index;
+        *leaderStaus = status;
+        return true;
     }
 
     // get committed index from remote leader
@@ -829,8 +830,9 @@ int64_t CopysetNode::GetLeaderCommittedIndex() {
     brpc::Channel channel;
     if (channel.Init(status.leader_id.addr, nullptr) !=0) {
         LOG(WARNING) << "can not create channel to "
-                     << status.leader_id.addr;
-        return -1;
+                     << status.leader_id.addr
+                     << ", copyset " << GroupIdString();
+        return false;
     }
 
     CopysetStatusRequest request;
@@ -845,12 +847,34 @@ int64_t CopysetNode::GetLeaderCommittedIndex() {
     CopysetService_Stub stub(&channel);
     stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
     if (cntl.Failed()) {
-        LOG(WARNING) << cntl.ErrorText();
-        return -1;
-    } else {
-        return response.committedindex();
+        LOG(WARNING) << "get leader status failed: "
+                     << cntl.ErrorText()
+                     << ", copyset " << GroupIdString();
+        return false;
     }
-    return -1;
+
+    if (response.status() != COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
+        LOG(WARNING) << "get leader status failed"
+                     << ", status: " << response.status()
+                     << ", copyset " << GroupIdString();
+        return false;
+    }
+
+    leaderStaus->state = (braft::State)response.state();
+    leaderStaus->peer_id.parse(response.peer().address());
+    leaderStaus->leader_id.parse(response.leader().address());
+    leaderStaus->readonly = response.readonly();
+    leaderStaus->term = response.term();
+    leaderStaus->committed_index = response.committedindex();
+    leaderStaus->known_applied_index = response.knownappliedindex();
+    leaderStaus->first_index = response.firstindex();
+    leaderStaus->pending_index = response.pendingindex();
+    leaderStaus->pending_queue_size = response.pendingqueuesize();
+    leaderStaus->applying_index = response.applyingindex();
+    leaderStaus->first_index = response.firstindex();
+    leaderStaus->last_index = response.lastindex();
+    leaderStaus->disk_index = response.diskindex();
+    return true;
 }
 
 }  // namespace chunkserver
