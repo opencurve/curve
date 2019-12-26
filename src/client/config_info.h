@@ -100,11 +100,13 @@ typedef struct LeaseOption {
  *                          能够保证client的请求不会将底层chunkserver打满，但是睡眠时间
  *                          最长不能超过该值。
  * @chunkserverMaxStableTimeoutTimes: 一个chunkserver连续超时请求的阈值, 超过之后
- * ························会标记为unstable。因为一个chunkserver所在的server如果宕机
+ *                          会标记为unstable。因为一个chunkserver所在的server如果宕机
  *                          那么发向该chunkserver的请求都会超时，如果同一个chunkserver
  *                          的rpc连续超时超过该阈值，那么client就认为这个chunkserver
  *                          所在的server可能宕机了，就将该server上的所有leader copyset
  *                          标记为unstable，促使其下次发送rpc前，先去getleader。
+ * @chunkserverMinRetryTimesForceTimeoutBackoff: 当一个请求重试次数超过阈值时，还在重试
+ *                          使其超时时间进行指数退避
  * @chunkserverMaxRetryTimesBeforeConsiderSuspend: rpc重试超过这个次数后被认为是悬挂IO，
  *                          因为发往chunkserver底层的rpc重试次数非常大，如果一个rpc连续
  *                          失败超过该阈值的时候，可以认为当前IO处于悬挂状态，通过metric
@@ -117,6 +119,7 @@ typedef struct FailureRequestOption {
     uint64_t chunkserverMaxRPCTimeoutMS;
     uint64_t chunkserverMaxRetrySleepIntervalUS;
     uint64_t chunkserverMaxStableTimeoutTimes;
+    uint64_t chunkserverMinRetryTimesForceTimeoutBackoff;
     uint64_t chunkserverMaxRetryTimesBeforeConsiderSuspend;
     FailureRequestOption() {
         chunkserverOPMaxRetry = 3;
@@ -125,6 +128,7 @@ typedef struct FailureRequestOption {
         chunkserverMaxRPCTimeoutMS = 64000;
         chunkserverMaxRetrySleepIntervalUS = 64 * 1000 * 1000;
         chunkserverMaxStableTimeoutTimes = 10;
+        chunkserverMinRetryTimesForceTimeoutBackoff = 5,
         chunkserverMaxRetryTimesBeforeConsiderSuspend = 20;
     }
 } FailureRequestOption_t;

@@ -2058,7 +2058,8 @@ class ServiceHelperGetLeaderTest : public MDSClientTest {
         static GetLeaderResponse2 response;
         response = MakeResponse(addr);
 
-        static FakeReturn fakeret(nullptr, static_cast<void*>(&response));
+        static FakeReturn fakeret(nullptr, nullptr);
+        fakeret = FakeReturn(nullptr, static_cast<void*>(&response));
 
         for (auto& cliService : fakeCliServices) {
             cliService.SetFakeReturn(&fakeret);
@@ -2183,8 +2184,9 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayTest) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     ASSERT_EQ(0, fakeCliServices[2].GetInvokeTimes());
-    ASSERT_EQ(2, fakeCliServices[0].GetInvokeTimes() +
-                 fakeCliServices[1].GetInvokeTimes());
+    int invokedTimes = fakeCliServices[0].GetInvokeTimes() +
+                       fakeCliServices[1].GetInvokeTimes();
+    ASSERT_TRUE(invokedTimes == 2 || invokedTimes == 3);
     ASSERT_EQ(currentLeader, leaderAddr);
 
     fakeCliServices[0].ClearDelay();
@@ -2222,10 +2224,10 @@ TEST_F(ServiceHelperGetLeaderTest, RpcDelayAndExceptionTest) {
         GetLeaderInfo getLeaderInfo(kLogicPoolId, kCopysetId,
             copysetPeerInfos, currentLeaderIndex, rpcOption);
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-
         ASSERT_EQ(0, ServiceHelper::GetLeader(getLeaderInfo, &leaderAddr,
             &leaderId, nullptr));
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         ASSERT_EQ(0, fakeCliServices[2].GetInvokeTimes());
 
         // 总共两种情况
