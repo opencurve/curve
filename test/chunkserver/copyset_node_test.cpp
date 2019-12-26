@@ -921,7 +921,7 @@ TEST_F(CopysetNodeTest, get_hash) {
     }
 }
 
-TEST_F(CopysetNodeTest, get_leader_committed_index) {
+TEST_F(CopysetNodeTest, get_leader_status) {
     LogicPoolID logicPoolID = 1;
     CopysetID copysetID = 1;
     Configuration conf;
@@ -936,7 +936,8 @@ TEST_F(CopysetNodeTest, get_leader_committed_index) {
         NodeStatus status;
         EXPECT_CALL(*mockNode, get_status(_))
         .WillOnce(SetArgPointee<0>(status));
-        ASSERT_EQ(-1, copysetNode.GetLeaderCommittedIndex());
+        NodeStatus leaderStatus;
+        ASSERT_FALSE(copysetNode.GetLeaderStatus(&leaderStatus));
     }
 
     // 当前peer为leader
@@ -944,11 +945,13 @@ TEST_F(CopysetNodeTest, get_leader_committed_index) {
         NodeStatus status;
         status.leader_id.parse("127.0.0.1:3200:0");
         status.peer_id = status.leader_id;
-        status.known_applied_index = 6666;
+        status.committed_index = 6666;
         EXPECT_CALL(*mockNode, get_status(_))
         .WillOnce(SetArgPointee<0>(status));
-        ASSERT_EQ(status.known_applied_index,
-                  copysetNode.GetLeaderCommittedIndex());
+        NodeStatus leaderStatus;
+        ASSERT_TRUE(copysetNode.GetLeaderStatus(&leaderStatus));
+        ASSERT_EQ(status.committed_index,
+                  leaderStatus.committed_index);
     }
 
     // 存在leader，但不是当前peer
@@ -976,13 +979,13 @@ TEST_F(CopysetNodeTest, get_leader_committed_index) {
             = std::make_shared<MockNode>(logicPoolID,
                                          copysetID);
         leaderNode->SetCopysetNode(mockLeader);
-        NodeStatus leaderStatus;
-        leaderStatus.leader_id = leader_peer;
-        leaderStatus.peer_id = leader_peer;
-        leaderStatus.committed_index = 10000;
-        leaderStatus.known_applied_index = 6789;
+        NodeStatus mockLeaderStatus;
+        mockLeaderStatus.leader_id = leader_peer;
+        mockLeaderStatus.peer_id = leader_peer;
+        mockLeaderStatus.committed_index = 10000;
+        mockLeaderStatus.known_applied_index = 6789;
         EXPECT_CALL(*mockLeader, get_status(_))
-        .WillRepeatedly(SetArgPointee<0>(leaderStatus));
+        .WillRepeatedly(SetArgPointee<0>(mockLeaderStatus));
 
         // 测试通过follower的node获取leader的committed index
         NodeStatus followerStatus;
@@ -992,8 +995,13 @@ TEST_F(CopysetNodeTest, get_leader_committed_index) {
         followerStatus.known_applied_index = 3456;
         EXPECT_CALL(*mockNode, get_status(_))
         .WillOnce(SetArgPointee<0>(followerStatus));
-        ASSERT_EQ(leaderStatus.committed_index,
-                  copysetNode.GetLeaderCommittedIndex());
+
+        NodeStatus leaderStatus;
+        ASSERT_TRUE(copysetNode.GetLeaderStatus(&leaderStatus));
+        ASSERT_EQ(mockLeaderStatus.committed_index,
+                  leaderStatus.committed_index);
+        ASSERT_EQ(mockLeaderStatus.known_applied_index,
+                  leaderStatus.known_applied_index);
     }
 }
 

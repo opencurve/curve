@@ -184,28 +184,52 @@ bool CopysetNodeManager::CheckCopysetUntilLoadFinished(
     uint32_t retryTimes = 0;
     LogicPoolID logicPoolId = node->GetLogicPoolId();
     CopysetID copysetId = node->GetCopysetId();
+
     while (retryTimes < copysetNodeOptions_.checkRetryTimes) {
         if (!running_.load(std::memory_order_acquire)) {
             return false;
         }
-        int64_t leaderCommittedIndex = node->GetLeaderCommittedIndex();
-        // 小于0一般还没选出leader或者leader心跳还未发送到当前节点
+        NodeStatus leaderStaus;
+        bool getSuccess = node->GetLeaderStatus(&leaderStaus);
+        // 获取leader状态失败一般是由于还没选出leader或者leader心跳还未发送到当前节点
         // 正常通过几次重试可以获取到leader信息，如果重试多次都未获取到
         // 则认为copyset当前可能无法选出leader，直接退出
-        if (leaderCommittedIndex < 0) {
+        if (!getSuccess) {
             ++retryTimes;
             ::usleep(1000 * copysetNodeOptions_.electionTimeoutMs);
             continue;
         }
+
         NodeStatus status;
         node->GetStatus(&status);
-        int64_t margin = leaderCommittedIndex - status.known_applied_index;
-        if (margin < (int64_t)copysetNodeOptions_.finishLoadMargin) {
+        // 当前副本的最后一个日志落后于leader上保存的第一个日志
+        // 这种情况下此副本会通过安装快照恢复，可以忽略避免阻塞检查线程
+        bool mayInstallSnapshot = leaderStaus.first_index > status.last_index;
+        if (mayInstallSnapshot) {
+            LOG(WARNING) << "Copyset "
+                         << ToGroupIdString(logicPoolId, copysetId)
+                         << " may installing snapshot, "
+                         << "stop checking. "
+                         << "fist log index on leader: "
+                         << leaderStaus.first_index
+                         << ", last log index on current node: "
+                         << status.last_index;
+            return false;
+        }
+
+        // 判断当前副本已经apply的日志是否接近已经committed的日志
+        int64_t margin = leaderStaus.committed_index
+                       - status.known_applied_index;
+        bool catchupLeader = margin
+                           < (int64_t)copysetNodeOptions_.finishLoadMargin;
+        if (catchupLeader) {
             LOG(INFO) << "Load copyset "
                       << ToGroupIdString(logicPoolId, copysetId)
                       << " finished, "
-                      << "leader CommittedIndex: " << leaderCommittedIndex
-                      << ", node appliedIndex: " << status.known_applied_index;
+                      << "leader CommittedIndex: "
+                      << leaderStaus.committed_index
+                      << ", node appliedIndex: "
+                      << status.known_applied_index;
             return true;
         }
         retryTimes = 0;
