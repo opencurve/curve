@@ -413,6 +413,14 @@ test pendding host all cs
 #   check copies consistency
    [Teardown]	  check chunkserver online
 
+test ipmitool restart mds node
+   [Tags]    P1    base    first release   failover  ipmitool
+   test ipmitool restart mds
+   sleep  60
+   check vm iops
+   check data consistency
+   [Teardown]    wait cluster healthy   ${vm_iops_limit}
+
 test ipmitool restart chunkserver node
    [Tags]    P1    base    first release   failover  ipmitool
    test ipmitool restart chunkserver
@@ -420,7 +428,6 @@ test ipmitool restart chunkserver node
    check vm iops
    check data consistency
    [Teardown]    check chunkserver online
-
 
 stop attach detach thread
     [Tags]    P1    base    first release   failover
@@ -452,13 +459,6 @@ inject kill two etcd
 #    check copies consistency
     [Teardown]     test start etcd
 
-test ipmitool restart mds node
-   [Tags]    P1    base    first release   failover  ipmitool
-   test ipmitool restart mds
-   sleep  60
-   check vm iops
-   check data consistency
-   [Teardown]    wait cluster healthy   ${vm_iops_limit}
 
 test mds delay package 50ms
     [Tags]    P1    base    first release   failover   
