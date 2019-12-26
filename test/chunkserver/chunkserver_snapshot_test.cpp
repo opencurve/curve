@@ -350,7 +350,7 @@ TEST_F(ChunkServerSnapshotTest, OneNode) {
     // read、write、1次配置变更
     int64_t commitedIndex = 2 * loop + 1;
     expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    expectResp.set_state(braft::state2str(braft::STATE_LEADER));
+    expectResp.set_state(braft::STATE_LEADER);
     Peer *peer = new Peer();
     expectResp.set_allocated_peer(peer);
     peer->set_address(peer1.to_string());
@@ -432,7 +432,7 @@ TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
     CopysetStatusResponse expectResp;
     int64_t commitedIndex = 2 * 2 * loop + loop + 2;
     expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    expectResp.set_state(braft::state2str(braft::STATE_LEADER));
+    expectResp.set_state(braft::STATE_LEADER);
     Peer *peer = new Peer();
     expectResp.set_allocated_peer(peer);
     peer->set_address(peer1.to_string());

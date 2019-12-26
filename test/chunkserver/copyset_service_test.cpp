@@ -344,8 +344,7 @@ TEST_F(CopysetServiceTest, basic2) {
 
             ASSERT_EQ(response.status(),
                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-            ASSERT_STREQ(braft::state2str(braft::STATE_LEADER),
-                         response.state().c_str());
+            ASSERT_EQ(braft::STATE_LEADER, response.state());
             ASSERT_STREQ(peerStr.c_str(), response.leader().address().c_str());
             ASSERT_EQ(false, response.readonly());
             ASSERT_EQ(2, response.term());
@@ -381,8 +380,7 @@ TEST_F(CopysetServiceTest, basic2) {
 
             ASSERT_EQ(response.status(),
                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-            ASSERT_STREQ(braft::state2str(braft::STATE_LEADER),
-                         response.state().c_str());
+            ASSERT_EQ(braft::STATE_LEADER, response.state());
             ASSERT_STREQ(peerStr.c_str(), response.leader().address().c_str());
             ASSERT_EQ(false, response.readonly());
             ASSERT_EQ(2, response.term());
