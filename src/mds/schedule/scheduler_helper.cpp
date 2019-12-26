@@ -140,8 +140,8 @@ bool SchedulerHelper::SatisfyZoneAndScatterWidthLimit(
 void SchedulerHelper::SortDistribute(
     const std::map<ChunkServerIDType, std::vector<CopySetInfo>> &distribute,
     std::vector<std::pair<ChunkServerIDType, std::vector<CopySetInfo>>> *desc) {
-    std::random_device rd;
-    std::mt19937 g(rd());
+    static std::random_device rd;
+    static std::mt19937 g(rd());
 
     for (auto item : distribute) {
         std::shuffle(item.second.begin(), item.second.end(), g);
@@ -186,8 +186,8 @@ void SchedulerHelper::SortChunkServerByCopySetNumAsc(
     }
 
     // chunkserverlist随机排列
-    std::random_device rd;
-    std::mt19937 g(rd());
+    static std::random_device rd;
+    static std::mt19937 g(rd());
     std::shuffle(transfer.begin(), transfer.end(), g);
 
     // 排序
@@ -205,8 +205,8 @@ void SchedulerHelper::SortChunkServerByCopySetNumAsc(
 
 void SchedulerHelper::SortScatterWitAffected(
     std::vector<std::pair<ChunkServerIdType, int>> *candidates) {
-    std::random_device rd;
-    std::mt19937 g(rd());
+    static std::random_device rd;
+    static std::mt19937 g(rd());
     std::shuffle(candidates->begin(), candidates->end(), g);
 
     std::sort(candidates->begin(), candidates->end(),
