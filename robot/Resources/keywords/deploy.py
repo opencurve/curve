@@ -383,6 +383,11 @@ def create_pool():
 def restart_cinder_server():
     client_host = random.choice(config.client_list)
     ssh = shell_operator.create_ssh_connect(client_host, 1046, config.abnormal_user)
+    ori_cmd = "sudo cp /usr/curvefs/curvefs.py /srv/stack/cinder/lib/python2.7/site-packages/"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    ori_cmd = "sudo cp /usr/curvefs/_curvefs.so /srv/stack/cinder/lib/python2.7/site-packages/"
+    rs = shell_operator.ssh_exec(ssh, ori_cmd)
+    time.sleep(2)
     ori_cmd = "sudo service cinder-volume restart"
     rs = shell_operator.ssh_exec(ssh, ori_cmd)
     assert rs[1] == [],"rs is %s"%rs
