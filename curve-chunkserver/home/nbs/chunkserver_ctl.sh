@@ -121,7 +121,7 @@ function start_one() {
         return 1
     fi
 
-    jemallocpath = /usr/lib/x86_64-linux-gnu/libjemalloc.so.1
+    jemallocpath=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1
     # 检查jemalloc库文件
     if [ ! -f ${jemallocpath} ]
     then
