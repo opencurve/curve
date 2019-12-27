@@ -120,7 +120,15 @@ function start_one() {
         echo "Create log dir failed: ${DATA_DIR}/log/chunkserver$1"
         return 1
     fi
-    LD_PRELOAD=/lib/x86_64-linux-gnu/libjemalloc.so.1 curve-chunkserver \
+
+    jemallocpath = /usr/lib/x86_64-linux-gnu/libjemalloc.so.1
+    # 检查jemalloc库文件
+    if [ ! -f ${jemallocpath} ]
+    then
+        echo "Not found jemalloc library, Path is ${jemallocpath}"
+        exit 1
+    fi
+    LD_PRELOAD=${jemallocpath} curve-chunkserver \
             -bthread_concurrency=18 -raft_max_segment_size=8388608 \
             -raft_max_install_snapshot_tasks_num=1 -raft_sync=true  \
             -conf=${confPath} \
