@@ -42,13 +42,16 @@ class NameSpaceServiceTest : public ::testing::Test {
 
         topology_ = std::make_shared<MockTopology>();
         ChunkServerClientOption option;
-        auto client = std::make_shared<CopysetClient>(topology_, option);
+        auto channelPool = std::make_shared<ChannelPool>();
+        auto client = std::make_shared<CopysetClient>(topology_,
+                                                        option, channelPool);
         allocStatistic_ = std::make_shared<MockAllocStatistic>();
         cleanCore_ = std::make_shared<CleanCore>(
             storage_, client, allocStatistic_);
 
         // new taskmanger for 2 worker thread, and check thread period 2 second
-        cleanTaskManager_ = std::make_shared<CleanTaskManager>(2, 2000);
+        cleanTaskManager_ = std::make_shared<CleanTaskManager>(channelPool,
+                                                                    2, 2000);
 
         cleanManager_ = std::make_shared<CleanManager>(cleanCore_,
                 cleanTaskManager_, storage_);

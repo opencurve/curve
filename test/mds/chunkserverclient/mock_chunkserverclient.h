@@ -22,8 +22,9 @@ namespace chunkserverclient {
 class MockChunkServerClient : public ChunkServerClient {
  public:
     MockChunkServerClient(std::shared_ptr<Topology> topo,
-        const ChunkServerClientOption &option)
-        : ChunkServerClient(topo, option) {}
+        const ChunkServerClientOption &option,
+        std::shared_ptr<ChannelPool> channelPool)
+        : ChunkServerClient(topo, option, channelPool) {}
     MOCK_METHOD5(DeleteChunkSnapshotOrCorrectSn,
         int(ChunkServerIdType csId,
         LogicalPoolID logicalPoolId,
