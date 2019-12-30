@@ -14,6 +14,7 @@
 
 #include "src/mds/chunkserverclient/chunkserver_client.h"
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
+#include "src/common/channel_pool.h"
 
 using ::curve::mds::topology::Topology;
 using ::curve::mds::topology::CopySetInfo;
@@ -30,10 +31,11 @@ class CopysetClient {
       * @param topology
       */
     CopysetClient(std::shared_ptr<Topology> topo,
-        const ChunkServerClientOption &option)
+        const ChunkServerClientOption &option,
+        std::shared_ptr<ChannelPool> channelPool)
         : topo_(topo),
           chunkserverClient_(
-            std::make_shared<ChunkServerClient>(topo, option)),
+            std::make_shared<ChunkServerClient>(topo, option, channelPool)),
           updateLeaderRetryTimes_(option.updateLeaderRetryTimes),
           updateLeaderRetryIntervalMs_(option.updateLeaderRetryIntervalMs) {
     }
