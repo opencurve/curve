@@ -217,7 +217,7 @@ bool CopySetScheduler::CopySetMigration(
     LOG(INFO) << "copyset schduler after sort (max:" << desc[0].second.size()
         << ",maxCsId:" << desc[0].first
         << "), (min:" << desc[desc.size() - 1].second.size()
-        << ",minCsId:" << desc[desc.size() - 1].second.size() << ")";
+        << ",minCsId:" << desc[desc.size() - 1].first << ")";
     *target = desc[desc.size() - 1].first;
     int copysetNumInTarget = desc[desc.size() - 1].second.size();
     if (opController_->ChunkServerExceed(*target)) {
@@ -232,7 +232,7 @@ bool CopySetScheduler::CopySetMigration(
         // possible souce 和 target上copyset数量相差1, 不应该迁移
         ChunkServerIdType possibleSource = it->first;
         int copysetNumInPossible = it->second.size();
-        if (possibleSource - copysetNumInTarget <= 1) {
+        if (copysetNumInPossible - copysetNumInTarget <= 1) {
             continue;
         }
 
