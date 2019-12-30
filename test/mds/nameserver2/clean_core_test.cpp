@@ -26,7 +26,9 @@ TEST(CleanCore, testcleansnapshotfile) {
     auto storage = new MockNameServerStorage();
     auto topology = std::make_shared<MockTopology>();
     ChunkServerClientOption option;
-    auto client = std::make_shared<CopysetClient>(topology, option);
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto client = std::make_shared<CopysetClient>(topology,
+                                            option, channelPool);
     auto allocStatistic = std::make_shared<MockAllocStatistic>();
     auto cleanCore = new CleanCore(storage, client, allocStatistic);
 
@@ -153,7 +155,9 @@ TEST(CleanCore, testcleanfile) {
     auto storage = new MockNameServerStorage();
     auto topology = std::make_shared<MockTopology>();
     ChunkServerClientOption option;
-    auto client = std::make_shared<CopysetClient>(topology, option);
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto client = std::make_shared<CopysetClient>(topology,
+                                                    option, channelPool);
     auto allocStatistic = std::make_shared<MockAllocStatistic>();
     auto cleanCore = new CleanCore(storage, client, allocStatistic);
 
