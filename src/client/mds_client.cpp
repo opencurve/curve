@@ -234,7 +234,7 @@ LIBCURVE_ERROR MDSClient::Register(const std::string& ip, uint16_t port) {
         if (cntl->Failed()) {
             mdsClientMetric_.registerClient.eps.count << 1;
             LOG(WARNING) << "register client failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -263,7 +263,7 @@ LIBCURVE_ERROR MDSClient::OpenFile(const std::string& filename,
         if (cntl->Failed()) {
             mdsClientMetric_.openFile.eps.count << 1;
             LOG(WARNING) << "open file failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -318,7 +318,7 @@ LIBCURVE_ERROR MDSClient::CreateFile(const std::string& filename,
         if (cntl->Failed()) {
             mdsClientMetric_.createFile.eps.count << 1;
             LOG(WARNING) << "Create file or directory failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -350,7 +350,7 @@ LIBCURVE_ERROR MDSClient::CloseFile(const std::string& filename,
         if (cntl->Failed()) {
             mdsClientMetric_.closeFile.eps.count << 1;
             LOG(WARNING) << "close file failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -413,7 +413,7 @@ LIBCURVE_ERROR MDSClient::CreateSnapShot(const std::string& filename,
 
         if (cntl->Failed()) {
             LOG(WARNING) << "create snap file failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -453,7 +453,7 @@ LIBCURVE_ERROR MDSClient::DeleteSnapShot(const std::string& filename,
 
         if (cntl->Failed()) {
             LOG(WARNING) << "delete snap file failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -482,7 +482,7 @@ LIBCURVE_ERROR MDSClient::ListSnapShot(const std::string& filename,
 
         if (cntl->Failed()) {
             LOG(WARNING) << "list snap file failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -526,7 +526,8 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
                                              &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "get snap file segment info failed, errcorde = "
-            << response.statuscode() << ", error content:" << cntl->ErrorText();
+                << cntl->ErrorCode()
+                << ", error content:" << cntl->ErrorText();
             return -cntl->ErrorCode();
         }
 
@@ -649,7 +650,7 @@ LIBCURVE_ERROR MDSClient::CheckSnapShotStatus(const std::string& filename,
 
         if (cntl->Failed()) {
             LOG(WARNING) << "check snap file failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText();
             return -cntl->ErrorCode();
         }
@@ -684,8 +685,9 @@ LIBCURVE_ERROR MDSClient::GetServerList(const LogicPoolID& logicalpooid,
                                      cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getServerList.eps.count << 1;
-            LOG(ERROR)  << "get server list from mds failed, status code = "
-                << response.statuscode() << ", error content:"
+            LOG_EVERY_SECOND(ERROR)
+                << "get server list from mds failed, status code = "
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText();
             return -cntl->ErrorCode();
         }
@@ -736,7 +738,7 @@ LIBCURVE_ERROR MDSClient::GetClusterInfo(ClusterContext* clsctx) {
 
         if (cntl->Failed()) {
             LOG(ERROR)  << "get cluster info from mds failed, status code = "
-                << response.statuscode()
+                << cntl->ErrorCode()
                 << ", error content: "
                 << cntl->ErrorText();
             return -cntl->ErrorCode();
@@ -760,7 +762,7 @@ LIBCURVE_ERROR MDSClient::CreateCloneFile(const std::string &destination,
                                        chunksize, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "Create clone file failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText();
             return -cntl->ErrorCode();
         }
@@ -806,7 +808,7 @@ LIBCURVE_ERROR MDSClient::SetCloneFileStatus(const std::string &filename,
                                           fileID, &response, cntl, channel);
         if (cntl->Failed()) {
             LOG(WARNING) << "SetCloneFileStatus invoke failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -837,8 +839,9 @@ LIBCURVE_ERROR MDSClient::GetOrAllocateSegment(bool allocate, uint64_t offset,
                                             &response, cntl, channel);
         if (cntl->Failed()) {
             mdsClientMetric_.getOrAllocateSegment.eps.count << 1;
-            LOG(WARNING) << "allocate segment failed, error code = "
-                << response.statuscode()
+            LOG_EVERY_SECOND(ERROR)
+                << "allocate segment failed, error code = "
+                << cntl->ErrorCode()
                 << ", error content:" << cntl->ErrorText()
                 << ", offset:" << offset;
             return -cntl->ErrorCode();
@@ -893,7 +896,7 @@ LIBCURVE_ERROR MDSClient::RenameFile(const UserInfo_t& userinfo,
         if (cntl->Failed()) {
             mdsClientMetric_.renameFile.eps.count << 1;
             LOG(WARNING) << "RenameFile invoke failed, errcorde = "
-                << response.statuscode()  << ", error content:"
+                << cntl->ErrorCode()  << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -927,7 +930,7 @@ LIBCURVE_ERROR MDSClient::Extend(const std::string& filename,
         if (cntl->Failed()) {
             mdsClientMetric_.extendFile.eps.count << 1;
             LOG(WARNING) << "ExtendFile invoke failed, errcorde = "
-                    << response.statuscode()
+                    << cntl->ErrorCode()
                     << ", error content:"
                     << cntl->ErrorText()
                     << ", log id = " << cntl->log_id();
@@ -960,7 +963,7 @@ LIBCURVE_ERROR MDSClient::DeleteFile(const std::string& filename,
         if (cntl->Failed()) {
             mdsClientMetric_.deleteFile.eps.count << 1;
             LOG(WARNING) << "DeleteFile invoke failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -990,7 +993,7 @@ LIBCURVE_ERROR MDSClient::ChangeOwner(const std::string& filename,
         if (cntl->Failed()) {
             mdsClientMetric_.changeOwner.eps.count << 1;
             LOG(WARNING) << "ChangeOwner invoke failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -1021,7 +1024,7 @@ LIBCURVE_ERROR MDSClient::Listdir(const std::string& dirpath,
         if (cntl->Failed()) {
             mdsClientMetric_.listDir.eps.count << 1;
             LOG(WARNING) << "Listdir invoke failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
@@ -1084,7 +1087,7 @@ LIBCURVE_ERROR MDSClient::GetChunkServerID(const ChunkServerAddr& csAddr,
 
         if (cntl->Failed()) {
             LOG(WARNING) << "GetChunkServerInfo invoke failed, errcorde = "
-                << response.statuscode() << ", error content:"
+                << cntl->ErrorCode() << ", error content:"
                 << cntl->ErrorText() << ", log id = " << cntl->log_id();
             return -cntl->ErrorCode();
         }
