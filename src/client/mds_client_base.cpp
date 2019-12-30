@@ -315,7 +315,8 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
     request.set_allocateifnotexist(allocate);
     FillUserInfo<GetOrAllocateSegmentRequest>(&request, fi->userinfo);
 
-    LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
+    LOG(INFO) << "GetOrAllocateSegment: filename = " << fi->fullPathName
+                << ", allocate = " << allocate
                 << ", owner = " << fi->owner.c_str()
                 << ", offset = " << offset
                 << ", segment offset = " << seg_offset
