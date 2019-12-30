@@ -705,6 +705,34 @@ std::string MDSClient::GetCurrentMds() {
     }
 }
 
+int MDSClient::RapidLeaderSchedule(PoolIdType lpoolId) {
+    ::curve::mds::schedule::RapidLeaderScheduleRequst request;
+    ::curve::mds::schedule::RapidLeaderScheduleResponse response;
+    ::curve::mds::schedule::ScheduleService_Stub stub(&channel_);
+
+    request.set_logicalpoolid(lpoolId);
+
+    void (curve::mds::schedule::ScheduleService_Stub::*fp)(
+        google::protobuf::RpcController*,
+        const ::curve::mds::schedule::RapidLeaderScheduleRequst *,
+        ::curve::mds::schedule::RapidLeaderScheduleResponse*,
+        google::protobuf::Closure*);
+    fp = &::curve::mds::schedule::ScheduleService_Stub::RapidLeaderSchedule;
+    if (0 != SendRpcToMds(&request, &response, &stub, fp)) {
+        std::cout << "RapidLeaderSchedule fail" << std::endl;
+        return -1;
+    }
+    if (response.statuscode() ==
+        ::curve::mds::schedule::kScheduleErrCodeSuccess) {
+        std::cout << "RapidLeaderSchedule success" << std::endl;
+        return 0;
+    }
+    std::cout << "RapidLeaderSchedule fail with errCode: "
+        << response.statuscode() << std::endl;
+    return -1;
+}
+
+
 template <typename T, typename Request, typename Response>
 int MDSClient::SendRpcToMds(Request* request, Response* response, T* obp,
                 void (T::*func)(google::protobuf::RpcController*,

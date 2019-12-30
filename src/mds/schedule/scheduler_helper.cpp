@@ -334,6 +334,33 @@ bool SchedulerHelper::InvovledReplicasSatisfyScatterWidthAfterMigration(
 
     return allSatisfy;
 }
+
+void SchedulerHelper::CopySetDistributionInOnlineChunkServer(
+        const std::vector<CopySetInfo> &copysetList,
+        const std::vector<ChunkServerInfo> &chunkserverList,
+        std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out) {
+    // 跟据copyset统计每个chunkserver上的copysetList
+    for (auto item : copysetList) {
+        for (auto peer : item.peers) {
+            if (out->find(peer.id) == out->end()) {
+                (*out)[peer.id] = std::vector<CopySetInfo>{item};
+            } else {
+                (*out)[peer.id].emplace_back(item);
+            }
+        }
+    }
+
+    // chunkserver上没有copyset的设置为空, 并且移除offline状态下的copyset
+    for (auto item : chunkserverList) {
+        if (item.IsOffline()) {
+            out->erase(item.info.id);
+            continue;
+        }
+        if (out->find(item.info.id) == out->end()) {
+            (*out)[item.info.id] = std::vector<CopySetInfo>{};
+        }
+    }
+}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

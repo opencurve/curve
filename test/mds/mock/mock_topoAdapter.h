@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_MDS_HEARTBEAT_MOCK_TOPOADAPTER_H_
-#define TEST_MDS_HEARTBEAT_MOCK_TOPOADAPTER_H_
+#ifndef TEST_MDS_MOCK_MOCK_TOPOADAPTER_H_
+#define TEST_MDS_MOCK_MOCK_TOPOADAPTER_H_
 
 #include <gmock/gmock.h>
 #include "src/mds/schedule/coordinator.h"
@@ -31,6 +31,6 @@ class MockTopoAdapter : public ::curve::mds::schedule::TopoAdapterImpl {
 }  // namespace heartbeat
 }  // namespace mds
 }  // namespace curve
-#endif  // TEST_MDS_HEARTBEAT_MOCK_TOPOADAPTER_H_
+#endif  // TEST_MDS_MOCK_MOCK_TOPOADAPTER_H_
 
 
