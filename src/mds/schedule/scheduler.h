@@ -14,8 +14,8 @@
 #include <map>
 #include <memory>
 #include <set>
+#include "src/mds/schedule/schedule_define.h"
 #include "src/mds/schedule/topoAdapter.h"
-#include "src/mds/schedule/operator.h"
 #include "src/mds/schedule/operatorController.h"
 #include "src/mds/topology/topology.h"
 
@@ -23,11 +23,15 @@ namespace curve {
 namespace mds {
 namespace schedule {
 
-enum SchedulerType {
-  LeaderSchedulerType,
-  CopySetSchedulerType,
-  RecoverSchedulerType,
-  ReplicaSchedulerType,
+struct LeaderStatInLogicalPool {
+    // 当前leader id
+    PoolIdType lid;
+    // 当前逻辑池中每个chunkserver上平均leader数量
+    int avgLeaderNum;
+    // 当前逻辑池中chunkserver上copyset的分布
+    std::map<ChunkServerIdType, std::vector<CopySetInfo>> distribute;
+    // 当前逻辑池中每个chunkserver上leader的数量
+    std::map<ChunkServerIdType, int> leaderNumInChunkServer;
 };
 
 class Scheduler {
@@ -35,32 +39,22 @@ class Scheduler {
     /**
      * @brief Scheduler构造函数
      *
-     * @param[in] transTimeLimitSec leader变更mds端认为的超时时间
-     * @param[in] removeTimeLimitSec 减一个副本mds端认为的超时时间
-     * @param[in] addTimeLimtSec 增加一个副本mds端认为的超时时间
-     * @param[in] changeTimeLimitSec change一个副本mds端认为的超时时间
-     * @param[in] scatterWithRangePerent scatter-width不能超过
-     *            (1 + scatterWithRangePerent) * minScatterWdith
+     * @param[in] opt 配置项
      * @param[in] topo 提供拓扑逻辑信息
      * @param[in] opController operator管理模块
      */
     Scheduler(
-        int transTimeLimitSec,
-        int removeTimeLimitSec,
-        int addTimeLimtSec,
-        int changeTimeLimitSec,
-        float scatterWidthRangePerent,
+        const ScheduleOption &opt,
         const std::shared_ptr<TopoAdapter> &topo,
-        const std::shared_ptr<OperatorController> &opController) {
-        this->transTimeSec_ = transTimeLimitSec;
-        this->removeTimeSec_ = removeTimeLimitSec;
-        this->changeTimeSec_ = changeTimeLimitSec;
-        this->addTimeSec_ = addTimeLimtSec;
-
-        this->scatterWidthRangePerent_ = scatterWidthRangePerent;
-        this->topo_ = topo;
-        this->opController_ = opController;
+        const std::shared_ptr<OperatorController> &opController)
+        : topo_(topo), opController_(opController) {
+        transTimeSec_ = opt.transferLeaderTimeLimitSec;
+        removeTimeSec_ = opt.removePeerTimeLimitSec;
+        changeTimeSec_ = opt.changePeerTimeLimitSec;
+        addTimeSec_ = opt.addPeerTimeLimitSec;
+        scatterWidthRangePerent_ = opt.scatterWithRangePerent;
     }
+
     /**
      * @brief scheduler根据集群的状况产生operator
      */
@@ -134,33 +128,13 @@ class Scheduler {
 // copyset数量和chunkserver scatter-with均衡
 class CopySetScheduler : public Scheduler {
  public:
-    /**
-     * @brief CopySetScheduler
-     *
-     * @param[in] opController 管理operator
-     * @param[in] interSec CopySetScheduler运行时间间隔, 单位是秒
-     * @param[in] transTimeLimitSec leader变更mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] removeTimeLimitSec 减一个副本mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] addTimeLimtSec 增加一个副本mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] scatterWithRangePerent scatter-width不能超过
-     *            (1 + scatterWithRangePerent) * minScatterWdith, 父函数初始化需要 //NOLINT
-     * @param[in] copysetNumRangePercent [chunkserver上copyset数量的极差]不能超过 //NOLINT
-     *             [chunkserver上copyset数量均值] * copysetNumRangePercent
-     * @param[in] topo 提供拓扑逻辑信息, 父函数初始化需要 // NOLINIT
-     */
-    CopySetScheduler(const std::shared_ptr<OperatorController> &opController,
-                    int64_t interSec,
-                    int transTimeLimitSec,
-                    int removeTimeLimitSec,
-                    int addTimeLimitSec,
-                    int changeTimeLimitSec,
-                    float copysetNumRangePercent,
-                    float scatterWithRangePerent,
-                    const std::shared_ptr<TopoAdapter> &topo)
-        : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            changeTimeLimitSec, scatterWithRangePerent, topo, opController) {
-        this->runInterval_ = interSec;
-        this->copysetNumRangePercent_ = copysetNumRangePercent;
+    CopySetScheduler(
+        const ScheduleOption &opt,
+        const std::shared_ptr<TopoAdapter> &topo,
+        const std::shared_ptr<OperatorController> &opController)
+        : Scheduler(opt, topo, opController) {
+        runInterval_ = opt.copysetSchedulerIntervalSec;
+        copysetNumRangePercent_ = opt.copysetNumRangePercent;
     }
 
     /**
@@ -186,18 +160,6 @@ class CopySetScheduler : public Scheduler {
      * @return 本次迁移的源节点，仅供测试使用
      */
     int DoCopySetSchedule(PoolIdType lid);
-
-    /**
-     * @brief CopySetDistribution 统计online状态chunkserver上的copyset
-     *
-     * @param[in] copysetList topology中所有copyset
-     * @param[in] chunkserverList topology中所有chunkserver
-     * @param[out] out chunkserver对应的copyset列表
-     */
-    void CopySetDistributionInOnlineChunkServer(
-        const std::vector<CopySetInfo> &copysetList,
-        const std::vector<ChunkServerInfo> &chunkserverList,
-        std::map<ChunkServerIdType, std::vector<CopySetInfo>> *out);
 
     /**
      * @brief StatsCopysetDistribute
@@ -256,31 +218,13 @@ class CopySetScheduler : public Scheduler {
 // leader数量均衡
 class LeaderScheduler : public Scheduler {
  public:
-    /**
-     * @brief LeaderScheduler
-     *
-     * @param[in] opController 管理operator
-     * @param[in] interSec LeaderScheduler运行时间间隔
-     * @param[in] transTimeLimitSec leader变更mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] removeTimeLimitSec 减一个副本mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] addTimeLimitSec 增加一个副本mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] scatterWithRangePerent scatter-width不能超过
-     *            (1 + scatterWithRangePerent) * minScatterWdith, 父函数初始化需要 //NOLINT
-     * @param[in] topo 提供拓扑逻辑信息, 父函数初始化需要 // NOLINIT
-     */
-    LeaderScheduler(const std::shared_ptr<OperatorController> &opController,
-                    uint32_t interSec,
-                    uint32_t chunkserverCoolingTimeSec,
-                    int transTimeLimitSec,
-                    int addTimeLimitSec,
-                    int removeTimeLimitSec,
-                    int changeTimeLimitSec,
-                    float scatterWidthRangePerent,
-                    const std::shared_ptr<TopoAdapter> &topo)
-        : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            changeTimeLimitSec, scatterWidthRangePerent, topo, opController) {
-        this->runInterval_ = interSec;
-        this->chunkserverCoolingTimeSec_ = chunkserverCoolingTimeSec;
+    LeaderScheduler(
+        const ScheduleOption &opt,
+        const std::shared_ptr<TopoAdapter> &topo,
+        const std::shared_ptr<OperatorController> &opController)
+        : Scheduler(opt, topo, opController) {
+        runInterval_ = opt.leaderSchedulerIntervalSec;
+        chunkserverCoolingTimeSec_ = opt.chunkserverCoolingTimeSec;
     }
 
     /**
@@ -369,19 +313,13 @@ class LeaderScheduler : public Scheduler {
 // 用于修复offline的副本
 class RecoverScheduler : public Scheduler {
  public:
-    RecoverScheduler(const std::shared_ptr<OperatorController> &opController,
-                    int64_t interSec,
-                    int transTimeLimitSec,
-                    int removeTimeLimitSec,
-                    int addTimeLimitSec,
-                    int changeTimeLimitSec,
-                    float scatterWithRangePerent,
-                    int chunkserverFailureTolerance,
-                    const std::shared_ptr<TopoAdapter> &topo)
-        : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            changeTimeLimitSec, scatterWithRangePerent, topo, opController) {
-        this->runInterval_ = interSec;
-        this->chunkserverFailureTolerance_ = chunkserverFailureTolerance;
+    RecoverScheduler(
+        const ScheduleOption &opt,
+        const std::shared_ptr<TopoAdapter> &topo,
+        const std::shared_ptr<OperatorController> &opController)
+        : Scheduler(opt, topo, opController) {
+        runInterval_ = opt.recoverSchedulerIntervalSec;
+        chunkserverFailureTolerance_ = opt.chunkserverFailureTolerance;
     }
 
     /**
@@ -429,31 +367,12 @@ class RecoverScheduler : public Scheduler {
 // 根据配置检查copyset的副本数量, 副本数量不符合标准值时进行删除或增加
 class ReplicaScheduler : public Scheduler {
  public:
-    /**
-     * @brief LeaderScheduler
-     *
-     * @param[in] opController 管理operator
-     * @param[in] interSec LeaderScheduler运行时间间隔
-     * @param[in] transTimeLimitSec leader变更mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] removeTimeLimitSec 减一个副本mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] addTimeLimitSec 增加一个副本mds端认为的超时时间, 父函数初始化需要 //NOLINT
-     * @param[in] scatterWidthRangePerent scatter-width不能超过
-     *            (1 + scatterWidthRangePerent) * minScatterWdith, 父函数初始化需要 //NOLINT
-     * @param[in] minScatterWdith 最小scatter-width, 父函数初始化需要 //NOLINT
-     * @param[in] topo 提供拓扑逻辑信息, 父函数初始化需要 // NOLINIT
-     */
-    ReplicaScheduler(const std::shared_ptr<OperatorController> &opController,
-                   int64_t interSec,
-                   int transTimeLimitSec,
-                   int removeTimeLimitSec,
-                   int addTimeLimitSec,
-                   int changeTimeLimitSec,
-                   float scatterWidthRangePerent,
-                   const std::shared_ptr<TopoAdapter> &topo)
-      : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            changeTimeLimitSec, scatterWidthRangePerent, topo, opController) {
-    this->opController_ = opController;
-    this->runInterval_ = interSec;
+    ReplicaScheduler(
+        const ScheduleOption &opt,
+        const std::shared_ptr<TopoAdapter> &topo,
+        const std::shared_ptr<OperatorController> &opController)
+        : Scheduler(opt, topo, opController) {
+        runInterval_ = opt.replicaSchedulerIntervalSec;
     }
 
     /**
@@ -475,6 +394,82 @@ class ReplicaScheduler : public Scheduler {
     // replicaScheduler运行间隔
     int64_t runInterval_;
 };
+
+// 快速leader均衡
+class RapidLeaderScheduler : public Scheduler {
+ public:
+    RapidLeaderScheduler(
+        const ScheduleOption &opt,
+        const std::shared_ptr<TopoAdapter> &topo,
+        const std::shared_ptr<OperatorController> &opController,
+        PoolIdType lpid)
+        : Scheduler(opt, topo, opController), lpoolId_(lpid) {}
+
+    /**
+     * @brief 以逻辑池为力度做leader均衡
+     * @return 返回值是一个:
+     *         kScheduleErrCodeSuccess 成功生成了一批transferleader的operator
+     */
+    int Schedule() override;
+
+ private:
+    /**
+     * @brief 在指定逻辑池中做leader均衡
+     * @param[in] lid 指定logicalpool
+     */
+    void DoRapidLeaderSchedule(LogicalPoolIDType lid);
+
+    /**
+     * @brief 统计指定逻辑池中leader分布的信息
+     * @param[out] stat 统计结果
+     * @return false-初始化失败 true-初始化成功
+     */
+    bool LeaderStatInSpecifiedLogicalPool(LeaderStatInLogicalPool *stat);
+
+    /**
+     * @brief 为指定copyset选择有可能的目的leader节点
+     * @param[in] curChunkServerId 当前正在处理的chunkserver
+     * @param[in] info 指定复制组
+     * @param[in] stat leader的分布的统计信息
+     * @return fChunkServerIdType
+     */
+    ChunkServerIdType SelectTargetPeer(ChunkServerIdType curChunkServerId,
+        const CopySetInfo &info, const LeaderStatInLogicalPool &stat);
+
+    /**
+     * @brief copyset的各副本中，leader数目最小的副本
+     * @param[in] info 指定复制组
+     * @param[in] stat leader的分布的统计信息
+     * @return leader数目最小的副本id
+     */
+    ChunkServerIdType MinLeaderNumInCopySetPeers(
+        const CopySetInfo &info, const LeaderStatInLogicalPool &stat);
+
+    /**
+     * @brief 判断潜在目的节点是否可以作为新leader
+     * 标准：1. 源节点和目的节点上leader的数量差大于1
+     *      2. 源节点上当前leader的数量大于均值
+     * @param[in] origLeader 旧leader
+     * @param[in] targetLeader 潜在目的节点
+     * @param[in] stat leader的分布的统计信息
+     * @return true-可以作为新leader false-不可以作为新leader
+     */
+    bool PossibleTargetPeerConfirm(ChunkServerIdType origLeader,
+        ChunkServerIdType targetLeader, const LeaderStatInLogicalPool &stat);
+
+    /**
+     * @brief 为指定copyset生成transferleader的operator
+     * @param[in] info 指定复制组
+     * @param[in] targetLeader 目的节点
+     * @return true-生成成功  false-生成失败
+     */
+    bool GenerateLeaderChangeOperatorForCopySet(
+        const CopySetInfo &info, ChunkServerIdType targetLeader);
+
+ private:
+    PoolIdType lpoolId_;
+};
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve
