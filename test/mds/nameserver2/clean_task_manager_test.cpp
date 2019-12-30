@@ -65,7 +65,9 @@ class NthSuccessTask : public Task {
 TEST(CleanTaskManger, SimpleTask) {
     int threadNum = 10;
     int checkPeriod = 1000;
-    auto taskManager = new CleanTaskManager(threadNum, checkPeriod);
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto taskManager = new CleanTaskManager(channelPool, threadNum,
+                                                checkPeriod);
     TaskIDType taskID = 1;
 
     // task manager not started, push error
@@ -110,7 +112,9 @@ TEST(CleanTaskManger, SimpleTask) {
 TEST(CleanTaskManger, NthSuccessTask) {
     int threadNum = 10;
     int checkPeriod = 1000;
-    auto taskManager = new CleanTaskManager(threadNum, checkPeriod);
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto taskManager = new CleanTaskManager(channelPool, threadNum,
+                                                checkPeriod);
     TaskIDType taskID = 1;
     int Nth = 3;
 
@@ -162,7 +166,9 @@ TEST(CleanTaskManger, NthSuccessTask) {
 TEST(CleanTaskManger, SimpleTaskConcurret) {
     int threadNum = 10;
     int checkPeriod = 1000;
-    auto taskManager = new CleanTaskManager(threadNum, checkPeriod);
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto taskManager = new CleanTaskManager(channelPool, threadNum,
+                                                checkPeriod);
 
     ASSERT_TRUE(taskManager->Start());
 

@@ -11,7 +11,9 @@
 namespace curve {
 namespace mds {
 
-CleanTaskManager::CleanTaskManager(int threadNum, int checkPeriod) {
+CleanTaskManager::CleanTaskManager(std::shared_ptr<ChannelPool> channelPool,
+                            int threadNum, int checkPeriod)
+                                     : channelPool_(channelPool) {
     threadNum_ = threadNum;
     checkPeriod_ = checkPeriod;
     stopFlag_ = true;
@@ -21,6 +23,7 @@ void CleanTaskManager::CheckCleanResult(void) {
     while (sleeper_.wait_for(std::chrono::milliseconds(checkPeriod_))) {
         {
             common::LockGuard lck(mutex_);
+            bool notEmptyBefore = !cleanTasks_.empty();
             for (auto iter = cleanTasks_.begin(); iter != cleanTasks_.end();) {
                 auto taskProgress = iter->second->GetTaskProgress();
                 if (taskProgress.GetStatus() == TaskStatus::SUCCESS) {
@@ -35,6 +38,11 @@ void CleanTaskManager::CheckCleanResult(void) {
                     cleanWorkers_->Enqueue(iter->second->Closure());
                 }
                 ++iter;
+            }
+            // clean task为空，清空channelPool
+            if (cleanTasks_.empty() && notEmptyBefore) {
+                LOG(INFO) << "All tasks completed, clear channel pool";
+                channelPool_->Clear();
             }
         }
     }
