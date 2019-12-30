@@ -22,6 +22,8 @@ std::shared_ptr<CurveTool> CurveToolFactory::GenerateCurveTool(
         return GenerateCurveCli();
     } else if (CopysetCheck::SupportCommand(command)) {
         return GenerateCopysetCheck();
+    } else if (ScheduleTool::SupportCommand(command)) {
+        return GenerateScheduleTool();
     } else {
         return nullptr;
     }
@@ -63,6 +65,11 @@ std::shared_ptr<CopysetCheck> CurveToolFactory::GenerateCopysetCheck() {
     auto core = std::make_shared<curve::tool::CopysetCheckCore>(mdsClient,
                                                                 csClient);
     return std::make_shared<CopysetCheck>(core);
+}
+
+std::shared_ptr<ScheduleTool> CurveToolFactory::GenerateScheduleTool() {
+    auto mdsClient = std::make_shared<MDSClient>();
+    return std::make_shared<ScheduleTool>(mdsClient);
 }
 
 }  // namespace tool

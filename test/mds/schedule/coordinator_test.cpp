@@ -428,6 +428,33 @@ TEST(CoordinatorTest, test_SchedulerSwitch) {
     ::sleep(1);
     coordinator->Stop();
 }
+
+TEST(CoordinatorTest, test_RapidLeaderSchedule) {
+    auto topo = std::make_shared<MockTopology>();
+    auto metric = std::make_shared<ScheduleMetrics>(topo);
+    auto topoAdapter = std::make_shared<MockTopoAdapter>();
+    auto coordinator = std::make_shared<Coordinator>(topoAdapter);
+
+    ScheduleOption scheduleOption;
+    scheduleOption.enableCopysetScheduler = true;
+    scheduleOption.enableLeaderScheduler = true;
+    scheduleOption.enableRecoverScheduler = true;
+    scheduleOption.enableReplicaScheduler = true;
+    scheduleOption.copysetSchedulerIntervalSec = 0;
+    scheduleOption.leaderSchedulerIntervalSec = 0;
+    scheduleOption.recoverSchedulerIntervalSec = 0;
+    scheduleOption.replicaSchedulerIntervalSec = 0;
+    scheduleOption.operatorConcurrent = 2;
+    scheduleOption.transferLeaderTimeLimitSec = 1;
+    scheduleOption.addPeerTimeLimitSec = 1;
+    scheduleOption.removePeerTimeLimitSec = 1;
+    coordinator->InitScheduler(scheduleOption, metric);
+
+    EXPECT_CALL(*topoAdapter, GetLogicalpools())
+        .WillOnce(Return(std::vector<PoolIdType>{}));
+    ASSERT_EQ(kScheduleErrCodeInvalidLogicalPool,
+        coordinator->RapidLeaderSchedule(2));
+}
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

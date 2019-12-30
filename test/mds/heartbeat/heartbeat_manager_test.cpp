@@ -11,9 +11,9 @@
 #include "src/mds/heartbeat/heartbeat_manager.h"
 #include "src/mds/heartbeat/chunkserver_healthy_checker.h"
 #include "src/common/timeutility.h"
-#include "test/mds/heartbeat/mock_coordinator.h"
+#include "test/mds/mock/mock_coordinator.h"
 #include "test/mds/mock/mock_topology.h"
-#include "test/mds/heartbeat/mock_topoAdapter.h"
+#include "test/mds/mock/mock_topoAdapter.h"
 #include "test/mds/heartbeat/common.h"
 
 using ::testing::Return;

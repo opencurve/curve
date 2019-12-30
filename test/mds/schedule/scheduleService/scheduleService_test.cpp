@@ -1,0 +1,84 @@
+/*
+ * Project: curve
+ * Created Date: 2020-01-06
+ * Author: lixiaocui
+ * Copyright (c) 2018 netease
+ */
+
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+#include <brpc/controller.h>
+#include <brpc/channel.h>
+#include <brpc/server.h>
+
+#include "src/mds/schedule/scheduleService/scheduleService.h"
+#include "test/mds/mock/mock_coordinator.h"
+#include "proto/schedule.pb.h"
+
+namespace curve {
+namespace mds {
+namespace schedule {
+
+using ::testing::Return;
+using ::testing::_;
+
+class TestScheduleService : public ::testing::Test {
+ protected:
+    virtual void SetUp() {
+        server_ = new brpc::Server();
+
+        coordinator_ = std::make_shared<MockCoordinator>();
+        ScheduleServiceImpl *scheduleService =
+            new ScheduleServiceImpl(coordinator_);
+        ASSERT_EQ(0,
+            server_->AddService(scheduleService, brpc::SERVER_OWNS_SERVICE));
+        ASSERT_EQ(0, server_->Start("127.0.0.1", {5900, 5999}, nullptr));
+        listenAddr_ = server_->listen_address();
+    }
+
+    virtual void TearDown() {
+        server_->Stop(0);
+        server_->Join();
+        delete server_;
+        server_ = nullptr;
+    }
+
+ protected:
+    std::shared_ptr<MockCoordinator> coordinator_;
+    butil::EndPoint listenAddr_;
+    brpc::Server *server_;
+};
+
+TEST_F(TestScheduleService, test_RapidLeaderSchedule) {
+    brpc::Channel channel;
+    ASSERT_EQ(0, channel.Init(listenAddr_, NULL));
+
+    ScheduleService_Stub stub(&channel);
+    RapidLeaderScheduleRequst request;
+    request.set_logicalpoolid(1);
+    RapidLeaderScheduleResponse response;
+
+    // 1. 快速leader均衡返回成功
+    {
+        EXPECT_CALL(*coordinator_, RapidLeaderSchedule(1))
+            .WillOnce(Return(kScheduleErrCodeSuccess));
+        brpc::Controller cntl;
+        stub.RapidLeaderSchedule(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(kScheduleErrCodeSuccess, response.statuscode());
+    }
+
+    // 2. 传入的logicalpoolid不存在
+    {
+        EXPECT_CALL(*coordinator_, RapidLeaderSchedule(1))
+            .WillOnce(Return(kScheduleErrCodeInvalidLogicalPool));
+        brpc::Controller cntl;
+        stub.RapidLeaderSchedule(&cntl, &request, &response, nullptr);
+        ASSERT_FALSE(cntl.Failed());
+        ASSERT_EQ(kScheduleErrCodeInvalidLogicalPool, response.statuscode());
+    }
+}
+
+}  // namespace schedule
+}  // namespace mds
+}  // namespace curve

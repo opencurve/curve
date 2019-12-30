@@ -37,8 +37,8 @@ int LeaderScheduler::DoLeaderSchedule(PoolIdType lid) {
     int minId = -1;
     std::vector<ChunkServerInfo> csInfos
         = topo_->GetChunkServersInLogicalPool(lid);
-    std::random_device rd;
-    std::mt19937 g(rd());
+    static std::random_device rd;
+    static std::mt19937 g(rd());
     std::shuffle(csInfos.begin(), csInfos.end(), g);
 
     for (auto csInfo : csInfos) {

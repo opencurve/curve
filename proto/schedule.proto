@@ -1,0 +1,23 @@
+/*
+ * Project: curve
+ * Created Date: 2020-01-02
+ * Author: lixiaocui
+ * Copyright (c) 2018 netease
+ */
+
+syntax="proto2";
+package curve.mds.schedule;
+
+option cc_generic_services = true;
+
+message RapidLeaderScheduleRequst {
+    required uint32 logicalPoolID = 1;
+}
+
+message RapidLeaderScheduleResponse {
+    required sint32 statusCode = 1;
+}
+
+service ScheduleService {
+    rpc RapidLeaderSchedule(RapidLeaderScheduleRequst) returns (RapidLeaderScheduleResponse);
+}

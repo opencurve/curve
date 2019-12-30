@@ -18,6 +18,7 @@ cc_library(
         "//src/mds/nameserver2",
         "//src/mds/leader_election",
         "//src/mds/schedule",
+        "//src/mds/schedule/scheduleService:scheduleservice",
         "//src/mds/topology",
         "//src/mds/nameserver2/allocstatistic:alloc_statistic",
         "//test/mds/nameserver2:fakes",
