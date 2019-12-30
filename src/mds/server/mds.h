@@ -41,6 +41,7 @@
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/common/curve_version.h"
 #include "src/common/channel_pool.h"
+#include "src/mds/schedule/scheduleService/scheduleService.h"
 
 using ::curve::mds::topology::TopologyChunkAllocatorImpl;
 using ::curve::mds::topology::TopologyServiceImpl;
@@ -59,6 +60,7 @@ using ::curve::mds::schedule::TopoAdapterImpl;
 using ::curve::mds::schedule::TopoAdapter;
 using ::curve::mds::schedule::ScheduleOption;
 using ::curve::mds::schedule::ScheduleMetrics;
+using ::curve::mds::schedule::ScheduleServiceImpl;
 using ::curve::mds::chunkserverclient::ChunkServerClientOption;
 using ::curve::common::Configuration;
 

@@ -17,6 +17,7 @@
 
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
+#include "proto/schedule.pb.h"
 #include "src/common/authenticator.h"
 #include "src/mds/common/mds_define.h"
 #include "src/common/string_util.h"
@@ -44,6 +45,8 @@ using curve::mds::topology::ChunkServerStatus;
 using curve::mds::topology::ListChunkServerRequest;
 using curve::mds::topology::GetChunkServerInfoRequest;
 using curve::mds::topology::GetCopySetsInChunkServerRequest;
+using curve::mds::schedule::RapidLeaderScheduleRequst;
+using curve::mds::schedule::RapidLeaderScheduleResponse;
 using curve::common::Authenticator;
 
 namespace curve {
@@ -266,6 +269,11 @@ class MDSClient {
      *  @brief 获取当前mds的地址
      */
     virtual std::string GetCurrentMds();
+
+    /**
+     * @brief 向mds发送rpc触发快速leader均衡
+     */
+    virtual int RapidLeaderSchedule(PoolIdType lpid);
 
  private:
     /**
