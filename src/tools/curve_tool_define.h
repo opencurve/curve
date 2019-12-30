@@ -43,6 +43,9 @@ const char kRemovePeerCmd[] = "remove-peer";
 const char kTransferLeaderCmd[] = "transfer-leader";
 const char kResetPeerCmd[] = "reset-peer";
 
+// 调度模块命令
+const char kRapidLeaderSchedule[] = "rapid-leader-schedule";
+
 }  // namespace tool
 }  // namespace curve
 

@@ -23,7 +23,7 @@
 #include "src/mds/copyset/copyset_policy.h"
 #include "src/mds/copyset/copyset_manager.h"
 #include "src/mds/schedule/scheduleMetrics.h"
-#include "test/mds/schedule/copysetSchedulerPOC/mock_topology.h"
+#include "test/mds/schedule/schedulerPOC/mock_topology.h"
 #include "test/mds/mock/mock_topology.h"
 
 using ::curve::mds::topology::MockTopology;
@@ -343,7 +343,20 @@ class CopysetSchedulerPOC : public testing::Test {
         scatterwidthPercent_ = 0.2;
         copysetNumPercent_ = 0.05;
         offlineTolerent_ = 8;
+        opt.leaderSchedulerIntervalSec = 1000;
+        opt.recoverSchedulerIntervalSec = 1000;
+        opt.copysetSchedulerIntervalSec = 1000;
+        opt.transferLeaderTimeLimitSec = 10;
+        opt.removePeerTimeLimitSec = 100;
+        opt.addPeerTimeLimitSec = 1000;
+        opt.changePeerTimeLimitSec = 1000;
+        opt.recoverSchedulerIntervalSec = 1;
+        opt.scatterWithRangePerent = scatterwidthPercent_;
+        opt.chunkserverCoolingTimeSec = 0;
+        opt.chunkserverFailureTolerance = offlineTolerent_;
+        opt.copysetNumRangePercent = copysetNumPercent_;
 
+        // leaderCountOn = true;
         PrintScatterWithInLogicalPool();
         PrintCopySetNumInLogicalPool();
         PrintLeaderCountInChunkServer();
@@ -568,6 +581,25 @@ class CopysetSchedulerPOC : public testing::Test {
                   << "), 最小值：(" << min << "," << minId << ")";
     }
 
+    int GetLeaderCountRange(PoolIdType lid = 0) {
+        int max = -1;
+        int min = -1;
+        for (auto it : topo_->GetChunkServerInLogicalPool(lid)) {
+            ChunkServerStat out;
+            if (topoStat_->GetChunkServerStat(it, &out)) {
+                if (max == -1 || out.leaderCount > max) {
+                    max = out.leaderCount;
+                }
+
+                if (min == -1 || out.leaderCount < min) {
+                    min = out.leaderCount;
+                }
+            }
+        }
+
+        return max - min;
+    }
+
     // 计算每个chunkserver的scatter-with
     int GetChunkServerScatterwith(ChunkServerIdType csId) {
         // 计算chunkserver上的scatter-with
@@ -643,8 +675,19 @@ class CopysetSchedulerPOC : public testing::Test {
                 opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
         leaderScheduler_ = std::make_shared<LeaderScheduler>(
-            opController_, 1000, 0, 10, 100, 1000, 1000,
-            scatterwidthPercent_, topoAdapter_);
+            opt, topoAdapter_, opController_);
+    }
+
+    void BuildRapidLeaderScheduler(int opConcurrent) {
+        topoAdapter_ =  std::make_shared<TopoAdapterImpl>(
+            topo_, std::make_shared<FakeTopologyServiceManager>(), topoStat_);
+
+        opController_ =
+            std::make_shared<OperatorController>(
+                opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
+
+        rapidLeaderScheduler_ = std::make_shared<RapidLeaderScheduler>(
+            opt, topoAdapter_, opController_, 0);
     }
 
     void BuilRecoverScheduler(int opConcurrent) {
@@ -656,14 +699,12 @@ class CopysetSchedulerPOC : public testing::Test {
                 opConcurrent, std::make_shared<ScheduleMetrics>(topo_));
 
         recoverScheduler_ = std::make_shared<RecoverScheduler>(
-            opController_, 1000, 10, 100, 1000, 1000,
-            scatterwidthPercent_, offlineTolerent_, topoAdapter_);
+            opt, topoAdapter_, opController_);
     }
 
     void BuildCopySetScheduler(int opConcurrent) {
         copySetScheduler_ = std::make_shared<CopySetScheduler>(
-            opController_, 1000, 10, 100, 1000, 1000, copysetNumPercent_,
-            scatterwidthPercent_, topoAdapter_);
+            opt, topoAdapter_, opController_);
     }
 
     void ApplyOperatorsInOpController(
@@ -747,10 +788,13 @@ class CopysetSchedulerPOC : public testing::Test {
     std::shared_ptr<RecoverScheduler> recoverScheduler_;
     std::shared_ptr<CopySetScheduler> copySetScheduler_;
     std::shared_ptr<LeaderScheduler> leaderScheduler_;
+    std::shared_ptr<RapidLeaderScheduler> rapidLeaderScheduler_;
+
     int minScatterwidth_;
     float scatterwidthPercent_;
     float copysetNumPercent_;
     int offlineTolerent_;
+    ScheduleOption opt;
 };
 
 TEST_F(CopysetSchedulerPOC, DISABLED_test_scatterwith_after_recover_1) {
@@ -1168,6 +1212,18 @@ TEST_F(CopysetSchedulerPOC, DISABLED_test_leader_rebalance) {
     } while (opnum > 0);
 
     PrintLeaderCountInChunkServer();
+    leaderCountOn = false;
+}
+
+TEST_F(CopysetSchedulerPOC, test_rapidleader_rebalance) {
+    leaderCountOn = true;
+    BuildRapidLeaderScheduler(1);
+
+    ASSERT_EQ(kScheduleErrCodeSuccess, rapidLeaderScheduler_->Schedule());
+    ApplyTranferLeaderOperator();
+
+    PrintLeaderCountInChunkServer();
+    ASSERT_LE(GetLeaderCountRange(), 5);
     leaderCountOn = false;
 }
 }  // namespace schedule
