@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TEST_MDS_SCHEDULE_COPYSETSCHEDULERPOC_MOCK_TOPOLOGY_H_
-#define TEST_MDS_SCHEDULE_COPYSETSCHEDULERPOC_MOCK_TOPOLOGY_H_
+#ifndef TEST_MDS_SCHEDULE_SCHEDULERPOC_MOCK_TOPOLOGY_H_
+#define TEST_MDS_SCHEDULE_SCHEDULERPOC_MOCK_TOPOLOGY_H_
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -159,4 +159,4 @@ class MockStorage : public TopologyStorage {
 }  // namespace mds
 }  // namespace curve
 
-#endif  // TEST_MDS_SCHEDULE_COPYSETSCHEDULERPOC_MOCK_TOPOLOGY_H_
+#endif  // TEST_MDS_SCHEDULE_SCHEDULERPOC_MOCK_TOPOLOGY_H_

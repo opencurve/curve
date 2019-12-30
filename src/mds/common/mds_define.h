@@ -82,6 +82,18 @@ const int kTopoErrCodeCannotRemoveNotRetired = -18;
 
 namespace curve {
 namespace mds {
+namespace schedule {
+
+// RapidLeaderSchedule Error Code
+const int kScheduleErrCodeSuccess = 0;
+const int kScheduleErrCodeInvalidLogicalPool = -1;
+
+}  // namespace schedule
+}  // namespace mds
+}  // namespace curve
+
+namespace curve {
+namespace mds {
 
 typedef uint64_t InodeID;
 typedef uint64_t ChunkID;

@@ -30,7 +30,8 @@ const char* kHelpStr = "Usage: curve_ops_tool [Command] [OPTIONS...]\n"
         "check-copyset : check the health state of copyset\n"
         "check-chunkserver : check the health state of the chunkserver\n"
         "check-server : check the health state of the server\n"
-        "check-cluster : check the health state of the cluster\n\n"
+        "check-cluster : check the health state of the cluster\n"
+        "rapid-leader-schedule: rapid leader schedule in cluster in logicalpool\n\n"  //NOLINT
         "You can specify the config path by -confPath to avoid typing too many options\n";  //NOLINT
 
 

@@ -251,6 +251,12 @@ void MDS::StartServer() {
                           brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
         << "add topologyService error";
 
+    // add schedule service
+    ScheduleServiceImpl scheduleService(coordinator_);
+    LOG_IF(FATAL, server.AddService(&scheduleService,
+                          brpc::SERVER_DOESNT_OWN_SERVICE) != 0)
+        << "add scheduleService error";
+
     // start rpc server
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
