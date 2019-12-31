@@ -79,10 +79,16 @@ int CopysetNodeManager::Fini() {
         copysetLoader_ = nullptr;
     }
 
-    for (auto& copysetNode : copysetNodeMap_) {
-        copysetNode.second->Fini();
+    {
+        ReadLockGuard readLockGuard(rwLock_);
+        for (auto& copysetNode : copysetNodeMap_) {
+            copysetNode.second->Fini();
+        }
     }
+
+    WriteLockGuard writeLockGuard(rwLock_);
     copysetNodeMap_.clear();
+
     return 0;
 }
 
