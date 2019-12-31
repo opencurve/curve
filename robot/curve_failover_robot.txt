@@ -97,7 +97,7 @@ inject restart two chunkserver
 inject kill diff host chunkserver
     [Tags]    P1    base    first release   failover
     test kill diff host chunkserver
-    check chunkserver online
+    wait health ok
     check vm iops
     check data consistency
 #    check copies consistency
@@ -476,8 +476,8 @@ inject all chunkserver down
     [Tags]    P1    base    first release   failover
     test stop all chunkserver
     test start all chunkserver
-    check chunkserver online
-    sleep  40
+    wait health ok
+    sleep  10
     check vm iops
     check data consistency
 #    check copies consistency
@@ -488,8 +488,8 @@ inject all chunkserver down 10min
     test stop all chunkserver
     sleep   600
     test start all chunkserver
-    check chunkserver online
-    sleep  40
+    wait health ok
+    sleep  10
     check vm iops
     check data consistency
 #    check copies consistency
