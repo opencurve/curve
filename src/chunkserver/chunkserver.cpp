@@ -289,10 +289,10 @@ int ChunkServer::Run(int argc, char** argv) {
         << "Failed to start trash.";
     LOG_IF(FATAL, cloneManager_.Run() != 0)
         << "Failed to start clone manager.";
-    LOG_IF(FATAL, copysetNodeManager_->Run() != 0)
-        << "Failed to start CopysetNodeManager.";
     LOG_IF(FATAL, heartbeat_.Run() != 0)
         << "Failed to start heartbeat manager.";
+    LOG_IF(FATAL, copysetNodeManager_->Run() != 0)
+        << "Failed to start CopysetNodeManager.";
 
     // =======================等待进程退出==================================//
     server.RunUntilAskedToQuit();
