@@ -770,6 +770,30 @@ def check_chunkserver_online(num=120):
         logger.error("chunkserver offline list is %s"%rs[1])
         assert int(online_num[0]) == num,"chunkserver online num is %s"%online_num
 
+def wait_health_ok():
+    mds_addrs = []
+    for host in config.mds_list:
+        mds_addrs.append(host + ":6666")
+    addrs = ",".join(mds_addrs)
+    host = random.choice(config.mds_list)
+    ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
+    ori_cmd = "curve_ops_tool status -mdsAddr=%s | grep \"cluster is\""%addrs
+    starttime = time.time()
+    check = 0
+    while time.time() - starttime < config.recover_time:
+        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+        health = "".join(rs[1]).strip()
+        if health == "cluster is healthy!" and rs[3] == 0:
+            check = 1
+            break
+        else:
+            ori_cmd2 = "curve_ops_tool status -mdsAddr=%s "%addrs
+            rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
+            health = rs2[1]
+            logger.debug("cluster status is %s"%health)
+            time.sleep(10)
+    assert check == 1,"cluster is not healthy in %d s"%config.recover_time
+
 def wait_cluster_healthy(limit_iops=8000):
     check_chunkserver_online()
     #检测集群整体状态
