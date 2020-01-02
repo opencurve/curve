@@ -777,17 +777,17 @@ def wait_health_ok():
     addrs = ",".join(mds_addrs)
     host = random.choice(config.mds_list)
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
-    ori_cmd = "curve_ops_tool status -mdsAddr=%s | grep \"cluster is\""%addrs
+    ori_cmd = "curve_ops_tool check-cluster -mdsAddr=%s | grep \"Cluster is\""%addrs
     starttime = time.time()
     check = 0
     while time.time() - starttime < config.recover_time:
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         health = "".join(rs[1]).strip()
-        if health == "cluster is healthy!" and rs[3] == 0:
+        if health == "Cluster is healthy!" and rs[3] == 0:
             check = 1
             break
         else:
-            ori_cmd2 = "curve_ops_tool status -mdsAddr=%s "%addrs
+            ori_cmd2 = "curve_ops_tool check-cluster -mdsAddr=%s "%addrs
             rs2 = shell_operator.ssh_exec(ssh, ori_cmd2)
             health = rs2[1]
             logger.debug("cluster status is %s"%health)
