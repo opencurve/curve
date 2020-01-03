@@ -37,8 +37,8 @@ class NameSpaceServiceTest : public ::testing::Test {
  protected:
     void SetUp() override {
         // init the kcurvefs, use the fake element
-        storage_ =  new FakeNameServerStorage();
-        inodeGenerator_ = new FakeInodeIDGenerator(0);
+        storage_ =  std::make_shared<FakeNameServerStorage>();
+        inodeGenerator_ = std::make_shared<FakeInodeIDGenerator>(0);
 
         topology_ = std::make_shared<MockTopology>();
         ChunkServerClientOption option;
@@ -63,12 +63,12 @@ class NameSpaceServiceTest : public ::testing::Test {
         std::shared_ptr<FackChunkIDGenerator> chunkIdGenerator =
                             std::make_shared<FackChunkIDGenerator>();
         chunkSegmentAllocate_ =
-                new ChunkSegmentAllocatorImpl(topologyChunkAllocator,
-                        chunkIdGenerator);
+                std::make_shared<ChunkSegmentAllocatorImpl>(
+                        topologyChunkAllocator, chunkIdGenerator);
 
         std::shared_ptr<FakeRepoInterface> repo =
                                     std::make_shared<FakeRepoInterface>();
-        sessionManager_ = new SessionManager(repo);
+        sessionManager_ = std::make_shared<SessionManager>(repo);
 
         sessionOptions.leaseTimeUs = 5000000;
         sessionOptions.toleranceTimeUs = 500000;
@@ -78,6 +78,8 @@ class NameSpaceServiceTest : public ::testing::Test {
         authOptions.rootPassword = "root_password";
 
         curveFSOptions.defaultChunkSize = 16 * kMB;
+        curveFSOptions.sessionOptions = sessionOptions;
+        curveFSOptions.authOptions = authOptions;
 
         InitRecycleBinDir(storage_);
 
@@ -85,8 +87,8 @@ class NameSpaceServiceTest : public ::testing::Test {
                         cleanManager_,
                         sessionManager_,
                         allocStatistic_,
-                        sessionOptions, authOptions,
                         curveFSOptions, repo);
+        kCurveFS.Run();
     }
 
     void TearDown() override {
@@ -95,30 +97,12 @@ class NameSpaceServiceTest : public ::testing::Test {
         if (cleanManager_ != nullptr) {
             ASSERT_EQ(cleanManager_->Stop(), true);
         }
-
-        if (storage_ != nullptr) {
-            delete storage_;
-            storage_ = nullptr;
-        }
-        if (inodeGenerator_ != nullptr) {
-            delete inodeGenerator_;
-            inodeGenerator_ = nullptr;
-        }
-        if (chunkSegmentAllocate_ != nullptr) {
-            delete chunkSegmentAllocate_;
-            chunkSegmentAllocate_ = nullptr;
-        }
-        if (sessionManager_ != nullptr) {
-            delete sessionManager_;
-            sessionManager_ = nullptr;
-        }
-        allocStatistic_ = nullptr;
     }
 
  public:
-    NameServerStorage *storage_;
-    InodeIDGenerator *inodeGenerator_;
-    ChunkSegmentAllocator *chunkSegmentAllocate_;
+    std::shared_ptr<NameServerStorage> storage_;
+    std::shared_ptr<InodeIDGenerator> inodeGenerator_;
+    std::shared_ptr<ChunkSegmentAllocator> chunkSegmentAllocate_;
 
     std::shared_ptr<CleanCore> cleanCore_;
     std::shared_ptr<CleanTaskManager> cleanTaskManager_;
@@ -126,7 +110,7 @@ class NameSpaceServiceTest : public ::testing::Test {
     std::shared_ptr<MockTopology> topology_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
 
-    SessionManager *sessionManager_;
+    std::shared_ptr<SessionManager> sessionManager_;
     struct SessionOptions sessionOptions;
     struct RootAuthOption authOptions;
     struct CurveFSOption curveFSOptions;

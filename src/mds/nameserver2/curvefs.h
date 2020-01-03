@@ -37,11 +37,13 @@ struct RootAuthOption {
 
 struct CurveFSOption {
     uint64_t defaultChunkSize;
+    RootAuthOption authOptions;
+    SessionOptions sessionOptions;
 };
 
 using ::curve::mds::DeleteSnapShotResponse;
 
-bool InitRecycleBinDir(NameServerStorage *storage);
+bool InitRecycleBinDir(std::shared_ptr<NameServerStorage> storage);
 
 class CurveFS {
  public:
@@ -65,14 +67,21 @@ class CurveFS {
      *         repo : curvefs持久化数据所用的数据库，目前保存client注册信息使用
      *  @return 初始化是否成功
      */
-    bool Init(NameServerStorage*, InodeIDGenerator*, ChunkSegmentAllocator*,
+    bool Init(std::shared_ptr<NameServerStorage>,
+              std::shared_ptr<InodeIDGenerator>,
+              std::shared_ptr<ChunkSegmentAllocator>,
               std::shared_ptr<CleanManagerInterface>,
-              SessionManager *sessionManager,
+              std::shared_ptr<SessionManager> sessionManager,
               std::shared_ptr<AllocStatistic> allocStatistic,
-              const struct SessionOptions &sessionOptions,
-              const struct RootAuthOption &authOptions,
               const struct CurveFSOption &curveFSOptions,
               std::shared_ptr<MdsRepo> repo);
+
+    /**
+     *  @brief Run session manager
+     *  @param
+     *  @return
+     */
+    void Run();
 
     /**
      *  @brief CurveFS Uninit
@@ -478,14 +487,14 @@ class CurveFS {
 
  private:
     FileInfo rootFileInfo_;
-    NameServerStorage*          storage_;
-    InodeIDGenerator*           InodeIDGenerator_;
-    ChunkSegmentAllocator*      chunkSegAllocator_;
-    SessionManager *            sessionManager_;
+    std::shared_ptr<NameServerStorage> storage_;
+    std::shared_ptr<InodeIDGenerator> InodeIDGenerator_;
+    std::shared_ptr<ChunkSegmentAllocator> chunkSegAllocator_;
+    std::shared_ptr<SessionManager> sessionManager_;
     std::shared_ptr<CleanManagerInterface> cleanManager_;
     std::shared_ptr<AllocStatistic> allocStatistic_;
     struct RootAuthOption       rootAuthOptions_;
-    struct CurveFSOption        curveFSOptions_;
+    uint64_t defaultChunkSize_;
     std::shared_ptr<MdsRepo> repo_;
 };
 extern CurveFS &kCurveFS;
