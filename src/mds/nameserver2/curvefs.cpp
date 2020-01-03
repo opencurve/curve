@@ -18,7 +18,7 @@ using curve::common::TimeUtility;
 
 namespace curve {
 namespace mds {
-bool InitRecycleBinDir(NameServerStorage *storage) {
+bool InitRecycleBinDir(std::shared_ptr<NameServerStorage> storage) {
     FileInfo recyclebinFileInfo;
 
     StoreStatus ret = storage->GetFile(ROOTINODEID, RECYCLEBINDIR,
@@ -61,14 +61,12 @@ bool InitRecycleBinDir(NameServerStorage *storage) {
     }
 }
 
-bool CurveFS::Init(NameServerStorage* storage,
-                InodeIDGenerator* InodeIDGenerator,
-                ChunkSegmentAllocator* chunkSegAllocator,
+bool CurveFS::Init(std::shared_ptr<NameServerStorage> storage,
+                std::shared_ptr<InodeIDGenerator> InodeIDGenerator,
+                std::shared_ptr<ChunkSegmentAllocator> chunkSegAllocator,
                 std::shared_ptr<CleanManagerInterface> cleanManager,
-                SessionManager *sessionManager,
+                std::shared_ptr<SessionManager> sessionManager,
                 std::shared_ptr<AllocStatistic> allocStatistic,
-                const struct SessionOptions &sessionOptions,
-                const struct RootAuthOption &authOptions,
                 const struct CurveFSOption &curveFSOptions,
                 std::shared_ptr<MdsRepo> repo) {
     storage_ = storage;
@@ -77,27 +75,31 @@ bool CurveFS::Init(NameServerStorage* storage,
     cleanManager_ = cleanManager;
     allocStatistic_ = allocStatistic;
     sessionManager_ = sessionManager;
-    rootAuthOptions_ = authOptions;
-    curveFSOptions_ = curveFSOptions;
+    rootAuthOptions_ = curveFSOptions.authOptions;
+    defaultChunkSize_ = curveFSOptions.defaultChunkSize;
     repo_ = repo;
 
     InitRootFile();
 
-    if (!sessionManager_->Init(sessionOptions)) {
+    if (!sessionManager_->Init(curveFSOptions.sessionOptions)) {
         return false;
     }
-
-    sessionManager_->Start();
-
     return true;
+}
+
+void CurveFS::Run() {
+    sessionManager_->Start();
 }
 
 void CurveFS::Uninit() {
     sessionManager_->Stop();
-    sessionManager_ = nullptr;
-    chunkSegAllocator_ =  nullptr;
-    InodeIDGenerator_ = nullptr;
     storage_ = nullptr;
+    InodeIDGenerator_ = nullptr;
+    chunkSegAllocator_ = nullptr;
+    cleanManager_ = nullptr;
+    allocStatistic_ = nullptr;
+    sessionManager_ = nullptr;
+    repo_ = nullptr;
 }
 
 void CurveFS::InitRootFile(void) {
@@ -234,7 +236,7 @@ StatusCode CurveFS::CreateFile(const std::string & fileName,
         fileInfo.set_parentid(parentFileInfo.id());
         fileInfo.set_filetype(filetype);
         fileInfo.set_owner(owner);
-        fileInfo.set_chunksize(curveFSOptions_.defaultChunkSize);
+        fileInfo.set_chunksize(defaultChunkSize_);
         fileInfo.set_segmentsize(DefaultSegmentSize);
         fileInfo.set_length(length);
         fileInfo.set_ctime(::curve::common::TimeUtility::GetTimeofDayUs());
@@ -1634,7 +1636,7 @@ uint64_t CurveFS::GetOpenFileNum() {
 }
 
 uint64_t CurveFS::GetDefaultChunkSize() {
-    return curveFSOptions_.defaultChunkSize;
+    return defaultChunkSize_;
 }
 
 CurveFS &kCurveFS = CurveFS::GetInstance();

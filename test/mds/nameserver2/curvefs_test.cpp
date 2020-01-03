@@ -37,14 +37,14 @@ namespace mds {
 class CurveFSTest: public ::testing::Test {
  protected:
     void SetUp() override {
-        storage_ = new MockNameServerStorage();
-        inodeIdGenerator_ = new MockInodeIDGenerator();
-        mockChunkAllocator_ = new MockChunkAllocator();
+        storage_ = std::make_shared<MockNameServerStorage>();
+        inodeIdGenerator_ = std::make_shared<MockInodeIDGenerator>();
+        mockChunkAllocator_ = std::make_shared<MockChunkAllocator>();
 
         mockcleanManager_ = std::make_shared<MockCleanManager>();
 
         mockRepo_ = std::make_shared<MockRepo>();
-        sessionManager_ = new SessionManager(mockRepo_);
+        sessionManager_ = std::make_shared<SessionManager>(mockRepo_);
 
         // session repo已经mock，数据库相关参数不需要
         sessionOptions_.leaseTimeUs = 5000000;
@@ -55,6 +55,8 @@ class CurveFSTest: public ::testing::Test {
         authOptions_.rootPassword = "root_password";
 
         curveFSOptions_.defaultChunkSize = 16 * kMB;
+        curveFSOptions_.authOptions = authOptions_;
+        curveFSOptions_.sessionOptions = sessionOptions_;
 
         EXPECT_CALL(*mockRepo_, LoadSessionRepoItems(_))
         .Times(1)
@@ -67,29 +69,23 @@ class CurveFSTest: public ::testing::Test {
                         mockcleanManager_,
                         sessionManager_,
                         allocStatistic_,
-                        sessionOptions_,
-                        authOptions_,
                         curveFSOptions_,
                         mockRepo_);
+        curvefs_->Run();
     }
 
     void TearDown() override {
         curvefs_->Uninit();
-        allocStatistic_ = nullptr;
-        delete storage_;
-        delete inodeIdGenerator_;
-        delete mockChunkAllocator_;
-        delete sessionManager_;
     }
 
     CurveFS *curvefs_;
-    MockNameServerStorage *storage_;
-    MockInodeIDGenerator *inodeIdGenerator_;
-    MockChunkAllocator *mockChunkAllocator_;
+    std::shared_ptr<MockNameServerStorage> storage_;
+    std::shared_ptr<MockInodeIDGenerator> inodeIdGenerator_;
+    std::shared_ptr<MockChunkAllocator> mockChunkAllocator_;
 
     std::shared_ptr<MockCleanManager> mockcleanManager_;
 
-    SessionManager *sessionManager_;
+    std::shared_ptr<SessionManager> sessionManager_;
     std::shared_ptr<MockAllocStatistic> allocStatistic_;
     std::shared_ptr<MockRepo> mockRepo_;
     struct SessionOptions sessionOptions_;
@@ -2831,7 +2827,7 @@ TEST_F(CurveFSTest, InitRecycleBinDir) {
             {fileInfo5, true},
         };
 
-        auto mockstorage = new MockNameServerStorage();
+        auto mockstorage = std::make_shared<MockNameServerStorage>();
         for (int i = 0; i < sizeof(testCases)/ sizeof(testCases[0]); i++) {
             EXPECT_CALL(*mockstorage, GetFile(_, _, _))
             .Times(1)
@@ -2840,25 +2836,22 @@ TEST_F(CurveFSTest, InitRecycleBinDir) {
 
             ASSERT_EQ(InitRecycleBinDir(mockstorage), testCases[i].ret);
         }
-        delete mockstorage;
     }
 
     // test internal error
     {
-        auto mockstorage = new MockNameServerStorage();
+        auto mockstorage = std::make_shared<MockNameServerStorage>();
 
         EXPECT_CALL(*mockstorage, GetFile(_, _, _))
             .Times(1)
             .WillOnce(Return(StoreStatus::InternalError));
 
         ASSERT_EQ(InitRecycleBinDir(mockstorage), false);
-
-        delete mockstorage;
     }
 
     // test getfile not exist
     {
-        auto mockstorage = new MockNameServerStorage();
+        auto mockstorage = std::make_shared<MockNameServerStorage>();
 
         // putfile error case
         EXPECT_CALL(*mockstorage, GetFile(_, _, _))
@@ -2888,8 +2881,6 @@ TEST_F(CurveFSTest, InitRecycleBinDir) {
             .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(InitRecycleBinDir(mockstorage), true);
-
-        delete mockstorage;
     }
 }
 
