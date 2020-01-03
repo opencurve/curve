@@ -14,11 +14,8 @@ namespace mds {
 
 CleanManager::CleanManager(std::shared_ptr<CleanCore> core,
                 std::shared_ptr<CleanTaskManager> taskMgr,
-                NameServerStorage *storage) {
-    storage_ = storage;
-    cleanCore_ = core;
-    taskMgr_ = taskMgr;
-}
+                std::shared_ptr<NameServerStorage> storage)
+                    : storage_(storage), cleanCore_(core), taskMgr_(taskMgr) {}
 
 bool CleanManager::Start(void) {
     return taskMgr_->Start();
