@@ -1767,7 +1767,7 @@ TEST_F(RaftVoteTest, ThreeNodeHangThreeMember) {
                         loop);
 
     ::usleep(1.6 * waitMultiReplicasBecomeConsistent * 1000);
-    CopysetStatusVerify(peers, logicPoolId, copysetId, 2);
+    CopysetStatusVerify(peers, logicPoolId, copysetId, 1);
 }
 
 }  // namespace chunkserver
