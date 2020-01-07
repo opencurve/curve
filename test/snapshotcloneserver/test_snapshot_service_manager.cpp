@@ -616,7 +616,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
                 Return(kErrCodeSuccess)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
-    ret = manager_->GetFileSnapshotInfo(file, user, nullptr, &fileSnapInfo);
+    ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(3, fileSnapInfo.size());
 
@@ -659,7 +659,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail) {
                 Return(kErrCodeInternalError)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
-    int ret = manager_->GetFileSnapshotInfo(file, user, nullptr, &fileSnapInfo);
+    int ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
@@ -679,7 +679,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail2) {
                 Return(kErrCodeSuccess)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
-    int ret = manager_->GetFileSnapshotInfo(file, user, nullptr, &fileSnapInfo);
+    int ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 

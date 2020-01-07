@@ -100,6 +100,17 @@ class CloneCore {
      */
     virtual int GetCloneInfo(TaskIdType taskId, CloneInfo *cloneInfo) = 0;
 
+    /**
+     * @brief 获取指定文件名的克隆/恢复任务
+     *
+     * @param fileName  文件名
+     * @param cloneInfo 克隆/恢复任务
+     *
+     * @retVal 0  获取成功
+     * @retVal -1 获取失败
+     */
+    virtual int GetCloneInfoByFileName(
+        const std::string &fileName, CloneInfo *cloneInfo) = 0;
 
     /**
      * @brief 获取快照引用管理模块
@@ -154,15 +165,11 @@ class CloneCoreImpl : public CloneCore {
         cloneChunkSplitSize_(option.cloneChunkSplitSize),
         cloneTempDir_(option.cloneTempDir),
         mdsRootUser_(option.mdsRootUser),
-        cloneCoreThreadNum_(option.cloneCoreThreadNum) {
-          threadPool_ = std::make_shared<ThreadPool>(option.cloneCoreThreadNum);
-          recoverChunkPool_ =
-              std::make_shared<ThreadPool>(option.cloneCoreThreadNum);
+        createCloneChunkConcurrency_(option.createCloneChunkConcurrency),
+        recoverChunkConcurrency_(option.recoverChunkConcurrency) {
     }
 
     ~CloneCoreImpl() {
-        threadPool_->Stop();
-        recoverChunkPool_->Stop();
     }
 
     int Init();
@@ -186,6 +193,8 @@ class CloneCoreImpl : public CloneCore {
     int GetCloneInfoList(std::vector<CloneInfo> *taskList) override;
     int GetCloneInfo(TaskIdType taskId, CloneInfo *cloneInfo) override;
 
+    int GetCloneInfoByFileName(
+        const std::string &fileName, CloneInfo *cloneInfo) override;
 
     std::shared_ptr<SnapshotReference> GetSnapshotRef() {
         return snapshotRef_;
@@ -235,6 +244,17 @@ class CloneCoreImpl : public CloneCore {
      */
     bool NeedUpdateCloneMeta(
         std::shared_ptr<CloneTaskInfo> task);
+
+    /**
+     * @brief 判断clone失败后是否需要重试
+     *
+     * @param task 任务信息
+     *
+     * @retVal true 需要
+     * @retVal false 不需要
+     */
+    bool NeedRetry(std::shared_ptr<CloneTaskInfo> task);
+
 
     /**
      * @brief 创建clone的元数据信息或更新元数据信息
@@ -317,6 +337,34 @@ class CloneCoreImpl : public CloneCore {
         std::shared_ptr<CloneTaskInfo> task,
         const FInfo &fInfo,
         const CloneSegmentMap &segInfos);
+
+    /**
+     * @brief 开始RecoverChunk的异步请求
+     *
+     * @param task 任务信息
+     * @param tracker RecoverChunk异步任务跟踪者
+     * @param context RecoverChunk上下文
+     *
+     * @return 错误码
+     */
+    int StartAsyncRecoverChunkPart(
+        std::shared_ptr<CloneTaskInfo> task,
+        std::shared_ptr<RecoverChunkTaskTracker> tracker,
+        std::shared_ptr<RecoverChunkContext> context);
+
+    /**
+     * @brief 继续RecoverChunk的其他部分的请求以及等待完成某些RecoverChunk
+     *
+     * @param task 任务信息
+     * @param tracker RecoverChunk异步任务跟踪者
+     * @param workingChunkNum 当前处于异步工作的Chunk数量
+     *
+     * @return 错误码
+     */
+    int ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(
+        std::shared_ptr<CloneTaskInfo> task,
+        std::shared_ptr<RecoverChunkTaskTracker> tracker,
+        uint64_t *workingChunkNum);
 
     /**
      * @brief 修改克隆文件的owner
@@ -417,19 +465,16 @@ class CloneCoreImpl : public CloneCore {
     std::shared_ptr<SnapshotReference> snapshotRef_;
     std::shared_ptr<CloneReference> cloneRef_;
 
-    // 执行并发步骤的线程池
-    std::shared_ptr<ThreadPool> threadPool_;
-    // 执行RecoverChunk并发的线程池
-    std::shared_ptr<ThreadPool> recoverChunkPool_;
-
     // clone chunk分片大小
     uint64_t cloneChunkSplitSize_;
     // 克隆临时目录
     std::string cloneTempDir_;
     // mds root user
     std::string mdsRootUser_;
-    // 线程数
-    uint32_t cloneCoreThreadNum_;
+    // CreateCloneChunk同时进行的异步请求数量
+    uint32_t createCloneChunkConcurrency_;
+    // RecoverChunk同时进行的异步请求数量
+    uint32_t recoverChunkConcurrency_;
 };
 
 }  // namespace snapshotcloneserver

@@ -239,23 +239,26 @@ int SnapshotClient::CreateCloneChunk(const std::string &location,
                                         const ChunkIDInfo &chunkidinfo,
                                         uint64_t sn,
                                         uint64_t correntSn,
-                                        uint64_t chunkSize) {
+                                        uint64_t chunkSize,
+                                        SnapCloneClosure* scc) {
     return iomanager4chunk_.CreateCloneChunk(location, chunkidinfo,
-                                             sn, correntSn, chunkSize);
+                                             sn, correntSn, chunkSize, scc);
 }
 
 int SnapshotClient::RecoverChunk(const ChunkIDInfo &chunkidinfo,
                                         uint64_t offset,
-                                        uint64_t len) {
-    return iomanager4chunk_.RecoverChunk(chunkidinfo, offset, len);
+                                        uint64_t len,
+                                        SnapCloneClosure* scc) {
+    return iomanager4chunk_.RecoverChunk(chunkidinfo, offset, len, scc);
 }
 
 int SnapshotClient::ReadChunkSnapshot(ChunkIDInfo cidinfo,
                                         uint64_t seq,
                                         uint64_t offset,
                                         uint64_t len,
-                                        char *buf) {
-    return iomanager4chunk_.ReadSnapChunk(cidinfo, seq, offset, len, buf);
+                                        char *buf,
+                                        SnapCloneClosure* scc) {
+    return iomanager4chunk_.ReadSnapChunk(cidinfo, seq, offset, len, buf, scc);
 }
 
 int SnapshotClient::DeleteChunkSnapshotOrCorrectSn(

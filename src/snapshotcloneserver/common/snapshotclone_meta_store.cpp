@@ -153,6 +153,7 @@ int DBSnapshotCloneMetaStore::UpdateCloneInfo(const CloneInfo &info) {
     }
     return 0;
 }
+
 int DBSnapshotCloneMetaStore::GetCloneInfo(const std::string &taskID,
                                     CloneInfo *info) {
     // search from map
@@ -161,6 +162,19 @@ int DBSnapshotCloneMetaStore::GetCloneInfo(const std::string &taskID,
     if (search != cloneInfos_.end()) {
         *info = search->second;
         return 0;
+    }
+    return -1;
+}
+
+int DBSnapshotCloneMetaStore::GetCloneInfoByFileName(
+    const std::string &fileName,
+    CloneInfo *info) {
+    curve::common::ReadLockGuard guard(cloneInfos_lock_);
+    for (auto it = cloneInfos_.begin(); it != cloneInfos_.end(); it++) {
+        if (it->second.GetDest() == fileName) {
+            *info = it->second;
+            return 0;
+        }
     }
     return -1;
 }

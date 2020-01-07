@@ -10,6 +10,37 @@
 namespace curve {
 namespace snapshotcloneserver {
 
+void ReadChunkSnapshotClosure::Run() {
+    std::unique_ptr<ReadChunkSnapshotClosure> self_guard(this);
+    int ret = GetRetCode();
+    if (ret < 0) {
+        LOG(ERROR) << "ReadChunkSnapshotClosure return fail"
+                   << ", ret = " << ret
+                   << ", chunkDataName = "
+                   << context_->name_.ToDataChunkKey()
+                   << ", index = " << context_->partIndex_;
+        tracker_->HandleResponse(ret);
+        return;
+    }
+    ret = context_->dataStore_->DataChunkTranferAddPart(
+        context_->name_,
+        context_->transferTask_,
+        context_->partIndex_,
+        context_->len_,
+        context_->buf_.get());
+    if (ret < 0) {
+        LOG(ERROR) << "DataChunkTranferAddPart fail"
+                   << ", ret = " << ret
+                   << ", chunkDataName = "
+                   << context_->name_.ToDataChunkKey()
+                   << ", index = " << context_->partIndex_;
+        tracker_->HandleResponse(kErrCodeInternalError);
+        return;
+    }
+    tracker_->HandleResponse(kErrCodeSuccess);
+    return;
+}
+
 /**
  * @brief 转储快照的单个chunk
  * @detail
@@ -37,24 +68,37 @@ int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
     if (ret < 0) {
         LOG(ERROR) << "DataChunkTranferInit error, "
                    << " ret = " << ret
-                   << ", fileName = " << name.fileName_
-                   << ", chunkSeqNum = " << name.chunkSeqNum_
-                   << ", chunkIndex = " << name.chunkIndex_;
+                   << ", chunkDataName = " << name.ToDataChunkKey()
+                   << ", logicalPool = " << cidInfo.lpid_
+                   << ", copysetId = " << cidInfo.cpid_
+                   << ", chunkId = " << cidInfo.cid_;
         return ret;
     }
 
-    auto buf = std::unique_ptr<char[]>(new char[chunkSplitSize]);
-    bool hasAddPart = false;
+    auto tracker = std::make_shared<TaskTracker>();
     for (uint64_t i = 0;
         i < chunkSize / chunkSplitSize;
         i++) {
+        auto context = std::make_shared<ReadChunkSnapshotContext>();
+        context->name_ = name;
+        context->transferTask_ = transferTask;
+        context->partIndex_ = i;
+        context->buf_ = std::unique_ptr<char[]>(new char[chunkSplitSize]);
+        context->len_ = chunkSplitSize;
+        context->dataStore_ = dataStore_;
+
+        ReadChunkSnapshotClosure *cb =
+            new ReadChunkSnapshotClosure(tracker, context);
+        tracker->AddOneTrace();
+
         uint64_t offset = i * chunkSplitSize;
         ret = client_->ReadChunkSnapshot(
             cidInfo,
             name.chunkSeqNum_,
             offset,
             chunkSplitSize,
-            buf.get());
+            context->buf_.get(),
+            cb);
         if (ret < 0) {
             LOG(ERROR) << "ReadChunkSnapshot error, "
                        << " ret = " << ret
@@ -66,44 +110,39 @@ int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
             ret = kErrCodeInternalError;
             break;
         }
-        ret = dataStore_->DataChunkTranferAddPart(name,
-            transferTask,
-            i,
-            chunkSplitSize,
-            buf.get());
-        hasAddPart = true;
-        if (ret < 0) {
-            LOG(ERROR) << "DataChunkTranferAddPart error, "
-                       << " ret = " << ret
-                       << ", index = " << i;
-            break;
-        }
     }
     if (ret >= 0) {
-        ret =
-            dataStore_->DataChunkTranferComplete(name, transferTask);
-        if (ret < 0) {
-            LOG(ERROR) << "DataChunkTranferComplete error, "
-                       << " ret = " << ret
-                       << ", fileName = " << name.fileName_
-                       << ", chunkSeqNum = " << name.chunkSeqNum_
-                       << ", chunkIndex = " << name.chunkIndex_;
+        tracker->Wait();
+        ret = tracker->GetResult();
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "ReadChunkSnapshot tracker GetResult fail"
+                       << ", ret = " << ret;
+        } else {
+            ret =
+                dataStore_->DataChunkTranferComplete(name, transferTask);
+            if (ret < 0) {
+                LOG(ERROR) << "DataChunkTranferComplete fail"
+                           << ", ret = " << ret
+                           << ", chunkDataName = " << name.ToDataChunkKey()
+                           << ", logicalPool = " << cidInfo.lpid_
+                           << ", copysetId = " << cidInfo.cpid_
+                           << ", chunkId = " << cidInfo.cid_;
+            }
         }
     }
     if (ret < 0) {
-        if (hasAddPart) {
             int ret2 =
                 dataStore_->DataChunkTranferAbort(
                 name,
                 transferTask);
             if (ret2 < 0) {
-                LOG(ERROR) << "DataChunkTranferAbort error, "
-                           << " ret = " << ret2
-                           << ", fileName = " << name.fileName_
-                           << ", chunkSeqNum = " << name.chunkSeqNum_
-                           << ", chunkIndex = " << name.chunkIndex_;
+                LOG(ERROR) << "DataChunkTranferAbort fail"
+                           << ", ret = " << ret2
+                           << ", chunkDataName = " << name.ToDataChunkKey()
+                           << ", logicalPool = " << cidInfo.lpid_
+                           << ", copysetId = " << cidInfo.cpid_
+                           << ", chunkId = " << cidInfo.cid_;
             }
-        }
         return ret;
     }
     return kErrCodeSuccess;

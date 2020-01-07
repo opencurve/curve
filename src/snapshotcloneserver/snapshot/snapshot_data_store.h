@@ -17,6 +17,11 @@
 #include <string>
 #include <memory>
 
+#include "src/common/concurrent/concurrent.h"
+
+using ::curve::common::SpinLock;
+using ::curve::common::LockGuard;
+
 namespace curve {
 namespace snapshotcloneserver {
 
@@ -148,6 +153,19 @@ class TransferTask {
  public:
      TransferTask() {}
      std::string uploadId_;
+
+     void AddPartInfo(int partNum, std::string etag) {
+         m_.Lock();
+         partInfo_.emplace(partNum, etag);
+         m_.UnLock();
+     }
+
+     std::map<int, std::string> GetPartInfo() {
+         return partInfo_;
+     }
+
+ private:
+     mutable SpinLock m_;
      // partnumber <=> etag
      std::map<int, std::string> partInfo_;
 };

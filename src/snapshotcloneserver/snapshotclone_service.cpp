@@ -152,11 +152,9 @@ void SnapshotCloneServiceImpl::HandleDeleteSnapshotAction(
     if ((version == nullptr) ||
         (user == nullptr) ||
         (uuid == nullptr) ||
-        (file == nullptr) ||
         (version->empty()) ||
         (user->empty()) ||
-        (uuid->empty()) ||
-        (file->empty())) {
+        (uuid->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -166,13 +164,19 @@ void SnapshotCloneServiceImpl::HandleDeleteSnapshotAction(
         os.move_to(bcntl->response_attachment());
         return;
     }
+    std::string fileStr = "null";
+    std::string fileName = "";
+    if (file != nullptr) {
+        fileStr = *file;
+        fileName = *file;
+    }
     LOG(INFO) << "DeleteSnapshot:"
               << " Version = " << *version
               << ", User = " << *user
               << ", UUID = " << *uuid
-              << ", File = " << *file
+              << ", File = " << fileStr
               << ", requestId = " << requestId;
-    int ret = snapshotManager_->DeleteSnapshot(*uuid, *user, *file);
+    int ret = snapshotManager_->DeleteSnapshot(*uuid, *user, fileName);
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
@@ -267,10 +271,8 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
         bcntl->http_request().uri().GetQuery("UUID");
     if ((version == nullptr) ||
         (user == nullptr) ||
-        (file == nullptr) ||
         (version->empty()) ||
-        (user->empty()) ||
-        (file->empty())) {
+        (user->empty())) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_BAD_REQUEST);
         butil::IOBufBuilder os;
@@ -313,16 +315,30 @@ void SnapshotCloneServiceImpl::HandleGetFileSnapshotInfoAction(
     if (uuid != nullptr) {
         uuidStr = *uuid;
     }
+    std::string fileStr = "null";
+    std::string fileName = "";
+    if (file != nullptr) {
+        fileStr = *file;
+        fileName = *file;
+    }
     LOG(INFO) << "GetFileSnapshotInfo:"
               << " Version = " << *version
               << ", User = " << *user
-              << ", File = " << *file
+              << ", File = " << fileStr
               << ", Limit = " << limitNum
               << ", Offset = " << offsetNum
               << ", UUID = " << uuidStr
               << ", requestId = " << requestId;
+
     std::vector<FileSnapshotInfo> info;
-    int ret = snapshotManager_->GetFileSnapshotInfo(*file, *user, uuid, &info);
+    int ret = kErrCodeSuccess;
+    if (uuid != nullptr) {
+        ret = snapshotManager_->GetFileSnapshotInfoById(
+        fileName, *user, *uuid, &info);
+    } else {
+        ret = snapshotManager_->GetFileSnapshotInfo(
+            fileName, *user, &info);
+    }
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
@@ -418,6 +434,7 @@ void SnapshotCloneServiceImpl::HandleCloneAction(
 
     TaskIdType taskId;
     auto closure = std::make_shared<CloneClosure>(bcntl, done);
+    closure->SetRequestId(requestId);
     cloneManager_->CloneFile(
     *source, *user, *destination, lazyFlag, closure, &taskId);
     done_guard.release();
@@ -488,6 +505,7 @@ void SnapshotCloneServiceImpl::HandleRecoverAction(
 
     TaskIdType taskId;
     auto closure = std::make_shared<CloneClosure>(bcntl, done);
+    closure->SetRequestId(requestId);
     cloneManager_->RecoverFile(
     *source, *user, *destination, lazyFlag, closure, &taskId);
     done_guard.release();
@@ -507,6 +525,8 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
         bcntl->http_request().uri().GetQuery("Offset");
     const std::string *uuid =
         bcntl->http_request().uri().GetQuery("UUID");
+    const std::string *file =
+        bcntl->http_request().uri().GetQuery("File");
     if ((version == nullptr) ||
         (user == nullptr) ||
         (version->empty()) ||
@@ -553,16 +573,33 @@ void SnapshotCloneServiceImpl::HandleGetCloneTasksAction(
     if (uuid != nullptr) {
         uuidStr = *uuid;
     }
+
+    std::string fileStr = "null";
+    if (file != nullptr) {
+        fileStr = *file;
+    }
+
     LOG(INFO) << "GetTasks:"
               << " Version = " << *version
               << ", User = " << *user
               << ", Limit = " << limitNum
               << ", Offset = " << offsetNum
               << ", UUID = " << uuidStr
+              << ", File = " << fileStr
               << ", requestId = " << requestId;
 
     std::vector<TaskCloneInfo> cloneTaskInfos;
-    int ret = cloneManager_->GetCloneTaskInfo(*user, uuid, &cloneTaskInfos);
+    int ret = kErrCodeSuccess;
+    if (uuid != nullptr) {
+        ret = cloneManager_->GetCloneTaskInfoById(
+            *user, *uuid, &cloneTaskInfos);
+    } else if (file != nullptr) {
+        ret = cloneManager_->GetCloneTaskInfoByName(
+            *user, *file, &cloneTaskInfos);
+    } else {
+        ret = cloneManager_->GetCloneTaskInfo(
+            *user, &cloneTaskInfos);
+    }
     if (ret < 0) {
         bcntl->http_response().set_status_code(
             brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);

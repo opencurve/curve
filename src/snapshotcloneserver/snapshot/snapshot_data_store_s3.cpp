@@ -157,8 +157,7 @@ int S3SnapshotDataStore::DataChunkTranferAddPart(const ChunkDataName &name,
         LOG(ERROR) << "Failed to UploadOnePart";
         return -1;
     }
-    auto p = std::make_pair(tmp_partnum, etag);
-    task->partInfo_.insert(p);
+    task->AddPartInfo(tmp_partnum, etag);
     return 0;
 }
 
@@ -168,7 +167,7 @@ int S3SnapshotDataStore::DataChunkTranferComplete(const ChunkDataName &name,
     const Aws::String aws_key(key.c_str(), key.size());
     const Aws::String uploadId(task->uploadId_.c_str(), task->uploadId_.size());
     Aws::Vector<Aws::S3::Model::CompletedPart> cp_v;
-    for (auto &v : task->partInfo_) {
+    for (auto &v : task->GetPartInfo()) {
         Aws::String str(v.second.c_str(), v.second.size());
         cp_v.push_back(Aws::S3::Model::CompletedPart()
                        .WithETag(str)
