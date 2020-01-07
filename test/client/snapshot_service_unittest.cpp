@@ -42,6 +42,11 @@ using curve::client::MetaCache;
 using curve::client::IOManager4Chunk;
 using curve::client::LogicalPoolCopysetIDInfo;
 
+class SnapCloneClosureTest : public curve::client::SnapCloneClosure {
+ public:
+    void Run() {}
+};
+
 TEST(SnapInstance, SnapShotTest) {
     ClientConfigOption_t opt;
     opt.metaServerOpt.rpcTimeoutMs = 500;
@@ -474,6 +479,8 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
+    SnapCloneClosureTest scc;
+
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
     auto max_split_size_kb = 1024 * 64;
@@ -494,8 +501,12 @@ TEST(SnapInstance, ReadChunkSnapshotTest) {
     char* buf = new char[len];
     memset(buf, 0, len);
     LOG(ERROR) << "start read snap chunk";
-    ASSERT_EQ(132 * 1024, ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0,
-                                                   len, buf));
+    ioctxmana->ReadSnapChunk(ChunkIDInfo(cid, 2, 3), 0, 0,
+                                         len, buf, &scc);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(132 * 1024, scc.GetRetCode());
+
     LOG(ERROR) << "read snap chunk success!";
     ASSERT_EQ(buf[0], 'a');
     ASSERT_EQ(buf[max_split_size_kb - 1], 'a');
@@ -589,6 +600,8 @@ TEST(SnapInstance, RecoverChunkTest) {
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
+    SnapCloneClosureTest scc;
+
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
     MockRequestScheduler* mocksch = new MockRequestScheduler;
@@ -603,8 +616,10 @@ TEST(SnapInstance, RecoverChunkTest) {
 
     IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
     ioctxmana->SetRequestScheduler(mocksch);
-    ASSERT_EQ(0, ioctxmana->RecoverChunk(ChunkIDInfo(cid, 2, 3),
-                                            1, 4*1024*1024));
+    ioctxmana->RecoverChunk(ChunkIDInfo(cid, 2, 3), 1, 4*1024*1024, &scc);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, scc.GetRetCode());
 
     cl.UnInit();
 }
@@ -622,6 +637,8 @@ TEST(SnapInstance, CreateCloneChunkTest) {
     opt.ioOpt.reqSchdulerOpt.ioSenderOpt = opt.ioOpt.ioSenderOpt;
     opt.loginfo.loglevel = 0;
 
+    SnapCloneClosureTest scc;
+
     SnapshotClient cl;
     ASSERT_TRUE(!cl.Init(opt));
     MockRequestScheduler* mocksch = new MockRequestScheduler;
@@ -636,11 +653,11 @@ TEST(SnapInstance, CreateCloneChunkTest) {
 
     IOManager4Chunk* ioctxmana = cl.GetIOManager4Chunk();
     ioctxmana->SetRequestScheduler(mocksch);
-    ASSERT_EQ(0, ioctxmana->CreateCloneChunk("destination",
-                                            ChunkIDInfo(cid, 2, 3),
-                                            1,
-                                            2,
-                                            1024));
+    ioctxmana->CreateCloneChunk("destination", ChunkIDInfo(cid, 2, 3),
+                                1, 2, 1024, &scc);
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    ASSERT_EQ(LIBCURVE_ERROR::OK, scc.GetRetCode());
 
     cl.UnInit();
 }

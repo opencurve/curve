@@ -156,6 +156,26 @@ class SnapshotDeleteTask : public SnapshotTask {
     }
 };
 
+struct ReadChunkSnapshotContext {
+    ChunkDataName name_;
+    std::shared_ptr<TransferTask> transferTask_;
+    uint64_t partIndex_;
+    std::unique_ptr<char[]> buf_;
+    uint64_t len_;
+    std::shared_ptr<SnapshotDataStore> dataStore_;
+};
+
+struct ReadChunkSnapshotClosure : public SnapCloneClosure {
+    ReadChunkSnapshotClosure(std::shared_ptr<TaskTracker> tracker,
+        std::shared_ptr<ReadChunkSnapshotContext> context)
+        : tracker_(tracker),
+          context_(context) {}
+    void Run() override;
+    std::shared_ptr<TaskTracker> tracker_;
+    std::shared_ptr<ReadChunkSnapshotContext> context_;
+};
+
+
 struct TransferSnapshotDataChunkTaskInfo : public TaskInfo {
     ChunkDataName name_;
     uint64_t chunkSize_;

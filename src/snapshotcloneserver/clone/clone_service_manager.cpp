@@ -121,32 +121,62 @@ int CloneServiceManager::RecoverFile(const UUID &source,
 }
 
 int CloneServiceManager::GetCloneTaskInfo(const std::string &user,
-    const TaskIdType *taskId,
+    std::vector<TaskCloneInfo> *info) {
+    std::vector<CloneInfo> cloneInfos;
+    int ret = cloneCore_->GetCloneInfoList(&cloneInfos);
+    if (ret < 0) {
+        LOG(ERROR) << "GetCloneInfoList fail"
+                   << ", ret = " << ret;
+        return ret;
+    }
+    return GetCloneTaskInfoInner(cloneInfos, user, info);
+}
+
+int CloneServiceManager::GetCloneTaskInfoById(
+    const std::string &user,
+    const TaskIdType &taskId,
+    std::vector<TaskCloneInfo> *info) {
+    std::vector<CloneInfo> cloneInfos;
+    CloneInfo cloneInfo;
+    int ret = cloneCore_->GetCloneInfo(taskId, &cloneInfo);
+    if (ret < 0) {
+        LOG(ERROR) << "GetCloneInfo fail"
+                   << ", ret = " << ret
+                   << ", taskId = " << taskId;
+        return kErrCodeFileNotExist;
+    }
+    if (cloneInfo.GetUser() != user) {
+        return kErrCodeInvalidUser;
+    }
+    cloneInfos.push_back(cloneInfo);
+    return GetCloneTaskInfoInner(cloneInfos, user, info);
+}
+
+int CloneServiceManager::GetCloneTaskInfoByName(
+    const std::string &user,
+    const std::string &fileName,
+    std::vector<TaskCloneInfo> *info) {
+    std::vector<CloneInfo> cloneInfos;
+    CloneInfo cloneInfo;
+    int ret = cloneCore_->GetCloneInfoByFileName(fileName, &cloneInfo);
+    if (ret < 0) {
+        LOG(ERROR) << "GetCloneInfo fail"
+                   << ", ret = " << ret
+                   << ", fileName = " << fileName;
+        return kErrCodeFileNotExist;
+    }
+    if (cloneInfo.GetUser() != user) {
+        return kErrCodeInvalidUser;
+    }
+    cloneInfos.push_back(cloneInfo);
+    return GetCloneTaskInfoInner(cloneInfos, user, info);
+}
+
+int CloneServiceManager::GetCloneTaskInfoInner(
+    std::vector<CloneInfo> cloneInfos,
+    const std::string &user,
     std::vector<TaskCloneInfo> *info) {
     int ret = kErrCodeSuccess;
-    std::vector<CloneInfo> cloneInfos;
-    if (taskId != nullptr) {
-        CloneInfo cloneInfo;
-        ret = cloneCore_->GetCloneInfo(*taskId, &cloneInfo);
-        if (ret < 0) {
-            LOG(ERROR) << "GetCloneInfo fail"
-                       << ", ret = " << ret
-                       << ", taskId = " << *taskId;
-            return kErrCodeFileNotExist;
-        }
-        if (cloneInfo.GetUser() != user) {
-            return kErrCodeInvalidUser;
-        }
-        cloneInfos.push_back(cloneInfo);
-    } else {
-        ret = cloneCore_->GetCloneInfoList(&cloneInfos);
-        if (ret < 0) {
-            LOG(ERROR) << "GetCloneInfoList fail"
-                       << ", ret = " << ret;
-            return ret;
-        }
-    }
-
     for (auto &cloneInfo : cloneInfos) {
         if (cloneInfo.GetUser() == user) {
             switch (cloneInfo.GetStatus()) {

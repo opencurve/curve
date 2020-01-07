@@ -322,6 +322,14 @@ class SnapshotCoreImpl : public SnapshotCore {
         std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
+     * @brief 处理创建快照任务成功
+     *
+     * @param task 快照任务信息
+     */
+    void HandleCreateSnapshotSuccess(
+        std::shared_ptr<SnapshotTaskInfo> task);
+
+    /**
      * @brief 处理创建快照任务失败过程
      *
      * @param task 快照任务信息
@@ -335,6 +343,16 @@ class SnapshotCoreImpl : public SnapshotCore {
      * @param task 快照任务信息
      */
     void HandleDeleteSnapshotError(
+        std::shared_ptr<SnapshotTaskInfo> task);
+
+
+    /**
+     * @brief 创建快照前尝试清理失败的快照，否则可能会再次失败
+     *
+     * @param task 快照任务信息
+     * @return 错误码
+     */
+    int ClearErrorSnapBeforeCreateSnapshot(
         std::shared_ptr<SnapshotTaskInfo> task);
 
  private:

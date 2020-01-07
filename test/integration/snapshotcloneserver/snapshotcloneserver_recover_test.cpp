@@ -158,9 +158,10 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("s3.config_path=") + kS3ConfigPath,
     std::string("metastore.db_name=") + kMdsDbName,
     std::string("server.snapshotPoolThreadNum=8"),
-    std::string("snapshotCoreThreadNum=2"),
+    std::string("server.snapshotCoreThreadNum=2"),
     std::string("server.clonePoolThreadNum=8"),
-    std::string("cloneCoreThreadNum=2"),
+    std::string("server.createCloneChunkConcurrency=2"),
+    std::string("server.recoverChunkConcurrency=2"),
     std::string("mds.rootUser=") + mdsRootUser_,
     std::string("mds.rootPassword=") + mdsRootPassword_,
 };
@@ -485,6 +486,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             LOG(ERROR) << "internal error!";
             return -1;
         }
+        auto tracker = std::make_shared<TaskTracker>();
         if (IsRecover) {
             for (int i = 0; i < testFile1AllocSegmentNum; i++) {
                 ChunkDataName name;
@@ -499,11 +501,21 @@ class SnapshotCloneServerTest : public ::testing::Test {
                 // 而从文件克隆，由于mds不知道chunk写没写过，
                 // 所以需要Create全部的chunk。
                 ChunkIDInfo cidInfo = segInfoVec[i].chunkvec[0];
+                SnapCloneCommonClosure *cb =
+                    new SnapCloneCommonClosure(tracker);
+                tracker->AddOneTrace();
+                LOG(INFO) << "CreateCloneChunk, location = " << location
+                          << ", logicalPoolId = " << cidInfo.lpid_
+                          << ", copysetId = " << cidInfo.cpid_
+                          << ", chunkId = " << cidInfo.cid_
+                          << ", seqNum = " << 1
+                          << ", csn = " << 2;
                 int ret = snapClient_->CreateCloneChunk(location,
                     cidInfo,
                     1,    // 恢复使用快照中chunk的版本号
                     2,    // 恢复使用新文件的版本号, 即原文件版本号+1
-                    chunkSize);
+                    chunkSize,
+                    cb);
                 if (ret != LIBCURVE_ERROR::OK) {
                     return ret;
                 }
@@ -515,16 +527,33 @@ class SnapshotCloneServerTest : public ::testing::Test {
                         LocationOperator::GenerateCurveLocation(
                             testFile1_, i * segmentSize + j * chunkSize);
                     ChunkIDInfo cidInfo = segInfoVec[i].chunkvec[j];
+                    SnapCloneCommonClosure *cb =
+                        new SnapCloneCommonClosure(tracker);
+                    tracker->AddOneTrace();
+                    LOG(INFO) << "CreateCloneChunk, location = " << location
+                              << ", logicalPoolId = " << cidInfo.lpid_
+                              << ", copysetId = " << cidInfo.cpid_
+                              << ", chunkId = " << cidInfo.cid_
+                              << ", seqNum = " << 1
+                              << ", csn = " << 0;
                     int ret = snapClient_->CreateCloneChunk(location,
                         cidInfo,
                         1,  // 克隆使用初始版本号1
                         0,  // 克隆使用0
-                        chunkSize);
+                        chunkSize,
+                        cb);
                     if (ret != LIBCURVE_ERROR::OK) {
                         return ret;
                     }
                 }
             }
+        }
+        tracker->Wait();
+        int ret = tracker->GetResult();
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
+                       << ", ret = " << ret;
+            return ret;
         }
         return LIBCURVE_ERROR::OK;
     }
@@ -544,6 +573,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
             LOG(ERROR) << "internal error!";
             return -1;
         }
+        auto tracker = std::make_shared<TaskTracker>();
         if (IsSnapshot) {
             for (int i = 0; i < testFile1AllocSegmentNum; i++) {
                 // 由于测试文件每个segment只写了第一个chunk，
@@ -553,10 +583,20 @@ class SnapshotCloneServerTest : public ::testing::Test {
                 // 所以需要Recover全部的chunk。
                 ChunkIDInfo cidInfo = segInfoVec[i].chunkvec[0];
                 for (uint64_t k = 0; k < chunkSize / chunkSplitSize; k++) {
+                    SnapCloneCommonClosure *cb =
+                        new SnapCloneCommonClosure(tracker);
+                    tracker->AddOneTrace();
+                    uint64_t offset = k * chunkSplitSize;
+                    LOG(INFO) << "RecoverChunk"
+                              << ", logicalPoolId = " << cidInfo.lpid_
+                              << ", copysetId = " << cidInfo.cpid_
+                              << ", chunkId = " << cidInfo.cid_
+                              << ", offset = " << offset;
                     int ret = snapClient_->RecoverChunk(
                         cidInfo,
-                        k * chunkSplitSize,
-                        chunkSplitSize);
+                        offset,
+                        chunkSplitSize,
+                        cb);
                     if (ret != LIBCURVE_ERROR::OK) {
                         return ret;
                     }
@@ -567,16 +607,33 @@ class SnapshotCloneServerTest : public ::testing::Test {
                 for (uint64_t j = 0; j < segmentSize / chunkSize; j++) {
                     ChunkIDInfo cidInfo = segInfoVec[i].chunkvec[j];
                     for (uint64_t k = 0; k < chunkSize / chunkSplitSize; k++) {
+                        SnapCloneCommonClosure *cb =
+                            new SnapCloneCommonClosure(tracker);
+                        tracker->AddOneTrace();
+                        uint64_t offset = k * chunkSplitSize;
+                        LOG(INFO) << "RecoverChunk"
+                                  << ", logicalPoolId = " << cidInfo.lpid_
+                                  << ", copysetId = " << cidInfo.cpid_
+                                  << ", chunkId = " << cidInfo.cid_
+                                  << ", offset = " << offset;
                         int ret = snapClient_->RecoverChunk(
                             cidInfo,
-                            k * chunkSplitSize,
-                            chunkSplitSize);
+                            offset,
+                            chunkSplitSize,
+                            cb);
                         if (ret != LIBCURVE_ERROR::OK) {
                             return ret;
                         }
                     }
                 }
             }
+        }
+        tracker->Wait();
+        int ret = tracker->GetResult();
+        if (ret != LIBCURVE_ERROR::OK) {
+            LOG(ERROR) << "RecoverChunk tracker GetResult fail"
+                       << ", ret = " << ret;
+            return ret;
         }
         return LIBCURVE_ERROR::OK;
     }

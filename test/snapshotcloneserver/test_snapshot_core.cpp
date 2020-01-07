@@ -436,10 +436,19 @@ TEST_F(TestSnapshotCoreImpl,
         .Times(4)
         .WillRepeatedly(Return(kErrCodeSuccess));
 
-
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)
@@ -1073,8 +1082,18 @@ TEST_F(TestSnapshotCoreImpl,
         .Times(1)
         .WillRepeatedly(Return(kErrCodeSuccess));
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
-        .WillOnce(Return(-LIBCURVE_ERROR::FAILED));
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
+        .WillOnce(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(-LIBCURVE_ERROR::FAILED)));
 
     core_->HandleCreateSnapshotTask(task);
 
@@ -1195,12 +1214,20 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
-        .Times(1)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
-        .Times(1)
         .WillRepeatedly(Return(kErrCodeInternalError));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAbort(_, _))
@@ -1325,9 +1352,19 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(2)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(2)
@@ -1458,9 +1495,19 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)
@@ -1593,9 +1640,19 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)
@@ -1731,9 +1788,19 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)
@@ -1857,9 +1924,19 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)
@@ -2424,9 +2501,19 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)
@@ -2746,9 +2833,19 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)
@@ -2895,9 +2992,19 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)
@@ -3049,9 +3156,19 @@ TEST_F(TestSnapshotCoreImpl,
         .WillRepeatedly(Return(kErrCodeSuccess));
 
 
-    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _))
+    EXPECT_CALL(*client_, ReadChunkSnapshot(_, _, _, _, _, _))
         .Times(8)
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+        .WillRepeatedly(DoAll(
+                    Invoke([](ChunkIDInfo cidinfo,
+                        uint64_t seq,
+                        uint64_t offset,
+                        uint64_t len,
+                        char *buf,
+                        SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK);
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 
     EXPECT_CALL(*dataStore_, DataChunkTranferAddPart(_, _, _, _, _))
         .Times(8)

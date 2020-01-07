@@ -11,6 +11,8 @@
 
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 
+using ::curve::client::SnapCloneClosure;
+
 namespace curve {
 namespace snapshotcloneserver {
 
@@ -27,6 +29,7 @@ class TestCurveFsClientImpl : public ::testing::Test {
     }
 
     virtual void TearDown() {
+        client_->UnInit();
     }
 
  protected:
@@ -34,6 +37,11 @@ class TestCurveFsClientImpl : public ::testing::Test {
     CurveClientOptions clientOption_;
 };
 
+struct TestClosure : public SnapCloneClosure {
+    void Run() {
+        std::unique_ptr<TestClosure> selfGuard(this);
+    }
+};
 
 TEST_F(TestCurveFsClientImpl, TestClientInterface) {
     uint64_t seq = 0;
@@ -67,9 +75,11 @@ TEST_F(TestCurveFsClientImpl, TestClientInterface) {
     client_->CreateCloneFile(
         "file1", clientOption_.mdsRootUser, 1024, 1, 1024, &fInfo);
 
-    client_->CreateCloneChunk("", cidinfo, 1, 2, 1024);
+    TestClosure *cb = new TestClosure();
+    client_->CreateCloneChunk("", cidinfo, 1, 2, 1024, cb);
 
-    client_->RecoverChunk(cidinfo, 0, 1024);
+    TestClosure *cb2 = new TestClosure();
+    client_->RecoverChunk(cidinfo, 0, 1024, cb2);
 
     client_->CompleteCloneMeta("file1", "user1");
     client_->CompleteCloneMeta("file1", clientOption_.mdsRootUser);
