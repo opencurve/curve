@@ -93,8 +93,10 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
                                         &serverOption->cloneTempDir));
     LOG_IF(FATAL, !conf->GetStringValue("mds.rootUser",
                                         &serverOption->mdsRootUser));
-    LOG_IF(FATAL, !conf->GetUInt32Value("server.cloneCoreThreadNum",
-                                        &serverOption->cloneCoreThreadNum));
+    LOG_IF(FATAL, !conf->GetUInt32Value("server.createCloneChunkConcurrency",
+                            &serverOption->createCloneChunkConcurrency));
+    LOG_IF(FATAL, !conf->GetUInt32Value("server.recoverChunkConcurrency",
+                            &serverOption->recoverChunkConcurrency));
 }
 
 void LoadConfigFromCmdline(Configuration *conf) {

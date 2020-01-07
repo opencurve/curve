@@ -44,7 +44,8 @@ class TestCloneCoreImpl : public ::testing::Test {
         option.cloneTempDir = "/clone";
         option.cloneChunkSplitSize = 1024 * 1024;
         option.mdsRootUser = "root";
-        option.cloneCoreThreadNum = 1;
+        option.createCloneChunkConcurrency = 2;
+        option.recoverChunkConcurrency = 2;
         core_ = std::make_shared<CloneCoreImpl>(client_,
             metaStore_,
             dataStore_,
@@ -1012,8 +1013,18 @@ void TestCloneCoreImpl::MockCreateCloneChunkSuccess(
         correctSn = 101;
     }
     EXPECT_CALL(*client_, CreateCloneChunk(
-         AnyOf(location1, location2), _, _, correctSn, _))
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+         AnyOf(location1, location2), _, _, correctSn, _, _))
+        .WillRepeatedly(DoAll(
+            Invoke([](const std::string &location,
+                      const ChunkIDInfo &chunkidinfo,
+                      uint64_t sn,
+                      uint64_t csn,
+                      uint64_t chunkSize,
+                      SnapCloneClosure* scc){
+                    scc->SetRetCode(LIBCURVE_ERROR::OK);
+                    scc->Run();
+                }),
+            Return(LIBCURVE_ERROR::OK)));
 }
 
 void TestCloneCoreImpl::MockCompleteCloneMetaSuccess(
@@ -1024,8 +1035,16 @@ void TestCloneCoreImpl::MockCompleteCloneMetaSuccess(
 
 void TestCloneCoreImpl::MockRecoverChunkSuccess(
     std::shared_ptr<CloneTaskInfo> task) {
-    EXPECT_CALL(*client_, RecoverChunk(_, _, _))
-        .WillRepeatedly(Return(LIBCURVE_ERROR::OK));
+    EXPECT_CALL(*client_, RecoverChunk(_, _, _, _))
+        .WillRepeatedly(DoAll(
+                    Invoke([](const ChunkIDInfo &chunkidinfo,
+                              uint64_t offset,
+                              uint64_t len,
+                              SnapCloneClosure* scc){
+                        scc->SetRetCode(LIBCURVE_ERROR::OK),
+                        scc->Run();
+                        }),
+                    Return(LIBCURVE_ERROR::OK)));
 }
 
 void TestCloneCoreImpl::MockChangeOwnerSuccess(
@@ -1119,8 +1138,18 @@ void TestCloneCoreImpl::MockCloneMetaFail(
 
 void TestCloneCoreImpl::MockCreateCloneChunkFail(
     std::shared_ptr<CloneTaskInfo> task) {
-    EXPECT_CALL(*client_, CreateCloneChunk(_, _, _, _, _))
-        .WillRepeatedly(Return(-LIBCURVE_ERROR::FAILED));
+    EXPECT_CALL(*client_, CreateCloneChunk(_, _, _, _, _, _))
+        .WillRepeatedly(DoAll(
+            Invoke([](const std::string &location,
+                      const ChunkIDInfo &chunkidinfo,
+                      uint64_t sn,
+                      uint64_t csn,
+                      uint64_t chunkSize,
+                      SnapCloneClosure* scc){
+                    scc->SetRetCode(LIBCURVE_ERROR::OK);
+                    scc->Run();
+                }),
+            Return(-LIBCURVE_ERROR::FAILED)));
 }
 
 void TestCloneCoreImpl::MockCompleteCloneMetaFail(
@@ -1131,8 +1160,15 @@ void TestCloneCoreImpl::MockCompleteCloneMetaFail(
 
 void TestCloneCoreImpl::MockRecoverChunkFail(
     std::shared_ptr<CloneTaskInfo> task) {
-    EXPECT_CALL(*client_, RecoverChunk(_, _, _))
-        .WillRepeatedly(Return(-LIBCURVE_ERROR::FAILED));
+    EXPECT_CALL(*client_, RecoverChunk(_, _, _, _))
+        .WillRepeatedly(DoAll(
+                    Invoke([](const ChunkIDInfo &chunkidinfo,
+                              uint64_t offset,
+                              uint64_t len,
+                              SnapCloneClosure* scc){
+                        scc->Run();
+                        }),
+                    Return(-LIBCURVE_ERROR::FAILED)));
 }
 
 void TestCloneCoreImpl::MockChangeOwnerFail(

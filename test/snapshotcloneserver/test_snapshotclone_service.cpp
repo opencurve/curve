@@ -177,9 +177,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoSuccess) {
     info.SetSnapshotInfo(sinfo);
     info.SetSnapProgress(50);
     infoVec.push_back(info);
-    EXPECT_CALL(*snapshotManager_, GetFileSnapshotInfo(file, user, _, _))
+    EXPECT_CALL(*snapshotManager_, GetFileSnapshotInfo(file, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(infoVec),
+                    SetArgPointee<2>(infoVec),
                     Return(kErrCodeSuccess)));
 
     brpc::Channel channel;
@@ -244,9 +244,9 @@ TEST_F(TestSnapshotCloneServiceImpl,
     infoVec.push_back(info2);
     infoVec.push_back(info3);
 
-    EXPECT_CALL(*snapshotManager_, GetFileSnapshotInfo(file, user, _, _))
+    EXPECT_CALL(*snapshotManager_, GetFileSnapshotInfo(file, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(infoVec),
+                    SetArgPointee<2>(infoVec),
                     Return(kErrCodeSuccess)));
 
     brpc::Channel channel;
@@ -523,9 +523,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetFileSnapshotInfoFail) {
     std::string user = "test";
 
     std::vector<FileSnapshotInfo> info;
-    EXPECT_CALL(*snapshotManager_, GetFileSnapshotInfo(file, user, _, _))
+    EXPECT_CALL(*snapshotManager_, GetFileSnapshotInfo(file, user, _))
         .WillOnce(DoAll(
-                    SetArgPointee<3>(info),
+                    SetArgPointee<2>(info),
                     Return(kErrCodeInternalError)));
 
     brpc::Channel channel;
@@ -671,9 +671,9 @@ TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskSuccess) {
     info.SetCloneInfo(cinfo);
     info.SetCloneProgress(50);
     infoVec.push_back(info);
-    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _, _))
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _))
         .WillOnce(DoAll(
-                SetArgPointee<2>(infoVec),
+                SetArgPointee<1>(infoVec),
                 Return(kErrCodeSuccess)));
 
     brpc::Channel channel;
@@ -734,9 +734,9 @@ TEST_F(TestSnapshotCloneServiceImpl,
     infoVec.push_back(info1);
     infoVec.push_back(info2);
     infoVec.push_back(info3);
-    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _, _))
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _))
         .WillOnce(DoAll(
-                SetArgPointee<2>(infoVec),
+                SetArgPointee<1>(infoVec),
                 Return(kErrCodeSuccess)));
 
     brpc::Channel channel;
@@ -930,7 +930,7 @@ TEST_F(TestSnapshotCloneServiceImpl, TestRecoverFileFail) {
 TEST_F(TestSnapshotCloneServiceImpl, TestGetCloneTaskFail) {
     UUID uuid = "uuid1";
 
-    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _, _))
+    EXPECT_CALL(*cloneManager_, GetCloneTaskInfo(_, _))
         .WillOnce(Return(kErrCodeInternalError));
 
     brpc::Channel channel;

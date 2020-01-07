@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <memory>
+#include <list>
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/snapshotcloneserver/common/define.h"
@@ -23,6 +24,8 @@ namespace snapshotcloneserver {
 // forward declaration
 class TrackerTask;
 
+struct RecoverChunkContext;
+
 // 并发任务跟踪模块
 class TaskTracker : public std::enable_shared_from_this<TaskTracker> {
  public:
@@ -30,13 +33,10 @@ class TaskTracker : public std::enable_shared_from_this<TaskTracker> {
     : concurrent_(0),
       lastErr_(kErrCodeSuccess) {}
 
-
     /**
-     * @brief 增加一个追踪的任务
-     *
-     * @param task
+     * @brief 增加一个追踪任务
      */
-    void AddTask(TrackerTask* task);
+    void AddOneTrace();
 
     /**
      * @brief 获取任务数量
@@ -78,12 +78,23 @@ class TaskTracker : public std::enable_shared_from_this<TaskTracker> {
  private:
     // 等待的条件变量
     ConditionVariable cv_;
-    // 保护concurrent_和taskList_
     Mutex cv_m;
     // 并发数量
-    uint32_t concurrent_;
+    std::atomic<uint32_t> concurrent_;
     // 错误码
     int lastErr_;
+};
+
+using RecoverChunkContextPtr = std::shared_ptr<RecoverChunkContext>;
+
+class RecoverChunkTaskTracker : public TaskTracker {
+ public:
+     void PushResultContext(RecoverChunkContextPtr ctx);
+     std::list<RecoverChunkContextPtr> PopResultContexts();
+
+ private:
+    Mutex ctxMutex_;
+    std::list<RecoverChunkContextPtr> contexts_;
 };
 
 }  // namespace snapshotcloneserver

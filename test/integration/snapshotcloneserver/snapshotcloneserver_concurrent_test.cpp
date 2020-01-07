@@ -94,7 +94,6 @@ const std::vector<std::string> chunkserverConf1{
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
     {" --stderrthreshold=3"},
-    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -109,7 +108,6 @@ const std::vector<std::string> chunkserverConf2{
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
     {" --stderrthreshold=3"},
-    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -124,7 +122,6 @@ const std::vector<std::string> chunkserverConf3{
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
     {" --stderrthreshold=3"},
-    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> snapshotcloneserverConfigOptions {
@@ -132,9 +129,10 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("s3.config_path=") + kS3ConfigPath,
     std::string("metastore.db_name=") + kMdsDbName,
     std::string("server.snapshotPoolThreadNum=8"),
-    std::string("snapshotCoreThreadNum=2"),
+    std::string("server.snapshotCoreThreadNum=2"),
     std::string("server.clonePoolThreadNum=8"),
-    std::string("cloneCoreThreadNum=2"),
+    std::string("server.createCloneChunkConcurrency=2"),
+    std::string("server.recoverChunkConcurrency=2"),
     std::string("server.maxSnapshotLimit=3"),  // 最大快照数修改为3，以测试快照达到上限的用例  // NOLINT
 };
 

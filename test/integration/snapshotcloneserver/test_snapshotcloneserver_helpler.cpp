@@ -308,6 +308,7 @@ bool CheckSnapshotSuccess(
         } else {
             LOG(ERROR) << "Snapshot Fail On status = "
                    << static_cast<int>(info1.GetSnapshotInfo().GetStatus());
+            break;
         }
     }
     return success;
@@ -366,6 +367,7 @@ bool CheckCloneOrRecoverSuccess(
         } else {
             LOG(ERROR) << "Clone Fail On status = "
                    << static_cast<int>(info1.GetCloneInfo().GetStatus());
+            break;
         }
     }
     return success;

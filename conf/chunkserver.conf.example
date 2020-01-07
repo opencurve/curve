@@ -91,7 +91,7 @@ clone.slice_size=1048576
 # 克隆的线程数量
 clone.thread_num=10
 # 克隆的队列深度
-clone.queue_depth=100
+clone.queue_depth=6000
 # curve用户名
 curve.root_username=root
 # curve密码
