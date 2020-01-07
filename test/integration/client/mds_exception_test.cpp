@@ -125,11 +125,11 @@ class MDSModuleException : public ::testing::Test {
         std::vector<std::string>{" --name module_exception_test_mds"});
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
-        cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf, true);
+        cluster->StartSingleMDS(0, "127.0.0.1:22222", mdsConf, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(2, "127.0.0.1:22223", mdsConf, false);
+        cluster->StartSingleMDS(1, "127.0.0.1:22223", mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(3, "127.0.0.1:22224", mdsConf, false);
+        cluster->StartSingleMDS(2, "127.0.0.1:22224", mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
         // 3. 创建物理池
@@ -187,13 +187,13 @@ class MDSModuleException : public ::testing::Test {
         // 8. 先睡眠10s，让chunkserver选出leader
         std::this_thread::sleep_for(std::chrono::seconds(5));
 
-        ipmap[1] = "127.0.0.1:22222";
-        ipmap[2] = "127.0.0.1:22223";
-        ipmap[3] = "127.0.0.1:22224";
+        ipmap[0] = "127.0.0.1:22222";
+        ipmap[1] = "127.0.0.1:22223";
+        ipmap[2] = "127.0.0.1:22224";
 
+        configmap[0] = mdsConf;
         configmap[1] = mdsConf;
         configmap[2] = mdsConf;
-        configmap[3] = mdsConf;
     }
 
     void TearDown() {
@@ -367,7 +367,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 2. kill一台正在服务的mds，在启动的时候第一台mds当选leader
-    int serviceMDSID = 1;
+    int serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     cluster->StopMDS(serviceMDSID);
 
@@ -386,7 +386,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 7. 拉起被kill的进程
     cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
-                            configmap[serviceMDSID], false);
+                            configmap[serviceMDSID], false, false);
 
     // 8. 再拉起被kill的mds，对集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
@@ -401,9 +401,9 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 2. kill一台不在服务的mds，在启动的时候第一台mds当选leader, kill第二台
-    serviceMDSID = 1;
+    serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
-    int killid = serviceMDSID%3 + 1;
+    int killid = (serviceMDSID + 1) % 3;
     cluster->StopMDS(killid);
 
     // 3. 启动后台挂卸载线程，预期挂卸载服务不会受影响
@@ -421,7 +421,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 7. 拉起被kill的进程
     cluster->StartSingleMDS(killid, ipmap[killid],
-                            configmap[killid], false);
+                            configmap[killid], false, false);
 
     // 8. 再拉起被kill的mds，对集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
@@ -438,11 +438,14 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     //       session续约失败之前mds预期可以完成切换，所以client的session
     //       不会过期，覆盖写不会出现异常。
     //    d. 恢复被hang的mds，预期对client io无影响
+    // 0. 先睡眠一段时间等待mds集群选出leader
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+
     // 1. 集群最初状态，io正常下发
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 2. hang一台正在服务的mds，在启动的时候第一台mds当选leader
-    serviceMDSID = 1;
+    serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     cluster->HangMDS(serviceMDSID);
 
@@ -480,9 +483,9 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 2. hang一台不在服务的mds，在启动的时候第一台mds当选leader, hang第二台
-    serviceMDSID = 1;
+    serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
-    int hangid = serviceMDSID%3 + 1;
+    int hangid = (serviceMDSID + 1) % 3;
     cluster->HangMDS(hangid);
 
     // 3. 启动后台挂卸载线程，预期挂卸载服务不会受影响
@@ -523,9 +526,9 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 2. kill两台mds，在启动的时候第一台mds当选leader, kill前二台
-    serviceMDSID = 1;
+    serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
-    int secondid = serviceMDSID%3 + 1;
+    int secondid = (serviceMDSID + 1) % 3;
     cluster->StopMDS(serviceMDSID);
     cluster->StopMDS(secondid);
 
@@ -544,14 +547,14 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 7. 拉起被kill的进程
     cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
-                            configmap[serviceMDSID], false);
+                            configmap[serviceMDSID], false, false);
 
     // 8. 再拉起被kill的mds，对集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 9. 拉起被kill的其他mds
     cluster->StartSingleMDS(secondid, ipmap[secondid],
-                            configmap[secondid], false);
+                            configmap[secondid], false, false);
 
     LOG(INFO) << "current case: KillTwoNotInserviceMDSThenRestartTheMDS";
     /******** KillTwoNotInserviceMDSThenRestartTheMDS ***********/
@@ -567,10 +570,10 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     CreateOpenFileBackend();
 
     // 3. kill两台mds，在启动的时候第一台mds当选leader, kill后二台
-    serviceMDSID = 1;
+    serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
-    int tempid_1 = serviceMDSID%3 + 1;
-    int tempid_2 = serviceMDSID%3 + 2;
+    int tempid_1 = (serviceMDSID + 1) % 3;
+    int tempid_2 = (serviceMDSID + 2) % 3;
     cluster->StopMDS(tempid_1);
     cluster->StopMDS(tempid_2);
 
@@ -586,14 +589,14 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 7. 拉起被kill的进程
     cluster->StartSingleMDS(tempid_1, ipmap[tempid_1],
-                            configmap[tempid_1], false);
+                            configmap[tempid_1], false, false);
 
     // 8. 集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 9. 拉起其他mds，使集群恢复正常
     cluster->StartSingleMDS(tempid_2, ipmap[tempid_2],
-                            configmap[tempid_2], false);
+                            configmap[tempid_2], false, false);
 
     LOG(INFO) << "current case: hangTwoInserviceMDSThenResumeTheMDS";
     /******** hangTwoInserviceMDSThenResumeTheMDS ************/
@@ -608,10 +611,10 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     //       不会过期，覆盖写不会出现异常。
     //    d. 恢复被hang的mds，预期对client io无影响
     // 1. hang两台mds，在启动的时候第一台mds当选leader, hang前二台
-    serviceMDSID = 1;
+    serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
     tempid_1 = serviceMDSID;
-    tempid_2 = serviceMDSID%3 + 1;
+    tempid_2 = (serviceMDSID + 1) % 3;
     cluster->HangMDS(tempid_1);
     cluster->HangMDS(tempid_2);
 
@@ -658,18 +661,10 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 2. hang两台mds，在启动的时候第一台mds当选leader, kill后二台
-    serviceMDSID = 1;
+    serviceMDSID = 0;
     cluster->CurrentServiceMDS(&serviceMDSID);
-    if (serviceMDSID == 1) {
-        tempid_1 = 2;
-        tempid_2 = 3;
-    } else if (serviceMDSID == 2) {
-        tempid_1 = 1;
-        tempid_2 = 3;
-    } else {
-        tempid_1 = 1;
-        tempid_2 = 2;
-    }
+    tempid_1 = (serviceMDSID + 1) % 3;
+    tempid_2 = (serviceMDSID + 2) % 3;
     cluster->HangMDS(tempid_1);
     cluster->HangMDS(tempid_2);
 
@@ -711,46 +706,46 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     //    c. client session过期之前这段时间的新写会失败，覆盖写不影响
     //    d. 恢复其中hang的一台mds：client session重新续约成功，io恢复正常
     //    e. 恢复另外两台hang的mds，client io无影响
-    // 1. 集群最初状态，io正常下发
-    ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 2. kill三台mds
+    // 1. kill三台mds
     cluster->StopAllMDS();
+    // 确保mds确实退出了
+    std::this_thread::sleep_for(std::chrono::seconds(10));
 
-    // 3. 启动后台挂卸载线程，预期挂卸载服务会受影响
+    // 2. 启动后台挂卸载线程，预期挂卸载服务会受影响
     CreateOpenFileBackend();
 
-    // 4. 下发一个io，sleep一段时间后判断是否返回
+    // 3. 下发一个io，sleep一段时间后判断是否返回
     //    由于从下一个segment开始写，使其触发getorallocate逻辑
     //    MDS全部不在服务，写请求一直hang，无法返回
     ASSERT_TRUE(SendAioWriteRequest(9*segment_size, 4096));
     std::this_thread::sleep_for(std::chrono::seconds(30));
     ASSERT_FALSE(writeIOReturnFlag);
 
-    // 5. 等待后台挂卸载监测结束
+    // 4. 等待后台挂卸载监测结束
     WaitBackendCreateDone();
 
-    // 6. 判断当前挂卸载情况
+    // 5. 判断当前挂卸载情况
     ASSERT_TRUE(createOrOpenFailed);
 
-    // 7. 拉起被kill的进程
-    cluster->StartSingleMDS(1, "127.0.0.1:22222", mdsConf, true);
+    // 6. 拉起被kill的进程
+    cluster->StartSingleMDS(0, "127.0.0.1:22222", mdsConf, true);
 
-    // 8. 检测上次IO是否返回
+    // 7. 检测上次IO是否返回
     std::this_thread::sleep_for(std::chrono::seconds(20));
     ASSERT_TRUE(writeIOReturnFlag);
 
-    // 9. 新的mds开始提供服务
+    // 8. 新的mds开始提供服务
     ASSERT_TRUE(MonitorResume(segment_size, 4096, 10));
 
-    // 10. 再拉起被kill的进程
-    cluster->StartSingleMDS(2, "127.0.0.1:22223", mdsConf, false);
+    // 9. 再拉起被kill的进程
+    cluster->StartSingleMDS(1, "127.0.0.1:22223", mdsConf, false, false);
 
-    // 11. 对集群没有影响
+    // 10. 对集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
-    // 12. 拉起其他被kill的mds
-    cluster->StartSingleMDS(3, "127.0.0.1:22224", mdsConf, false);
+    // 11. 拉起其他被kill的mds
+    cluster->StartSingleMDS(2, "127.0.0.1:22224", mdsConf, false, false);
 
     LOG(INFO) << "current case: hangThreeMDSThenResumeTheMDS";
     /********** hangThreeMDSThenResumeTheMDS **************/
@@ -765,9 +760,9 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 2. hang三台mds
+    cluster->HangMDS(0);
     cluster->HangMDS(1);
     cluster->HangMDS(2);
-    cluster->HangMDS(3);
 
     // 3. 启动后台挂卸载线程，预期挂卸载服务会受影响
     CreateOpenFileBackend();
@@ -779,9 +774,9 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     std::this_thread::sleep_for(std::chrono::seconds(3));
     ret = writeIOReturnFlag;
     if (ret) {
-        cluster->RecoverHangMDS(3, false);
         cluster->RecoverHangMDS(2, false);
         cluster->RecoverHangMDS(1, false);
+        cluster->RecoverHangMDS(0, false);
         ASSERT_TRUE(false);
     }
 
@@ -790,14 +785,18 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 6. 判断当前挂卸载情况
     if (!createOrOpenFailed) {
-        cluster->RecoverHangMDS(3, false);
         cluster->RecoverHangMDS(2, false);
         cluster->RecoverHangMDS(1, false);
+        cluster->RecoverHangMDS(0, false);
         ASSERT_TRUE(false);
     }
 
-    // 7. 拉起被hang的进程
-    cluster->RecoverHangMDS(1, false);
+    // 7. 拉起被hang的进程, 有可能hang的进程因为长时间未与etcd握手，
+    //    导致其被拉起后就退出了，所以这里在recover之后再启动该mds，
+    //    这样保证集群中至少有一个mds在提供服务
+    cluster->RecoverHangMDS(1);
+    cluster->StopMDS(1);
+    cluster->StartSingleMDS(1, "127.0.0.1:22223", mdsConf, false);
 
     // 检测上次IO是否返回
     std::this_thread::sleep_for(std::chrono::seconds(20));
@@ -806,14 +805,14 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     // 8. 新的mds开始提供服务
     ret = MonitorResume(segment_size, 4096, 1);
     if (!ret) {
-        cluster->RecoverHangMDS(3, false);
         cluster->RecoverHangMDS(2, false);
+        cluster->RecoverHangMDS(0, false);
         ASSERT_TRUE(false);
     }
 
     // 9. 再拉起被hang的进程
-    cluster->RecoverHangMDS(3, false);
     cluster->RecoverHangMDS(2, false);
+    cluster->RecoverHangMDS(0, false);
 
     // 10. 对集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
