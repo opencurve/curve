@@ -470,6 +470,19 @@ void MDSClientBase::GetChunkServerInfo(const std::string& ip,
     stub.GetChunkServer(cntl, &request, response, NULL);
 }
 
+void MDSClientBase::ListChunkServerInServer(
+    const std::string& ip, ListChunkServerResponse* response,
+    brpc::Controller* cntl, brpc::Channel* channel) {
+    curve::mds::topology::ListChunkServerRequest request;
+    request.set_ip(ip);
+    LOG(INFO) << "ListChunkServerInServer from mds: "
+        << "ip = " << ip
+        << ", log id = " << cntl->log_id();
+
+    curve::mds::topology::TopologyService_Stub stub(channel);
+    stub.ListChunkServer(cntl, &request, response, NULL);
+}
+
 std::string MDSClientBase::CalcSignature(const UserInfo& userinfo,
                                          uint64_t date) const {
     if (IsRootUserAndHasPassword(userinfo)) {
