@@ -8,8 +8,8 @@
 #include <gtest/gtest.h>
 #include <memory>
 #include "src/chunkserver/trash.h"
-#include "test/chunkserver/mock_local_file_system.h"
-#include "test/chunkserver/mock_chunkfile_pool.h"
+#include "test/fs/mock_local_filesystem.h"
+#include "test/chunkserver/datastore/mock_chunkfile_pool.h"
 #include "src/chunkserver/copyset_node.h"
 
 using ::testing::_;
@@ -22,8 +22,11 @@ using ::testing::Truly;
 using ::testing::DoAll;
 using ::testing::ReturnArg;
 using ::testing::ElementsAre;
+using ::testing::SaveArg;
 using ::testing::SetArgPointee;
 using ::testing::SetArrayArgument;
+
+using curve::fs::MockLocalFileSystem;
 
 namespace curve {
 namespace chunkserver {
@@ -39,7 +42,10 @@ class TrashTest : public ::testing::Test {
         ops.scanPeriodSec = 1;
 
         trash = std::make_shared<Trash>();
+
+        EXPECT_CALL(*lfs, List("./0/trash", _)).WillOnce(Return(0));
         trash->Init(ops);
+        ASSERT_EQ(0, trash->GetChunkNum());
     }
 
  public:
@@ -87,6 +93,20 @@ class TrashTest : public ::testing::Test {
         for (int i = 0; i < 50; i++) {
             trash->DeleteEligibleFileInTrash();
         }
+    }
+
+    void SetCopysetNeedDelete(const std::string& copysetdir, bool needDelete) {
+        int fd = needDelete ? 1 : 2;
+        EXPECT_CALL(*lfs, Open(copysetdir, _))
+            .WillOnce(Return(fd));
+        struct stat info;
+        time(&info.st_ctime);
+        if (needDelete) {
+            info.st_ctime -= ops.expiredAfterSec * 2 * 3600;
+        }
+        EXPECT_CALL(*lfs, Fstat(fd, _))
+            .WillRepeatedly(DoAll(SetArgPointee<1>(info), Return(0)));
+        EXPECT_CALL(*lfs, Close(fd)).WillRepeatedly(Return(0));
     }
 
  protected:
@@ -392,6 +412,17 @@ TEST_F(TrashTest, recycle_copyset_dir_rename_err) {
     ASSERT_EQ(-1, trash->RecycleCopySet(dirPath));
 }
 
+TEST_F(TrashTest, recycle_copyset_dir_list_err) {
+    std::string dirPath = "./0/copysets/12345678";
+    std::string trashPath = "./0/trash";
+    EXPECT_CALL(*lfs, DirExists(_))
+        .WillOnce(Return(false)).WillOnce(Return(false));
+    EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
+    EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(0));
+    EXPECT_CALL(*lfs, List(_, _)).WillOnce(Return(-1));
+    ASSERT_EQ(0, trash->RecycleCopySet(dirPath));
+}
+
 TEST_F(TrashTest, recycle_copyset_dir_ok) {
     std::string dirPath = "./0/copysets/12345678";
     std::string trashPath = "./0/trash";
@@ -399,6 +430,7 @@ TEST_F(TrashTest, recycle_copyset_dir_ok) {
         .WillOnce(Return(false)).WillOnce(Return(false));
     EXPECT_CALL(*lfs, Mkdir(trashPath)).WillOnce(Return(0));
     EXPECT_CALL(*lfs, Rename(dirPath, _, 0)).WillOnce(Return(0));
+    EXPECT_CALL(*lfs, List(_, _)).WillOnce(Return(0));
     ASSERT_EQ(0, trash->RecycleCopySet(dirPath));
 }
 
@@ -407,6 +439,73 @@ TEST_F(TrashTest, DISABLED_test_concurrenct) {
     std::thread thread2(&TrashTest::CleanFiles, this);
     thread1.join();
     thread2.join();
+}
+
+TEST_F(TrashTest, test_chunk_num_statistic) {
+    std::string trashPath = "./0/trash";
+    std::vector<std::string> copysets{"4294967493.55555", "4294967494.55555"};
+    std::vector<std::string> chunks1{"chunk_123",
+                                     "chunk_345"};
+    std::vector<std::string> chunks2{"chunk_111",
+                                     "chunk_222",
+                                     "chunk_222_snap_1"};
+
+    // chunk exists when init
+    EXPECT_CALL(*lfs, List(trashPath, _))
+        .WillOnce(DoAll(SetArgPointee<1>(copysets), Return(0)));
+    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunks1), Return(0)));
+    EXPECT_CALL(*lfs, List("./0/trash/4294967494.55555/data", _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunks2), Return(0)));
+
+    trash->Init(ops);
+    ASSERT_EQ(5, trash->GetChunkNum());
+
+    // recycle copyset
+    std::string copysetDir = "./0/copysets/4294967495";
+    EXPECT_CALL(*lfs, DirExists(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+    std::string trashedCopysetDir;
+    EXPECT_CALL(*lfs, Rename(copysetDir, _, 0))
+        .WillOnce(DoAll(SaveArg<1>(&trashedCopysetDir), Return(0)));
+    std::vector<std::string> chunks3{"chunk_333", "chunk_444"};
+    EXPECT_CALL(*lfs, List(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunks3), Return(0)));
+    ASSERT_EQ(0, trash->RecycleCopySet(copysetDir));
+    ASSERT_EQ(7, trash->GetChunkNum());
+
+    std::string trashedCopysetName =
+        trashedCopysetDir.substr(trashedCopysetDir.find_last_of("/") + 1);
+    copysets.push_back(trashedCopysetName);
+
+    // delete eligible copyset
+    bool needDelete = true;
+    bool notNeedDelete = false;
+    std::vector<std::string> raftfiles{RAFT_DATA_DIR};
+
+    EXPECT_CALL(*lfs, DirExists(trashPath)).WillOnce(Return(true));
+    EXPECT_CALL(*lfs, List(trashPath, _))
+        .WillOnce(DoAll(SetArgPointee<1>(copysets), Return(0)));
+
+    SetCopysetNeedDelete(trashPath + "/" + copysets[0], needDelete);
+    SetCopysetNeedDelete(trashPath + "/" + copysets[1], notNeedDelete);
+    SetCopysetNeedDelete(trashPath + "/" + copysets[2], notNeedDelete);
+
+    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555", _))
+        .WillOnce(DoAll(SetArgPointee<1>(raftfiles), Return(0)));
+
+    EXPECT_CALL(*lfs, List("./0/trash/4294967493.55555/data", _))
+        .WillOnce(DoAll(SetArgPointee<1>(chunks1), Return(0)));
+    EXPECT_CALL(*pool,
+        RecycleChunk("./0/trash/4294967493.55555/data/chunk_123"))
+        .WillOnce(Return(-1));
+    EXPECT_CALL(*pool,
+        RecycleChunk("./0/trash/4294967493.55555/data/chunk_345"))
+        .WillOnce(Return(0));
+
+    trash->DeleteEligibleFileInTrash();
+    ASSERT_EQ(6, trash->GetChunkNum());
 }
 
 }  // namespace chunkserver

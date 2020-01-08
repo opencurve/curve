@@ -152,6 +152,13 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      */
     void HandleResponse(RequestContext* reqctx);
 
+    /**
+     * 获取当前tracker id信息
+     */
+     uint64_t GetID() {
+        return id_;
+     }
+
  private:
     /**
      * 当IO返回的时候调用done，由done负责向上返回
@@ -181,6 +188,13 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      */
     void ChunkServerErr2LibcurveErr(curve::chunkserver::CHUNK_OP_STATUS errcode,
                                     LIBCURVE_ERROR* errout);
+
+    /**
+     * 获取一个初始化后的RequestContext
+     * return: 如果分配失败或者初始化失败，返回nullptr
+     *         反之，返回一个指针
+     */
+    RequestContext* GetInitedRequestContext() const;
 
  private:
     // io 类型
@@ -225,6 +239,12 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
 
     // client端的metric统计信息
     FileMetric_t* fileMetric_;
+
+    // 当前tracker的id
+    uint64_t id_;
+
+    // id生成器
+    static std::atomic<uint64_t> tracekerID_;
 };
 }   // namespace client
 }   // namespace curve

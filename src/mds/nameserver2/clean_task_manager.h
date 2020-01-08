@@ -12,8 +12,13 @@
 #include <mutex>  //NOLINT
 #include <memory>
 #include "src/common/concurrent/task_thread_pool.h"
+#include "src/common/interruptible_sleeper.h"
+#include "src/common/concurrent/concurrent.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/clean_task.h"
+
+using ::curve::common::Atomic;
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -26,7 +31,9 @@ class CleanTaskManager {
      *  @param checkPeriod: 周期性任务检查线程时间, ms
      */
     explicit CleanTaskManager(int threadNum = 10, int checkPeriod = 10000);
-    ~CleanTaskManager() {}
+    ~CleanTaskManager() {
+        Stop();
+    }
 
     /**
      * @brief 启动worker线程池、启动检查线程 
@@ -66,7 +73,8 @@ class CleanTaskManager {
     std::thread *checkThread_;
     int checkPeriod_;
 
-    bool stopFlag_;
+    Atomic<bool> stopFlag_;
+    InterruptibleSleeper sleeper_;
 };
 
 }   //  namespace mds

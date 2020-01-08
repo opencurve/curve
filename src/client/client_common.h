@@ -119,7 +119,6 @@ typedef struct SegmentInfo {
     LogicalPoolCopysetIDInfo lpcpIDInfo;
 } SegmentInfo_t;
 
-
 // 存储用户信息
 typedef struct UserInfo {
     // 当前执行的owner信息
@@ -153,6 +152,7 @@ typedef struct FInfo {
     uint64_t        seqnum;
     // userinfo是当前操作这个文件的用户信息
     UserInfo_t      userinfo;
+    // owner是当前文件所属信息
     std::string     owner;
     std::string     filename;
     std::string     fullPathName;
@@ -162,7 +162,7 @@ typedef struct FInfo {
         id = 0;
         ctime = 0;
         seqnum = 0;
-        length = 0;                                                        // NOLINT
+        length = 0;
         chunksize = 4 * 1024 * 1024;
         segmentsize = 1 * 1024 * 1024 * 1024ul;
     }
@@ -192,12 +192,13 @@ struct ChunkServerAddr {
     int Parse(const std::string& str) {
         int idx;
         char ip_str[64];
-        if (2 > sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
+        if (3 != sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
                        &addr_.port, &idx)) {
             Reset();
             return -1;
         }
-        if (0 != butil::str2ip(ip_str, &addr_.ip)) {
+        int ret = butil::str2ip(ip_str, &addr_.ip);
+        if (0 != ret) {
             Reset();
             return -1;
         }
@@ -217,6 +218,13 @@ struct ChunkServerAddr {
         return addr_ == other.addr_;
     }
 };
+
+const char* OpTypeToString(OpType optype);
+
+struct ClusterContext {
+    std::string clusterId;
+};
+
 }   // namespace client
 }   // namespace curve
 

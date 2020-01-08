@@ -17,7 +17,7 @@
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/concurrent_apply.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 
 using curve::chunkserver::CopysetNodeOptions;
 using curve::chunkserver::Configuration;
@@ -25,7 +25,7 @@ using curve::chunkserver::CopysetNodeManager;
 using curve::chunkserver::ChunkfilePool;
 using curve::chunkserver::ChunkfilePoolOptions;
 using curve::chunkserver::ConcurrentApplyModule;
-using curve::chunkserver::FsAdaptorUtil;
+using curve::chunkserver::UriParser;
 using curve::chunkserver::LogicPoolID;
 using curve::chunkserver::CopysetID;
 using curve::common::Peer;
@@ -118,17 +118,19 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<LocalFileSystem>
         fs(LocalFsFactory::CreateFs(FileSystemType::EXT4, ""));
     const uint32_t kMaxChunkSize = 16 * 1024 * 1024;
+    // TODO(yyk) 这部分实现不太优雅，后续进行重构
+    std::string copysetUri = FLAGS_copyset_dir + "/copysets";
     CopysetNodeOptions copysetNodeOptions;
     copysetNodeOptions.ip = FLAGS_ip;
     copysetNodeOptions.port = FLAGS_port;
     copysetNodeOptions.snapshotIntervalS = FLAGS_snapshot_interval_s;
     copysetNodeOptions.electionTimeoutMs = FLAGS_election_timeout_ms;
     copysetNodeOptions.catchupMargin = FLAGS_catchup_margin;
-    copysetNodeOptions.chunkDataUri = FLAGS_copyset_dir;
-    copysetNodeOptions.chunkSnapshotUri = FLAGS_copyset_dir;
-    copysetNodeOptions.logUri = FLAGS_copyset_dir;
-    copysetNodeOptions.raftMetaUri = FLAGS_copyset_dir;
-    copysetNodeOptions.raftSnapshotUri = FLAGS_copyset_dir;
+    copysetNodeOptions.chunkDataUri = copysetUri;
+    copysetNodeOptions.chunkSnapshotUri = copysetUri;
+    copysetNodeOptions.logUri = copysetUri;
+    copysetNodeOptions.raftMetaUri = copysetUri;
+    copysetNodeOptions.raftSnapshotUri = copysetUri;
     copysetNodeOptions.pageSize = 4 * 1024;
     copysetNodeOptions.maxChunkSize = kMaxChunkSize;
 
@@ -137,7 +139,7 @@ int main(int argc, char *argv[]) {
 
     std::string chunkDataDir;
     std::string
-        protocol = FsAdaptorUtil::ParserUri(FLAGS_copyset_dir, &chunkDataDir);
+        protocol = UriParser::ParseUri(FLAGS_copyset_dir, &chunkDataDir);
     if (protocol.empty()) {
         LOG(FATAL) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << chunkDataDir;
@@ -190,20 +192,16 @@ int main(int argc, char *argv[]) {
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
+    CopysetNodeManager::GetInstance().Run();
     CopysetNodeManager::GetInstance().CreateCopysetNode(FLAGS_logic_pool_id,
                                                         FLAGS_copyset_id,
                                                         peers);
 
     /* Wait until 'CTRL-C' is pressed. then Stop() and Join() the service */
-    while (!brpc::IsAskedToQuit()) {
-        sleep(1);
-    }
+    server.RunUntilAskedToQuit();
 
     LOG(INFO) << "server test service is going to quit";
     CopysetNodeManager::GetInstance().DeleteCopysetNode(logicPoolId, copysetId);
-
-    server.Stop(0);
-    server.Join();
 
     return 0;
 }

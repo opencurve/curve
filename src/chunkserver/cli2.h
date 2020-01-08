@@ -41,6 +41,13 @@ butil::Status RemovePeer(const LogicPoolID &logicPoolId,
                          const Peer &peer,
                          const braft::cli::CliOptions &options);
 
+// 变更配置
+butil::Status ChangePeers(const LogicPoolID &logicPoolId,
+                          const CopysetID &copysetId,
+                          const Configuration &conf,
+                          const Configuration &newPeers,
+                          const braft::cli::CliOptions &options);
+
 // 转移leader
 butil::Status TransferLeader(const LogicPoolID &logicPoolId,
                              const CopysetID &copysetId,

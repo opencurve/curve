@@ -22,116 +22,128 @@ int ClientConfig::Init(const char* configpath) {
         return -1;
     }
 
+    conf_.ExposeMetric("client_config");
+    conf_.UpdateMetric();
+
     bool ret = false;
 
-    ret = conf_.GetIntValue("loglevel", &fileServiceOption_.loginfo.loglevel);
-    LOG_IF(ERROR, ret == false) << "config no loglevel info";
+    ret = conf_.GetIntValue("global.logLevel", &fileServiceOption_.loginfo.logLevel);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no global.logLevel info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetStringValue("logpath", &fileServiceOption_.loginfo.logpath);
-    LOG_IF(ERROR, ret == false) << "config no logpath info";
+    ret = conf_.GetStringValue("global.logPath", &fileServiceOption_.loginfo.logPath);            // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no global.logPath info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt64Value("ioSplitMaxSizeKB",
-          &fileServiceOption_.ioOpt.ioSplitOpt.ioSplitMaxSizeKB);
-    LOG_IF(ERROR, ret == false) << "config no ioSplitMaxSizeKB info";
+    ret = conf_.GetUInt64Value("global.fileIOSplitMaxSizeKB",
+          &fileServiceOption_.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB);
+    LOG_IF(ERROR, ret == false) << "config no global.fileIOSplitMaxSizeKB info";           // NOLINT
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetBoolValue("enableAppliedIndexRead",
-          &fileServiceOption_.ioOpt.ioSenderOpt.enableAppliedIndexRead);
-    LOG_IF(ERROR, ret == false) << "config no enableAppliedIndexRead info";
+    ret = conf_.GetBoolValue("chunkserver.enableAppliedIndexRead",
+          &fileServiceOption_.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead);        // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.enableAppliedIndexRead info";     // NOLINT
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt64Value("rpcTimeoutMs",
-          &fileServiceOption_.ioOpt.ioSenderOpt.rpcTimeoutMs);
-    LOG_IF(ERROR, ret == false) << "config no rpcTimeoutMs info";
+    ret = conf_.GetUInt32Value("chunkserver.opMaxRetry",
+          &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry);    // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.opMaxRetry info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("rpcRetryTimes",
-          &fileServiceOption_.ioOpt.ioSenderOpt.rpcRetryTimes);
-    LOG_IF(ERROR, ret == false) << "config no rpcRetryTimes info";
+    ret = conf_.GetUInt64Value("chunkserver.opRetryIntervalUS",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.opRetryIntervalUS info";            // NOLINT
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("opMaxRetry",
-          &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry);
-    LOG_IF(ERROR, ret == false) << "config no opMaxRetry info";
+    ret = conf_.GetUInt64Value("chunkserver.rpcTimeoutMS",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS);         // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.rpcTimeoutMS info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt64Value("opRetryIntervalUs",
-        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs);
-    LOG_IF(ERROR, ret == false) << "config no opRetryIntervalUs info";
+    ret = conf_.GetUInt64Value("chunkserver.maxRetrySleepIntervalUS",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.maxRetrySleepIntervalUS info";   // NOLINT
+
+    ret = conf_.GetUInt64Value("chunkserver.maxRPCTimeoutMS",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.maxRPCTimeoutMS info";
+
+    ret = conf_.GetUInt64Value("chunkserver.maxStableTimeoutTimes",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes);  // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.maxStableTimeoutTimes info";   //  NOLINT
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt64Value("rpcTimeoutMs",
-        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.rpcTimeoutMs);
-    LOG_IF(ERROR, ret == false) << "config no rpcTimeoutMs info";
+    ret = conf_.GetUInt64Value("chunkserver.minRetryTimesForceTimeoutBackoff",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMinRetryTimesForceTimeoutBackoff);  // NOLINT
+    LOG_IF(ERROR, ret == false)
+        << "config no chunkserver.minRetryTimesForceTimeoutBackoff "
+        << "using default value";
+
+    ret = conf_.GetUInt64Value("chunkserver.maxRetryTimesBeforeConsiderSuspend",
+        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRetryTimesBeforeConsiderSuspend);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no chunkserver.maxRetryTimesBeforeConsiderSuspend info";             // NOLINT
+
+    ret = conf_.GetUInt64Value("global.fileMaxInFlightRPCNum",
+        &fileServiceOption_.ioOpt.ioSenderOpt.inflightOpt.fileMaxInFlightRPCNum);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no global.fileMaxInFlightRPCNum info";   // NOLINT
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt64Value("maxRetrySleepIntervalUs",
-        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs);   // NOLINT
-    LOG_IF(ERROR, ret == false) << "config no maxRetrySleepIntervalUs info";
-
-    ret = conf_.GetUInt64Value("maxTimeoutMS",
-        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.maxTimeoutMS);
-    LOG_IF(ERROR, ret == false) << "config no maxRetrySleepIntervalUs info";
-
-    ret = conf_.GetUInt64Value("maxStableChunkServerTimeoutTimes",
-        &fileServiceOption_.ioOpt.ioSenderOpt.failRequestOpt.maxStableChunkServerTimeoutTimes);  // NOLINT
-    LOG_IF(ERROR, ret == false) << "config no maxStableChunkServerTimeoutTimes info";   //  NOLINT
+    ret = conf_.GetUInt32Value("metacache.getLeaderRetry",
+        &fileServiceOption_.ioOpt.metaCacheOpt.metacacheGetLeaderRetry);
+    LOG_IF(ERROR, ret == false) << "config no metacache.getLeaderRetry info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt64Value("maxInFlightRPCNum",
-        &fileServiceOption_.ioOpt.ioSenderOpt.inflightOpt.maxInFlightRPCNum);
-    LOG_IF(ERROR, ret == false) << "config no maxInFlightRPCNum info";
+    ret = conf_.GetUInt32Value("metacache.rpcRetryIntervalUS",
+        &fileServiceOption_.ioOpt.metaCacheOpt.metacacheRPCRetryIntervalUS);
+    LOG_IF(ERROR, ret == false) << "config no metacache.rpcRetryIntervalUS info";   // NOLINT
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("getLeaderRetry",
-        &fileServiceOption_.ioOpt.metaCacheOpt.getLeaderRetry);
-    LOG_IF(ERROR, ret == false) << "config no getLeaderRetry info";
+    ret = conf_.GetUInt32Value("metacache.getLeaderTimeOutMS",
+        &fileServiceOption_.ioOpt.metaCacheOpt.metacacheGetLeaderRPCTimeOutMS);
+    LOG_IF(ERROR, ret == false) << "config no metacache.getLeaderTimeOutMS info";   // NOLINT
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("retryIntervalUs",
-        &fileServiceOption_.ioOpt.metaCacheOpt.retryIntervalUs);
-    LOG_IF(ERROR, ret == false) << "config no retryIntervalUs info";
+    ret = conf_.GetStringValue("metacache.getLeaderBackupRequestLbName",
+        &fileServiceOption_.ioOpt.metaCacheOpt.metacacheGetLeaderBackupRequestLbName);  // NOLINT
+    LOG_IF(ERROR, ret == false)
+        << "config no metacacheGetLeaderBackupRequestLbName info, using default value"; // NOLINT
+
+    ret = conf_.GetUInt32Value("metacache.getLeaderBackupRequestMS",
+        &fileServiceOption_.ioOpt.metaCacheOpt.metacacheGetLeaderBackupRequestMS);   // NOLINT
+    LOG_IF(ERROR, ret == false) << "config no metacache.getLeaderBackupRequestMS info, using default value";  // NOLINT
+
+    ret = conf_.GetUInt32Value("schedule.queueCapacity",
+        &fileServiceOption_.ioOpt.reqSchdulerOpt.scheduleQueueCapacity);
+    LOG_IF(ERROR, ret == false) << "config no schedule.queueCapacity info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("getLeaderTimeOutMs",
-        &fileServiceOption_.ioOpt.metaCacheOpt.getLeaderTimeOutMs);
-    LOG_IF(ERROR, ret == false) << "config no getLeaderTimeOutMs info";
+    ret = conf_.GetUInt32Value("schedule.threadpoolSize",
+        &fileServiceOption_.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize);
+    LOG_IF(ERROR, ret == false) << "config no schedule.threadpoolSize info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("queueCapacity",
-        &fileServiceOption_.ioOpt.reqSchdulerOpt.queueCapacity);
-    LOG_IF(ERROR, ret == false) << "config no queueCapacity info";
-    RETURN_IF_FALSE(ret)
-
-    ret = conf_.GetUInt32Value("threadpoolSize",
-        &fileServiceOption_.ioOpt.reqSchdulerOpt.threadpoolSize);
-    LOG_IF(ERROR, ret == false) << "config no threadpoolSize info";
-    RETURN_IF_FALSE(ret)
-
-    ret = conf_.GetUInt32Value("refreshTimesPerLease",
-        &fileServiceOption_.leaseOpt.refreshTimesPerLease);
-    LOG_IF(ERROR, ret == false) << "config no refreshTimesPerLease info";
+    ret = conf_.GetUInt32Value("mds.refreshTimesPerLease",
+        &fileServiceOption_.leaseOpt.mdsRefreshTimesPerLease);
+    LOG_IF(ERROR, ret == false) << "config no mds.refreshTimesPerLease info";
     RETURN_IF_FALSE(ret)
 
     fileServiceOption_.ioOpt.reqSchdulerOpt.ioSenderOpt
     = fileServiceOption_.ioOpt.ioSenderOpt;
 
 
-    ret = conf_.GetUInt64Value("taskQueueCapacity",
-        &fileServiceOption_.ioOpt.taskThreadOpt.taskQueueCapacity);
-    LOG_IF(ERROR, ret == false) << "config no taskQueueCapacity info";
+    ret = conf_.GetUInt64Value("isolation.taskQueueCapacity",
+        &fileServiceOption_.ioOpt.taskThreadOpt.isolationTaskQueueCapacity);
+    LOG_IF(ERROR, ret == false) << "config no isolation.taskQueueCapacity info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("taskThreadPoolSize",
-        &fileServiceOption_.ioOpt.taskThreadOpt.taskThreadPoolSize);
-    LOG_IF(ERROR, ret == false) << "config no taskThreadPoolSize info";
+    ret = conf_.GetUInt32Value("isolation.taskThreadPoolSize",
+        &fileServiceOption_.ioOpt.taskThreadOpt.isolationTaskThreadPoolSize);
+    LOG_IF(ERROR, ret == false) << "config no isolation.taskThreadPoolSize info";   // NOLINT
     RETURN_IF_FALSE(ret)
 
     std::string metaAddr;
-    ret = conf_.GetStringValue("metaserver_addr", &metaAddr);
-    LOG_IF(ERROR, ret == false) << "config no metaserver_addr info";
+    ret = conf_.GetStringValue("mds.listen.addr", &metaAddr);
+    LOG_IF(ERROR, ret == false) << "config no mds.listen.addr info";
     RETURN_IF_FALSE(ret)
 
     std::vector<std::string> mdsAddr;
@@ -145,39 +157,37 @@ int ClientConfig::Init(const char* configpath) {
         }
     }
 
-    ret = conf_.GetUInt64Value("rpcTimeoutMs",
-        &fileServiceOption_.metaServerOpt.rpcTimeoutMs);
-    LOG_IF(ERROR, ret == false) << "config no rpcTimeoutMs info";
+    ret = conf_.GetUInt64Value("mds.rpcTimeoutMS",
+        &fileServiceOption_.metaServerOpt.mdsRPCTimeoutMs);
+    LOG_IF(ERROR, ret == false) << "config no mds.rpcTimeoutMS info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("rpcRetryTimes",
-        &fileServiceOption_.metaServerOpt.rpcRetryTimes);
-    LOG_IF(ERROR, ret == false) << "config no rpcRetryTimes info";
+    ret = conf_.GetUInt32Value("mds.rpcRetryIntervalUS",
+        &fileServiceOption_.metaServerOpt.mdsRPCRetryIntervalUS);
+    LOG_IF(ERROR, ret == false) << "config no mds.rpcRetryIntervalUS info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("retryIntervalUs",
-        &fileServiceOption_.metaServerOpt.retryIntervalUs);
-    LOG_IF(ERROR, ret == false) << "config no retryIntervalUs info";
+    ret = conf_.GetUInt64Value("mds.maxRPCTimeoutMS",
+        &fileServiceOption_.metaServerOpt.mdsMaxRPCTimeoutMS);
+    LOG_IF(ERROR, ret == false) << "config no mds.maxRPCTimeoutMS info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("synchronizeRPCTimeoutMS",
-        &fileServiceOption_.metaServerOpt.synchronizeRPCTimeoutMS);
-    LOG_IF(ERROR, ret == false) << "config no synchronizeRPCTimeoutMS info";
+    ret = conf_.GetUInt64Value("mds.maxRetryMS",
+        &fileServiceOption_.metaServerOpt.mdsMaxRetryMS);
+    LOG_IF(WARNING, ret == false) << "config no mds.maxRetryMS info";
+
+    ret = conf_.GetUInt32Value("mds.maxFailedTimesBeforeChangeMDS",
+        &fileServiceOption_.metaServerOpt.mdsMaxFailedTimesBeforeChangeMDS);
+    LOG_IF(ERROR, ret == false) << "config no mds.maxFailedTimesBeforeChangeMDS info";  // NOLINT
+
+    ret = conf_.GetBoolValue("mds.registerToMDS",
+        &fileServiceOption_.commonOpt.mdsRegisterToMDS);
+    LOG_IF(ERROR, ret == false) << "config no mds.registerToMDS info";
     RETURN_IF_FALSE(ret)
 
-    ret = conf_.GetUInt32Value("synchronizeRPCRetryTime",
-        &fileServiceOption_.metaServerOpt.synchronizeRPCRetryTime);
-    LOG_IF(ERROR, ret == false) << "config no synchronizeRPCRetryTime info";
-    RETURN_IF_FALSE(ret)
-
-    ret = conf_.GetBoolValue("registerToMDS",
-        &fileServiceOption_.commonOpt.registerToMDS);
-    LOG_IF(ERROR, ret == false) << "config no registerToMDS info";
-    RETURN_IF_FALSE(ret)
-
-    ret = conf_.GetStringValue("sessionMapPath",
+    ret = conf_.GetStringValue("global.sessionMapPath",
         &fileServiceOption_.sessionmapOpt.sessionmap_path);
-    LOG_IF(ERROR, ret == false) << "config no sessionMapPath info";
+    LOG_IF(ERROR, ret == false) << "config no global.sessionMapPath info";
 
     return 0;
 }
@@ -187,7 +197,7 @@ FileServiceOption_t ClientConfig::GetFileServiceOption() {
 }
 
 uint16_t ClientConfig::GetDummyserverStartPort() {
-    return conf_.GetIntValue("dummyServerStartPort", 9000);
+    return conf_.GetIntValue("global.metricDummyServerStartPort", 9000);
 }
 
 }   // namespace client

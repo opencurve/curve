@@ -31,8 +31,8 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId,
                      "Fail to get leader of copyset node %s",
                      ToGroupIdString(logicPoolId, copysetId).c_str());
     PeerId leaderId;
-    for (Configuration::const_iterator
-             iter = conf.begin(); iter != conf.end(); ++iter) {
+    Configuration::const_iterator iter = conf.begin();
+    for (; iter != conf.end(); ++iter) {
         brpc::Channel channel;
         if (channel.Init(iter->addr, NULL) != 0) {
             return butil::Status(-1, "Fail to init channel to %s",
@@ -64,6 +64,8 @@ butil::Status GetLeader(const LogicPoolID &logicPoolId,
     if (leaderId.is_empty()) {
         return st;
     }
+    LOG(INFO) << "Get leader from " << iter->to_string().c_str()
+              << " success, leader is " << leaderId;
     return butil::Status::OK();
 }
 
@@ -164,6 +166,56 @@ butil::Status RemovePeer(const LogicPoolID &logicPoolId,
     LOG(INFO) << "Configuration of replication group ` "
               << ToGroupIdString(logicPoolId, copysetId)
               << " ' changed from " << old_conf
+              << " to " << new_conf;
+    return butil::Status::OK();
+}
+
+butil::Status ChangePeers(const LogicPoolID &logicPoolId,
+                          const CopysetID &copysetId,
+                          const Configuration &conf,
+                          const Configuration &newPeers,
+                          const braft::cli::CliOptions &options) {
+    Peer leader;
+    butil::Status st = GetLeader(logicPoolId, copysetId, conf, &leader);
+    BRAFT_RETURN_IF(!st.ok(), st);
+    PeerId leaderId(leader.address());
+    brpc::Channel channel;
+    if (channel.Init(leaderId.addr, NULL) != 0) {
+        return butil::Status(-1, "Fail to init channel to %s",
+                             leaderId.to_string().c_str());
+    }
+
+    ChangePeersRequest2 request;
+    request.set_logicpoolid(logicPoolId);
+    request.set_copysetid(copysetId);
+    Peer *leaderPeer = new Peer();
+    *leaderPeer = leader;
+    request.set_allocated_leader(leaderPeer);
+    for (Configuration::const_iterator
+            iter = newPeers.begin(); iter != newPeers.end(); ++iter) {
+        request.add_newpeers()->set_address(iter->to_string());
+    }
+    ChangePeersResponse2 response;
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(options.timeout_ms);
+    cntl.set_max_retry(options.max_retry);
+
+    CliService2_Stub stub(&channel);
+    stub.ChangePeers(&cntl, &request, &response, NULL);
+    if (cntl.Failed()) {
+        return butil::Status(cntl.ErrorCode(), cntl.ErrorText());
+    }
+    Configuration old_conf;
+    for (int i = 0; i < response.oldpeers_size(); ++i) {
+        old_conf.add_peer(response.oldpeers(i).address());
+    }
+    Configuration new_conf;
+    for (int i = 0; i < response.newpeers_size(); ++i) {
+        new_conf.add_peer(response.newpeers(i).address());
+    }
+    LOG(INFO) << "Configuration of replication group `"
+              << ToGroupIdString(logicPoolId, copysetId)
+              << "' changed from " << old_conf
               << " to " << new_conf;
     return butil::Status::OK();
 }

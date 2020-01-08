@@ -7,29 +7,32 @@
 
 #include <gtest/gtest.h>
 #include "src/tools/namespace_tool.h"
-#include "test/client/fake/mockMDS.h"
-#include "test/client/fake/fakeMDS.h"
+#include "test/tools/mock_namespace_tool_core.h"
 
-uint32_t segment_size = 1 << 30;   // NOLINT
-uint32_t chunk_size = 1 << 29;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:9180";   // NOLINT
+using ::testing::_;
+using ::testing::Return;
+using ::testing::DoAll;
+using ::testing::SetArgPointee;
 
-DECLARE_string(mds_addr);
-DECLARE_uint64(test_disk_size);
+uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;   // NOLINT
+uint64_t chunkSize = 16 * 1024 * 1024;   // NOLINT
+
 DECLARE_bool(isTest);
+DECLARE_string(fileName);
+DECLARE_uint64(offset);
+DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
+DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
 
 class NameSpaceToolTest : public ::testing::Test {
  protected:
-    NameSpaceToolTest() : fakemds("/test") {}
-    void SetUp() {
-        FLAGS_mds_addr = "127.0.0.1:9999,127.0.0.1:9180";
-        FLAGS_test_disk_size = 1ull << 32;
+    NameSpaceToolTest() {
         FLAGS_isTest = true;
-        fakemds.Initialize();
-        fakemds.StartService();
+    }
+    void SetUp() {
+        core_ = std::make_shared<curve::tool::MockNameSpaceToolCore>();
     }
     void TearDown() {
-        fakemds.UnInitialize();
+        core_ = nullptr;
     }
 
     void GetFileInfoForTest(FileInfo* fileInfo) {
@@ -37,214 +40,230 @@ class NameSpaceToolTest : public ::testing::Test {
         fileInfo->set_filename("test");
         fileInfo->set_parentid(0);
         fileInfo->set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-        fileInfo->set_segmentsize(1 << 30);
-        fileInfo->set_length(1ull << 32);
+        fileInfo->set_segmentsize(segmentSize);
+        fileInfo->set_length(5 * segmentSize);
+        fileInfo->set_originalfullpathname("/cinder/test");
+        fileInfo->set_ctime(1573546993000000);
     }
-    FakeMDS fakemds;
+
+    void GetCsLocForTest(ChunkServerLocation* csLoc, uint64_t csId) {
+        csLoc->set_chunkserverid(csId);
+        csLoc->set_hostip("127.0.0.1");
+        csLoc->set_port(9191 + csId);
+    }
+
+    void GetSegmentForTest(PageFileSegment* segment) {
+        segment->set_logicalpoolid(1);
+        segment->set_segmentsize(segmentSize);
+        segment->set_chunksize(chunkSize);
+        segment->set_startoffset(0);
+        for (int i = 0; i < 10; ++i) {
+            auto chunk = segment->add_chunks();
+            chunk->set_copysetid(1000 + i);
+            chunk->set_chunkid(2000 + i);
+        }
+    }
+    std::shared_ptr<curve::tool::MockNameSpaceToolCore> core_;
 };
 
-TEST_F(NameSpaceToolTest, common) {
-    curve::tool::NameSpaceTool namespaceTool;
-    namespaceTool.Init();
-
+TEST_F(NameSpaceToolTest, GetFile) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    namespaceTool.PrintHelp("abc");
+    ASSERT_EQ(-1, namespaceTool.RunCommand("abc"));
+    namespaceTool.PrintHelp("get");
     FileInfo fileInfo;
     GetFileInfoForTest(&fileInfo);
-    FakeMDSCurveFSService* fakecurvefsservice = fakemds.GetMDSService();
+    PageFileSegment segment;
+    GetSegmentForTest(&segment);
+    FLAGS_fileName = "/test/";
 
-    // 设置ListDir的返回
-    curve::mds::ListDirResponse* listdirresponse =
-                            new curve::mds::ListDirResponse();
-    listdirresponse->set_statuscode(curve::mds::StatusCode::kOK);
-    FileInfo *fileinfoptr = listdirresponse->add_fileinfo();
-    fileinfoptr->CopyFrom(fileInfo);
-    FakeReturn* fakeListDirRet =
-         new FakeReturn(nullptr, static_cast<void*>(listdirresponse));
-    fakecurvefsservice->SetListDir(fakeListDirRet);
+    // 1、正常情况
+    EXPECT_CALL(*core_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(10 * segmentSize),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("get"));
 
-    // test list dir
-    ASSERT_EQ(namespaceTool.RunCommand("list"), 0);
+    // 2、获取fileInfo失败
+    EXPECT_CALL(*core_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("get"));
 
-    // test seginfo
-    ASSERT_EQ(namespaceTool.RunCommand("seginfo"), 0);
-
-    // test get file
-    ASSERT_EQ(namespaceTool.RunCommand("get"), 0);
-
-    // test get dir
-    // 设置让GetFileInfo返回目录
-    curve::mds::GetFileInfoResponse* getfileinforesponse =
-                            new curve::mds::GetFileInfoResponse();
-    fileInfo.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
-    getfileinforesponse->set_allocated_fileinfo(&fileInfo);
-    getfileinforesponse->set_statuscode(::curve::mds::StatusCode::kOK);
-    FakeReturn* fakeGetFileInforet =
-            new FakeReturn(nullptr, static_cast<void*>(getfileinforesponse));
-    fakecurvefsservice->SetGetFileInfoFakeReturn(fakeGetFileInforet);
-    ASSERT_EQ(namespaceTool.RunCommand("get"), 0);
-
-    // test removefile and clean recycle
-    curve::mds::DeleteFileResponse* deletefileresponse =
-                            new curve::mds::DeleteFileResponse();
-    deletefileresponse->set_statuscode(curve::mds::StatusCode::kOK);
-    FakeReturn* fakeDeleteFileret =
-            new FakeReturn(nullptr, static_cast<void*>(deletefileresponse));
-    fakecurvefsservice->SetDeleteFile(fakeDeleteFileret);
-    ASSERT_EQ(namespaceTool.RunCommand("delete"), 0);
-    ASSERT_EQ(namespaceTool.RunCommand("clean-recycle"), 0);
-    ASSERT_EQ(namespaceTool.RunCommand("create"), 0);
+    // 3、计算大小失败
+     EXPECT_CALL(*core_, GetFileInfo(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("get"));
 }
 
-TEST_F(NameSpaceToolTest, listError) {
-    curve::tool::NameSpaceTool namespaceTool;
-    namespaceTool.Init();
-
-    FakeMDSCurveFSService* fakecurvefsservice = fakemds.GetMDSService();
-    brpc::Controller cntl;
-    cntl.SetFailed("error for test");
-
-    // statusCode不等于kOK的情况
-    curve::mds::ListDirResponse* listdirresponse =
-                            new curve::mds::ListDirResponse();
-    listdirresponse->set_statuscode(curve::mds::StatusCode::kFileNotExists);
-    FakeReturn* fakeListDirRet =
-         new FakeReturn(&cntl, listdirresponse);
-    fakecurvefsservice->SetListDir(fakeListDirRet);
-    ASSERT_EQ(namespaceTool.RunCommand("list"), -1);
-
-    // controller failed的情况
-    fakeListDirRet->controller_ = &cntl;
-    fakeListDirRet->response_ = listdirresponse;
-    fakecurvefsservice->SetListDir(fakeListDirRet);
-    ASSERT_EQ(namespaceTool.RunCommand("list"), -1);
-}
-
-TEST_F(NameSpaceToolTest, seginfoError) {
-    curve::tool::NameSpaceTool namespaceTool;
-    namespaceTool.Init();
-    FakeMDSCurveFSService* fakecurvefsservice = fakemds.GetMDSService();
-    brpc::Controller cntl;
-    cntl.SetFailed("error for test");
-
-    // segment不存在的情况
-    curve::mds::GetOrAllocateSegmentResponse* segmentresponse =
-                new curve::mds::GetOrAllocateSegmentResponse();
-    segmentresponse->set_statuscode(curve::mds::StatusCode::kSegmentNotAllocated);   // NOLINT
-    FakeReturn* segmentRet = new FakeReturn(nullptr, segmentresponse);
-    fakecurvefsservice->SetGetOrAllocateSegmentFakeReturn(segmentRet);
-    ASSERT_EQ(namespaceTool.RunCommand("seginfo"), 0);
-
-    // 其他情况
-    segmentresponse->set_statuscode(curve::mds::StatusCode::kParaError);
-    segmentRet->controller_ = nullptr;
-    segmentRet->response_ = segmentresponse;
-    fakecurvefsservice->SetGetOrAllocateSegmentFakeReturn(segmentRet);
-    ASSERT_EQ(namespaceTool.RunCommand("seginfo"), -1);
-
-    // controller failed的情况
-    segmentRet->controller_ = &cntl;
-    segmentRet->response_ = segmentresponse;
-    fakecurvefsservice->SetGetOrAllocateSegmentFakeReturn(segmentRet);
-    ASSERT_EQ(namespaceTool.RunCommand("seginfo"), -1);
-}
-
-TEST_F(NameSpaceToolTest, getError) {
-    curve::tool::NameSpaceTool namespaceTool;
-    namespaceTool.Init();
+TEST_F(NameSpaceToolTest, ListDir) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    namespaceTool.PrintHelp("list");
     FileInfo fileInfo;
     GetFileInfoForTest(&fileInfo);
-    FakeMDSCurveFSService* fakecurvefsservice = fakemds.GetMDSService();
-    brpc::Controller cntl;
-    cntl.SetFailed("error for test");
+    PageFileSegment segment;
+    GetSegmentForTest(&segment);
 
-    // statusCode不等于kOK的情况
-    curve::mds::GetFileInfoResponse* getfileinforesponse =
-                            new curve::mds::GetFileInfoResponse();
-    getfileinforesponse->set_statuscode(curve::mds::StatusCode::kFileNotExists);   // NOLINT
-    FakeReturn* fakeGetFileInforet = new FakeReturn(&cntl, getfileinforesponse);
-    fakecurvefsservice->SetGetFileInfoFakeReturn(fakeGetFileInforet);
-    ASSERT_EQ(namespaceTool.RunCommand("get"), -1);
+    // 1、正常情况
+    std::vector<FileInfo> files;
+    for (uint64_t i = 0; i < 3; ++i) {
+        files.emplace_back(fileInfo);
+    }
+    EXPECT_CALL(*core_, ListDir(_, _))
+        .Times(2)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(files),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+        .Times(6)
+        .WillRepeatedly(DoAll(SetArgPointee<1>(10 * segmentSize),
+                        Return(0)));
+    FLAGS_fileName = "/";
+    ASSERT_EQ(0, namespaceTool.RunCommand("list"));
+    FLAGS_fileName = "/test/";
+    ASSERT_EQ(0, namespaceTool.RunCommand("list"));
 
-    // GetFile成功，获取segment出错的情况
-    getfileinforesponse->set_allocated_fileinfo(&fileInfo);
-    getfileinforesponse->set_statuscode(curve::mds::StatusCode::kOK);
-    fakeGetFileInforet->controller_ = nullptr;
-    fakeGetFileInforet->response_ = getfileinforesponse;
-    fakecurvefsservice->SetGetFileInfoFakeReturn(fakeGetFileInforet);
-    curve::mds::GetOrAllocateSegmentResponse* segmentresponse =
-                new curve::mds::GetOrAllocateSegmentResponse();
-    FakeReturn* segmentRet = new FakeReturn(&cntl, segmentresponse);
-    fakecurvefsservice->SetGetOrAllocateSegmentFakeReturn(segmentRet);
-    ASSERT_EQ(namespaceTool.RunCommand("get"), -1);
+    // 2、listDir失败
+    EXPECT_CALL(*core_, ListDir(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("list"));
 
-    // controller failed的情况
-    fakeGetFileInforet->controller_ = &cntl;
-    fakeGetFileInforet->response_ = getfileinforesponse;
-    fakecurvefsservice->SetGetFileInfoFakeReturn(fakeGetFileInforet);
-    ASSERT_EQ(namespaceTool.RunCommand("get"), -1);
-
-    // get目录的时候，listDir错误
-    curve::mds::ListDirResponse* listdirresponse =
-                            new curve::mds::ListDirResponse();
-    FakeReturn* fakeListDirRet =
-         new FakeReturn(&cntl, listdirresponse);
-    fakecurvefsservice->SetListDir(fakeListDirRet);
-    ASSERT_EQ(namespaceTool.RunCommand("get"), -1);
+    // 3、计算大小失败,个别的文件计算大小失败不应该返回错误
+    EXPECT_CALL(*core_, ListDir(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(files),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetAllocatedSize(_, _))
+        .Times(3)
+        .WillOnce(Return(-1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(10 * segmentSize),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("list"));
 }
 
-TEST_F(NameSpaceToolTest, deleteError) {
-    curve::tool::NameSpaceTool namespaceTool;
-    namespaceTool.Init();
-    FileInfo fileInfo;
-    GetFileInfoForTest(&fileInfo);
-    FakeMDSCurveFSService* fakecurvefsservice = fakemds.GetMDSService();
-    brpc::Controller cntl;
-    cntl.SetFailed("error for test");
+TEST_F(NameSpaceToolTest, SegInfo) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    namespaceTool.PrintHelp("seginfo");
+    std::vector<PageFileSegment> segments;
+    for (int i = 0; i < 3; ++i) {
+        PageFileSegment segment;
+        GetSegmentForTest(&segment);
+        segments.emplace_back(segment);
+    }
+    FLAGS_fileName = "/test";
 
-    // statusCode不等于kOK的情况
-    curve::mds::DeleteFileResponse* deletefileresponse =
-                            new curve::mds::DeleteFileResponse();
-    deletefileresponse->set_statuscode(curve::mds::StatusCode::kFileNotExists);
-    FakeReturn* fakeDeleteFileret =
-            new FakeReturn(nullptr, static_cast<void*>(deletefileresponse));
-    fakecurvefsservice->SetDeleteFile(fakeDeleteFileret);
-    ASSERT_EQ(namespaceTool.RunCommand("delete"), -1);
+    // 1、正常情况
+    EXPECT_CALL(*core_, GetFileSegments(_, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<1>(segments),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("seginfo"));
 
-    // controller failed的情况
-    fakeDeleteFileret->controller_ = &cntl;
-    fakeDeleteFileret->response_ = deletefileresponse;
-    fakecurvefsservice->SetDeleteFile(fakeDeleteFileret);
-    ASSERT_EQ(namespaceTool.RunCommand("delete"), -1);
-
-    // 清空回收站的时候，ListFile失败
-    curve::mds::ListDirResponse* listdirresponse =
-                            new curve::mds::ListDirResponse();
-    FakeReturn* fakeListDirRet =
-         new FakeReturn(&cntl, listdirresponse);
-    fakecurvefsservice->SetListDir(fakeListDirRet);
-    ASSERT_EQ(namespaceTool.RunCommand("clean-recycle"), -1);
+    // 2、GetFileSegment失败
+    EXPECT_CALL(*core_, GetFileSegments(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("seginfo"));
 }
 
-TEST_F(NameSpaceToolTest, createError) {
-    curve::tool::NameSpaceTool namespaceTool;
-    namespaceTool.Init();
-    FileInfo fileInfo;
-    GetFileInfoForTest(&fileInfo);
-    FakeMDSCurveFSService* fakecurvefsservice = fakemds.GetMDSService();
-    brpc::Controller cntl;
-    cntl.SetFailed("error for test");
+TEST_F(NameSpaceToolTest, CreateFile) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    namespaceTool.PrintHelp("create");
 
-    // statusCode不等于kOK的情况
-    curve::mds::CreateFileResponse* createfileresponse =
-                            new curve::mds::CreateFileResponse();
-    createfileresponse->set_statuscode(curve::mds::StatusCode::kFileNotExists);
-    FakeReturn* fakeCreateFileret =
-            new FakeReturn(nullptr, static_cast<void*>(createfileresponse));
-    fakecurvefsservice->SetCreateFileFakeReturn(fakeCreateFileret);
-    ASSERT_EQ(namespaceTool.RunCommand("create"), -1);
+    // 1、正常情况
+    EXPECT_CALL(*core_, CreateFile(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, namespaceTool.RunCommand("create"));
 
-    // controller failed的情况
-    fakeCreateFileret->controller_ = &cntl;
-    fakeCreateFileret->response_ = createfileresponse;
-    fakecurvefsservice->SetCreateFileFakeReturn(fakeCreateFileret);
-    ASSERT_EQ(namespaceTool.RunCommand("create"), -1);
+    // 2、创建失败
+    EXPECT_CALL(*core_, CreateFile(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("create"));
+}
+
+TEST_F(NameSpaceToolTest, DeleteFile) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    namespaceTool.PrintHelp("delete");
+
+    // 1、正常情况
+    EXPECT_CALL(*core_, DeleteFile(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, namespaceTool.RunCommand("delete"));
+
+    // 2、创建失败
+    EXPECT_CALL(*core_, DeleteFile(_, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("delete"));
+}
+
+TEST_F(NameSpaceToolTest, CleanRecycle) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    namespaceTool.PrintHelp("clean-recycle");
+
+    // 1、正常情况
+    EXPECT_CALL(*core_, CleanRecycleBin(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    ASSERT_EQ(0, namespaceTool.RunCommand("clean-recycle"));
+
+    // 2、失败
+    EXPECT_CALL(*core_, CleanRecycleBin(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("clean-recycle"));
+}
+
+TEST_F(NameSpaceToolTest, PrintChunkLocation) {
+    curve::tool::NameSpaceTool namespaceTool(core_);
+    namespaceTool.PrintHelp("chunk-location");
+    std::vector<ChunkServerLocation> csLocs;
+    for (uint64_t i = 0; i < 3; ++i) {
+        ChunkServerLocation csLoc;
+        GetCsLocForTest(&csLoc, i);
+        csLocs.emplace_back(csLoc);
+    }
+    uint64_t chunkId = 2001;
+    std::pair<uint32_t, uint32_t> copyset = {1, 101};
+
+    // 1、正常情况
+    EXPECT_CALL(*core_, QueryChunkCopyset(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId),
+                        SetArgPointee<3>(copyset),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetChunkServerListInCopySets(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(csLocs),
+                        Return(0)));
+    ASSERT_EQ(0, namespaceTool.RunCommand("chunk-location"));
+
+    // 2、QueryChunkCopyset失败
+    EXPECT_CALL(*core_, QueryChunkCopyset(_, _, _, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("chunk-location"));
+
+    // 3、GetChunkServerListInCopySets失败
+    EXPECT_CALL(*core_, QueryChunkCopyset(_, _, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(chunkId),
+                        SetArgPointee<3>(copyset),
+                        Return(0)));
+    EXPECT_CALL(*core_, GetChunkServerListInCopySets(_, _, _))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, namespaceTool.RunCommand("chunk-location"));
 }

@@ -99,7 +99,7 @@ static void ReadChunkSnapshotFunc(::google::protobuf::RpcController *controller,
     brpc::ClosureGuard doneGuard(done);
     if (0 != gReadCntlFailedCode) {
         brpc::Controller *cntl = dynamic_cast<brpc::Controller *>(controller);
-        cntl->SetFailed(-1, "delete snapshot controller error");
+        cntl->SetFailed(-1, "read snapshot controller error");
     }
 }
 
@@ -154,11 +154,10 @@ TEST_F(CopysetClientTest, normal_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -197,6 +196,9 @@ TEST_F(CopysetClientTest, normal_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     // write success
     for (int i = 0; i < 10; ++i) {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -209,7 +211,9 @@ TEST_F(CopysetClientTest, normal_test) {
         reqCtx->rawlength_ = len;
 
         curve::common::CountDownEvent cond(1);
-        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);;
+        RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
 
         ChunkResponse response;
@@ -240,6 +244,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -273,6 +279,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -311,6 +319,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -341,6 +351,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -374,6 +386,8 @@ TEST_F(CopysetClientTest, normal_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -410,13 +424,12 @@ TEST_F(CopysetClientTest, write_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 1000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
-    ioSenderOpt.failRequestOpt.maxTimeoutMS = 3500;
-    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 3500000;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 3500;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduleOption_t reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -459,6 +472,9 @@ TEST_F(CopysetClientTest, write_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -472,6 +488,9 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -505,6 +524,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gWriteCntlFailedCode = -1;
@@ -536,6 +557,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试超时时间为5000，因为chunkserver设置返回timeout
         // 导致触发底层超时时间指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*1000
@@ -578,6 +601,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试睡眠时间为5000，因为chunkserver设置返回timeout
         // 导致触发底层指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*5000
@@ -620,6 +645,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -650,6 +677,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -690,6 +719,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -731,6 +762,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -772,6 +805,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -821,6 +856,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -877,6 +914,8 @@ TEST_F(CopysetClientTest, write_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -919,13 +958,12 @@ TEST_F(CopysetClientTest, write_failed_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 500;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 50;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
-    ioSenderOpt.failRequestOpt.maxTimeoutMS = 1000;
-    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 100000;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 500;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 50;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 100000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduleOption_t reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -968,6 +1006,9 @@ TEST_F(CopysetClientTest, write_failed_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* controller set timeout */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -981,6 +1022,8 @@ TEST_F(CopysetClientTest, write_failed_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试超时时间为500，因为chunkserver设置返回timeout
         // 导致触发底层超时时间指数退避，每次重试间隔增大。重试50次正常只需要超时49*500
@@ -1021,6 +1064,8 @@ TEST_F(CopysetClientTest, write_failed_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试睡眠时间为5000us，因为chunkserver设置返回timeout
         // 导致触发底层指数退避，每次重试间隔增大。重试50次正常只需要睡眠49*5000us
@@ -1063,13 +1108,12 @@ TEST_F(CopysetClientTest, read_failed_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 500;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 50;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
-    ioSenderOpt.failRequestOpt.maxTimeoutMS = 1000;
-    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 100000;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 500;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 50;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 100000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduleOption_t reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -1113,6 +1157,9 @@ TEST_F(CopysetClientTest, read_failed_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* controller set timeout */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -1130,6 +1177,8 @@ TEST_F(CopysetClientTest, read_failed_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = brpc::ERPCTIMEDOUT;
@@ -1167,6 +1216,8 @@ TEST_F(CopysetClientTest, read_failed_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试睡眠时间为5000us，因为chunkserver设置返回timeout
         // 导致触发底层指数退避，每次重试间隔增大。重试50次正常只需要睡眠49*5000
@@ -1208,13 +1259,12 @@ TEST_F(CopysetClientTest, read_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 1000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.failRequestOpt.maxTimeoutMS = 3500;
-    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 3500000;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 3500;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduleOption_t reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -1259,6 +1309,9 @@ TEST_F(CopysetClientTest, read_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -1272,6 +1325,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1302,6 +1357,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1333,6 +1390,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -1371,6 +1430,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = brpc::ERPCTIMEDOUT;
@@ -1408,6 +1469,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         // 配置文件设置的重试睡眠时间为500，因为chunkserver设置返回timeout
         // 导致触发底层指数退避，每次重试间隔增大。重试三次正常只需要睡眠3*500
@@ -1449,6 +1512,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1479,6 +1544,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1519,6 +1586,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1560,6 +1629,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1601,6 +1672,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1650,6 +1723,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1706,6 +1781,8 @@ TEST_F(CopysetClientTest, read_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1748,11 +1825,10 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -1790,6 +1866,9 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -1804,6 +1883,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1816,7 +1897,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -1835,6 +1916,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1847,7 +1930,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_CHUNK_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -1865,6 +1948,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -1875,7 +1960,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
         EXPECT_CALL(mockChunkService, ReadChunkSnapshot(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(ReadChunkSnapshotFunc));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
@@ -1894,6 +1979,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -1906,7 +1993,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
@@ -1925,6 +2012,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1947,7 +2036,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -1966,6 +2055,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -1988,7 +2079,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2007,6 +2098,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2029,7 +2122,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2048,6 +2141,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2079,7 +2174,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -2098,6 +2193,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2136,7 +2233,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -2155,6 +2252,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2179,7 +2278,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2197,6 +2296,8 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2216,7 +2317,7 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(ReadChunkSnapshotFunc)));
         copysetClient.ReadChunkSnapshot(reqCtx->idinfo_,
-                                        sn, offset, len, reqDone, 0);
+                                        sn, offset, len, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2233,11 +2334,10 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -2267,6 +2367,9 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -2278,6 +2381,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2291,7 +2396,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -2307,6 +2412,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -2318,7 +2425,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .Times(3)
             .WillRepeatedly(Invoke(DeleteChunkSnapshotFunc));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
@@ -2334,6 +2441,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2347,7 +2456,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
@@ -2363,6 +2472,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2386,7 +2497,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2402,6 +2513,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2425,7 +2538,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2441,6 +2554,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2464,7 +2579,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2480,6 +2595,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2512,7 +2629,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -2528,6 +2645,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2567,7 +2686,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -2583,6 +2702,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2608,7 +2729,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                  sn, reqDone, 0);
+                  sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2623,6 +2744,8 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2643,7 +2766,7 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(DeleteChunkSnapshotFunc)));
         copysetClient.DeleteChunkSnapshotOrCorrectSn(reqCtx->idinfo_,
-                                          sn, reqDone, 0);
+                                          sn, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2660,11 +2783,10 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -2694,6 +2816,9 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -2705,6 +2830,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2717,7 +2844,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                                        "destination", sn, 1, 1024, reqDone, 0);
+                                        "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -2733,6 +2860,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -2743,7 +2872,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
         EXPECT_CALL(mockChunkService, CreateCloneChunk(_, _, _, _)).Times(3)      // NOLINT
             .WillRepeatedly(Invoke(CreateCloneChunkFunc));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone, 0);
+        "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
@@ -2759,6 +2888,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -2771,7 +2902,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone, 0);
+        "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
@@ -2787,6 +2918,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
 
@@ -2803,7 +2936,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone, 0);
+        "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2819,6 +2952,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2841,7 +2976,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone, 0);
+        "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2857,6 +2992,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2879,7 +3016,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-        "destination", sn, 1, 1024, reqDone, 0);
+        "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -2895,6 +3032,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2926,7 +3065,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                                "destination", sn, 1, 1024, reqDone, 0);
+                                "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -2942,6 +3081,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -2980,7 +3121,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                             "destination", sn, 1, 1024, reqDone, 0);
+                             "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -2996,6 +3137,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3020,7 +3163,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                             "destination", sn, 1, 1024, reqDone, 0);
+                             "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3035,6 +3178,8 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -3054,7 +3199,7 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(CreateCloneChunkFunc)));
         copysetClient.CreateCloneChunk(reqCtx->idinfo_,
-                                        "destination", sn, 1, 1024, reqDone, 0);
+                                        "destination", sn, 1, 1024, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3072,11 +3217,10 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -3106,6 +3250,9 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -3117,6 +3264,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -3128,7 +3277,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -3144,6 +3293,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
@@ -3153,7 +3304,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
                                   Return(0)));
         EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(RecoverChunkFunc));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
@@ -3169,6 +3320,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response;
@@ -3180,7 +3333,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
@@ -3196,6 +3349,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3213,7 +3368,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
         EXPECT_CALL(mockChunkService, RecoverChunk(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3229,6 +3384,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3250,7 +3407,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
                             Invoke(RecoverChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3266,6 +3423,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3287,7 +3446,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
                             Invoke(RecoverChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3303,6 +3462,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3333,7 +3494,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
                             Invoke(RecoverChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -3349,6 +3510,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3386,7 +3549,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
                             Invoke(RecoverChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -3402,6 +3565,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
 
         reqCtx->done_ = reqDone;
         ChunkResponse response1;
@@ -3425,7 +3590,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
                             Invoke(RecoverChunkFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(RecoverChunkFunc)));
-        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone, 0);
+        copysetClient.RecoverChunk(reqCtx->idinfo_, 0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3440,6 +3605,8 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         ChunkResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -3458,7 +3625,7 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(RecoverChunkFunc)));
         copysetClient.RecoverChunk(reqCtx->idinfo_,
-                                          0, 4096, reqDone, 0);
+                                          0, 4096, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3475,11 +3642,10 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -3508,6 +3674,9 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     std::string leaderStr4 = "127.0.0.1:9109";
     butil::str2endpoint(leaderStr4.c_str(), &leaderAdder4);
 
+    FileMetric_t fm("test");
+    IOTracker iot(nullptr, nullptr, nullptr, &fm);
+
     /* 非法参数 */
     {
         RequestContext *reqCtx = new FakeRequestContext();
@@ -3518,6 +3687,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST);
@@ -3528,7 +3699,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_INVALID_REQUEST,
                   reqDone->GetErrorCode());
@@ -3543,6 +3714,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         gReadCntlFailedCode = -1;
         EXPECT_CALL(mockMetaCache, GetLeader(_, _, _, _, _, _)).Times(6)
@@ -3551,7 +3724,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                                   Return(0)));
         EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(3)
             .WillRepeatedly(Invoke(GetChunkInfoFunc));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_NE(0, reqDone->GetErrorCode());
         gReadCntlFailedCode = 0;
@@ -3566,6 +3739,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN);
@@ -3576,7 +3751,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(3)
             .WillRepeatedly(DoAll(SetArgPointee<2>(response),
                                   Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_FAILURE_UNKNOWN,
                   reqDone->GetErrorCode());
@@ -3591,6 +3766,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -3611,7 +3788,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                             Invoke(GetChunkInfoFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3626,6 +3803,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -3646,7 +3825,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                             Invoke(GetChunkInfoFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3661,6 +3840,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -3681,7 +3862,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                             Invoke(GetChunkInfoFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3696,6 +3877,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED);
@@ -3725,7 +3908,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                             Invoke(GetChunkInfoFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_REDIRECTED,
                   reqDone->GetErrorCode());
@@ -3740,6 +3923,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -3776,7 +3961,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                             Invoke(GetChunkInfoFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response3),
                             Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST,
                   reqDone->GetErrorCode());
@@ -3791,6 +3976,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response1;
         response1.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_COPYSET_NOTEXIST);
@@ -3813,7 +4000,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
                             Invoke(GetChunkInfoFunc)))
             .WillOnce(DoAll(SetArgPointee<2>(response2),
                             Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
@@ -3827,6 +4014,8 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
 
         curve::common::CountDownEvent cond(1);
         RequestClosure *reqDone = new FakeRequestClosure(&cond, reqCtx);
+        reqDone->SetFileMetric(&fm);
+        reqDone->SetIOTracker(&iot);
         reqCtx->done_ = reqDone;
         GetChunkInfoResponse response;
         response.set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
@@ -3844,7 +4033,7 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         EXPECT_CALL(mockChunkService, GetChunkInfo(_, _, _, _)).Times(1)
             .WillOnce(DoAll(SetArgPointee<2>(response),
                             Invoke(GetChunkInfoFunc)));
-        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone, 0);
+        copysetClient.GetChunkInfo(reqCtx->idinfo_, reqDone);
         cond.Wait();
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());

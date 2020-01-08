@@ -101,6 +101,8 @@ inline std::string ToGroupIdString(const LogicPoolID &logicPoolId,
     groupIdString.append(std::to_string(logicPoolId));
     groupIdString.append(", ");
     groupIdString.append(std::to_string(copysetId));
+    groupIdString.append(", ");
+    groupIdString.append(ToGroupId(logicPoolId, copysetId));
     groupIdString.append(")");
     return groupIdString;
 }
