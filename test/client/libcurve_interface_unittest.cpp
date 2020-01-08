@@ -22,6 +22,7 @@
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/libcurve_file.h"
 #include "src/client/client_common.h"
+#include "src/client/chunk_closure.h"
 
 using curve::client::MetaCacheErrorType;
 using curve::client::ChunkIDInfo_t;
@@ -700,7 +701,12 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+
+    LOG(INFO) << "fopt size " << sizeof(fopt);
+    // curve::client::ClientClosure::SetFailureRequestOption(
+    //     fopt.ioOpt.ioSenderOpt.failRequestOpt);
+    LOG(INFO) << "here";
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(
@@ -888,7 +894,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
     fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt.failRequestOpt.chunkserverUnstableOption.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize(

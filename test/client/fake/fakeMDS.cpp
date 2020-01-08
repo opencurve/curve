@@ -21,6 +21,7 @@ extern uint32_t segment_size;
 using curve::client::SegmentInfo;
 using curve::client::ChunkInfoDetail;
 
+DEFINE_bool(start_builtin_service, false, "start builtin services");
 DEFINE_bool(fake_chunkserver, true, "create fake chunkserver");
 DEFINE_uint64(test_disk_size, 10 * 1024 * 1024 * 1024ul, "test size");
 DEFINE_uint32(copyset_num, 32, "copyset num in one chunkserver");
@@ -381,6 +382,13 @@ void FakeMDS::CreateFakeChunkservers(bool enablecli) {
 
         brpc::ServerOptions options;
         options.idle_timeout_sec = -1;
+
+        if (FLAGS_start_builtin_service == false) {
+            options.has_builtin_services = false;
+        } else {
+            options.has_builtin_services = true;
+        }
+
         if (chunkservers_[i]->Start(server_addrs_[i], &options) != 0) {
             LOG(FATAL) << "Fail to start Server";
         }

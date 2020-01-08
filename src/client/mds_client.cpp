@@ -1166,6 +1166,45 @@ LIBCURVE_ERROR MDSClient::GetChunkServerID(const ChunkServerAddr& csAddr,
     return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
 }
 
+LIBCURVE_ERROR MDSClient::ListChunkServerInServer(
+    const std::string& serverIp,
+    std::vector<ChunkServerID>* csIds) {
+    auto task = RPCTaskDefine {
+        curve::mds::topology::ListChunkServerResponse response;
+
+        mdsClientBase_.ListChunkServerInServer(
+            serverIp, &response, cntl, channel);
+
+        if (cntl->Failed()) {
+            LOG(WARNING) << "ListChunkServerInServer failed, "
+                << cntl->ErrorText()
+                << ", log id = " << cntl->log_id();
+            return -cntl->ErrorCode();
+        }
+
+        int statusCode = response.statuscode();
+        LOG_IF(ERROR, statusCode != 0)
+            << "ListChunkServerInServer failed, "
+            << "errorcode = " << response.statuscode()
+            << ", chunkserver ip = " << serverIp
+            << ", log id = " << cntl->log_id();
+
+        if (statusCode == 0) {
+            csIds->reserve(response.chunkserverinfos_size());
+            for (int i = 0; i < response.chunkserverinfos_size(); ++i) {
+                csIds->emplace_back(
+                    response.chunkserverinfos(i).chunkserverid());
+            }
+
+            return LIBCURVE_ERROR::OK;
+        } else {
+            return LIBCURVE_ERROR::FAILED;
+        }
+    };
+
+    return rpcExcutor.DoRPCTask(task, metaServerOpt_.mdsMaxRetryMS);
+}
+
 void MDSClient::MDSStatusCode2LibcurveError(const StatusCode& status
                                             , LIBCURVE_ERROR* errcode) {
     switch (status) {
