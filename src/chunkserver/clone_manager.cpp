@@ -26,6 +26,7 @@ int CloneManager::Run() {
     if (isRunning_.load(std::memory_order_acquire))
         return 0;
     // 启动线程池
+    LOG(INFO) << "Begin to run clone manager.";
     tp_ = std::make_shared<TaskThreadPool>();
     int ret = tp_->Start(options_.threadNum, options_.queueCapacity);
     if (ret < 0) {
@@ -35,6 +36,7 @@ int CloneManager::Run() {
         return -1;
     }
     isRunning_.store(true, std::memory_order_release);
+    LOG(INFO) << "Start clone manager success.";
     return 0;
 }
 
@@ -42,8 +44,10 @@ int CloneManager::Fini() {
     if (!isRunning_.load(std::memory_order_acquire))
         return 0;
 
+    LOG(INFO) << "Begin to stop clone manager.";
     isRunning_.store(false, std::memory_order_release);
     tp_->Stop();
+    LOG(INFO) << "Stop clone manager success.";
 
     return 0;
 }

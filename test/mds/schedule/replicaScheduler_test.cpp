@@ -33,7 +33,7 @@ class TestReplicaSchedule : public ::testing::Test {
       opController_ = std::make_shared<OperatorController>(2, metric);
       topoAdapter_ = std::make_shared<MockTopoAdapter>();
       replicaScheduler_ = std::make_shared<ReplicaScheduler>(
-          opController_, 1, 10, 100, 1000, 0.2, topoAdapter_);
+          opController_, 1, 10, 100, 1000, 1000, 0.2, topoAdapter_);
   }
 
   void TearDown() override {

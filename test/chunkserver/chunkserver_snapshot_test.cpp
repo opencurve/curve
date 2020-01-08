@@ -204,7 +204,7 @@ static void ReadVerifyNotAvailable(PeerId leaderId,
     for (int i = 0; i < loop; ++i) {
         // write
         brpc::Controller cntl;
-        cntl.set_timeout_ms(1000);
+        cntl.set_timeout_ms(5000);
         ChunkRequest request;
         ChunkResponse response;
         request.set_optype(CHUNK_OP_TYPE::CHUNK_OP_READ);
@@ -218,7 +218,9 @@ static void ReadVerifyNotAvailable(PeerId leaderId,
         LOG_IF(INFO, cntl.Failed()) << "error msg: "
                                     << cntl.ErrorCode() << " : "
                                     << cntl.ErrorText();
-        ASSERT_TRUE(cntl.Failed());
+        LOG(INFO) << "read: " << CHUNK_OP_STATUS_Name(response.status());
+        ASSERT_TRUE(cntl.Failed() ||
+            response.status() != CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
     }
 }
 
@@ -239,7 +241,7 @@ static void CopysetStatusVerify(PeerId peerId,
     CopysetStatusRequest request;
     CopysetStatusResponse response;
     brpc::Controller cntl;
-    cntl.set_timeout_ms(2000);
+    cntl.set_timeout_ms(5000);
     request.set_logicpoolid(logicPoolID);
     request.set_copysetid(copysetId);
     Peer *peer = new Peer();
@@ -278,7 +280,7 @@ static void CopysetStatusVerify(const std::vector<PeerId> &peerIds,
         CopysetStatusRequest request;
         CopysetStatusResponse response;
         brpc::Controller cntl;
-        cntl.set_timeout_ms(2000);
+        cntl.set_timeout_ms(5000);
         request.set_logicpoolid(logicPoolID);
         request.set_copysetid(copysetId);
         Peer *peer = new Peer();
@@ -348,7 +350,7 @@ TEST_F(ChunkServerSnapshotTest, OneNode) {
     // read、write、1次配置变更
     int64_t commitedIndex = 2 * loop + 1;
     expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    expectResp.set_state(braft::state2str(braft::STATE_LEADER));
+    expectResp.set_state(braft::STATE_LEADER);
     Peer *peer = new Peer();
     expectResp.set_allocated_peer(peer);
     peer->set_address(peer1.to_string());
@@ -430,7 +432,7 @@ TEST_F(ChunkServerSnapshotTest, OneNodeShutdown) {
     CopysetStatusResponse expectResp;
     int64_t commitedIndex = 2 * 2 * loop + loop + 2;
     expectResp.set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-    expectResp.set_state(braft::state2str(braft::STATE_LEADER));
+    expectResp.set_state(braft::STATE_LEADER);
     Peer *peer = new Peer();
     expectResp.set_allocated_peer(peer);
     peer->set_address(peer1.to_string());
@@ -1215,6 +1217,7 @@ TEST_F(ChunkServerSnapshotTest, AddPeerAndRecoverFromInstallSnapshot) {
     // add 一个 peer
     {
         ASSERT_EQ(0, cluster.StartPeer(peer4, true));
+        ASSERT_EQ(0, cluster.WaitLeader(&leaderId));
         Configuration conf = cluster.CopysetConf();
         braft::cli::CliOptions options;
         options.max_retry = 3;

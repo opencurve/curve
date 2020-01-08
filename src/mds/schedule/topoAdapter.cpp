@@ -36,13 +36,15 @@ PeerInfo::PeerInfo(ChunkServerIdType id,
 CopySetConf::CopySetConf(const CopySetKey &key, EpochType epoch,
                          const std::vector<PeerInfo> &peers,
                          ConfigChangeType type,
-                         ChunkServerIdType item) {
+                         ChunkServerIdType item,
+                         ChunkServerIdType oldOne) {
     this->id.first = key.first;
     this->id.second = key.second;
     this->epoch = epoch;
     this->peers = peers;
     this->type = type;
     this->configChangeItem = item;
+    this->oldOne = oldOne;
 }
 
 CopySetInfo::~CopySetInfo() {

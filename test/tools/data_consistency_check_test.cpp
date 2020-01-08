@@ -13,7 +13,7 @@
 #include "src/client/client_common.h"
 #include "src/tools/consistency_check.h"
 
-std::string metaserver_addr = "127.0.0.1:9160";                                  //  NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9160";                                  //  NOLINT
 uint32_t chunk_size = 4*1024*1024;
 uint32_t segment_size = 1*1024*1024*1024;
 
@@ -57,6 +57,7 @@ class CheckFileConsistencyTest : public ::testing::Test {
 TEST_F(CheckFileConsistencyTest, Consistency) {
     FLAGS_check_hash = true;
     CheckFileConsistency cfc;
+    cfc.PrintHelp();
 
     bool ret = cfc.Init();
     ASSERT_EQ(true, ret);
@@ -164,3 +165,29 @@ TEST_F(CheckFileConsistencyTest, ApplyindexMatch) {
     cfc.UnInit();
 }
 
+TEST_F(CheckFileConsistencyTest, GetCopysetStatusFail) {
+    CheckFileConsistency cfc;
+
+    bool ret = cfc.Init();
+    ASSERT_EQ(true, ret);
+
+    ret = cfc.FetchFileCopyset();
+    ASSERT_EQ(true, ret);
+
+    // 获取copyset service指针用于设置response中的status
+    int peercount = 0;
+    std::vector<FakeCreateCopysetService*> servec =
+         fakemds.GetCreateCopysetService();
+    servec[0]->SetStatus(
+        COPYSET_OP_STATUS::COPYSET_OP_STATUS_COPYSET_NOTEXIST);
+
+    FLAGS_check_hash = false;
+    int rc = cfc.ReplicasConsistency() ? 0 : -1;
+    ASSERT_EQ(rc, -1);
+
+    FLAGS_check_hash = true;
+    rc = cfc.ReplicasConsistency() ? 0 : -1;
+    ASSERT_EQ(rc, -1);
+
+    cfc.UnInit();
+}

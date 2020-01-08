@@ -95,10 +95,6 @@ int RecoverScheduler::Schedule() {
         // 修复副本失败
         if (!FixOfflinePeer(
                 copysetInfo, *offlinelists.begin(), &fixRes, &target)) {
-            LOG(WARNING) << "recoverScheduler can not find a healthy"
-                          " chunkServer to fix offline one "
-                         << *offlinelists.begin() << " in "
-                         << copysetInfo.CopySetInfoStr();
             continue;
         // 修复副本成功，但加入到controller失败
         } else if (!opController_->AddOperator(fixRes)) {
@@ -109,7 +105,7 @@ int RecoverScheduler::Schedule() {
         // 修复副本成功，加入controller成功
         } else {
             LOG(INFO) << "recoverScheduler generate operator:"
-                        << fixRes.OpToString() << "for "
+                        << fixRes.OpToString() << " for "
                         << copysetInfo.CopySetInfoStr()
                         << ", remove offlinePeer: "
                         << *offlinelists.begin();
@@ -173,8 +169,8 @@ bool RecoverScheduler::FixOfflinePeer(
                      << ", which replica: " << peerId << " is offline";
         return false;
     } else {
-        *op = operatorFactory.CreateAddPeerOperator(
-            info, csId, OperatorPriority::HighPriority);
+        *op = operatorFactory.CreateChangePeerOperator(
+            info, peerId, csId, OperatorPriority::HighPriority);
         op->timeLimit = std::chrono::seconds(addTimeSec_);
         *target = csId;
         return true;

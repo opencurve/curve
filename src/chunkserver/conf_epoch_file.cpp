@@ -69,6 +69,11 @@ int ConfEpochFile::Load(const std::string &path,
     *copysetID = confEpoch.copysetid();
     *epoch = confEpoch.epoch();
 
+    LOG(INFO) << "Load conf epoch " << path << " success. "
+              << "logicPoolID: " << *logicPoolID
+              << ", copysetID: " << *copysetID
+              << ", epoch: " << *epoch;
+
     return 0;
 }
 

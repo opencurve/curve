@@ -9,6 +9,7 @@
 #include <glog/logging.h>
 
 #include <mutex>    // NOLINT
+#include <map>
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
 #include "src/client/libcurve_snapshot.h"
@@ -21,7 +22,7 @@ SnapshotClient::SnapshotClient() {
 
 int SnapshotClient::Init(ClientConfigOption_t clientopt) {
     google::SetCommandLineOption("minloglevel",
-            std::to_string(clientopt.loginfo.loglevel).c_str());
+            std::to_string(clientopt.loginfo.logLevel).c_str());
     int ret = -LIBCURVE_ERROR::FAILED;
     do {
         if (mdsclient_.Initialize(clientopt.metaServerOpt)
@@ -71,7 +72,7 @@ int SnapshotClient::GetSnapShot(const std::string& filename,
 int SnapshotClient::ListSnapShot(const std::string& filename,
                                         const UserInfo_t& userinfo,
                                         const std::vector<uint64_t>* seq,
-                                        std::vector<FInfo*>* snapif) {
+                                        std::map<uint64_t, FInfo>* snapif) {
     LIBCURVE_ERROR ret = mdsclient_.ListSnapShot(filename, userinfo,
                                                     seq, snapif);
     return -ret;
@@ -140,10 +141,8 @@ int SnapshotClient::GetFileInfo(const std::string &filename,
 int SnapshotClient::GetOrAllocateSegmentInfo(bool allocate,
                                         uint64_t offset,
                                         const FInfo_t* fi,
-                                        const UserInfo_t& userinfo,
                                         SegmentInfo *segInfo) {
-    int ret = mdsclient_.GetOrAllocateSegment(allocate, userinfo,
-                                        offset, fi, segInfo);
+    int ret = mdsclient_.GetOrAllocateSegment(allocate, offset, fi, segInfo);
 
     if (ret != LIBCURVE_ERROR::OK) {
         LOG(INFO) << "GetSnapshotSegmentInfo failed, ret = " << ret;

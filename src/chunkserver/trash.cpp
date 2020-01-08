@@ -13,7 +13,7 @@
 #include "src/chunkserver/datastore/filename_operator.h"
 #include "src/chunkserver/copyset_node.h"
 #include "include/chunkserver/chunkserver_common.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
+#include "src/chunkserver/uri_paser.h"
 
 using ::curve::chunkserver::RAFT_DATA_DIR;
 using ::curve::chunkserver::RAFT_META_DIR;
@@ -25,7 +25,7 @@ namespace chunkserver {
 int Trash::Init(TrashOptions options) {
     isStop_ = true;
 
-    if (FsAdaptorUtil::ParserUri(options.trashPath, &trashPath_).empty()) {
+    if (UriParser::ParseUri(options.trashPath, &trashPath_).empty()) {
         LOG(ERROR) << "not support trash uri's protocol"
                    << " error trashPath is: " << options.trashPath;
         return -1;
@@ -40,7 +40,24 @@ int Trash::Init(TrashOptions options) {
     scanPeriodSec_ = options.scanPeriodSec;
     localFileSystem_ = options.localFileSystem;
     chunkfilePool_ = options.chunkfilePool;
+    chunkNum_.store(0);
 
+     // 读取trash目录下的所有目录
+    std::vector<std::string> files;
+    localFileSystem_->List(trashPath_, &files);
+
+    // 遍历trash下的文件
+    for (auto &file : files) {
+        // 如果不是copyset目录，跳过
+        if (!IsCopysetInTrash(file)) {
+            continue;
+        }
+        std::string copysetDir = trashPath_ + "/" + file;
+        uint32_t chunkNum = CountChunkNumInCopyset(copysetDir);
+        chunkNum_.fetch_add(chunkNum);
+    }
+    LOG(INFO) << "Init trash success. "
+              << "Current num of chunks in trash: " << chunkNum_.load();
     return 0;
 }
 
@@ -57,11 +74,11 @@ int Trash::Run() {
 
 int Trash::Fini() {
     if (!isStop_.exchange(true)) {
-        LOG(INFO) << "stop trash recycle";
-        exitcv_.notify_one();
+        LOG(INFO) << "stop Trash...";
+        sleeper_.interrupt();
         recycleThread_.join();
     }
-    LOG(INFO) << "stop trash thread ok.";
+    LOG(INFO) << "stop trash ok.";
     return 0;
 }
 
@@ -92,20 +109,15 @@ int Trash::RecycleCopySet(const std::string &dirPath) {
         LOG(ERROR) << "rename " << dirPath << " to " << dst << " error";
         return -1;
     }
-
+    uint32_t chunkNum = CountChunkNumInCopyset(dst);
+    chunkNum_.fetch_add(chunkNum);
+    LOG(INFO) << "Recycle copyset success. Copyset path: " << dst
+              << ", current num of chunks in trash: " << chunkNum_.load();
     return 0;
 }
 
 void Trash::DeleteEligibleFileInTrashInterval() {
-     while (!isStop_) {
-         // 睡眠一段时间
-         std::unique_lock<std::mutex> lk(exitmtx_);
-         exitcv_.wait_for(lk, std::chrono::seconds(scanPeriodSec_),
-                          [&]()->bool{ return isStop_;});
-        if (isStop_) {
-            return;
-        }
-
+     while (sleeper_.wait_for(std::chrono::seconds(scanPeriodSec_))) {
         // 扫描回收站
          DeleteEligibleFileInTrash();
      }
@@ -127,7 +139,7 @@ void Trash::DeleteEligibleFileInTrash() {
     // 遍历trash下的文件
     for (auto &file : files) {
         // 如果不是copyset目录，跳过
-        if (!IsCopySetDir(file)) {
+        if (!IsCopysetInTrash(file)) {
             continue;
         }
 
@@ -137,12 +149,11 @@ void Trash::DeleteEligibleFileInTrash() {
         }
 
         // 清理copyset目录
-        std::string copysetPath = trashPath_ + "/" + file;
-        CleanCopySet(copysetPath);
+        CleanCopySet(copysetDir);
     }
 }
 
-bool Trash::IsCopySetDir(const std::string &dirName) {
+bool Trash::IsCopysetInTrash(const std::string &dirName) {
     // 合法的copyset目录: 高32位PoolId(>0)组成， 低32位由copysetId(>0)组成
     // 目录是十进制形式
     // 例如：2860448220024 (poolId: 666, copysetId: 888)
@@ -219,6 +230,8 @@ void Trash::CleanCopySet(const std::string &copysetPath) {
             LOG(ERROR) << "Trash find unknown file " << filePath;
         }
     }
+    LOG(INFO) << "Clean copyset success. Copyset path: " << copysetPath
+              << ", current num of chunks in trash: " << chunkNum_.load();
 }
 
 void Trash::RecycleChunks(const std::string &dataPath) {
@@ -250,8 +263,31 @@ void Trash::RecycleChunks(const std::string &dataPath) {
         if (0 != chunkfilePool_->RecycleChunk(chunkPath)) {
             LOG(ERROR) << "Trash  failed recycle chunk " << chunkPath
                        << " to chunkfilePool";
+            continue;
         }
+
+        chunkNum_.fetch_sub(1);
     }
+}
+
+uint32_t Trash::CountChunkNumInCopyset(const std::string &copysetPath) {
+    std::string dataPath = copysetPath + "/" + RAFT_DATA_DIR;
+    std::vector<std::string> chunks;
+    localFileSystem_->List(dataPath, &chunks);
+
+    uint32_t chunkNum = 0;
+    // 遍历data下面的chunk
+    for (auto &chunk : chunks) {
+        // 不是chunkfile或者snapshotfile
+        if (!IsChunkOrSnapShotFile(chunk)) {
+            LOG(WARNING) << "Trash find a illegal file:"
+                         << chunk << " in " << dataPath
+                         << ", filename: " << chunk;
+            continue;
+        }
+        ++chunkNum;
+    }
+    return chunkNum;
 }
 
 }  // namespace chunkserver

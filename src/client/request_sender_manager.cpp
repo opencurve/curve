@@ -28,9 +28,12 @@ RequestSenderManager::SenderPtr RequestSenderManager::GetOrCreateSender(
         // 不存在则创建
         senderPtr = std::make_shared<RequestSender>(leaderId, leaderAddr);
         CHECK(nullptr != senderPtr) << "new RequestSender failed";
-        if (0 != senderPtr->Init(senderopt)) {
+
+        int rc = senderPtr->Init(senderopt);
+        if (0 != rc) {
             return nullptr;
         }
+
         senderPool_.insert(std::pair<ChunkServerID, SenderPtr>(leaderId,
                                                                senderPtr));
     }

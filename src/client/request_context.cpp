@@ -14,10 +14,14 @@
 namespace curve {
 namespace client {
 
+std::atomic<uint64_t> RequestContext::reqCtxID_(1);
+
 RequestContext::RequestContext() {
     readBuffer_ = nullptr;
     writeBuffer_ = nullptr;
     chunkinfodetail_ = nullptr;
+
+    id_         = reqCtxID_.fetch_add(1);
 
     seq_        = 0;
     offset_     = 0;
@@ -34,7 +38,5 @@ void RequestContext::UnInit() {
     delete done_;
 }
 
-RequestContext::~RequestContext() {
-}
 }  // namespace client
 }  // namespace curve

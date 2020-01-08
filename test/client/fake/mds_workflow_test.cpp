@@ -18,7 +18,7 @@
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:6666";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:6666";   // NOLINT
 
 DECLARE_uint64(test_disk_size);
 DEFINE_bool(pre_write, true, "write for test");
@@ -40,16 +40,16 @@ int main(int argc, char ** argv) {
         if (FLAGS_pre_write) {
             std::string configpath = "./client.conf";   // NOLINT
             std::string config = ""\
-            "metaserver_addr=127.0.0.1:6666\n" \
-            "getLeaderRetry=3\n"\
-            "queueCapacity=4096\n"\
-            "threadpoolSize=2\n"\
-            "opRetryIntervalUs=200000\n"\
-            "opMaxRetry=3\n"\
+            "mdsMetaServerAddr=127.0.0.1:6666\n" \
+            "metacacheGetLeaderRetry=3\n"\
+            "scheduleQueueCapacity=4096\n"\
+            "scheduleThreadpoolSize=2\n"\
+            "chunkserverOPRetryIntervalUS=200000\n"\
+            "chunkserverOPMaxRetry=3\n"\
             "pre_allocate_context_num=1024\n"\
-            "ioSplitMaxSizeKB=64\n"\
-            "enableAppliedIndexRead=1\n"\
-            "loglevel=0";
+            "fileIOSplitMaxSizeKB=64\n"\
+            "chunkserverEnableAppliedIndexRead=1\n"\
+            "logLevel=0";
 
             int fd_ =  open(configpath.c_str(), O_CREAT | O_RDWR);
             int len = write(fd_, config.c_str(), config.length());

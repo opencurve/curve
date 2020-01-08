@@ -8,6 +8,7 @@
 #include "src/client/request_closure.h"
 #include "src/client/io_tracker.h"
 #include "src/client/request_context.h"
+#include "src/client/chunk_closure.h"
 
 using curve::common::ReadLockGuard;
 using curve::common::WriteLockGuard;
@@ -18,6 +19,7 @@ RWLock RequestClosure::rwLock_;
 std::map<IOManagerID, InflightControl*> RequestClosure::inflightCntlMap_;
 
 RequestClosure::RequestClosure(RequestContext* reqctx) {
+    suspendRPC_ = false;
     managerID_ = 0;
     retryTimes_ = 0;
     errcode_ = -1;
@@ -40,6 +42,9 @@ void RequestClosure::SetFailed(int errorcode) {
 
 void RequestClosure::Run() {
     ReleaseInflightRPCToken();
+    if (suspendRPC_) {
+        MetricHelper::DecremIOSuspendNum(metric_);
+    }
     tracker_->HandleResponse(reqCtx_);
 }
 
@@ -71,17 +76,17 @@ uint64_t RequestClosure::GetStartTime() {
     return starttime_;
 }
 
-int RequestClosure::AddInflightCntl(IOManagerID id,
-                                     InFlightIOCntlInfo_t opt) {
+int RequestClosure::AddInflightCntl(IOManagerID id, InFlightIOCntlInfo_t opt) {
     WriteLockGuard lk(rwLock_);
     auto it = inflightCntlMap_.find(id);
     if (it == inflightCntlMap_.end()) {
-        inflightCntlMap_[id] = new InflightControl;
-        if (inflightCntlMap_[id] == nullptr) {
+        auto cntl = new (std::nothrow) InflightControl();
+        if (cntl == nullptr) {
             LOG(ERROR) << "InflightControl allocate failed!";
             return -1;
         }
-        inflightCntlMap_[id]->SetMaxInflightNum(opt.maxInFlightRPCNum);
+        cntl->SetMaxInflightNum(opt.fileMaxInFlightRPCNum);
+        inflightCntlMap_.emplace(id, cntl);
     }
     return 0;
 }

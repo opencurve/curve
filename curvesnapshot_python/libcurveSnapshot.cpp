@@ -171,12 +171,12 @@ int GetOrAllocateSegmentInfo(const char* filename,
     fileinfo.chunksize = chunksize.value;
     fileinfo.fullPathName = std::string(filename);
     fileinfo.filename   = std::string(filename);
+    fileinfo.userinfo = UserInfo(userinfo.owner, userinfo.password);
 
     curve::client::SegmentInfo seg;
     int ret = globalSnapshotclient->GetOrAllocateSegmentInfo(false,
                                 offset.value,
                                 &fileinfo,
-                                UserInfo(userinfo.owner, userinfo.password),
                                 &seg);
     segInfo->segmentsize.value = seg.segmentsize;
     segInfo->chunksize.value = seg.chunksize;

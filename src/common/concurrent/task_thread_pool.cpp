@@ -50,7 +50,7 @@ int TaskThreadPool::Start(int numThreads, int queueCapacity) {
     if (!running_.exchange(true, std::memory_order_acq_rel)) {
         threads_.reserve(numThreads);
         for (int i = 0; i < numThreads; ++i) {
-            threads_.emplace_back(new std::thread(std::bind(&TaskThreadPool::ThreadFunc,  //NOLINT
+            threads_.emplace_back(new std::thread(std::bind(&TaskThreadPool::ThreadFunc,  // NOLINT
                                                             this)));
         }
     }

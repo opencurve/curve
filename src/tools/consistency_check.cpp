@@ -23,18 +23,20 @@ DEFINE_bool(check_hash, true, R"(用户需要先确认copyset的applyindex一致
                         检查copyset内容是不是一致)");
 
 
+using curve::chunkserver::COPYSET_OP_STATUS;
+
 bool CheckFileConsistency::Init() {
     curve::client::ClientConfig cc;
-    LOG(INFO) << "config path = " << FLAGS_client_config_path.c_str();
     if (cc.Init(FLAGS_client_config_path.c_str()) != 0) {
-        LOG(ERROR) << "load config failed!";
+        std::cout << "Load config failed, config path: "
+                  << FLAGS_client_config_path.c_str() << std::endl;
         return false;
     }
 
     FileServiceOption_t fsopt = cc.GetFileServiceOption();
 
     if (mdsclient_.Initialize(fsopt.metaServerOpt) != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "mds client init failed!";
+        std::cout << "Mds client init failed!" << std::endl;
         return false;
     }
 
@@ -55,15 +57,17 @@ bool CheckFileConsistency::FetchFileCopyset() {
 
     curve::client::UserInfo_t userinfo;
     userinfo.owner = FLAGS_username;
+    finfo.userinfo = userinfo;
 
     for (int i = 0; i < FLAGS_filesize/FLAGS_segmentsize; i++) {
         curve::client::SegmentInfo_t segInfo;
 
         // 1. 获取文件的copyset id信息
         LIBCURVE_ERROR ret = mdsclient_.GetOrAllocateSegment(false,
-                             userinfo, i * FLAGS_segmentsize, &finfo, &segInfo);
+                                    i * FLAGS_segmentsize, &finfo, &segInfo);
         if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "get segment info failed, exit consistency check!";
+            std::cout << "Get segment info failed, exit consistency check!"
+                      << std::endl;
             return false;
         }
 
@@ -75,7 +79,8 @@ bool CheckFileConsistency::FetchFileCopyset() {
                                        segInfo.lpcpIDInfo.cpidVec,
                                        &cpinfoVec);
         if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "getServerList info failed, exit consistency check!";
+            std::cout << "GetServerList info failed, exit consistency check!"
+                      << std::endl;
             return false;
         }
         copysetInfo.insert(copysetInfo.end(),
@@ -98,8 +103,8 @@ bool CheckFileConsistency::ReplicasConsistency() {
                                 nullptr) !=0) {
                 retryCount++;
                 if (retryCount > 5) {
-                    LOG(ERROR) << "can not create channel to "
-                               << iter.csaddr_.ToString().c_str();
+                    std::cout << "Can not create channel to "
+                              << iter.csaddr_.ToString().c_str() << std::endl;
                     return false;
                 }
             }
@@ -118,14 +123,26 @@ bool CheckFileConsistency::ReplicasConsistency() {
 
                 request.set_logicpoolid(lpid_);
                 request.set_copysetid(cpinfo.cpid_);
-                request.set_allocated_peer(peer);;
+                request.set_allocated_peer(peer);
                 request.set_queryhash(FLAGS_check_hash);
 
                 curve::chunkserver::CopysetService_Stub stub(&channel);
                 stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
                 if (cntl.Failed()) {
-                    LOG(ERROR) << cntl.ErrorText() << std::endl;
+                    std::cout << "GetCopysetStatus from "
+                              << iter.csaddr_.ToString().c_str()
+                              << " fail, error content: "
+                              << cntl.ErrorText() << std::endl;
                 } else {
+                    if (response.status() !=
+                            COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
+                        std::cout << "GetCopysetStatus of " << cpinfo.cpid_
+                                  << " from "
+                                  << iter.csaddr_.ToString().c_str()
+                                  << " fail, status code: "
+                                  << response.status() << std::endl;
+                        return false;
+                    }
                     // 3. 存储要检查的内容
                     if (FLAGS_check_hash) {
                         copysetHash.push_back(response.hash());
@@ -138,7 +155,7 @@ bool CheckFileConsistency::ReplicasConsistency() {
             }
 
             if (retry == FLAGS_retry_times) {
-                LOG(ERROR) << "GetCopysetStatus rpc timeout!";
+                std::cout << "GetCopysetStatus rpc timeout!" << std::endl;
                 return false;
             }
         }
@@ -146,32 +163,31 @@ bool CheckFileConsistency::ReplicasConsistency() {
         // 4. 检查当前copyset的chunkserver内容是否一致
         if (FLAGS_check_hash) {
             if (copysetHash.empty()) {
-                LOG(ERROR) << "has no copyset info!";
+                std::cout << "Has no copyset hash info!" << std::endl;
                 return true;
             }
             std::string hash = *copysetHash.begin();
             for (auto peerHash : copysetHash) {
-                LOG(INFO) << "hash value = " << peerHash.c_str();
                 if (peerHash.compare(hash) != 0) {
-                    LOG(ERROR) << "hash not equal! previous hash = " << hash
-                               << ", current hash = " << peerHash
-                               << ", copyset id = " << cpinfo.cpid_
-                               << ", logical pool id = " << lpid_;
+                    std::cout << "Hash not equal! previous hash = " << hash
+                              << ", current hash = " << peerHash
+                              << ", copyset id = " << cpinfo.cpid_
+                              << ", logical pool id = " << lpid_ << std::endl;
                     return false;
                 }
             }
         } else {
             if (applyIndexVec.empty()) {
-                LOG(ERROR) << "has no copyset info!";
+                std::cout << "Has no copyset apply index info!" << std::endl;
                 return true;
             }
             uint64_t index = *applyIndexVec.begin();
             for (auto applyindex : applyIndexVec) {
                 if (index != applyindex) {
-                    LOG(ERROR) << "apply index not equal! previous apply index "
-                               << index << ", current index = " << applyindex
-                               << ", copyset id = " << cpinfo.cpid_
-                               << ", logical pool id = " << lpid_;
+                    std::cout << "Apply index not equal! previous apply index "
+                              << index << ", current index = " << applyindex
+                              << ", copyset id = " << cpinfo.cpid_
+                              << ", logical pool id = " << lpid_ << std::endl;
                     return false;
                 }
             }

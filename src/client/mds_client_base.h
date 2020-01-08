@@ -68,6 +68,9 @@ using curve::mds::GetOrAllocateSegmentRequest;
 using curve::mds::GetOrAllocateSegmentResponse;
 using curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
+using curve::mds::topology::GetClusterInfoRequest;
+using curve::mds::topology::GetClusterInfoResponse;
+using curve::mds::topology::GetChunkServerInfoResponse;
 
 extern const char* kRootUserName;
 
@@ -245,6 +248,17 @@ class MDSClientBase {
                     GetChunkServerListInCopySetsResponse* response,
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
+
+    /**
+     * 获取mds对应的cluster id
+     * @param[out]: response为该rpc的respoonse，提供给外部处理
+     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
+     * @param[in]: channel是当前与mds建立的通道
+     */
+    void GetClusterInfo(GetClusterInfoResponse* response,
+                        brpc::Controller* cntl,
+                        brpc::Channel* channel);
+
     /**
      * 创建clone文件
      * @param:destination clone目标文件名
@@ -284,7 +298,6 @@ class MDSClientBase {
     /**
      * 获取segment的chunk信息，并更新到Metacache
      * @param: allocate为true的时候mds端发现不存在就分配，为false的时候不分配
-     * @param: userinfo为user信息
      * @param: offset为文件整体偏移
      * @param: fi是当前文件的基本信息
      * @param[out]: response为该rpc的response，提供给外部处理
@@ -292,7 +305,6 @@ class MDSClientBase {
      * @param[in]:channel是当前与mds建立的通道
      */
     void GetOrAllocateSegment(bool allocate,
-                    const UserInfo_t& userinfo,
                     uint64_t offset,
                     const FInfo_t* fi,
                     GetOrAllocateSegmentResponse* response,
@@ -392,6 +404,20 @@ class MDSClientBase {
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
 
+    /**
+     * 获取chunkserverID信息
+     * @param[in]: ip为当前client的监听地址
+     * @param[in]: port为监听端口
+     * @param[out]: response为该rpc的response，提供给外部处理
+     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
+     * @param[in]:channel是当前与mds建立的通道
+     */
+    void GetChunkServerInfo(const std::string& ip,
+                    uint16_t port,
+                    GetChunkServerInfoResponse* reponse,
+                    brpc::Controller* cntl,
+                    brpc::Channel* channel);
+
  private:
     /**
      * 为不同的request填充user信息
@@ -402,28 +428,15 @@ class MDSClientBase {
         uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
         request->set_owner(userinfo.owner);
         request->set_date(date);
-
-        if (!userinfo.owner.compare(kRootUserName) &&
-             userinfo.password.compare("")) {
-            std::string str2sig = Authenticator::GetString2Signature(date,
-                                                        userinfo.owner);
-            std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                         userinfo.password);
-            request->set_signature(sig);
-        }
-    }
-
-    /**
-     * 递增controller id并返回
-     */
-    inline uint64_t GetLogId() {
-       return cntlID_.fetch_add(1);
+        request->set_signature(CalcSignature(userinfo, date));
     }
 
  private:
-    // controller id，用于trace整个rpc IO链路
-    // 这里直接用uint64即可，在可预测的范围内，不会溢出
-    std::atomic<uint64_t> cntlID_;
+    inline bool IsRootUserAndHasPassword(const UserInfo& userinfo) const {
+       return userinfo.owner == kRootUserName && !userinfo.password.empty();
+    }
+
+    std::string CalcSignature(const UserInfo& userinfo, uint64_t date) const;
 
     // 当前模块的初始化option配置
     MetaServerOption_t metaServerOpt_;

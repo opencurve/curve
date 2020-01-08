@@ -140,6 +140,18 @@ class TopologyServiceImpl : public TopologyService {
                       GetChunkServerListInCopySetsResponse* response,
                       google::protobuf::Closure* done);
 
+    virtual void GetCopySetsInChunkServer(
+                      google::protobuf::RpcController* cntl_base,
+                      const GetCopySetsInChunkServerRequest* request,
+                      GetCopySetsInChunkServerResponse* response,
+                      google::protobuf::Closure* done);
+
+    virtual void GetClusterInfo(
+                      google::protobuf::RpcController* cntl_base,
+                      const GetClusterInfoRequest* request,
+                      GetClusterInfoResponse* response,
+                      google::protobuf::Closure* done);
+
  private:
     std::shared_ptr<TopologyServiceManager> topology_;
 };

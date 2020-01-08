@@ -21,6 +21,7 @@
 #include "src/mds/heartbeat/chunkserver_healthy_checker.h"
 #include "src/mds/schedule/coordinator.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/interruptible_sleeper.h"
 #include "proto/heartbeat.pb.h"
 #include "src/mds/topology/topology_stat.h"
 
@@ -34,6 +35,7 @@ using ::curve::mds::schedule::Coordinator;
 using ::curve::common::Thread;
 using ::curve::common::Atomic;
 using ::curve::common::RWLock;
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -112,9 +114,9 @@ class HeartbeatManager {
     /**
      * @brief CheckRequest 检查心跳上报的request内容是否合法
      *
-     * @return 合法返回true, 有非法参数返回false
+     * @return 合法返回HeartbeatStatusCode::hbOK, 否则返回对应的错误码
      */
-    bool CheckRequest(const ChunkServerHeartbeatRequest &request);
+    HeartbeatStatusCode CheckRequest(const ChunkServerHeartbeatRequest &request);  // NOLINT
 
     // TODO(lixiaocui): 优化，统一heartbeat和topology中两个CopySetInfo的名字
     /**
@@ -160,6 +162,7 @@ class HeartbeatManager {
     // 管理chunkserverHealthyChecker线程
     Thread backEndThread_;
     Atomic<bool> isStop_;
+    InterruptibleSleeper sleeper_;
     int chunkserverHealthyCheckerRunInter_;
 };
 

@@ -48,7 +48,7 @@ class Authenticator {
         int                 key_len,    /* length of authentication key  */
         void                *digest);
 
-    static char* Base64(const unsigned char *src, size_t sz);
+    static std::string Base64(const unsigned char *src, size_t sz);
 };
 }   // namespace common
 }   // namespace curve
