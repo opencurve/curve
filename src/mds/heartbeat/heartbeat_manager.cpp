@@ -66,18 +66,17 @@ void HeartbeatManager::Run() {
 void HeartbeatManager::Stop() {
     if (!isStop_.exchange(true)) {
         LOG(INFO) << "stop heartbeatManager...";
+        sleeper_.interrupt();
         backEndThread_.join();
-        LOG(INFO) << "stop heartbeatManager ok!";
+        LOG(INFO) << "stop heartbeatManager ok.";
     } else {
         LOG(INFO) << "heartbeatManager not running.";
     }
 }
 
 void HeartbeatManager::ChunkServerHealthyChecker() {
-    while (!isStop_) {
-        std::this_thread::
-        sleep_for(
-            std::chrono::milliseconds(chunkserverHealthyCheckerRunInter_));
+    while (sleeper_.wait_for(
+        std::chrono::milliseconds(chunkserverHealthyCheckerRunInter_))) {
         healthyChecker_->CheckHeartBeatInterval();
     }
 }
@@ -115,6 +114,9 @@ void HeartbeatManager::UpdateChunkServerStatistics(
         stat.writeRate = request.stats().writerate();
         stat.readIOPS = request.stats().readiops();
         stat.writeIOPS = request.stats().writeiops();
+        stat.chunkSizeUsedBytes = request.stats().chunksizeusedbytes();
+        stat.chunkSizeLeftBytes = request.stats().chunksizeleftbytes();
+        stat.chunkSizeTrashedBytes = request.stats().chunksizetrashedbytes();
 
         for (int i = 0; i < request.copysetinfos_size(); i++) {
             CopysetStat cstat;
@@ -131,8 +133,11 @@ void HeartbeatManager::UpdateChunkServerStatistics(
                     topology_->FindChunkServerNotRetired(
                     leaderIp, leaderPort);
                 if (UNINTIALIZE_ID == cstat.leader) {
-                    LOG(INFO) << "hearbeat receive chunkserver "
-                              << "which dose not have leader.";
+                    LOG(INFO) << "hearbeat receive from chunkserver(id:"
+                        << request.chunkserverid()
+                        << ",ip:"<< request.ip() << ",port:" << request.port()
+                        << "), in which copyset(" << cstat.logicalPoolId
+                        << "," << cstat.copysetId << ") dose not have leader.";
                 }
             } else {
                 LOG(ERROR) << "hearbeat failed on SplitPeerId, "

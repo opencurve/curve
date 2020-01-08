@@ -23,6 +23,8 @@
 #include "test/client/fake/mock_schedule.h"
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/client_common.h"
+#include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 using curve::client::EndPoint;
 
@@ -133,6 +135,8 @@ TEST_F(TestLibcbdLibcurve, ExtendTest) {
     ASSERT_EQ(ret, 0);
     ret = cbd_lib_resize(filename, NEWSIZE);
     ASSERT_EQ(ret, 0);
+    ret = cbd_lib_resize(filename, -1);
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, ret);
 
     ret = cbd_lib_fini();
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
@@ -240,14 +244,50 @@ TEST_F(TestLibcbdLibcurve, AioReadWriteTest) {
     ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
 }
 
-std::string metaserver_addr = "127.0.0.1:9151";     // NOLINT
+TEST_F(TestLibcbdLibcurve, StatFileTest) {
+    int64_t ret;
+    CurveOptions opt;
+
+    memset(&opt, 0, sizeof(opt));
+
+    // testing with conf specified
+    opt.conf = const_cast<char*>(configpath.c_str());
+    ret = cbd_lib_init(&opt);
+    ASSERT_EQ(ret, 0);
+
+    ret = cbd_lib_filesize(filename);
+    ASSERT_EQ(ret, FILESIZE);
+
+    ret = cbd_lib_fini();
+    ASSERT_EQ(ret, LIBCURVE_ERROR::OK);
+}
+
+std::string mdsMetaServerAddr = "127.0.0.1:9151";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/testConfig/client_libcbd.conf";   // NOLINT
 
+const std::vector<std::string> clientConf {
+    std::string("mds.listen.addr=127.0.0.1:9151"),
+    std::string("global.logPath=./runlog/"),
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=3"),
+    std::string("metacache.getLeaderRetry=3"),
+    std::string("metacache.getLeaderTimeOutMS=1000"),
+    std::string("global.fileMaxInFlightRPCNum=2048"),
+    std::string("metacache.rpcRetryIntervalUS=500"),
+    std::string("mds.rpcRetryIntervalUS=500"),
+    std::string("schedule.threadpoolSize=2"),
+};
+
 int main(int argc, char ** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     google::ParseCommandLineFlags(&argc, &argv, false);
+
+    curve::CurveCluster* cluster = new curve::CurveCluster();
+
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(
+        configpath, clientConf);
 
     int ret = RUN_ALL_TESTS();
     return ret;

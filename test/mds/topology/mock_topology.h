@@ -230,13 +230,13 @@ class MockTopologyServiceManager : public TopologyServiceManager {
                      const ListLogicalPoolRequest *request,
                      ListLogicalPoolResponse *response));
 
+    MOCK_METHOD2(GetChunkServerListInCopySets, void(
+        const GetChunkServerListInCopySetsRequest *request,
+        GetChunkServerListInCopySetsResponse *response));
+
     MOCK_METHOD2(GetCopySetsInChunkServer, void(
         const GetCopySetsInChunkServerRequest *request,
         GetCopySetsInChunkServerResponse *response));
-
-    MOCK_METHOD2(GetChunkServerListInCopySets, void(
-                     const GetChunkServerListInCopySetsRequest *request,
-                     GetChunkServerListInCopySetsResponse *response));
 
     MOCK_METHOD2(GetClusterInfo,
                  void(const GetClusterInfoRequest* request,

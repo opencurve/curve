@@ -644,6 +644,20 @@ butil::Status CopysetNode::RemovePeer(const Peer& peer) {
     return butil::Status::OK();
 }
 
+butil::Status CopysetNode::ChangePeer(const std::vector<Peer>& newPeers) {
+    std::vector<PeerId> newPeerIds;
+    for (auto& peer : newPeers) {
+        newPeerIds.emplace_back(peer.address());
+    }
+    Configuration newConf(newPeerIds);
+
+    braft::Closure* changePeerDone = braft::NewCallback(DummyFunc,
+            reinterpret_cast<void *>(0));
+    raftNode_->change_peers(newConf, changePeerDone);
+
+    return butil::Status::OK();
+}
+
 void CopysetNode::UpdateAppliedIndex(uint64_t index) {
     uint64_t curIndex = appliedIndex_.load(std::memory_order_acquire);
     // 只更新比自己大的 index
@@ -711,19 +725,29 @@ int CopysetNode::GetConfChange(ConfigChangeType *type,
         return 0;
     }
 
-    // 目前仅支持单个成员的配置变更
-    if (1 == adding.size()) {
+    // change_peer场景，目前只支持从{ABC}变更到{ABD}的情况
+    if (1 == adding.size() && 1 == removing.size()) {
+        *type = ConfigChangeType::CHANGE_PEER;
+        // add的peer为target peer
+        alterPeer->set_address(adding.begin()->to_string());
+        return 0;
+    }
+
+    // add_peer场景
+    if (1 == adding.size() && 0 == removing.size()) {
         *type = ConfigChangeType::ADD_PEER;
         alterPeer->set_address(adding.begin()->to_string());
         return 0;
     }
 
-    if (1 == removing.size()) {
+    // remove_peer场景
+    if (1 == removing.size() && 0 == adding.size()) {
         *type = ConfigChangeType::REMOVE_PEER;
         alterPeer->set_address(removing.begin()->to_string());
         return 0;
     }
 
+    // transfer_leader场景
     if (!transferee.is_empty()) {
         *type = ConfigChangeType::TRANSFER_LEADER;
         alterPeer->set_address(transferee.to_string());
@@ -794,6 +818,70 @@ int CopysetNode::GetHash(std::string *hash) {
 
 void CopysetNode::GetStatus(NodeStatus *status) {
     raftNode_->get_status(status);
+}
+
+bool CopysetNode::GetLeaderStatus(NodeStatus *leaderStaus) {
+    NodeStatus status;
+    GetStatus(&status);
+    if (status.leader_id.is_empty()) {
+        return false;
+    }
+    if (status.leader_id == status.peer_id) {
+        *leaderStaus = status;
+        return true;
+    }
+
+    // get committed index from remote leader
+    brpc::Controller cntl;
+    cntl.set_timeout_ms(500);
+    brpc::Channel channel;
+    if (channel.Init(status.leader_id.addr, nullptr) !=0) {
+        LOG(WARNING) << "can not create channel to "
+                     << status.leader_id.addr
+                     << ", copyset " << GroupIdString();
+        return false;
+    }
+
+    CopysetStatusRequest request;
+    CopysetStatusResponse response;
+    curve::common::Peer *peer = new curve::common::Peer();
+    peer->set_address(status.leader_id.to_string());
+    request.set_logicpoolid(logicPoolId_);
+    request.set_copysetid(copysetId_);
+    request.set_allocated_peer(peer);
+    request.set_queryhash(false);
+
+    CopysetService_Stub stub(&channel);
+    stub.GetCopysetStatus(&cntl, &request, &response, nullptr);
+    if (cntl.Failed()) {
+        LOG(WARNING) << "get leader status failed: "
+                     << cntl.ErrorText()
+                     << ", copyset " << GroupIdString();
+        return false;
+    }
+
+    if (response.status() != COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS) {
+        LOG(WARNING) << "get leader status failed"
+                     << ", status: " << response.status()
+                     << ", copyset " << GroupIdString();
+        return false;
+    }
+
+    leaderStaus->state = (braft::State)response.state();
+    leaderStaus->peer_id.parse(response.peer().address());
+    leaderStaus->leader_id.parse(response.leader().address());
+    leaderStaus->readonly = response.readonly();
+    leaderStaus->term = response.term();
+    leaderStaus->committed_index = response.committedindex();
+    leaderStaus->known_applied_index = response.knownappliedindex();
+    leaderStaus->first_index = response.firstindex();
+    leaderStaus->pending_index = response.pendingindex();
+    leaderStaus->pending_queue_size = response.pendingqueuesize();
+    leaderStaus->applying_index = response.applyingindex();
+    leaderStaus->first_index = response.firstindex();
+    leaderStaus->last_index = response.lastindex();
+    leaderStaus->disk_index = response.diskindex();
+    return true;
 }
 
 }  // namespace chunkserver

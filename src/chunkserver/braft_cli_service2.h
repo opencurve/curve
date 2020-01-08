@@ -39,6 +39,12 @@ class BRaftCliServiceImpl2 : public CliService2 {
                     RemovePeerResponse2 *response,
                     Closure *done);
 
+    // 变更配置
+    void ChangePeers(RpcController *controller,
+                     const ChangePeersRequest2 *request,
+                     ChangePeersResponse2 *response,
+                     Closure *done);
+
     // 获取copyset的leader
     void GetLeader(RpcController *controller,
                    const GetLeaderRequest2 *request,
@@ -50,6 +56,12 @@ class BRaftCliServiceImpl2 : public CliService2 {
                         const TransferLeaderRequest2 *request,
                         TransferLeaderResponse2 *response,
                         Closure *done);
+
+    // 重置复制组成员
+    void ResetPeer(RpcController* controller,
+                   const ResetPeerRequest2* request,
+                   ResetPeerResponse2* response,
+                   Closure* done);
 
  private:
     /**

@@ -318,6 +318,96 @@ TEST_F(ScheduleMetricsTest, test_add_rm_transferOp) {
     }
 }
 
+TEST_F(ScheduleMetricsTest, test_add_rm_changeOp) {
+    Operator changeOp(1, CopySetKey{1, 4}, OperatorPriority::NormalPriority,
+            steady_clock::now(), std::make_shared<ChangePeer>(1, 4));
+    ::curve::mds::topology::CopySetInfo changeCsInfo(1, 4);
+    changeCsInfo.SetCopySetMembers(std::set<ChunkServerIdType>{1, 2, 3});
+    changeCsInfo.SetLeader(1);
+
+    {
+        // 1. 增加normal级别/changePeer类型的operator
+        EXPECT_CALL(*topo, GetCopySet(CopySetKey{1, 4}, _))
+            .WillOnce(DoAll(SetArgPointee<1>(changeCsInfo), Return(true)));
+        EXPECT_CALL(*topo, GetChunkServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(1)), Return(true)));
+        EXPECT_CALL(*topo, GetChunkServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(2)), Return(true)));
+        EXPECT_CALL(*topo, GetChunkServer(3, _))
+            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(3)), Return(true)));
+        EXPECT_CALL(*topo, GetChunkServer(4, _))
+            .WillOnce(DoAll(SetArgPointee<1>(GetChunkServer(4)), Return(true)));
+        EXPECT_CALL(*topo, GetServer(1, _))
+            .WillOnce(DoAll(SetArgPointee<1>(GetServer(1)), Return(true)));
+        EXPECT_CALL(*topo, GetServer(2, _))
+            .WillOnce(DoAll(SetArgPointee<1>(GetServer(2)), Return(true)));
+        EXPECT_CALL(*topo, GetServer(3, _))
+            .WillOnce(DoAll(SetArgPointee<1>(GetServer(3)), Return(true)));
+        EXPECT_CALL(*topo, GetServer(4, _))
+            .WillOnce(DoAll(SetArgPointee<1>(GetServer(4)), Return(true)));
+
+        scheduleMetrics->UpdateAddMetric(changeOp);
+        ASSERT_EQ(1, scheduleMetrics->operatorNum.get_value());
+        ASSERT_EQ(1, scheduleMetrics->normalOpNum.get_value());
+        ASSERT_EQ(1, scheduleMetrics->changeOpNum.get_value());
+        ASSERT_EQ(1, scheduleMetrics->operators.size());
+
+        ASSERT_EQ(std::to_string(changeCsInfo.GetLogicalPoolId()),
+            scheduleMetrics->operators[changeOp.copysetID].GetValueByKey(
+                "logicalPoolId"));
+         ASSERT_EQ(std::to_string(changeCsInfo.GetId()),
+            scheduleMetrics->operators[changeOp.copysetID].GetValueByKey(
+                "copySetId"));
+        std::string copysetpeers = GetChunkServerHostPort(1) + "," +
+            GetChunkServerHostPort(2) + "," + GetChunkServerHostPort(3);
+        ASSERT_EQ(copysetpeers,
+            scheduleMetrics->operators[changeOp.copysetID].GetValueByKey(
+                "copySetPeers"));
+        ASSERT_EQ(std::to_string(changeCsInfo.GetEpoch()),
+            scheduleMetrics->operators[changeOp.copysetID].GetValueByKey(
+                "copySetEpoch"));
+        ASSERT_EQ(std::to_string(changeOp.startEpoch),
+            scheduleMetrics->operators[changeOp.copysetID].GetValueByKey(
+                "startEpoch"));
+        ASSERT_EQ(NORMAL,
+            scheduleMetrics->operators[changeOp.copysetID].GetValueByKey(
+                "opPriority"));
+        ASSERT_EQ(CHANGEPEER,
+            scheduleMetrics->operators[changeOp.copysetID].GetValueByKey(
+                "opType"));
+        ASSERT_EQ(GetChunkServerHostPort(4),
+            scheduleMetrics->operators[changeOp.copysetID].GetValueByKey(
+                "opItem"));
+        std::string res =
+            std::string("{\"copySetEpoch\":\"0\",\"copySetId\":\"4\",") +
+            std::string("\"copySetLeader\":") +
+            std::string("\"pubbeta2-curve1.dg.163.org:9000\",\"") +
+            std::string("copySetPeers\":\"pubbeta2-curve1.dg.163.org:9000") +
+            std::string(",pubbeta2-curve2.dg.163.org:9000,") +
+            std::string("pubbeta2-curve3.dg.163.org:9000\",\"logicalPoolId") +
+            std::string("\":\"1\",\"opItem\":\"") +
+            std::string("pubbeta2-curve4.dg.163.org:9000\",\"opPriority\":") +
+            std::string("\"Normal\",\"opType\":\"ChangePeer\",") +
+            std::string("\"startEpoch\":\"1\"}");
+        ASSERT_EQ(res,
+            scheduleMetrics->operators[changeOp.copysetID].JsonBody());
+        LOG(INFO) << "format: "
+            << scheduleMetrics->operators[changeOp.copysetID].JsonBody();
+    }
+
+    {
+        // 2. 移除 1中的operator
+        scheduleMetrics->UpdateRemoveMetric(changeOp);
+        ASSERT_EQ(0, scheduleMetrics->operatorNum.get_value());
+        ASSERT_EQ(0, scheduleMetrics->changeOpNum.get_value());
+        ASSERT_EQ(0, scheduleMetrics->normalOpNum.get_value());
+        ASSERT_EQ(0, scheduleMetrics->operators.size());
+
+        // 移除map中不存在的metric应该没有问题
+        scheduleMetrics->UpdateRemoveMetric(changeOp);
+    }
+}
+
 TEST_F(ScheduleMetricsTest, test_abnormal) {
     Operator transferOp(1, CopySetKey{1, 3}, OperatorPriority::NormalPriority,
             steady_clock::now(), std::make_shared<TransferLeader>(1, 3));

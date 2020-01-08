@@ -38,18 +38,25 @@ class Scheduler {
      * @param[in] transTimeLimitSec leader变更mds端认为的超时时间
      * @param[in] removeTimeLimitSec 减一个副本mds端认为的超时时间
      * @param[in] addTimeLimtSec 增加一个副本mds端认为的超时时间
+     * @param[in] changeTimeLimitSec change一个副本mds端认为的超时时间
      * @param[in] scatterWithRangePerent scatter-width不能超过
      *            (1 + scatterWithRangePerent) * minScatterWdith
      * @param[in] topo 提供拓扑逻辑信息
      * @param[in] opController operator管理模块
      */
-    Scheduler(int transTimeLimitSec, int removeTimeLimitSec, int addTimeLimtSec,
+    Scheduler(
+        int transTimeLimitSec,
+        int removeTimeLimitSec,
+        int addTimeLimtSec,
+        int changeTimeLimitSec,
         float scatterWidthRangePerent,
         const std::shared_ptr<TopoAdapter> &topo,
         const std::shared_ptr<OperatorController> &opController) {
         this->transTimeSec_ = transTimeLimitSec;
         this->removeTimeSec_ = removeTimeLimitSec;
+        this->changeTimeSec_ = changeTimeLimitSec;
         this->addTimeSec_ = addTimeLimtSec;
+
         this->scatterWidthRangePerent_ = scatterWidthRangePerent;
         this->topo_ = topo;
         this->opController_ = opController;
@@ -96,6 +103,15 @@ class Scheduler {
      */
     int GetMinScatterWidth(PoolIdType lpid);
 
+    /**
+     * @brief CopysetAllPeersOnline 指定copyset的所有副本是否在线
+     *
+     * @param[in] copySetInfo 指定copyset
+     *
+     * @return true-所有副本都在线 false-有副本不在线
+     */
+    bool CopysetAllPeersOnline(const CopySetInfo &copySetInfo);
+
  protected:
     // chunkserver的scatter-width不能超过
     // (1 + minScatterWdith_) * scatterWidthRangePerent_
@@ -111,6 +127,8 @@ class Scheduler {
     int addTimeSec_;
     // remove peer的最大预计时间，超过需要报警
     int removeTimeSec_;
+    // change peer的最大预计时间，超过需要报警
+    int changeTimeSec_;
 };
 
 // copyset数量和chunkserver scatter-with均衡
@@ -135,11 +153,12 @@ class CopySetScheduler : public Scheduler {
                     int transTimeLimitSec,
                     int removeTimeLimitSec,
                     int addTimeLimitSec,
+                    int changeTimeLimitSec,
                     float copysetNumRangePercent,
                     float scatterWithRangePerent,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWithRangePerent, topo, opController) {
+            changeTimeLimitSec, scatterWithRangePerent, topo, opController) {
         this->runInterval_ = interSec;
         this->copysetNumRangePercent_ = copysetNumRangePercent;
     }
@@ -211,6 +230,20 @@ class CopySetScheduler : public Scheduler {
         Operator *op, ChunkServerIdType *source, ChunkServerIdType *target,
         CopySetInfo *choose);
 
+    /**
+     * @brief CopySetSatisfiyBasicMigrationCond
+     *        指定copyset是否符合下列条件：
+     *        1. copyset上没有正在进行的变更
+     *        2. copyset的副本数目与标准一致
+     *        3. topology初始化已完成
+     *        4. copyset的所有副本均在线
+     *
+     * @param[info] info 指定copyset
+     *
+     * @return true-符合所有条件 false-其中有条件不符合
+     */
+    bool CopySetSatisfiyBasicMigrationCond(const CopySetInfo &info);
+
  private:
     // CopySetScheduler运行时间间隔
     int64_t runInterval_;
@@ -241,10 +274,11 @@ class LeaderScheduler : public Scheduler {
                     int transTimeLimitSec,
                     int addTimeLimitSec,
                     int removeTimeLimitSec,
+                    int changeTimeLimitSec,
                     float scatterWidthRangePerent,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWidthRangePerent, topo, opController) {
+            changeTimeLimitSec, scatterWidthRangePerent, topo, opController) {
         this->runInterval_ = interSec;
         this->chunkserverCoolingTimeSec_ = chunkserverCoolingTimeSec;
     }
@@ -340,11 +374,12 @@ class RecoverScheduler : public Scheduler {
                     int transTimeLimitSec,
                     int removeTimeLimitSec,
                     int addTimeLimitSec,
+                    int changeTimeLimitSec,
                     float scatterWithRangePerent,
                     int chunkserverFailureTolerance,
                     const std::shared_ptr<TopoAdapter> &topo)
         : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-            scatterWithRangePerent, topo, opController) {
+            changeTimeLimitSec, scatterWithRangePerent, topo, opController) {
         this->runInterval_ = interSec;
         this->chunkserverFailureTolerance_ = chunkserverFailureTolerance;
     }
@@ -412,10 +447,11 @@ class ReplicaScheduler : public Scheduler {
                    int transTimeLimitSec,
                    int removeTimeLimitSec,
                    int addTimeLimitSec,
+                   int changeTimeLimitSec,
                    float scatterWidthRangePerent,
                    const std::shared_ptr<TopoAdapter> &topo)
       : Scheduler(transTimeLimitSec, removeTimeLimitSec, addTimeLimitSec,
-        scatterWidthRangePerent, topo, opController) {
+            changeTimeLimitSec, scatterWidthRangePerent, topo, opController) {
     this->opController_ = opController;
     this->runInterval_ = interSec;
     }

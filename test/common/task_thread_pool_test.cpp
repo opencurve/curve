@@ -20,13 +20,11 @@ using curve::common::CountDownEvent;
 
 void TestAdd1(int a, double b, CountDownEvent *cond) {
     double c = a + b;
-    std::cerr << "TestAdd1: " << c << std::endl;
     cond->Signal();
 }
 
 int TestAdd2(int a, double b, CountDownEvent *cond) {
     double c = a + b;
-    std::cerr << "TestAdd2: " << c << std::endl;
     cond->Signal();
     return 0;
 }
@@ -95,8 +93,7 @@ TEST(TaskThreadPool, basic) {
         CountDownEvent cond(3 * kMaxLoop);
 
         auto task = [&] {
-            std::cerr << runTaskCount.fetch_add(1, std::memory_order_acq_rel)
-                      << std::endl;
+            runTaskCount.fetch_add(1, std::memory_order_acq_rel);
             cond.Signal();
         };
 
@@ -126,7 +123,7 @@ TEST(TaskThreadPool, basic) {
         taskThreadPool.Stop();
     }
 
-    /* 测试 push 满了会阻塞 */
+    /* 测试队列满了，push会阻塞 */
     {
         std::atomic<int32_t> runTaskCount;
         runTaskCount.store(0, std::memory_order_release);
@@ -143,29 +140,11 @@ TEST(TaskThreadPool, basic) {
         CountDownEvent cond4(1);
         CountDownEvent startRunCond4(1);
 
-        auto waitTask1 = [&] {
-            startRunCond1.Signal();
-            cond1.Wait();
-            std::cerr << runTaskCount.fetch_add(1, std::memory_order_acq_rel)
-                      << std::endl;
-        };
-        auto waitTask2 = [&] {
-            startRunCond2.Signal();
-            cond2.Wait();
-            std::cerr << runTaskCount.fetch_add(1, std::memory_order_acq_rel)
-                      << std::endl;
-        };
-        auto waitTask3 = [&] {
-            startRunCond3.Signal();
-            cond3.Wait();
-            std::cerr << runTaskCount.fetch_add(1, std::memory_order_acq_rel)
-                      << std::endl;
-        };
-        auto waitTask4 = [&] {
-            startRunCond4.Signal();
-            cond4.Wait();
-            std::cerr << runTaskCount.fetch_add(1, std::memory_order_acq_rel)
-                      << std::endl;
+        auto waitTask = [&](CountDownEvent* sigCond,
+                            CountDownEvent* waitCond) {
+            sigCond->Signal();
+            waitCond->Wait();
+            runTaskCount.fetch_add(1, std::memory_order_acq_rel);
         };
 
         TaskThreadPool taskThreadPool;
@@ -174,10 +153,10 @@ TEST(TaskThreadPool, basic) {
         ASSERT_EQ(kThreadNums, taskThreadPool.ThreadOfNums());
 
         /* 把线程池的所有处理线程都卡住了 */
-        taskThreadPool.Enqueue(waitTask1);
-        taskThreadPool.Enqueue(waitTask2);
-        taskThreadPool.Enqueue(waitTask3);
-        taskThreadPool.Enqueue(waitTask4);
+        taskThreadPool.Enqueue(waitTask, &startRunCond1, &cond1);
+        taskThreadPool.Enqueue(waitTask, &startRunCond2, &cond2);
+        taskThreadPool.Enqueue(waitTask, &startRunCond3, &cond3);
+        taskThreadPool.Enqueue(waitTask, &startRunCond4, &cond4);
         /* 等待 waitTask1、waitTask2、waitTask3、waitTask4 都开始运行 */
         startRunCond1.Wait();
         startRunCond2.Wait();
@@ -187,8 +166,7 @@ TEST(TaskThreadPool, basic) {
         ASSERT_EQ(0, runTaskCount.load());
 
         auto task = [&] {
-            std::cerr << runTaskCount.fetch_add(1, std::memory_order_acq_rel)
-                      << std::endl;
+            runTaskCount.fetch_add(1, std::memory_order_acq_rel);
         };
 
         /* 记录线程 push 到线程池 queue 的 task 数量 */
@@ -201,31 +179,17 @@ TEST(TaskThreadPool, basic) {
         pushTaskCount2.store(0, std::memory_order_release);
         pushTaskCount3.store(0, std::memory_order_release);
 
-        auto threadFunc1 = [&] {
+        auto threadFunc = [&](std::atomic<int32_t>* pushTaskCount) {
             for (int i = 0; i < kMaxLoop; ++i) {
                 taskThreadPool.Enqueue(task);
-                pushTaskCount1.fetch_add(1);
-            }
-            pushThreadCond.Signal();
-        };
-        auto threadFunc2 = [&] {
-            for (int i = 0; i < kMaxLoop; ++i) {
-                taskThreadPool.Enqueue(task);
-                pushTaskCount2.fetch_add(1);
-            }
-            pushThreadCond.Signal();
-        };
-        auto threadFunc3 = [&] {
-            for (int i = 0; i < kMaxLoop; ++i) {
-                taskThreadPool.Enqueue(task);
-                pushTaskCount3.fetch_add(1);
+                pushTaskCount->fetch_add(1);
             }
             pushThreadCond.Signal();
         };
 
-        std::thread t1(threadFunc1);
-        std::thread t2(threadFunc2);
-        std::thread t3(threadFunc3);
+        std::thread t1(std::bind(threadFunc, &pushTaskCount1));
+        std::thread t2(std::bind(threadFunc, &pushTaskCount2));
+        std::thread t3(std::bind(threadFunc, &pushTaskCount3));
 
         /* 等待线程池 queue 被 push 满 */
         int pushTaskCount;
@@ -260,7 +224,7 @@ TEST(TaskThreadPool, basic) {
         while (true) {
             ::usleep(10);
             if (runTaskCount.load(std::memory_order_acquire)
-                >= 4 + 3 * kMaxLoop) { //NOLINT
+                >= 4 + 3 * kMaxLoop) {
                 break;
             }
         }

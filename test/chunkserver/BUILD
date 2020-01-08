@@ -6,171 +6,145 @@ DEPS = [
     "//external:gflags",
     "//external:glog",
     "//external:leveldb",
+    "//external:protobuf",
     "//proto:chunkserver-cc-protos",
     "//src/chunkserver:chunkserver-test-lib",
     "//src/chunkserver/datastore:chunkserver_datastore",
     "//src/common:curve_common",
     "//src/fs:lfs",
     "//test/fs:fs_mock",
+    "//test/chunkserver:chunkserver_mock",
+    "//test/chunkserver/datastore:datastore_mock",
     "//test/chunkserver/datastore:chunkfilepool_helper",
     "@com_google_googletest//:gtest",
     "@com_google_googletest//:gtest_main",
 ]
 
-cc_test(
-    name = "chunk-test1",
-    srcs = glob([
-        "copyset_node_manager_test.cpp",
-        "copyset_service_test.cpp",
-        "op_request_test.cpp",
-        "copyset_node_test.cpp",
-        "conf_epoch_file_test.cpp",
-        "inflight_throttle_test.cpp",
-        "concurrent_apply_unittest.cpp",
-        "mock_local_file_system.h",
+cc_library(
+    name = "chunkserver_mock",
+    srcs = [
+        "mock_copyset_node.h",
         "mock_node.h",
-        "mock_raftsnapshot_filesystem_adaptor.h",
         "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
-    deps = DEPS,
-)
-
-cc_test(
-    name = "chunk-test",
-    srcs = glob([
-        "chunk_service_test.cpp",
-        "chunkserver_test_util.h",
-        "chunkserver_test_util.cpp",
-        "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
-    linkopts = [
-        "-luuid",
+        "mock_raftsnapshot_filesystem_adaptor.h"
     ],
-    deps = DEPS,
-)
-
-cc_test(
-    name = "chunk-test2",
-    srcs = glob([
-        "chunk_service_test2.cpp",
-        "mock_local_file_system.h",
-        "chunkserver_test_util.h",
-        "chunkserver_test_util.cpp",
-        "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
-    linkopts = [
-        "-luuid",
-    ],
-    deps = DEPS,
-)
-
-cc_test(
-    name = "copyset-epoch-test",
-    srcs = glob([
-        "copyset_epoch_test.cpp",
-        "mock_local_file_system.h",
-        "chunkserver_test_util.h",
-        "chunkserver_test_util.cpp",
-        "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
-    linkopts = [
-        "-luuid",
-    ],
-    deps = DEPS,
-)
-
-cc_test(
-    name = "chunk-snapshot-test",
-    srcs = glob([
-        "chunkserver_test_util.h",
-        "chunkserver_test_util.cpp",
-        "chunkserver_snapshot_test.cpp",
-        "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
+    visibility = ["//visibility:public"],
     deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:bthread",
-        "//external:butil",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//proto:chunkserver-cc-protos",
         "//src/chunkserver:chunkserver-test-lib",
         "//src/common:curve_common",
-        "@com_google_googletest//:gtest_main",
+        "//external:braft",
     ],
-)
-
-cc_test(
-    name = "cli-test",
-    srcs = glob([
-        "cli_test.cpp",
-        "chunkserver_test_util.h",
-        "chunkserver_test_util.cpp",
-        "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
-    deps = DEPS,
-)
-
-cc_test(
-    name = "cli2-test",
-    srcs = glob([
-        "cli2_test.cpp",
-        "chunkserver_test_util.h",
-        "chunkserver_test_util.cpp",
-        "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
-    linkopts = [
-        "-luuid",
-    ],
-    deps = DEPS,
-)
-
-cc_test(
-    name = "braftcliservice-test",
-    srcs = glob([
-        "braft_cli_service_test.cpp",
-        "chunkserver_test_util.h",
-        "chunkserver_test_util.cpp",
-        "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
-    deps = DEPS,
-)
-
-cc_test(
-    name = "braftcliservice2-test",
-    srcs = glob([
-        "braft_cli_service2_test.cpp",
-        "chunkserver_test_util.h",
-        "chunkserver_test_util.cpp",
-        "fake_datastore.h",
-    ]),
-    copts = ["-std=c++14"],
-    linkopts = [
-        "-luuid",
-    ],
-    deps = DEPS,
 )
 
 cc_library(
     name = "chunkserver-test-util-lib",
     srcs = glob([
-        "fake_datastore.h",
         "chunkserver_test_util.h",
         "chunkserver_test_util.cpp",
     ]),
     copts = ["-std=c++14"],
     visibility = ["//visibility:public"],
     deps = DEPS,
+)
+
+cc_test(
+    name = "chunk-test1",
+    srcs = glob([
+        "copyset_service_test.cpp",
+        "op_request_test.cpp",
+        "copyset_node_test.cpp",
+        "conf_epoch_file_test.cpp",
+        "inflight_throttle_test.cpp",
+        "concurrent_apply_unittest.cpp",
+    ]),
+    copts = ["-std=c++14"],
+    deps = DEPS,
+)
+
+cc_test(
+    name = "copyset-node-manager-test",
+    srcs = ["copyset_node_manager_test.cpp"],
+    copts = ["-std=c++14"],
+    deps = DEPS,
+)
+
+cc_test(
+    name = "chunk-service-test",
+    srcs = ["chunk_service_test.cpp"],
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
+)
+
+cc_test(
+    name = "chunk-service-test2",
+    srcs = ["chunk_service_test2.cpp"],
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
+)
+
+cc_test(
+    name = "copyset-epoch-test",
+    srcs = ["copyset_epoch_test.cpp"],
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
+)
+
+cc_test(
+    name = "chunk-snapshot-test",
+    srcs = ["chunkserver_snapshot_test.cpp"],
+    copts = ["-std=c++14"],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
+)
+
+cc_test(
+    name = "cli-test",
+    srcs = ["cli_test.cpp"],
+    copts = ["-std=c++14"],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
+)
+
+cc_test(
+    name = "cli2-test",
+    srcs = ["cli2_test.cpp"],
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
+)
+
+cc_test(
+    name = "braftcliservice-test",
+    srcs = ["braft_cli_service_test.cpp"],
+    copts = ["-std=c++14"],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
+)
+
+cc_test(
+    name = "braftcliservice2-test",
+    srcs = ["braft_cli_service2_test.cpp"],
+    copts = ["-std=c++14"],
+    linkopts = [
+        "-luuid",
+    ],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
 
 # server exec for unit test
@@ -186,47 +160,17 @@ cc_binary(
 # client exec
 cc_binary(
     name = "client-test",
-    srcs = [
-        "chunkserver_test_util.cpp",
-        "chunkserver_test_util.h",
-        "client.cpp",
-        "fake_datastore.h",
-    ],
+    srcs = ["client.cpp"],
     copts = ["-std=c++14"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:bthread",
-        "//external:butil",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//proto:chunkserver-cc-protos",
-        "//src/chunkserver:chunkserver-test-lib",
-        "//src/common:curve_common",
-    ],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
 
 # exec for multi-copyset test
 cc_binary(
     name = "multi-copyset-io-test",
-    srcs = [
-        "multiple_copysets_io_test.cpp",
-    ],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:bthread",
-        "//external:butil",
-        "//external:gflags",
-        "//external:glog",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//proto:chunkserver-cc-protos",
-        "//src/chunkserver:chunkserver-test-lib",
-        "//src/common:curve_common",
-    ],
+    srcs = ["multiple_copysets_io_test.cpp"],
+    deps = DEPS,
 )
 
 cc_test(
@@ -234,36 +178,20 @@ cc_test(
     srcs = [
         "chunkserver_helper_test.cpp",
         "chunkserver_test.cpp",
-        "chunkserver_test_util.cpp",
-        "chunkserver_test_util.h",
-        "fake_datastore.h",
-        "mock_chunkfile_pool.h",
-        "mock_local_file_system.h",
         "trash_test.cpp",
     ],
     copts = ["-std=c++14"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:bthread",
-        "//external:butil",
-        "//external:gflags",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//proto:chunkserver-cc-protos",
-        "//src/chunkserver:chunkserver-test-lib",
-        "//src/chunkserver/datastore:chunkserver_datastore",
-        "//src/common:curve_common",
-        "//test/client/fake:fake_lib",
-        "@com_google_googletest//:gtest_main",
-    ],
+    deps = DEPS
+         + ["//test/client/fake:fake_lib"]
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
 
 cc_test(
     name = "heartbeat_test",
     srcs = [
         "heartbeat_test.cpp",
-        "heartbeat_test.h",
+        "heartbeat_test_common.h",
+        "heartbeat_test_common.cpp",
         "heartbeat_test_main.cpp",
     ],
     deps = [
@@ -282,15 +210,12 @@ cc_test(
     ],
 )
 
-cc_library(
-    name = "chunkserver_mock",
+cc_test(
+    name = "heartbeat_helper_test",
     srcs = [
-        "mock_copyset_node.h",
+        "heartbeat_helper_test.cpp",
     ],
-    visibility = ["//visibility:public"],
-    deps = [
-        "//src/chunkserver:chunkserver-test-lib",
-    ],
+    deps = DEPS,
 )
 
 cc_test(
@@ -302,23 +227,8 @@ cc_test(
         "raftsnapshot_attachment_test.cpp",
     ],
     copts = ["-std=c++14"],
-    deps = [
-        "//external:braft",
-        "//external:brpc",
-        "//external:bthread",
-        "//external:butil",
-        "//external:gflags",
-        "//external:leveldb",
-        "//external:protobuf",
-        "//proto:chunkserver-cc-protos",
-        "//src/chunkserver:chunkserver-test-lib",
-        "//src/chunkserver/datastore:chunkserver_datastore",
-        "//src/common:curve_common",
-        "//src/fs:lfs",
-        "//test/chunkserver:chunkserver-test-util-lib",
-        "//test/fs:fs_mock",
-        "@com_google_googletest//:gtest_main",
-    ],
+    deps = DEPS
+         + ["//test/chunkserver:chunkserver-test-util-lib"],
 )
 
 cc_test(

@@ -331,6 +331,19 @@ int Scheduler::GetMinScatterWidth(PoolIdType lpid) {
         (1 - scatterWidthRangePerent_ / 2);
 }
 
+bool Scheduler::CopysetAllPeersOnline(const CopySetInfo &copySetInfo) {
+    for (auto peer : copySetInfo.peers) {
+        ChunkServerInfo out;
+        if (!topo_->GetChunkServerInfo(peer.id, &out)) {
+            return false;
+        } else if (out.IsOffline()) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace schedule
 }  // namespace mds
 }  // namespace curve

@@ -98,6 +98,13 @@ class TimerTask {
         deleteself_ = true;
     }
     /**
+     * 测试使用
+     * 取消删除标志
+     */
+    void ClearDeleteSelf() {
+        deleteself_ = false;
+    }
+    /**
      * 获取timerid信息
      */
     uint64_t GetTimerID() {

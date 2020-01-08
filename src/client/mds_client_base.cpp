@@ -23,14 +23,11 @@ void MDSClientBase::OpenFile(const std::string& filename,
                             brpc::Channel* channel) {
     OpenFileRequest request;
     request.set_filename(filename);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<OpenFileRequest>(&request, userinfo);
 
     LOG(INFO) << "OpenFile: filename = " << filename.c_str()
-                << ", owner = " << userinfo.owner
-                << ", log id = " << cntl->log_id();
+              << ", owner = " << userinfo.owner
+              << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.OpenFile(cntl, &request, response, nullptr);
@@ -52,8 +49,6 @@ void MDSClientBase::CreateFile(const std::string& filename,
         request.set_filetype(curve::mds::FileType::INODE_DIRECTORY);
     }
 
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<CreateFileRequest>(&request, userinfo);
 
     LOG(INFO) << "CreateFile: filename = " << filename.c_str()
@@ -74,9 +69,6 @@ void MDSClientBase::CloseFile(const std::string& filename,
     CloseFileRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<curve::mds::CloseFileRequest>(&request, userinfo);
 
     LOG(INFO) << "CloseFile: filename = " << filename.c_str()
@@ -95,9 +87,6 @@ void MDSClientBase::GetFileInfo(const std::string& filename,
                                 brpc::Channel* channel) {
     GetFileInfoRequest request;
     request.set_filename(filename);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<curve::mds::GetFileInfoRequest>(&request, userinfo);
 
     LOG(INFO) << "GetFileInfo: filename = " << filename.c_str()
@@ -115,9 +104,6 @@ void MDSClientBase::CreateSnapShot(const std::string& filename,
                                 brpc::Channel* channel) {
     CreateSnapShotRequest request;
     request.set_filename(filename);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<::curve::mds::CreateSnapShotRequest>(&request, userinfo);
 
     LOG(INFO) << "CreateSnapShot: filename = " << filename.c_str()
@@ -137,9 +123,6 @@ void MDSClientBase::DeleteSnapShot(const std::string& filename,
     DeleteSnapShotRequest request;;
     request.set_seq(seq);
     request.set_filename(filename);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<::curve::mds::DeleteSnapShotRequest>(&request, userinfo);
 
     LOG(INFO) << "DeleteSnapShot: filename = " << filename.c_str()
@@ -162,9 +145,6 @@ void MDSClientBase::ListSnapShot(const std::string& filename,
         request.add_seq((*seq)[i]);
     }
     request.set_filename(filename);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<ListSnapShotFileInfoRequest>(&request, userinfo);
 
     LOG(INFO) << "ListSnapShot: filename = " << filename.c_str()
@@ -196,15 +176,13 @@ void MDSClientBase::GetSnapshotSegmentInfo(const std::string& filename,
     request.set_offset(offset);
     request.set_allocateifnotexist(false);
     request.set_seqnum(seq);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<GetOrAllocateSegmentRequest>(&request, userinfo);
 
     LOG(INFO) << "GetSnapshotSegmentInfo: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner
                 << ", offset = " << offset
-                << ", seqnum = " << seq;
+                << ", seqnum = " << seq
+                << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.GetSnapShotFileSegment(cntl, &request, response, nullptr);
@@ -219,14 +197,12 @@ void MDSClientBase::RefreshSession(const std::string& filename,
     ReFreshSessionRequest request;
     request.set_filename(filename);
     request.set_sessionid(sessionid);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
     FillUserInfo<ReFreshSessionRequest>(&request, userinfo);
 
     LOG_EVERY_N(INFO, 10) << "RefreshSession: filename = " << filename.c_str()
                   << ", owner = " << userinfo.owner
-                  << ", sessionid = " << sessionid;
+                  << ", sessionid = " << sessionid
+                  << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.RefreshSession(cntl, &request, response, nullptr);
@@ -241,14 +217,12 @@ void MDSClientBase::CheckSnapShotStatus(const std::string& filename,
     CheckSnapShotStatusRequest request;
     request.set_seq(seq);
     request.set_filename(filename);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<CheckSnapShotStatusRequest>(&request, userinfo);
 
     LOG(INFO) << "CheckSnapShotStatus: filename = " << filename.c_str()
                 << ", owner = " << userinfo.owner
-                << ", seqnum = " << seq;
+                << ", seqnum = " << seq
+                << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.CheckSnapShotStatus(cntl, &request, response, nullptr);
@@ -261,12 +235,11 @@ void MDSClientBase::GetServerList(const LogicPoolID& logicalpooid,
                                 brpc::Channel* channel) {
     GetChunkServerListInCopySetsRequest request;
     request.set_logicalpoolid(logicalpooid);
+    std::string requestCopysets;
     for (auto copysetid : copysetidvec) {
         request.add_copysetid(copysetid);
+        requestCopysets.append(std::to_string(copysetid)).append(" ");
     }
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
 
     curve::mds::topology::TopologyService_Stub stub(channel);
     stub.GetChunkServerListInCopySets(cntl, &request, response, nullptr);
@@ -276,9 +249,6 @@ void MDSClientBase::GetClusterInfo(GetClusterInfoResponse* response,
                                    brpc::Controller* cntl,
                                    brpc::Channel* channel) {
     GetClusterInfoRequest request;
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
 
     curve::mds::topology::TopologyService_Stub stub(channel);
     stub.GetClusterInfo(cntl, &request, response, nullptr);
@@ -298,16 +268,14 @@ void MDSClientBase::CreateCloneFile(const std::string &destination,
     request.set_filename(destination);
     request.set_chunksize(chunksize);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<CreateCloneFileRequest>(&request, userinfo);
 
     LOG(INFO) << "CreateCloneFile: destination = " << destination
               << ", owner = " << userinfo.owner.c_str()
               << ", seqnum = " << sn
               << ", size = " << size
-              << ", chunksize = " << chunksize;
+              << ", chunksize = " << chunksize
+              << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.CreateCloneFile(cntl, &request, response, NULL);
@@ -326,9 +294,6 @@ void MDSClientBase::SetCloneFileStatus(const std::string &filename,
     if (fileID > 0) {
         request.set_fileid(fileID);
     }
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<SetCloneFileStatusRequest>(&request, userinfo);
 
     LOG(INFO) << "SetCloneFileStatus: filename = " << filename.c_str()
@@ -353,13 +318,9 @@ void MDSClientBase::GetOrAllocateSegment(bool allocate,
     uint64_t segmentsize = fi->segmentsize;
     uint64_t chunksize = fi->chunksize;
     uint64_t seg_offset = (offset / segmentsize) * segmentsize;
-
     request.set_filename(fi->fullPathName);
     request.set_offset(seg_offset);
     request.set_allocateifnotexist(allocate);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.rpcTimeoutMs);
     FillUserInfo<GetOrAllocateSegmentRequest>(&request, fi->userinfo);
 
     LOG(INFO) << "GetOrAllocateSegment: allocate = " << allocate
@@ -387,9 +348,6 @@ void MDSClientBase::RenameFile(const UserInfo_t& userinfo,
         request.set_oldfileid(originId);
         request.set_newfileid(destinationId);
     }
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<RenameFileRequest>(&request, userinfo);
 
     LOG(INFO) << "RenameFile: origin = " << origin.c_str()
@@ -412,9 +370,6 @@ void MDSClientBase::Extend(const std::string& filename,
     ExtendFileRequest request;
     request.set_filename(filename);
     request.set_newsize(newsize);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<ExtendFileRequest>(&request, userinfo);
 
     LOG(INFO) << "Extend: filename = " << filename.c_str()
@@ -439,9 +394,6 @@ void MDSClientBase::DeleteFile(const std::string& filename,
     if (fileid > 0) {
         request.set_fileid(fileid);
     }
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<DeleteFileRequest>(&request, userinfo);
 
     LOG(INFO) << "DeleteFile: filename = " << filename.c_str()
@@ -464,16 +416,7 @@ void MDSClientBase::ChangeOwner(const std::string& filename,
     request.set_filename(filename);
     request.set_newowner(newOwner);
     request.set_rootowner(userinfo.owner);
-    if (!userinfo.owner.compare(kRootUserName)&&userinfo.password.compare("")) {
-        std::string str2sig = Authenticator::GetString2Signature(date,
-                                                    userinfo.owner);
-        std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                    userinfo.password);
-        request.set_signature(sig);
-    }
-
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
-    cntl->set_log_id(GetLogId());
+    request.set_signature(CalcSignature(userinfo, date));
 
     LOG(INFO) << "ChangeOwner: filename = " << filename.c_str()
                 << ", operator owner = " << userinfo.owner.c_str()
@@ -492,8 +435,6 @@ void MDSClientBase::Listdir(const std::string& dirpath,
     curve::mds::ListDirRequest request;
     request.set_filename(dirpath);
 
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
     FillUserInfo<::curve::mds::ListDirRequest>(&request, userinfo);
 
     LOG(INFO) << "Listdir: filename = " << dirpath.c_str()
@@ -510,19 +451,43 @@ void MDSClientBase::Register(const std::string& ip,
                                 brpc::Controller* cntl,
                                 brpc::Channel* channel) {
     curve::mds::RegistClientRequest     request;
-
     request.set_ip(ip);
     request.set_port(port);
-
-    cntl->set_log_id(GetLogId());
-    cntl->set_timeout_ms(metaServerOpt_.synchronizeRPCTimeoutMS);
-
     LOG(INFO) << "client regist info to mds: "
               << "ip = " << ip
-              << "port = " << port;
+              << ", port = " << port
+              << ", log id = " << cntl->log_id();
 
     curve::mds::CurveFSService_Stub stub(channel);
     stub.RegistClient(cntl, &request, response, NULL);
+}
+
+void MDSClientBase::GetChunkServerInfo(const std::string& ip,
+    uint16_t port, GetChunkServerInfoResponse* response,
+    brpc::Controller* cntl, brpc::Channel* channel) {
+    curve::mds::topology::GetChunkServerInfoRequest request;
+    request.set_hostip(ip);
+    request.set_port(port);
+    LOG(INFO) << "GetChunkServerInfo from mds: "
+              << "ip = " << ip
+              << ", port = " << port
+              << ", log id = " << cntl->log_id();
+
+    curve::mds::topology::TopologyService_Stub stub(channel);
+    stub.GetChunkServer(cntl, &request, response, NULL);
+}
+
+std::string MDSClientBase::CalcSignature(const UserInfo& userinfo,
+                                         uint64_t date) const {
+    if (IsRootUserAndHasPassword(userinfo)) {
+        std::string str2sig = Authenticator::GetString2Signature(
+            date, userinfo.owner);
+        std::string sig = Authenticator::CalcString2Signature(
+            str2sig, userinfo.password);
+        return sig;
+    }
+
+    return "";
 }
 
 }   // namespace client

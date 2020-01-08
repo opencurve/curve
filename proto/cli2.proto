@@ -40,6 +40,18 @@ message TransferLeaderRequest2 {
 
 message TransferLeaderResponse2 {}
 
+message ChangePeersRequest2 {
+    required uint32 logicPoolId     = 1;
+    required uint32 copysetId       = 2;
+    required common.Peer leader     = 3;
+    repeated common.Peer newPeers   = 4;
+}
+
+message ChangePeersResponse2 {
+    repeated common.Peer oldPeers   = 1;
+    repeated common.Peer newPeers   = 2;
+}
+
 message GetLeaderRequest2 {
     required uint32 logicPoolId     = 1;
     required uint32 copysetId       = 2;
@@ -50,10 +62,23 @@ message GetLeaderResponse2 {
     required common.Peer leader     = 1;    // 通过peer判空来判断是否返回leader
 }
 
+message ResetPeerRequest2 {
+    required uint32 logicPoolId     = 1;
+    required uint32 copysetId       = 2;
+    required common.Peer requestPeer = 3;
+    repeated common.Peer oldPeers   = 4;
+    repeated common.Peer newPeers   = 5;
+}
+
+message ResetPeerResponse2 {
+}
+
 // service
 service CliService2 {
     rpc AddPeer(AddPeerRequest2) returns (AddPeerResponse2);
     rpc RemovePeer(RemovePeerRequest2) returns (RemovePeerResponse2);
+    rpc ChangePeers(ChangePeersRequest2) returns (ChangePeersResponse2);
     rpc GetLeader(GetLeaderRequest2) returns (GetLeaderResponse2);
     rpc TransferLeader(TransferLeaderRequest2) returns (TransferLeaderResponse2);
+    rpc ResetPeer(ResetPeerRequest2) returns (ResetPeerResponse2);
 };

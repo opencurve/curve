@@ -513,6 +513,73 @@ TEST_F(BraftCliService2Test, basic2) {
         ASSERT_FALSE(cntl2.Failed());
         ASSERT_EQ(0, cntl2.ErrorCode());
     }
+    /* reset peer - 非法 copyset */
+    {
+        Peer *targetPeer = new Peer();
+        *targetPeer = peer1;
+        PeerId peer(peer1.address());
+        brpc::Channel channel;
+        ASSERT_EQ(0, channel.Init(peer.addr, NULL));
+        ResetPeerRequest2 request;
+        /* 非法 copyset */
+        request.set_logicpoolid(logicPoolId + 1);
+        request.set_copysetid(copysetId);
+        request.set_allocated_requestpeer(targetPeer);
+        Peer* newPeer = request.add_newpeers();
+        newPeer->CopyFrom(peer1);
+        ResetPeerResponse2 response;
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(options.timeout_ms);
+        cntl.set_max_retry(options.max_retry);
+
+        CliService2_Stub stub(&channel);
+        stub.ResetPeer(&cntl, &request, &response, NULL);
+        ASSERT_TRUE(cntl.Failed());
+        ASSERT_EQ(ENOENT, cntl.ErrorCode());
+    }
+    /* reset peer - new peer为空 */
+    {
+        Peer *targetPeer = new Peer();
+        *targetPeer = peer1;
+        PeerId peer(peer1.address());
+        brpc::Channel channel;
+        ASSERT_EQ(0, channel.Init(peer.addr, NULL));
+        ResetPeerRequest2 request;
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_allocated_requestpeer(targetPeer);
+        ResetPeerResponse2 response;
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(options.timeout_ms);
+        cntl.set_max_retry(options.max_retry);
+
+        CliService2_Stub stub(&channel);
+        stub.ResetPeer(&cntl, &request, &response, NULL);
+        ASSERT_TRUE(cntl.Failed());
+        ASSERT_EQ(EINVAL, cntl.ErrorCode());
+    }
+    /* reset peer - normal */
+    {
+        Peer *targetPeer = new Peer();
+        *targetPeer = peer1;
+        PeerId peer(peer1.address());
+        brpc::Channel channel;
+        ASSERT_EQ(0, channel.Init(peer.addr, NULL));
+        ResetPeerRequest2 request;
+        request.set_logicpoolid(logicPoolId);
+        request.set_copysetid(copysetId);
+        request.set_allocated_requestpeer(targetPeer);
+        Peer* newPeer = request.add_newpeers();
+        newPeer->CopyFrom(peer1);
+        ResetPeerResponse2 response;
+        brpc::Controller cntl;
+        cntl.set_timeout_ms(options.timeout_ms);
+        cntl.set_max_retry(options.max_retry);
+
+        CliService2_Stub stub(&channel);
+        stub.ResetPeer(&cntl, &request, &response, NULL);
+        ASSERT_FALSE(cntl.Failed());
+    }
 }
 
 }  // namespace chunkserver

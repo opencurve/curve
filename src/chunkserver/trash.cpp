@@ -74,11 +74,11 @@ int Trash::Run() {
 
 int Trash::Fini() {
     if (!isStop_.exchange(true)) {
-        LOG(INFO) << "stop trash recycle";
-        exitcv_.notify_one();
+        LOG(INFO) << "stop Trash...";
+        sleeper_.interrupt();
         recycleThread_.join();
     }
-    LOG(INFO) << "stop trash thread ok.";
+    LOG(INFO) << "stop trash ok.";
     return 0;
 }
 
@@ -117,15 +117,7 @@ int Trash::RecycleCopySet(const std::string &dirPath) {
 }
 
 void Trash::DeleteEligibleFileInTrashInterval() {
-     while (!isStop_) {
-         // 睡眠一段时间
-         std::unique_lock<std::mutex> lk(exitmtx_);
-         exitcv_.wait_for(lk, std::chrono::seconds(scanPeriodSec_),
-                          [&]()->bool{ return isStop_;});
-        if (isStop_) {
-            return;
-        }
-
+     while (sleeper_.wait_for(std::chrono::seconds(scanPeriodSec_))) {
         // 扫描回收站
          DeleteEligibleFileInTrash();
      }

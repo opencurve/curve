@@ -62,6 +62,13 @@ struct ChunkServerStat {
     uint32_t readIOPS;
     // 写iops
     uint32_t writeIOPS;
+    // 已使用的chunk占用的磁盘空间
+    uint64_t chunkSizeUsedBytes;
+    // chunkfilepool中未使用的chunk占用的磁盘空间
+    uint64_t chunkSizeLeftBytes;
+    // 回收站中chunk占用的磁盘空间
+    uint64_t chunkSizeTrashedBytes;
+
     // copyset数据
     std::vector<CopysetStat> copysetStats;
 

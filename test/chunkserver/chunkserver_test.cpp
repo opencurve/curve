@@ -21,7 +21,7 @@
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:9301";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9301";   // NOLINT
 
 char* confPath = "conf/client.conf";
 

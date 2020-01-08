@@ -83,13 +83,15 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     mds.StartService();
     mds.CreateCopysetNode(true);
 
-    ASSERT_EQ(0, Init(configpath.c_str()));
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
     // test get cluster id
     const int CLUSTERIDMAX = 256;
     char clusterId[CLUSTERIDMAX];
+
+    ASSERT_EQ(GetClusterId(clusterId, CLUSTERIDMAX), -LIBCURVE_ERROR::FAILED);
+
+    ASSERT_EQ(0, Init(configpath.c_str()));
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     ASSERT_EQ(GetClusterId(nullptr, 0), -LIBCURVE_ERROR::FAILED);
 
@@ -194,7 +196,7 @@ TEST(TestLibcurveInterface, InterfaceTest) {
     /**
      * the disk is faked, the size is just = 10 * 1024 * 1024 * 1024.
      * when the offset pass the boundary, it will return failed.
-     */ 
+     */
     off_t off = 10 * 1024 * 1024 * 1024ul;
     uint64_t len = 8 * 1024;
 
@@ -239,11 +241,20 @@ TEST(TestLibcurveInterface, FileClientTest) {
 
     ASSERT_EQ(0, fc.Init(configpath));
 
+    // init twice also return 0
+    ASSERT_EQ(0, fc.Init(configpath));
+
     int fd = fc.Open4ReadOnly(filename, userinfo);
     int fd2 = fc.Open(filename, userinfo);
+    int fd3 = fc.Open(filename, UserInfo_t{});
+    int fd4 = fc.Open4ReadOnly(filename, UserInfo_t{});
 
     ASSERT_NE(fd, -1);
     ASSERT_NE(fd2, -1);
+
+    // user info invalid
+    ASSERT_EQ(-1, fd3);
+    ASSERT_EQ(-1, fd4);
 
     fiu_enable("test/client/fake/fakeMDS.GetOrAllocateSegment", 1, nullptr, 0);
 
@@ -302,6 +313,9 @@ TEST(TestLibcurveInterface, FileClientTest) {
     delete[] buffer;
     delete[] readbuffer;
     fc.UnInit();
+
+    // uninit twice
+    fc.UnInit();
 }
 
 /*
@@ -319,21 +333,19 @@ TEST(TestLibcurveInterface, ChunkserverUnstableTest) {
     userinfo.owner = "userinfo";
     userinfo.password = "12345";
     fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
-    fopt.metaServerOpt.rpcTimeoutMs = 500;
-    fopt.metaServerOpt.rpcRetryTimes = 3;
-    fopt.loginfo.loglevel = 0;
-    fopt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 1000;
-    fopt.ioOpt.ioSenderOpt.rpcRetryTimes = 3;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    fopt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    fopt.ioOpt.metaCacheOpt.retryIntervalUs = 500;
-    fopt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    fopt.metaServerOpt.chunkserverRPCTimeoutMS = 500;
+    fopt.loginfo.logLevel = 0;
+    fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
+    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+    fopt.ioOpt.ioSenderOpt.chunkserverRPCTimeoutMS = 1000;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    fopt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+    fopt.ioOpt.metaCacheOpt.metacacheRPCRetryIntervalUS = 500;
+    fopt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+    fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
-    fopt.leaseOpt.refreshTimesPerLease = 4;
+    fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
@@ -637,22 +649,20 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     userinfo.owner = "userinfo";
     userinfo.password = "12345";
     fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
-    fopt.metaServerOpt.rpcTimeoutMs = 500;
-    fopt.metaServerOpt.rpcRetryTimes = 3;
-    fopt.loginfo.loglevel = 0;
-    fopt.ioOpt.ioSplitOpt.ioSplitMaxSizeKB = 64;
-    fopt.ioOpt.ioSenderOpt.enableAppliedIndexRead = 1;
-    fopt.ioOpt.ioSenderOpt.rpcTimeoutMs = 1000;
-    fopt.ioOpt.ioSenderOpt.rpcRetryTimes = 3;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    fopt.ioOpt.metaCacheOpt.getLeaderRetry = 3;
-    fopt.ioOpt.metaCacheOpt.retryIntervalUs = 500;
-    fopt.ioOpt.reqSchdulerOpt.queueCapacity = 4096;
-    fopt.ioOpt.reqSchdulerOpt.threadpoolSize = 2;
+    fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
+    fopt.loginfo.logLevel = 0;
+    fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
+    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    fopt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+    fopt.ioOpt.metaCacheOpt.metacacheRPCRetryIntervalUS = 500;
+    fopt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+    fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
     fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
-    fopt.leaseOpt.refreshTimesPerLease = 4;
-    fopt.ioOpt.ioSenderOpt.failRequestOpt.maxStableChunkServerTimeoutTimes = 10;  // NOLINT
+    fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
 
     mdsclient_.Initialize(fopt.metaServerOpt);
     fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
@@ -742,6 +752,18 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
         }
     }
 
+    // 当copyset处于unstable状态时
+    // 不进入超时时间指数退避逻辑，rpc超时时间设置为默认值
+    // 所以每个请求总时间为3s，4个请求需要12s
+    auto start = TimeUtility::GetTimeofDayMs();
+    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
+    ASSERT_EQ(-2, fileinstance_.Read(buffer, 1 * chunk_size, length));
+    auto end = TimeUtility::GetTimeofDayMs();
+    ASSERT_GT(end - start, 11 * 1000);
+    ASSERT_LT(end - start, 13 * 1000);
+
     mds.DisableNetUnstable();
 
     // 取消延迟，再次读写第2个chunk
@@ -793,9 +815,121 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
         }
     }
 
-    mdsclient_.UnInitialize();
     fileinstance_.UnInitialize();
+    mdsclient_.UnInitialize();
     mds.UnInitialize();
     delete[] buffer;
 }
 
+TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
+    std::string filename = "/1_userinfo_";
+
+    UserInfo_t userinfo;
+    MDSClient mdsclient_;
+    FileServiceOption_t fopt;
+    FileInstance    fileinstance_;
+
+    FLAGS_chunkserver_list =
+         "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
+
+    userinfo.owner = "userinfo";
+    userinfo.password = "12345";
+    fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
+    fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
+    fopt.loginfo.logLevel = 0;
+    fopt.ioOpt.ioSplitOpt.fileIOSplitMaxSizeKB = 64;
+    fopt.ioOpt.ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 8000;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 11;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    fopt.ioOpt.metaCacheOpt.metacacheGetLeaderRetry = 3;
+    fopt.ioOpt.metaCacheOpt.metacacheRPCRetryIntervalUS = 500;
+    fopt.ioOpt.reqSchdulerOpt.scheduleQueueCapacity = 4096;
+    fopt.ioOpt.reqSchdulerOpt.scheduleThreadpoolSize = 2;
+    fopt.ioOpt.reqSchdulerOpt.ioSenderOpt = fopt.ioOpt.ioSenderOpt;
+    fopt.leaseOpt.mdsRefreshTimesPerLease = 4;
+    fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
+
+    mdsclient_.Initialize(fopt.metaServerOpt);
+    fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
+
+    // 设置leaderid
+    EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9151, &ep);
+    PeerId pd(ep);
+
+    // init mds service
+    FakeMDS mds(filename);
+    mds.Initialize();
+    mds.StartCliService(pd);
+    mds.StartService();
+    mds.CreateCopysetNode(true);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    int fd = fileinstance_.Open(filename.c_str(), userinfo);
+
+    MetaCache* mc = fileinstance_.GetIOManager4File()->GetMetaCache();
+
+    ASSERT_NE(fd, -1);
+
+    CliServiceFake* cliservice = mds.GetCliService();
+    std::vector<FakeChunkService*> chunkservice = mds.GetFakeChunkService();
+
+    char* buffer = new char[8 * 1024];
+    uint64_t offset = 0;
+    uint64_t length = 8 * 1024;
+
+    memset(buffer, 'i', 1024);
+    memset(buffer + 1024, 'j', 1024);
+    memset(buffer + 2 * 1024, 'k', 1024);
+    memset(buffer + 3 * 1024, 'l', 1024);
+    memset(buffer + 4 * 1024, 'm', 1024);
+    memset(buffer + 5 * 1024, 'n', 1024);
+    memset(buffer + 6 * 1024, 'o', 1024);
+    memset(buffer + 7 * 1024, 'p', 1024);
+
+    ASSERT_EQ(length, fileinstance_.Write(buffer, offset, length));
+    ASSERT_EQ(length, fileinstance_.Read(buffer, offset, length));
+
+    // 正常情况下只有第一次会去get leader
+    ASSERT_EQ(1, cliservice->GetInvokeTimes());
+    // metacache中被写过的copyset leadermaychange都处于正常状态
+    ChunkIDInfo_t chunkinfo1;
+    MetaCacheErrorType rc = mc->GetChunkInfoByIndex(0, &chunkinfo1);
+    ASSERT_EQ(rc, MetaCacheErrorType::OK);
+    for (int i = 0; i < FLAGS_copyset_num; i++) {
+        CopysetInfo_t ci = mc->GetCopysetinfo(FLAGS_logic_pool_id, i);
+        if (i == chunkinfo1.cpid_) {
+            ASSERT_NE(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_FALSE(ci.LeaderMayChange());
+        } else {
+            ASSERT_EQ(-1, ci.GetCurrentLeaderIndex());
+            ASSERT_FALSE(ci.LeaderMayChange());
+        }
+    }
+
+    mds.EnableNetUnstable(10000);
+
+    // 写2次, 每次请求重试11次
+    // 因为在chunkserver端设置了延迟，导致每次请求都会超时
+    // 第一个请求重试11次，会把chunkserver标记为unstable
+    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
+
+    // 第二个写请求，由于其对应的copyset leader may change
+    // 第1次请求超时时间为1s
+    // 后面4次重试由于leader may change所以超时时间也是1s
+    // 第5-11次请求由于重试次数超过minRetryTimesForceTimeoutBackoff
+    // 所以超时时间都进入指数退避，为8s * 6 = 48s
+    // 所以第二次写请求，总共耗时53s，并写入失败
+    auto start = TimeUtility::GetTimeofDayMs();
+    ASSERT_EQ(-2, fileinstance_.Write(buffer, 1 * chunk_size, length));
+    auto elapsedMs = TimeUtility::GetTimeofDayMs() - start;
+    ASSERT_GE(elapsedMs, 52 * 1000);
+    ASSERT_LE(elapsedMs, 55 * 1000);
+
+    fileinstance_.UnInitialize();
+    mdsclient_.UnInitialize();
+    mds.UnInitialize();
+    delete[] buffer;
+}

@@ -39,7 +39,7 @@ test.testcopyset_conf=127.0.0.1:8200:0,127.0.0.1:8201:0,127.0.0.1:8202:0
 copyset.check_term=true
 copyset.disable_cli=false
 copyset.log_applied_task=false
-copyset.election_timeout_ms=5000
+copyset.election_timeout_ms=1000
 copyset.snapshot_interval_s=30
 copyset.catchup_margin=50
 copyset.chunk_data_uri=local://./0/copysets
@@ -48,6 +48,10 @@ copyset.raft_meta_uri=local://./0/copysets
 copyset.raft_snapshot_uri=local://./0/copysets
 copyset.recycler_uri=local://./0/recycler
 copyset.max_inflight_requests=5000
+copyset.load_concurrency=5
+copyset.check_retrytimes=3
+copyset.finishload_margin=2000
+copyset.check_loadmargin_interval_ms=1000
 
 #
 # Clone settings
