@@ -1111,7 +1111,7 @@ std::vector<CopySetKey> TopologyImpl::GetCopySetsInChunkServer(
 }
 
 int TopologyImpl::Run() {
-     if (isStop_.exchange(false)) {
+    if (isStop_.exchange(false)) {
         backEndThread_ = curve::common::Thread(
             &TopologyImpl::BackEndFunc, this);
     }
@@ -1119,18 +1119,20 @@ int TopologyImpl::Run() {
 }
 
 int TopologyImpl::Stop() {
-     if (!isStop_.exchange(true)) {
+    if (!isStop_.exchange(true)) {
+        LOG(INFO) << "stop TopologyImpl...";
+        sleeper_.interrupt();
         backEndThread_.join();
+        LOG(INFO) << "stop TopologyImpl ok.";
     }
     return 0;
 }
 
 void TopologyImpl::BackEndFunc() {
-     while (!isStop_.load()) {
+     while (sleeper_.wait_for(
+         std::chrono::seconds(option_.TopologyUpdateToRepoSec))) {
         FlushCopySetToStorage();
         FlushChunkServerToStorage();
-        std::this_thread::sleep_for(
-            std::chrono::seconds(option_.TopologyUpdateToRepoSec));
     }
 }
 

@@ -38,7 +38,5 @@ void RequestContext::UnInit() {
     delete done_;
 }
 
-RequestContext::~RequestContext() {
-}
 }  // namespace client
 }  // namespace curve

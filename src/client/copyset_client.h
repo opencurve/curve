@@ -11,9 +11,11 @@
 #include <google/protobuf/stubs/callback.h>
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <brpc/channel.h>
 
 #include <cstdio>
 #include <string>
+#include <memory>
 
 #include "src/common/concurrent/concurrent.h"
 #include "src/client/client_metric.h"
@@ -48,11 +50,9 @@ class CopysetClient : public Uncopyable {
         scheduler_(nullptr),
         exitFlag_(false) {}
 
-    virtual  ~CopysetClient() {
-        if (nullptr != senderManager_) {
-            delete senderManager_;
-            senderManager_ = nullptr;
-        }
+    virtual ~CopysetClient() {
+        delete senderManager_;
+        senderManager_ = nullptr;
     }
 
     int Init(MetaCache *metaCache,
@@ -73,7 +73,7 @@ class CopysetClient : public Uncopyable {
      * @param appliedindex:需要读到>=appliedIndex的数据
      * @param done:上一层异步回调的closure
      */
-    int ReadChunk(ChunkIDInfo idinfo,
+    int ReadChunk(const ChunkIDInfo& idinfo,
                   uint64_t sn,
                   off_t offset,
                   size_t length,
@@ -89,7 +89,7 @@ class CopysetClient : public Uncopyable {
     * @param length:写的长度
     * @param done:上一层异步回调的closure
     */
-    int WriteChunk(ChunkIDInfo idinfo,
+    int WriteChunk(const ChunkIDInfo& idinfo,
                   uint64_t sn,
                   const char *buf,
                   off_t offset,
@@ -104,7 +104,7 @@ class CopysetClient : public Uncopyable {
      * @param length:读的长度
      * @param done:上一层异步回调的closure
      */
-    int ReadChunkSnapshot(ChunkIDInfo idinfo,
+    int ReadChunkSnapshot(const ChunkIDInfo& idinfo,
                   uint64_t sn,
                   off_t offset,
                   size_t length,
@@ -117,7 +117,7 @@ class CopysetClient : public Uncopyable {
      * @param correctedSn:需要修正的版本号
      * @param done:上一层异步回调的closure
      */
-    int DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
+    int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo& idinfo,
                   uint64_t correctedSn,
                   Closure *done);
 
@@ -126,7 +126,7 @@ class CopysetClient : public Uncopyable {
      * @param idinfo为chunk相关的id信息
      * @param done:上一层异步回调的closure
      */
-    int GetChunkInfo(ChunkIDInfo idinfo,
+    int GetChunkInfo(const ChunkIDInfo& idinfo,
                   Closure *done);
 
     /**
@@ -146,7 +146,7 @@ class CopysetClient : public Uncopyable {
     *
     * @return 错误码
     */
-    int CreateCloneChunk(ChunkIDInfo idinfo,
+    int CreateCloneChunk(const ChunkIDInfo& idinfo,
                   const std::string &location,
                   uint64_t sn,
                   uint64_t correntSn,
@@ -163,7 +163,7 @@ class CopysetClient : public Uncopyable {
     *
     * @return 错误码
     */
-    int RecoverChunk(ChunkIDInfo idinfo,
+    int RecoverChunk(const ChunkIDInfo& idinfo,
                   uint64_t offset,
                   uint64_t len,
                   Closure *done);
@@ -204,6 +204,17 @@ class CopysetClient : public Uncopyable {
                      CopysetID cpid,
                      ChunkServerID* leaderid,
                      butil::EndPoint* leaderaddr);
+
+    /**
+     * 执行发送rpc task，并进行错误重试
+     * @param[in]: idinfo为当前rpc task的id信息
+     * @param[in]: task为本次要执行的rpc task
+     * @param[in]: done是本次rpc 任务的异步回调
+     * @return: 成功返回0， 否则-1
+     */
+    int DoRPCTask(const ChunkIDInfo& idinfo,
+        std::function<void(Closure*, std::shared_ptr<RequestSender>)> task,
+        Closure *done);
 
  private:
     // 元数据缓存

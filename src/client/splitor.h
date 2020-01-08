@@ -84,6 +84,8 @@ class Splitor {
                            const FInfo_t* fi,
                            ChunkIndex chunkidx);
 
+    static RequestContext* GetInitedRequestContext();
+
  private:
     // IO拆分模块所使用的配置信息
     static IOSplitOPtion_t iosplitopt_;

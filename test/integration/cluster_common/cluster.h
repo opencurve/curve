@@ -142,14 +142,14 @@ class CurveCluster {
     void StopAllSnapshotCloneServer();
 
     /**
-     * StarSingleEtcd 启动一个etcd节点
+     * StartSingleEtcd 启动一个etcd节点
      *
      * @param clientIpPort
      * @param peerIpPort
      * @param etcdConf etcd启动项参数, 建议按照模块指定name,防止并发运行时冲突
      *      std::vector<std::string>{" --name basic_test_start_stop_module1"}
      */
-    void StarSingleEtcd(int id, const std::string &clientIpPort,
+    void StartSingleEtcd(int id, const std::string &clientIpPort,
         const std::string &peerIpPort,
         const std::vector<std::string> &etcdConf);
 

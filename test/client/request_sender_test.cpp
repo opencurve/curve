@@ -16,9 +16,9 @@ namespace client {
 TEST(RequestSenderTest, basic_test) {
     /* 非法的 port */
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
     butil::EndPoint leaderAddr;
     std::string leaderStr = "127.0.0.1:65539";
     ChunkServerID leaderId = 1;

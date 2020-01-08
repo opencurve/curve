@@ -89,6 +89,9 @@ TEST(OperatorTest, OperatorTest_Function_Test) {
     affects = testOperator.AffectedChunkServers();
     ASSERT_EQ(1, affects.size());
     ASSERT_EQ(5, affects[0]);
+    testOperator.step = std::make_shared<ChangePeer>(1, 5);
+    ASSERT_EQ(1, affects.size());
+    ASSERT_EQ(5, affects[0]);
 
     // 2. test IsTimeout
     testOperator.createTime = steady_clock::now() - std::chrono::seconds(2);

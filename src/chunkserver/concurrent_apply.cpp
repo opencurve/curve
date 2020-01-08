@@ -87,8 +87,8 @@ void ConcurrentApplyModule::Run(int index) {
 }
 
 void ConcurrentApplyModule::Stop() {
+    LOG(INFO) << "stop ConcurrentApplyModule...";
     stop_ = true;
-
     auto wakeup = []() {};
     for (auto iter : applypoolMap_) {
         iter.second->tq.Push(wakeup);
@@ -98,6 +98,7 @@ void ConcurrentApplyModule::Stop() {
     applypoolMap_.clear();
 
     isStarted_ = false;
+    LOG(INFO) << "stop ConcurrentApplyModule ok.";
 }
 
 void ConcurrentApplyModule::Flush() {

@@ -81,9 +81,23 @@ class LeaseExcutor {
      * 测试使用，主动失效增加刷新失败
      */
     void InvalidLease() {
-        for (int i = 0; i <= leaseoption_.refreshTimesPerLease; i++) {
+        for (int i = 0; i <= leaseoption_.mdsRefreshTimesPerLease; i++) {
             IncremRefreshFailed();
         }
+    }
+
+    // 测试使用
+    TimerTask* GetTimerTask() const {
+        return refreshTask_;
+    }
+
+    // 测试使用
+    void SetTimerTask(TimerTask* task) {
+        timerTaskWorker_.AddTimerTask(refreshTask_);
+        LOG(INFO) << "add timer task "
+              << refreshTask_->GetTimerID()
+              << " for lease refresh!";
+        isleaseAvaliable_.store(true);
     }
 
  private:

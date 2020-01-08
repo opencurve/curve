@@ -759,7 +759,6 @@ void TopologyServiceImpl::GetCopySetsInChunkServer(
     }
 }
 
-
 void TopologyServiceImpl::GetClusterInfo(
     google::protobuf::RpcController* cntl_base,
     const GetClusterInfoRequest* request,

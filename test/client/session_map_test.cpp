@@ -81,3 +81,13 @@ TEST(SessionMapTest, DelSessionMapTest) {
         ASSERT_STREQ("", sm.GetFileSessionID(sessionpath, filename).c_str());
     }
 }
+
+TEST(SessionMapTest, InvalidParam) {
+    SessionMap sm;
+    std::string path = "/x/y/x";
+
+    // invalid path
+    ASSERT_STREQ("", sm.GetFileSessionID(path, "").c_str());
+    ASSERT_EQ(-1, sm.PersistSessionMapWithLock(path, "", ""));
+    ASSERT_EQ(-1, sm.DelSessionID(path, ""));
+}

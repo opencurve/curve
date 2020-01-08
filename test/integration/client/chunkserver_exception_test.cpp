@@ -23,6 +23,7 @@
 #include "src/client/inflight_controller.h"
 #include "test/integration/client/common/file_operation.h"
 #include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 bool resumeFlag = false;
 uint64_t ioFailedCount = 0;
@@ -31,65 +32,76 @@ std::condition_variable resumeCV;
 curve::client::InflightControl inflightContl;
 
 using curve::CurveCluster;
-const std::vector<std::string> mdsConf4{
-    {" --confPath=./test/integration/client/config/mds.conf.3"},
-    {" --log_dir=./runlog/ChunkserverException"}
-};
-
-const std::vector<std::string> mdsConf5{
-    {" --confPath=./test/integration/client/config/mds.conf.4"},
-    {" --log_dir=./runlog/ChunkserverException"}
-};
-
-const std::vector<std::string> mdsConf6{
-    {" --confPath=./test/integration/client/config/mds.conf.5"},
-    {" --log_dir=./runlog/ChunkserverException"}
+const std::vector<std::string> mdsConf{
+    {" --confPath=./conf/mds.conf"},
+    {" --log_dir=./runlog/ChunkserverException"},
+    {" --mdsDbName=module_exception_curve_chunkserver"},
+    {" --sessionInterSec=20"},
+    {" --etcdAddr=127.0.0.1:22233"},
+    {" --updateToRepoSec=5"},
 };
 
 const std::vector<std::string> chunkserverConf4{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException4/"},
     {" -chunkServerMetaUri=local://./moduleException4/chunkserver.dat"},
     {" -copySetUri=local://./moduleException4/copysets"},
     {" -recycleUri=local://./moduleException4/recycler"},
     {" -chunkFilePoolDir=./moduleException4/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException4/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.3"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/ChunkserverException"}
+    {" --log_dir=./runlog/ChunkserverException"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22125"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124"}
 };
 
 const std::vector<std::string> chunkserverConf5{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException5/"},
     {" -chunkServerMetaUri=local://./moduleException5/chunkserver.dat"},
     {" -copySetUri=local://./moduleException5/copysets"},
     {" -recycleUri=local://./moduleException5/recycler"},
     {" -chunkFilePoolDir=./moduleException5/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException5/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.4"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/ChunkserverException"}
+    {" --log_dir=./runlog/ChunkserverException"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22126"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124"}
 };
 
 const std::vector<std::string> chunkserverConf6{
-    {" --graceful_quit_on_sigterm"},
     {" -chunkServerStoreUri=local://./moduleException6/"},
     {" -chunkServerMetaUri=local://./moduleException6/chunkserver.dat"},
     {" -copySetUri=local://./moduleException6/copysets"},
     {" -recycleUri=local://./moduleException6/recycler"},
     {" -chunkFilePoolDir=./moduleException6/chunkfilepool/"},
     {" -chunkFilePoolMetaPath=./moduleException6/chunkfilepool.meta"},
-    {" -conf=./test/integration/client/config/chunkserver.conf.5"},
+    {" -conf=./conf/chunkserver.conf.example"},
     {" -raft_sync_segments=true"},
-    {" --log_dir=./runlog/ChunkserverException"}
+    {" --log_dir=./runlog/ChunkserverException"},
+    {" -chunkServerIp=127.0.0.1"},
+    {" -chunkServerPort=22127"},
+    {" -enableChunkfilepool=false"},
+    {" -mdsListenAddr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124"}
 };
 
+std::string mdsaddr = "127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124";    // NOLINT
+std::string logpath = "./runlog/ChunkserverException";    // NOLINT
+
+const std::vector<std::string> clientConf {
+    std::string("mds.listen.addr=") + mdsaddr,
+    std::string("global.logPath=") + logpath,
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=10"),
+};
 class CSModuleException : public ::testing::Test {
  public:
     void SetUp() {
-        std::this_thread::sleep_for(std::chrono::seconds(60));
-
+        std::string confPath = "./test/integration/client/config/client.conf.1";
         system("mkdir ./runlog/ChunkserverException");
         system("rm -rf module_exception_test_chunkserver.etcd");
         system("rm -rf moduleException4 moduleException5 moduleException6");
@@ -97,20 +109,23 @@ class CSModuleException : public ::testing::Test {
         cluster = new CurveCluster();
         ASSERT_NE(nullptr, cluster);
 
+        cluster->PrepareConfig<curve::ClientConfigGenerator>(
+            confPath, clientConf);
+
         // 0. 初始化db
         cluster->InitDB("module_exception_curve_chunkserver");
         cluster->mdsRepo_->dropDataBase();
 
         // 1. 启动etcd
-        cluster->StarSingleEtcd(1, "127.0.0.1:22233", "127.0.0.1:22234",
+        cluster->StartSingleEtcd(1, "127.0.0.1:22233", "127.0.0.1:22234",
         std::vector<std::string>{" --name module_exception_test_chunkserver"});
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
-        cluster->StartSingleMDS(1, "127.0.0.1:22122", mdsConf4, true);
+        cluster->StartSingleMDS(1, "127.0.0.1:22122", mdsConf, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(2, "127.0.0.1:22123", mdsConf5, false);
+        cluster->StartSingleMDS(2, "127.0.0.1:22123", mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(3, "127.0.0.1:22124", mdsConf6, false);
+        cluster->StartSingleMDS(3, "127.0.0.1:22124", mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
         // 3. 创建物理池
@@ -119,7 +134,8 @@ class CSModuleException : public ::testing::Test {
         + std::string(" -mds_addr=127.0.0.1:22122,127.0.0.1:22123,127.0.0.1:22124")     //  NOLINT
         + std::string(" -op=create_physicalpool")
         + std::string(" -stderrthreshold=0")
-        + std::string(" -minloglevel=0");
+        + std::string(" -minloglevel=0")
+        + std::string(" -rpcTimeOutMs=10000");
 
         LOG(INFO) << "exec cmd: " << createPPCmd;
         int ret = 0;
@@ -155,7 +171,7 @@ class CSModuleException : public ::testing::Test {
         ASSERT_EQ(ret, 0);
 
         // 6. 初始化client配置
-        ret = Init("./test/integration/client/config/client.conf.1");
+        ret = Init(confPath.c_str());
         ASSERT_EQ(ret, 0);
 
         // 7. 创建一个文件
@@ -169,7 +185,6 @@ class CSModuleException : public ::testing::Test {
     void TearDown() {
         ::Close(fd);
         UnInit();
-        cluster->mdsRepo_->dropDataBase();
         cluster->StopCluster();
         delete cluster;
         system("rm -rf moduleException6 moduleException4 moduleException5");
@@ -256,7 +271,7 @@ class CSModuleException : public ::testing::Test {
         bool ret = false;
         {
             std::unique_lock<std::mutex> lk(resumeMtx);
-            resumeCV.wait_for(lk, std::chrono::seconds(2*predictTimeS + 10));
+            resumeCV.wait_for(lk, std::chrono::seconds(predictTimeS + 10));
             ret = resumeFlag;
         }
 
@@ -300,7 +315,7 @@ TEST_F(CSModuleException, ChunkserverException) {
     cluster->StopChunkServer(1);
 
     // 3. kill掉一个chunkserver之后，client的io预期最多会在2*electtime后恢复
-    ASSERT_TRUE(MonitorResume(0, 4096, 2 * 5));
+    ASSERT_TRUE(MonitorResume(0, 4096, 2));
 
     // 4. 拉起刚才被kill的chunkserver
     cluster->StartSingleChunkServer(1, "127.0.0.1:22125", chunkserverConf4);
@@ -323,7 +338,7 @@ TEST_F(CSModuleException, ChunkserverException) {
     cluster->HangChunkServer(1);
 
     // 3. hang一个chunkserver之后，client的io预期最多会在2*electtime后恢复
-    ASSERT_TRUE(MonitorResume(0, 4096, 2 * 5));
+    ASSERT_TRUE(MonitorResume(0, 4096, 2));
 
     // 4. 拉起刚才被hang的chunkserver
     cluster->RecoverHangChunkServer(1);
@@ -355,7 +370,9 @@ TEST_F(CSModuleException, ChunkserverException) {
 
     // 5. 拉起刚才被kill的chunkserver的第一个，
     //    client的io预期最多会在2*electtime后恢复
-    ASSERT_TRUE(MonitorResume(0, 4096, 2 * 5));
+    // 如果配置了慢启动，则需要等待
+    // (copysetNum / load_concurrency) * election_timeout
+    ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
     // 6. 拉起刚才被kill的chunkserver的第二个
     cluster->StartSingleChunkServer(2, "127.0.0.1:22126", chunkserverConf5);
@@ -380,14 +397,16 @@ TEST_F(CSModuleException, ChunkserverException) {
     cluster->HangChunkServer(2);
 
     // 3. hang两个chunkserver, io无法正常下发
-    ASSERT_FALSE(MonitorResume(0, 4096, 2 * 5));
+    ASSERT_FALSE(MonitorResume(0, 4096, 2));
 
     // 4. 拉起刚才被hang的chunkserver的第一个
     cluster->RecoverHangChunkServer(1);
 
     // 5. 拉起刚才被hang的chunkserver的第一个，
     //    client的io预期最多会在2*electtime后恢复
-    ASSERT_TRUE(MonitorResume(0, 4096, 2 * 5));
+    // 如果配置了慢启动，则需要等待
+    // (copysetNum / load_concurrency) * election_timeout
+    ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
     // 6. 拉起刚才被hang的chunkserver的第二个
     cluster->RecoverHangChunkServer(2);
@@ -415,19 +434,19 @@ TEST_F(CSModuleException, ChunkserverException) {
     cluster->StopChunkServer(3);
 
     // 3. kill掉三个chunkserver, io无法正常下发
-    ASSERT_FALSE(MonitorResume(0, 4096, 2 * 5));
+    ASSERT_FALSE(MonitorResume(0, 4096, 2));
 
     // 4. 拉起刚才被kill的chunkserver的第一个
     cluster->StartSingleChunkServer(1, "127.0.0.1:22125", chunkserverConf4);
 
     // 5. 只有一个chunkserver工作, io无法正常下发
-    ASSERT_FALSE(MonitorResume(0, 4096, 2 * 5));
+    ASSERT_FALSE(MonitorResume(0, 4096, 80));
 
     // 6. 拉起刚才被kill的chunkserver的第二个
     cluster->StartSingleChunkServer(2, "127.0.0.1:22126", chunkserverConf5);
 
     // 7. client的io恢复
-    ASSERT_TRUE(MonitorResume(0, 4096, 2 * 5));
+    ASSERT_TRUE(MonitorResume(0, 4096, 80));
 
     // 8. 拉起其他被kil的chunkserver
     cluster->StartSingleChunkServer(3, "127.0.0.1:22127", chunkserverConf6);
@@ -457,12 +476,14 @@ TEST_F(CSModuleException, ChunkserverException) {
     cluster->RecoverHangChunkServer(1);
 
     // 5. 只有一个chunkserver工作, io无法正常下发
-    ASSERT_FALSE(MonitorResume(0, 4096, 30));
+    ASSERT_FALSE(MonitorResume(0, 4096, 80));
 
     // 6. 拉起刚才被hang的chunkserver的第二个
     cluster->RecoverHangChunkServer(2);
     cluster->RecoverHangChunkServer(3);
 
-    // 6. client的io预期最多会在2*electtime s内恢复
-    ASSERT_TRUE(MonitorResume(0, 4096, 2*5));
+    // 7. client的io预期最多会在2*electtime s内恢复
+    // 如果配置了慢启动，则需要等待
+    // (copysetNum / load_concurrency) * election_timeout
+    ASSERT_TRUE(MonitorResume(0, 4096, 80));
 }
