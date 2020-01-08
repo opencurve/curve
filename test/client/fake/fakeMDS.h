@@ -59,6 +59,9 @@ using ::curve::mds::topology::GetClusterInfoResponse;
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
 
+
+DECLARE_bool(start_builtin_service);
+
 class FakeMDSCurveFSService : public curve::mds::CurveFSService {
  public:
     FakeMDSCurveFSService() {

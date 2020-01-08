@@ -281,30 +281,22 @@ void MetaCache::UpdateChunkInfoByID(ChunkID cid, ChunkIDInfo cidinfo) {
     chunkid2chunkInfoMap_[cid] = cidinfo;
 }
 
-// MetaCacheErrorType MetaCache::GetChunkInfoByID(ChunkID chunkid,
-//                                 ChunkIDInfo_t* chunkinfo) {
-//     ReadLockGuard rdlk(rwlock4chunkInfoMap_);
-//     auto iter = chunkid2chunkInfoMap_.find(chunkid);
-//     if (iter != chunkid2chunkInfoMap_.end()) {
-//         *chunkinfo = iter->second;
-//         return MetaCacheErrorType::OK;
-//     }
-//     return MetaCacheErrorType::CHUNKINFO_NOT_FOUND;
-// }
+int MetaCache::SetServerUnstable(const std::string& serverIp) {
+    LOG(WARNING) << "Server unstable, ip = " << serverIp << "";
 
-// bool MetaCache::CopysetIDInfoIn(ChunkServerID csid,
-//                                 LogicPoolID lpid,
-//                                 CopysetID cpid) {
-//     std::set<CopysetIDInfo> copysetIDSet;
-//     ReadLockGuard rdlk(rwlock4CSCopysetIDMap_);
-//     auto iter = chunkserverCopysetIDMap_.find(csid);
-//     if (iter != chunkserverCopysetIDMap_.end()) {
-//         copysetIDSet = iter->second;
-//         auto it = copysetIDSet.find(CopysetIDInfo(lpid, cpid));
-//         return it != copysetIDSet.end();
-//     }
-//     return false;
-// }
+    std::vector<ChunkServerID> csIds;
+    int ret = mdsclient_->ListChunkServerInServer(serverIp, &csIds);
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(WARNING) << "ListChunkServer failed";
+        return -1;
+    }
+
+    for (auto id : csIds) {
+        SetChunkserverUnstable(id);
+    }
+
+    return 0;
+}
 
 void MetaCache::SetChunkserverUnstable(ChunkServerID csid) {
     LOG(WARNING) << "chunkserver " << csid << " unstable!";

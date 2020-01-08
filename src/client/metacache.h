@@ -178,6 +178,14 @@ class MetaCache {
                                         ChunkID chunkid);
 
     /**
+     * @brief: 标记整个server上的所有chunkserver为unstable状态
+     *
+     * @param: serverIp server的ip地址
+     * @return: 0 设置成功 / -1 设置失败
+     */
+    virtual int SetServerUnstable(const std::string& endPoint);
+
+    /**
      * 如果leader所在的chunkserver出现问题了，导致RPC失败。这时候这个
      * chunkserver上的其他leader copyset也会存在同样的问题，所以需要
      * 通知当前chunkserver上的leader copyset. 主要是通过设置这个copyset

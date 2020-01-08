@@ -35,6 +35,7 @@ bool Configuration::LoadConfig() {
             config_[key] = value;
         }
     } else {
+        LOG(ERROR) << "Open config file '" << confFile_ << "' failed";
         return false;
     }
 
