@@ -4,6 +4,8 @@ dir=`pwd`
 bazel clean
 rm -rf curvefs_python/BUILD
 rm -rf curvefs_python/tmplib/
+rm -rf curvesnapshot_python/BUILD
+rm -rf curvesnapshot_python/tmplib/
 rm -rf *.deb
 rm -rf build
 
@@ -13,12 +15,21 @@ then
 	echo "submodule init failed"
 	exit
 fi
+
+#获取tag版本
+tag_version=`git status | grep -w "HEAD detached at" | awk '{print $NF}' | awk -F"v" '{print $2}'`
+if [ -z ${tag_version} ]
+then
+    echo "not found version info, set version to 9.9.9"
+	tag_version=9.9.9
+fi
+
 #step2 执行编译
 if [ "$1" = "debug" ]
 then
 bazel build ... --copt -DHAVE_ZLIB=1 --compilation_mode=dbg -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version}
 if [ $? -ne 0 ]
 then
 	echo "build phase1 failed"
@@ -34,7 +45,7 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --compilation_mode=dbg 
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version}
 if [ $? -ne 0 ]
 then
 	echo "build phase2 failed"
@@ -43,7 +54,7 @@ fi
 else
 bazel build ... --copt -DHAVE_ZLIB=1 --copt -O2 -s --define=with_glog=true \
 --define=libunwind=true --copt -DGFLAGS_NS=google --copt \
--Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX
+-Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --copt -DCURVEVERSION=${tag_version}
 if [ $? -ne 0 ]
 then
 	echo "build phase1 failed"
@@ -59,7 +70,7 @@ bazel build curvefs_python:curvefs  --copt -DHAVE_ZLIB=1 --copt -O2 -s \
 --define=with_glog=true --define=libunwind=true --copt -DGFLAGS_NS=google \
 --copt \
 -Wno-error=format-security --copt -DUSE_BTHREAD_MUTEX --linkopt \
--L${dir}/curvefs_python/tmplib/
+-L${dir}/curvefs_python/tmplib/ --copt -DCURVEVERSION=${tag_version}
 if [ $? -ne 0 ]
 then
 	echo "build phase2 failed"
@@ -94,11 +105,6 @@ then
 	exit
 fi
 cp -r curve-monitor build/
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp -r curve-snapshotcloneserver build/
 if [ $? -ne 0 ]
 then
 	exit
@@ -258,33 +264,21 @@ if [ $? -ne 0 ]
 then
 	exit
 fi
-mkdir -p build/curve-snapshotcloneserver/usr/bin
-if [ $? -ne 0 ]
-then
-	exit
-fi
-cp ./bazel-bin/src/snapshotcloneserver/snapshotcloneserver \
-build/curve-snapshotcloneserver/usr/bin/curve-snapshotcloneserver
-if [ $? -ne 0 ]
-then
-	exit
-fi
 
 #step4 获取git提交版本信息，记录到debian包的配置文件
 commit_id=`git show --abbrev-commit HEAD|head -n 1|awk '{print $2}'`
-version=`cat curve-mds/DEBIAN/control |grep Version`
 if [ "$1" = "debug" ]
 then
 	debug="+debug"
 else
 	debug=""
 fi
-sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-mds/DEBIAN/control
-sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-sdk/DEBIAN/control
-sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-chunkserver/DEBIAN/control
-sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-tools/DEBIAN/control
-sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-monitor/DEBIAN/control
-sed -i "s/${version}/${version}+${commit_id}${debug}/g" build/curve-snapshotcloneserver/DEBIAN/control
+version="Version: ${tag_version}+${commit_id}${debug}"
+echo ${version} >> build/curve-mds/DEBIAN/control
+echo ${version} >> build/curve-sdk/DEBIAN/control
+echo ${version} >> build/curve-chunkserver/DEBIAN/control
+echo ${version} >> build/curve-tools/DEBIAN/control
+echo ${version} >> build/curve-monitor/DEBIAN/control
 
 #step5 打包debian包
 dpkg-deb -b build/curve-mds .
@@ -292,7 +286,6 @@ dpkg-deb -b build/curve-sdk .
 dpkg-deb -b build/curve-chunkserver .
 dpkg-deb -b build/curve-tools .
 dpkg-deb -b build/curve-monitor .
-dpkg-deb -b build/curve-snapshotcloneserver .
 #aws-c-common(commit=0302570a3cbabd98293ee03971e0867f28355086)
 #aws-checksums(commit=78be31b81a2b0445597e60ecb2412bc44e762a99)
 #aws-c-event-stream(commit=ad9a8b2a42d6c6ef07ccf251b5038b89487eacb3)

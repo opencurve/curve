@@ -194,12 +194,13 @@ struct ChunkServerAddr {
     int Parse(const std::string& str) {
         int idx;
         char ip_str[64];
-        if (2 > sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
+        if (3 != sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
                        &addr_.port, &idx)) {
             Reset();
             return -1;
         }
-        if (0 != butil::str2ip(ip_str, &addr_.ip)) {
+        int ret = butil::str2ip(ip_str, &addr_.ip);
+        if (0 != ret) {
             Reset();
             return -1;
         }

@@ -21,7 +21,7 @@ SnapshotClient::SnapshotClient() {
 
 int SnapshotClient::Init(ClientConfigOption_t clientopt) {
     google::SetCommandLineOption("minloglevel",
-            std::to_string(clientopt.loginfo.loglevel).c_str());
+            std::to_string(clientopt.loginfo.logLevel).c_str());
     int ret = -LIBCURVE_ERROR::FAILED;
     do {
         if (mdsclient_.Initialize(clientopt.metaServerOpt)
@@ -48,15 +48,16 @@ int SnapshotClient::Init(const std::string& configpath) {
 
     int ret = -LIBCURVE_ERROR::FAILED;
     do {
-        if (mdsclient_.Initialize(
-            clientconfig_.GetFileServiceOption().metaServerOpt)
-            != LIBCURVE_ERROR::OK) {
+        auto rt = mdsclient_.Initialize(
+                  clientconfig_.GetFileServiceOption().metaServerOpt);
+        if (rt != LIBCURVE_ERROR::OK) {
             LOG(ERROR) << "MDSClient init failed!";
             break;
         }
 
-        if (!iomanager4chunk_.Initialize(
-            clientconfig_.GetFileServiceOption().ioOpt, &mdsclient_)) {
+        bool rc = iomanager4chunk_.Initialize(
+                   clientconfig_.GetFileServiceOption().ioOpt, &mdsclient_);
+        if (!rc) {
             LOG(ERROR) << "Init io context manager failed!";
             break;
         }

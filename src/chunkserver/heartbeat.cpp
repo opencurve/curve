@@ -19,6 +19,7 @@
 #include "src/common/timeutility.h"
 #include "src/chunkserver/heartbeat.h"
 #include "src/chunkserver/uri_paser.h"
+#include "src/chunkserver/heartbeat_helper.h"
 
 using curve::fs::FileSystemInfo;
 
@@ -86,11 +87,12 @@ int Heartbeat::Run() {
 
 int Heartbeat::Stop() {
     LOG(INFO) << "Stopping Heartbeat manager.";
+
+    waitInterval_.StopWait();
     toStop_.store(true, std::memory_order_release);
-
     hbThread_.join();
-    LOG(INFO) << "Stopped Heartbeat manager.";
 
+    LOG(INFO) << "Stopped Heartbeat manager.";
     return 0;
 }
 
@@ -369,101 +371,92 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
     int count = response.needupdatecopysets_size();
     for (int i = 0; i < count; i ++) {
         CopySetConf conf = response.needupdatecopysets(i);
-        GroupNid groupId = ToGroupNid(conf.logicalpoolid(), conf.copysetid());
-
-        uint64_t epoch = conf.epoch();
-
         CopysetNodePtr copyset = copysetMan_->GetCopysetNode(
                 conf.logicalpoolid(), conf.copysetid());
-        // chunkserver中不存在需要变更的copyset
-        if (copyset == nullptr) {
-            TaskStatus status(ENOENT, "Failed to find copyset <%u, %u>",
-                              conf.logicalpoolid(), conf.copysetid());
-            LOG(ERROR) << status.error_str();
+
+        // 判断copyconf是否合法
+        if (!HeartbeatHelper::CopySetConfValid(conf, copyset)) {
             continue;
         }
 
-        // CLDCFS-1004 bug-fix: mds下发epoch为0, 配置为空的copyset
-        if (0 == epoch && conf.peers().empty()) {
-            LOG(INFO) << "Clean copyset "
-                      << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid())
-                      << "in peer " << csEp_
-                      << ", witch is not exist in mds record";
+        // 解析该chunkserver上的copyset是否需要删除
+        // 需要删除则清理copyset
+        if (HeartbeatHelper::NeedPurge(csEp_, conf, copyset)) {
+            LOG(INFO) << "Clean peer " << csEp_ << " of copyset("
+                << conf.logicalpoolid() << "," << conf.copysetid()
+                << "), groupId: "
+                << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
             PurgeCopyset(conf.logicalpoolid(), conf.copysetid());
             continue;
         }
 
-        // 下发的变更epoch < copyset实际的epoch
-        if (epoch < copyset->GetConfEpoch()) {
-            TaskStatus status(EINVAL, "Invalid epoch aginast copyset <%u, %u>"
-                                      " expected epoch: %lu, recevied: %lu",
-                              conf.logicalpoolid(),
-                              conf.copysetid(),
-                              copyset->GetConfEpoch(),
-                              epoch);
-            LOG(WARNING) << status.error_str();
+        // 解析是否有配置变更需要执行
+        if (!conf.has_type()) {
+            LOG(INFO) << "Failed to parse task for copyset("
+                << conf.logicalpoolid() << "," << conf.copysetid()
+                << "), groupId: "
+                << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
             continue;
         }
 
-        // 该chunkserver不在copyset的配置中
-        bool cleanPeer = true;
-        for (int j = 0; j < conf.peers_size(); j ++) {
-            std::string epStr = std::string(butil::endpoint2str(csEp_).c_str());
-            if (conf.peers(j).address().find(epStr) != std::string::npos) {
-                cleanPeer = false;
-                break;
-            }
-        }
-
-        if (cleanPeer) {
-            LOG(INFO) << "Clean peer " << csEp_ << " of copyset "
-                    << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            PurgeCopyset(conf.logicalpoolid(), conf.copysetid());
+        // 如果有配置变更需要执行，下发变更到copyset
+        if (!HeartbeatHelper::PeerVaild(conf.configchangeitem().address())) {
             continue;
         }
 
-        bool confChx = conf.has_type();
-        if (!confChx) {
-            TaskStatus status(EINVAL, "Failed to parse task against copyset"
-                                      "<%u, %u>",
-                              conf.logicalpoolid(), conf.copysetid());
-            LOG(ERROR) << status.error_str();
+        if (conf.epoch() != copyset->GetConfEpoch()) {
+            LOG(WARNING) << "Config change epoch:" << conf.epoch()
+                << " is not same as current:" << copyset->GetConfEpoch()
+                << " on copyset("
+                << conf.logicalpoolid() << "," <<  conf.copysetid()
+                << "), groupId: "
+                << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid())
+                << ", refuse change";
             continue;
         }
-        PeerId peerId;
-        std::string peerStr = conf.configchangeitem().address();
-        if (peerId.parse(peerStr) != 0) {
-            TaskStatus status(EINVAL, "Failed to parse peerId against copyset"
-                                      "<%u, %u>, received peerId %s",
-                              conf.logicalpoolid(), conf.copysetid(),
-                              peerStr.c_str());
-            LOG(ERROR) << status.error_str();
-            continue;
-        }
-        Peer peer;
-        peer.set_address(peerId.to_string());
+
+        // 根据不同的变更类型下发配置
         switch (conf.type()) {
         case curve::mds::heartbeat::TRANSFER_LEADER:
-            LOG(INFO) << "Transfer leader to " << peerId << " on copyset "
-                      << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copyset->TransferLeader(peer);
+            LOG(INFO) << "Transfer leader to "
+                << conf.configchangeitem().address() << " on copyset"
+                << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
+            copyset->TransferLeader(conf.configchangeitem());
             break;
+
         case curve::mds::heartbeat::ADD_PEER:
-            LOG(INFO) << "Adding peer " << peerId << " to copyset "
-                      << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copyset->AddPeer(peer);
+            LOG(INFO) << "Adding peer " << conf.configchangeitem().address()
+                << " to copyset"
+                << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
+            copyset->AddPeer(conf.configchangeitem());
             break;
+
         case curve::mds::heartbeat::REMOVE_PEER:
-            LOG(INFO) << "Removing peer " << peerId << " from copyset "
-                      << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copyset->RemovePeer(peer);
+            LOG(INFO) << "Removing peer " << conf.configchangeitem().address()
+                << " from copyset"
+                << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
+            copyset->RemovePeer(conf.configchangeitem());
             break;
+
+        case curve::mds::heartbeat::CHANGE_PEER:
+            {
+                std::vector<Peer> newPeers;
+                if (HeartbeatHelper::BuildNewPeers(conf, &newPeers)) {
+                    LOG(INFO) << "Change peer from "
+                        << conf.oldpeer().address() << " to "
+                        << conf.configchangeitem().address() << " on copyset"
+                        << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
+                    copyset->ChangePeer(newPeers);
+                } else {
+                    LOG(ERROR) << "Build new peer for copyset"
+                        << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid())
+                        << " failed";
+                }
+            }
+            break;
+
         default:
-            TaskStatus status(EINVAL, "Invalid operation %d against copyset"
-                                      "<%u, %u>",
-                              conf.type(),
-                              conf.logicalpoolid(), conf.copysetid());
-            LOG(ERROR) << status.error_str();
+            LOG(ERROR) << "Invalid configchange type: " << conf.type();
             break;
         }
     }

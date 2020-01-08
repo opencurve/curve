@@ -10,6 +10,9 @@
 #include <glog/logging.h>
 #include <fiu.h>
 
+#include <thread>   // NOLINT
+#include <chrono>   // NOLINT
+
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
 #include "proto/cli2.pb.h"
@@ -340,8 +343,37 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
         response->CopyFrom(*resp);
     }
 
+    void GetChunkServer(
+            ::google::protobuf::RpcController* controller,
+            const curve::mds::topology::GetChunkServerInfoRequest* request,
+            curve::mds::topology::GetChunkServerInfoResponse* response,
+            ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (getidfakeret_->controller_ != nullptr
+         && getidfakeret_->controller_->Failed()) {
+            auto cntl = static_cast<brpc::Controller*>(
+                getidfakeret_->controller_);
+            auto brpccntl = static_cast<brpc::Controller*>(controller);
+            brpccntl->SetFailed(cntl->ErrorCode(), "failed");
+        }
+
+        retrytimes_++;
+
+        LOG(INFO) << "GetChunkServerInfo";
+
+        auto resp = static_cast<
+            curve::mds::topology::GetChunkServerInfoResponse*>(
+            getidfakeret_->response_);
+
+        response->CopyFrom(*resp);
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
+    }
+
+    void SetGetChunkserveridFakeReturn(FakeReturn* fakeret) {
+        getidfakeret_ = fakeret;
     }
 
     void CleanRetryTimes() {
@@ -354,28 +386,39 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
 
     uint64_t retrytimes_;
     FakeReturn* fakeret_;
+    FakeReturn* getidfakeret_;
 };
 
 class FakeCliService : public curve::chunkserver::CliService2 {
  public:
-    FakeCliService() {
-        invoketimes_ = 0;
-    }
+    FakeCliService() : waitMs_(0), invoketimes_(0), fakeret_(nullptr) {}
+
     void GetLeader(::google::protobuf::RpcController* controller,
                     const curve::chunkserver::GetLeaderRequest2* request,
                     curve::chunkserver::GetLeaderResponse2* response,
                     ::google::protobuf::Closure* done) {
+        invoketimes_++;
+
         brpc::ClosureGuard done_guard(done);
-        if (fakeret_->controller_ != nullptr
-         && fakeret_->controller_->Failed()) {
-            controller->SetFailed("failed");
+        if (fakeret_->controller_ != nullptr &&
+            fakeret_->controller_->Failed()) {
+            brpc::Controller* cntl =
+                static_cast<brpc::Controller*>(controller);
+            if (errCode_ != 0) {
+                cntl->SetFailed(errCode_, "failed");
+            } else {
+                cntl->SetFailed("failed");
+            }
         }
 
         auto resp = static_cast<curve::chunkserver::GetLeaderResponse2*>(
             fakeret_->response_);
         response->CopyFrom(*resp);
 
-        invoketimes_++;
+        if (waitMs_ != 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(waitMs_));
+            LOG(INFO) << "Get leader will sleep " << waitMs_ << " ms";
+        }
     }
 
     int GetInvokeTimes() {
@@ -390,7 +433,25 @@ class FakeCliService : public curve::chunkserver::CliService2 {
         fakeret_ = fakeret;
     }
 
+    void SetDelayMs(uint64_t waitMs) {
+        waitMs_ = waitMs;
+    }
+
+    void ClearDelay() {
+        waitMs_ = 0;
+    }
+
+    void SetErrorCode(int errCode) {
+        errCode_ = errCode;
+    }
+
+    void ClearErrorCode() {
+        errCode_ = 0;
+    }
+
  private:
+    uint64_t waitMs_;
+    int errCode_;
     int invoketimes_;
     FakeReturn* fakeret_;
 };

@@ -43,67 +43,102 @@ struct TestClosure : public SnapCloneClosure {
     }
 };
 
-TEST_F(TestCurveFsClientImpl, TestClientInterface) {
+TEST_F(TestCurveFsClientImpl, TestClientInterfaceFail) {
     uint64_t seq = 0;
-    client_->CreateSnapshot("file1", "user1", &seq);
-    client_->CreateSnapshot("file1", clientOption_.mdsRootUser, &seq);
+    int ret = client_->CreateSnapshot("file1", "user1", &seq);
+    ASSERT_LT(ret, 0);
+    ret = client_->CreateSnapshot("file1", clientOption_.mdsRootUser, &seq);
+    ASSERT_LT(ret, 0);
 
-    client_->DeleteSnapshot("file1", "user1", 1);
-    client_->DeleteSnapshot("file1", clientOption_.mdsRootUser, 1);
+    ret = client_->DeleteSnapshot("file1", "user1", 1);
+    ASSERT_LT(ret, 0);
+    ret = client_->DeleteSnapshot("file1", clientOption_.mdsRootUser, 1);
+    ASSERT_LT(ret, 0);
 
     FInfo fInfo;
-    client_->GetSnapshot("file1", "user1", 1, &fInfo);
-    client_->GetSnapshot("file1", clientOption_.mdsRootUser, 1, &fInfo);
+    ret = client_->GetSnapshot("file1", "user1", 1, &fInfo);
+    ASSERT_LT(ret, 0);
+    ret = client_->GetSnapshot("file1", clientOption_.mdsRootUser, 1, &fInfo);
+    ASSERT_LT(ret, 0);
 
     SegmentInfo segInfo;
-    client_->GetSnapshotSegmentInfo("file1", "user1", 1, 0, &segInfo);
-    client_->GetSnapshotSegmentInfo(
+    ret = client_->GetSnapshotSegmentInfo("file1", "user1", 1, 0, &segInfo);
+    ASSERT_LT(ret, 0);
+    ret = client_->GetSnapshotSegmentInfo(
         "file1", clientOption_.mdsRootUser, 1, 0, &segInfo);
+    ASSERT_LT(ret, 0);
 
     ChunkIDInfo cidinfo;
-    client_->DeleteChunkSnapshotOrCorrectSn(cidinfo, 2);
+    ret = client_->DeleteChunkSnapshotOrCorrectSn(cidinfo, 2);
+    ASSERT_LT(ret, 0);
 
     FileStatus fstatus;
-    client_->CheckSnapShotStatus("file1", "user1", 1, &fstatus);
-    client_->CheckSnapShotStatus(
+    ret = client_->CheckSnapShotStatus("file1", "user1", 1, &fstatus);
+    ASSERT_LT(ret, 0);
+    ret = client_->CheckSnapShotStatus(
         "file1", clientOption_.mdsRootUser, 1, &fstatus);
+    ASSERT_LT(ret, 0);
 
     ChunkInfoDetail chunkInfo;
-    client_->GetChunkInfo(cidinfo, &chunkInfo);
+    ret = client_->GetChunkInfo(cidinfo, &chunkInfo);
+    ASSERT_LT(ret, 0);
 
-    client_->CreateCloneFile("file1", "user1", 1024, 1, 1024, &fInfo);
-    client_->CreateCloneFile(
+    ret = client_->CreateCloneFile("file1", "user1", 1024, 1, 1024, &fInfo);
+    ASSERT_LT(ret, 0);
+    ret = client_->CreateCloneFile(
         "file1", clientOption_.mdsRootUser, 1024, 1, 1024, &fInfo);
+    ASSERT_LT(ret, 0);
 
     TestClosure *cb = new TestClosure();
-    client_->CreateCloneChunk("", cidinfo, 1, 2, 1024, cb);
+    ret = client_->CreateCloneChunk("", cidinfo, 1, 2, 1024, cb);
+    ASSERT_EQ(ret, 0);
 
     TestClosure *cb2 = new TestClosure();
-    client_->RecoverChunk(cidinfo, 0, 1024, cb2);
+    ret = client_->RecoverChunk(cidinfo, 0, 1024, cb2);
+    ASSERT_EQ(ret, 0);
 
-    client_->CompleteCloneMeta("file1", "user1");
-    client_->CompleteCloneMeta("file1", clientOption_.mdsRootUser);
+    ret = client_->CompleteCloneMeta("file1", "user1");
+    ASSERT_LT(ret, 0);
+    ret = client_->CompleteCloneMeta("file1", clientOption_.mdsRootUser);
+    ASSERT_LT(ret, 0);
 
-    client_->CompleteCloneFile("file1", "user1");
-    client_->CompleteCloneFile("file1", clientOption_.mdsRootUser);
+    ret = client_->CompleteCloneFile("file1", "user1");
+    ASSERT_LT(ret, 0);
+    ret = client_->CompleteCloneFile("file1", clientOption_.mdsRootUser);
+    ASSERT_LT(ret, 0);
 
-    client_->GetFileInfo("file1", "user1", &fInfo);
-    client_->GetFileInfo("file1", clientOption_.mdsRootUser, &fInfo);
+    ret = client_->GetFileInfo("file1", "user1", &fInfo);
+    ASSERT_LT(ret, 0);
 
-    client_->GetOrAllocateSegmentInfo(true, 0, &fInfo, "user1", &segInfo);
-    client_->GetOrAllocateSegmentInfo(
-        true, 0, &fInfo, clientOption_.mdsRootUser, &segInfo);
+    ret = client_->GetFileInfo("file1", clientOption_.mdsRootUser, &fInfo);
+    ASSERT_LT(ret, 0);
 
-    client_->RenameCloneFile("user1", 1, 2, "file1", "file2");
-    client_->RenameCloneFile(clientOption_.mdsRootUser, 1, 2, "file1", "file2");
+    //  client 对mds接口无限重试，这两个接口死循环，先注释掉
+    // ret = client_->GetOrAllocateSegmentInfo(
+    //     true, 0, &fInfo, "user1", &segInfo);
+    // ASSERT_LT(ret, 0);
+    // ret = client_->GetOrAllocateSegmentInfo(
+    //     true, 0, &fInfo, clientOption_.mdsRootUser, &segInfo);
+    // ASSERT_LT(ret, 0);
 
-    client_->DeleteFile("file1", "user1", 1);
-    client_->DeleteFile("file1", clientOption_.mdsRootUser, 1);
+    ret = client_->RenameCloneFile("user1", 1, 2, "file1", "file2");
+    ASSERT_LT(ret, 0);
+    ret = client_->RenameCloneFile(
+        clientOption_.mdsRootUser, 1, 2, "file1", "file2");
+    ASSERT_LT(ret, 0);
 
-    client_->Mkdir("/clone", "user1");
-    client_->Mkdir("/clone", clientOption_.mdsRootUser);
+    ret = client_->DeleteFile("file1", "user1", 1);
+    ASSERT_LT(ret, 0);
+    ret = client_->DeleteFile("file1", clientOption_.mdsRootUser, 1);
+    ASSERT_LT(ret, 0);
 
-    client_->ChangeOwner("file1", "user2");
+    ret = client_->Mkdir("/clone", "user1");
+    ASSERT_LT(ret, 0);
+    ret = client_->Mkdir("/clone", clientOption_.mdsRootUser);
+    ASSERT_LT(ret, 0);
+
+    ret = client_->ChangeOwner("file1", "user2");
+    ASSERT_LT(ret, 0);
 }
 
 

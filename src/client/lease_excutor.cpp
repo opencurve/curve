@@ -35,8 +35,8 @@ bool LeaseExcutor::Start(const FInfo_t& fi, const LeaseSession_t&  lease) {
         LOG(ERROR) << "invalid lease time";
         return false;
     }
-    if (leaseoption_.refreshTimesPerLease == 0) {
-        LOG(ERROR) << "invalid refreshTimesPerLease";
+    if (leaseoption_.mdsRefreshTimesPerLease == 0) {
+        LOG(ERROR) << "invalid mdsRefreshTimesPerLease";
         return false;
     }
 
@@ -47,7 +47,7 @@ bool LeaseExcutor::Start(const FInfo_t& fi, const LeaseSession_t&  lease) {
         this->RefreshLease();
     };
 
-    auto interval = leasesession_.leaseTime/leaseoption_.refreshTimesPerLease;
+    auto interval = leasesession_.leaseTime/leaseoption_.mdsRefreshTimesPerLease;  // NOLINT
 
     refreshTask_ = new (std::nothrow) TimerTask(interval);
     if (refreshTask_ == nullptr) {
@@ -120,7 +120,7 @@ bool LeaseExcutor::LeaseValid() {
 
 void LeaseExcutor::IncremRefreshFailed() {
     failedrefreshcount_.fetch_add(1);
-    if (failedrefreshcount_.load() >= leaseoption_.refreshTimesPerLease) {
+    if (failedrefreshcount_.load() >= leaseoption_.mdsRefreshTimesPerLease) {
         isleaseAvaliable_.store(false);
         iomanager_->LeaseTimeoutBlockIO();
         LOG(ERROR) << "session invalid now!";

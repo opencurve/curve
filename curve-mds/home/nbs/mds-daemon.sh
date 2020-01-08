@@ -12,183 +12,237 @@ logPath=${HOME}
 # mdsAddr
 mdsAddr=
 
-# stop时是否停止curve-mds
-forceStop=false
-
 # pidfile
 pidFile=${HOME}/curve-mds.pid
 
 # daemon log
-daemonLog=${HOME}/daemon-mds.log
+daemonLog=${HOME}/curve-mds-daemon.log
 
 # console output
-consoleLog=${HOME}/mds-console.log
+consoleLog=${HOME}/curve-mds-console.log
 
 # 启动mds
 function start_mds() {
-    # 创建logPath
-    mkdir -p ${logPath} > /dev/null 2>&1
-    if [ $? -ne 0 ]
-    then
-        echo "Create mds log dir failed: ${logPath}"
-        exit
-    fi
+  # 检查daemon
+  if ! type daemon &> /dev/null
+  then
+    echo "No daemon installed"
+    exit 1
+  fi
 
-    # 检查logPath是否有写权限
-    touch ${logPath}/dummy-file > /dev/null 2>&1
-    if [ $? -ne 0 ]
-    then
-        echo "Write permission denied: ${logPath}"
-        rm -f ${logPath}/dummy-file > /dev/null 2>&1
-        exit
-    fi
-    rm -f ${logPath}/dummy-file > /dev/null 2>&1
+  # 检查curve-mds
+  if [ ! -f ${curveBin} ]
+  then
+    echo "No curve-mds installed"
+    exit 1
+  fi
 
-    # 检查consoleLog是否可写或者是否能够创建
-    touch ${consoleLog} > /dev/null 2>&1
-    if [ $? -ne 0 ]
-    then
-        echo "Can't Write or Create console Log: ${consoleLog}"
-        exit
-    fi
+  # 检查配置文件
+  if [ ! -f ${confPath} ]
+  then
+    echo "Not found mds.conf, Path is ${confPath}"
+    exit 1
+  fi
 
-    # 检查daemonLog是否可写或者是否能够创建
-    touch ${daemonLog} > /dev/null 2>&1
-    if [ $? -ne 0 ]
-    then
-        echo "Can't Write or Create daemon logfile: ${daemonLog}"
-        exit
-    fi
+  # 判断是否已经通过daemon启动了curve-mds
+  daemon --name curve-mds --pidfile ${pidFile} --running
+  if [ $? -eq 0 ]
+  then
+    echo "Already started curve-mds by daemon"
+    exit 1
+  fi
 
-    # 检查daemon
-    if ! type daemon &> /dev/null
-    then
-        echo "No daemon installed"
-        exit
-    fi
+  # 创建logPath
+  mkdir -p ${logPath} > /dev/null 2>&1
+  if [ $? -ne 0 ]
+  then
+    echo "Create mds log dir failed: ${logPath}"
+    exit 1
+  fi
 
-    # 检查curve-mds
-    if [ ! -f "/usr/bin/curve-mds" ]
-    then
-        echo "No curve-mds installed"
-        exit
-    fi
+  # 检查logPath是否有写权限
+  if [ ! -w ${logPath} ]
+  then
+    echo "Write permission denied: ${logPath}"
+    exit 1
+  fi
 
-    # 检查配置文件
-    if [ ! -f ${confPath} ]
-    then
-        echo "Not found mds.conf, Path is ${confPath}"
-        exit
-    fi
+  # 检查consoleLog是否可写或者是否能够创建
+  touch ${consoleLog} > /dev/null 2>&1
+  if [ $? -ne 0 ]
+  then
+    echo "Can't Write or Create console Log: ${consoleLog}"
+    exit 1
+  fi
 
-    # 判断是否已经通过daemon启动了curve-mds
-    daemon --name curve-mds --pidfile ${pidFile} --running
-    if [ $? -eq 0 ]
-    then
-        echo "Already started curve-mds by daemon"
-        exit
-    fi
+  # 检查daemonLog是否可写或者是否能够创建
+  touch ${daemonLog} > /dev/null 2>&1
+  if [ $? -ne 0 ]
+  then
+    echo "Can't Write or Create daemon logfile: ${daemonLog}"
+    exit 1
+  fi
 
-    # pidfile不存在 或 daemon进程不存在
-    # 启动daemon,切换路径,并启动curve-mds
+  # 未指定mdsAddr, 从配置文件中读取
+  if [ -z ${mdsAddr} ]
+  then
+    mdsAddr=`cat ${confPath} | grep "mds.listen.addr" | awk -F "=" '{print $2}'`
+  fi
 
-    # 未指定mdsAddr
-    if [ -z ${mdsAddr} ]
-    then
-        daemon --name curve-mds --core --inherit \
-            --respawn --attempts 100 --delay 10 \
-            --pidfile ${pidFile} \
-            --errlog ${daemonLog} \
-            --output ${consoleLog} \
-            -- ${curveBin} -confPath=${confPath} -log_dir=${logPath} -graceful_quit_on_sigterm=true
-    else
-        daemon --name curve-mds --core --inherit \
-            --respawn --attempts 100 --delay 10 \
-            --pidfile ${pidFile} \
-            --errlog ${daemonLog} \
-            --output ${consoleLog} \
-            -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr} -log_dir=${logPath} -graceful_quit_on_sigterm=true
-    fi
+  daemon --name curve-mds --core --inherit \
+    --respawn --attempts 100 --delay 10 \
+    --pidfile ${pidFile} \
+    --errlog ${daemonLog} \
+    --output ${consoleLog} \
+    -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr} -log_dir=${logPath} -graceful_quit_on_sigterm=true -stderrthreshold=3
+
+  sleep 1
+  show_status
 }
 
-# 停止daemon进程，但不停止curve-mds
+# 停止daemon进程，且停止curve-mds
 function stop_mds() {
-    if [ -f ${pidFile} ]
-    then
-        daemon --stop --name curve-mds --pidfile ${pidFile}
+  # 判断是否已经通过daemon启动了curve-mds
+  daemon --name curve-mds --pidfile ${pidFile} --running
+  if [ $? -ne 0 ]
+  then
+    echo "Didn't start curve-mds by daemon"
+    exit 1
+  fi
 
-        # stop时加了-f参数，则停止curve-mds进程
-        if [ $forceStop ]
-        then
-            pkill curve-mds > /dev/null 2>&1
-        fi
-    fi
+  daemon --name curve-mds --pidfile ${pidFile} --stop
+  if [ $? -ne 0 ]
+  then
+    echo "stop may not success!"
+  else
+    echo "curve-mds exit success!"
+    echo "daemon exit success!"
+  fi
+}
+
+# restart
+function restart_mds() {
+  # 判断是否已经通过daemon启动了curve-mds
+  daemon --name curve-mds --pidfile ${pidFile} --running
+  if [ $? -ne 0 ]
+  then
+    echo "Didn't start curve-mds by daemon"
+    exit 1
+  fi
+
+  daemon --name curve-mds --pidfile ${pidFile} --restart
+}
+
+# show status
+function show_status() {
+  # 判断是否已经通过daemon启动了curve-mds
+  daemon --name curve-mds --pidfile ${pidFile} --running
+  if [ $? -ne 0 ]
+  then
+    echo "Didn't start curve-mds by daemon"
+    exit 1
+  fi
+
+  # 查询leader的IP
+  leaderAddr=`tac ${consoleLog}|grep -m 1 -B 1000000 "load mds configuration"|grep "leader"|grep -E -o "([0-9]{1,3}[\.]){3}[0-9]{1,3}"|head -n1`
+
+  # 如果load mds configuration之后的日志，没有leader相关日志
+  # 那么leaderAddr为空, mds应该没有起来
+  if [ -z ${leaderAddr} ]
+  then
+    echo "MDS may not start successfully, check log"
+    exit 1
+  fi
+
+  if [ ${leaderAddr} = "127.0.0.1" ]
+  then
+    echo "Current MDS is LEADER"
+  else
+    # 查询是否和自身ip相等
+    for ip in `(hostname -I)`
+    do
+      if [ ${leaderAddr} = ${ip} ]
+      then
+        echo "Current MDS is LEADER"
+        exit
+      fi
+    done
+
+    echo "Current MDS is FOLLOWER, LEADER is ${leaderAddr}"
+  fi
 }
 
 # 使用方式
 function usage() {
-    echo "Usage:"
-    echo "  mds-daemon start -- start deamon process and watch on curve-mds process"
-    echo "        [-c|--confPath path]        mds conf path"
-    echo "        [-l|--logPath  path]        mds log path"
-    echo "        [-a|--mdsAddr  ip:port]     mds address"
-    echo "  mds-daemon stop  -- stop daemon process but curve-mds still running"
-    echo "        [-f]  also stop curve-mds process"
-    echo "Examples:"
-    echo "  mds-daemon start -c /etc/curve/mds.conf -l ${HOME}/ -a 127.0.0.1:6666"
+  echo "Usage:"
+  echo "  ./mds-daemon.sh start -- start deamon process and watch on curve-mds process"
+  echo "    [-c|--confPath path]    mds conf path"
+  echo "    [-l|--logPath  path]    mds log path"
+  echo "    [-a|--mdsAddr  ip:port]   mds address"
+  echo "  ./mds-daemon.sh stop  -- stop daemon process and curve-mds"
+  echo "  ./mds-daemon.sh restart -- restart curve-mds"
+  echo "  ./mds-daemon.sh status -- show mds status [LEADER/STATUS]"
+  echo "Examples:"
+  echo "  ./mds-daemon.sh start -c /etc/curve/mds.conf -l ${HOME}/ -a 127.0.0.1:6666"
 }
 
 # 检查参数启动参数，最少1个
 if [ $# -lt 1 ]
 then
-    usage
-    exit
+  usage
+  exit
 fi
 
 case $1 in
 "start")
-    shift # pass first argument
+  shift # pass first argument
 
-    # 解析参数
-    while [[ $# -gt 1 ]]
-    do
-        key=$1
+  # 解析参数
+  while [[ $# -gt 1 ]]
+  do
+    key=$1
 
-        case $key in
-        -c|--confPath)
-            confPath=`realpath $2`
-            shift # pass key
-            shift # pass value
-            ;;
-        -a|--mdsAddr)
-            mdsAddr=$2
-            shift # pass key
-            shift # pass value
-            ;;
-        -l|--logPath)
-            logPath=`realpath $2`
-            shift # pass key
-            shift # pass value
-            ;;
-        *)
-            usage
-            exit
-            ;;
-        esac
-    done
+    case $key in
+    -c|--confPath)
+      confPath=`realpath $2`
+      shift # pass key
+      shift # pass value
+      ;;
+    -a|--mdsAddr)
+      mdsAddr=$2
+      shift # pass key
+      shift # pass value
+      ;;
+    -l|--logPath)
+      logPath=`realpath $2`
+      shift # pass key
+      shift # pass value
+      ;;
+    *)
+      usage
+      exit
+      ;;
+    esac
+  done
 
-    start_mds
-    ;;
+  start_mds
+  ;;
 "stop")
-    # stop时加了-f参数，则停止curve-mds进程
-    if [ $# -eq 2 ] && [ $2 = '-f' ]
-    then
-        forceStop=true
-    fi
+  # stop时加了-f参数，则停止curve-mds进程
+  if [ $# -eq 2 ] && [ $2 = '-f' ]
+  then
+    forceStop=true
+  fi
 
-    stop_mds
-    ;;
+  stop_mds
+  ;;
+"restart")
+  restart_mds
+  ;;
+"status")
+  show_status
+  ;;
 *)
-    usage
-    ;;
+  usage
+  ;;
 esac

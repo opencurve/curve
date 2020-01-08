@@ -97,15 +97,11 @@ const std::vector<std::string> chunkserverConfigOptions {
 };
 
 const std::vector<std::string> csClientConfigOptions {
-    std::string("metaserver_addr=") + kMdsIpPort,
+    std::string("mds.listen.addr=") + kMdsIpPort,
 };
 
 const std::vector<std::string> snapClientConfigOptions {
-    std::string("metaserver_addr=") + kMdsIpPort,
-    std::string("rpcRetryTimes=500"),
-    std::string("synchronizeRPCRetryTime=500"),
-    std::string("getLeaderRetry=50"),
-    std::string("opMaxRetry=500"),
+    std::string("mds.listen.addr=") + kMdsIpPort,
 };
 
 const std::vector<std::string> s3ConfigOptions {
@@ -173,7 +169,7 @@ const std::vector<std::string> snapshotcloneConf{
 };
 
 const std::vector<std::string> clientConfigOptions {
-    std::string("metaserver_addr=") + kMdsIpPort,
+    std::string("mds.listen.addr=") + kMdsIpPort,
 };
 
 const char* testFile1_ = "/RcvItUser1/file1";
@@ -202,7 +198,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         system("rm -rf RcvSCSTest3");
 
         // 启动etcd
-        cluster_->StarSingleEtcd(1, kEtcdClientIpPort, kEtcdPeerIpPort,
+        cluster_->StartSingleEtcd(1, kEtcdClientIpPort, kEtcdPeerIpPort,
         std::vector<std::string>{" --name RcvSCSTest"});
 
         cluster_->PrepareConfig<MDSConfigGenerator>(

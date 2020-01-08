@@ -44,25 +44,5 @@ TEST(Common, StringToUll) {
     str = "ffff";
     ASSERT_FALSE(StringToUll(str, &out));
 }
-
-TEST(Common, ToUnderScored) {
-    // 只有字母和数字的情况
-    std::string str = "test1String2";
-    std::string out;
-    ToUnderScored(str, &out);
-    ASSERT_EQ("test1_string2", out);
-    // 只有特殊字符串的情况
-    str = "*&%";
-    ToUnderScored(str, &out);
-    ASSERT_EQ("_", out);
-    // 空字符串
-    str = "";
-    ToUnderScored(str, &out);
-    ASSERT_EQ("", out);
-    // 大小写字母，数字，其他字符串组合
-    str = "TestSTring1_forUnder*&%Score";
-    ToUnderScored(str, &out);
-    ASSERT_EQ("test_string1_for_under_score", out);
-}
 }  // namespace common
 }  // namespace curve

@@ -44,12 +44,8 @@ IOTracker::IOTracker(IOManager* iomanager,
     opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
 }
 
-void IOTracker::StartRead(CurveAioContext* aioctx,
-                            char* buf,
-                            off_t offset,
-                            size_t length,
-                            MDSClient* mdsclient,
-                            const FInfo_t* fi) {
+void IOTracker::StartRead(CurveAioContext* aioctx, char* buf,
+    off_t offset, size_t length, MDSClient* mdsclient, const FInfo_t* fi) {
     data_   = buf;
     offset_ = offset;
     length_ = length;
@@ -80,12 +76,8 @@ void IOTracker::StartRead(CurveAioContext* aioctx,
     }
 }
 
-void IOTracker::StartWrite(CurveAioContext* aioctx,
-                            const char* buf,
-                            off_t offset,
-                            size_t length,
-                            MDSClient* mdsclient,
-                            const FInfo_t* fi) {
+void IOTracker::StartWrite(CurveAioContext* aioctx, const char* buf,
+    off_t offset, size_t length, MDSClient* mdsclient,  const FInfo_t* fi) {
     data_   = buf;
     offset_ = offset;
     length_ = length;
@@ -141,14 +133,13 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
-                                uint64_t correctedSeq) {
+    uint64_t correctedSeq) {
     type_ = OpType::DELETE_SNAP;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
-            LOG(ERROR) << "allocate req node failed!";
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             break;
         }
 
@@ -169,14 +160,13 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
-                            ChunkInfoDetail *chunkInfo) {
+    ChunkInfoDetail *chunkInfo) {
     type_ = OpType::GET_CHUNK_INFO;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
-            LOG(ERROR) << "allocate req node failed!";
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             break;
         }
 
@@ -200,13 +190,12 @@ void IOTracker::CreateCloneChunk(const std::string &location,
     const ChunkIDInfo &cinfo, uint64_t sn, uint64_t correntSn,
     uint64_t chunkSize, SnapCloneClosure* scc) {
     type_ = OpType::CREATE_CLONE;
-     scc_ = scc;
+    scc_ = scc;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
-            LOG(ERROR) << "allocate req node failed!";
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             break;
         }
 
@@ -236,9 +225,8 @@ void IOTracker::RecoverChunk(const ChunkIDInfo &cinfo,
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
-            LOG(ERROR) << "allocate req node failed!";
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             break;
         }
 
@@ -334,7 +322,7 @@ void IOTracker::ReturnOnFail() {
 }
 
 void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
-                                            LIBCURVE_ERROR* errout) {
+    LIBCURVE_ERROR* errout) {
     switch (errcode) {
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
             *errout = LIBCURVE_ERROR::OK;
@@ -359,6 +347,17 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
         default:
             *errout = LIBCURVE_ERROR::FAILED;
             break;
+    }
+}
+
+RequestContext* IOTracker::GetInitedRequestContext() const {
+    RequestContext* reqNode = new (std::nothrow) RequestContext();
+    if (reqNode != nullptr && reqNode->Init()) {
+        return reqNode;
+    } else {
+        LOG(ERROR) << "allocate req node failed!";
+        delete reqNode;
+        return nullptr;
     }
 }
 
