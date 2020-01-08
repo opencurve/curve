@@ -19,6 +19,8 @@
 
 using ::curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using ::curve::mds::topology::GetChunkServerListInCopySetsRequest;
+using ::curve::mds::topology::ListChunkServerRequest;
+using ::curve::mds::topology::ListChunkServerResponse;
 
 class FakeReturn {
  public:
@@ -365,6 +367,21 @@ class FakeTopologyService : public curve::mds::topology::TopologyService {
             curve::mds::topology::GetChunkServerInfoResponse*>(
             getidfakeret_->response_);
 
+        response->CopyFrom(*resp);
+    }
+
+    void ListChunkServer(::google::protobuf::RpcController* controller,
+                       const ListChunkServerRequest* request,
+                       ListChunkServerResponse* response,
+                       ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeret_->controller_ != nullptr
+             && fakeret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
+        auto resp = static_cast<ListChunkServerResponse*>(
+            fakeret_->response_);
         response->CopyFrom(*resp);
     }
 
