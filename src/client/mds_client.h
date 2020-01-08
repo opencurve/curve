@@ -349,6 +349,15 @@ class MDSClient {
                                     ChunkServerID* id);
 
      /**
+      * 获取server上所有chunkserver的id
+      * @param[in]: ip为server的ip地址
+      * @param[out]: csIds用于保存chunkserver的id
+      * @return: 成功返回LIBCURVE_ERROR::OK，失败返回LIBCURVE_ERROR::FAILED
+      */
+    LIBCURVE_ERROR ListChunkServerInServer(const std::string& ip,
+                                           std::vector<ChunkServerID>* csIds);
+
+     /**
       * 析构，回收资源
       */
     void UnInitialize();

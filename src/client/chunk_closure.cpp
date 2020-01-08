@@ -32,16 +32,37 @@ namespace client {
 ClientClosure::BackoffParam  ClientClosure::backoffParam_;
 FailureRequestOption_t  ClientClosure::failReqOpt_;
 
-// 如果chunkserver宕机或者网络不可达, 发往对应chunkserver的rpc会超时
-// 返回之后, 回去refresh leader然后再去发送请求
-// 这种情况下不同copyset上的请求，总会先rpc timedout然后重新refresh leader
-// 为了避免一次多余的rpc timedout
-// 记录一下发往同一个chunkserver上超时请求的次数
-// 如果超过一定的阈值，则通知所有leader在这台chunkserver上的copyset
-// 主动去refresh leader，而不是根据缓存的leader信息直接发送rpc
-uint64_t UnstableChunkServerHelper::maxStableChunkServerTimeoutTimes_ = 0;
-SpinLock UnstableChunkServerHelper::timeoutLock_;
-std::unordered_map<ChunkServerID, uint64_t> UnstableChunkServerHelper::timeoutTimes_;  // NOLINT
+UnstableState UnstableHelper::GetCurrentUnstableState(
+    ChunkServerID csId,
+    const butil::EndPoint& csEndPoint) {
+    lock_.Lock();
+    bool exceed =
+        timeoutTimes_[csId] > option_.maxStableChunkServerTimeoutTimes;
+    lock_.UnLock();
+
+    if (exceed == false) {
+        return UnstableState::NoUnstable;
+    }
+
+    bool health = CheckChunkServerHealth(csEndPoint);
+    if (health) {
+        ClearTimeout(csId, csEndPoint);
+        return UnstableState::NoUnstable;
+    }
+
+    std::string ip = butil::ip2str(csEndPoint.ip).c_str();
+
+    lock_.Lock();
+    serverUnstabledChunkservers_[ip].emplace(csId);
+    int unstabled = serverUnstabledChunkservers_[ip].size();
+    lock_.UnLock();
+
+    if (unstabled > option_.serverUnstableThreshold) {
+        return UnstableState::ServerUnstable;
+    } else {
+        return UnstableState::ChunkServerUnstable;
+    }
+}
 
 void ClientClosure::PreProcessBeforeRetry(int rpcstatus, int cntlstatus) {
     RequestClosure *reqDone = dynamic_cast<RequestClosure *>(done_);
@@ -167,7 +188,8 @@ void ClientClosure::Run() {
         OnRpcFailed();
     } else {
         // 只要rpc正常返回，就清空超时计数器
-        UnstableChunkServerHelper::ClearTimeout(chunkserverID_);
+        UnstableHelper::GetInstance().ClearTimeout(
+            chunkserverID_, chunkserverEndPoint_);
 
         status_ = GetResponseStatus();
 
@@ -224,7 +246,7 @@ void ClientClosure::OnRpcFailed() {
     // 如果连接失败，再等一定时间再重试
     if (cntlstatus_ == brpc::ERPCTIMEDOUT) {
         // 如果RPC超时, 对应的chunkserver超时请求次数+1
-        UnstableChunkServerHelper::IncreTimeout(chunkserverID_);
+        UnstableHelper::GetInstance().IncreTimeout(chunkserverID_);
         MetricHelper::IncremTimeOutRPCCount(fileMetric_, reqCtx_->optype_);
     }
 
@@ -244,16 +266,34 @@ void ClientClosure::OnRpcFailed() {
             chunkIdInfo_.lpid_, chunkIdInfo_.cpid_, 0);
     }
 
-    if (UnstableChunkServerHelper::IsTimeoutExceed(chunkserverID_)) {
-        // chunkserver上RPC超时次数超过上限(由于宕机或网络原因导致RPC超时)
-        // 此时发往这一台chunkserver的其余RPC大概率也会超时
-        // 为了避免无效的超时请求和重试, 将这台shunkserver标记为unstable
-        // unstable chunkserver上leader所在的copyset会标记为leaderMayChange  // NOLINT
-        // 当这些copyset再有IO请求时会先进行refresh leader
-        // 避免一次无效的RPC请求
+    ProcessUnstableState();
+}
+
+void ClientClosure::ProcessUnstableState() {
+    UnstableState state = UnstableHelper::GetInstance().GetCurrentUnstableState(
+        chunkserverID_, chunkserverEndPoint_);
+
+    switch (state) {
+    case UnstableState::ServerUnstable: {
+        std::string ip = butil::ip2str(chunkserverEndPoint_.ip).c_str();
+        int ret = metaCache_->SetServerUnstable(ip);
+        if (ret != 0) {
+            LOG(WARNING) << "Set server(" << ip << ") unstable failed, "
+                << "now set chunkserver(" << chunkserverID_ <<  ") unstable";
+            metaCache_->SetChunkserverUnstable(chunkserverID_);
+        }
+        break;
+    }
+    case UnstableState::ChunkServerUnstable: {
         metaCache_->SetChunkserverUnstable(chunkserverID_);
-    } else {
+        break;
+    }
+    case UnstableState::NoUnstable: {
         RefreshLeader();
+        break;
+    }
+    default:
+        break;
     }
 }
 
