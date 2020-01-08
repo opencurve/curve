@@ -14,7 +14,7 @@
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/client_common.h"
 
-extern std::string metaserver_addr;
+extern std::string mdsMetaServerAddr;
 extern uint32_t chunk_size;
 extern uint32_t segment_size;
 
@@ -73,6 +73,12 @@ void FakeMDS::UnInitialize() {
     delete server_;
 }
 
+void FakeMDS::ExposeMetric() {
+    for (const auto& item : metrics_) {
+        item.second->expose(item.first);
+    }
+}
+
 bool FakeMDS::StartService() {
     if (server_->AddService(&fakecurvefsservice_,
                 brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
@@ -89,7 +95,7 @@ bool FakeMDS::StartService() {
     brpc::ServerOptions options;
     options.idle_timeout_sec = -1;
 
-    if (server_->Start(metaserver_addr.c_str(), &options) != 0) {
+    if (server_->Start(mdsMetaServerAddr.c_str(), &options) != 0) {
         LOG(ERROR) << "Fail to start Server";
     }
 

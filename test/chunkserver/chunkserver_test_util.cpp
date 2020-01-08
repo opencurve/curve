@@ -24,8 +24,8 @@
 #include "src/chunkserver/copyset_node.h"
 #include "src/chunkserver/copyset_node_manager.h"
 #include "src/chunkserver/cli.h"
-#include "src/chunkserver/chunkserverStorage/chunkserver_adaptor_util.h"
 #include "test/chunkserver/fake_datastore.h"
+#include "src/chunkserver/uri_paser.h"
 
 namespace curve {
 namespace chunkserver {
@@ -125,7 +125,7 @@ int StartChunkserver(const char *ip,
 
     std::string copiedUri(copysetdir);
     std::string chunkDataDir;
-    std::string protocol = FsAdaptorUtil::ParserUri(copiedUri, &chunkDataDir);
+    std::string protocol = UriParser::ParseUri(copiedUri, &chunkDataDir);
     if (protocol.empty()) {
         LOG(FATAL) << "not support chunk data uri's protocol"
                    << " error chunkDataDir is: " << chunkDataDir;
@@ -162,6 +162,7 @@ int StartChunkserver(const char *ip,
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
+    CopysetNodeManager::GetInstance().Run();
     CHECK(CopysetNodeManager::GetInstance().CreateCopysetNode(logicPoolId,
                                                               copysetId,
                                                               peers));
@@ -178,16 +179,11 @@ int StartChunkserver(const char *ip,
 
     LOG(INFO) << "start chunkserver success";
     /* Wait until 'CTRL-C' is pressed. then Stop() and Join() the service */
-    while (!brpc::IsAskedToQuit()) {
-        sleep(1);
-    }
+    server.RunUntilAskedToQuit();
     LOG(INFO) << "server test service is going to quit";
 
     CopysetNodeManager::GetInstance().DeleteCopysetNode(logicPoolId, copysetId);
     copysetNodeOptions.concurrentapply->Stop();
-
-    server.Stop(0);
-    server.Join();
 }
 
 butil::Status WaitLeader(const LogicPoolID &logicPoolId,
@@ -362,7 +358,7 @@ int TestCluster::WaitLeader(PeerId *leaderId) {
     /**
      * 等待选举结束
      */
-    ::usleep(2 * electionTimeoutMs_);
+    ::usleep(2 * electionTimeoutMs_ * 1000);
     const int kMaxLoop = (3 * electionTimeoutMs_) / 100;
     for (int i = 0; i < kMaxLoop; ++i) {
         ::usleep(100 * 1000);

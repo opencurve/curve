@@ -16,6 +16,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <glog/logging.h>
 #include <string>
 #include <vector>

@@ -9,6 +9,10 @@
 #include <glog/logging.h>
 #include <chrono>  //NOLINT
 
+#include "src/common/uuid.h"
+
+using ::curve::common::UUIDGenerator;
+
 namespace curve {
 namespace mds {
 namespace topology {
@@ -827,6 +831,13 @@ std::list<ZoneIdType> TopologyImpl::GetZoneInLogicalPool(PoolIdType id,
 
 int TopologyImpl::init(const TopologyOption &option) {
     option_ = option;
+
+    int ret = LoadClusterInfo();
+    if (ret != kTopoErrCodeSuccess) {
+        LOG(ERROR) << "[TopologyImpl::init], LoadClusterInfo fail.";
+        return ret;
+    }
+
     WriteLockGuard wlockLogicalPool(logicalPoolMutex_);
     WriteLockGuard wlockPhysicalPool(physicalPoolMutex_);
     WriteLockGuard wlockZone(zoneMutex_);
@@ -925,7 +936,7 @@ int TopologyImpl::init(const TopologyOption &option) {
     }
 
     // remove invalid copyset and logicalPool
-    int ret = CleanInvalidLogicalPoolAndCopyset();
+    ret = CleanInvalidLogicalPoolAndCopyset();
 
     if (kTopoErrCodeSuccess != ret) {
         LOG(ERROR) << "CleanInvalidLogicalPoolAndCopyset error, ret = " << ret;
@@ -1086,7 +1097,7 @@ std::vector<CopySetKey> TopologyImpl::GetCopySetsInChunkServer(
 }
 
 int TopologyImpl::Run() {
-     if (isStop_.exchange(false)) {
+    if (isStop_.exchange(false)) {
         backEndThread_ = curve::common::Thread(
             &TopologyImpl::BackEndFunc, this);
     }
@@ -1094,18 +1105,20 @@ int TopologyImpl::Run() {
 }
 
 int TopologyImpl::Stop() {
-     if (!isStop_.exchange(true)) {
+    if (!isStop_.exchange(true)) {
+        LOG(INFO) << "stop TopologyImpl...";
+        sleeper_.interrupt();
         backEndThread_.join();
+        LOG(INFO) << "stop TopologyImpl ok.";
     }
     return 0;
 }
 
 void TopologyImpl::BackEndFunc() {
-     while (!isStop_.load()) {
+     while (sleeper_.wait_for(
+         std::chrono::seconds(option_.TopologyUpdateToRepoSec))) {
         FlushCopySetToStorage();
         FlushChunkServerToStorage();
-        std::this_thread::sleep_for(
-            std::chrono::seconds(option_.TopologyUpdateToRepoSec));
     }
 }
 
@@ -1151,6 +1164,28 @@ void TopologyImpl::FlushChunkServerToStorage() {
     }
 }
 
+int TopologyImpl::LoadClusterInfo() {
+    std::vector<ClusterInformation> infos;
+    if (!storage_->LoadClusterInfo(&infos)) {
+        return kTopoErrCodeStorgeFail;
+    }
+    if (infos.empty()) {
+        std::string uuid = UUIDGenerator().GenerateUUID();
+        ClusterInformation info(uuid);
+        if (!storage_->StorageClusterInfo(info)) {
+            return kTopoErrCodeStorgeFail;
+        }
+        clusterInfo = info;
+    } else {
+        clusterInfo = infos[0];
+    }
+    return kTopoErrCodeSuccess;
+}
+
+bool TopologyImpl::GetClusterInfo(ClusterInformation *info) {
+    *info = clusterInfo;
+    return true;
+}
 
 }  // namespace topology
 }  // namespace mds

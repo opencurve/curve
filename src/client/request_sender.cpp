@@ -8,6 +8,8 @@
 #include "src/client/request_sender.h"
 #include <glog/logging.h>
 
+#include <algorithm>
+
 #include "proto/chunk.pb.h"
 #include "src/common/timeutility.h"
 #include "src/client/request_closure.h"
@@ -25,8 +27,6 @@ int RequestSender::Init(IOSenderOption_t ioSenderOpt) {
     iosenderopt_ = ioSenderOpt;
     ClientClosure::SetFailureRequestOption(iosenderopt_.failRequestOpt);
 
-    confMetric_.enableAppliedIndexRead.set_value(
-                iosenderopt_.enableAppliedIndexRead);
     return 0;
 }
 
@@ -39,15 +39,13 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     brpc::ClosureGuard doneGuard(done);
 
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
-    if (rc->GetMetric() != nullptr) {
-        MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::READ);
-        rc->SetStartTime(TimeUtility::GetTimeofDayUs());
-    }
+    MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::READ);
+    rc->SetStartTime(TimeUtility::GetTimeofDayUs());
 
     brpc::Controller *cntl = new brpc::Controller();
-    uint64_t timeout = rc->GetNextTimeoutMS() > iosenderopt_.rpcTimeoutMs
-                     ? rc->GetNextTimeoutMS() : iosenderopt_.rpcTimeoutMs;
-    cntl->set_timeout_ms(timeout);
+    cntl->set_timeout_ms(
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -60,7 +58,7 @@ int RequestSender::ReadChunk(ChunkIDInfo idinfo,
     request.set_chunkid(idinfo.cid_);
     request.set_offset(offset);
     request.set_size(length);
-    if (iosenderopt_.enableAppliedIndexRead && appliedindex > 0) {
+    if (iosenderopt_.chunkserverEnableAppliedIndexRead && appliedindex > 0) {
         request.set_appliedindex(appliedindex);
     }
     ChunkService_Stub stub(&channel_);
@@ -78,17 +76,15 @@ int RequestSender::WriteChunk(ChunkIDInfo idinfo,
     brpc::ClosureGuard doneGuard(done);
 
     RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
-    if (rc->GetMetric() != nullptr) {
-        MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::WRITE);
-        rc->SetStartTime(TimeUtility::GetTimeofDayUs());
-    }
+    MetricHelper::IncremRPCRPSCount(rc->GetMetric(), OpType::WRITE);
+    rc->SetStartTime(TimeUtility::GetTimeofDayUs());
 
     DVLOG(9) << "Sending request, buf header: "
              << " buf: " << *(unsigned int *)buf;
     brpc::Controller *cntl = new brpc::Controller();
-    uint64_t timeout = rc->GetNextTimeoutMS() > iosenderopt_.rpcTimeoutMs
-                     ? rc->GetNextTimeoutMS() : iosenderopt_.rpcTimeoutMs;
-    cntl->set_timeout_ms(timeout);
+    cntl->set_timeout_ms(
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -116,8 +112,11 @@ int RequestSender::ReadChunkSnapshot(ChunkIDInfo idinfo,
                                      ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
+    RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -141,8 +140,11 @@ int RequestSender::DeleteChunkSnapshotOrCorrectSn(ChunkIDInfo idinfo,
                                        ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
+    RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -165,8 +167,11 @@ int RequestSender::GetChunkInfo(ChunkIDInfo idinfo,
                                 ClientClosure *done) {
     brpc::ClosureGuard doneGuard(done);
 
+    RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     GetChunkInfoResponse *response = new GetChunkInfoResponse();
     done->SetResponse(response);
@@ -188,8 +193,11 @@ int RequestSender::CreateCloneChunk(ChunkIDInfo idinfo,
                                 uint64_t chunkSize) {
     brpc::ClosureGuard doneGuard(done);
 
+    RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);
@@ -215,8 +223,11 @@ int RequestSender::RecoverChunk(ChunkIDInfo idinfo,
                                 uint64_t len) {
     brpc::ClosureGuard doneGuard(done);
 
+    RequestClosure* rc = static_cast<RequestClosure*>(done->GetClosure());
     brpc::Controller *cntl = new brpc::Controller();
-    cntl->set_timeout_ms(iosenderopt_.rpcTimeoutMs);
+    cntl->set_timeout_ms(
+    std::max(rc->GetNextTimeoutMS(),
+        iosenderopt_.failRequestOpt.chunkserverRPCTimeoutMS));
     done->SetCntl(cntl);
     ChunkResponse *response = new ChunkResponse();
     done->SetResponse(response);

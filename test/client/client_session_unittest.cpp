@@ -31,7 +31,7 @@
 #include "src/client/libcurve_file.h"
 #include "test/client/fake/fakeChunkserver.h"
 
-extern std::string metaserver_addr;
+extern std::string mdsMetaServerAddr;
 extern std::string configpath;
 DECLARE_string(chunkserver_list);
 
@@ -278,23 +278,126 @@ TEST(ClientSession, LeaseTaskTest) {
     }
     ASSERT_TRUE(lease->LeaseValid());
 
+    // 9. set refresh AuthFail
+    refreshresp.set_statuscode(::curve::mds::kOwnerAuthFail);
+    FakeReturn* refreshFakeRetAuthFail =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshFakeRetAuthFail, refresht);
+
+    for (int i = 0; i < 5; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+
+    char* buf3 = new char[8 * 1024];
+    CurveAioContext aioctx2;
+    aioctx2.offset = 0;
+    aioctx2.length = 4 * 1024;
+    aioctx2.ret = LIBCURVE_ERROR::OK;
+    aioctx2.cb = sessioncallback;
+    aioctx2.buf = buf3;
+
+    ioSleepTime = TimeUtility::GetTimeofDayUs();
+
+    ASSERT_EQ(0, fileinstance.AioRead(&aioctx2));
+
+    std::this_thread::sleep_for(std::chrono::seconds(SLEEP_TIME_S));
+
+    // 10. set refresh success
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretOK2 =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshfakeretOK2, refresht);
+
+    for (int i = 0; i < 2; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+    ASSERT_TRUE(lease->LeaseValid());
+
+    // 11. set refresh kFileNotExists
+    auto timerTask = fileinstance.GetLeaseExcutor()->GetTimerTask();
+    refreshresp.set_statuscode(::curve::mds::kFileNotExists);
+    FakeReturn* refreshFakeRetFileNotExists =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshFakeRetFileNotExists, refresht);
+
+    {
+        std::unique_lock<std::mutex> lk(mtx);
+        refreshcv.wait(lk);
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    lease = fileinstance.GetLeaseExcutor();
+    ASSERT_FALSE(lease->LeaseValid());
+
+    // 11. set refresh success
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretOK3 =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshfakeretOK3, refresht);
+    timerTask->ClearDeleteSelf();
+    fileinstance.GetLeaseExcutor()->SetTimerTask(timerTask);
+
+    for (int i = 0; i < 2; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+    ASSERT_TRUE(lease->LeaseValid());
+
+    // 12. set refresh kSessionNotExists
+    refreshresp.set_statuscode(::curve::mds::kSessionNotExist);
+    FakeReturn* refreshFakeRetSessionNotExists =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshFakeRetSessionNotExists, refresht);
+
+    {
+        std::unique_lock<std::mutex> lk(mtx);
+        refreshcv.wait(lk);
+    }
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    lease = fileinstance.GetLeaseExcutor();
+    ASSERT_FALSE(lease->LeaseValid());
+
+    // 13. set refresh success
+    refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
+    FakeReturn* refreshfakeretOK4 =
+        new FakeReturn(nullptr, static_cast<void*>(&refreshresp));
+    curvefsservice->SetRefreshSession(refreshfakeretOK4, refresht);
+    timerTask->ClearDeleteSelf();
+    fileinstance.GetLeaseExcutor()->SetTimerTask(timerTask);
+
+    for (int i = 0; i < 2; i++) {
+        {
+            std::unique_lock<std::mutex> lk(mtx);
+            refreshcv.wait(lk);
+        }
+    }
+    ASSERT_TRUE(lease->LeaseValid());
+
     std::unique_lock<std::mutex> lk(sessionMtx);
     sessionCV.wait(lk, [&]() { return sessionFlag; });
 
-
-    // 9. set fake close return
+    // 14. set fake close return
     ::curve::mds::CloseFileResponse closeresp;
     closeresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* closefileret
      = new FakeReturn(nullptr, static_cast<void*>(&closeresp));
     curvefsservice->SetCloseFile(closefileret);
 
-    // 10. set refresh success
+    // 15. set refresh success
     // 如果lease续约失败后又重新续约成功了，这时候Lease是可用的了，leasevalid为true
     // 这时候IO被恢复了。
     sessionFlag = false;
     brpc::Controller* cntl = new brpc::Controller;
-    cntl->SetFailed(-1, "set failed!");
+    cntl->SetFailed(1, "set failed!");
     refreshresp.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretfailed
      = new FakeReturn(cntl, static_cast<void*>(&refreshresp));
@@ -314,7 +417,7 @@ TEST(ClientSession, LeaseTaskTest) {
     }
 
     brpc::Controller* cntl2 = new brpc::Controller;
-    cntl2->SetFailed(-1, "set failed!");
+    cntl2->SetFailed(1, "set failed!");
     ::curve::mds::ReFreshSessionResponse refreshresp2;
     refreshresp2.set_statuscode(::curve::mds::StatusCode::kOK);
     FakeReturn* refreshfakeretfailed2
@@ -323,25 +426,8 @@ TEST(ClientSession, LeaseTaskTest) {
 
     curvefsservice2.CleanRetryTimes();
 
-    // synchronizeRPCRetryTime = 3
-    // 每个mds会重试3次，因为配置文件里的mds为127.0.0.1:9101@127.0.0.1:9102
-    // 所以两个mds在一次续约过程中会各重试3次，续约4次不成功会将IO停住，lease失效。
-    for (int i = 1;
-         i <= 4 * 2 * cc.GetFileServiceOption().
-              metaServerOpt.synchronizeRPCRetryTime + 1;
-         i++) {
-        {
-            std::unique_lock<std::mutex> lk(mtx);
-            refreshcv.wait(lk);
-        }
-
-        LOG(ERROR) << i;
-        if (i < 3 * 2 * cc.GetFileServiceOption().
-                metaServerOpt.synchronizeRPCRetryTime) {
-            ASSERT_TRUE(lease->LeaseValid());
-        }
-    }
-
+    ASSERT_TRUE(lease->LeaseValid());
+    std::this_thread::sleep_for(std::chrono::seconds(12));
     ASSERT_FALSE(lease->LeaseValid());
 
     fileinstance.UnInitialize();
@@ -350,11 +436,6 @@ TEST(ClientSession, LeaseTaskTest) {
     server2.Stop(0);
     server2.Join();
     mds.UnInitialize();
-
-    ASSERT_GT(curvefsservice->GetRetryTimes(), 2 * cc.GetFileServiceOption().
-             metaServerOpt.synchronizeRPCRetryTime - 1);
-    ASSERT_GT(curvefsservice2.GetRetryTimes(), 2 * cc.GetFileServiceOption().
-             metaServerOpt.synchronizeRPCRetryTime - 1);
 }
 
 TEST(ClientSession, AppliedIndexTest) {
@@ -489,7 +570,7 @@ TEST(ClientSession, AppliedIndexTest) {
     delete readret;
 }
 
-std::string metaserver_addr = "127.0.0.1:9101";     // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9101";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
 std::string configpath = "./test/client/testConfig/client_session.conf";   // NOLINT

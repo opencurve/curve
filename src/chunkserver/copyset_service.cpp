@@ -143,7 +143,7 @@ void CopysetServiceImpl::GetCopysetStatus(RpcController *controller,
     // 获取raft node status
     NodeStatus status;
     nodePtr->GetStatus(&status);
-    response->set_state(braft::state2str(status.state));
+    response->set_state(status.state);
     Peer *peer = new Peer();
     response->set_allocated_peer(peer);
     peer->set_address(status.peer_id.to_string());

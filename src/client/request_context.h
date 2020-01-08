@@ -19,7 +19,7 @@ namespace client {
 class RequestContext {
  public:
     RequestContext();
-    ~RequestContext();
+    ~RequestContext() = default;
     bool Init();
     void UnInit();
 
@@ -52,7 +52,26 @@ class RequestContext {
     std::string         location_;
     // create clone chunk时候用于修改chunk的correctedSn
     uint64_t            correctedSeq_;
+
+    // 当前request context id
+    uint64_t            id_;
+
+    // request context id生成器
+    static std::atomic<uint64_t> reqCtxID_;
 };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const RequestContext& reqCtx) {
+    os << "logicpool id = " << reqCtx.idinfo_.lpid_
+       << ", copyset id = " << reqCtx.idinfo_.cpid_
+       << ", chunk id = " << reqCtx.idinfo_.cid_
+       << ", offset = " << reqCtx.offset_
+       << ", length = " << reqCtx.rawlength_
+       << ", sn = " << reqCtx.seq_;
+
+    return os;
+}
+
 }  // namespace client
 }  // namespace curve
 #endif  // SRC_CLIENT_REQUEST_CONTEXT_H_

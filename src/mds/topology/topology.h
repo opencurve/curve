@@ -22,10 +22,12 @@
 #include "src/mds/topology/topology_storge.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/interruptible_sleeper.h"
 
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
 using ::curve::common::WriteLockGuard;
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -42,6 +44,8 @@ class Topology {
  public:
     Topology() {}
     virtual ~Topology() {}
+
+    virtual bool GetClusterInfo(ClusterInformation *info) = 0;
 
     virtual PoolIdType AllocateLogicalPoolId() = 0;
     virtual PoolIdType AllocatePhysicalPoolId() = 0;
@@ -308,6 +312,8 @@ class TopologyImpl : public Topology {
     int Run();
     int Stop();
 
+    bool GetClusterInfo(ClusterInformation *info) override;
+
     PoolIdType AllocateLogicalPoolId() override;
     PoolIdType AllocatePhysicalPoolId() override;
     ZoneIdType AllocateZoneId() override;
@@ -518,6 +524,8 @@ class TopologyImpl : public Topology {
         PoolIdType *physicalPoolIdOut);
 
  private:
+    int LoadClusterInfo();
+
     int CleanInvalidLogicalPoolAndCopyset();
 
     void BackEndFunc();
@@ -535,6 +543,9 @@ class TopologyImpl : public Topology {
 
     std::map<CopySetKey, CopySetInfo> copySetMap_;
 
+    // 集群信息
+    ClusterInformation clusterInfo;
+
     std::shared_ptr<TopologyIdGenerator> idGenerator_;
     std::shared_ptr<TopologyTokenGenerator> tokenGenerator_;
     std::shared_ptr<TopologyStorage> storage_;
@@ -550,6 +561,7 @@ class TopologyImpl : public Topology {
     TopologyOption option_;
     curve::common::Thread backEndThread_;
     curve::common::Atomic<bool> isStop_;
+    InterruptibleSleeper sleeper_;
 };
 
 }  // namespace topology

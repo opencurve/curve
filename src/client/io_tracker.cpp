@@ -21,6 +21,8 @@ using curve::chunkserver::CHUNK_OP_STATUS;
 namespace curve {
 namespace client {
 
+std::atomic<uint64_t> IOTracker::tracekerID_(1);
+
 IOTracker::IOTracker(IOManager* iomanager,
                         MetaCache* mc,
                         RequestScheduler* scheduler,
@@ -29,6 +31,7 @@ IOTracker::IOTracker(IOManager* iomanager,
                         iomanager_(iomanager),
                         scheduler_(scheduler),
                         fileMetric_(clientMetric) {
+    id_         = tracekerID_.fetch_add(1);
     aioctx_     = nullptr;
     data_       = nullptr;
     type_       = OpType::UNKNOWN;
@@ -40,12 +43,8 @@ IOTracker::IOTracker(IOManager* iomanager,
     opStartTimePoint_ = curve::common::TimeUtility::GetTimeofDayUs();
 }
 
-void IOTracker::StartRead(CurveAioContext* aioctx,
-                            char* buf,
-                            off_t offset,
-                            size_t length,
-                            MDSClient* mdsclient,
-                            const FInfo_t* fi) {
+void IOTracker::StartRead(CurveAioContext* aioctx, char* buf,
+    off_t offset, size_t length, MDSClient* mdsclient, const FInfo_t* fi) {
     data_   = buf;
     offset_ = offset;
     length_ = length;
@@ -76,12 +75,8 @@ void IOTracker::StartRead(CurveAioContext* aioctx,
     }
 }
 
-void IOTracker::StartWrite(CurveAioContext* aioctx,
-                            const char* buf,
-                            off_t offset,
-                            size_t length,
-                            MDSClient* mdsclient,
-                            const FInfo_t* fi) {
+void IOTracker::StartWrite(CurveAioContext* aioctx, const char* buf,
+    off_t offset, size_t length, MDSClient* mdsclient,  const FInfo_t* fi) {
     data_   = buf;
     offset_ = offset;
     length_ = length;
@@ -111,11 +106,8 @@ void IOTracker::StartWrite(CurveAioContext* aioctx,
     }
 }
 
-void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
-                              uint64_t seq,
-                              uint64_t offset,
-                              uint64_t len,
-                              char *buf) {
+void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo, uint64_t seq,
+    uint64_t offset, uint64_t len, char *buf) {
     data_   = buf;
     offset_ = offset;
     length_ = len;
@@ -138,14 +130,13 @@ void IOTracker::ReadSnapChunk(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
-                                uint64_t correctedSeq) {
+    uint64_t correctedSeq) {
     type_ = OpType::DELETE_SNAP;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
-            LOG(ERROR) << "allocate req node failed!";
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             break;
         }
 
@@ -166,14 +157,13 @@ void IOTracker::DeleteSnapChunkOrCorrectSn(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
-                            ChunkInfoDetail *chunkInfo) {
+    ChunkInfoDetail *chunkInfo) {
     type_ = OpType::GET_CHUNK_INFO;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
-            LOG(ERROR) << "allocate req node failed!";
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             break;
         }
 
@@ -194,17 +184,14 @@ void IOTracker::GetChunkInfo(const ChunkIDInfo &cinfo,
 }
 
 void IOTracker::CreateCloneChunk(const std::string &location,
-                                const ChunkIDInfo &cinfo,
-                                uint64_t sn,
-                                uint64_t correntSn,
-                                uint64_t chunkSize) {
+    const ChunkIDInfo &cinfo, uint64_t sn,
+    uint64_t correntSn, uint64_t chunkSize) {
     type_ = OpType::CREATE_CLONE;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
-            LOG(ERROR) << "allocate req node failed!";
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             break;
         }
 
@@ -228,15 +215,13 @@ void IOTracker::CreateCloneChunk(const std::string &location,
 }
 
 void IOTracker::RecoverChunk(const ChunkIDInfo &cinfo,
-                                        uint64_t offset,
-                                        uint64_t len) {
+    uint64_t offset, uint64_t len) {
     type_ = OpType::RECOVER_CHUNK;
 
     int ret = -1;
     do {
-        RequestContext* newreqNode = new (std::nothrow) RequestContext();
-        if (newreqNode == nullptr || !newreqNode->Init()) {
-            LOG(ERROR) << "allocate req node failed!";
+        RequestContext* newreqNode = GetInitedRequestContext();
+        if (newreqNode == nullptr) {
             break;
         }
 
@@ -286,6 +271,14 @@ void IOTracker::Done() {
         MetricHelper::IncremUserQPSCount(fileMetric_, length_, type_);
     } else {
         MetricHelper::IncremUserEPSCount(fileMetric_, type_);
+        if (type_ == OpType::READ || type_ == OpType::WRITE) {
+            LOG(ERROR) << "file [" << fileMetric_->filename << "]"
+                    << ", IO Error, OpType = " << static_cast<int>(type_)
+                    << ", offset = " << offset_
+                    << ", length = " << length_;
+        } else {
+            LOG(ERROR) << ", IO Error, OpType = " << static_cast<int>(type_);
+        }
     }
 
     DestoryRequestList();
@@ -312,7 +305,7 @@ void IOTracker::ReturnOnFail() {
 }
 
 void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
-                                            LIBCURVE_ERROR* errout) {
+    LIBCURVE_ERROR* errout) {
     switch (errcode) {
         case CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS:
             *errout = LIBCURVE_ERROR::OK;
@@ -337,6 +330,17 @@ void IOTracker::ChunkServerErr2LibcurveErr(CHUNK_OP_STATUS errcode,
         default:
             *errout = LIBCURVE_ERROR::FAILED;
             break;
+    }
+}
+
+RequestContext* IOTracker::GetInitedRequestContext() const {
+    RequestContext* reqNode = new (std::nothrow) RequestContext();
+    if (reqNode != nullptr && reqNode->Init()) {
+        return reqNode;
+    } else {
+        LOG(ERROR) << "allocate req node failed!";
+        delete reqNode;
+        return nullptr;
     }
 }
 

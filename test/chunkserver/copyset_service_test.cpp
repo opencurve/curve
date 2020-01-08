@@ -82,7 +82,8 @@ TEST_F(CopysetServiceTest, basic) {
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.chunkfilePool =
         std::make_shared<ChunkfilePool>(fs);
-    copysetNodeManager->Init(copysetNodeOptions);
+    ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
+    ASSERT_EQ(0, copysetNodeManager->Run());
 
     brpc::Channel channel;
     PeerId peerId("127.0.0.1:9040:0");
@@ -187,7 +188,8 @@ TEST_F(CopysetServiceTest, basic2) {
     copysetNodeOptions.localFileSystem = fs;
     copysetNodeOptions.chunkfilePool =
         std::make_shared<ChunkfilePool>(fs);
-    copysetNodeManager->Init(copysetNodeOptions);
+    ASSERT_EQ(0, copysetNodeManager->Init(copysetNodeOptions));
+    ASSERT_EQ(0, copysetNodeManager->Run());
 
     brpc::Channel channel;
     PeerId peerId("127.0.0.1:9040:0");
@@ -342,8 +344,7 @@ TEST_F(CopysetServiceTest, basic2) {
 
             ASSERT_EQ(response.status(),
                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-            ASSERT_STREQ(braft::state2str(braft::STATE_LEADER),
-                         response.state().c_str());
+            ASSERT_EQ(braft::STATE_LEADER, response.state());
             ASSERT_STREQ(peerStr.c_str(), response.leader().address().c_str());
             ASSERT_EQ(false, response.readonly());
             ASSERT_EQ(2, response.term());
@@ -379,8 +380,7 @@ TEST_F(CopysetServiceTest, basic2) {
 
             ASSERT_EQ(response.status(),
                       COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
-            ASSERT_STREQ(braft::state2str(braft::STATE_LEADER),
-                         response.state().c_str());
+            ASSERT_EQ(braft::STATE_LEADER, response.state());
             ASSERT_STREQ(peerStr.c_str(), response.leader().address().c_str());
             ASSERT_EQ(false, response.readonly());
             ASSERT_EQ(2, response.term());
