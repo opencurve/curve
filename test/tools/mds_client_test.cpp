@@ -27,6 +27,7 @@ using curve::mds::topology::GetChunkServerInfoResponse;
 using curve::mds::topology::GetCopySetsInChunkServerResponse;
 using curve::mds::GetOrAllocateSegmentResponse;
 using curve::tool::GetSegmentRes;
+using curve::mds::topology::CopySetServerInfo;
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
@@ -65,8 +66,9 @@ class ToolMDSClientTest : public ::testing::Test {
         fileInfo->set_ctime(1573546993000000);
     }
 
-    void GetCopysetInfoForTest(curve::mds::topology::CopySetServerInfo* info,
-                                int num) {
+    void GetCopysetInfoForTest(CopySetServerInfo* info,
+                                int num, uint32_t copysetId = 1) {
+        info->Clear();
         for (int i = 0; i < num; ++i) {
             curve::mds::topology::ChunkServerLocation *csLoc =
                                                 info->add_cslocs();
@@ -74,7 +76,7 @@ class ToolMDSClientTest : public ::testing::Test {
             csLoc->set_hostip("127.0.0.1");
             csLoc->set_port(9191 + i);
         }
-        info->set_copysetid(1);
+        info->set_copysetid(copysetId);
     }
 
     void GetSegmentForTest(PageFileSegment* segment) {
@@ -352,31 +354,53 @@ TEST_F(ToolMDSClientTest, GetChunkServerListInCopySets) {
     std::vector<ChunkServerLocation> csLocs;
 
     // 参数为空指针
-    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySets(
+    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySet(
                                 logicalPoolId, copysetId, nullptr));
 
     // 发送rpc失败
     cntl.SetFailed("error for test");
-    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySets(
+    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySet(
                                 logicalPoolId, copysetId, &csLocs));
     cntl.Reset();
 
     // 返回码不为OK
     response->set_statuscode(curve::mds::topology::kTopoErrCodeInitFail);
-    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySets(
+    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySet(
                                 logicalPoolId, copysetId, &csLocs));
 
     // 正常情况
     response->set_statuscode(kTopoErrCodeSuccess);
-    curve::mds::topology::CopySetServerInfo csInfo;
-    GetCopysetInfoForTest(&csInfo, 3);
+    CopySetServerInfo csInfo;
+    GetCopysetInfoForTest(&csInfo, 3, copysetId);
     auto infoPtr = response->add_csinfo();
     infoPtr->CopyFrom(csInfo);
-    ASSERT_EQ(0, mdsClient.GetChunkServerListInCopySets(
+    ASSERT_EQ(0, mdsClient.GetChunkServerListInCopySet(
                                 logicalPoolId, copysetId, &csLocs));
     ASSERT_EQ(csInfo.cslocs_size(), csLocs.size());
     for (uint32_t i = 0; i < csLocs.size(); ++i) {
         ASSERT_EQ(csInfo.cslocs(i).DebugString(), csLocs[i].DebugString());
+    }
+
+    // 测试获取多个copyset
+    std::vector<CopySetServerInfo> expected;
+    response->Clear();
+    response->set_statuscode(kTopoErrCodeSuccess);
+    for (int i = 0; i < 3; ++i) {
+        CopySetServerInfo csInfo;
+        GetCopysetInfoForTest(&csInfo, 3, 100 + i);
+        auto infoPtr = response->add_csinfo();
+        infoPtr->CopyFrom(csInfo);
+        expected.emplace_back(csInfo);
+    }
+    std::vector<CopySetIdType> copysets = {100, 101, 102};
+    std::vector<CopySetServerInfo> csServerInfos;
+    ASSERT_EQ(-1, mdsClient.GetChunkServerListInCopySets(
+                                logicalPoolId, copysets, nullptr));
+    ASSERT_EQ(0, mdsClient.GetChunkServerListInCopySets(
+                                logicalPoolId, copysets, &csServerInfos));
+    ASSERT_EQ(expected.size(), csServerInfos.size());
+    for (uint32_t i = 0; i < expected.size(); ++i) {
+        ASSERT_EQ(expected[i].DebugString(), csServerInfos[i].DebugString());
     }
 }
 

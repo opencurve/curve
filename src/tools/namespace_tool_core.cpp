@@ -32,11 +32,11 @@ int NameSpaceToolCore::ListDir(const std::string& dirName,
     return client_->ListDir(dirName, files);
 }
 
-int NameSpaceToolCore::GetChunkServerListInCopySets(
+int NameSpaceToolCore::GetChunkServerListInCopySet(
                                     const PoolIdType& logicalPoolId,
                                     const CopySetIdType& copysetId,
                                     std::vector<ChunkServerLocation>* csLocs) {
-    return client_->GetChunkServerListInCopySets(logicalPoolId,
+    return client_->GetChunkServerListInCopySet(logicalPoolId,
                                                 copysetId, csLocs);
 }
 
