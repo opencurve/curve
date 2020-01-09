@@ -805,6 +805,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillOneFollower) {
     ASSERT_EQ(0,
               cluster.StartPeer(followerPeers[0],
                                 PeerCluster::PeerToId(followerPeers[0])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
                logicPoolId,
@@ -966,7 +967,7 @@ TEST_F(RaftVoteTest, ThreeNodeRestartFollower) {
         ASSERT_EQ(0,
                   cluster.StartPeer(followerPeers[0],
                                     PeerCluster::PeerToId(followerPeers[0])));
-        ::sleep(1);
+        ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     }
 
     ::usleep(1.5 * waitMultiReplicasBecomeConsistent * 1000);
@@ -1057,6 +1058,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillLeaderAndOneFollower) {
     // 4. 拉起follower
     ASSERT_EQ(0, cluster.StartPeer(followerPeers[0],
                                    PeerCluster::PeerToId(followerPeers[0])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1153,6 +1155,7 @@ TEST_F(RaftVoteTest, ThreeNodeKillTwoFollower) {
     // 4. 拉起follower
     ASSERT_EQ(0, cluster.StartPeer(followerPeers[1],
                                    PeerCluster::PeerToId(followerPeers[1])));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     WriteThenReadVerify(leaderPeer,
                         logicPoolId,
                         copysetId,
@@ -1227,7 +1230,8 @@ TEST_F(RaftVoteTest, ThreeNodeKillThreeMember) {
     // 3. 拉起1个成员
     ASSERT_EQ(0, cluster.StartPeer(peer1,
                                    PeerCluster::PeerToId(peer1)));
-    ::usleep(1000 * electionTimeoutMs * 2);
+
+    ASSERT_EQ(-1, cluster.WaitLeader(&leaderPeer));
     ReadVerifyNotAvailable(peer1,
                            logicPoolId,
                            copysetId,
