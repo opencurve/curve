@@ -35,6 +35,7 @@
 #include "src/mds/chunkserverclient/chunkserverclient_config.h"
 #include "src/mds/nameserver2/allocstatistic/alloc_statistic.h"
 #include "src/common/curve_version.h"
+#include "src/common/channel_pool.h"
 
 DEFINE_string(confPath, "conf/mds.conf", "mds confPath");
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
@@ -42,6 +43,9 @@ DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
 DEFINE_string(mdsDbName, "curve_mds", "mds db name");
 DEFINE_int32(sessionInterSec, 5, "mds session expired second");
 DEFINE_int32(updateToRepoSec, 5, "interval of update data in mds to repo");
+namespace brpc {
+DECLARE_int32(health_check_interval);
+}
 
 using ::curve::mds::kMB;
 using ::curve::mds::kGB;
@@ -277,6 +281,8 @@ void LoadConfigFromCmdline(Configuration *conf) {
 int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
+    // 关掉健康检查
+    brpc::FLAGS_health_check_interval = -1;
 
     // =========================加载配置===============================//
     LOG(INFO) << "load mds configuration.";
@@ -510,9 +516,11 @@ int curve_main(int argc, char **argv) {
 
     // TODO(hzsunjianliang): should add threadpoolsize & checktime from config
     // init CleanManager
-    auto taskManager = std::make_shared<CleanTaskManager>();
+    auto channelPool = std::make_shared<ChannelPool>();
+    auto taskManager = std::make_shared<CleanTaskManager>(channelPool);
     auto copysetClient =
-        std::make_shared<CopysetClient>(topology, chunkServerClientOption);
+        std::make_shared<CopysetClient>(topology, chunkServerClientOption,
+                                                        channelPool);
 
     auto cleanCore = std::make_shared<CleanCore>(storage,
                                                  copysetClient,
