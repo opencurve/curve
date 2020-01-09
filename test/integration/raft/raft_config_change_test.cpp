@@ -410,6 +410,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveShutdownPeer) {
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     // 5. add回来
     conf.remove_peer(shutdownPeer.address());
@@ -1214,7 +1215,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeShutdownPeerAndThenAddNewFollowerFromInsta
     // 3. 拉起peer4
     ASSERT_EQ(0, cluster.StartPeer(peer4,
                                    PeerCluster::PeerToId(peer4)));
-
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
     ::sleep(1);
     Configuration conf = cluster.CopysetConf();
     braft::cli::CliOptions options;
@@ -1340,6 +1341,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeHangPeerAndThenAddNewFollowerFromInstallSn
     // 3. 拉起peer4
     ASSERT_EQ(0, cluster.StartPeer(peer4,
                                    PeerCluster::PeerToId(peer4)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     ::sleep(1);
     Configuration conf = cluster.CopysetConf();
@@ -1474,6 +1476,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveDataAndThenRecoverFromInstallSnapsho
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
@@ -1591,6 +1594,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRemoveRaftLogAndThenRecoverFromInstallSnap
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
@@ -1700,6 +1704,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     // 4. 随机睡眠一段时间后，挂掉leader，模拟install snapshot的时候leader挂掉
     int sleepMs = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
@@ -1831,6 +1836,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     // 4. 随机睡眠一段时间后，挂掉leader，模拟install snapshot的时候leader挂掉
     int sleepMs = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
@@ -1964,6 +1970,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     // 4. 随机睡眠一段时间后，挂掉leader，模拟install snapshot的时候leader hang
     int sleepMs = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
@@ -2095,6 +2102,7 @@ TEST_F(RaftConfigChangeTest, ThreeNodeRecoverFollowerFromInstallSnapshotButLeade
     LOG(INFO) << "restart shutdown follower";
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer,
                                    PeerCluster::PeerToId(shutdownPeer)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     // 4. 随机睡眠一段时间后，挂掉leader，模拟install snapshot的时候leader挂掉
     int sleepMs1 = butil::fast_rand_less_than(maxWaitInstallSnapshotMs) + 1;
@@ -2732,6 +2740,7 @@ TEST_F(RaftConfigChangeTest, FiveNodeRecoverTwoFollowerFromInstallSnapshot) {
                                    PeerCluster::PeerToId(shutdownPeer1)));
     ASSERT_EQ(0, cluster.StartPeer(shutdownPeer2,
                                    PeerCluster::PeerToId(shutdownPeer2)));
+    ASSERT_EQ(0, cluster.WaitLeader(&leaderPeer));
 
     // read之前写入的数据验证
     ReadVerify(leaderPeer,
