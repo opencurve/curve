@@ -54,6 +54,7 @@ cc_test(
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -82,6 +83,7 @@ cc_test(
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -112,6 +114,7 @@ cc_test(
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -171,6 +174,7 @@ cc_test(
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -199,6 +203,7 @@ cc_test(
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -229,6 +234,7 @@ cc_test(
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -260,6 +266,7 @@ cc_test(
         "//src/common/concurrent:curve_concurrent",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "//test/integration/cluster_common:integration_cluster_common",
     ],
 )
 
@@ -273,3 +280,4 @@ cc_library(
             ],
     visibility = ["//visibility:public"],
 )
+
