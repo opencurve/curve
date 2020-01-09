@@ -158,7 +158,7 @@ TEST_F(NameSpaceToolCoreTest, DeleteFile) {
     ASSERT_EQ(-1, namespaceTool.DeleteFile(fileName, forceDelete));
 }
 
-TEST_F(NameSpaceToolCoreTest, GetChunkServerListInCopySets) {
+TEST_F(NameSpaceToolCoreTest, GetChunkServerListInCopySet) {
     curve::tool::NameSpaceToolCore namespaceTool(client_);
     PoolIdType logicalPoolId = 1;
     CopySetIdType copysetId = 100;
@@ -171,21 +171,21 @@ TEST_F(NameSpaceToolCoreTest, GetChunkServerListInCopySets) {
     }
 
     // 1、正常情况
-    EXPECT_CALL(*client_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*client_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<2>(expected),
                         Return(0)));
-    ASSERT_EQ(0, namespaceTool.GetChunkServerListInCopySets(logicalPoolId,
+    ASSERT_EQ(0, namespaceTool.GetChunkServerListInCopySet(logicalPoolId,
                                                         copysetId, &csLocs));
     ASSERT_EQ(expected.size(), csLocs.size());
     for (uint64_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(expected[i].DebugString(), csLocs[i].DebugString());
     }
     // 2、失败
-    EXPECT_CALL(*client_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*client_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, namespaceTool.GetChunkServerListInCopySets(logicalPoolId,
+    ASSERT_EQ(-1, namespaceTool.GetChunkServerListInCopySet(logicalPoolId,
                                                         copysetId, &csLocs));
 }
 

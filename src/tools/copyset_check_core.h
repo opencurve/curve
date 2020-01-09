@@ -47,8 +47,10 @@ enum class CheckResult {
     kLogIndexGapTooBig = -3,
     // 有副本在安装快照
     kInstallingSnapshot = -4,
-    // 有副本不在线
-    kPeerNotOnline = -5
+    // 少数副本不在线
+    kMinorityPeerNotOnline = -5,
+    // 大多数副本不在线
+    kMajorityPeerNotOnline = -6
 };
 
 enum class ChunkServerHealthStatus {
@@ -71,7 +73,8 @@ const char kInstallingSnapshot[] = "installing snapshot";
 const char kNoLeader[] = "no leader";
 const char kLogIndexGapTooBig[] = "index gap too big";
 const char kPeersNoSufficient[] = "peers not sufficient";
-const char kPeerNotOnline[] = "peer not online";
+const char kMinorityPeerNotOnline[] = "minority peer not online";
+const char kMajorityPeerNotOnline[] = "majority peer not online";
 
 class CopysetCheckCore {
  public:

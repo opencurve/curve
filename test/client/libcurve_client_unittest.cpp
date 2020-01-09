@@ -152,7 +152,7 @@ TEST_F(CurveClientTest, AioReadWriteTest) {
 std::string mdsMetaServerAddr = "127.0.0.1:19151";     // NOLINT
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 4 * 1024 * 1024;   // NOLINT
-std::string configpath = "./test/client/testConfig/client_libcbd.conf";   // NOLINT
+std::string configpath = "./test/client/testConfig/libcurve_client_test.conf";   // NOLINT
 
 const std::vector<std::string> clientConf {
     std::string("mds.listen.addr=127.0.0.1:19151"),

@@ -71,7 +71,7 @@ class NameSpaceToolCore {
      *  @param[out] csLocs chunkserver位置的列表，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+    virtual int GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
                                      const CopySetIdType& copysetId,
                                      std::vector<ChunkServerLocation>* csLocs);
 
