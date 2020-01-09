@@ -654,7 +654,7 @@ def kill_etcd_process(host):
     ssh = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
     ori_cmd = "ps -ef|grep -v grep  | grep etcd | awk '{print $2}'"
     pids = shell_operator.ssh_exec(ssh, ori_cmd)
-    if rs[1] == []:
+    if pids[1] == []:
         logger.debug("etcd not up")
         return
     for pid in pids:
