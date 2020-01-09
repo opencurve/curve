@@ -38,9 +38,9 @@ def add_config():
         ori_cmd = R"sed -i 's/mds.replica.scheduler.intervalSec=.*/mds.replica.scheduler.intervalSec=0/g' mds.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host
-        ori_cmd = R"sed -i 's/mds.recover.scheduler.intervalSec=.*/mds.recover.scheduler.intervalSec=0/g' mds.conf"
-        rs = shell_operator.ssh_exec(ssh, ori_cmd)
-        assert rs[3] == 0,"change host %s mds config fail"%host
+#        ori_cmd = R"sed -i 's/mds.recover.scheduler.intervalSec=.*/mds.recover.scheduler.intervalSec=0/g' mds.conf"
+#        rs = shell_operator.ssh_exec(ssh, ori_cmd)
+#        assert rs[3] == 0,"change host %s mds config fail"%host
         ori_cmd = R"sed -i 's/mds.leader.scheduler.intervalSec=.*/mds.leader.scheduler.intervalSec=5/g' mds.conf"
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s mds config fail"%host

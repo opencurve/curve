@@ -59,8 +59,10 @@ class TestCopysetClient : public ::testing::Test {
         server_ = new brpc::Server();
         topo_ = std::make_shared<MockTopology>();
         ChunkServerClientOption option;
-        client_ = std::make_shared<CopysetClient>(topo_, option);
-        mockCsClient_ = std::make_shared<MockChunkServerClient>(topo_, option);
+        auto channelPool = std::make_shared<ChannelPool>();
+        client_ = std::make_shared<CopysetClient>(topo_, option, channelPool);
+        mockCsClient_ = std::make_shared<MockChunkServerClient>(topo_,
+                                                        option, channelPool);
         client_->SetChunkServerClient(mockCsClient_);
     }
     void TearDown() {

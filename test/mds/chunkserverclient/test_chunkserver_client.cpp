@@ -60,7 +60,9 @@ class TestChunkServerClient : public ::testing::Test {
     void SetUp() {
         server_ = new brpc::Server();
         topo_ = std::make_shared<MockTopology>();
-        client_ = std::make_shared<ChunkServerClient>(topo_, option);
+        auto channelPool = std::make_shared<ChannelPool>();
+        client_ = std::make_shared<ChunkServerClient>(topo_,
+                                                option, channelPool);
 
         mockCliService = new MockCliService();
         chunkService = new MockChunkService();
