@@ -17,6 +17,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <unordered_map>
 
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
@@ -37,6 +38,7 @@ using curve::mds::PageFileChunkInfo;
 using curve::mds::topology::kTopoErrCodeSuccess;
 using curve::mds::topology::ChunkServerInfo;
 using curve::mds::topology::ChunkServerLocation;
+using curve::mds::topology::CopySetServerInfo;
 using curve::mds::topology::ServerInfo;
 using curve::mds::topology::ZoneInfo;
 using curve::mds::topology::PhysicalPoolInfo;
@@ -143,9 +145,20 @@ class MDSClient {
      *  @param[out] csLocs chunkserver位置的列表，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
-    virtual int GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+    virtual int GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
                                      const CopySetIdType& copysetId,
                                      std::vector<ChunkServerLocation>* csLocs);
+
+    /**
+     *  @brief 获取copyset中的chunkserver列表
+     *  @param logicalPoolId 逻辑池id
+     *  @param copysetIds 要查询的copysetId的列表
+     *  @param[out] csServerInfos copyset成员的列表，返回值为0时有效
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+                            const std::vector<CopySetIdType>& copysetIds,
+                            std::vector<CopySetServerInfo>* csServerInfos);
 
     /**
      *  @brief 获取集群中的物理池列表

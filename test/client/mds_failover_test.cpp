@@ -295,7 +295,7 @@ TEST(MDSClientTestRegitser, Register) {
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Init(configpath.c_str()));
 
     // config with regist off
-    std::string confpath = "./test/client/testConfig/client_session.conf";
+    std::string confpath = "./test/client/testConfig/mds_register_off.conf";
     // regist失败，初始化失败
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Init(configpath.c_str()));
 
