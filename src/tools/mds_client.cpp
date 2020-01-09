@@ -256,17 +256,40 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length) {
     return -1;
 }
 
-int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+int MDSClient::GetChunkServerListInCopySet(const PoolIdType& logicalPoolId,
                                             const CopySetIdType& copysetId,
                                     std::vector<ChunkServerLocation>* csLocs) {
     if (!csLocs) {
         std::cout << "The argument is a null pointer!" << std::endl;
         return -1;
     }
+    std::vector<CopySetServerInfo> csServerInfos;
+    int res = GetChunkServerListInCopySets(logicalPoolId,
+                                                {copysetId}, &csServerInfos);
+    if (res != 0) {
+        std::cout << "GetChunkServerListInCopySets fail" << std::endl;
+        return -1;
+    }
+    for (int i = 0; i < csServerInfos[0].cslocs_size(); ++i) {
+        auto location = csServerInfos[0].cslocs(i);
+        csLocs->emplace_back(location);
+    }
+    return 0;
+}
+
+int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
+                            const std::vector<CopySetIdType>& copysetIds,
+                            std::vector<CopySetServerInfo>* csServerInfos) {
+    if (!csServerInfos) {
+        std::cout << "The argument is a null pointer!" << std::endl;
+        return -1;
+    }
     curve::mds::topology::GetChunkServerListInCopySetsRequest request;
     curve::mds::topology::GetChunkServerListInCopySetsResponse response;
     request.set_logicalpoolid(logicalPoolId);
-    request.add_copysetid(copysetId);
+    for (const auto& copysetId : copysetIds) {
+        request.add_copysetid(copysetId);
+    }
     curve::mds::topology::TopologyService_Stub stub(&channel_);
 
     void (curve::mds::topology::TopologyService_Stub::*fp)(
@@ -283,9 +306,8 @@ int MDSClient::GetChunkServerListInCopySets(const PoolIdType& logicalPoolId,
 
     if (response.has_statuscode() &&
                 response.statuscode() == kTopoErrCodeSuccess) {
-        for (int i = 0; i < response.csinfo(0).cslocs_size(); ++i) {
-            auto location = response.csinfo(0).cslocs(i);
-            csLocs->emplace_back(location);
+        for (int i = 0; i < response.csinfo_size(); ++i) {
+            csServerInfos->emplace_back(response.csinfo(i));
         }
         return 0;
     }

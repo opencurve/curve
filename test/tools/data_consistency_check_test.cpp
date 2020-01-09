@@ -108,7 +108,7 @@ TEST_F(ConsistencyCheckTest, Consistency) {
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(20)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
@@ -136,7 +136,7 @@ TEST_F(ConsistencyCheckTest, Consistency) {
         .Times(1)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(10)
         .WillRepeatedly(DoAll(SetArgPointee<2>(
                         std::vector<ChunkServerLocation>()),
@@ -172,7 +172,7 @@ TEST_F(ConsistencyCheckTest, NotConsistency) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));
@@ -247,13 +247,13 @@ TEST_F(ConsistencyCheckTest, CheckError) {
         .Times(3)
         .WillRepeatedly(DoAll(SetArgPointee<1>(segments),
                         Return(0)));
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, cfc.RunCommand("check-consistency"));
 
     // 3、init 向chunkserverclient init失败
-    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySets(_, _, _))
+    EXPECT_CALL(*nameSpaceTool_, GetChunkServerListInCopySet(_, _, _))
         .Times(2)
         .WillRepeatedly(DoAll(SetArgPointee<2>(csLocs),
                         Return(0)));

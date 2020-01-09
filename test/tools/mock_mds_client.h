@@ -31,8 +31,11 @@ class MockMDSClient : public MDSClient {
                                         uint64_t, PageFileSegment*));
     MOCK_METHOD2(DeleteFile, int(const std::string&, bool));
     MOCK_METHOD2(CreateFile, int(const std::string&, uint64_t));
-    MOCK_METHOD3(GetChunkServerListInCopySets, int(const PoolIdType&,
+    MOCK_METHOD3(GetChunkServerListInCopySet, int(const PoolIdType&,
                     const CopySetIdType&, std::vector<ChunkServerLocation>*));
+    MOCK_METHOD3(GetChunkServerListInCopySets, int(const PoolIdType&,
+                                        const std::vector<CopySetIdType>&,
+                                        std::vector<CopySetServerInfo>*));
     MOCK_METHOD1(ListPhysicalPoolsInCluster,
                         int(std::vector<PhysicalPoolInfo>*));
     MOCK_METHOD2(ListLogicalPoolsInPhysicalPool, int(const PoolIdType&,

@@ -34,10 +34,10 @@ int CopysetCheckCore::CheckOneCopyset(const PoolIdType& logicalPoolId,
                                   const CopySetIdType& copysetId) {
     Clear();
     std::vector<ChunkServerLocation> chunkserverLocation;
-    int res = mdsClient_->GetChunkServerListInCopySets(logicalPoolId,
+    int res = mdsClient_->GetChunkServerListInCopySet(logicalPoolId,
                                 copysetId, &chunkserverLocation);
     if (res != 0) {
-        std::cout << "GetChunkServerListInCopySets from mds fail!"
+        std::cout << "GetChunkServerListInCopySet from mds fail!"
                   << std::endl;
         return -1;
     }
@@ -171,8 +171,12 @@ ChunkServerHealthStatus CopysetCheckCore::CheckCopysetsOnChunkServer(
                     copysets_[kInstallingSnapshot].emplace(groupId);
                     isHealthy = false;
                     break;
-                case CheckResult::kPeerNotOnline:
-                    copysets_[kPeerNotOnline].emplace(groupId);
+                case CheckResult::kMinorityPeerNotOnline:
+                    copysets_[kMinorityPeerNotOnline].emplace(groupId);
+                    isHealthy = false;
+                    break;
+                case CheckResult::kMajorityPeerNotOnline:
+                    copysets_[kMajorityPeerNotOnline].emplace(groupId);
                     isHealthy = false;
                     break;
                 case CheckResult::kParseError:
@@ -449,7 +453,8 @@ CheckResult CopysetCheckCore::CheckHealthOnLeader(
     if (peers.size() < FLAGS_replicasNum) {
         return CheckResult::kPeersNoSufficient;
     }
-    // 检查三个peers是否都在线
+    // 检查不在线peer的数量
+    uint32_t notOnlineNum = 0;
     for (const auto& peer : peers) {
         auto pos = peer.rfind(":");
         if (pos == peer.npos) {
@@ -460,7 +465,15 @@ CheckResult CopysetCheckCore::CheckHealthOnLeader(
         bool res = CheckChunkServerOnline(csAddr);
         if (!res) {
             serviceExceptionChunkServers_.emplace(csAddr);
-            return CheckResult::kPeerNotOnline;
+            notOnlineNum++;
+        }
+    }
+    if (notOnlineNum > 0) {
+        uint32_t majority = peers.size() / 2 + 1;
+        if (notOnlineNum < majority) {
+            return CheckResult::kMinorityPeerNotOnline;
+        } else {
+            return CheckResult::kMajorityPeerNotOnline;
         }
     }
     // 根据replicator的情况判断log index之间的差距
@@ -525,12 +538,41 @@ void CopysetCheckCore::UpdatePeerNotOnlineCopysets(const std::string& csAddr) {
                   << " fail!" << std::endl;
         return;
     }
+
+    std::vector<CopySetIdType> copysetIds;
+    PoolIdType logicalPoolId = copysets[0].logicalpoolid();
     for (const auto& csInfo : copysets) {
-        PoolIdType logicalPoolId = csInfo.logicalpoolid();
-        CopySetIdType copysetId = csInfo.copysetid();
+        copysetIds.emplace_back(csInfo.copysetid());
+    }
+
+    // 获取每个copyset的成员
+    std::vector<CopySetServerInfo> csServerInfos;
+    res = mdsClient_->GetChunkServerListInCopySets(logicalPoolId,
+                                                   copysetIds,
+                                                   &csServerInfos);
+    if (res != 0) {
+        std::cout << "GetChunkServerListInCopySets fail" << std::endl;
+        return;
+    }
+    // 遍历每个copyset
+    for (const auto& info : csServerInfos) {
+        uint32_t offlineNum = 0;
+        for (const auto& csLoc : info.cslocs()) {
+            std::string addr = csLoc.hostip() + ":"
+                               + std::to_string(csLoc.port());
+            if (!CheckChunkServerOnline(addr)) {
+                offlineNum++;
+            }
+        }
+        CopySetIdType copysetId = info.copysetid();
         std::string groupId = ToGroupId(logicalPoolId,
                                         copysetId);
-        copysets_[kPeerNotOnline].emplace(groupId);
+        uint32_t majority = info.cslocs().size() / 2 + 1;
+        if (offlineNum < majority) {
+            copysets_[kMinorityPeerNotOnline].emplace(groupId);
+        } else {
+            copysets_[kMajorityPeerNotOnline].emplace(groupId);
+        }
         copysets_[kTotal].emplace(groupId);
     }
 }

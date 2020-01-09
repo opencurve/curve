@@ -108,7 +108,7 @@ int ConsistencyCheck::CheckCopysetConsistency(
                                 const CopySet copyset,
                                 bool checkHash) {
     std::vector<ChunkServerLocation> csLocs;
-    int res = nameSpaceToolCore_->GetChunkServerListInCopySets(
+    int res = nameSpaceToolCore_->GetChunkServerListInCopySet(
                                                 copyset.first,
                                                 copyset.second,
                                                 &csLocs);
