@@ -15,7 +15,17 @@ DEFINE_string(snapshot_clone_config, "./conf/snapshot_clone_server.conf", "confi
 namespace curve {
 namespace tool {
 
+SnapshotCheck::~SnapshotCheck() {
+    if (inited_) {
+        snapshot_->UnInit();
+        client_->UnInit();
+    }
+}
+
 int SnapshotCheck::Init() {
+    if (inited_) {
+        return 0;
+    }
     if (snapshot_->Init(FLAGS_snapshotId,
                         FLAGS_snapshot_clone_config) != 0) {
         std::cout << "Init snapshotRead fail!" << std::endl;
@@ -25,18 +35,36 @@ int SnapshotCheck::Init() {
         std::cout << "Init file client fail!" << std::endl;
         return -1;
     }
+    inited_ = true;
     return 0;
 }
 
-void SnapshotCheck::UnInit() {
-    snapshot_->UnInit();
-    client_->UnInit();
+bool SnapshotCheck::SupportCommand(const std::string& command) {
+    return (command == kSnapshotCheckCmd);
 }
 
-void SnapshotCheck::PrintHelp() {
+
+void SnapshotCheck::PrintHelp(const std::string &cmd) {
+    if (!SupportCommand(cmd)) {
+        std::cout << "Command not supported!" << std::endl;
+        return;
+    }
     std::cout << "Example: " << std::endl;
     std::cout << "curve_ops_tool snapshot-check -snapshotId=12345678 -file_name=/test -clientConfPath=conf/client.conf "  // NOLINT
                  "-snapshot_clone_config=conf/snapshot_clone_server.conf -user_name=test" << std::endl;  // NOLINT
+}
+
+int SnapshotCheck::RunCommand(const std::string &cmd) {
+    if (Init() != 0) {
+        std::cout << "Init ConsistencyCheck failed" << std::endl;
+        return -1;
+    }
+    if (cmd == kSnapshotCheckCmd) {
+        return Check();
+    } else {
+        std::cout << "Command not supported!" << std::endl;
+        return -1;
+    }
 }
 
 int SnapshotCheck::Check() {

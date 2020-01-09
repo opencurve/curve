@@ -18,6 +18,7 @@
 #include "src/tools/consistency_check.h"
 #include "src/tools/curve_cli.h"
 #include "src/tools/copyset_check.h"
+#include "src/tools/snapshot_check.h"
 
 namespace curve {
 namespace tool {
@@ -57,6 +58,11 @@ class CurveToolFactory {
      *  @brief 获取CopysetCheck实例
      */
     static std::shared_ptr<CopysetCheck> GenerateCopysetCheck();
+
+    /**
+     *  @brief 获取SnapshotCheck实例
+     */
+    static std::shared_ptr<SnapshotCheck> GenerateSnapshotCheck();
 };
 }  // namespace tool
 }  // namespace curve

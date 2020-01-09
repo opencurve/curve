@@ -43,6 +43,9 @@ const char kRemovePeerCmd[] = "remove-peer";
 const char kTransferLeaderCmd[] = "transfer-leader";
 const char kResetPeerCmd[] = "reset-peer";
 
+// 快照检查命令
+const char kSnapshotCheckCmd[] = "snapshot-check";
+
 }  // namespace tool
 }  // namespace curve
 
