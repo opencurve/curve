@@ -551,9 +551,8 @@ void SessionManager::SessionScanFunc() {
 }
 
 void SessionManager::Stop() {
-    if (!sessionScanStop_) {
+    if (!sessionScanStop_.exchange(true)) {
         LOG(INFO) << "stop SessionManager...";
-        sessionScanStop_ = true;
         sleeper_.interrupt();
         scanThread->join();
 
