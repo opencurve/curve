@@ -29,6 +29,8 @@
 #include "test/client/fake/fakeMDS.h"
 #include "src/client/metacache_struct.h"
 #include "src/common/net_common.h"
+#include "test/integration/cluster_common/cluster.h"
+#include "test/util/config_generator.h"
 
 using curve::client::MDSClient;
 
@@ -208,8 +210,43 @@ TEST(MDSChangeTest, MDSFailoverTest) {
     ASSERT_GT(mds0RetryTimes, mds1RetryTimes + mds2RetryTimes);
 }
 
+const std::vector<std::string> registConfOff {
+    std::string("mds.listen.addr=127.0.0.1:9903,127.0.0.1:9904,127.0.0.1:9905"),
+    std::string("rpcRetryTimes=3"),
+    std::string("global.logPath=./runlog/"),
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=3"),
+    std::string("metacache.getLeaderRetry=3"),
+    std::string("metacache.getLeaderTimeOutMS=1000"),
+    std::string("global.fileMaxInFlightRPCNum=2048"),
+    std::string("metacache.rpcRetryIntervalUS=500"),
+    std::string("mds.rpcRetryIntervalUS=500"),
+    std::string("schedule.threadpoolSize=2"),
+    std::string("mds.registerToMDS=false")
+};
+
+const std::vector<std::string> registConfON {
+    std::string("mds.listen.addr=127.0.0.1:9903,127.0.0.1:9904,127.0.0.1:9905"),
+    std::string("global.logPath=./runlog/"),
+    std::string("synchronizeRPCTimeoutMS=500"),
+    std::string("synchronizeRPCRetryTime=3"),
+    std::string("chunkserver.rpcTimeoutMS=1000"),
+    std::string("chunkserver.opMaxRetry=3"),
+    std::string("metacache.getLeaderRetry=3"),
+    std::string("metacache.getLeaderTimeOutMS=1000"),
+    std::string("global.fileMaxInFlightRPCNum=2048"),
+    std::string("metacache.rpcRetryIntervalUS=500"),
+    std::string("mds.rpcRetryIntervalUS=500"),
+    std::string("schedule.threadpoolSize=2"),
+    std::string("mds.registerToMDS=true")
+};
+
 TEST(MDSClientTestRegitser, Register) {
-    std::string configpath = "./test/client/testConfig/mds_failover.conf";
+    std::string configpath = "./test/client/testConfig/mds_register_on.conf";
+
+    curve::CurveCluster* cluster = new curve::CurveCluster();
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(
+        configpath, registConfON);
     brpc::Server server1, server2, server3;
     MetaServerOption_t metaopt;
     metaopt.metaaddrvec.push_back("127.0.0.1:9903");
@@ -230,17 +267,17 @@ TEST(MDSClientTestRegitser, Register) {
 
     if (server1.AddService(&curvefsservice1,
                         brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
+        LOG(ERROR) << "Fail to add service";
     }
 
     if (server2.AddService(&curvefsservice2,
                         brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
+        LOG(ERROR) << "Fail to add service";
     }
 
     if (server3.AddService(&curvefsservice3,
                         brpc::SERVER_DOESNT_OWN_SERVICE) != 0) {
-        LOG(FATAL) << "Fail to add service";
+        LOG(ERROR) << "Fail to add service";
     }
 
     brpc::ServerOptions options;
@@ -258,7 +295,13 @@ TEST(MDSClientTestRegitser, Register) {
     ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Init(configpath.c_str()));
 
     // config with regist off
-    std::string confpath = "./test/client/testConfig/client_session.conf";
+    std::string confpath = "./test/client/testConfig/mds_register_off.conf";
+    // regist失败，初始化失败
+    ASSERT_EQ(-LIBCURVE_ERROR::FAILED, Init(configpath.c_str()));
+
+    cluster->PrepareConfig<curve::ClientConfigGenerator>(
+        confpath, registConfOff);
+
     ASSERT_EQ(0, Init(confpath.c_str()));
     ASSERT_EQ(0, Init(confpath.c_str()));
     UnInit();
@@ -381,3 +424,4 @@ int main(int argc, char ** argv) {
     int ret = RUN_ALL_TESTS();
     return ret;
 }
+

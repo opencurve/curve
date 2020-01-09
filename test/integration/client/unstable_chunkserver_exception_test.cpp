@@ -58,8 +58,8 @@ const std::vector<std::string> clientConfigOpts{
     std::string("mds.listen.addr=") + kMdsIpPort,
     std::string("maxInFlightRPCNum=") + kClientInflightNum,
     std::string("global.logPath=") + kLogPath,
-    std::string("isolation.taskQueueCapacity=5000"),
-    std::string("schedule.queueCapacity=5000"),
+    std::string("isolation.taskQueueCapacity=128"),
+    std::string("schedule.queueCapacity=128"),
 };
 
 const std::vector<std::string> mdsConf{
