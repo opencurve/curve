@@ -24,6 +24,7 @@ namespace schedule {
 extern const char ADDPEER[];
 extern const char REMOVEPEER[];
 extern const char TRANSFERLEADER[];
+extern const char CHANGEPEER[];
 extern const char NORMAL[];
 extern const char HIGH[];
 
@@ -35,6 +36,7 @@ class ScheduleMetrics {
     addOpNum(ScheduleMetricsPrefix, "addPeer_num"),
     removeOpNum(ScheduleMetricsPrefix, "removePeer_num"),
     transferOpNum(ScheduleMetricsPrefix, "transferLeader_num"),
+    changeOpNum(ScheduleMetricsPrefix, "chanegPeer_num"),
     normalOpNum(ScheduleMetricsPrefix, "normal_operator_num"),
     highOpNum(ScheduleMetricsPrefix, "high_operator_num"),
     topo_(topo) {}
@@ -117,6 +119,8 @@ class ScheduleMetrics {
     bvar::Adder<uint32_t> removeOpNum;
     // 正在执行的TransferLeader operator的数量
     bvar::Adder<uint32_t> transferOpNum;
+    // 正在执行的ChangePeer operator的数量
+    bvar::Adder<uint32_t> changeOpNum;
     // 正在执行的normal级别的operator的数量
     bvar::Adder<uint32_t> normalOpNum;
     // 正在执行的high级别的operator的数量

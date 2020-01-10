@@ -63,7 +63,8 @@ int SnapshotServiceManager::CreateSnapshot(const std::string &file,
     return kErrCodeSuccess;
 }
 
-int SnapshotServiceManager::CancelSnapshot(UUID uuid,
+int SnapshotServiceManager::CancelSnapshot(
+    const UUID &uuid,
     const std::string &user,
     const std::string &file) {
     std::shared_ptr<SnapshotTask> task = taskMgr_->GetTask(uuid);
@@ -72,7 +73,8 @@ int SnapshotServiceManager::CancelSnapshot(UUID uuid,
             LOG(ERROR) << "Can not cancel snapshot by different user.";
             return kErrCodeInvalidUser;
         }
-        if (file != task->GetTaskInfo()->GetFileName()) {
+        if ((!file.empty()) &&
+            (file != task->GetTaskInfo()->GetFileName())) {
             LOG(ERROR) << "Can not cancel, fileName is not matched.";
             return kErrCodeFileNameNotMatch;
         }
@@ -92,7 +94,8 @@ int SnapshotServiceManager::CancelSnapshot(UUID uuid,
     return kErrCodeSuccess;
 }
 
-int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
+int SnapshotServiceManager::DeleteSnapshot(
+    const UUID &uuid,
     const std::string &user,
     const std::string &file) {
     SnapshotInfo snapInfo;
@@ -140,37 +143,47 @@ int SnapshotServiceManager::DeleteSnapshot(UUID uuid,
 
 int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
     const std::string &user,
-    const UUID *uuid,
+    std::vector<FileSnapshotInfo> *info) {
+    std::vector<SnapshotInfo> snapInfos;
+    int ret = core_->GetFileSnapshotInfo(file, &snapInfos);
+    if (ret < 0) {
+        LOG(ERROR) << "GetFileSnapshotInfo error, "
+                   << " ret = " << ret
+                   << ", file = " << file;
+        return ret;
+    }
+    return GetFileSnapshotInfoInner(snapInfos, user, info);
+}
+
+int SnapshotServiceManager::GetFileSnapshotInfoById(const std::string &file,
+    const std::string &user,
+    const UUID &uuid,
+    std::vector<FileSnapshotInfo> *info) {
+    std::vector<SnapshotInfo> snapInfos;
+    SnapshotInfo snap;
+    int ret = core_->GetSnapshotInfo(uuid, &snap);
+    if (ret < 0) {
+        LOG(ERROR) << "GetSnapshotInfo error, "
+                   << " ret = " << ret
+                   << ", file = " << file
+                   << ", uuid = " << uuid;
+        return kErrCodeFileNotExist;
+    }
+    if (snap.GetUser() != user) {
+        return kErrCodeInvalidUser;
+    }
+    if ((!file.empty()) && (snap.GetFileName() != file)) {
+        return kErrCodeFileNameNotMatch;
+    }
+    snapInfos.push_back(snap);
+    return GetFileSnapshotInfoInner(snapInfos, user, info);
+}
+
+int SnapshotServiceManager::GetFileSnapshotInfoInner(
+    std::vector<SnapshotInfo> snapInfos,
+    const std::string &user,
     std::vector<FileSnapshotInfo> *info) {
     int ret = kErrCodeSuccess;
-    std::vector<SnapshotInfo> snapInfos;
-    if (uuid != nullptr) {
-        SnapshotInfo snap;
-        ret = core_->GetSnapshotInfo(*uuid, &snap);
-        if (ret < 0) {
-            LOG(ERROR) << "GetSnapshotInfo error, "
-                       << " ret = " << ret
-                       << ", file = " << file
-                       << ", uuid = " << *uuid;
-            return kErrCodeFileNotExist;
-        }
-        if (snap.GetUser() != user) {
-            return kErrCodeInvalidUser;
-        }
-        if (snap.GetFileName() != file) {
-            return kErrCodeFileNameNotMatch;
-        }
-        snapInfos.push_back(snap);
-    } else {
-        ret = core_->GetFileSnapshotInfo(file, &snapInfos);
-        if (ret < 0) {
-            LOG(ERROR) << "GetFileSnapshotInfo error, "
-                       << " ret = " << ret
-                       << ", file = " << file;
-            return ret;
-        }
-    }
-
     for (auto &snap : snapInfos) {
         if (snap.GetUser() == user) {
             Status st = snap.GetStatus();
@@ -214,14 +227,15 @@ int SnapshotServiceManager::GetFileSnapshotInfo(const std::string &file,
                             }
                             default:
                                 LOG(ERROR) << "can not reach here!";
-                                break;
+                                // 当更新数据库失败时，有可能进入这里
+                                return kErrCodeInternalError;
                         }
                     }
                     break;
                 }
                 default:
                     LOG(ERROR) << "can not reach here!";
-                    break;
+                    return kErrCodeInternalError;
             }
         }
     }

@@ -9,11 +9,14 @@
 #define TEST_CLIENT_FAKE_FAKEMDS_H_
 #include <gtest/gtest.h>
 #include <brpc/server.h>
+#include <brpc/controller.h>
+#include <braft/raft.h>
 
 #include <string>
 #include <vector>
 #include <functional>
 #include <utility>
+#include <map>
 #include "src/client/client_common.h"
 #include "test/client/fake/mockMDS.h"
 #include "test/client/fake/fakeChunkserver.h"
@@ -24,6 +27,7 @@
 #include "src/common/timeutility.h"
 #include "src/common/authenticator.h"
 #include "proto/heartbeat.pb.h"
+#include "src/client/mds_client_base.h"
 #include "src/common/uuid.h"
 
 using curve::common::Authenticator;
@@ -51,6 +55,8 @@ using ::curve::mds::topology::GetCopySetsInChunkServerRequest;
 using ::curve::mds::topology::GetCopySetsInChunkServerResponse;
 using ::curve::mds::topology::ListLogicalPoolRequest;
 using ::curve::mds::topology::ListLogicalPoolResponse;
+using ::curve::mds::topology::GetClusterInfoRequest;
+using ::curve::mds::topology::GetClusterInfoResponse;
 
 using HeartbeatRequest  = curve::mds::heartbeat::ChunkServerHeartbeatRequest;
 using HeartbeatResponse = curve::mds::heartbeat::ChunkServerHeartbeatResponse;
@@ -68,7 +74,12 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         brpc::ClosureGuard done_guard(done);
         if (fakeRegisterret_->controller_ != nullptr &&
              fakeRegisterret_->controller_->Failed()) {
-            controller->SetFailed("failed");
+            auto cntl = static_cast<brpc::Controller*>(
+                        fakeRegisterret_->controller_);
+            static_cast<brpc::Controller*>(controller)->
+            SetFailed(cntl->ErrorCode(),
+            "failed");
+            LOG(ERROR) << "RegistClient set controller failed!";
         }
 
         retrytimes_++;
@@ -617,10 +628,13 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                    const std::string& filename,
                    const std::string& owner,
                    uint64_t date) {
-        std::string str2sig = Authenticator::GetString2Signature(date, owner);
-        std::string sigtest = Authenticator::CalcString2Signature(str2sig,
-                                                                "123");
-        ASSERT_STREQ(sigtest.c_str(), signature.c_str());
+        if (owner == kRootUserName) {
+            std::string str2sig = Authenticator::GetString2Signature(date, owner);  // NOLINT
+            std::string sigtest = Authenticator::CalcString2Signature(str2sig, "123");  // NOLINT
+            ASSERT_STREQ(sigtest.c_str(), signature.c_str());
+        } else {
+            ASSERT_STREQ("", signature.c_str());
+        }
     }
 
     uint64_t retrytimes_;
@@ -686,17 +700,6 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
         response->set_statuscode(0);
         response->set_chunkserverid(request->port());
         response->set_token(request->hostip());
-    }
-
-    void GetClusterInfo(::google::protobuf::RpcController* controller,
-                        const GetClusterInfoRequest* request,
-                        GetClusterInfoResponse* response,
-                        ::google::protobuf::Closure* done) {
-        brpc::ClosureGuard done_guard(done);
-
-        std::string uuid = curve::common::UUIDGenerator().GenerateUUID();
-        response->set_statuscode(0);
-        response->set_clusterid(uuid);
     }
 
     void GetChunkServer(::google::protobuf::RpcController* controller,
@@ -804,6 +807,17 @@ class FakeMDSTopologyService : public curve::mds::topology::TopologyService {
         response->CopyFrom(*resp);
     }
 
+    void GetClusterInfo(::google::protobuf::RpcController* controller,
+                        const GetClusterInfoRequest* request,
+                        GetClusterInfoResponse* response,
+                        ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+
+        std::string uuid = curve::common::UUIDGenerator().GenerateUUID();
+        response->set_statuscode(0);
+        response->set_clusterid(uuid);
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
@@ -872,8 +886,13 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
                    ::curve::chunkserver::CopysetStatusResponse *response,
                    google::protobuf::Closure *done) {
         brpc::ClosureGuard doneGuard(done);
+        if (fakeret_->controller_ != nullptr
+         && fakeret_->controller_->Failed()) {
+            controller->SetFailed("failed");
+            return;
+        }
 
-        response->set_state("state");
+        response->set_state(::braft::State::STATE_LEADER);
         curve::common::Peer *peer = new curve::common::Peer();
         response->set_allocated_peer(peer);
         peer->set_address("127.0.0.1:1111");
@@ -892,7 +911,7 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
         response->set_diskindex(1);
         response->set_epoch(1);
         response->set_hash(std::to_string(hash_));
-        response->set_status(COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS);
+        response->set_status(status_);
     }
 
     void SetHash(uint64_t hash) {
@@ -903,6 +922,10 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
         applyindex_ = index;
     }
 
+    void SetStatus(const COPYSET_OP_STATUS& status) {
+        status_ = status;
+    }
+
     void SetFakeReturn(FakeReturn* fakeret) {
         fakeret_ = fakeret;
     }
@@ -910,6 +933,7 @@ class FakeCreateCopysetService : public curve::chunkserver::CopysetService {
  public:
     uint64_t applyindex_;
     uint64_t hash_;
+    COPYSET_OP_STATUS status_ = COPYSET_OP_STATUS::COPYSET_OP_STATUS_SUCCESS;
     FakeReturn* fakeret_;
 };
 
@@ -966,9 +990,11 @@ class FakeMDS {
         return &faketopologyservice_;
     }
 
-    void SetOperatorNum(uint64_t opNum) {
-        operatorNum_ << opNum;
+    void SetMetric(const std::string& metricName, bvar::Variable* var) {
+        metrics_[metricName] = var;
     }
+
+    void ExposeMetric();
 
  private:
     std::vector<CopysetCreatStruct> copysetnodeVec_;
@@ -987,7 +1013,7 @@ class FakeMDS {
     FakeMDSTopologyService faketopologyservice_;
     FakeMDSHeartbeatService fakeHeartbeatService_;
 
-    bvar::Adder<uint32_t> operatorNum_;
+    std::map<std::string, bvar::Variable*>  metrics_;
 };
 
 #endif   // TEST_CLIENT_FAKE_FAKEMDS_H_

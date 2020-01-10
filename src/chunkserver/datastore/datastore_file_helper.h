@@ -45,6 +45,20 @@ class DatastoreFileHelper {
                   vector<string>* chunkFiles,
                   vector<string>* snapFiles);
 
+    /**
+     * 判断文件是否为chunk的snapshot文件
+     * @param fileName: 文件名
+     * @return true-是snapshot文件，false-不是snapshot文件
+     */
+    static bool IsSnapshotFile(const string& fileName);
+
+    /**
+     * 判断文件是否为chunk文件
+     * @param fileName: 文件名
+     * @return true-是chunk文件，false-不是chunk文件
+     */
+    static bool IsChunkFile(const string& fileName);
+
  private:
     std::shared_ptr<LocalFileSystem> fs_;
 };

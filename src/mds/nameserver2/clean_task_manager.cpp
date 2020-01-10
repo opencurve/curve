@@ -11,18 +11,20 @@
 namespace curve {
 namespace mds {
 
-CleanTaskManager::CleanTaskManager(int threadNum, int checkPeriod) {
+CleanTaskManager::CleanTaskManager(std::shared_ptr<ChannelPool> channelPool,
+                            int threadNum, int checkPeriod)
+                                     : channelPool_(channelPool) {
     threadNum_ = threadNum;
     checkPeriod_ = checkPeriod;
     stopFlag_ = true;
 }
 
 void CleanTaskManager::CheckCleanResult(void) {
-    while (true) {
+    while (sleeper_.wait_for(std::chrono::milliseconds(checkPeriod_))) {
         {
             common::LockGuard lck(mutex_);
-            for (auto iter = cleanTasks_.begin();
-                stopFlag_ != true && iter != cleanTasks_.end();) {
+            bool notEmptyBefore = !cleanTasks_.empty();
+            for (auto iter = cleanTasks_.begin(); iter != cleanTasks_.end();) {
                 auto taskProgress = iter->second->GetTaskProgress();
                 if (taskProgress.GetStatus() == TaskStatus::SUCCESS) {
                     LOG(INFO) << "going to remove task, taskID = "
@@ -37,15 +39,14 @@ void CleanTaskManager::CheckCleanResult(void) {
                 }
                 ++iter;
             }
+            // clean task为空，清空channelPool
+            if (cleanTasks_.empty() && notEmptyBefore) {
+                LOG(INFO) << "All tasks completed, clear channel pool";
+                channelPool_->Clear();
+            }
         }
-        // check ret
-        if (true == stopFlag_) {
-            LOG(INFO) << "check thread exit";
-            return;
-        }
-        // checkLoopTime
-        std::this_thread::sleep_for(std::chrono::milliseconds(checkPeriod_));
     }
+    LOG(INFO) << "check thread exit";
 }
 
 bool CleanTaskManager::Start(void) {
@@ -68,15 +69,19 @@ bool CleanTaskManager::Start(void) {
 }
 
 bool CleanTaskManager::Stop(void) {
-    stopFlag_ = true;
+    if (!stopFlag_.exchange(true)) {
+        LOG(INFO) << "stop CleanTaskManager...";
+        sleeper_.interrupt();
 
-    // stop the thread pool
-    cleanWorkers_->Stop();
-    delete cleanWorkers_;
+        // stop the thread pool
+        cleanWorkers_->Stop();
+        delete cleanWorkers_;
 
-    // stop the check thread
-    checkThread_->join();
-    delete checkThread_;
+        // stop the check thread
+        checkThread_->join();
+        delete checkThread_;
+        LOG(INFO) << "stop CleanTaskManager ok";
+    }
 
     return true;
 }

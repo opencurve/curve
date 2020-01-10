@@ -1,12 +1,10 @@
 Package: curve-snapshotcloneserver
-Version: 1.0
 Section:
 Priority: optional
-Depends: libuuid1,libunwind8,libmysqlcppconn7v5 
+Depends: libuuid1,libunwind8,libmysqlcppconn7v5
 Suggests:
 Architecture:amd64
 Installed-Size:
 Maintainer: curve-dev
 Provides:
 Description: curve snapshot clone server
-

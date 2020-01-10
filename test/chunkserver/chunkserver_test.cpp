@@ -21,7 +21,7 @@
 
 uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
 uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string metaserver_addr = "127.0.0.1:9301";   // NOLINT
+std::string mdsMetaServerAddr = "127.0.0.1:9301";   // NOLINT
 
 char* confPath = "conf/client.conf";
 
@@ -81,7 +81,7 @@ TEST(ChunkserverCommonTest, GroupIdTest) {
     CopysetID copysetId = 8888;
     GroupNid groupId0 = 42949672968888;  // (10000 << 32) | 8888;
     GroupId groupIdStr0 = "42949672968888";
-    std::string groupIdViewStr0 = "(10000, 8888)";
+    std::string groupIdViewStr0 = "(10000, 8888, 42949672968888)";
 
     GroupNid groupId = ToGroupNid(poolId, copysetId);
     GroupId groupIdStr = ToGroupId(poolId, copysetId);
@@ -89,6 +89,7 @@ TEST(ChunkserverCommonTest, GroupIdTest) {
 
     ASSERT_EQ(groupId0, groupId);
     ASSERT_EQ(groupIdStr0, groupIdStr);
+    ASSERT_EQ(groupIdViewStr0, groupIdViewStr);
     ASSERT_EQ(poolId, GetPoolID(groupId));
     ASSERT_EQ(copysetId, GetCopysetID(groupId));
 }

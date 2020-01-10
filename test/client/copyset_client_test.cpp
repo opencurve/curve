@@ -21,11 +21,13 @@
 #include "test/client/mock_request_context.h"
 #include "src/client/chunk_closure.h"
 #include "src/common/timeutility.h"
+#include "test/client/fake/fakeChunkserver.h"
 
 namespace curve {
 namespace client {
 
 using curve::chunkserver::CHUNK_OP_STATUS;
+using curve::chunkserver::ChunkRequest;
 
 using ::testing::_;
 using ::testing::Invoke;
@@ -154,11 +156,10 @@ TEST_F(CopysetClientTest, normal_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -425,13 +426,12 @@ TEST_F(CopysetClientTest, write_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 1000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
-    ioSenderOpt.failRequestOpt.maxTimeoutMS = 3500;
-    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 3500000;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 3500;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduleOption_t reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -960,13 +960,12 @@ TEST_F(CopysetClientTest, write_failed_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 500;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 50;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
-    ioSenderOpt.failRequestOpt.maxTimeoutMS = 1000;
-    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 100000;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 500;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 50;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 100000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduleOption_t reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -1111,13 +1110,12 @@ TEST_F(CopysetClientTest, read_failed_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 500;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 50;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 5000;
-    ioSenderOpt.failRequestOpt.maxTimeoutMS = 1000;
-    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 100000;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 500;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 50;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 100000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduleOption_t reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -1263,13 +1261,12 @@ TEST_F(CopysetClientTest, read_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 1000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.failRequestOpt.maxTimeoutMS = 3500;
-    ioSenderOpt.failRequestOpt.maxRetrySleepIntervalUs = 3500000;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 1000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRPCTimeoutMS = 3500;
+    ioSenderOpt.failRequestOpt.chunkserverMaxRetrySleepIntervalUS = 3500000;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     RequestScheduleOption_t reqopt;
     reqopt.ioSenderOpt = ioSenderOpt;
@@ -1830,11 +1827,10 @@ TEST_F(CopysetClientTest, read_snapshot_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -2340,11 +2336,10 @@ TEST_F(CopysetClientTest, delete_snapshot_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -2790,11 +2785,10 @@ TEST_F(CopysetClientTest, create_clone_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -3225,11 +3219,10 @@ TEST_F(CopysetClientTest, recover_chunk_error_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -3651,11 +3644,10 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
     ASSERT_EQ(server_->Start(listenAddr_.c_str(), nullptr), 0);
 
     IOSenderOption_t ioSenderOpt;
-    ioSenderOpt.rpcTimeoutMs = 5000;
-    ioSenderOpt.rpcRetryTimes = 3;
-    ioSenderOpt.failRequestOpt.opMaxRetry = 3;
-    ioSenderOpt.failRequestOpt.opRetryIntervalUs = 500;
-    ioSenderOpt.enableAppliedIndexRead = 1;
+    ioSenderOpt.failRequestOpt.chunkserverRPCTimeoutMS = 5000;
+    ioSenderOpt.failRequestOpt.chunkserverOPMaxRetry = 3;
+    ioSenderOpt.failRequestOpt.chunkserverOPRetryIntervalUS = 500;
+    ioSenderOpt.chunkserverEnableAppliedIndexRead = 1;
 
     CopysetClient copysetClient;
     MockMetaCache mockMetaCache;
@@ -4048,6 +4040,108 @@ TEST_F(CopysetClientTest, get_chunk_info_test) {
         ASSERT_EQ(CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS,
                   reqDone->GetErrorCode());
     }
+}
+
+bool gWriteSuccessFlag = false;
+
+void WriteCallBack(CurveAioContext* aioctx) {
+    gWriteSuccessFlag = true;
+    delete aioctx;
+}
+
+TEST(ChunkServerBackwardTest, ChunkServerBackwardTest) {
+    ClientConfig cc;
+    const std::string& configPath = "./conf/client.conf";
+    cc.Init(configPath.c_str());
+    FileInstance fileinstance;
+    UserInfo_t userinfo;
+    userinfo.owner = "userinfo";
+
+    MDSClient mdsclient;
+    mdsclient.Initialize(cc.GetFileServiceOption().metaServerOpt);
+    ASSERT_TRUE(fileinstance.Initialize("/test", &mdsclient, userinfo,
+                                        cc.GetFileServiceOption()));
+
+    // create fake chunkserver service
+    FakeChunkServerService fakechunkservice;
+    // 设置cli服务
+    CliServiceFake fakeCliservice;
+
+    brpc::Server server;
+    ASSERT_EQ(0, server.AddService(&fakechunkservice,
+        brpc::SERVER_DOESNT_OWN_SERVICE)) << "Fail to add fakechunkservice";
+    ASSERT_EQ(0, server.AddService(&fakeCliservice,
+        brpc::SERVER_DOESNT_OWN_SERVICE)) << "Fail to add fakecliservice";
+    brpc::ServerOptions options;
+    options.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1:9102", &options))
+        << "Fail to start server add 127.0.0.1:9102";
+
+    // fill metacache
+    curve::client::MetaCache* mc
+        = fileinstance.GetIOManager4File()->GetMetaCache();
+    curve::client::ChunkIDInfo_t chunkinfo(1, 2, 3);
+    mc->UpdateChunkInfoByIndex(0, chunkinfo);
+    curve::client::CopysetInfo cpinfo;
+    curve::client::EndPoint ep;
+    butil::str2endpoint("127.0.0.1", 9102, &ep);
+
+    braft::PeerId pd(ep);
+    curve::client::CopysetPeerInfo
+        peer(1, curve::client::ChunkServerAddr(ep));
+    cpinfo.csinfos_.push_back(peer);
+    mc->UpdateCopysetInfo(2, 3, cpinfo);
+
+    fakeCliservice.SetPeerID(pd);
+
+    curve::chunkserver::ChunkResponse response;
+    response.set_status(
+        curve::chunkserver::CHUNK_OP_STATUS::CHUNK_OP_STATUS_SUCCESS);
+    response.set_appliedindex(0);
+    FakeReturn writeFakeRet(nullptr, static_cast<void*>(&response));
+    fakechunkservice.SetFakeWriteReturn(&writeFakeRet);
+
+    const int kNewFileSn = 100;
+    const int kOldFileSn = 30;
+
+    // 设置文件版本号
+    fileinstance.GetIOManager4File()->SetLatestFileSn(kNewFileSn);
+
+    // 发送写请求，并等待sec秒后检查io是否返回
+    auto startWriteAndCheckResult = [&fileinstance](int sec)-> bool {  // NOLINT
+        CurveAioContext* aioctx = new CurveAioContext();
+        char buffer[4096];
+
+        aioctx->buf = buffer;
+        aioctx->offset = 0;
+        aioctx->length = sizeof(buffer);
+        aioctx->op = LIBCURVE_OP::LIBCURVE_OP_WRITE;
+        aioctx->cb = WriteCallBack;
+
+        // 下发写请求
+        fileinstance.AioWrite(aioctx);
+
+        std::this_thread::sleep_for(std::chrono::seconds(sec));
+        return gWriteSuccessFlag;
+    };
+
+    // 第一次写成功，并更新chunkserver端的文件版本号
+    ASSERT_TRUE(startWriteAndCheckResult(3));
+
+    // 设置一个旧的版本号去写
+    fileinstance.GetIOManager4File()->SetLatestFileSn(kOldFileSn);
+    gWriteSuccessFlag = false;
+
+    // chunkserver返回backward，重新获取版本号后还是旧的版本
+    // IO hang
+    ASSERT_FALSE(startWriteAndCheckResult(3));
+
+    // 更新版本号为正常状态
+    fileinstance.GetIOManager4File()->SetLatestFileSn(kNewFileSn);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    // 上次写请求成功
+    ASSERT_EQ(true, gWriteSuccessFlag);
 }
 
 }   // namespace client

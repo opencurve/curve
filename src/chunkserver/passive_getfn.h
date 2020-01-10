@@ -16,30 +16,45 @@ namespace curve {
 namespace chunkserver {
 
     /**
-     * 获取chunkfilepool中剩余chunk的数量
-     * @param arg: chunkfilepool的对象指针
-     */
-    uint32_t getChunkLeftFunc(void* arg);
-    /**
      * 获取datastore中chunk文件的数量
      * @param arg: datastore的对象指针
      */
-    uint32_t getDatastoreChunkCountFunc(void* arg);
+    uint32_t GetDatastoreChunkCountFunc(void* arg);
     /**
-     * 获取datastore中快照的数量
+     * 获取datastore中快照chunk的数量
      * @param arg: datastore的对象指针
      */
-    uint32_t getDatastoreSnapshotCountFunc(void* arg);
+    uint32_t GetDatastoreSnapshotCountFunc(void* arg);
     /**
      * 获取datastore中clone chunk的数量
      * @param arg: datastore的对象指针
      */
-    uint32_t getDatastoreCloneChunkCountFunc(void* arg);
+    uint32_t GetDatastoreCloneChunkCountFunc(void* arg);
+    /**
+     * 获取chunkserver上chunk文件的数量
+     * @param arg: nullptr
+     */
+    uint32_t GetTotalChunkCountFunc(void* arg);
+    /**
+     * 获取chunkserver上快照chunk的数量
+     * @param arg: nullptr
+     */
+    uint32_t GetTotalSnapshotCountFunc(void* arg);
+    /**
+     * 获取chunkserver上clone chunk的数量
+     * @param arg: nullptr
+     */
+    uint32_t GetTotalCloneChunkCountFunc(void* arg);
+    /**
+     * 获取chunkfilepool中剩余chunk的数量
+     * @param arg: chunkfilepool的对象指针
+     */
+    uint32_t GetChunkLeftFunc(void* arg);
     /**
      * 获取trash中chunk的数量
      * @param arg: trash的对象指针
      */
-    uint32_t getChunkTrashedFunc(void* arg);
+    uint32_t GetChunkTrashedFunc(void* arg);
 
 }  // namespace chunkserver
 }  // namespace curve

@@ -26,7 +26,7 @@ using curve::common::RWLock;
 
 namespace curve {
 namespace client {
-enum MetaCacheErrorType {
+enum class MetaCacheErrorType {
     OK = 0,
     CHUNKINFO_NOT_FOUND = 1,
     LEADERINFO_NOT_FOUND = 2,
@@ -41,8 +41,8 @@ class MetaCache {
     using CopysetInfoMap             = std::unordered_map<CopysetLogicPoolIDStr, CopysetInfo_t>;            // NOLINT
     using ChunkIndexInfoMap          = std::map<ChunkIndex, ChunkIDInfo_t>;
 
-    MetaCache();
-    virtual ~MetaCache();
+    MetaCache() = default;
+    virtual ~MetaCache() = default;
 
     /**
      * 初始化函数
@@ -72,8 +72,8 @@ class MetaCache {
      * @param: chunkinfo是出参，存储chunk的版本信息
      * @param: 成功返回OK, 否则返回UNKNOWN_ERROR
      */
-    virtual MetaCacheErrorType GetChunkInfoByID(ChunkID chunkid,
-                                ChunkIDInfo_t* chunkinfo);
+    // virtual MetaCacheErrorType GetChunkInfoByID(ChunkID chunkid,
+    //                             ChunkIDInfo_t* chunkinfo);
 
     /**
      * sender发送数据的时候需要知道对应的leader然后发送给对应的chunkserver
@@ -201,6 +201,28 @@ class MetaCache {
     virtual void UpdateChunkserverCopysetInfo(LogicPoolID lpid,
                                               const CopysetInfo_t& cpinfo);
 
+    void UpdateFileInfo(const FInfo& fileInfo) {
+        fileInfo_ = fileInfo;
+    }
+
+    const FInfo* GetFileInfo() const {
+        return &fileInfo_;
+    }
+
+    uint64_t GetLatestFileSn() const {
+        return fileInfo_.seqnum;
+    }
+
+    void SetLatestFileSn(uint64_t newSn) {
+        fileInfo_.seqnum = newSn;
+    }
+
+    /**
+     * 获取对应的copyset的LeaderMayChange标志
+     */
+    virtual bool IsLeaderMayChange(LogicPoolID logicpoolId,
+                                   CopysetID copysetId);
+
     /**
      * 测试使用
      * 获取copysetinfo信息
@@ -211,9 +233,9 @@ class MetaCache {
      * 测试使用
      * 获取CopysetIDInfo_t
      */
-    virtual bool CopysetIDInfoIn(ChunkServerID csid,
-                                LogicPoolID lpid,
-                                CopysetID cpid);
+    // virtual bool CopysetIDInfoIn(ChunkServerID csid,
+    //                             LogicPoolID lpid,
+    //                             CopysetID cpid);
 
  private:
     /**
@@ -226,6 +248,18 @@ class MetaCache {
                              CopysetID copysetId,
                              CopysetInfo* toupdateCopyset,
                              FileMetric_t* fm = nullptr);
+
+    /**
+     * 从mds拉去复制组信息，如果当前leader在复制组中
+     * 则更新本地缓存，反之则不更新
+     * @param: logicPoolId 逻辑池id
+     * @param: copysetId 复制组id
+     * @param: leaderAddr 当前的leader address
+     */
+    void UpdateCopysetInfoIfMatchCurrentLeader(
+       LogicPoolID logicPoolId,
+       CopysetID copysetId,
+       const ChunkServerAddr& leaderAddr);
 
  private:
     MDSClient*          mdsclient_;
@@ -254,6 +288,9 @@ class MetaCache {
     std::unordered_map<ChunkServerID, std::set<CopysetIDInfo_t>> chunkserverCopysetIDMap_;  // NOLINT
     // 读写锁保护unStableCSMap
     CURVE_CACHELINE_ALIGNMENT RWLock    rwlock4CSCopysetIDMap_;
+
+    // 当前文件信息
+    FInfo fileInfo_;
 };
 
 }   // namespace client

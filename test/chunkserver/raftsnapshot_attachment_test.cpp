@@ -27,14 +27,15 @@ using ::testing::ElementsAre;
 using ::testing::SetArgPointee;
 using ::testing::UnorderedElementsAre;
 
-const char DATA_DIR[] = ("./data_attach");
+const char COPYSET_DIR[] = ("./attachcp");
+const char DATA_DIR[] = ("./attachcp/data");
 
 class RaftSnapshotAttachmentMockTest : public testing::Test {
  public:
     void SetUp() {
         fs_ = std::make_shared<MockLocalFileSystem>();
         attachment_ = scoped_refptr<RaftSnapshotAttachment>(
-            new RaftSnapshotAttachment(DATA_DIR, fs_));
+            new RaftSnapshotAttachment(fs_));
     }
     void TearDown() {}
  protected:
@@ -51,13 +52,25 @@ TEST_F(RaftSnapshotAttachmentMockTest, ListTest) {
     EXPECT_CALL(*fs_, List(DATA_DIR, _))
         .WillOnce(DoAll(SetArgPointee<1>(fileNames), Return(0)));
     vector<std::string> snapFiles;
-    attachment_->list_attach_files(&snapFiles);
-    EXPECT_THAT(snapFiles, UnorderedElementsAre("chunk_1_snap_1",
-                                                "chunk_2_snap_1"));
+    attachment_->list_attach_files(&snapFiles, COPYSET_DIR);
+
+    std::string snapPath1 =
+        "./attachcp/data/chunk_1_snap_1:data/chunk_1_snap_1";
+    std::string snapPath2 =
+        "./attachcp/data/chunk_2_snap_1:data/chunk_2_snap_1";
+    EXPECT_THAT(snapFiles, UnorderedElementsAre(snapPath1.c_str(),
+                                                snapPath2.c_str()));
+
+    // 路径结尾添加反斜杠
+    EXPECT_CALL(*fs_, List(DATA_DIR, _))
+        .WillOnce(DoAll(SetArgPointee<1>(fileNames), Return(0)));
+    attachment_->list_attach_files(&snapFiles, "./attachcp/");
+    EXPECT_THAT(snapFiles, UnorderedElementsAre(snapPath1.c_str(),
+                                                snapPath2.c_str()));
     // 返回失败
     EXPECT_CALL(*fs_, List(DATA_DIR, _))
         .WillRepeatedly(Return(-1));
-    ASSERT_DEATH(attachment_->list_attach_files(&snapFiles), "");
+    ASSERT_DEATH(attachment_->list_attach_files(&snapFiles, COPYSET_DIR), "");
 }
 
 }   // namespace chunkserver

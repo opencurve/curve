@@ -29,6 +29,7 @@ enum class CloneStatus {
     cleaning = 3,
     errorCleaning = 4,
     error = 5,
+    retrying = 6,
 };
 
 enum class CloneFileType {
@@ -470,6 +471,17 @@ class SnapshotCloneMetaStore {
      * @return: 0 获取成功/ -1 获取失败
      */
     virtual int GetCloneInfo(const std::string &taskID, CloneInfo *info) = 0;
+
+    /**
+     * @brief 获取指定文件的clone任务信息
+     *
+     * @param fileName 文件名
+     * @param[out] clone记录信息的指针
+     * @return: 0 获取成功/ -1 获取失败
+     */
+    virtual int GetCloneInfoByFileName(
+        const std::string &fileName, CloneInfo *info) = 0;
+
     /**
      * @brief 获取所有clone任务的信息列表
      * @param[out] 只想clone任务vector指针
@@ -501,6 +513,9 @@ class DBSnapshotCloneMetaStore : public SnapshotCloneMetaStore{
     int UpdateCloneInfo(const CloneInfo &cloneInfo) override;
 
     int GetCloneInfo(const std::string &taskID, CloneInfo *info) override;
+
+    int GetCloneInfoByFileName(
+        const std::string &fileName, CloneInfo *info) override;
 
     int GetCloneInfoList(std::vector<CloneInfo> *list) override;
 

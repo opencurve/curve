@@ -20,11 +20,11 @@ namespace curve {
 namespace client {
 /**
  * lease refresh结果，session如果不存在就不需要再续约
- * 如果session存在但是lease续约失败,继续血月
+ * 如果session存在但是lease续约失败,继续续约
  * 续约成功了FInfo_t中才会有对应的文件信息
  */
-struct leaseRefreshResult {
-    enum Status {
+struct LeaseRefreshResult {
+    enum class Status {
         OK,
         FAILED,
         NOT_EXIST
@@ -55,13 +55,13 @@ class LeaseExcutor {
     ~LeaseExcutor() = default;
 
     /**
-     * leaseexcutor需要finfo保存filename和更新seqnum
+     * leaseexcutor需要finfo保存filename
      * LeaseSession_t是当前leaeexcutor的执行配置
      * @param: fi为当前需要续约的文件版本信息
      * @param: lease为续约的lease信息
      * @return: 成功返回true，否则返回false
      */
-    bool Start(FInfo_t fi, LeaseSession_t  lease);
+    bool Start(const FInfo_t& fi, const LeaseSession_t&  lease);
     /**
      * 获取当前lease的sessionid信息，外围close文件的时候需要用到
      */
@@ -81,9 +81,23 @@ class LeaseExcutor {
      * 测试使用，主动失效增加刷新失败
      */
     void InvalidLease() {
-        for (int i = 0; i <= leaseoption_.refreshTimesPerLease; i++) {
+        for (int i = 0; i <= leaseoption_.mdsRefreshTimesPerLease; i++) {
             IncremRefreshFailed();
         }
+    }
+
+    // 测试使用
+    TimerTask* GetTimerTask() const {
+        return refreshTask_;
+    }
+
+    // 测试使用
+    void SetTimerTask(TimerTask* task) {
+        timerTaskWorker_.AddTimerTask(refreshTask_);
+        LOG(INFO) << "add timer task "
+              << refreshTask_->GetTimerID()
+              << " for lease refresh!";
+        isleaseAvaliable_.store(true);
     }
 
  private:
@@ -105,8 +119,8 @@ class LeaseExcutor {
     void CheckNeedUpdateVersion(uint64_t newversion);
 
  private:
-    // 当前文件的基本信息，leaseexcutor会用到seqnum、finame
-    FInfo_t                 finfo_;
+    // 与mds进行lease续约的文件名
+    std::string             fullFileName_;
 
     // 用于续约的client
     MDSClient*              mdsclient_;

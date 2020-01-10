@@ -28,11 +28,14 @@ TEST(ConnPoolTest, testGetPutConn) {
             connPool->PutConnection(conn);
         }
     }
-    for (int j=0; j < 20; j++) {
+    for (int j=0; j < 16; j++) {
         sql::Connection *conn1 = connPool->GetConnection();
-        if (conn1 == nullptr) {
-            LOG(INFO) << "GetConnection error: " << j;
-        }
+        ASSERT_NE(nullptr, conn1) << "GetConnection error: " << j;
+    }
+
+    for (int j = 0; j < 4; j++) {
+        sql::Connection *conn1 = connPool->GetConnection();
+        ASSERT_EQ(nullptr, conn1);
     }
 }
 }  // namespace repo

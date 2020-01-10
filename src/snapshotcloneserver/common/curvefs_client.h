@@ -28,6 +28,7 @@ using ::curve::client::ChunkInfoDetail;
 using ::curve::client::ChunkIDInfo;
 using ::curve::client::FInfo;
 using ::curve::client::FileStatus;
+using ::curve::client::SnapCloneClosure;
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -115,6 +116,7 @@ class CurveFsClient {
      * @param offset 偏移值
      * @param len 长度
      * @param[out] buf buffer指针
+     * @param: scc是异步回调
      *
      * @return 错误码
      */
@@ -122,7 +124,8 @@ class CurveFsClient {
                         uint64_t seq,
                         uint64_t offset,
                         uint64_t len,
-                        char *buf) = 0;
+                        char *buf,
+                        SnapCloneClosure* scc) = 0;
     /**
      * @brief 删除此次转储时产生的或者历史遗留的快照
      *        如果转储过程中没有产生快照，则修改chunk的correctedSn
@@ -193,6 +196,7 @@ class CurveFsClient {
      * @param sn chunk的序列号
      * @param csn correct sn
      * @param chunkSize chunk的大小
+     * @param: scc是异步回调
      *
      * @return 错误码
      */
@@ -201,7 +205,8 @@ class CurveFsClient {
         const ChunkIDInfo &chunkidinfo,
         uint64_t sn,
         uint64_t csn,
-        uint64_t chunkSize) = 0;
+        uint64_t chunkSize,
+        SnapCloneClosure* scc) = 0;
 
 
     /**
@@ -210,13 +215,15 @@ class CurveFsClient {
      * @param chunkidinfo chunkidinfo
      * @param offset 偏移
      * @param len 长度
+     * @param: scc是异步回调
      *
      * @return 错误码
      */
     virtual int RecoverChunk(
         const ChunkIDInfo &chunkidinfo,
         uint64_t offset,
-        uint64_t len) = 0;
+        uint64_t len,
+        SnapCloneClosure* scc) = 0;
 
     /**
      * @brief 通知mds完成Clone Meta
@@ -377,7 +384,8 @@ class CurveFsClientImpl : public CurveFsClient {
                         uint64_t seq,
                         uint64_t offset,
                         uint64_t len,
-                        char *buf) override;
+                        char *buf,
+                        SnapCloneClosure* scc) override;
 
     int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo &cidinfo,
         uint64_t seq) override;
@@ -403,12 +411,14 @@ class CurveFsClientImpl : public CurveFsClient {
         const ChunkIDInfo &chunkidinfo,
         uint64_t sn,
         uint64_t csn,
-        uint64_t chunkSize) override;
+        uint64_t chunkSize,
+        SnapCloneClosure* scc) override;
 
     int RecoverChunk(
         const ChunkIDInfo &chunkidinfo,
         uint64_t offset,
-        uint64_t len) override;
+        uint64_t len,
+        SnapCloneClosure* scc) override;
 
     int CompleteCloneMeta(
         const std::string &filename,

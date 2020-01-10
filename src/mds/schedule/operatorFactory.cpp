@@ -20,22 +20,41 @@ Operator OperatorFactory::CreateTransferLeaderOperator(
     const CopySetInfo &info,
     ChunkServerIdType newLeader,
     OperatorPriority pri) {
-    return Operator(info.epoch, info.id, pri, steady_clock::now(),
-                    std::make_shared<TransferLeader>(info.leader, newLeader));
+    return Operator(
+        info.epoch,
+        info.id,
+        pri,
+        steady_clock::now(),
+        std::make_shared<TransferLeader>(info.leader, newLeader));
 }
 Operator OperatorFactory::CreateRemovePeerOperator(
     const CopySetInfo &info, ChunkServerIdType peer, OperatorPriority pri) {
-    return Operator(info.epoch, info.id, pri, steady_clock::now(),
-                    std::make_shared<RemovePeer>(peer));
+    return Operator(
+        info.epoch,
+        info.id,
+        pri,
+        steady_clock::now(),
+        std::make_shared<RemovePeer>(peer));
 }
 
 Operator OperatorFactory::CreateAddPeerOperator(
     const CopySetInfo &info, ChunkServerIdType addPeer, OperatorPriority pri) {
     return Operator(info.epoch,
-                    info.id,
-                    pri,
-                    steady_clock::now(),
-                    std::make_shared<AddPeer>(addPeer));
+        info.id,
+        pri,
+        steady_clock::now(),
+        std::make_shared<AddPeer>(addPeer));
+}
+
+Operator OperatorFactory::CreateChangePeerOperator(const CopySetInfo &info,
+    ChunkServerIdType rmPeer, ChunkServerIdType addPeer,
+    OperatorPriority pri) {
+    return Operator(
+        info.epoch,
+        info.id,
+        pri,
+        steady_clock::now(),
+        std::make_shared<ChangePeer>(rmPeer, addPeer));
 }
 }  // namespace schedule
 }  // namespace mds

@@ -94,6 +94,8 @@ enum ConfigChangeType {
     REMOVE_PEER = 3;
     // 配置变更命令： 没有配置变更
     NONE = 4;
+    // 配置变更命令：change复制组一个成员
+    CHANGE_PEER = 5;
 };
 
 message CopySetConf {
@@ -102,7 +104,14 @@ message CopySetConf {
     repeated common.Peer peers = 3;
     required uint64 epoch = 4;
     optional ConfigChangeType type = 5;
+    // configchangeItem 是目标节点
+    // 对于TRANSFER_LEADER: 表示目标节点; 对于ADD_PEER: 表示待加入节点
+    // 对于REMOVE_PEER: 表示待删除节点; 对于CHANGE_PEER: 表示待加入节点
     optional common.Peer configchangeItem = 6;
+    // oldPeer, 这个只在ConfigChangeType=对于CHANGE_PEER的情况下会赋值，
+    // 表示待删除节点。
+    // chunkserver收到CHANGE_PEER，根据peers,configchangeItem,oldPeer拼出新的conf
+    optional common.Peer oldPeer = 7;
 };
 
 enum HeartbeatStatusCode {

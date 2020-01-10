@@ -150,15 +150,41 @@ class CloneServiceManager {
      *
      * @param user 用户名
      * @param taskId 指定的任务Id, 为nullptr时不指定
+     * @param fileName 指定的文件名, 为nullptr时不指定
      * @param info 克隆/恢复任务信息
      *
      * @return 错误码
      */
     virtual int GetCloneTaskInfo(const std::string &user,
-        const TaskIdType *taskId,
         std::vector<TaskCloneInfo> *info);
 
+    /**
+     * @brief 通过Id查询某个用户的克隆/恢复任务信息
+     *
+     * @param user 用户名
+     * @param taskId 指定的任务Id
+     * @param info 克隆/恢复任务信息
+     *
+     * @return 错误码
+     */
+    virtual int GetCloneTaskInfoById(
+        const std::string &user,
+        const TaskIdType &taskId,
+        std::vector<TaskCloneInfo> *info);
 
+    /**
+     * @brief 通过文件名查询某个用户的克隆/恢复任务信息
+     *
+     * @param user 用户名
+     * @param fileName 指定的文件名
+     * @param info 克隆/恢复任务信息
+     *
+     * @return 错误码
+     */
+    virtual int GetCloneTaskInfoByName(
+        const std::string &user,
+        const std::string &fileName,
+        std::vector<TaskCloneInfo> *info);
 
     /**
      * @brief 清除失败的clone/Recover任务、状态、文件
@@ -177,6 +203,19 @@ class CloneServiceManager {
      * @return 错误码
      */
     virtual int RecoverCloneTask();
+
+ private:
+    /**
+     * @brief 根据指定克隆/恢复信息获取克隆/恢复任务信息
+     *
+     * @param cloneInfos 克隆/恢复信息
+     * @param[out] info 克隆/恢复任务信息
+     *
+     * @return 错误码
+     */
+    int GetCloneTaskInfoInner(std::vector<CloneInfo> cloneInfos,
+        const std::string &user,
+        std::vector<TaskCloneInfo> *info);
 
  private:
     std::shared_ptr<CloneTaskManager> cloneTaskMgr_;

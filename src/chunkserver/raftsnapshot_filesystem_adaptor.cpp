@@ -23,9 +23,15 @@ RaftSnapshotFilesystemAdaptor::RaftSnapshotFilesystemAdaptor(
     memset(tempMetaPageContent, 0, metapageSize);
 }
 
+RaftSnapshotFilesystemAdaptor::RaftSnapshotFilesystemAdaptor()
+    : tempMetaPageContent(nullptr) {
+}
+
 RaftSnapshotFilesystemAdaptor::~RaftSnapshotFilesystemAdaptor() {
-    delete[] tempMetaPageContent;
-    tempMetaPageContent = nullptr;
+    if (tempMetaPageContent != nullptr) {
+        delete[] tempMetaPageContent;
+        tempMetaPageContent = nullptr;
+    }
     LOG(INFO) << "release raftsnapshot filesystem adaptor!";
 }
 
@@ -57,9 +63,10 @@ braft::FileAdaptor* RaftSnapshotFilesystemAdaptor::open(const std::string& path,
         false == lfs_->FileExists(path)) {
         // 从chunkfile pool中取出chunk返回
         int rc = chunkfilePool_->GetChunk(path, tempMetaPageContent);
-        // 如果从chunkfilepool中取失败，那么就仍然用原来的逻辑，不返回错误。
+        // 如果从chunkfilepool中取失败，返回错误。
         if (rc != 0) {
             LOG(ERROR) << "get chunk from chunkfile pool failed!";
+            return NULL;
         } else {
             oflag &= (~O_CREAT);
             oflag &= (~O_TRUNC);

@@ -138,6 +138,69 @@ void BRaftCliServiceImpl2::RemovePeer(RpcController *controller,
     return node->remove_peer(removing_peer, remove_peer_done);
 }
 
+static void change_peers_returned(brpc::Controller* cntl,
+                                  const ChangePeersRequest2* request,
+                                  ChangePeersResponse2* response,
+                                  std::vector<braft::PeerId> old_peers,
+                                  Configuration new_peers,
+                                  scoped_refptr<braft::NodeImpl> /*node*/,
+                                  ::google::protobuf::Closure* done,
+                                  const butil::Status& st) {
+    brpc::ClosureGuard done_guard(done);
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+        return;
+    }
+    for (size_t i = 0; i < old_peers.size(); ++i) {
+        response->add_oldpeers()->set_address(old_peers[i].to_string());
+    }
+    for (Configuration::const_iterator
+            iter = new_peers.begin(); iter != new_peers.end(); ++iter) {
+        response->add_newpeers()->set_address(iter->to_string());
+    }
+}
+
+void BRaftCliServiceImpl2::ChangePeers(RpcController *controller,
+                                       const ChangePeersRequest2 *request,
+                                       ChangePeersResponse2 *response,
+                                       Closure *done) {
+    brpc::Controller *cntl = (brpc::Controller *) controller;
+    brpc::ClosureGuard done_guard(done);
+    scoped_refptr<braft::NodeImpl> node;
+    LogicPoolID logicPoolId = request->logicpoolid();
+    CopysetID copysetId = request->copysetid();
+    butil::Status st =
+        get_node(&node, logicPoolId, copysetId, request->leader().address());
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+        return;
+    }
+    std::vector<braft::PeerId> peers;
+    st = node->list_peers(&peers);
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+        return;
+    }
+    Configuration conf;
+    for (int i = 0; i < request->newpeers_size(); ++i) {
+        PeerId peer;
+        if (peer.parse(request->newpeers(i).address()) != 0) {
+            cntl->SetFailed(EINVAL, "Fail to p2arse %s",
+                            request->newpeers(i).address().c_str());
+            return;
+        }
+        conf.add_peer(peer);
+    }
+    LOG(WARNING) << "Receive ChangePeersRequest to " << node->node_id()
+                 << " from " << cntl->remote_side()
+                 << ", new conf: " << conf;
+    braft::Closure* change_peers_done = NewCallback(
+            change_peers_returned,
+            cntl, request, response, peers, conf, node,
+            done_guard.release());
+    return node->change_peers(conf, change_peers_done);
+}
+
 void BRaftCliServiceImpl2::GetLeader(RpcController *controller,
                                      const GetLeaderRequest2 *request,
                                      GetLeaderResponse2 *response,
@@ -220,6 +283,43 @@ void BRaftCliServiceImpl2::TransferLeader(
         cntl->SetFailed(rc, "Fail to invoke transfer_leadership_to : %s",
                         berror(rc));
         return;
+    }
+}
+
+void BRaftCliServiceImpl2::ResetPeer(RpcController* controller,
+                                     const ResetPeerRequest2* request,
+                                     ResetPeerResponse2* response,
+                                     Closure* done) {
+    brpc::Controller* cntl = (brpc::Controller*)controller;
+    brpc::ClosureGuard done_guard(done);
+    scoped_refptr<braft::NodeImpl> node;
+    LogicPoolID logicPoolId = request->logicpoolid();
+    CopysetID copysetId = request->copysetid();
+    butil::Status st =
+        get_node(&node, logicPoolId, copysetId,
+                                request->requestpeer().address());
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
+        return;
+    }
+
+    Configuration conf;
+    for (int i = 0; i < request->newpeers_size(); ++i) {
+        PeerId peer;
+        if (peer.parse(request->newpeers(i).address()) != 0) {
+            cntl->SetFailed(EINVAL, "Fail to p2arse %s",
+                            request->newpeers(i).address().c_str());
+            return;
+        }
+        conf.add_peer(peer);
+    }
+    LOG(WARNING) << "Receive ResetPeerRequest to " << node->node_id()
+                 << " from " << cntl->remote_side()
+                 << ", new conf: " << conf;
+
+    st = node->reset_peers(conf);
+    if (!st.ok()) {
+        cntl->SetFailed(st.error_code(), "%s", st.error_cstr());
     }
 }
 

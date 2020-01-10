@@ -152,7 +152,7 @@ class SnapshotServiceManager {
      *
      * @return 错误码
      */
-    virtual int DeleteSnapshot(UUID uuid,
+    virtual int DeleteSnapshot(const UUID &uuid,
         const std::string &user,
         const std::string &file);
 
@@ -165,7 +165,7 @@ class SnapshotServiceManager {
      *
      * @return 错误码
      */
-    virtual int CancelSnapshot(UUID uuid,
+    virtual int CancelSnapshot(const UUID &uuid,
         const std::string &user,
         const std::string &file);
 
@@ -174,14 +174,27 @@ class SnapshotServiceManager {
      *
      * @param file 文件名
      * @param user 用户名
-     * @param uuid 指定uuid，为nullptr时不指定
      * @param info 快照信息列表
      *
      * @return 错误码
      */
     virtual int GetFileSnapshotInfo(const std::string &file,
         const std::string &user,
-        const UUID *uuid,
+        std::vector<FileSnapshotInfo> *info);
+
+    /**
+     * @brief 根据Id获取文件的快照信息
+     *
+     * @param file 文件名
+     * @param user 用户名
+     * @param uuid 快照Id
+     * @param info 快照信息列表
+     *
+     * @return 错误码
+     */
+    virtual int GetFileSnapshotInfoById(const std::string &file,
+        const std::string &user,
+        const UUID &uuid,
         std::vector<FileSnapshotInfo> *info);
 
     /**
@@ -191,6 +204,20 @@ class SnapshotServiceManager {
      */
     virtual int RecoverSnapshotTask();
 
+ private:
+    /**
+     * @brief 根据快照信息获取快照任务信息
+     *
+     * @param snapInfos 快照信息
+     * @param user 用户名
+     * @param[out] info 快照任务信息
+     *
+     * @return 错误码
+     */
+    int GetFileSnapshotInfoInner(
+        std::vector<SnapshotInfo> snapInfos,
+        const std::string &user,
+        std::vector<FileSnapshotInfo> *info);
 
  private:
     // 快照任务管理类对象

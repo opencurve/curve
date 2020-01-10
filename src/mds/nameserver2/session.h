@@ -19,9 +19,11 @@
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/uuid.h"
+#include "src/common/interruptible_sleeper.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/dao/mdsRepo.h"
 
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -243,11 +245,7 @@ class SessionManager {
     // session的后台线程扫描频率，session manager初始化时设置
     uint32_t intevalTime_;
 
-    // 配合exitcv_进行后台线程周期性任务
-    curve::common::Mutex exitmtx_;
-
-    // 后台线程使用信号量进行周期性睡眠
-    curve::common::ConditionVariable exitcv_;
+    InterruptibleSleeper sleeper_;
 
     curve::common::Atomic<uint64_t> openFileNum_;
 

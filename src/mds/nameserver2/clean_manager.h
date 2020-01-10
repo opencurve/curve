@@ -37,8 +37,6 @@ class CleanManager : public CleanManagerInterface {
                 std::shared_ptr<CleanTaskManager> taskMgr,
                 NameServerStorage *storage);
 
-    ~CleanManager() {}
-
     bool Start(void);
 
     bool Stop(void);

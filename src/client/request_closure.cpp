@@ -76,17 +76,17 @@ uint64_t RequestClosure::GetStartTime() {
     return starttime_;
 }
 
-int RequestClosure::AddInflightCntl(IOManagerID id,
-                                     InFlightIOCntlInfo_t opt) {
+int RequestClosure::AddInflightCntl(IOManagerID id, InFlightIOCntlInfo_t opt) {
     WriteLockGuard lk(rwLock_);
     auto it = inflightCntlMap_.find(id);
     if (it == inflightCntlMap_.end()) {
-        inflightCntlMap_[id] = new InflightControl;
-        if (inflightCntlMap_[id] == nullptr) {
+        auto cntl = new (std::nothrow) InflightControl();
+        if (cntl == nullptr) {
             LOG(ERROR) << "InflightControl allocate failed!";
             return -1;
         }
-        inflightCntlMap_[id]->SetMaxInflightNum(opt.maxInFlightRPCNum);
+        cntl->SetMaxInflightNum(opt.fileMaxInFlightRPCNum);
+        inflightCntlMap_.emplace(id, cntl);
     }
     return 0;
 }

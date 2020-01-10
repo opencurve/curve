@@ -15,6 +15,7 @@ namespace schedule {
 const char ADDPEER[] = "AddPeer";
 const char REMOVEPEER[] = "RemovePeer";
 const char TRANSFERLEADER[] = "TransferLeader";
+const char CHANGEPEER[] = "ChangePeer";
 const char NORMAL[] = "Normal";
 const char HIGH[] = "High";
 
@@ -55,6 +56,14 @@ void ScheduleMetrics::UpdateAddMetric(const Operator &op) {
         // 更新operators map
         AddUpdateOperatorsMap(op, TRANSFERLEADER, op.step->GetTargetPeer());
     }
+
+    // change peer operator
+     if (dynamic_cast<ChangePeer *>(op.step.get()) != nullptr) {
+        // 更新计数
+        changeOpNum << 1;
+        // 更新operators map
+        AddUpdateOperatorsMap(op, CHANGEPEER, op.step->GetTargetPeer());
+    }
 }
 
 void ScheduleMetrics::UpdateRemoveMetric(const Operator &op) {
@@ -94,6 +103,15 @@ void ScheduleMetrics::UpdateRemoveMetric(const Operator &op) {
         // 更新operators map
         RemoveUpdateOperatorsMap(
             op, TRANSFERLEADER, op.step->GetTargetPeer());
+    }
+
+    // change peer operator
+    if (dynamic_cast<ChangePeer *>(op.step.get()) != nullptr) {
+        // 更新计数
+        changeOpNum << -1;
+        // 更新operators map
+        RemoveUpdateOperatorsMap(
+            op, CHANGEPEER, op.step->GetTargetPeer());
     }
 }
 

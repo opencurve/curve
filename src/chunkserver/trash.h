@@ -13,9 +13,11 @@
 #include "src/fs/local_filesystem.h"
 #include "src/chunkserver/datastore/chunkfile_pool.h"
 #include "src/common/concurrent/concurrent.h"
+#include "src/common/interruptible_sleeper.h"
 
 using ::curve::common::Thread;
 using ::curve::common::Atomic;
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace chunkserver {
@@ -134,11 +136,7 @@ class Trash {
     // false-开始后台任务，true-停止后台任务
     Atomic<bool> isStop_;
 
-    // 配合exitcv_进行后台线程周期性任务
-    curve::common::Mutex exitmtx_;
-
-    // 后台线程使用信号量进行周期性睡眠
-    curve::common::ConditionVariable exitcv_;
+    InterruptibleSleeper sleeper_;
 };
 }  // namespace chunkserver
 }  // namespace curve

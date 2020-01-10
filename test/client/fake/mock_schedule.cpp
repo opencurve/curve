@@ -32,6 +32,10 @@ int Schedule::ScheduleRequest(
         std::vector<datastruct> datavec;
         LOG(ERROR) << size;
 
+        if (enableScheduleFailed) {
+            return -1;
+        }
+
         fiu_do_on("client_request_schedule_sleep",
                   auto func = [&] () {
                     LOG(INFO) << "start sleep! " << sleeptimeMS << " ms";

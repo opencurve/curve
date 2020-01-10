@@ -56,20 +56,26 @@ class CloneClosure : public Closure {
                     brpc::HTTP_STATUS_INTERNAL_SERVER_ERROR);
                 butil::IOBufBuilder os;
                 std::string msg = BuildErrorMessage(retCode_,
-                                                    requestId_);
+                                                    requestId_,
+                                                    taskId_);
                 os << msg;
                 os.move_to(bcntl_->response_attachment());
-                return;
+            } else {
+                bcntl_->http_response().set_status_code(brpc::HTTP_STATUS_OK);
+                butil::IOBufBuilder os;
+                Json::Value mainObj;
+                mainObj["Code"] = std::to_string(kErrCodeSuccess);
+                mainObj["Message"] = code2Msg[kErrCodeSuccess];
+                mainObj["RequestId"] = requestId_;
+                mainObj["UUID"] = taskId_;
+                os << mainObj.toStyledString();
+                os.move_to(bcntl_->response_attachment());
             }
-            bcntl_->http_response().set_status_code(brpc::HTTP_STATUS_OK);
-            butil::IOBufBuilder os;
-            Json::Value mainObj;
-            mainObj["Code"] = std::to_string(kErrCodeSuccess);
-            mainObj["Message"] = code2Msg[kErrCodeSuccess];
-            mainObj["RequestId"] = requestId_;
-            mainObj["UUID"] = taskId_;
-            os << mainObj.toStyledString();
-            os.move_to(bcntl_->response_attachment());
+            LOG(INFO) << "SnapshotCloneServiceImpl Return : "
+                      << "action = Clone/Recover"
+                      << ", requestId = " << requestId_
+                      << ", context = " << bcntl_->response_attachment();
+            return;
         }
     }
 

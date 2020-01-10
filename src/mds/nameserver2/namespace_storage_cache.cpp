@@ -33,6 +33,10 @@ void LRUCache::Remove(const std::string &key) {
     RemoveLocked(key);
 }
 
+std::shared_ptr<NameserverCacheMetrics> LRUCache::GetCacheMetrics() const {
+    return  cacheMetrics_;
+}
+
 void LRUCache::PutLocked(const std::string &key, const std::string &value) {
     auto iter = cache_.find(key);
 
@@ -45,6 +49,8 @@ void LRUCache::PutLocked(const std::string &key, const std::string &value) {
     Item kv{key, value};
     ll_.push_front(kv);
     cache_[key] = ll_.begin();
+    cacheMetrics_->UpdateAddToCacheCount();
+    cacheMetrics_->UpdateAddToCacheBytes(key.size() + value.size());
     if (maxCount_ != 0 && ll_.size() > maxCount_) {
         RemoveOldest();
     }
@@ -71,6 +77,10 @@ void LRUCache::RemoveOldest() {
 }
 
 void LRUCache::RemoveElement(const std::list<Item>::iterator &elem) {
+    cacheMetrics_->UpdateRemoveFromCacheCount();
+    cacheMetrics_->UpdateRemoveFromCacheBytes(
+        elem->key.size() + elem->value.size());
+
     auto iter = cache_.find(elem->key);
     cache_.erase(iter);
     ll_.erase(elem);
