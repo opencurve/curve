@@ -138,7 +138,7 @@ def add_config():
         cmd = "scp -i %s -o StrictHostKeyChecking=no -P 1046 conf/s3.conf client.conf conf/cs_client.conf %s:~/"%\
                             (config.pravie_key_path,host)
         shell_operator.run_exec2(cmd)
-        ori_cmd = R"sed -i 's/metaserver_addr=127.0.0.1:6666/metaserver_addr=%s/g' cs_client.conf"%(addrs)
+        ori_cmd = R"sed -i 's/mds.listen.addr=127.0.0.1:6666/mds.listen.addr=%s/g' cs_client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s cs_client config fail"%host
         ori_cmd = "sudo mv s3.conf /etc/curve/conf && sudo mv client.conf /etc/curve/conf && sudo mv cs_client.conf /etc/curve/conf/"
@@ -167,7 +167,7 @@ def add_config():
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
 #change snap_client.conf
-        ori_cmd = "sed -i \"s/metaserver_addr=\S*/metaserver_addr=%s/g\" snap_client.conf"%(addrs)
+        ori_cmd = "sed -i \"s/mds.listen.addr=\S*/mds.listen.addr=%s/g\" snap_client.conf"%(addrs)
         rs = shell_operator.ssh_exec(ssh, ori_cmd)
         assert rs[3] == 0,"change host %s snapshot config fail"%host
 
