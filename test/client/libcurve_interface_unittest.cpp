@@ -647,7 +647,7 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
          "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
 
     userinfo.owner = "userinfo";
-    userinfo.password = "12345";
+    userinfo.password = "UnstableChunkserverTest";
     fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
     fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
@@ -665,7 +665,8 @@ TEST(TestLibcurveInterface, UnstableChunkserverTest) {
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
 
     mdsclient_.Initialize(fopt.metaServerOpt);
-    fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
+    fileinstance_.Initialize(
+        "/UnstableChunkserverTest", &mdsclient_, userinfo, fopt);
 
     // 设置leaderid
     EndPoint ep;
@@ -833,7 +834,7 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
          "127.0.0.1:9151:0,127.0.0.1:9152:0,127.0.0.1:9153:0";
 
     userinfo.owner = "userinfo";
-    userinfo.password = "12345";
+    userinfo.password = "ResumeTimeoutBackoff";
     fopt.metaServerOpt.metaaddrvec.push_back("127.0.0.1:9104");
     fopt.metaServerOpt.mdsRPCTimeoutMs = 500;
     fopt.loginfo.logLevel = 0;
@@ -852,7 +853,8 @@ TEST(TestLibcurveInterface, ResumeTimeoutBackoff) {
     fopt.ioOpt.ioSenderOpt.failRequestOpt.chunkserverMaxStableTimeoutTimes = 10;  // NOLINT
 
     mdsclient_.Initialize(fopt.metaServerOpt);
-    fileinstance_.Initialize("/test", &mdsclient_, userinfo, fopt);
+    fileinstance_.Initialize(
+        "/ResumeTimeoutBackoff", &mdsclient_, userinfo, fopt);
 
     // 设置leaderid
     EndPoint ep;
