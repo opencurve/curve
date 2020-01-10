@@ -64,36 +64,30 @@ uint32_t GetChunkTrashedFunc(void* arg) {
 
 uint32_t GetTotalChunkCountFunc(void* arg) {
     uint32_t chunkCount = 0;
-    CopysetNodeManager* nodeMgr = &CopysetNodeManager::GetInstance();
-    std::vector<std::shared_ptr<CopysetNode>> nodes;
-    nodeMgr->GetAllCopysetNodes(&nodes);
-    for (auto node : nodes) {
-        auto dataStore = node->GetDataStore();
-        chunkCount += GetDatastoreChunkCountFunc(dataStore.get());
+    ChunkServerMetric* csMetric = reinterpret_cast<ChunkServerMetric*>(arg);
+    auto copysetMetricMap = csMetric->GetCopysetMetricMap()->GetMap();
+    for (auto metricPair : copysetMetricMap) {
+        chunkCount += metricPair.second->GetChunkCount();
     }
     return chunkCount;
 }
 
 uint32_t GetTotalSnapshotCountFunc(void* arg) {
     uint32_t snapshotCount = 0;
-    CopysetNodeManager* nodeMgr = &CopysetNodeManager::GetInstance();
-    std::vector<std::shared_ptr<CopysetNode>> nodes;
-    nodeMgr->GetAllCopysetNodes(&nodes);
-    for (auto node : nodes) {
-        auto dataStore = node->GetDataStore();
-        snapshotCount += GetDatastoreSnapshotCountFunc(dataStore.get());
+    ChunkServerMetric* csMetric = reinterpret_cast<ChunkServerMetric*>(arg);
+    auto copysetMetricMap = csMetric->GetCopysetMetricMap()->GetMap();
+    for (auto metricPair : copysetMetricMap) {
+        snapshotCount += metricPair.second->GetSnapshotCount();
     }
     return snapshotCount;
 }
 
 uint32_t GetTotalCloneChunkCountFunc(void* arg) {
     uint32_t cloneChunkCount = 0;
-    CopysetNodeManager* nodeMgr = &CopysetNodeManager::GetInstance();
-    std::vector<std::shared_ptr<CopysetNode>> nodes;
-    nodeMgr->GetAllCopysetNodes(&nodes);
-    for (auto node : nodes) {
-        auto dataStore = node->GetDataStore();
-        cloneChunkCount += GetDatastoreCloneChunkCountFunc(dataStore.get());
+    ChunkServerMetric* csMetric = reinterpret_cast<ChunkServerMetric*>(arg);
+    auto copysetMetricMap = csMetric->GetCopysetMetricMap()->GetMap();
+    for (auto metricPair : copysetMetricMap) {
+        cloneChunkCount += metricPair.second->GetCloneChunkCount();
     }
     return cloneChunkCount;
 }
