@@ -40,6 +40,8 @@ TEST(FileInstanceTest, CommonTest) {
     ASSERT_TRUE(fi4.Initialize(
         "/test", &mdsClient, userInfo, FileServiceOption{}, true));
     ASSERT_EQ(-1, fi4.Write("", 0, 0));
+
+    fi4.UnInitialize();
 }
 
 }  // namespace client
