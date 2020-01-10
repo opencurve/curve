@@ -657,7 +657,7 @@ def kill_etcd_process(host):
     if pids[1] == []:
         logger.debug("etcd not up")
         return
-    for pid in pids:
+    for pid in pids[1]:
         pid = pid.strip()
         kill_cmd = "sudo kill -9 %s"%pid
         rs = shell_operator.ssh_exec(ssh,kill_cmd)
