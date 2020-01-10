@@ -20,9 +20,12 @@
 #include "src/chunkserver/cli.h"
 #include "proto/copyset.pb.h"
 #include "test/chunkserver/chunkserver_test_util.h"
+#include "src/common/uuid.h"
 
 namespace curve {
 namespace chunkserver {
+
+using curve::common::UUIDGenerator;
 
 class CliTest : public testing::Test {
  protected:
@@ -33,20 +36,28 @@ class CliTest : public testing::Test {
         LOG(INFO) << "CliTest " << "TearDownTestCase";
     }
     virtual void SetUp() {
-        Exec("mkdir 3");
-        Exec("mkdir 4");
-        Exec("mkdir 5");
+        UUIDGenerator uuidGenerator;
+        dir1 = uuidGenerator.GenerateUUID();
+        dir2 = uuidGenerator.GenerateUUID();
+        dir3 = uuidGenerator.GenerateUUID();
+        Exec(("mkdir " + dir1).c_str());
+        Exec(("mkdir " + dir2).c_str());
+        Exec(("mkdir " + dir3).c_str());
     }
     virtual void TearDown() {
-        Exec("rm -fr 3");
-        Exec("rm -fr 4");
-        Exec("rm -fr 5");
+        Exec(("rm -fr " + dir1).c_str());
+        Exec(("rm -fr " + dir2).c_str());
+        Exec(("rm -fr " + dir3).c_str());
     }
 
  public:
     pid_t pid1;
     pid_t pid2;
     pid_t pid3;
+
+    std::string dir1;
+    std::string dir2;
+    std::string dir3;
 };
 
 butil::AtExitManager atExitManager;
@@ -70,10 +81,10 @@ TEST_F(CliTest, basic) {
         std::cerr << "fork chunkserver 1 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid1) {
-        const char *copysetdir = "local://./3";
+        std::string copysetdir = "local://./" + dir1;
         StartChunkserver(ip,
                          port + 0,
-                         copysetdir,
+                         copysetdir.c_str(),
                          confs,
                          snapshotInterval,
                          electionTimeoutMs);
@@ -85,10 +96,10 @@ TEST_F(CliTest, basic) {
         std::cerr << "fork chunkserver 2 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid2) {
-        const char *copysetdir = "local://./4";
+        std::string copysetdir = "local://./" + dir2;
         StartChunkserver(ip,
                          port + 1,
-                         copysetdir,
+                         copysetdir.c_str(),
                          confs,
                          snapshotInterval,
                          electionTimeoutMs);
@@ -100,10 +111,10 @@ TEST_F(CliTest, basic) {
         std::cerr << "fork chunkserver 3 failed" << std::endl;
         ASSERT_TRUE(false);
     } else if (0 == pid3) {
-        const char *copysetdir = "local://./5";
+        std::string copysetdir = "local://./" + dir3;
         StartChunkserver(ip,
                          port + 2,
-                         copysetdir,
+                         copysetdir.c_str(),
                          confs,
                          snapshotInterval,
                          electionTimeoutMs);
@@ -304,7 +315,6 @@ TEST_F(CliTest, basic) {
             ASSERT_STREQ(peer3.to_string().c_str(), leader.to_string().c_str());
         }
     }
-
     /* 异常分支测试 */
     /* get leader - conf empty */
     {

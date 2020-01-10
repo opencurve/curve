@@ -177,58 +177,6 @@ typedef struct MDSClientMetric {
     {}
 } MDSClientMetric_t;
 
-
-// libcurve全局配置信息metric统计显示
-typedef struct ConfigMetric {
-    const std::string prefix = "curve client config";
-
-    // mds的地址信息
-    bvar::Status<std::string> metaserverAddr;
-    // 与mds通信的rpc超时时间
-    bvar::Status<uint64_t> rpcTimeoutMs;
-    // 与mds通信的rpc超时次数
-    bvar::Status<uint64_t> rpcRetryTimes;
-
-    // 获取leader的rpc超时时间
-    bvar::Status<uint64_t> getLeaderTimeOutMs;
-    // 获取leader的重试次数
-    bvar::Status<uint64_t> getLeaderRetry;
-    // 每次重试之前需要先睡眠一段时间
-    bvar::Status<uint64_t> getLeaderRetryIntervalUs;
-
-    // client调度层线程池线程数
-    bvar::Status<uint64_t> threadpoolSize;
-    // client调度层调度队列深度
-    bvar::Status<uint64_t> queueCapacity;
-
-    // 向chunkserver发送请求失败时重试之前需要睡眠的是时间
-    bvar::Status<uint64_t> opRetryIntervalUs;
-    // 向chunkserver发送请求失败时重试次数
-    bvar::Status<uint64_t> opMaxRetry;
-    // 向chunkserver发送请求失败时重试次数
-    bvar::Status<uint64_t> enableAppliedIndexRead;
-    // 向chunkserver发送请求的最大size
-    bvar::Status<uint64_t> ioSplitMaxSizeKB;
-    // 向chunkserver发送的最大未返回请求数量
-    bvar::Status<uint64_t> maxInFlightRPCNum;
-
-    ConfigMetric() :
-        opRetryIntervalUs(prefix, "OpRetryIntervalUs", 0)
-        , opMaxRetry(prefix, "opMaxRetry", 0)
-        , enableAppliedIndexRead(prefix, "enableAppliedIndexRead", 0)
-        , ioSplitMaxSizeKB(prefix, "ioSplitMaxSizeKB", 0)
-        , maxInFlightRPCNum(prefix, "maxInFlightRPCNum", 0)
-        , threadpoolSize(prefix, "threadpoolSize", 0)
-        , queueCapacity(prefix, "queueCapacity", 0)
-        , getLeaderTimeOutMs(prefix, "getLeaderTimeOutMs", 0)
-        , getLeaderRetry(prefix, "getLeaderRetry", 0)
-        , getLeaderRetryIntervalUs(prefix, "getLeaderRetryIntervalUs", 0)
-        , metaserverAddr(prefix, "metaserverAddr", 0)
-        , rpcTimeoutMs(prefix, "rpcTimeoutMs", 0)
-        , rpcRetryTimes(prefix, "rpcRetryTimes", 0)
-    {}
-} ConfigMetric_t;
-
 typedef struct LatencyGuard {
     bvar::LatencyRecorder* latencyRec;
     uint64_t timeelapse;
@@ -474,6 +422,5 @@ class MetricHelper {
 };
 }   // namespace client
 }   // namespace curve
-extern curve::client::ConfigMetric confMetric_;
 
 #endif  // SRC_CLIENT_CLIENT_METRIC_H_

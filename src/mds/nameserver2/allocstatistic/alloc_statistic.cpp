@@ -38,9 +38,13 @@ void AllocStatistic::Run() {
 }
 
 void AllocStatistic::Stop() {
-    stop_.store(true);
-    periodicPersist_.join();
-    calculateAlloc_.join();
+    if (!stop_.exchange(true)) {
+        LOG(INFO) << "start stop AllocStatistic...";
+        sleeper_.interrupt();
+        periodicPersist_.join();
+        calculateAlloc_.join();
+        LOG(INFO) << "stop AllocStatistic ok!";
+    }
 }
 
 bool AllocStatistic::GetAllocByLogicalPool(PoolIdType lid, int64_t *alloc) {
@@ -155,12 +159,12 @@ bool AllocStatistic::HandleResult(int res) {
 
 void AllocStatistic::PeriodicPersist() {
     std::map<PoolIdType, int64_t> lastPersist;
-    while (false == stop_.load()) {
+    while (sleeper_.wait_for(
+        std::chrono::milliseconds(periodicPersistInterMs_))) {
         // 获取本次需要持久化的数据
         std::map<PoolIdType, int64_t> curPersist = GetLatestSegmentAllocInfo();
         if (true == curPersist.empty()) {
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(periodicPersistInterMs_));
+            continue;
         }
 
         // 将curPersist中的值持久化到etcd
@@ -189,9 +193,6 @@ void AllocStatistic::PeriodicPersist() {
             }
         }
         LOG(INFO) << "periodic persist to etcd end";
-
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(periodicPersistInterMs_));
     }
 
     lastPersist.clear();

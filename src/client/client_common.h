@@ -10,6 +10,7 @@
 
 #include <butil/endpoint.h>
 #include <butil/status.h>
+#include <brpc/closure_guard.h>
 
 #include <unistd.h>
 #include <string>
@@ -193,12 +194,13 @@ struct ChunkServerAddr {
     int Parse(const std::string& str) {
         int idx;
         char ip_str[64];
-        if (2 > sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
+        if (3 != sscanf(str.c_str(), "%[^:]%*[:]%d%*[:]%d", ip_str,
                        &addr_.port, &idx)) {
             Reset();
             return -1;
         }
-        if (0 != butil::str2ip(ip_str, &addr_.ip)) {
+        int ret = butil::str2ip(ip_str, &addr_.ip);
+        if (0 != ret) {
             Reset();
             return -1;
         }
@@ -222,6 +224,17 @@ struct ChunkServerAddr {
 const char* OpTypeToString(OpType optype);
 struct ClusterContext {
     std::string clusterId;
+};
+
+class SnapCloneClosure : public google::protobuf::Closure {
+ public:
+    SnapCloneClosure():ret(-LIBCURVE_ERROR::FAILED) {}
+
+    void SetRetCode(int retCode) {ret = retCode;}
+    int GetRetCode() {return ret;}
+
+ private:
+    int ret;
 };
 
 }   // namespace client

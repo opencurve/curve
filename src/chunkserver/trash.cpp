@@ -56,7 +56,8 @@ int Trash::Init(TrashOptions options) {
         uint32_t chunkNum = CountChunkNumInCopyset(copysetDir);
         chunkNum_.fetch_add(chunkNum);
     }
-
+    LOG(INFO) << "Init trash success. "
+              << "Current num of chunks in trash: " << chunkNum_.load();
     return 0;
 }
 
@@ -73,11 +74,11 @@ int Trash::Run() {
 
 int Trash::Fini() {
     if (!isStop_.exchange(true)) {
-        LOG(INFO) << "stop trash recycle";
-        exitcv_.notify_one();
+        LOG(INFO) << "stop Trash...";
+        sleeper_.interrupt();
         recycleThread_.join();
     }
-    LOG(INFO) << "stop trash thread ok.";
+    LOG(INFO) << "stop trash ok.";
     return 0;
 }
 
@@ -110,19 +111,13 @@ int Trash::RecycleCopySet(const std::string &dirPath) {
     }
     uint32_t chunkNum = CountChunkNumInCopyset(dst);
     chunkNum_.fetch_add(chunkNum);
+    LOG(INFO) << "Recycle copyset success. Copyset path: " << dst
+              << ", current num of chunks in trash: " << chunkNum_.load();
     return 0;
 }
 
 void Trash::DeleteEligibleFileInTrashInterval() {
-     while (!isStop_) {
-         // 睡眠一段时间
-         std::unique_lock<std::mutex> lk(exitmtx_);
-         exitcv_.wait_for(lk, std::chrono::seconds(scanPeriodSec_),
-                          [&]()->bool{ return isStop_;});
-        if (isStop_) {
-            return;
-        }
-
+     while (sleeper_.wait_for(std::chrono::seconds(scanPeriodSec_))) {
         // 扫描回收站
          DeleteEligibleFileInTrash();
      }
@@ -235,6 +230,8 @@ void Trash::CleanCopySet(const std::string &copysetPath) {
             LOG(ERROR) << "Trash find unknown file " << filePath;
         }
     }
+    LOG(INFO) << "Clean copyset success. Copyset path: " << copysetPath
+              << ", current num of chunks in trash: " << chunkNum_.load();
 }
 
 void Trash::RecycleChunks(const std::string &dataPath) {

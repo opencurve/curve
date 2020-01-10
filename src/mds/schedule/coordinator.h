@@ -12,6 +12,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <string>
 #include <thread>  //NOLINT
 #include <boost/shared_ptr.hpp>
 #include "src/mds/dao/mdsRepo.h"
@@ -21,8 +22,10 @@
 #include "src/mds/topology/topology_item.h"
 #include "src/mds/schedule/topoAdapter.h"
 #include "src/mds/schedule/scheduleMetrics.h"
+#include "src/common/interruptible_sleeper.h"
 
 using ::curve::mds::heartbeat::ConfigChangeType;
+using ::curve::common::InterruptibleSleeper;
 
 namespace curve {
 namespace mds {
@@ -55,6 +58,8 @@ struct ScheduleOption {
     uint32_t addPeerTimeLimitSec;
     // 移除节点时间限制, 大于该时间mds认为超时，移除相关operator
     uint32_t removePeerTimeLimitSec;
+    // change节点时间限制，大于该时间mds认为超时，移除相关operator
+    uint32_t changePeerTimeLimitSec;
 
     // 供copysetScheduler使用, [chunkserver上copyset数量的极差]不能超过
     // [chunkserver上copyset数量均值] * copysetNumRangePercent
@@ -172,6 +177,15 @@ class Coordinator {
      */
     bool ScheduleNeedRun(SchedulerType type);
 
+    /**
+     * @brief ScheduleName 指定类型的调度器的名字
+     *
+     * @param[in] type 调度器类型
+     *
+     * @return 调度器名字
+     */
+    std::string ScheduleName(SchedulerType type);
+
  private:
     std::shared_ptr<TopoAdapter> topo_;
 
@@ -179,8 +193,7 @@ class Coordinator {
     std::map<SchedulerType, common::Thread> runSchedulerThreads_;
     std::shared_ptr<OperatorController> opController_;
 
-    bool schedulerRunning_;
-    std::mutex mutex_;
+    InterruptibleSleeper sleeper_;
 };
 }  // namespace schedule
 }  // namespace mds

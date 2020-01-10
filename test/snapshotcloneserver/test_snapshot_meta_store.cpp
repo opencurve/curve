@@ -333,6 +333,26 @@ TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreGetCloneInfo) {
     ASSERT_EQ(0, metastore_->GetCloneInfo(taskId, &tmpinfo));
     ASSERT_EQ(-1, metastore_->GetCloneInfo(tmpId, &tmpinfo));
 }
+
+TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreGetCloneInfoByFileName) {
+     EXPECT_CALL(*repo, InsertCloneRepoItem(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    std::string taskId = "this-is-test-taskID";
+    CloneInfo info(taskId,
+                  "user1",
+                  CloneTaskType::kClone,
+                  "src",
+                  "dest",
+                  CloneFileType::kFile,
+                  true);
+    CloneInfo tmpinfo;
+    std::string tmpId = "test";
+    metastore_->AddCloneInfo(info);
+    ASSERT_EQ(0, metastore_->GetCloneInfoByFileName("dest", &tmpinfo));
+    ASSERT_EQ(-1, metastore_->GetCloneInfoByFileName("unexist", &tmpinfo));
+}
+
 TEST_F(TestDBSnapshotCloneMetaStore, testMetaStoreGetCloneInfoList) {
      EXPECT_CALL(*repo, InsertCloneRepoItem(_))
         .Times(3)

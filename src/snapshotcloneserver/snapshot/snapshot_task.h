@@ -16,6 +16,7 @@
 #include "src/snapshotcloneserver/common/task.h"
 #include "src/snapshotcloneserver/common/task_info.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
+#include "src/snapshotcloneserver/common/task_tracker.h"
 
 namespace curve {
 namespace snapshotcloneserver {
@@ -154,6 +155,30 @@ class SnapshotDeleteTask : public SnapshotTask {
     void Run() override {
         core_->HandleDeleteSnapshotTask(taskInfo_);
     }
+};
+
+struct ReadChunkSnapshotContext {
+    ChunkDataName name_;
+    std::shared_ptr<TransferTask> transferTask_;
+    uint64_t partIndex_;
+    std::unique_ptr<char[]> buf_;
+    uint64_t len_;
+    int retCode_;
+};
+
+using ReadChunkSnapshotContextPtr = std::shared_ptr<ReadChunkSnapshotContext>;
+using ReadChunkSnapshotTaskTracker =
+    ContextTaskTracker<ReadChunkSnapshotContextPtr>;
+
+struct ReadChunkSnapshotClosure : public SnapCloneClosure {
+    ReadChunkSnapshotClosure(
+        std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
+        std::shared_ptr<ReadChunkSnapshotContext> context)
+        : tracker_(tracker),
+          context_(context) {}
+    void Run() override;
+    std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker_;
+    std::shared_ptr<ReadChunkSnapshotContext> context_;
 };
 
 struct TransferSnapshotDataChunkTaskInfo : public TaskInfo {

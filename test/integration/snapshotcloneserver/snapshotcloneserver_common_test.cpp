@@ -73,11 +73,11 @@ const std::vector<std::string> chunkserverConfigOptions {
 };
 
 const std::vector<std::string> csClientConfigOptions {
-    std::string("metaserver_addr=") + kMdsIpPort,
+    std::string("mds.listen.addr=") + kMdsIpPort,
 };
 
 const std::vector<std::string> snapClientConfigOptions {
-    std::string("metaserver_addr=") + kMdsIpPort,
+    std::string("mds.listen.addr=") + kMdsIpPort,
 };
 
 const std::vector<std::string> s3ConfigOptions {
@@ -95,7 +95,6 @@ const std::vector<std::string> chunkserverConf1{
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
     {" --stderrthreshold=3"},
-    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> chunkserverConf2{
@@ -110,7 +109,6 @@ const std::vector<std::string> chunkserverConf2{
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
     {" --stderrthreshold=3"},
-    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> chunkserverConf3{
@@ -125,7 +123,6 @@ const std::vector<std::string> chunkserverConf3{
     {" -raft_sync_segments=true"},
     std::string(" --log_dir=") + kLogPath,
     {" --stderrthreshold=3"},
-    {" --minloglevel=3"},
 };
 
 const std::vector<std::string> snapshotcloneserverConfigOptions {
@@ -133,9 +130,10 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("s3.config_path=") + kS3ConfigPath,
     std::string("metastore.db_name=") + kMdsDbName,
     std::string("server.snapshotPoolThreadNum=8"),
-    std::string("snapshotCoreThreadNum=2"),
+    std::string("server.snapshotCoreThreadNum=2"),
     std::string("server.clonePoolThreadNum=8"),
-    std::string("cloneCoreThreadNum=2"),
+    std::string("server.createCloneChunkConcurrency=2"),
+    std::string("server.recoverChunkConcurrency=2"),
 };
 
 const std::vector<std::string> snapshotcloneConf{
@@ -145,7 +143,7 @@ const std::vector<std::string> snapshotcloneConf{
 };
 
 const std::vector<std::string> clientConfigOptions {
-    std::string("metaserver_addr=") + kMdsIpPort,
+    std::string("mds.listen.addr=") + kMdsIpPort,
 };
 
 const char* testFile1_ = "/ItUser1/file1";
@@ -180,7 +178,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         system("rm -rf SCSTest3");
 
         // 启动etcd
-        cluster_->StarSingleEtcd(1, kEtcdClientIpPort, kEtcdPeerIpPort,
+        cluster_->StartSingleEtcd(1, kEtcdClientIpPort, kEtcdPeerIpPort,
         std::vector<std::string>{" --name SCSTest"});
 
         cluster_->PrepareConfig<MDSConfigGenerator>(
@@ -573,7 +571,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
 
     // 操作1: ItUser1 clone快照snap2，fileName=clone1
     // 预期1：返回快照不存在
-    std::string uuid1;
+    std::string uuid1, uuid2, uuid3, uuid4, uuid5;
     int ret;
     ret = CloneOrRecover(
         "Clone", testUser1_, "UnExistSnapId", "/ItUser1/SnapLazyClone1", true,
@@ -584,7 +582,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
     // 预期2:  返回用户认证失败
     ret = CloneOrRecover("Clone", testUser2_,
         snapId, "/ItUser2/SnapLazyClone1", true,
-        &uuid1);
+        &uuid2);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
     // 操作3：ItUser1 clone 快照snap1，fileName=clone1
@@ -592,19 +590,19 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
     std::string dstFile = "/ItUser1/SnapLazyClone1";
     ret = CloneOrRecover("Clone", testUser1_,
         snapId, dstFile, true,
-        &uuid1);
+        &uuid3);
     ASSERT_EQ(0, ret);
 
     // 操作4： ItUser1 clone 块照snap1，fileName=clone1 （重复克隆）
     // 预期4：返回文件已存在
     ret = CloneOrRecover("Clone", testUser1_,
         snapId, "/ItUser1/SnapLazyClone1", true,
-        &uuid1);
+        &uuid4);
     ASSERT_EQ(kErrCodeFileExist, ret);
 
     // 操作5： ItUser1 GetCloneTask
     // 预期5：返回clone1的clone 任务
-    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
+    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid3, true);
     ASSERT_TRUE(success1);
 
     // 操作6： ItUser2 GetCloneTask
@@ -617,12 +615,12 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
 
     // 操作7： ItUser2 CleanCloneTask UUID为clone1的UUID
     // 预期7：返回用户认证失败
-    ret = CleanCloneTask(testUser2_, uuid1);
+    ret = CleanCloneTask(testUser2_, uuid3);
     ASSERT_EQ(kErrCodeInvalidUser, ret);
 
     // 操作8： ItUser1 CleanCloneTask UUID为clone1的UUID
     // 预期8：返回执行成功
-    ret = CleanCloneTask(testUser1_, uuid1);
+    ret = CleanCloneTask(testUser1_, uuid3);
     ASSERT_EQ(0, ret);
 
     // 等待清理完成
@@ -630,13 +628,13 @@ TEST_F(SnapshotCloneServerTest, TestSnapLazyClone) {
 
     // 操作9： ItUser1 CleanCloneTask UUID为clone1的UUID（重复执行）
     // 预期9：返回执行成功
-    ret = CleanCloneTask(testUser1_, uuid1);
+    ret = CleanCloneTask(testUser1_, uuid3);
     ASSERT_EQ(0, ret);
 
     // 操作10：ItUser1 GetCloneTask
     // 预期10：返回空
     TaskCloneInfo info;
-    ret = GetCloneTaskInfo(testUser1_, uuid1, &info);
+    ret = GetCloneTaskInfo(testUser1_, uuid3, &info);
     ASSERT_EQ(kErrCodeFileNotExist, ret);
 
     // 验证数据正确性
@@ -779,7 +777,7 @@ TEST_F(SnapshotCloneServerTest, TestSnapNotLazyRecover) {
 TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
     // 操作1: ItUser1 clone不存在的镜像，fileName=clone1
     // 预期1：返回文件不存在
-    std::string uuid1;
+    std::string uuid1, uuid2, uuid3, uuid4;
     int ret;
     ret = CloneOrRecover(
         "Clone", testUser1_, "/UnExistFile", "/ItUser1/ImageLazyClone1", true,
@@ -791,27 +789,26 @@ TEST_F(SnapshotCloneServerTest, TestImageLazyClone) {
     std::string dstFile = "/ItUser1/ImageLazyClone1";
     ret = CloneOrRecover("Clone", testUser1_,
         testFile1_, dstFile, true,
-        &uuid1);
+        &uuid2);
     ASSERT_EQ(0, ret);
 
     // 操作3： ItUser1 clone 镜像file1，fileName=clone1 （重复克隆）
     // 预期3：返回文件已存在
     ret = CloneOrRecover("Clone", testUser1_,
         testFile1_, "/ItUser1/ImageLazyClone1", true,
-        &uuid1);
+        &uuid3);
     ASSERT_EQ(kErrCodeFileExist, ret);
 
     // 操作4：对未完成lazy克隆的文件clone1打快照snap1
     // 预期4：返回文件状态异常
-    std::string uuid2;
-    ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid2);
+    ret = MakeSnapshot(testUser1_, testFile1_, "snap1", &uuid4);
     ASSERT_EQ(kErrCodeFileStatusInvalid, ret);
     FileSnapshotInfo info2;
     int retCode = GetSnapshotInfo(
-        testUser1_, testFile1_, uuid2, &info2);
+        testUser1_, testFile1_, uuid4, &info2);
     ASSERT_EQ(kErrCodeFileNotExist, retCode);
 
-    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid1, true);
+    bool success1 = CheckCloneOrRecoverSuccess(testUser1_, uuid2, true);
     ASSERT_TRUE(success1);
 
     // 验证数据正确性
@@ -873,131 +870,140 @@ TEST_F(SnapshotCloneServerTest, TestSnapAndCloneWhenSnapHasError) {
 
     std::string uuid1, uuid2;
 
-    // 操作1：用户ItUser1对file1打快照snap2
-    // 预期1：返回存在失败的快照错误
-    int ret = MakeSnapshot(testUser1_, testFile4_, "snap1", &uuid1);
-    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
-
-    // 操作2:  lazy clone 快照snap1
-    // 预期2：返回快照存在异常
-    ret = CloneOrRecover("Clone", testUser1_,
+    // 操作1:  lazy clone 快照snap1
+    // 预期1：返回快照存在异常
+    int ret = CloneOrRecover("Clone", testUser1_,
         snapId, "/ItUser2/SnapLazyClone1", true,
         &uuid2);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
 
-    // 操作3：非lazy clone 快照snap1
-    // 预期3：返回快照存在异常
+    // 操作2：非lazy clone 快照snap1
+    // 预期2：返回快照存在异常
     ret = CloneOrRecover("Clone", testUser1_,
         snapId, "/ItUser2/SnapNotLazyClone1", false,
         &uuid2);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
 
-    // 操作4：lazy 从 快照snap1 recover
+    // 操作3：lazy 从 快照snap1 recover
+    // 预期3：返回快照存在异常
+    ret = CloneOrRecover("Recover", testUser1_,
+        snapId, testFile4_, true,
+        &uuid2);
+    ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
+
+    // 操作4：非lazy 从 快照snap1 recover
     // 预期4：返回快照存在异常
     ret = CloneOrRecover("Recover", testUser1_,
-        snapId, testFile4_, true,
-        &uuid2);
-    ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
-
-    // 操作5：非lazy 从 快照snap1 recover
-    // 预期5：返回快照存在异常
-    ret = CloneOrRecover("Recover", testUser1_,
         snapId, testFile4_, false,
         &uuid2);
     ASSERT_EQ(kErrCodeInvalidSnapshot, ret);
 
-    ASSERT_EQ(0, DeleteAndCheckSnapshotSuccess(testUser1_, testFile4_, snapId));
+    // 操作5：用户ItUser1对file1打快照snap2
+    // 预期5：清理失败快照，并打快照成功
+    ret = MakeSnapshot(testUser1_, testFile4_, "snap1", &uuid1);
+    ASSERT_EQ(0, ret);
+
+    // 校验快照成功
+    bool success1 = CheckSnapshotSuccess(testUser1_, testFile4_, uuid1);
+    ASSERT_TRUE(success1);
+
+    // 校验清理失败快照成功
+    FileSnapshotInfo info1;
+    int retCode = GetSnapshotInfo(
+        testUser1_, testFile4_, snapId, &info1);
+    ASSERT_EQ(kErrCodeFileNotExist, retCode);
 }
 
+// 克隆恢复对存在失败情况下克隆不再做限制，因此此部分用例不再有效
 // 场景十：克隆恢复存在失败场景
-TEST_F(SnapshotCloneServerTest, TestCloneAndRecoverWhenHasErrorTask) {
-    std::string snapId;
-    PrepareSnapshotForTestFile1(&snapId);
-    std::string errDstFile = "/ItUser1/errFile";
-    std::string taskId1 = "errTaskId1";
-    CloneRepoItem cr(taskId1,
-            testUser1_,
-            static_cast<uint8_t>(CloneTaskType::kClone),
-            snapId,
-            errDstFile,
-            0,
-            0,
-            0,
-            static_cast<uint8_t>(CloneFileType::kSnapshot),
-            true,
-            0,
-            static_cast<uint8_t>(CloneStatus::error));
-
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
-
-    std::string taskId2 = "errTaskId2";
-    CloneRepoItem cr2(taskId2,
-            testUser1_,
-            static_cast<uint8_t>(CloneTaskType::kRecover),
-            snapId,
-            testFile4_,
-            0,
-            0,
-            0,
-            static_cast<uint8_t>(CloneFileType::kFile),
-            true,
-            0,
-            static_cast<uint8_t>(CloneStatus::error));
-
-    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr2);
-
-    cluster_->RestartSnapshotCloneServer(1);
-
-    std::string uuid2;
-
-    // 操作1:  lazy clone 快照snap1为clone1
-    // 预期1：返回存在异常克隆/恢复任务
-    int ret = CloneOrRecover("Clone", testUser1_,
-        snapId, errDstFile, true,
-        &uuid2);
-    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
-
-    // 操作2：非lazy clone 快照snap1为clone1
-    // 预期2：返回存在异常克隆/恢复任务
-    ret = CloneOrRecover("Clone", testUser1_,
-        snapId, errDstFile, false,
-        &uuid2);
-    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
-
-    // 操作3:  lazy recover 快照snap1的file1
-    // 预期3：返回存在异常克隆/恢复任务
-    ret = CloneOrRecover("Recover", testUser1_,
-        snapId, testFile4_, true,
-        &uuid2);
-    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
-
-    // 操作4：非lazy recover 快照snap1为file1
-    // 预期4：返回存在异常克隆/恢复任务
-    ret = CloneOrRecover("Recover", testUser1_,
-        snapId, testFile4_, false,
-        &uuid2);
-    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
-
-    // 操作5:  从file1 lazy克隆为clone1
-    // 预期5：返回存在异常克隆/恢复任务
-    ret = CloneOrRecover("Clone", testUser1_,
-        testFile1_, errDstFile, true,
-        &uuid2);
-    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
-
-    // 操作6:  从file1 非lazy克隆为clone1
-    // 预期6：返回存在异常克隆/恢复任务
-    ret = CloneOrRecover("Clone", testUser1_,
-        testFile1_, errDstFile, false,
-        &uuid2);
-    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
-
-    // 清理数据
-    ret = CleanCloneTask(testUser1_, taskId1);
-    ASSERT_EQ(0, ret);
-    ret = CleanCloneTask(testUser1_, taskId2);
-    ASSERT_EQ(0, ret);
-}
+// TEST_F(SnapshotCloneServerTest, TestCloneAndRecoverWhenHasErrorTask) {
+//    std::string snapId;
+//    PrepareSnapshotForTestFile1(&snapId);
+//    std::string errDstFile = "/ItUser1/errFile";
+//    std::string taskId1 = "errTaskId1";
+//    CloneRepoItem cr(taskId1,
+//            testUser1_,
+//            static_cast<uint8_t>(CloneTaskType::kClone),
+//            snapId,
+//            errDstFile,
+//            0,
+//            0,
+//            0,
+//            static_cast<uint8_t>(CloneFileType::kSnapshot),
+//            true,
+//            0,
+//            static_cast<uint8_t>(CloneStatus::error));
+//
+//    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr);
+//
+//    std::string taskId2 = "errTaskId2";
+//    CloneRepoItem cr2(taskId2,
+//            testUser1_,
+//            static_cast<uint8_t>(CloneTaskType::kRecover),
+//            snapId,
+//            testFile4_,
+//            0,
+//            0,
+//            0,
+//            static_cast<uint8_t>(CloneFileType::kFile),
+//            true,
+//            0,
+//            static_cast<uint8_t>(CloneStatus::error));
+//
+//    cluster_->snapshotcloneRepo_->InsertCloneRepoItem(cr2);
+//
+//    cluster_->RestartSnapshotCloneServer(1);
+//
+//    std::string uuid2;
+//
+//    // 操作1:  lazy clone 快照snap1为clone1
+//    // 预期1：返回存在异常克隆/恢复任务
+//    int ret = CloneOrRecover("Clone", testUser1_,
+//        snapId, errDstFile, true,
+//        &uuid2);
+//    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
+//
+//    // 操作2：非lazy clone 快照snap1为clone1
+//    // 预期2：返回存在异常克隆/恢复任务
+//    ret = CloneOrRecover("Clone", testUser1_,
+//        snapId, errDstFile, false,
+//        &uuid2);
+//    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
+//
+//    // 操作3:  lazy recover 快照snap1的file1
+//    // 预期3：返回存在异常克隆/恢复任务
+//    ret = CloneOrRecover("Recover", testUser1_,
+//        snapId, testFile4_, true,
+//        &uuid2);
+//    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
+//
+//    // 操作4：非lazy recover 快照snap1为file1
+//    // 预期4：返回存在异常克隆/恢复任务
+//    ret = CloneOrRecover("Recover", testUser1_,
+//        snapId, testFile4_, false,
+//        &uuid2);
+//    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
+//
+//    // 操作5:  从file1 lazy克隆为clone1
+//    // 预期5：返回存在异常克隆/恢复任务
+//    ret = CloneOrRecover("Clone", testUser1_,
+//        testFile1_, errDstFile, true,
+//        &uuid2);
+//    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
+//
+//    // 操作6:  从file1 非lazy克隆为clone1
+//    // 预期6：返回存在异常克隆/恢复任务
+//    ret = CloneOrRecover("Clone", testUser1_,
+//        testFile1_, errDstFile, false,
+//        &uuid2);
+//    ASSERT_EQ(kErrCodeSnapshotCannotCreateWhenError, ret);
+//
+//    // 清理数据
+//    ret = CleanCloneTask(testUser1_, taskId1);
+//    ASSERT_EQ(0, ret);
+//    ret = CleanCloneTask(testUser1_, taskId2);
+//    ASSERT_EQ(0, ret);
+// }
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

@@ -76,12 +76,14 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
      * @param: offset是快照内的offset
      * @param: len是要读取的长度
      * @param: buf是读取缓冲区
+     * @param: scc是异步回调
      */
     void ReadSnapChunk(const ChunkIDInfo &cinfo,
                      uint64_t seq,
                      uint64_t offset,
                      uint64_t len,
-                     char *buf);
+                     char *buf,
+                     SnapCloneClosure* scc);
     /**
      * 删除此次转储时产生的或者历史遗留的快照
      * 如果转储过程中没有产生快照，则修改chunk的correctedSn
@@ -110,13 +112,14 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     * @param:sn chunk的序列号
     * @param:correntSn CreateCloneChunk时候用于修改chunk的correctedSn
     * @param:chunkSize chunk的大小
-    *
+    * @param: scc是异步回调
     */
     void CreateCloneChunk(const std::string &location,
                                 const ChunkIDInfo &chunkidinfo,
                                 uint64_t sn,
                                 uint64_t correntSn,
-                                uint64_t chunkSize);
+                                uint64_t chunkSize,
+                                SnapCloneClosure* scc);
 
    /**
     * @brief 实际恢复chunk数据
@@ -124,11 +127,12 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     * @param:chunkidinfo chunkidinfo
     * @param:offset 偏移
     * @param:len 长度
-    *
+    * @param:chunkSize chunk的大小
+    * @param: scc是异步回调
     */
     void RecoverChunk(const ChunkIDInfo &chunkidinfo,
-                              uint64_t offset,
-                              uint64_t len);
+                      uint64_t offset, uint64_t len,
+                      SnapCloneClosure* scc);
 
     /**
      * Wait用于同步接口等待，因为用户下来的IO被client内部线程接管之后
@@ -189,6 +193,13 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
     void ChunkServerErr2LibcurveErr(curve::chunkserver::CHUNK_OP_STATUS errcode,
                                     LIBCURVE_ERROR* errout);
 
+    /**
+     * 获取一个初始化后的RequestContext
+     * return: 如果分配失败或者初始化失败，返回nullptr
+     *         反之，返回一个指针
+     */
+    RequestContext* GetInitedRequestContext() const;
+
  private:
     // io 类型
     OpType  type_;
@@ -235,6 +246,9 @@ class CURVE_CACHELINE_ALIGNMENT IOTracker {
 
     // 当前tracker的id
     uint64_t id_;
+
+    // 快照克隆系统异步调用回调指针
+    SnapCloneClosure* scc_;
 
     // id生成器
     static std::atomic<uint64_t> tracekerID_;

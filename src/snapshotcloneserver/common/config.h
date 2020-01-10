@@ -53,8 +53,10 @@ struct SnapshotCloneServerOptions {
     std::string cloneTempDir;
     // mds root user
     std::string mdsRootUser;
-    // clonecore threadPool threadNum
-    uint32_t cloneCoreThreadNum;
+    // CreateCloneChunk同时进行的异步请求数量
+    uint32_t createCloneChunkConcurrency;
+    // RecoverChunk同时进行的异步请求数量
+    uint32_t recoverChunkConcurrency;
 };
 
 // metastore options

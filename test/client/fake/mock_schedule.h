@@ -30,8 +30,14 @@ extern uint16_t sleeptimeMS;
 
 class Schedule {
  public:
+    Schedule() {
+      enableScheduleFailed = false;
+    }
+
     int ScheduleRequest(
-                const std::list<curve::client::RequestContext*> reqlist);
+         const std::list<curve::client::RequestContext*> reqlist);
+
+    bool enableScheduleFailed;
 };
 
 class MockRequestScheduler : public curve::client::RequestScheduler {
@@ -46,6 +52,14 @@ class MockRequestScheduler : public curve::client::RequestScheduler {
 
     int Fini() {
        return 0;
+    }
+
+    void EnableScheduleFailed() {
+       schedule.enableScheduleFailed = true;
+    }
+
+    void DisableScheduleFailed() {
+       schedule.enableScheduleFailed = false;
     }
 
  private:

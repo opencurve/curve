@@ -70,6 +70,7 @@ using curve::mds::topology::GetChunkServerListInCopySetsRequest;
 using curve::mds::topology::GetChunkServerListInCopySetsResponse;
 using curve::mds::topology::GetClusterInfoRequest;
 using curve::mds::topology::GetClusterInfoResponse;
+using curve::mds::topology::GetChunkServerInfoResponse;
 
 extern const char* kRootUserName;
 
@@ -206,7 +207,7 @@ class MDSClientBase {
                     brpc::Channel* channel);
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
-     * 续约结果将会通过leaseRefreshResult* resp返回给调用层
+     * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
      * @param: filename是要续约的文件名
      * @param: sessionid是文件的session信息
      * @param[out]: response为该rpc的response，提供给外部处理
@@ -403,6 +404,20 @@ class MDSClientBase {
                     brpc::Controller* cntl,
                     brpc::Channel* channel);
 
+    /**
+     * 获取chunkserverID信息
+     * @param[in]: ip为当前client的监听地址
+     * @param[in]: port为监听端口
+     * @param[out]: response为该rpc的response，提供给外部处理
+     * @param[in|out]: cntl既是入参，也是出参，返回RPC状态
+     * @param[in]:channel是当前与mds建立的通道
+     */
+    void GetChunkServerInfo(const std::string& ip,
+                    uint16_t port,
+                    GetChunkServerInfoResponse* reponse,
+                    brpc::Controller* cntl,
+                    brpc::Channel* channel);
+
  private:
     /**
      * 为不同的request填充user信息
@@ -413,28 +428,15 @@ class MDSClientBase {
         uint64_t date = curve::common::TimeUtility::GetTimeofDayUs();
         request->set_owner(userinfo.owner);
         request->set_date(date);
-
-        if (!userinfo.owner.compare(kRootUserName) &&
-             userinfo.password.compare("")) {
-            std::string str2sig = Authenticator::GetString2Signature(date,
-                                                        userinfo.owner);
-            std::string sig = Authenticator::CalcString2Signature(str2sig,
-                                                         userinfo.password);
-            request->set_signature(sig);
-        }
-    }
-
-    /**
-     * 递增controller id并返回
-     */
-    inline uint64_t GetLogId() {
-       return cntlID_.fetch_add(1);
+        request->set_signature(CalcSignature(userinfo, date));
     }
 
  private:
-    // controller id，用于trace整个rpc IO链路
-    // 这里直接用uint64即可，在可预测的范围内，不会溢出
-    std::atomic<uint64_t> cntlID_;
+    inline bool IsRootUserAndHasPassword(const UserInfo& userinfo) const {
+       return userinfo.owner == kRootUserName && !userinfo.password.empty();
+    }
+
+    std::string CalcSignature(const UserInfo& userinfo, uint64_t date) const;
 
     // 当前模块的初始化option配置
     MetaServerOption_t metaServerOpt_;
