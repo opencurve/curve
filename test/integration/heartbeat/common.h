@@ -85,6 +85,7 @@ using ::curve::mds::schedule::OperatorStep;
 using ::curve::mds::schedule::TransferLeader;
 using ::curve::mds::schedule::AddPeer;
 using ::curve::mds::schedule::RemovePeer;
+using ::curve::mds::schedule::ChangePeer;
 using ::curve::mds::schedule::ScheduleMetrics;
 
 namespace curve {
