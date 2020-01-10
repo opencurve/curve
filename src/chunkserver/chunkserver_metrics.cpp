@@ -246,15 +246,15 @@ int ChunkServerMetric::Init(const ChunkServerMetricOptions& option) {
 
     std::string chunkCountPrefix = Prefix() + "_chunk_count";
     chunkCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        chunkCountPrefix, GetTotalChunkCountFunc, nullptr);
+        chunkCountPrefix, GetTotalChunkCountFunc, this);
 
     std::string snapshotCountPrefix = Prefix() + "_snapshot_count";
     snapshotCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        snapshotCountPrefix, GetTotalSnapshotCountFunc, nullptr);
+        snapshotCountPrefix, GetTotalSnapshotCountFunc, this);
 
     std::string cloneChunkCountPrefix = Prefix() + "_clonechunk_count";
     cloneChunkCount_ = std::make_shared<bvar::PassiveStatus<uint32_t>>(
-        cloneChunkCountPrefix, GetTotalCloneChunkCountFunc, nullptr);
+        cloneChunkCountPrefix, GetTotalCloneChunkCountFunc, this);
 
     hasInited_ = true;
     LOG(INFO) << "Init chunkserver metric success.";
@@ -270,7 +270,7 @@ int ChunkServerMetric::Fini() {
     chunkCount_ = nullptr;
     snapshotCount_ = nullptr;
     cloneChunkCount_ = nullptr;
-    copysetMetricMap_.clear();
+    copysetMetricMap_.Clear();
     hasInited_ = false;
     return 0;
 }
@@ -282,9 +282,8 @@ int ChunkServerMetric::CreateCopysetMetric(const LogicPoolID& logicPoolId,
     }
 
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    WriteLockGuard lockGuard(rwLock_);
-    auto it = copysetMetricMap_.find(groupId);
-    if (it != copysetMetricMap_.end()) {
+    bool exist = copysetMetricMap_.Exist(groupId);
+    if (exist) {
         LOG(ERROR) << "Create Copyset ("
                    << logicPoolId << "," << copysetId << ")"
                    << " metric failed : is already exists.";
@@ -299,7 +298,8 @@ int ChunkServerMetric::CreateCopysetMetric(const LogicPoolID& logicPoolId,
                    << " metric failed : init failed.";
         return -1;
     }
-    copysetMetricMap_[groupId] = copysetMetric;
+
+    copysetMetricMap_.Add(groupId, copysetMetric);
     return 0;
 }
 
@@ -310,22 +310,16 @@ CopysetMetricPtr ChunkServerMetric::GetCopysetMetric(
     }
 
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    ReadLockGuard lockGuard(rwLock_);
-    auto it = copysetMetricMap_.find(groupId);
-    if (it == copysetMetricMap_.end()) {
-        return nullptr;
-    }
-    return it->second;
+    return copysetMetricMap_.Get(groupId);
 }
 
 int ChunkServerMetric::RemoveCopysetMetric(const LogicPoolID& logicPoolId,
                                            const CopysetID& copysetId) {
     GroupId groupId = ToGroupId(logicPoolId, copysetId);
-    WriteLockGuard lockGuard(rwLock_);
-    auto it = copysetMetricMap_.find(groupId);
-    if (it != copysetMetricMap_.end()) {
-        copysetMetricMap_.erase(it);
-    }
+    // 这里先保存copyset metric，等remove后再去释放
+    // 防止在读写锁里面去操作metric，导致死锁
+    auto metric = copysetMetricMap_.Get(groupId);
+    copysetMetricMap_.Remove(groupId);
     return 0;
 }
 
