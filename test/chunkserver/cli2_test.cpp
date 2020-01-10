@@ -363,6 +363,8 @@ TEST_F(Cli2Test, basic) {
     }
     /* reset peer */
     {
+        // 等待change peer完成，否则用例会失败
+        sleep(3);
         Peer peer;
         peer.set_address("127.0.0.1:9033:0");
         butil::Status status = curve::chunkserver::ResetPeer(logicPoolId,
