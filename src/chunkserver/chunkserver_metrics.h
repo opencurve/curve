@@ -273,7 +273,64 @@ struct ChunkServerMetricOptions {
 };
 
 using CopysetMetricPtr = std::shared_ptr<CSCopysetMetric>;
-using CopysetMetricMap = std::unordered_map<GroupId, CopysetMetricPtr>;
+
+class CopysetMetricMap {
+ public:
+    CopysetMetricMap() = default;
+    ~CopysetMetricMap() = default;
+
+    void Add(GroupId groupId, CopysetMetricPtr metric) {
+        WriteLockGuard lockGuard(rwLock_);
+        auto it = map_.find(groupId);
+        if (it == map_.end()) {
+            map_[groupId] = metric;
+        }
+    }
+
+    void Remove(GroupId groupId) {
+        WriteLockGuard lockGuard(rwLock_);
+        auto it = map_.find(groupId);
+        if (it != map_.end()) {
+            map_.erase(it);
+        }
+    }
+
+    CopysetMetricPtr Get(GroupId groupId) {
+        ReadLockGuard lockGuard(rwLock_);
+        auto it = map_.find(groupId);
+        if (it == map_.end()) {
+            return nullptr;
+        }
+        return it->second;
+    }
+
+    bool Exist(GroupId groupId) {
+        ReadLockGuard lockGuard(rwLock_);
+        auto it = map_.find(groupId);
+        return it != map_.end();
+    }
+
+    uint32_t Size() {
+        ReadLockGuard lockGuard(rwLock_);
+        return map_.size();
+    }
+
+    void Clear() {
+        WriteLockGuard lockGuard(rwLock_);
+        map_.clear();
+    }
+
+    std::unordered_map<GroupId, CopysetMetricPtr> GetMap() {
+        ReadLockGuard lockGuard(rwLock_);
+        return map_;
+    }
+
+ private:
+    // 保护复制组metric map的读写锁
+    RWLock rwLock_;
+    // 各复制组metric的映射表，用GroupId作为key
+    std::unordered_map<GroupId, CopysetMetricPtr> map_;
+};
 
 class ChunkServerMetric : public Uncopyable {
  public:
@@ -385,9 +442,12 @@ class ChunkServerMetric : public Uncopyable {
         return ioMetrics_.GetIOMetric(type);
     }
 
+    CopysetMetricMap* GetCopysetMetricMap() {
+        return &copysetMetricMap_;
+    }
+
     const uint32_t GetCopysetCount() {
-        ReadLockGuard lockGuard(rwLock_);
-        return copysetMetricMap_.size();
+        return copysetMetricMap_.Size();
     }
 
     const uint32_t GetLeaderCount() const {
@@ -438,8 +498,6 @@ class ChunkServerMetric : public Uncopyable {
     bool hasInited_;
     // 配置项
     ChunkServerMetricOptions option_;
-    // 保护复制组metric map的读写锁
-    RWLock rwLock_;
     // leader 的数量
     AdderPtr<uint32_t> leaderCount_;
     // chunkfilepool 中剩余的 chunk 的数量
