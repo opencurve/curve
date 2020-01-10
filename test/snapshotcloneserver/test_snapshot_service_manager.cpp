@@ -616,7 +616,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoSuccess) {
                 Return(kErrCodeSuccess)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
-    ret = manager_->GetFileSnapshotInfo(file, user, nullptr, &fileSnapInfo);
+    ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(3, fileSnapInfo.size());
 
@@ -659,7 +659,7 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail) {
                 Return(kErrCodeInternalError)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
-    int ret = manager_->GetFileSnapshotInfo(file, user, nullptr, &fileSnapInfo);
+    int ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
     ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
@@ -679,8 +679,8 @@ TEST_F(TestSnapshotServiceManager, TestGetFileSnapshotInfoFail2) {
                 Return(kErrCodeSuccess)));
 
     std::vector<FileSnapshotInfo> fileSnapInfo;
-    int ret = manager_->GetFileSnapshotInfo(file, user, nullptr, &fileSnapInfo);
-    ASSERT_EQ(kErrCodeSuccess, ret);
+    int ret = manager_->GetFileSnapshotInfo(file, user, &fileSnapInfo);
+    ASSERT_EQ(kErrCodeInternalError, ret);
 }
 
 TEST_F(TestSnapshotServiceManager, TestRecoverSnapshotTaskSuccess) {
@@ -764,12 +764,19 @@ TEST_F(TestSnapshotServiceManager,
     const std::string user = "user1";
     const std::string desc = "snap1";
     UUID uuid;
+    UUID uuid2;
     UUID uuidOut = "abc";
+    UUID uuidOut2 = "def";
 
     SnapshotInfo info(uuidOut, user, file, desc);
+    SnapshotInfo info2(uuidOut2, user, file, desc);
     EXPECT_CALL(*core_, CreateSnapshotPre(file, user, desc, _))
+        .Times(2)
         .WillOnce(DoAll(
             SetArgPointee<3>(info),
+            Return(kErrCodeSuccess)))
+        .WillOnce(DoAll(
+            SetArgPointee<3>(info2),
             Return(kErrCodeSuccess)));
 
     CountDownEvent cond1(1);
@@ -795,6 +802,21 @@ TEST_F(TestSnapshotServiceManager,
         &uuid);
     ASSERT_EQ(kErrCodeSuccess, ret);
     ASSERT_EQ(uuid, uuidOut);
+
+    // 再打一个快照，覆盖排队的情况
+    ret = manager_->CreateSnapshot(
+        file,
+        user,
+        desc,
+        &uuid2);
+    ASSERT_EQ(kErrCodeSuccess, ret);
+    ASSERT_EQ(uuid2, uuidOut2);
+
+    // 先取消在排队的快照
+    ret = manager_->CancelSnapshot(uuidOut2,
+        user,
+        file);
+    ASSERT_EQ(kErrCodeSuccess, ret);
 
     ret = manager_->CancelSnapshot(uuidOut,
         user,

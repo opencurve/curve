@@ -314,10 +314,10 @@ Aws::S3::Model::CompletedPart S3Adapter:: UploadOnePart(
     request.SetUploadId(uploadId);
     request.SetPartNumber(partNum);
     request.SetContentLength(partSize);
-    Aws::String str(buf, partSize);
+    auto str = std::make_shared<std::string>(buf, partSize);
     auto input_data =
             Aws::MakeShared<Aws::StringStream>("UploadPartStream");
-    *input_data << str;
+    *input_data << *str;
     request.SetBody(input_data);
     auto result = s3Client_->UploadPart(request);
     if (result.IsSuccess()) {

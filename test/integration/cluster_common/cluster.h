@@ -124,15 +124,17 @@ class CurveCluster {
      * @brief 停止指定Id的snapshotcloneserver
      *
      * @param id snapshotcloneserver的id
+     * @param force 为true时使用kill -9
      */
-    void StopSnapshotCloneServer(int id);
+    void StopSnapshotCloneServer(int id, bool force = false);
 
     /**
      * @brief 重启指定Id的snapshotcloneserver
      *
      * @param id snapshotcloneserver的id
+     * @param force 为true时使用kill -9
      */
-    void RestartSnapshotCloneServer(int id);
+    void RestartSnapshotCloneServer(int id, bool force = false);
 
     /**
      * @brief 停止所有的snapshotcloneserver
@@ -140,14 +142,14 @@ class CurveCluster {
     void StopAllSnapshotCloneServer();
 
     /**
-     * StarSingleEtcd 启动一个etcd节点
+     * StartSingleEtcd 启动一个etcd节点
      *
      * @param clientIpPort
      * @param peerIpPort
      * @param etcdConf etcd启动项参数, 建议按照模块指定name,防止并发运行时冲突
      *      std::vector<std::string>{" --name basic_test_start_stop_module1"}
      */
-    void StarSingleEtcd(int id, const std::string &clientIpPort,
+    void StartSingleEtcd(int id, const std::string &clientIpPort,
         const std::string &peerIpPort,
         const std::vector<std::string> &etcdConf);
 

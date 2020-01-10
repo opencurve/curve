@@ -57,7 +57,7 @@ message CopysetStatusRequest {
 // 大部分字段只能是optional，因为copyset node可能不存在
 message CopysetStatusResponse {
     required COPYSET_OP_STATUS status       = 1;    // op状态
-    optional string state                   = 2;    // copyset状态
+    optional uint32 state                   = 2;    // copyset状态
     optional common.Peer peer               = 3;    // peer
     optional common.Peer leader             = 4;    // leader
     optional bool readOnly                  = 5;    // 是否只读

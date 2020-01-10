@@ -41,24 +41,29 @@ class Cli2Test : public testing::Test {
         dir1 = uuidGenerator.GenerateUUID();
         dir2 = uuidGenerator.GenerateUUID();
         dir3 = uuidGenerator.GenerateUUID();
+        dir4 = uuidGenerator.GenerateUUID();
         Exec(("mkdir " + dir1).c_str());
         Exec(("mkdir " + dir2).c_str());
         Exec(("mkdir " + dir3).c_str());
+        Exec(("mkdir " + dir4).c_str());
     }
     virtual void TearDown() {
         Exec(("rm -fr " + dir1).c_str());
         Exec(("rm -fr " + dir2).c_str());
         Exec(("rm -fr " + dir3).c_str());
+        Exec(("rm -fr " + dir4).c_str());
     }
 
  public:
     pid_t pid1;
     pid_t pid2;
     pid_t pid3;
+    pid_t pid4;
 
     std::string dir1;
     std::string dir2;
     std::string dir3;
+    std::string dir4;
 };
 
 butil::AtExitManager atExitManager;
@@ -122,13 +127,29 @@ TEST_F(Cli2Test, basic) {
         return;
     }
 
+    pid4 = fork();
+    if (0 > pid4) {
+        std::cerr << "fork chunkserver 4 failed" << std::endl;
+        ASSERT_TRUE(false);
+    } else if (0 == pid4) {
+        std::string copysetdir = "local://./" + dir4;
+        StartChunkserver(ip,
+                         port + 3,
+                         copysetdir.c_str(),
+                         confs,
+                         snapshotInterval,
+                         electionTimeoutMs);
+        return;
+    }
+
     /* 保证进程一定会退出 */
     class WaitpidGuard {
      public:
-        WaitpidGuard(pid_t pid1, pid_t pid2, pid_t pid3) {
+        WaitpidGuard(pid_t pid1, pid_t pid2, pid_t pid3, pid_t pid4) {
             pid1_ = pid1;
             pid2_ = pid2;
             pid3_ = pid3;
+            pid4_ = pid4;
         }
         virtual ~WaitpidGuard() {
             int waitState;
@@ -138,13 +159,16 @@ TEST_F(Cli2Test, basic) {
             waitpid(pid2_, &waitState, 0);
             kill(pid3_, SIGINT);
             waitpid(pid3_, &waitState, 0);
+            kill(pid4_, SIGINT);
+            waitpid(pid4_, &waitState, 0);
         }
      private:
         pid_t pid1_;
         pid_t pid2_;
         pid_t pid3_;
+        pid_t pid4_;
     };
-    WaitpidGuard waitpidGuard(pid1, pid2, pid3);
+    WaitpidGuard waitpidGuard(pid1, pid2, pid3, pid4);
 
     PeerId leader;
     LogicPoolID logicPoolId = 1;
@@ -322,6 +346,36 @@ TEST_F(Cli2Test, basic) {
             ASSERT_STREQ(peer3.address().c_str(), leader.to_string().c_str());
         }
     }
+    /* change peers */
+    {
+        Configuration conf;
+        conf.parse_from("127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9035:0");
+        Configuration newConf;
+        newConf.parse_from("127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9036:0");  // NOLINT
+        butil::Status st = curve::chunkserver::ChangePeers(logicPoolId,
+                                                           copysetId,
+                                                           conf,
+                                                           newConf,
+                                                           opt);
+        LOG(INFO) << "change peers: "
+                  << st.error_code() << ", " << st.error_str();
+        ASSERT_TRUE(st.ok());
+    }
+    /* reset peer */
+    {
+        // 等待change peer完成，否则用例会失败
+        sleep(3);
+        Peer peer;
+        peer.set_address("127.0.0.1:9033:0");
+        butil::Status status = curve::chunkserver::ResetPeer(logicPoolId,
+                                                             copysetId,
+                                                             conf,
+                                                             peer,
+                                                             opt);
+        LOG(INFO) << "reset peer: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_TRUE(status.ok());
+    }
 
     /* 异常分支测试 */
     /* get leader - conf empty */
@@ -371,9 +425,65 @@ TEST_F(Cli2Test, basic) {
                                                             peer,
                                                             opt);
             ASSERT_FALSE(status.ok());
-            LOG(INFO) << "add peer: " << status.error_code() << ", "
+            LOG(INFO) << "transfer leader: " << status.error_code() << ", "
                       << status.error_str();
         }
+    }
+    /* change peers - 不存在的 peer */
+    {
+        Configuration conf;
+        conf.parse_from("127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9036:0");
+        Configuration newConf;
+        newConf.parse_from("127.0.0.1:9033:0,127.0.0.1:9034:0,127.0.0.1:9039:0");  // NOLINT
+        butil::Status status = curve::chunkserver::ChangePeers(logicPoolId,
+                                                           copysetId,
+                                                           conf,
+                                                           newConf,
+                                                           opt);
+        ASSERT_FALSE(status.ok());
+        LOG(INFO) << "change peers: " << status.error_code() << ", "
+                  << status.error_str();
+    }
+    /* reset peer - newConf为空 */
+    {
+        Configuration conf;
+        Peer peer;
+        peer.set_address("127.0.0.1:9033:0");
+        butil::Status
+            status = curve::chunkserver::ResetPeer(logicPoolId,
+                                                   copysetId,
+                                                   conf,
+                                                   peer,
+                                                   opt);
+        LOG(INFO) << "reset peer: " << status.error_code() << ", "
+                  << status.error_str();
+        ASSERT_EQ(EINVAL, status.error_code());
+    }
+    /* reset peer peer地址非法  */
+    {
+        Peer peer;
+        peer.set_address("127.0.0.1:65540:0");
+        butil::Status status = curve::chunkserver::ResetPeer(logicPoolId,
+                                                             copysetId,
+                                                             conf,
+                                                             peer,
+                                                             opt);
+        LOG(INFO) << "reset peer: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_EQ(-1, status.error_code());
+    }
+    /* reset peer peer地址不存在  */
+    {
+        Peer peer;
+        peer.set_address("127.0.0.1:9040:0");
+        butil::Status status = curve::chunkserver::ResetPeer(logicPoolId,
+                                                             copysetId,
+                                                             conf,
+                                                             peer,
+                                                             opt);
+        LOG(INFO) << "reset peer: "
+                  << status.error_code() << ", " << status.error_str();
+        ASSERT_EQ(EHOSTDOWN, status.error_code());
     }
 }
 

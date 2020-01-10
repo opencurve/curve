@@ -162,6 +162,7 @@ int StartChunkserver(const char *ip,
     LogicPoolID logicPoolId = 1;
     CopysetID copysetId = 100001;
     CopysetNodeManager::GetInstance().Init(copysetNodeOptions);
+    CopysetNodeManager::GetInstance().Run();
     CHECK(CopysetNodeManager::GetInstance().CreateCopysetNode(logicPoolId,
                                                               copysetId,
                                                               peers));
@@ -178,16 +179,11 @@ int StartChunkserver(const char *ip,
 
     LOG(INFO) << "start chunkserver success";
     /* Wait until 'CTRL-C' is pressed. then Stop() and Join() the service */
-    while (!brpc::IsAskedToQuit()) {
-        sleep(1);
-    }
+    server.RunUntilAskedToQuit();
     LOG(INFO) << "server test service is going to quit";
 
     CopysetNodeManager::GetInstance().DeleteCopysetNode(logicPoolId, copysetId);
     copysetNodeOptions.concurrentapply->Stop();
-
-    server.Stop(0);
-    server.Join();
 }
 
 butil::Status WaitLeader(const LogicPoolID &logicPoolId,

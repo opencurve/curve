@@ -60,12 +60,20 @@ class SnapshotCheckTest : public ::testing::Test {
 };
 
 
+TEST_F(SnapshotCheckTest, SupportCommand) {
+    curve::tool::SnapshotCheck snapshotCheck(client_, snapshot_);
+    ASSERT_TRUE(snapshotCheck.SupportCommand("snapshot-check"));
+    ASSERT_FALSE(snapshotCheck.SupportCommand("none"));
+}
+
 TEST_F(SnapshotCheckTest, common) {
     FileStatInfo fileInfo;
     GetFileInfoForTest(&fileInfo);
     SnapshotRepoItem snapshotInfo;
     GetSnapshotInfoForTest(&snapshotInfo);
     curve::tool::SnapshotCheck snapshotCheck(client_, snapshot_);
+    snapshotCheck.PrintHelp("none");
+    snapshotCheck.PrintHelp("snapshot-check");
 
     EXPECT_CALL(*client_, Init(_))
         .Times(1)
@@ -73,7 +81,6 @@ TEST_F(SnapshotCheckTest, common) {
     EXPECT_CALL(*snapshot_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
-    ASSERT_EQ(0, snapshotCheck.Init());
 
     // 快照一致性检查
     EXPECT_CALL(*snapshot_, GetSnapshotInfo(_))
@@ -94,9 +101,8 @@ TEST_F(SnapshotCheckTest, common) {
         .Times(10)
         .WillRepeatedly(DoAll(SetArrayArgument<1>(buf_, buf_ + chunkSize_),
                             Return(chunkSize_)));
-
-    ASSERT_EQ(0, snapshotCheck.Check());
-    snapshotCheck.UnInit();
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("none"));
+    ASSERT_EQ(0, snapshotCheck.RunCommand("snapshot-check"));
 }
 
 TEST_F(SnapshotCheckTest, initError) {
@@ -106,13 +112,13 @@ TEST_F(SnapshotCheckTest, initError) {
     EXPECT_CALL(*client_, Init(_))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, snapshotCheck.Init());
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
 
     // init snapshot fail
     EXPECT_CALL(*snapshot_, Init(_, _))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, snapshotCheck.Init());
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
 }
 
 TEST_F(SnapshotCheckTest, checkError) {
@@ -121,12 +127,19 @@ TEST_F(SnapshotCheckTest, checkError) {
     GetFileInfoForTest(&fileInfo);
     SnapshotRepoItem snapshotInfo;
 
+    EXPECT_CALL(*client_, Init(_))
+        .Times(1)
+        .WillOnce(Return(0));
+    EXPECT_CALL(*snapshot_, Init(_, _))
+        .Times(1)
+        .WillOnce(Return(0));
+
     // 打开文件出错
     EXPECT_CALL(*client_, Open4ReadOnly(_, _))
         .Times(7)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(1));
-    ASSERT_EQ(-1, snapshotCheck.Check());
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
 
     // 获取文件信息
     EXPECT_CALL(*client_, StatFile(_, _, _))
@@ -134,14 +147,14 @@ TEST_F(SnapshotCheckTest, checkError) {
         .WillOnce(Return(-1))
         .WillRepeatedly(DoAll(SetArgPointee<2>(fileInfo),
                             Return(0)));
-    ASSERT_EQ(-1, snapshotCheck.Check());
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
 
     // 文件长度不匹配
     snapshotInfo.fileLength = 1234;
     EXPECT_CALL(*snapshot_, GetSnapshotInfo(_))
         .Times(1)
         .WillOnce(SetArgPointee<0>(snapshotInfo));
-    ASSERT_EQ(-1, snapshotCheck.Check());
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
 
     GetSnapshotInfoForTest(&snapshotInfo);
     EXPECT_CALL(*snapshot_, GetSnapshotInfo(_))
@@ -154,8 +167,8 @@ TEST_F(SnapshotCheckTest, checkError) {
         .WillOnce(Return(-1))
         .WillOnce(DoAll(SetArrayArgument<1>(buf_, buf_ + chunkSize_),
                             Return(1024)));
-    ASSERT_EQ(-1, snapshotCheck.Check());
-    ASSERT_EQ(-1, snapshotCheck.Check());
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
 
     // 读快照出错
     EXPECT_CALL(*client_, Read(_, _, _, _))
@@ -165,12 +178,12 @@ TEST_F(SnapshotCheckTest, checkError) {
     EXPECT_CALL(*snapshot_, Read(_, _, _))
         .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, snapshotCheck.Check());
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
 
     // 读出来的数据不一致
     EXPECT_CALL(*snapshot_, Read(_, _, _))
         .Times(1)
         .WillOnce(DoAll(SetArrayArgument<0>(buf2_, buf2_ + chunkSize_),
                             Return(0)));
-    ASSERT_EQ(-1, snapshotCheck.Check());
+    ASSERT_EQ(-1, snapshotCheck.RunCommand("snapshot-check"));
 }

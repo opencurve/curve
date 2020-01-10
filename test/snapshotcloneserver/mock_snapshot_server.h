@@ -78,6 +78,8 @@ class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {
     MOCK_METHOD1(UpdateCloneInfo, int(const CloneInfo &info));
     MOCK_METHOD2(GetCloneInfo,
         int(const std::string &taskID, CloneInfo *info));
+    MOCK_METHOD2(GetCloneInfoByFileName,
+        int(const std::string &fileName, CloneInfo *info));
     MOCK_METHOD1(GetCloneInfoList,
         int(std::vector<CloneInfo> *list));
 };
@@ -146,12 +148,13 @@ class MockCurveFsClient : public CurveFsClient {
         uint64_t seq,
         uint64_t offset,
         SegmentInfo *segInfo));
-    MOCK_METHOD5(ReadChunkSnapshot,
+    MOCK_METHOD6(ReadChunkSnapshot,
         int(ChunkIDInfo cidinfo,
             uint64_t seq,
             uint64_t offset,
             uint64_t len,
-            char *buf));
+            char *buf,
+            SnapCloneClosure* scc));
     MOCK_METHOD2(DeleteChunkSnapshotOrCorrectSn,
         int(const ChunkIDInfo &cidinfo,
         uint64_t correctedSeq));
@@ -174,17 +177,19 @@ class MockCurveFsClient : public CurveFsClient {
         uint32_t chunkSize,
         FInfo* fileInfo));
 
-    MOCK_METHOD5(CreateCloneChunk,
+    MOCK_METHOD6(CreateCloneChunk,
         int(const std::string &location,
         const ChunkIDInfo &chunkidinfo,
         uint64_t sn,
         uint64_t csn,
-        uint64_t chunkSize));
+        uint64_t chunkSize,
+        SnapCloneClosure* scc));
 
-    MOCK_METHOD3(RecoverChunk,
+    MOCK_METHOD4(RecoverChunk,
         int(const ChunkIDInfo &chunkidinfo,
         uint64_t offset,
-        uint64_t len));
+        uint64_t len,
+        SnapCloneClosure* scc));
 
     MOCK_METHOD2(CompleteCloneMeta,
         int(const std::string &filename,
@@ -242,17 +247,25 @@ class MockSnapshotServiceManager : public SnapshotServiceManager {
         const std::string &user,
         const std::string &desc,
         UUID *uuid));
+
     MOCK_METHOD3(DeleteSnapshot,
-        int(UUID uuid,
+        int(const UUID &uuid,
         const std::string &user,
         const std::string &file));
-    MOCK_METHOD4(GetFileSnapshotInfo,
+
+    MOCK_METHOD3(GetFileSnapshotInfo,
         int(const std::string &file,
         const std::string &user,
-        const UUID *uuid,
         std::vector<FileSnapshotInfo> *info));
+
+    MOCK_METHOD4(GetFileSnapshotInfoById,
+        int(const std::string &file,
+        const std::string &user,
+        const UUID &uuid,
+        std::vector<FileSnapshotInfo> *info));
+
     MOCK_METHOD3(CancelSnapshot,
-        int(UUID uuid,
+        int(const UUID &uuid,
         const std::string &user,
         const std::string &file));
 };
@@ -279,9 +292,18 @@ class MockCloneServiceManager : public CloneServiceManager {
         std::shared_ptr<CloneClosure> entity,
         TaskIdType *taskId));
 
-    MOCK_METHOD3(GetCloneTaskInfo,
+    MOCK_METHOD2(GetCloneTaskInfo,
         int(const std::string &user,
-        const TaskIdType *taskId,
+        std::vector<TaskCloneInfo> *info));
+
+    MOCK_METHOD3(GetCloneTaskInfoById,
+        int(const std::string &user,
+        const TaskIdType &taskId,
+        std::vector<TaskCloneInfo> *info));
+
+    MOCK_METHOD3(GetCloneTaskInfoByName,
+        int(const std::string &user,
+        const std::string &fileName,
         std::vector<TaskCloneInfo> *info));
 
     MOCK_METHOD2(CleanCloneTask,
@@ -315,6 +337,9 @@ class MockCloneCore : public CloneCore {
 
     MOCK_METHOD2(GetCloneInfo,
         int(TaskIdType taskId, CloneInfo *cloneInfo));
+
+    MOCK_METHOD2(GetCloneInfoByFileName,
+        int(const std::string &fileName, CloneInfo *cloneInfo));
 
     MOCK_METHOD0(GetSnapshotRef,
         std::shared_ptr<SnapshotReference>());

@@ -112,15 +112,15 @@ enum  StatusCode {
 
 //chunkinfo
 message PageFileChunkInfo {
-    optional uint32 copysetID = 3;
-    optional uint64 chunkID = 2;
+    required uint32 copysetID = 3;
+    required uint64 chunkID = 2;
 }
 
 message PageFileSegment {
-    optional uint32 logicalPoolID = 1;
-    optional uint32 segmentSize = 3;
-    optional uint32 chunkSize = 4;
-    optional uint64 startOffset = 2;
+    required uint32 logicalPoolID = 1;
+    required uint32 segmentSize = 3;
+    required uint32 chunkSize = 4;
+    required uint64 startOffset = 2;
     repeated  PageFileChunkInfo chunks = 5;
 }
 

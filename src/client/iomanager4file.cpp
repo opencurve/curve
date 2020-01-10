@@ -30,9 +30,6 @@ bool IOManager4File::Initialize(const std::string& filename,
     mc_.Init(ioopt_.metaCacheOpt, mdsclient);
     Splitor::Init(ioopt_.ioSplitOpt);
 
-    confMetric_.maxInFlightRPCNum.set_value(
-                ioopt_.ioSenderOpt.inflightOpt.maxInFlightRPCNum);
-
     int ret = RequestClosure::AddInflightCntl(id_,
               ioopt_.ioSenderOpt.inflightOpt);
     if (ret != 0) {
@@ -51,25 +48,31 @@ bool IOManager4File::Initialize(const std::string& filename,
     inflightCntl_.SetMaxInflightNum(UINT64_MAX);
 
     scheduler_ = new (std::nothrow) RequestScheduler();
-    if (scheduler_ == nullptr ||
-        -1 == scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, fileMetric_)) {
+    if (scheduler_ == nullptr) {
+        return false;
+    }
+
+    ret = scheduler_->Init(ioopt_.reqSchdulerOpt, &mc_, fileMetric_);
+    if (-1 == ret) {
         LOG(ERROR) << "Init scheduler_ failed!";
+        delete scheduler_;
+        scheduler_ = nullptr;
         return false;
     }
     scheduler_->Run();
 
-    ret = taskPool_.Start(ioopt_.taskThreadOpt.taskThreadPoolSize,
-                          ioopt_.taskThreadOpt.taskQueueCapacity);
+    ret = taskPool_.Start(ioopt_.taskThreadOpt.isolationTaskThreadPoolSize,
+                          ioopt_.taskThreadOpt.isolationTaskQueueCapacity);
     if (ret != 0) {
         LOG(ERROR) << "task thread pool start failed!";
         return false;
     }
 
     LOG(INFO) << "iomanager init success! conf info: "
-              << "taskThreadPoolSize = "
-              << ioopt_.taskThreadOpt.taskThreadPoolSize
-              << ", taskQueueCapacity = "
-              << ioopt_.taskThreadOpt.taskQueueCapacity;
+              << "isolationTaskThreadPoolSize = "
+              << ioopt_.taskThreadOpt.isolationTaskThreadPoolSize
+              << ", isolationTaskQueueCapacity = "
+              << ioopt_.taskThreadOpt.isolationTaskQueueCapacity;
     return true;
 }
 
@@ -115,24 +118,26 @@ void IOManager4File::UnInitialize() {
 }
 
 int IOManager4File::Read(char* buf, off_t offset,
-                        size_t length, MDSClient* mdsclient) {
+    size_t length, MDSClient* mdsclient) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::READ);
     FlightIOGuard guard(this);
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
-    temp.StartRead(nullptr, buf, offset, length, mdsclient, &fi_);
+    temp.StartRead(nullptr, buf, offset, length, mdsclient,
+                   this->GetFileInfo());
 
     int rc = temp.Wait();
     return rc;
 }
 
 int IOManager4File::Write(const char* buf, off_t offset,
-                         size_t length, MDSClient* mdsclient) {
+    size_t length, MDSClient* mdsclient) {
     MetricHelper::IncremUserRPSCount(fileMetric_, OpType::WRITE);
     FlightIOGuard guard(this);
 
     IOTracker temp(this, &mc_, scheduler_, fileMetric_);
-    temp.StartWrite(nullptr, buf, offset, length, mdsclient, &fi_);
+    temp.StartWrite(nullptr, buf, offset, length, mdsclient,
+                    this->GetFileInfo());
 
     int rc = temp.Wait();
     return rc;
@@ -153,7 +158,8 @@ int IOManager4File::AioRead(CurveAioContext* ctx, MDSClient* mdsclient) {
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
         temp->StartRead(ctx, static_cast<char*>(ctx->buf),
-                        ctx->offset, ctx->length, mdsclient, &this->fi_);
+                        ctx->offset, ctx->length, mdsclient,
+                        this->GetFileInfo());
     };
 
     taskPool_.Enqueue(task);
@@ -175,15 +181,16 @@ int IOManager4File::AioWrite(CurveAioContext* ctx, MDSClient* mdsclient) {
     inflightCntl_.IncremInflightNum();
     auto task = [this, ctx, mdsclient, temp]() {
         temp->StartWrite(ctx, static_cast<const char*>(ctx->buf),
-                         ctx->offset, ctx->length, mdsclient, &this->fi_);
+                         ctx->offset, ctx->length, mdsclient,
+                         this->GetFileInfo());
     };
 
     taskPool_.Enqueue(task);
     return LIBCURVE_ERROR::OK;
 }
 
-void IOManager4File::UpdataFileInfo(const FInfo_t& fi) {
-    fi_ = fi;
+void IOManager4File::UpdateFileInfo(const FInfo_t& fi) {
+    mc_.UpdateFileInfo(fi);
 }
 
 void IOManager4File::HandleAsyncIOResponse(IOTracker* iotracker) {

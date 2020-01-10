@@ -21,30 +21,39 @@
 #include "src/common/s3_adapter.h"
 #include "src/common/crc32.h"
 #include "src/tools/snapshot_read.h"
+#include "src/tools/curve_tool.h"
+#include "src/tools/curve_tool_define.h"
 
 namespace curve {
 namespace tool {
-class SnapshotCheck {
+class SnapshotCheck : public CurveTool {
  public:
     SnapshotCheck(std::shared_ptr<curve::client::FileClient> client,
                   std::shared_ptr<SnapshotRead> snapshot) :
-                        client_(client), snapshot_(snapshot) {}
-    ~SnapshotCheck() = default;
+                        client_(client), snapshot_(snapshot), inited_(false) {}
+    ~SnapshotCheck();
+
 
     /**
-     * 初始化
+     *  @brief 打印用法
+     *  @param command：查询的命令
+     *  @return 无
      */
-    int Init();
+    void PrintHelp(const std::string &command) override;
 
     /**
-     * 释放资源
+     *  @brief 执行命令
+     *  @param command：执行的命令
+     *  @return 成功返回0，失败返回-1
      */
-    void UnInit();
+    int RunCommand(const std::string &command) override;
 
     /**
-     * 打印帮助信息
+     *  @brief 返回是否支持该命令
+     *  @param command：执行的命令
+     *  @return true / false
      */
-    void PrintHelp();
+    static bool SupportCommand(const std::string& command);
 
     /**
      *  @brief 比较文件和快照的一致性
@@ -53,8 +62,15 @@ class SnapshotCheck {
     int Check();
 
  private:
+    /**
+     * 初始化
+     */
+    int Init();
+
+ private:
     std::shared_ptr<curve::client::FileClient> client_;
     std::shared_ptr<SnapshotRead> snapshot_;
+    bool inited_;
 };
 }  // namespace tool
 }  // namespace curve

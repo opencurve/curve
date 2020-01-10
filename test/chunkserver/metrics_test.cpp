@@ -195,16 +195,29 @@ TEST_F(CSMetricTest, OnRequestTest) {
     CopysetMetricPtr copysetMetric = metric_->GetCopysetMetric(logicId, copysetId);  // NOLINT
     ASSERT_NE(copysetMetric, nullptr);
 
-    const IOMetricPtr serverWriteMetric = metric_->GetWriteMetric();
-    const IOMetricPtr serverReadMetric = metric_->GetReadMetric();
-    const IOMetricPtr cpWriteMetric = copysetMetric->GetWriteMetric();
-    const IOMetricPtr cpReadMetric = copysetMetric->GetReadMetric();
-    const IOMetricPtr cpRecoverMetric = copysetMetric->GetRecoverMetric();
-    const IOMetricPtr cpPasteMetric = copysetMetric->GetPasteMetric();
-    const IOMetricPtr cpDownloadMetric = copysetMetric->GetDownloadMetric();
+    const IOMetricPtr serverWriteMetric =
+        metric_->GetIOMetric(CSIOMetricType::WRITE_CHUNK);
+    const IOMetricPtr serverReadMetric =
+        metric_->GetIOMetric(CSIOMetricType::READ_CHUNK);
+    const IOMetricPtr serverRecoverMetric =
+        metric_->GetIOMetric(CSIOMetricType::RECOVER_CHUNK);
+    const IOMetricPtr serverPasteMetric =
+        metric_->GetIOMetric(CSIOMetricType::PASTE_CHUNK);
+    const IOMetricPtr serverDownloadMetric =
+        metric_->GetIOMetric(CSIOMetricType::DOWNLOAD);
+    const IOMetricPtr cpWriteMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::WRITE_CHUNK);
+    const IOMetricPtr cpReadMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::READ_CHUNK);
+    const IOMetricPtr cpRecoverMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::RECOVER_CHUNK);
+    const IOMetricPtr cpPasteMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::PASTE_CHUNK);
+    const IOMetricPtr cpDownloadMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::DOWNLOAD);
 
     // 统计写入成功的情况
-    metric_->OnRequestWrite(logicId, copysetId);
+    metric_->OnRequest(logicId, copysetId, CSIOMetricType::WRITE_CHUNK);
     ASSERT_EQ(1, serverWriteMetric->reqNum_.get_value());
     ASSERT_EQ(0, serverWriteMetric->ioNum_.get_value());
     ASSERT_EQ(0, serverWriteMetric->ioBytes_.get_value());
@@ -215,7 +228,7 @@ TEST_F(CSMetricTest, OnRequestTest) {
     ASSERT_EQ(0, cpWriteMetric->errorNum_.get_value());
 
     // 统计读取成功的情况
-    metric_->OnRequestRead(logicId, copysetId);
+    metric_->OnRequest(logicId, copysetId, CSIOMetricType::READ_CHUNK);
     ASSERT_EQ(1, serverReadMetric->reqNum_.get_value());
     ASSERT_EQ(0, serverReadMetric->ioNum_.get_value());
     ASSERT_EQ(0, serverReadMetric->ioBytes_.get_value());
@@ -226,21 +239,33 @@ TEST_F(CSMetricTest, OnRequestTest) {
     ASSERT_EQ(0, cpReadMetric->errorNum_.get_value());
 
     // 统计恢复成功的情况
-    metric_->OnRequestRecover(logicId, copysetId);
+    metric_->OnRequest(logicId, copysetId, CSIOMetricType::RECOVER_CHUNK);
+    ASSERT_EQ(1, serverRecoverMetric->reqNum_.get_value());
+    ASSERT_EQ(0, serverRecoverMetric->ioNum_.get_value());
+    ASSERT_EQ(0, serverRecoverMetric->ioBytes_.get_value());
+    ASSERT_EQ(0, serverRecoverMetric->errorNum_.get_value());
     ASSERT_EQ(1, cpRecoverMetric->reqNum_.get_value());
     ASSERT_EQ(0, cpRecoverMetric->ioNum_.get_value());
     ASSERT_EQ(0, cpRecoverMetric->ioBytes_.get_value());
     ASSERT_EQ(0, cpRecoverMetric->errorNum_.get_value());
 
     // 统计paste成功的情况
-    metric_->OnRequestPaste(logicId, copysetId);
+    metric_->OnRequest(logicId, copysetId, CSIOMetricType::PASTE_CHUNK);
+    ASSERT_EQ(1, serverPasteMetric->reqNum_.get_value());
+    ASSERT_EQ(0, serverPasteMetric->ioNum_.get_value());
+    ASSERT_EQ(0, serverPasteMetric->ioBytes_.get_value());
+    ASSERT_EQ(0, serverPasteMetric->errorNum_.get_value());
     ASSERT_EQ(1, cpPasteMetric->reqNum_.get_value());
     ASSERT_EQ(0, cpPasteMetric->ioNum_.get_value());
     ASSERT_EQ(0, cpPasteMetric->ioBytes_.get_value());
     ASSERT_EQ(0, cpPasteMetric->errorNum_.get_value());
 
     // 统计下载成功的情况
-    metric_->OnRequestDownload(logicId, copysetId);
+    metric_->OnRequest(logicId, copysetId, CSIOMetricType::DOWNLOAD);
+    ASSERT_EQ(1, serverDownloadMetric->reqNum_.get_value());
+    ASSERT_EQ(0, serverDownloadMetric->ioNum_.get_value());
+    ASSERT_EQ(0, serverDownloadMetric->ioBytes_.get_value());
+    ASSERT_EQ(0, serverDownloadMetric->errorNum_.get_value());
     ASSERT_EQ(1, cpDownloadMetric->reqNum_.get_value());
     ASSERT_EQ(0, cpDownloadMetric->ioNum_.get_value());
     ASSERT_EQ(0, cpDownloadMetric->ioBytes_.get_value());
@@ -255,19 +280,33 @@ TEST_F(CSMetricTest, OnResponseTest) {
     CopysetMetricPtr copysetMetric = metric_->GetCopysetMetric(logicId, copysetId);  // NOLINT
     ASSERT_NE(copysetMetric, nullptr);
 
-    const IOMetricPtr serverWriteMetric = metric_->GetWriteMetric();
-    const IOMetricPtr serverReadMetric = metric_->GetReadMetric();
-    const IOMetricPtr cpWriteMetric = copysetMetric->GetWriteMetric();
-    const IOMetricPtr cpReadMetric = copysetMetric->GetReadMetric();
-    const IOMetricPtr cpRecoverMetric = copysetMetric->GetRecoverMetric();
-    const IOMetricPtr cpPasteMetric = copysetMetric->GetPasteMetric();
-    const IOMetricPtr cpDownloadMetric = copysetMetric->GetDownloadMetric();
+    const IOMetricPtr serverWriteMetric =
+        metric_->GetIOMetric(CSIOMetricType::WRITE_CHUNK);
+    const IOMetricPtr serverReadMetric =
+        metric_->GetIOMetric(CSIOMetricType::READ_CHUNK);
+    const IOMetricPtr serverRecoverMetric =
+        metric_->GetIOMetric(CSIOMetricType::RECOVER_CHUNK);
+    const IOMetricPtr serverPasteMetric =
+        metric_->GetIOMetric(CSIOMetricType::PASTE_CHUNK);
+    const IOMetricPtr serverDownloadMetric =
+        metric_->GetIOMetric(CSIOMetricType::DOWNLOAD);
+    const IOMetricPtr cpWriteMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::WRITE_CHUNK);
+    const IOMetricPtr cpReadMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::READ_CHUNK);
+    const IOMetricPtr cpRecoverMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::RECOVER_CHUNK);
+    const IOMetricPtr cpPasteMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::PASTE_CHUNK);
+    const IOMetricPtr cpDownloadMetric =
+        copysetMetric->GetIOMetric(CSIOMetricType::DOWNLOAD);
 
     size_t size = PAGE_SIZE;
     int64_t latUs = 100;
     bool hasError = false;
     // 统计写入成功的情况
-    metric_->OnResponseWrite(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(
+        logicId, copysetId, CSIOMetricType::WRITE_CHUNK, size, latUs, hasError);
     ASSERT_EQ(0, serverWriteMetric->reqNum_.get_value());
     ASSERT_EQ(1, serverWriteMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, serverWriteMetric->ioBytes_.get_value());
@@ -278,7 +317,8 @@ TEST_F(CSMetricTest, OnResponseTest) {
     ASSERT_EQ(0, cpWriteMetric->errorNum_.get_value());
 
     // 统计读取成功的情况
-    metric_->OnResponseRead(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(
+        logicId, copysetId, CSIOMetricType::READ_CHUNK, size, latUs, hasError);
     ASSERT_EQ(0, serverReadMetric->reqNum_.get_value());
     ASSERT_EQ(1, serverReadMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, serverReadMetric->ioBytes_.get_value());
@@ -289,21 +329,36 @@ TEST_F(CSMetricTest, OnResponseTest) {
     ASSERT_EQ(0, cpReadMetric->errorNum_.get_value());
 
     // 统计恢复成功的情况
-    metric_->OnResponseRecover(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(logicId, copysetId, CSIOMetricType::RECOVER_CHUNK,
+                        size, latUs, hasError);
+    ASSERT_EQ(0, serverRecoverMetric->reqNum_.get_value());
+    ASSERT_EQ(1, serverRecoverMetric->ioNum_.get_value());
+    ASSERT_EQ(PAGE_SIZE, serverRecoverMetric->ioBytes_.get_value());
+    ASSERT_EQ(0, serverRecoverMetric->errorNum_.get_value());
     ASSERT_EQ(0, cpRecoverMetric->reqNum_.get_value());
     ASSERT_EQ(1, cpRecoverMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, cpRecoverMetric->ioBytes_.get_value());
     ASSERT_EQ(0, cpRecoverMetric->errorNum_.get_value());
 
     // 统计paste成功的情况
-    metric_->OnResponsePaste(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(
+        logicId, copysetId, CSIOMetricType::PASTE_CHUNK, size, latUs, hasError);
+    ASSERT_EQ(0, serverPasteMetric->reqNum_.get_value());
+    ASSERT_EQ(1, serverPasteMetric->ioNum_.get_value());
+    ASSERT_EQ(PAGE_SIZE, serverPasteMetric->ioBytes_.get_value());
+    ASSERT_EQ(0, serverPasteMetric->errorNum_.get_value());
     ASSERT_EQ(0, cpPasteMetric->reqNum_.get_value());
     ASSERT_EQ(1, cpPasteMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, cpPasteMetric->ioBytes_.get_value());
     ASSERT_EQ(0, cpPasteMetric->errorNum_.get_value());
 
     // 统计下载成功的情况
-    metric_->OnResponseDownload(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(
+        logicId, copysetId, CSIOMetricType::DOWNLOAD, size, latUs, hasError);
+    ASSERT_EQ(0, serverDownloadMetric->reqNum_.get_value());
+    ASSERT_EQ(1, serverDownloadMetric->ioNum_.get_value());
+    ASSERT_EQ(PAGE_SIZE, serverDownloadMetric->ioBytes_.get_value());
+    ASSERT_EQ(0, serverDownloadMetric->errorNum_.get_value());
     ASSERT_EQ(0, cpDownloadMetric->reqNum_.get_value());
     ASSERT_EQ(1, cpDownloadMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, cpDownloadMetric->ioBytes_.get_value());
@@ -311,7 +366,8 @@ TEST_F(CSMetricTest, OnResponseTest) {
 
     hasError = true;
     // 统计写入失败的情况，错误数增加，其他不变
-    metric_->OnResponseWrite(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(
+        logicId, copysetId, CSIOMetricType::WRITE_CHUNK, size, latUs, hasError);
     ASSERT_EQ(0, serverWriteMetric->reqNum_.get_value());
     ASSERT_EQ(1, serverWriteMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, serverWriteMetric->ioBytes_.get_value());
@@ -322,7 +378,8 @@ TEST_F(CSMetricTest, OnResponseTest) {
     ASSERT_EQ(1, cpWriteMetric->errorNum_.get_value());
 
     // 统计读取失败的情况，错误数增加，其他不变
-    metric_->OnResponseRead(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(
+        logicId, copysetId, CSIOMetricType::READ_CHUNK, size, latUs, hasError);
     ASSERT_EQ(0, serverReadMetric->reqNum_.get_value());
     ASSERT_EQ(1, serverReadMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, serverReadMetric->ioBytes_.get_value());
@@ -333,21 +390,36 @@ TEST_F(CSMetricTest, OnResponseTest) {
     ASSERT_EQ(1, cpReadMetric->errorNum_.get_value());
 
      // 统计恢复失败的情况
-    metric_->OnResponseRecover(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(logicId, copysetId, CSIOMetricType::RECOVER_CHUNK,
+                        size, latUs, hasError);
+    ASSERT_EQ(0, serverRecoverMetric->reqNum_.get_value());
+    ASSERT_EQ(1, serverRecoverMetric->ioNum_.get_value());
+    ASSERT_EQ(PAGE_SIZE, serverRecoverMetric->ioBytes_.get_value());
+    ASSERT_EQ(1, serverRecoverMetric->errorNum_.get_value());
     ASSERT_EQ(0, cpRecoverMetric->reqNum_.get_value());
     ASSERT_EQ(1, cpRecoverMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, cpRecoverMetric->ioBytes_.get_value());
     ASSERT_EQ(1, cpRecoverMetric->errorNum_.get_value());
 
     // 统计paste失败的情况
-    metric_->OnResponsePaste(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(
+        logicId, copysetId, CSIOMetricType::PASTE_CHUNK, size, latUs, hasError);
+    ASSERT_EQ(0, serverPasteMetric->reqNum_.get_value());
+    ASSERT_EQ(1, serverPasteMetric->ioNum_.get_value());
+    ASSERT_EQ(PAGE_SIZE, serverPasteMetric->ioBytes_.get_value());
+    ASSERT_EQ(1, serverPasteMetric->errorNum_.get_value());
     ASSERT_EQ(0, cpPasteMetric->reqNum_.get_value());
     ASSERT_EQ(1, cpPasteMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, cpPasteMetric->ioBytes_.get_value());
     ASSERT_EQ(1, cpPasteMetric->errorNum_.get_value());
 
     // 统计下载失败的情况
-    metric_->OnResponseDownload(logicId, copysetId, size, latUs, hasError);
+    metric_->OnResponse(
+        logicId, copysetId, CSIOMetricType::DOWNLOAD, size, latUs, hasError);
+    ASSERT_EQ(0, serverDownloadMetric->reqNum_.get_value());
+    ASSERT_EQ(1, serverDownloadMetric->ioNum_.get_value());
+    ASSERT_EQ(PAGE_SIZE, serverDownloadMetric->ioBytes_.get_value());
+    ASSERT_EQ(1, serverDownloadMetric->errorNum_.get_value());
     ASSERT_EQ(0, cpDownloadMetric->reqNum_.get_value());
     ASSERT_EQ(1, cpDownloadMetric->ioNum_.get_value());
     ASSERT_EQ(PAGE_SIZE, cpDownloadMetric->ioBytes_.get_value());
@@ -371,6 +443,7 @@ TEST_F(CSMetricTest, CountTest) {
     ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
     ASSERT_EQ(0, metric_->GetTotalChunkCount());
     ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
+    ASSERT_EQ(0, metric_->GetTotalCloneChunkCount());
 
     // 写入数据生成chunk
     std::shared_ptr<CSDataStore> datastore =
@@ -384,9 +457,10 @@ TEST_F(CSMetricTest, CountTest) {
               datastore->WriteChunk(id, seq, buf, offset, length, nullptr));
     ASSERT_EQ(1, copysetMetric->GetChunkCount());
     ASSERT_EQ(0, copysetMetric->GetSnapshotCount());
+    ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
     ASSERT_EQ(1, metric_->GetTotalChunkCount());
     ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
-    ASSERT_EQ(0, copysetMetric->GetCloneChunkCount());
+    ASSERT_EQ(0, metric_->GetTotalCloneChunkCount());
 
     // 增加版本号，生成快照
     seq = 2;
@@ -439,6 +513,7 @@ TEST_F(CSMetricTest, CountTest) {
     ASSERT_EQ(1, copysetMetric->GetCloneChunkCount());
     ASSERT_EQ(2, metric_->GetTotalChunkCount());
     ASSERT_EQ(0, metric_->GetTotalSnapshotCount());
+    ASSERT_EQ(1, metric_->GetTotalCloneChunkCount());
 
     // 模拟copyset放入回收站测试
     ASSERT_TRUE(copysetMgr_->PurgeCopysetNodeData(logicId, copysetId));
@@ -460,7 +535,7 @@ TEST_F(CSMetricTest, ConfigTest) {
     conf.SetConfigPath(confFile_);
     int ret = conf.LoadConfig();
     ASSERT_EQ(ret, true);
-    metric_->UpdateConfigMetric(&conf);
+    metric_->ExposeConfigMetric(&conf);
 
     std::string prefix = "chunkserver_127_0_0_1_9401_config_";
     ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "chunksize").c_str(),
@@ -470,7 +545,7 @@ TEST_F(CSMetricTest, ConfigTest) {
     // 修改新增配置信息
     conf.SetStringValue("chunksize", "4321");
     conf.SetStringValue("port", "9999");
-    metric_->UpdateConfigMetric(&conf);
+    metric_->ExposeConfigMetric(&conf);
     // // 验证修改后信息
     ASSERT_STREQ(bvar::Variable::describe_exposed(prefix + "chunksize").c_str(),
                  "{\"conf_name\":\"chunksize\",\"conf_value\":\"4321\"}");
@@ -494,25 +569,32 @@ TEST_F(CSMetricTest, OnOffTest) {
         conf.SetConfigPath(confFile_);
         int ret = conf.LoadConfig();
         ASSERT_EQ(ret, true);
-        metric_->UpdateConfigMetric(&conf);
+        metric_->ExposeConfigMetric(&conf);
     }
     // 初始化后获取所有指标项都为空
     {
-        ASSERT_EQ(metric_->GetReadMetric(), nullptr);
-        ASSERT_EQ(metric_->GetWriteMetric(), nullptr);
+        ASSERT_EQ(metric_->GetIOMetric(CSIOMetricType::READ_CHUNK), nullptr);
+        ASSERT_EQ(metric_->GetIOMetric(CSIOMetricType::WRITE_CHUNK), nullptr);
+        ASSERT_EQ(metric_->GetIOMetric(CSIOMetricType::RECOVER_CHUNK), nullptr);
+        ASSERT_EQ(metric_->GetIOMetric(CSIOMetricType::PASTE_CHUNK), nullptr);
+        ASSERT_EQ(metric_->GetIOMetric(CSIOMetricType::DOWNLOAD), nullptr);
         ASSERT_EQ(metric_->GetCopysetCount(), 0);
         ASSERT_EQ(metric_->GetLeaderCount(), 0);
         ASSERT_EQ(metric_->GetChunkLeftCount(), 0);
+        ASSERT_EQ(metric_->GetChunkTrashedCount(), 0);
         ASSERT_EQ(metric_->GetTotalChunkCount(), 0);
         ASSERT_EQ(metric_->GetTotalSnapshotCount(), 0);
+        ASSERT_EQ(metric_->GetTotalCloneChunkCount(), 0);
     }
     // 创建copyset的metric返回成功，但实际并未创建
     {
         CopysetID copysetId = 1;
         ASSERT_EQ(0, metric_->CreateCopysetMetric(logicId, copysetId));
         ASSERT_EQ(nullptr, metric_->GetCopysetMetric(logicId, copysetId));
-        metric_->OnResponseRead(logicId, copysetId, PAGE_SIZE, 100, true);
-        metric_->OnResponseWrite(logicId, copysetId, PAGE_SIZE, 100, false);
+        metric_->OnResponse(logicId, copysetId, CSIOMetricType::READ_CHUNK,
+                            PAGE_SIZE, 100, true);
+        metric_->OnResponse(logicId, copysetId, CSIOMetricType::WRITE_CHUNK,
+                            PAGE_SIZE, 100, false);
         ASSERT_EQ(0, metric_->RemoveCopysetMetric(logicId, copysetId));
     }
     // 增加leader count，但是实际未计数

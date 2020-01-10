@@ -12,8 +12,15 @@
 #include <mutex>  //NOLINT
 #include <memory>
 #include "src/common/concurrent/task_thread_pool.h"
+#include "src/common/interruptible_sleeper.h"
+#include "src/common/concurrent/concurrent.h"
+#include "src/common/channel_pool.h"
 #include "src/mds/common/mds_define.h"
 #include "src/mds/nameserver2/clean_task.h"
+
+using ::curve::common::Atomic;
+using ::curve::common::InterruptibleSleeper;
+using ::curve::common::ChannelPool;
 
 namespace curve {
 namespace mds {
@@ -22,11 +29,15 @@ class CleanTaskManager {
  public:
     /**
      *  @brief 初始化TaskManager
+     *  @param channelPool: 连接池
      *  @param threadNum: worker线程的数量
      *  @param checkPeriod: 周期性任务检查线程时间, ms
      */
-    explicit CleanTaskManager(int threadNum = 10, int checkPeriod = 10000);
-    ~CleanTaskManager() {}
+    explicit CleanTaskManager(std::shared_ptr<ChannelPool> channelPool,
+                              int threadNum = 10, int checkPeriod = 10000);
+    ~CleanTaskManager() {
+        Stop();
+    }
 
     /**
      * @brief 启动worker线程池、启动检查线程
@@ -66,7 +77,10 @@ class CleanTaskManager {
     common::Thread *checkThread_;
     int checkPeriod_;
 
-    bool stopFlag_;
+    Atomic<bool> stopFlag_;
+    InterruptibleSleeper sleeper_;
+    // 连接池，和chunkserverClient共享，没有任务在执行时清空
+    std::shared_ptr<ChannelPool> channelPool_;
 };
 
 }   //  namespace mds

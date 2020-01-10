@@ -16,11 +16,13 @@
 #include <braft/builtin_service.pb.h>
 
 #include <thread>   // NOLINT
+#include <algorithm>
 
 #include "proto/chunk.pb.h"
 #include "proto/cli2.pb.h"
 #include "proto/copyset.pb.h"
 #include "src/client/client_common.h"
+#include "test/client/fake/mockMDS.h"
 
 using braft::PeerId;
 using curve::chunkserver::ChunkService;
@@ -228,6 +230,13 @@ class FakeChunkServerService : public ChunkService {
 
         auto resp = static_cast<::curve::chunkserver::ChunkResponse*>(fakewriteret_->response_);    // NOLINT
         response->CopyFrom(*resp);
+
+        static uint64_t latestSn = 0;
+        if (request->sn() < latestSn) {
+            response->set_status(CHUNK_OP_STATUS::CHUNK_OP_STATUS_BACKWARD);
+        }
+
+        latestSn = std::max(latestSn, request->sn());
     }
 
     void ReadChunk(::google::protobuf::RpcController *controller,

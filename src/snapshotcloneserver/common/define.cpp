@@ -38,11 +38,13 @@ std::map<int, std::string> code2Msg = {
 
 std::string BuildErrorMessage(
     int errCode,
-    const std::string &requestId) {
+    const std::string &requestId,
+    const std::string &uuid) {
     Json::Value mainObj;
     mainObj["Code"] = std::to_string(errCode);
     mainObj["Message"] = code2Msg[errCode];
     mainObj["RequestId"] = requestId;
+    mainObj["UUID"] = uuid;
     return mainObj.toStyledString();
 }
 

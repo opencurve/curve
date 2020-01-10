@@ -39,11 +39,6 @@ class Configuration {
      */
     void ExposeMetric(const std::string& exposeName);
 
-    /**
-     * 更新新的配置到metric
-     */
-    void UpdateMetric();
-
     void SetConfigPath(const std::string &path);
     std::string GetConfigPath();
 
@@ -113,6 +108,14 @@ class Configuration {
     std::string GetValue(const std::string &key);
     bool GetValue(const std::string &key, std::string *out);
     void SetValue(const std::string &key, const std::string &value);
+
+ private:
+    /**
+     * 更新新的配置到metric
+     * @param 要更新的metric
+     */
+    void UpdateMetricIfExposed(const std::string &key,
+                               const std::string &value);
 
  private:
     std::string                         confFile_;

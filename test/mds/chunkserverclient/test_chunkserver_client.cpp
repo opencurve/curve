@@ -60,7 +60,9 @@ class TestChunkServerClient : public ::testing::Test {
     void SetUp() {
         server_ = new brpc::Server();
         topo_ = std::make_shared<MockTopology>();
-        client_ = std::make_shared<ChunkServerClient>(topo_, option);
+        auto channelPool = std::make_shared<ChannelPool>();
+        client_ = std::make_shared<ChunkServerClient>(topo_,
+                                                option, channelPool);
 
         mockCliService = new MockCliService();
         chunkService = new MockChunkService();
@@ -466,7 +468,7 @@ TEST_F(TestChunkServerClient, TestGetLeaderRpcCntlFail) {
                           brpc::ClosureGuard doneGuard(done);
                           std::this_thread::sleep_for(
                                   std::chrono::milliseconds(
-                                      option.rpcTimeoutMs + 1));
+                                      option.rpcTimeoutMs + 1000));
                     })));
 
     int ret = client_->GetLeader(
@@ -699,7 +701,7 @@ TEST_F(TestChunkServerClient, TestDeleteChunkRpcCntlFail) {
                           brpc::ClosureGuard doneGuard(done);
                           std::this_thread::sleep_for(
                                 std::chrono::milliseconds(
-                                    option.rpcTimeoutMs + 1));
+                                    option.rpcTimeoutMs + 1000));
                     })));
 
     int ret = client_->DeleteChunk(

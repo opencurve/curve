@@ -41,5 +41,17 @@ int DatastoreFileHelper::ListFiles(const string& baseDir,
     return 0;
 }
 
+bool DatastoreFileHelper::IsSnapshotFile(const string& fileName) {
+    FileNameOperator::FileInfo info =
+            FileNameOperator::ParseFileName(fileName);
+    return info.type == FileNameOperator::FileType::SNAPSHOT;
+}
+
+bool DatastoreFileHelper::IsChunkFile(const string& fileName) {
+    FileNameOperator::FileInfo info =
+            FileNameOperator::ParseFileName(fileName);
+    return info.type == FileNameOperator::FileType::CHUNK;
+}
+
 }  // namespace chunkserver
 }  // namespace curve

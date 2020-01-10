@@ -31,7 +31,6 @@ DEFINE_validator(enableRecoverScheduler, &pass_bool);
 
 Coordinator::Coordinator(const std::shared_ptr<TopoAdapter> &topo) {
     this->topo_ = topo;
-    schedulerRunning_ = false;
 }
 
 Coordinator::~Coordinator() {
@@ -51,6 +50,7 @@ void Coordinator::InitScheduler(
                                               conf.transferLeaderTimeLimitSec,
                                               conf.removePeerTimeLimitSec,
                                               conf.addPeerTimeLimitSec,
+                                              conf.changePeerTimeLimitSec,
                                               conf.scatterWithRangePerent,
                                               topo_);
         LOG(INFO) << "init leader scheduler ok!";
@@ -63,6 +63,7 @@ void Coordinator::InitScheduler(
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
+                                               conf.changePeerTimeLimitSec,
                                                conf.copysetNumRangePercent,
                                                conf.scatterWithRangePerent,
                                                topo_);
@@ -76,6 +77,7 @@ void Coordinator::InitScheduler(
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
+                                               conf.changePeerTimeLimitSec,
                                                conf.scatterWithRangePerent,
                                                conf.chunkserverFailureTolerance,
                                                topo_);
@@ -89,6 +91,7 @@ void Coordinator::InitScheduler(
                                                conf.transferLeaderTimeLimitSec,
                                                conf.removePeerTimeLimitSec,
                                                conf.addPeerTimeLimitSec,
+                                               conf.changePeerTimeLimitSec,
                                                conf.scatterWithRangePerent,
                                                topo_);
         LOG(INFO) << "init replica scheduler ok!";
@@ -96,7 +99,6 @@ void Coordinator::InitScheduler(
 }
 
 void Coordinator::Run() {
-    SetSchedulerRunning(true);
     // run different scheduler at interval in different threads
     for (auto &v : schedulerController_) {
         runSchedulerThreads_[v.first] = common::Thread(
@@ -105,11 +107,13 @@ void Coordinator::Run() {
 }
 
 void Coordinator::Stop() {
-    if (schedulerRunning_) {
-        SetSchedulerRunning(false);
-        for (auto &v : schedulerController_) {
-            runSchedulerThreads_[v.first].join();
+    sleeper_.interrupt();
+    for (auto &v : schedulerController_) {
+        if (runSchedulerThreads_.find(v.first) == runSchedulerThreads_.end()) {
+            continue;
         }
+        runSchedulerThreads_[v.first].join();
+        runSchedulerThreads_.erase(v.first);
     }
 }
 
@@ -153,7 +157,7 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
 
-        // 如果addOperator或者transferLeader的candidate是offline状态，operator不应该下发 //NOLINT
+        // 如果addpeer或者transferLeader或者changepeer的candidate是offline状态，operator不应该下发 //NOLINT
         ChunkServerInfo chunkServer;
         if (!topo_->GetChunkServerInfo(res.configChangeItem, &chunkServer)) {
             LOG(ERROR) << "coordinator can not get chunkServer "
@@ -162,7 +166,8 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
             return ::curve::mds::topology::UNINTIALIZE_ID;
         }
         bool needCheckType = (res.type == ConfigChangeType::ADD_PEER ||
-            res.type == ConfigChangeType::TRANSFER_LEADER);
+            res.type == ConfigChangeType::TRANSFER_LEADER ||
+            res.type == ConfigChangeType::CHANGE_PEER);
         if (needCheckType && chunkServer.IsOffline()) {
             LOG(WARNING) << "candidate chunkserver " << chunkServer.info.id
                        << " is offline, abort config change";
@@ -188,15 +193,12 @@ ChunkServerIdType Coordinator::CopySetHeartbeat(
 
 void Coordinator::RunScheduler(
     const std::shared_ptr<Scheduler> &s, SchedulerType type) {
-    while (schedulerRunning_) {
-        std::this_thread::
-        sleep_for(std::chrono::seconds(s->GetRunningInterval()));
-
+    while (sleeper_.wait_for(std::chrono::seconds(s->GetRunningInterval()))) {
         if (ScheduleNeedRun(type)) {
             s->Schedule();
         }
     }
-    LOG(INFO) << "scheduler exit.";
+    LOG(INFO) << ScheduleName(type) << " exit.";
 }
 
 bool Coordinator::BuildCopySetConf(
@@ -220,6 +222,21 @@ bool Coordinator::BuildCopySetConf(
     replica->set_address(::curve::mds::topology::BuildPeerId(
         chunkServer.info.ip, chunkServer.info.port, 0));
     out->set_allocated_configchangeitem(replica);
+
+    // set old
+    if (res.oldOne != ::curve::mds::topology::UNINTIALIZE_ID) {
+        if (!topo_->GetChunkServerInfo(res.oldOne, &chunkServer)) {
+            LOG(ERROR) << "coordinator can not get chunkServer "
+                    << res.oldOne << " from topology";
+            return false;
+        }
+
+        auto replica = new ::curve::common::Peer();
+        replica->set_id(res.oldOne);
+        replica->set_address(::curve::mds::topology::BuildPeerId(
+            chunkServer.info.ip, chunkServer.info.port, 0));
+        out->set_allocated_oldpeer(replica);
+    }
 
     // set 副本
     for (auto peer : res.peers) {
@@ -249,13 +266,16 @@ bool Coordinator::ChunkserverGoingToAdd(
         return true;
     }
 
+    // 该operator是change类型, 并且target=csId
+    ChangePeer *cres = dynamic_cast<ChangePeer *>(op.step.get());
+    LOG(INFO) << "find operator " << op.OpToString();
+    if (cres != nullptr && csId == cres->GetTargetPeer()) {
+        LOG(INFO) << "chunkserver " << csId
+                  << " is target of pending operator " << op.OpToString();
+        return true;
+    }
+
     return false;
-}
-
-
-void Coordinator::SetSchedulerRunning(bool flag) {
-    common::LockGuard guard(mutex_);
-    schedulerRunning_ = flag;
 }
 
 bool Coordinator::ScheduleNeedRun(SchedulerType type) {
@@ -271,6 +291,22 @@ bool Coordinator::ScheduleNeedRun(SchedulerType type) {
 
         case SchedulerType::ReplicaSchedulerType:
             return FLAGS_enableReplicaScheduler;
+    }
+}
+
+std::string Coordinator::ScheduleName(SchedulerType type) {
+    switch (type) {
+        case SchedulerType::CopySetSchedulerType:
+            return "CopySetScheduler";
+
+        case SchedulerType::LeaderSchedulerType:
+            return "LeaderScheduler";
+
+        case SchedulerType::RecoverSchedulerType:
+            return "RecoverScheduler";
+
+        case SchedulerType::ReplicaSchedulerType:
+            return "ReplicaScheduler";
     }
 }
 

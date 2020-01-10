@@ -78,9 +78,10 @@ int CurveFsClientImpl::ReadChunkSnapshot(ChunkIDInfo cidinfo,
                         uint64_t seq,
                         uint64_t offset,
                         uint64_t len,
-                        char *buf) {
+                        char *buf,
+                        SnapCloneClosure* scc) {
     return client_.ReadChunkSnapshot(
-        cidinfo, seq, offset, len, buf);
+        cidinfo, seq, offset, len, buf, scc);
 }
 
 int CurveFsClientImpl::DeleteChunkSnapshotOrCorrectSn(
@@ -130,15 +131,18 @@ int CurveFsClientImpl::CreateCloneChunk(
     const ChunkIDInfo &chunkidinfo,
     uint64_t sn,
     uint64_t csn,
-    uint64_t chunkSize) {
-    return client_.CreateCloneChunk(location, chunkidinfo, sn, csn, chunkSize);
+    uint64_t chunkSize,
+    SnapCloneClosure* scc) {
+    return client_.CreateCloneChunk(
+            location, chunkidinfo, sn, csn, chunkSize, scc);
 }
 
 int CurveFsClientImpl::RecoverChunk(
     const ChunkIDInfo &chunkidinfo,
     uint64_t offset,
-    uint64_t len) {
-    return client_.RecoverChunk(chunkidinfo, offset, len);
+    uint64_t len,
+    SnapCloneClosure* scc) {
+    return client_.RecoverChunk(chunkidinfo, offset, len, scc);
 }
 
 int CurveFsClientImpl::CompleteCloneMeta(

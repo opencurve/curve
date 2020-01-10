@@ -334,6 +334,10 @@ TEST_F(TestNameServerStorageImp, test_ListSnapshotFile) {
 
 TEST_F(TestNameServerStorageImp, test_putsegment) {
     PageFileSegment segment;
+    segment.set_segmentsize(1024*1024*1024);
+    segment.set_chunksize(16*1024*1024);
+    segment.set_startoffset(0);
+    segment.set_logicalpoolid(1);
     EXPECT_CALL(*client_, PutRewithRevision(_, _, _))
         .WillOnce(Return(EtcdErrCode::OK))
         .WillOnce(Return(EtcdErrCode::Canceled));

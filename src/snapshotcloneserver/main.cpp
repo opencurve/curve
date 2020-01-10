@@ -93,8 +93,10 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
                                         &serverOption->cloneTempDir));
     LOG_IF(FATAL, !conf->GetStringValue("mds.rootUser",
                                         &serverOption->mdsRootUser));
-    LOG_IF(FATAL, !conf->GetUInt32Value("server.cloneCoreThreadNum",
-                                        &serverOption->cloneCoreThreadNum));
+    LOG_IF(FATAL, !conf->GetUInt32Value("server.createCloneChunkConcurrency",
+                            &serverOption->createCloneChunkConcurrency));
+    LOG_IF(FATAL, !conf->GetUInt32Value("server.recoverChunkConcurrency",
+                            &serverOption->recoverChunkConcurrency));
 }
 
 void LoadConfigFromCmdline(Configuration *conf) {
@@ -130,6 +132,9 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
 
     // 初始化日志模块
     google::InitGoogleLogging(argv[0]);
+
+    // 暴露配置metric
+    conf_.ExposeMetric("snapshotclone_config");
 
     // init client options
     CurveClientOptions clientOption_;
