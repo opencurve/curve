@@ -292,7 +292,7 @@ class ClientClosure : public Closure {
     // rpc 状态码
     int                                 cntlstatus_;
 
-    // cntl remote side address
+    // rpc remote side address
     std::string                         remoteAddress_;
 };
 
