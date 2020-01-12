@@ -158,6 +158,7 @@ void ClientClosure::Run() {
     chunkIdInfo_ = reqCtx_->idinfo_;
     status_ = -1;
     cntlstatus_ = cntl_->ErrorCode();
+    remoteAddress_ = butil::endpoint2str(cntl_->remote_side()).c_str();
 
     bool needRetry = false;
 
@@ -213,7 +214,8 @@ void ClientClosure::Run() {
                     << ", length=" << reqCtx_->rawlength_
                     << ", status=" << status_
                     << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-                    << ", request id = " << reqCtx_->id_;
+                    << ", request id = " << reqCtx_->id_
+                    << ", remote side = " << remoteAddress_;
             }
             break;
 
@@ -225,7 +227,8 @@ void ClientClosure::Run() {
                 << curve::chunkserver::CHUNK_OP_STATUS_Name(
                         static_cast<CHUNK_OP_STATUS>(status_))
                 << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-                << ", request id = " << reqCtx_->id_;
+                << ", request id = " << reqCtx_->id_
+                << ", remote side = " << remoteAddress_;
         }
     }
 
@@ -251,7 +254,8 @@ void ClientClosure::OnRpcFailed() {
         << ", error: " << cntl_->ErrorText()
         << ", " << *reqCtx_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
     // it will be invoked in brpc's bthread
     if (reqCtx_->optype_ == OpType::WRITE) {
@@ -288,7 +292,8 @@ void ClientClosure::OnChunkNotExist() {
         << " not exists, " << *reqCtx_
         << ", status=" << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
     auto duration = TimeUtility::GetTimeofDayUs() - reqDone_->GetStartTime();
     MetricHelper::LatencyRecord(fileMetric_, duration, reqCtx_->optype_);
@@ -301,18 +306,22 @@ void ClientClosure::OnRedirected() {
         << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
-    ChunkServerID leaderId;
+    ChunkServerID leaderId = 0;
     butil::EndPoint leaderAddr;
 
     if (response_->has_redirect()) {
         braft::PeerId leader;
         int ret = leader.parse(response_->redirect());
         if (0 == ret) {
-            metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                                    &leaderId, leader.addr);
-            return;
+            ret = metaCache_->UpdateLeader(
+                chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                &leaderId, leader.addr);
+            if (ret == 0) {
+                return;
+            }
         }
     }
 
@@ -324,7 +333,8 @@ void ClientClosure::OnCopysetNotExist() {
         << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
     RefreshLeader();
 }
@@ -387,7 +397,8 @@ void ClientClosure::OnBackward() {
         << ", length = " << reqCtx_->rawlength_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
     reqCtx_->seq_ = latestSn;
 }
@@ -398,7 +409,8 @@ void ClientClosure::OnInvalidRequest() {
         << " failed for invalid format, " << *reqCtx_
         << ", status=" << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
     MetricHelper::IncremFailRPCCount(fileMetric_, reqCtx_->optype_);
 }
 
@@ -489,18 +501,22 @@ void GetChunkInfoClosure::OnRedirected() {
         << " redirected, " << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remote side = " << remoteAddress_;
 
-    ChunkServerID leaderId;
+    ChunkServerID leaderId = 0;
     butil::EndPoint leaderAddr;
 
     if (chunkinforesponse_->has_redirect()) {
         braft::PeerId leader;
         int ret = leader.parse(chunkinforesponse_->redirect());
         if (0 == ret) {
-            metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                                     &leaderId, leader.addr);
-            return;
+            ret = metaCache_->UpdateLeader(
+                chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                &leaderId, leader.addr);
+            if (ret == 0) {
+                return;
+            }
         }
     }
 
