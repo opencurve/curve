@@ -236,7 +236,8 @@ int MetaCache::UpdateLeader(LogicPoolID logicPoolId,
         return -1;
     }
 
-    return iter->second.UpdateLeaderAndGetChunkserverID(leaderId, leaderAddr);
+    ChunkServerAddr csAddr(leaderAddr);
+    return iter->second.UpdateLeaderInfo(*leaderId, csAddr);
 }
 
 void MetaCache::UpdateChunkInfoByIndex(ChunkIndex cindex, ChunkIDInfo_t cinfo) {
