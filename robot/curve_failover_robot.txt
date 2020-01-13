@@ -447,7 +447,7 @@ test mds delay package 50ms
     check vm iops
     check data consistency
 #    check copies consistency
-    [Teardown]	   wait iops ok   ${vm_iops_limit}
+    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
 
 inject kill all mds
     [Tags]    P1    base    first release   failover
@@ -473,19 +473,6 @@ inject kill two etcd
     check data consistency
 #    check copies consistency
     [Teardown]     test start etcd
-
-
-test mds delay package 50ms
-    [Tags]    P1    base    first release   failover   
-    ${ms}  evaluate  int(50)
-    test mds delay package  ${ms}
-    test start mds
-    test start etcd
-    sleep  120
-    check vm iops
-    check data consistency
-#    check copies consistency
-    [Teardown]	   wait cluster healthy   ${vm_iops_limit}
 
 inject all chunkserver down
     [Tags]    P1    base    first release   failover
