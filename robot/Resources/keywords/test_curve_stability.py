@@ -204,7 +204,8 @@ def unlink_clone_vol(vol_uuid):
     filename = "/cinder/volume-" + vol_uuid
     user = curvefs.UserInfo_t()
     user.owner = "cinder"
-    curvefs.Unlink(filename, user) 
+    logger.debug("filename is %s"%filename)
+    curvefs.Unlink(str(filename), user) 
 
 def cancel_vol_snapshot(voluuid,snapshot_uuid):
     snap_server = random.choice(config.snap_server_list)
