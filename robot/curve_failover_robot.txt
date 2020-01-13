@@ -291,7 +291,7 @@ inject client mem stress 95%
 test chunkserver network stress
     [Tags]    P1    base    first release   failover
     ${ip}    test chunkserver network stress
-    sleep  2
+    sleep  10
     check vm iops    ${vm_iops_limit}
     check data consistency
 #    stop network stress    ${ip}    
@@ -300,7 +300,7 @@ test chunkserver network stress
 test mds network stress
     [Tags]    P1    base    first release   failover
     ${ip}    test mds network stress
-    sleep  2
+    sleep  10
     check vm iops    ${vm_iops_limit}
     check data consistency
 #    stop network stress    ${ip}
@@ -309,7 +309,7 @@ test mds network stress
 test client network stress
     [Tags]    P1    base    first release   failover
     ${ip}    test client network stress
-    sleep  2
+    sleep  10
     check vm iops    ${vm_iops_limit}
     check data consistency
 #   stop network stress    ${ip}
