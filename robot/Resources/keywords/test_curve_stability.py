@@ -204,7 +204,7 @@ def unlink_clone_vol(vol_uuid):
     filename = "/cinder/volume-" + vol_uuid
     user = curvefs.UserInfo_t()
     user.owner = "cinder"
-    curvefs.Unlink("/cinder/volume-" + vol_uuid, user) 
+    curvefs.Unlink(filename, user) 
 
 def cancel_vol_snapshot(voluuid,snapshot_uuid):
     snap_server = random.choice(config.snap_server_list)
@@ -465,7 +465,7 @@ def test_clone_iovol_consistency(lazy):
            check_snapshot_delete(vol_id,snapshot_uuid)
            clean_vol_clone(clone_vol_uuid)
            check_clone_clean(clone_vol_uuid)
-           unlink_clone_vol(clone_vol_uuid)
+           unlink_clone_vol(snapshot_uuid)
     else:
        assert False,"clone vol fail,status is %s"%rc
 
