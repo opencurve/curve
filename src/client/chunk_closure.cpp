@@ -504,16 +504,19 @@ void GetChunkInfoClosure::OnRedirected() {
         << ", request id = " << reqCtx_->id_
         << ", remote side = " << remoteAddress_;
 
-    ChunkServerID leaderId;
+    ChunkServerID leaderId = 0;
     butil::EndPoint leaderAddr;
 
     if (chunkinforesponse_->has_redirect()) {
         braft::PeerId leader;
         int ret = leader.parse(chunkinforesponse_->redirect());
         if (0 == ret) {
-            metaCache_->UpdateLeader(chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
-                                     &leaderId, leader.addr);
-            return;
+            ret = metaCache_->UpdateLeader(
+                chunkIdInfo_.lpid_, chunkIdInfo_.cpid_,
+                &leaderId, leader.addr);
+            if (ret == 0) {
+                return;
+            }
         }
     }
 
