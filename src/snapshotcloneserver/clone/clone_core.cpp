@@ -692,6 +692,8 @@ int CloneCoreImpl::RecoverChunk(
             context->totalPartNum = chunkSize / cloneChunkSplitSize_;
             context->partIndex = 0;
             context->partSize = cloneChunkSplitSize_;
+            context->taskid = task->GetTaskId();
+
             LOG(INFO) << "RecoverChunk start"
                        << ", logicalPoolId = "
                        << context->cidInfo.lpid_

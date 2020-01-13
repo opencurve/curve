@@ -5,6 +5,8 @@
  * Copyright (c) 2019 netease
  */
 
+#include <list>
+
 #include "src/snapshotcloneserver/snapshot/snapshot_task.h"
 
 namespace curve {
@@ -12,32 +14,16 @@ namespace snapshotcloneserver {
 
 void ReadChunkSnapshotClosure::Run() {
     std::unique_ptr<ReadChunkSnapshotClosure> self_guard(this);
-    int ret = GetRetCode();
-    if (ret < 0) {
+    context_->retCode_ = GetRetCode();
+    if (context_->retCode_ < 0) {
         LOG(ERROR) << "ReadChunkSnapshotClosure return fail"
-                   << ", ret = " << ret
+                   << ", ret = " << context_->retCode_
                    << ", chunkDataName = "
                    << context_->name_.ToDataChunkKey()
                    << ", index = " << context_->partIndex_;
-        tracker_->HandleResponse(ret);
-        return;
     }
-    ret = context_->dataStore_->DataChunkTranferAddPart(
-        context_->name_,
-        context_->transferTask_,
-        context_->partIndex_,
-        context_->len_,
-        context_->buf_.get());
-    if (ret < 0) {
-        LOG(ERROR) << "DataChunkTranferAddPart fail"
-                   << ", ret = " << ret
-                   << ", chunkDataName = "
-                   << context_->name_.ToDataChunkKey()
-                   << ", index = " << context_->partIndex_;
-        tracker_->HandleResponse(kErrCodeInternalError);
-        return;
-    }
-    tracker_->HandleResponse(kErrCodeSuccess);
+    tracker_->PushResultContext(context_);
+    tracker_->HandleResponse(context_->retCode_);
     return;
 }
 
@@ -75,7 +61,7 @@ int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
         return ret;
     }
 
-    auto tracker = std::make_shared<TaskTracker>();
+    auto tracker = std::make_shared<ReadChunkSnapshotTaskTracker>();
     for (uint64_t i = 0;
         i < chunkSize / chunkSplitSize;
         i++) {
@@ -85,7 +71,6 @@ int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
         context->partIndex_ = i;
         context->buf_ = std::unique_ptr<char[]>(new char[chunkSplitSize]);
         context->len_ = chunkSplitSize;
-        context->dataStore_ = dataStore_;
 
         ReadChunkSnapshotClosure *cb =
             new ReadChunkSnapshotClosure(tracker, context);
@@ -113,11 +98,33 @@ int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
     }
     if (ret >= 0) {
         tracker->Wait();
-        ret = tracker->GetResult();
-        if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "ReadChunkSnapshot tracker GetResult fail"
-                       << ", ret = " << ret;
-        } else {
+        std::list<ReadChunkSnapshotContextPtr> results =
+            tracker->PopResultContexts();
+        for (auto context : results) {
+            if (context->retCode_ < 0) {
+                ret = context->retCode_;
+                LOG(ERROR) << "ReadChunkSnapshot tracker GetResult fail"
+                           << ", ret = " << ret;
+                break;
+            } else {
+                ret = dataStore_->DataChunkTranferAddPart(
+                    context->name_,
+                    context->transferTask_,
+                    context->partIndex_,
+                    context->len_,
+                    context->buf_.get());
+                if (ret < 0) {
+                    LOG(ERROR) << "DataChunkTranferAddPart fail"
+                               << ", ret = " << ret
+                               << ", chunkDataName = "
+                               << context->name_.ToDataChunkKey()
+                               << ", index = " << context->partIndex_;
+                    break;
+                }
+            }
+        }
+
+        if (ret >= 0) {
             ret =
                 dataStore_->DataChunkTranferComplete(name, transferTask);
             if (ret < 0) {
