@@ -43,9 +43,6 @@ DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
 DEFINE_string(mdsDbName, "curve_mds", "mds db name");
 DEFINE_int32(sessionInterSec, 5, "mds session expired second");
 DEFINE_int32(updateToRepoSec, 5, "interval of update data in mds to repo");
-namespace brpc {
-DECLARE_int32(health_check_interval);
-}
 
 using ::curve::mds::kMB;
 using ::curve::mds::kGB;
@@ -281,8 +278,6 @@ void LoadConfigFromCmdline(Configuration *conf) {
 int curve_main(int argc, char **argv) {
     // google::InitGoogleLogging(argv[0]);
     google::ParseCommandLineFlags(&argc, &argv, false);
-    // 关掉健康检查
-    brpc::FLAGS_health_check_interval = -1;
 
     // =========================加载配置===============================//
     LOG(INFO) << "load mds configuration.";
