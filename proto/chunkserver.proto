@@ -8,3 +8,14 @@ message ChunkServerMetadata {
     required string token = 3;
     required uint32 checksum = 4;
 };
+
+message ChunkServerStatusRequest {
+}
+
+message ChunkServerStatusResponse {
+    required bool copysetLoadFin = 1;
+}
+
+service ChunkServerService {
+    rpc ChunkServerStatus (ChunkServerStatusRequest) returns (ChunkServerStatusResponse);
+};

@@ -416,11 +416,22 @@ int Heartbeat::ExecTask(const HeartbeatResponse& response) {
         // 根据不同的变更类型下发配置
         switch (conf.type()) {
         case curve::mds::heartbeat::TRANSFER_LEADER:
-            LOG(INFO) << "Transfer leader to "
-                << conf.configchangeitem().address() << " on copyset"
-                << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
-            copyset->TransferLeader(conf.configchangeitem());
-            break;
+            {
+                if (!HeartbeatHelper::ChunkServerLoadCopySetFin(
+                        conf.configchangeitem().address())) {
+                    LOG(INFO) << "Transfer leader to "
+                        << conf.configchangeitem().address() << " on copyset"
+                        << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid())
+                        << " reject. target chunkserver is loading copyset";
+                    break;
+                }
+
+                LOG(INFO) << "Transfer leader to "
+                    << conf.configchangeitem().address() << " on copyset"
+                    << ToGroupIdStr(conf.logicalpoolid(), conf.copysetid());
+                copyset->TransferLeader(conf.configchangeitem());
+                break;
+            }
 
         case curve::mds::heartbeat::ADD_PEER:
             LOG(INFO) << "Adding peer " << conf.configchangeitem().address()
