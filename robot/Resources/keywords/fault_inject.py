@@ -889,7 +889,7 @@ def check_copies_consistency():
 def check_data_consistency():
     try:
         #wait run 60s io
-        time.sleep(60)
+#        time.sleep(60)
         ssh = shell_operator.create_ssh_connect(config.vm_host, 22, config.vm_user)
         ori_cmd = "grep \"Data Validation error\" /root/output/ -R  && \
                 grep \"Data Validation error\" /root/nohup.out"

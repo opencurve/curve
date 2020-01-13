@@ -118,6 +118,7 @@ inject reboot vm
     sleep   5
     check vm iops
     check data consistency
+    run rwio
 #    check copies consistency
     [Teardown]	  wait cluster healthy    ${vm_iops_limit}
 
@@ -552,9 +553,6 @@ init abnormal test env
 init rw cloud disk
      remove vm key
      attach new vol   ${fio_vdsize}   ${vdbench_vdsize} 
-     stop rwio
-     sleep  5
-     write full disk   ${fio_vdsize}
      run rwio
 
 test get all chunk num
@@ -571,7 +569,7 @@ test get all chunk num
 clean failover env
      stop rwio
      check io error
-     stop scheduler
+#     stop scheduler
      check copies consistency
      detach vol
      sleep  10
