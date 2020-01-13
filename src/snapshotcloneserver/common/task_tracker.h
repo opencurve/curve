@@ -85,17 +85,34 @@ class TaskTracker : public std::enable_shared_from_this<TaskTracker> {
     int lastErr_;
 };
 
-using RecoverChunkContextPtr = std::shared_ptr<RecoverChunkContext>;
-
-class RecoverChunkTaskTracker : public TaskTracker {
+template <typename CTX>
+class ContextTaskTracker : public TaskTracker {
  public:
-     void PushResultContext(RecoverChunkContextPtr ctx);
-     std::list<RecoverChunkContextPtr> PopResultContexts();
+     void PushResultContext(const CTX &ctx);
+     std::list<CTX> PopResultContexts();
 
  private:
-    Mutex ctxMutex_;
-    std::list<RecoverChunkContextPtr> contexts_;
+     Mutex ctxMutex_;
+     std::list<CTX> contexts_;
 };
+
+template <typename CTX>
+void ContextTaskTracker<CTX>::PushResultContext(const CTX &ctx) {
+    std::unique_lock<Mutex> lk(ctxMutex_);
+    contexts_.push_back(ctx);
+}
+
+template <typename CTX>
+std::list<CTX>
+    ContextTaskTracker<CTX>::PopResultContexts() {
+    std::unique_lock<Mutex> lk(ctxMutex_);
+    std::list<CTX> ret;
+    ret.swap(contexts_);
+    return ret;
+}
+
+using RecoverChunkContextPtr = std::shared_ptr<RecoverChunkContext>;
+using RecoverChunkTaskTracker = ContextTaskTracker<RecoverChunkContextPtr>;
 
 }  // namespace snapshotcloneserver
 }  // namespace curve

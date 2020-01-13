@@ -43,20 +43,5 @@ void TaskTracker::WaitSome(uint32_t num) {
             (max - concurrent_.load(std::memory_order_acquire) >= num);});
 }
 
-void RecoverChunkTaskTracker::PushResultContext(RecoverChunkContextPtr ctx) {
-    std::unique_lock<Mutex> lk(ctxMutex_);
-    contexts_.push_back(ctx);
-}
-
-std::list<RecoverChunkContextPtr>
-    RecoverChunkTaskTracker::PopResultContexts() {
-    std::unique_lock<Mutex> lk(ctxMutex_);
-    std::list<RecoverChunkContextPtr> ret;
-    ret.swap(contexts_);
-    return ret;
-}
-
-
-
 }  // namespace snapshotcloneserver
 }  // namespace curve
