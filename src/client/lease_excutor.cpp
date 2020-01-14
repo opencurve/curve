@@ -62,7 +62,7 @@ void LeaseExcutor::RefreshLease() {
         LOG(INFO) << "lease not valid!";
         iomanager_->LeaseTimeoutBlockIO();
     }
-    leaseRefreshResult response;
+    LeaseRefreshResult response;
     LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.fullPathName,
                                                     userinfo_,
                                                     leasesession_.sessionID,
@@ -78,12 +78,12 @@ void LeaseExcutor::RefreshLease() {
         return;
     }
 
-    if (response.status == leaseRefreshResult::Status::OK) {
+    if (response.status == LeaseRefreshResult::Status::OK) {
         CheckNeedUpdateVersion(response.finfo.seqnum);
         failedrefreshcount_.store(0);
         isleaseAvaliable_.store(true);
         iomanager_->RefeshSuccAndResumeIO();
-    } else if (response.status == leaseRefreshResult::Status::NOT_EXIST) {
+    } else if (response.status == LeaseRefreshResult::Status::NOT_EXIST) {
         iomanager_->LeaseTimeoutBlockIO();
         refreshTask_->SetDeleteSelf();
         isleaseAvaliable_.store(false);

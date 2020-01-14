@@ -23,7 +23,7 @@ namespace client {
  * 如果session存在但是lease续约失败,继续血月
  * 续约成功了FInfo_t中才会有对应的文件信息
  */
-struct leaseRefreshResult {
+struct LeaseRefreshResult {
     enum Status {
         OK,
         FAILED,

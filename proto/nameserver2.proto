@@ -364,6 +364,7 @@ message ReFreshSessionResponse {
     required StatusCode statusCode = 1;
     required string     sessionID = 2;
     optional FileInfo   fileInfo = 3;
+    optional ProtoSession protoSession = 4;
 };
 
 

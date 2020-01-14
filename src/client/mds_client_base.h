@@ -100,6 +100,7 @@ class MDSClientBase {
                   OpenFileResponse* response,
                   brpc::Controller* cntl,
                   brpc::Channel* channel);
+
     /**
      * 创建文件
      * @param: filename创建文件的文件名
@@ -207,7 +208,7 @@ class MDSClientBase {
                     brpc::Channel* channel);
     /**
      * 文件接口在打开文件的时候需要与mds保持心跳，refresh用来续约
-     * 续约结果将会通过leaseRefreshResult* resp返回给调用层
+     * 续约结果将会通过LeaseRefreshResult* resp返回给调用层
      * @param: filename是要续约的文件名
      * @param: sessionid是文件的session信息
      * @param[out]: response为该rpc的response，提供给外部处理
