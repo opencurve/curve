@@ -363,9 +363,10 @@ TEST_F(SessionTest, refresh_session_test) {
 
     // 等session过期
     usleep(sessionOptions_.leaseTimeUs);
-
+    ProtoSession protoSession;
     ASSERT_EQ(sessionManager_.UpdateSession("/file1", protoSession1.sessionid(),
-                                        "test_signature", "127.0.0.1"),
+                                            "test_signature", "127.0.0.1",
+                                            &protoSession),
                 StatusCode::kOK);
 
     SessionRepoItem sessionRepo("/file1", "sessionid",

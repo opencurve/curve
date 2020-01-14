@@ -124,7 +124,9 @@ int FileInstance::AioWrite(CurveAioContext* aioctx) {
 //    这时候当前还没有成功打开，所以还没有存储该session信息，所以无法通过refresh
 //    再去打开，所以这时候需要获取mds一侧session lease时长，然后在client这一侧
 //    等待一段时间再去Open，如果依然失败，就向上层返回失败。
-int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
+int FileInstance::Open(const std::string& filename,
+                       const UserInfo& userinfo,
+                       std::string* sessionId) {
     LeaseSession_t  lease;
     int ret = LIBCURVE_ERROR::FAILED;
 
@@ -132,8 +134,50 @@ int FileInstance::Open(const std::string& filename, UserInfo_t userinfo) {
     if (ret == LIBCURVE_ERROR::OK) {
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
+        if (nullptr != sessionId) {
+            sessionId->assign(lease.sessionID);
+        }
     }
     return -ret;
+}
+
+int FileInstance::ReOpen(const std::string& filename,
+                         const std::string& sessionId,
+                         const UserInfo& userInfo,
+                         std::string* newSessionId) {
+    if (!newSessionId) {
+        LOG(ERROR) << "The argument newSessionId is nullptr";
+        return -1;
+    }
+    LeaseRefreshResult response;
+    LeaseSession_t lease;
+    LIBCURVE_ERROR ret = mdsclient_->RefreshSession(finfo_.fullPathName,
+                                                    userInfo,
+                                                    sessionId,
+                                                    &response,
+                                                    &lease);
+    if (LIBCURVE_ERROR::OK != ret) {
+        LOG(ERROR) << "ReOpen file " << filename
+                   << " fail, RefreshSession from mds fail";
+        return ret;
+    }
+
+    if (response.status == LeaseRefreshResult::Status::OK) {
+        newSessionId->assign(lease.sessionID);
+        ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
+                                                  : LIBCURVE_ERROR::FAILED;
+        LOG(INFO) << "ReOpen success, filename = "
+                  << filename
+                  << ", owner = " << userInfo.owner;
+        return -ret;
+    } else if (response.status == LeaseRefreshResult::Status::NOT_EXIST) {
+        LOG(WARNING) << "ReOpen " << filename
+            << " failed for session not exist, try Open directly";
+        return Open(filename, userInfo, newSessionId);
+    } else {
+        LOG(ERROR) << "ReOpen " << filename << " failed";
+        return -LIBCURVE_ERROR::FAILED;
+    }
 }
 
 int FileInstance::GetFileInfo(const std::string& filename, FInfo_t* fi) {
