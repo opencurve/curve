@@ -205,9 +205,18 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
                 info->set_length(4 * 1024 * 1024 * 1024ul);
                 info->set_ctime(12345678);
 
+                curve::mds::ProtoSession *protoSession =
+                                        new curve::mds::ProtoSession();
+                protoSession->set_sessionid("1234");
+                protoSession->set_createtime(12345);
+                protoSession->set_leasetime(10000000);
+                protoSession->set_sessionstatus(
+                            ::curve::mds::SessionStatus::kSessionOK);
+
                 response->set_statuscode(::curve::mds::StatusCode::kOK);
                 response->set_sessionid("1234");
                 response->set_allocated_fileinfo(info);
+                response->set_allocated_protosession(protoSession);
                 LOG(INFO) << "refresh session request!";
             } else {
                 response->CopyFrom(*resp);
@@ -1015,3 +1024,4 @@ class FakeMDS {
 };
 
 #endif   // TEST_CLIENT_FAKE_FAKEMDS_H_
+

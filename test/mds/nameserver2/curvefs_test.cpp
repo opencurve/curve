@@ -2364,31 +2364,36 @@ TEST_F(CurveFSTest, testRefreshSession) {
     // 文件不存在
     {
         FileInfo  fileInfo1;
+        ProtoSession protoSession1;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
         ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
                                     "signaturexxxx", "127.0.0.1",
-                                    &fileInfo1),
+                                    &fileInfo1,
+                                    &protoSession1),
                   StatusCode::kFileNotExists);
     }
 
     // 更新session失败
     {
         FileInfo  fileInfo1;
+        ProtoSession protoSession1;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
         ASSERT_EQ(curvefs_->RefreshSession("/file1", "sessionidxxxxx", 12345,
                                     "signaturexxxx", "127.0.0.1",
-                                    &fileInfo1),
+                                    &fileInfo1,
+                                    &protoSession1),
                   StatusCode::kSessionNotExist);
     }
 
     // 执行成功
     {
         FileInfo  fileInfo1;
+        ProtoSession protoSession1;
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
@@ -2396,7 +2401,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
         uint64_t date = ::curve::common::TimeUtility::GetTimeofDayUs();
         ASSERT_EQ(curvefs_->RefreshSession("/file1", protoSession.sessionid(),
                                 date, "signaturexxxx", "127.0.0.1",
-                                    &fileInfo1),
+                                    &fileInfo1, &protoSession1),
                   StatusCode::kOK);
     }
 
