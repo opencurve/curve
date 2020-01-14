@@ -553,6 +553,8 @@ init abnormal test env
 init rw cloud disk
      remove vm key
      attach new vol   ${fio_vdsize}   ${vdbench_vdsize} 
+     stop rwio
+     write full disk  ${fio_vdsize}
      run rwio
 
 test get all chunk num
