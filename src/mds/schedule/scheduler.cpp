@@ -60,9 +60,12 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
     const CopySetInfo &copySetInfo, ChunkServerIdType oldPeer) {
     // 同一物理池中的所有chunkserver
     ChunkServerInfo oldPeerInfo;
-    if (!topo_->GetChunkServerInfo(oldPeer, &oldPeerInfo)) {
-        LOG(ERROR) << "TopoAdapter cannot get info of chunkserver " << oldPeer;
-        return UNINTIALIZE_ID;
+    if (oldPeer != UNINTIALIZE_ID) {
+        if (!topo_->GetChunkServerInfo(oldPeer, &oldPeerInfo)) {
+            LOG(ERROR) << "TopoAdapter cannot get info of chunkserver "
+                << oldPeer;
+            return UNINTIALIZE_ID;
+        }
     }
     std::vector<ChunkServerInfo> chunkServers =
         topo_->GetChunkServersInLogicalPool(copySetInfo.id.first);
@@ -141,7 +144,7 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
                 minScatterWidth, scatterWidthRangePerent_, &affected)) {
             LOG(INFO) << "SelectBestPlacementChunkServer select " << target
                       << " for " << copySetInfo.CopySetInfoStr()
-                      << " to replace " << oldPeerInfo.info.id
+                      << " to replace " << oldPeer
                       << ", all replica satisfy scatter width of migration";
             return target;
         } else {
@@ -157,7 +160,7 @@ ChunkServerIdType Scheduler::SelectBestPlacementChunkServer(
     LOG(INFO) << "SelectBestPlacementChunkServer select "
               << candidates[candidates.size() - 1].first
               << " for " << copySetInfo.CopySetInfoStr()
-              << " to replace " << oldPeerInfo.info.id
+              << " to replace " << oldPeer
               << ", target has least influence for migration";
     return candidates[candidates.size() - 1].first;
 }
