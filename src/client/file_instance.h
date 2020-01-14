@@ -51,7 +51,21 @@ class CURVE_CACHELINE_ALIGNMENT FileInstance {
      * @return: 成功返回LIBCURVE_ERROR::OK,否则LIBCURVE_ERROR::FAILED
      */
     int Open(const std::string& filename,
-                        UserInfo_t userinfo);
+             const UserInfo& userinfo,
+             std::string* sessionId = nullptr);
+
+    /**
+     * 重新打开文件
+     * @param filename为文件名
+     * @param sessionId为上次打开文件时返回的sessionid
+     * @param userInfo为user信息
+     * @param[out] newSessionId为ReOpen成功时返回的新sessionid
+     * @return 成功返回LIBCURVE_ERROR::OK, 否则LIBCURVE_ERROR::FAILED
+     */
+    int ReOpen(const std::string& filenam,
+               const std::string& sessionId,
+               const UserInfo& userInfo,
+               std::string* newSessionId);
     /**
      * 同步模式读
      * @param: buf为当前待读取的缓冲区
