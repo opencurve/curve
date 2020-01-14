@@ -15,6 +15,7 @@
 #include <unordered_map>  // NOLINT
 #include <unordered_set>  // NOLINT
 #include <memory>
+#include <string>
 
 #include "proto/chunk.pb.h"
 #include "src/client/client_config.h"
@@ -235,6 +236,9 @@ class ClientClosure : public Closure {
 
     // rpc 状态码
     int                                 cntlstatus_;
+
+    // cntl remote side address
+    std::string                         remoteAddress_;
 };
 
 class WriteChunkClosure : public ClientClosure {
