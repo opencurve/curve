@@ -100,7 +100,8 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectNone) {
         .WillOnce(Return(3));
     EXPECT_CALL(*topoAdapter_, GetCopySetInfos())
         .WillOnce(Return(std::vector<CopySetInfo>({testCopySetInfo})));
-    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(UNINTIALIZE_ID, _))
+        .Times(0);
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
             .WillOnce(Return(std::vector<ChunkServerInfo>{}));
     replicaScheduler_->Schedule();
@@ -129,7 +130,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_conExceed) {
 
     std::vector<ChunkServerInfo> chunkserverList(
         {csInfo1, csInfo2, csInfo3});
-    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).Times(0);
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
         .WillOnce(Return(chunkserverList));
     EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
@@ -169,7 +170,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_selectCorrect) {
 
     std::vector<ChunkServerInfo> chunkserverList(
         {csInfo1, csInfo2, csInfo3});
-    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).Times(0);
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
         .WillOnce(Return(chunkserverList));
     EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
@@ -220,7 +221,7 @@ TEST_F(TestReplicaSchedule, test_copySet_has_smaller_replicaNum_createErr) {
 
     std::vector<ChunkServerInfo> chunkserverList(
         {csInfo1, csInfo2, csInfo3});
-    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).WillOnce(Return(true));
+    EXPECT_CALL(*topoAdapter_, GetChunkServerInfo(_, _)).Times(0);
     EXPECT_CALL(*topoAdapter_, GetChunkServersInLogicalPool(_))
         .WillOnce(Return(chunkserverList));
     EXPECT_CALL(*topoAdapter_, GetStandardZoneNumInLogicalPool(_))
