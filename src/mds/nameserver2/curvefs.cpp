@@ -1183,7 +1183,8 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
                             const uint64_t date,
                             const std::string &signature,
                             const std::string &clientIP,
-                            FileInfo  *fileInfo) {
+                            FileInfo  *fileInfo,
+                            ProtoSession *protoSession) {
     // 检查文件是否存在
     StatusCode ret;
     ret = GetFileInfo(fileName, fileInfo);
@@ -1210,7 +1211,7 @@ StatusCode CurveFS::RefreshSession(const std::string &fileName,
     }
 
     ret = sessionManager_->UpdateSession(fileName, sessionid,
-                                            signature, clientIP);
+                                         signature, clientIP, protoSession);
     // 目前UpdateSession只有一种异常情况StatusCode::kSessionNotExist
     if (ret != StatusCode::kOK) {
         LOG(WARNING) << "RefreshSession update session fail, fileName = "

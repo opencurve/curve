@@ -290,6 +290,7 @@ class CurveFS {
      *         signature: 用来进行请求的身份验证
      *         clientIP: clientIP
      *         fileInfo: 返回打开的文件信息
+     *         protoSession: 返回session详细信息
      *  @return 是否成功，成功返回StatusCode::kOK
      */
     StatusCode RefreshSession(const std::string &filename,
@@ -297,7 +298,8 @@ class CurveFS {
                               const uint64_t date,
                               const std::string &signature,
                               const std::string &clientIP,
-                              FileInfo  *fileInfo);
+                              FileInfo  *fileInfo,
+                              ProtoSession *protoSession);
 
     /**
      * @breif 创建克隆文件，当前克隆文件的创建只有root用户能够创建

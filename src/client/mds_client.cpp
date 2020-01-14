@@ -631,7 +631,7 @@ LIBCURVE_ERROR MDSClient::GetSnapshotSegmentInfo(const std::string& filename,
 
 LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
     const UserInfo_t& userinfo, const std::string& sessionid,
-    leaseRefreshResult* resp) {
+    LeaseRefreshResult* resp, LeaseSession* lease) {
     auto task = RPCTaskDefine {
         ReFreshSessionResponse response;
         mdsClientMetric_.refreshSession.qps.count << 1;
@@ -664,24 +664,34 @@ LIBCURVE_ERROR MDSClient::RefreshSession(const std::string& filename,
         switch (stcode) {
             case StatusCode::kSessionNotExist:
             case StatusCode::kFileNotExists:
-                resp->status = leaseRefreshResult::Status::NOT_EXIST;
+                resp->status = LeaseRefreshResult::Status::NOT_EXIST;
                 break;
             case StatusCode::kOwnerAuthFail:
-                resp->status = leaseRefreshResult::Status::FAILED;
+                resp->status = LeaseRefreshResult::Status::FAILED;
                 return LIBCURVE_ERROR::AUTHFAIL;
                 break;
             case StatusCode::kOK:
                 if (response.has_fileinfo()) {
                     FileInfo finfo = response.fileinfo();
                     ServiceHelper::ProtoFileInfo2Local(&finfo, &resp->finfo);
-                    resp->status = leaseRefreshResult::Status::OK;
+                    resp->status = LeaseRefreshResult::Status::OK;
                 } else {
                     LOG(WARNING) << "session response has no fileinfo!";
                     return LIBCURVE_ERROR::FAILED;
                 }
+                if (nullptr != lease) {
+                    if (!response.has_protosession()) {
+                        LOG(ERROR) << "session response has no protosession";
+                        return LIBCURVE_ERROR::FAILED;
+                    }
+                    ProtoSession leasesession = response.protosession();
+                    lease->sessionID = leasesession.sessionid();
+                    lease->leaseTime = leasesession.leasetime();
+                    lease->createTime = leasesession.createtime();
+                }
                 break;
             default:
-                resp->status = leaseRefreshResult::Status::FAILED;
+                resp->status = LeaseRefreshResult::Status::FAILED;
                 return LIBCURVE_ERROR::FAILED;
                 break;
         }

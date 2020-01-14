@@ -180,14 +180,18 @@ void FileClient::UnInit() {
     inited_ = false;
 }
 
-int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
+int FileClient::Open(const std::string& filename,
+                     const UserInfo_t& userinfo,
+                     std::string* sessionId) {
     FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, false);
     if (fileserv == nullptr) {
+        LOG(ERROR) << "GetInitedFileInstance fail";
         return -1;
     }
 
-    int ret = fileserv->Open(filename, userinfo);
+    int ret = fileserv->Open(filename, userinfo, sessionId);
     if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "Open file fail, retCode = " << ret;
         fileserv->UnInitialize();
         delete fileserv;
         return ret;
@@ -202,10 +206,40 @@ int FileClient::Open(const std::string& filename, const UserInfo_t& userinfo) {
     return fd;
 }
 
+int FileClient::ReOpen(const std::string& filename,
+                       const std::string& sessionId,
+                       const UserInfo& userInfo,
+                       std::string* newSessionId) {
+    FileInstance* fileInstance =
+        GetInitedFileInstance(filename, userInfo, false);
+    if (nullptr == fileInstance) {
+        LOG(ERROR) << "GetInitedFileInstance fail";
+        return -1;
+    }
+
+    int ret = fileInstance->ReOpen(filename, sessionId, userInfo, newSessionId);
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "ReOpen file fail, retCode = " << ret;
+        fileInstance->UnInitialize();
+        delete fileInstance;
+        return -1;
+    }
+
+    int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
+
+    {
+        WriteLockGuard wlk(rwlock_);
+        fileserviceMap_[fd] = fileInstance;
+    }
+
+    return fd;
+}
+
 int FileClient::Open4ReadOnly(const std::string& filename,
     const UserInfo_t& userinfo) {
     FileInstance* fileserv = GetInitedFileInstance(filename, userinfo, true);
     if (fileserv == nullptr) {
+        LOG(ERROR) << "GetInitedFileInstance fail";
         return -1;
     }
 

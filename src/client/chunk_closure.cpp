@@ -158,6 +158,7 @@ void ClientClosure::Run() {
     chunkIdInfo_ = reqCtx_->idinfo_;
     status_ = -1;
     cntlstatus_ = cntl_->ErrorCode();
+    remoteAddress_ = butil::endpoint2str(cntl_->remote_side()).c_str();
 
     bool needRetry = false;
 
@@ -206,7 +207,8 @@ void ClientClosure::Run() {
                 << curve::chunkserver::CHUNK_OP_STATUS_Name(
                         static_cast<CHUNK_OP_STATUS>(status_))
                 << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-                << ", request id = " << reqCtx_->id_;
+                << ", request id = " << reqCtx_->id_
+                << ", remoet side = " << remoteAddress_;
         }
     }
 
@@ -232,7 +234,9 @@ void ClientClosure::OnRpcFailed() {
         << ", error: " << cntl_->ErrorText()
         << ", " << *reqCtx_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remoet side = " << remoteAddress_;
+
 
     // it will be invoked in brpc's bthread
     if (reqCtx_->optype_ == OpType::WRITE) {
@@ -269,7 +273,8 @@ void ClientClosure::OnChunkNotExist() {
         << " not exists, " << *reqCtx_
         << ", status=" << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remoet side = " << remoteAddress_;
 
     auto duration = TimeUtility::GetTimeofDayUs() - reqDone_->GetStartTime();
     MetricHelper::LatencyRecord(fileMetric_, duration, reqCtx_->optype_);
@@ -282,7 +287,10 @@ void ClientClosure::OnRedirected() {
         << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", redirect leader is "
+        << (response_->has_redirect() ? response_->redirect() : "empty")
+        << ", remoet side = " << remoteAddress_;
 
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
@@ -305,7 +313,8 @@ void ClientClosure::OnCopysetNotExist() {
         << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remoet side = " << remoteAddress_;
 
     RefreshLeader();
 }
@@ -361,7 +370,8 @@ void ClientClosure::OnInvalidRequest() {
         << " failed for invalid format, " << *reqCtx_
         << ", status=" << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", remoet side = " << remoteAddress_;
     MetricHelper::IncremFailRPCCount(fileMetric_, reqCtx_->optype_);
 }
 
@@ -452,7 +462,11 @@ void GetChunkInfoClosure::OnRedirected() {
         << " redirected, " << *reqCtx_
         << ", status = " << status_
         << ", IO id = " << reqDone_->GetIOTracker()->GetID()
-        << ", request id = " << reqCtx_->id_;
+        << ", request id = " << reqCtx_->id_
+        << ", redirect leader is "
+        << (chunkinforesponse_->has_redirect() ? chunkinforesponse_->redirect()
+                                               : "empty")
+        << ", remoet side = " << remoteAddress_;
 
     ChunkServerID leaderId;
     butil::EndPoint leaderAddr;
