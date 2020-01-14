@@ -349,7 +349,7 @@ def create_pool():
         ssh2 = shell_operator.create_ssh_connect(host, 1046, config.abnormal_user)
         ori_cmd = "sudo nohup ./chunkserver_ctl.sh start all &"
         shell_operator.ssh_background_exec2(ssh2, ori_cmd)
-    time.sleep(120)
+    time.sleep(60)
     logical_pool = "curve-tool -copyset_num=4000  -mds_addr=%s\
      -physicalpool_name=pool1 -op=create_logicalpool"%(mds_addrs)
     rs = shell_operator.ssh_exec(ssh, logical_pool)
@@ -388,7 +388,7 @@ def wait_cinder_server_up():
        time.sleep(5)
     assert status == "up","up curve2 cinder service fail,please check"
     if status == "up":
-       time.sleep(60)
+       time.sleep(10)
 
 
 
