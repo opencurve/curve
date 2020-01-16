@@ -96,7 +96,8 @@ void CurveCluster::StopCluster() {
 
 void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
                                 const std::vector<std::string> &mdsConf,
-                                bool expectLeader, bool expectAssert) {
+                                bool expectLeader, bool expectAssert,
+                                bool* startsuccess) {
     LOG(INFO) << "start mds " << ipPort << " begin...";
     pid_t pid = ::fork();
     if (0 > pid) {
@@ -111,7 +112,6 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         for (auto &item : mdsConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         if (expectAssert) {
             int ret = execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
             // 使用error级别，帮助收集日志
@@ -126,7 +126,15 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
     }
 
     if (expectAssert) {
-        ASSERT_EQ(0, ProbePort(ipPort, 20000, expectLeader));
+        int ret = ProbePort(ipPort, 20000, expectLeader);
+        if (startsuccess != nullptr) {
+            if (ret == 0) {
+                *startsuccess = true;
+            } else {
+                *startsuccess = false;
+                return;
+            }
+        }
     }
 
     ASSERT_EQ(0, ProbePort(ipPort, 20000, expectLeader))
@@ -190,7 +198,6 @@ void CurveCluster::StartSnapshotCloneServer(int id, const std::string &ipPort,
         for (auto &item : snapshotcloneConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
@@ -281,7 +288,6 @@ void CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
             cmd_dir += item;
         }
 
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
@@ -413,7 +419,6 @@ void CurveCluster::StartSingleChunkServer(int id, const std::string &ipPort,
         for (auto &item : chunkserverConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
@@ -447,7 +452,6 @@ void CurveCluster::StartSingleChunkServerInBackground(
         for (auto &item : chunkserverConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
