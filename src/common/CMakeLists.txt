@@ -4,6 +4,10 @@ file(GLOB COMMON_SRC
     "*.cpp"
 )
 
+file (GLOB PROTO_FILES
+    "*.proto"
+)
+
 add_library(nebd_common SHARED ${COMMON_SRC})
 install(TARGETS nebd_common DESTINATION lib)
 target_link_libraries(nebd_common ${EXTRALIBS})
@@ -12,6 +16,6 @@ target_link_libraries(nebd_common ${EXTRALIBS})
 include(FindProtobuf)
 FIND_PACKAGE(Protobuf REQUIRED)
 include_directories(${PROTOBUF_INCLUDE_DIR})
-protobuf_generate_cpp(PROTO_SRC PROTO_HEADER client.proto)
+protobuf_generate_cpp(PROTO_SRC PROTO_HEADER ${PROTO_FILES})
 add_library(client_proto ${PROTO_HEADER} ${PROTO_SRC})
 install(TARGETS client_proto DESTINATION lib)

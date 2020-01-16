@@ -18,8 +18,8 @@ set(LIBNEBD_SRC
     libnebd_file.h
     nebd_client.cpp
     nebd_client.h
-    nebd_lifecycle.cpp
-    nebd_lifecycle.h)
+    connection_manager.cpp
+    connection_manager.h)
 set(LIBNEBD_LINK
     brpc-shared
     rt

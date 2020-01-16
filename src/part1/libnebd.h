@@ -23,6 +23,8 @@ extern "C" {
 
 // 文件路径最大的长度，单位字节
 #define NEBD_MAX_FILE_PATH_LEN   1024
+
+// Note: 这个需要评估是否要去掉，之前出现过上层IO超过32MB的情况
 // 请求的buf的最大长度，读写操作的buf长度不得超过该值，单位字节
 #define NEBD_MAX_BUF_LEN         1024 * 1024 * 32
 
@@ -34,12 +36,12 @@ typedef enum LIBAIO_OP {
     LIBAIO_OP_FLUSH,
 } LIBAIO_OP;
 
-struct ClientAioContext;
+struct NebdClientAioContext;
 
 // nebd回调函数的类型
-typedef void (*LibAioCallBack)(struct ClientAioContext* context);
+typedef void (*LibAioCallBack)(struct NebdClientAioContext* context);
 
-typedef struct ClientAioContext {
+struct NebdClientAioContext {
     off_t offset;             // 请求的offset
     size_t length;            // 请求的length
     int ret;                  // 记录异步返回的返回值
@@ -47,7 +49,7 @@ typedef struct ClientAioContext {
     LibAioCallBack cb;        // 异步请求的回调函数
     void* buf;                // 请求的buf
     unsigned int retryCount;  // 记录异步请求的重试次数
-} ClientAioContext;
+};
 
 // int nebd_lib_fini(void);
 // for ceph & curve
@@ -105,7 +107,7 @@ int nebd_lib_pwrite(int fd, const void* buf, off_t offset, size_t length);
  *         context：异步请求的上下文，包含请求所需的信息以及回调
  *  @return 成功返回0，失败返回错误码
  */
-int nebd_lib_discard(int fd, ClientAioContext* context);
+int nebd_lib_discard(int fd, NebdClientAioContext* context);
 
 /**
  *  @brief 读文件，异步函数
@@ -113,7 +115,7 @@ int nebd_lib_discard(int fd, ClientAioContext* context);
  *         context：异步请求的上下文，包含请求所需的信息以及回调
  *  @return 成功返回0，失败返回错误码
  */
-int nebd_lib_aio_pread(int fd, ClientAioContext* context);
+int nebd_lib_aio_pread(int fd, NebdClientAioContext* context);
 
 /**
  *  @brief 写文件，异步函数
@@ -121,7 +123,7 @@ int nebd_lib_aio_pread(int fd, ClientAioContext* context);
  *         context：异步请求的上下文，包含请求所需的信息以及回调
  *  @return 成功返回0，失败返回错误码
  */
-int nebd_lib_aio_pwrite(int fd, ClientAioContext* context);
+int nebd_lib_aio_pwrite(int fd, NebdClientAioContext* context);
 
 /**
  *  @brief sync文件
@@ -152,7 +154,7 @@ int nebd_lib_resize(int fd, int64_t size);
  *         context：异步请求的上下文，包含请求所需的信息以及回调
  *  @return 成功返回0，失败返回错误码
  */
-int nebd_lib_flush(int fd, ClientAioContext* context);
+int nebd_lib_flush(int fd, NebdClientAioContext* context);
 
 /**
  *  @brief 获取文件info

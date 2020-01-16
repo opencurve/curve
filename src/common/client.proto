@@ -1,10 +1,9 @@
 syntax="proto2";
+import "common.proto";
+
 package nebd.client;
+
 option cc_generic_services = true;
-enum RetCode {
-   kNoOK = -1;
-   kOK = 0;
-}
 
 message OpenFileRequest {
    required string fileName = 1;
@@ -102,7 +101,7 @@ message InvalidateCacheResponse {
    optional string retMsg = 2;
 }
 
-service QemuClientService {
+service NebdFileService {
    // for ceph & curve
    rpc OpenFile(OpenFileRequest) returns (OpenFileResponse);
    rpc CloseFile(CloseFileRequest) returns (CloseFileResponse);

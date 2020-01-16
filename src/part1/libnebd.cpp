@@ -10,13 +10,15 @@
 
 extern "C" {
 bool g_inited = false;
+
+// Note: 配置文件路径是否有上层传下来比较合适，评估是否要修改
 const char* confpath = "/etc/nebd/nebd-client.conf";
 int nebd_lib_init() {
     if (g_inited) {
         return 0;
     }
 
-    int ret = Init4Qemu(confpath);
+    int ret = Init4Nebd(confpath);
     if (ret != 0) {
         return ret;
     }
@@ -28,7 +30,7 @@ int nebd_lib_init() {
 
 int nebd_lib_uninit() {
     if (g_inited) {
-        Uninit4Qemu();
+        Uninit4Nebd();
         g_inited = false;
     }
 
@@ -36,11 +38,11 @@ int nebd_lib_uninit() {
 }
 
 int nebd_lib_open(const char* filename) {
-    return Open4Qemu(filename);
+    return Open4Nebd(filename);
 }
 
 int nebd_lib_close(int fd) {
-    return Close4Qemu(fd);
+    return Close4Nebd(fd);
 }
 
 int nebd_lib_pread(int fd, void* buf, off_t offset, size_t length) {
@@ -53,16 +55,16 @@ int nebd_lib_pwrite(int fd, const void* buf, off_t offset, size_t length) {
     return -1;
 }
 
-int nebd_lib_discard(int fd, ClientAioContext* context) {
-    return Discard4Qemu(fd, context);
+int nebd_lib_discard(int fd, NebdClientAioContext* context) {
+    return Discard4Nebd(fd, context);
 }
 
-int nebd_lib_aio_pread(int fd, ClientAioContext* context) {
-    return AioRead4Qemu(fd, context);
+int nebd_lib_aio_pread(int fd, NebdClientAioContext* context) {
+    return AioRead4Nebd(fd, context);
 }
 
-int nebd_lib_aio_pwrite(int fd, ClientAioContext* context) {
-    return AioWrite4Qemu(fd, context);
+int nebd_lib_aio_pwrite(int fd, NebdClientAioContext* context) {
+    return AioWrite4Nebd(fd, context);
 }
 
 int nebd_lib_sync(int fd) {
@@ -70,23 +72,23 @@ int nebd_lib_sync(int fd) {
 }
 
 int64_t nebd_lib_filesize(int fd) {
-    return StatFile4Qemu(fd);
+    return StatFile4Nebd(fd);
 }
 
 int nebd_lib_resize(int fd, int64_t size) {
-    return Extend4Qemu(fd, size);
+    return Extend4Nebd(fd, size);
 }
 
-int nebd_lib_flush(int fd, ClientAioContext* context) {
-    return Flush4Qemu(fd, context);
+int nebd_lib_flush(int fd, NebdClientAioContext* context) {
+    return Flush4Nebd(fd, context);
 }
 
 int64_t nebd_lib_getinfo(int fd) {
-    return GetInfo4Qemu(fd);
+    return GetInfo4Nebd(fd);
 }
 
 int nebd_lib_invalidcache(int fd) {
-    return InvalidCache4Qemu(fd);
+    return InvalidCache4Nebd(fd);
 }
 
 }  // extern "C"

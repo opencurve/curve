@@ -1,0 +1,8 @@
+syntax="proto2";
+package nebd.client;
+option cc_generic_services = true;
+
+enum RetCode {
+   kNoOK = -1;
+   kOK = 0;
+};
