@@ -11,6 +11,9 @@
 
 #include<string>
 #include <vector>
+#include <memory>
+#include <chrono>  //NOLINT
+#include <thread>  //NOLINT
 #include "proto/nameserver2.pb.h"
 #include "proto/chunk.pb.h"
 
@@ -19,6 +22,7 @@
 #include "src/client/libcurve_file.h"
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
+#include "src/common/timeutility.h"
 
 using ::curve::client::SegmentInfo;
 using ::curve::client::LogicPoolID;
@@ -29,9 +33,46 @@ using ::curve::client::ChunkIDInfo;
 using ::curve::client::FInfo;
 using ::curve::client::FileStatus;
 using ::curve::client::SnapCloneClosure;
+using ::curve::client::UserInfo;
+using ::curve::client::SnapshotClient;
+using ::curve::client::FileClient;
 
 namespace curve {
 namespace snapshotcloneserver {
+
+using RetryMethod = std::function<int()>;
+using RetryCondition = std::function<bool(int)>;
+
+class RetryHelper {
+ public:
+    RetryHelper(const RetryMethod &retryMethod,
+        const RetryCondition &condition) {
+        retryMethod_ = retryMethod;
+        condition_ = condition;
+    }
+
+    int RetryTimeSecAndReturn(
+        uint64_t retryTimeSec,
+        uint64_t retryIntervalMs) {
+        int ret = -LIBCURVE_ERROR::FAILED;
+        uint64_t startTime = TimeUtility::GetTimeofDaySec();
+        uint64_t nowTime = startTime;
+        do {
+            ret = retryMethod_();
+            if (!condition_(ret)) {
+                return ret;
+            }
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(retryIntervalMs));
+            nowTime = TimeUtility::GetTimeofDaySec();
+        } while (nowTime - startTime < retryTimeSec);
+        return ret;
+    }
+
+ private:
+    RetryMethod  retryMethod_;
+    RetryCondition condition_;
+};
 
 class CurveFsClient {
  public:
@@ -44,6 +85,7 @@ class CurveFsClient {
      * @return 错误码
      */
     virtual int Init(const CurveClientOptions &options) = 0;
+
     /**
      * @brief client 资源回收
      *
@@ -126,17 +168,6 @@ class CurveFsClient {
                         uint64_t len,
                         char *buf,
                         SnapCloneClosure* scc) = 0;
-    /**
-     * @brief 删除此次转储时产生的或者历史遗留的快照
-     *        如果转储过程中没有产生快照，则修改chunk的correctedSn
-     *
-     * @param cidinfo chunk ID信息
-     * @param correctedSeq chunk快照不存在时需要修正的版本号
-     *
-     * @return 错误码
-     */
-    virtual int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo &cidinfo,
-        uint64_t correctedSeq) = 0;
 
     /**
      * 获取快照状态
@@ -353,7 +384,9 @@ class CurveFsClient {
 
 class CurveFsClientImpl : public CurveFsClient {
  public:
-    CurveFsClientImpl() {}
+    CurveFsClientImpl(std::shared_ptr<SnapshotClient> snapClient,
+        std::shared_ptr<FileClient> fileClient) :
+        snapClient_(snapClient), fileClient_(fileClient) {}
     virtual ~CurveFsClientImpl() {}
 
     // 以下接口定义见CurveFsClient接口注释
@@ -386,9 +419,6 @@ class CurveFsClientImpl : public CurveFsClient {
                         uint64_t len,
                         char *buf,
                         SnapCloneClosure* scc) override;
-
-    int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo &cidinfo,
-        uint64_t seq) override;
 
     int CheckSnapShotStatus(std::string filename,
                             std::string user,
@@ -464,11 +494,23 @@ class CurveFsClientImpl : public CurveFsClient {
                     const std::string& newOwner) override;
 
  private:
-    ::curve::client::SnapshotClient client_;
-    ::curve::client::FileClient fileClient_;
+    UserInfo GetUserInfo(const std::string &user) {
+        if (user == mdsRootUser_) {
+            return UserInfo(mdsRootUser_, mdsRootPassword_);
+        } else {
+            return UserInfo(user, "");
+        }
+    }
+
+ private:
+    std::shared_ptr<SnapshotClient> snapClient_;
+    std::shared_ptr<FileClient> fileClient_;
 
     std::string mdsRootUser_;
     std::string mdsRootPassword_;
+
+    uint64_t clientMethodRetryTimeSec_;
+    uint64_t clientMethodRetryIntervalMs_;
 };
 
 }  // namespace snapshotcloneserver
