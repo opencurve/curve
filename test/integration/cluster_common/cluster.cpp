@@ -90,7 +90,8 @@ void CurveCluster::StopCluster() {
 
 void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
                                 const std::vector<std::string> &mdsConf,
-                                bool expectLeader, bool expectAssert) {
+                                bool expectLeader, bool expectAssert,
+                                bool* startsuccess) {
     LOG(INFO) << "start mds " << ipPort << " begin...";
     pid_t pid = ::fork();
     if (0 > pid) {
@@ -120,8 +121,15 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
     }
 
     if (expectAssert) {
-        ASSERT_EQ(0, ProbePort(ipPort, 20000, expectLeader))
-        << "probe mds port: " << ipPort << " expect " << expectLeader;
+        int ret = ProbePort(ipPort, 20000, expectLeader);
+        if (startsuccess != nullptr) {
+            if (ret == 0) {
+                *startsuccess = true;
+            } else {
+                *startsuccess = false;
+                return;
+            }
+        }
     }
 
     LOG(INFO) << "start mds " << ipPort << " success";
