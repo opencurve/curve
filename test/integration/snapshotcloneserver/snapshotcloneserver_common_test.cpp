@@ -134,6 +134,8 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("server.clonePoolThreadNum=8"),
     std::string("server.createCloneChunkConcurrency=2"),
     std::string("server.recoverChunkConcurrency=2"),
+    std::string("client.methodRetryTimeSec=1"),
+    std::string("server.clientAsyncMethodRetryTimeSec=1"),
 };
 
 const std::vector<std::string> snapshotcloneConf{

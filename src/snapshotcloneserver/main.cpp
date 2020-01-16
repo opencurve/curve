@@ -17,6 +17,8 @@
 #include "src/common/configuration.h"
 
 #include "src/snapshotcloneserver/common/define.h"
+#include "src/client/libcurve_snapshot.h"
+#include "src/client/libcurve_file.h"
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 
 #include "src/snapshotcloneserver/dao/snapshotcloneRepo.h"
@@ -45,6 +47,10 @@ void InitClientOption(Configuration *conf,
                                         &clientOption->mdsRootUser));
     LOG_IF(FATAL, !conf->GetStringValue("mds.rootPassword",
                                         &clientOption->mdsRootPassword));
+    LOG_IF(FATAL, !conf->GetUInt64Value("client.methodRetryTimeSec",
+        &clientOption->clientMethodRetryTimeSec));
+    LOG_IF(FATAL, !conf->GetUInt64Value("client.methodRetryIntervalMs",
+        &clientOption->clientMethodRetryIntervalMs));
 }
 
 void InitMetaStoreOptions(Configuration *conf,
@@ -65,6 +71,11 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
                                     SnapshotCloneServerOptions *serverOption) {
     LOG_IF(FATAL, !conf->GetStringValue("server.address",
                                         &serverOption->addr));
+    LOG_IF(FATAL, !conf->GetUInt64Value("server.clientAsyncMethodRetryTimeSec",
+        &serverOption->clientAsyncMethodRetryTimeSec));
+    LOG_IF(FATAL, !conf->GetUInt64Value(
+        "server.clientAsyncMethodRetryIntervalMs",
+        &serverOption->clientAsyncMethodRetryIntervalMs));
     LOG_IF(FATAL, !conf->GetIntValue("server.snapshotPoolThreadNum",
                                      &serverOption->snapshotPoolThreadNum));
     LOG_IF(FATAL, !conf->GetUInt32Value(
@@ -140,8 +151,12 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
     CurveClientOptions clientOption_;
     InitClientOption(&conf_, &clientOption_);
 
+    std::shared_ptr<SnapshotClient> snapClient =
+        std::make_shared<SnapshotClient>();
+    std::shared_ptr<FileClient> fileClient =
+        std::make_shared<FileClient>();
     std::shared_ptr<CurveFsClientImpl> client =
-        std::make_shared<CurveFsClientImpl>();
+        std::make_shared<CurveFsClientImpl>(snapClient, fileClient);
     if (client->Init(clientOption_) < 0) {
         LOG(ERROR) << "curvefs_client init fail.";
         return kErrCodeServerInitFail;
@@ -179,8 +194,6 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
     auto cloneRef_ =
         std::make_shared<CloneReference>();
 
-    std::shared_ptr<SnapshotTaskManager> taskMgr =
-        std::make_shared<SnapshotTaskManager>(snapshotMetric);
     auto core =
         std::make_shared<SnapshotCoreImpl>(
             client,
@@ -192,6 +205,9 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
         LOG(ERROR) << "SnapshotCore init fail.";
         return kErrCodeServerInitFail;
     }
+
+    std::shared_ptr<SnapshotTaskManager> taskMgr =
+        std::make_shared<SnapshotTaskManager>(core, snapshotMetric);
     std::shared_ptr<SnapshotServiceManager> snapshotServiceManager_ =
         std::make_shared<SnapshotServiceManager>(taskMgr,
                 core);

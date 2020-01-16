@@ -542,7 +542,7 @@ int CloneCoreImpl::CreateCloneChunk(
     } else {
         correctSn = fInfo.seqnum;
     }
-    auto tracker = std::make_shared<TaskTracker>();
+    auto tracker = std::make_shared<CreateCloneChunkTaskTracker>();
     for (auto & cloneSegmentInfo : segInfos) {
         for (auto & cloneChunkInfo : cloneSegmentInfo.second) {
             std::string location;
@@ -556,56 +556,83 @@ int CloneCoreImpl::CreateCloneChunk(
             }
             ChunkIDInfo cidInfo = cloneChunkInfo.second.chunkIdInfo;
 
-            SnapCloneCommonClosure *cb = new SnapCloneCommonClosure(tracker);
-            tracker->AddOneTrace();
-            LOG(INFO) << "CreateCloneChunk Start"
-                       << ", location = " << location
-                       << ", logicalPoolId = " << cidInfo.lpid_
-                       << ", copysetId = " << cidInfo.cpid_
-                       << ", chunkId = " << cidInfo.cid_
-                       << ", seqNum = " << cloneChunkInfo.second.seqNum
-                       << ", csn = " << correctSn
-                       << ", taskid = " << task->GetTaskId();
-            ret = client_->CreateCloneChunk(location,
-                cidInfo,
-                cloneChunkInfo.second.seqNum,
-                correctSn,
-                chunkSize,
-                cb);
+            auto context = std::make_shared<CreateCloneChunkContext>();
+            context->location = location;
+            context->cidInfo = cidInfo;
+            context->sn = cloneChunkInfo.second.seqNum;
+            context->csn = correctSn;
+            context->chunkSize = chunkSize;
+            context->taskid = task->GetTaskId();
+            context->startTime = TimeUtility::GetTimeofDaySec();
+            context->clientAsyncMethodRetryTimeSec =
+                clientAsyncMethodRetryTimeSec_;
 
-            if (ret != LIBCURVE_ERROR::OK) {
-                LOG(ERROR) << "CreateCloneChunk fail"
-                           << ", ret = " << ret
-                           << ", location = " << location
-                           << ", logicalPoolId = " << cidInfo.lpid_
-                           << ", copysetId = " << cidInfo.cpid_
-                           << ", chunkId = " << cidInfo.cid_
-                           << ", seqNum = " << cloneChunkInfo.second.seqNum
-                           << ", csn = " << correctSn;
+            ret = StartAsyncCreateCloneChunk(task, tracker, context);
+            if (ret < 0) {
                 return kErrCodeInternalError;
             }
 
             if (tracker->GetTaskNum() >= createCloneChunkConcurrency_) {
                 tracker->WaitSome(1);
             }
-            ret = tracker->GetResult();
-            if (ret != LIBCURVE_ERROR::OK) {
-                LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
-                           << ", ret = " << ret
-                           << ", taskid = " << task->GetTaskId();
-                return kErrCodeInternalError;
+            std::list<CreateCloneChunkContextPtr> results =
+                tracker->PopResultContexts();
+            for (auto context : results) {
+                if (context->retCode != LIBCURVE_ERROR::OK) {
+                    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
+                    if (nowTime - context->startTime <
+                        context->clientAsyncMethodRetryTimeSec) {
+                        // retry
+                        std::this_thread::sleep_for(
+                            std::chrono::milliseconds(
+                                clientAsyncMethodRetryIntervalMs_));
+                        ret = StartAsyncCreateCloneChunk(
+                            task, tracker, context);
+                        if (ret < 0) {
+                            return kErrCodeInternalError;
+                        }
+                    } else {
+                        LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
+                                   << ", ret = " << ret
+                                   << ", taskid = " << task->GetTaskId();
+                        return kErrCodeInternalError;
+                    }
+                }
             }
         }
     }
     // 最后剩余数量不足的任务
-    tracker->Wait();
-    ret = tracker->GetResult();
-    if (ret != LIBCURVE_ERROR::OK) {
-        LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
-                   << ", ret = " << ret
-                   << ", taskid = " << task->GetTaskId();
-        return kErrCodeInternalError;
-    }
+    do {
+        tracker->WaitSome(1);
+        std::list<CreateCloneChunkContextPtr> results =
+            tracker->PopResultContexts();
+        if (0 == results.size()) {
+            // 已经完成，没有新的结果了
+            break;
+        }
+        for (auto context : results) {
+            if (context->retCode != LIBCURVE_ERROR::OK) {
+                uint64_t nowTime = TimeUtility::GetTimeofDaySec();
+                if (nowTime - context->startTime <
+                    context->clientAsyncMethodRetryTimeSec) {
+                    // retry
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(
+                            clientAsyncMethodRetryIntervalMs_));
+                    ret = StartAsyncCreateCloneChunk(
+                        task, tracker, context);
+                    if (ret < 0) {
+                        return kErrCodeInternalError;
+                    }
+                } else {
+                    LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
+                               << ", ret = " << ret
+                               << ", taskid = " << task->GetTaskId();
+                    return kErrCodeInternalError;
+                }
+            }
+        }
+    } while (true);
 
     task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneMeta);
     ret = metaStore_->UpdateCloneInfo(task->GetCloneInfo());
@@ -614,6 +641,43 @@ int CloneCoreImpl::CreateCloneChunk(
                    << " ret = " << ret
                    << ", taskid = " << task->GetTaskId();
         return kErrCodeInternalError;
+    }
+    return kErrCodeSuccess;
+}
+
+int CloneCoreImpl::StartAsyncCreateCloneChunk(
+    std::shared_ptr<CloneTaskInfo> task,
+    std::shared_ptr<CreateCloneChunkTaskTracker> tracker,
+    std::shared_ptr<CreateCloneChunkContext> context) {
+    CreateCloneChunkClosure *cb =
+        new CreateCloneChunkClosure(tracker, context);
+    tracker->AddOneTrace();
+    LOG(INFO) << "Doing CreateCloneChunk"
+              << ", location = " << context->location
+              << ", logicalPoolId = " << context->cidInfo.lpid_
+              << ", copysetId = " << context->cidInfo.cpid_
+              << ", chunkId = " << context->cidInfo.cid_
+              << ", seqNum = " << context->sn
+              << ", csn = " << context->csn
+              << ", taskid = " << task->GetTaskId();
+    int ret = client_->CreateCloneChunk(context->location,
+        context->cidInfo,
+        context->sn,
+        context->csn,
+        context->chunkSize,
+        cb);
+
+    if (ret != LIBCURVE_ERROR::OK) {
+        LOG(ERROR) << "CreateCloneChunk fail"
+                   << ", ret = " << ret
+                   << ", location = " << context->location
+                   << ", logicalPoolId = " << context->cidInfo.lpid_
+                   << ", copysetId = " << context->cidInfo.cpid_
+                   << ", chunkId = " << context->cidInfo.cid_
+                   << ", seqNum = " << context->sn
+                   << ", csn = " << context->csn
+                   << ", taskid = " << task->GetTaskId();
+        return ret;
     }
     return kErrCodeSuccess;
 }
@@ -678,12 +742,14 @@ int CloneCoreImpl::RecoverChunk(
         for (auto & cloneChunkInfo : cloneSegmentInfo.second) {
             // 当前并发工作的chunk数已大于要求的并发数时，先消化一部分
             while (workingChunkNum >= recoverChunkConcurrency_) {
+                uint64_t completeChunkNum = 0;
                 ret = ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(task,
                     tracker,
-                    &workingChunkNum);
+                    &completeChunkNum);
                 if (ret < 0) {
                     return kErrCodeInternalError;
                 }
+                workingChunkNum -= completeChunkNum;
             }
             // 加入新的工作的chunk
             workingChunkNum++;
@@ -693,6 +759,9 @@ int CloneCoreImpl::RecoverChunk(
             context->partIndex = 0;
             context->partSize = cloneChunkSplitSize_;
             context->taskid = task->GetTaskId();
+            context->startTime = TimeUtility::GetTimeofDaySec();
+            context->clientAsyncMethodRetryTimeSec =
+                clientAsyncMethodRetryTimeSec_;
 
             LOG(INFO) << "RecoverChunk start"
                        << ", logicalPoolId = "
@@ -714,12 +783,14 @@ int CloneCoreImpl::RecoverChunk(
     }
 
     while (workingChunkNum > 0) {
+        uint64_t completeChunkNum = 0;
         ret = ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(task,
             tracker,
-            &workingChunkNum);
+            &completeChunkNum);
         if (ret < 0) {
             return kErrCodeInternalError;
         }
+        workingChunkNum -= completeChunkNum;
     }
 
     task->GetCloneInfo().SetNextStep(CloneStep::kCompleteCloneFile);
@@ -770,21 +841,37 @@ int CloneCoreImpl::StartAsyncRecoverChunkPart(
 int CloneCoreImpl::ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(
     std::shared_ptr<CloneTaskInfo> task,
     std::shared_ptr<RecoverChunkTaskTracker> tracker,
-    uint64_t *workingChunkNum) {
+    uint64_t *completeChunkNum) {
+    *completeChunkNum = 0;
     tracker->WaitSome(1);
     std::list<RecoverChunkContextPtr> results =
         tracker->PopResultContexts();
     for (auto context : results) {
         if (context->retCode != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "RecoverChunk tracker GetResult fail"
-                       << ", ret = " << context->retCode
-                       << ", taskid = " << task->GetTaskId();
-            return context->retCode;
+            uint64_t nowTime = TimeUtility::GetTimeofDaySec();
+            if (nowTime - context->startTime <
+                context->clientAsyncMethodRetryTimeSec) {
+                // retry
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(
+                        clientAsyncMethodRetryIntervalMs_));
+                int ret = StartAsyncRecoverChunkPart(task, tracker, context);
+                if (ret < 0) {
+                    return ret;
+                }
+            } else {
+                LOG(ERROR) << "RecoverChunk tracker GetResult fail"
+                           << ", ret = " << context->retCode
+                           << ", taskid = " << task->GetTaskId();
+                return context->retCode;
+            }
         } else {
+            // 启动一个新的分片，index++，并重置开始时间
             context->partIndex++;
+            context->startTime = TimeUtility::GetTimeofDaySec();
             if (context->partIndex < context->totalPartNum) {
                 int ret = StartAsyncRecoverChunkPart(task, tracker, context);
-                if (ret != LIBCURVE_ERROR::OK) {
+                if (ret < 0) {
                     return ret;
                 }
             } else {
@@ -795,7 +882,7 @@ int CloneCoreImpl::ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(
                            << ", chunkId = " << context->cidInfo.cid_
                            << ", len = " << context->partSize
                            << ", taskid = " << task->GetTaskId();
-                (*workingChunkNum)--;
+                (*completeChunkNum)++;
             }
         }
     }
