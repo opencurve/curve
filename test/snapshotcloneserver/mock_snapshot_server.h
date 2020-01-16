@@ -56,6 +56,9 @@ class MockSnapshotCore : public SnapshotCore {
 
     MOCK_METHOD2(GetSnapshotInfo,
         int(const UUID uuid, SnapshotInfo *info));
+
+    MOCK_METHOD1(HandleCancelUnSchduledSnapshotTask,
+        int(std::shared_ptr<SnapshotTaskInfo> task));
 };
 
 class MockSnapshotCloneMetaStore : public SnapshotCloneMetaStore {

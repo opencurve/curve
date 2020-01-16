@@ -38,6 +38,7 @@ class SnapshotCloneServerTest : public ::testing::Test {
         options_->mdsRootUser = "root";
         options_->createCloneChunkConcurrency = 8;
         options_->recoverChunkConcurrency = 8;
+        options_->clientAsyncMethodRetryTimeSec = 1;
 
         server_ = new SnapshotCloneServerModule();
         server_->Start(*options_);

@@ -77,7 +77,7 @@ void HeartbeatIntegrationCommon::SendHeartbeat(
     ASSERT_EQ(0, channel.Init(listenAddr_.c_str(), NULL));
     HeartbeatService_Stub stub(&channel);
     brpc::Controller cntl;
-    cntl.set_timeout_ms(100);
+    cntl.set_timeout_ms(2000);
 
     // send request
     stub.ChunkServerHeartbeat(&cntl, &request, response, NULL);

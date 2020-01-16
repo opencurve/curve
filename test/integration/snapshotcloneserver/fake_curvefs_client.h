@@ -62,9 +62,6 @@ class FakeCurveFsClient : public CurveFsClient {
                         char *buf,
                         SnapCloneClosure *scc) override;
 
-    int DeleteChunkSnapshotOrCorrectSn(const ChunkIDInfo &cidinfo,
-        uint64_t seq) override;
-
     int CheckSnapShotStatus(std::string filename,
                             std::string user,
                             uint64_t seq,

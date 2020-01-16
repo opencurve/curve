@@ -46,6 +46,8 @@ class TestCloneCoreImpl : public ::testing::Test {
         option.mdsRootUser = "root";
         option.createCloneChunkConcurrency = 2;
         option.recoverChunkConcurrency = 2;
+        option.clientAsyncMethodRetryTimeSec = 1;
+        option.clientAsyncMethodRetryIntervalMs = 500;
         core_ = std::make_shared<CloneCoreImpl>(client_,
             metaStore_,
             dataStore_,

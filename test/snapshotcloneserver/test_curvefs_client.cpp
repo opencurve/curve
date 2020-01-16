@@ -21,10 +21,16 @@ class TestCurveFsClientImpl : public ::testing::Test {
     TestCurveFsClientImpl() {}
 
     virtual void SetUp() {
-        client_ = std::make_shared<CurveFsClientImpl>();
+        std::shared_ptr<SnapshotClient> snapClient =
+            std::make_shared<SnapshotClient>();
+        std::shared_ptr<FileClient> fileClient =
+            std::make_shared<FileClient>();
+        client_ = std::make_shared<CurveFsClientImpl>(snapClient, fileClient);
         clientOption_.configPath = "test/snapshotcloneserver/client_test.conf";
         clientOption_.mdsRootUser = "root";
         clientOption_.mdsRootPassword = "1234";
+        clientOption_.clientMethodRetryTimeSec = 1;
+        clientOption_.clientMethodRetryIntervalMs = 500;
         client_->Init(clientOption_);
     }
 
@@ -69,9 +75,6 @@ TEST_F(TestCurveFsClientImpl, TestClientInterfaceFail) {
     ASSERT_LT(ret, 0);
 
     ChunkIDInfo cidinfo;
-    ret = client_->DeleteChunkSnapshotOrCorrectSn(cidinfo, 2);
-    ASSERT_LT(ret, 0);
-
     FileStatus fstatus;
     ret = client_->CheckSnapShotStatus("file1", "user1", 1, &fstatus);
     ASSERT_LT(ret, 0);

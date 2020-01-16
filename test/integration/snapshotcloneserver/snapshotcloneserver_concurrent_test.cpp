@@ -134,6 +134,8 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("server.createCloneChunkConcurrency=2"),
     std::string("server.recoverChunkConcurrency=2"),
     std::string("server.maxSnapshotLimit=3"),  // 最大快照数修改为3，以测试快照达到上限的用例  // NOLINT
+    std::string("client.methodRetryTimeSec=1"),
+    std::string("server.clientAsyncMethodRetryTimeSec=1"),
 };
 
 const std::vector<std::string> snapshotcloneConf{

@@ -82,9 +82,15 @@ int SnapshotTaskManager::CancelTask(const TaskIdType &taskId) {
             it != waitingTasks_.end();
             it++) {
             if ((*it)->GetTaskId() == taskId) {
-                waitingTasks_.erase(it);
-                taskMap_.erase(taskId);
-                return kErrCodeSuccess;
+                int ret = core_->HandleCancelUnSchduledSnapshotTask(
+                    (*it)->GetTaskInfo());
+                if (kErrCodeSuccess == ret) {
+                    waitingTasks_.erase(it);
+                    taskMap_.erase(taskId);
+                    return kErrCodeSuccess;
+                } else {
+                    return kErrCodeInternalError;
+                }
             }
         }
     }
