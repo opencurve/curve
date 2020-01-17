@@ -25,6 +25,7 @@
 #include "src/part2/file_record_map.h"
 #include "src/part2/request_executor_ceph.h"
 #include "src/part2/request_executor_curve.h"
+#include "src/common/client.pb.h"
 
 namespace nebd {
 namespace server {

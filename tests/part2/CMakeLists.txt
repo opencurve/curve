@@ -11,7 +11,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPP_FLAGS} -std=c++0x -DNDEBUG -O2 \
 set(PART2_TEST_LINK
     nebdserver
     gtest
-    gmock)
+    gmock
+    gflags)
 
 # libpart2mock.so
 set(PART2_MOCK_SRC
@@ -68,3 +69,11 @@ target_link_libraries(metafile_manager_test
 install(TARGETS metafile_manager_test DESTINATION bin)
 add_test(NAME metafile_manager_test COMMAND metafile_manager_test)
 
+# test_nebd_server
+set(TEST_NEBDSERVER_SRC test_nebd_server.cpp)
+add_executable(test_nebd_server ${TEST_NEBDSERVER_SRC})
+target_link_libraries(test_nebd_server
+                      part2mock
+                      ${PART2_TEST_LINK})
+install(TARGETS test_nebd_server DESTINATION bin)
+add_test(NAME test_nebd_server COMMAND test_nebd_server)

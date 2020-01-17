@@ -108,6 +108,11 @@ struct NebdFileInfo {
     uint64_t num_objs;
 };
 
+// part2配置项
+const char LISTENADDRESS[] = "listen.address";
+const char METAFILEPATH[] = "meta.file.path";
+const char HEARTBEATTIMEOUTSEC[] = "heartbeat.timeout.sec";
+
 }  // namespace server
 }  // namespace nebd
 
