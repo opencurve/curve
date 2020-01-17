@@ -3,7 +3,7 @@
 
 import subprocess
 from config import config
-from logger import logger
+from logger.logger import *
 from lib import shell_operator
 import random
 import time

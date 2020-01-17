@@ -5,7 +5,7 @@
 import MySQLdb
 
 from config import config
-from logger import logger
+from logger.logger import *
 
 
 def conn_db(db_host, db_port, db_user, db_pass, db_name):
