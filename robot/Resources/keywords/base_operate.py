@@ -4,7 +4,7 @@
 import os
 import shlex
 from config import config
-from logger import logger
+from logger.logger import *
 from lib import db_operator
 from lib import shell_operator
 from swig import swig_operate
