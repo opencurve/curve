@@ -24,12 +24,12 @@ class CurveRequestExcutor : public NebdRequestExcutor {
     std::shared_ptr<NebdFileInstance> Open(const std::string& filename) override;  // NOLINT
     int Close(NebdFileInstance* fd) override;
     int Extend(NebdFileInstance* fd, int64_t newsize) override;
-    int StatFile(NebdFileInstance* fd) override;
+    int GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) override;
+    int StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) override;
     int Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
-    int GetInfo(NebdFileInstance* fd) override;
     int InvalidCache(NebdFileInstance* fd) override;
 };
 

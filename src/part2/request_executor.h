@@ -19,12 +19,12 @@ class NebdRequestExcutor {
     virtual std::shared_ptr<NebdFileInstance> Open(const std::string& filename) = 0;  // NOLINT
     virtual int Close(NebdFileInstance* fd) = 0;
     virtual int Extend(NebdFileInstance* fd, int64_t newsize) = 0;
-    virtual int StatFile(NebdFileInstance* fd) = 0;
+    virtual int GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) = 0;
+    virtual int StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) = 0;
     virtual int Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) = 0;
     virtual int AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) = 0;
-    virtual int AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) = 0;
+    virtual int AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) = 0;  // NOLINT
     virtual int Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) = 0;
-    virtual int GetInfo(NebdFileInstance* fd) = 0;
     virtual int InvalidCache(NebdFileInstance* fd) = 0;
 };
 

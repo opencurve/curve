@@ -1,3 +1,10 @@
+/*
+ * Project: nebd
+ * Created Date: Thursday January 16th 2020
+ * Author: yangyaokai
+ * Copyright (c) 2020 netease
+ */
+
 #ifndef SRC_PART2_FILE_MANAGER_H_
 #define SRC_PART2_FILE_MANAGER_H_
 
@@ -29,20 +36,21 @@ class NebdFileManager {
     virtual int Open(const std::string& filename);
     virtual int Close(int fd);
     virtual int Extend(int fd, int64_t newsize);
-    virtual int StatFile(int fd);
+    virtual int GetInfo(int fd, NebdFileInfo* fileInfo);
+    virtual int StatFile(int fd, NebdFileInfo* fileInfo);
     virtual int Discard(int fd, NebdServerAioContext* aioctx);
     virtual int AioRead(int fd, NebdServerAioContext* aioctx);
     virtual int AioWrite(int fd, NebdServerAioContext* aioctx);
     virtual int Flush(int fd, NebdServerAioContext* aioctx);
-    virtual int GetInfo(int fd);
     virtual int InvalidCache(int fd);
 
  private:
     void CheckTimeoutFunc();
 
  private:
-    using FileInfoMap = std::unordered_map<int, std::shared_ptr<NebdFileInfo>>;
-    FileInfoMap fileInfoMap_;
+    using FileRecordMap =
+        std::unordered_map<int, std::shared_ptr<NebdFileRecord>>;
+    FileRecordMap fileRecordMap_;
     MetaFileManagerPtr metaFileManager_;
     uint32_t heartbeatTimeoutS_;
     std::thread checkTimeoutThread_;

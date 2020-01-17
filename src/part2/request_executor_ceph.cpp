@@ -19,7 +19,7 @@ int CephRequestExcutor::Extend(NebdFileInstance* fd, int64_t newsize) {
     return 0;
 }
 
-int CephRequestExcutor::StatFile(NebdFileInstance* fd) {
+int CephRequestExcutor::StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }
@@ -44,7 +44,7 @@ int CephRequestExcutor::Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx
     return 0;
 }
 
-int CephRequestExcutor::GetInfo(NebdFileInstance* fd) {
+int CephRequestExcutor::GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }

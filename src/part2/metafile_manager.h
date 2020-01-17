@@ -14,9 +14,9 @@ class NebdMetaFileManager {
     explicit NebdMetaFileManager(const std::string& metaFilePath);
     virtual ~NebdMetaFileManager();
 
-    virtual int RemoveFileInfo(const std::string& fileName);
-    virtual int UpdateFileInfo(const NebdFileInfo& fileInfo);
-    virtual int ListFileInfo(std::vector<NebdFileInfo>* fileInfos);
+    virtual int RemoveFileRecord(const std::string& fileName);
+    virtual int UpdateFileRecord(const NebdFileRecord& fileRecord);
+    virtual int ListFileRecord(std::vector<NebdFileRecord>* fileRecords);
 
  private:
     std::string metaFilePath_;

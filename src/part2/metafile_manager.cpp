@@ -10,17 +10,17 @@ NebdMetaFileManager::NebdMetaFileManager(const std::string& metaFilePath)
 
 NebdMetaFileManager::~NebdMetaFileManager() {}
 
-int NebdMetaFileManager::RemoveFileInfo(const std::string& fileName) {
+int NebdMetaFileManager::RemoveFileRecord(const std::string& fileName) {
     // TODO 
     return 0;
 }
 
-int NebdMetaFileManager::UpdateFileInfo(const NebdFileInfo& fileInfo) {
+int NebdMetaFileManager::UpdateFileRecord(const NebdFileRecord& fileRecord) {
     // TODO
     return 0;
 }
 
-int NebdMetaFileManager::ListFileInfo(std::vector<NebdFileInfo>* fileInfos) {
+int NebdMetaFileManager::ListFileRecord(std::vector<NebdFileRecord>* fileRecords) {
     // TODO
     return 0;
 }

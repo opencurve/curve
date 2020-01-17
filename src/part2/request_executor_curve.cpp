@@ -19,7 +19,7 @@ int CurveRequestExcutor::Extend(NebdFileInstance* fd, int64_t newsize) {
     return 0;
 }
 
-int CurveRequestExcutor::StatFile(NebdFileInstance* fd) {
+int CurveRequestExcutor::StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }
@@ -44,7 +44,7 @@ int CurveRequestExcutor::Flush(NebdFileInstance* fd, NebdServerAioContext* aioct
     return 0;
 }
 
-int CurveRequestExcutor::GetInfo(NebdFileInstance* fd) {
+int CurveRequestExcutor::GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }

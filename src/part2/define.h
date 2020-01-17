@@ -34,7 +34,7 @@ enum class NebdFileType {
 class NebdFileInstance;
 class NebdRequestExecutor;
 
-struct NebdFileInfo {
+struct NebdFileRecord {
     int fd;
     std::string fileName;
     NebdFileType type;
@@ -50,7 +50,7 @@ struct NebdServerAioContext;
 // nebd回调函数的类型
 typedef void (*NebdAioCallBack)(struct NebdServerAioContext* context);
 
-typedef struct NebdServerAioContext {
+struct NebdServerAioContext {
     off_t offset;             // 请求的offset
     size_t length;            // 请求的length
     int ret;                  // 记录异步返回的返回值
@@ -59,7 +59,13 @@ typedef struct NebdServerAioContext {
     void* buf;                // 请求的buf
     Message* response;        // 请求返回内容
     Closure *done;            // 请求回调函数
-} ClientAioContext;
+};
+
+struct NebdFileInfo {
+    uint64_t size;
+    uint64_t obj_size;
+    uint64_t num_objs;
+};
 
 }  // namespace server
 }  // namespace nebd

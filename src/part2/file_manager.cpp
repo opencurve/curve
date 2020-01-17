@@ -1,3 +1,10 @@
+/*
+ * Project: nebd
+ * Created Date: Thursday January 16th 2020
+ * Author: yangyaokai
+ * Copyright (c) 2020 netease
+ */
+
 #include "src/part2/file_manager.h"
 
 namespace nebd {
@@ -43,7 +50,7 @@ int NebdFileManager::Extend(int fd, int64_t newsize) {
     return 0;
 }
 
-int NebdFileManager::StatFile(int fd) {
+int NebdFileManager::StatFile(int fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }
@@ -68,7 +75,7 @@ int NebdFileManager::Flush(int fd, NebdServerAioContext* aioctx) {
     return 0;
 }
 
-int NebdFileManager::GetInfo(int fd) {
+int NebdFileManager::GetInfo(int fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }
