@@ -43,6 +43,8 @@ class TestSnapshotCoreImpl : public ::testing::Test {
         option.checkSnapshotStatusIntervalMs = 1000u;
         option.maxSnapshotLimit = 64;
         option.snapshotCoreThreadNum = 1;
+        option.clientAsyncMethodRetryTimeSec = 1;
+        option.clientAsyncMethodRetryIntervalMs = 500;
         core_ = std::make_shared<SnapshotCoreImpl>(client_,
                 metaStore_,
                 dataStore_,
@@ -2422,7 +2424,8 @@ TEST_F(TestSnapshotCoreImpl, TestHandleCreateSnapshotTaskCancelSuccess) {
 
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .WillOnce(Return(kErrCodeSuccess));
+        .Times(2)
+        .WillRepeatedly(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -2592,7 +2595,8 @@ TEST_F(TestSnapshotCoreImpl,
 
     // 此处捕获task，设置cancel
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .WillOnce(
+        .Times(2)
+        .WillRepeatedly(
                Invoke([task](const SnapshotInfo &snapinfo){
                     task->Cancel();
                     return kErrCodeSuccess;
@@ -2646,7 +2650,8 @@ TEST_F(TestSnapshotCoreImpl,
 
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .WillOnce(Return(kErrCodeSuccess));
+        .Times(2)
+        .WillRepeatedly(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;
     CopysetID cpid1 = 1;
@@ -2753,7 +2758,7 @@ TEST_F(TestSnapshotCoreImpl,
 
 
     EXPECT_CALL(*metaStore_, UpdateSnapshot(_))
-        .Times(2)
+        .Times(3)
         .WillRepeatedly(Return(kErrCodeSuccess));
 
     LogicPoolID lpid1 = 1;

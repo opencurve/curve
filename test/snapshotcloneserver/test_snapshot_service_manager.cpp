@@ -43,7 +43,7 @@ class TestSnapshotServiceManager : public ::testing::Test {
         snapshotMetric_ = std::make_shared<SnapshotMetric>(metaStore_);
         std::shared_ptr<SnapshotTaskManager>
             taskMgr_ =
-            std::make_shared<SnapshotTaskManager>(snapshotMetric_);
+            std::make_shared<SnapshotTaskManager>(core_, snapshotMetric_);
 
         manager_ = std::make_shared<SnapshotServiceManager>(taskMgr_, core_);
 
@@ -794,6 +794,10 @@ TEST_F(TestSnapshotServiceManager,
                                 task->Finish();
                                 cond2.Signal();
                             }));
+
+    // 取消排队的快照会调一次
+    EXPECT_CALL(*core_, HandleCancelUnSchduledSnapshotTask(_))
+        .WillOnce(Return(kErrCodeSuccess));
 
     int ret = manager_->CreateSnapshot(
         file,

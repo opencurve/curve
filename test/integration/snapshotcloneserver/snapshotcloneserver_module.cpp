@@ -30,8 +30,6 @@ int SnapshotCloneServerModule::Start(
 
     auto cloneRef_ = std::make_shared<CloneReference>();
 
-    auto taskMgr = std::make_shared<SnapshotTaskManager>(snapshotMetric);
-
     auto core =
         std::make_shared<SnapshotCoreImpl>(
             client_,
@@ -44,6 +42,8 @@ int SnapshotCloneServerModule::Start(
         LOG(ERROR) << "SnapshotCore init fail.";
         return kErrCodeServerInitFail;
     }
+
+    auto taskMgr = std::make_shared<SnapshotTaskManager>(core, snapshotMetric);
 
     snapshotServiceManager_ =
         std::make_shared<SnapshotServiceManager>(taskMgr,

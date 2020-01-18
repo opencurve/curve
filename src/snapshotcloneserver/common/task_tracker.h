@@ -25,6 +25,7 @@ namespace snapshotcloneserver {
 class TrackerTask;
 
 struct RecoverChunkContext;
+struct CreateCloneChunkContext;
 
 // 并发任务跟踪模块
 class TaskTracker : public std::enable_shared_from_this<TaskTracker> {
@@ -113,6 +114,10 @@ std::list<CTX>
 
 using RecoverChunkContextPtr = std::shared_ptr<RecoverChunkContext>;
 using RecoverChunkTaskTracker = ContextTaskTracker<RecoverChunkContextPtr>;
+
+using CreateCloneChunkContextPtr = std::shared_ptr<CreateCloneChunkContext>;
+using CreateCloneChunkTaskTracker =
+    ContextTaskTracker<CreateCloneChunkContextPtr>;
 
 }  // namespace snapshotcloneserver
 }  // namespace curve
