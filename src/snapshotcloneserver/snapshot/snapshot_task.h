@@ -158,12 +158,22 @@ class SnapshotDeleteTask : public SnapshotTask {
 };
 
 struct ReadChunkSnapshotContext {
-    ChunkDataName name_;
-    std::shared_ptr<TransferTask> transferTask_;
-    uint64_t partIndex_;
-    std::unique_ptr<char[]> buf_;
-    uint64_t len_;
-    int retCode_;
+    // chunkid 信息
+    ChunkIDInfo cidInfo;
+    // seq
+    uint64_t seqNum;
+    // 分片的索引
+    uint64_t partIndex;
+    // 分片的buffer
+    std::unique_ptr<char[]> buf;
+    // 分片长度
+    uint64_t len;
+    // 返回值
+    int retCode;
+    // 异步请求开始时间
+    uint64_t startTime;
+    // 异步请求重试总时间
+    uint64_t clientAsyncMethodRetryTimeSec;
 };
 
 using ReadChunkSnapshotContextPtr = std::shared_ptr<ReadChunkSnapshotContext>;
@@ -186,15 +196,24 @@ struct TransferSnapshotDataChunkTaskInfo : public TaskInfo {
     uint64_t chunkSize_;
     ChunkIDInfo cidInfo_;
     uint64_t chunkSplitSize_;
+    uint64_t clientAsyncMethodRetryTimeSec_;
+    uint64_t clientAsyncMethodRetryIntervalMs_;
+    uint32_t readChunkSnapshotConcurrency_;
 
     TransferSnapshotDataChunkTaskInfo(const ChunkDataName &name,
         uint64_t chunkSize,
         const ChunkIDInfo &cidInfo,
-        uint64_t chunkSplitSize)
+        uint64_t chunkSplitSize,
+        uint64_t clientAsyncMethodRetryTimeSec,
+        uint64_t clientAsyncMethodRetryIntervalMs,
+        uint32_t readChunkSnapshotConcurrency)
         : name_(name),
           chunkSize_(chunkSize),
           cidInfo_(cidInfo),
-          chunkSplitSize_(chunkSplitSize) {}
+          chunkSplitSize_(chunkSplitSize),
+          clientAsyncMethodRetryTimeSec_(clientAsyncMethodRetryTimeSec),
+          clientAsyncMethodRetryIntervalMs_(clientAsyncMethodRetryIntervalMs),
+          readChunkSnapshotConcurrency_(readChunkSnapshotConcurrency) {}
 };
 
 class TransferSnapshotDataChunkTask : public TrackerTask {
@@ -225,6 +244,18 @@ class TransferSnapshotDataChunkTask : public TrackerTask {
      * @return 错误码
      */
     int TransferSnapshotDataChunk();
+
+    /**
+     * @brief 开始异步ReadSnapshotChunk
+     *
+     * @param tracker 异步ReadSnapshotChunk追踪器
+     * @param context ReadSnapshotChunk上下文
+     *
+     * @return 错误码
+     */
+    int StartAsyncReadChunkSnapshot(
+        std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
+        std::shared_ptr<ReadChunkSnapshotContext> context);
 
  protected:
     std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo_;

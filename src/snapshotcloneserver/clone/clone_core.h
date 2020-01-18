@@ -166,8 +166,10 @@ class CloneCoreImpl : public CloneCore {
         cloneTempDir_(option.cloneTempDir),
         mdsRootUser_(option.mdsRootUser),
         createCloneChunkConcurrency_(option.createCloneChunkConcurrency),
-        recoverChunkConcurrency_(option.recoverChunkConcurrency) {
-    }
+        recoverChunkConcurrency_(option.recoverChunkConcurrency),
+        clientAsyncMethodRetryTimeSec_(option.clientAsyncMethodRetryTimeSec),
+        clientAsyncMethodRetryIntervalMs_(
+            option.clientAsyncMethodRetryIntervalMs) {}
 
     ~CloneCoreImpl() {
     }
@@ -311,6 +313,20 @@ class CloneCoreImpl : public CloneCore {
         const CloneSegmentMap &segInfos);
 
     /**
+     * @brief 开始CreateCloneChunk的异步请求
+     *
+     * @param task 任务信息
+     * @param tracker CreateCloneChunk任务追踪器
+     * @param context CreateCloneChunk上下文
+     *
+     * @return 错误码
+     */
+    int StartAsyncCreateCloneChunk(
+        std::shared_ptr<CloneTaskInfo> task,
+        std::shared_ptr<CreateCloneChunkTaskTracker> tracker,
+        std::shared_ptr<CreateCloneChunkContext> context);
+
+    /**
      * @brief 通知mds完成源数据创建步骤
      *
      * @param task 任务信息
@@ -342,7 +358,7 @@ class CloneCoreImpl : public CloneCore {
      * @brief 开始RecoverChunk的异步请求
      *
      * @param task 任务信息
-     * @param tracker RecoverChunk异步任务跟踪者
+     * @param tracker RecoverChunk异步任务跟踪器
      * @param context RecoverChunk上下文
      *
      * @return 错误码
@@ -357,14 +373,14 @@ class CloneCoreImpl : public CloneCore {
      *
      * @param task 任务信息
      * @param tracker RecoverChunk异步任务跟踪者
-     * @param workingChunkNum 当前处于异步工作的Chunk数量
+     * @param[out] completeChunkNum 完成的chunk数
      *
      * @return 错误码
      */
     int ContinueAsyncRecoverChunkPartAndWaitSomeChunkEnd(
         std::shared_ptr<CloneTaskInfo> task,
         std::shared_ptr<RecoverChunkTaskTracker> tracker,
-        uint64_t *workingChunkNum);
+        uint64_t *completeChunkNum);
 
     /**
      * @brief 修改克隆文件的owner
@@ -475,6 +491,10 @@ class CloneCoreImpl : public CloneCore {
     uint32_t createCloneChunkConcurrency_;
     // RecoverChunk同时进行的异步请求数量
     uint32_t recoverChunkConcurrency_;
+    // client异步请求重试时间
+    uint64_t clientAsyncMethodRetryTimeSec_;
+    // 调用client异步方法重试时间间隔
+    uint64_t clientAsyncMethodRetryIntervalMs_;
 };
 
 }  // namespace snapshotcloneserver

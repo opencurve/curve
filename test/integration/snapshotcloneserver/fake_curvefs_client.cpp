@@ -132,12 +132,6 @@ int FakeCurveFsClient::ReadChunkSnapshot(ChunkIDInfo cidinfo,
     return LIBCURVE_ERROR::OK;
 }
 
-int FakeCurveFsClient::DeleteChunkSnapshotOrCorrectSn(
-    const ChunkIDInfo &cidinfo,
-    uint64_t seq) {
-    return LIBCURVE_ERROR::OK;
-}
-
 int FakeCurveFsClient::CheckSnapShotStatus(std::string filename,
         std::string user,
         uint64_t seq,
