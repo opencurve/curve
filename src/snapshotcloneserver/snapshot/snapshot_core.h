@@ -138,6 +138,9 @@ class SnapshotCore {
 
     virtual int GetSnapshotInfo(const UUID uuid,
         SnapshotInfo *info) = 0;
+
+    virtual int HandleCancelUnSchduledSnapshotTask(
+        std::shared_ptr<SnapshotTaskInfo> task) = 0;
 };
 
 class SnapshotCoreImpl : public SnapshotCore {
@@ -163,7 +166,11 @@ class SnapshotCoreImpl : public SnapshotCore {
       checkSnapshotStatusIntervalMs_(option.checkSnapshotStatusIntervalMs),
       maxSnapshotLimit_(option.maxSnapshotLimit),
       snapshotCoreThreadNum_(option.snapshotCoreThreadNum),
-      mdsSessionTimeUs_(option.mdsSessionTimeUs) {
+      mdsSessionTimeUs_(option.mdsSessionTimeUs),
+      clientAsyncMethodRetryTimeSec_(option.clientAsyncMethodRetryTimeSec),
+      clientAsyncMethodRetryIntervalMs_(
+          option.clientAsyncMethodRetryIntervalMs),
+          readChunkSnapshotConcurrency_(option.readChunkSnapshotConcurrency) {
         threadPool_ = std::make_shared<ThreadPool>(
             option.snapshotCoreThreadNum);
     }
@@ -198,6 +205,9 @@ class SnapshotCoreImpl : public SnapshotCore {
         SnapshotInfo *info) override;
 
     int GetSnapshotList(std::vector<SnapshotInfo> *list) override;
+
+    int HandleCancelUnSchduledSnapshotTask(
+        std::shared_ptr<SnapshotTaskInfo> task) override;
 
  private:
     /**
@@ -283,6 +293,16 @@ class SnapshotCoreImpl : public SnapshotCore {
         const SnapshotInfo &info,
         const std::map<uint64_t, SegmentInfo> &segInfos,
         const ChunkDataExistFilter &filter,
+        std::shared_ptr<SnapshotTaskInfo> task);
+
+    /**
+     * @brief 开始cancel，更新任务状态，更新数据库状态
+     *
+     * @param task 快照任务信息
+     *
+     * @return  错误码
+     */
+    int StartCancel(
         std::shared_ptr<SnapshotTaskInfo> task);
 
     /**
@@ -381,6 +401,12 @@ class SnapshotCoreImpl : public SnapshotCore {
     uint32_t snapshotCoreThreadNum_;
     // session超时时间
     uint32_t mdsSessionTimeUs_;
+    // client异步回调请求的重试总时间
+    uint64_t clientAsyncMethodRetryTimeSec_;
+    // 调用client异步方法重试时间间隔
+    uint64_t clientAsyncMethodRetryIntervalMs_;
+    // 异步ReadChunkSnapshot的并发数
+    uint32_t readChunkSnapshotConcurrency_;
 };
 
 }  // namespace snapshotcloneserver

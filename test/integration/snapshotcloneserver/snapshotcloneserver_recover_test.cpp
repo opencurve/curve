@@ -160,6 +160,8 @@ const std::vector<std::string> snapshotcloneserverConfigOptions {
     std::string("server.recoverChunkConcurrency=2"),
     std::string("mds.rootUser=") + mdsRootUser_,
     std::string("mds.rootPassword=") + mdsRootPassword_,
+    std::string("client.methodRetryTimeSec=1"),
+    std::string("server.clientAsyncMethodRetryTimeSec=1"),
 };
 
 const std::vector<std::string> snapshotcloneConf{

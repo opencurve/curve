@@ -15,37 +15,56 @@ namespace snapshotcloneserver {
 int CurveFsClientImpl::Init(const CurveClientOptions &options) {
     mdsRootUser_ = options.mdsRootUser;
     mdsRootPassword_ = options.mdsRootPassword;
+    clientMethodRetryTimeSec_ = options.clientMethodRetryTimeSec;
+    clientMethodRetryIntervalMs_ = options.clientMethodRetryIntervalMs;
 
-    if (client_.Init(options.configPath) < 0
-        || fileClient_.Init(options.configPath) < 0) {
+    if (snapClient_->Init(options.configPath) < 0) {
+        return kErrCodeServerInitFail;
+    } else if (fileClient_->Init(options.configPath) < 0) {
+        snapClient_->UnInit();
         return kErrCodeServerInitFail;
     }
     return kErrCodeSuccess;
 }
 
 int CurveFsClientImpl::UnInit() {
-    client_.UnInit();
+    snapClient_->UnInit();
+    fileClient_->UnInit();
     return kErrCodeSuccess;
 }
 
 int CurveFsClientImpl::CreateSnapshot(const std::string &filename,
     const std::string &user,
     uint64_t *seq) {
-    if (user == mdsRootUser_) {
-        return client_.CreateSnapShot(filename,
-            UserInfo(mdsRootUser_, mdsRootPassword_), seq);
-    }
-    return client_.CreateSnapShot(filename, UserInfo(user, ""), seq);
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, &userInfo, seq] () {
+            return snapClient_->CreateSnapShot(filename,
+                userInfo, seq);
+        };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+            ret != -LIBCURVE_ERROR::UNDER_SNAPSHOT;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::DeleteSnapshot(const std::string &filename,
     const std::string &user,
     uint64_t seq) {
-    if (user == mdsRootUser_) {
-        return client_.DeleteSnapShot(filename,
-            UserInfo(mdsRootUser_, mdsRootPassword_), seq);
-    }
-    return client_.DeleteSnapShot(filename, UserInfo(user, ""), seq);
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, &userInfo, seq] () {
+            return snapClient_->DeleteSnapShot(filename, userInfo, seq);
+        };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+        ret != -LIBCURVE_ERROR::NOTEXIST &&
+        ret != -LIBCURVE_ERROR::DELETING;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::GetSnapshot(
@@ -53,11 +72,17 @@ int CurveFsClientImpl::GetSnapshot(
     const std::string &user,
     uint64_t seq,
     FInfo* snapInfo) {
-    if (user == mdsRootUser_) {
-        return client_.GetSnapShot(filename,
-            UserInfo(mdsRootUser_, mdsRootPassword_), seq, snapInfo);
-    }
-    return client_.GetSnapShot(filename, UserInfo(user, ""), seq, snapInfo);
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, &userInfo, seq, snapInfo] () {
+        return snapClient_->GetSnapShot(filename,
+            userInfo, seq, snapInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::GetSnapshotSegmentInfo(const std::string &filename,
@@ -65,13 +90,19 @@ int CurveFsClientImpl::GetSnapshotSegmentInfo(const std::string &filename,
     uint64_t seq,
     uint64_t offset,
     SegmentInfo *segInfo) {
-    if (user == mdsRootUser_) {
-        return client_.GetSnapshotSegmentInfo(
-            filename, UserInfo(mdsRootUser_, mdsRootPassword_),
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, &userInfo, seq, offset, segInfo] () {
+        return snapClient_->GetSnapshotSegmentInfo(
+            filename, userInfo,
             seq, offset, segInfo);
-    }
-    return client_.GetSnapshotSegmentInfo(
-        filename, UserInfo(user, ""), seq, offset, segInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOT_ALLOCATE;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::ReadChunkSnapshot(ChunkIDInfo cidinfo,
@@ -80,33 +111,50 @@ int CurveFsClientImpl::ReadChunkSnapshot(ChunkIDInfo cidinfo,
                         uint64_t len,
                         char *buf,
                         SnapCloneClosure* scc) {
-    return client_.ReadChunkSnapshot(
-        cidinfo, seq, offset, len, buf, scc);
-}
-
-int CurveFsClientImpl::DeleteChunkSnapshotOrCorrectSn(
-    const ChunkIDInfo &cidinfo,
-    uint64_t correctedSeq) {
-    return client_.DeleteChunkSnapshotOrCorrectSn(cidinfo, correctedSeq);
+    RetryMethod method = [this, &cidinfo, seq, offset, len, buf, scc] () {
+        return snapClient_->ReadChunkSnapshot(
+            cidinfo, seq, offset, len, buf, scc);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret < 0;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::CheckSnapShotStatus(std::string filename,
                         std::string user,
                         uint64_t seq,
                         FileStatus* filestatus) {
-    if (user == mdsRootUser_) {
-        return client_.CheckSnapShotStatus(filename,
-            UserInfo(mdsRootUser_, mdsRootPassword_),
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, &userInfo, seq, filestatus] () {
+        return snapClient_->CheckSnapShotStatus(filename,
+            userInfo,
             seq, filestatus);
-    }
-    return client_.CheckSnapShotStatus(filename, UserInfo(user, ""),
-                                       seq, filestatus);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOTEXIST &&
+               ret != -LIBCURVE_ERROR::DELETE_ERROR;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::GetChunkInfo(
     const ChunkIDInfo &cidinfo,
     ChunkInfoDetail *chunkInfo) {
-    return client_.GetChunkInfo(cidinfo, chunkInfo);
+    RetryMethod method = [this, &cidinfo, &chunkInfo] () {
+        return snapClient_->GetChunkInfo(cidinfo, chunkInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::CreateCloneFile(
@@ -116,14 +164,20 @@ int CurveFsClientImpl::CreateCloneFile(
     uint64_t sn,
     uint32_t chunkSize,
     FInfo* fileInfo) {
-    if (user == mdsRootUser_) {
-        return client_.CreateCloneFile(filename,
-                UserInfo(mdsRootUser_, mdsRootPassword_), size,
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename,
+        userInfo, size, sn, chunkSize, fileInfo] () {
+            return snapClient_->CreateCloneFile(filename,
+                userInfo, size,
                 sn, chunkSize, fileInfo);
-    }
-    return client_.CreateCloneFile(filename,
-            UserInfo(user, ""), size,
-            sn, chunkSize, fileInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::EXISTS;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::CreateCloneChunk(
@@ -133,8 +187,17 @@ int CurveFsClientImpl::CreateCloneChunk(
     uint64_t csn,
     uint64_t chunkSize,
     SnapCloneClosure* scc) {
-    return client_.CreateCloneChunk(
-            location, chunkidinfo, sn, csn, chunkSize, scc);
+    RetryMethod method = [this, &location, &chunkidinfo,
+        sn, csn, chunkSize, scc] () {
+        return snapClient_->CreateCloneChunk(
+                location, chunkidinfo, sn, csn, chunkSize, scc);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret < 0;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::RecoverChunk(
@@ -142,55 +205,81 @@ int CurveFsClientImpl::RecoverChunk(
     uint64_t offset,
     uint64_t len,
     SnapCloneClosure* scc) {
-    return client_.RecoverChunk(chunkidinfo, offset, len, scc);
+    RetryMethod method = [this, &chunkidinfo, offset, len, scc] () {
+        return snapClient_->RecoverChunk(chunkidinfo, offset, len, scc);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret < 0;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::CompleteCloneMeta(
     const std::string &filename,
     const std::string &user) {
-    if (user == mdsRootUser_) {
-        return client_.CompleteCloneMeta(filename,
-            UserInfo(mdsRootUser_, mdsRootPassword_));
-    }
-    return client_.CompleteCloneMeta(filename,
-        UserInfo(user, ""));
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, userInfo] () {
+        return snapClient_->CompleteCloneMeta(filename, userInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret < 0;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::CompleteCloneFile(
     const std::string &filename,
     const std::string &user) {
-    if (user == mdsRootUser_) {
-        return client_.CompleteCloneFile(filename,
-            UserInfo(mdsRootUser_, mdsRootPassword_));
-    }
-    return client_.CompleteCloneFile(filename,
-        UserInfo(user, ""));
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, userInfo] () {
+        return snapClient_->CompleteCloneFile(filename, userInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret < 0;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::SetCloneFileStatus(
     const std::string &filename,
     const FileStatus& filestatus,
     const std::string &user) {
-    if (user == mdsRootUser_) {
-        return client_.SetCloneFileStatus(filename,
-            filestatus,
-            UserInfo(mdsRootUser_, mdsRootPassword_));
-    }
-    return client_.SetCloneFileStatus(filename,
-            filestatus,
-            UserInfo(user, ""));
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, filestatus, userInfo] () {
+        return snapClient_->SetCloneFileStatus(filename, filestatus, userInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret < 0;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::GetFileInfo(
     const std::string &filename,
     const std::string &user,
     FInfo* fileInfo) {
-    if (user == mdsRootUser_) {
-        return client_.GetFileInfo(filename,
-            UserInfo(mdsRootUser_, mdsRootPassword_), fileInfo);
-    }
-    return client_.GetFileInfo(filename,
-        UserInfo(user, ""), fileInfo);
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &filename, &userInfo, fileInfo] () {
+        return snapClient_->GetFileInfo(filename,
+            userInfo, fileInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOTEXIST &&
+               ret != -LIBCURVE_ERROR::AUTHFAIL &&
+               ret != -LIBCURVE_ERROR::PARAM_ERROR;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::GetOrAllocateSegmentInfo(
@@ -199,15 +288,19 @@ int CurveFsClientImpl::GetOrAllocateSegmentInfo(
     FInfo* fileInfo,
     const std::string &user,
     SegmentInfo *segInfo) {
-    if (user == mdsRootUser_) {
-        fileInfo->userinfo = UserInfo(mdsRootUser_, mdsRootPassword_);
-        return client_.GetOrAllocateSegmentInfo(allocate, offset,
+    fileInfo->userinfo = GetUserInfo(user);
+    RetryMethod method = [this, &allocate, offset,
+        fileInfo, segInfo] () {
+        return snapClient_->GetOrAllocateSegmentInfo(allocate, offset,
                                                 fileInfo, segInfo);
-    }
-
-    fileInfo->userinfo = UserInfo(user, "");
-    return client_.GetOrAllocateSegmentInfo(allocate, offset,
-                                            fileInfo, segInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOT_ALLOCATE;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::RenameCloneFile(
@@ -216,42 +309,67 @@ int CurveFsClientImpl::RenameCloneFile(
     uint64_t destinationId,
     const std::string &origin,
     const std::string &destination) {
-    if (user == mdsRootUser_) {
-        return client_.RenameCloneFile(
-            UserInfo(mdsRootUser_, mdsRootPassword_), originId, destinationId,
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &userInfo, originId, destinationId,
+        origin, destination] () {
+        return snapClient_->RenameCloneFile(
+            userInfo, originId, destinationId,
                 origin, destination);
-    }
-    return client_.RenameCloneFile(
-        UserInfo(user, ""), originId, destinationId,
-            origin, destination);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOTEXIST;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::DeleteFile(
     const std::string &fileName,
     const std::string &user,
     uint64_t fileId) {
-    if (user == mdsRootUser_) {
-        return client_.DeleteFile(fileName,
-            UserInfo(mdsRootUser_, mdsRootPassword_), fileId);
-    }
-    return client_.DeleteFile(fileName,
-        UserInfo(user, ""), fileId);
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, fileName, userInfo, fileId] () {
+        return snapClient_->DeleteFile(fileName,
+            userInfo, fileId);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::NOTEXIST;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::Mkdir(const std::string& dirpath,
     const std::string &user) {
-    if (user == mdsRootUser_) {
-        return fileClient_.Mkdir(dirpath,
-            UserInfo(mdsRootUser_, mdsRootPassword_));
-    }
-    return fileClient_.Mkdir(dirpath,
-        UserInfo(user, ""));
+    UserInfo userInfo = GetUserInfo(user);
+    RetryMethod method = [this, &dirpath, userInfo] () {
+        return fileClient_->Mkdir(dirpath, userInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK &&
+               ret != -LIBCURVE_ERROR::EXISTS;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 int CurveFsClientImpl::ChangeOwner(const std::string& filename,
     const std::string& newOwner) {
-    return fileClient_.ChangeOwner(filename, newOwner,
-        UserInfo(mdsRootUser_, mdsRootPassword_));
+    UserInfo userInfo(mdsRootUser_, mdsRootPassword_);
+    RetryMethod method = [this, &filename, &newOwner, &userInfo] () {
+        return fileClient_->ChangeOwner(filename, newOwner, userInfo);
+    };
+    RetryCondition condition = [] (int ret) {
+        return ret != LIBCURVE_ERROR::OK;
+    };
+    RetryHelper retryHelper(method, condition);
+    return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,
+        clientMethodRetryIntervalMs_);
 }
 
 }  // namespace snapshotcloneserver

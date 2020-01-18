@@ -22,12 +22,20 @@ struct CurveClientOptions {
     std::string mdsRootUser;
     // mds root password
     std::string mdsRootPassword;
+    // 调用client方法的重试总时间
+    uint64_t clientMethodRetryTimeSec;
+    // 调用client方法重试间隔时间
+    uint64_t clientMethodRetryIntervalMs;
 };
 
 // snapshotcloneserver options
 struct SnapshotCloneServerOptions {
     // snapshot&clone server address
     std::string  addr;
+    // 调用client异步方法重试总时间
+    uint64_t clientAsyncMethodRetryTimeSec;
+    // 调用client异步方法重试时间间隔
+    uint64_t clientAsyncMethodRetryIntervalMs;
     // 快照工作线程数
     int snapshotPoolThreadNum;
     // 快照后台线程扫描等待队列和工作队列的扫描周期(单位：ms)
@@ -42,6 +50,8 @@ struct SnapshotCloneServerOptions {
     uint32_t snapshotCoreThreadNum;
     // mdsSessionTimeUs
     uint32_t mdsSessionTimeUs;
+    // ReadChunkSnapshot同时进行的异步请求数量
+    uint32_t readChunkSnapshotConcurrency;
 
     // 克隆恢复工作线程数
     int clonePoolThreadNum;

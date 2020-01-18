@@ -75,6 +75,8 @@ class CloneClosure : public Closure {
                       << "action = Clone/Recover"
                       << ", requestId = " << requestId_
                       << ", context = " << bcntl_->response_attachment();
+            done_ = nullptr;
+            bcntl_ = nullptr;
             return;
         }
     }
