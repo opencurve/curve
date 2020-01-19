@@ -4,52 +4,59 @@ namespace nebd {
 namespace server {
 
 std::shared_ptr<NebdFileInstance>
-CurveRequestExcutor::Open(const std::string& filename) {
+CurveRequestExecutor::Open(const std::string& filename) {
     // TODO
     return nullptr;
 }
 
-int CurveRequestExcutor::Close(NebdFileInstance* fd) {
+std::shared_ptr<NebdFileInstance>
+CurveRequestExecutor::Reopen(const std::string& filename,
+                             AdditionType addtion) {
+    // TODO
+    return nullptr;
+}
+
+int CurveRequestExecutor::Close(NebdFileInstance* fd) {
     // TODO
     return 0;
 }
 
-int CurveRequestExcutor::Extend(NebdFileInstance* fd, int64_t newsize) {
+int CurveRequestExecutor::Extend(NebdFileInstance* fd, int64_t newsize) {
     // TODO
     return 0;
 }
 
-int CurveRequestExcutor::StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
+int CurveRequestExecutor::StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }
 
-int CurveRequestExcutor::Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CurveRequestExecutor::Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;
 }
 
-int CurveRequestExcutor::AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CurveRequestExecutor::AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;
 }
 
-int CurveRequestExcutor::AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CurveRequestExecutor::AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;
 }
 
-int CurveRequestExcutor::Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CurveRequestExecutor::Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;
 }
 
-int CurveRequestExcutor::GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
+int CurveRequestExecutor::GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }
 
-int CurveRequestExcutor::InvalidCache(NebdFileInstance* fd) {
+int CurveRequestExecutor::InvalidCache(NebdFileInstance* fd) {
     // TODO
     return 0;
 }

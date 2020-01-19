@@ -4,52 +4,59 @@ namespace nebd {
 namespace server {
 
 std::shared_ptr<NebdFileInstance>
-CephRequestExcutor::Open(const std::string& filename) {
+CephRequestExecutor::Open(const std::string& filename) {
     // TODO
     return nullptr;
 }
 
-int CephRequestExcutor::Close(NebdFileInstance* fd) {
+std::shared_ptr<NebdFileInstance>
+CephRequestExecutor::Reopen(const std::string& filename,
+                            AdditionType addtion) {
+    // TODO
+    return nullptr;
+}
+
+int CephRequestExecutor::Close(NebdFileInstance* fd) {
     // TODO
     return 0;
 }
 
-int CephRequestExcutor::Extend(NebdFileInstance* fd, int64_t newsize) {
+int CephRequestExecutor::Extend(NebdFileInstance* fd, int64_t newsize) {
     // TODO
     return 0;
 }
 
-int CephRequestExcutor::StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
+int CephRequestExecutor::StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }
 
-int CephRequestExcutor::Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CephRequestExecutor::Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;
 }
 
-int CephRequestExcutor::AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CephRequestExecutor::AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;
 }
 
-int CephRequestExcutor::AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CephRequestExecutor::AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;
 }
 
-int CephRequestExcutor::Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+int CephRequestExecutor::Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;
 }
 
-int CephRequestExcutor::GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
+int CephRequestExecutor::GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
     // TODO
     return 0;
 }
 
-int CephRequestExcutor::InvalidCache(NebdFileInstance* fd) {
+int CephRequestExecutor::InvalidCache(NebdFileInstance* fd) {
     // TODO
     return 0;
 }

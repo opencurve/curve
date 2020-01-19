@@ -13,15 +13,19 @@ class CurveFileInstance : public NebdFileInstance {
     CurveFileInstance() {}
     ~CurveFileInstance() {}
 
-    int fd;
-    std::string sessionid;
+    int fd = 0;
 };
 
-class CurveRequestExcutor : public NebdRequestExcutor {
+class CurveRequestExecutor : public NebdRequestExecutor {
  public:
-    CurveRequestExcutor() {}
-    ~CurveRequestExcutor() {}
+    static CurveRequestExecutor& GetInstance() {
+        static CurveRequestExecutor executor;
+        return executor;
+    }
+    ~CurveRequestExecutor() {}
     std::shared_ptr<NebdFileInstance> Open(const std::string& filename) override;  // NOLINT
+    std::shared_ptr<NebdFileInstance> Reopen(
+        const std::string& filename, AdditionType addtion) override;
     int Close(NebdFileInstance* fd) override;
     int Extend(NebdFileInstance* fd, int64_t newsize) override;
     int GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) override;
@@ -31,6 +35,9 @@ class CurveRequestExcutor : public NebdRequestExcutor {
     int AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int InvalidCache(NebdFileInstance* fd) override;
+
+ private:
+    CurveRequestExecutor() {}
 };
 
 }  // namespace server

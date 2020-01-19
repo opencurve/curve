@@ -12,16 +12,18 @@ class CephFileInstance : public NebdFileInstance {
  public:
     CephFileInstance() {}
     ~CephFileInstance() {}
-
-    int fd;
-    std::string sessionid;
 };
 
-class CephRequestExcutor : public NebdRequestExcutor {
+class CephRequestExecutor : public NebdRequestExecutor {
  public:
-    CephRequestExcutor() {}
-    ~CephRequestExcutor() {}
+    static CephRequestExecutor& GetInstance() {
+        static CephRequestExecutor executor;
+        return executor;
+    }
+    ~CephRequestExecutor() {}
     std::shared_ptr<NebdFileInstance> Open(const std::string& filename) override;  // NOLINT
+    std::shared_ptr<NebdFileInstance> Reopen(
+        const std::string& filename, AdditionType addtion) override;
     int Close(NebdFileInstance* fd) override;
     int Extend(NebdFileInstance* fd, int64_t newsize) override;
     int GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) override;
@@ -31,6 +33,9 @@ class CephRequestExcutor : public NebdRequestExcutor {
     int AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int InvalidCache(NebdFileInstance* fd) override;
+
+ private:
+    CephRequestExecutor() {}
 };
 
 }  // namespace server

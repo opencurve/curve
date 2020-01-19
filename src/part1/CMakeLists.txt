@@ -11,15 +11,10 @@ add_definitions(
   "-DGFLAGS=gflags -DOS_LINUX -DSNAPPY -DHAVE_ZLIB -DHAVE_SSE42 -DNDEBUG")
 
 # libnebd.so
-set(LIBNEBD_SRC
-    libnebd.cpp
-    libnebd.h
-    libnebd_file.cpp
-    libnebd_file.h
-    nebd_client.cpp
-    nebd_client.h
-    connection_manager.cpp
-    connection_manager.h)
+file(GLOB
+     LIBNEBD_SRC
+     "*.cpp"
+     "*.h")
 set(LIBNEBD_LINK
     brpc-shared
     rt

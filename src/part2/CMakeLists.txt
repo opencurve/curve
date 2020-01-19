@@ -17,6 +17,7 @@ file(GLOB
      "*.cpp")
 
 set(PART2_LINK
+    nebd_common
     brpc-shared
     config
     crypto

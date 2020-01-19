@@ -7,10 +7,16 @@ set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++0x -pipe -W -Wall \
 add_definitions(
   "-DGFLAGS=gflags -DOS_LINUX -DSNAPPY -DHAVE_ZLIB -DHAVE_SSE42 -DNDEBUG")
 
-# test_configuration
-set(TEST_CONF_SRC configuration_test.cpp)
-set(TEST_CONF_LINK nebd_common gflags gtest gmock)
-add_executable(test_configuration ${TEST_CONF_SRC})
-target_link_libraries(test_configuration ${TEST_CONF_LINK})
-install(TARGETS test_configuration DESTINATION bin)
-add_test(NAME test_configuration COMMAND test_configuration)
+# COMMON_TEST_SRC
+file(GLOB COMMON_TEST_SRC
+    "*.h"
+    "*.cpp"
+)
+
+# common_test
+set(COMMON_TEST_LINK nebd_common gflags gtest gmock)
+add_executable(common_test ${COMMON_TEST_SRC})
+target_link_libraries(common_test ${COMMON_TEST_LINK})
+install(TARGETS common_test DESTINATION bin)
+add_test(NAME common_test COMMAND common_test)
+

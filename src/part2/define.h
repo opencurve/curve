@@ -3,6 +3,7 @@
 
 #include <google/protobuf/message.h>
 #include <string>
+#include <memory>
 
 #include "src/common/rw_lock.h"
 
@@ -12,6 +13,10 @@ using ::google::protobuf::Closure;
 
 namespace nebd {
 namespace server {
+
+const char CURVE_PREFIX[] = "cbd";
+const char CEPH_PREFIX[] = "rbd";
+const char TEST_PREFIX[] = "test";
 
 // nebd异步请求的类型
 enum class LIBAIO_OP {
@@ -29,41 +34,68 @@ enum class NebdFileStatus {
 enum class NebdFileType {
     CEPH = 0,
     CURVE = 1,
+    TEST = 2,
+    UNKWOWN = 3,
 };
 
 class NebdFileInstance;
 class NebdRequestExecutor;
+using NebdFileInstancePtr = std::shared_ptr<NebdFileInstance>;
 
+// nebd server记录的文件信息内存结构
 struct NebdFileRecord {
-    int fd;
-    std::string fileName;
-    NebdFileType type;
-    NebdFileStatus status;
-    uint64_t timeStamp;
+    // 文件读写锁，处理请求前加读锁，close文件的时候加写锁
+    // 避免close时还有请求未处理完
     RWLock rwLock;
-    NebdFileInstance* fileInstance;
-    NebdRequestExecutor* executor;
+    // nebd server为该文件分配的唯一标识符
+    int fd = 0;
+    // 文件名称
+    std::string fileName = "";
+    // 文件类型：ceph文件、curve文件或测试文件
+    NebdFileType type = NebdFileType::UNKWOWN;
+    // 文件当前状态，opened表示文件已打开，closed表示文件已关闭
+    NebdFileStatus status = NebdFileStatus::CLOSED;
+    // 该文件上一次收到心跳时的时间戳
+    uint64_t timeStamp = 0;
+    // 文件在executor open时返回上下文信息，用于后续文件的请求处理
+    NebdFileInstancePtr fileInstance = nullptr;
+    // 文件实际的执行处理对象
+    NebdRequestExecutor* executor = nullptr;
 };
+using NebdFileRecordPtr = std::shared_ptr<NebdFileRecord>;
 
 struct NebdServerAioContext;
 
 // nebd回调函数的类型
 typedef void (*NebdAioCallBack)(struct NebdServerAioContext* context);
 
+// nebd server端异步请求的上下文
+// 记录请求的类型、参数、返回信息、rpc信息
 struct NebdServerAioContext {
-    off_t offset;             // 请求的offset
-    size_t length;            // 请求的length
-    int ret;                  // 记录异步返回的返回值
-    LIBAIO_OP op;             // 异步请求的类型，详见定义
-    NebdAioCallBack cb;       // 异步请求的回调函数
-    void* buf;                // 请求的buf
-    Message* response;        // 请求返回内容
-    Closure *done;            // 请求回调函数
+    // 请求的offset
+    off_t offset;
+    // 请求的length
+    size_t length;
+    // 记录异步返回的返回值
+    int ret;
+    // 异步请求的类型，详见定义
+    LIBAIO_OP op;
+    // 异步请求结束时调用的回调函数
+    NebdAioCallBack cb;
+    // 请求的buf
+    void* buf;
+    // rpc请求的相应内容
+    Message* response;
+    // rpc请求的回调函数
+    Closure *done;
 };
 
 struct NebdFileInfo {
+    // 文件大小
     uint64_t size;
+    // object大小（ceph为object，curve为chunk）
     uint64_t obj_size;
+    // object数量
     uint64_t num_objs;
 };
 

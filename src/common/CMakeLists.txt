@@ -8,9 +8,12 @@ file (GLOB PROTO_FILES
     "*.proto"
 )
 
+set(COMMON_LINK
+    brpc-shared)
+
 add_library(nebd_common SHARED ${COMMON_SRC})
 install(TARGETS nebd_common DESTINATION lib)
-target_link_libraries(nebd_common ${EXTRALIBS})
+target_link_libraries(nebd_common ${COMMON_LINK} ${EXTRALIBS})
 
 # libclient_proto.so
 include(FindProtobuf)
