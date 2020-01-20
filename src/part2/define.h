@@ -27,6 +27,9 @@ const char CURVE_PREFIX[] = "cbd";
 const char CEPH_PREFIX[] = "rbd";
 const char TEST_PREFIX[] = "test";
 
+const char CURVE_PREFIX[] = "cbd";
+const char CEPH_PREFIX[] = "rbd";
+
 // nebd异步请求的类型
 enum class LIBAIO_OP {
     LIBAIO_OP_READ,

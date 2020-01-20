@@ -10,6 +10,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPP_FLAGS} -std=c++0x -DNDEBUG -O2 \
 
 set(PART2_TEST_LINK
     nebdserver
+    pthread
     gtest
     gmock
     gflags)
@@ -19,7 +20,8 @@ set(PART2_MOCK_SRC
     mock_metafile_manager.h
     mock_request_executor.h
     mock_file_manager.h
-    mock_posix_wrapper.h)
+    mock_posix_wrapper.h
+    mock_curve_client.h)
 add_library(part2mock ${PART2_MOCK_SRC})
 set_target_properties(part2mock PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(part2mock
@@ -77,3 +79,12 @@ target_link_libraries(test_nebd_server
                       ${PART2_TEST_LINK})
 install(TARGETS test_nebd_server DESTINATION bin)
 add_test(NAME test_nebd_server COMMAND test_nebd_server)
+
+# test_request_executor_curve
+set(TEST_REQUESTEXECUTORCURVE_SRC test_request_executor_curve.cpp)
+add_executable(test_request_executor_curve ${TEST_REQUESTEXECUTORCURVE_SRC})
+target_link_libraries(test_request_executor_curve
+                      part2mock
+                      ${PART2_TEST_LINK})
+install(TARGETS test_request_executor_curve DESTINATION bin)
+add_test(NAME test_request_executor_curve COMMAND test_request_executor_curve)

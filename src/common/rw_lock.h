@@ -10,7 +10,7 @@
 
 #include <pthread.h>
 #include <assert.h>
-#include <butil/logging.h>
+#include <glog/logging.h>
 
 #include "src/common/uncopyable.h"
 

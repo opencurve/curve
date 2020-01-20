@@ -9,7 +9,7 @@
 #define SRC_PART2_FILE_SERVICE_H_
 
 #include <gflags/gflags.h>
-#include <butil/logging.h>
+#include <glog/logging.h>
 #include <vector>
 #include <string>
 #include <memory>

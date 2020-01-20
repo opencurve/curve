@@ -1,67 +1,270 @@
+/*
+ * Project: nebd
+ * Created Date: 2020-02-03
+ * Author: lixiaocui
+ * Copyright (c) 2020 netease
+ */
+
+#include <glog/logging.h>
 #include "src/part2/request_executor_curve.h"
 
 namespace nebd {
 namespace server {
 
+using ::curve::client::UserInfo_t;
+
+std::string FileNameParser::Parse(const std::string& fileName) {
+    int beginPos = fileName.find_first_of("/");
+    if (beginPos == std::string::npos) {
+        LOG(ERROR) << "error format fileName: " << fileName;
+        return "";
+    }
+    beginPos += 1;
+
+    int endPos = fileName.find_last_of(":");
+    if (endPos == std::string::npos) {
+        LOG(ERROR) << "error format fileName: " << fileName;
+        return "";
+    }
+
+    if (beginPos >= endPos) {
+        LOG(ERROR) << "error format fileName: " << fileName;
+        return "";
+    }
+
+    int length = endPos - beginPos;
+    if (length <= 2) {
+        LOG(ERROR) << "error format fileName: " << fileName;
+        return "";
+    }
+
+    return fileName.substr(beginPos, length);
+}
+
+void CurveRequestExecutor::Init(const std::shared_ptr<CurveClient> &client) {
+    client_ = client;
+}
+
 std::shared_ptr<NebdFileInstance>
 CurveRequestExecutor::Open(const std::string& filename) {
-    // TODO
+    std::string curveFileName = FileNameParser::Parse(filename);
+    if (curveFileName.empty()) {
+        return nullptr;
+    }
+
+    std::string sessionId;
+    int fd = client_->Open(curveFileName, &sessionId);
+
+    if (fd >= 0) {
+        auto curveFileInstance = std::make_shared<CurveFileInstance>();
+        curveFileInstance->fd = fd;
+        curveFileInstance->fileName = curveFileName;
+        curveFileInstance->addition["session"] = sessionId;
+        return curveFileInstance;
+    }
+
     return nullptr;
 }
 
 std::shared_ptr<NebdFileInstance>
 CurveRequestExecutor::Reopen(const std::string& filename,
                              AdditionType addtion) {
-    // TODO
+    std::string curveFileName = FileNameParser::Parse(filename);
+    if (curveFileName.empty()) {
+        return nullptr;
+    }
+
+    std::string newSessionId;
+    std::string oldSessionId = addtion["session"];
+    int fd = client_->ReOpen(curveFileName, oldSessionId, &newSessionId);
+    if (fd >= 0) {
+        auto curveFileInstance = std::make_shared<CurveFileInstance>();
+        curveFileInstance->fd = fd;
+        curveFileInstance->fileName = curveFileName;
+        curveFileInstance->addition["session"] = newSessionId;
+        return curveFileInstance;
+    }
+
     return nullptr;
 }
 
 int CurveRequestExecutor::Close(NebdFileInstance* fd) {
-    // TODO
+    int curveFd = GetCurveFdFromNebdFileInstance(fd);
+    if (curveFd < 0) {
+        return -1;
+    }
+
+    int res = client_->Close(curveFd);
+    if (res != LIBCURVE_ERROR::OK) {
+        return -1;
+    }
+
     return 0;
 }
 
 int CurveRequestExecutor::Extend(NebdFileInstance* fd, int64_t newsize) {
-    // TODO
+    std::string fileName = GetFileNameFromNebdFileInstance(fd);
+    if (fileName.empty()) {
+        return -1;
+    }
+
+    int res = client_->Extend(fileName, newsize);
+    if (res != LIBCURVE_ERROR::OK) {
+        return -1;
+    }
+
     return 0;
 }
 
-int CurveRequestExecutor::StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
-    // TODO
+int CurveRequestExecutor::GetInfo(
+    NebdFileInstance* fd, NebdFileInfo* fileInfo) {
+    std::string fileName = GetFileNameFromNebdFileInstance(fd);
+    if (fileName.empty()) {
+        return -1;
+    }
+
+    int64_t size = client_->StatFile(fileName);
+    if (size < 0) {
+        return -1;
+    }
+
+    fileInfo->size = size;
     return 0;
 }
 
-int CurveRequestExecutor::Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
-    // TODO
+int CurveRequestExecutor::Discard(
+    NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+
     return 0;
 }
 
-int CurveRequestExecutor::AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
-    // TODO
+int CurveRequestExecutor::AioRead(
+    NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+    int curveFd = GetCurveFdFromNebdFileInstance(fd);
+    if (curveFd < 0) {
+        return -1;
+    }
+
+    CurveAioCombineContext *curveCombineCtx = new CurveAioCombineContext();
+    curveCombineCtx->nebdCtx = aioctx;
+    curveCombineCtx->curveCtx = new CurveAioContext();
+    int ret = FromNebdCtxToCurveCtx(aioctx, curveCombineCtx->curveCtx);
+    if (ret < 0) {
+        delete curveCombineCtx->curveCtx;
+        delete curveCombineCtx;
+        return -1;
+    }
+
+    ret = client_->AioRead(curveFd,  curveCombineCtx->curveCtx);
+    if (ret !=  LIBCURVE_ERROR::OK) {
+        delete curveCombineCtx->curveCtx;
+        delete curveCombineCtx;
+        return -1;
+    }
+
     return 0;
 }
 
-int CurveRequestExecutor::AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
-    // TODO
+int CurveRequestExecutor::AioWrite(
+    NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+    int curveFd = GetCurveFdFromNebdFileInstance(fd);
+    if (curveFd < 0) {
+        return -1;
+    }
+
+    CurveAioCombineContext *curveCombineCtx = new CurveAioCombineContext();
+    curveCombineCtx->nebdCtx = aioctx;
+    curveCombineCtx->curveCtx = new CurveAioContext();
+    int ret = FromNebdCtxToCurveCtx(aioctx, curveCombineCtx->curveCtx);
+    if (ret < 0) {
+        delete curveCombineCtx->curveCtx;
+        delete curveCombineCtx;
+        return -1;
+    }
+
+    ret = client_->AioWrite(curveFd,  curveCombineCtx->curveCtx);
+    if (ret !=  LIBCURVE_ERROR::OK) {
+        delete curveCombineCtx->curveCtx;
+        delete curveCombineCtx;
+        return -1;
+    }
+
     return 0;
 }
 
-int CurveRequestExecutor::Flush(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
-    // TODO
-    return 0;
-}
-
-int CurveRequestExecutor::GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
-    // TODO
+int CurveRequestExecutor::Flush(
+    NebdFileInstance* fd, NebdServerAioContext* aioctx) {
+    // TODO(lxc)
     return 0;
 }
 
 int CurveRequestExecutor::InvalidCache(NebdFileInstance* fd) {
-    // TODO
+    auto curveFileInstance = dynamic_cast<CurveFileInstance *>(fd);
+    if (curveFileInstance == nullptr ||
+        curveFileInstance->fd < 0 ||
+        curveFileInstance->fileName.empty()) {
+        return -1;
+    }
+
     return 0;
 }
 
+int CurveRequestExecutor::GetCurveFdFromNebdFileInstance(NebdFileInstance* fd) {
+    auto curveFileInstance = dynamic_cast<CurveFileInstance *>(fd);
+    if (curveFileInstance == nullptr) {
+        return -1;
+    }
+
+    return curveFileInstance->fd;
+}
+
+std::string CurveRequestExecutor::GetFileNameFromNebdFileInstance(
+    NebdFileInstance* fd) {
+    auto curveFileInstance = dynamic_cast<CurveFileInstance *>(fd);
+    if (curveFileInstance == nullptr) {
+        return "";
+    }
+
+    return curveFileInstance->fileName;
+}
+
+int CurveRequestExecutor::FromNebdCtxToCurveCtx(
+        NebdServerAioContext *nebdCtx, CurveAioContext *curveCtx) {
+    curveCtx->offset = nebdCtx->offset;
+    curveCtx->length = nebdCtx->length;
+    int ret = FromNebdOpToCurveOp(nebdCtx->op, &curveCtx->op);
+    if (ret < 0) {
+        return -1;
+    }
+    curveCtx->buf = nebdCtx->buf;
+    curveCtx->cb = CurveAioCallback;
+    return 0;
+}
+
+int CurveRequestExecutor::FromNebdOpToCurveOp(LIBAIO_OP op, LIBCURVE_OP *out) {
+    switch (op) {
+    case LIBAIO_OP::LIBAIO_OP_READ:
+        *out = LIBCURVE_OP::LIBCURVE_OP_READ;
+        return 0;
+    case LIBAIO_OP::LIBAIO_OP_WRITE:
+        *out = LIBCURVE_OP_WRITE;
+        return 0;
+
+    default:
+        return -1;
+    }
+}
+
+void CurveAioCallback(struct CurveAioContext* curveCtx) {
+    auto curveCombineCtx = reinterpret_cast<CurveAioCombineContext *>(
+        reinterpret_cast<char *>(curveCtx) -
+        offsetof(CurveAioCombineContext, curveCtx));
+
+    curveCombineCtx->nebdCtx->ret = curveCtx->ret;
+    curveCombineCtx->nebdCtx->cb(curveCombineCtx->nebdCtx);
+    delete curveCtx;
+    delete curveCombineCtx;
+}
 
 }  // namespace server
 }  // namespace nebd
-

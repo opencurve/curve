@@ -35,7 +35,10 @@ set(PART2_LINK
     ssl
     z
     jsoncpp_lib)
-
+    curve
+    bthread
+    glog
+    )
 
 add_executable(nebd-server ${PART2_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
 target_link_libraries(nebd-server ${PART2_LINK} ${EXTRALIBS})

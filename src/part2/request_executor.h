@@ -10,6 +10,7 @@
 
 #include <map>
 #include <string>
+#include <memory>
 #include "src/part2/define.h"
 
 namespace nebd {
@@ -41,7 +42,6 @@ class NebdRequestExecutor {
     virtual int Close(NebdFileInstance* fd) = 0;
     virtual int Extend(NebdFileInstance* fd, int64_t newsize) = 0;
     virtual int GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) = 0;
-    virtual int StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) = 0;
     virtual int Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) = 0;
     virtual int AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) = 0;
     virtual int AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) = 0;  // NOLINT

@@ -9,7 +9,7 @@
 #define SRC_COMMON_INTERRUPT_SLEEP_H_
 
 #include <signal.h>
-#include <butil/logging.h>
+#include <glog/logging.h>
 #include <condition_variable>  // NOLINT
 
 namespace nebd {

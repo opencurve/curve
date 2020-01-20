@@ -27,7 +27,6 @@ class CephRequestExecutor : public NebdRequestExecutor {
     int Close(NebdFileInstance* fd) override;
     int Extend(NebdFileInstance* fd, int64_t newsize) override;
     int GetInfo(NebdFileInstance* fd, NebdFileInfo* fileInfo) override;
-    int StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) override;
     int Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int AioRead(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;
     int AioWrite(NebdFileInstance* fd, NebdServerAioContext* aioctx) override;

@@ -26,11 +26,6 @@ int CephRequestExecutor::Extend(NebdFileInstance* fd, int64_t newsize) {
     return 0;
 }
 
-int CephRequestExecutor::StatFile(NebdFileInstance* fd, NebdFileInfo* fileInfo) {
-    // TODO
-    return 0;
-}
-
 int CephRequestExecutor::Discard(NebdFileInstance* fd, NebdServerAioContext* aioctx) {
     // TODO
     return 0;

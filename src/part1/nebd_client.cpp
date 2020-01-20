@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <brpc/controller.h>
 #include <brpc/channel.h>
-#include <butil/logging.h>
+#include <glog/logging.h>
 #include <gflags/gflags.h>
 #include <bthread/bthread.h>
 #include <string>
