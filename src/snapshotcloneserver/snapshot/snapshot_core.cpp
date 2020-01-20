@@ -805,7 +805,8 @@ int SnapshotCoreImpl::TransferSnapshotData(
                     std::make_shared<TransferSnapshotDataChunkTaskInfo>(
                         chunkDataName, chunkSize, cidInfo, chunkSplitSize_,
                         clientAsyncMethodRetryTimeSec_,
-                        clientAsyncMethodRetryIntervalMs_);
+                        clientAsyncMethodRetryIntervalMs_,
+                        readChunkSnapshotConcurrency_);
                 UUID taskId = UUIDGenerator().GenerateUUID();
                 auto task = new TransferSnapshotDataChunkTask(
                     taskId,

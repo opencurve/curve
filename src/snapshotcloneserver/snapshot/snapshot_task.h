@@ -10,6 +10,7 @@
 
 #include <string>
 #include <memory>
+#include <list>
 
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 #include "src/snapshotcloneserver/common/define.h"
@@ -198,19 +199,22 @@ struct TransferSnapshotDataChunkTaskInfo : public TaskInfo {
     uint64_t chunkSplitSize_;
     uint64_t clientAsyncMethodRetryTimeSec_;
     uint64_t clientAsyncMethodRetryIntervalMs_;
+    uint32_t readChunkSnapshotConcurrency_;
 
     TransferSnapshotDataChunkTaskInfo(const ChunkDataName &name,
         uint64_t chunkSize,
         const ChunkIDInfo &cidInfo,
         uint64_t chunkSplitSize,
         uint64_t clientAsyncMethodRetryTimeSec,
-        uint64_t clientAsyncMethodRetryIntervalMs)
+        uint64_t clientAsyncMethodRetryIntervalMs,
+        uint32_t readChunkSnapshotConcurrency)
         : name_(name),
           chunkSize_(chunkSize),
           cidInfo_(cidInfo),
           chunkSplitSize_(chunkSplitSize),
           clientAsyncMethodRetryTimeSec_(clientAsyncMethodRetryTimeSec),
-          clientAsyncMethodRetryIntervalMs_(clientAsyncMethodRetryIntervalMs) {}
+          clientAsyncMethodRetryIntervalMs_(clientAsyncMethodRetryIntervalMs),
+          readChunkSnapshotConcurrency_(readChunkSnapshotConcurrency) {}
 };
 
 class TransferSnapshotDataChunkTask : public TrackerTask {
@@ -253,6 +257,20 @@ class TransferSnapshotDataChunkTask : public TrackerTask {
     int StartAsyncReadChunkSnapshot(
         std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
         std::shared_ptr<ReadChunkSnapshotContext> context);
+
+    /**
+     * @brief 处理ReadChunkSnapshot的结果并重试
+     *
+     * @param tracker 异步ReadSnapshotChunk追踪器
+     * @param transferTask 转储任务
+     * @param results ReadChunkSnapshot结果列表
+     *
+     * @return 错误码
+     */
+    int HandleReadChunkSnapshotResultsAndRetry(
+        std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
+        std::shared_ptr<TransferTask> transferTask,
+        const std::list<ReadChunkSnapshotContextPtr> &results);
 
  protected:
     std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo_;

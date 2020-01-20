@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <list>
 
 #include "src/snapshotcloneserver/common/curvefs_client.h"
 #include "src/snapshotcloneserver/common/define.h"
@@ -325,6 +326,20 @@ class CloneCoreImpl : public CloneCore {
         std::shared_ptr<CloneTaskInfo> task,
         std::shared_ptr<CreateCloneChunkTaskTracker> tracker,
         std::shared_ptr<CreateCloneChunkContext> context);
+
+    /**
+     * @brief 处理CreateCloneChunk的结果并重试
+     *
+     * @param task 任务信息
+     * @param tracker CreateCloneChunk任务追踪器
+     * @param results CreateCloneChunk结果列表
+     *
+     * @return 错误码
+     */
+    int HandleCreateCloneChunkResultsAndRetry(
+        std::shared_ptr<CloneTaskInfo> task,
+        std::shared_ptr<CreateCloneChunkTaskTracker> tracker,
+        const std::list<CreateCloneChunkContextPtr> &results);
 
     /**
      * @brief 通知mds完成源数据创建步骤
