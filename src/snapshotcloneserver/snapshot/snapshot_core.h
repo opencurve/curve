@@ -169,7 +169,8 @@ class SnapshotCoreImpl : public SnapshotCore {
       mdsSessionTimeUs_(option.mdsSessionTimeUs),
       clientAsyncMethodRetryTimeSec_(option.clientAsyncMethodRetryTimeSec),
       clientAsyncMethodRetryIntervalMs_(
-          option.clientAsyncMethodRetryIntervalMs) {
+                option.clientAsyncMethodRetryIntervalMs),
+      readChunkSnapshotConcurrency_(option.readChunkSnapshotConcurrency) {
         threadPool_ = std::make_shared<ThreadPool>(
             option.snapshotCoreThreadNum);
     }
@@ -404,6 +405,8 @@ class SnapshotCoreImpl : public SnapshotCore {
     uint64_t clientAsyncMethodRetryTimeSec_;
     // 调用client异步方法重试时间间隔
     uint64_t clientAsyncMethodRetryIntervalMs_;
+    // 异步ReadChunkSnapshot的并发数
+    uint32_t readChunkSnapshotConcurrency_;
 };
 
 }  // namespace snapshotcloneserver
