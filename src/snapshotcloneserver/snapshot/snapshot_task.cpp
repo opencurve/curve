@@ -86,41 +86,10 @@ int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
         }
         std::list<ReadChunkSnapshotContextPtr> results =
             tracker->PopResultContexts();
-        for (auto context : results) {
-            if (context->retCode < 0) {
-                uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-                if (nowTime - context->startTime <
-                    context->clientAsyncMethodRetryTimeSec) {
-                    // retry
-                    std::this_thread::sleep_for(
-                        std::chrono::milliseconds(
-                            taskInfo_->clientAsyncMethodRetryIntervalMs_));
-                    ret = StartAsyncReadChunkSnapshot(tracker, context);
-                    if (ret < 0) {
-                        break;
-                    }
-                } else {
-                    ret = context->retCode;
-                    LOG(ERROR) << "ReadChunkSnapshot tracker GetResult fail"
-                               << ", ret = " << ret;
-                    break;
-                }
-            } else {
-                ret = dataStore_->DataChunkTranferAddPart(
-                    taskInfo_->name_,
-                    transferTask,
-                    context->partIndex,
-                    context->len,
-                    context->buf.get());
-                if (ret < 0) {
-                    LOG(ERROR) << "DataChunkTranferAddPart fail"
-                               << ", ret = " << ret
-                               << ", chunkDataName = "
-                               << taskInfo_->name_.ToDataChunkKey()
-                               << ", index = " << context->partIndex;
-                    break;
-                }
-            }
+        ret = HandleReadChunkSnapshotResultsAndRetry(
+            tracker, transferTask, results);
+        if (ret < 0) {
+            break;
         }
     }
     if (ret >= 0) {
@@ -132,41 +101,10 @@ int TransferSnapshotDataChunkTask::TransferSnapshotDataChunk() {
                 // 已经完成，没有新的结果了
                 break;
             }
-            for (auto context : results) {
-                if (context->retCode < 0) {
-                    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-                    if (nowTime - context->startTime <
-                        context->clientAsyncMethodRetryTimeSec) {
-                        // retry
-                        std::this_thread::sleep_for(
-                            std::chrono::milliseconds(
-                                taskInfo_->clientAsyncMethodRetryIntervalMs_));
-                        ret = StartAsyncReadChunkSnapshot(tracker, context);
-                        if (ret < 0) {
-                            break;
-                        }
-                    } else {
-                        ret = context->retCode;
-                        LOG(ERROR) << "ReadChunkSnapshot tracker GetResult fail"
-                                   << ", ret = " << ret;
-                        break;
-                    }
-                } else {
-                    ret = dataStore_->DataChunkTranferAddPart(
-                        taskInfo_->name_,
-                        transferTask,
-                        context->partIndex,
-                        context->len,
-                        context->buf.get());
-                    if (ret < 0) {
-                        LOG(ERROR) << "DataChunkTranferAddPart fail"
-                                   << ", ret = " << ret
-                                   << ", chunkDataName = "
-                                   << taskInfo_->name_.ToDataChunkKey()
-                                   << ", index = " << context->partIndex;
-                        break;
-                    }
-                }
+            ret = HandleReadChunkSnapshotResultsAndRetry(
+                tracker, transferTask, results);
+            if (ret < 0) {
+                break;
             }
         } while (true);
         if (ret >= 0) {
@@ -231,6 +169,50 @@ int TransferSnapshotDataChunkTask::StartAsyncReadChunkSnapshot(
         return ret;
     }
     return kErrCodeSuccess;
+}
+
+int TransferSnapshotDataChunkTask::HandleReadChunkSnapshotResultsAndRetry(
+    std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
+    std::shared_ptr<TransferTask> transferTask,
+    const std::list<ReadChunkSnapshotContextPtr> &results) {
+    int ret = kErrCodeSuccess;
+    for (auto context : results) {
+        if (context->retCode < 0) {
+            uint64_t nowTime = TimeUtility::GetTimeofDaySec();
+            if (nowTime - context->startTime <
+                context->clientAsyncMethodRetryTimeSec) {
+                // retry
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(
+                        taskInfo_->clientAsyncMethodRetryIntervalMs_));
+                ret = StartAsyncReadChunkSnapshot(tracker, context);
+                if (ret < 0) {
+                    return ret;
+                }
+            } else {
+                ret = context->retCode;
+                LOG(ERROR) << "ReadChunkSnapshot tracker GetResult fail"
+                           << ", ret = " << ret;
+                return ret;
+            }
+        } else {
+            ret = dataStore_->DataChunkTranferAddPart(
+                taskInfo_->name_,
+                transferTask,
+                context->partIndex,
+                context->len,
+                context->buf.get());
+            if (ret < 0) {
+                LOG(ERROR) << "DataChunkTranferAddPart fail"
+                           << ", ret = " << ret
+                           << ", chunkDataName = "
+                           << taskInfo_->name_.ToDataChunkKey()
+                           << ", index = " << context->partIndex;
+                return ret;
+            }
+        }
+    }
+    return ret;
 }
 
 }  // namespace snapshotcloneserver
