@@ -10,6 +10,7 @@
 
 #include <string>
 #include <memory>
+#include <list>
 
 #include "src/snapshotcloneserver/snapshot/snapshot_core.h"
 #include "src/snapshotcloneserver/common/define.h"
@@ -256,6 +257,20 @@ class TransferSnapshotDataChunkTask : public TrackerTask {
     int StartAsyncReadChunkSnapshot(
         std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
         std::shared_ptr<ReadChunkSnapshotContext> context);
+
+    /**
+     * @brief 处理ReadChunkSnapshot的结果并重试
+     *
+     * @param tracker 异步ReadSnapshotChunk追踪器
+     * @param transferTask 转储任务
+     * @param results ReadChunkSnapshot结果列表
+     *
+     * @return 错误码
+     */
+    int HandleReadChunkSnapshotResultsAndRetry(
+        std::shared_ptr<ReadChunkSnapshotTaskTracker> tracker,
+        std::shared_ptr<TransferTask> transferTask,
+        const std::list<ReadChunkSnapshotContextPtr> &results);
 
  protected:
     std::shared_ptr<TransferSnapshotDataChunkTaskInfo> taskInfo_;
