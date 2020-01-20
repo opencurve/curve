@@ -577,27 +577,9 @@ int CloneCoreImpl::CreateCloneChunk(
             }
             std::list<CreateCloneChunkContextPtr> results =
                 tracker->PopResultContexts();
-            for (auto context : results) {
-                if (context->retCode != LIBCURVE_ERROR::OK) {
-                    uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-                    if (nowTime - context->startTime <
-                        context->clientAsyncMethodRetryTimeSec) {
-                        // retry
-                        std::this_thread::sleep_for(
-                            std::chrono::milliseconds(
-                                clientAsyncMethodRetryIntervalMs_));
-                        ret = StartAsyncCreateCloneChunk(
-                            task, tracker, context);
-                        if (ret < 0) {
-                            return kErrCodeInternalError;
-                        }
-                    } else {
-                        LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
-                                   << ", ret = " << ret
-                                   << ", taskid = " << task->GetTaskId();
-                        return kErrCodeInternalError;
-                    }
-                }
+            ret = HandleCreateCloneChunkResultsAndRetry(task, tracker, results);
+            if (ret < 0) {
+                return kErrCodeInternalError;
             }
         }
     }
@@ -610,27 +592,9 @@ int CloneCoreImpl::CreateCloneChunk(
             // 已经完成，没有新的结果了
             break;
         }
-        for (auto context : results) {
-            if (context->retCode != LIBCURVE_ERROR::OK) {
-                uint64_t nowTime = TimeUtility::GetTimeofDaySec();
-                if (nowTime - context->startTime <
-                    context->clientAsyncMethodRetryTimeSec) {
-                    // retry
-                    std::this_thread::sleep_for(
-                        std::chrono::milliseconds(
-                            clientAsyncMethodRetryIntervalMs_));
-                    ret = StartAsyncCreateCloneChunk(
-                        task, tracker, context);
-                    if (ret < 0) {
-                        return kErrCodeInternalError;
-                    }
-                } else {
-                    LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
-                               << ", ret = " << ret
-                               << ", taskid = " << task->GetTaskId();
-                    return kErrCodeInternalError;
-                }
-            }
+        ret = HandleCreateCloneChunkResultsAndRetry(task, tracker, results);
+        if (ret < 0) {
+            return kErrCodeInternalError;
         }
     } while (true);
 
@@ -680,6 +644,36 @@ int CloneCoreImpl::StartAsyncCreateCloneChunk(
         return ret;
     }
     return kErrCodeSuccess;
+}
+
+int CloneCoreImpl::HandleCreateCloneChunkResultsAndRetry(
+    std::shared_ptr<CloneTaskInfo> task,
+    std::shared_ptr<CreateCloneChunkTaskTracker> tracker,
+    const std::list<CreateCloneChunkContextPtr> &results) {
+    int ret = kErrCodeSuccess;
+    for (auto context : results) {
+        if (context->retCode != LIBCURVE_ERROR::OK) {
+            uint64_t nowTime = TimeUtility::GetTimeofDaySec();
+            if (nowTime - context->startTime <
+                context->clientAsyncMethodRetryTimeSec) {
+                // retry
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(
+                        clientAsyncMethodRetryIntervalMs_));
+                ret = StartAsyncCreateCloneChunk(
+                    task, tracker, context);
+                if (ret < 0) {
+                    return kErrCodeInternalError;
+                }
+            } else {
+                LOG(ERROR) << "CreateCloneChunk tracker GetResult fail"
+                           << ", ret = " << ret
+                           << ", taskid = " << task->GetTaskId();
+                return kErrCodeInternalError;
+            }
+        }
+    }
+    return ret;
 }
 
 int CloneCoreImpl::CompleteCloneMeta(

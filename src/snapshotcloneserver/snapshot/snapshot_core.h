@@ -169,8 +169,8 @@ class SnapshotCoreImpl : public SnapshotCore {
       mdsSessionTimeUs_(option.mdsSessionTimeUs),
       clientAsyncMethodRetryTimeSec_(option.clientAsyncMethodRetryTimeSec),
       clientAsyncMethodRetryIntervalMs_(
-          option.clientAsyncMethodRetryIntervalMs),
-          readChunkSnapshotConcurrency_(option.readChunkSnapshotConcurrency) {
+                option.clientAsyncMethodRetryIntervalMs),
+      readChunkSnapshotConcurrency_(option.readChunkSnapshotConcurrency) {
         threadPool_ = std::make_shared<ThreadPool>(
             option.snapshotCoreThreadNum);
     }

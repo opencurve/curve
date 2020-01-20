@@ -93,7 +93,7 @@ void InitSnapshotCloneServerOptions(Configuration *conf,
     LOG_IF(FATAL, !conf->GetUInt32Value("server.mdsSessionTimeUs",
                                         &serverOption->mdsSessionTimeUs));
     LOG_IF(FATAL, !conf->GetUInt32Value("server.readChunkSnapshotConcurrency",
-                &serverOption->readChunkSnapshotConcurrency));
+            &serverOption->readChunkSnapshotConcurrency));
 
     LOG_IF(FATAL, !conf->GetIntValue("server.clonePoolThreadNum",
                                      &serverOption->clonePoolThreadNum));
