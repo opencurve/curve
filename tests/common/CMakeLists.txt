@@ -20,3 +20,4 @@ target_link_libraries(common_test ${COMMON_TEST_LINK})
 install(TARGETS common_test DESTINATION bin)
 add_test(NAME common_test COMMAND common_test)
 
+

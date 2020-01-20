@@ -1,6 +1,7 @@
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${Libconfig_INCLUDE_DIRS})
 include_directories(${CMock_INCLUDE_DIRS})
+include_directories("${Jsoncpp_INCLUDE_DIRS}")
 
 set(CPP_FLAGS "-DBRPC_WITH_GLOG=0 -DGFLAGS_NS=google")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPP_FLAGS} -std=c++0x -DNDEBUG -O2 \
@@ -16,7 +17,8 @@ set(PART2_TEST_LINK
 set(PART2_MOCK_SRC
     mock_metafile_manager.h
     mock_request_executor.h
-    mock_file_manager.h)
+    mock_file_manager.h
+    mock_posix_wrapper.h)
 add_library(part2mock ${PART2_MOCK_SRC})
 set_target_properties(part2mock PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(part2mock
@@ -56,3 +58,13 @@ target_link_libraries(heartbeat_service_test
                       ${PART2_TEST_LINK})
 install(TARGETS heartbeat_service_test DESTINATION bin)
 add_test(NAME heartbeat_service_test COMMAND heartbeat_service_test)
+
+# metafile_manager_test
+set(METAFILE_MANAGER_TEST_SRC metafile_manager_test.cpp)
+add_executable(metafile_manager_test ${METAFILE_MANAGER_TEST_SRC})
+target_link_libraries(metafile_manager_test
+                      part2mock
+                      ${PART2_TEST_LINK})
+install(TARGETS metafile_manager_test DESTINATION bin)
+add_test(NAME metafile_manager_test COMMAND metafile_manager_test)
+

@@ -1,6 +1,7 @@
 # 3rd party header
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${Libconfig_INCLUDE_DIRS})
+include_directories("${Jsoncpp_INCLUDE_DIRS}")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
   -std=c++0x -pipe -W -Wall -Wno-unused-parameter -fPIC \
@@ -32,7 +33,8 @@ set(PART2_LINK
     rt
     snappy
     ssl
-    z)
+    z
+    jsoncpp_lib)
 
 
 add_executable(nebd-server ${PART2_SRC} ${PROTO_SRCS} ${PROTO_HDRS})

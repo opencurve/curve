@@ -57,6 +57,14 @@ class NebdRequestExecutorFactory {
     static NebdRequestExecutor* GetExecutor(NebdFileType type);
 };
 
+class NebdFileInstanceFactory {
+ public:
+    NebdFileInstanceFactory() = default;
+    ~NebdFileInstanceFactory() = default;
+
+    static NebdFileInstancePtr GetInstance(NebdFileType type);
+};
+
 // for test
 extern NebdRequestExecutor* g_test_executor;
 

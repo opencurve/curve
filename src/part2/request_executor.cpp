@@ -33,6 +33,22 @@ NebdRequestExecutorFactory::GetExecutor(NebdFileType type) {
     return executor;
 }
 
+NebdFileInstancePtr
+NebdFileInstanceFactory::GetInstance(NebdFileType type) {
+    NebdFileInstancePtr instance = nullptr;
+    switch (type) {
+        case NebdFileType::CEPH:
+            instance = std::make_shared<CephFileInstance>();
+            break;
+        case NebdFileType::CURVE:
+            instance = std::make_shared<CurveFileInstance>();
+            break;
+        default:
+            break;
+    }
+    return instance;
+}
+
 }  // namespace server
 }  // namespace nebd
 
