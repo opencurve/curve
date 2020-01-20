@@ -162,12 +162,12 @@ void CopysetNodeManager::LoadCopyset(const LogicPoolID &logicPoolId,
     std::shared_ptr<CopysetNode> copysetNode =
         CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
     if (copysetNode == nullptr) {
-        LOG(ERROR) << "Failed to create copyset "
+        LOG(FATAL) << "Failed to create copyset "
                    << ToGroupIdString(logicPoolId, copysetId);
         return;
     }
     if (!InsertCopysetNodeIfNotExist(logicPoolId, copysetId, copysetNode)) {
-        LOG(ERROR) << "Failed to insert copyset "
+        LOG(FATAL) << "Failed to insert copyset "
                    << ToGroupIdString(logicPoolId, copysetId);
         return;
     }
@@ -278,16 +278,26 @@ bool CopysetNodeManager::CreateCopysetNode(const LogicPoolID &logicPoolId,
                      << ToGroupIdString(logicPoolId, copysetId);
         return false;
     }
+    // copysetnode析构的时候会去调shutdown，可能导致协程切出
+    // 所以创建copysetnode失败的时候，不能占着写锁，等写锁释放后再析构
+    std::shared_ptr<CopysetNode> copysetNode = nullptr;
     /* 加写锁 */
     WriteLockGuard writeLockGuard(rwLock_);
     if (copysetNodeMap_.end() == copysetNodeMap_.find(groupId)) {
-        std::shared_ptr<CopysetNode> copysetNode =
-            CreateCopysetNodeUnlocked(logicPoolId, copysetId, conf);
-        if (copysetNode == nullptr) {
-            LOG(ERROR) << "Fail to create copyset "
-                       << ToGroupIdString(logicPoolId, copysetId);
+        copysetNode = std::make_shared<CopysetNode>(logicPoolId,
+                                                    copysetId,
+                                                    conf);
+        if (0 != copysetNode->Init(copysetNodeOptions_)) {
+            LOG(ERROR) << "Copyset " << ToGroupIdString(logicPoolId, copysetId)
+                    << " init failed";
             return false;
         }
+        if (0 != copysetNode->Run()) {
+            LOG(ERROR) << "Copyset " << ToGroupIdString(logicPoolId, copysetId)
+                       << " run failed";
+            return false;
+        }
+
         copysetNodeMap_.insert(std::pair<GroupId, std::shared_ptr<CopysetNode>>(
             groupId,
             copysetNode));
