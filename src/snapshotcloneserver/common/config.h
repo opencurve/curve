@@ -50,6 +50,8 @@ struct SnapshotCloneServerOptions {
     uint32_t snapshotCoreThreadNum;
     // mdsSessionTimeUs
     uint32_t mdsSessionTimeUs;
+    // ReadChunkSnapshot同时进行的异步请求数量
+    uint32_t readChunkSnapshotConcurrency;
 
     // 克隆恢复工作线程数
     int clonePoolThreadNum;

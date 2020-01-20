@@ -190,14 +190,14 @@ struct RecoverChunkClosure : public SnapCloneClosure {
         context_->retCode = GetRetCode();
         if (context_->retCode < 0) {
             LOG(WARNING) << "RecoverChunkClosure return fail"
-                       << ", ret = " << context_->retCode
-                       << ", logicalPoolId = "
-                       << context_->cidInfo.lpid_
-                       << ", copysetId = " << context_->cidInfo.cpid_
-                       << ", chunkId = " << context_->cidInfo.cid_
-                       << ", partIndex = " << context_->partIndex
-                       << ", partSize = " << context_->partSize
-                       << ", taskid = " << context_->taskid;
+                         << ", ret = " << context_->retCode
+                         << ", logicalPoolId = "
+                         << context_->cidInfo.lpid_
+                         << ", copysetId = " << context_->cidInfo.cpid_
+                         << ", chunkId = " << context_->cidInfo.cid_
+                         << ", partIndex = " << context_->partIndex
+                         << ", partSize = " << context_->partSize
+                         << ", taskid = " << context_->taskid;
         }
         tracker_->PushResultContext(context_);
         tracker_->HandleResponse(context_->retCode);
