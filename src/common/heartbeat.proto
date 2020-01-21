@@ -4,19 +4,20 @@ import "common.proto";
 package nebd.client;
 
 option cc_generic_services = true;
-  
+
 message FileInfo {
     required int32 fd = 1;
     required string name = 2;
 }
- 
+
 message HeartbeatRequest {
    repeated FileInfo info = 1;
 }
+
 message HeartbeatResponse {
    required RetCode retCode = 1;
 }
- 
+
 service NebdHeartbeatService {
    rpc KeepAlive(HeartbeatRequest) returns (HeartbeatResponse);
 };

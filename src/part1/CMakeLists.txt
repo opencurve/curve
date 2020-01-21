@@ -1,7 +1,7 @@
 # 3rd party headers
 include_directories("${Jsoncpp_INCLUDE_DIRS}")
 
-set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++0x -pipe -W -Wall \
+set(CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS} -std=c++11 -pipe -W -Wall \
   -Wno-unused-parameter -fPIC -fno-omit-frame-pointer \
   -momit-leaf-frame-pointer -msse4.2 \
   -pthread -Wsign-compare -Wno-unused-parameter \
@@ -25,7 +25,9 @@ set(LIBNEBD_LINK
     pthread
     protobuf
     gflags
-    jsoncpp_lib)
+    jsoncpp_lib
+    client_proto
+    nebd_common)
 add_library(nebd SHARED ${LIBNEBD_SRC} ${PROTO_SRCS} ${PROTO_HDRS})
 add_dependencies(nebd jsoncpp_lib brpc-shared)
 target_link_libraries(nebd ${LIBNEBD_LINK} ${EXTRALIBS})

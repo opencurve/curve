@@ -6,3 +6,5 @@
 3rdparty/libconfig
 3rdparty/cmock
 build
+
+.vscode

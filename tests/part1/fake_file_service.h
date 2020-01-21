@@ -16,21 +16,21 @@
 namespace nebd {
 namespace client {
 
-class FileService: public NebdFileService {
+class FakeNebdFileService: public NebdFileService {
  public:
-    FileService() {}
+    FakeNebdFileService() {}
 
-    virtual ~FileService() {}
+    virtual ~FakeNebdFileService() {}
 
     void OpenFile(::google::protobuf::RpcController* controller,
-                       const ::nebd::client::OpenFileRequest* request,
-                       ::nebd::client::OpenFileResponse* response,
-                       ::google::protobuf::Closure* done) override;
+                  const ::nebd::client::OpenFileRequest* request,
+                  ::nebd::client::OpenFileResponse* response,
+                  ::google::protobuf::Closure* done) override;
 
     void CloseFile(::google::protobuf::RpcController* controller,
-                       const ::nebd::client::CloseFileRequest* request,
-                       ::nebd::client::CloseFileResponse* response,
-                       ::google::protobuf::Closure* done) override;
+                  const ::nebd::client::CloseFileRequest* request,
+                  ::nebd::client::CloseFileResponse* response,
+                  ::google::protobuf::Closure* done) override;
 
     void Read(::google::protobuf::RpcController* controller,
                        const ::nebd::client::ReadRequest* request,
@@ -71,6 +71,9 @@ class FileService: public NebdFileService {
                        const ::nebd::client::InvalidateCacheRequest* request,
                        ::nebd::client::InvalidateCacheResponse* response,
                        ::google::protobuf::Closure* done) override;
+
+ private:
+    int64_t fileSize_;
 };
 }  // namespace client
 }  // namespace nebd

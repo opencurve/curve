@@ -28,8 +28,6 @@ set(PART2_LINK
     leveldb
     client_proto
     pthread
-    rados
-    rbd
     rt
     snappy
     ssl

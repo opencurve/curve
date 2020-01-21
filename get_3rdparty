@@ -11,9 +11,6 @@ for pkg_ver in boost_1_66_0 googletest_1_8_1 libconfig_1_7_2 jsoncpp_1_8_4 cmock
 done
 
 rm -rf 3rdparty/brpc
-cd 3rdparty
-git clone -b feature http://gerrit.storage.netease.com/curve/curve-brpc
-mv curve-brpc brpc
-cd ..
+git clone -b feature http://gerrit.storage.netease.com/curve/curve-brpc ./3rdparty/brpc
 
 rm -rf 3rd_party_tarballs

@@ -5,8 +5,8 @@
  * Copyright (c) 2018 netease
  */
 
-#ifndef TESTS_PART1_MOCK_CLIENT_SERVICE_H_
-#define TESTS_PART1_MOCK_CLIENT_SERVICE_H_
+#ifndef TESTS_PART1_MOCK_FILE_SERVICE_H_
+#define TESTS_PART1_MOCK_FILE_SERVICE_H_
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
@@ -66,4 +66,4 @@ class MockNebdFileService : public NebdFileService {
 }   // namespace client
 }   // namespace nebd
 
-#endif  // TESTS_PART1_MOCK_CLIENT_SERVICE_H_
+#endif  // TESTS_PART1_MOCK_FILE_SERVICE_H_

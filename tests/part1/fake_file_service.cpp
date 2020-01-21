@@ -9,18 +9,18 @@
 namespace nebd {
 namespace client {
 
-uint64_t filesize = 50*1024*1024;  // 50MB
-char *buf = reinterpret_cast<char *>(malloc(filesize));
+const int64_t kBufferSize = 1024;
+char buffer[kBufferSize];
 
-void FileService::OpenFile(::google::protobuf::RpcController* controller,
-                       const ::nebd::client::OpenFileRequest* request,
-                       ::nebd::client::OpenFileResponse* response,
-                       ::google::protobuf::Closure* done) {
+void FakeNebdFileService::OpenFile(::google::protobuf::RpcController* controller,  // NOLINT
+                        const ::nebd::client::OpenFileRequest* request,
+                        ::nebd::client::OpenFileResponse* response,
+                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "OpenFile.";
-    if (buf == nullptr) {
+    LOG(INFO) << "logid = " << cntl->log_id() << ", OpenFile.";
+    if (buffer == nullptr) {
         response->set_retcode(RetCode::kNoOK);
         response->set_retmsg("OpenFile FAIL");
         return;
@@ -33,14 +33,14 @@ void FileService::OpenFile(::google::protobuf::RpcController* controller,
     return;
 }
 
-void FileService::CloseFile(::google::protobuf::RpcController* controller,
+void FakeNebdFileService::CloseFile(::google::protobuf::RpcController* controller,  // NOLINT
                        const ::nebd::client::CloseFileRequest* request,
                        ::nebd::client::CloseFileResponse* response,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "CloseFile.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", CloseFile.";
 
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("CloseFile OK");
@@ -48,48 +48,49 @@ void FileService::CloseFile(::google::protobuf::RpcController* controller,
     return;
 }
 
-void FileService::Read(::google::protobuf::RpcController* controller,
+void FakeNebdFileService::Read(::google::protobuf::RpcController* controller,
                        const ::nebd::client::ReadRequest* request,
                        ::nebd::client::ReadResponse* response,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "Read.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", Read.";
 
-    cntl->response_attachment().append(buf + request->offset(),
-                                request->size());
+    cntl->response_attachment().append(buffer + request->offset(),
+                                       request->size());
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("Read OK");
 
     return;
 }
 
-void FileService::Write(::google::protobuf::RpcController* controller,
+void FakeNebdFileService::Write(::google::protobuf::RpcController* controller,
                        const ::nebd::client::WriteRequest* request,
                        ::nebd::client::WriteResponse* response,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "Write.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", Write.";
 
-    memcpy(buf + request->offset(),
-            cntl->request_attachment().to_string().c_str(), request->size());
+    // memcpy(buffer + request->offset(),
+    //        cntl->request_attachment().to_string().c_str(),
+    //        request->size());
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("Write OK");
 
     return;
 }
 
-void FileService::Discard(::google::protobuf::RpcController* controller,
+void FakeNebdFileService::Discard(::google::protobuf::RpcController* controller,
                        const ::nebd::client::DiscardRequest* request,
                        ::nebd::client::DiscardResponse* response,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "Discard.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", Discard.";
 
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("Discard OK");
@@ -97,45 +98,47 @@ void FileService::Discard(::google::protobuf::RpcController* controller,
     return;
 }
 
-void FileService::StatFile(::google::protobuf::RpcController* controller,
+void FakeNebdFileService::StatFile(::google::protobuf::RpcController* controller,  // NOLINT
                        const ::nebd::client::StatFileRequest* request,
                        ::nebd::client::StatFileResponse* response,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "StatFile.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", StatFile.";
 
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("StatFile OK");
-    response->set_size(filesize);
+    response->set_size(fileSize_);
 
     return;
 }
 
-void FileService::ResizeFile(::google::protobuf::RpcController* controller,
+void FakeNebdFileService::ResizeFile(::google::protobuf::RpcController* controller,  // NOLINT
                        const ::nebd::client::ResizeRequest* request,
                        ::nebd::client::ResizeResponse* response,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "ResizeFile.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", ResizeFile.";
 
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("ResizeFile OK");
 
+    fileSize_ = request->newsize();
+
     return;
 }
 
-void FileService::Flush(::google::protobuf::RpcController* controller,
+void FakeNebdFileService::Flush(::google::protobuf::RpcController* controller,
                        const ::nebd::client::FlushRequest* request,
                        ::nebd::client::FlushResponse* response,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "Flush.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", Flush.";
 
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("Flush OK");
@@ -143,23 +146,23 @@ void FileService::Flush(::google::protobuf::RpcController* controller,
     return;
 }
 
-void FileService::GetInfo(::google::protobuf::RpcController* controller,
+void FakeNebdFileService::GetInfo(::google::protobuf::RpcController* controller,
                        const ::nebd::client::GetInfoRequest* request,
                        ::nebd::client::GetInfoResponse* response,
                        ::google::protobuf::Closure* done) {
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "GetInfo.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", GetInfo.";
 
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("GetInfo OK");
-    response->set_objsize(filesize);
+    response->set_objsize(fileSize_);
 
     return;
 }
 
-void FileService::InvalidateCache(
+void FakeNebdFileService::InvalidateCache(
                        ::google::protobuf::RpcController* controller,
                        const ::nebd::client::InvalidateCacheRequest* request,
                        ::nebd::client::InvalidateCacheResponse* response,
@@ -167,7 +170,7 @@ void FileService::InvalidateCache(
     brpc::ClosureGuard doneGuard(done);
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
-    LOG(INFO) << "logid = " << cntl->log_id() << "InvalidateCache.";
+    LOG(INFO) << "logid = " << cntl->log_id() << ", InvalidateCache.";
 
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("InvalidateCache OK");
