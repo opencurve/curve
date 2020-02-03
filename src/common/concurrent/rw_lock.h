@@ -20,10 +20,16 @@ namespace common {
 class RWLock : public Uncopyable {
  public:
     RWLock() {
-        pthread_rwlock_init(&rwlock_, nullptr);
+        pthread_rwlockattr_init(&rwlockAttr_);
+        pthread_rwlockattr_setkind_np(
+            &rwlockAttr_,
+            PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+
+        pthread_rwlock_init(&rwlock_, &rwlockAttr_);
     }
 
     ~RWLock() {
+        pthread_rwlockattr_destroy(&rwlockAttr_);
         pthread_rwlock_destroy(&rwlock_);
     }
 
@@ -51,6 +57,7 @@ class RWLock : public Uncopyable {
 
  private:
     pthread_rwlock_t rwlock_;
+    pthread_rwlockattr_t rwlockAttr_;
 };  // RWLock class
 
 class ReadLockGuard : public Uncopyable {
