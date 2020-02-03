@@ -10,10 +10,13 @@
 
 #include <gflags/gflags.h>
 #include <brpc/channel.h>
+#include <json/json.h>
 
 #include <vector>
 #include <iostream>
 #include <string>
+#include <map>
+#include <memory>
 
 #include "proto/nameserver2.pb.h"
 #include "proto/topology.pb.h"
@@ -23,6 +26,9 @@
 #include "src/common/string_util.h"
 #include "src/common/timeutility.h"
 #include "src/common/net_common.h"
+#include "src/tools/metric_name.h"
+#include "src/tools/metric_client.h"
+#include "src/tools/common.h"
 
 using curve::mds::FileInfo;
 using curve::mds::PageFileSegment;
@@ -59,10 +65,12 @@ enum class GetSegmentRes {
     kOtherError = -3  // 其他错误
 };
 
+
+
 class MDSClient {
  public:
     MDSClient() : currentMdsIndex_(0), userName_(""),
-                         password_(""), isInited_(false) {}
+                  password_(""), isInited_(false) {}
     virtual ~MDSClient() = default;
 
     /**
@@ -71,6 +79,17 @@ class MDSClient {
      *  @return 成功返回0，失败返回-1
      */
     virtual int Init(const std::string& mdsAddr);
+
+    /**
+     *  @brief 初始化channel
+     *  @param mdsAddr mds的地址，支持多地址，用","分隔
+     *  @param dummyPort dummy port列表，只输入一个的话
+     *         所有mds用同样的dummy port，用字符串分隔有多个的话
+     *         为每个mds设置不同的dummy port
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int Init(const std::string& mdsAddr,
+                     const std::string& dummyPort);
 
     /**
      *  @brief 获取文件fileInfo
@@ -235,11 +254,19 @@ class MDSClient {
 
     /**
      *  @brief 获取mds的某个metric的值
-     *  @param metricName metric的名子
+     *  @param metricName metric的名字
      *  @param[out] value metric的值，返回值为0时有效
      *  @return 成功返回0，失败返回-1
      */
     virtual int GetMetric(const std::string& metricName, uint64_t* value);
+
+    /**
+     *  @brief 获取mds的某个metric的值
+     *  @param metricName metric的名子
+     *  @param[out] value metric的值，返回值为0时有效
+     *  @return 成功返回0，失败返回-1
+     */
+    virtual int GetMetric(const std::string& metricName, std::string* value);
 
     /**
      *  @brief 设置userName，访问namespace接口的时候调用
@@ -274,6 +301,13 @@ class MDSClient {
      * @brief 向mds发送rpc触发快速leader均衡
      */
     virtual int RapidLeaderSchedule(PoolIdType lpid);
+
+    /**
+     *  @brief 获取mds在线状态
+     *  @param[out] onlineStatus mds在线状态，返回0是有效
+     *  @return 成功返回0,失败返回-1
+     */
+    virtual int GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus);
 
  private:
     /**
@@ -321,14 +355,34 @@ class MDSClient {
                             GetCopySetsInChunkServerRequest* request,
                             std::vector<CopysetInfo>* copysets);
 
+    /**
+     *  @brief 初始化dummy server地址
+     *  @param dummyPort dummy server端口列表
+     *  @return 成功返回0，失败返回-1
+     */
+    int InitDummyServerMap(const std::string& dummyPort);
+
+    /**
+     *  @brief 通过dummyServer获取mds的监听地址
+     *  @param dummyAddr dummyServer的地址
+     *  @param[out] listenAddr mds的监听地址
+     *  @return 成功返回0，失败返回-1
+     */
+    int GetMdsListenAddr(const std::string& dummyAddr,
+                         std::string* listenAddr);
+
     // 填充signature
     template <class T>
     void FillUserInfo(T* request);
 
+    // 用于发送http请求的client
+    MetricClient metricClient_;
     // 向mds发送RPC的channel
     brpc::Channel channel_;
     // 保存mds地址的vector
     std::vector<std::string> mdsAddrVec_;
+    // 保存mds地址对应的dummy port
+    std::map<std::string, std::string> dummyServerMap_;
     // 保存当前mds在mdsAddrVec_中的索引
     int currentMdsIndex_;
     // 用户名

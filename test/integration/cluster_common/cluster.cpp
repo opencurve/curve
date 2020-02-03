@@ -89,6 +89,7 @@ void CurveCluster::StopCluster() {
 }
 
 void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
+                                int dummyPort,
                                 const std::vector<std::string> &mdsConf,
                                 bool expectLeader, bool expectAssert,
                                 bool* startsuccess) {
@@ -102,11 +103,11 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         // ./bazel-bin/src/mds/main/curvemds
         std::string cmd_dir =
             std::string("./bazel-bin/src/mds/main/curvemds --mdsAddr=") +
-            ipPort;
+            ipPort + " --dummyPort=" + std::to_string(dummyPort);
         for (auto &item : mdsConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
+        // LOG(INFO) << "start exec cmd: " << cmd_dir;
         if (expectAssert) {
             int ret = execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
             // 使用error级别，帮助收集日志

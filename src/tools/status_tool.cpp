@@ -14,13 +14,14 @@ DEFINE_bool(checkHealth, true, "if true, it will check the health "
                                 "state of chunkserver in chunkserver-list");
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
+DECLARE_string(mdsDummyPort);
 
 namespace curve {
 namespace tool {
 
 int StatusTool::Init(const std::string& command) {
     if (CommandNeedMds(command) && !mdsInited_) {
-        if (mdsClient_->Init(FLAGS_mdsAddr) != 0) {
+        if (mdsClient_->Init(FLAGS_mdsAddr, FLAGS_mdsDummyPort) != 0) {
             std::cout << "Init mdsClient failed!" << std::endl;
             return -1;
         }
@@ -212,51 +213,60 @@ int StatusTool::PrintClusterStatus() {
     return SpaceCmd();
 }
 
-int StatusTool::PrintMdsStatus() {
-    std::cout << "MDS status:" << std::endl;
-    std::cout << "current MDS: " << mdsClient_->GetCurrentMds() << std::endl;
-    auto mdsAddrs = mdsClient_->GetMdsAddrVec();
-    std::cout << "mds list: ";
-    for (uint32_t i = 0; i < mdsAddrs.size(); ++i) {
+void StatusTool::PrintOnlineStatus(const std::string& name,
+                    const std::map<std::string, bool>& onlineStatus) {
+    std::vector<std::string> online;
+    std::vector<std::string> offline;
+    for (const auto& item : onlineStatus) {
+        if (item.second) {
+            online.emplace_back(item.first);
+        } else {
+            offline.emplace_back(item.first);
+        }
+    }
+    std::cout << "online " << name << " list: ";
+    for (uint64_t i = 0; i < online.size(); ++i) {
         if (i != 0) {
             std::cout << ", ";
         }
-        std::cout << mdsAddrs[i];
+        std::cout << online[i];
     }
     std::cout << std::endl;
+
+    std::cout << "offline " << name << " list: ";
+    for (uint64_t i = 0; i < offline.size(); ++i) {
+        if (i != 0) {
+            std::cout << ", ";
+        }
+        std::cout << offline[i];
+    }
+    std::cout << std::endl;
+}
+
+int StatusTool::PrintMdsStatus() {
+    std::cout << "MDS status:" << std::endl;
+    std::cout << "current MDS: " << mdsClient_->GetCurrentMds() << std::endl;
+    std::map<std::string, bool> onlineStatus;
+    int res = mdsClient_->GetMdsOnlineStatus(&onlineStatus);
+    if (res != 0) {
+        std::cout << "GetMdsOnlineStatus fail!" << std::endl;
+        return -1;
+    }
+    PrintOnlineStatus("mds", onlineStatus);
     return 0;
 }
 
 int StatusTool::PrintEtcdStatus() {
     std::cout << "Etcd status:" << std::endl;
     std::string leaderAddr;
-    std::map<std::string, bool> onlineState;
-    int res = etcdClient_->GetEtcdClusterStatus(&leaderAddr, &onlineState);
+    std::map<std::string, bool> onlineStatus;
+    int res = etcdClient_->GetEtcdClusterStatus(&leaderAddr, &onlineStatus);
     if (res != 0) {
         std::cout << "GetEtcdClusterStatus fail!" << std::endl;
         return -1;
     }
     std::cout << "current etcd: " << leaderAddr << std::endl;
-    uint64_t online = 0;
-    uint64_t offline = 0;
-    uint64_t total = 0;
-    std::cout << "etcd list: ";
-    for (const auto& item : onlineState) {
-        if (total != 0) {
-            std::cout << ", ";
-        }
-        if (item.second) {
-            online++;
-        } else {
-            offline++;
-        }
-        total++;
-        std::cout << item.first;
-    }
-    std::cout << std::endl;
-    std::cout << "etcd: total num = " << total
-            << ", online = " << online
-            << ", offline = " << offline << std::endl;
+    PrintOnlineStatus("etcd", onlineStatus);
     return 0;
 }
 

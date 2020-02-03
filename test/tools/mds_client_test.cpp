@@ -6,6 +6,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <string>
 #include "src/tools/mds_client.h"
 #include "test/client/fake/mockMDS.h"
 #include "test/client/fake/fakeMDS.h"
@@ -149,7 +150,11 @@ TEST_F(ToolMDSClientTest, Init) {
     curve::tool::MDSClient mdsClient;
     ASSERT_EQ(-1, mdsClient.Init(""));
     ASSERT_EQ(-1, mdsClient.Init("127.0.0.1"));
-    ASSERT_EQ(-1, mdsClient.Init("127.0.0.1:9999"));
+    ASSERT_EQ(-1, mdsClient.Init("127.0.0.1:65536"));
+    // dummy server非法
+    ASSERT_EQ(-1, mdsClient.Init(mdsAddr, ""));
+    // dummy server与mds不匹配
+    ASSERT_EQ(-1, mdsClient.Init(mdsAddr, "9091,9092,9093"));
     ASSERT_EQ(0, mdsClient.Init(mdsAddr));
 }
 
@@ -768,15 +773,23 @@ TEST_F(ToolMDSClientTest, GetServerOrChunkserverInCluster) {
 TEST_F(ToolMDSClientTest, GetMetric) {
     curve::tool::MDSClient mdsClient;
     ASSERT_EQ(0, mdsClient.Init(mdsAddr));
-    std::string  metricName = "mds_scheduler_metric_operator_num";
+    std::string metricName = "mds_scheduler_metric_operator_num";
     uint64_t metricValue;
     ASSERT_EQ(-1, mdsClient.GetMetric(metricName, &metricValue));
-    std::unique_ptr<bvar::Adder<uint32_t>> value(new bvar::Adder<uint32_t>());
-    (*value) << 10;
-    fakemds.SetMetric(metricName, value.get());
+    std::string metricName2 = "mds_status";
+    std::unique_ptr<bvar::Adder<uint32_t>> value1(new bvar::Adder<uint32_t>());
+    std::unique_ptr<bvar::Status<std::string>>
+        value2(new bvar::Status<std::string>());
+    (*value1) << 10;
+    value2->set_value("leader");
+    fakemds.SetMetric(metricName, value1.get());
+    fakemds.SetMetric(metricName2, value2.get());
     fakemds.ExposeMetric();
     ASSERT_EQ(0, mdsClient.GetMetric(metricName, &metricValue));
     ASSERT_EQ(10, metricValue);
+    std::string metricValue2;
+    ASSERT_EQ(0, mdsClient.GetMetric(metricName2, &metricValue2));
+    ASSERT_EQ("leader", metricValue2);
 }
 
 TEST_F(ToolMDSClientTest, GetCurrentMds) {
@@ -794,4 +807,32 @@ TEST_F(ToolMDSClientTest, GetCurrentMds) {
         new FakeReturn(&cntl, static_cast<void*>(response.get())));
     curvefsservice->SetGetFileInfoFakeReturn(fakeret.get());
     ASSERT_EQ("", mdsClient.GetCurrentMds());
+}
+
+TEST_F(ToolMDSClientTest, GetMdsOnlineStatus) {
+    curve::tool::MDSClient mdsClient;
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr, "9999,9180"));
+    std::unique_ptr<bvar::Status<std::string>>
+        value(new bvar::Status<std::string>());
+    fakemds.SetMetric("mds_config_mds_listen_addr", value.get());
+    fakemds.ExposeMetric();
+    std::map<std::string, bool> onlineStatus;
+    // 9180在线，9999不在线
+    value->set_value("{\"conf_name\":\"mds.listen.addr\","
+                        "\"conf_value\":\"127.0.0.1:9180\"}");
+    ASSERT_EQ(0, mdsClient.GetMdsOnlineStatus(&onlineStatus));
+    std::map<std::string, bool> expected = {{"127.0.0.1:9180", true},
+                                            {"127.0.0.1:9999", false}};
+    ASSERT_EQ(expected, onlineStatus);
+    // 9180的服务端口不一致
+    value->set_value("{\"conf_name\":\"mds.listen.addr\","
+                        "\"conf_value\":\"127.0.0.1:9188\"}");
+    ASSERT_EQ(0, mdsClient.GetMdsOnlineStatus(&onlineStatus));
+    expected = {{"127.0.0.1:9180", false}, {"127.0.0.1:9999", false}};
+    ASSERT_EQ(expected, onlineStatus);
+    // 非json格式
+    value->set_value("127.0.0.1::9180");
+    ASSERT_EQ(0, mdsClient.GetMdsOnlineStatus(&onlineStatus));
+    expected = {{"127.0.0.1:9180", false}, {"127.0.0.1:9999", false}};
+    ASSERT_EQ(expected, onlineStatus);
 }

@@ -8,12 +8,6 @@
 #include <glog/logging.h>
 #include "src/mds/server/mds.h"
 
-DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds listen addr");
-DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd client");
-DEFINE_string(mdsDbName, "curve_mds", "mds db name");
-DEFINE_int32(sessionInterSec, 5, "mds session expired second");
-DEFINE_int32(updateToRepoSec, 5, "interval of update data in mds to repo");
-
 namespace curve {
 namespace mds {
 MDS::~MDS() {
@@ -24,148 +18,117 @@ MDS::~MDS() {
         delete fileLockManager_;
     }
 }
-void MDS::Init(std::shared_ptr<Configuration> conf) {
-    // =========================加载配置===============================//
-    LOG(INFO) << "load mds configuration.";
+
+void MDS::InitMdsOptions(std::shared_ptr<Configuration> conf) {
     conf_ = conf;
-    // 命令行配置覆盖configuration
-    LoadConfigFromCmdline(conf_.get());
-    // 打印配置
-    conf_->PrintConfig();
+    InitSessionOptions(&options_.sessionOptions);
+    InitAuthOptions(&options_.authOptions);
+    InitCurveFSOptions(&options_.curveFSOptions);
+    InitScheduleOption(&options_.scheduleOption);
+    InitHeartbeatOption(&options_.heartbeatOption);
+    InitMdsRepoOption(&options_.mdsRepoOption);
+    InitTopologyOption(&options_.topologyOption);
+    InitCopysetOption(&options_.copysetOption);
+    InitChunkServerClientOption(&options_.chunkServerClientOption);
 
-    // ========================初始化各配置项==========================//
-    SessionOptions sessionOptions;
-    InitSessionOptions(&sessionOptions);
+    conf_->GetValueFatalIfFail(
+        "mds.segment.alloc.retryInterMs", &options_.retryInterTimes);
+    conf_->GetValueFatalIfFail(
+        "mds.segment.alloc.periodic.persistInterMs",
+        &options_.periodicPersistInterMs);
 
-    RootAuthOption authOptions;
-    InitAuthOptions(&authOptions);
+    // namestorage的缓存大小
+    conf_->GetValueFatalIfFail("mds.cache.count", &options_.mdsCacheCount);
 
-    CurveFSOption curveFSOptions;
-    InitCurveFSOptions(&curveFSOptions);
+    // 获取mds监听地址
+    conf_->GetValueFatalIfFail("mds.listen.addr", &options_.mdsListenAddr);
+    // 获取dummy server的端口
+    conf_->GetValueFatalIfFail(
+        "mds.dummy.listen.port", &options_.dummyListenPort);
+    // 获取mds的文件锁桶大小
+    conf_->GetValueFatalIfFail(
+        "mds.filelock.bucketNum", &options_.mdsFilelockBucketNum);
+}
 
-    ScheduleOption scheduleOption;
-    InitScheduleOption(&scheduleOption);
+void MDS::StartDummy() {
+    // 暴露版本信息,配置信息和角色（是否是leader）
+    LOG(INFO) << "mds version: " << curve::common::CurveVersion();
+    curve::common::ExposeCurveVersion();
+    conf_->ExposeMetric("mds_config");
+    conf_->UpdateMetric();
+    status_.expose("mds_status");
+    status_.set_value("follower");
 
-    HeartbeatOption heartbeatOption;
-    InitHeartbeatOption(&heartbeatOption);
+    int ret = brpc::StartDummyServerAt(options_.dummyListenPort);
+    if (ret != 0) {
+        LOG(FATAL) << "StartMDSDummyServer Error";
+    } else {
+        LOG(INFO) << "StartDummyServer Success";
+    }
+}
 
-    EtcdConf etcdConf;
-    InitEtcdConf(&etcdConf);
-
-    LeaderElectionOptions leaderElectionOp;
-    InitLeaderElectionOption(&leaderElectionOp);
-
-    MdsRepoOption mdsRepoOption;
-    InitMdsRepoOption(&mdsRepoOption);
-
-    TopologyOption topologyOption;
-    InitTopologyOption(&topologyOption);
-
-    CopysetOption copysetOption;
-    InitCopysetOption(&copysetOption);
-
-    ChunkServerClientOption chunkServerClientOption;
-    InitChunkServerClientOption(&chunkServerClientOption);
-
-    // etcd操作超时时间
+void MDS::StartCompaginLeader() {
+    // 初始化etcdclient
+    // TODO(lixiaocui): 为什么不把配置都放在EtcdConf中?
     int etcdTimeout;
     conf_->GetValueFatalIfFail(
         "mds.etcd.operation.timeoutMs", &etcdTimeout);
-    // etcd重试次数
     int etcdRetryTimes;
     conf_->GetValueFatalIfFail("mds.etcd.retry.times", &etcdRetryTimes);
-
-    // segmentAlloc相关配置
-    uint64_t retryInterTimes, periodicPersistInterMs;
-    conf_->GetValueFatalIfFail(
-        "mds.segment.alloc.retryInterMs", &retryInterTimes);
-    conf_->GetValueFatalIfFail(
-        "mds.segment.alloc.periodic.persistInterMs", &periodicPersistInterMs);
-
-    // namestorage的缓存大小
-    int mdsCacheCount;
-    conf_->GetValueFatalIfFail("mds.cache.count", &mdsCacheCount);
-
-    // 获取mds监听地址
-    conf_->GetValueFatalIfFail("mds.listen.addr", &mdsListenAddr_);
-    // 获取mds的文件锁桶大小
-    int mdsFilelockBucketNum;
-    conf_->GetValueFatalIfFail(
-        "mds.filelock.bucketNum", &mdsFilelockBucketNum);
-
-    LOG(INFO) << "load mds configuration success.";
-
-    // ========================初始化各模块==========================//
-    // 初始化etcd client
+    EtcdConf etcdConf;
+    InitEtcdConf(&etcdConf);
     InitEtcdClient(etcdConf, etcdTimeout, etcdRetryTimes);
-    // 初始化leader竞选模块
+
+    // 进行leader选举
+    LeaderElectionOptions leaderElectionOp;
+    InitLeaderElectionOption(&leaderElectionOp);
     leaderElectionOp.etcdCli = etcdClient_;
     InitLeaderElection(leaderElectionOp);
-    // 竞选leader(竞选leader必须放在init中，因为竞选不成功的话下面的模块不应该初始化)
-    ElectLeader();
+    while (0 != leaderElection_->CampaginLeader()) {
+        LOG(INFO) << leaderElection_->GetLeaderName()
+                  << " campaign for leader again";
+    }
+    LOG(INFO) << "Campain leader ok, I am the leader now";
+    status_.set_value("leader");
+    leaderElection_->StartObserverLeader();
+}
+
+void MDS::Init() {
     // 初始化Segment统计模块
-    InitSegmentAllocStatistic(retryInterTimes, periodicPersistInterMs);
+    InitSegmentAllocStatistic(options_.retryInterTimes,
+                              options_.periodicPersistInterMs);
     // 初始化NameServer存储模块
-    InitNameServerStorage(mdsCacheCount);
+    InitNameServerStorage(options_.mdsCacheCount);
     // 初始化数据库
-    InitMdsRepo(mdsRepoOption);
+    InitMdsRepo(options_.mdsRepoOption);
     // init topology
-    InitTopology(topologyOption);
+    InitTopology(options_.topologyOption);
     // init TopologyStat
     InitTopologyStat();
     // init TopologyChunkAllocator
-    InitTopologyChunkAllocator(topologyOption);
+    InitTopologyChunkAllocator(options_.topologyOption);
     // init topologyMetricService
-    InitTopologyMetricService(topologyOption);
+    InitTopologyMetricService(options_.topologyOption);
     // init topologyServiceManager
-    InitTopologyServiceManager(topologyOption);
-    // 初始化curveFs
-    InitCurveFS(curveFSOptions);
+    InitTopologyServiceManager(options_.topologyOption);
+    // 初始化curveFs:
+    InitCurveFS(options_.curveFSOptions);
     // 初始化调度模块
     InitCoordinator();
     // 初始化心跳模块
     InitHeartbeatManager();
 
     fileLockManager_ =
-        new FileLockManager(mdsFilelockBucketNum);
+        new FileLockManager(options_.mdsFilelockBucketNum);
     inited_ = true;
 }
 
-void MDS::LoadConfigFromCmdline(Configuration *conf) {
-    // 如果命令行有设置, 命令行覆盖配置文件中的字段
-    google::CommandLineFlagInfo info;
-    if (GetCommandLineFlagInfo("mdsAddr", &info) && !info.is_default) {
-        conf->SetStringValue("mds.listen.addr", FLAGS_mdsAddr);
-    }
-
-    if (GetCommandLineFlagInfo("etcdAddr", &info) && !info.is_default) {
-        conf->SetStringValue("mds.etcd.endpoint", FLAGS_etcdAddr);
-    }
-    // 设置dbname
-    if (GetCommandLineFlagInfo("mdsDbName", &info) && !info.is_default) {
-        conf->SetStringValue("mds.DbName", FLAGS_mdsDbName);
-    }
-
-    // 设置mds和etcd之间session的过期时间
-    if (GetCommandLineFlagInfo("sessionInterSec", &info) && !info.is_default) {
-        conf->SetIntValue(
-            "mds.leader.sessionInterSec", FLAGS_sessionInterSec);
-    }
-
-    // 设置mds将内存中topology的数据持久化到repo中的时间
-    if (GetCommandLineFlagInfo("updateToRepoSec", &info) && !info.is_default) {
-        conf->SetIntValue(
-            "mds.topology.TopologyUpdateToRepoSec", FLAGS_updateToRepoSec);
-    }
-}
 
 void MDS::Run() {
     if (!inited_) {
         LOG(ERROR) << "MDS not inited yet!";
         return;
     }
-    // 暴露版本信息
-    curve::common::ExposeCurveVersion();
     // 启动segmentAllocStatistic
     segmentAllocStatistic_->Run();
     // 启动topology
@@ -260,7 +223,7 @@ void MDS::StartServer() {
     // start rpc server
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    LOG_IF(FATAL, server.Start(mdsListenAddr_.c_str(), &option) != 0)
+    LOG_IF(FATAL, server.Start(options_.mdsListenAddr.c_str(), &option) != 0)
         << "start brpc server error";
     running_ = true;
 
@@ -296,18 +259,8 @@ void MDS::InitEtcdClient(const EtcdConf& etcdConf,
             << ", etcd retrytimes: " << retryTimes;
 }
 
-
-
 void MDS::InitLeaderElection(const LeaderElectionOptions& leaderElectionOp) {
     leaderElection_ = std::make_shared<LeaderElection>(leaderElectionOp);
-}
-
-void MDS::ElectLeader() {
-    while (0 != leaderElection_->CampaginLeader()) {
-        LOG(INFO) << leaderElection_->GetLeaderName()
-                  << " campaign for leader again";
-    }
-    leaderElection_->StartObserverLeader();
 }
 
 void MDS::InitLeaderElectionOption(LeaderElectionOptions *electionOp) {
@@ -634,6 +587,5 @@ void MDS::InitHeartbeatOption(HeartbeatOption* heartbeatOption) {
     conf_->GetValueFatalIfFail("mds.heartbeat.clean_follower_afterMs",
                         &heartbeatOption->cleanFollowerAfterMs);
 }
-
 }  // namespace mds
 }  // namespace curve
