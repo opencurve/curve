@@ -47,3 +47,12 @@ target_link_libraries(fileservice_test
                       ${PART2_TEST_LINK})
 install(TARGETS fileservice_test DESTINATION bin)
 add_test(NAME fileservice_test COMMAND fileservice_test)
+
+# heartbeat_service_test
+set(HEARTBEAT_SERVICE_TEST_SRC heartbeat_service_test.cpp)
+add_executable(heartbeat_service_test ${HEARTBEAT_SERVICE_TEST_SRC})
+target_link_libraries(heartbeat_service_test
+                      part2mock
+                      ${PART2_TEST_LINK})
+install(TARGETS heartbeat_service_test DESTINATION bin)
+add_test(NAME heartbeat_service_test COMMAND heartbeat_service_test)

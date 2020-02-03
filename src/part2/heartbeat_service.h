@@ -1,6 +1,15 @@
+/*
+ * Project: nebd
+ * Created Date: 2020-02-03
+ * Author: charisu
+ * Copyright (c) 2020 netease
+ */
+
 #ifndef SRC_PART2_HEARTBEAT_SERVICE_H_
 #define SRC_PART2_HEARTBEAT_SERVICE_H_
 
+#include <brpc/closure_guard.h>
+#include <brpc/controller.h>
 #include <memory>
 
 #include "src/common/heartbeat.pb.h"
