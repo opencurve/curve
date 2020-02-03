@@ -9,6 +9,7 @@
 #include "src/tools/curve_tool_factory.h"
 
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
+DEFINE_string(mdsDummyPort, "6667", "dummy port of mds");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
 DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
 DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
