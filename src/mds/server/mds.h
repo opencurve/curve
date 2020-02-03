@@ -66,6 +66,31 @@ using ::curve::common::Configuration;
 
 namespace curve {
 namespace mds {
+
+struct MDSOptions {
+    // dummyserver port
+    int dummyListenPort;
+    // 主mds对外核心服务监听地址
+    std::string mdsListenAddr;
+    // segmentAlloc相关配置
+    uint64_t retryInterTimes;
+    uint64_t periodicPersistInterMs;
+    // namestorage的缓存大小
+    int mdsCacheCount;
+    // mds的文件锁桶大小
+    int mdsFilelockBucketNum;
+
+    SessionOptions sessionOptions;
+    RootAuthOption authOptions;
+    CurveFSOption curveFSOptions;
+    ScheduleOption scheduleOption;
+    HeartbeatOption heartbeatOption;
+    MdsRepoOption mdsRepoOption;
+    TopologyOption topologyOption;
+    CopysetOption copysetOption;
+    ChunkServerClientOption chunkServerClientOption;
+};
+
 class MDS {
  public:
     MDS() : inited_(false), running_(false) {}
@@ -73,10 +98,26 @@ class MDS {
     ~MDS();
 
     /**
-     * @brief 加载配置
-     * @param confPath 配置文件路径
+     * @brief 从配置初始化mds相关option
      */
-    void Init(std::shared_ptr<Configuration> conf);
+    void InitMdsOptions(std::shared_ptr<Configuration> conf);
+
+    /**
+     * @brief 启动MDS DummyServer 用于主从MDS的基础探活和flags获取
+     *        比如用于暴露程序版本、从配置文件中获取的所有配置等等
+     */
+    void StartDummy();
+
+    /**
+     * @brief 开始竞选leader
+     *
+     */
+    void StartCompaginLeader();
+
+    /**
+     * @brief 初始化各个组件
+     */
+    void Init();
 
     /**
      * @brief 启动mds
@@ -89,8 +130,6 @@ class MDS {
     void Stop();
 
  private:
-    void LoadConfigFromCmdline(Configuration *conf);
-
     /**
      * @brief 初始化session相关选项
      * @param session相关选项
@@ -198,11 +237,6 @@ class MDS {
     void StartServer();
 
     /**
-     * @brief 竞选leader
-     */
-    void ElectLeader();
-
-    /**
      * @brief 初始化topology相关模块
      */
     void InitTopologyModule();
@@ -261,10 +295,13 @@ class MDS {
     std::shared_ptr<Configuration> conf_;
     // 是否初始化过
     bool inited_;
-    // 是否在运行中
+    // 是否作为主MDS在运行
     bool running_;
-    // mds监听地址
-    std::string mdsListenAddr_;
+    // mds状态，leader或follower
+    bvar::Status<std::string> status_;
+    // mds相关选项
+    MDSOptions options_;
+
     // 与etcd交互的client
     std::shared_ptr<EtcdClientImp> etcdClient_;
     // leader竞选模块

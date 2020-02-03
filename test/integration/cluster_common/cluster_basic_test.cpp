@@ -88,7 +88,7 @@ TEST_F(ClusterBasicTest, DISABLED_test_start_stop_module1) {
     curveCluster_->StartSingleEtcd(1, "127.0.0.1:2221", "127.0.0.1:2222",
         std::vector<std::string>{" --name basic_test_start_stop_module1"});
     // 起mds
-    curveCluster_->StartSingleMDS(1, "192.168.200.1:3333", mdsConf, true);
+    curveCluster_->StartSingleMDS(1, "192.168.200.1:3333", 3334, mdsConf, true);
     // 创建物理池
     curveCluster_->PreparePhysicalPool(
         1, "./test/integration/cluster_common/cluster_common_topo_1.txt");
@@ -133,7 +133,7 @@ TEST_F(ClusterBasicTest, test_start_stop_module2) {
     ASSERT_EQ(0, system((std::string("mkdir ") + mdsDir).c_str()));
     mdsConfbak.emplace_back(" -log_dir=" + mdsDir);
     mdsConfbak.emplace_back(" --etcdAddr=127.0.0.1:2221");
-    curveCluster_->StartSingleMDS(1, "127.0.0.1:3333", mdsConfbak, true);
+    curveCluster_->StartSingleMDS(1, "127.0.0.1:3333", 3334, mdsConfbak, true);
     // 初始化mdsclient
     MetaServerOption_t op;
     op.mdsRPCTimeoutMs = 500;
@@ -236,18 +236,18 @@ TEST_F(ClusterBasicTest, test_multi_mds_and_etcd) {
     auto copy1 = mdsConf;
     copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
     copy1.emplace_back(" -log_dir=" + mds1Dir);
-    curveCluster_->StartSingleMDS(1, "127.0.0.1:2310", copy1, true);
+    curveCluster_->StartSingleMDS(1, "127.0.0.1:2310", 2313, copy1, true);
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     auto copy2 = mdsConf;
     copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
     copy2.emplace_back(" -log_dir=" + mds2Dir);
-    curveCluster_->StartSingleMDS(2, "127.0.0.1:2311", copy2, false);
+    curveCluster_->StartSingleMDS(2, "127.0.0.1:2311", 2314, copy2, false);
 
     auto copy3 = mdsConf;
     copy1.emplace_back(" --etcdAddr=" + etcdClinetAddrs);
     copy3.emplace_back(" -log_dir=" + mds3Dir);
-    curveCluster_->StartSingleMDS(3, "127.0.0.1:2312", copy3, false);
+    curveCluster_->StartSingleMDS(3, "127.0.0.1:2312", 2315, copy3, false);
 
     // 获取当前正在服务的mds
     int curMds;
