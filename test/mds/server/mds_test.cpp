@@ -8,10 +8,14 @@
 #include <fiu-control.h>
 #include <gtest/gtest.h>
 #include <brpc/channel.h>
+#include <json/json.h>
+#include <string>
+#include <vector>
 
 #include "src/mds/server/mds.h"
 #include "src/common/concurrent/concurrent.h"
 #include "src/common/timeutility.h"
+#include "src/common/string_util.h"
 
 using ::curve::common::Thread;
 
@@ -66,33 +70,86 @@ class MDSTest : public ::testing::Test {
         fiu_disable("src/mds/leaderElection/observeLeader");
     }
 
-    MDS mds_;
     brpc::Channel channel_;
     pid_t etcdPid;
-    char kMdsAddr[20] = {"127.0.0.1:10001"};
+    const std::string kMdsAddr = "127.0.0.1:10001";
     char kEtcdAddr[20] = {"127.0.0.1:10002"};
+    const int kDummyPort = 10004;
 };
 
 TEST_F(MDSTest, common) {
     // 加载配置
-    FLAGS_mdsAddr = kMdsAddr;
-    FLAGS_etcdAddr = kEtcdAddr;
     std::string confPath = "./conf/mds.conf";
     auto conf = std::make_shared<Configuration>();
     conf->SetConfigPath(confPath);
     LOG_IF(FATAL, !conf->LoadConfig())
         << "load mds configuration fail, conf path = " << confPath;
-    mds_.Init(conf);
+
+    conf->SetStringValue("mds.listen.addr", kMdsAddr);
+    conf->SetStringValue("mds.etcd.endpoint", kEtcdAddr);
+    conf->SetIntValue("mds.dummy.listen.port", kDummyPort);
+    MDS mds;
+    mds.InitMdsOptions(conf);
+    mds.StartDummy();
+
+    // 从dummy server获取version和mds监听端口
+    brpc::Channel httpChannel;
+    brpc::Controller cntl;
+    brpc::ChannelOptions options;
+        options.protocol = brpc::PROTOCOL_HTTP;
+    std::string dummyAddr = "127.0.0.1:" + std::to_string(kDummyPort);
+    ASSERT_EQ(0, httpChannel.Init(dummyAddr.c_str(), &options));
+
+    // 测试获取version
+    cntl.http_request().uri() = dummyAddr + "/vars/curve_version";
+    httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    ASSERT_FALSE(cntl.Failed());
+
+    // 测试获取mds监听端口
+    cntl.Reset();
+    cntl.http_request().uri() = dummyAddr + "/vars/mds_config_mds_listen_addr";
+    httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    Json::Reader reader;
+    Json::Value value;
+    std::string attachment = cntl.response_attachment().to_string();
+    auto pos = attachment.find(":");
+    ASSERT_NE(std::string::npos, pos);
+    std::string jsonString = attachment.substr(pos + 2);
+    // 去除两端引号
+    jsonString = jsonString.substr(1, jsonString.size() - 2);
+    reader.parse(jsonString, value);
+    std::string mdsAddr = value["conf_value"].asString();
+    ASSERT_EQ(kMdsAddr, mdsAddr);
+
+    // 获取leader状态，此时mds_status应为follower
+    cntl.Reset();
+    cntl.http_request().uri() = dummyAddr + "/vars/mds_status";
+    httpChannel.CallMethod(NULL, &cntl, NULL, NULL, NULL);
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_NE(std::string::npos,
+        cntl.response_attachment().to_string().find("follower"));
+
+    mds.StartCompaginLeader();
+
+    // 此时isLeader应为true
+    cntl.Reset();
+    cntl.http_request().uri() = dummyAddr + "/vars/is_leader";
+    ASSERT_FALSE(cntl.Failed());
+    ASSERT_EQ(std::string::npos,
+        cntl.response_attachment().to_string().find("leader"));
+
+    mds.Init();
     // 启动mds
-    Thread mdsThread(&MDS::Run, &mds_);
+    Thread mdsThread(&MDS::Run, &mds);
     // sleep 5s
     sleep(5);
 
     // 1、init channel
-    ASSERT_EQ(0, channel_.Init(kMdsAddr, nullptr));
-    brpc::Controller cntl;
+    ASSERT_EQ(0, channel_.Init(kMdsAddr.c_str(), nullptr));
 
     // 2、测试hearbeat接口
+    cntl.Reset();
     heartbeat::ChunkServerHeartbeatRequest request1;
     heartbeat::ChunkServerHeartbeatResponse response1;
     request1.set_chunkserverid(1);
@@ -134,7 +191,7 @@ TEST_F(MDSTest, common) {
 
     // 5、停掉mds
     uint64_t startTime = curve::common::TimeUtility::GetTimeofDayMs();
-    mds_.Stop();
+    mds.Stop();
     mdsThread.join();
     uint64_t stopTime = curve::common::TimeUtility::GetTimeofDayMs();
     ASSERT_LE(stopTime - startTime, 100);
