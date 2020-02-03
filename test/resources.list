@@ -32,7 +32,7 @@ Used port list:
     use port(xuchaojie) : 8900~8999
     use port(lixiaocui) : 6879, 2221, 2222, 3333,2001~2004, 3333, 3500
                           2301~2312
-    use port(charisu) : 10001~10003
+    use port(charisu) : 10001~10004
     use port(schedule service):5900~5999
 
 # chunkserver
@@ -59,3 +59,5 @@ Used port list:
     data check:             9160 9161 9162 9163
     mds client:             9180
     chunkserver client:     9191
+    curve cli:              9192
+    http client:            9193

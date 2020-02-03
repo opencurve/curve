@@ -26,6 +26,7 @@ DECLARE_bool(offline);
 DECLARE_bool(unhealthy);
 DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 DEFINE_string(etcdAddr, "127.0.0.1:2379", "etcd addr");
+DEFINE_string(mdsDummyPort, "6667", "dummy port of mds");
 
 class StatusToolTest : public ::testing::Test {
  protected:
@@ -114,7 +115,7 @@ TEST_F(StatusToolTest, InitFail) {
     curve::tool::StatusTool statusTool1(mdsClient_, etcdClient_,
                             nameSpaceTool_, copysetCheck_);
     // 1、status命令需要所有的init
-    EXPECT_CALL(*mdsClient_, Init(_))
+    EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(4)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
@@ -145,7 +146,7 @@ TEST_F(StatusToolTest, InitFail) {
     // 3、space和其他命令不需要初始化etcdClient
     curve::tool::StatusTool statusTool3(mdsClient_, etcdClient_,
                             nameSpaceTool_, copysetCheck_);
-    EXPECT_CALL(*mdsClient_, Init(_))
+    EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(3)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));
@@ -176,7 +177,7 @@ TEST_F(StatusToolTest, SpaceCmd) {
     phyPools.emplace_back(phyPool);
 
     // 设置Init的期望
-    EXPECT_CALL(*mdsClient_, Init(_))
+    EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*nameSpaceTool_, Init(_))
@@ -285,7 +286,7 @@ TEST_F(StatusToolTest, ChunkServerCmd) {
         chunkservers.emplace_back(csInfo);
     }
     // 设置Init的期望
-    EXPECT_CALL(*mdsClient_, Init(_))
+    EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*nameSpaceTool_, Init(_))
@@ -358,10 +359,9 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     std::vector<PhysicalPoolInfo> phyPools;
     phyPools.emplace_back(phyPool);
     std::string mdsAddr = "127.0.0.1:6666";
-    std::vector<std::string> mdsAddrVec;
-    mdsAddrVec.emplace_back(mdsAddr);
-    mdsAddrVec.emplace_back("127.0.0.1:6667");
-    mdsAddrVec.emplace_back("127.0.0.1:6668");
+    std::map<std::string, bool> mdsOnlineStatus = {{"127.0.0.1:6666", true},
+                                                   {"127.0.0.1:6667", false},
+                                                   {"127.0.0.1:6668", true}};
     // 加入5个chunkserver，其中1个retired，1个offline
     ChunkServerInfo csInfo;
     std::vector<ChunkServerInfo> chunkservers;
@@ -371,7 +371,7 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     }
 
     // 设置Init的期望
-    EXPECT_CALL(*mdsClient_, Init(_))
+    EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*nameSpaceTool_, Init(_))
@@ -423,9 +423,10 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(1)
         .WillOnce(Return(mdsAddr));
-    EXPECT_CALL(*mdsClient_, GetMdsAddrVec())
+    EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
         .Times(1)
-        .WillOnce(ReturnRef(mdsAddrVec));
+        .WillOnce(DoAll(SetArgPointee<0>(mdsOnlineStatus),
+                        Return(0)));
 
     // 3、设置etcd status的输出
     std::string leaderAddr = "127.0.0.1:2379";
@@ -456,9 +457,10 @@ TEST_F(StatusToolTest, StatusCmdCommon) {
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(1)
         .WillOnce(Return(mdsAddr));
-    EXPECT_CALL(*mdsClient_, GetMdsAddrVec())
+    EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
         .Times(1)
-        .WillOnce(ReturnRef(mdsAddrVec));
+        .WillOnce(DoAll(SetArgPointee<0>(mdsOnlineStatus),
+                        Return(0)));
     ASSERT_EQ(0, statusTool.RunCommand("mds-status"));
 
     // 7、设置etcd status的输出
@@ -475,7 +477,7 @@ TEST_F(StatusToolTest, StatusCmdError) {
                             nameSpaceTool_, copysetCheck_);
 
     // 设置Init的期望
-    EXPECT_CALL(*mdsClient_, Init(_))
+    EXPECT_CALL(*mdsClient_, Init(_, _))
         .Times(1)
         .WillOnce(Return(0));
     EXPECT_CALL(*nameSpaceTool_, Init(_))
@@ -498,13 +500,15 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .WillOnce(Return(-1));
 
     // 2、当前无mds可用
-    std::vector<std::string> mdsAddrVec;
+    std::map<std::string, bool> mdsOnlineStatus = {{"127.0.0.1:6666", false},
+                                                   {"127.0.0.1:6667", false}};
     EXPECT_CALL(*mdsClient_, GetCurrentMds())
         .Times(1)
         .WillOnce(Return(""));
-    EXPECT_CALL(*mdsClient_, GetMdsAddrVec())
+    EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
         .Times(1)
-        .WillOnce(ReturnRef(mdsAddrVec));
+        .WillOnce(DoAll(SetArgPointee<0>(mdsOnlineStatus),
+                        Return(0)));
 
     // 3、GetEtcdClusterStatus失败
     EXPECT_CALL(*etcdClient_, GetEtcdClusterStatus(_, _))
@@ -516,4 +520,13 @@ TEST_F(StatusToolTest, StatusCmdError) {
         .Times(1)
         .WillOnce(Return(-1));
     ASSERT_EQ(-1, statusTool.RunCommand("status"));
+
+    // 获取mds在线状态失败
+    EXPECT_CALL(*mdsClient_, GetCurrentMds())
+        .Times(1)
+        .WillOnce(Return(""));
+    EXPECT_CALL(*mdsClient_, GetMdsOnlineStatus(_))
+        .Times(1)
+        .WillOnce(Return(-1));
+    ASSERT_EQ(-1, statusTool.RunCommand("mds-status"));
 }

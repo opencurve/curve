@@ -45,7 +45,7 @@ int EtcdClient::GetEtcdClusterStatus(std::string* leaderAddr,
         }
         (*onlineState)[addr] = true;
         std::string resp = cntl.response_attachment().to_string();
-        Json::Reader reader;
+        Json::Reader reader(Json::Features::strictMode());
         Json::Value value;
         if (!reader.parse(resp, value)) {
             std::cout << "Parse the response fail!" << std::endl;

@@ -10,7 +10,7 @@
 #include "src/tools/schedule_tool.h"
 #include "src/tools/curve_tool_define.h"
 
-DEFINE_int32(logicalPoolId, 1, "logical pool");
+DEFINE_int32(logical_pool_id, 1, "logical pool");
 DECLARE_string(mdsAddr);
 
 namespace curve {
@@ -50,13 +50,13 @@ int ScheduleTool::DoRapidLeaderSchedule() {
     }
 
     // 解析逻辑池id
-    if (FLAGS_logicalPoolId < 0) {
+    if (FLAGS_logical_pool_id < 0) {
         std::cout << "logicalPoolId must >=0" << std::endl;
         return -1;
     }
 
     // 给mds发送rpc
-    return mdsClient_->RapidLeaderSchedule(FLAGS_logicalPoolId);
+    return mdsClient_->RapidLeaderSchedule(FLAGS_logical_pool_id);
 }
 
 }  // namespace tool

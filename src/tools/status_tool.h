@@ -105,6 +105,14 @@ class StatusTool : public CurveTool {
      */
     bool CommandNeedMds(const std::string& command);
 
+    /**
+     *  @brief 打印在线状态
+     *  @param name : 在线状态对应的名字
+     *  @param onlineStatus 在线状态的map
+     */
+    void PrintOnlineStatus(const std::string& name,
+                           const std::map<std::string, bool>& onlineStatus);
+
  private:
     // 向mds发送RPC的client
     std::shared_ptr<MDSClient> mdsClient_;

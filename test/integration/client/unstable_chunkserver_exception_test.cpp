@@ -181,7 +181,7 @@ class UnstableCSModuleException : public ::testing::Test {
                 " --name module_exception_curve_unstable_cs"});
 
         // 2. 启动一个mds
-        cluster->StartSingleMDS(1, kMdsIpPort, mdsConf, true);
+        cluster->StartSingleMDS(1, kMdsIpPort, 30013, mdsConf, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
         // 3. 创建物理池

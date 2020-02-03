@@ -125,11 +125,11 @@ class MDSModuleException : public ::testing::Test {
         std::vector<std::string>{" --name module_exception_test_mds"});
 
         // 2. 先启动一个mds，让其成为leader，然后再启动另外两个mds节点
-        cluster->StartSingleMDS(0, "127.0.0.1:22222", mdsConf, true);
+        cluster->StartSingleMDS(0, "127.0.0.1:22222", 22240, mdsConf, true);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(1, "127.0.0.1:22223", mdsConf, false);
+        cluster->StartSingleMDS(1, "127.0.0.1:22223", 22241, mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(2));
-        cluster->StartSingleMDS(2, "127.0.0.1:22224", mdsConf, false);
+        cluster->StartSingleMDS(2, "127.0.0.1:22224", 22242, mdsConf, false);
         std::this_thread::sleep_for(std::chrono::seconds(8));
 
         // 3. 创建物理池
@@ -386,6 +386,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 7. 拉起被kill的进程
     cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
+                            22240 + serviceMDSID,
                             configmap[serviceMDSID], false, false);
 
     // 8. 再拉起被kill的mds，对集群没有影响
@@ -420,7 +421,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_FALSE(createOrOpenFailed);
 
     // 7. 拉起被kill的进程
-    cluster->StartSingleMDS(killid, ipmap[killid],
+    cluster->StartSingleMDS(killid, ipmap[killid], 22240 + killid,
                             configmap[killid], false, false);
 
     // 8. 再拉起被kill的mds，对集群没有影响
@@ -467,6 +468,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     cluster->RecoverHangMDS(serviceMDSID, false);
     cluster->StopMDS(serviceMDSID);
     cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
+                            22240 + serviceMDSID,
                             configmap[serviceMDSID], false, false);
     ASSERT_TRUE(createOrOpenFailed);
 
@@ -505,7 +507,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     // 6. 挂卸载服务正常
     cluster->RecoverHangMDS(hangid, false);
     cluster->StopMDS(hangid);
-    cluster->StartSingleMDS(hangid, ipmap[hangid],
+    cluster->StartSingleMDS(hangid, ipmap[hangid], 22240 + hangid,
                             configmap[hangid], false, false);
 
     ASSERT_FALSE(createOrOpenFailed);
@@ -547,6 +549,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 7. 拉起被kill的进程
     cluster->StartSingleMDS(serviceMDSID, ipmap[serviceMDSID],
+                            22240 + serviceMDSID,
                             configmap[serviceMDSID], false, false);
 
     // 8. 再拉起被kill的mds，对集群没有影响
@@ -554,6 +557,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 9. 拉起被kill的其他mds
     cluster->StartSingleMDS(secondid, ipmap[secondid],
+                            22240 + secondid,
                             configmap[secondid], false, false);
 
     LOG(INFO) << "current case: KillTwoNotInserviceMDSThenRestartTheMDS";
@@ -589,6 +593,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 7. 拉起被kill的进程
     cluster->StartSingleMDS(tempid_1, ipmap[tempid_1],
+                            22240 + tempid_1,
                             configmap[tempid_1], false, false);
 
     // 8. 集群没有影响
@@ -596,6 +601,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
 
     // 9. 拉起其他mds，使集群恢复正常
     cluster->StartSingleMDS(tempid_2, ipmap[tempid_2],
+                            22240 + tempid_2,
                             configmap[tempid_2], false, false);
 
     LOG(INFO) << "current case: hangTwoInserviceMDSThenResumeTheMDS";
@@ -642,8 +648,10 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     cluster->StopMDS(tempid_1);
     cluster->StopMDS(tempid_2);
     cluster->StartSingleMDS(tempid_1, ipmap[tempid_1],
+                            22240 + tempid_1,
                             configmap[tempid_1], false, false);
     cluster->StartSingleMDS(tempid_2, ipmap[tempid_2],
+                            22240 + tempid_2,
                             configmap[tempid_2], false, false);
     ASSERT_TRUE(createOrOpenFailed);
 
@@ -689,8 +697,10 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     cluster->StopMDS(tempid_1);
     cluster->StopMDS(tempid_2);
     cluster->StartSingleMDS(tempid_1, ipmap[tempid_1],
+                            22240 + tempid_1,
                             configmap[tempid_1], false, false);
     cluster->StartSingleMDS(tempid_2, ipmap[tempid_2],
+                            22240 + tempid_2,
                             configmap[tempid_2], false, false);
     ASSERT_FALSE(createOrOpenFailed);
 
@@ -731,7 +741,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     // 6. 拉起被kill的进程
     bool startsuccess = false;
     while (!startsuccess) {
-        cluster->StartSingleMDS(0, "127.0.0.1:22222",
+        cluster->StartSingleMDS(0, "127.0.0.1:22222", 22240,
                  mdsConf, true, true, &startsuccess);
         std::this_thread::sleep_for(std::chrono::seconds(3));
     }
@@ -744,13 +754,13 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     ASSERT_TRUE(MonitorResume(segment_size, 4096, 10));
 
     // 9. 再拉起被kill的进程
-    cluster->StartSingleMDS(1, "127.0.0.1:22223", mdsConf, false, false);
+    cluster->StartSingleMDS(1, "127.0.0.1:22223", 22229, mdsConf, false, false);
 
     // 10. 对集群没有影响
     ASSERT_TRUE(MonitorResume(0, 4096, 1));
 
     // 11. 拉起其他被kill的mds
-    cluster->StartSingleMDS(2, "127.0.0.1:22224", mdsConf, false, false);
+    cluster->StartSingleMDS(2, "127.0.0.1:22224", 22232, mdsConf, false, false);
 
     LOG(INFO) << "current case: hangThreeMDSThenResumeTheMDS";
     /********** hangThreeMDSThenResumeTheMDS **************/
@@ -803,7 +813,7 @@ TEST_F(MDSModuleException, MDSExceptionTest) {
     cluster->StopMDS(1);
     startsuccess = false;
     while (!startsuccess) {
-        cluster->StartSingleMDS(1, "127.0.0.1:22223",
+        cluster->StartSingleMDS(1, "127.0.0.1:22223", 22229,
                  mdsConf, true, true, &startsuccess);
         std::this_thread::sleep_for(std::chrono::seconds(3));
     }

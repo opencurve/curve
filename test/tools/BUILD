@@ -163,6 +163,30 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "curve_metric_client_test",
+    srcs = glob([
+        "metric_client_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
+    ],
+)
+
+cc_binary(
+    name = "curve_tool_common_test",
+    srcs = glob([
+        "tool_test.cpp",
+    ]),
+    deps = [
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "//src/tools:curve_tool_lib",
+    ],
+)
+
 cc_library(
     name = "tools_mock",
     srcs = glob([
