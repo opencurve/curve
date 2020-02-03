@@ -28,6 +28,9 @@ for i in ${gcda}; do
   cp --parents $j coverage
 done
 
+export LC_ALL=C.UTF-8
 lcov --directory coverage$(pwd)/build --capture --output-file cov.info --rc lcov_branch_coverage=1
 lcov --remove cov.info '/usr/*' '*3rdparty*' '*/build/*' -o result.info --rc lcov_branch_coverage=1
-genhtml result.info --branch-coverage --ignore-errors source -o result
+python3 filterbr.py result.info > filterbr.info
+genhtml filterbr.info --branch-coverage --ignore-errors source -o result
+
