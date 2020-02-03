@@ -307,8 +307,6 @@ class CopysetCheckCore {
     // 查询单个copyset的时候，保存复制组的详细信息
     std::string copysetsDetail_;
 
-    const std::string kOperatorMetricName_ =
-                    "mds_scheduler_metric_operator_num";
     const std::string kEmptyAddr = "0.0.0.0:0:0";
 };
 

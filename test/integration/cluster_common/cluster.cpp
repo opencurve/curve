@@ -89,6 +89,7 @@ void CurveCluster::StopCluster() {
 }
 
 void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
+                                int dummyPort,
                                 const std::vector<std::string> &mdsConf,
                                 bool expectLeader, bool expectAssert,
                                 bool* startsuccess) {
@@ -102,10 +103,11 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         // ./bazel-bin/src/mds/main/curvemds
         std::string cmd_dir =
             std::string("./bazel-bin/src/mds/main/curvemds --mdsAddr=") +
-            ipPort;
+            ipPort + " --dummyPort=" + std::to_string(dummyPort);
         for (auto &item : mdsConf) {
             cmd_dir += item;
         }
+        // LOG(INFO) << "start exec cmd: " << cmd_dir;
         if (expectAssert) {
             int ret = execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
             // 使用error级别，帮助收集日志
@@ -202,6 +204,7 @@ void CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
             cmd_dir += item;
         }
 
+        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
@@ -313,6 +316,7 @@ void CurveCluster::StartSingleChunkServer(int id, const std::string &ipPort,
         for (auto &item : chunkserverConf) {
             cmd_dir += item;
         }
+        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
@@ -346,6 +350,7 @@ void CurveCluster::StartSingleChunkServerInBackground(
         for (auto &item : chunkserverConf) {
             cmd_dir += item;
         }
+        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
@@ -464,6 +469,8 @@ void CurveCluster::RecoverHangChunkServer(int id) {
 void CurveCluster::HangProcess(pid_t pid) {
     LOG(INFO) << "hang pid: " << pid << " begin...";
     ASSERT_EQ(0, kill(pid, SIGSTOP));
+    int waitStatus;
+    waitpid(pid, &waitStatus, WUNTRACED);
     LOG(INFO) << "success hang pid: " << pid;
 }
 
@@ -609,4 +616,5 @@ int CurveCluster::ProbePort(
     return -1;
 }
 }  // namespace curve
+
 

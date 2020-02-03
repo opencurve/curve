@@ -300,7 +300,7 @@ int CopysetCheckCore::CheckCopysetsInCluster() {
     while (curve::common::TimeUtility::GetTimeofDaySec() -
                         startTime < FLAGS_operatorMaxPeriod) {
         uint64_t opNum = 0;
-        int res = mdsClient_->GetMetric(kOperatorNum, &opNum);
+        int res = mdsClient_->GetMetric(kOperatorNumMetricName, &opNum);
         if (res != 0) {
             std::cout << "Get oparator num from mds fail!" << std::endl;
             return -1;
