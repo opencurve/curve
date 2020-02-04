@@ -17,7 +17,7 @@
 #include <condition_variable>   // NOLINT
 
 #include "src/client/mds_client.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "include/curve_compiler_specific.h"
 #include "src/client/client_common.h"
 #include "src/client/service_helper.h"
