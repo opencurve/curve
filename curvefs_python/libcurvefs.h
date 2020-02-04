@@ -12,7 +12,6 @@
 #include <vector>
 #include <map>
 
-#include "src/client/libcurve_define.h"
 #ifdef __cplusplus
 extern "C" {
 #endif

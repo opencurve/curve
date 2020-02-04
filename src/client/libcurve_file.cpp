@@ -222,7 +222,7 @@ int FileClient::ReOpen(const std::string& filename,
         LOG(ERROR) << "ReOpen file fail, retCode = " << ret;
         fileInstance->UnInitialize();
         delete fileInstance;
-        return -1;
+        return ret;
     }
 
     int fd = fdcount_.fetch_add(1, std::memory_order_acq_rel);
