@@ -159,7 +159,7 @@ int FileInstance::ReOpen(const std::string& filename,
     if (LIBCURVE_ERROR::OK != ret) {
         LOG(ERROR) << "ReOpen file " << filename
                    << " fail, RefreshSession from mds fail";
-        return ret;
+        return -ret;
     }
 
     if (response.status == LeaseRefreshResult::Status::OK) {

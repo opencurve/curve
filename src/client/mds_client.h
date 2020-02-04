@@ -23,7 +23,7 @@
 #include "proto/nameserver2.pb.h"
 #include "src/client/client_common.h"
 #include "src/client/client_config.h"
-#include "src/client/libcurve_define.h"
+#include "include/client/libcurve.h"
 #include "src/client/metacache_struct.h"
 #include "src/common/concurrent/rw_lock.h"
 #include "src/common/concurrent/concurrent.h"
