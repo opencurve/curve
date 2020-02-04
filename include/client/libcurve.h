@@ -12,8 +12,126 @@
 #include <stdint.h>
 #include <vector>
 #include <map>
+#include <string>
 
-#include "src/client/libcurve_define.h"
+#define IO_ALIGNED_BLOCK_SIZE 4096
+#define PATH_MAX_SIZE         4096
+#define NAME_MAX_SIZE         256
+
+enum FileType {
+    INODE_DIRECTORY = 0,
+    INODE_PAGEFILE = 1,
+    INODE_APPENDFILE = 2,
+    INODE_APPENDECFILE = 3,
+    INODE_SNAPSHOT_PAGEFILE = 4
+};
+
+enum LIBCURVE_ERROR {
+    // 操作成功
+    OK                      = 0,
+    // 文件或者目录已存在
+    EXISTS                  = 1,
+    // 操作失败
+    FAILED                  = 2,
+    // 禁止IO
+    DISABLEIO               = 3,
+    // 认证失败
+    AUTHFAIL                = 4,
+    // 正在删除
+    DELETING                = 5,
+    // 文件不存在
+    NOTEXIST                = 6,
+    // 快照中
+    UNDER_SNAPSHOT          = 7,
+    // 非快照期间
+    NOT_UNDERSNAPSHOT       = 8,
+    // 删除错误
+    DELETE_ERROR            = 9,
+    // segment未分配
+    NOT_ALLOCATE            = 10,
+    // 操作不支持
+    NOT_SUPPORT             = 11,
+    // 目录非空
+    NOT_EMPTY               = 12,
+    // 禁止缩容
+    NO_SHRINK_BIGGER_FILE   = 13,
+    // session不存在
+    SESSION_NOTEXISTS       = 14,
+    // 文件被占用
+    FILE_OCCUPIED           = 15,
+    // 参数错误
+    PARAM_ERROR             = 16,
+    // MDS一侧存储错误
+    INTERNAL_ERROR           = 17,
+    // crc检查错误
+    CRC_ERROR               = 18,
+    // request参数存在问题
+    INVALID_REQUEST         = 19,
+    // 磁盘存在问题
+    DISK_FAIL               = 20,
+    // 空间不足
+    NO_SPACE                = 21,
+    // IO未对齐
+    NOT_ALIGNED             = 22,
+    // 文件正在被关闭，fd不可用
+    BAD_FD                  = 23,
+    // 文件长度不满足要求
+    LENGTH_NOT_SUPPORT      = 24,
+    // session不存在
+    SESSION_NOT_EXIST       = 25,
+    // 未知错误
+    UNKNOWN                 = 100
+};
+
+const char* ErrorNum2ErrorName(LIBCURVE_ERROR err);
+
+typedef enum LIBCURVE_OP {
+    LIBCURVE_OP_READ,
+    LIBCURVE_OP_WRITE,
+    LIBCURVE_OP_MAX,
+} LIBCURVE_OP;
+
+typedef void (*LibCurveAioCallBack)(struct CurveAioContext* context);
+
+typedef struct CurveAioContext {
+    off_t offset;
+    size_t length;
+    int ret;
+    LIBCURVE_OP op;
+    LibCurveAioCallBack cb;
+    void* buf;
+} CurveAioContext;
+
+typedef struct FileStatInfo {
+    uint64_t        id;
+    uint64_t        parentid;
+    FileType        filetype;
+    uint64_t        length;
+    uint64_t        ctime;
+    char            filename[NAME_MAX_SIZE];
+    char            owner[NAME_MAX_SIZE];
+} FileStatInfo_t;
+
+// 存储用户信息
+typedef struct C_UserInfo {
+    // 当前执行的owner信息, owner信息需要以'\0'结尾
+    char owner[NAME_MAX_SIZE];
+    // 当owner="root"的时候，需要提供password作为计算signature的key
+    // password信息需要以'\0'结尾
+    char password[NAME_MAX_SIZE];
+} C_UserInfo_t;
+
+typedef struct DirInfo {
+    // 当前listdir的目录路径
+    char*            dirpath;
+    // 当前listdir操作的用户信息
+    C_UserInfo_t*    userinfo;
+    // 当前dir大小，也就是文件数量
+    uint64_t         dirSize;
+    // 当前dir的内的文件信息内容，是一个数组
+    // fileStat是这个数组的头，数组大小为dirSize
+    FileStatInfo_t*  fileStat;
+} DirInfo_t;
 
 #ifdef __cplusplus
 extern "C" {
@@ -233,4 +351,110 @@ int GetClusterId(char* buf, int len);
 }
 #endif
 
+namespace curve {
+namespace client {
+
+class FileClient;
+
+// 存储用户信息
+typedef struct UserInfo {
+    // 当前执行的owner信息
+    std::string owner;
+    // 当owner=root的时候，需要提供password作为计算signature的key
+    std::string password;
+
+    UserInfo() = default;
+
+    UserInfo(const std::string& own, const std::string& pwd)
+      : owner(own), password(pwd) {}
+
+    bool Valid() const {
+        return !owner.empty();
+    }
+} UserInfo_t;
+
+class CurveClient {
+ public:
+    CurveClient();
+    virtual ~CurveClient();
+
+    /**
+     * 初始化
+     * @param configPath 配置文件路径
+     * @return 返回错误码
+     */
+    virtual int Init(const std::string& configPath);
+
+    /**
+     * 反初始化
+     */
+    virtual void UnInit();
+
+    /**
+     * 打开文件
+     * @param filename 文件名，格式为：文件名_用户名_
+     * @param[out] sessionId session Id
+     * @return 成功返回fd，失败返回-1
+     */
+    virtual int Open(const std::string& filename,
+                     std::string* sessionId);
+
+    /**
+     * 重新打开文件
+     * @param filename 文件名，格式为：文件名_用户名_
+     * @param sessionId session Id
+     * @param[out] newSessionId reOpen之后的新sessionId
+     * @return 成功返回fd，失败返回-1
+     */
+    virtual int ReOpen(const std::string& filename,
+                       const std::string& sessionId,
+                       std::string* newSessionId);
+
+    /**
+     * 关闭文件
+     * @param fd 文件fd
+     * @return 返回错误码
+     */
+    virtual int Close(int fd);
+
+    /**
+     * 扩展文件
+     * @param filename 文件名，格式为：文件名_用户名_
+     * @param newsize 扩展后的大小
+     * @return 返回错误码
+     */
+    virtual int Extend(const std::string& filename,
+                       int64_t newsize);
+
+    /**
+     * 获取文件大小
+     * @param filename 文件名，格式为：文件名_用户名_
+     * @return 返回错误码
+     */
+    virtual int64_t StatFile(const std::string& filename);
+
+    /**
+     * 异步读
+     * @param fd 文件fd
+     * @param aioctx 异步读写的io上下文
+     * @return 返回错误码
+     */
+    virtual int AioRead(int fd, CurveAioContext* aioctx);
+
+    /**
+     * 异步写
+     * @param fd 文件fd
+     * @param aioctx 异步读写的io上下文
+     * @return 返回错误码
+     */
+    virtual int AioWrite(int fd, CurveAioContext* aioctx);
+
+ private:
+    FileClient* fileClient_{nullptr};
+};
+
+}  // namespace client
+}  // namespace curve
+
 #endif  // INCLUDE_CLIENT_LIBCURVE_H_
+
