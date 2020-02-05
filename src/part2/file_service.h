@@ -1,3 +1,10 @@
+/*
+ * Project: nebd
+ * Created Date: Thursday January 16th 2020
+ * Author: yangyaokai
+ * Copyright (c) 2020 netease
+ */
+
 #ifndef SRC_PART2_FILE_SERVICE_H_
 #define SRC_PART2_FILE_SERVICE_H_
 
@@ -7,11 +14,14 @@
 #include <string>
 #include <memory>
 
+#include "src/common/common.pb.h"
 #include "src/common/client.pb.h"
 #include "src/part2/file_manager.h"
 
 namespace nebd {
 namespace server {
+
+void NebdFileServiceCallback(NebdServerAioContext* context);
 
 class NebdFileServiceImpl : public nebd::client::NebdFileService {
  public:

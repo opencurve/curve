@@ -91,9 +91,12 @@ int NebdFileManager::Load() {
 
 int NebdFileManager::UpdateFileTimestamp(int fd) {
     NebdFileRecordPtr fileRecord = fileRecordMap_.GetRecord(fd);
-    if (fileRecord != nullptr) {
-        fileRecord->timeStamp = TimeUtility::GetTimeofDayMs();
+    if (fileRecord == nullptr) {
+        LOG(WARNING) << "Update file timestamp failed, no record. "
+                     << "fd: " << fd;
+        return -1;
     }
+    fileRecord->timeStamp = TimeUtility::GetTimeofDayMs();
     return 0;
 }
 
@@ -143,9 +146,9 @@ int NebdFileManager::Discard(int fd, NebdServerAioContext* aioctx) {
         int ret = fileRecord->executor->Discard(
             fileRecord->fileInstance.get(), aioctx);
         if (ret < 0) {
+            brpc::ClosureGuard doneGuard(done);
             aioctx->done = done->GetClosure();
             done->SetClosure(nullptr);
-            done->Run();
             LOG(ERROR) << "Discard file failed. "
                        << "fd: " << fd
                        << ", fileName: " << fileRecord->fileName
@@ -165,9 +168,9 @@ int NebdFileManager::AioRead(int fd, NebdServerAioContext* aioctx) {
         int ret = fileRecord->executor->AioRead(
             fileRecord->fileInstance.get(), aioctx);
         if (ret < 0) {
+            brpc::ClosureGuard doneGuard(done);
             aioctx->done = done->GetClosure();
             done->SetClosure(nullptr);
-            done->Run();
             LOG(ERROR) << "AioRead file failed. "
                        << "fd: " << fd
                        << ", fileName: " << fileRecord->fileName
@@ -187,9 +190,9 @@ int NebdFileManager::AioWrite(int fd, NebdServerAioContext* aioctx) {
         int ret = fileRecord->executor->AioWrite(
             fileRecord->fileInstance.get(), aioctx);
         if (ret < 0) {
+            brpc::ClosureGuard doneGuard(done);
             aioctx->done = done->GetClosure();
             done->SetClosure(nullptr);
-            done->Run();
             LOG(ERROR) << "AioWrite file failed. "
                        << "fd: " << fd
                        << ", fileName: " << fileRecord->fileName
@@ -209,9 +212,9 @@ int NebdFileManager::Flush(int fd, NebdServerAioContext* aioctx) {
         int ret = fileRecord->executor->Flush(
             fileRecord->fileInstance.get(), aioctx);
         if (ret < 0) {
+            brpc::ClosureGuard doneGuard(done);
             aioctx->done = done->GetClosure();
             done->SetClosure(nullptr);
-            done->Run();
             LOG(ERROR) << "Flush file failed. "
                        << "fd: " << fd
                        << ", fileName: " << fileRecord->fileName

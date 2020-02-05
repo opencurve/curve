@@ -12,7 +12,6 @@ message OpenFileResponse {
    required RetCode retCode = 1;
    optional string retMsg = 2;
    optional int32 fd = 3;
-   // ps 最好fd最为一个64位以内的随机数，发挥sessionid的作用
 }
 
 message CloseFileRequest {

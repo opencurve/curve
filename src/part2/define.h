@@ -1,18 +1,27 @@
+/*
+ * Project: nebd
+ * Created Date: Tuesday February 11th 2020
+ * Author: yangyaokai
+ * Copyright (c) 2020 netease
+ */
+
 #ifndef SRC_PART2_DEFINE_H_
 #define SRC_PART2_DEFINE_H_
 
 #include <google/protobuf/message.h>
+#include <google/protobuf/service.h>
 #include <string>
 #include <memory>
 
 #include "src/common/rw_lock.h"
 
+namespace nebd {
+namespace server {
+
 using nebd::common::RWLock;
 using ::google::protobuf::Message;
 using ::google::protobuf::Closure;
-
-namespace nebd {
-namespace server {
+using ::google::protobuf::RpcController;
 
 const char CURVE_PREFIX[] = "cbd";
 const char CEPH_PREFIX[] = "rbd";

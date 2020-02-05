@@ -192,6 +192,11 @@ TEST_F(FileManagerTest, LoadFailTest) {
     fileRecords.push_back(record1);
     fileRecords.push_back(record2);
 
+    // ListFileRecord 失败，返回失败
+    EXPECT_CALL(*metaFileManager_, ListFileRecord(_))
+    .WillOnce(Return(-1));
+    ASSERT_EQ(-1, fileManager_.Load());
+
     EXPECT_CALL(*metaFileManager_, ListFileRecord(_))
     .WillOnce(DoAll(SetArgPointee<0>(fileRecords),
                     Return(0)));
@@ -441,6 +446,11 @@ TEST_F(FileManagerTest, AioReadTest) {
 TEST_F(FileManagerTest, AioReadFaileTest) {
     InitEnv();
 
+    // 文件不存在
+    EXPECT_CALL(*executor_, AioRead(_, _))
+    .Times(0);
+    ASSERT_EQ(-1, fileManager_.AioRead(10, aioContext_));
+
     // 文件是opened状态
     EXPECT_CALL(*executor_, AioRead(NotNull(), aioContext_))
     .WillOnce(Return(-1));
@@ -496,6 +506,11 @@ TEST_F(FileManagerTest, AioWriteTest) {
 
 TEST_F(FileManagerTest, AioWriteFaileTest) {
     InitEnv();
+
+    // 文件不存在
+    EXPECT_CALL(*executor_, AioWrite(_, _))
+    .Times(0);
+    ASSERT_EQ(-1, fileManager_.AioWrite(10, aioContext_));
 
     // 文件是opened状态
     EXPECT_CALL(*executor_, AioWrite(NotNull(), aioContext_))
@@ -553,6 +568,11 @@ TEST_F(FileManagerTest, DiscardTest) {
 TEST_F(FileManagerTest, DiscardFaileTest) {
     InitEnv();
 
+    // 文件不存在
+    EXPECT_CALL(*executor_, Discard(_, _))
+    .Times(0);
+    ASSERT_EQ(-1, fileManager_.Discard(10, aioContext_));
+
     // 文件是opened状态
     EXPECT_CALL(*executor_, Discard(NotNull(), aioContext_))
     .WillOnce(Return(-1));
@@ -609,6 +629,11 @@ TEST_F(FileManagerTest, FlushTest) {
 TEST_F(FileManagerTest, FlushFaileTest) {
     InitEnv();
 
+    // 文件不存在
+    EXPECT_CALL(*executor_, Flush(_, _))
+    .Times(0);
+    ASSERT_EQ(-1, fileManager_.Flush(10, aioContext_));
+
     // 文件是opened状态
     EXPECT_CALL(*executor_, Flush(NotNull(), aioContext_))
     .WillOnce(Return(-1));
@@ -638,8 +663,9 @@ TEST_F(FileManagerTest, FlushFaileTest) {
 
 TEST_F(FileManagerTest, CheckTimeoutTest) {
     ASSERT_EQ(fileManager_.Run(), 0);
-    // 已经在run了不允许重复Run
+    // 已经在run了不允许重复Run或者Init
     ASSERT_EQ(fileManager_.Run(), -1);
+    ASSERT_EQ(fileManager_.Init(option_), -1);
 
     // 校验是否在检查超时
     InitEnv();
@@ -650,6 +676,8 @@ TEST_F(FileManagerTest, CheckTimeoutTest) {
     // 等待一段时间（未超过超时时间），模拟一个文件收到心跳，另一个没收到
     ::sleep(option_.heartbeatTimeoutS - 2);
     ASSERT_EQ(0, fileManager_.UpdateFileTimestamp(1));
+    // 更新不存在的fd，返回失败
+    ASSERT_EQ(-1, fileManager_.UpdateFileTimestamp(10));
     // 在等待一段时间，其中一个文件超时，另一个文件未超时
     EXPECT_CALL(*executor_, Close(NotNull()))
     .WillOnce(Return(0));
@@ -664,6 +692,8 @@ TEST_F(FileManagerTest, CheckTimeoutTest) {
     ASSERT_EQ(recordMap[1]->status, NebdFileStatus::CLOSED);
     ASSERT_EQ(recordMap[2]->status, NebdFileStatus::CLOSED);
 
+    ASSERT_EQ(fileManager_.Fini(), 0);
+    // 重复Fini，也返回成功
     ASSERT_EQ(fileManager_.Fini(), 0);
 }
 

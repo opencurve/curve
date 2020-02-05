@@ -15,7 +15,8 @@ set(PART2_TEST_LINK
 # libpart2mock.so
 set(PART2_MOCK_SRC
     mock_metafile_manager.h
-    mock_request_executor.h)
+    mock_request_executor.h
+    mock_file_manager.h)
 add_library(part2mock ${PART2_MOCK_SRC})
 set_target_properties(part2mock PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(part2mock
@@ -37,3 +38,12 @@ target_link_libraries(filemanager_test
                       ${PART2_TEST_LINK})
 install(TARGETS filemanager_test DESTINATION bin)
 add_test(NAME filemanager_test COMMAND filemanager_test)
+
+# fileservice_test
+set(FILE_SERVICE_TEST_SRC file_service_unittest.cpp)
+add_executable(fileservice_test ${FILE_SERVICE_TEST_SRC})
+target_link_libraries(fileservice_test
+                      part2mock
+                      ${PART2_TEST_LINK})
+install(TARGETS fileservice_test DESTINATION bin)
+add_test(NAME fileservice_test COMMAND fileservice_test)
