@@ -220,9 +220,6 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
 
     auto cloneMetric = std::make_shared<CloneMetric>();
 
-    std::shared_ptr<CloneTaskManager> cloneTaskMgr =
-        std::make_shared<CloneTaskManager>(cloneMetric);
-
     auto cloneCore = std::make_shared<CloneCoreImpl>(
                          client,
                          metaStore,
@@ -234,6 +231,9 @@ int snapshotcloneserver_main(int argc, char* argv[]) {
         LOG(ERROR) << "CloneCore init fail.";
         return kErrCodeServerInitFail;
     }
+
+    std::shared_ptr<CloneTaskManager> cloneTaskMgr =
+        std::make_shared<CloneTaskManager>(cloneCore, cloneMetric);
     std::shared_ptr<CloneServiceManager> cloneServiceManager_ =
         std::make_shared<CloneServiceManager>(cloneTaskMgr,
                 cloneCore);

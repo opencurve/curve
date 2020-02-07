@@ -349,6 +349,9 @@ class MockCloneCore : public CloneCore {
 
     MOCK_METHOD0(GetCloneRef,
         std::shared_ptr<CloneReference>());
+
+    MOCK_METHOD1(HandleRemoveCloneOrRecoverTask,
+        int(std::shared_ptr<CloneTaskInfo> task));
 };
 }  // namespace snapshotcloneserver
 }  // namespace curve

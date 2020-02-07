@@ -350,7 +350,8 @@ bool CheckCloneOrRecoverSuccess(
         } else {
             st = CloneStatus::recovering;
         }
-        if (info1.GetCloneInfo().GetStatus() == st) {
+        if (info1.GetCloneInfo().GetStatus() == st ||
+            info1.GetCloneInfo().GetStatus() == CloneStatus::retrying) {
             std::this_thread::sleep_for(std::chrono::milliseconds(3000));
             continue;
         } else if (info1.GetCloneInfo().GetStatus() == CloneStatus::done) {
