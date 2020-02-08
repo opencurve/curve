@@ -83,18 +83,41 @@ function start_mds() {
     exit 1
   fi
 
-  # 未指定mdsAddr, 从配置文件中读取
+  # 未指定mdsAddr, 从配置文件中解析出网段
   if [ -z ${mdsAddr} ]
   then
-    mdsAddr=`cat ${confPath} | grep "mds.listen.addr" | awk -F "=" '{print $2}'`
-  fi
+        subnet=`cat $confPath|grep global.subnet|awk -F"=" '{print $2}'`
+        port=`cat $confPath|grep global.port|awk -F"=" '{print $2}'`
+        prefix=`echo $subnet|awk -F/ '{print $1}'|awk -F. '{printf "%d", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+        mod=`echo $subnet|awk -F/ '{print $2}'`
+        mask=$((2**32-2**(32-$mod)))
+        echo "subnet: $subnet"
+        echo "base port: $port"
+        # 对prefix再取一次模，为了支持10.182.26.50/22这种格式
+        prefix=$(($prefix&$mask))
+        for i in `/sbin/ifconfig -a|grep inet|grep -v inet6|awk '{print $2}'|tr -d "addr:"`
+        do
+                # 把ip转换成整数
+                ip_int=`echo $i|awk -F. '{printf "%d\n", ($1*(2^24))+($2*(2^16))+($3*(2^8))+$4}'`
+                if [ $(($ip_int&$mask)) -eq $prefix ]
+                then
+                    mdsAddr=$i
+                    break
+                fi
+        done
+        if [ -z "$mdsAddr" ]
+        then
+                echo "no ip matched!\n"
+                return 1
+        fi
+    fi
 
   daemon --name curve-mds --core --inherit \
     --respawn --attempts 100 --delay 10 \
     --pidfile ${pidFile} \
     --errlog ${daemonLog} \
     --output ${consoleLog} \
-    -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr} -log_dir=${logPath} -graceful_quit_on_sigterm=true -stderrthreshold=3
+    -- ${curveBin} -confPath=${confPath} -mdsAddr=${mdsAddr}:${port} -log_dir=${logPath} -graceful_quit_on_sigterm=true -stderrthreshold=3
 
   sleep 1
   show_status
