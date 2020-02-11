@@ -112,7 +112,6 @@ TEST_F(TestReuqestExecutorCurve, test_Close) {
         auto nebdFileIns = new NebdFileInstance();
         EXPECT_CALL(*curveClient_, Close(_)).Times(0);
         ASSERT_EQ(-1, executor.Close(nebdFileIns));
-
     }
 
     // 2. nebdFileIns中的fd<0, close失败

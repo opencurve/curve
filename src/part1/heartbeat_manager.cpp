@@ -11,7 +11,7 @@
 #include <vector>
 #include <string>
 
-#include "src/common/heartbeat.pb.h"
+#include "proto/heartbeat.pb.h"
 
 namespace nebd {
 namespace client {

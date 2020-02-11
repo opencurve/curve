@@ -6,8 +6,8 @@
  * Copyright (c) 2019 netease
  */
 
-#ifndef SRC_COMMON_NEMA_LOCK_H_
-#define SRC_COMMON_NEMA_LOCK_H_
+#ifndef SRC_COMMON_NAME_LOCK_H_
+#define SRC_COMMON_NAME_LOCK_H_
 
 #include <string>
 #include <unordered_map>
@@ -90,4 +90,4 @@ class NameLockGuard : public Uncopyable {
 }   // namespace nebd
 
 
-#endif  // SRC_COMMON_NEMA_LOCK_H_
+#endif  // SRC_COMMON_NAME_LOCK_H_

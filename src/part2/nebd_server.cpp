@@ -7,6 +7,7 @@
 
 #include <glog/logging.h>
 #include <memory>
+#include "src/common/file_lock.h"
 #include "src/part2/nebd_server.h"
 #include "src/part2/file_service.h"
 #include "src/part2/heartbeat_service.h"
@@ -139,7 +140,14 @@ bool NebdServer::StartServer() {
     // start brcp server
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
-    int startBrpcServerRes = server_.Start(listenAddress_.c_str(), &option);
+    // 获取文件锁
+    common::FileLock fileLock(listenAddress_);
+    if (fileLock.AcquireFileLock() != 0) {
+        LOG(ERROR) << "Address already in use";
+        return -1;
+    }
+    int startBrpcServerRes = server_.StartAtSockFile(
+                                    listenAddress_.c_str(), &option);
     if (0 != startBrpcServerRes) {
         LOG(ERROR) << "NebdServer start brpc server fail, res="
             << startBrpcServerRes;
@@ -150,6 +158,7 @@ bool NebdServer::StartServer() {
     server_.RunUntilAskedToQuit();
 
     isRunning_ = false;
+    fileLock.ReleaseFileLock();
     return true;
 }
 

@@ -16,7 +16,7 @@
 
 #include "src/part1/nebd_common.h"
 #include "src/common/configuration.h"
-#include "src/common/client.pb.h"
+#include "proto/client.pb.h"
 #include "src/part1/libnebd.h"
 #include "src/part1/heartbeat_manager.h"
 #include "src/part1/nebd_metacache.h"

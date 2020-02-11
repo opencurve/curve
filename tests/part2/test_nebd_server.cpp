@@ -31,10 +31,13 @@ TEST(TestNebdServer, test_Init_Run_Fini) {
     std::thread nebdServerThread(&NebdServer::RunUntilAskedToQuit, &server);
     sleep(1);
 
-    // 5. stop成功
+    // 5、再次Run会失败
+    ASSERT_EQ(-1, server.RunUntilAskedToQuit());
+
+    // 6. stop成功
     ASSERT_EQ(0, server.Fini());
 
-    // 6. 再次stop不会重复释放资源
+    // 7. 再次stop不会重复释放资源
     ASSERT_EQ(0, server.Fini());
     nebdServerThread.join();
 }

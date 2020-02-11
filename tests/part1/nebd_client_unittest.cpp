@@ -24,8 +24,8 @@ namespace nebd {
 namespace client {
 
 const char* kFileName = "nebd-test-filename";
-const char* kNebdServerTestAddress = "/root/nebd/nebd.test.sock";
-const char* kNebdClientConf = "/root/nebd/tests/part1/nebd-client.conf";
+const char* kNebdServerTestAddress = "/tmp/nebd-client-test.sock";
+const char* kNebdClientConf = "tests/part1/nebd-client.conf";
 const int64_t kFileSize = 10LL * 1024 * 1024 * 1024;
 const int64_t kBufSize = 1024;
 

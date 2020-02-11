@@ -14,6 +14,7 @@
 #include <thread>  // NOLINT
 #include <string>
 #include <mutex>  // NOLINT
+#include <unordered_map>
 
 #include "src/common/rw_lock.h"
 #include "src/common/name_lock.h"
@@ -25,7 +26,7 @@
 #include "src/part2/file_record_map.h"
 #include "src/part2/request_executor_ceph.h"
 #include "src/part2/request_executor_curve.h"
-#include "src/common/client.pb.h"
+#include "proto/client.pb.h"
 
 namespace nebd {
 namespace server {

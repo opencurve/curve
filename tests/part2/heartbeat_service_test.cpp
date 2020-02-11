@@ -10,7 +10,7 @@
 #include <brpc/server.h>
 #include <string>
 
-#include "src/common/heartbeat.pb.h"
+#include "proto/heartbeat.pb.h"
 #include "src/part2/heartbeat_service.h"
 #include "tests/part2/mock_file_manager.h"
 

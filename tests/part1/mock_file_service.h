@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <string>
-#include "src/common/client.pb.h"
+#include "proto/client.pb.h"
 
 namespace nebd {
 namespace client {

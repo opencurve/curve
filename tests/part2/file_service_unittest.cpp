@@ -8,8 +8,8 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-#include <memory>
 #include <brpc/controller.h>
+#include <memory>
 
 #include "src/part2/file_service.h"
 #include "tests/part2/mock_file_manager.h"
@@ -202,7 +202,7 @@ TEST_F(FileServiceTest, StatFileTest) {
     // stat file success
     NebdFileInfo fileInfo;
     fileInfo.size = 4096;
-    EXPECT_CALL(*fileManager_, StatFile(fd, NotNull()))
+    EXPECT_CALL(*fileManager_, GetInfo(fd, NotNull()))
     .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
                     Return(0)));
     fileService_->StatFile(&cntl, &request, &response, &done);
@@ -212,7 +212,7 @@ TEST_F(FileServiceTest, StatFileTest) {
 
     // stat file failed
     done.Reset();
-    EXPECT_CALL(*fileManager_, StatFile(fd, NotNull()))
+    EXPECT_CALL(*fileManager_, GetInfo(fd, NotNull()))
     .WillOnce(Return(-1));
     fileService_->StatFile(&cntl, &request, &response, &done);
     ASSERT_EQ(response.retcode(), RetCode::kNoOK);

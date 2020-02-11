@@ -5,12 +5,12 @@
  * Copyright (c) 2020 netease
  */
 
-#ifndef TEST_MOCK_CURVE_CLIENT_H_
-#define TEST_MOCK_CURVE_CLIENT_H_
+#ifndef TESTS_PART2_MOCK_CURVE_CLIENT_H_
+#define TESTS_PART2_MOCK_CURVE_CLIENT_H_
 
-#include <libcurve.h>
 #include <gmock/gmock.h>
 #include <string>
+#include "include/client/libcurve.h"
 
 namespace nebd {
 namespace server {
@@ -33,4 +33,4 @@ class MockCurveClient : public ::curve::client::CurveClient {
 }  // namespace server
 }  // namespace nebd
 
-#endif  // TEST_MOCK_CURVE_CLIENT_H_
+#endif  // TESTS_PART2_MOCK_CURVE_CLIENT_H_

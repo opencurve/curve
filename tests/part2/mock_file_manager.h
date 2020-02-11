@@ -28,7 +28,7 @@ class MockFileManager : public NebdFileManager {
     MOCK_METHOD1(UpdateFileTimestamp, int(int));
     MOCK_METHOD1(Open, int(const std::string&));
     MOCK_METHOD1(Close, int(int));
-    MOCK_METHOD2(Extend, int(int, uint64_t));
+    MOCK_METHOD2(Extend, int(int, int64_t));
     MOCK_METHOD2(GetInfo, int(int, NebdFileInfo*));
     MOCK_METHOD2(StatFile, int(int, NebdFileInfo*));
     MOCK_METHOD2(Discard, int(int, NebdServerAioContext*));

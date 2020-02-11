@@ -7,4 +7,78 @@
 3rdparty/cmock
 build
 
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+#*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# clion
+.idea
+cmake-build-debug
+CMakeLists.txt
+bin
+lib
+*.temp
+.clwb
+
+# cscope
+cscope.out
+cscope.in.out
+cscope.po.out
+cscope.files
+tags
+
+.sconsign.dblite
+build.err
+build.log
+
+# python
+*.pyc
+
+
+# protobuf
+*.pb.h
+*.pb.cc
+
+# bazel
+bazel-*
+bazel-bin
+bazel-curve
+bazel-genfiles
+bazel-out
+bazel-testlogs
+
+# vscode
 .vscode
+
+# vimprj
+.vimprj/
+
+#log
+*.log
+

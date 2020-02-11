@@ -11,7 +11,7 @@
 #include <brpc/closure_guard.h>
 #include <brpc/controller.h>
 #include <string>
-#include "src/common/client.pb.h"
+#include "proto/client.pb.h"
 
 namespace nebd {
 namespace client {

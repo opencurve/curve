@@ -11,6 +11,7 @@
 #include <gmock/gmock.h>
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "src/part2/request_executor.h"
 

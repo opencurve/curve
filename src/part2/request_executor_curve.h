@@ -8,11 +8,11 @@
 #ifndef SRC_PART2_REQUEST_EXECUTOR_CURVE_H_
 #define SRC_PART2_REQUEST_EXECUTOR_CURVE_H_
 
-#include <libcurve.h>
 #include <string>
 #include <memory>
 #include "src/part2/request_executor.h"
 #include "src/part2/define.h"
+#include "include/client/libcurve.h"
 
 namespace nebd {
 namespace server {

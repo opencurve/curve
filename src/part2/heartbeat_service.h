@@ -12,7 +12,7 @@
 #include <brpc/controller.h>
 #include <memory>
 
-#include "src/common/heartbeat.pb.h"
+#include "proto/heartbeat.pb.h"
 #include "src/part2/file_manager.h"
 
 namespace nebd {

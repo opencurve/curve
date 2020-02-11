@@ -7,7 +7,7 @@
 
 #include <gtest/gtest.h>
 #include <random>
-#include <thread>
+#include <thread>  // NOLINT
 
 #include "src/common/name_lock.h"
 
