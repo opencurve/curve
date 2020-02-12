@@ -13,10 +13,12 @@
 #include <map>
 #include "src/mds/common/mds_define.h"
 #include "src/mds/topology/topology.h"
+#include "proto/topology.pb.h"
 
 using ::std::chrono::steady_clock;
 using ::curve::mds::topology::ChunkServerIdType;
 using ::curve::mds::topology::Topology;
+using ::curve::mds::topology::OnlineState;
 
 namespace curve {
 namespace mds {
@@ -54,16 +56,19 @@ struct HeartbeatOption {
 };
 
 struct HeartbeatInfo {
-    HeartbeatInfo() : HeartbeatInfo(0, steady_clock::time_point(), true) {}
+    HeartbeatInfo() : HeartbeatInfo(
+        0, steady_clock::time_point(), OnlineState::UNSTABLE) {}
     HeartbeatInfo(
-        ChunkServerIdType id, const steady_clock::time_point &time, bool flag) {
+        ChunkServerIdType id,
+        const steady_clock::time_point& time,
+        const OnlineState& state) {
         this->csId = id;
         this->lastReceivedTime = time;
-        this->OnlineFlag = flag;
+        this->state = state;
     }
     ChunkServerIdType csId;
     steady_clock::time_point lastReceivedTime;
-    bool OnlineFlag;
+    OnlineState state;
 };
 
 class ChunkserverHealthyChecker {
@@ -102,9 +107,13 @@ class ChunkserverHealthyChecker {
     bool GetHeartBeatInfo(ChunkServerIdType id, HeartbeatInfo *info);
 
  private:
-    void UpdateChunkServerOnlineState(ChunkServerIdType id, bool onlineFlag);
+    bool ChunkServerStateNeedUpdate(
+        const HeartbeatInfo &info, OnlineState *newState);
 
-    bool SetChunkServerRetired(ChunkServerIdType id);
+    void UpdateChunkServerOnlineState(
+        ChunkServerIdType id, const OnlineState &newState);
+
+    bool TrySetChunkServerRetiredIfNeed(const HeartbeatInfo &info);
 
  private:
     HeartbeatOption option_;

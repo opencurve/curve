@@ -104,12 +104,19 @@ int StatusTool::ChunkServerListCmd() {
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
+    uint64_t unstable = 0;
     for (const auto& chunkserver : chunkservers) {
         auto csId = chunkserver.chunkserverid();
         double unhealthyRatio;
         if (chunkserver.onlinestate() != OnlineState::ONLINE) {
+            if (chunkserver.onlinestate() == OnlineState::OFFLINE) {
+                offline++;
+            }
+
+            if (chunkserver.onlinestate() == OnlineState::UNSTABLE) {
+                unstable++;
+            }
             unhealthyRatio = 1;
-            offline++;
         } else {
             if (FLAGS_offline) {
                 continue;
@@ -147,8 +154,8 @@ int StatusTool::ChunkServerListCmd() {
         }
         std::cout << std::endl;
     }
-    std::cout << "total: " << total << ", online: "
-              << online << ", offline: " << offline << std::endl;
+    std::cout << "total: " << total << ", online: " << online
+        <<", unstable: " << unstable << ", offline: " << offline << std::endl;
     return 0;
 }
 
@@ -281,10 +288,13 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     uint64_t total = 0;
     uint64_t online = 0;
     uint64_t offline = 0;
+    uint64_t unstable = 0;
     std::map<uint64_t, int> leftSizeNum;
     for (const auto& chunkserver : chunkservers) {
         if (chunkserver.onlinestate() == OnlineState::ONLINE) {
             online++;
+        } else if (chunkserver.onlinestate() == OnlineState::UNSTABLE) {
+            unstable++;
         } else {
             offline++;
         }
@@ -309,6 +319,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     }
     std::cout << "chunkserver: total num = " << total
             << ", online = " << online
+            << ", unstable = " << unstable
             << ", offline = " << offline << std::endl;
     if (!checkLeftSize) {
         return 0;
