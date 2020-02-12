@@ -240,7 +240,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
     // 3. 调用curveclient的AioRead接口失败， 异步读失败
     {
         auto curveFileIns = new CurveFileInstance();
-        aiotcx.length = 1;
+        aiotcx.size = 1;
         aiotcx.offset = 0;
         aiotcx.buf = new char[10];
         aiotcx.op = LIBAIO_OP::LIBAIO_OP_READ;
@@ -285,7 +285,7 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
     // 3. 调用curveclient的AioWrite接口失败， 异步写失败
     {
         auto curveFileIns = new CurveFileInstance();
-        aiotcx.length = 1;
+        aiotcx.size = 1;
         aiotcx.offset = 0;
         aiotcx.buf = new char[10];
         aiotcx.op = LIBAIO_OP::LIBAIO_OP_READ;

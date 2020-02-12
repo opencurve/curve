@@ -32,7 +32,7 @@ set(PART2_LINK
     snappy
     ssl
     z
-    jsoncpp_lib)
+    jsoncpp_lib
     curve
     bthread
     glog

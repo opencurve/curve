@@ -231,7 +231,7 @@ std::string CurveRequestExecutor::GetFileNameFromNebdFileInstance(
 int CurveRequestExecutor::FromNebdCtxToCurveCtx(
         NebdServerAioContext *nebdCtx, CurveAioContext *curveCtx) {
     curveCtx->offset = nebdCtx->offset;
-    curveCtx->length = nebdCtx->length;
+    curveCtx->length = nebdCtx->size;
     int ret = FromNebdOpToCurveOp(nebdCtx->op, &curveCtx->op);
     if (ret < 0) {
         return -1;

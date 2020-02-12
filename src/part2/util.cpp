@@ -45,7 +45,7 @@ std::string Op2Str(LIBAIO_OP op) {
 std::ostream& operator<<(std::ostream& os, const NebdServerAioContext& c) {
     os << "[type: " << Op2Str(c.op)
        << ", offset: " << c.offset
-       << ", length: " << c.length
+       << ", size: " << c.size
        << ", ret: " << c.ret
        << "]";
     return os;

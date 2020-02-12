@@ -8,7 +8,7 @@
 #include "src/common/file_lock.h"
 
 #include <sys/file.h>
-#include <butil/logging.h>
+#include <glog/logging.h>
 
 namespace nebd {
 namespace common {

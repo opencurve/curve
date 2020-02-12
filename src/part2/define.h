@@ -27,9 +27,6 @@ const char CURVE_PREFIX[] = "cbd";
 const char CEPH_PREFIX[] = "rbd";
 const char TEST_PREFIX[] = "test";
 
-const char CURVE_PREFIX[] = "cbd";
-const char CEPH_PREFIX[] = "rbd";
-
 // nebd异步请求的类型
 enum class LIBAIO_OP {
     LIBAIO_OP_READ,
@@ -86,8 +83,8 @@ typedef void (*NebdAioCallBack)(struct NebdServerAioContext* context);
 struct NebdServerAioContext {
     // 请求的offset
     off_t offset;
-    // 请求的length
-    size_t length;
+    // 请求的size
+    size_t size;
     // 记录异步返回的返回值
     int ret;
     // 异步请求的类型，详见定义
@@ -100,6 +97,8 @@ struct NebdServerAioContext {
     Message* response;
     // rpc请求的回调函数
     Closure *done;
+    // rpc请求的controller
+    RpcController* cntl;
 };
 
 struct NebdFileInfo {

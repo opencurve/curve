@@ -89,16 +89,6 @@ int NebdFileManager::Load() {
     return 0;
 }
 
-int NebdFileManager::Run() {
-    // TODO
-    return 0;
-}
-
-int NebdFileManager::Fini() {
-    // TODO
-    return 0;
-}
-
 int NebdFileManager::UpdateFileTimestamp(int fd) {
     NebdFileRecordPtr fileRecord = fileRecordMap_.GetRecord(fd);
     if (fileRecord == nullptr) {

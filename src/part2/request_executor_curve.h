@@ -33,7 +33,7 @@ class CurveAioCombineContext {
     NebdServerAioContext* nebdCtx;
     CurveAioContext* curveCtx;
 };
-static void CurveAioCallback(struct CurveAioContext* curveCtx);
+void CurveAioCallback(struct CurveAioContext* curveCtx);
 
 class FileNameParser {
  public:

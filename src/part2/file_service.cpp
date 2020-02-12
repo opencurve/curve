@@ -226,7 +226,7 @@ void NebdFileServiceImpl::StatFile(
     response->set_retcode(RetCode::kNoOK);
 
     NebdFileInfo fileInfo;
-    int rc = fileManager_->StatFile(request->fd(), &fileInfo);
+    int rc = fileManager_->GetInfo(request->fd(), &fileInfo);
     if (rc < 0) {
         LOG(ERROR) << "Stat file failed. "
                    << "fd: " << request->fd()
