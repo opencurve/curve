@@ -12,7 +12,6 @@
 
 using ::curve::mds::topology::ChunkServerState;
 using ::curve::mds::topology::ChunkServerStatus;
-using ::curve::mds::topology::OnlineState;
 using ::curve::mds::topology::ChunkServer;
 using ::curve::mds::topology::kTopoErrCodeSuccess;
 
@@ -24,66 +23,75 @@ namespace heartbeat {
 void ChunkserverHealthyChecker::CheckHeartBeatInterval() {
     ::curve::common::WriteLockGuard lk(hbinfoLock_);
     auto iter = heartbeatInfos_.begin();
-    // 后台线程检查心跳是否miss
     while (iter != heartbeatInfos_.end()) {
-        bool needUpdateOnlineState = false;
-        steady_clock::duration timePass =
-            steady_clock::now() - iter->second.lastReceivedTime;
-        // 当前时间 - 上次心跳到达时间 < miss, chunkserver状态应该是online
-        if (timePass < milliseconds(option_.heartbeatMissTimeOutMs)) {
-            if (!iter->second.OnlineFlag) {
-                LOG(INFO) << "chunkServer " << iter->first << " is online";
-                needUpdateOnlineState = true;
-            }
-        } else {
-            // miss < 若当前时间 - 上次心跳到达时间 < offline, 报警
-            if (timePass < milliseconds(option_.offLineTimeOutMs)) {
-                LOG(WARNING) << "heartbeatManager find chunkServer: "
-                             << iter->first << " heartbeat miss, "
-                             << timePass / milliseconds(1)
-                             << " milliseconds from last heartbeat";
-            } else {
-                // 若当前时间 - 上次心跳到达时间 > offline, 报警, 设为offline
-                LOG(WARNING) << "heartbeatManager find chunkServer: "
-                           << iter->first << " offline, "
-                           << timePass / milliseconds(1)
-                           << " milliseconds from last heartbeat";
-                if (iter->second.OnlineFlag) {
-                    needUpdateOnlineState = true;
-                }
-            }
-        }
+        // 检测状态是否需要更新
+        OnlineState newState;
+        bool needUpdate = ChunkServerStateNeedUpdate(iter->second, &newState);
 
-        // 如果状态有更新，包括
-        // oneline -> offline     offline -> online
-        // 更新到topology模块
-        if (needUpdateOnlineState) {
-            iter->second.OnlineFlag = !iter->second.OnlineFlag;
-            UpdateChunkServerOnlineState(iter->first, iter->second.OnlineFlag);
+        // 将chunkserver的状态更新到topology中
+        if (needUpdate) {
+            UpdateChunkServerOnlineState(iter->first, newState);
+            iter->second.state = newState;
         }
 
         // 如果是offline状态，并且chunkserver上没有copyset，设置为retired状态
         // 一般换盘的场景会出现
-        bool iterNeedMove = true;
-        if (false == iter->second.OnlineFlag) {
-            // 设置retired成功, 将该chunkserver从heartbeatInfo列表中移除
-            if (SetChunkServerRetired(iter->first)) {
-                heartbeatInfos_.erase(iter++);
-                iterNeedMove = false;
-            }
-        }
-
+        bool iterNeedMove = TrySetChunkServerRetiredIfNeed(iter->second);
         if (iterNeedMove) {
+            iter = heartbeatInfos_.erase(iter);
+        } else {
             iter++;
         }
     }
+}
+
+bool ChunkserverHealthyChecker::ChunkServerStateNeedUpdate(
+    const HeartbeatInfo &info, OnlineState *newState) {
+    // 当前距离上次心跳的时间
+    steady_clock::duration timePass =
+        steady_clock::now() - info.lastReceivedTime;
+
+    bool shouldOnline =
+        (timePass < milliseconds(option_.heartbeatMissTimeOutMs));
+    if (shouldOnline) {
+        if (OnlineState::ONLINE != info.state) {
+            LOG(INFO) << "chunkServer " << info.csId << " is online";
+            *newState = OnlineState::ONLINE;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool shouldUnstable = (timePass < milliseconds(option_.offLineTimeOutMs));
+    if (shouldUnstable) {
+        if (OnlineState::UNSTABLE != info.state) {
+            LOG(WARNING) << "chunkserver " << info.csId << " is unstable. "
+                << timePass / milliseconds(1) << "ms from last heartbeat";
+            *newState = OnlineState::UNSTABLE;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool shouldOffline = true;
+    if (OnlineState::OFFLINE != info.state) {
+        LOG(WARNING) << "chunkserver " << info.csId << " is offline. "
+                << timePass / milliseconds(1) << "ms from last heartbeat";
+        *newState = OnlineState::OFFLINE;
+        return true;
+    }
+
+    return false;
 }
 
 void ChunkserverHealthyChecker::UpdateLastReceivedHeartbeatTime(
     ChunkServerIdType csId, const steady_clock::time_point &time) {
     ::curve::common::WriteLockGuard lk(hbinfoLock_);
     if (heartbeatInfos_.find(csId) == heartbeatInfos_.end()) {
-        heartbeatInfos_.emplace(csId, HeartbeatInfo(csId, time, true));
+        heartbeatInfos_.emplace(
+            csId, HeartbeatInfo(csId, time, OnlineState::UNSTABLE));
         return;
     }
     heartbeatInfos_[csId].lastReceivedTime = time;
@@ -100,52 +108,54 @@ bool ChunkserverHealthyChecker::GetHeartBeatInfo(
 }
 
 void ChunkserverHealthyChecker::UpdateChunkServerOnlineState(
-    ChunkServerIdType id, bool onlineFlag) {
-    int updateErrCode = kTopoErrCodeSuccess;
-    if (onlineFlag) {
-        updateErrCode =
-            topo_->UpdateChunkServerOnlineState(OnlineState::ONLINE, id);
-    } else {
-        updateErrCode =
-            topo_->UpdateChunkServerOnlineState(OnlineState::OFFLINE, id);
-    }
+    ChunkServerIdType id, const OnlineState &newState) {
+    int errCode = topo_->UpdateChunkServerOnlineState(newState, id);
 
-    if (kTopoErrCodeSuccess != updateErrCode) {
-        LOG(WARNING) << "heartbeatManager update chunkserver get "
-                        "error code: " << updateErrCode;
+    if (kTopoErrCodeSuccess != errCode) {
+        LOG(WARNING) << "heartbeatManager update chunkserver get error code: "
+            << errCode;
     }
 }
 
-bool ChunkserverHealthyChecker::SetChunkServerRetired(ChunkServerIdType id) {
-    ChunkServer cs;
-    if (!topo_->GetChunkServer(id, &cs)) {
-        LOG(ERROR) << "heartbeatManager can not get chunkserver "
-                    << id << " from topo";
+bool ChunkserverHealthyChecker::TrySetChunkServerRetiredIfNeed(
+    const HeartbeatInfo &info) {
+    // 非offline状态不考虑
+    if (OnlineState::OFFLINE != info.state) {
         return false;
     }
 
-    if (cs.GetStatus() == ChunkServerStatus::RETIRED) {
-        LOG(INFO) << "chunkserver " << id << " is already in retired state";
-        return true;
-    }
-    // chunkserver上没有copyset
-    if (topo_->GetCopySetsInChunkServer(id).empty()) {
-        int updateErrCode = topo_->UpdateChunkServerRwState(
-            ChunkServerStatus::RETIRED, id);
-        // 更新失败
-        if (kTopoErrCodeSuccess != updateErrCode) {
-            LOG(WARNING) << "heartbeatManager update chunkserver get "
-                    "error code: " << updateErrCode;
-            return false;
-        }
-        // 更新成功
-        LOG(INFO) << "heartbeatManager success update chunkserver "
-                    << id << " to retired state";
-        return true;
-    // chunkserver上还有copyset
-    } else {
+    // 获取chunkserver出错
+    ChunkServer cs;
+    if (!topo_->GetChunkServer(info.csId, &cs)) {
+        LOG(ERROR) << "heartbeatManager can not get chunkserver "
+            << info.csId << " from topo";
         return false;
     }
+
+    // chunkserver的状态已经是retired
+    if (cs.GetStatus() == ChunkServerStatus::RETIRED) {
+        LOG(INFO) << "chunkserver " << info.csId
+            << " is already in retired state";
+        return true;
+    }
+
+    // 查看chunkserver上是否还有copyset
+    bool noCopyset = topo_->GetCopySetsInChunkServer(info.csId).empty();
+    if (!noCopyset) {
+        return false;
+    }
+    // 如果没有copyset, 设置为retired状态
+    int updateErrCode = topo_->UpdateChunkServerRwState(
+        ChunkServerStatus::RETIRED, info.csId);
+    if (kTopoErrCodeSuccess != updateErrCode) {
+        LOG(WARNING) << "heartbeatManager update chunkserver get error code: "
+            << updateErrCode;
+        return false;
+    }
+
+    LOG(INFO) << "heartbeatManager success update chunkserver " << info.csId
+            << " to retired state";
+    return true;
 }
 
 }  // namespace heartbeat

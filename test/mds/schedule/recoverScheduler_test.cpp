@@ -119,7 +119,7 @@ TEST_F(TestRecoverSheduler, test_server_has_more_offline_chunkserver) {
     ChunkServerInfo csInfo4(peer4, OnlineState::OFFLINE, DiskState::DISKNORMAL,
             ChunkServerStatus::READWRITE, 2, 100, 100,
             ChunkServerStatisticInfo{});
-    ChunkServerInfo csInfo5(peer5, OnlineState::OFFLINE, DiskState::DISKNORMAL,
+    ChunkServerInfo csInfo5(peer5, OnlineState::UNSTABLE, DiskState::DISKNORMAL,
             ChunkServerStatus::READWRITE, 2, 100, 100,
             ChunkServerStatisticInfo{});
     EXPECT_CALL(*topoAdapter_, GetChunkServerInfos())
