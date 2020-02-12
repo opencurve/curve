@@ -18,7 +18,7 @@ void S3Adapter::Init(const std::string &path) {
     conf_.SetConfigPath(path);
     LOG_IF(FATAL, !conf_.LoadConfig())
               << "Failed to open s3 config file: " << conf_.GetConfigPath();
-    options_ = new Aws::SDKOptions();
+    options_ = Aws::New<Aws::SDKOptions>("S3Adapter.SDKOptions");
     options_->loggingOptions.logLevel =
       Aws::Utils::Logging::LogLevel(conf_.GetIntValue("s3.loglevel"));
     Aws::InitAPI(*options_);
@@ -26,25 +26,30 @@ void S3Adapter::Init(const std::string &path) {
     s3Ak_ = conf_.GetStringValue("s3.ak").c_str();
     s3Sk_ = conf_.GetStringValue("s3.sk").c_str();
     bucketName_ = conf_.GetStringValue("s3.snapshot_bucket_name").c_str();
-    clientCfg_ = new Aws::Client::ClientConfiguration();
+    clientCfg_ = Aws::New<Aws::Client::ClientConfiguration>(
+        "S3Adapter.ClientConfiguration");
     clientCfg_->scheme = Aws::Http::Scheme(conf_.GetIntValue("s3.http_scheme"));
     clientCfg_->verifySSL = conf_.GetBoolValue("s3.verify_SSL");
     //clientCfg_->userAgent = conf_.GetStringValue("s3.user_agent_conf").c_str();  //NOLINT
     clientCfg_->userAgent = "S3 Browser";
+    clientCfg_->maxConnections = conf_.GetIntValue("s3.max_connections");
     clientCfg_->connectTimeoutMs = conf_.GetIntValue("s3.connect_timeout");
     clientCfg_->requestTimeoutMs = conf_.GetIntValue("s3.request_timeout");
     clientCfg_->endpointOverride = s3Address_;
-    s3Client_ = new Aws::S3::S3Client(
+    s3Client_ = Aws::New<Aws::S3::S3Client>("S3Adapter.S3Client",
             Aws::Auth::AWSCredentials(s3Ak_, s3Sk_),
-                                        *clientCfg_);
+            *clientCfg_,
+            Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
+            false);
 }
 
 void S3Adapter::Deinit() {
     Aws::ShutdownAPI(*options_);
-    delete options_;
-    delete clientCfg_;
-    delete s3Client_;
+    Aws::Delete<Aws::SDKOptions>(options_);
+    Aws::Delete<Aws::Client::ClientConfiguration>(clientCfg_);
+    Aws::Delete<Aws::S3::S3Client>(s3Client_);
 }
+
 int S3Adapter::CreateBucket() {
     Aws::S3::Model::CreateBucketRequest request;
     request.SetBucket(bucketName_);

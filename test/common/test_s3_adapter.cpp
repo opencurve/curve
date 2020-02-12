@@ -20,7 +20,7 @@ class TestS3Adapter : public ::testing::Test {
 
     void SetUp() {
         adapter_ = new S3Adapter();
-        adapter_->Init("./conf/s3_test.conf");
+        adapter_->Init("./conf/s3.conf");
         adapter_->SetBucketName("curve-unit-test");
     }
     void TearDown() {
