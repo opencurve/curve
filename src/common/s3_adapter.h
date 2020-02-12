@@ -9,6 +9,7 @@
 #define SRC_COMMON_S3_ADAPTER_H_
 #include <map>
 #include <string>
+#include <aws/core/utils/memory/AWSMemory.h>  //NOLINT
 #include <aws/core/Aws.h>   //NOLINT
 #include <aws/s3/S3Client.h>  //NOLINT
 #include <aws/core/client/ClientConfiguration.h>  //NOLINT
