@@ -38,6 +38,12 @@ int NebdServer::Init(const std::string &confPath) {
         return -1;
     }
 
+    bool initHeartbeatManagerOk = InitHeartbeatManager();
+    if (false == initHeartbeatManagerOk) {
+        LOG(ERROR) << "NebdServer init heartbeatManager fail";
+        return -1;
+    }
+
     LOG(INFO) << "NebdServer init ok";
     return 0;
 }
@@ -59,6 +65,10 @@ int NebdServer::Fini() {
     if (fileManager_ != nullptr) {
         fileManager_->Fini();
     }
+
+    if (heartbeatManager_ != nullptr) {
+        heartbeatManager_->Fini();
+    }
     return 0;
 }
 
@@ -68,41 +78,22 @@ bool NebdServer::LoadConfFromFile(const std::string &confPath) {
 }
 
 bool NebdServer::InitFileManager() {
-    fileManager_ = std::make_shared<NebdFileManager>();
-
-    NebdFileManagerOption opt;
-    bool initOptionOk = InitNebdFileManagerOption(&opt);
-    if (false == initOptionOk) {
-        LOG(ERROR) << "NebdServer init NebdFileManagerOption fail";
+    MetaFileManagerPtr metaFileManager = InitMetaFileManager();
+    if (nullptr == metaFileManager) {
+        LOG(ERROR) << "NebdServer init meta file manager fail";
         return false;
     }
 
-    int initRes = fileManager_->Init(opt);
-    if (0 != initRes) {
-         LOG(ERROR) << "Init nebd file server fail";
-         return false;
-    }
+    FileRecordManagerPtr recordmanager =
+        std::make_shared<FileRecordManager>(metaFileManager);
+    CHECK(recordmanager != nullptr) << "Init record manager failed.";
+
+    fileManager_ = std::make_shared<NebdFileManager>(recordmanager);
+    CHECK(fileManager_ != nullptr) << "Init file manager failed.";
 
     int runRes = fileManager_->Run();
     if (0 != runRes) {
         LOG(ERROR) << "nebd file manager run fail";
-        return false;
-    }
-
-    return true;
-}
-
-bool NebdServer::InitNebdFileManagerOption(NebdFileManagerOption *opt) {
-    bool getOk = conf_.GetUInt32Value(
-        HEARTBEATTIMEOUTSEC, &opt->heartbeatTimeoutS);
-    if (false == getOk) {
-        LOG(ERROR) << "NebdServer get heartbeat.timeout.sec fail";
-        return false;
-    }
-
-    opt->metaFileManager = InitMetaFileManager();
-    if (nullptr == opt->metaFileManager) {
-        LOG(ERROR) << "NebdServer init meta file manager fail";
         return false;
     }
 
@@ -119,6 +110,43 @@ MetaFileManagerPtr NebdServer::InitMetaFileManager() {
     return std::make_shared<NebdMetaFileManager>(metaFilePath);
 }
 
+bool NebdServer::InitHeartbeatManagerOption(HeartbeatManagerOption *opt) {
+    bool getOk = conf_.GetUInt32Value(
+        HEARTBEATTIMEOUTSEC, &opt->heartbeatTimeoutS);
+    if (false == getOk) {
+        LOG(ERROR) << "NebdServer get heartbeat.timeout.sec fail";
+        return false;
+    }
+
+    getOk = conf_.GetUInt32Value(
+        HEARTBEATCHECKINTERVALMS, &opt->checkTimeoutIntervalMs);
+    if (false == getOk) {
+        LOG(ERROR) << "NebdServer get heartbeat.check.interval.ms fail";
+        return false;
+    }
+
+    opt->fileManager = fileManager_;
+    return true;
+}
+
+bool NebdServer::InitHeartbeatManager() {
+    HeartbeatManagerOption option;
+    bool initOptionSuccess = InitHeartbeatManagerOption(&option);
+    if (!initOptionSuccess) {
+        LOG(ERROR) << "NebdServer init heartbeat manager option fail";
+        return false;
+    }
+    heartbeatManager_ = std::make_shared<HeartbeatManager>(option);
+    CHECK(heartbeatManager_ != nullptr) << "Init heartbeat manager failed.";
+
+    int runRes = heartbeatManager_->Run();
+    if (0 != runRes) {
+        LOG(ERROR) << "nebd heartbeat manager run fail";
+        return false;
+    }
+    return true;
+}
+
 bool NebdServer::StartServer() {
     // add service
     NebdFileServiceImpl fileService(fileManager_);
@@ -129,7 +157,7 @@ bool NebdServer::StartServer() {
         return false;
     }
 
-    NebdHeartbeatServiceImpl heartbeatService(fileManager_);
+    NebdHeartbeatServiceImpl heartbeatService(heartbeatManager_);
     addFileServiceRes = server_.AddService(
         &heartbeatService, brpc::SERVER_DOESNT_OWN_SERVICE);
     if (0 != addFileServiceRes) {

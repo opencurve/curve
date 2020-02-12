@@ -50,25 +50,24 @@ enum class NebdFileType {
 class NebdFileInstance;
 class NebdRequestExecutor;
 using NebdFileInstancePtr = std::shared_ptr<NebdFileInstance>;
+using RWLockPtr = std::shared_ptr<RWLock>;
 
 // nebd server记录的文件信息内存结构
 struct NebdFileRecord {
     // 文件读写锁，处理请求前加读锁，close文件的时候加写锁
     // 避免close时还有请求未处理完
-    RWLock rwLock;
+    RWLockPtr rwLock = std::make_shared<RWLock>();
     // nebd server为该文件分配的唯一标识符
     int fd = 0;
     // 文件名称
     std::string fileName = "";
-    // 文件类型：ceph文件、curve文件或测试文件
-    NebdFileType type = NebdFileType::UNKWOWN;
     // 文件当前状态，opened表示文件已打开，closed表示文件已关闭
     NebdFileStatus status = NebdFileStatus::CLOSED;
     // 该文件上一次收到心跳时的时间戳
     uint64_t timeStamp = 0;
     // 文件在executor open时返回上下文信息，用于后续文件的请求处理
     NebdFileInstancePtr fileInstance = nullptr;
-    // 文件实际的执行处理对象
+    // 文件对应的executor的指针
     NebdRequestExecutor* executor = nullptr;
 };
 using NebdFileRecordPtr = std::shared_ptr<NebdFileRecord>;
@@ -114,6 +113,7 @@ struct NebdFileInfo {
 const char LISTENADDRESS[] = "listen.address";
 const char METAFILEPATH[] = "meta.file.path";
 const char HEARTBEATTIMEOUTSEC[] = "heartbeat.timeout.sec";
+const char HEARTBEATCHECKINTERVALMS[] = "heartbeat.check.interval.ms";
 
 }  // namespace server
 }  // namespace nebd

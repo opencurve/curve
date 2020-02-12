@@ -92,6 +92,8 @@ TEST_F(FileServiceTest, WriteTest) {
     uint64_t offset = 0;
     uint64_t size = 4096;
     brpc::Controller cntl;
+    char buf[4096];
+    cntl.request_attachment().append(buf, 4096);
     nebd::client::WriteRequest request;
     request.set_fd(fd);
     request.set_offset(offset);
@@ -191,34 +193,6 @@ TEST_F(FileServiceTest, DiscardTest) {
     ASSERT_TRUE(done.IsRunned());
 }
 
-TEST_F(FileServiceTest, StatFileTest) {
-    int fd = 1;
-    brpc::Controller cntl;
-    nebd::client::StatFileRequest request;
-    request.set_fd(fd);
-    nebd::client::StatFileResponse response;
-    FileServiceTestClosure done;
-
-    // stat file success
-    NebdFileInfo fileInfo;
-    fileInfo.size = 4096;
-    EXPECT_CALL(*fileManager_, GetInfo(fd, NotNull()))
-    .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
-                    Return(0)));
-    fileService_->StatFile(&cntl, &request, &response, &done);
-    ASSERT_EQ(response.retcode(), RetCode::kOK);
-    ASSERT_EQ(response.size(), fileInfo.size);
-    ASSERT_TRUE(done.IsRunned());
-
-    // stat file failed
-    done.Reset();
-    EXPECT_CALL(*fileManager_, GetInfo(fd, NotNull()))
-    .WillOnce(Return(-1));
-    fileService_->StatFile(&cntl, &request, &response, &done);
-    ASSERT_EQ(response.retcode(), RetCode::kNoOK);
-    ASSERT_TRUE(done.IsRunned());
-}
-
 TEST_F(FileServiceTest, GetInfoTest) {
     int fd = 1;
     brpc::Controller cntl;
@@ -229,13 +203,17 @@ TEST_F(FileServiceTest, GetInfoTest) {
 
     // stat file success
     NebdFileInfo fileInfo;
+    fileInfo.size = 4096;
     fileInfo.obj_size = 4096;
+    fileInfo.num_objs = 1;
     EXPECT_CALL(*fileManager_, GetInfo(fd, NotNull()))
     .WillOnce(DoAll(SetArgPointee<1>(fileInfo),
                     Return(0)));
     fileService_->GetInfo(&cntl, &request, &response, &done);
     ASSERT_EQ(response.retcode(), RetCode::kOK);
-    ASSERT_EQ(response.objsize(), fileInfo.obj_size);
+    ASSERT_EQ(response.info().size(), fileInfo.size);
+    ASSERT_EQ(response.info().objsize(), fileInfo.obj_size);
+    ASSERT_EQ(response.info().objnums(), fileInfo.num_objs);
     ASSERT_TRUE(done.IsRunned());
 
     // stat file failed
@@ -256,7 +234,7 @@ TEST_F(FileServiceTest, CloseTest) {
     FileServiceTestClosure done;
 
     // close success
-    EXPECT_CALL(*fileManager_, Close(fd))
+    EXPECT_CALL(*fileManager_, Close(fd, true))
     .WillOnce(Return(0));
     fileService_->CloseFile(&cntl, &request, &response, &done);
     ASSERT_EQ(response.retcode(), RetCode::kOK);
@@ -264,7 +242,7 @@ TEST_F(FileServiceTest, CloseTest) {
 
     // close failed
     done.Reset();
-    EXPECT_CALL(*fileManager_, Close(fd))
+    EXPECT_CALL(*fileManager_, Close(fd, true))
     .WillOnce(Return(-1));
     fileService_->CloseFile(&cntl, &request, &response, &done);
     ASSERT_EQ(response.retcode(), RetCode::kNoOK);

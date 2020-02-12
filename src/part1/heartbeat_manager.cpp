@@ -79,7 +79,7 @@ void HeartbeatManager::SendHeartBeat() {
 
     std::ostringstream oss;
     for (const auto& fileInfo : fileInfos) {
-        nebd::client::FileInfo* info = request.add_info();
+        nebd::client::HeartbeatFileInfo* info = request.add_info();
         info->set_fd(fileInfo.fd);
         info->set_name(fileInfo.fileName);
 

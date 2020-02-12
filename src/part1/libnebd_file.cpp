@@ -32,8 +32,8 @@ int Extend4Nebd(int fd, int64_t newsize) {
     return nebd::client::nebdClient.Extend(fd, newsize);
 }
 
-int64_t StatFile4Nebd(int fd) {
-    return nebd::client::nebdClient.StatFile(fd);
+int64_t GetFileSize4Nebd(int fd) {
+    return nebd::client::nebdClient.GetFileSize(fd);
 }
 
 int Discard4Nebd(int fd, NebdClientAioContext* aioctx) {

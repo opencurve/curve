@@ -13,7 +13,7 @@
 #include <memory>
 
 #include "proto/heartbeat.pb.h"
-#include "src/part2/file_manager.h"
+#include "src/part2/heartbeat_manager.h"
 
 namespace nebd {
 namespace server {
@@ -21,8 +21,8 @@ namespace server {
 class NebdHeartbeatServiceImpl : public nebd::client::NebdHeartbeatService {
  public:
     explicit NebdHeartbeatServiceImpl(
-        std::shared_ptr<NebdFileManager> fileManager)
-        : fileManager_(fileManager) {}
+        std::shared_ptr<HeartbeatManager> heartbeatManager)
+        : heartbeatManager_(heartbeatManager) {}
     virtual ~NebdHeartbeatServiceImpl() {}
     virtual void KeepAlive(google::protobuf::RpcController* cntl_base,
                            const nebd::client::HeartbeatRequest* request,
@@ -30,7 +30,7 @@ class NebdHeartbeatServiceImpl : public nebd::client::NebdHeartbeatService {
                            google::protobuf::Closure* done);
 
  private:
-    std::shared_ptr<NebdFileManager>  fileManager_;
+    std::shared_ptr<HeartbeatManager> heartbeatManager_;
 };
 
 }  // namespace server

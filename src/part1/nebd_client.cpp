@@ -158,7 +158,7 @@ int NebdClient::Close(int fd) {
             LOG(WARNING) << "CloseFile rpc failed, error = "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
-            return cntl->ErrorCode();
+            return -1;
         } else {
             if (response.retcode() != RetCode::kOK) {
                 LOG(ERROR) << "CloseFile failed, "
@@ -201,7 +201,7 @@ int NebdClient::Extend(int fd, int64_t newsize) {
             LOG(WARNING) << "Resize RPC failed, error = "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
-            return cntl->ErrorCode();
+            return -1;
         } else {
             if (response.retcode() != nebd::client::RetCode::kOK) {
                 LOG(ERROR) << "ExtendFile failed, "
@@ -225,40 +225,40 @@ int NebdClient::Extend(int fd, int64_t newsize) {
     return ret;
 }
 
-int64_t NebdClient::StatFile(int fd) {
+int64_t NebdClient::GetFileSize(int fd) {
     auto task = [&](brpc::Controller* cntl,
                     brpc::Channel* channel,
                     bool* rpcFailed) -> int64_t {
         nebd::client::NebdFileService_Stub stub(channel);
-        nebd::client::StatFileRequest request;
-        nebd::client::StatFileResponse response;
+        nebd::client::GetInfoRequest request;
+        nebd::client::GetInfoResponse response;
 
         request.set_fd(fd);
-        stub.StatFile(cntl, &request, &response, nullptr);
+        stub.GetInfo(cntl, &request, &response, nullptr);
 
         *rpcFailed = cntl->Failed();
         if (*rpcFailed) {
-            LOG(WARNING) << "StateFile rpc faield, error = "
+            LOG(WARNING) << "GetFileSize faield, error = "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
-            return cntl->ErrorCode();
+            return -1;
         } else {
             if (response.retcode() != nebd::client::RetCode::kOK) {
-                LOG(ERROR) << "StatFile failed, "
+                LOG(ERROR) << "GetFileSize failed, "
                            << "retcode = " << response.retcode()
                            <<",  retmsg = " << response.retmsg()
                            << ", fd = " << fd
                            << ", log id = " << cntl->log_id();
                 return -1;
             } else {
-                return response.size();
+                return response.info().size();
             }
         }
     };
 
     int64_t ret = ExecuteSyncRpc(task);
     if (ret < 0) {
-        LOG(ERROR) << "StatFile failed, fd = " << fd;
+        LOG(ERROR) << "GetFileSize failed, fd = " << fd;
     }
     return ret;
 }
@@ -341,7 +341,7 @@ int64_t NebdClient::GetInfo(int fd) {
             LOG(WARNING) << "GetInfo rpc failed, error = "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
-            return cntl->ErrorCode();
+            return -1;
         } else {
             if (response.retcode() != nebd::client::RetCode::kOK) {
                 LOG(ERROR) << "GetInfo failed, "
@@ -351,7 +351,7 @@ int64_t NebdClient::GetInfo(int fd) {
                            << ", log id = " << cntl->log_id();
                 return -1;
             } else {
-                return response.objsize();
+                return response.info().objsize();
             }
         }
     };
@@ -379,7 +379,7 @@ int NebdClient::InvalidCache(int fd) {
             LOG(WARNING) << "InvalidCache rpc failed, error = "
                          << cntl->ErrorText()
                          << ", log id = " << cntl->log_id();
-            return cntl->ErrorCode();
+            return -1;
         } else {
             if (response.retcode() != nebd::client::RetCode::kOK) {
                 LOG(ERROR) << "InvalidCache failed, "

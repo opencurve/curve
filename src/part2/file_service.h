@@ -45,11 +45,6 @@ class NebdFileServiceImpl : public nebd::client::NebdFileService {
                       nebd::client::ReadResponse* response,
                       google::protobuf::Closure* done);
 
-    virtual void StatFile(google::protobuf::RpcController* cntl_base,
-                          const nebd::client::StatFileRequest* request,
-                          nebd::client::StatFileResponse* response,
-                          google::protobuf::Closure* done);
-
     virtual void GetInfo(google::protobuf::RpcController* cntl_base,
                          const nebd::client::GetInfoRequest* request,
                          nebd::client::GetInfoResponse* response,

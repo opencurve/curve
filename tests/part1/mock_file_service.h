@@ -41,10 +41,6 @@ class MockNebdFileService : public NebdFileService {
                        const ::nebd::client::DiscardRequest* request,
                        ::nebd::client::DiscardResponse* response,
                        ::google::protobuf::Closure* done));
-    MOCK_METHOD4(StatFile, void(::google::protobuf::RpcController* controller,
-                       const ::nebd::client::StatFileRequest* request,
-                       ::nebd::client::StatFileResponse* response,
-                       ::google::protobuf::Closure* done));
     MOCK_METHOD4(ResizeFile, void(::google::protobuf::RpcController* controller,
                        const ::nebd::client::ResizeRequest* request,
                        ::nebd::client::ResizeResponse* response,

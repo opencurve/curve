@@ -79,7 +79,7 @@ class NebdClient {
      *  @param fd：文件的fd
      *  @return 成功返回文件size，失败返回错误码
      */
-    int64_t StatFile(int fd);
+    int64_t GetFileSize(int fd);
 
     /**
      *  @brief discard文件，异步函数

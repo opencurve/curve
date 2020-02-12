@@ -13,6 +13,7 @@
 #include <memory>
 #include "src/common/configuration.h"
 #include "src/part2/file_manager.h"
+#include "src/part2/heartbeat_manager.h"
 
 namespace nebd {
 namespace server {
@@ -45,17 +46,23 @@ class NebdServer {
     bool InitFileManager();
 
     /**
-     * @brief 初始化NebdFileManagerOption
-     * @param[out] opt
-     * @return false-初始化失败 true-初始化成功
-     */
-    bool InitNebdFileManagerOption(NebdFileManagerOption *opt);
-
-    /**
      * @brief 初始化NebdMetaFileManager
      * @return nullptr-初始化不成功 否则表示初始化成功
      */
     MetaFileManagerPtr InitMetaFileManager();
+
+    /**
+     * @brief 初始化HeartbeatManagerOption
+     * @param[out] opt
+     * @return false-初始化失败 true-初始化成功
+     */
+    bool InitHeartbeatManagerOption(HeartbeatManagerOption *opt);
+
+    /**
+     * @brief 初始化HeartbeatManager
+     * @return false-初始化失败 true-初始化成功
+     */
+    bool InitHeartbeatManager();
 
     /**
      * @brief 启动brpc service
@@ -75,6 +82,8 @@ class NebdServer {
     brpc::Server server_;
     // 用于接受和处理client端的各种请求
     std::shared_ptr<NebdFileManager> fileManager_;
+    // 负责文件心跳超时处理
+    std::shared_ptr<HeartbeatManager> heartbeatManager_;
 };
 
 }  // namespace server

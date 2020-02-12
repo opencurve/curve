@@ -47,11 +47,6 @@ class FakeNebdFileService: public NebdFileService {
                        ::nebd::client::DiscardResponse* response,
                        ::google::protobuf::Closure* done) override;
 
-    void StatFile(::google::protobuf::RpcController* controller,
-                       const ::nebd::client::StatFileRequest* request,
-                       ::nebd::client::StatFileResponse* response,
-                       ::google::protobuf::Closure* done) override;
-
     void ResizeFile(::google::protobuf::RpcController* controller,
                        const ::nebd::client::ResizeRequest* request,
                        ::nebd::client::ResizeResponse* response,

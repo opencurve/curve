@@ -18,7 +18,7 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//src/part1:nebdclient",
-	"//tests/part1:fake_lib",
+        "//tests/part1:fake_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -31,7 +31,7 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//src/part1:nebdclient",
-	"//tests/part1:fake_lib",
+        "//tests/part1:fake_lib",
         "@com_google_googletest//:gtest_main",
     ],
     linkstatic = False,
@@ -40,8 +40,8 @@ cc_binary(
 cc_library(
     name = "fake_lib",
     srcs = glob([
-         "fake_*",
-	 "mock_*",
+        "fake_*",
+        "mock_*",
     ]),
     hdrs = glob(["*.h"]),
     deps = [

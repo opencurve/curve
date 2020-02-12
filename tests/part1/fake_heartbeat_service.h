@@ -38,7 +38,7 @@ class FakeHeartbeatService : public NebdHeartbeatService {
         }
     }
 
-    std::vector<FileInfo> GetLatestRequestFileInfos() const {
+    std::vector<HeartbeatFileInfo> GetLatestRequestFileInfos() const {
        return latestFileInfos_;
     }
 
@@ -52,7 +52,7 @@ class FakeHeartbeatService : public NebdHeartbeatService {
 
  private:
     int invokeTimes_{0};
-    std::vector<FileInfo> latestFileInfos_;
+    std::vector<HeartbeatFileInfo> latestFileInfos_;
 };
 
 }  // namespace client

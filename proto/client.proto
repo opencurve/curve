@@ -54,15 +54,6 @@ message DiscardResponse {
    optional string RetMsg = 2;
 }
 
-message StatFileRequest {
-   required int32 fd = 1;
-}
-message StatFileResponse {
-   required RetCode retCode = 1;
-   optional string retMsg = 2;
-   optional uint64 size = 3;
-}
-
 message ResizeRequest {
    required int32 fd = 1;
    required uint64 newSize = 2;
@@ -82,13 +73,20 @@ message FlushResponse {
    optional string retMsg = 2;
 }
 
+message FileInfo {
+   required uint64 size = 1;
+   required uint64 objSize = 2;
+   required uint64 objNums = 3;
+}
+
 message GetInfoRequest {
    required int32 fd = 1;
 }
+
 message GetInfoResponse {
    required RetCode retCode = 1;
    optional string retMsg = 2;
-   optional uint64 objSize = 3;
+   optional FileInfo info = 3;
 }
 
 message InvalidateCacheRequest {
@@ -107,7 +105,6 @@ service NebdFileService {
    rpc Read(ReadRequest) returns (ReadResponse);
    rpc Write(WriteRequest) returns (WriteResponse);
    rpc Discard(DiscardRequest) returns (DiscardResponse);
-   rpc StatFile(StatFileRequest) returns (StatFileResponse);
    rpc ResizeFile(ResizeRequest) returns (ResizeResponse);
    // for ceph only
    rpc Flush(FlushRequest) returns (FlushResponse);

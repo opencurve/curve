@@ -72,7 +72,7 @@ int nebd_lib_sync(int fd) {
 }
 
 int64_t nebd_lib_filesize(int fd) {
-    return StatFile4Nebd(fd);
+    return GetFileSize4Nebd(fd);
 }
 
 int nebd_lib_resize(int fd, int64_t size) {

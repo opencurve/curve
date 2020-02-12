@@ -1,11 +1,12 @@
 cc_binary(
-    name = "filerecordmap_test",
+    name = "filerecordmanager_test",
     srcs = glob([
-        "file_record_map_unittest.cpp",
+        "file_record_manager_unittest.cpp",
     ]),
     deps = [
         "//external:gflags",
         "//src/part2:nebdserver",
+        "//tests/part2:mock_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -18,7 +19,7 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//src/part2:nebdserver",
-	"//tests/part2:mock_lib",
+        "//tests/part2:mock_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -31,7 +32,7 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//src/part2:nebdserver",
-	"//tests/part2:mock_lib",
+        "//tests/part2:mock_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -44,7 +45,20 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//src/part2:nebdserver",
-	"//tests/part2:mock_lib",
+        "//tests/part2:mock_lib",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "heartbeat_manager_test",
+    srcs = glob([
+        "heartbeat_manager_unittest.cpp",
+    ]),
+    deps = [
+        "//external:gflags",
+        "//src/part2:nebdserver",
+        "//tests/part2:mock_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -57,7 +71,7 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//src/part2:nebdserver",
-	"//tests/part2:mock_lib",
+        "//tests/part2:mock_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -82,7 +96,7 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//src/part2:nebdserver",
-	"//tests/part2:mock_lib",
+        "//tests/part2:mock_lib",
         "@com_google_googletest//:gtest_main",
     ],
     linkopts = ["-lpthread"],

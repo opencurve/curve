@@ -34,96 +34,71 @@ class MetaFileManagerTest : public ::testing::Test {
     std::shared_ptr<common::MockPosixWrapper> wrapper_;
 };
 
-TEST_F(MetaFileManagerTest, common) {
+TEST_F(MetaFileManagerTest, nomaltest) {
     NebdMetaFileManager metaFileManager(metaPath);
-    std::vector<NebdFileRecordPtr> records;
+    FileRecordMap records;
     // 文件不存在
     ASSERT_EQ(0, metaFileManager.ListFileRecord(&records));
     ASSERT_TRUE(records.empty());
 
-    // 添加两条记录，ceph和curve各一个
-    NebdFileRecordPtr fileRecord1 = std::make_shared<NebdFileRecord>();
-    fileRecord1->fileName = "rbd:volume1";
-    fileRecord1->fd = 111;
-    ASSERT_EQ(0, metaFileManager.UpdateFileRecord(fileRecord1));
-    NebdFileRecordPtr fileRecord2 = std::make_shared<NebdFileRecord>();
-    fileRecord2->fileName = "cbd:volume2";
-    fileRecord2->fd = 222;
-    fileRecord2->fileInstance = std::make_shared<CurveFileInstance>();
-    fileRecord2->fileInstance->addition["session"] = "test-session";
-    ASSERT_EQ(0, metaFileManager.UpdateFileRecord(fileRecord2));
-    fileRecord2->fd = 3333;
-    ASSERT_EQ(0, metaFileManager.UpdateFileRecord(fileRecord2));
-    fileRecord2->fileInstance->addition["session"] = "test-session-2";
-    ASSERT_EQ(0, metaFileManager.UpdateFileRecord(fileRecord2));
-    // 重复更新
-    ASSERT_EQ(0, metaFileManager.UpdateFileRecord(fileRecord2));
+    // 添加两条记录，ceph和curve各一
+    NebdFileRecord fileRecord1;
+    fileRecord1.fileName = "rbd:volume1";
+    fileRecord1.fd = 1;
+    records.emplace(1, fileRecord1);
+    ASSERT_EQ(0, metaFileManager.UpdateMetaFile(records));
+    NebdFileRecord fileRecord2;
+    fileRecord2.fileName = "cbd:volume2";
+    fileRecord2.fd = 2;
+    fileRecord2.fileInstance = std::make_shared<CurveFileInstance>();
+    fileRecord2.fileInstance->addition["session"] = "test-session";
+    records.emplace(2, fileRecord2);
+    ASSERT_EQ(0, metaFileManager.UpdateMetaFile(records));
 
     // listFileRecord
+    records.clear();
     ASSERT_EQ(0, metaFileManager.ListFileRecord(&records));
     ASSERT_EQ(2, records.size());
-    ASSERT_EQ(fileRecord1->fileName, records[0]->fileName);
-    ASSERT_EQ(fileRecord1->fd, records[0]->fd);
-    ASSERT_EQ(fileRecord2->fileName, records[1]->fileName);
-    ASSERT_EQ(fileRecord2->fd, records[1]->fd);
-    ASSERT_EQ(fileRecord2->fileInstance->addition,
-                    records[1]->fileInstance->addition);
-
-    // RemoveFileRecord
-    ASSERT_EQ(0, metaFileManager.RemoveFileRecord("cbd:volume2"));
-    ASSERT_EQ(0, metaFileManager.ListFileRecord(&records));
-    ASSERT_EQ(1, records.size());
-    ASSERT_EQ(fileRecord1->fileName, records[0]->fileName);
-    ASSERT_EQ(fileRecord1->fd, records[0]->fd);
-    // volume not exist
-    ASSERT_EQ(0, metaFileManager.RemoveFileRecord("cbd:volume123"));
-    ASSERT_EQ(0, metaFileManager.ListFileRecord(&records));
-    ASSERT_EQ(1, records.size());
+    ASSERT_EQ(fileRecord1.fileName, records[1].fileName);
+    ASSERT_EQ(fileRecord1.fd, records[1].fd);
+    ASSERT_EQ(fileRecord2.fileName, records[2].fileName);
+    ASSERT_EQ(fileRecord2.fd, records[2].fd);
+    ASSERT_EQ(fileRecord2.fileInstance->addition,
+                    records[2].fileInstance->addition);
 }
 
 TEST_F(MetaFileManagerTest, error) {
     NebdMetaFileManager metaFileManager(metaPath, wrapper_);
-    std::vector<NebdFileRecordPtr> records;
-    NebdFileRecordPtr fileRecord = std::make_shared<NebdFileRecord>();
-    fileRecord->fileName = "rbd:volume1";
-    fileRecord->fd = 111;
+    FileRecordMap records;
+    NebdFileRecord fileRecord;
+    fileRecord.fileName = "rbd:volume1";
+    fileRecord.fd = 111;
+    records.emplace(111, fileRecord);
 
     // open临时文件失败
     EXPECT_CALL(*wrapper_, open(_, _, _))
-        .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, metaFileManager.UpdateFileRecord(fileRecord));
+    ASSERT_EQ(-1, metaFileManager.UpdateMetaFile(records));
 
     // 写入临时文件失败
     EXPECT_CALL(*wrapper_, open(_, _, _))
-        .Times(1)
         .WillOnce(Return(1));
     EXPECT_CALL(*wrapper_, pwrite(_, _, _, _))
-        .Times(1)
         .WillOnce(Return(0));
-    ASSERT_EQ(-1, metaFileManager.UpdateFileRecord(fileRecord));
+    EXPECT_CALL(*wrapper_, close(_))
+    .Times(1);
+    ASSERT_EQ(-1, metaFileManager.UpdateMetaFile(records));
 
     // rename失败
     EXPECT_CALL(*wrapper_, open(_, _, _))
-        .Times(1)
         .WillOnce(Return(1));
     EXPECT_CALL(*wrapper_, pwrite(_, _, _, _))
-        .Times(1)
         .WillOnce(Return(77));
+    EXPECT_CALL(*wrapper_, close(_))
+    .Times(1);
     EXPECT_CALL(*wrapper_, rename(_, _))
-        .Times(1)
         .WillOnce(Return(-1));
-    ASSERT_EQ(-1, metaFileManager.UpdateFileRecord(fileRecord));
-
-    // 解析失败
-    std::ofstream out(metaPath);
-    out.close();
-    ASSERT_EQ(-1, metaFileManager.ListFileRecord(&records));
-    ASSERT_EQ(-1, metaFileManager.RemoveFileRecord("cbd:volume2"));
-    ASSERT_EQ(-1, metaFileManager.UpdateFileRecord(fileRecord));
-
-    // UpdataFileRecord的参数为空
-    ASSERT_EQ(-1, metaFileManager.UpdateFileRecord(nullptr));
+    ASSERT_EQ(-1, metaFileManager.UpdateMetaFile(records));
 }
 
 TEST(MetaFileParserTest, Parse) {
@@ -131,7 +106,7 @@ TEST(MetaFileParserTest, Parse) {
     Json::Value root;
     Json::Value volume;
     Json::Value volumes;
-    std::vector<NebdFileRecordPtr> records;
+    FileRecordMap records;
 
     // 正常情况
     volume[kFileName] = "rbd:volume1";

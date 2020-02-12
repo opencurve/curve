@@ -19,23 +19,21 @@ namespace server {
 
 class MockFileManager : public NebdFileManager {
  public:
-    MockFileManager() {}
+    MockFileManager() : NebdFileManager(nullptr) {}
     ~MockFileManager() {}
 
-    MOCK_METHOD1(Init, int(NebdFileManagerOption));
     MOCK_METHOD0(Fini, int());
     MOCK_METHOD0(Run, int());
-    MOCK_METHOD1(UpdateFileTimestamp, int(int));
     MOCK_METHOD1(Open, int(const std::string&));
-    MOCK_METHOD1(Close, int(int));
+    MOCK_METHOD2(Close, int(int, bool));
     MOCK_METHOD2(Extend, int(int, int64_t));
     MOCK_METHOD2(GetInfo, int(int, NebdFileInfo*));
-    MOCK_METHOD2(StatFile, int(int, NebdFileInfo*));
     MOCK_METHOD2(Discard, int(int, NebdServerAioContext*));
     MOCK_METHOD2(AioRead, int(int, NebdServerAioContext*));
     MOCK_METHOD2(AioWrite, int(int, NebdServerAioContext*));
     MOCK_METHOD2(Flush, int(int, NebdServerAioContext*));
     MOCK_METHOD1(InvalidCache, int(int));
+    MOCK_METHOD0(GetRecordManager, FileRecordManagerPtr());
 };
 
 }  // namespace server

@@ -17,7 +17,9 @@ set(PART2_TEST_LINK
 
 # libpart2mock.so
 set(PART2_MOCK_SRC
+    mock_heartbeat_manager.h
     mock_metafile_manager.h
+    mock_filerecord_manager.h
     mock_request_executor.h
     mock_file_manager.h
     mock_posix_wrapper.h
@@ -27,13 +29,13 @@ set_target_properties(part2mock PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(part2mock
                       ${PART2_TEST_LINK})
 
-# filerecordmap_test
-set(RECORD_MAP_TEST_SRC file_record_map_unittest.cpp)
-add_executable(filerecordmap_test ${RECORD_MAP_TEST_SRC})
-target_link_libraries(filerecordmap_test
+# filerecordmanager_test
+set(RECORD_MANAGER_TEST_SRC file_record_manager_unittest.cpp)
+add_executable(filerecordmanager_test ${RECORD_MANAGER_TEST_SRC})
+target_link_libraries(filerecordmanager_test
                       ${PART2_TEST_LINK})
-install(TARGETS filerecordmap_test DESTINATION bin)
-add_test(NAME filerecordmap_test COMMAND filerecordmap_test)
+install(TARGETS filerecordmanager_test DESTINATION bin)
+add_test(NAME filerecordmanager_test COMMAND filerecordmanager_test)
 
 # filemanager_test
 set(FILE_MANAGER_TEST_SRC file_manager_unittest.cpp)
@@ -61,6 +63,15 @@ target_link_libraries(heartbeat_service_test
                       ${PART2_TEST_LINK})
 install(TARGETS heartbeat_service_test DESTINATION bin)
 add_test(NAME heartbeat_service_test COMMAND heartbeat_service_test)
+
+# heartbeat_manager_test
+set(HEARTBEAT_MANAGER_TEST_SRC heartbeat_manager_unittest.cpp)
+add_executable(heartbeat_manager_test ${HEARTBEAT_MANAGER_TEST_SRC})
+target_link_libraries(heartbeat_manager_test
+                      part2mock
+                      ${PART2_TEST_LINK})
+install(TARGETS heartbeat_manager_test DESTINATION bin)
+add_test(NAME heartbeat_manager_test COMMAND heartbeat_manager_test)
 
 # metafile_manager_test
 set(METAFILE_MANAGER_TEST_SRC metafile_manager_test.cpp)

@@ -24,10 +24,6 @@ extern "C" {
 // 文件路径最大的长度，单位字节
 #define NEBD_MAX_FILE_PATH_LEN   1024
 
-// Note: 这个需要评估是否要去掉，之前出现过上层IO超过32MB的情况
-// 请求的buf的最大长度，读写操作的buf长度不得超过该值，单位字节
-#define NEBD_MAX_BUF_LEN         1024 * 1024 * 32
-
 // nebd异步请求的类型
 typedef enum LIBAIO_OP {
     LIBAIO_OP_READ,

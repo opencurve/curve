@@ -217,26 +217,6 @@ void NebdFileServiceImpl::Discard(
     }
 }
 
-void NebdFileServiceImpl::StatFile(
-    google::protobuf::RpcController* cntl_base,
-    const nebd::client::StatFileRequest* request,
-    nebd::client::StatFileResponse* response,
-    google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    response->set_retcode(RetCode::kNoOK);
-
-    NebdFileInfo fileInfo;
-    int rc = fileManager_->GetInfo(request->fd(), &fileInfo);
-    if (rc < 0) {
-        LOG(ERROR) << "Stat file failed. "
-                   << "fd: " << request->fd()
-                   << ", return code: " << rc;
-    } else {
-        response->set_retcode(RetCode::kOK);
-        response->set_size(fileInfo.size);
-    }
-}
-
 void NebdFileServiceImpl::GetInfo(
     google::protobuf::RpcController* cntl_base,
     const nebd::client::GetInfoRequest* request,
@@ -252,8 +232,12 @@ void NebdFileServiceImpl::GetInfo(
                    << "fd: " << request->fd()
                    << ", return code: " << rc;
     } else {
+        nebd::client::FileInfo* info = new nebd::client::FileInfo();
+        info->set_size(fileInfo.size);
+        info->set_objsize(fileInfo.obj_size);
+        info->set_objnums(fileInfo.num_objs);
         response->set_retcode(RetCode::kOK);
-        response->set_objsize(fileInfo.obj_size);
+        response->set_allocated_info(info);
     }
 }
 
@@ -265,7 +249,7 @@ void NebdFileServiceImpl::CloseFile(
     brpc::ClosureGuard doneGuard(done);
     response->set_retcode(RetCode::kNoOK);
 
-    int rc = fileManager_->Close(request->fd());
+    int rc = fileManager_->Close(request->fd(), true);
     if (rc < 0) {
         LOG(ERROR) << "Close file failed. "
                    << "fd: " << request->fd()

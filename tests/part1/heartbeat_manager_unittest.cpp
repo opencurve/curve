@@ -92,12 +92,12 @@ TEST_F(HeartbeatManagerTest, RequestValidTest) {
         option));
     manager->Run();
 
-    std::vector<FileInfo> currentFileInfos;
+    std::vector<HeartbeatFileInfo> currentFileInfos;
 
     // 添加一个文件
     NebdClientFileInfo fileInfo(1, "/test1", FileLock("/test1.lock"));
     metaCache->AddFileInfo(fileInfo);
-    FileInfo info;
+    HeartbeatFileInfo info;
     info.set_fd(1);
     info.set_name("/test1");
     currentFileInfos.push_back(info);
@@ -123,7 +123,7 @@ TEST_F(HeartbeatManagerTest, RequestValidTest) {
     ASSERT_EQ(2, latestFileInfos.size());
 
     std::sort(latestFileInfos.begin(), latestFileInfos.end(),
-              [](const FileInfo& lhs, const FileInfo& rhs) {
+              [](const HeartbeatFileInfo& lhs, const HeartbeatFileInfo& rhs) {
                   return lhs.fd() < rhs.fd();
               });
 

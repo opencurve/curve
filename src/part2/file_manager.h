@@ -11,7 +11,6 @@
 #include <brpc/closure_guard.h>
 #include <limits.h>
 #include <memory>
-#include <thread>  // NOLINT
 #include <string>
 #include <mutex>  // NOLINT
 #include <unordered_map>
@@ -19,13 +18,10 @@
 #include "src/common/rw_lock.h"
 #include "src/common/name_lock.h"
 #include "src/common/timeutility.h"
-#include "src/common/interrupt_sleep.h"
 #include "src/part2/define.h"
 #include "src/part2/util.h"
-#include "src/part2/metafile_manager.h"
-#include "src/part2/file_record_map.h"
-#include "src/part2/request_executor_ceph.h"
-#include "src/part2/request_executor_curve.h"
+#include "src/part2/filerecord_manager.h"
+#include "src/part2/request_executor.h"
 #include "proto/client.pb.h"
 
 namespace nebd {
@@ -36,34 +32,23 @@ using nebd::common::NameLockGuard;
 using nebd::common::WriteLockGuard;
 using nebd::common::ReadLockGuard;
 using nebd::common::TimeUtility;
-using nebd::common::InterruptibleSleeper;
-using MetaFileManagerPtr = std::shared_ptr<NebdMetaFileManager>;
-
-struct NebdFileManagerOption {
-    // 文件心跳超时时间（单位：秒）
-    uint32_t heartbeatTimeoutS;
-    // 心跳超时检测线程的检测间隔（时长：毫秒）
-    uint32_t checkTimeoutIntervalMs;
-    // metafilemanager 对象指针
-    MetaFileManagerPtr metaFileManager;
-};
 
 // 处理用户请求时需要加读写锁，避免close时仍有用户IO未处理完成
 // 对于异步IO来说，只有返回时才能释放读锁，所以封装成Closure
 // 在发送异步请求前，将closure赋值给NebdServerAioContext
 class NebdProcessClosure : public Closure {
  public:
-    explicit NebdProcessClosure(NebdFileRecordPtr record)
-        : record_(record)
+    explicit NebdProcessClosure(const NebdFileRecord& fileRecord)
+        : fileRecord_(fileRecord)
         , done_(nullptr) {
-        record_->rwLock.RDLock();
+        fileRecord_.rwLock->RDLock();
     }
     NebdProcessClosure() {}
 
     void Run() {
         std::unique_ptr<NebdProcessClosure> selfGuard(this);
         brpc::ClosureGuard doneGuard(done_);
-        record_->rwLock.Unlock();
+        fileRecord_.rwLock->Unlock();
     }
 
     void SetClosure(Closure* done) {
@@ -74,25 +59,19 @@ class NebdProcessClosure : public Closure {
         return done_;
     }
 
-    NebdFileRecordPtr GetFileRecord() {
-        return record_;
+    NebdFileRecord GetFileRecord() {
+        return fileRecord_;
     }
 
  private:
-    NebdFileRecordPtr record_;
+    NebdFileRecord fileRecord_;
     Closure* done_;
 };
 
 class NebdFileManager {
  public:
-    NebdFileManager();
+    explicit NebdFileManager(FileRecordManagerPtr recordManager);
     virtual ~NebdFileManager();
-    /**
-     * 初始化FileManager各成员
-     * @param option: 初始化参数
-     * @return 成功返回0，失败返回-1
-     */
-    virtual int Init(NebdFileManagerOption option);
     /**
      * 停止FileManager并释放FileManager资源
      * @return 成功返回0，失败返回-1
@@ -104,13 +83,6 @@ class NebdFileManager {
      */
     virtual int Run();
     /**
-     * part2收到心跳后，会通过该接口更新心跳中包含的文件在内存中记录的时间戳
-     * 心跳检测线程会根据该时间戳判断是否需要关闭文件
-     * @param fd: 指定文件的fd
-     * @return 成功返回0，失败返回-1
-     */
-    virtual int UpdateFileTimestamp(int fd);
-    /**
      * 打开文件
      * @param filename: 文件的filename
      * @return 成功返回fd，失败返回-1
@@ -119,9 +91,12 @@ class NebdFileManager {
     /**
      * 关闭文件
      * @param fd: 文件的fd
+     * @param removeRecord: 是否要移除文件记录，true表示移除，false表示不移除
+     * 如果是part1传过来的close请求，此参数为true
+     * 如果是heartbeat manager发起的close请求，此参数为false
      * @return 成功返回0，失败返回-1
      */
-    virtual int Close(int fd);
+    virtual int Close(int fd, bool removeRecord);
     /**
      * 给文件扩容
      * @param fd: 文件的fd
@@ -171,10 +146,12 @@ class NebdFileManager {
      */
     virtual int InvalidCache(int fd);
 
+
     // set public for test
+    // 启动时从metafile加载文件记录，并reopen文件
     int Load();
-    void CheckTimeoutFunc();
-    std::unordered_map<int, NebdFileRecordPtr> GetRecordMap();
+    // 返回recordmanager
+    virtual FileRecordManagerPtr GetRecordManager();
 
  private:
     /**
@@ -185,17 +162,17 @@ class NebdFileManager {
      */
     int OpenInternal(const std::string& fileName, bool create = false);
     /**
-     * 根据文件内存记录信息关闭指定文件
-     * @param fileRecord: 文件的内存记录
+     * 关闭指定文件，并将文件状态变更为CLOSED
+     * @param fd: 文件的内存记录
      * @return: 成功返回0，失败返回-1
      */
-    int CloseInternal(NebdFileRecordPtr fileRecord);
+    int CloseInternal(int fd);
     /**
      * 根据文件内存记录信息重新open文件
      * @param fileRecord: 文件的内存记录
      * @return: 成功返回0，失败返回-1
      */
-    int Reopen(NebdFileRecordPtr fileRecord);
+    int Reopen(NebdFileRecord fileRecord);
     /**
      * 分配新的可用的fd
      * @return: 成功返回有效的fd，失败返回-1
@@ -211,27 +188,16 @@ class NebdFileManager {
     int ProcessRequest(int fd, ProcessTask task);
 
  private:
-    // TODO(YYK) 后续封装HeartbeatManager
-    // 文件心跳超时时长
-    uint32_t heartbeatTimeoutS_;
-    // 心跳超时检测线程的检测时间间隔
-    uint32_t checkTimeoutIntervalMs_;
-    // 心跳检测线程
-    std::thread checkTimeoutThread_;
-    // 心跳检测线程的sleeper
-    InterruptibleSleeper sleeper_;
     // 当前filemanager的运行状态，true表示正在运行，false标为未运行
     std::atomic<bool> isRunning_;
     // 文件名锁，对同名文件加锁
     NameLock nameLock_;
     // fd分配器
     FdAllocator fdAlloc_;
-    // TODO(YYK) 与metafilemanager整合成FileRecordManager
-    // 文件信息内存记录映射表
-    FileRecordMap fileRecordMap_;
-    // 元数据文件持久化管理
-    MetaFileManagerPtr metaFileManager_;
+    // nebd server 文件记录管理
+    FileRecordManagerPtr fileRecordManager_;
 };
+using NebdFileManagerPtr = std::shared_ptr<NebdFileManager>;
 
 }  // namespace server
 }  // namespace nebd

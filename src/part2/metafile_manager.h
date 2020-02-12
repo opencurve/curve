@@ -11,6 +11,7 @@
 #include <json/json.h>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <memory>
 #include <thread>  // NOLINT
 #include <mutex>   // NOLINT
@@ -22,6 +23,7 @@ namespace nebd {
 namespace server {
 
 using nebd::common::PosixWrapper;
+using FileRecordMap = std::unordered_map<int, NebdFileRecord>;
 
 const char kVolumes[] = "volumes";
 const char kFileName[] = "filename";
@@ -30,7 +32,7 @@ const char kFd[] = "fd";
 class NebdMetaFileParser {
  public:
     int Parse(const Json::Value& root,
-              std::vector<NebdFileRecordPtr>* fileRecords);
+              FileRecordMap* fileRecords);
 };
 
 class NebdMetaFileManager {
@@ -43,52 +45,21 @@ class NebdMetaFileManager {
     virtual ~NebdMetaFileManager();
 
     /**
-     * @brief 删除文件记录
-     *
-     * @param fileName 要删除的文件名
-     *
-     * @return 成功返回0，失败返回-1
-     *
-     */
-    virtual int RemoveFileRecord(const std::string& fileName);
-
-    /**
-     * @brief 更新文件记录
-     *
-     * @param fileRecord 要更新的文件记录
-     *
-     * @return 成功返回0，失败返回-1
-     *
-     */
-    virtual int UpdateFileRecord(const NebdFileRecordPtr& fileRecord);
-
-    /**
      * @brief 列出文件记录
      *
-     * @param fileRecord 要更新的文件记录
+     * @param fileRecord 持久化的文件记录
      *
      * @return 成功返回0，失败返回-1
      *
      */
-    virtual int ListFileRecord(std::vector<NebdFileRecordPtr>* fileRecords);
+    virtual int ListFileRecord(FileRecordMap* fileRecords);
+
+    // 更新元数据文件
+    virtual int UpdateMetaFile(const FileRecordMap& fileRecords);
 
  private:
-    // 更新元数据文件
-    int UpdateMetaFile(
-                  const std::vector<NebdFileRecordPtr>& fileRecords);
-
     // 原子写文件
     int AtomicWriteFile(const Json::Value& root);
-
-    // 判断两条记录是否相等
-    bool RecordsEqual(const NebdFileRecordPtr& record1,
-                     const NebdFileRecordPtr& record2);
-
-    // 内部List，无锁版本
-    int ListFileRecordUnlocked(std::vector<NebdFileRecordPtr>* fileRecords);
-
-    // 从文件list fileRecord
-    int ListFileRecordFromFile(std::vector<NebdFileRecordPtr>* fileRecords);
 
  private:
     // 元数据文件路径
@@ -97,13 +68,8 @@ class NebdMetaFileManager {
     std::shared_ptr<common::PosixWrapper> wrapper_;
     // 用于解析Json格式的元数据
     std::shared_ptr<NebdMetaFileParser> parser_;
-    // 读写锁，保护json和文件
-    std::mutex  mtx_;
-    // 元数据的json
-    Json::Value metaDataJson_;
-    // 是否从文件加载过
-    bool loaded_;
 };
+using MetaFileManagerPtr = std::shared_ptr<NebdMetaFileManager>;
 
 }  // namespace server
 }  // namespace nebd

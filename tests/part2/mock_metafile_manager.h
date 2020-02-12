@@ -22,9 +22,8 @@ class MockMetaFileManager : public NebdMetaFileManager {
     MockMetaFileManager() : NebdMetaFileManager("") {}
     ~MockMetaFileManager() {}
 
-    MOCK_METHOD1(RemoveFileRecord, int(const std::string&));
-    MOCK_METHOD1(UpdateFileRecord, int(const NebdFileRecordPtr&));
-    MOCK_METHOD1(ListFileRecord, int(std::vector<NebdFileRecordPtr>*));
+    MOCK_METHOD1(UpdateMetaFile, int(const FileRecordMap&));
+    MOCK_METHOD1(ListFileRecord, int(FileRecordMap*));
 };
 
 }  // namespace server

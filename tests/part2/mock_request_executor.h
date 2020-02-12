@@ -35,7 +35,6 @@ class MockRequestExecutor : public NebdRequestExecutor {
     MOCK_METHOD1(Close, int(NebdFileInstance*));
     MOCK_METHOD2(Extend, int(NebdFileInstance*, int64_t));
     MOCK_METHOD2(GetInfo, int(NebdFileInstance*, NebdFileInfo*));
-    MOCK_METHOD2(StatFile, int(NebdFileInstance*, NebdFileInfo*));
     MOCK_METHOD2(Discard, int(NebdFileInstance*, NebdServerAioContext*));
     MOCK_METHOD2(AioRead, int(NebdFileInstance*, NebdServerAioContext*));
     MOCK_METHOD2(AioWrite, int(NebdFileInstance*, NebdServerAioContext*));

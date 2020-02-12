@@ -251,7 +251,7 @@ TEST_F(NebdFileClientTest, NoNebdServerTest) {
         ASSERT_TRUE(elapsed >= 900 && elapsed <= 1100);
     }
     ASSERT_EQ(-1, Extend4Nebd(1, kFileSize));
-    ASSERT_EQ(-1, StatFile4Nebd(1));
+    ASSERT_EQ(-1, GetFileSize4Nebd(1));
     ASSERT_EQ(-1, GetInfo4Nebd(1));
     ASSERT_EQ(-1, InvalidCache4Nebd(1));
     ASSERT_EQ(-1, Close4Nebd(1));
@@ -269,7 +269,7 @@ TEST_F(NebdFileClientTest, CommonTest) {
     ASSERT_GE(fd, 0);
 
     ASSERT_EQ(0, Extend4Nebd(fd, kFileSize));
-    ASSERT_EQ(kFileSize, StatFile4Nebd(fd));
+    ASSERT_EQ(kFileSize, GetFileSize4Nebd(fd));
     ASSERT_EQ(kFileSize, GetInfo4Nebd(fd));
     ASSERT_EQ(0, InvalidCache4Nebd(fd));
 
@@ -401,14 +401,14 @@ TEST_F(NebdFileClientTest, ResponseFailTest) {
     }
 
     {
-        StatFileResponse response;
+        GetInfoResponse response;
         response.set_retcode(RetCode::kNoOK);
-        EXPECT_CALL(mockService, StatFile(_, _, _, _))
+        EXPECT_CALL(mockService, GetInfo(_, _, _, _))
             .Times(1)
             .WillOnce(DoAll(
                 SetArgPointee<2>(response),
-                Invoke(MockClientFunc<StatFileRequest, StatFileResponse>)));  // NOLINT
-        ASSERT_EQ(-1, StatFile4Nebd(1));
+                Invoke(MockClientFunc<GetInfoRequest, GetInfoResponse>)));  // NOLINT
+        ASSERT_EQ(-1, GetFileSize4Nebd(1));
     }
 
     {

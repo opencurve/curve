@@ -98,22 +98,6 @@ void FakeNebdFileService::Discard(::google::protobuf::RpcController* controller,
     return;
 }
 
-void FakeNebdFileService::StatFile(::google::protobuf::RpcController* controller,  // NOLINT
-                       const ::nebd::client::StatFileRequest* request,
-                       ::nebd::client::StatFileResponse* response,
-                       ::google::protobuf::Closure* done) {
-    brpc::ClosureGuard doneGuard(done);
-    brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
-
-    LOG(INFO) << "logid = " << cntl->log_id() << ", StatFile.";
-
-    response->set_retcode(RetCode::kOK);
-    response->set_retmsg("StatFile OK");
-    response->set_size(fileSize_);
-
-    return;
-}
-
 void FakeNebdFileService::ResizeFile(::google::protobuf::RpcController* controller,  // NOLINT
                        const ::nebd::client::ResizeRequest* request,
                        ::nebd::client::ResizeResponse* response,
@@ -154,10 +138,13 @@ void FakeNebdFileService::GetInfo(::google::protobuf::RpcController* controller,
     brpc::Controller* cntl = static_cast<brpc::Controller*>(controller);
 
     LOG(INFO) << "logid = " << cntl->log_id() << ", GetInfo.";
-
+    nebd::client::FileInfo* info = new nebd::client::FileInfo();
+    info->set_size(fileSize_);
+    info->set_objsize(fileSize_);
+    info->set_objnums(1);
     response->set_retcode(RetCode::kOK);
     response->set_retmsg("GetInfo OK");
-    response->set_objsize(fileSize_);
+    response->set_allocated_info(info);
 
     return;
 }

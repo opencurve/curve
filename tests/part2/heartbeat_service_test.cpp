@@ -12,27 +12,27 @@
 
 #include "proto/heartbeat.pb.h"
 #include "src/part2/heartbeat_service.h"
-#include "tests/part2/mock_file_manager.h"
-
+#include "tests/part2/mock_heartbeat_manager.h"
 using ::testing::_;
 using ::testing::Return;
 
 namespace nebd {
 namespace server {
 
+const std::string kSockFile_ = "/tmp/heartbeat_service_test.sock";  // NOLINT
+
 class HeartbeatServiceTest : public ::testing::Test {
  protected:
     void SetUp() override {
-        fileManager_ = std::make_shared<MockFileManager>();
+        heartbeatManager_ = std::make_shared<MockHeartbeatManager>();
     }
-    std::shared_ptr<MockFileManager>  fileManager_;
-    const std::string kSockFile_ = "/tmp/heartbeat_service_test.sock";
+    std::shared_ptr<MockHeartbeatManager>  heartbeatManager_;
 };
 
 TEST_F(HeartbeatServiceTest, KeepAlive) {
     // 启动server
     brpc::Server server;
-    NebdHeartbeatServiceImpl heartbeatService(fileManager_);
+    NebdHeartbeatServiceImpl heartbeatService(heartbeatManager_);
     ASSERT_EQ(0, server.AddService(&heartbeatService,
                         brpc::SERVER_DOESNT_OWN_SERVICE));
     brpc::ServerOptions option;
@@ -52,7 +52,7 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     brpc::Controller cntl;
 
     // 正常情况
-    EXPECT_CALL(*fileManager_, UpdateFileTimestamp(_))
+    EXPECT_CALL(*heartbeatManager_, UpdateFileTimestamp(_, _))
         .Times(3)
         .WillRepeatedly(Return(0));
     stub.KeepAlive(&cntl, &request, &response, nullptr);
@@ -60,7 +60,7 @@ TEST_F(HeartbeatServiceTest, KeepAlive) {
     ASSERT_EQ(nebd::client::RetCode::kOK, response.retcode());
 
     // 有文件更新时间戳失败
-    EXPECT_CALL(*fileManager_, UpdateFileTimestamp(_))
+    EXPECT_CALL(*heartbeatManager_, UpdateFileTimestamp(_, _))
         .Times(3)
         .WillOnce(Return(-1))
         .WillRepeatedly(Return(0));

@@ -5,13 +5,13 @@ package nebd.client;
 
 option cc_generic_services = true;
 
-message FileInfo {
+message HeartbeatFileInfo {
     required int32 fd = 1;
     required string name = 2;
 }
 
 message HeartbeatRequest {
-   repeated FileInfo info = 1;
+   repeated HeartbeatFileInfo info = 1;
 }
 
 message HeartbeatResponse {
