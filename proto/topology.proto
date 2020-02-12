@@ -25,6 +25,7 @@ enum DiskState {
 enum OnlineState {
     ONLINE = 0;
     OFFLINE = 1;
+    UNSTABLE = 2;
 }
 
 message ChunkServerInfo {
