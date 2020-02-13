@@ -51,7 +51,17 @@ int CloneTaskManager::PushTask(std::shared_ptr<CloneTaskBase> task) {
     if (cloningTasks_.size() >= clonePoolThreadNum_) {
         LOG(ERROR) << "CloneTaskManager::PushTask fail, "
                    << "current task is full, num = " << cloningTasks_.size();
-        return kErrCodeTaskIsFull;
+        int ret = core_->HandleRemoveCloneOrRecoverTask(
+            task->GetTaskInfo());
+        if (kErrCodeSuccess == ret) {
+            return kErrCodeTaskIsFull;
+        } else {
+            LOG(ERROR) << "CloneTaskManager has encounter"
+                       << " an internal error: "
+                       << "pushTask fail because task is full,"
+                       << "and remove task also fail.";
+            return kErrCodeInternalError;
+        }
     }
 
     std::string destination =

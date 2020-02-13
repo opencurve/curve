@@ -21,7 +21,7 @@
 #include "src/snapshotcloneserver/common/define.h"
 #include "src/snapshotcloneserver/common/config.h"
 #include "src/snapshotcloneserver/common/snapshotclone_metric.h"
-
+#include "src/snapshotcloneserver/clone/clone_core.h"
 
 using ::curve::common::RWLock;
 using ::curve::common::ReadLockGuard;
@@ -32,8 +32,11 @@ namespace snapshotcloneserver {
 
 class CloneTaskManager {
  public:
-    explicit CloneTaskManager(std::shared_ptr<CloneMetric> cloneMetric)
+    explicit CloneTaskManager(
+        std::shared_ptr<CloneCore> core,
+        std::shared_ptr<CloneMetric> cloneMetric)
         : isStop_(true),
+          core_(core),
           cloneMetric_(cloneMetric),
           cloneTaskManagerScanIntervalMs_(0),
           clonePoolThreadNum_(0) {}
@@ -82,6 +85,9 @@ class CloneTaskManager {
 
     // 当前任务管理是否停止，用于支持start，stop功能
     std::atomic_bool isStop_;
+
+    // clone core
+    std::shared_ptr<CloneCore> core_;
 
     // metric
     std::shared_ptr<CloneMetric> cloneMetric_;
