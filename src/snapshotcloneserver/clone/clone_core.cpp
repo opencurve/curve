@@ -312,7 +312,7 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
         LOG(ERROR) << "GetSnapshotInfo error"
                    << ", source = " << source
                    << ", taskid = " << task->GetTaskId();
-        return ret;
+        return kErrCodeFileNotExist;
     }
     newFileInfo->chunksize = snapInfo.GetChunkSize();
     newFileInfo->segmentsize = snapInfo.GetSegmentSize();
@@ -322,13 +322,24 @@ int CloneCoreImpl::BuildFileInfoFromSnapshot(
         std::string destination = task->GetCloneInfo().GetDest();
         std::string user = task->GetCloneInfo().GetUser();
         ret = client_->GetFileInfo(destination, mdsRootUser_, &fInfo);
-        if (ret != LIBCURVE_ERROR::OK) {
-            LOG(ERROR) << "GetFileInfo fail"
-                       << ", ret = " << ret
-                       << ", destination = " << destination
-                       << ", user = " << user
-                       << ", taskid = " << task->GetTaskId();
-            return kErrCodeInternalError;
+        switch (ret) {
+            case LIBCURVE_ERROR::OK:
+                break;
+            case -LIBCURVE_ERROR::NOTEXIST:
+                LOG(ERROR) << "BuildFileInfoFromSnapshot "
+                           << "find dest file not exist, maybe deleted"
+                           << ", ret = " << ret
+                           << ", destination = " << destination
+                           << ", user = " << user
+                           << ", taskid = " << task->GetTaskId();
+                return kErrCodeFileNotExist;
+            default:
+                LOG(ERROR) << "GetFileInfo fail"
+                           << ", ret = " << ret
+                           << ", destination = " << destination
+                           << ", user = " << user
+                           << ", taskid = " << task->GetTaskId();
+                return kErrCodeInternalError;
         }
         // 从快照恢复的destinationId为目标文件的id
         task->GetCloneInfo().SetDestId(fInfo.id);
@@ -397,7 +408,7 @@ int CloneCoreImpl::BuildFileInfoFromFile(
                    << ", source = " << source
                    << ", user = " << user
                    << ", taskid = " << task->GetTaskId();
-        return kErrCodeInternalError;
+        return kErrCodeFileNotExist;
     }
     // GetOrAllocateSegment依赖fullPathName
     fInfo.fullPathName = source;
@@ -1076,7 +1087,7 @@ void CloneCoreImpl::HandleCloneSuccess(std::shared_ptr<CloneTaskInfo> task) {
 void CloneCoreImpl::HandleCloneError(std::shared_ptr<CloneTaskInfo> task,
     int retCode) {
     int ret = kErrCodeSuccess;
-    if (NeedRetry(task)) {
+    if (NeedRetry(task, retCode)) {
         HandleCloneToRetry(task);
         return;
     }
@@ -1223,13 +1234,17 @@ bool CloneCoreImpl::NeedUpdateCloneMeta(
     return ret;
 }
 
-bool CloneCoreImpl::NeedRetry(std::shared_ptr<CloneTaskInfo> task) {
+bool CloneCoreImpl::NeedRetry(std::shared_ptr<CloneTaskInfo> task,
+    int retCode) {
     if (IsLazy(task)) {
         CloneStep step = task->GetCloneInfo().GetNextStep();
         if (CloneStep::kRecoverChunk == step ||
             CloneStep::kCompleteCloneFile == step ||
             CloneStep::kEnd == step) {
-            return true;
+            // 文件不存在的场景下不需要再重试，因为可能已经被删除了
+            if (retCode != kErrCodeFileNotExist) {
+                return true;
+            }
         }
     }
     return false;
@@ -1256,17 +1271,18 @@ int CloneCoreImpl::CreateOrUpdateCloneMeta(
                        << "GetFileInfo fail, ret = " << ret
                        << ", filename = " << newFileName
                        << ", taskid = " << task->GetTaskId();
-            return kErrCodeInternalError;
+            return kErrCodeFileNotExist;
         }
         // 如果是已经rename过，那么id应该一致
         uint64_t originId = task->GetCloneInfo().GetOriginId();
         if (fInfoOut.id != originId) {
-            LOG(ERROR) << "File is missing, "
-                       << "when CreateOrUpdateCloneMeta, "
-                       << "originId = " << originId
+            LOG(ERROR) << "File is missing, fileId not equal, "
+                       << "when CreateOrUpdateCloneMeta"
+                       << ", fileId = " << fInfoOut.id
+                       << ", originId = " << originId
                        << ", filename = " << newFileName
                        << ", taskid = " << task->GetTaskId();
-            return kErrCodeInternalError;
+            return kErrCodeFileNotExist;
         }
     } else {
         LOG(ERROR) << "GetFileInfo fail"
@@ -1397,6 +1413,19 @@ void CloneCoreImpl::HandleCleanCloneOrRecoverTask(
     }
     HandleCleanSuccess(task);
     return;
+}
+
+int CloneCoreImpl::HandleRemoveCloneOrRecoverTask(
+    std::shared_ptr<CloneTaskInfo> task) {
+    TaskIdType taskId = task->GetCloneInfo().GetTaskId();
+    int ret = metaStore_->DeleteCloneInfo(taskId);
+    if (ret < 0) {
+        LOG(ERROR) << "DeleteCloneInfo failed"
+                   << ", ret = " << ret
+                   << ", taskId = " << taskId;
+        return kErrCodeInternalError;
+    }
+    return kErrCodeSuccess;
 }
 
 }  // namespace snapshotcloneserver

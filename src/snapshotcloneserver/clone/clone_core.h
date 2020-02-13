@@ -127,6 +127,17 @@ class CloneCore {
      * @return 镜像引用管理模块
      */
     virtual std::shared_ptr<CloneReference> GetCloneRef() = 0;
+
+
+    /**
+     * @brief 移除克隆/恢复任务
+     *
+     * @param task 克隆任务
+     *
+     * @return 错误码
+     */
+    virtual int HandleRemoveCloneOrRecoverTask(
+        std::shared_ptr<CloneTaskInfo> task) = 0;
 };
 
 /**
@@ -207,6 +218,9 @@ class CloneCoreImpl : public CloneCore {
         return cloneRef_;
     }
 
+    int HandleRemoveCloneOrRecoverTask(
+        std::shared_ptr<CloneTaskInfo> task) override;
+
  private:
     /**
      * @brief 从快照构建克隆/恢复的文件信息
@@ -252,12 +266,13 @@ class CloneCoreImpl : public CloneCore {
      * @brief 判断clone失败后是否需要重试
      *
      * @param task 任务信息
+     * @param retCode 错误码
      *
      * @retVal true 需要
      * @retVal false 不需要
      */
-    bool NeedRetry(std::shared_ptr<CloneTaskInfo> task);
-
+    bool NeedRetry(std::shared_ptr<CloneTaskInfo> task,
+        int retCode);
 
     /**
      * @brief 创建clone的元数据信息或更新元数据信息

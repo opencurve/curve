@@ -161,9 +161,6 @@ namespace snapshotcloneserver {
 class SnapshotCloneServerTest : public ::testing::Test {
  public:
     static void SetUpTestCase() {
-        // sleep 防止timewait造成端口失败
-        std::this_thread::sleep_for(std::chrono::seconds(60));
-
         std::string mkLogDirCmd = std::string("mkdir -p ") + kLogPath;
         system(mkLogDirCmd.c_str());
 
