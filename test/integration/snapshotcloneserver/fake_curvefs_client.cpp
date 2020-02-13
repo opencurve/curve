@@ -173,6 +173,7 @@ int FakeCurveFsClient::CreateCloneFile(
     fileInfo->fullPathName = filename;
     fileInfo->filestatus = FileStatus::Cloning;
 
+    LOG(INFO) << "CreateCloneFile " << filename;
     fileMap_.emplace(filename, *fileInfo);
 
     return LIBCURVE_ERROR::OK;
@@ -286,13 +287,15 @@ int FakeCurveFsClient::RenameCloneFile(
     uint64_t destinationId,
     const std::string &origin,
     const std::string &destination) {
+    LOG(INFO) << "RenameCloneFile from " << origin
+               << " to " << destination;
     fiu_return_on(
         "test/integration/snapshotcloneserver/FakeCurveFsClient.RenameCloneFile", -LIBCURVE_ERROR::FAILED);  // NOLINT
     auto it = fileMap_.find(origin);
     if (it != fileMap_.end()) {
         it->second.parentid = 3;
         it->second.filename = destination;
-        fileMap_.emplace(destination, it->second);
+        fileMap_[destination] = it->second;
         fileMap_.erase(it);
         return LIBCURVE_ERROR::OK;
     } else {
