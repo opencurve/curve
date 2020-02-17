@@ -6,6 +6,7 @@
  */
 
 #include "src/tools/curve_cli.h"
+#include "src/tools/common.h"
 
 DEFINE_int32(timeout_ms,
              -1, "Timeout (in milliseconds) of the operation");
@@ -18,10 +19,6 @@ DEFINE_string(peer,
               "", "Id of the operating peer");
 DEFINE_string(new_conf,
               "", "new conf to reset peer");
-DEFINE_uint32(logic_pool_id,
-              1, "logic pool id");
-DEFINE_uint32(copyset_id,
-              100001, "copyset id");
 
 DEFINE_bool(affirm, true,
             "If true, command line interactive affirmation is required."
@@ -64,21 +61,21 @@ int CurveCli::RemovePeer() {
     opt.timeout_ms = FLAGS_timeout_ms;
     opt.max_retry = FLAGS_max_retry;
     butil::Status st = curve::chunkserver::RemovePeer(
-                                FLAGS_logic_pool_id,
-                                FLAGS_copyset_id,
+                                FLAGS_logicalPoolId,
+                                FLAGS_copysetId,
                                 conf,
                                 removingPeer,
                                 opt);
     if (!st.ok()) {
         std::cout << "Remove peer " << removingPeerId << " from copyset "
-                  << "(" << FLAGS_logic_pool_id << ", "
-                  << FLAGS_copyset_id << ")"
+                  << "(" << FLAGS_logicalPoolId << ", "
+                  << FLAGS_copysetId << ")"
                   << " fail, original conf: " << conf
                   << ", detail: " << st << std::endl;
         return -1;
     }
     std::cout << "Remove peer " << removingPeerId << " from copyset "
-              << "(" << FLAGS_logic_pool_id << ", " << FLAGS_copyset_id << ")"
+              << "(" << FLAGS_logicalPoolId << ", " << FLAGS_copysetId << ")"
               << " success, original conf: " << conf << std::endl;
     return 0;
 }
@@ -103,23 +100,23 @@ int CurveCli::TransferLeader() {
     opt.timeout_ms = FLAGS_timeout_ms;
     opt.max_retry = FLAGS_max_retry;
     butil::Status st = curve::chunkserver::TransferLeader(
-                                    FLAGS_logic_pool_id,
-                                    FLAGS_copyset_id,
+                                    FLAGS_logicalPoolId,
+                                    FLAGS_copysetId,
                                     conf,
                                     targetPeer,
                                     opt);
     if (!st.ok()) {
         std::cout << "Transfer leader of copyset "
-                  << "(" << FLAGS_logic_pool_id << ", "
-                  << FLAGS_copyset_id << ")"
+                  << "(" << FLAGS_logicalPoolId << ", "
+                  << FLAGS_copysetId << ")"
                   << " to " << targetPeerId
                   << " fail, original conf: " << conf
                   << ", detail: " << st << std::endl;
         return -1;
     }
     std::cout << "Transfer leader of copyset "
-                  << "(" << FLAGS_logic_pool_id << ", "
-                  << FLAGS_copyset_id << ")"
+                  << "(" << FLAGS_logicalPoolId << ", "
+                  << FLAGS_copysetId << ")"
                   << " to " << targetPeerId
                   << " success, original conf: " << conf << std::endl;
     return 0;
@@ -172,23 +169,23 @@ int CurveCli::ResetPeer() {
     opt.max_retry = FLAGS_max_retry;
 
     butil::Status st = curve::chunkserver::ResetPeer(
-                                FLAGS_logic_pool_id,
-                                FLAGS_copyset_id,
+                                FLAGS_logicalPoolId,
+                                FLAGS_copysetId,
                                 newConf,
                                 requestPeer,
                                 opt);
     if (!st.ok()) {
         std::cout << "Reset peer of copyset "
-                  << "(" << FLAGS_logic_pool_id << ", "
-                  << FLAGS_copyset_id << ")"
+                  << "(" << FLAGS_logicalPoolId << ", "
+                  << FLAGS_copysetId << ")"
                   << " to " << newConf
                   << " fail, requestPeer: " << requestPeerId
                   << ", detail: " << st << std::endl;
         return -1;
     }
     std::cout << "Reset peer of copyset "
-              << "(" << FLAGS_logic_pool_id << ", "
-              << FLAGS_copyset_id << ")"
+              << "(" << FLAGS_logicalPoolId << ", "
+              << FLAGS_copysetId << ")"
               << " to " << newConf
               << " success, requestPeer: " << requestPeerId << std::endl;
     return 0;
@@ -197,10 +194,10 @@ int CurveCli::ResetPeer() {
 void CurveCli::PrintHelp(const std::string &cmd) {
     std::cout << "Example " << std::endl;
     if (cmd == kResetPeerCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -logic_pool_id=1 -copyset_id=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
         "-new_conf=127.0.0.1:8080:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
     } else if (cmd == kRemovePeerCmd || cmd == kTransferLeaderCmd) {
-        std::cout << "curve_ops_tool " << cmd << " -logic_pool_id=1 -copyset_id=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
+        std::cout << "curve_ops_tool " << cmd << " -logicalPoolId=1 -copysetId=10001 -peer=127.0.0.1:8080:0 "  // NOLINT
         "-conf=127.0.0.1:8080:0,127.0.0.1:8081:0,127.0.0.1:8082:0 -max_retry=3 -timeout_ms=100" << std::endl;  // NOLINT
     } else {
         std::cout << "Command not supported!" << std::endl;
@@ -222,3 +219,4 @@ int CurveCli::RunCommand(const std::string &cmd) {
 }
 }  // namespace tool
 }  // namespace curve
+

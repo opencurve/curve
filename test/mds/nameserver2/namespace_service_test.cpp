@@ -2020,6 +2020,41 @@ TEST_F(NameSpaceServiceTest, registClientTest) {
     server.Stop(10);
     server.Join();
 }
+
+TEST_F(NameSpaceServiceTest, listClientTest) {
+    brpc::Server server;
+
+    // start server
+    NameSpaceService namespaceService(new FileLockManager(8));
+    ASSERT_EQ(server.AddService(&namespaceService,
+            brpc::SERVER_DOESNT_OWN_SERVICE), 0);
+
+    brpc::ServerOptions option;
+    option.idle_timeout_sec = -1;
+    ASSERT_EQ(0, server.Start("127.0.0.1", {8900, 8999}, &option));
+
+    // init client
+    brpc::Channel channel;
+    ASSERT_EQ(channel.Init(server.listen_address(), nullptr), 0);
+
+    CurveFSService_Stub stub(&channel);
+
+    ListClientRequest request;
+    ListClientResponse response;
+    brpc::Controller cntl;
+
+    cntl.set_log_id(1);
+
+    stub.ListClient(&cntl, &request, &response, NULL);
+    if (!cntl.Failed()) {
+        ASSERT_EQ(response.statuscode(), StatusCode::kOK);
+    } else {
+        ASSERT_TRUE(false);
+    }
+
+    server.Stop(10);
+    server.Join();
+}
 }  // namespace mds
 }  // namespace curve
 

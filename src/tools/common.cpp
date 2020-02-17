@@ -7,6 +7,9 @@
 
 #include "src/tools/common.h"
 
+DEFINE_uint32(logicalPoolId, 0, "logical pool id of copyset");
+DEFINE_uint32(copysetId, 0, "copyset id");
+
 namespace curve {
 namespace tool {
 

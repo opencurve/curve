@@ -29,14 +29,13 @@ using curve::mds::GetOrAllocateSegmentResponse;
 using curve::tool::GetSegmentRes;
 using curve::mds::topology::CopySetServerInfo;
 
-uint32_t segment_size = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint32_t chunk_size = 16 * 1024 * 1024;   // NOLINT
-std::string mdsMetaServerAddr = "127.0.0.1:9180";   // NOLINT
 std::string mdsAddr = "127.0.0.1:9999,127.0.0.1:9180";   // NOLINT
 
 DECLARE_uint64(test_disk_size);
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
+extern uint32_t segment_size;
+extern uint32_t chunk_size;
+extern std::string mdsMetaServerAddr;
+
 namespace brpc {
 DECLARE_int32(health_check_interval);
 }
@@ -890,4 +889,47 @@ TEST_F(ToolMDSClientTest, GetMdsOnlineStatus) {
     ASSERT_EQ(0, mdsClient.GetMdsOnlineStatus(&onlineStatus));
     expected = {{"127.0.0.1:9180", false}, {"127.0.0.1:9999", false}};
     ASSERT_EQ(expected, onlineStatus);
+}
+
+TEST_F(ToolMDSClientTest, ListClient) {
+    curve::tool::MDSClient mdsClient;
+    ASSERT_EQ(0, mdsClient.Init(mdsAddr, "9999,9180"));
+    FakeMDSCurveFSService* curvefsservice = fakemds.GetMDSService();
+    std::string filename = "/test";
+    std::unique_ptr<curve::mds::ListClientResponse> response(
+                            new curve::mds::ListClientResponse());
+
+    brpc::Controller cntl;
+    std::unique_ptr<FakeReturn> fakeret(
+        new FakeReturn(&cntl, static_cast<void*>(response.get())));
+    curvefsservice->SetListClient(fakeret.get());
+    std::vector<std::string> clientAddrs;
+
+    // 参数为空指针
+    ASSERT_EQ(-1, mdsClient.ListClient(nullptr));
+
+    // 发送RPC失败
+    cntl.SetFailed("fail for test");
+    ASSERT_EQ(-1, mdsClient.ListClient(&clientAddrs));
+    cntl.Reset();
+
+    // 返回码不为OK
+    response->set_statuscode(curve::mds::StatusCode::kParaError);
+    ASSERT_EQ(-1, mdsClient.ListClient(&clientAddrs));
+
+    // 正常情况
+    response->set_statuscode(curve::mds::StatusCode::kOK);
+    for (int i = 0; i < 5; i++) {
+        auto clientInfo = response->add_clientinfos();
+        clientInfo->set_ip("127.0.0.1");
+        clientInfo->set_port(8888 + i);
+    }
+    ASSERT_EQ(0, mdsClient.ListClient(&clientAddrs));
+    ASSERT_EQ(response->clientinfos_size(), clientAddrs.size());
+    for (int i = 0; i < 5; i++) {
+        const auto& clientInfo = response->clientinfos(i);
+        std::string expected = clientInfo.ip() + ":" +
+                               std::to_string(clientInfo.port());
+        ASSERT_EQ(expected, clientAddrs[i]);
+    }
 }
