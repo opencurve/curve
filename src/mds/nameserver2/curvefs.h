@@ -411,6 +411,14 @@ class CurveFS {
     StatusCode RegistClient(const std::string &ip, uint32_t port);
 
     /**
+     *  @brief 获取所有client的信息
+     *  @param[out]:  client信息的列表
+     *  @return 是否成功，成功返回StatusCode::kOK
+     *          失败返回StatusCode::KInternalError
+     */
+    StatusCode ListClient(std::vector<ClientInfo>* clientInfos);
+
+    /**
      *  @brief 获取已经open的文件个数
      *  @param:
      *  @return 如果curvefs未初始化，返回0

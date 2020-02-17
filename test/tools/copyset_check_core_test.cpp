@@ -26,8 +26,6 @@ using curve::tool::kPeersNoSufficient;
 using curve::tool::kMinorityPeerNotOnline;
 using curve::tool::kMajorityPeerNotOnline;
 
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
 DECLARE_uint64(operatorMaxPeriod);
 DECLARE_bool(checkOperator);
 
