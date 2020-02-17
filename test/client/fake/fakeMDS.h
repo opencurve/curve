@@ -93,6 +93,24 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         response->CopyFrom(*resp);
     }
 
+    void ListClient(::google::protobuf::RpcController* controller,
+                    const ::curve::mds::ListClientRequest* request,
+                    ::curve::mds::ListClientResponse* response,
+                    ::google::protobuf::Closure* done) {
+        brpc::ClosureGuard done_guard(done);
+        if (fakeListClient_->controller_ != nullptr &&
+             fakeListClient_->controller_->Failed()) {
+            controller->SetFailed("failed");
+        }
+
+        retrytimes_++;
+
+        auto resp = static_cast<::curve::mds::ListClientResponse*>(
+                    fakeListClient_->response_);
+
+        response->CopyFrom(*resp);
+    }
+
     void CreateFile(::google::protobuf::RpcController* controller,
                        const ::curve::mds::CreateFileRequest* request,
                        ::curve::mds::CreateFileResponse* response,
@@ -544,6 +562,10 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
         fakeListDir_ = fakeret;
     }
 
+    void SetListClient(FakeReturn* fakeret) {
+        fakeListClient_ = fakeret;
+    }
+
     void SetCreateCloneFile(FakeReturn* fakeret) {
         fakeCreateCloneFile_ = fakeret;
     }
@@ -679,6 +701,7 @@ class FakeMDSCurveFSService : public curve::mds::CurveFSService {
     FakeReturn* fakeextendfile_;
     FakeReturn* fakeRegisterret_;
     FakeReturn* fakeChangeOwner_;
+    FakeReturn* fakeListClient_;
 
     FakeReturn* fakechecksnapshotret_;
     FakeReturn* fakecreatesnapshotret_;

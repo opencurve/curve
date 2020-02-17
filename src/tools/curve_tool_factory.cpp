@@ -37,8 +37,11 @@ std::shared_ptr<StatusTool> CurveToolFactory::GenerateStatusTool() {
     auto csClient = std::make_shared<ChunkServerClient>();
     auto copysetCheck =
         std::make_shared<CopysetCheckCore>(mdsClient, csClient);
+    auto metricClient = std::make_shared<MetricClient>();
+    auto versionTool = std::make_shared<VersionTool>(mdsClient, metricClient);
     return std::make_shared<StatusTool>(mdsClient, etcdClient,
-                                       nameSpaceTool, copysetCheck);
+                                       nameSpaceTool, copysetCheck,
+                                       versionTool);
 }
 
 std::shared_ptr<NameSpaceTool> CurveToolFactory::GenerateNameSpaceTool() {

@@ -2991,6 +2991,80 @@ TEST_F(CurveFSTest, InitRecycleBinDir) {
     }
 }
 
+TEST_F(CurveFSTest, RegistClient) {
+    std::string clientIp = "127.0.0.1";
+    uint32_t clientPort = 8888;
+    // client的信息与mds记录的一致
+    {
+        ClientInfoRepoItem clientRepo(clientIp, clientPort);
+        EXPECT_CALL(*mockRepo_, QueryClientInfoRepoItem(_, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(clientRepo),
+                Return(repo::OperationOK)));
+        ASSERT_EQ(StatusCode::kOK, curvefs_->RegistClient(clientIp,
+                                                          clientPort));
+    }
+    // client信息与mds记录不一致
+    {
+        ClientInfoRepoItem clientRepo(clientIp, 9999);
+        EXPECT_CALL(*mockRepo_, QueryClientInfoRepoItem(_, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(clientRepo),
+                Return(repo::OperationOK)));
+        EXPECT_CALL(*mockRepo_, InsertClientInfoRepoItem(_))
+            .Times(1)
+            .WillOnce(Return(repo::OperationOK));
+        ASSERT_EQ(StatusCode::kOK, curvefs_->RegistClient(clientIp,
+                                                          clientPort));
+    }
+    // 从数据库获取失败
+    {
+        ClientInfoRepoItem clientRepo(clientIp, clientPort);
+        EXPECT_CALL(*mockRepo_, QueryClientInfoRepoItem(_, _, _))
+            .Times(1)
+            .WillOnce(Return(repo::SqlException));
+        ASSERT_EQ(StatusCode::KInternalError, curvefs_->RegistClient(clientIp,
+                                                            clientPort));
+    }
+    // 插入数据库失败
+    {
+        ClientInfoRepoItem clientRepo(clientIp, 9999);
+        EXPECT_CALL(*mockRepo_, QueryClientInfoRepoItem(_, _, _))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<2>(clientRepo),
+                Return(repo::OperationOK)));
+        EXPECT_CALL(*mockRepo_, InsertClientInfoRepoItem(_))
+            .Times(1)
+            .WillOnce(Return(repo::SqlException));
+        ASSERT_EQ(StatusCode::KInternalError, curvefs_->RegistClient(clientIp,
+                                                            clientPort));
+    }
+}
+
+TEST_F(CurveFSTest, ListClient) {
+    // 成功
+    {
+        std::vector<ClientInfoRepoItem> items;
+        items.emplace_back("127.0.0.1", 8888);
+        items.emplace_back("127.0.0.1", 9999);
+        EXPECT_CALL(*mockRepo_, LoadClientInfoRepoItems(_))
+            .Times(1)
+            .WillOnce(DoAll(SetArgPointee<0>(items),
+                Return(repo::OperationOK)));
+        std::vector<ClientInfo> clientInfos;
+        ASSERT_EQ(StatusCode::kOK,
+                        curvefs_->ListClient(&clientInfos));
+    }
+    // 失败
+    {
+        EXPECT_CALL(*mockRepo_, LoadClientInfoRepoItems(_))
+            .Times(1)
+            .WillOnce(Return(repo::SqlException));
+        std::vector<ClientInfo> clientInfos;
+        ASSERT_EQ(StatusCode::KInternalError,
+                        curvefs_->ListClient(&clientInfos));
+    }
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

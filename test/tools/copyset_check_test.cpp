@@ -23,9 +23,6 @@ DECLARE_uint32(chunkserverId);
 DECLARE_string(chunkserverAddr);
 DECLARE_uint32(serverId);
 DECLARE_string(serverIp);
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
-DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 
 class CopysetCheckTest : public ::testing::Test {
  protected:

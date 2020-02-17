@@ -19,6 +19,7 @@ const char kChunkserverStatusCmd[] = "chunkserver-status";
 const char kMdsStatusCmd[] = "mds-status";
 const char kEtcdStatusCmd[] = "etcd-status";
 const char kChunkserverListCmd[] = "chunkserver-list";
+const char kClientStatusCmd[] = "client-status";
 
 // NamesPaceTool相关命令
 const char kGetCmd[] = "get";
