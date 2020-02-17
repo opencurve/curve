@@ -5,10 +5,9 @@
  * Copyright (c) 2018 netease
  */
 #include "src/tools/copyset_check.h"
+#include "src/tools/common.h"
 
 DEFINE_bool(detail, false, "list the copyset detail or not");
-DEFINE_uint32(logicalPoolId, 0, "logical pool id of copyset");
-DEFINE_uint32(copysetId, 0, "copyset id");
 DEFINE_uint32(chunkserverId, 0, "chunkserver id");
 DEFINE_string(chunkserverAddr, "", "if specified, chunkserverId is not required");  // NOLINT
 DEFINE_uint32(serverId, 0, "server id");

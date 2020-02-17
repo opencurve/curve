@@ -15,6 +15,7 @@ DEFINE_bool(checkHealth, true, "if true, it will check the health "
 DECLARE_string(mdsAddr);
 DECLARE_string(etcdAddr);
 DECLARE_string(mdsDummyPort);
+DECLARE_bool(detail);
 
 namespace curve {
 namespace tool {
@@ -31,6 +32,10 @@ int StatusTool::Init(const std::string& command) {
         }
         if (copysetCheckCore_->Init(FLAGS_mdsAddr) != 0) {
             std::cout << "Init copysetCheckCore failed!" << std::endl;
+            return -1;
+        }
+        if (versionTool_->Init(FLAGS_mdsAddr) != 0) {
+            std::cout << "Init versionTool failed!" << std::endl;
             return -1;
         }
         mdsInited_ = true;
@@ -58,7 +63,8 @@ bool StatusTool::SupportCommand(const std::string& command) {
                                  || command == kChunkserverListCmd
                                  || command == kChunkserverStatusCmd
                                  || command == kMdsStatusCmd
-                                 || command == kEtcdStatusCmd);
+                                 || command == kEtcdStatusCmd
+                                 || command == kClientStatusCmd);
 }
 
 void StatusTool::PrintHelp(const std::string& cmd) {
@@ -72,6 +78,9 @@ void StatusTool::PrintHelp(const std::string& cmd) {
     }
     if (cmd == kChunkserverListCmd) {
         std::cout << " [-offline] [-unhealthy] [-checkHealth=false]";
+    }
+    if (cmd == kClientStatusCmd) {
+        std::cout << " [-detail]";
     }
     std::cout << std::endl;
 }
@@ -167,6 +176,12 @@ int StatusTool::StatusCmd() {
         success = false;
     }
     std::cout << std::endl;
+    res = PrintClientStatus();
+    if (res != 0) {
+        std::cout << "PrintClientStatus fail!" << std::endl;
+        success = false;
+    }
+    std::cout << std::endl;
     res = PrintMdsStatus();
     if (res != 0) {
         std::cout << "PrintMdsStatus fail!" << std::endl;
@@ -252,15 +267,26 @@ void StatusTool::PrintOnlineStatus(const std::string& name,
 
 int StatusTool::PrintMdsStatus() {
     std::cout << "MDS status:" << std::endl;
+    std::string version;
+    int res = versionTool_->GetAndCheckMdsVersion(&version);
+    int ret = 0;
+    if (res != 0) {
+        std::cout << "GetAndCheckMdsVersion fail" << std::endl;
+        ret = -1;
+    } else {
+        std::cout << "version: " << version << std::endl;
+    }
+
     std::cout << "current MDS: " << mdsClient_->GetCurrentMds() << std::endl;
     std::map<std::string, bool> onlineStatus;
-    int res = mdsClient_->GetMdsOnlineStatus(&onlineStatus);
+    res = mdsClient_->GetMdsOnlineStatus(&onlineStatus);
     if (res != 0) {
         std::cout << "GetMdsOnlineStatus fail!" << std::endl;
-        return -1;
+        ret = -1;
+    } else {
+        PrintOnlineStatus("mds", onlineStatus);
     }
-    PrintOnlineStatus("mds", onlineStatus);
-    return 0;
+    return ret;
 }
 
 int StatusTool::PrintEtcdStatus() {
@@ -277,10 +303,47 @@ int StatusTool::PrintEtcdStatus() {
     return 0;
 }
 
+int StatusTool::PrintClientStatus() {
+    std::cout << "client status: " << std::endl;
+    VersionMapType versionMap;
+    std::vector<std::string> offlineList;
+    int res = versionTool_->GetClientVersion(&versionMap, &offlineList);
+    if (res != 0) {
+        std::cout << "GetClientVersion fail" << std::endl;
+        return -1;
+    }
+    if (!offlineList.empty()) {
+        versionMap[kOffline] = offlineList;
+    }
+    uint64_t total = 0;
+    for (const auto& item : versionMap) {
+        if (item.first != kOffline) {
+            std::cout << "version";
+        }
+        std::cout << item.first << ": " << item.second.size();
+        total += item.second.size();
+        std::cout << ", ";
+    }
+    std::cout << "total: " << total <<  std::endl;
+    if (FLAGS_detail) {
+        versionTool_->PrintVersionMap(versionMap);
+    }
+    return 0;
+}
+
 int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     std::cout << "ChunkServer status:" << std::endl;
+    std::string version;
+    int res = versionTool_->GetAndCheckChunkServerVersion(&version);
+    int ret = 0;
+    if (res != 0) {
+        std::cout << "GetAndCheckChunkserverVersion fail" << std::endl;
+        ret = -1;
+    } else {
+        std::cout << "version: " << version << std::endl;
+    }
     std::vector<ChunkServerInfo> chunkservers;
-    int res = mdsClient_->ListChunkServersInCluster(&chunkservers);
+    res = mdsClient_->ListChunkServersInCluster(&chunkservers);
     if (res != 0) {
         std::cout << "ListChunkServersInCluster fail!" << std::endl;
         return -1;
@@ -309,7 +372,8 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
         if (res != 0) {
             std::cout << "Get left chunk size of chunkserver " << csId
                       << " fail!" << std::endl;
-            return -1;
+            ret = -1;
+            continue;
         }
         if (leftSizeNum.count(size) == 0) {
             leftSizeNum[size] = 1;
@@ -322,7 +386,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
             << ", unstable = " << unstable
             << ", offline = " << offline << std::endl;
     if (!checkLeftSize) {
-        return 0;
+        return ret;
     }
     if (leftSizeNum.empty()) {
         std::cout << "No chunkserver left chunk size found!" << std::endl;
@@ -331,7 +395,7 @@ int StatusTool::PrintChunkserverStatus(bool checkLeftSize) {
     auto minPair = leftSizeNum.begin();
     std::cout << "minimal left size: " << minPair->first / mds::kGB << "GB"
               << ", chunkserver num: " << minPair->second << std::endl;
-    return 0;
+    return ret;
 }
 
 int StatusTool::GetPoolsInCluster(std::vector<PhysicalPoolInfo>* phyPools,
