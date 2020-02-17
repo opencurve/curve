@@ -417,6 +417,19 @@ message GetAllocatedSizeResponse {
     optional uint64 allocatedSize = 2;
 }
 
+message ClientInfo {
+    required string ip = 1;
+    required uint32 port = 2;
+}
+
+message ListClientRequest {
+}
+
+message ListClientResponse {
+    required StatusCode statusCode = 1;
+    repeated ClientInfo clientInfos = 2;
+}
+
 service CurveFSService {
     // basic rpcs
     rpc     CreateFile(CreateFileRequest) returns (CreateFileResponse);
@@ -453,6 +466,6 @@ service CurveFSService {
 
     // curve status
     rpc     RegistClient(RegistClientRequest) returns (RegistClientResponse);
-
     rpc     GetAllocatedSize(GetAllocatedSizeRequest) returns (GetAllocatedSizeResponse);
+    rpc     ListClient(ListClientRequest) returns (ListClientResponse);
 }

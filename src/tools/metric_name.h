@@ -21,6 +21,7 @@ const char kLogicalPoolMetricPrefix[] = "topology_metric_logicalPool_";
 const char kChunkServerMetricPrefix[] = "topology_metric_chunkserver_Id_";
 const char kOperatorNumMetricName[] = "mds_scheduler_metric_operator_num";
 const char kMdsListenAddrMetricName[] = "mds_config_mds_listen_addr";
+const char kCurveVersionMetricName[] = "curve_version";
 
 inline std::string GetPoolTotalBytesName(
                             const std::string& poolName) {
