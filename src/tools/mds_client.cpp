@@ -258,7 +258,7 @@ int MDSClient::DeleteFile(const std::string& fileName, bool forcedelete) {
 }
 
 int MDSClient::CreateFile(const std::string& fileName, uint64_t length) {
-    curve::mds:: CreateFileRequest request;
+    curve::mds::CreateFileRequest request;
     curve::mds::CreateFileResponse response;
     request.set_filename(fileName);
     request.set_filetype(curve::mds::FileType::INODE_PAGEFILE);
@@ -282,6 +282,41 @@ int MDSClient::CreateFile(const std::string& fileName, uint64_t length) {
         return 0;
     }
     std::cout << "CreateFile fail with errCode: "
+              << response.statuscode() << std::endl;
+    return -1;
+}
+
+int MDSClient::ListClient(std::vector<std::string>* clientAddrs) {
+    if (!clientAddrs) {
+        std::cout << "The argument is a null pointer!" << std::endl;
+        return -1;
+    }
+    curve::mds::ListClientRequest request;
+    curve::mds::ListClientResponse response;
+    curve::mds::CurveFSService_Stub stub(&channel_);
+
+    void (curve::mds::CurveFSService_Stub::*fp)(
+                            google::protobuf::RpcController*,
+                            const curve::mds::ListClientRequest*,
+                            curve::mds::ListClientResponse*,
+                            google::protobuf::Closure*);
+    fp = &curve::mds::CurveFSService_Stub::ListClient;
+    if (SendRpcToMds(&request, &response, &stub, fp) != 0) {
+        std::cout << "ListClient from all mds fail!" << std::endl;
+        return -1;
+    }
+
+    if (response.has_statuscode() &&
+                response.statuscode() == StatusCode::kOK) {
+        for (int i = 0; i < response.clientinfos_size(); ++i) {
+            const auto& clientInfo = response.clientinfos(i);
+            std::string clientAddr = clientInfo.ip() + ":" +
+                                     std::to_string(clientInfo.port());
+            clientAddrs->emplace_back(clientAddr);
+        }
+        return 0;
+    }
+    std::cout << "ListClient fail with errCode: "
               << response.statuscode() << std::endl;
     return -1;
 }

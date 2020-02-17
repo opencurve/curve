@@ -15,15 +15,9 @@ using ::testing::DoAll;
 using ::testing::SetArgPointee;
 using curve::tool::GetSegmentRes;
 
-uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;   // NOLINT
-uint64_t chunkSize = 16 * 1024 * 1024;   // NOLINT
-
 DECLARE_bool(isTest);
 DECLARE_string(fileName);
 DECLARE_uint64(offset);
-DEFINE_uint64(rpcTimeout, 3000, "millisecond for rpc timeout");
-DEFINE_uint64(rpcRetryTimes, 5, "rpc retry times");
-DEFINE_string(mdsAddr, "127.0.0.1:6666", "mds addr");
 
 class NameSpaceToolCoreTest : public ::testing::Test {
  protected:
@@ -62,6 +56,8 @@ class NameSpaceToolCoreTest : public ::testing::Test {
             chunk->set_chunkid(2000 + i);
         }
     }
+    uint64_t segmentSize = 1 * 1024 * 1024 * 1024ul;
+    uint64_t chunkSize = 16 * 1024 * 1024;
     std::shared_ptr<curve::tool::MockMDSClient> client_;
 };
 

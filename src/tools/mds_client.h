@@ -148,6 +148,13 @@ class MDSClient {
     virtual int CreateFile(const std::string& fileName, uint64_t length);
 
     /**
+     *  @brief 列出client的dummyserver的地址
+     *  @param[out] clientAddrs client地址列表，返回0时有效
+     *  @return 成功返回0,失败返回-1
+     */
+    virtual int ListClient(std::vector<std::string>* clientAddrs);
+
+    /**
      *  @brief 获取copyset中的chunkserver列表
      *  @param logicalPoolId 逻辑池id
      *  @param copysetId copyset id
@@ -314,6 +321,11 @@ class MDSClient {
         return mdsAddrVec_;
     }
 
+    virtual const std::map<std::string, std::string>& GetDummyServerMap()
+                                                        const {
+        return dummyServerMap_;
+    }
+
     /**
      *  @brief 获取当前mds的地址
      */
@@ -326,7 +338,7 @@ class MDSClient {
 
     /**
      *  @brief 获取mds在线状态
-     *  @param[out] onlineStatus mds在线状态，返回0是有效
+     *  @param[out] onlineStatus mds在线状态，返回0时有效
      *  @return 成功返回0,失败返回-1
      */
     virtual int GetMdsOnlineStatus(std::map<std::string, bool>* onlineStatus);
@@ -403,7 +415,7 @@ class MDSClient {
     brpc::Channel channel_;
     // 保存mds地址的vector
     std::vector<std::string> mdsAddrVec_;
-    // 保存mds地址对应的dummy port
+    // 保存mds地址对应的dummy server的地址
     std::map<std::string, std::string> dummyServerMap_;
     // 保存当前mds在mdsAddrVec_中的索引
     int currentMdsIndex_;

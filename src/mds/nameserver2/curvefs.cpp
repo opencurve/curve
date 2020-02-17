@@ -1699,6 +1699,23 @@ StatusCode CurveFS::RegistClient(const std::string &clientIp,
     return StatusCode::kOK;
 }
 
+StatusCode CurveFS::ListClient(std::vector<ClientInfo>* clientInfos) {
+    std::vector<ClientInfoRepoItem> items;
+    auto res = repo_->LoadClientInfoRepoItems(&items);
+    if (res != repo::OperationOK) {
+        LOG(ERROR) << "ListClientsIpPort query client info from repo fail";
+        return StatusCode::KInternalError;
+    }
+
+    for (auto& item : items) {
+        ClientInfo clientInfo;
+        clientInfo.set_ip(item.GetClientIp());
+        clientInfo.set_port(item.GetClientPort());
+        clientInfos->emplace_back(clientInfo);
+    }
+    return StatusCode::kOK;
+}
+
 uint64_t CurveFS::GetOpenFileNum() {
     if (sessionManager_ == nullptr) {
         return 0;
