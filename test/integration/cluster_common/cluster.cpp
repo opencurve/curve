@@ -106,7 +106,6 @@ void CurveCluster::StartSingleMDS(int id, const std::string &ipPort,
         for (auto &item : mdsConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         if (expectAssert) {
             int ret = execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL);
             // 使用error级别，帮助收集日志
@@ -203,7 +202,6 @@ void CurveCluster::StartSingleEtcd(int id, const std::string &clientIpPort,
             cmd_dir += item;
         }
 
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
@@ -315,7 +313,6 @@ void CurveCluster::StartSingleChunkServer(int id, const std::string &ipPort,
         for (auto &item : chunkserverConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
@@ -349,7 +346,6 @@ void CurveCluster::StartSingleChunkServerInBackground(
         for (auto &item : chunkserverConf) {
             cmd_dir += item;
         }
-        LOG(INFO) << "start exec cmd: " << cmd_dir;
         ASSERT_EQ(0, execl("/bin/sh", "sh", "-c", cmd_dir.c_str(), NULL));
         exit(0);
     }
