@@ -79,8 +79,11 @@ TEST_F(CurveClientTest, OpenTest) {
     int fd = client_.Open(kWrongFileName, nullptr);
     ASSERT_LT(fd, 0);
 
-    fd = client_.Open(kFileName, nullptr);
+    std::string sessionId;
+    fd = client_.Open(kFileName, &sessionId);
     ASSERT_GE(fd, 0);
+    ASSERT_GE(sessionId.size(), 0);
+    LOG(INFO) << sessionId;
     ASSERT_EQ(0, client_.Close(fd));
 }
 
