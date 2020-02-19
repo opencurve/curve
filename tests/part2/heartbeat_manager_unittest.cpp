@@ -74,6 +74,17 @@ TEST_F(HeartbeatManagerTest, CheckTimeoutTest) {
     EXPECT_CALL(*fileRecordManager_, ListRecords())
     .WillRepeatedly(Return(fileRecords));
 
+    EXPECT_CALL(*fileRecordManager_, GetRecord(1, _))
+    .WillRepeatedly(DoAll(SetArgPointee<1>(record1),
+                          Return(true)));
+
+    EXPECT_CALL(*fileRecordManager_, GetRecord(2, _))
+    .WillRepeatedly(DoAll(SetArgPointee<1>(record2),
+                          Return(true)));
+
+    EXPECT_CALL(*fileRecordManager_, GetRecord(3, _))
+    .WillRepeatedly(Return(false));
+
     EXPECT_CALL(*fileManager_, Close(1, false))
     .Times(AtLeast(1));
     EXPECT_CALL(*fileManager_, Close(2, false))
