@@ -17,6 +17,7 @@ DEFINE_string(confPath, "/etc/nebd/nebd.conf", "nebd conf path");
 int main(int argc, char* argv[]) {
     // 解析参数
     google::ParseCommandLineFlags(&argc, &argv, false);
+    google::InitGoogleLogging(argv[0]);
     std::string confPath = FLAGS_confPath.c_str();
 
     // 启动nebd server
@@ -31,5 +32,6 @@ int main(int argc, char* argv[]) {
     // 停止nebd server
     server->Fini();
 
+    google::ShutdownGoogleLogging();
     return 0;
 }

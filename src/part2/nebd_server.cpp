@@ -169,7 +169,7 @@ bool NebdServer::StartServer() {
     brpc::ServerOptions option;
     option.idle_timeout_sec = -1;
     // 获取文件锁
-    common::FileLock fileLock(listenAddress_);
+    common::FileLock fileLock(listenAddress_ + ".lock");
     if (fileLock.AcquireFileLock() != 0) {
         LOG(ERROR) << "Address already in use";
         return -1;
