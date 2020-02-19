@@ -16,8 +16,9 @@ namespace common {
 // 文件锁
 class FileLock {
  public:
-    explicit FileLock(const std::string fileName) : fileName_(fileName),
-                                                    fd_(-1) {}
+    explicit FileLock(const std::string& fileName)
+      : fileName_(fileName), fd_(-1) {}
+
     FileLock() : fileName_(""), fd_(-1) {}
     ~FileLock() = default;
 

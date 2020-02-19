@@ -91,7 +91,8 @@ void NebdClient::Uninit() {
 
 int NebdClient::Open(const char* filename) {
     // 加文件锁
-    std::string fileLockName = option_.fileLockPath + "/" + filename;
+    std::string fileLockName =
+        option_.fileLockPath + "/" + ReplaceSlash(filename);
     FileLock fileLock(fileLockName);
     int res = fileLock.AcquireFileLock();
     if (res < 0) {
@@ -520,6 +521,17 @@ int64_t NebdClient::ExecuteSyncRpc(RpcTask task) {
                << option_.requestOption.syncRpcMaxRetryTimes;
 
     return -1;
+}
+
+std::string NebdClient::ReplaceSlash(const std::string& str) {
+    std::string ret(str);
+    for (auto& ch : ret) {
+        if (ch == '/') {
+            ch = '+';
+        }
+    }
+
+    return ret;
 }
 
 }  // namespace client

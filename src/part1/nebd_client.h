@@ -135,6 +135,14 @@ class NebdClient {
 
     int InitChannel();
 
+    /**
+     * @brief 替换字符串中的 '/' 为 '+'
+     *
+     * @param str 需要替换的字符串
+     * @return 替换后的字符串
+     */
+    std::string ReplaceSlash(const std::string& str);
+
     int64_t ExecuteSyncRpc(RpcTask task);
     // 心跳管理模块
     std::shared_ptr<HeartbeatManager> heartbeatMgr_;
