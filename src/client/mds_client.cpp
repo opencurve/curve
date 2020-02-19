@@ -1182,6 +1182,9 @@ void MDSClient::MDSStatusCode2LibcurveError(const StatusCode& status
         case ::curve::mds::StatusCode::kDeleteFileBeingCloned:
             *errcode = LIBCURVE_ERROR::DELETE_BEING_CLONED;
             break;
+        case ::curve::mds::StatusCode::kVersionNotMatch:
+            *errcode = LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
+            break;
         default:
             *errcode = LIBCURVE_ERROR::UNKNOWN;
             break;
