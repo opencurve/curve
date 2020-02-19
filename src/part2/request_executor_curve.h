@@ -31,7 +31,7 @@ class CurveFileInstance : public NebdFileInstance {
 class CurveAioCombineContext {
  public:
     NebdServerAioContext* nebdCtx;
-    CurveAioContext* curveCtx;
+    CurveAioContext curveCtx;
 };
 void CurveAioCallback(struct CurveAioContext* curveCtx);
 

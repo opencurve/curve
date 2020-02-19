@@ -147,17 +147,14 @@ int CurveRequestExecutor::AioRead(
 
     CurveAioCombineContext *curveCombineCtx = new CurveAioCombineContext();
     curveCombineCtx->nebdCtx = aioctx;
-    curveCombineCtx->curveCtx = new CurveAioContext();
-    int ret = FromNebdCtxToCurveCtx(aioctx, curveCombineCtx->curveCtx);
+    int ret = FromNebdCtxToCurveCtx(aioctx, &curveCombineCtx->curveCtx);
     if (ret < 0) {
-        delete curveCombineCtx->curveCtx;
         delete curveCombineCtx;
         return -1;
     }
 
-    ret = client_->AioRead(curveFd,  curveCombineCtx->curveCtx);
+    ret = client_->AioRead(curveFd,  &curveCombineCtx->curveCtx);
     if (ret !=  LIBCURVE_ERROR::OK) {
-        delete curveCombineCtx->curveCtx;
         delete curveCombineCtx;
         return -1;
     }
@@ -174,17 +171,14 @@ int CurveRequestExecutor::AioWrite(
 
     CurveAioCombineContext *curveCombineCtx = new CurveAioCombineContext();
     curveCombineCtx->nebdCtx = aioctx;
-    curveCombineCtx->curveCtx = new CurveAioContext();
-    int ret = FromNebdCtxToCurveCtx(aioctx, curveCombineCtx->curveCtx);
+    int ret = FromNebdCtxToCurveCtx(aioctx, &curveCombineCtx->curveCtx);
     if (ret < 0) {
-        delete curveCombineCtx->curveCtx;
         delete curveCombineCtx;
         return -1;
     }
 
-    ret = client_->AioWrite(curveFd,  curveCombineCtx->curveCtx);
+    ret = client_->AioWrite(curveFd,  &curveCombineCtx->curveCtx);
     if (ret !=  LIBCURVE_ERROR::OK) {
-        delete curveCombineCtx->curveCtx;
         delete curveCombineCtx;
         return -1;
     }
@@ -259,10 +253,8 @@ void CurveAioCallback(struct CurveAioContext* curveCtx) {
     auto curveCombineCtx = reinterpret_cast<CurveAioCombineContext *>(
         reinterpret_cast<char *>(curveCtx) -
         offsetof(CurveAioCombineContext, curveCtx));
-
     curveCombineCtx->nebdCtx->ret = curveCtx->ret;
     curveCombineCtx->nebdCtx->cb(curveCombineCtx->nebdCtx);
-    delete curveCtx;
     delete curveCombineCtx;
 }
 

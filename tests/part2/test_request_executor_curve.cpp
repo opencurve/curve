@@ -16,6 +16,11 @@ using ::testing::Return;
 using ::testing::_;
 using ::testing::SetArgPointee;
 using ::testing::DoAll;
+using ::testing::SaveArg;
+
+void NebdUnitTestCallback(NebdServerAioContext* context) {
+    std::cout << "callback" << std::endl;
+}
 
 class TestReuqestExecutorCurve  : public ::testing::Test {
  protected:
@@ -219,6 +224,7 @@ TEST_F(TestReuqestExecutorCurve, test_GetInfo) {
 TEST_F(TestReuqestExecutorCurve, test_AioRead) {
     auto executor = CurveRequestExecutor::GetInstance();
     NebdServerAioContext aiotcx;
+    aiotcx.cb = NebdUnitTestCallback;
     std::string curveFilename("/cinder/volume-1234_cinder_");
 
     // 1. nebdFileIns不是CurveFileInstance类型, 异步读失败
@@ -255,15 +261,19 @@ TEST_F(TestReuqestExecutorCurve, test_AioRead) {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = 1;
         curveFileIns->fileName = curveFilename;
+        CurveAioContext* curveCtx;
         EXPECT_CALL(*curveClient_, AioRead(1, _))
-            .WillOnce(Return(LIBCURVE_ERROR::OK));
+            .WillOnce(DoAll(SaveArg<1>(&curveCtx),
+                            Return(LIBCURVE_ERROR::OK)));
         ASSERT_EQ(0, executor.AioRead(curveFileIns, &aiotcx));
+        curveCtx->cb(curveCtx);
     }
 }
 
 TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
     auto executor = CurveRequestExecutor::GetInstance();
     NebdServerAioContext aiotcx;
+    aiotcx.cb = NebdUnitTestCallback;
     std::string curveFilename("/cinder/volume-1234_cinder_");
 
     // 1. nebdFileIns不是CurveFileInstance类型, 异步写失败
@@ -300,9 +310,12 @@ TEST_F(TestReuqestExecutorCurve, test_AioWrite) {
         auto curveFileIns = new CurveFileInstance();
         curveFileIns->fd = 1;
         curveFileIns->fileName = curveFilename;
+        CurveAioContext* curveCtx;
         EXPECT_CALL(*curveClient_, AioWrite(1, _))
-            .WillOnce(Return(LIBCURVE_ERROR::OK));
+            .WillOnce(DoAll(SaveArg<1>(&curveCtx),
+                            Return(LIBCURVE_ERROR::OK)));
         ASSERT_EQ(0, executor.AioWrite(curveFileIns, &aiotcx));
+        curveCtx->cb(curveCtx);
     }
 }
 
@@ -340,6 +353,7 @@ TEST_F(TestReuqestExecutorCurve, test_InvalidCache) {
     }
 }
 
+
 TEST(TestFileNameParser, test_Parse) {
     std::string fileName("cbd:pool1//cinder/volume-1234_cinder_:/client.conf");
     std::string res("/cinder/volume-1234_cinder_");
@@ -354,6 +368,7 @@ TEST(TestFileNameParser, test_Parse) {
     fileName = "cbd:pool1//:";
     ASSERT_EQ("", FileNameParser::Parse(fileName));
 }
+
 
 }  // namespace server
 }  // namespace nebd
