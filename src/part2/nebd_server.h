@@ -14,18 +14,22 @@
 #include "src/common/configuration.h"
 #include "src/part2/file_manager.h"
 #include "src/part2/heartbeat_manager.h"
+#include "src/part2/request_executor_curve.h"
 
 namespace nebd {
 namespace server {
 
 using ::nebd::common::Configuration;
+using ::curve::client::CurveClient;
 
 class NebdServer {
  public:
     NebdServer() {}
     virtual ~NebdServer() {}
 
-    int Init(const std::string &confPath);
+    int Init(const std::string &confPath,
+        std::shared_ptr<CurveClient> curveClient =
+        std::make_shared<CurveClient>());
 
     int RunUntilAskedToQuit();
 
@@ -44,6 +48,12 @@ class NebdServer {
      * @return false-初始化失败 true-初始化成功
      */
     bool InitFileManager();
+
+    /**
+     * @brief 初始化request_executor_curve
+     * @return false-初始化失败 true-初始化成功
+     */
+    bool InitCurveRequestExecutor();
 
     /**
      * @brief 初始化NebdMetaFileManager
@@ -84,6 +94,8 @@ class NebdServer {
     std::shared_ptr<NebdFileManager> fileManager_;
     // 负责文件心跳超时处理
     std::shared_ptr<HeartbeatManager> heartbeatManager_;
+    // curveclient
+    std::shared_ptr<CurveClient> curveClient_;
 };
 
 }  // namespace server

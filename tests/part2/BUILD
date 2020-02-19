@@ -84,6 +84,7 @@ cc_binary(
     deps = [
         "//external:gflags",
         "//src/part2:nebdserver",
+        "//tests/part2:mock_lib",
         "@com_google_googletest//:gtest_main",
     ],
 )

@@ -7,7 +7,7 @@ cc_proto_library(
 proto_library(
     name = "client_proto",
     srcs = glob([
-        "common.proto",
+        "nebd-common.proto",
         "client.proto",
 	"heartbeat.proto"
         ]

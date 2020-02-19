@@ -14,7 +14,8 @@
 
 namespace nebd {
 namespace server {
-int NebdServer::Init(const std::string &confPath) {
+int NebdServer::Init(const std::string &confPath,
+    std::shared_ptr<CurveClient> curveClient) {
     if (isRunning_) {
         LOG(WARNING) << "NebdServer is inited";
         return -1;
@@ -25,24 +26,37 @@ int NebdServer::Init(const std::string &confPath) {
         LOG(ERROR) << "NebdServer load config from file fail";
         return -1;
     }
+    LOG(INFO) << "NebdServer load config from file ok";
 
     bool initAddressOk = conf_.GetStringValue(LISTENADDRESS, &listenAddress_);
     if (false == initAddressOk) {
         LOG(ERROR) << "NebdServer init socket file address fail";
         return -1;
     }
+    LOG(INFO) << "NebdServer init socket file address ok";
+
 
     bool initFileManagerOk = InitFileManager();
     if (false == initFileManagerOk) {
         LOG(ERROR) << "NebdServer init fileManager fail";
         return -1;
     }
+    LOG(INFO) << "NebdServer init fileManager ok";
+
+    curveClient_ = curveClient;
+    bool initExecutorOk = InitCurveRequestExecutor();
+    if (false == initExecutorOk) {
+        LOG(ERROR) << "NebdServer init curveRequestExecutor fail";
+        return -1;
+    }
+    LOG(INFO) << "NebdServer init curveRequestExecutor ok";
 
     bool initHeartbeatManagerOk = InitHeartbeatManager();
     if (false == initHeartbeatManagerOk) {
         LOG(ERROR) << "NebdServer init heartbeatManager fail";
         return -1;
     }
+    LOG(INFO) << "NebdServer init heartbeatManager ok";
 
     LOG(INFO) << "NebdServer init ok";
     return 0;
@@ -62,6 +76,10 @@ int NebdServer::Fini() {
         brpc::AskToQuit();
     }
 
+    if (curveClient_ != nullptr) {
+        curveClient_ ->UnInit();
+    }
+
     if (fileManager_ != nullptr) {
         fileManager_->Fini();
     }
@@ -69,6 +87,7 @@ int NebdServer::Fini() {
     if (heartbeatManager_ != nullptr) {
         heartbeatManager_->Fini();
     }
+
     return 0;
 }
 
@@ -97,6 +116,24 @@ bool NebdServer::InitFileManager() {
         return false;
     }
 
+    return true;
+}
+
+bool NebdServer::InitCurveRequestExecutor() {
+    std::string confPath;
+    bool getOk = conf_.GetStringValue(CURVECLIENTCONFPATH, &confPath);
+    if (!getOk) {
+        LOG(ERROR) << "get " << CURVECLIENTCONFPATH << " fail";
+        return false;
+    }
+
+    int initRes = curveClient_->Init(confPath);
+    if (initRes < 0) {
+        LOG(ERROR) << "Init curve client fail";
+        return false;
+    }
+
+    CurveRequestExecutor::GetInstance().Init(curveClient_);
     return true;
 }
 

@@ -1,5 +1,5 @@
 syntax="proto2";
-import "proto/common.proto";
+import "proto/nebd-common.proto";
 
 package nebd.client;
 

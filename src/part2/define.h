@@ -114,6 +114,7 @@ const char LISTENADDRESS[] = "listen.address";
 const char METAFILEPATH[] = "meta.file.path";
 const char HEARTBEATTIMEOUTSEC[] = "heartbeat.timeout.sec";
 const char HEARTBEATCHECKINTERVALMS[] = "heartbeat.check.interval.ms";
+const char CURVECLIENTCONFPATH[] = "curveclient.confPath";
 
 }  // namespace server
 }  // namespace nebd
