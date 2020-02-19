@@ -131,11 +131,22 @@ TEST_F(ConfigurationTest, ListConfig) {
 TEST_F(ConfigurationTest, SaveConfig) {
     bool ret;
     Configuration conf;
-
     conf.SetConfigPath(confFile_);
+
+    // 自定义配置项并保存
+    conf.SetStringValue("test.str1", "new");
     ret = conf.SaveConfig();
-    // not implemented yet, assert false
-    ASSERT_EQ(ret, false);
+    ASSERT_EQ(ret, true);
+
+    // 重新加载配置项
+    Configuration conf2;
+    conf2.SetConfigPath(confFile_);
+    ret = conf2.LoadConfig();
+    ASSERT_EQ(ret, true);
+
+    // 可以读取自定义配置项，原有配置项被覆盖，读取不到
+    ASSERT_EQ(conf2.GetValue("test.str1"), "new");
+    ASSERT_EQ(conf2.GetValue("test.int1"), "");
 }
 
 TEST_F(ConfigurationTest, GetSetValue) {

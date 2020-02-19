@@ -46,8 +46,18 @@ bool Configuration::LoadConfig() {
 }
 
 bool Configuration::SaveConfig() {
-    // TODO(wenyu): to implement
-    return false;
+    // 当前先只保存配置，原文件的注释等内容先忽略
+    // TODO(yyk): 后续考虑改成原文件格式不变，只修改配置值
+    std::ofstream wStream(confFile_);
+    if (wStream.is_open()) {
+        for (auto& pair : config_) {
+            wStream << pair.first << "=" << pair.second << std::endl;
+        }
+        wStream.close();
+    } else {
+        return false;
+    }
+    return true;
 }
 
 std::string Configuration::DumpConfig() {

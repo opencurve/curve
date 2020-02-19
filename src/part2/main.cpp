@@ -12,7 +12,7 @@
 
 #define BOOST_SPIRIT_THREADSAFE
 
-DEFINE_string(confPath, "/etc/nebd/nebd.conf", "nebd conf path");
+DEFINE_string(confPath, "/etc/nebd/nebd-server.conf", "nebd server conf path");
 
 int main(int argc, char* argv[]) {
     // 解析参数

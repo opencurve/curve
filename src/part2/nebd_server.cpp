@@ -35,14 +35,6 @@ int NebdServer::Init(const std::string &confPath,
     }
     LOG(INFO) << "NebdServer init socket file address ok";
 
-
-    bool initFileManagerOk = InitFileManager();
-    if (false == initFileManagerOk) {
-        LOG(ERROR) << "NebdServer init fileManager fail";
-        return -1;
-    }
-    LOG(INFO) << "NebdServer init fileManager ok";
-
     curveClient_ = curveClient;
     bool initExecutorOk = InitCurveRequestExecutor();
     if (false == initExecutorOk) {
@@ -50,6 +42,13 @@ int NebdServer::Init(const std::string &confPath,
         return -1;
     }
     LOG(INFO) << "NebdServer init curveRequestExecutor ok";
+
+    bool initFileManagerOk = InitFileManager();
+    if (false == initFileManagerOk) {
+        LOG(ERROR) << "NebdServer init fileManager fail";
+        return -1;
+    }
+    LOG(INFO) << "NebdServer init fileManager ok";
 
     bool initHeartbeatManagerOk = InitHeartbeatManager();
     if (false == initHeartbeatManagerOk) {
@@ -76,12 +75,12 @@ int NebdServer::Fini() {
         brpc::AskToQuit();
     }
 
-    if (curveClient_ != nullptr) {
-        curveClient_ ->UnInit();
-    }
-
     if (fileManager_ != nullptr) {
         fileManager_->Fini();
+    }
+
+    if (curveClient_ != nullptr) {
+        curveClient_ ->UnInit();
     }
 
     if (heartbeatManager_ != nullptr) {
