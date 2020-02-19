@@ -38,7 +38,7 @@ int CurveClient::Open(const std::string& filename,
         return -LIBCURVE_ERROR::FAILED;
     }
 
-    return fileClient_->Open(realFileName, userInfo);
+    return fileClient_->Open(realFileName, userInfo, sessionId);
 }
 
 int CurveClient::ReOpen(const std::string& filename,
