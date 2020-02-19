@@ -134,8 +134,6 @@ TEST(SnapInstance, SnapShotTest) {
                                                         &seq));
 
     // set return kFileUnderSnapShot
-    ::curve::mds::CheckSnapShotStatusResponse* checkresp4 =
-        new ::curve::mds::CheckSnapShotStatusResponse();
     response.set_statuscode(::curve::mds::StatusCode::kFileUnderSnapShot);
     FakeReturn* checkfakeret3
      = new FakeReturn(nullptr, static_cast<void*>(&response));
@@ -143,6 +141,17 @@ TEST(SnapInstance, SnapShotTest) {
     ASSERT_EQ(-LIBCURVE_ERROR::UNDER_SNAPSHOT, cl.CreateSnapShot(filename,
                                                         userinfo,
                                                         &seq));
+
+    // set return kVersionNotMatch
+    ::curve::mds::CreateSnapShotResponse versionNotMatchResponse;
+    versionNotMatchResponse.set_statuscode(
+        curve::mds::StatusCode::kVersionNotMatch);
+    std::unique_ptr<FakeReturn> versionNotMatchFakeRetrun(
+        new FakeReturn(nullptr, static_cast<void*>(&versionNotMatchResponse)));
+
+    curvefsservice.SetCreateSnapShot(versionNotMatchFakeRetrun.get());
+    ASSERT_EQ(-LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT,
+              cl.CreateSnapShot(filename, userinfo, &seq));
 
     // test renamefile
     ::curve::mds::RenameFileResponse renameresp;
