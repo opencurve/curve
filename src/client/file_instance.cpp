@@ -150,6 +150,8 @@ int FileInstance::ReOpen(const std::string& filename,
     }
 
     if (response.status == LeaseRefreshResult::Status::OK) {
+        finfo_ = response.finfo;
+
         newSessionId->assign(lease.sessionID);
         ret = leaseexcutor_->Start(finfo_, lease) ? LIBCURVE_ERROR::OK
                                                   : LIBCURVE_ERROR::FAILED;
