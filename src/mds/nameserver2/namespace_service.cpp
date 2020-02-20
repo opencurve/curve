@@ -1066,6 +1066,10 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
 
     std::string clientIP = butil::ip2str(cntl->remote_side().ip).c_str();
     uint32_t clientPort = cntl->remote_side().port;
+    std::string clientVersion = "";
+    if (request->has_clientversion()) {
+        clientVersion = request->clientversion();
+    }
 
     if (!isPathValid(request->filename())) {
         response->set_statuscode(StatusCode::kParaError);
@@ -1112,6 +1116,7 @@ void NameSpaceService::OpenFile(::google::protobuf::RpcController* controller,
     FileInfo *fileInfo = new FileInfo();
     retCode = kCurveFS.OpenFile(request->filename(),
                                 clientIP,
+                                clientVersion,
                                 protoSession,
                                 fileInfo);
     if (retCode != StatusCode::kOK)  {

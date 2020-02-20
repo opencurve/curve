@@ -78,6 +78,8 @@ enum LIBCURVE_ERROR {
     STATUS_NOT_MATCH        = 26,
     // 删除文件正常被克隆
     DELETE_BEING_CLONED     = 27,
+    // client版本不支持快照
+    CLIENT_NOT_SUPPORT_SNAPSHOT = 28,
     // 未知错误
     UNKNOWN                 = 100
 };

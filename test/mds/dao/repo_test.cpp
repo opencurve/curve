@@ -373,7 +373,7 @@ TEST_F(RepoItemTest, testSessionCUDA) {
     uint64_t leaseTime = 5000000;
     uint64_t createTime = 123456789;
     SessionRepoItem r1("/file1", "sessionid1", leaseTime,
-                    0, createTime, "127.0.0.1");
+                    0, createTime, "127.0.0.1", "0.0.5");
     ASSERT_EQ(OperationOK, repo->InsertSessionRepoItem(r1));
 
     // sessionid1不唯一，插入失败
@@ -381,7 +381,7 @@ TEST_F(RepoItemTest, testSessionCUDA) {
 
     // insert session sessionid2
     SessionRepoItem r2("/file2", "sessionid2", leaseTime,
-                    0, createTime, "127.0.0.1");
+                    0, createTime, "127.0.0.1", "0.0.6");
     ASSERT_EQ(OperationOK, repo->InsertSessionRepoItem(r2));
 
     // query session
@@ -396,6 +396,7 @@ TEST_F(RepoItemTest, testSessionCUDA) {
     ASSERT_EQ(r1.sessionStatus, queryRes.sessionStatus);
     ASSERT_EQ(r1.createTime, queryRes.createTime);
     ASSERT_EQ(r1.clientIP, queryRes.clientIP);
+    ASSERT_EQ(r1.clientVersion, queryRes.clientVersion);
 
     // query all session
     std::vector<SessionRepoItem> sessionList;
@@ -405,10 +406,12 @@ TEST_F(RepoItemTest, testSessionCUDA) {
     ASSERT_EQ(r1.sessionID, sessionList[0].sessionID);
     ASSERT_EQ(r1.fileName, sessionList[0].fileName);
     ASSERT_EQ(r1.sessionStatus, sessionList[0].sessionStatus);
+    ASSERT_EQ(r1.clientVersion, sessionList[0].clientVersion);
     ASSERT_TRUE(r2 == sessionList[1]);
     ASSERT_EQ(r2.sessionID, sessionList[1].sessionID);
     ASSERT_EQ(r2.fileName, sessionList[1].fileName);
     ASSERT_EQ(r2.sessionStatus, sessionList[1].sessionStatus);
+    ASSERT_EQ(r2.clientVersion, sessionList[1].clientVersion);
 
     // update session
     r1.sessionStatus = 1;
