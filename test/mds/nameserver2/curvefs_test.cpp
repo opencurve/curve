@@ -1467,6 +1467,47 @@ TEST_F(CurveFSTest, testGetOrAllocateSegment) {
 
 TEST_F(CurveFSTest, testCreateSnapshotFile) {
     {
+        // test client version invalid
+        FileInfo originalFile;
+        originalFile.set_seqnum(1);
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        ProtoSession protoSession;
+        sessionManager_->InsertSession("/snapshotFile1WithInvalidClientVersion",
+            "127.0.0.1", "", &protoSession);
+
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(curvefs_->CreateSnapShotFile(
+                "/snapshotFile1WithInvalidClientVersion",
+                &snapShotFileInfoRet), StatusCode::kVersionNotMatch);
+    }
+    {
+        // test client version invalid2
+        FileInfo originalFile;
+        originalFile.set_seqnum(1);
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        ProtoSession protoSession;
+        sessionManager_->InsertSession(
+            "/snapshotFile1WithInvalidClientVersion2",
+            "127.0.0.1", "0.0.5.x", &protoSession);
+
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(curvefs_->CreateSnapShotFile(
+                "/snapshotFile1WithInvalidClientVersion2",
+                &snapShotFileInfoRet), StatusCode::kVersionNotMatch);
+    }
+    {
         // test under snapshot
         FileInfo originalFile;
         originalFile.set_seqnum(1);
@@ -1528,8 +1569,58 @@ TEST_F(CurveFSTest, testCreateSnapshotFile) {
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
 
+        // test client version valid
+        ProtoSession protoSession;
+        sessionManager_->InsertSession("/originalFile",
+            "127.0.0.1", "0.0.6", &protoSession);
+
         FileInfo snapShotFileInfoRet;
         ASSERT_EQ(curvefs_->CreateSnapShotFile("/originalFile",
+                &snapShotFileInfoRet), StatusCode::kOK);
+        ASSERT_EQ(snapShotFileInfoRet.parentid(), originalFile.id());
+        ASSERT_EQ(snapShotFileInfoRet.filename(),
+            originalFile.filename() + "-" +
+            std::to_string(originalFile.seqnum()) );
+        ASSERT_EQ(snapShotFileInfoRet.filestatus(), FileStatus::kFileCreated);
+        ASSERT_EQ(
+            snapShotFileInfoRet.filetype(), FileType::INODE_SNAPSHOT_PAGEFILE);
+    }
+    {
+        // test create snapshot ok
+        FileInfo originalFile;
+        originalFile.set_id(1);
+        originalFile.set_seqnum(1);
+        originalFile.set_filename("originalFile2");
+        originalFile.set_filetype(FileType::INODE_PAGEFILE);
+
+        EXPECT_CALL(*storage_, GetFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(originalFile),
+            Return(StoreStatus::OK)));
+
+        std::vector<FileInfo> snapShotFiles;
+        EXPECT_CALL(*storage_, ListSnapshotFile(_, _, _))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<2>(snapShotFiles),
+                Return(StoreStatus::OK)));
+
+        EXPECT_CALL(*inodeIdGenerator_, GenInodeID(_))
+        .Times(1)
+        .WillOnce(DoAll(SetArgPointee<0>(2),
+            Return(true)));
+
+        FileInfo snapShotFileInfo;
+        EXPECT_CALL(*storage_, SnapShotFile(_, _))
+        .Times(1)
+        .WillOnce(Return(StoreStatus::OK));
+
+        // test client version valid
+        ProtoSession protoSession;
+        sessionManager_->InsertSession("/originalFile2",
+            "127.0.0.1", "unknown", &protoSession);
+
+        FileInfo snapShotFileInfoRet;
+        ASSERT_EQ(curvefs_->CreateSnapShotFile("/originalFile2",
                 &snapShotFileInfoRet), StatusCode::kOK);
         ASSERT_EQ(snapShotFileInfoRet.parentid(), originalFile.id());
         ASSERT_EQ(snapShotFileInfoRet.filename(),
@@ -2223,7 +2314,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::KeyNotExist));
-        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", "",
                                      &protoSession, &fileInfo),
                   StatusCode::kFileNotExists);
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
@@ -2237,7 +2328,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         EXPECT_CALL(*storage_, GetFile(_, _, _))
         .Times(1)
         .WillOnce(Return(StoreStatus::OK));
-        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", "",
                                      &protoSession, &fileInfo),
                   StatusCode::kNotSupported);
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
@@ -2256,7 +2347,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         .Times(1)
         .WillOnce(Return(repo::SqlException));
 
-        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", "",
                                      &protoSession, &fileInfo),
                   StatusCode::KInternalError);
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 0);
@@ -2275,7 +2366,7 @@ TEST_F(CurveFSTest, testOpenFile) {
         .Times(1)
         .WillOnce(Return(repo::OperationOK));
 
-        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
+        ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", "",
                                      &protoSession, &fileInfo),
                   StatusCode::kOK);
         ASSERT_EQ(curvefs_->GetOpenFileNum(), 1);
@@ -2283,7 +2374,7 @@ TEST_F(CurveFSTest, testOpenFile) {
 
     SessionRepoItem sessionRepo("/file1", "sessionid",
                     sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                111, "127.0.0.1");
+                                111, "127.0.0.1", "");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),
@@ -2304,7 +2395,7 @@ TEST_F(CurveFSTest, testCloseFile) {
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
-    ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
+    ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", "",
                                     &protoSession, &fileInfo),
                 StatusCode::kOK);
 
@@ -2361,7 +2452,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
     .Times(1)
     .WillOnce(Return(repo::OperationOK));
 
-    ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1",
+    ASSERT_EQ(curvefs_->OpenFile("/file1", "127.0.0.1", "",
                                     &protoSession, &fileInfo),
                 StatusCode::kOK);
 
@@ -2406,7 +2497,7 @@ TEST_F(CurveFSTest, testRefreshSession) {
 
     SessionRepoItem sessionRepo("/file1", "sessionid",
                     sessionOptions_.leaseTimeUs, SessionStatus::kSessionOK,
-                                111, "127.0.0.1");
+                                111, "127.0.0.1", "");
     EXPECT_CALL(*mockRepo_, QuerySessionRepoItem(_, _))
         .Times(1)
         .WillOnce(DoAll(SetArgPointee<1>(sessionRepo),

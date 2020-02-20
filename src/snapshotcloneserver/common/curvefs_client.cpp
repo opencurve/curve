@@ -43,7 +43,8 @@ int CurveFsClientImpl::CreateSnapshot(const std::string &filename,
         };
     RetryCondition condition = [] (int ret) {
         return ret != LIBCURVE_ERROR::OK &&
-            ret != -LIBCURVE_ERROR::UNDER_SNAPSHOT;
+            ret != -LIBCURVE_ERROR::UNDER_SNAPSHOT &&
+            ret != -LIBCURVE_ERROR::CLIENT_NOT_SUPPORT_SNAPSHOT;
     };
     RetryHelper retryHelper(method, condition);
     return retryHelper.RetryTimeSecAndReturn(clientMethodRetryTimeSec_,

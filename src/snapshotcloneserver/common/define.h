@@ -69,6 +69,8 @@ const int kErrCodeSnapshotCountReachLimit = -18;
 const int kErrCodeFileExist = -19;
 // 错误码：克隆任务已满
 const int kErrCodeTaskIsFull = -20;
+// 错误码：不支持
+const int kErrCodeNotSupport = -21;
 
 extern std::map<int, std::string> code2Msg;
 

@@ -295,6 +295,10 @@ bool CurveFS::isFileHasValidSession(const std::string &fileName) {
     return sessionManager_->isFileHasValidSession(fileName);
 }
 
+bool CurveFS::IsClientVersionSnapshotCompatible(const std::string &fileName) {
+    return sessionManager_->IsClientVersionSnapshotCompatible(fileName);
+}
+
 StatusCode CurveFS::DeleteFile(const std::string & filename, uint64_t fileId,
                             bool deleteForce) {
     std::string lastEntry;
@@ -818,6 +822,12 @@ StatusCode CurveFS::CreateSnapShotFile(const std::string &fileName,
         return StatusCode::kNotSupported;
     }
 
+    // 兼容性设计，当client版本不存在或小于0.0.6时，不允许打快照
+    if (!IsClientVersionSnapshotCompatible(fileName)) {
+        LOG(ERROR) << fileName << " Valid Client Version fail";
+        return StatusCode::kVersionNotMatch;
+    }
+
     // check  if snapshot exist
     std::vector<FileInfo> snapShotFiles;
     if (storage_->ListSnapshotFile(fileInfo.id(),
@@ -1094,6 +1104,7 @@ StatusCode CurveFS::GetSnapShotFileSegment(
 
 StatusCode CurveFS::OpenFile(const std::string &fileName,
                              const std::string &clientIP,
+                             const std::string &clientVersion,
                              ProtoSession *protoSession,
                              FileInfo  *fileInfo) {
     // 检查文件是否存在
@@ -1120,7 +1131,8 @@ StatusCode CurveFS::OpenFile(const std::string &fileName,
         return StatusCode::kNotSupported;
     }
 
-    ret = sessionManager_->InsertSession(fileName, clientIP, protoSession);
+    ret = sessionManager_->InsertSession(
+        fileName, clientIP, clientVersion, protoSession);
     if (ret == StatusCode::kFileOccupied) {
         LOG(WARNING) << "OpenFile file occupied, fileName = " << fileName
                    << ", clientIP = " << clientIP
